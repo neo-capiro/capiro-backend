@@ -787,17 +787,27 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     mockAggregate(AGGREGATE_WITH_DEADLINES);
     renderWithRoutes();
 
+    const deadlineRail = await screen.findByTestId('capiro-intel-deadline-rail');
     await waitFor(() =>
-      expect(screen.getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
+      expect(within(deadlineRail).getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
     );
-    // A rail with no deadline is not a deadline — it must not appear on the rail.
-    expect(screen.queryByText('Rule with no comment deadline')).not.toBeInTheDocument();
-    // The fixture's own deadlines must not leak through as if real. Asserted on
-    // the DEADLINES `ask` copy, not its titles: the titles are also in MATTERS,
-    // which the Active matters card still renders as fixture on purpose, so a
-    // title assertion would fail against a card this item never claimed.
+    // A rail with no deadline is not a deadline — it must not appear on the
+    // deadline rail specifically (it legitimately appears in Active matters
+    // below, which lists every rail regardless of whether it has a deadline).
+    expect(within(deadlineRail).queryByText('Rule with no comment deadline')).not.toBeInTheDocument();
+    // The fixture's own deadlines must not leak through as if real.
     expect(screen.queryByText('Submit or approve comment strategy')).not.toBeInTheDocument();
     expect(screen.queryByText('Final rule becomes effective')).not.toBeInTheDocument();
+
+    // Active matters is now wired to the same real `rails` array (previously
+    // it rendered the MATTERS fixture unconditionally) — it shows BOTH rails,
+    // including the one with no deadline, and none of the MATTERS fixture's
+    // own titles leak through as if real.
+    const activeMatters = screen.getByTestId('capiro-intel-active-matters');
+    expect(within(activeMatters).getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument();
+    expect(within(activeMatters).getByText('Rule with no comment deadline')).toBeInTheDocument();
+    expect(screen.queryByText('Autonomous Vehicle Safety Framework')).not.toBeInTheDocument();
+    expect(screen.queryByText('AI Assurance for Defense Systems')).not.toBeInTheDocument();
   });
 
   it('downloads an .ics built from the real deadlines', async () => {
@@ -813,8 +823,9 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     renderWithRoutes();
+    const deadlineRail = await screen.findByTestId('capiro-intel-deadline-rail');
     await waitFor(() =>
-      expect(screen.getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
+      expect(within(deadlineRail).getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByText('Calendar'));
 
@@ -873,10 +884,134 @@ describe('ClientCrmIntelligenceProto — Legislative & Regulatory (consolidated)
     expect((await screen.findAllByText('Tracked bills')).length).toBeGreaterThan(0);
     // ...and Regulatory content (deadline rail) on the SAME screen, with no
     // second tab/view switch required — this used to be two separate
-    // segmented-tab views.
-    expect(await screen.findByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument();
+    // segmented-tab views. (The same real rail title also now renders in the
+    // Active-matters card beside it, so this is asserted with getAllByText
+    // rather than a single-match query.)
+    expect((await screen.findAllByText('Unmanned Systems Cyber Baseline; Proposed Rule')).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Legislative & Regulatory' })).toBeInTheDocument();
     // No leftover standalone "Regulatory" domain heading/tab remains.
     expect(screen.queryByRole('heading', { name: 'Regulatory', level: 1 })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Design-system reconciliation pass (styling + "never fabricate" fixes):
+ * confirmed query errors must render an honest "could not be loaded" state,
+ * never the design fixture that used to stand in for "not yet successful"
+ * (a state that conflated loading with error). These pin the NEW behavior
+ * for the panels that previously fell back to a fixture on error.
+ */
+describe('ClientCrmIntelligenceProto — honest error states (never a fixture on a confirmed error)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('shows an honest error, not the BILLS/STAGES fixture, when the tracked-bill board request fails', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+      if (url === '/api/intelligence/clients/client-1/tracker/board') {
+        return Promise.reject(new Error('board service unavailable'));
+      }
+      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderLegislative();
+
+    await waitFor(() =>
+      expect(screen.getByText(/The tracked-bill board could not be loaded/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/board service unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    // The BILLS design fixture must never stand in for a confirmed error.
+    expect(screen.queryByText('Autonomous Systems Readiness Act')).not.toBeInTheDocument();
+    // The real "Open full board" navigation stays available regardless.
+    expect(screen.getByText('Open full board →')).toBeInTheDocument();
+  });
+
+  it('shows an honest error, not the MATTERS fixture, when the regulatory aggregate request fails', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+      if (url === '/api/intelligence/clients/client-1/tracker/board') {
+        return Promise.resolve({ data: { total: 0, withheld: 0, columns: [] } });
+      }
+      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+      }
+      if (url === '/api/intelligence/clients/client-1/profile-v1') {
+        return Promise.reject(new Error('aggregate service unavailable'));
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderWithRoutes();
+
+    // `aggregate` sets an explicit retry: 1 on the query itself, which
+    // overrides this test's QueryClient-level retry:false default — reaching
+    // isError takes a real backoff delay, so the default 1000ms waitFor
+    // window isn't enough.
+    await waitFor(
+      () => expect(screen.getByText(/Active regulatory matters could not be loaded/)).toBeInTheDocument(),
+      { timeout: 5000 },
+    );
+    expect(screen.getByText(/The deadline rail could not be loaded/)).toBeInTheDocument();
+    // The MATTERS/DEADLINES design fixtures must never stand in for a confirmed error.
+    expect(screen.queryByText('Autonomous Vehicle Safety Framework')).not.toBeInTheDocument();
+    expect(screen.queryByText('Submit or approve comment strategy')).not.toBeInTheDocument();
+    // Calendar can't export a fixture, and there is nothing real to export either.
+    expect(screen.getByText('Calendar')).toBeDisabled();
+  });
+
+  it('shows an honest error, not the OPPS/PROGRAMS fixtures, when funding queries fail on an enabled tenant', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: { funding_opportunities: true } });
+      if (url === '/api/intelligence/clients/client-1/opportunities/summary') {
+        return Promise.reject(new Error('opportunities service unavailable'));
+      }
+      if (url === '/api/intelligence/clients/client-1/pe-relevance') {
+        return Promise.reject(new Error('relevance service unavailable'));
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderFunding();
+
+    // `opportunitiesQ` sets an explicit retry: 1 on the query itself, which
+    // overrides this test's QueryClient-level retry:false default — same
+    // reasoning as the regulatory-aggregate test above.
+    await waitFor(
+      () => expect(screen.getByText(/Funding opportunities could not be loaded/)).toBeInTheDocument(),
+      { timeout: 5000 },
+    );
+    expect(screen.getByText(/Relevant budget programs could not be loaded/)).toBeInTheDocument();
+    expect(screen.queryByText('Autonomous Ground Vehicle Integration')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ground Robotics')).not.toBeInTheDocument();
+    expect(screen.queryByText('View all 7')).not.toBeInTheDocument();
+  });
+
+  it('shows an honest error, not the $1.8M/Sparkline or LDA-rows fixtures, when the LDA request fails', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/clients/client-1/lda-filings') {
+        return Promise.reject(new Error('lda service unavailable'));
+      }
+      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
+        return Promise.resolve({
+          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
+        });
+      }
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: PAC_GIVING_REAL });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderFootprint();
+
+    await waitFor(() =>
+      expect(screen.getAllByText(/could not be loaded/).length).toBeGreaterThanOrEqual(2),
+    );
+    expect(screen.getByText(/Lobbying activity could not be loaded/)).toBeInTheDocument();
+    expect(screen.getByText(/Lobbying disclosure history could not be loaded/)).toBeInTheDocument();
+    expect(screen.queryByText('$1.8M')).not.toBeInTheDocument();
+    expect(screen.queryByText('Northwest Government Affairs')).not.toBeInTheDocument();
+    // The unrelated Federal awards card still renders its real data.
+    expect(screen.getByText('$12,000,000')).toBeInTheDocument();
   });
 });

@@ -87,6 +87,7 @@ import {
   type FundingOpportunity,
   type OpportunityWorkflowStatus,
 } from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
+import './intelligence-tab.css';
 
 /**
  * Intelligence tab (spec §10). Five domains via a segmented bar: Legislative ·
@@ -99,9 +100,15 @@ import {
  * Past performance moved in from Capabilities §7.3 and sits under Federal
  * Footprint, with the rest of the client's federal delivery record.
  *
- * The precise records are designed fixtures (§14); where a real client-scoped
- * aggregate exists it would override, but the domain bodies render the design's
- * contract. Fixture-backed sections are flagged UI-only in the ship report.
+ * Real client-scoped data overrides the design's precise records (§14)
+ * wherever a query answers. A design fixture may still stand in for the
+ * initial loading flash (never a fake number in place of a slow real one
+ * settling in) but must NEVER survive a confirmed query error — that gate is
+ * `<source query>.isError`, checked explicitly beside every fixture fallback
+ * below, not just "not yet successful." Where no endpoint exists at all
+ * (Pursuit pipeline pills), the card was removed rather than left permanently
+ * fake. Any section still flagged UI-only in the ship report is a genuine
+ * fixture-during-loading, not a standing fabrication.
  */
 
 const INTEL_TONE: Record<string, PillTone> = {
@@ -206,7 +213,7 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
   const realStats = useDomainStats(client, view, api);
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise capiro-intel capiro-intel-stack-24">
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
       <DomainStatsStrip view={view} realValues={realStats} />
       {view === 'legislative' ? (
@@ -430,19 +437,24 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
 /* ── shared buttons ───────────────────────────────────────────────────────── */
 
 function SecondaryBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
-  const [hover, setHover] = useState(false);
   return (
-    <button type="button" onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 8, background: hover ? '#FAF9F6' : '#ffffff', color: hover ? '#101828' : '#344054', fontSize: 14, fontWeight: 600, lineHeight: '20px', whiteSpace: 'nowrap', border: '1px solid #E0DCD4', boxShadow: '0px 1px 2px rgba(16,24,40,.05)' }}>
+    <button type="button" onClick={onClick} className="capiro-intel-btn-secondary">
       {children}
     </button>
   );
 }
 function PrimaryBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
-  const [hover, setHover] = useState(false);
+  // GRADIENT_DARK is imported from portfolio-primitives.js (not owned by this
+  // file); it lands as a CSS custom property rather than a straight `background`
+  // inline style so the class's own `:hover` rule (a different gradient) can
+  // still win — an inline `background` would block `:hover` from ever applying.
   return (
-    <button type="button" onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 8, background: hover ? 'linear-gradient(180deg,#4A5462 0%,#252F3C 46%,#161D26 100%)' : GRADIENT_DARK, color: '#ffffff', fontSize: 14, fontWeight: 600, lineHeight: '20px', whiteSpace: 'nowrap', boxShadow: '0px 1px 2px rgba(16,24,40,.05)' }}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="capiro-intel-btn-primary"
+      style={{ '--capiro-intel-btn-bg': GRADIENT_DARK } as CSSProperties}
+    >
       {children}
     </button>
   );
@@ -458,13 +470,28 @@ function LinkBtn({
   disabled?: boolean;
   title?: string;
 }) {
-  const [hover, setHover] = useState(false);
   return (
     <button type="button" onClick={onClick} disabled={disabled} {...(title ? { title } : {})}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ fontSize: 14, fontWeight: 600, color: disabled ? '#98A2B3' : hover ? '#0E141C' : '#101828', whiteSpace: 'nowrap', cursor: disabled ? 'not-allowed' : 'pointer' }}>
+      className="capiro-intel-btn-link">
       {children}
     </button>
+  );
+}
+
+/**
+ * Honest replacement for a design fixture on a CONFIRMED query error — never
+ * used for the loading state, only `<query>.isError`. Every fixture fallback
+ * in this file that used to render on "not yet successful" (which conflates
+ * loading with error) now checks this explicitly instead; see the module
+ * doc-comment at the top of this file.
+ */
+function CouldNotLoad({ what, error, onRetry }: { what: string; error?: unknown; onRetry?: () => void }) {
+  const detail = error instanceof Error && error.message ? error.message : `The service did not answer.`;
+  return (
+    <div className="capiro-intel-error">
+      <p className="capiro-intel-error-text">{what} could not be loaded. {detail}</p>
+      {onRetry ? <SecondaryBtn onClick={onRetry}>Retry</SecondaryBtn> : null}
+    </div>
   );
 }
 
@@ -482,15 +509,11 @@ function DomainStatsStrip({ view, realValues }: { view: IntelligenceView; realVa
     realValues && realValues.length > 0 ? realValues : labelSource.map(([, label]) => ['—', label]);
   const loading = !realValues || realValues.length === 0;
   return (
-    <section
-      style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}
-      data-source={loading ? 'loading' : 'live'}
-      aria-busy={loading}
-    >
-      {cells.map(([value, label], i) => (
-        <span key={label} style={{ flex: 1, minWidth: 168, padding: '20px 24px', boxShadow: i === 0 ? 'none' : 'inset 1px 0 0 #E8E5DF', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: loading ? '#98A2B3' : '#101828', lineHeight: 1.2 }}>{value}</span>
-          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>{label}</span>
+    <section className="capiro-intel-stats" data-source={loading ? 'loading' : 'live'} aria-busy={loading}>
+      {cells.map(([value, label]) => (
+        <span key={label} className="capiro-intel-stats-cell">
+          <span className={loading ? 'capiro-intel-stats-value capiro-intel-stats-value--loading' : 'capiro-intel-stats-value'}>{value}</span>
+          <span className="capiro-intel-stats-label">{label}</span>
         </span>
       ))}
     </section>
@@ -538,6 +561,9 @@ function LegislativePanel({
     staleTime: 60_000,
   });
   const realBoard = ready && boardQ.isSuccess ? boardQ.data : null;
+  // Distinct from "not yet successful": a confirmed error must never fall
+  // back to the BILLS/STAGES design fixture — see CouldNotLoad.
+  const boardFailed = ready && boardQ.isError;
 
   // Bill ids already on the board — the AddBill modal shows these as "On board".
   const boardBillIds = useMemo(
@@ -566,7 +592,7 @@ function LegislativePanel({
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="capiro-intel-stack-24">
       {/* Recommendations was removed (user request): the Legislative surface is
           now a single full-width tracked-bill board. */}
       <Card>
@@ -580,12 +606,12 @@ function LegislativePanel({
         />
         {realBoard ? (
           realBoard.total === 0 ? (
-            <p style={{ margin: 0, padding: '4px 24px 16px', fontSize: 14, color: '#475467' }}>
+            <p className="capiro-intel-note">
               No bills are on this client&apos;s board yet. Use{' '}
               <button
                 type="button"
                 onClick={() => onAddBillOpenChange(true)}
-                style={{ fontWeight: 600, color: '#101828', textDecoration: 'underline', cursor: 'pointer' }}
+                className="capiro-intel-note-link"
               >
                 Track bill
               </button>{' '}
@@ -596,32 +622,34 @@ function LegislativePanel({
           ) : (
             <RealBillTable board={realBoard} onOpenBill={setOpenBill} />
           )
+        ) : boardFailed ? (
+          <CouldNotLoad what="The tracked-bill board" error={boardQ.error} onRetry={() => void boardQ.refetch()} />
         ) : boardView ? (
           <BillBoard />
         ) : (
           <BillTable />
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px 18px' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-            {/* `withheld` must be stated when > 0 — a bounded board that stays
-                silent about it is less honest than an unbounded one. */}
-            {realBoard
-              ? realBoard.withheld
-                ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
-                : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
-              : '6 more tracked bills'}
-          </span>
-          <span style={{ flex: 1 }} />
+        <div className="capiro-intel-card-foot">
+          {/* `withheld` must be stated when > 0 — a bounded board that stays
+              silent about it is less honest than an unbounded one. On a
+              confirmed error there is no real or fixture count to state. */}
+          {!boardFailed ? (
+            <span className="capiro-intel-eyebrow">
+              {realBoard
+                ? realBoard.withheld
+                  ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
+                  : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
+                : '6 more tracked bills'}
+            </span>
+          ) : null}
+          <span className="capiro-intel-spacer" />
           <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
         </div>
-        {/* Upcoming hearing footer relocated here from the removed
-            Recommendations card so the surface keeps the hearing cue. */}
-        <div style={{ padding: '14px 24px 20px', borderTop: '1px solid #E8E5DF' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-            Upcoming hearing
-          </div>
-          <div style={{ marginTop: 4, fontSize: 14, color: '#101828' }}>HASC · Autonomous Systems · Aug 13</div>
-        </div>
+        {/* The "Upcoming hearing" footer that used to live here (relocated from
+            the removed Recommendations card) always read a single hardcoded
+            hearing regardless of client or query state — no hearings endpoint
+            is read anywhere in this file. Removed rather than left permanently
+            fake; a real hearings feed would restore it as a wired card. */}
       </Card>
 
       <AddBillModal
@@ -660,13 +688,13 @@ const CHANGE_TONE: Record<string, PillTone> = {
 
 function RealBillBoard({ board, onOpenBill }: { board: BoardResponse; onOpenBill: (b: BoardBill) => void }) {
   return (
-    <div style={{ padding: '20px 20px 12px', overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(188px,1fr))', gap: 14, minWidth: 800, alignItems: 'start' }}>
+    <div className="capiro-intel-board">
+      <div className="capiro-intel-board-grid">
         {board.columns.map((col) => (
-          <span key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid #E8E5DF' }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{col.label}</span>
-              <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 7px', borderRadius: 9999, background: GRADIENT_DARK, color: '#ffffff', fontSize: 11, fontWeight: 600 }}>{col.count}</span>
+          <span key={col.id} className="capiro-intel-board-col">
+            <span className="capiro-intel-board-col-head">
+              <span className="capiro-intel-board-col-title">{col.label}</span>
+              <span className="capiro-intel-count-badge" style={{ background: GRADIENT_DARK }}>{col.count}</span>
             </span>
             {col.bills.map((b) => (
               <RealBillCard key={b.billId} b={b} onOpen={() => onOpenBill(b)} />
@@ -679,37 +707,34 @@ function RealBillBoard({ board, onOpenBill }: { board: BoardResponse; onOpenBill
 }
 
 function RealBillCard({ b, onOpen }: { b: BoardBill; onOpen: () => void }) {
-  const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-label={`View latest updates for ${b.displayNum}`}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 12, borderRadius: 8, background: hover ? '#FAF9F6' : '#ffffff', border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF', textAlign: 'left', cursor: 'pointer' }}
+      className="capiro-intel-bill-card"
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {b.unread ? <span aria-label="Unread" style={{ flex: '0 0 auto', width: 6, height: 6, borderRadius: '50%', background: '#101828' }} /> : null}
-        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>{b.displayNum}</span>
+      <span className="capiro-intel-bill-card-top">
+        {b.unread ? <span aria-label="Unread" className="capiro-intel-unread-dot" /> : null}
+        <span className="capiro-intel-bill-num">{b.displayNum}</span>
         <Pill tone="gray" dotless>{passagePct(b.probability)}% pass</Pill>
       </span>
-      <span style={{ fontSize: 13, lineHeight: '18px', color: '#344054', textWrap: 'pretty' }}>{b.title}</span>
+      <span className="capiro-intel-bill-title">{b.title}</span>
       {/* The real status label, when the board carries one — the coarse stage
           lane the card sits in is already shown by its column header. */}
       {b.canonicalStatus ? (
-        <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.canonicalStatus}</span>
+        <span className="capiro-intel-bill-meta">{b.canonicalStatus}</span>
       ) : null}
       {b.latestActionText ? (
-        <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.latestActionText}</span>
+        <span className="capiro-intel-bill-meta">{b.latestActionText}</span>
       ) : null}
       {b.change ? (
-        <span style={{ alignSelf: 'flex-start' }}>
+        <span className="capiro-intel-align-start">
           <Pill tone={CHANGE_TONE[b.change.tone] ?? 'gray'} dotless={!b.change.dot}>{b.change.label}</Pill>
         </span>
       ) : null}
       {b.terminalRisk ? (
-        <span style={{ alignSelf: 'flex-start' }}>
+        <span className="capiro-intel-align-start">
           <Pill tone="error">Terminal risk</Pill>
         </span>
       ) : null}
@@ -727,17 +752,17 @@ function RealBillTable({ board, onOpenBill }: { board: BoardResponse; onOpenBill
           type="button"
           onClick={() => onOpenBill(r)}
           aria-label={`View latest updates for ${r.displayNum}`}
-          style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: '1px solid #E8E5DF', textAlign: 'left', background: 'transparent', cursor: 'pointer' }}
+          className="capiro-intel-table-row"
         >
-          <span style={{ flex: '0 0 auto', width: 88, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.displayNum}</span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{r.title}</span>
-            <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>
+          <span className="capiro-intel-table-num">{r.displayNum}</span>
+          <span className="capiro-intel-table-main">
+            <span className="capiro-intel-table-title">{r.title}</span>
+            <span className="capiro-intel-table-sub">
               {r.latestActionText ?? r.canonicalStatus ?? 'No action recorded'}
             </span>
           </span>
-          <span style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}>{stageLabel}</span>
-          <span style={{ flex: '0 0 auto', width: 76, display: 'flex', justifyContent: 'flex-end' }}>
+          <span className="capiro-intel-table-stage">{stageLabel}</span>
+          <span className="capiro-intel-table-end-76">
             <Pill tone="gray" dotless>{passagePct(r.probability)}% pass</Pill>
           </span>
         </button>
@@ -748,15 +773,15 @@ function RealBillTable({ board, onOpenBill }: { board: BoardResponse; onOpenBill
 
 function BillBoard() {
   return (
-    <div style={{ padding: '20px 20px 12px', overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(188px,1fr))', gap: 14, minWidth: 800, alignItems: 'start' }}>
+    <div className="capiro-intel-board">
+      <div className="capiro-intel-board-grid">
         {STAGES.map((stage) => {
           const bills = BILLS.filter((b) => b.stage === stage.id);
           return (
-            <span key={stage.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid #E8E5DF' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{stage.label}</span>
-                <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 7px', borderRadius: 9999, background: GRADIENT_DARK, color: '#ffffff', fontSize: 11, fontWeight: 600 }}>{stage.count}</span>
+            <span key={stage.id} className="capiro-intel-board-col">
+              <span className="capiro-intel-board-col-head">
+                <span className="capiro-intel-board-col-title">{stage.label}</span>
+                <span className="capiro-intel-count-badge" style={{ background: GRADIENT_DARK }}>{stage.count}</span>
               </span>
               {bills.map((b) => (
                 <BillCard key={b.number} b={b} />
@@ -770,16 +795,14 @@ function BillBoard() {
 }
 
 function BillCard({ b }: { b: (typeof BILLS)[number] }) {
-  const [hover, setHover] = useState(false);
   return (
-    <button type="button" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 12, borderRadius: 8, background: hover ? '#FAF9F6' : '#ffffff', border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF', textAlign: 'left' }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>{b.number}</span>
+    <button type="button" className="capiro-intel-bill-card">
+      <span className="capiro-intel-bill-card-top">
+        <span className="capiro-intel-bill-num">{b.number}</span>
         <FitChip score={b.fit} suffix="" />
       </span>
-      <span style={{ fontSize: 13, lineHeight: '18px', color: '#344054', textWrap: 'pretty' }}>{b.title}</span>
-      <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.latest}</span>
+      <span className="capiro-intel-bill-title">{b.title}</span>
+      <span className="capiro-intel-bill-meta">{b.latest}</span>
     </button>
   );
 }
@@ -788,14 +811,14 @@ function BillTable() {
   return (
     <div>
       {BILLS.map((r) => (
-        <button key={r.number} type="button" style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: '1px solid #E8E5DF', textAlign: 'left' }}>
-          <span style={{ flex: '0 0 auto', width: 88, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.number}</span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{r.title}</span>
-            <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>{r.latest}</span>
+        <button key={r.number} type="button" className="capiro-intel-table-row">
+          <span className="capiro-intel-table-num">{r.number}</span>
+          <span className="capiro-intel-table-main">
+            <span className="capiro-intel-table-title">{r.title}</span>
+            <span className="capiro-intel-table-sub">{r.latest}</span>
           </span>
-          <span style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467', textTransform: 'capitalize' }}>{r.stage}</span>
-          <span style={{ flex: '0 0 auto', width: 56, display: 'flex', justifyContent: 'flex-end' }}>
+          <span className="capiro-intel-table-stage">{r.stage}</span>
+          <span className="capiro-intel-table-end-56">
             <FitChip score={r.fit} suffix="" />
           </span>
         </button>
@@ -832,6 +855,42 @@ interface DeadlineView {
   documentNumber?: string;
 }
 
+/** A regulatory matter the Active-matters card can render — real or fixture. */
+interface MatterView {
+  key: string;
+  title: string;
+  agency: string;
+  docket: string;
+  stage: string;
+  tone: PillTone;
+  /** null on real data with no dated deadline — the row omits the line rather than inventing one. */
+  detail: string | null;
+  /** null on real data with no linked bills — the row omits "Linked …" rather than rendering it empty. */
+  linked: string | null;
+  /** null when the rail's currentStage can't be confidently matched into its own stages list — the
+   * rail then renders as a plain stage pill with no fabricated progress state. */
+  steps: Array<[string, string]> | null;
+  /** Sort key only (mirrors DeadlineView's own `on`) — never rendered directly; null on fixture rows and on real rows with no dated deadline. */
+  on: Date | null;
+}
+
+const MATTER_FIXTURE_TONE: Record<string, PillTone> = { warning: 'warning', blue: 'blue', brand: 'brand' };
+
+function matterViewFromFixture(m: (typeof MATTERS)[number]): MatterView {
+  return {
+    key: m.title,
+    title: m.title,
+    agency: m.agency,
+    docket: m.docket,
+    stage: m.stage,
+    tone: MATTER_FIXTURE_TONE[m.ui] ?? 'gray',
+    detail: m.detail,
+    linked: m.linked,
+    steps: m.steps as Array<[string, string]>,
+    on: null,
+  };
+}
+
 /**
  * Divider between the Legislative content above and Regulatory below —
  * both now render on the same "Legislative & Regulatory" domain view. Not a
@@ -840,9 +899,9 @@ interface DeadlineView {
  */
 function RegulatorySectionHead() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
-      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#101828' }}>Regulatory</h3>
-      <span style={{ flex: 1, height: 1, background: '#E8E5DF' }} />
+    <div className="capiro-intel-section-head">
+      <h3 className="capiro-intel-title-sm">Regulatory</h3>
+      <span className="capiro-intel-section-rule" />
     </div>
   );
 }
@@ -858,6 +917,10 @@ function RegulatoryPanel({ client }: { client: Client }) {
    * Calendar exports THOSE dates — a .ics built from the design fixture would
    * be a file of invented events sitting in someone's calendar, so the button
    * is disabled whenever the fixture is what is on screen.
+   *
+   * This one query also backs the Active-matters card below: `rails` is the
+   * exact same array useDomainStats already counts as "Active matters", just
+   * unfiltered by deadline (the Deadline rail only keeps rails that have one).
    */
   const aggregate = useQuery<ClientProfileV1>({
     queryKey: ['client-intel-v1-aggregate', client.id],
@@ -868,7 +931,8 @@ function RegulatoryPanel({ client }: { client: Client }) {
   });
 
   const lifecycle = aggregate.data?.sections?.legislativeRegulatory?.regulatoryLifecycle;
-  const loaded = aggregate.data !== undefined && !aggregate.isError;
+  const aggFailed = aggregate.isError;
+  const loaded = aggregate.data !== undefined && !aggFailed;
 
   const realDeadlines: DeadlineView[] = useMemo(() => {
     const rails = lifecycle?.rails ?? [];
@@ -897,9 +961,46 @@ function RegulatoryPanel({ client }: { client: Client }) {
       .sort((a, b) => a.on.getTime() - b.on.getTime());
   }, [lifecycle]);
 
-  // Fixture only while the aggregate is loading or errored (§14 convention).
-  // Once it resolves, real deadlines — or an honest "none" — are shown.
-  const showFixture = !loaded;
+  const realMatters: MatterView[] = useMemo(() => {
+    const rails = lifecycle?.rails ?? [];
+    return rails
+      .map((rail) => {
+        const on = rail.deadline ? deadlineDay(rail.deadline) : null;
+        const days = on ? Math.ceil((on.getTime() - Date.now()) / 86_400_000) : null;
+        // Same urgency band the deadline rail uses — a matter with a deadline
+        // inside 3 days is 'warning', any other dated matter is 'blue', an
+        // undated one (final/enacted, or simply no comment window) is 'gray'.
+        const tone: PillTone = days != null && days <= 3 ? 'warning' : on ? 'blue' : 'gray';
+        // `currentStage` is a display string; only render progress through the
+        // 4-step rail when it can be matched (by key, then by label) into the
+        // rail's own `stages` list — otherwise the stage pill alone is shown,
+        // never a guessed-at progress state.
+        const stageIdx = rail.stages.findIndex((s) => s.key === rail.currentStage);
+        const matchedIdx = stageIdx >= 0 ? stageIdx : rail.stages.findIndex((s) => s.label === rail.currentStage);
+        const steps: Array<[string, string]> | null =
+          matchedIdx >= 0
+            ? rail.stages.map((s, i): [string, string] => [s.label, i < matchedIdx ? 'done' : i === matchedIdx ? 'now' : 'pending'])
+            : null;
+        return {
+          key: rail.documentNumber,
+          title: rail.title,
+          agency: rail.agencyNames.join(' · '),
+          docket: rail.documentNumber,
+          stage: rail.currentStage,
+          tone,
+          detail: on ? `Comment deadline ${on.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : null,
+          linked: rail.linkedBills.length ? rail.linkedBills.join(' · ') : null,
+          steps,
+          on,
+        };
+      })
+      .sort((a, b) => (a.on?.getTime() ?? Infinity) - (b.on?.getTime() ?? Infinity));
+  }, [lifecycle]);
+
+  // Fixture only while the aggregate is genuinely still loading (§14
+  // convention) — never on a confirmed error, which gets an honest
+  // CouldNotLoad in both cards below instead.
+  const showFixture = !loaded && !aggFailed;
   const deadlines: DeadlineView[] = showFixture
     ? DEADLINES.map((d) => ({
         key: d.title,
@@ -909,17 +1010,24 @@ function RegulatoryPanel({ client }: { client: Client }) {
         urgent: Boolean(d.urgent),
       }))
     : realDeadlines;
+  const matters: MatterView[] = showFixture ? MATTERS.map(matterViewFromFixture) : realMatters;
 
   return (
     <div className="cap-pf-grid-intel">
       {/* Active matters */}
       <Card>
         <CardHead title="Active matters" action={<LinkBtn>View all</LinkBtn>} />
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {MATTERS.map((m) => (
-            <MatterCard key={m.title} m={m} />
-          ))}
-        </div>
+        {aggFailed ? (
+          <CouldNotLoad what="Active regulatory matters" error={aggregate.error} onRetry={() => void aggregate.refetch()} />
+        ) : !showFixture && matters.length === 0 ? (
+          <p className="capiro-intel-note">No active regulatory matters on record for this client right now.</p>
+        ) : (
+          <div className="capiro-intel-panel-body-16" data-testid="capiro-intel-active-matters">
+            {matters.map((m) => (
+              <MatterCard key={m.key} m={m} />
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Deadline rail */}
@@ -931,7 +1039,9 @@ function RegulatoryPanel({ client }: { client: Client }) {
               disabled={realDeadlines.length === 0}
               title={
                 realDeadlines.length === 0
-                  ? 'No dated comment deadlines to export for this client'
+                  ? aggFailed
+                    ? 'Deadline data could not be loaded'
+                    : 'No dated comment deadlines to export for this client'
                   : undefined
               }
               onClick={() => downloadDeadlineIcs(client.name, realDeadlines)}
@@ -940,28 +1050,32 @@ function RegulatoryPanel({ client }: { client: Client }) {
             </LinkBtn>
           }
         />
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {deadlines.length === 0 ? (
-            <p style={{ margin: 0, padding: '4px 4px 8px', fontSize: 14, color: '#475467' }}>
-              No open comment deadlines for this client right now.
-            </p>
-          ) : null}
-          {deadlines.map((d) => (
-            <span key={d.key} style={{ display: 'flex', gap: 14, padding: '14px 16px', borderRadius: 10, background: d.urgent ? '#FFFAEB' : '#FAF9F6', border: d.urgent ? '1px solid #FEDF89' : '1px solid #E8E5DF' }}>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: d.urgent ? '#B54708' : '#667085' }}>{d.date}</span>
-                <span style={{ display: 'block', marginTop: 4, fontSize: 14, fontWeight: 600, color: '#101828', textWrap: 'pretty' }}>{d.title}</span>
-                <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>{d.ask}</span>
+        {aggFailed ? (
+          <CouldNotLoad what="The deadline rail" error={aggregate.error} onRetry={() => void aggregate.refetch()} />
+        ) : (
+          <div className="capiro-intel-panel-body-16" data-testid="capiro-intel-deadline-rail">
+            {deadlines.length === 0 ? (
+              <p className="capiro-intel-note capiro-intel-note-inset">
+                No open comment deadlines for this client right now.
+              </p>
+            ) : null}
+            {deadlines.map((d) => (
+              <span key={d.key} className={d.urgent ? 'capiro-intel-deadline capiro-intel-deadline--urgent' : 'capiro-intel-deadline'}>
+                <span className="capiro-intel-deadline-main">
+                  <span className={d.urgent ? 'capiro-intel-deadline-date capiro-intel-deadline-date--urgent' : 'capiro-intel-deadline-date'}>{d.date}</span>
+                  <span className="capiro-intel-deadline-title">{d.title}</span>
+                  <span className="capiro-intel-deadline-ask">{d.ask}</span>
+                </span>
               </span>
-            </span>
-          ))}
-          <div style={{ marginTop: 4, padding: '14px 4px 6px', borderTop: '1px solid #E8E5DF' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Source & evidence</div>
-            <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-              Federal Register lifecycle data is current. Detailed evidence and provenance open inside each matter.
-            </p>
+            ))}
+            <div className="capiro-intel-source-evidence">
+              <div className="capiro-intel-eyebrow">Source &amp; evidence</div>
+              <p className="capiro-intel-body" style={{ marginTop: 8 }}>
+                Federal Register lifecycle data is current. Detailed evidence and provenance open inside each matter.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </Card>
     </div>
   );
@@ -1020,25 +1134,23 @@ function downloadDeadlineIcs(clientName: string, deadlines: DeadlineView[]) {
   URL.revokeObjectURL(url);
 }
 
-const MATTER_STAGE_TONE: Record<string, PillTone> = { warning: 'warning', blue: 'blue', brand: 'brand' };
-
-function MatterCard({ m }: { m: (typeof MATTERS)[number] }) {
+function MatterCard({ m }: { m: MatterView }) {
   return (
-    <div style={{ padding: '16px 18px', borderRadius: 10, border: '1px solid #E8E5DF', background: '#FAF9F6' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+    <div className="capiro-intel-matter">
+      <div className="capiro-intel-matter-top">
         <span style={{ flex: 1, minWidth: 180 }}>
-          <span style={{ display: 'block', fontSize: 16, fontWeight: 600, color: '#101828', textWrap: 'pretty' }}>{m.title}</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, color: '#475467' }}>{m.agency}</span>
-            <span style={{ fontSize: 13, color: '#667085' }}>{m.docket}</span>
+          <span className="capiro-intel-matter-title">{m.title}</span>
+          <span className="capiro-intel-matter-meta">
+            <span className="capiro-intel-matter-agency">{m.agency}</span>
+            <span className="capiro-intel-matter-docket">{m.docket}</span>
           </span>
         </span>
-        <Pill tone={MATTER_STAGE_TONE[m.ui] ?? 'gray'} size="lg">{m.stage}</Pill>
+        <Pill tone={m.tone} size="lg">{m.stage}</Pill>
       </div>
-      <MatterRail steps={m.steps as Array<[string, string]>} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 18, paddingTop: 14, borderTop: '1px solid #F2F0EB', flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 500, color: '#101828' }}>{m.detail}</span>
-        <span style={{ flex: '0 0 auto', fontSize: 12, color: '#667085' }}>Linked {m.linked}</span>
+      {m.steps ? <MatterRail steps={m.steps} /> : null}
+      <div className="capiro-intel-matter-foot">
+        {m.detail ? <span className="capiro-intel-matter-detail">{m.detail}</span> : <span className="capiro-intel-spacer" />}
+        {m.linked ? <span className="capiro-intel-matter-linked">Linked {m.linked}</span> : null}
         <LinkBtn>Open matter →</LinkBtn>
       </div>
     </div>
@@ -1048,33 +1160,21 @@ function MatterCard({ m }: { m: (typeof MATTERS)[number] }) {
 /** Four-step regulatory lifecycle rail (§2.14 at 24px nodes). */
 function MatterRail({ steps }: { steps: Array<[string, string]> }) {
   return (
-    <div style={{ position: 'relative', margin: '22px 8px 0' }}>
-      <span style={{ position: 'absolute', top: 11, left: 48, right: 48, height: 2, background: '#E8E5DF' }} />
-      <span style={{ position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
+    <div className="capiro-intel-rail">
+      <span className="capiro-intel-rail-line" />
+      <span className="capiro-intel-rail-steps">
         {steps.map(([label, st]) => {
           const done = st === 'done';
           const now = st === 'now';
+          const nodeClass = done
+            ? 'capiro-intel-rail-node capiro-intel-rail-node--done'
+            : now
+              ? 'capiro-intel-rail-node capiro-intel-rail-node--now'
+              : 'capiro-intel-rail-node';
           return (
-            <span key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: 96 }}>
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 24,
-                  height: 24,
-                  borderRadius: '50%',
-                  background: done ? GRADIENT_DARK : '#ffffff',
-                  boxShadow: now ? 'inset 0 0 0 2px #101828' : 'none',
-                  border: now || done ? '1px solid transparent' : '1px solid #E0DCD4',
-                  color: done ? '#ffffff' : now ? '#101828' : '#98A2B3',
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {done ? '✓' : now ? '!' : '·'}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: done || now ? '#101828' : '#98A2B3', textAlign: 'center' }}>
+            <span key={label} className="capiro-intel-rail-step">
+              <span className={nodeClass} style={done ? { background: GRADIENT_DARK } : undefined}>{done ? '✓' : now ? '!' : '·'}</span>
+              <span className={done || now ? 'capiro-intel-rail-label capiro-intel-rail-label--active' : 'capiro-intel-rail-label'}>
                 {label}
               </span>
             </span>
@@ -1135,6 +1235,10 @@ function FundingPanel({ client }: { client: Client }) {
   const opportunityRows = realOpportunities
     ? [...realOpportunities.topGrants, ...realOpportunities.topContracts].slice(0, 6)
     : [];
+  // Distinct from "the feature is off" (fixture stays, per the comment above —
+  // a disabled flag is a configuration answer, not an outage) — a confirmed
+  // fetch error on an ENABLED feature must not fall back to the OPPS fixture.
+  const opportunitiesFailed = foReady && foEnabled && opportunitiesQ.isError;
 
   // Item 4: Open budget / Open PE. Real PE ids + titles from the relevance
   // engine (same threshold the already-built, currently-unrouted
@@ -1145,19 +1249,20 @@ function FundingPanel({ client }: { client: Client }) {
     staleTime: 60_000,
   });
   const realPes = pesQ.isSuccess ? pesQ.data.data : null;
+  const pesFailed = pesQ.isError;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="capiro-intel-stack-24">
       {/* The nested Overview/Opportunities/Programs/Pursuits bar is gone: its
           state was never read — all four options rendered these same two
           cards. Dead chrome that promises filtering is worse than none. */}
       <div className="cap-pf-grid-intel">
         {/* Opportunities */}
         <Card>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px' }}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Opportunities</span>
-              <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+          <div className="capiro-intel-panel-head">
+            <span className="capiro-intel-panel-head-copy">
+              <span className="capiro-intel-title-md" style={{ display: 'block' }}>Opportunities</span>
+              <span className="capiro-intel-body" style={{ display: 'block', marginTop: 4 }}>
                 Matches use capabilities, facilities, eligibility, agencies, and Strategy context.
               </span>
             </span>
@@ -1165,24 +1270,28 @@ function FundingPanel({ client }: { client: Client }) {
               <LinkBtn onClick={() => navigate(`/intelligence/opportunities?clientId=${client.id}`)}>
                 View all {realOpportunities.counts.activeGrants + realOpportunities.counts.activeContracts}
               </LinkBtn>
-            ) : (
+            ) : opportunitiesFailed ? null : (
               <LinkBtn>View all 7</LinkBtn>
             )}
           </div>
-          <div style={{ padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {realOpportunities ? (
-              opportunityRows.length ? (
-                opportunityRows.map((o) => <RealOppRow key={o.id} o={o} />)
+          {opportunitiesFailed ? (
+            <CouldNotLoad what="Funding opportunities" error={opportunitiesQ.error} onRetry={() => void opportunitiesQ.refetch()} />
+          ) : (
+            <div className="capiro-intel-panel-body">
+              {realOpportunities ? (
+                opportunityRows.length ? (
+                  opportunityRows.map((o) => <RealOppRow key={o.id} o={o} />)
+                ) : (
+                  <p className="capiro-intel-note capiro-intel-note-inset">
+                    {realOpportunities.emptyExplanation ??
+                      'No opportunity currently clears the relevance threshold for this client.'}
+                  </p>
+                )
               ) : (
-                <p style={{ margin: '4px 8px', fontSize: 14, color: '#475467' }}>
-                  {realOpportunities.emptyExplanation ??
-                    'No opportunity currently clears the relevance threshold for this client.'}
-                </p>
-              )
-            ) : (
-              OPPS.map((o) => <OppRow key={o.title} o={o} />)
-            )}
-          </div>
+                OPPS.map((o) => <OppRow key={o.title} o={o} />)
+              )}
+            </div>
+          )}
         </Card>
 
         {/* Relevant budget programs */}
@@ -1191,29 +1300,33 @@ function FundingPanel({ client }: { client: Client }) {
             title="Relevant budget programs"
             action={<LinkBtn onClick={() => navigate('/program-elements')}>Open budget</LinkBtn>}
           />
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {realPes ? (
-              realPes.length ? (
-                realPes.map((pe) => (
-                  <RealProgramRow key={pe.peCode} pe={pe} onOpen={() => navigate(`/program-elements/${pe.peCode}`)} />
-                ))
+          {pesFailed ? (
+            <CouldNotLoad what="Relevant budget programs" error={pesQ.error} onRetry={() => void pesQ.refetch()} />
+          ) : (
+            <div className="capiro-intel-panel-body-16">
+              {realPes ? (
+                realPes.length ? (
+                  realPes.map((pe) => (
+                    <RealProgramRow key={pe.peCode} pe={pe} onOpen={() => navigate(`/program-elements/${pe.peCode}`)} />
+                  ))
+                ) : (
+                  <p className="capiro-intel-note capiro-intel-note-inset">
+                    No program elements scored above the relevance threshold for this client.
+                  </p>
+                )
               ) : (
-                <p style={{ margin: '4px 8px', fontSize: 14, color: '#475467' }}>
-                  No program elements scored above the relevance threshold for this client.
-                </p>
-              )
-            ) : (
-              PROGRAMS.map((p) => <ProgramCard key={p.code} p={p} />)
-            )}
-            {/* Pursuits has no wired data source yet (a separate, unbuilt nested
-                view) — stays a documented UI-only element regardless of mode,
-                same convention as WorkTab's "On track" pill. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 4px 4px', borderTop: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>Pursuit pipeline</span>
-              <Pill tone="brand" size="lg">Army AGV · Qualifying</Pill>
-              <Pill tone="gray" size="lg" dotless>ONR Autonomy · Saved</Pill>
+                PROGRAMS.map((p) => <ProgramCard key={p.code} p={p} />)
+              )}
+              {/* The "Pursuit pipeline" pills that used to sit here were two
+                  permanently-hardcoded names ("Army AGV · Qualifying", "ONR
+                  Autonomy · Saved") with, per the prior comment here, "no wired
+                  data source yet" — not even a fixture standing in for a real
+                  feature, just invented content with no backing endpoint for
+                  every client. Removed rather than left permanently fake; the
+                  real opportunities list above already surfaces each
+                  opportunity's actual workflow status (Pursuing/Saved/…). */}
             </div>
-          </div>
+          )}
         </Card>
       </div>
     </div>
@@ -1221,19 +1334,15 @@ function FundingPanel({ client }: { client: Client }) {
 }
 
 function RealOppRow({ o }: { o: FundingOpportunity }) {
-  const [hover, setHover] = useState(false);
   const money = moneyLine(o);
   const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
   const soon = deadline.daysRemaining != null && deadline.daysRemaining >= 0 && deadline.daysRemaining <= 14;
   const { label: statusLabel, tone: statusTone, dotless } = workflowStatusPill(o.workflow?.status ?? null);
   return (
-    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: hover ? '#F2F0EB' : '#FAF9F6', border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF' }}>
-      <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 78, minHeight: 26, borderRadius: 6, background: '#ffffff', border: '1px solid #E0DCD4', color: '#344054', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', textAlign: 'center', padding: '2px 4px' }}>
-        {KIND_LABELS[o.kind]}
-      </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+    <div className="capiro-intel-opp-row">
+      <span className="capiro-intel-opp-kind">{KIND_LABELS[o.kind]}</span>
+      <span className="capiro-intel-opp-main">
+        <span className="capiro-intel-opp-title">
           {o.sourceUrl ? (
             <a href={o.sourceUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
               {o.title}
@@ -1242,15 +1351,15 @@ function RealOppRow({ o }: { o: FundingOpportunity }) {
             o.title
           )}
         </span>
-        <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>{o.agency ?? SOURCE_LABELS[o.source]}</span>
+        <span className="capiro-intel-opp-agency">{o.agency ?? SOURCE_LABELS[o.source]}</span>
       </span>
-      <span style={{ flex: '0 0 auto', width: 92, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#101828' }}>{money.value}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: soon ? '#B54708' : '#667085' }}>
+      <span className="capiro-intel-opp-money">
+        <span className="capiro-intel-opp-amount">{money.value}</span>
+        <span className={soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'}>
           {deadline.daysRemaining != null ? `Due ${deadline.text}` : deadline.text}
         </span>
       </span>
-      <span style={{ flex: '0 0 auto', width: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+      <span className="capiro-intel-opp-pills">
         <Pill tone="gray" dotless>{o.relevanceScore}% fit</Pill>
         <Pill tone={statusTone} dotless={dotless}>{statusLabel}</Pill>
       </span>
@@ -1260,16 +1369,16 @@ function RealOppRow({ o }: { o: FundingOpportunity }) {
 
 function RealProgramRow({ pe, onOpen }: { pe: RelevantPeRow; onOpen: () => void }) {
   return (
-    <div style={{ padding: '14px 16px', borderRadius: 10, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#101828', padding: '2px 6px', borderRadius: 6, background: '#F2F0EB' }}>{pe.peCode}</span>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{pe.title ?? pe.peCode}</span>
+    <div className="capiro-intel-pe-card">
+      <div className="capiro-intel-pe-top">
+        <span className="capiro-intel-pe-code">{pe.peCode}</span>
+        <span className="capiro-intel-pe-title">{pe.title ?? pe.peCode}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>Relevance</span>
-        <span style={{ fontSize: 16, fontWeight: 600, color: '#101828' }}>{formatScorePct(pe.score)}</span>
+      <div className="capiro-intel-pe-rel">
+        <span className="capiro-intel-eyebrow-xs">Relevance</span>
+        <span className="capiro-intel-pe-figure-value">{formatScorePct(pe.score)}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+      <div className="capiro-intel-pe-foot">
         <LinkBtn onClick={onOpen}>Open PE →</LinkBtn>
       </div>
     </div>
@@ -1277,23 +1386,24 @@ function RealProgramRow({ pe, onOpen }: { pe: RelevantPeRow; onOpen: () => void 
 }
 
 function OppRow({ o }: { o: (typeof OPPS)[number] }) {
-  const [hover, setHover] = useState(false);
   const statusTone = o.status === 'Pursuing' ? 'brand' : 'gray';
   return (
-    <button type="button" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: hover ? '#F2F0EB' : '#FAF9F6', border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF', textAlign: 'left' }}>
-      <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 78, height: 26, borderRadius: 6, background: '#ffffff', border: '1px solid #E0DCD4', color: '#344054', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase' }}>
+    <button type="button" className="capiro-intel-opp-row">
+      {/* Fixture rows use a fixed 26px badge height (vs. the real row's
+          min-height: 26px, which lets long real KIND_LABELS wrap) — harmless
+          layout-only override, not a color/token concern. */}
+      <span className="capiro-intel-opp-kind" style={{ height: 26 }}>
         {o.type}
       </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{o.title}</span>
-        <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>{o.agency}</span>
+      <span className="capiro-intel-opp-main">
+        <span className="capiro-intel-opp-title">{o.title}</span>
+        <span className="capiro-intel-opp-agency">{o.agency}</span>
       </span>
-      <span style={{ flex: '0 0 auto', width: 92, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#101828' }}>{o.amount}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: o.soon ? '#B54708' : '#667085' }}>Due {o.due}</span>
+      <span className="capiro-intel-opp-money">
+        <span className="capiro-intel-opp-amount">{o.amount}</span>
+        <span className={o.soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'}>Due {o.due}</span>
       </span>
-      <span style={{ flex: '0 0 auto', width: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+      <span className="capiro-intel-opp-pills">
         <Pill tone="gray" dotless>{o.fit}% fit</Pill>
         <Pill tone={statusTone as PillTone} dotless={o.status === 'Match'}>{o.status}</Pill>
       </span>
@@ -1303,25 +1413,25 @@ function OppRow({ o }: { o: (typeof OPPS)[number] }) {
 
 function ProgramCard({ p }: { p: (typeof PROGRAMS)[number] }) {
   return (
-    <div style={{ padding: '14px 16px', borderRadius: 10, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#101828', padding: '2px 6px', borderRadius: 6, background: '#F2F0EB' }}>{p.code}</span>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{p.name}</span>
+    <div className="capiro-intel-pe-card">
+      <div className="capiro-intel-pe-top">
+        <span className="capiro-intel-pe-code">{p.code}</span>
+        <span className="capiro-intel-pe-title">{p.name}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 18, marginTop: 12, flexWrap: 'wrap' }}>
+      <div className="capiro-intel-pe-figures">
         {([['PB', p.pb], ['Auth', p.auth], ['Approp', p.approp]] as const).map(([label, value], i) => (
-          <span key={label} style={{ display: 'flex', alignItems: 'flex-end', gap: 18 }}>
-            {i > 0 ? <span style={{ color: '#98A2B3' }}>—</span> : null}
+          <span key={label} className="capiro-intel-pe-figure-row">
+            {i > 0 ? <span className="capiro-intel-pe-figure-sep">—</span> : null}
             <span style={{ flex: '0 0 auto' }}>
-              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
-              <span style={{ display: 'block', marginTop: 2, fontSize: 16, fontWeight: 600, color: '#101828' }}>{value}</span>
+              <span className="capiro-intel-eyebrow-xs" style={{ display: 'block' }}>{label}</span>
+              <span className="capiro-intel-pe-figure-value">{value}</span>
             </span>
           </span>
         ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+      <div className="capiro-intel-pe-foot">
         <LinkBtn>Open PE →</LinkBtn>
-        <span style={{ flex: 1 }} />
+        <span className="capiro-intel-spacer" />
         <Pill tone={p.down ? 'error' : 'success'}>{p.delta}</Pill>
       </div>
     </div>
@@ -1340,6 +1450,11 @@ function FootprintPanel({ client }: { client: Client }) {
     staleTime: 2 * 60_000,
   });
   const realLda = ldaQ.isSuccess ? ldaQ.data : null;
+  // Backs BOTH the "Lobbying activity" headline card (incl. the Sparkline,
+  // which otherwise had no real/fixture gate of its own) and the disclosure
+  // history table below — a confirmed error on either must not fall back to
+  // the $1.8M/Sparkline or LDA-rows fixtures.
+  const ldaFailed = ldaQ.isError;
   const ldaAmount = realLda ? realLda.filings.reduce((sum, f) => sum + f.amount, 0) : null;
   const ldaYoy = useMemo(() => {
     if (!realLda || realLda.byYear.length < 2) return null;
@@ -1360,6 +1475,7 @@ function FootprintPanel({ client }: { client: Client }) {
     staleTime: 2 * 60_000,
   });
   const realNexus = nexusQ.isSuccess && nexusQ.data.linked ? nexusQ.data : null;
+  const nexusFailed = nexusQ.isError;
 
   // Item 20: the client's own PAC disbursements (Schedule B).
   const fecQ = useQuery({
@@ -1368,45 +1484,52 @@ function FootprintPanel({ client }: { client: Client }) {
     staleTime: 5 * 60_000,
   });
   const realPac = fecQ.isSuccess ? (fecQ.data.pacGiving ?? null) : null;
+  const fecFailed = fecQ.isError;
 
   const intelHref = `/clients?clientId=${encodeURIComponent(client.id)}&tab=intelligence#financial-footprint`;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="capiro-intel-stack-24">
       <div className="cap-pf-grid-3">
         {/* Lobbying activity */}
         <FootCard title="Lobbying activity" action={<LinkBtn onClick={() => navigate(intelHref)}>Open LDA</LinkBtn>}>
-          {realLda ? (
+          {ldaFailed ? (
+            <CouldNotLoad what="Lobbying activity" error={ldaQ.error} onRetry={() => void ldaQ.refetch()} />
+          ) : realLda ? (
             realLda.matched && realLda.totalFilings > 0 ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                <div className="capiro-intel-headline">
+                  <span className="capiro-intel-value-xl">
                     ${(ldaAmount ?? 0).toLocaleString()}
                   </span>
                   {ldaYoy != null ? (
                     <Pill tone={ldaYoy >= 0 ? 'success' : 'error'}>{ldaYoy >= 0 ? '▲' : '▼'} {Math.abs(ldaYoy)}% YoY</Pill>
                   ) : null}
                 </div>
-                <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                <div className="capiro-intel-eyebrow capiro-intel-headline-caption">
                   {realLda.totalFilings} filing{realLda.totalFilings === 1 ? '' : 's'}
                   {realLda.firstFilingYear ? ` · ${realLda.firstFilingYear}–${realLda.latestFilingYear}` : ''}
                 </div>
               </>
             ) : (
-              <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467' }}>
+              <p className="capiro-intel-note" style={{ padding: 0, marginTop: 16 }}>
                 No LDA filings are on record for this client. Absent filings are not the same as no federal
                 lobbying activity.
               </p>
             )
           ) : (
+            // Fixture-during-loading only (ldaFailed is checked above) — this
+            // is also the only place Sparkline renders; no real quarterly-
+            // trend-shaped data exists (the LDA hook only exposes annual
+            // `byYear` aggregates), so there is nothing to wire it to.
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$1.8M</span>
+              <div className="capiro-intel-headline">
+                <span className="capiro-intel-value-xl">$1.8M</span>
                 <Pill tone="success">▲ 18% YoY</Pill>
               </div>
-              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Trailing 12 months</div>
+              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">Trailing 12 months</div>
               <Sparkline />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: '#667085' }}>
+              <div className="capiro-intel-spark-axis">
                 <span>Q3 24</span><span>Q4 24</span><span>Q1 25</span><span>Q2 25</span>
               </div>
             </>
@@ -1418,39 +1541,41 @@ function FootprintPanel({ client }: { client: Client }) {
           title="Federal awards"
           action={<LinkBtn onClick={() => navigate(`/intelligence/federal-spending?tab=contracts&clientId=${client.id}`)}>View awards</LinkBtn>}
         >
-          {realNexus ? (
+          {nexusFailed ? (
+            <CouldNotLoad what="Federal awards" error={nexusQ.error} onRetry={() => void nexusQ.refetch()} />
+          ) : realNexus ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+              <div className="capiro-intel-headline">
+                <span className="capiro-intel-value-xl">
                   ${realNexus.totalAmount.toLocaleString()}
                 </span>
                 <Pill tone="gray" dotless>{realNexus.totalAwards} award{realNexus.totalAwards === 1 ? '' : 's'}</Pill>
               </div>
-              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">
                 Confirmed contractor mapping · {realNexus.districtCount} district{realNexus.districtCount === 1 ? '' : 's'}
               </div>
               {/* No real per-agency breakdown source exists yet — dropped rather than fabricated (was Army/Navy/DARPA %). */}
             </>
           ) : nexusQ.isSuccess ? (
-            <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467' }}>
+            <p className="capiro-intel-note" style={{ padding: 0, marginTop: 16 }}>
               No confirmed contractor mapping exists for this client, so federal award totals cannot be attributed yet.
             </p>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$84.2M</span>
+              <div className="capiro-intel-headline">
+                <span className="capiro-intel-value-xl">$84.2M</span>
                 <Pill tone="gray" dotless>14 awards</Pill>
               </div>
-              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Obligations · trailing 12 months</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">Obligations · trailing 12 months</div>
+              <div className="capiro-intel-bars">
                 {([['Army', '$51.4M', '86%'], ['Navy · ONR', '$18.6M', '31%'], ['DARPA', '$14.2M', '24%']] as const).map(([label, value, w]) => (
                   <span key={label} style={{ display: 'block' }}>
-                    <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
-                      <span style={{ color: '#344054' }}>{label}</span>
-                      <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
+                    <span className="capiro-intel-bar-row">
+                      <span className="capiro-intel-bar-label">{label}</span>
+                      <span className="capiro-intel-bar-value">{value}</span>
                     </span>
-                    <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F0EB', overflow: 'hidden' }}>
-                      <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: GRADIENT_DARK }} />
+                    <span className="capiro-intel-bar-track">
+                      <span className="capiro-intel-bar-fill" style={{ width: w, background: GRADIENT_DARK }} />
                     </span>
                   </span>
                 ))}
@@ -1461,50 +1586,49 @@ function FootprintPanel({ client }: { client: Client }) {
 
         {/* Political giving — the client's OWN PAC disbursements (item 20). */}
         <FootCard title="Political giving" action={<LinkBtn onClick={() => navigate(intelHref)}>Open FEC / PAC</LinkBtn>}>
-          {realPac ? (
+          {fecFailed ? (
+            <CouldNotLoad what="Political giving" error={fecQ.error} onRetry={() => void fecQ.refetch()} />
+          ) : realPac ? (
             !realPac.tracked ? (
               /* "No committee mapped" is not "$0 given" — never render it as one. */
-              <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+              <p className="capiro-intel-note" style={{ padding: 0, marginTop: 16 }}>
                 No FEC committee is mapped to this client, so its PAC giving cannot be reported.
               </p>
             ) : (
               <>
-                <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                <div className="capiro-intel-headline-solo">
                   {realPac.summary ? `$${realPac.summary.totalAmount.toLocaleString()}` : '—'}
                 </div>
-                <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                <div className="capiro-intel-eyebrow capiro-intel-headline-caption">
                   PAC disbursements
                   {realPac.summary
                     ? ` · ${realPac.summary.disbursementCount} disbursement${realPac.summary.disbursementCount === 1 ? '' : 's'}`
                     : ''}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+                <div className="capiro-intel-bars">
                   {/* Real top recipients. The fixture's Incumbent/Leadership/Party
                       buckets have no equivalent in the data — recipients are named
                       rows, not categories — so they are not reproduced. */}
                   {topPacRecipients(realPac).length === 0 ? (
-                    <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+                    <p className="capiro-intel-note" style={{ padding: 0 }}>
                       A committee is mapped, but it has no disbursements on record.
                     </p>
                   ) : (
                     topPacRecipients(realPac).map((r, i, all) => (
                       <span key={`${r.recipientName}-${r.candidateName ?? ''}`} style={{ display: 'block' }}>
-                        <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
-                          <span style={{ color: '#344054', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span className="capiro-intel-bar-row">
+                          <span className="capiro-intel-bar-label">
                             {r.candidateName ?? r.recipientName}
                           </span>
-                          <span style={{ fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>${r.totalAmount.toLocaleString()}</span>
+                          <span className="capiro-intel-bar-value">${r.totalAmount.toLocaleString()}</span>
                         </span>
-                        <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F0EB', overflow: 'hidden' }}>
+                        <span className="capiro-intel-bar-track">
                           <span
+                            className="capiro-intel-bar-fill"
                             style={{
-                              display: 'block',
-                              height: 8,
                               // Bars are relative to the largest recipient, so the
                               // width is a real comparison rather than a designed %.
                               width: (all[0]?.totalAmount ?? 0) > 0 ? `${Math.round((r.totalAmount / all[0]!.totalAmount) * 100)}%` : '0%',
-                              borderRadius: 4,
-                              background: '#98A2B3',
                             }}
                           />
                         </span>
@@ -1516,17 +1640,17 @@ function FootprintPanel({ client }: { client: Client }) {
             )
           ) : (
             <>
-              <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$380K</div>
-              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>PAC disbursements · current cycle</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+              <div className="capiro-intel-headline-solo">$380K</div>
+              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">PAC disbursements · current cycle</div>
+              <div className="capiro-intel-bars">
                 {([['Incumbent members', '$214K', '90%'], ['Leadership PACs', '$102K', '43%'], ['Party committees', '$64K', '27%']] as const).map(([label, value, w]) => (
                   <span key={label} style={{ display: 'block' }}>
-                    <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
-                      <span style={{ color: '#344054' }}>{label}</span>
-                      <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
+                    <span className="capiro-intel-bar-row">
+                      <span className="capiro-intel-bar-label">{label}</span>
+                      <span className="capiro-intel-bar-value">{value}</span>
                     </span>
-                    <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F0EB', overflow: 'hidden' }}>
-                      <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: '#98A2B3' }} />
+                    <span className="capiro-intel-bar-track">
+                      <span className="capiro-intel-bar-fill" style={{ width: w }} />
                     </span>
                   </span>
                 ))}
@@ -1539,58 +1663,57 @@ function FootprintPanel({ client }: { client: Client }) {
       {/* Lobbying disclosure history */}
       <Card>
         <CardHead title="Lobbying disclosure history" action={<LinkBtn onClick={() => navigate(intelHref)}>View all filings</LinkBtn>} />
-        <div style={{ width: '100%', overflowX: 'auto' }}>
-          <div style={{ minWidth: 880 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 24px', background: '#FAF9F6', borderBottom: '1px solid #E8E5DF', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-              <span style={{ flex: '0 0 auto', width: 84 }}>Period</span>
-              <span style={{ flex: '0 0 auto', width: 64 }}>Type</span>
-              <span style={{ flex: 1, minWidth: 0 }}>Registrant</span>
-              <span style={{ flex: '0 0 auto', width: 84, textAlign: 'right' }}>Amount</span>
-              <span style={{ flex: '0 0 auto', width: 148 }}>Issues</span>
-              <span style={{ flex: '0 0 auto', width: 196 }}>Entities contacted</span>
-              <span style={{ flex: '0 0 auto', width: 56 }}>Source</span>
+        {ldaFailed ? (
+          <CouldNotLoad what="Lobbying disclosure history" error={ldaQ.error} onRetry={() => void ldaQ.refetch()} />
+        ) : (
+          <div className="capiro-intel-table-wrap">
+            <div className="capiro-intel-table-inner">
+              <div className="capiro-intel-thead">
+                <span className="capiro-intel-col-84">Period</span>
+                <span className="capiro-intel-col-64">Type</span>
+                <span className="capiro-intel-col-flex">Registrant</span>
+                <span className="capiro-intel-col-84" style={{ textAlign: 'right' }}>Amount</span>
+                <span className="capiro-intel-col-148">Issues</span>
+                <span className="capiro-intel-col-196">Entities contacted</span>
+                <span className="capiro-intel-col-56">Source</span>
+              </div>
+              {realLda
+                ? realLda.filings.map((r) => (
+                    <div key={r.filingUuid} className="capiro-intel-lda-row">
+                      <span className="capiro-intel-col-84 capiro-intel-lda-period">
+                        {[ldaPeriodLabel(r.filingPeriod), r.filingYear].filter(Boolean).join(' ') || '—'}
+                      </span>
+                      <span className="capiro-intel-col-64 capiro-intel-lda-type">{r.filingType ? String(r.filingType).toUpperCase() : '—'}</span>
+                      <span className="capiro-intel-col-flex capiro-intel-lda-registrant">{titleCaseName(r.registrantName)}</span>
+                      <span className="capiro-intel-col-84 capiro-intel-lda-amount">{formatMoney(r.amount)}</span>
+                      <span className="capiro-intel-col-148 capiro-intel-lda-meta">{r.issueCodes.join(' · ') || '—'}</span>
+                      <span className="capiro-intel-col-196 capiro-intel-lda-meta-trunc">{r.governmentEntities.join(' · ') || '—'}</span>
+                      {r.documentUrl ? (
+                        <a href={r.documentUrl} target="_blank" rel="noreferrer" className="capiro-intel-lda-view">
+                          View
+                        </a>
+                      ) : (
+                        <span className="capiro-intel-col-56 capiro-intel-faint" style={{ fontSize: 13 }}>—</span>
+                      )}
+                    </div>
+                  ))
+                : LDA.map((r) => (
+                    <div key={`${r.period}-${r.registrant}`} className="capiro-intel-lda-row">
+                      <span className="capiro-intel-col-84 capiro-intel-lda-period">{r.period}</span>
+                      <span className="capiro-intel-col-64 capiro-intel-lda-type">{r.type}</span>
+                      <span className="capiro-intel-col-flex capiro-intel-lda-registrant">{r.registrant}</span>
+                      <span className="capiro-intel-col-84 capiro-intel-lda-amount">{r.amount}</span>
+                      <span className="capiro-intel-col-148 capiro-intel-lda-meta">{r.issues}</span>
+                      <span className="capiro-intel-col-196 capiro-intel-lda-meta-trunc">{r.entities}</span>
+                      <button type="button" className="capiro-intel-lda-view">View</button>
+                    </div>
+                  ))}
+              {realLda && realLda.filings.length === 0 ? (
+                <p className="capiro-intel-note" style={{ padding: '16px 24px' }}>No LDA filings on record.</p>
+              ) : null}
             </div>
-            {realLda
-              ? realLda.filings.map((r) => (
-                  <div key={r.filingUuid} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 24px', borderBottom: '1px solid #E8E5DF' }}>
-                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>
-                      {[ldaPeriodLabel(r.filingPeriod), r.filingYear].filter(Boolean).join(' ') || '—'}
-                    </span>
-                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.filingType ? String(r.filingType).toUpperCase() : '—'}</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{titleCaseName(r.registrantName)}</span>
-                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>{formatMoney(r.amount)}</span>
-                    <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467' }}>{r.issueCodes.join(' · ') || '—'}</span>
-                    <span style={{ flex: '0 0 auto', width: 196, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.governmentEntities.join(' · ') || '—'}</span>
-                    {r.documentUrl ? (
-                      <a
-                        href={r.documentUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ flex: '0 0 auto', width: 56, fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828' }}
-                      >
-                        View
-                      </a>
-                    ) : (
-                      <span style={{ flex: '0 0 auto', width: 56, fontSize: 13, color: '#98A2B3' }}>—</span>
-                    )}
-                  </div>
-                ))
-              : LDA.map((r) => (
-                  <div key={`${r.period}-${r.registrant}`} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 24px', borderBottom: '1px solid #E8E5DF' }}>
-                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>{r.period}</span>
-                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.type}</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.registrant}</span>
-                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>{r.amount}</span>
-                    <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467' }}>{r.issues}</span>
-                    <span style={{ flex: '0 0 auto', width: 196, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.entities}</span>
-                    <button type="button" style={{ flex: '0 0 auto', width: 56, fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828' }}>View</button>
-                  </div>
-                ))}
-            {realLda && realLda.filings.length === 0 ? (
-              <p style={{ margin: 0, padding: '16px 24px', fontSize: 14, color: '#475467' }}>No LDA filings on record.</p>
-            ) : null}
           </div>
-        </div>
+        )}
       </Card>
 
       {/* Past performance — moved here from Capabilities §7.3. What the client
@@ -1604,10 +1727,10 @@ function FootprintPanel({ client }: { client: Client }) {
 
 function FootCard({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)', padding: '20px 24px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>{title}</h3>
-        <span style={{ flex: 1 }} />
+    <section className="capiro-intel-foot-card">
+      <div className="capiro-intel-foot-card-head">
+        <h3 className="capiro-intel-title-md">{title}</h3>
+        <span className="capiro-intel-spacer" />
         {action}
       </div>
       {children}
@@ -1622,8 +1745,8 @@ function Sparkline() {
   const step = w / (SPARK.length - 1);
   const points = SPARK.map((v, i) => `${i * step},${h - (v / max) * (h - 8)}`).join(' ');
   return (
-    <svg style={{ display: 'block', width: '100%', height: 76, marginTop: 16 }} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
-      <polyline points={points} fill="none" stroke="#101828" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+    <svg className="capiro-intel-sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
+      <polyline points={points} fill="none" stroke="var(--capiro-color-text-primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
@@ -1805,9 +1928,9 @@ function DistrictPanel({ client }: { client: Client }) {
   if (!v2Settled || (!v2 && !facilitiesLoaded && !facilitiesQ.isError)) {
     return (
       <Card>
-        <div style={{ padding: '20px 24px' }} aria-busy="true">
-          <div style={{ height: 18, width: 220, borderRadius: 6, background: '#F2F0EB' }} />
-          <div style={{ marginTop: 16, height: 380, borderRadius: 10, background: '#FAF9F6', border: '1px solid #E8E5DF' }} />
+        <div className="capiro-intel-skeleton-wrap" aria-busy="true">
+          <div className="capiro-intel-skeleton-block" style={{ height: 18, width: 220 }} />
+          <div className="capiro-intel-skeleton-panel" style={{ marginTop: 16, height: 380 }} />
         </div>
       </Card>
     );
@@ -1816,9 +1939,9 @@ function DistrictPanel({ client }: { client: Client }) {
   if (!v2 && facilitiesQ.isError) {
     return (
       <Card>
-        <div style={{ padding: '32px 24px' }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>District data could not be loaded</h3>
-          <p style={{ margin: '8px 0 16px', fontSize: 14, lineHeight: '20px', color: '#475467' }}>
+        <div className="capiro-intel-error-wrap">
+          <h3 className="capiro-intel-title-md">District data could not be loaded</h3>
+          <p className="capiro-intel-body" style={{ margin: '8px 0 16px', lineHeight: '20px' }}>
             {facilitiesQ.error instanceof Error ? facilitiesQ.error.message : 'The facilities service did not answer.'}
           </p>
           <SecondaryBtn onClick={() => void facilitiesQ.refetch()}>Retry</SecondaryBtn>
@@ -1839,12 +1962,12 @@ function DistrictPanel({ client }: { client: Client }) {
     const selRep = sel ? repForDistrict.get(sel.districtKey) : undefined;
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="capiro-intel-stack-24">
         <Card>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>District footprint</span>
-              <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+          <div className="capiro-intel-panel-head">
+            <span className="capiro-intel-panel-head-copy">
+              <span className="capiro-intel-title-md" style={{ display: 'block' }}>District footprint</span>
+              <span className="capiro-intel-body" style={{ display: 'block', marginTop: 4 }}>
                 Verified client footprint, public funding, and representation by congressional district — the same scoring District Nexus uses. Select a district on the map or in the list.
               </span>
             </span>
@@ -1862,7 +1985,7 @@ function DistrictPanel({ client }: { client: Client }) {
                 />
               </Suspense>
             </div>
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="capiro-intel-rail-col">
               {v2Districts.map((d) => (
                 <V2DistrictRailRow
                   key={d.districtKey}
@@ -1874,7 +1997,7 @@ function DistrictPanel({ client }: { client: Client }) {
             </div>
           </div>
           {ungeocodedCount > 0 ? (
-            <p style={{ margin: 0, padding: '14px 24px 18px', fontSize: 13, color: '#667085' }}>
+            <p className="capiro-intel-note" style={{ padding: '14px 24px 18px' }}>
               {ungeocodedCount} facilit{ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded — the map shows district evidence, not facility pins.
             </p>
           ) : null}
@@ -1884,9 +2007,9 @@ function DistrictPanel({ client }: { client: Client }) {
           <div className="cap-pf-grid-dist">
             <Card>
               <CardHead title="Selected district" />
-              <div style={{ padding: '20px 24px 22px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>{sel.districtKey}</span>
+              <div className="capiro-intel-district-body">
+                <div className="capiro-intel-row-wrap">
+                  <span className="capiro-intel-value-xl">{sel.districtKey}</span>
                   {selBand ? (
                     <Pill tone={selBand.id === 'strong' ? 'success' : selBand.id === 'moderate' ? 'blue' : 'gray'} size="lg">
                       {selBand.label} nexus · {sel.score}
@@ -1897,11 +2020,11 @@ function DistrictPanel({ client }: { client: Client }) {
                     </Pill>
                   )}
                 </div>
-                <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Federal representative</div>
-                <div style={{ marginTop: 3, fontSize: 16, color: '#101828' }}>
+                <div className="capiro-intel-eyebrow" style={{ marginTop: 14 }}>Federal representative</div>
+                <div className="capiro-intel-rep-line">
                   {selRep ? `${selRep.name}${partyLabel(selRep.party) ? ` (${partyLabel(selRep.party)})` : ''} · House` : 'Not yet resolved'}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))', gap: 10, marginTop: 18 }}>
+                <div className="capiro-intel-tiles">
                   {(
                     [
                       ['Contract obligations', formatMoney(sel.awarded.contractObligations)],
@@ -1910,9 +2033,9 @@ function DistrictPanel({ client }: { client: Client }) {
                       ['Evidence coverage', `${Math.round(sel.coveragePercent)}%`],
                     ] as const
                   ).map(([label, tileValue]) => (
-                    <span key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 10px', borderRadius: 8, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{tileValue}</span>
+                    <span key={label} className="capiro-intel-tile">
+                      <span className="capiro-intel-eyebrow-xs">{label}</span>
+                      <span className="capiro-intel-tile-value">{tileValue}</span>
                     </span>
                   ))}
                 </div>
@@ -1934,9 +2057,9 @@ function DistrictPanel({ client }: { client: Client }) {
   if (genuinelyEmpty) {
     return (
       <Card>
-        <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>No facilities recorded for this client</h3>
-          <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+        <div className="capiro-intel-empty">
+          <h3 className="capiro-intel-title-md">No facilities recorded for this client</h3>
+          <p className="capiro-intel-body" style={{ margin: '8px 0 0', lineHeight: '20px' }}>
             District Nexus builds on this client&apos;s recorded facility addresses. Add a facility to see its
             congressional district, representative, and any confirmed federal award activity here.
           </p>
@@ -1949,19 +2072,19 @@ function DistrictPanel({ client }: { client: Client }) {
   const sel = v1List.find((d) => d.code === effectiveSelected) ?? null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="capiro-intel-stack-24">
       <Card>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>District footprint</span>
-            <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+        <div className="capiro-intel-panel-head">
+          <span className="capiro-intel-panel-head-copy">
+            <span className="capiro-intel-title-md" style={{ display: 'block' }}>District footprint</span>
+            <span className="capiro-intel-body" style={{ display: 'block', marginTop: 4 }}>
               Real facility locations and confirmed federal award activity by congressional district. Select a district on the map or in the list.
             </span>
           </span>
           <Pill tone="gray" dotless>{v1List.length} district{v1List.length === 1 ? '' : 's'}</Pill>
         </div>
         {v1List.length === 0 ? (
-          <p style={{ margin: 0, padding: '0 24px 20px', fontSize: 14, color: '#475467' }}>
+          <p className="capiro-intel-note" style={{ padding: '0 24px 20px' }}>
             {ungeocodedCount > 0
               ? `${ungeocodedCount} facilit${ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded, so no district can be plotted yet.`
               : 'No facility has resolved to a congressional district yet.'}
@@ -1975,7 +2098,7 @@ function DistrictPanel({ client }: { client: Client }) {
                 onSelect={setSelected}
               />
             </div>
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="capiro-intel-rail-col">
               {v1List.map((d) => (
                 <RealDistrictRailRow key={d.code} d={d} selected={effectiveSelected === d.code} onSelect={() => setSelected(d.code)} />
               ))}
@@ -1983,12 +2106,12 @@ function DistrictPanel({ client }: { client: Client }) {
           </div>
         )}
         {ungeocodedCount > 0 && v1List.length > 0 ? (
-          <p style={{ margin: 0, padding: '0 24px 18px', fontSize: 13, color: '#667085' }}>
+          <p className="capiro-intel-caption-muted" style={{ margin: 0, padding: '0 24px 18px' }}>
             {ungeocodedCount} more facilit{ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded.
           </p>
         ) : null}
         {nexusQ.data && !nexusQ.data.linked ? (
-          <p style={{ margin: 0, padding: '0 24px 18px', fontSize: 13, color: '#667085' }}>{nexusQ.data.disclaimer}</p>
+          <p className="capiro-intel-caption-muted" style={{ margin: 0, padding: '0 24px 18px' }}>{nexusQ.data.disclaimer}</p>
         ) : null}
       </Card>
 
@@ -1996,16 +2119,16 @@ function DistrictPanel({ client }: { client: Client }) {
         <div className="cap-pf-grid-dist">
           <Card>
             <CardHead title="Selected district" />
-            <div style={{ padding: '20px 24px 22px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>{sel.code}</span>
+            <div className="capiro-intel-district-body">
+              <div className="capiro-intel-row-wrap">
+                <span className="capiro-intel-value-xl">{sel.code}</span>
                 <Pill tone={sel.ui} size="lg">{sel.strength} nexus</Pill>
               </div>
-              <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Federal representative</div>
-              <div style={{ marginTop: 3, fontSize: 16, color: '#101828' }}>
+              <div className="capiro-intel-eyebrow" style={{ marginTop: 14 }}>Federal representative</div>
+              <div className="capiro-intel-rep-line">
                 {sel.repName ? `${sel.repName}${partyLabel(sel.repParty) ? ` (${partyLabel(sel.repParty)})` : ''} · ${sel.repChamber}` : 'Not yet resolved'}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))', gap: 10, marginTop: 18 }}>
+              <div className="capiro-intel-tiles">
                 {(
                   [
                     ['Facilities', sel.facilityNames.join(', ') || '—'],
@@ -2014,9 +2137,9 @@ function DistrictPanel({ client }: { client: Client }) {
                     ['Awards on record', sel.awardCount != null ? formatNumber(sel.awardCount) : '—'],
                   ] as const
                 ).map(([label, tileValue]) => (
-                  <span key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 10px', borderRadius: 8, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{tileValue}</span>
+                  <span key={label} className="capiro-intel-tile">
+                    <span className="capiro-intel-eyebrow-xs">{label}</span>
+                    <span className="capiro-intel-tile-value">{tileValue}</span>
                   </span>
                 ))}
               </div>
@@ -2034,37 +2157,30 @@ function DistrictPanel({ client }: { client: Client }) {
 }
 
 function RealDistrictRailRow({ d, selected, onSelect }: { d: RealDistrictModel; selected: boolean; onSelect: () => void }) {
-  const [hover, setHover] = useState(false);
-  const dot = d.score >= 80 ? '#101828' : d.score >= 60 ? '#475467' : '#98A2B3';
+  // Data-driven (varies per row by score), so it stays inline — but points at
+  // the same tokens the rest of the file's text hierarchy uses, never a raw hex.
+  const dot = d.score >= 80
+    ? 'var(--capiro-color-text-primary)'
+    : d.score >= 60
+      ? 'var(--capiro-color-text-body-secondary)'
+      : 'var(--capiro-color-text-faint)';
   return (
     <button
       type="button"
       onClick={onSelect}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       aria-pressed={selected}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '11px 12px',
-        borderRadius: 10,
-        textAlign: 'left',
-        background: selected ? '#FAF9F6' : hover ? '#F2F0EB' : '#ffffff',
-        boxShadow: selected ? 'inset 0 0 0 1.5px #101828' : 'none',
-        border: selected ? '1px solid transparent' : hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
-      }}
+      className={selected ? 'capiro-intel-district-row capiro-intel-district-row--selected' : 'capiro-intel-district-row'}
     >
-      <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: dot }} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '.02em', color: '#101828' }}>{d.code}</span>
-          <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span className="capiro-intel-district-dot" style={{ background: dot }} />
+      <span className="capiro-intel-district-main">
+        <span className="capiro-intel-district-top">
+          <span className="capiro-intel-district-code">{d.code}</span>
+          <span className="capiro-intel-district-tag">
             {d.facilityNames[0]}
             {d.facilityNames.length > 1 ? ` +${d.facilityNames.length - 1}` : ''}
           </span>
         </span>
-        <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: '#667085' }}>
+        <span className="capiro-intel-district-sub">
           {d.totalAmount != null ? formatMoney(d.totalAmount) : 'No confirmed awards'}
           {d.employeeCount != null ? ` · ${formatNumber(d.employeeCount)} employees` : ''}
         </span>
@@ -2083,46 +2199,34 @@ function V2DistrictRailRow({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const [hover, setHover] = useState(false);
   const band: ScoreBand | null = bandOf(d.score);
   return (
     <button
       type="button"
       onClick={onSelect}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       aria-pressed={selected}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '11px 12px',
-        borderRadius: 10,
-        textAlign: 'left',
-        background: selected ? '#FAF9F6' : hover ? '#F2F0EB' : '#ffffff',
-        boxShadow: selected ? 'inset 0 0 0 1.5px #101828' : 'none',
-        border: selected ? '1px solid transparent' : hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
-      }}
+      className={selected ? 'capiro-intel-district-row capiro-intel-district-row--selected' : 'capiro-intel-district-row'}
     >
       <span
         title={band ? `${band.label} nexus` : 'Unscored'}
-        style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: band?.color ?? '#E0DCD4' }}
+        className="capiro-intel-district-dot"
+        style={{ background: band?.color ?? 'var(--capiro-color-border-control)' }}
       />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '.02em', color: '#101828' }}>{d.districtKey}</span>
-          <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span className="capiro-intel-district-main">
+        <span className="capiro-intel-district-top">
+          <span className="capiro-intel-district-code">{d.districtKey}</span>
+          <span className="capiro-intel-district-tag">
             {band ? band.label : 'Unscored'}
           </span>
         </span>
-        <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: '#667085' }}>
+        <span className="capiro-intel-district-sub">
           {d.awarded.contractObligations != null || d.awarded.grantObligations != null
             ? `${formatMoney(d.awarded.contractObligations)} contracts · ${formatMoney(d.awarded.grantObligations)} grants`
             : 'No confirmed awards'}
           {d.employeeCount != null ? ` · ${formatNumber(d.employeeCount)} employees` : ''}
         </span>
       </span>
-      <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 600, color: '#101828' }}>{d.score ?? '—'}</span>
+      <span className="capiro-intel-district-score">{d.score ?? '—'}</span>
     </button>
   );
 }
@@ -2140,19 +2244,19 @@ function FacilitiesRepresentationCard({
       <CardHead title="Facilities & representation" />
       <div>
         {facilities.length === 0 ? (
-          <p style={{ margin: 0, padding: '18px 24px', fontSize: 14, color: '#667085' }}>No facilities recorded.</p>
+          <p className="capiro-intel-caption-muted" style={{ margin: 0, padding: '18px 24px', fontSize: 14 }}>No facilities recorded.</p>
         ) : (
           facilities.map((f) => {
             const representation = repByFacilityId.get(f.id);
             const { label, tone } = facilityStatus(f, representation);
             const repName = representation && !representation.unresolved ? representation.federal.house?.fullName : null;
             return (
-              <div key={f.id} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '13px 24px', borderBottom: '1px solid #F2F0EB', textAlign: 'left' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
-                <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{formatFacilityDistrict(f.state, f.congressionalDistrict) || 'Not geocoded'}</span>
-                <span style={{ flex: '0 0 auto', minWidth: 40, fontSize: 13, color: '#475467', textAlign: 'right' }}>{f.employeeCount != null ? formatNumber(f.employeeCount) : 'Needs count'}</span>
-                <span style={{ flex: '0 0 auto', width: 118, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{repName ?? 'Not resolved'}</span>
-                <span style={{ flex: '0 0 auto', width: 140, display: 'flex', justifyContent: 'flex-end' }}>
+              <div key={f.id} className="capiro-intel-fac-row">
+                <span className="capiro-intel-fac-name">{f.name}</span>
+                <span className="capiro-intel-fac-district">{formatFacilityDistrict(f.state, f.congressionalDistrict) || 'Not geocoded'}</span>
+                <span className="capiro-intel-fac-emp">{f.employeeCount != null ? formatNumber(f.employeeCount) : 'Needs count'}</span>
+                <span className="capiro-intel-fac-rep">{repName ?? 'Not resolved'}</span>
+                <span className="capiro-intel-fac-status">
                   <Pill tone={tone}>{label}</Pill>
                 </span>
               </div>
