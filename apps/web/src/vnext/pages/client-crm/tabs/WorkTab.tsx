@@ -21,8 +21,6 @@ import {
   Avatar,
   Card,
   CardHead,
-  GRADIENT_DARK,
-  PILL,
   PfButton,
   PfSkeleton,
   Pill,
@@ -30,6 +28,7 @@ import {
   type PillTone,
 } from '../portfolio-primitives.js';
 import { formatDateShort, formatNumber, humanizeEnumToken } from '../../../lib/labels.js';
+import './work-tab.css';
 
 /**
  * Work tab (spec §9, Figma geometry from `dom-tab-work.txt`).
@@ -361,31 +360,14 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
   };
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise cap-pf-work">
       <TabPageHead
         title="Client work"
         sub="A client-specific view of live Strategies and Strategy nodes. Changes sync both ways."
         actions={
           <>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                height: 28,
-                padding: '0 12px 0 10px',
-                borderRadius: 9999,
-                background: '#F2F0EB',
-                border: '1px solid #E0DCD4',
-                color: '#101828',
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: '.03em',
-                textTransform: 'uppercase',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
+            <span className="cap-pf-work__truth-pill">
+              <span className="cap-pf-work__truth-dot" />
               Source of truth · Strategies
             </span>
             <PfButton variant="secondary" onClick={() => navigate('/strategies')}>
@@ -402,90 +384,51 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
       />
 
       {/* §9.1 deep stat band */}
-      <section
-        style={{
-          background: GRADIENT_DARK,
-          borderRadius: 12,
-          padding: '22px 28px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 32,
-          flexWrap: 'wrap',
-        }}
-      >
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '.04em',
-            textTransform: 'uppercase',
-            color: '#98A2B3',
-            flex: '0 0 auto',
-          }}
-        >
-          Client strategy portfolio
-        </span>
+      <section className="cap-pf-work__band">
+        <span className="cap-pf-work__band-title">Client strategy portfolio</span>
         {loading ? (
           BAND_LABELS.map((label) => (
-            <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span key={label} className="cap-pf-work__band-cell is-loading">
               <PfSkeleton style={{ width: 40, height: 28 }} />
-              <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
-                {label}
-              </span>
+              <span className="cap-pf-work__band-sublabel">{label}</span>
             </span>
           ))
         ) : genuinelyEmpty || listError ? (
           // A client with no work yet gets one honest sentence, not a row of
           // five zeros; an unread list gets the error treatment below.
-          <span style={{ flex: '0 0 auto', fontSize: 13, color: '#98A2B3', textWrap: 'pretty' }}>
+          <span className="cap-pf-work__band-empty">
             {listError
               ? 'Strategies could not be loaded.'
               : 'No strategies yet — the stat band appears once work is planned.'}
           </span>
         ) : allDetailsFailed ? (
           <>
-            <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>
-                {formatNumber(mine.length)}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
-                {BAND_LABELS[0]}
-              </span>
+            <span className="cap-pf-work__band-cell">
+              <span className="cap-pf-work__band-value">{formatNumber(mine.length)}</span>
+              <span className="cap-pf-work__band-sublabel">{BAND_LABELS[0]}</span>
             </span>
             {/* Unknown is not zero and is not a dash farm: the strategy count
                 is known from the list; everything else lives in details that
                 did not answer, which the strip says in words, with a Retry
                 right where the reader is looking. */}
-            <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#FEDF89' }}>
+            <span className="cap-pf-work__band-warn">
               Some strategy details failed to load
-              <PfButton variant="link" style={{ color: '#ffffff', fontSize: 13 }} onClick={retry}>
+              <PfButton variant="link" style={{ color: 'var(--pf-surface)', fontSize: 13 }} onClick={retry}>
                 Retry
               </PfButton>
             </span>
           </>
         ) : (
           BAND_LABELS.map((label, i) => (
-            <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>
-                {band[i] ?? '—'}
-              </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: '.04em',
-                  textTransform: 'uppercase',
-                  color: '#98A2B3',
-                }}
-              >
-                {label}
-              </span>
+            <span key={label} className="cap-pf-work__band-cell">
+              <span className="cap-pf-work__band-value">{band[i] ?? '—'}</span>
+              <span className="cap-pf-work__band-sublabel">{label}</span>
             </span>
           ))
         )}
-        <span style={{ flex: 1, minWidth: 12 }} />
+        <span className="cap-pf-work__band-spacer" />
         {!loading && real ? (
-          <span style={{ flex: '0 0 auto', maxWidth: 260, fontSize: 13, color: '#98A2B3', textWrap: 'pretty', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="cap-pf-work__band-note">
             {/* A partly-read portfolio produces real but SHORT figures. Saying
                 so is the difference between a number that is low and a number
                 that is wrong. */}
@@ -493,7 +436,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
               ? `${detailErrors} of ${mine.length} strategies could not be read — figures below exclude them.`
               : 'Live view of Strategies — edits sync both ways.'}
             {detailErrors > 0 ? (
-              <PfButton variant="link" style={{ color: '#ffffff', fontSize: 13 }} onClick={retry}>
+              <PfButton variant="link" style={{ color: 'var(--pf-surface)', fontSize: 13 }} onClick={retry}>
                 Retry
               </PfButton>
             ) : null}
@@ -504,10 +447,8 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
       {/* §9.2 + §9.3 */}
       {listError ? (
         <Card style={{ padding: '32px 24px' }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>
-            Strategies could not be loaded
-          </h3>
-          <p style={{ margin: '8px 0 16px', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+          <h3 className="cap-pf-work__state-title">Strategies could not be loaded</h3>
+          <p className="cap-pf-work__state-body">
             {list.error instanceof Error ? list.error.message : 'The Strategies service did not answer.'}
           </p>
           <PfButton variant="primary" onClick={retry}>
@@ -515,15 +456,8 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
           </PfButton>
         </Card>
       ) : loading ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: narrow ? 'minmax(0,1fr)' : 'minmax(0,1.55fr) minmax(0,1fr)',
-            gap: 24,
-            alignItems: 'start',
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+        <div className={`cap-pf-work__grid${narrow ? ' is-narrow' : ''}`}>
+          <div className="cap-pf-work__col">
             <Card style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <PfSkeleton style={{ width: '40%', height: 14 }} />
               <PfSkeleton style={{ width: '70%', height: 24 }} />
@@ -535,7 +469,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
               <PfSkeleton style={{ width: '100%', height: 36 }} />
             </Card>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+          <div className="cap-pf-work__col">
             <Card style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <PfSkeleton style={{ width: '45%', height: 18 }} />
               <PfSkeleton style={{ width: '100%', height: 32 }} />
@@ -544,22 +478,13 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
           </div>
         </div>
       ) : (
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: narrow ? 'minmax(0,1fr)' : 'minmax(0,1.55fr) minmax(0,1fr)',
-          gap: 24,
-          alignItems: 'start',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+      <div className={`cap-pf-work__grid${narrow ? ' is-narrow' : ''}`}>
+        <div className="cap-pf-work__col">
           {/* featured strategy — selected-card ring §1.5 */}
           {allDetailsFailed ? (
             <Card style={{ padding: '32px 24px' }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>
-                Strategy details could not be read
-              </h3>
-              <p style={{ margin: '8px 0 16px', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+              <h3 className="cap-pf-work__state-title">Strategy details could not be read</h3>
+              <p className="cap-pf-work__state-body">
                 {`This client has ${mine.length} strateg${mine.length === 1 ? 'y' : 'ies'}, but none of the details answered.`}
               </p>
               <PfButton variant="primary" onClick={retry}>
@@ -567,21 +492,11 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
               </PfButton>
             </Card>
           ) : featured ? (
-            <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1.5px #101828', overflow: 'hidden' }}>
-              <div style={{ padding: '22px 24px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      letterSpacing: '.05em',
-                      textTransform: 'uppercase',
-                      color: '#667085',
-                    }}
-                  >
-                    {featured.eyebrow}
-                  </span>
-                  <span style={{ flex: 1 }} />
+            <section className="cap-pf-work__featured">
+              <div className="cap-pf-work__featured-head">
+                <div className="cap-pf-work__featured-top">
+                  <span className="cap-pf-work__eyebrow">{featured.eyebrow}</span>
+                  <span className="cap-pf-work__spacer" />
                   {/* Row 8, wire-audit "4 New capability": there is no completion
                       state anywhere in the Strategy API, so "On track" was an
                       assertion about a real strategy that nothing backed. It
@@ -592,47 +507,29 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                     </Pill>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 280 }}>
-                    <h3 style={{ margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
-                      {featured.title}
-                    </h3>
-                    <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-                      {featured.body}
-                    </p>
+                <div className="cap-pf-work__featured-body-row">
+                  <div className="cap-pf-work__featured-main">
+                    <h3 className="cap-pf-work__featured-title">{featured.title}</h3>
+                    <p className="cap-pf-work__featured-desc">{featured.body}</p>
                   </div>
-                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+                  <div className="cap-pf-work__featured-side">
                     <PfButton variant="link" onClick={() => openStrategy(featured.id)}>
                       Open strategy →
                     </PfButton>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-                        Owner
-                      </span>
+                    <span className="cap-pf-work__meta-row">
+                      <span className="cap-pf-work__eyebrow">Owner</span>
                       <Avatar initials={featured.init} size={24} />
-                      <span style={{ fontSize: 14, color: '#101828', whiteSpace: 'nowrap' }}>{featured.owner}</span>
+                      <span className="cap-pf-work__meta-value">{featured.owner}</span>
                     </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-                        Target date
-                      </span>
-                      <span style={{ fontSize: 14, color: '#101828' }}>{featured.target}</span>
+                    <span className="cap-pf-work__meta-row">
+                      <span className="cap-pf-work__eyebrow">Target date</span>
+                      <span className="cap-pf-work__meta-value">{featured.target}</span>
                     </span>
                   </div>
                 </div>
               </div>
-              <div style={{ borderTop: '1px solid #E8E5DF', padding: '16px 24px 8px' }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '.05em',
-                    textTransform: 'uppercase',
-                    color: '#667085',
-                  }}
-                >
-                  Next strategy nodes
-                </span>
+              <div className="cap-pf-work__featured-foot">
+                <span className="cap-pf-work__eyebrow">Next strategy nodes</span>
               </div>
               {featured.nodes.map((node) => (
                 <NodeRow key={node.id} row={node} onOpen={() => openStrategy(featured.id)} />
@@ -645,78 +542,50 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
           {/* secondary strategy cards */}
           {secondaries.map((st) => (
             <Card key={st.id} style={{ padding: '20px 24px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 260 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>{st.title}</h3>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        height: 22,
-                        padding: '0 8px',
-                        borderRadius: 6,
-                        background: '#FAF9F6',
-                        border: '1px solid #E8E5DF',
-                        color: '#344054',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {st.type}
-                    </span>
+              <div className="cap-pf-work__sec-row">
+                <div className="cap-pf-work__sec-main">
+                  <div className="cap-pf-work__sec-title-row">
+                    <h3 className="cap-pf-work__sec-title">{st.title}</h3>
+                    <span className="cap-pf-work__sec-type">{st.type}</span>
                   </div>
-                  <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-                    {st.body}
-                  </p>
+                  <p className="cap-pf-work__sec-desc">{st.body}</p>
                 </div>
-                <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-                    Owner
-                  </span>
+                <span className="cap-pf-work__sec-owner">
+                  <span className="cap-pf-work__eyebrow">Owner</span>
                   <Avatar initials={st.init} size={24} />
-                  <span style={{ fontSize: 14, color: '#101828', whiteSpace: 'nowrap' }}>{st.owner}</span>
+                  <span className="cap-pf-work__meta-value">{st.owner}</span>
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 18, flexWrap: 'wrap' }}>
+              <div className="cap-pf-work__sec-foot">
                 {/* No readiness meter on a real strategy — nothing measures it. */}
-                <span style={{ flex: 1, minWidth: 180 }} />
-                <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-                  {`Target ${st.target}`}
-                </span>
-                <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-                  {`Next ${st.next}`}
-                </span>
+                <span className="cap-pf-work__sec-foot-spacer" />
+                <span className="cap-pf-work__sec-foot-label">{`Target ${st.target}`}</span>
+                <span className="cap-pf-work__sec-foot-label">{`Next ${st.next}`}</span>
               </div>
             </Card>
           ))}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+        <div className="cap-pf-work__col">
           {/* §9.3 Upcoming work */}
           <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: '1px solid #E8E5DF' }}>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Upcoming work</span>
-                <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467' }}>
-                  Live Strategy nodes ordered by date
-                </span>
+            <div className="cap-pf-work__panel-head">
+              <span className="cap-pf-work__panel-head-main">
+                <span className="cap-pf-work__panel-title">Upcoming work</span>
+                <span className="cap-pf-work__panel-sub">Live Strategy nodes ordered by date</span>
               </span>
               <PfButton variant="link" onClick={() => openStrategy(featured?.id ?? null)}>
                 View timeline
               </PfButton>
             </div>
             {upcoming.length === 0 ? (
-              <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#475467' }}>
-                Nothing scheduled in the next year.
-              </p>
+              <p className="cap-pf-work__empty-note">Nothing scheduled in the next year.</p>
             ) : (
               upcoming.map((row, i) => (
                 <UpcomingRow
                   key={row.id}
                   row={row}
-                  bg={i % 2 === 1 ? '#FAF9F6' : '#ffffff'}
+                  bg={i % 2 === 1 ? 'var(--pf-subtle-bg)' : 'var(--pf-surface)'}
                   onOpen={() => navigate('/strategies')}
                 />
               ))
@@ -726,9 +595,9 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
           {/* §9.3 Risks & blockers */}
           <Card>
             <CardHead title="Risks & blockers" />
-            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="cap-pf-work__risks-body">
               {risks.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>No open risks recorded.</p>
+                <p className="cap-pf-work__risks-empty">No open risks recorded.</p>
               ) : (
                 risks.map((risk) => <RiskPanel key={risk.id} risk={risk} onOpen={() => navigate('/strategies')} />)
               )}
@@ -745,20 +614,9 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
 
 function EmptyFeaturedCard({ onCreate }: { onCreate: () => void }) {
   return (
-    <section
-      style={{
-        background: '#ffffff',
-        borderRadius: 12,
-        boxShadow: '0 0 0 1px #E8E5DF',
-        padding: '40px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 12,
-      }}
-    >
-      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>No strategies yet for this client</h3>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+    <section className="cap-pf-work__empty-card">
+      <h3 className="cap-pf-work__state-title">No strategies yet for this client</h3>
+      <p className="cap-pf-work__state-body is-flush">
         Create a Strategy to start tracking plan steps, milestones, and risk against this account.
       </p>
       <PfButton variant="primary" onClick={onCreate}>
@@ -778,70 +636,21 @@ function NodeRow({ row, onOpen }: { row: NodeRowModel; onOpen: () => void }) {
       onClick={onOpen}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 14,
-        padding: '12px 24px',
-        borderTop: '1px solid #F2F0EB',
-        background: hover ? '#FAF9F6' : 'transparent',
-      }}
+      className={`cap-pf-work__node-row${hover ? ' is-hover' : ''}`}
     >
-      <span
-        aria-hidden
-        style={{
-          flex: '0 0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 26,
-          height: 26,
-          borderRadius: 6,
-          background: GRADIENT_DARK,
-          color: '#ffffff',
-          fontSize: 11,
-          fontWeight: 600,
-        }}
-      >
+      <span aria-hidden className="cap-pf-work__node-mark">
         {row.mark}
       </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '.05em',
-            textTransform: 'uppercase',
-            color: '#667085',
-          }}
-        >
-          {row.kind}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            marginTop: 2,
-            fontSize: 14,
-            fontWeight: 500,
-            color: '#101828',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {row.title}
-        </span>
+      <span className="cap-pf-work__node-main">
+        <span className="cap-pf-work__node-kind">{row.kind}</span>
+        <span className="cap-pf-work__node-title">{row.title}</span>
       </span>
-      <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, width: 160, minWidth: 0 }}>
+      <span className="cap-pf-work__node-owner">
         <Avatar initials={row.init} size={24} />
-        <span style={{ fontSize: 14, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {row.owner}
-        </span>
+        <span className="cap-pf-work__node-owner-name">{row.owner}</span>
       </span>
-      <span style={{ flex: '0 0 auto', width: 64, fontSize: 14, color: '#475467' }}>{row.date}</span>
-      <span style={{ flex: '0 0 auto', width: 118, display: 'flex', justifyContent: 'flex-end' }}>
+      <span className="cap-pf-work__node-date">{row.date}</span>
+      <span className="cap-pf-work__node-status">
         <Pill tone={row.tone} size="lg" style={{ height: 24 }}>
           {row.status}
         </Pill>
@@ -858,59 +667,16 @@ function UpcomingRow({ row, bg, onOpen }: { row: UpcomingModel; bg: string; onOp
       onClick={onOpen}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 14,
-        padding: '13px 24px',
-        borderBottom: '1px solid #F2F0EB',
-        background: hover ? '#FAF9F6' : bg,
-      }}
+      className="cap-pf-work__up-row"
+      style={{ background: hover ? 'var(--pf-subtle-bg)' : bg }}
     >
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 56,
-          fontSize: 12,
-          fontWeight: 600,
-          letterSpacing: '.04em',
-          textTransform: 'uppercase',
-          color: '#667085',
-        }}
-      >
-        {row.date}
-      </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 14,
-            fontWeight: 500,
-            color: '#101828',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {row.title}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            marginTop: 2,
-            fontSize: 13,
-            color: '#667085',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {row.strategy}
-        </span>
+      <span className="cap-pf-work__up-date">{row.date}</span>
+      <span className="cap-pf-work__up-main">
+        <span className="cap-pf-work__up-title">{row.title}</span>
+        <span className="cap-pf-work__up-strategy">{row.strategy}</span>
       </span>
       <Avatar initials={row.init} size={24} />
-      <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: PILL[row.tone][3] }} />
+      <span className={`cap-pf-work__up-dot is-tone-${row.tone}`} />
     </button>
   );
 }
@@ -918,21 +684,21 @@ function UpcomingRow({ row, bg, onOpen }: { row: UpcomingModel; bg: string; onOp
 function RiskPanel({ risk, onOpen }: { risk: RiskModel; onOpen: () => void }) {
   const [hover, setHover] = useState(false);
   return (
-    <div style={{ padding: '14px 16px', borderRadius: 10, background: '#FFFAEB', border: '1px solid #FEDF89' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <span style={{ flex: '0 0 auto', marginTop: 5, width: 8, height: 8, borderRadius: '50%', background: '#F79009' }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#93370D', textWrap: 'pretty' }}>{risk.title}</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#B54708', textWrap: 'pretty' }}>{risk.body}</div>
+    <div className="cap-pf-work__risk">
+      <div className="cap-pf-work__risk-top">
+        <span className="cap-pf-work__risk-dot" />
+        <div className="cap-pf-work__risk-main">
+          <div className="cap-pf-work__risk-title">{risk.title}</div>
+          <div className="cap-pf-work__risk-body">{risk.body}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+      <div className="cap-pf-work__risk-foot">
         <button
           type="button"
           onClick={onOpen}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
-          style={{ fontSize: 14, fontWeight: 600, color: '#93370D', opacity: hover ? 0.8 : 1 }}
+          className={`cap-pf-work__risk-link${hover ? ' is-hover' : ''}`}
         >
           Open risk →
         </button>

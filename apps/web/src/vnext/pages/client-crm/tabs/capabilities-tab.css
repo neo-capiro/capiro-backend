@@ -1,0 +1,305 @@
+/*
+ * Capabilities tab (ClientCrmCapabilitiesProto, CapabilitiesTab.tsx) —
+ * design-system reconciliation.
+ *
+ * Scoped under `.cap-pf` (set by ClientProfileShell). Reuses the Portfolio
+ * prototype's real tokens (`--pf-*`, portfolio-proto.css) wherever a hex
+ * value already exists there. The few colors this tab uses that are not yet
+ * promoted into portfolio-proto.css are declared locally below, scoped to
+ * `.cap-pf-caps` so they cannot leak into or collide with any other tab's own
+ * CSS file — every value is transcribed verbatim from this file's previous
+ * inline styles / the shared PILL table in portfolio-primitives.tsx, never
+ * estimated. This file only changes the styling mechanism (inline style →
+ * class + token); no layout, color, or behavior changes.
+ */
+
+.cap-pf-caps {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  /* Local token extensions — not yet in portfolio-proto.css's --pf-* set. */
+  --pf-ring: #E0DCD4;
+  --pf-ring-soft: #E8E5DF;
+  --pf-tint: #F2F0EB;
+  --pf-subtle-bg: #FAF9F6;
+  --pf-warning-fg: #B54708;
+  --pf-error-fg: #B42318;
+}
+
+/* ── shared small buttons ─────────────────────────────────────────────────── */
+
+.cap-pf-caps__secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--pf-surface);
+  color: var(--pf-body-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  border: 1px solid var(--pf-ring);
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, .05);
+}
+.cap-pf-caps__secondary-btn.is-hover {
+  background: var(--pf-subtle-bg);
+  color: var(--pf-ink);
+}
+
+/* ── generic text/note helpers ────────────────────────────────────────────── */
+
+.cap-pf-caps__muted-note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--pf-muted);
+}
+
+.cap-pf-caps__faint-note {
+  font-size: 12px;
+  color: var(--pf-faint);
+}
+
+.cap-pf-caps__empty-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+.cap-pf-caps__empty-wrap.is-tight {
+  padding: 8px 0 4px;
+}
+
+.cap-pf-caps__meta-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cap-pf-caps__meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--pf-muted);
+}
+
+.cap-pf-caps__meta-value {
+  font-size: 13px;
+  color: var(--pf-ink);
+}
+
+/* ── §7.1 capability areas card ───────────────────────────────────────────── */
+
+.cap-pf-caps__count-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--pf-subtle-bg);
+  border: 1px solid var(--pf-ring-soft);
+  color: var(--pf-body-strong);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cap-pf-caps__area-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  border-radius: 10px;
+  background: var(--pf-subtle-bg);
+  border: 1px solid var(--pf-ring-soft);
+}
+.cap-pf-caps__area-card.is-hover {
+  border-color: var(--pf-ring);
+}
+.cap-pf-caps__area-card--btn {
+  width: 100%;
+  text-align: left;
+}
+
+.cap-pf-caps__area-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cap-pf-caps__area-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pf-ink);
+  text-wrap: pretty;
+}
+
+.cap-pf-caps__area-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--pf-body-2);
+  text-wrap: pretty;
+}
+
+.cap-pf-caps__area-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cap-pf-caps__tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--pf-tint);
+  border: 1px solid var(--pf-ring-soft);
+  color: var(--pf-body-strong);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cap-pf-caps__area-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+  box-shadow: inset 0 1px 0 var(--pf-ring-soft);
+  flex-wrap: wrap;
+}
+
+.cap-pf-caps__area-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+/* ── §7.2 registrations & codes ───────────────────────────────────────────── */
+
+.cap-pf-caps__sam-status {
+  font-size: 13px;
+  color: var(--pf-muted);
+  white-space: nowrap;
+}
+
+.cap-pf-caps__reg-body {
+  padding: 6px 24px 20px;
+}
+
+.cap-pf-caps__reg-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 11px 0;
+  box-shadow: inset 0 -1px 0 var(--pf-tint);
+}
+
+.cap-pf-caps__reg-label {
+  flex: 0 0 auto;
+  width: 148px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--pf-muted);
+}
+
+.cap-pf-caps__reg-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--pf-ink);
+  text-wrap: pretty;
+}
+
+/* ── §7.2 where capabilities create fit ───────────────────────────────────── */
+
+.cap-pf-caps__fit-loading {
+  padding: 32px 24px;
+  color: var(--pf-muted);
+  font-size: 14px;
+}
+
+.cap-pf-caps__fit-body {
+  padding: 8px 24px 20px;
+}
+
+.cap-pf-caps__stale-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  color: var(--pf-warning-fg);
+  font-size: 13px;
+}
+
+.cap-pf-caps__match-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--pf-tint);
+}
+
+.cap-pf-caps__match-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cap-pf-caps__match-target {
+  color: var(--pf-ink);
+  font-weight: 600;
+}
+
+.cap-pf-caps__match-why {
+  margin-top: 4px;
+  color: var(--pf-muted);
+  font-size: 13px;
+}
+
+.cap-pf-caps__fit-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+
+.cap-pf-caps__fit-empty {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* ── delete-capability confirm modal ──────────────────────────────────────── */
+
+.cap-pf-caps__modal-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--pf-body-2);
+}
+
+.cap-pf-caps__modal-error {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--pf-error-fg);
+}
+
+.cap-pf-caps__modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}

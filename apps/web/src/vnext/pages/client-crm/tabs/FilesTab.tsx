@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client, ClientAttachment } from '../../../../pages/clients/clientTypes.js';
 import {
-  GRADIENT_DARK,
   PfButton,
   Pill,
   TabPageHead,
@@ -20,6 +19,7 @@ import {
 } from '../useClientAccountOwner.js';
 import { FILES, FOLDERS } from '../portfolio-fixtures.js';
 import { CLIENT_STORAGE_QUOTA_BYTES, CLIENT_STORAGE_WARN_THRESHOLD } from '@capiro/shared';
+import './files-tab.css';
 
 /**
  * Files tab (spec §11, Figma geometry from `dom-tab-files.txt`).
@@ -633,12 +633,12 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   }
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise cap-pf-files">
       <input
         ref={inputRef}
         type="file"
         multiple
-        style={{ display: 'none' }}
+        className="cap-pf-files__hidden-input"
         onChange={(event) => {
           void handleFiles(event.target.files);
           event.target.value = '';
@@ -678,24 +678,14 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       />
 
       {uploads.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="cap-pf-files__uploads">
           {uploads.map((entry) => (
             <div
               key={entry.name}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 16px',
-                borderRadius: 8,
-                background: entry.status === 'failed' ? '#FEF3F2' : '#FAF9F6',
-                border: entry.status === 'failed' ? '1px solid #FECDCA' : '1px solid #E8E5DF',
-              }}
+              className={`cap-pf-files__upload-row${entry.status === 'failed' ? ' is-failed' : ''}`}
             >
-              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {entry.name}
-              </span>
-              <span style={{ flex: '0 0 auto', fontSize: 13, color: entry.status === 'failed' ? '#B42318' : '#667085' }}>
+              <span className="cap-pf-files__upload-name">{entry.name}</span>
+              <span className={`cap-pf-files__upload-status${entry.status === 'failed' ? ' is-failed' : ''}`}>
                 {entry.status === 'uploading' ? 'Uploading…' : entry.message}
               </span>
             </div>
@@ -704,56 +694,29 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       ) : null}
 
       {/* toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            height: 40,
-            padding: '0 12px',
-            flex: 1,
-            minWidth: 220,
-            maxWidth: 360,
-            borderRadius: 8,
-            background: '#ffffff',
-            border: '1px solid #E0DCD4',
-            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-          }}
-        >
-          <UIcon name="SearchLg" size={18} color="#667085" />
+      <div className="cap-pf-files__toolbar">
+        <div className="cap-pf-files__search-box">
+          <UIcon name="SearchLg" size={18} color="var(--pf-muted)" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search files"
             aria-label="Search files"
-            style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
+            className="cap-pf-files__search-input"
           />
         </div>
         {FILTERS.map((chip) => (
           <FilterChip key={chip.key} label={chip.label} active={filter === chip.key} onClick={() => setFilter(chip.key)} />
         ))}
-        <span style={{ flex: 1 }} />
+        <span className="cap-pf-files__spacer" />
         <SortButton label={`Sort ${SORT_LABEL[sort]}`} onClick={() => setSort(SORT_NEXT[sort])} />
       </div>
 
       {/* selection bar */}
       {selected.size > 0 ? (
-        <div
-          className="cap-pf-anim-rise"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 18px',
-            borderRadius: 10,
-            background: '#F2F0EB',
-            border: '1px solid #E0DCD4',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{`${selected.size} selected`}</span>
-          <span style={{ flex: 1 }} />
+        <div className="cap-pf-anim-rise cap-pf-files__selection-bar">
+          <span className="cap-pf-files__selection-count">{`${selected.size} selected`}</span>
+          <span className="cap-pf-files__spacer" />
           <PfButton
             variant="primary"
             size="sm"
@@ -767,37 +730,11 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: narrow ? 'minmax(0,1fr)' : '300px minmax(0,1fr)',
-          gap: 24,
-          alignItems: 'start',
-        }}
-      >
+      <div className={`cap-pf-files__grid${narrow ? ' is-narrow' : ''}`}>
         {/* folder tree card (FOLDERS fixture — designed UI, §11) */}
-        <section
-          style={{
-            background: '#ffffff',
-            borderRadius: 12,
-            boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 20px 14px' }}>
-            <span
-              style={{
-                flex: 1,
-                minWidth: 0,
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: '.04em',
-                textTransform: 'uppercase',
-                color: '#667085',
-              }}
-            >
-              Folders
-            </span>
+        <section className="cap-pf-files__card">
+          <div className="cap-pf-files__tree-head">
+            <span className="cap-pf-files__eyebrow cap-pf-files__flex1">Folders</span>
             <PfButton
               variant="link"
               style={{ fontSize: 13 }}
@@ -827,15 +764,13 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               Manage
             </PfButton>
           </div>
-          <div style={{ padding: '0 10px 12px' }}>
+          <div className="cap-pf-files__tree-list">
             {folders.map((folder) => (
               <FolderTreeRow key={folder.id} folder={folder} active={folder.id === folderId} onPick={() => pickFolder(folder.id)} />
             ))}
           </div>
-          <div style={{ padding: '16px 20px 20px', borderTop: '1px solid #E8E5DF' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-              Client storage
-            </div>
+          <div className="cap-pf-files__storage">
+            <div className="cap-pf-files__eyebrow">Client storage</div>
 {/* Both halves are now real. The numerator is the sum of every stored
                 `byteSize` for this client — the list endpoint has no pagination,
                 so it is the whole file room rather than a page, and rows whose
@@ -855,23 +790,20 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 and it is a loading placeholder, never a claim about a client. */}
             {loaded ? (
               <>
-                <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: storageOver ? '#B54708' : '#101828' }}>
+                <div className={`cap-pf-files__storage-value${storageOver ? ' is-over' : ''}`}>
                   {`${formatBytes(storedBytes)} of ${formatBytes(CLIENT_STORAGE_QUOTA_BYTES)}`}
                 </div>
-                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F0EB', overflow: 'hidden' }}>
+                <span className="cap-pf-files__storage-track">
                   <span
+                    className={`cap-pf-files__storage-fill${storageOver ? ' is-over' : ''}`}
                     style={{
-                      display: 'block',
-                      height: 6,
                       // Clamped so an over-quota client cannot overflow the
                       // track — the copy below is what states the overage.
                       width: `${Math.min(100, storagePct)}%`,
-                      borderRadius: 3,
-                      background: storageOver ? '#F79009' : GRADIENT_DARK,
                     }}
                   />
                 </span>
-                <div style={{ marginTop: 6, fontSize: 13, color: storageWarn ? '#B54708' : '#667085' }}>
+                <div className={`cap-pf-files__storage-sub${storageWarn ? ' is-warn' : ''}`}>
                   {storageOver
                     ? `Over the ${formatBytes(CLIENT_STORAGE_QUOTA_BYTES)} allowance · ${allRows.length} file${allRows.length === 1 ? '' : 's'}`
                     : `${storagePct < 1 ? '<1' : Math.round(storagePct)}% used · ${allRows.length} file${allRows.length === 1 ? '' : 's'}`}
@@ -881,13 +813,13 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               <>
                 {/* Loading/error: no invented "1.8 GB of 10 GB" — an empty track
                     until the real total is known. */}
-                <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: '#98A2B3' }} aria-busy={filesQuery.isPending}>
+                <div className="cap-pf-files__storage-value is-faint" aria-busy={filesQuery.isPending}>
                   {filesQuery.isPending ? 'Measuring…' : 'Storage unavailable'}
                 </div>
-                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F0EB' }} />
+                <span className="cap-pf-files__storage-track" />
               </>
             )}
-            <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
+            <p className="cap-pf-files__storage-note">
               Smart links point to the original Strategy, meeting, Workspace, or Outreach object — no duplicate file is
               created.
             </p>
@@ -895,32 +827,12 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         </section>
 
         {/* file table card */}
-        <section
-          style={{
-            background: '#ffffff',
-            borderRadius: 12,
-            boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px' }}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: '.04em',
-                  textTransform: 'uppercase',
-                  color: '#667085',
-                }}
-              >
-                {current.crumb}
-              </span>
-              <span style={{ display: 'block', marginTop: 6, fontSize: 20, fontWeight: 600, color: '#101828' }}>
-                {current.label}
-              </span>
-              <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467' }}>
+        <section className="cap-pf-files__card">
+          <div className="cap-pf-files__table-head">
+            <span className="cap-pf-files__flex1">
+              <span className="cap-pf-files__field-label">{current.crumb}</span>
+              <span className="cap-pf-files__table-title">{current.label}</span>
+              <span className="cap-pf-files__table-sub">
                 {/* Subfolder count only where there are subfolders — real
                     folders never nest, so "0 subfolders" on every row would be
                     noise about a hierarchy this product does not have. */}
@@ -941,51 +853,36 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             </PfButton>
           </div>
 
-          <div style={{ width: '100%', overflowX: 'auto' }}>
-            <div style={{ minWidth: 820 }}>
+          <div className="cap-pf-files__scroll">
+            <div className="cap-pf-files__table-min">
               {/* header row */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '10px 24px',
-                  background: '#FAF9F6',
-                  borderTop: '1px solid #E8E5DF',
-                  borderBottom: '1px solid #E8E5DF',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: '.04em',
-                  textTransform: 'uppercase',
-                  color: '#667085',
-                }}
-              >
+              <div className="cap-pf-files__col-head">
                 <Checkbox checked={allChecked} onToggle={toggleAll} ariaLabel="Select all files" />
-                <span style={{ flex: 1, minWidth: 0 }}>Name</span>
-                <span style={{ flex: '0 0 auto', width: 196 }}>Linked to / location</span>
-                <span style={{ flex: '0 0 auto', width: 84 }}>Modified</span>
-                <span style={{ flex: '0 0 auto', width: 84 }}>Owner</span>
-                <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
-                <span style={{ flex: '0 0 auto', width: 28 }} />
+                <span className="cap-pf-files__flex1">Name</span>
+                <span className="cap-pf-files__col-linked">Linked to / location</span>
+                <span className="cap-pf-files__col-84">Modified</span>
+                <span className="cap-pf-files__col-84">Owner</span>
+                <span className="cap-pf-files__col-status">Status</span>
+                <span className="cap-pf-files__col-menu" />
               </div>
 
               {filesQuery.isPending ? (
-                <div style={{ padding: '24px', fontSize: 14, color: '#667085' }} aria-busy="true">
+                <div className="cap-pf-files__panel-note" aria-busy="true">
                   Loading files…
                 </div>
               ) : filesQuery.isError ? (
-                <div style={{ padding: '24px', fontSize: 14 }}>
-                  <span style={{ color: '#B42318' }}>Files could not be loaded.</span>{' '}
+                <div className="cap-pf-files__panel-error">
+                  <span className="cap-pf-files__error-text">Files could not be loaded.</span>{' '}
                   <button
                     type="button"
                     onClick={() => void filesQuery.refetch()}
-                    style={{ fontWeight: 600, color: '#101828', textDecoration: 'underline', cursor: 'pointer' }}
+                    className="cap-pf-files__retry-link"
                   >
                     Retry
                   </button>
                 </div>
               ) : rows.length === 0 ? (
-                <div style={{ padding: '24px', fontSize: 14, color: '#667085' }}>
+                <div className="cap-pf-files__panel-note">
                   {allRows.length === 0 ? 'No files uploaded yet.' : 'No files match this view.'}
                 </div>
               ) : (
@@ -995,7 +892,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                     row={row}
                     real={real}
                     checked={selected.has(row.id)}
-                    bg={selected.has(row.id) ? '#F2F0EB' : i % 2 === 1 ? '#FAF9F6' : '#ffffff'}
+                    bg={selected.has(row.id) ? 'var(--pf-tint)' : i % 2 === 1 ? 'var(--pf-subtle-bg)' : 'var(--pf-surface)'}
                     menuOpen={menuRowId === row.id}
                     onToggle={() => toggleRow(row.id)}
                     onToggleMenu={() => setMenuRowId((prev) => (prev === row.id ? null : row.id))}
@@ -1024,19 +921,9 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '14px 24px',
-              background: '#FAF9F6',
-              borderTop: '1px solid #E8E5DF',
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ fontSize: 14, color: '#475467' }}>{`${rows.length} files · ${smartCount} smart links`}</span>
-            <span style={{ flex: 1 }} />
+          <div className="cap-pf-files__table-foot">
+            <span className="cap-pf-files__table-foot-text">{`${rows.length} files · ${smartCount} smart links`}</span>
+            <span className="cap-pf-files__spacer" />
             {/* Row 3, wire-audit "4 New capability": "All source links healthy"
                 was a designed pill with NO link-health backend — nothing checks
                 whether a smart link still resolves, so it asserted a health it
@@ -1085,15 +972,15 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       />
 
       <CapiroModal open={Boolean(deletingId)} title="Delete file" onClose={() => setDeletingId(null)}>
-        <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+        <p className="cap-pf-files__modal-text">
           Delete <strong>{deletingRow?.name}</strong>? Anything linking to it loses the reference. This cannot be undone.
         </p>
         {remove.isError ? (
-          <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>
+          <p className="cap-pf-files__field-error">
             {remove.error instanceof Error ? remove.error.message : 'Delete failed'}
           </p>
         ) : null}
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <div className="cap-pf-files__modal-actions">
           <CapiroButton
             variant="primary"
             size="compact"
@@ -1204,15 +1091,13 @@ function NewFolderModal({
 
   return (
     <CapiroModal open={open} title="New folder" onClose={close}>
-      <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+      <p className="cap-pf-files__modal-text">
         {selectedCount > 0
           ? `The ${selectedCount} selected file${selectedCount === 1 ? '' : 's'} will be filed here.`
           : 'Folders are created by filing a file into them. This one stays a draft until you upload or move a file into it.'}
       </p>
-      <label style={{ display: 'block', marginTop: 16 }}>
-        <span style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-          Folder name
-        </span>
+      <label className="cap-pf-files__field">
+        <span className="cap-pf-files__field-label">Folder name</span>
         <input
           value={name}
           autoFocus
@@ -1223,27 +1108,14 @@ function NewFolderModal({
           }}
           placeholder="e.g. FY27 submissions"
           aria-label="Folder name"
-          style={{
-            display: 'block',
-            width: '100%',
-            marginTop: 6,
-            height: 40,
-            padding: '0 12px',
-            borderRadius: 8,
-            border: '1px solid #E0DCD4',
-            outline: 'none',
-            background: '#ffffff',
-            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-            fontSize: 14,
-            color: '#101828',
-          }}
+          className="cap-pf-files__field-input"
         />
       </label>
       {duplicate ? (
-        <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>That folder already exists.</p>
+        <p className="cap-pf-files__field-error">That folder already exists.</p>
       ) : null}
-      {error ? <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>{error}</p> : null}
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+      {error ? <p className="cap-pf-files__field-error">{error}</p> : null}
+      <div className="cap-pf-files__modal-actions">
         <CapiroButton variant="primary" size="compact" loading={pending} disabled={invalid} onClick={() => void submit()}>
           {selectedCount > 0 ? `Create and file ${selectedCount}` : 'Create folder'}
         </CapiroButton>
@@ -1264,20 +1136,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        height: 36,
-        padding: '0 12px',
-        borderRadius: 8,
-        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : '#ffffff',
-        border: '1px solid #E0DCD4',
-        color: active ? '#101828' : '#344054',
-        fontSize: 13,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
+      className={`cap-pf-files__filter-chip${hover ? ' is-hover' : ''}${active ? ' is-active' : ''}`}
     >
       {label}
     </button>
@@ -1292,22 +1151,7 @@ function SortButton({ label, onClick }: { label: string; onClick: () => void }) 
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        height: 32,
-        padding: '0 10px',
-        borderRadius: 8,
-        background: hover ? '#F2F0EB' : 'transparent',
-        border: '1px solid #E8E5DF',
-        fontSize: 12,
-        fontWeight: 600,
-        letterSpacing: '.04em',
-        textTransform: 'uppercase',
-        color: '#475467',
-        whiteSpace: 'nowrap',
-      }}
+      className={`cap-pf-files__sort-btn${hover ? ' is-hover' : ''}`}
     >
       {label}
     </button>
@@ -1324,35 +1168,17 @@ function FolderTreeRow({ folder, active, onPick }: { folder: FolderTreeNode; act
       onClick={onPick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 8,
-        padding: `8px 10px 8px ${12 + folder.depth * 16}px`,
-        borderRadius: 8,
-        marginBottom: 2,
-        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
-        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
-      }}
+      className={`cap-pf-files__tree-row${active ? ' is-active' : hover ? ' is-hover' : ''}`}
+      style={{ paddingLeft: 12 + folder.depth * 16 }}
     >
-      <span style={{ flex: '0 0 auto', width: 12, fontSize: 11, color: '#98A2B3' }}>{caret}</span>
-      <span style={{ flex: '0 0 auto', width: 18, height: 14, borderRadius: 3, background: active ? '#101828' : '#475467' }} />
+      <span className="cap-pf-files__tree-caret">{caret}</span>
+      <span className={`cap-pf-files__tree-icon${active ? ' is-active' : ''}`} />
       <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 14,
-          fontWeight: active || folder.depth === 0 ? 600 : 500,
-          color: active ? '#101828' : '#344054',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
+        className={`cap-pf-files__tree-label${active ? ' is-active' : folder.depth === 0 ? ' is-root' : ''}`}
       >
         {folder.label}
       </span>
-      <span style={{ flex: '0 0 auto', fontSize: 13, color: '#667085' }}>
+      <span className="cap-pf-files__tree-count">
         {/* A draft folder holds nothing yet — say so rather than show a 0 that
             reads like an emptied folder. */}
         {folder.draft ? 'Draft' : folder.count}
@@ -1371,29 +1197,8 @@ function Checkbox({
   ariaLabel: string;
 }) {
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      onClick={onToggle}
-      style={{ flex: '0 0 auto', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <span
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 18,
-          height: 18,
-          borderRadius: 4,
-          background: checked ? GRADIENT_DARK : '#ffffff',
-          border: checked ? '1px solid #101828' : '1px solid #E0DCD4',
-          color: '#ffffff',
-          fontSize: 10,
-          fontWeight: 700,
-        }}
-      >
+    <button type="button" role="checkbox" aria-checked={checked} aria-label={ariaLabel} onClick={onToggle} className="cap-pf-files__checkbox-btn">
+      <span className={`cap-pf-files__checkbox-box${checked ? ' is-checked' : ''}`}>
         {checked ? '✓' : ''}
       </span>
     </button>
@@ -1431,15 +1236,8 @@ function FileRow({
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        padding: '12px 24px',
-        borderBottom: '1px solid #E8E5DF',
-        background: hover && !checked ? '#FAF9F6' : bg,
-      }}
+      className="cap-pf-files__row"
+      style={{ background: hover && !checked ? 'var(--pf-subtle-bg)' : bg }}
     >
       <Checkbox checked={checked} onToggle={onToggle} ariaLabel={`Select ${row.name}`} />
       <button
@@ -1448,87 +1246,31 @@ function FileRow({
         onClick={() => {
           if (row.downloadUrl) window.open(row.downloadUrl, '_blank', 'noopener,noreferrer');
         }}
-        style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}
+        className="cap-pf-files__row-name-btn"
       >
-        <span
-          aria-hidden
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 34,
-            height: 34,
-            borderRadius: 6,
-            background: '#FAF9F6',
-            border: '1px solid #E8E5DF',
-            color: '#475467',
-            fontSize: 9,
-            fontWeight: 700,
-            letterSpacing: '.04em',
-          }}
-        >
+        <span aria-hidden className="cap-pf-files__ext-badge">
           {row.ext}
         </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              display: 'block',
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#101828',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {row.name}
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+        <span className="cap-pf-files__flex1">
+          <span className="cap-pf-files__row-title">{row.name}</span>
+          <span className="cap-pf-files__row-meta">
             {row.smart ? (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  height: 20,
-                  padding: '0 8px 0 6px',
-                  borderRadius: 9999,
-                  background: '#F2F0EB',
-                  border: '1px solid #E0DCD4',
-                  color: '#101828',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: GRADIENT_DARK }} />
+              <span className="cap-pf-files__smart-badge">
+                <span className="cap-pf-files__smart-dot" />
                 Smart link
               </span>
             ) : null}
-            <span style={{ fontSize: 12, color: '#667085' }}>{row.ext}</span>
+            <span className="cap-pf-files__row-ext">{row.ext}</span>
           </span>
         </span>
       </button>
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 196,
-          fontSize: 13,
-          color: '#475467',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {row.linked}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 84, fontSize: 13, color: '#475467' }}>{row.modified}</span>
-      <span style={{ flex: '0 0 auto', width: 84, fontSize: 13, color: '#475467' }}>{row.owner}</span>
-      <span style={{ flex: '0 0 auto', width: 112 }}>
+      <span className="cap-pf-files__row-linked">{row.linked}</span>
+      <span className="cap-pf-files__row-84">{row.modified}</span>
+      <span className="cap-pf-files__row-84">{row.owner}</span>
+      <span className="cap-pf-files__row-status">
         <Pill tone={row.tone}>{row.status}</Pill>
       </span>
-      <span style={{ flex: '0 0 auto', width: 28, position: 'relative' }}>
+      <span className="cap-pf-files__row-menu">
         <button
           type="button"
           aria-label={`More actions for ${row.name}`}
@@ -1536,27 +1278,14 @@ function FileRow({
           onClick={onToggleMenu}
           onMouseEnter={() => setMenuHover(true)}
           onMouseLeave={() => setMenuHover(false)}
-          style={{ width: 28, display: 'flex', justifyContent: 'center', color: menuHover ? '#101828' : '#667085' }}
+          className={`cap-pf-files__menu-trigger${menuHover ? ' is-hover' : ''}`}
         >
           <UIcon name="DotsHorizontal" size={18} />
         </button>
         {menuOpen ? (
           <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 39 }} onClick={onCloseMenu} />
-            <div
-              role="menu"
-              style={{
-                position: 'absolute',
-                top: 30,
-                right: 0,
-                zIndex: 40,
-                minWidth: 160,
-                padding: 6,
-                borderRadius: 8,
-                background: '#ffffff',
-                boxShadow: '0px 12px 16px -4px rgba(16,24,40,.14),0px 0 0 1px #E8E5DF',
-              }}
-            >
+            <div className="cap-pf-files__menu-backdrop" onClick={onCloseMenu} />
+            <div role="menu" className="cap-pf-files__menu-popover">
               <MenuItem onClick={onRequestMove}>Move to folder</MenuItem>
               <MenuItem onClick={onRequestAccess}>Manage access</MenuItem>
               <MenuItem danger onClick={onRequestDelete}>
@@ -1579,19 +1308,7 @@ function MenuItem({ children, danger = false, onClick }: { children: React.React
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        height: 34,
-        padding: '0 10px',
-        borderRadius: 6,
-        background: hover ? (danger ? '#FEF3F2' : '#FAF9F6') : 'transparent',
-        color: danger ? '#B42318' : '#101828',
-        fontSize: 14,
-        fontWeight: 500,
-        textAlign: 'left',
-      }}
+      className={`cap-pf-files__menu-item${danger ? ' is-danger' : ''}${hover ? ' is-hover' : ''}`}
     >
       {children}
     </button>
@@ -1663,14 +1380,14 @@ function ManageAccessModal({
 
   return (
     <CapiroModal open={open} title={title} onClose={onClose}>
-      <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+      <p className="cap-pf-files__modal-text is-pretty">
         {target.kind === 'file'
           ? 'Choose who on your team can view this file. Everyone can view by default.'
           : 'Choose who on your team can view files in this folder. Applies to every file currently filed here. Everyone can view by default.'}
       </p>
 
-      <div role="radiogroup" aria-label="Who can view" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#101828', cursor: 'pointer' }}>
+      <div role="radiogroup" aria-label="Who can view" className="cap-pf-files__radio-group">
+        <label className="cap-pf-files__radio-label">
           <input
             type="radio"
             name="viewer-mode"
@@ -1679,7 +1396,7 @@ function ManageAccessModal({
           />
           All team members
         </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#101828', cursor: 'pointer' }}>
+        <label className="cap-pf-files__radio-label">
           <input
             type="radio"
             name="viewer-mode"
@@ -1691,46 +1408,21 @@ function ManageAccessModal({
       </div>
 
       {mode === 'restricted' ? (
-        <div
-          style={{
-            marginTop: 14,
-            maxHeight: 260,
-            overflowY: 'auto',
-            border: '1px solid #E8E5DF',
-            borderRadius: 8,
-            padding: 8,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}
-        >
+        <div className="cap-pf-files__members-list">
           {membersLoading ? (
-            <div style={{ padding: 8, fontSize: 14, color: '#667085' }} aria-busy="true">Loading team…</div>
+            <div className="cap-pf-files__members-note" aria-busy="true">Loading team…</div>
           ) : members.length === 0 ? (
-            <div style={{ padding: 8, fontSize: 14, color: '#667085' }}>No team members found.</div>
+            <div className="cap-pf-files__members-note">No team members found.</div>
           ) : (
             members.map((m) => {
               const label = clientAccountOwnerLabel(m) ?? m.email;
               const on = selected.has(m.id);
               return (
-                <label
-                  key={m.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    background: on ? '#FAF9F6' : 'transparent',
-                    fontSize: 14,
-                    color: '#101828',
-                    cursor: 'pointer',
-                  }}
-                >
+                <label key={m.id} className={`cap-pf-files__member-row${on ? ' is-on' : ''}`}>
                   <input type="checkbox" checked={on} onChange={() => toggle(m.id)} />
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontWeight: 500 }}>{label}</span>
-                    <span style={{ display: 'block', fontSize: 12, color: '#667085' }}>{m.email}</span>
+                  <span className="cap-pf-files__flex1">
+                    <span className="cap-pf-files__member-name">{label}</span>
+                    <span className="cap-pf-files__member-email">{m.email}</span>
                   </span>
                 </label>
               );
@@ -1739,9 +1431,9 @@ function ManageAccessModal({
         </div>
       ) : null}
 
-      {error ? <p style={{ margin: '10px 0 0', fontSize: 14, color: '#B42318' }}>{error}</p> : null}
+      {error ? <p className="cap-pf-files__access-error">{error}</p> : null}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+      <div className="cap-pf-files__modal-actions">
         <CapiroButton
           variant="primary"
           size="compact"
@@ -1758,4 +1450,3 @@ function ManageAccessModal({
     </CapiroModal>
   );
 }
-

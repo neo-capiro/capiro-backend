@@ -19,6 +19,7 @@ import { readClientRegistrations } from '../../../../pages/clients/client-regist
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
+import './capabilities-tab.css';
 
 /**
  * Capabilities tab (spec §7). Order: capability areas → registrations & fit.
@@ -81,7 +82,7 @@ export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
   const areas: CapabilityAreaView[] = live.map((cap) => toLiveAreaView(cap));
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise cap-pf-caps">
       <TabPageHead
         title="Capabilities"
         sub="What the client actually does, how it is registered to sell, and what it has delivered. This record drives every legislative, funding, and district match in Capiro."
@@ -145,16 +146,16 @@ export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
 
       {/* Destructive mutations confirm; the overlay traps focus while open. */}
       <CapiroModal open={Boolean(pendingDelete)} title="Delete capability" onClose={() => setPendingDelete(null)}>
-        <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+        <p className="cap-pf-caps__modal-text">
           Delete <strong>{pendingDelete?.name}</strong>? Its advocacy history and linked documents are removed with it.
           This cannot be undone.
         </p>
         {remove.isError ? (
-          <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>
+          <p className="cap-pf-caps__modal-error">
             {remove.error instanceof Error ? remove.error.message : 'Delete failed'}
           </p>
         ) : null}
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <div className="cap-pf-caps__modal-actions">
           <CapiroButton
             variant="primary"
             size="compact"
@@ -183,23 +184,7 @@ function SecondaryBtn({ children, onClick, disabled }: { children: React.ReactNo
       disabled={disabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        height: 40,
-        padding: '0 16px',
-        borderRadius: 8,
-        background: hover ? '#FAF9F6' : '#ffffff',
-        color: hover ? '#101828' : '#344054',
-        fontSize: 14,
-        fontWeight: 600,
-        lineHeight: '20px',
-        whiteSpace: 'nowrap',
-        border: '1px solid #E0DCD4',
-        boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-      }}
+      className={`cap-pf-caps__secondary-btn${hover ? ' is-hover' : ''}`}
     >
       {children}
     </button>
@@ -275,22 +260,7 @@ function CapabilityAreasCard({
         description="Each area carries its maturity, the budget lines it maps to, and where the claim comes from."
         action={
           loading ? null : (
-            <span
-              style={{
-                flex: '0 0 auto',
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: 24,
-                padding: '0 10px',
-                borderRadius: 9999,
-                background: '#FAF9F6',
-                border: '1px solid #E8E5DF',
-                color: '#344054',
-                fontSize: 12,
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <span className="cap-pf-caps__count-pill">
               {`${areas.length} area${areas.length === 1 ? '' : 's'} · ${fielded} fielded`}
             </span>
           )
@@ -298,10 +268,10 @@ function CapabilityAreasCard({
       />
       <div className="cap-pf-grid-cap-areas" style={{ padding: '0 24px 24px' }}>
         {loading ? (
-          <p style={{ margin: 0, fontSize: 14, color: '#667085' }}>Loading capability areas…</p>
+          <p className="cap-pf-caps__muted-note">Loading capability areas…</p>
         ) : areas.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, padding: '8px 0 16px' }}>
-            <p style={{ margin: 0, fontSize: 14, color: '#667085' }}>No capability areas recorded yet.</p>
+          <div className="cap-pf-caps__empty-wrap">
+            <p className="cap-pf-caps__muted-note">No capability areas recorded yet.</p>
             <SecondaryBtn onClick={onAddCapability}>Add capability</SecondaryBtn>
           </div>
         ) : (
@@ -320,96 +290,58 @@ function CapabilityAreasCard({
 
 function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen?: () => void }) {
   const [hover, setHover] = useState(false);
-  const cardStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    padding: '18px 18px 16px',
-    borderRadius: 10,
-    background: '#FAF9F6',
-    border: hover && onOpen ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
-  } as const;
+  const cardClass = `cap-pf-caps__area-card${hover && onOpen ? ' is-hover' : ''}`;
 
   const inner = (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 600, color: '#101828', textWrap: 'pretty' }}>
-          {area.name}
-        </span>
+      <div className="cap-pf-caps__area-top">
+        <span className="cap-pf-caps__area-name">{area.name}</span>
         <Pill tone={area.tone} style={{ flex: '0 0 auto' }}>
           {area.maturity}
         </Pill>
       </div>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>{area.body}</p>
+      <p className="cap-pf-caps__area-body">{area.body}</p>
       {area.tags.length > 0 ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div className="cap-pf-caps__area-tags">
           {area.tags.map((tag) => (
-            <span
-              key={tag}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: 22,
-                padding: '0 8px',
-                borderRadius: 6,
-                background: '#F2F0EB',
-                border: '1px solid #E8E5DF',
-                color: '#344054',
-                fontSize: 12,
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <span key={tag} className="cap-pf-caps__tag">
               {tag}
             </span>
           ))}
         </div>
       ) : null}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          paddingTop: 12,
-          boxShadow: 'inset 0 1px 0 #E8E5DF',
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className="cap-pf-caps__area-foot">
         {area.pe === 'Not yet mapped' ? (
           // One quiet line instead of a full labeled block — a roster where
           // every card shouts PROGRAM LINE / Not yet mapped is noise, not data.
-          <span style={{ fontSize: 12, color: '#98A2B3' }}>No program line mapped yet</span>
+          <span className="cap-pf-caps__faint-note">No program line mapped yet</span>
         ) : (
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-              Program line
-            </span>
-            <span style={{ fontSize: 13, color: '#101828' }}>{area.pe}</span>
+          <span className="cap-pf-caps__meta-pair">
+            <span className="cap-pf-caps__meta-label">Program line</span>
+            <span className="cap-pf-caps__meta-value">{area.pe}</span>
           </span>
         )}
         {/* Rendered only when a source exists for them — see CapabilityAreaView. */}
         {area.matches ? (
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-              Matches
-            </span>
-            <span style={{ fontSize: 13, color: '#101828' }}>{area.matches}</span>
+          <span className="cap-pf-caps__meta-pair">
+            <span className="cap-pf-caps__meta-label">Matches</span>
+            <span className="cap-pf-caps__meta-value">{area.matches}</span>
           </span>
         ) : null}
-        <span style={{ flex: 1, minWidth: 8 }} />
+        <span className="cap-pf-caps__area-spacer" />
         {area.tier ? <EvidenceChip tier={area.tier} label={area.source ?? ''} /> : null}
       </div>
     </>
   );
 
-  if (!onOpen) return <div style={cardStyle}>{inner}</div>;
+  if (!onOpen) return <div className={cardClass}>{inner}</div>;
   return (
     <button
       type="button"
       onClick={onOpen}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ ...cardStyle, width: '100%', textAlign: 'left' }}
+      className={`${cardClass} cap-pf-caps__area-card--btn`}
     >
       {inner}
     </button>
@@ -449,16 +381,16 @@ function RegistrationsCard({ client }: { client: Client }) {
         title="Registrations & codes"
         action={
           samStatus ? (
-            <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap' }}>
+            <span className="cap-pf-caps__sam-status">
               {`SAM.gov · ${samStatus}${samExpiration ? ` · expires ${formatRegDate(samExpiration)}` : ''}`}
             </span>
           ) : null
         }
       />
-      <div style={{ padding: '6px 24px 20px' }}>
+      <div className="cap-pf-caps__reg-body">
         {rows.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, padding: '8px 0 4px' }}>
-            <p style={{ margin: 0, fontSize: 14, color: '#667085' }}>
+          <div className="cap-pf-caps__empty-wrap is-tight">
+            <p className="cap-pf-caps__muted-note">
               No registrations or codes recorded for this client yet.
             </p>
             {/* The Company Info wizard has no deep link of its own — it opens
@@ -469,30 +401,9 @@ function RegistrationsCard({ client }: { client: Client }) {
           </div>
         ) : null}
         {rows.map((c) => (
-          <div
-            key={c.label}
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 16,
-              padding: '11px 0',
-              boxShadow: 'inset 0 -1px 0 #F2F0EB',
-            }}
-          >
-            <span
-              style={{
-                flex: '0 0 auto',
-                width: 148,
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: '.04em',
-                textTransform: 'uppercase',
-                color: '#667085',
-              }}
-            >
-              {c.label}
-            </span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{c.value}</span>
+          <div key={c.label} className="cap-pf-caps__reg-row">
+            <span className="cap-pf-caps__reg-label">{c.label}</span>
+            <span className="cap-pf-caps__reg-value">{c.value}</span>
           </div>
         ))}
       </div>
@@ -554,33 +465,37 @@ function CapabilityFitCard({ client, onAddCapability }: { client: Client; onAddC
         description="The matches Capiro draws from this record, and the reason behind each one."
       />
       {loading ? (
-        <div style={{ padding: '32px 24px', color: '#667085', fontSize: 14 }}>Loading capability fit…</div>
+        <div className="cap-pf-caps__fit-loading">Loading capability fit…</div>
       ) : matches.length > 0 && result && (result.status === 'ready' || result.status === 'stale') ? (
-        <div style={{ padding: '8px 24px 20px' }}>
+        <div className="cap-pf-caps__fit-body">
           {result.status === 'stale' ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 0', color: '#B54708', fontSize: 13 }}>
+            <div className="cap-pf-caps__stale-banner">
               <span>These matches may be outdated.</span>{refreshButton}
             </div>
           ) : null}
           {result.matches.map((match) => (
-            <div key={match.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderBottom: '1px solid #F2F0EB' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {match.href ? <a href={match.href} style={{ color: '#101828', fontWeight: 600 }}>{match.target}</a> : <span style={{ color: '#101828', fontWeight: 600 }}>{match.target}</span>}
-                <div style={{ marginTop: 4, color: '#667085', fontSize: 13 }}>{match.why}</div>
+            <div key={match.id} className="cap-pf-caps__match-row">
+              <div className="cap-pf-caps__match-main">
+                {match.href ? (
+                  <a href={match.href} className="cap-pf-caps__match-target">{match.target}</a>
+                ) : (
+                  <span className="cap-pf-caps__match-target">{match.target}</span>
+                )}
+                <div className="cap-pf-caps__match-why">{match.why}</div>
               </div>
               <FitChip score={match.fit} />
             </div>
           ))}
-          {result.status === 'ready' ? <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12 }}>{refreshButton}</div> : null}
+          {result.status === 'ready' ? <div className="cap-pf-caps__fit-foot">{refreshButton}</div> : null}
         </div>
       ) : result?.status === 'profile_too_thin' ? (
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
-          <span style={{ color: '#667085', fontSize: 14 }}>{result.emptyReason}</span>
+        <div className="cap-pf-caps__fit-empty">
+          <span className="cap-pf-caps__muted-note">{result.emptyReason}</span>
           <SecondaryBtn onClick={onAddCapability}>Add capability</SecondaryBtn>
         </div>
       ) : (
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
-          <span style={{ color: '#667085', fontSize: 14 }}>{result?.emptyReason ?? 'Not computed yet.'}</span>
+        <div className="cap-pf-caps__fit-empty">
+          <span className="cap-pf-caps__muted-note">{result?.emptyReason ?? 'Not computed yet.'}</span>
           {refreshButton}
         </div>
       )}
