@@ -23,9 +23,37 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 
-export type FillRunStatus = 'running' | 'completed' | 'partial' | 'failed';
+export type FillRunStatus = 'running' | 'completed' | 'partial' | 'failed' | 'cancelled';
 export type FillFindingStatus = 'pending' | 'accepted' | 'rejected' | 'informational';
 export type FillFactKind = 'fact' | 'recommendation';
+export type FillTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled';
+
+export interface FillTask {
+  id: string;
+  runId: string;
+  taskType: string;
+  taskKey: string;
+  status: FillTaskStatus;
+  dependsOn: string[];
+  attempt: number;
+  maxAttempts: number;
+  outputSummary: Record<string, unknown> | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  nextAttemptAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FillProgress {
+  total: number;
+  queued: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+}
 
 export interface FillEvidence {
   label: string;
@@ -59,6 +87,10 @@ export interface FillRun {
   /** Per-source outcome; the reason `partial` is a real state and not a guess. */
   sourceStates: Record<string, unknown>;
   summary: Record<string, unknown>;
+  /** Advanced workflow stage and task ledger. Older runs may omit these. */
+  stage?: 'preparing' | 'research' | 'reconciliation' | 'review_ready' | 'failed' | 'cancelled' | string;
+  progress?: FillProgress;
+  tasks?: FillTask[];
   error: string | null;
   startedAt: string;
   completedAt: string | null;
@@ -75,6 +107,7 @@ export type FillPhase =
   | 'context-only'
   | 'partial'
   | 'failed'
+  | 'cancelled'
   | 'permission-denied'
   | 'applying'
   | 'apply-partial'
@@ -175,6 +208,28 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     },
   });
 
+  const cancel = useMutation({
+    mutationFn: async () =>
+      (await api.post<FillRun>(`${base}/runs/${activeRunId}/cancel`, {})).data,
+    onSuccess: (cancelled) => {
+      setRunId(cancelled.id);
+      setSelected(new Set());
+      setApplyOutcome(null);
+      qc.setQueryData(['client-fill-with-meri', clientId, 'run', cancelled.id], cancelled);
+      void run.refetch();
+    },
+  });
+
+  const retryTask = useMutation({
+    mutationFn: async (taskId: string) =>
+      (await api.post<FillRun>(`${base}/runs/${activeRunId}/tasks/${taskId}/retry`, {})).data,
+    onSuccess: (updated) => {
+      setRunId(updated.id);
+      qc.setQueryData(['client-fill-with-meri', clientId, 'run', updated.id], updated);
+      void run.refetch();
+    },
+  });
+
   /** Reject a still-pending finding with a reason — never silently drops it.
    *  For an advocacy_record/advocacy_outcome finding this IS the "Not
    *  advocacy" action from product spec §22/23: the finding is marked
@@ -186,6 +241,14 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
   const reject = useMutation({
     mutationFn: async ({ findingId, reason }: { findingId: string; reason?: string }) =>
       (await api.post<FillFinding>(`${base}/findings/${findingId}/reject`, { reason })).data,
+    onSuccess: () => {
+      void run.refetch();
+    },
+  });
+
+  const restore = useMutation({
+    mutationFn: async (findingId: string) =>
+      (await api.post<FillFinding>(`${base}/findings/${findingId}/restore`, {})).data,
     onSuccess: () => {
       void run.refetch();
     },
@@ -236,6 +299,11 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     [current],
   );
 
+  const rejectedFindings = useMemo(
+    () => (current?.findings ?? []).filter((finding) => finding.status === 'rejected'),
+    [current],
+  );
+
   /** Sources that reported a failure — drives the partial-source message. */
   const failedSources = useMemo(() => {
     const states = current?.sourceStates ?? {};
@@ -249,18 +317,25 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
   }, [current]);
 
   const phase: FillPhase = useMemo(() => {
-    if (httpStatus(start.error) === 403 || httpStatus(apply.error) === 403) return 'permission-denied';
+    if (
+      httpStatus(start.error) === 403 ||
+      httpStatus(apply.error) === 403 ||
+      httpStatus(reject.error) === 403 ||
+      httpStatus(restore.error) === 403
+    ) return 'permission-denied';
     if (apply.isPending) return 'applying';
     if (applyOutcome) return applyOutcome.failed > 0 ? 'apply-partial' : 'applied';
     if (start.isPending) return 'preparing';
+    if (start.error && !current) return 'failed';
     if (!current) return latest.isLoading ? 'preparing' : 'idle';
     if (current.status === 'running') return 'researching';
     if (current.status === 'failed') return 'failed';
+    if (current.status === 'cancelled') return 'cancelled';
     if (proposals.length === 0 && contextFindings.length === 0) return 'no-changes';
     if (proposals.length === 0 && contextFindings.length > 0) return 'context-only';
     if (current.status === 'partial' || failedSources.length > 0) return 'partial';
     return 'proposals';
-  }, [start, apply, applyOutcome, current, latest.isLoading, proposals.length, contextFindings.length, failedSources.length]);
+  }, [start, apply, reject.error, restore.error, applyOutcome, current, latest.isLoading, proposals.length, contextFindings.length, failedSources.length]);
 
   const toggle = useCallback((id: string) => {
     setSelected((previous) => {
@@ -276,15 +351,31 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     [proposals],
   );
 
+  const setSelectedFinding = useCallback((id: string, on: boolean) => {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const setSelectedFindings = useCallback((ids: string[]) => {
+    setSelected(new Set(ids));
+  }, []);
+
   return {
     phase,
     run: current,
     proposals,
     contextFindings,
+    rejectedFindings,
     failedSources,
     selected,
     toggle,
     setAll,
+    setSelectedFinding,
+    setSelectedFindings,
     applyOutcome,
     startError: start.error,
     applyError: apply.error,
@@ -296,6 +387,12 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
       start.mutate({ sources: input?.sources, website: input?.website });
     },
     startForAttachment: (attachmentId: string) => start.mutate({ attachmentId }),
+    cancelRun: () => cancel.mutate(),
+    cancelPending: cancel.isPending,
+    cancelError: cancel.error,
+    retryTask: (taskId: string) => retryTask.mutate(taskId),
+    retryTaskPending: retryTask.isPending,
+    retryTaskError: retryTask.error,
     applySelected: () => apply.mutate([...selected]),
     applyAll: () => apply.mutate(proposals.map((finding) => finding.id)),
     /** §22/23 "Not advocacy" — rejects a still-pending finding so it is
@@ -304,6 +401,9 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
      *  when the reviewer didn't type one. */
     rejectFinding: (findingId: string, reason?: string) => reject.mutate({ findingId, reason }),
     rejectError: reject.error,
+    restoreFinding: (findingId: string) => restore.mutate(findingId),
+    restorePending: restore.isPending,
+    restoreError: restore.error,
     /** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" on a
      *  pending advocacy finding. Returns a promise (unlike the other
      *  fire-and-forget mutators here) so the caller can await the real
