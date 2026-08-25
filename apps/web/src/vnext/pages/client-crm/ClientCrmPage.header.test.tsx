@@ -4,7 +4,7 @@
  * ClientCrmPage.test.tsx) so only the shell and its real drawers are under
  * test; `use-api.js` is mocked the same way the rest of the repo's tests do.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -123,14 +123,15 @@ describe('ClientCrmPage header wiring', () => {
 
     // No setTimeout gate: the drawer is visible on the very next tick, and
     // the fabricated "Meri proposed 7 field changes" toast is gone.
-    expect(await screen.findByText('Fill with Meri — Overland AI')).toBeInTheDocument();
+    const fillDrawer = await screen.findByRole('dialog', { name: 'Fill with Meri' });
+    expect(within(fillDrawer).getByText('Overland AI')).toBeInTheDocument();
     expect(screen.queryByText('Meri proposed 7 field changes for review')).not.toBeInTheDocument();
 
     // No auto-start on open (see ClientFillWithMeriDrawer.contract.test.ts):
     // the backend resumes any run still within its 15-minute staleness
     // window regardless of the new request, so an eager auto-start would
     // silently swallow a document picked moments later instead of reading it.
-    const startButton = await screen.findByRole('button', { name: 'Start enrichment' });
+    const startButton = await screen.findByRole('button', { name: 'Start the review' });
     expect(postMock).not.toHaveBeenCalled();
 
     // Clicking through still fires a real run, not a fabricated toast.
