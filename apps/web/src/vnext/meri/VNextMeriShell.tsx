@@ -13,9 +13,7 @@ import { VNextMeriConversation } from './VNextMeriConversation.js';
 import { VNextMeriContextRail, type ActiveTurnInspector } from './VNextMeriContextRail.js';
 import { MeriContextSheet } from './MeriContextSheet.js';
 import { MeriCommandPalette } from './MeriCommandPalette.js';
-import { MeriActionConfirm, MeriBulkActionConfirm } from './MeriActionConfirm.js';
 import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
-import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
 import {
   getMeriVNextPreferences,
   saveMeriVNextPreferences,
@@ -116,13 +114,6 @@ export function VNextMeriShell({
    */
   const [turnInspectorData, setTurnInspectorData] = useState<MeriTurnInspectorData | null>(null);
   const [turnInspectorTab, setTurnInspectorTab] = useState<MeriTurnInspectorTab>('thinking');
-  // Informed-consent gate, lifted from the old per-conversation
-  // PendingApprovalsInline: a governed write only leaves the tenant after
-  // the operator confirms this exact payload in the dialog. Lives here, not
-  // in VNextMeriConversation, because both the transcript's "Review it" link
-  // and the rail's Approvals tab need to trigger the same dialog.
-  const [confirmFor, setConfirmFor] = useState<PendingApproval | null>(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
 
   const isTabletDown = useMatchesWidth('(max-width: 1179px)');
   const lastBandRef = useRef<boolean | null>(null);
@@ -168,25 +159,6 @@ export function VNextMeriShell({
   useEffect(() => {
     setTurnInspectorData(null);
   }, [controller.activeConversationId]);
-
-  // Drop a held confirm dialog if the server retires the proposal underneath
-  // it — moved here verbatim from the old per-conversation
-  // PendingApprovalsInline, which owned the same effect locally.
-  useEffect(() => {
-    if (!confirmFor) return;
-    const live = controller.pendingApprovals.find(
-      (proposal) => proposal.proposalId === confirmFor.proposalId,
-    );
-    if (!live) setConfirmFor(null);
-    else if (live !== confirmFor) setConfirmFor(live);
-  }, [confirmFor, controller.pendingApprovals]);
-
-  const proposedApprovals = controller.pendingApprovals.filter(
-    (proposal) => proposal.status === 'proposed',
-  );
-  useEffect(() => {
-    if (bulkOpen && proposedApprovals.length === 0) setBulkOpen(false);
-  }, [bulkOpen, proposedApprovals.length]);
 
   useEffect(() => {
     if (!preferencesHydrated) return;
@@ -251,16 +223,22 @@ export function VNextMeriShell({
     );
   };
 
+  /**
+   * MeriApprovalsTab (piece 2) already owns its own confirm-dialog gate
+   * internally — local confirmFor/bulkOpen state, its own
+   * MeriActionConfirm/MeriBulkActionConfirm — and only calls onApprove/
+   * onApproveAll from inside that dialog's onConfirm. So these three are the
+   * POST-confirmation actions, wired straight to the controller, the same as
+   * what the dialogs themselves ultimately call; Shell does not gate them a
+   * second time.
+   */
   const activeTurnInspector: ActiveTurnInspector | null = turnInspectorData
     ? {
         activeTab: turnInspectorTab,
         data: { ...turnInspectorData, approvals: controller.pendingApprovals },
         approvingProposalId: controller.approvingProposalId,
-        onApprove: (proposalId: string) => {
-          const target = controller.pendingApprovals.find((p) => p.proposalId === proposalId);
-          if (target) setConfirmFor(target);
-        },
-        onApproveAll: () => setBulkOpen(true),
+        onApprove: (proposalId: string) => void controller.handleApprovePending(proposalId),
+        onApproveAll: () => void controller.handleApproveAll(),
         onDismiss: (proposalId: string) => void controller.handleDismissPending(proposalId),
       }
     : null;
@@ -375,31 +353,12 @@ export function VNextMeriShell({
         onSelectClient={(clientId) => void controller.changeSessionClient(clientId)}
       />
       {/*
-        Lifted from the old per-conversation PendingApprovalsInline: both the
-        transcript's aggregate "Review it" notice and the rail's Approvals
-        tab trigger these same two dialogs, so they live once here rather
-        than duplicated per caller.
+        No confirm dialogs mounted here: MeriApprovalsTab (the rail's
+        Approvals tab) already owns MeriActionConfirm/MeriBulkActionConfirm
+        internally, gating its own onApprove/onApproveAll calls on them.
+        Duplicating that gate at Shell level would show the confirmation
+        twice in sequence — see the doc comment on activeTurnInspector above.
       */}
-      <MeriActionConfirm
-        proposal={confirmFor}
-        busy={Boolean(controller.approvingProposalId)}
-        onCancel={() => setConfirmFor(null)}
-        onConfirm={() => {
-          const target = confirmFor;
-          setConfirmFor(null);
-          if (target) void controller.handleApprovePending(target.proposalId);
-        }}
-      />
-      <MeriBulkActionConfirm
-        proposals={proposedApprovals}
-        open={bulkOpen}
-        busy={Boolean(controller.approvingProposalId)}
-        onCancel={() => setBulkOpen(false)}
-        onConfirm={() => {
-          setBulkOpen(false);
-          void controller.handleApproveAll();
-        }}
-      />
     </ManagedMcpAppsProvider>
   );
 }

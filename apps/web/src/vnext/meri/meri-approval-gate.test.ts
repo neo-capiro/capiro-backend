@@ -12,24 +12,36 @@ describe('governed-action approval gate', () => {
   // v6 turn-inspector integration moved the confirm-dialog state and the
   // MeriActionConfirm/MeriBulkActionConfirm dialogs themselves out of
   // VNextMeriConversation.tsx's PendingApprovalsInline and into
-  // VNextMeriShell.tsx (both the transcript's "Review it" notice and the
-  // rail's Approvals tab need to trigger the same dialogs, so they now live
-  // once at the shared parent rather than duplicated per caller) — this test
-  // moved with them, same assertions, new file.
-  test('approve and approve-all open a confirmation dialog instead of executing directly', () => {
-    const source = readMeri('VNextMeriShell.tsx');
+  // MeriApprovalsTab.tsx (the rail's Approvals tab) — which, unlike the old
+  // inline card, is deliberately decoupled from `controller`: it takes plain
+  // onApprove/onApproveAll/onDismiss callbacks instead. That means the gate
+  // (Approve click -> setConfirmFor -> MeriActionConfirm -> onConfirm) and
+  // the actual controller call are now one layer apart by design — this
+  // test checks each at the layer it actually lives.
+  test('the Approvals tab gates approve/approve-all on a confirmation dialog before calling its callback', () => {
+    const source = readMeri('MeriApprovalsTab.tsx');
 
-    // Nothing upstream of the dialogs must be able to execute a governed write on click.
-    expect(source).not.toMatch(/onClick=\{\(\) => void controller\.handleApprovePending\(/);
-    expect(source).not.toMatch(/onClick=\{\(\) => void controller\.handleApproveAll\(\)\}/);
-
-    // It routes through the dialogs, which own the actual calls.
-    expect(source).toContain('setConfirmFor(target)');
-    expect(source).toContain('setBulkOpen(true)');
+    // The Approve/Retry button opens the dialog, it does not call onApprove directly.
+    expect(source).not.toMatch(/onClick=\{\(\) => onApprove\(/);
+    expect(source).toContain('onClick={() => setConfirmFor(proposal)}');
+    expect(source).toContain('onClick={() => setBulkOpen(true)}');
     expect(source).toContain('<MeriActionConfirm');
     expect(source).toContain('<MeriBulkActionConfirm');
-    expect(source).toContain('controller.handleApprovePending(target.proposalId)');
-    expect(source).toContain('controller.handleApproveAll()');
+    // Only the dialogs' onConfirm may call the callbacks.
+    expect(source).toContain('if (target) onApprove(target.proposalId)');
+    expect(source).toContain('onApproveAll()');
+  });
+
+  test('the callbacks the dialog ultimately triggers reach the controller, not a second dialog', () => {
+    const source = readMeri('VNextMeriShell.tsx');
+    // Shell wires the turn inspector's onApprove/onApproveAll straight to the
+    // controller — MeriApprovalsTab already gated the click on its own
+    // dialog before either of these is ever called, so gating a second time
+    // here would show the confirmation twice in sequence.
+    expect(source).toContain('onApprove: (proposalId: string) => void controller.handleApprovePending(proposalId)');
+    expect(source).toContain('onApproveAll: () => void controller.handleApproveAll()');
+    expect(source).not.toContain('<MeriActionConfirm');
+    expect(source).not.toContain('<MeriBulkActionConfirm');
   });
 
   test('confirmation is gated on an explicit acknowledgement', () => {
@@ -60,7 +72,7 @@ describe('governed-action approval gate', () => {
   });
 
   test('a held dialog is released when the server retires the proposal', () => {
-    const source = readMeri('VNextMeriShell.tsx');
+    const source = readMeri('MeriApprovalsTab.tsx');
     expect(source).toContain('if (!live) setConfirmFor(null);');
     expect(source).toContain('if (bulkOpen && proposedApprovals.length === 0) setBulkOpen(false);');
   });
