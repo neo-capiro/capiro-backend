@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MeriRect } from './meri-geometry.js';
+import type { TrustStep } from './WorkPerformed.js';
 
 export type MeriSurfaceMode = 'closed' | 'docked' | 'undocked';
 
@@ -114,6 +115,20 @@ export interface ChatMessage {
   contextPacketId?: string;
   /** Backend retrieval plan for this assistant turn (absent on legacy turns). */
   retrieval?: ChatMessageRetrieval;
+  /**
+   * "Work performed" data (Meri v6 thinking-persistence piece 1): the
+   * orchestrator's classified intent/tier and the bounded plan/tool-use log
+   * for this turn, persisted server-side (metadata.intent/tier/plan/trustSteps)
+   * so it survives history replay instead of only living for the newest
+   * message. Undefined on turns persisted before this shipped — treat as "no
+   * Thinking data for this older turn", not an error. Never raw extended
+   * thinking/chain-of-thought text — that is deliberately kept out of browser
+   * state entirely (see useMeriChatController.ts).
+   */
+  orchestratorIntent?: string | null;
+  orchestratorTier?: 'fast' | 'deep' | null;
+  planSteps?: string[];
+  trustSteps?: TrustStep[];
 }
 
 export interface ActiveDraftContext {
@@ -281,6 +296,22 @@ export function setChatMessageCitations(id: string, citations: MeriCitation[]): 
 
 export function setChatMessageVerification(id: string, verification: MeriVerification): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, verification } : m));
+  state = { ...state, messages };
+  notify();
+}
+
+/**
+ * Attach this turn's "work performed" data (Meri v6 thinking-persistence
+ * piece 1) once the stream finishes — orchestrator intent/tier + the plan and
+ * trust-step logs accumulated over the turn. Called from the controller's
+ * `finally` block so it fires on every exit path (done, silent close, thrown
+ * error, abort).
+ */
+export function setChatMessageThinking(
+  id: string,
+  thinking: Pick<ChatMessage, 'orchestratorIntent' | 'orchestratorTier' | 'planSteps' | 'trustSteps'>,
+): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, ...thinking } : m));
   state = { ...state, messages };
   notify();
 }

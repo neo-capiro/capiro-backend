@@ -37,6 +37,18 @@ function relativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+/**
+ * MeriV2's persisted metadata.trustSteps status vocabulary has 4 values
+ * (done/error/pending_approval/blocked); the client TrustStep type (Meri v6
+ * thinking-persistence piece 1) only has 3 (running/done/error). A held or
+ * blocked write never actually ran, so both normalize to 'error' for display
+ * — same as a failed tool call.
+ */
+function normalizeTrustStepStatus(status: unknown): 'running' | 'done' | 'error' {
+  if (status === 'done' || status === 'running') return status;
+  return 'error';
+}
+
 interface ClientGroup {
   clientId: string | null;
   clientName: string;
@@ -168,6 +180,42 @@ export function SessionRail({ forceOpen = false }: { forceOpen?: boolean } = {})
                     title: String(a.title ?? '').trim() || 'Analysis chart',
                   }))
               : [];
+            // "Work performed" data (Meri v6 thinking-persistence piece 1):
+            // metadata.intent/tier/plan/trustSteps, persisted per-turn on the
+            // assistant message so history replay can populate it the same as
+            // a live turn. Rows written before this shipped simply lack these
+            // keys — that is "no Thinking data for this older turn", not an
+            // error, so every value below degrades to omitting the field.
+            const intent = typeof m?.metadata?.intent === 'string' ? m.metadata.intent : null;
+            const tier =
+              m?.metadata?.tier === 'fast' || m?.metadata?.tier === 'deep'
+                ? m.metadata.tier
+                : null;
+            const rawPlan = Array.isArray(m?.metadata?.plan) ? m.metadata.plan : null;
+            const planSteps = rawPlan
+              ? rawPlan.filter((s: unknown): s is string => typeof s === 'string')
+              : [];
+            const rawTrustSteps = Array.isArray(m?.metadata?.trustSteps)
+              ? m.metadata.trustSteps
+              : null;
+            const trustSteps = rawTrustSteps
+              ? rawTrustSteps
+                  .filter(
+                    (s: unknown): s is Record<string, unknown> =>
+                      Boolean(s) && typeof s === 'object',
+                  )
+                  .map((s: Record<string, unknown>) => ({
+                    tool: String(s.tool ?? ''),
+                    label: String(s.label ?? ''),
+                    ...(typeof s.detail === 'string' ? { detail: s.detail } : {}),
+                    ...(typeof s.count === 'number' ? { count: s.count } : {}),
+                    ...(s.confidence === 'high' || s.confidence === 'medium' || s.confidence === 'low'
+                      ? { confidence: s.confidence }
+                      : {}),
+                    status: normalizeTrustStepStatus(s.status),
+                  }))
+                  .filter((s: { tool: string }) => Boolean(s.tool))
+              : [];
             appendChatMessage({
               id: m.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
               role: m.role === 'user' ? 'user' : 'assistant',
@@ -175,6 +223,10 @@ export function SessionRail({ forceOpen = false }: { forceOpen?: boolean } = {})
               createdAt: new Date(m.createdAt),
               ...(attachments.length > 0 ? { attachments } : {}),
               ...(chartArtifacts.length > 0 ? { chartArtifacts } : {}),
+              ...(intent !== null ? { orchestratorIntent: intent } : {}),
+              ...(tier !== null ? { orchestratorTier: tier } : {}),
+              ...(planSteps.length > 0 ? { planSteps } : {}),
+              ...(trustSteps.length > 0 ? { trustSteps } : {}),
             });
           }
         }

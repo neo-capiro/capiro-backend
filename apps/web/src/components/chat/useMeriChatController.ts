@@ -39,6 +39,7 @@ import {
   setChatMessageCitations,
   setChatMessageRetrieval,
   setChatMessageVerification,
+  setChatMessageThinking,
   setChatMessageGroundingCaveat,
   setChatMessageGroundingStatement,
   setChatMessageContextPacketId,
@@ -1509,6 +1510,22 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       abortRef.current = controller;
       const streamEpoch = ++streamEpochRef.current;
 
+      // Meri v6 thinking-persistence piece 1: local (non-state) accumulators
+      // mirroring every setOrchestratorTier/setOrchestratorIntent/setPlanSteps/
+      // setTrustSteps call below. This closure's useCallback deps deliberately
+      // don't include that React state (see the dependency array below), so
+      // reading it directly at completion time would read a STALE value, not
+      // what actually accumulated this turn — the same trap `accumulated`
+      // below already avoids for the message text. Read only in `finally`.
+      // Declared HERE, before `try`, not next to `accumulated` inside it: a
+      // `let`/`const` scoped to a `try` block is NOT visible from its sibling
+      // `finally` block (a real bug caught by tsc — TS2304 — during this
+      // change's own verification), so these must live in the enclosing scope.
+      let turnTrustSteps: TrustStep[] = [];
+      let turnPlanSteps: string[] = [];
+      let turnIntent: string | null = null;
+      let turnTier: 'fast' | 'deep' | null = null;
+
       try {
         const streamPayload: Record<string, unknown> = mode
           ? { body: outgoing, mode }
@@ -1570,6 +1587,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               setOrchestratorIntent(event.intent ?? null);
               setTrustSteps([]);
               setPlanSteps([]);
+              turnTier = event.tier ?? null;
+              turnIntent = event.intent ?? null;
+              turnTrustSteps = [];
+              turnPlanSteps = [];
               // NOTE: pendingApprovals is deliberately NOT cleared here. Clearing
               // it on every turn is what made "I approve" a no-op — the new turn
               // wiped the cards, the model re-proposed under a fresh fingerprint,
@@ -1602,9 +1623,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 }),
               );
             } else if (event.type === 'trace') {
-              if (event.policy?.tier) setOrchestratorTier(event.policy.tier);
+              if (event.policy?.tier) {
+                setOrchestratorTier(event.policy.tier);
+                turnTier = event.policy.tier;
+              }
             } else if (event.type === 'plan') {
               setPlanSteps(Array.isArray(event.steps) ? event.steps : []);
+              turnPlanSteps = Array.isArray(event.steps) ? event.steps : [];
             } else if (event.type === 'tool_call') {
               // Live agentic tool call — push a "running" step into the trust
               // timeline; the matching `sources` event flips it to done/error.
@@ -1613,6 +1638,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 ...prev,
                 { tool: event.tool, label, status: 'running' as const },
               ]);
+              turnTrustSteps.push({ tool: event.tool, label, status: 'running' as const });
             } else if (event.type === 'template') {
               setOrchestratorTemplate(event.template ?? null);
             } else if (event.type === 'conflict') {
@@ -1649,6 +1675,19 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                   }
                   return next;
                 });
+                for (let i = turnTrustSteps.length - 1; i >= 0; i -= 1) {
+                  if (turnTrustSteps[i]!.status === 'running' && turnTrustSteps[i]!.tool === src.tool) {
+                    turnTrustSteps[i] = {
+                      ...turnTrustSteps[i]!,
+                      label: src.label || turnTrustSteps[i]!.label,
+                      detail: src.summary,
+                      count: typeof src.count === 'number' ? src.count : turnTrustSteps[i]!.count,
+                      confidence: src.confidence,
+                      status: src.confidence === 'low' ? 'error' : 'done',
+                    };
+                    break;
+                  }
+                }
               }
             } else if (event.type === 'citations') {
               setChatMessageCitations(
@@ -1775,6 +1814,22 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         if (err instanceof Error && err.name === 'AbortError') return;
         updateChatMessage(assistantId, 'Failed to get a response. Please try again.');
       } finally {
+        // Meri v6 thinking-persistence piece 1: attach whatever plan/trust-step/
+        // intent/tier data accumulated this turn (the LOCAL turnXxx variables,
+        // never the React state — see the staleness note by `accumulated`
+        // above) to this assistant message. `finally` guarantees this fires on
+        // every exit path — done, silent stream close, thrown error, or abort —
+        // so it deliberately runs unconditionally here, NOT gated by the
+        // streamEpoch check below: a route-switch abort bumps streamEpoch
+        // before this runs, and gating on it would silently drop a still-valid
+        // historical message's data merely because a newer stream started
+        // elsewhere.
+        setChatMessageThinking(assistantId, {
+          orchestratorIntent: turnIntent,
+          orchestratorTier: turnTier,
+          planSteps: turnPlanSteps,
+          trustSteps: turnTrustSteps,
+        });
         // An older stream must never unlock a newly-selected thread or a newer
         // request that is now in progress.
         if (streamEpoch === streamEpochRef.current) setStreaming(false);

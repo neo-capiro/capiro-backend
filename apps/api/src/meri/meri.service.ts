@@ -1005,9 +1005,11 @@ export class MeriService {
     );
     // Stream the plan up front (P2-1): a short "here's what I'll do" derived from
     // the orchestration's selected context sources, shown before tokens stream.
-    sse.write(
-      `data: ${JSON.stringify({ type: 'plan', steps: buildPlanSteps(orchestration.trace, intent) })}\n\n`,
-    );
+    // Hoisted into a local so the persisted metadata.plan (history replay, Meri
+    // v6 thinking-persistence piece 1) reads the SAME computed array as this SSE
+    // frame, not a second separately-computed one.
+    const planStepsForTurn = buildPlanSteps(orchestration.trace, intent);
+    sse.write(`data: ${JSON.stringify({ type: 'plan', steps: planStepsForTurn })}\n\n`);
     if (streamControl.pageWriteEnabled) {
       sse.write(
         `data: ${JSON.stringify({
@@ -1091,6 +1093,22 @@ export class MeriService {
     let usedTenantKey = false;
     const turnStartMs = Date.now();
     const traceRounds: MeriRoundTrace[] = [];
+    // Bounded "work performed" log for this turn (Meri v6 thinking-persistence
+    // piece 1): the same tool/source facts already streamed live via the
+    // `sources` SSE frame below, additionally retained here so they can be
+    // persisted onto the assistant message's metadata.trustSteps and survive
+    // history replay. This is the sanitized, already-summarized tool/source
+    // record — never the raw extended-thinking text (see the `thinking` SSE
+    // emission above `applyThinkingStreamEvent`, which deliberately never
+    // writes to any persisted array).
+    const trustStepsForHistory: Array<{
+      tool: string;
+      label: string;
+      detail?: string;
+      count?: number;
+      confidence?: 'high' | 'medium' | 'low';
+      status: 'done' | 'error';
+    }> = [];
     let loopStopReason: LoopStopReason | null = null;
 
     try {
@@ -1617,6 +1635,17 @@ export class MeriService {
               ],
             })}\n\n`,
           );
+          // Retain the same fact in the turn's bounded work log so it can be
+          // persisted to metadata.trustSteps (Meri v6 thinking-persistence piece
+          // 1) — same fields as the SSE frame just above, kept alongside it.
+          trustStepsForHistory.push({
+            tool: t.name,
+            label: humanToolLabel(t.name),
+            count: count ?? undefined,
+            detail: detail || undefined,
+            confidence: isError ? 'low' : 'high',
+            status: isError ? 'error' : 'done',
+          });
           toolResultBlocks.push({
             type: 'tool_result',
             tool_use_id: t.id,
@@ -1933,6 +1962,13 @@ export class MeriService {
             trace: turnTrace as unknown as Prisma.InputJsonValue,
             suggestions,
             actions: actionsTaken,
+            // Meri v6 thinking-persistence piece 1: the same plan/trust-step data
+            // already streamed live this turn, additionally persisted so history
+            // replay (SessionRail) can populate ChatMessage.planSteps/trustSteps
+            // for older turns too. New keys — deliberately NOT folded into
+            // `trace` above, which already means a different shape on this path.
+            plan: planStepsForTurn,
+            trustSteps: trustStepsForHistory as unknown as Prisma.InputJsonValue,
             ...(complianceScreen.flagged
               ? { compliance: { flagged: true, category: complianceScreen.category } }
               : {}),
@@ -2442,6 +2478,12 @@ export class MeriService {
               finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
               trace: turnTrace as unknown as Prisma.InputJsonValue,
               suggestions,
+              // Meri v6 thinking-persistence piece 1: `steps` is already this
+              // exact shape (tool/label/detail/status) — persisted as-is so
+              // history replay can populate ChatMessage.trustSteps. No `plan`
+              // on this path — there's no plan concept in the MeriV2 orchestrator
+              // loop, a pre-existing product gap, not something to invent here.
+              trustSteps: steps as unknown as Prisma.InputJsonValue,
               actions: steps
                 .filter((s) => s.status === 'done' && isSideEffectingTool(s.tool))
                 .map((s) => ({ tool: s.tool, kind: classifyToolAction(s.tool), ok: true })),
