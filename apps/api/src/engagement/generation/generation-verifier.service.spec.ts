@@ -394,6 +394,48 @@ describe('date_grounding', () => {
         }),
       ).not.toContain('date_grounding');
     });
+
+    // Review 5019631283 (PR #1280): a factual assertion and the ask joined by
+    // `;`, `:`, or an em dash — not a full sentence boundary — must NOT let
+    // the factual occurrence ride inside the ask's exemption. The exemption
+    // is anchored to the ask TRIGGER's span, not to "whichever clause
+    // contains a trigger somewhere in it".
+    test('semicolon-joined factual claim with no evidence is still held, even though the ask uses the identical date', () => {
+      expect(
+        checks('The hearing is scheduled for September 15; could we meet on September 15?', {
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).toContain('date_grounding');
+    });
+
+    test('colon-joined factual claim with no evidence is still held', () => {
+      expect(
+        checks('The hearing is scheduled for September 15: could we meet on September 15?', {
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).toContain('date_grounding');
+    });
+
+    test('em-dash-joined factual claim with no evidence is still held', () => {
+      expect(
+        checks('The hearing is scheduled for September 15 — could we meet on September 15?', {
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).toContain('date_grounding');
+    });
+
+    test('semicolon-joined factual claim WITH supporting evidence passes', () => {
+      const hearingEvidence = evidence({
+        ref: { sourceType: 'hearing' },
+        evidenceText: 'The Armed Services hearing is scheduled for September 15.',
+      });
+      expect(
+        checks('The hearing is scheduled for September 15; could we meet on September 15?', {
+          packet: packet({ evidence: [hearingEvidence] }),
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).not.toContain('date_grounding');
+    });
   });
 });
 

@@ -462,32 +462,44 @@ const DATE_RE =
   /\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,\s*\d{4})?|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})\b/g;
 
 /**
- * Splits `text` into clause-ish chunks on sentence-ending punctuation,
- * preserving each chunk's original offset. Deliberately simple (no NLP) —
- * it only needs to answer "which clause is this character index inside of",
- * so a date occurrence can be scoped to its own clause rather than the whole
- * draft.
+ * Finds every "ask span" in `text`: the run of characters starting at an
+ * ASK_TRIGGER_RE match (a request/CTA phrase — "could we", "let us know",
+ * ...) and extending forward to the next clause boundary (sentence-ending
+ * punctuation, `;`, `:`, an em/en dash, or end of string).
+ *
+ * This is deliberately anchored to the TRIGGER, not to "the clause
+ * containing a trigger somewhere in it". A prior version scoped the
+ * exemption to whichever whole clause held the ask phrase, which still let
+ * a factual assertion joined to the ask by `;`, `:`, or an em dash ride
+ * inside that same "clause" and get exempted too, e.g.:
+ *
+ *   "The hearing is scheduled for September 15; could we meet on September 15?"
+ *
+ * Anchoring the span to the trigger itself means anything BEFORE the
+ * trigger — including a factual clause separated only by `;`/`:`/em dash
+ * rather than a full sentence boundary — is never part of the span, so its
+ * date occurrence is never eligible for the exemption regardless of which
+ * punctuation (or none) separates it from the ask.
  */
-function splitClauses(text: string): Array<{ text: string; start: number; end: number }> {
-  const clauses: Array<{ text: string; start: number; end: number }> = [];
-  const re = /[^.!?\n]+[.!?]*/g;
+const ASK_TRIGGER_RE =
+  /\b(could we|can we|would you|shall we|let (?:us|me) know|works for|available (?:on|for)|propose(?:s|d)? (?:a |meeting)?|schedule a|find \d+ minutes|would (?:love|welcome) to (?:meet|schedule))\b/gi;
+
+const CLAUSE_BOUNDARY_RE = /[.!?;:—–\n]/;
+
+function findAskSpans(text: string): Array<{ start: number; end: number }> {
+  const spans: Array<{ start: number; end: number }> = [];
+  const re = new RegExp(ASK_TRIGGER_RE.source, ASK_TRIGGER_RE.flags);
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
-    if (!m[0].trim()) continue;
-    clauses.push({ text: m[0], start: m.index, end: m.index + m[0].length });
+    const start = m.index;
+    const rest = text.slice(start);
+    const boundary = CLAUSE_BOUNDARY_RE.exec(rest);
+    const end = boundary ? start + boundary.index + 1 : text.length;
+    spans.push({ start, end });
+    if (re.lastIndex === m.index) re.lastIndex++; // guard against zero-width matches
   }
-  return clauses;
+  return spans;
 }
-
-/**
- * Phrasing that marks a clause as the ASK/CTA itself — a request being made
- * — as opposed to a factual statement that happens to share the same date.
- * "is scheduled for", "was held on", "took place on" etc. are always
- * factual assertions and must ground normally even when the exact same
- * date value is separately proposed in the ask elsewhere in the draft.
- */
-const ASK_CLAUSE_RE =
-  /\b(could we|can we|would you|shall we|let (?:us|me) know|works for|available (?:on|for)|propose(?:s|d)? (?:a |meeting)?|schedule a|find \d+ minutes|would (?:love|welcome) to (?:meet|schedule))\b/i;
 
 function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
   const matches = [...text.matchAll(DATE_RE)];
@@ -503,34 +515,34 @@ function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
   // `clientAsk` / `callToAction` are the client's OWN proposed terms for the
   // outreach (e.g. "Could we schedule a meeting on September 15?") — not a
   // fact being asserted about the world. This exemption is scoped to the
-  // OCCURRENCE, not the date value: a date proposed as the ask in one clause
-  // can ALSO be asserted as a fact elsewhere in the same draft (e.g. "The
-  // hearing is scheduled for September 15. Could we meet on September 15?"),
-  // and that factual occurrence must still ground normally. A single date
-  // value silently exempting every occurrence of itself anywhere in the body
-  // was the earlier bug this replaces — it let an unsupported factual claim
-  // ride along for free as long as the same date also appeared in the ask.
+  // OCCURRENCE via its position inside an ask span (see `findAskSpans`), not
+  // to the date value globally and not to "a clause that happens to contain
+  // an ask phrase somewhere": a date proposed as the ask can ALSO be
+  // asserted as a fact elsewhere in the same draft — including immediately
+  // before the ask, joined only by `;`, `:`, or an em dash rather than a
+  // full sentence boundary — and that factual occurrence must still ground
+  // normally against the evidence packet.
   //
   // An occurrence is ask-exempt only when BOTH hold:
   //   (a) the date value appears in the plan's own clientAsk/callToAction
   //       text (schema-validated and persisted before generation, so the
   //       model can't retroactively invent an ask date to launder a claim), AND
-  //   (b) the CLAUSE containing this specific occurrence reads as a request
-  //       (ASK_CLAUSE_RE) rather than a factual statement — a factual clause
-  //       using ask-adjacent vocabulary without request phrasing (e.g. "is
-  //       scheduled for") never qualifies, even if the ask elsewhere uses the
-  //       identical date.
+  //   (b) the occurrence's character index falls inside an ask span — i.e.
+  //       at or after an actual ask-trigger phrase and before the next
+  //       clause boundary. A factual occurrence sitting before the trigger
+  //       (even sharing a loosely-punctuated "clause" with it) is never
+  //       inside any span, so it never qualifies.
   const planAskHaystack = [...(req.plan?.clientAsk ?? []), req.plan?.callToAction ?? ''].join(
     '\n',
   );
-  const clauses = splitClauses(text);
+  const askSpans = findAskSpans(text);
 
   const findings: VerifierFinding[] = [];
   for (const match of matches) {
     const raw = match[0];
     const index = match.index ?? 0;
-    const clause = clauses.find((c) => index >= c.start && index < c.end);
-    const isAskOccurrence = planAskHaystack.includes(raw) && !!clause && ASK_CLAUSE_RE.test(clause.text);
+    const isAskOccurrence =
+      planAskHaystack.includes(raw) && askSpans.some((s) => index >= s.start && index < s.end);
     if (isAskOccurrence) continue;
 
     if (haystack.includes(raw)) continue;
