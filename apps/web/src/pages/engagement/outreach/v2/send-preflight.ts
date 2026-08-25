@@ -1,7 +1,7 @@
 // Phase 2 §3.h1 — send preflight. Composes the existing per-concern checks
 // (draft sendability from versioned-drafts.ts, attachment size from
 // send-intent.ts, recipient collisions from RecipientCollisions.ts) into one
-// blockers/warnings list, plus the mandatory final-review acknowledgement.
+// blockers/warnings list.
 // No real Send may proceed while any BLOCKER is present — see canSend.
 
 import { attachmentPreflight } from './send-intent.js';
@@ -16,7 +16,6 @@ export type PreflightCategory =
   | 'recipients'
   | 'mailbox'
   | 'attachments'
-  | 'context'
   | 'idempotency';
 
 export interface PreflightIssue {
@@ -35,9 +34,6 @@ export interface SendPreflightInput {
   collisionResolution: CollisionResolution;
   emailConnected: boolean;
   selectedInboxId: string | null | undefined;
-  /** The plan's required final checkbox: "I reviewed the recipients, current
-   *  draft versions, attachments, and verification status." */
-  reviewAcknowledged: boolean;
   /** True once a real send request is in flight — re-submitting mid-flight
    *  is exactly the double-Send bug the durable request key exists to close;
    *  preflight blocks it too so the button visibly reflects why it's disabled. */
@@ -119,16 +115,6 @@ export function computeSendPreflight(input: SendPreflightInput): SendPreflightRe
       category: 'verification',
       severity: 'blocker',
       message: 'Nothing is ready to send. Generate drafts in Generate & Review first.',
-    });
-  }
-
-  // ── context / final review ──────────────────────────────────────────────
-  if (!input.reviewAcknowledged) {
-    issues.push({
-      category: 'context',
-      severity: 'blocker',
-      message:
-        'Confirm you reviewed the recipients, current draft versions, attachments, and verification status.',
     });
   }
 

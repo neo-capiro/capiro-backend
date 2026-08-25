@@ -42,21 +42,14 @@ const baseInput: SendPreflightInput = {
   collisionResolution: null,
   emailConnected: true,
   selectedInboxId: 'inbox-1',
-  reviewAcknowledged: true,
 };
 
 describe('computeSendPreflight', () => {
-  it('allows send when everything is clean and the review box is checked', () => {
+  it('allows send when everything is clean', () => {
     const result = computeSendPreflight(baseInput);
     expect(result.canSend).toBe(true);
     expect(result.blockers).toEqual([]);
     expect(result.sendableCount).toBe(1);
-  });
-
-  it('blocks when the review checkbox is unchecked, even if everything else is clean', () => {
-    const result = computeSendPreflight({ ...baseInput, reviewAcknowledged: false });
-    expect(result.canSend).toBe(false);
-    expect(result.blockers.some((b) => b.category === 'context')).toBe(true);
   });
 
   it('blocks when no email account is connected', () => {

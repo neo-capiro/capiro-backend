@@ -2420,18 +2420,6 @@ export function NewOutreachWizard({
       }).length
     : genModel.slots.filter((s) => state.generatedEmails[s.genKey]?.status === 'error').length;
 
-  // Phase 2 §3.h1 — the required final review checkbox. Tied to a signature
-  // of what's actually being reviewed (not just a plain boolean) so ANY
-  // change to targets/attachments/drafts since the box was checked re-opens
-  // it — same discipline as the collision "keep all" fingerprint in g.
-  const preflightSignature = JSON.stringify([
-    state.targets.map((t) => [t.type, t.key, t.recipients.length]),
-    state.attachmentIds.slice().sort(),
-    genModel.slots.map((s) => [s.genKey, state.generatedEmails[s.genKey]?.versionId ?? null]),
-  ]);
-  const [acknowledgedSignature, setAcknowledgedSignature] = useState<string | null>(null);
-  const reviewAcknowledged = acknowledgedSignature === preflightSignature;
-
   const preflight = computeSendPreflight({
     targets: state.targets,
     slots: genModel.slots,
@@ -2441,7 +2429,6 @@ export function NewOutreachWizard({
     collisionResolution: state.collisionResolution,
     emailConnected,
     selectedInboxId,
-    reviewAcknowledged,
     sendInFlight: activeSendMutation.isPending,
   });
 
@@ -2622,10 +2609,6 @@ export function NewOutreachWizard({
               onRetryFailed={retryFailedDeliveries}
               onCancelIntent={cancelCurrentIntent}
               preflight={preflight}
-              reviewAcknowledged={reviewAcknowledged}
-              onToggleReviewAcknowledged={(checked) =>
-                setAcknowledgedSignature(checked ? preflightSignature : null)
-              }
             />
           )}
         </div>
@@ -3147,8 +3130,6 @@ function StepSend({
   onRetryFailed,
   onCancelIntent,
   preflight,
-  reviewAcknowledged,
-  onToggleReviewAcknowledged,
 }: {
   recipients: OutreachRecipient[];
   sendableCount: number;
@@ -3180,8 +3161,6 @@ function StepSend({
   onCancelIntent: () => void;
   /** Phase 2 §3.h1 — full blockers/warnings + sendable count, computed fresh every render. */
   preflight: SendPreflightResult;
-  reviewAcknowledged: boolean;
-  onToggleReviewAcknowledged: (checked: boolean) => void;
 }) {
   // Nothing sendable (every draft failed, or none generated) → block Send and
   // say why, so the primary CTA is never a dead click into a backend 400.
@@ -3414,35 +3393,6 @@ function StepSend({
           <span style={{ fontSize: 13, color: 'var(--ov2-ink-1)' }}>Append my email signature</span>
         </div>
       )}
-
-      {/* Phase 2 §3.h1 — the mandatory final review acknowledgement. Resets
-          (see preflightSignature) the moment anything it covers changes. */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 8,
-          marginTop: 18,
-          textAlign: 'left',
-          maxWidth: 480,
-          marginLeft: 'auto',
-          marginRight: 'auto',
-        }}
-      >
-        <input
-          type="checkbox"
-          id="ov2-send-review-ack"
-          checked={reviewAcknowledged}
-          onChange={(e) => onToggleReviewAcknowledged(e.target.checked)}
-          style={{ marginTop: 3 }}
-        />
-        <label
-          htmlFor="ov2-send-review-ack"
-          style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', cursor: 'pointer' }}
-        >
-          I reviewed the recipients, current draft versions, attachments, and verification status.
-        </label>
-      </div>
 
       {/* §f2 — a test send previews exactly ONE explicitly selected recipient's
           draft (the server rejects a test intent carrying more than one). Only
