@@ -1,0 +1,88 @@
+/*
+ * DrawerRail (Phase 4 shell chrome) — design-system reconciliation.
+ *
+ * Scoped under `.cap-pf` (set by ClientProfileShell) and reuses the Portfolio
+ * prototype's real tokens (`--pf-*`, portfolio-proto.css). The ring/tint pair
+ * for the row icon tile is not yet promoted into portfolio-proto.css's shared
+ * set — declared locally here, same values already used in files-tab.css /
+ * work-tab.css / capabilities-tab.css for the exact same icon-tile recipe.
+ * Every value is transcribed verbatim from this component's previous inline
+ * styles, never estimated. Styling mechanism only — no layout, color, or
+ * behavior changes.
+ */
+
+.cap-pf-drawer-rail {
+  min-width: 0;
+  position: sticky;
+  top: 20px;
+
+  --pf-ring: #E0DCD4;
+  --pf-tint: #F2F0EB;
+}
+
+.cap-pf-drawer-rail__card {
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-line);
+  border-radius: 12px;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, .04);
+  padding: 8px;
+}
+
+.cap-pf-drawer-rail__row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.cap-pf-drawer-rail__row--active {
+  background: var(--pf-track);
+}
+
+.cap-pf-drawer-rail__row--hover {
+  background: var(--pf-bg);
+}
+
+.cap-pf-drawer-rail__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--pf-tint);
+  border: 1px solid var(--pf-ring);
+  color: var(--pf-ink);
+}
+
+.cap-pf-drawer-rail__body {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.cap-pf-drawer-rail__label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pf-ink);
+}
+
+.cap-pf-drawer-rail__detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--pf-muted);
+  text-wrap: pretty;
+}
+
+.cap-pf-drawer-rail__chevron {
+  flex: 0 0 auto;
+  color: var(--pf-faint);
+  display: flex;
+}

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { UIcon } from './portfolio-primitives.js';
+import './accordion-section.css';
 
 /**
  * Phase 4 (vnext UI cleanup — client record restructuring).
@@ -45,17 +46,7 @@ export function AccordionSection({ id, title, sub, meta, open, onToggle, childre
   const [hover, setHover] = useState(false);
   const bodyId = `${id}-body`;
   return (
-    <section
-      id={id}
-      ref={sectionRef}
-      style={{
-        background: '#ffffff',
-        borderRadius: 12,
-        boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
-        overflow: 'hidden',
-        scrollMarginTop: 24,
-      }}
-    >
+    <section id={id} ref={sectionRef} className="cap-pf-accordion">
       <button
         type="button"
         data-testid={`${id}-header`}
@@ -64,54 +55,22 @@ export function AccordionSection({ id, title, sub, meta, open, onToggle, childre
         onMouseLeave={() => setHover(false)}
         aria-expanded={open}
         aria-controls={bodyId}
-        style={{
-          display: 'flex',
-          width: '100%',
-          alignItems: 'center',
-          gap: 12,
-          padding: '20px 24px',
-          background: hover ? '#FCFCFD' : 'transparent',
-        }}
+        className={hover ? 'cap-pf-accordion__header cap-pf-accordion__header--hover' : 'cap-pf-accordion__header'}
       >
         <span
           aria-hidden
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            color: '#98A2B3',
-            transform: open ? 'rotate(90deg)' : 'none',
-            transition: 'transform 150ms cubic-bezier(.2,0,0,1)',
-          }}
+          className={open ? 'cap-pf-accordion__chevron cap-pf-accordion__chevron--open' : 'cap-pf-accordion__chevron'}
         >
           <UIcon name="ChevronRight" size={16} />
         </span>
-        <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-          <span style={{ display: 'block', fontSize: 18, fontWeight: 600, letterSpacing: '-0.022em', color: '#101828' }}>
-            {title}
-          </span>
-          {sub ? (
-            <span style={{ display: 'block', marginTop: 2, fontSize: 13, lineHeight: '18px', color: '#667085', textWrap: 'pretty' }}>
-              {sub}
-            </span>
-          ) : null}
+        <span className="cap-pf-accordion__heading">
+          <span className="cap-pf-accordion__title">{title}</span>
+          {sub ? <span className="cap-pf-accordion__sub">{sub}</span> : null}
         </span>
-        {meta ? (
-          <span
-            style={{
-              flex: '0 0 auto',
-              fontSize: 12.5,
-              fontWeight: 500,
-              color: '#667085',
-              fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {meta}
-          </span>
-        ) : null}
+        {meta ? <span className="cap-pf-accordion__meta">{meta}</span> : null}
       </button>
       {open ? (
-        <div id={bodyId} className="cap-pf-anim-fade" style={{ borderTop: '1px solid #F2F4F7', padding: '20px 24px 24px' }}>
+        <div id={bodyId} className="cap-pf-anim-fade cap-pf-accordion__body">
           {children}
         </div>
       ) : null}

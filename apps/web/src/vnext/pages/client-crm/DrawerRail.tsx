@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UIcon } from './portfolio-primitives.js';
 import type { CrmSurface, CrmView } from './client-crm-routing.js';
+import './drawer-rail.css';
 
 /**
  * Phase 4 (vnext UI cleanup — client record restructuring).
@@ -85,16 +86,8 @@ export interface DrawerRailProps {
 
 export function DrawerRail({ activeKey = null, onNavigate }: DrawerRailProps) {
   return (
-    <aside aria-label="Client record sections" style={{ minWidth: 0, position: 'sticky', top: 20 }}>
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid #E4E7EC',
-          borderRadius: 12,
-          boxShadow: '0px 1px 2px rgba(16,24,40,.04)',
-          padding: 8,
-        }}
-      >
+    <aside aria-label="Client record sections" className="cap-pf-drawer-rail">
+      <div className="cap-pf-drawer-rail__card">
         {DRAWER_META.map((row) => (
           <DrawerRailButton
             key={row.key}
@@ -118,6 +111,9 @@ function DrawerRailButton({
   onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
+  const rowClass = ['cap-pf-drawer-rail__row', active ? 'cap-pf-drawer-rail__row--active' : hover ? 'cap-pf-drawer-rail__row--hover' : '']
+    .filter(Boolean)
+    .join(' ');
   return (
     <button
       type="button"
@@ -126,49 +122,16 @@ function DrawerRailButton({
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 11,
-        width: '100%',
-        padding: 10,
-        borderRadius: 8,
-        background: active ? '#F2F4F7' : hover ? '#F9FAFB' : 'transparent',
-      }}
+      className={rowClass}
     >
-      <span
-        aria-hidden
-        style={{
-          flex: '0 0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          background: '#F2F0EB',
-          border: '1px solid #E0DCD4',
-          color: '#101828',
-        }}
-      >
+      <span aria-hidden className="cap-pf-drawer-rail__icon">
         <UIcon name={row.icon} size={20} />
       </span>
-      <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <span style={{ display: 'block', fontSize: 13.5, fontWeight: 600, color: '#101828' }}>{row.label}</span>
-        <span
-          style={{
-            display: 'block',
-            marginTop: 2,
-            fontSize: 11.5,
-            lineHeight: '15px',
-            color: '#667085',
-            textWrap: 'pretty',
-          }}
-        >
-          {row.detail}
-        </span>
+      <span className="cap-pf-drawer-rail__body">
+        <span className="cap-pf-drawer-rail__label">{row.label}</span>
+        <span className="cap-pf-drawer-rail__detail">{row.detail}</span>
       </span>
-      <span style={{ flex: '0 0 auto', color: '#98A2B3', display: 'flex' }} aria-hidden>
+      <span className="cap-pf-drawer-rail__chevron" aria-hidden>
         <UIcon name="ChevronRight" size={16} />
       </span>
     </button>
