@@ -218,7 +218,6 @@ export function VNextMeriShell({
                 historyError={historyError}
                 onRetryHistory={onRetryHistory}
                 onNewChat={handleNewChat}
-                onOpenIntegrations={handleOpenIntegrations}
                 onArchiveThread={onArchiveThread}
                 onRenameThread={onRenameThread}
                 onRestoreThread={onRestoreThread}

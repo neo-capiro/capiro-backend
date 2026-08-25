@@ -721,29 +721,6 @@
   overflow: hidden;
 }
 
-.capiro-vnext-root .vnext-meri__new-chat-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 18px;
-  border-radius: var(--meri-radius-sm);
-  background: var(--meri-dark-ink);
-  color: var(--capiro-color-text-inverse-primary);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-  box-shadow: var(--meri-shadow-button);
-  border: 0;
-  cursor: pointer;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
-}
-
-.capiro-vnext-root .vnext-meri__new-chat-btn:hover {
-  background: var(--meri-dark);
-}
-
 .capiro-vnext-root .vnext-meri__rail-left-scroll {
   flex: 1;
   min-height: 0;
@@ -788,40 +765,8 @@
   gap: 6px;
 }
 
-.capiro-vnext-root .vnext-meri__thread-item {
-  display: flex;
-  width: 100%;
-  gap: 10px;
-  padding: 11px 12px;
-  border-radius: 9px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
-}
-
 .capiro-vnext-root .vnext-meri__thread-item:hover {
   background: var(--m-white);
-}
-
-.capiro-vnext-root .vnext-meri__thread-item.is-active {
-  background: var(--meri-accent-soft);
-  border-color: var(--meri-border-control);
-}
-
-.capiro-vnext-root .vnext-meri__thread-item-icon {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  border: 1px solid var(--meri-border);
-  color: var(--meri-text-muted);
-  margin-top: 1px;
-  font-size: 11px;
 }
 
 .capiro-vnext-root .vnext-meri__thread-item-body {
@@ -858,21 +803,6 @@
   border-radius: 10px;
   background: var(--m-white);
   box-shadow: var(--meri-shadow-card);
-}
-
-.capiro-vnext-root .vnext-meri__thread-empty-label {
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  color: var(--meri-text-faint);
-}
-
-.capiro-vnext-root .vnext-meri__thread-empty-body {
-  margin-top: 9px;
-  font-size: 13px;
-  line-height: 19px;
-  color: var(--meri-text-secondary);
 }
 
 .capiro-vnext-root .vnext-meri__divider {
@@ -954,12 +884,30 @@
   background: var(--meri-surface-2);
 }
 
-.capiro-vnext-root .vnext-meri__saved-prompt-label {
+.capiro-vnext-root .vnext-meri__saved-prompt-body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-label {
   font-size: 13px;
   line-height: 18px;
   color: var(--meri-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Body preview, second line — handoff mockup shows title + a truncated
+   excerpt of the prompt body under it; the real component previously only
+   surfaced `prompt.body` via a hover title= tooltip. */
+.capiro-vnext-root .vnext-meri__saved-prompt-preview {
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--meri-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3522,10 +3470,15 @@
 
 .capiro-vnext-root .vnext-meri__new-chat-btn {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: auto;
   height: 36px;
   padding: 0 18px;
   border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  background: var(--meri-dark-ink);
   background-image: var(--m-metal-bg);
   box-shadow: var(--m-metal-sheen), var(--m-metal-shadow);
   gap: 7px;
@@ -3533,9 +3486,11 @@
   font-size: 14px;
   line-height: 20px;
   font-weight: 600;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
 .capiro-vnext-root .vnext-meri__new-chat-btn:hover {
+  background: var(--meri-dark);
   background-image: var(--m-metal-bg-hover);
 }
 
@@ -3596,6 +3551,10 @@
   color: #98A2B3;
 }
 
+.capiro-vnext-root .vnext-meri__thread-empty-label {
+  font-weight: 500;
+}
+
 .capiro-vnext-root .vnext-meri__section-empty-body,
 .capiro-vnext-root .vnext-meri__thread-empty-body {
   margin-top: 6px;
@@ -3611,8 +3570,33 @@
   font-family: var(--meri-font-mono);
   font-size: 10px;
   letter-spacing: 0.09em;
-  color: #101828;
+  color: var(--meri-accent);
   cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__search-everything:hover {
+  color: var(--meri-accent-hover);
+}
+
+/* Loading skeleton — two placeholder bars (title-width, meta-width) per row
+   inside a card, matching the v5 mockup's four-row alternating-width pattern
+   (`Capiro Meri v5 - Workspace.dc.html` L212-221). Bars themselves are
+   `CapiroSkeleton` (feedback/index.tsx); this only owns the card chrome. */
+.capiro-vnext-root .vnext-meri__thread-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.capiro-vnext-root .vnext-meri__thread-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  background: var(--meri-surface);
+  box-shadow: 0 0 0 1px var(--meri-border-soft);
 }
 
 .capiro-vnext-root .vnext-meri__thread-group-label {
@@ -3636,6 +3620,11 @@
   gap: 10px;
   padding: 11px 12px;
   border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
 .capiro-vnext-root .vnext-meri__thread-item.is-active {
@@ -3656,12 +3645,18 @@
 }
 
 .capiro-vnext-root .vnext-meri__thread-item-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
-  margin-top: 1px;
   border-radius: 5px;
   border: 1px solid #E0DCD4;
   background: transparent;
+  color: var(--meri-text-muted);
+  margin-top: 1px;
+  font-size: 11px;
 }
 
 .capiro-vnext-root .vnext-meri__row-menu-btn {
@@ -3776,6 +3771,46 @@
   display: flex;
   justify-content: flex-end;
   gap: 9px;
+}
+
+/* New-workspace name field — inside CapiroModal, a normal descendant of
+   .vnext-meri-page, so var(--meri-*) resolves fine here (unlike the
+   .confirm-*/.context-sheet-* family below, which intentionally hardcodes
+   hex because it is also reused by MeriContextSheet mounted outside that
+   scope — see the comment on .vnext-meri__context-sheet). */
+.capiro-vnext-root .vnext-meri__workspace-input {
+  width: 100%;
+  height: 34px;
+  margin-top: 12px;
+  padding: 0 10px;
+  border: 1px solid var(--meri-border);
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface-2);
+  outline: none;
+  font-size: 13px;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__workspace-input:focus-visible {
+  border-color: var(--meri-accent);
+}
+
+/* Move-to-workspace dialog — a scrollable variant of .confirm-dialog, same
+   hex convention as the rest of the .confirm-* family it modifies. */
+.capiro-vnext-root .vnext-meri__move-dialog {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .vnext-meri__move-workspace-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
 }
 
 /* ── Context sheet ("Manage context") — a richer, scrollable variant of the
@@ -3936,6 +3971,22 @@
   border-top: 1px solid #E8E5DF;
   font-size: 12px;
   color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__undo-bar-action {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  font-family: var(--meri-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--meri-accent);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__undo-bar-action:hover {
+  color: var(--meri-accent-hover);
 }
 
 .capiro-vnext-root .vnext-meri__thread-action {

@@ -15,6 +15,8 @@ import {
 import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
+import { CapiroErrorState, CapiroSkeleton } from '../components/feedback/index.js';
+import { CapiroModal } from '../components/overlays/index.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import {
@@ -44,6 +46,16 @@ interface HistorySearchResult {
   score: number | null;
 }
 
+/** Per-row title/meta placeholder widths for the loading skeleton — varied so
+ *  a run of rows doesn't read as one repeated block. Matches the v5 mockup's
+ *  four-row pattern (`Capiro Meri v5 - Workspace.dc.html`, `skeletons` array). */
+const SKELETON_ROW_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ['72%', '54%'],
+  ['58%', '66%'],
+  ['80%', '44%'],
+  ['64%', '58%'],
+];
+
 function threadMeta(conversation: MeriConversation): string {
   const date = new Date(conversation.updatedAt);
   const scope = (conversation.client?.name || 'General').toUpperCase();
@@ -67,7 +79,6 @@ interface VNextMeriThreadRailProps {
   historyError: string | null;
   onRetryHistory: () => void;
   onNewChat: () => void;
-  onOpenIntegrations: () => void;
   onArchiveThread: (conversationId: string) => Promise<boolean>;
   onRenameThread: (conversationId: string, title: string) => Promise<void>;
   onRestoreThread: (conversationId: string) => Promise<boolean>;
@@ -84,7 +95,6 @@ export function VNextMeriThreadRail({
   historyError,
   onRetryHistory,
   onNewChat,
-  onOpenIntegrations,
   onArchiveThread,
   onRenameThread,
   onRestoreThread,
@@ -411,7 +421,10 @@ export function VNextMeriThreadRail({
                     onClick={() => useSavedPrompt(prompt)}
                   >
                     <MeriIcon name="Diamond01" size={14} color="#98A2B3" />
-                    <span className="vnext-meri__saved-prompt-label">{prompt.title}</span>
+                    <span className="vnext-meri__saved-prompt-body">
+                      <span className="vnext-meri__saved-prompt-label">{prompt.title}</span>
+                      <span className="vnext-meri__saved-prompt-preview">{prompt.body}</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -469,7 +482,7 @@ export function VNextMeriThreadRail({
                     }}
                   >
                     <span className="vnext-meri__workspace-tile">
-                      <MeriIcon name="Building01" size={13} color="#667085" />
+                      <MeriIcon name="Building01" size={15} color="#667085" />
                     </span>
                     <span className="vnext-meri__workspace-body">
                       <span className="vnext-meri__workspace-name">{workspace.name}</span>
@@ -541,17 +554,19 @@ export function VNextMeriThreadRail({
           </div>
 
           {historyError ? (
-            <div className="vnext-meri__thread-empty" role="alert">
-              <div className="vnext-meri__thread-empty-label">HISTORY UNAVAILABLE</div>
-              <div className="vnext-meri__thread-empty-body">{historyError}</div>
-              <button type="button" className="vnext-meri__section-label-link" onClick={onRetryHistory}>
-                RETRY
-              </button>
-            </div>
+            <CapiroErrorState
+              title="History unavailable"
+              description={historyError}
+              onRetry={onRetryHistory}
+              retryLabel="Retry"
+            />
           ) : searchActive && search.isLoading ? (
             <div className="vnext-meri__thread-skeleton-list" aria-label="Loading threads">
-              {[1, 2, 3, 4, 5].map((key) => (
-                <div key={key} className="vnext-meri__thread-skeleton" />
+              {SKELETON_ROW_WIDTHS.map(([w1, w2], index) => (
+                <div key={index} className="vnext-meri__thread-skeleton">
+                  <CapiroSkeleton height={9} width={w1} />
+                  <CapiroSkeleton height={8} width={w2} />
+                </div>
               ))}
             </div>
           ) : visible.length === 0 && searchQuery.trim() ? (
@@ -710,10 +725,11 @@ export function VNextMeriThreadRail({
       </div>
 
       {undoTarget ? (
-        <div className="vnext-meri__undo-toast" role="status">
+        <div className="vnext-meri__undo-bar" role="status">
           <span>Chat archived.</span>
           <button
             type="button"
+            className="vnext-meri__undo-bar-action"
             onClick={() => {
               void onRestoreThread(undoTarget.id)
                 .then((restored) => {
@@ -730,26 +746,25 @@ export function VNextMeriThreadRail({
         </div>
       ) : null}
 
-      {workspaceDialogOpen ? (
-        <div className="vnext-meri__confirm-scrim" role="presentation">
-          <div className="vnext-meri__confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="meri-workspace-title">
-            <div id="meri-workspace-title" className="vnext-meri__confirm-title">Create workspace</div>
-            <div className="vnext-meri__confirm-body">Group related chats under a durable workspace.</div>
-            <input
-              autoFocus
-              value={newWorkspaceName}
-              onChange={(event) => setNewWorkspaceName(event.target.value)}
-              className="vnext-meri__workspace-input"
-              placeholder="Workspace name"
-              aria-label="Workspace name"
-            />
-            <div className="vnext-meri__confirm-actions">
-              <button type="button" className="vnext-meri__confirm-cancel" onClick={() => setWorkspaceDialogOpen(false)}>Cancel</button>
-              <button type="button" className="vnext-meri__confirm-delete" onClick={() => void createWorkspace()}>Create workspace</button>
-            </div>
-          </div>
+      <CapiroModal
+        open={workspaceDialogOpen}
+        title="Create workspace"
+        onClose={() => setWorkspaceDialogOpen(false)}
+      >
+        <div className="vnext-meri__confirm-body">Group related chats under a durable workspace.</div>
+        <input
+          autoFocus
+          value={newWorkspaceName}
+          onChange={(event) => setNewWorkspaceName(event.target.value)}
+          className="vnext-meri__workspace-input"
+          placeholder="Workspace name"
+          aria-label="Workspace name"
+        />
+        <div className="vnext-meri__confirm-actions">
+          <button type="button" className="vnext-meri__confirm-cancel" onClick={() => setWorkspaceDialogOpen(false)}>Cancel</button>
+          <button type="button" className="vnext-meri__confirm-delete" onClick={() => void createWorkspace()}>Create workspace</button>
         </div>
-      ) : null}
+      </CapiroModal>
 
       {moveFor ? (
         <div className="vnext-meri__confirm-scrim" role="presentation">
