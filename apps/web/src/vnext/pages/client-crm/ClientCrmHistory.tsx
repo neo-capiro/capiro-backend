@@ -367,7 +367,7 @@ export function LogActivityModal({
           </p>
         ) : null}
 
-        <div className="capiro-crm-fill__actions">
+        <div className="capiro-crm__form-actions">
           <CapiroButton
             variant="primary"
             size="compact"
