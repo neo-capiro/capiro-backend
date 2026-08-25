@@ -461,9 +461,49 @@ function checkAttendance(text: string, req: VerifyRequest): VerifierFinding[] {
 const DATE_RE =
   /\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,\s*\d{4})?|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})\b/g;
 
+/**
+ * Finds every "ask span" in `text`: the run of characters starting at an
+ * ASK_TRIGGER_RE match (a request/CTA phrase — "could we", "let us know",
+ * ...) and extending forward to the next clause boundary (sentence-ending
+ * punctuation, `;`, `:`, an em/en dash, or end of string).
+ *
+ * This is deliberately anchored to the TRIGGER, not to "the clause
+ * containing a trigger somewhere in it". A prior version scoped the
+ * exemption to whichever whole clause held the ask phrase, which still let
+ * a factual assertion joined to the ask by `;`, `:`, or an em dash ride
+ * inside that same "clause" and get exempted too, e.g.:
+ *
+ *   "The hearing is scheduled for September 15; could we meet on September 15?"
+ *
+ * Anchoring the span to the trigger itself means anything BEFORE the
+ * trigger — including a factual clause separated only by `;`/`:`/em dash
+ * rather than a full sentence boundary — is never part of the span, so its
+ * date occurrence is never eligible for the exemption regardless of which
+ * punctuation (or none) separates it from the ask.
+ */
+const ASK_TRIGGER_RE =
+  /\b(could we|can we|would you|shall we|let (?:us|me) know|works for|available (?:on|for)|propose(?:s|d)? (?:a |meeting)?|schedule a|find \d+ minutes|would (?:love|welcome) to (?:meet|schedule))\b/gi;
+
+const CLAUSE_BOUNDARY_RE = /[.!?;:—–\n]/;
+
+function findAskSpans(text: string): Array<{ start: number; end: number }> {
+  const spans: Array<{ start: number; end: number }> = [];
+  const re = new RegExp(ASK_TRIGGER_RE.source, ASK_TRIGGER_RE.flags);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const start = m.index;
+    const rest = text.slice(start);
+    const boundary = CLAUSE_BOUNDARY_RE.exec(rest);
+    const end = boundary ? start + boundary.index + 1 : text.length;
+    spans.push({ start, end });
+    if (re.lastIndex === m.index) re.lastIndex++; // guard against zero-width matches
+  }
+  return spans;
+}
+
 function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
-  const asserted = [...text.matchAll(DATE_RE)].map((m) => m[0]);
-  if (!asserted.length) return [];
+  const matches = [...text.matchAll(DATE_RE)];
+  if (!matches.length) return [];
 
   const haystack = [
     ...req.packet.evidence.map((e) => e.evidenceText),
@@ -474,29 +514,42 @@ function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
 
   // `clientAsk` / `callToAction` are the client's OWN proposed terms for the
   // outreach (e.g. "Could we schedule a meeting on September 15?") — not a
-  // fact being asserted about the world. A date the model proposes as a
-  // meeting/deadline ask can never appear in evidence text, because it isn't
-  // evidence; it's the ask itself. Before this exemption, checkDates fired on
-  // every campaign whose plan proposed a concrete date (real or invented),
-  // which is the ordinary shape of a meeting-request outreach. A date is only
-  // exempt when the PLAN itself proposed it in clientAsk/callToAction — the
-  // model cannot use this to sneak an unsupported factual date into the body,
-  // because that date would also have to appear verbatim in the plan's own
-  // ask text, and the plan is itself the thing schema-validated and persisted
-  // before generation. Any date elsewhere in the body (e.g. a hearing date, an
-  // enactment date, a stated deadline outside the ask) still has to ground
+  // fact being asserted about the world. This exemption is scoped to the
+  // OCCURRENCE via its position inside an ask span (see `findAskSpans`), not
+  // to the date value globally and not to "a clause that happens to contain
+  // an ask phrase somewhere": a date proposed as the ask can ALSO be
+  // asserted as a fact elsewhere in the same draft — including immediately
+  // before the ask, joined only by `;`, `:`, or an em dash rather than a
+  // full sentence boundary — and that factual occurrence must still ground
   // normally against the evidence packet.
+  //
+  // An occurrence is ask-exempt only when BOTH hold:
+  //   (a) the date value appears in the plan's own clientAsk/callToAction
+  //       text (schema-validated and persisted before generation, so the
+  //       model can't retroactively invent an ask date to launder a claim), AND
+  //   (b) the occurrence's character index falls inside an ask span — i.e.
+  //       at or after an actual ask-trigger phrase and before the next
+  //       clause boundary. A factual occurrence sitting before the trigger
+  //       (even sharing a loosely-punctuated "clause" with it) is never
+  //       inside any span, so it never qualifies.
   const planAskHaystack = [...(req.plan?.clientAsk ?? []), req.plan?.callToAction ?? ''].join(
     '\n',
   );
+  const askSpans = findAskSpans(text);
 
   const findings: VerifierFinding[] = [];
-  for (const raw of new Set(asserted)) {
+  for (const match of matches) {
+    const raw = match[0];
+    const index = match.index ?? 0;
+    const isAskOccurrence =
+      planAskHaystack.includes(raw) && askSpans.some((s) => index >= s.start && index < s.end);
+    if (isAskOccurrence) continue;
+
     if (haystack.includes(raw)) continue;
     // Compare normalized forms too, so "June 1, 2026" matches "2026-06-01".
     const normalized = normalizeDate(raw);
     if (normalized && haystack.includes(normalized)) continue;
-    if (planAskHaystack.includes(raw)) continue;
+
     findings.push({
       source: 'deterministic_verifier',
       check: 'date_grounding',

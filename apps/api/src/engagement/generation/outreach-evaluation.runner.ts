@@ -278,6 +278,7 @@ export class OutreachEvaluationRunner {
       existingSubject: request.existingSubject ?? null,
       existingBody: request.existingBody ?? null,
       recipientScopeKeys: request.recipient.scopeKeys,
+      now,
     });
 
     const cred = pinnedCreds[0];

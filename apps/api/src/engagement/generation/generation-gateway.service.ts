@@ -574,6 +574,7 @@ export class GenerationGatewayService {
       existingSubject: request.existingSubject ?? null,
       existingBody: request.existingBody ?? null,
       recipientScopeKeys: recipient.scopeKeys,
+      now,
     });
 
     let subject: string;
