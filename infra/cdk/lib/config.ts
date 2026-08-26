@@ -230,20 +230,36 @@ export function loadConfig(app: cdk.App): EnvConfig {
             meriv2OrchestratorMaxCount: 2,
             apiStrategyDesiredCount: 1,
             apiStrategyMaxCount: 2,
-            // Raised from 0.5->0.75 (2026-08-26): the live floor of 0.5 ACU caps
-            // Postgres max_connections at ~112 (LEAST(mem/9531392, 5000) per AWS
-            // docs), which the engagement-api CDK's own deployment-surge budget
-            // check (assertEngagementApiDeploymentDbBudget) now rejects against
-            // real traffic (observed 7-day peak 72 connections + a 4-task rolling
+            // Raised from 0.5->1.0 (2026-08-26, corrected same day): the live
+            // floor of 0.5 ACU caps Postgres max_connections at ~112
+            // (LEAST(mem/9531392, 5000) per AWS docs), which the engagement-api
+            // CDK's own deployment-surge budget check
+            // (assertEngagementApiDeploymentDbBudget) now rejects against real
+            // traffic (observed 7-day peak 72 connections + a 4-task rolling
             // surge at 10 connections/task = 112, exceeding the 80% safe ceiling
-            // of 89). 0.75 ACU raises max_connections to ~168 (safe ceiling 135),
-            // clearing today's real traffic with margin. Costs ~$44/mo at
-            // $0.12/ACU-hr x 2 instances (writer+reader) x 730h x 0.25 added ACU.
+            // of 89).
+            //
+            // An initial fix landed this value at 0.75 ACU, but Aurora
+            // Serverless v2's serverlessV2MinCapacity/MaxCapacity MUST be in
+            // 0.5 step increments (AWS API validation:
+            // InvalidServerlessV2CapacityIncrement) — 0.75 is not a legal value
+            // and fails `cdk synth` outright, caught before any deploy (see
+            // docs/runbooks/engagement-api-handover-20260826.md). 1.0 is the
+            // nearest valid step above 0.5.
+            //
+            // 1.0 ACU raises max_connections to ~225 (safe ceiling 180),
+            // clearing today's real traffic (peak 112) with wide margin — more
+            // than the originally-intended 0.75 would have given (~168/135).
+            // Costs ~$88/mo at $0.12/ACU-hr x 2 instances (writer+reader) x
+            // 730h x 0.5 added ACU (double the original ~$44/mo estimate,
+            // since the ACU delta from the 0.5 floor doubles from 0.25->0.5).
+            // User approved this corrected ~$88/mo figure 2026-08-26.
+            //
             // NOTE: live MaxACU was found at 16 during 2026-08-26 drift
             // investigation, not the 4 tracked here — that mismatch is a SEPARATE
             // untracked drift, not addressed by this change; see
             // docs/runbooks/engagement-api-cf-td-drift-findings-20260826.md.
-            auroraMinAcu: 0.75,
+            auroraMinAcu: 1.0,
             auroraMaxAcu: 4,
             auroraBackupRetentionDays: 35,
             // NOTE: the env=dev stacks (cluster `capiro-dev`) ARE the live
