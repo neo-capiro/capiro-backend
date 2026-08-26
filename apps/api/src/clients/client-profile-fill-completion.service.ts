@@ -1472,6 +1472,34 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
    * for the reviewer — never silently promoted to a false "PUBLIC_VERIFIED"
    * certainty the match itself doesn't support.
    *
+   * ROLE-AWARE RESOLUTION (extended after #1300's first pass). #1300 only
+   * matched the client against `registrant_name` — the client could be
+   * FOUND only if it was the lobbying/registering firm itself, never if it
+   * was the entity being represented. That's a real product gap: a Capiro
+   * client is far more likely to appear as a foreign principal (the entity
+   * a registrant represents) than as a registrant (a law/lobbying firm)
+   * itself. This now ALSO matches against `foreign_principal`, split on the
+   * "; " delimiter `groupEnrichments` (fara-enrichment.ts) uses to join
+   * multiple principals into that single flat column — matching the whole
+   * joined blob would systematically under-score a client that's only one
+   * of several principals a registrant lists. `matchedRole` on every
+   * finding tells the reviewer which column matched — a match on the
+   * registrant name and a match on a foreign principal name mean very
+   * different things about the client's relationship to this filing, and
+   * collapsing them into one undifferentiated "FARA match" would hide that.
+   *
+   * Honest schema-audited limitation: the roadmap's third role, "client as
+   * represented entity," does NOT exist as a separate concept in this
+   * schema. `fara_registration` has exactly two identity columns
+   * (`registrant_name`, `foreign_principal`), and in FARA's own domain
+   * model the foreign principal already IS the represented entity — a
+   * registrant represents a foreign principal, full stop. There is no
+   * third, distinct "represented entity" field to resolve against; this
+   * adapter resolves exactly the two roles the schema actually has
+   * (`registrant`, `foreign_principal`) and reports `foreign_principal` as
+   * also covering "represented entity," rather than pretending a third
+   * role was built against data that doesn't exist.
+   *
    * No new watermark column: FARA registrations mutate rarely and the table
    * is small enough that a full re-scan per Fill run is cheap; `addFinding`'s
    * own content-hash/accepted-or-rejected guard is what keeps re-runs
@@ -1501,22 +1529,42 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       status: string | null;
       registrationDate: Date | null;
       description: string | null;
-      similarity: number;
+      registrantSimilarity: number;
+      principalSimilarity: number;
     }>;
     try {
+      // ROLE-AWARE: registrantSimilarity matches the client as the REGISTRANT
+      // (the lobbying/law firm doing the filing); principalSimilarity matches
+      // the client as a FOREIGN_PRINCIPAL (the entity being represented —
+      // this schema's only stand-in for "represented entity", see the class
+      // doc above). foreign_principal is a single column that can hold
+      // several principals joined with "; " (fara-enrichment.ts's
+      // groupEnrichments), so it's split and scored PER SEGMENT via a
+      // LATERAL join, taking the best-scoring segment — scoring the whole
+      // joined blob would under-score a client that is only one of several
+      // principals a registrant lists.
       candidates = await this.prisma.$queryRawUnsafe(
-        `SELECT id, registration_number AS "registrationNumber",
-                registrant_name AS "registrantName",
-                foreign_principal AS "foreignPrincipal",
-                country, status, registration_date AS "registrationDate",
-                description,
-                GREATEST(similarity(registrant_name, $1), word_similarity($1, registrant_name))::float
-                  AS similarity
-           FROM fara_registration
-          WHERE registration_number = ANY($2::text[])
-             OR GREATEST(similarity(registrant_name, $1), word_similarity($1, registrant_name))
-                  >= $3::float
-          ORDER BY similarity DESC
+        `WITH scored AS (
+           SELECT fr.id, fr.registration_number AS "registrationNumber",
+                  fr.registrant_name AS "registrantName",
+                  fr.foreign_principal AS "foreignPrincipal",
+                  fr.country, fr.status, fr.registration_date AS "registrationDate",
+                  fr.description,
+                  GREATEST(similarity(fr.registrant_name, $1), word_similarity($1, fr.registrant_name))::float
+                    AS "registrantSimilarity",
+                  COALESCE(fp.principal_similarity, 0)::float AS "principalSimilarity"
+             FROM fara_registration fr
+             LEFT JOIN LATERAL (
+               SELECT MAX(GREATEST(similarity(p.principal, $1), word_similarity($1, p.principal)))
+                        AS principal_similarity
+                 FROM unnest(string_to_array(fr.foreign_principal, '; ')) AS p(principal)
+             ) fp ON true
+         )
+         SELECT * FROM scored
+          WHERE "registrationNumber" = ANY($2::text[])
+             OR "registrantSimilarity" >= $3::float
+             OR "principalSimilarity" >= $3::float
+          ORDER BY GREATEST("registrantSimilarity", "principalSimilarity") DESC
           LIMIT 50`,
         clientName,
         [...confirmedRegistrationNumbers],
@@ -1531,7 +1579,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     for (const row of candidates) {
       if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
       const isConfirmed = confirmedRegistrationNumbers.has(row.registrationNumber);
-      const confidence = faraMatchConfidence(isConfirmed, row.similarity);
+      const roleMatch = resolveFaraMatchedRole(row.registrantSimilarity, row.principalSimilarity);
+      const confidence = faraMatchConfidence(isConfirmed, roleMatch.similarity);
       const externalKey = `fara:${row.registrationNumber}`;
       const proposedValue = {
         externalKey,
@@ -1554,7 +1603,14 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           clientMatch: {
             method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
             confidence,
-            similarity: isConfirmed ? null : row.similarity,
+            similarity: isConfirmed ? null : roleMatch.similarity,
+            // Which FARA identity field matched the client. 'foreign_principal'
+            // also covers the roadmap's "represented entity" role — this
+            // schema has no separate column for that concept (see class doc).
+            // Absent for a confirmed mapping with no live similarity signal
+            // on either side (score 0/0) — a human already decided the
+            // match; there is nothing informative to report about role.
+            matchedRole: isConfirmed && roleMatch.similarity === 0 ? null : roleMatch.role,
           },
         },
       };
@@ -1567,7 +1623,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           {
             label: proposedValue.title,
             source: 'FARA (Foreign Agents Registration Act) registration',
-            metadata: { registrationNumber: row.registrationNumber },
+            metadata: { registrationNumber: row.registrationNumber, matchedRole: roleMatch.role },
           },
         ],
       });
@@ -3479,6 +3535,29 @@ export function calculateProfileCompletion(input: ProfileCompletionInput): Profi
 export function faraMatchConfidence(isConfirmed: boolean, similarity: number): number {
   if (isConfirmed) return 1;
   return Number(Math.min(0.95, Math.max(0.5, 0.5 + similarity * 0.45)).toFixed(3));
+}
+
+/**
+ * Role-aware FARA match resolution. Picks whichever of the two identity
+ * columns (registrant_name vs foreign_principal) scored higher, and reports
+ * BOTH which role matched and the winning similarity score — never averages
+ * or otherwise blends the two, since a client matching as a registrant and
+ * a client matching as a foreign principal are two materially different
+ * claims about the client's relationship to the filing. A tie (including
+ * both scoring exactly 0, e.g. a confirmed-mapping-only hit with no live
+ * similarity signal on either side) resolves to 'registrant' as the
+ * conventional default — `matchedRole` is deliberately dropped by the
+ * caller in that specific zero/zero case rather than reported as a real
+ * signal (see gatherFaraAdvocacyCandidates).
+ */
+export function resolveFaraMatchedRole(
+  registrantSimilarity: number,
+  principalSimilarity: number,
+): { role: 'registrant' | 'foreign_principal'; similarity: number } {
+  if (principalSimilarity > registrantSimilarity) {
+    return { role: 'foreign_principal', similarity: principalSimilarity };
+  }
+  return { role: 'registrant', similarity: registrantSimilarity };
 }
 
 /**
