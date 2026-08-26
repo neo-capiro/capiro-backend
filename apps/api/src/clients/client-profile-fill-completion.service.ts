@@ -1352,6 +1352,105 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
    * own content-hash/accepted-or-rejected guard is what keeps re-runs
    * idempotent, exactly like every other rail in this method.
    */
+  /**
+   * Shared client-resolution step for every public-source auto-discovery
+   * adapter (FARA, testimony, and future ones). Every adapter needs the
+   * client's own name as the pg_trgm match anchor; this is the one piece
+   * of genuinely duplicated glue between FARA and testimony worth
+   * extracting — deliberately NOT extracting the per-source SQL, matching
+   * threshold, confidence formula, or pagination shape, which differ
+   * enough per source (see `references/public-source-discovery-adapter-plan.md`)
+   * that a shared abstraction over them would hide real differences rather
+   * than remove real duplication.
+   */
+  private async resolveClientNameForDiscovery(ctx: TenantContext, clientId: string): Promise<string | null> {
+    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
+    );
+    return client?.name ?? null;
+  }
+
+  /**
+   * Shared confirmed-`client_intel_mapping` lookup for a given discovery
+   * source. Returns the set of confirmed `externalId` values (which each
+   * adapter interprets in its own key shape — a bare registration number
+   * for FARA, a `${hearingId}::${witnessText}` compound key for testimony).
+   */
+  private async getConfirmedIntelMappingKeys(
+    ctx: TenantContext,
+    clientId: string,
+    source: string,
+  ): Promise<Set<string>> {
+    const confirmedMappings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, source, confirmed: true },
+        select: { externalId: true },
+      }),
+    );
+    return new Set(confirmedMappings.map((m) => m.externalId));
+  }
+
+  /**
+   * Shared FillFinding assembly for a public-source auto-discovery
+   * candidate. Every adapter converges on the exact same envelope shape
+   * (`kind: 'advocacy_record'`, `source: 'advocacy_history'`,
+   * `factKind` gated on confirmed-vs-similarity, `status: 'pending'`) —
+   * this is the second piece of real, non-superficial duplication between
+   * FARA and testimony (and every future adapter), so it's the one
+   * extracted as a shared call. Per-source fields (title, summary,
+   * metadata shape, evidence source label) stay adapter-owned, passed in
+   * as `proposedValue`/`evidence` built by the caller — this function only
+   * owns the envelope, never the source-specific content.
+   */
+  private async emitDiscoveryFinding(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    input: {
+      externalKey: string;
+      isConfirmed: boolean;
+      confidence: number;
+      proposedValue: unknown;
+      evidence: unknown[];
+    },
+  ): Promise<boolean> {
+    return this.addFinding(ctx.tenantId, clientId, runId, {
+      kind: 'advocacy_record',
+      targetKey: `advocacy:${input.externalKey}`,
+      source: 'advocacy_history',
+      factKind: input.isConfirmed ? 'fact' : 'recommendation',
+      currentValue: null,
+      proposedValue: input.proposedValue,
+      confidence: input.confidence,
+      status: 'pending',
+      evidence: input.evidence,
+    });
+  }
+
+  /**
+   * Public-source auto-discovery, source 1 of N (FARA). Chosen first because
+   * `fara_registration` is already synced (no new ingestion), global/no-RLS
+   * (read directly via the Prisma delegate, never wrapped in withTenant —
+   * see the capiro-advocacy-history skill's "these four source tables are
+   * GLOBAL" note), and the client-match approach directly reuses the exact
+   * pg_trgm similarity pattern `client-profile-fill-workflow.service.ts`
+   * already proves out for LDA identity suggestion.
+   *
+   * Deterministic-match-or-manual-rationale gate, applied here the same way
+   * `linkHearing` applies it for committee/bill matches: a CONFIRMED
+   * `client_intel_mapping` (source='fara', confirmed=true) always searches
+   * regardless of live similarity score (a human already decided this
+   * registration belongs to the client). Absent a confirmed mapping, only
+   * registrations at/above FARA_AUTO_MATCH_THRESHOLD are surfaced, and each
+   * finding carries its own match confidence/method in metadata.clientMatch
+   * for the reviewer — never silently promoted to a false "PUBLIC_VERIFIED"
+   * certainty the match itself doesn't support.
+   *
+   * No new watermark column: FARA registrations mutate rarely and the table
+   * is small enough that a full re-scan per Fill run is cheap; `addFinding`'s
+   * own content-hash/accepted-or-rejected guard is what keeps re-runs
+   * idempotent, exactly like every other rail in this method.
+   */
   private async gatherFaraAdvocacyCandidates(
     ctx: TenantContext,
     clientId: string,
@@ -1360,18 +1459,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   ): Promise<{ count: number }> {
     if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0 };
 
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
-    );
-    if (!client?.name) return { count: 0 };
+    const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
+    if (!clientName) return { count: 0 };
 
-    const confirmedMappings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: FARA_INTEL_MAPPING_SOURCE, confirmed: true },
-        select: { externalId: true },
-      }),
+    const confirmedRegistrationNumbers = await this.getConfirmedIntelMappingKeys(
+      ctx, clientId, FARA_INTEL_MAPPING_SOURCE,
     );
-    const confirmedRegistrationNumbers = new Set(confirmedMappings.map((m) => m.externalId));
 
     let candidates: Array<{
       id: string;
@@ -1399,7 +1492,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
                   >= $3::float
           ORDER BY similarity DESC
           LIMIT 50`,
-        client.name,
+        clientName,
         [...confirmedRegistrationNumbers],
         FARA_AUTO_MATCH_THRESHOLD,
       );
@@ -1439,15 +1532,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           },
         },
       };
-      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
-        kind: 'advocacy_record',
-        targetKey: `advocacy:${externalKey}`,
-        source: 'advocacy_history',
-        factKind: isConfirmed ? 'fact' : 'recommendation',
-        currentValue: null,
-        proposedValue,
+      const inserted = await this.emitDiscoveryFinding(ctx, clientId, runId, {
+        externalKey,
+        isConfirmed,
         confidence,
-        status: 'pending',
+        proposedValue,
         evidence: [
           {
             label: proposedValue.title,
@@ -1514,18 +1603,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     const noAdvance = { count: 0, newestSyncedAt: lastTestimonySyncedAt, newestKey: lastTestimonyKey };
     if (currentCount >= MAX_ADVOCACY_FINDINGS) return noAdvance;
 
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
-    );
-    if (!client?.name) return noAdvance;
+    const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
+    if (!clientName) return noAdvance;
 
-    const confirmedMappings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source: TESTIMONY_INTEL_MAPPING_SOURCE, confirmed: true },
-        select: { externalId: true },
-      }),
-    );
-    const confirmedKeys = new Set(confirmedMappings.map((m) => m.externalId));
+    const confirmedKeys = await this.getConfirmedIntelMappingKeys(ctx, clientId, TESTIMONY_INTEL_MAPPING_SOURCE);
 
     let count = 0;
 
@@ -1585,7 +1666,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
             LIMIT $4`,
           lastTestimonySyncedAt,
           lastTestimonyKey ?? '',
-          client.name,
+          clientName,
           TESTIMONY_SCAN_BATCH_SIZE,
         );
       } catch (error) {
@@ -1665,15 +1746,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         },
       },
     };
-    return this.addFinding(ctx.tenantId, clientId, runId, {
-      kind: 'advocacy_record',
-      targetKey: `advocacy:${externalKey}`,
-      source: 'advocacy_history',
-      factKind: isConfirmed ? 'fact' : 'recommendation',
-      currentValue: null,
-      proposedValue,
+    return this.emitDiscoveryFinding(ctx, clientId, runId, {
+      externalKey,
+      isConfirmed,
       confidence,
-      status: 'pending',
+      proposedValue,
       evidence: [
         {
           label: proposedValue.title,
