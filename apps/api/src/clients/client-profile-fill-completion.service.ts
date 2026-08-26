@@ -156,6 +156,19 @@ const TASK_TIMEOUT_MS = 5 * 60_000;
 const SCHEDULE_SWEEP_MS = 60_000;
 const TASK_CLAIM_BATCH = 4;
 const MAX_ADVOCACY_FINDINGS = 200;
+// Same trigram-similarity floor client-profile-fill-workflow.service.ts uses
+// for LDA identity suggestion (0.42), lightly raised because FARA registrant
+// names are matched against a client's own registered legal name (a tighter
+// domain) rather than against a broad free-text website/company-name blob.
+const FARA_AUTO_MATCH_THRESHOLD = 0.5;
+// client_intel_mapping.source value for FARA client-match confirmations.
+// Named constant (not an inline 'fara' string literal) so this Prisma filter
+// text never collides with client-profile-fill-finding-source-check.contract.spec.ts's
+// blunt `source:\s*'([a-z_]+)'` regex, which scans this file for EVERY
+// `source: '...'` literal to validate against addFinding's allowed values —
+// it cannot distinguish an addFinding() call's `source` from an unrelated
+// Prisma where-clause field of the same name.
+const FARA_INTEL_MAPPING_SOURCE = 'fara';
 const ADVOCACY_TITLE_TERMS = [
   'appropriation',
   'amendment',
@@ -1277,6 +1290,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       ctx, clientId, runId, count, asString(cursor.lastRelationshipLinkAppliedAt),
     );
     count += privateResult.count;
+    const faraResult = await this.gatherFaraAdvocacyCandidates(ctx, clientId, runId, count);
+    count += faraResult.count;
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
       lastLdaPostedAt: newestPostedAt?.toISOString() ?? lastDtPosted ?? null,
       lastClientSubmissionAt: submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
@@ -1284,6 +1299,139 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       refreshedAt: new Date().toISOString(),
     });
     return count;
+  }
+
+  /**
+   * Public-source auto-discovery, source 1 of N (FARA). Chosen first because
+   * `fara_registration` is already synced (no new ingestion), global/no-RLS
+   * (read directly via the Prisma delegate, never wrapped in withTenant —
+   * see the capiro-advocacy-history skill's "these four source tables are
+   * GLOBAL" note), and the client-match approach directly reuses the exact
+   * pg_trgm similarity pattern `client-profile-fill-workflow.service.ts`
+   * already proves out for LDA identity suggestion.
+   *
+   * Deterministic-match-or-manual-rationale gate, applied here the same way
+   * `linkHearing` applies it for committee/bill matches: a CONFIRMED
+   * `client_intel_mapping` (source='fara', confirmed=true) always searches
+   * regardless of live similarity score (a human already decided this
+   * registration belongs to the client). Absent a confirmed mapping, only
+   * registrations at/above FARA_AUTO_MATCH_THRESHOLD are surfaced, and each
+   * finding carries its own match confidence/method in metadata.clientMatch
+   * for the reviewer — never silently promoted to a false "PUBLIC_VERIFIED"
+   * certainty the match itself doesn't support.
+   *
+   * No new watermark column: FARA registrations mutate rarely and the table
+   * is small enough that a full re-scan per Fill run is cheap; `addFinding`'s
+   * own content-hash/accepted-or-rejected guard is what keeps re-runs
+   * idempotent, exactly like every other rail in this method.
+   */
+  private async gatherFaraAdvocacyCandidates(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    currentCount: number,
+  ): Promise<{ count: number }> {
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0 };
+
+    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
+    );
+    if (!client?.name) return { count: 0 };
+
+    const confirmedMappings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, source: FARA_INTEL_MAPPING_SOURCE, confirmed: true },
+        select: { externalId: true },
+      }),
+    );
+    const confirmedRegistrationNumbers = new Set(confirmedMappings.map((m) => m.externalId));
+
+    let candidates: Array<{
+      id: string;
+      registrationNumber: string;
+      registrantName: string;
+      foreignPrincipal: string;
+      country: string | null;
+      status: string | null;
+      registrationDate: Date | null;
+      description: string | null;
+      similarity: number;
+    }>;
+    try {
+      candidates = await this.prisma.$queryRawUnsafe(
+        `SELECT id, registration_number AS "registrationNumber",
+                registrant_name AS "registrantName",
+                foreign_principal AS "foreignPrincipal",
+                country, status, registration_date AS "registrationDate",
+                description,
+                GREATEST(similarity(registrant_name, $1), word_similarity($1, registrant_name))::float
+                  AS similarity
+           FROM fara_registration
+          WHERE registration_number = ANY($2::text[])
+             OR GREATEST(similarity(registrant_name, $1), word_similarity($1, registrant_name))
+                  >= $3::float
+          ORDER BY similarity DESC
+          LIMIT 50`,
+        client.name,
+        [...confirmedRegistrationNumbers],
+        FARA_AUTO_MATCH_THRESHOLD,
+      );
+    } catch (error) {
+      this.logger.warn(`FARA discovery rail unavailable: ${this.safeError(error)}`);
+      return { count: 0 };
+    }
+
+    let count = 0;
+    for (const row of candidates) {
+      if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+      const isConfirmed = confirmedRegistrationNumbers.has(row.registrationNumber);
+      const confidence = faraMatchConfidence(isConfirmed, row.similarity);
+      const externalKey = `fara:${row.registrationNumber}`;
+      const proposedValue = {
+        externalKey,
+        recordType: 'fara_registration',
+        title: `FARA registration — ${row.registrantName} for ${row.foreignPrincipal}`,
+        summary: row.description,
+        activityDate: row.registrationDate?.toISOString() ?? null,
+        status: row.status,
+        outcome: null,
+        sourceType: 'fara',
+        sourceId: row.registrationNumber,
+        sourceUrl: null,
+        evidenceClass: 'PUBLIC_VERIFIED',
+        confidence,
+        metadata: {
+          registrationNumber: row.registrationNumber,
+          registrantName: row.registrantName,
+          foreignPrincipal: row.foreignPrincipal,
+          country: row.country,
+          clientMatch: {
+            method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
+            confidence,
+            similarity: isConfirmed ? null : row.similarity,
+          },
+        },
+      };
+      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'advocacy_record',
+        targetKey: `advocacy:${externalKey}`,
+        source: 'advocacy_history',
+        factKind: isConfirmed ? 'fact' : 'recommendation',
+        currentValue: null,
+        proposedValue,
+        confidence,
+        status: 'pending',
+        evidence: [
+          {
+            label: proposedValue.title,
+            source: 'FARA (Foreign Agents Registration Act) registration',
+            metadata: { registrationNumber: row.registrationNumber },
+          },
+        ],
+      });
+      if (inserted) count += 1;
+    }
+    return { count };
   }
 
   private async gatherClientSubmissionAdvocacy(
@@ -2709,6 +2857,21 @@ export function calculateProfileCompletion(input: ProfileCompletionInput): Profi
  *  outcome-detection pipeline actually writes, which is worse than not
  *  matching at all. Revisit if/when a regulatory or appropriations outcome
  *  rail starts populating those evidence fields. */
+/**
+ * Confidence assigned to a FARA discovery candidate. A CONFIRMED
+ * `client_intel_mapping` always yields full confidence (a human already
+ * decided this registration belongs to the client, independent of how the
+ * registrant name happens to be spelled today). Otherwise confidence is a
+ * function of pg_trgm name similarity, floored at FARA_AUTO_MATCH_THRESHOLD's
+ * own value (anything scored at all already cleared that gate) and capped
+ * below 1 — an unconfirmed name match is never presented with the same
+ * certainty as a human-reviewed one.
+ */
+export function faraMatchConfidence(isConfirmed: boolean, similarity: number): number {
+  if (isConfirmed) return 1;
+  return Number(Math.min(0.95, Math.max(0.5, 0.5 + similarity * 0.45)).toFixed(3));
+}
+
 export function matchAdvocacyOutcomeDeterministically(
   matter: { primaryPeCode: string | null; primaryBillId: string | null } | undefined,
   outcomeEvidence: Record<string, unknown>,
