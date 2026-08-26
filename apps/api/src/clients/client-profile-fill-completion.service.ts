@@ -169,6 +169,15 @@ const FARA_AUTO_MATCH_THRESHOLD = 0.5;
 // it cannot distinguish an addFinding() call's `source` from an unrelated
 // Prisma where-clause field of the same name.
 const FARA_INTEL_MAPPING_SOURCE = 'fara';
+// Congressional testimony auto-discovery: `committee_hearing.witnesses` is a
+// bare text[] of "name, position, organization" strings (see formatWitnesses
+// in hearing-discovery/adapters/congress-gov-parse.ts) — no separate witness
+// identity table. Org-name similarity against that free-text blob is noisier
+// than FARA's clean registrant_name column, hence a slightly higher floor.
+const TESTIMONY_AUTO_MATCH_THRESHOLD = 0.55;
+// client_intel_mapping.source value for testimony client-match confirmations.
+// Same named-constant reasoning as FARA_INTEL_MAPPING_SOURCE above.
+const TESTIMONY_INTEL_MAPPING_SOURCE = 'testimony';
 const ADVOCACY_TITLE_TERMS = [
   'appropriation',
   'amendment',
@@ -1292,10 +1301,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     count += privateResult.count;
     const faraResult = await this.gatherFaraAdvocacyCandidates(ctx, clientId, runId, count);
     count += faraResult.count;
+    const testimonyResult = await this.gatherTestimonyAdvocacyCandidates(
+      ctx, clientId, runId, count, asString(cursor.lastTestimonySyncedAt),
+    );
+    count += testimonyResult.count;
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
       lastLdaPostedAt: newestPostedAt?.toISOString() ?? lastDtPosted ?? null,
       lastClientSubmissionAt: submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
       lastRelationshipLinkAppliedAt: privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
+      lastTestimonySyncedAt: testimonyResult.newestSyncedAt ?? cursor.lastTestimonySyncedAt ?? null,
       refreshedAt: new Date().toISOString(),
     });
     return count;
@@ -1432,6 +1446,156 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       if (inserted) count += 1;
     }
     return { count };
+  }
+
+  /**
+   * Public-source auto-discovery, source 2 of N (congressional testimony).
+   * `committee_hearing.witnesses` is a bare `text[]` of "name, position,
+   * organization" strings (see `formatWitnesses` in
+   * hearing-discovery/adapters/congress-gov-parse.ts) — there is no separate
+   * witness-identity table, so matching happens directly against that
+   * free-text blob via `unnest`. `word_similarity` matters more here than it
+   * did for FARA: a client's organization name is one fragment INSIDE a
+   * longer "name, title, organization" string, not the whole field, so a
+   * plain `similarity()` against the full string would systematically
+   * under-score even an exact organization match.
+   *
+   * Deterministic-match-or-manual-rationale gate, same shape as
+   * `gatherFaraAdvocacyCandidates`: a CONFIRMED `client_intel_mapping`
+   * (source='testimony') keyed on `${hearingId}::${witnessText}` — the exact
+   * compound key `linkTestimony` already uses for its own link key — always
+   * surfaces regardless of live similarity. Absent a confirmed mapping, only
+   * witness strings at/above TESTIMONY_AUTO_MATCH_THRESHOLD are surfaced.
+   *
+   * Incremental watermark on `committee_hearing.synced_at`: unlike FARA,
+   * `committee_hearing` is NOT small/rarely-mutating (continuously synced by
+   * `scripts/sync-hearings.ts`, including witness-list backfills on existing
+   * rows), so an unbounded full-table unnest+similarity scan on every Fill
+   * run would grow expensive. `synced_at` is bumped on every upsert
+   * (including a witness-only backfill onto a pre-existing row per
+   * `sync-hearings.ts`), so it correctly captures "newly witness-enriched"
+   * rows, not just newly-created ones.
+   */
+  private async gatherTestimonyAdvocacyCandidates(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    currentCount: number,
+    lastTestimonySyncedAt: string | null,
+  ): Promise<{ count: number; newestSyncedAt: string | null }> {
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
+      return { count: 0, newestSyncedAt: lastTestimonySyncedAt };
+    }
+
+    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
+    );
+    if (!client?.name) return { count: 0, newestSyncedAt: lastTestimonySyncedAt };
+
+    const confirmedMappings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, source: TESTIMONY_INTEL_MAPPING_SOURCE, confirmed: true },
+        select: { externalId: true },
+      }),
+    );
+    const confirmedKeys = new Set(confirmedMappings.map((m) => m.externalId));
+
+    let candidates: Array<{
+      hearingId: string;
+      title: string;
+      committeeName: string;
+      chamber: string;
+      date: Date;
+      url: string | null;
+      syncedAt: Date;
+      witnessText: string;
+      similarity: number;
+    }>;
+    try {
+      candidates = await this.prisma.$queryRawUnsafe(
+        `WITH candidates AS (
+           SELECT ch.id AS "hearingId", ch.title, ch.committee_name AS "committeeName",
+                  ch.chamber, ch.date, ch.url, ch.synced_at AS "syncedAt", w AS "witnessText"
+             FROM committee_hearing ch, unnest(ch.witnesses) AS w
+            WHERE ($4::timestamptz IS NULL OR ch.synced_at > $4::timestamptz)
+         )
+         SELECT *,
+                GREATEST(similarity("witnessText", $1), word_similarity($1, "witnessText"))::float
+                  AS similarity
+           FROM candidates
+          WHERE ("hearingId" || '::' || "witnessText") = ANY($2::text[])
+             OR GREATEST(similarity("witnessText", $1), word_similarity($1, "witnessText"))
+                  >= $3::float
+          ORDER BY date DESC
+          LIMIT 50`,
+        client.name,
+        [...confirmedKeys],
+        TESTIMONY_AUTO_MATCH_THRESHOLD,
+        lastTestimonySyncedAt,
+      );
+    } catch (error) {
+      this.logger.warn(`Testimony discovery rail unavailable: ${this.safeError(error)}`);
+      return { count: 0, newestSyncedAt: lastTestimonySyncedAt };
+    }
+
+    let count = 0;
+    let newestSyncedAt = lastTestimonySyncedAt ? new Date(lastTestimonySyncedAt) : null;
+    for (const row of candidates) {
+      if (!newestSyncedAt || row.syncedAt > newestSyncedAt) newestSyncedAt = row.syncedAt;
+      if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+      const compoundKey = `${row.hearingId}::${row.witnessText}`;
+      const isConfirmed = confirmedKeys.has(compoundKey);
+      const confidence = testimonyMatchConfidence(isConfirmed, row.similarity);
+      const externalKey = `testimony:${compoundKey}`;
+      const proposedValue = {
+        externalKey,
+        recordType: 'congressional_testimony',
+        title: `Congressional testimony — ${row.witnessText} at ${row.title}`,
+        summary: `${row.chamber} ${row.committeeName}`,
+        activityDate: row.date.toISOString(),
+        status: null,
+        outcome: null,
+        sourceType: 'testimony',
+        sourceId: row.hearingId,
+        sourceUrl: row.url,
+        // HONEST COVERAGE GAP (matches linkTestimony's own comment): no
+        // canonical testimony document/organization row exists in this
+        // repo. This finding's evidence is the witness string as recorded
+        // on the hearing itself — never fabricated beyond that.
+        evidenceClass: 'PUBLIC_VERIFIED',
+        confidence,
+        metadata: {
+          hearingId: row.hearingId,
+          witness: row.witnessText,
+          committeeName: row.committeeName,
+          chamber: row.chamber,
+          clientMatch: {
+            method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
+            confidence,
+            similarity: isConfirmed ? null : row.similarity,
+          },
+        },
+      };
+      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'advocacy_record',
+        targetKey: `advocacy:${externalKey}`,
+        source: 'advocacy_history',
+        factKind: isConfirmed ? 'fact' : 'recommendation',
+        currentValue: null,
+        proposedValue,
+        confidence,
+        status: 'pending',
+        evidence: [
+          {
+            label: proposedValue.title,
+            source: 'Congressional committee hearing witness list',
+            metadata: { hearingId: row.hearingId, witness: row.witnessText },
+          },
+        ],
+      });
+      if (inserted) count += 1;
+    }
+    return { count, newestSyncedAt: newestSyncedAt?.toISOString() ?? lastTestimonySyncedAt };
   }
 
   private async gatherClientSubmissionAdvocacy(
@@ -2870,6 +3034,21 @@ export function calculateProfileCompletion(input: ProfileCompletionInput): Profi
 export function faraMatchConfidence(isConfirmed: boolean, similarity: number): number {
   if (isConfirmed) return 1;
   return Number(Math.min(0.95, Math.max(0.5, 0.5 + similarity * 0.45)).toFixed(3));
+}
+
+/**
+ * Confidence assigned to a testimony discovery candidate. Same shape as
+ * `faraMatchConfidence` — a CONFIRMED `client_intel_mapping` always yields
+ * full confidence; otherwise confidence is a function of similarity,
+ * floored at TESTIMONY_AUTO_MATCH_THRESHOLD's own value and capped below 1.
+ * Kept as a SEPARATE exported function (not a shared parameterized helper)
+ * because the two sources' floors/caps are independent product decisions
+ * that can diverge later without one source's tuning silently affecting
+ * the other.
+ */
+export function testimonyMatchConfidence(isConfirmed: boolean, similarity: number): number {
+  if (isConfirmed) return 1;
+  return Number(Math.min(0.95, Math.max(0.55, 0.55 + similarity * 0.4)).toFixed(3));
 }
 
 export function matchAdvocacyOutcomeDeterministically(

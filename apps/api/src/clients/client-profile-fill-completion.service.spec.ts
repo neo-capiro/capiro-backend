@@ -6,6 +6,7 @@ import {
   matchAdvocacyOutcomeDeterministically,
   sameActivityDay,
   scoreAdvocacyOutcome,
+  testimonyMatchConfidence,
   titleOverlapRatio,
 } from './client-profile-fill-completion.service.js';
 
@@ -165,5 +166,20 @@ describe('Fill with Meri completion workflow', () => {
     // produces a confidence below 0.5 — an unconfirmed public-source match
     // is never presented as less certain than the discovery threshold itself.
     expect(faraMatchConfidence(false, 0)).toBe(0.5);
+  });
+
+  test('testimonyMatchConfidence: a confirmed client_intel_mapping always yields full confidence regardless of similarity', () => {
+    expect(testimonyMatchConfidence(true, 0)).toBe(1);
+    expect(testimonyMatchConfidence(true, 0.1)).toBe(1);
+    expect(testimonyMatchConfidence(true, 0.99)).toBe(1);
+  });
+
+  test('testimonyMatchConfidence: an unconfirmed match is scaled by similarity but never reaches 1 and never drops below the auto-match floor', () => {
+    expect(testimonyMatchConfidence(false, 0.55)).toBe(0.77);
+    expect(testimonyMatchConfidence(false, 1)).toBe(0.95);
+    // Defensive floor mirrors faraMatchConfidence's own defensive floor test:
+    // even a similarity below the query's own >= 0.55 gate never produces a
+    // confidence below the discovery threshold itself.
+    expect(testimonyMatchConfidence(false, 0)).toBe(0.55);
   });
 });
