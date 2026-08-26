@@ -5301,6 +5301,51 @@ model FaraRegistration {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Regulations.gov public comments/submissions.
+// GLOBAL table, no tenant_id, no RLS — same posture as regulatory_docket,
+// fara_registration, federal_register_document.
+// Source: api.regulations.gov/v4/comments (comment DETAIL endpoint, not the
+// list endpoint — see regulatory-comment-discovery.service.ts's own header
+// comment for why: only the detail response carries submitter identity
+// fields; the list/search endpoint's `title` is a free-text label like
+// "Comment from McNair, Carl", not structured submitter data).
+//
+// Populated ON DEMAND by a live per-client search against Regulations.gov's
+// own `filter[searchTerm]` API at Advocacy History Fill-time, NOT by a bulk
+// historical crawl — a single docket can carry 250K+ comments platform-wide
+// (confirmed live against the real API 2026-08-26: FS-2025-0001 alone has
+// 270,651), so an unbounded "ingest every comment" sync would be an
+// unbounded-cost crawl, not a bounded one. Every comment ROW this table
+// ever contains was fetched because a client-name search surfaced it — this
+// table is a cache of comments already matched to A client, not a full
+// mirror of Regulations.gov's comment corpus. See the discovery service's
+// header comment for the full scoping rationale.
+// ─────────────────────────────────────────────────────────────────────────
+
+model RegulatoryComment {
+  id            String    @id @default(uuid())
+  commentId     String    @unique @map("comment_id") // Regulations.gov comment id, e.g. "FS-2025-0001-268559"
+  docketId      String?   @map("docket_id")
+  agencyId      String?   @map("agency_id")
+  title         String    @db.Text
+  commentText   String?   @map("comment_text") @db.Text
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  organization  String?
+  city          String?
+  stateProvince String?   @map("state_province")
+  country       String?
+  postedDate    DateTime? @map("posted_date")
+  sourceUrl     String?   @map("source_url")
+  syncedAt      DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@index([docketId])
+  @@index([organization])
+  @@index([lastName, firstName])
+  @@map("regulatory_comment")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // BLS, Bureau of Labor Statistics time series data
 // GLOBAL table, no tenant_id, no RLS.
 // Source: api.bls.gov/publicAPI/v2/

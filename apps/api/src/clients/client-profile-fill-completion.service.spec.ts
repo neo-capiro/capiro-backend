@@ -1,6 +1,7 @@
 import {
   buildClientProfileFillCompletionPlan,
   calculateProfileCompletion,
+  deriveRegulatoryCommentSubmitterLabel,
   faraMatchConfidence,
   mergeFillProgress,
   matchAdvocacyOutcomeDeterministically,
@@ -339,6 +340,24 @@ describe('Fill with Meri completion workflow', () => {
       const plan = planTestimonyScanBatch(rows, new Set(), 0.55, 0);
       expect(plan.toEmit).toEqual([]);
       expect(plan.cursor).toBeNull();
+    });
+  });
+
+  describe('deriveRegulatoryCommentSubmitterLabel', () => {
+    test('prefers a real personal name when present', () => {
+      expect(deriveRegulatoryCommentSubmitterLabel('Carl', 'McNair', 'Some Org')).toBe('Carl McNair');
+    });
+
+    test('falls back to organization when no personal name is present', () => {
+      expect(deriveRegulatoryCommentSubmitterLabel(null, null, 'Pike Robotics')).toBe('Pike Robotics');
+    });
+
+    test('falls back to Anonymous when neither personal name nor organization is present', () => {
+      expect(deriveRegulatoryCommentSubmitterLabel(null, null, null)).toBe('Anonymous');
+    });
+
+    test('handles a first name with no last name (partial personal name still wins over organization)', () => {
+      expect(deriveRegulatoryCommentSubmitterLabel('Carl', null, 'Some Org')).toBe('Carl');
     });
   });
 });
