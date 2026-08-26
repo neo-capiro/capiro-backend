@@ -27,7 +27,10 @@ describe('ClientAdvocacyMatterService — public source links', () => {
     const prisma = {
       withTenant: jest.fn(async (_tenantId: string, run: (tenantTx: typeof tx) => Promise<unknown>) => run(tx)),
       regulatoryDocket: { findUnique: jest.fn(async () => null as unknown) },
-      federalRegisterDocument: { findUnique: jest.fn(async () => null as unknown) },
+      federalRegisterDocument: {
+        findUnique: jest.fn(async () => null as unknown),
+        findMany: jest.fn(async () => [] as unknown[]),
+      },
       committeeHearing: { findUnique: jest.fn(async () => null as unknown) },
       congressBillCommittee: { findFirst: jest.fn(async () => null as unknown) },
       faraRegistration: { findUnique: jest.fn(async () => null as unknown) },
@@ -247,6 +250,111 @@ describe('ClientAdvocacyMatterService — public source links', () => {
       (prisma2.faraRegistration.findUnique as jest.Mock).mockRejectedValueOnce(new Error('timeout'));
 
       await expect(service2.linkFaraRecord(ctx, clientId, matterId, '1234-A')).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('suggestFederalRegisterCorrelations', () => {
+    test('returns nothing when the Matter has no docket-carrying public-source link yet (honest empty, not a guess)', async () => {
+      const { service, tx } = makeService();
+      stubMatterExists(tx); // assertClient/assertMatterBelongsToClient
+      (tx.$queryRawUnsafe as jest.Mock).mockResolvedValueOnce([]); // linked-docket-ids query returns none
+
+      const result = await service.suggestFederalRegisterCorrelations(ctx, clientId, matterId);
+
+      expect(result).toEqual([]);
+    });
+
+    test('correlates by shared docket id from an already-linked regulatory_docket, never by client name or agency text', async () => {
+      const { service, tx, prisma } = makeService();
+      stubMatterExists(tx);
+      (tx.$queryRawUnsafe as jest.Mock).mockResolvedValueOnce([
+        { linkType: 'regulatory_docket', linkKey: 'DOD-2026-OS-0001-0042', docketId: 'DOD-2026-OS-0001' },
+      ]);
+      (prisma.federalRegisterDocument.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          documentNumber: '2026-00001',
+          title: 'Proposed Rule on Defense Acquisition',
+          type: 'PROPOSED_RULE',
+          agencyNames: ['Department of Defense'],
+          publicationDate: new Date('2026-02-01T00:00:00Z'),
+          docketIds: ['DOD-2026-OS-0001'],
+          htmlUrl: 'https://www.federalregister.gov/d/2026-00001',
+        },
+      ]);
+
+      const result = await service.suggestFederalRegisterCorrelations(ctx, clientId, matterId);
+
+      expect(prisma.federalRegisterDocument.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { docketIds: { hasSome: ['DOD-2026-OS-0001'] } } }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        documentNumber: '2026-00001',
+        stage: 'government_movement',
+        matchedOn: 'docket_id',
+        causationClaimed: false,
+        matchedDocketIds: ['DOD-2026-OS-0001'],
+      });
+    });
+
+    test('excludes a Federal Register document already linked to this Matter — never suggests re-linking the same evidence', async () => {
+      const { service, tx, prisma } = makeService();
+      stubMatterExists(tx);
+      (tx.$queryRawUnsafe as jest.Mock).mockResolvedValueOnce([
+        { linkType: 'regulatory_docket', linkKey: 'DOD-2026-OS-0001-0042', docketId: 'DOD-2026-OS-0001' },
+        { linkType: 'regulatory_document', linkKey: '2026-00001', docketId: null },
+      ]);
+      (prisma.federalRegisterDocument.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ docketIds: ['DOD-2026-OS-0001'] }]) // already-linked doc lookup (for its own docketIds)
+        .mockResolvedValueOnce([
+          {
+            documentNumber: '2026-00001', // same document already linked — must be filtered out
+            title: 'Proposed Rule on Defense Acquisition',
+            type: 'PROPOSED_RULE',
+            agencyNames: ['Department of Defense'],
+            publicationDate: new Date('2026-02-01T00:00:00Z'),
+            docketIds: ['DOD-2026-OS-0001'],
+            htmlUrl: null,
+          },
+          {
+            documentNumber: '2026-00002', // a second document on the same docket, not yet linked
+            title: 'Final Rule on Defense Acquisition',
+            type: 'RULE',
+            agencyNames: ['Department of Defense'],
+            publicationDate: new Date('2026-03-01T00:00:00Z'),
+            docketIds: ['DOD-2026-OS-0001'],
+            htmlUrl: null,
+          },
+        ]);
+
+      const result = await service.suggestFederalRegisterCorrelations(ctx, clientId, matterId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.documentNumber).toBe('2026-00002');
+    });
+
+    test('never claims causation and always stamps government_movement, regardless of document type (RULE vs NOTICE)', async () => {
+      const { service, tx, prisma } = makeService();
+      stubMatterExists(tx);
+      (tx.$queryRawUnsafe as jest.Mock).mockResolvedValueOnce([
+        { linkType: 'regulatory_docket', linkKey: 'x', docketId: 'DOD-2026-OS-0001' },
+      ]);
+      (prisma.federalRegisterDocument.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          documentNumber: '2026-00003',
+          title: 'Final Rule',
+          type: 'RULE',
+          agencyNames: ['Department of Defense'],
+          publicationDate: new Date('2026-04-01T00:00:00Z'),
+          docketIds: ['DOD-2026-OS-0001'],
+          htmlUrl: null,
+        },
+      ]);
+
+      const result = await service.suggestFederalRegisterCorrelations(ctx, clientId, matterId);
+
+      expect(result[0]!.causationClaimed).toBe(false);
+      expect(result[0]!.stage).toBe('government_movement');
     });
   });
 });
