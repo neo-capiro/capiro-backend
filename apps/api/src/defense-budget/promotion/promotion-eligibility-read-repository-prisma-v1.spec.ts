@@ -93,7 +93,7 @@ function planRow(
 }
 
 describe('loadCycleCertifications', () => {
-  it('maps rows and scopes by cycle and fiscal year', async () => {
+  it('maps committee rows and scopes by cycle and fiscal year when committee is requested', async () => {
     const prisma = new TableRoutedPrisma();
     prisma.tables = {
       phase6_cycle_certification: [
@@ -103,14 +103,16 @@ describe('loadCycleCertifications', () => {
     };
     const repo = new PrismaPromotionEligibilityReadRepositoryV1(prisma);
 
-    await expect(repo.loadCycleCertifications('cycle-fy2027', 2027)).resolves.toEqual([
+    await expect(
+      repo.loadCycleCertifications('cycle-fy2027', 2027, ['committee']),
+    ).resolves.toEqual([
       { certificationId: 'cert-a', contentSha256: SHA('1'), status: 'CERTIFIED' },
       { certificationId: 'cert-b', contentSha256: SHA('2'), status: 'DRAFT' },
     ]);
     expect(prisma.queries[0]?.values).toEqual(['cycle-fy2027', 2027]);
   });
 
-  it('returns uncertified rows too, because "none certified" is a distinct refusal', async () => {
+  it('returns uncertified committee rows too, because "none certified" is a distinct refusal', async () => {
     const prisma = new TableRoutedPrisma();
     prisma.tables = {
       phase6_cycle_certification: [
@@ -118,8 +120,131 @@ describe('loadCycleCertifications', () => {
       ],
     };
     await expect(
-      new PrismaPromotionEligibilityReadRepositoryV1(prisma).loadCycleCertifications('c', 2027),
+      new PrismaPromotionEligibilityReadRepositoryV1(prisma).loadCycleCertifications('c', 2027, [
+        'committee',
+      ]),
     ).resolves.toHaveLength(1);
+  });
+
+  it('never queries phase6_cycle_certification when committee is not requested', async () => {
+    const prisma = new TableRoutedPrisma();
+    prisma.tables = {
+      phase6_cycle_certification: [
+        { certificationId: 'cert-a', contentSha256: SHA('1'), status: 'CERTIFIED' },
+      ],
+    };
+    await new PrismaPromotionEligibilityReadRepositoryV1(prisma).loadCycleCertifications(
+      'c',
+      2027,
+      ['om'],
+    );
+    expect(prisma.queries.some((q) => q.sql.includes('phase6_cycle_certification'))).toBe(false);
+  });
+
+  /* -- Phase 10B-2C: embedded-bundle families (rdte/procurement/om/milcon) -- */
+
+  function embeddedRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      family: 'om',
+      projectionPlanId: 'pp-om-1',
+      certificationSha256: SHA('e'),
+      status: 'PROJECTABLE',
+      planDocument: { certification: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' },
+      ...overrides,
+    };
+  }
+
+  it.each([['rdte' as const], ['procurement' as const], ['om' as const], ['milcon' as const]])(
+    'reads %s certification from the embedded bundle on defense_budget_projection_plan',
+    async (family) => {
+      const prisma = new TableRoutedPrisma();
+      prisma.tables = {
+        defense_budget_projection_plan: [embeddedRow({ family })],
+      };
+      const repo = new PrismaPromotionEligibilityReadRepositoryV1(prisma);
+
+      const result = await repo.loadCycleCertifications('cycle-fy2027', 2027, [family]);
+
+      expect(result).toEqual([
+        { certificationId: 'plan:pp-om-1', contentSha256: SHA('e'), status: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' },
+      ]);
+      // Scoped by exact cycle + family, never by fiscalYear for this path
+      // (defense_budget_projection_plan has no fiscalYear column in this query).
+      expect(prisma.queries[0]?.values).toEqual(['cycle-fy2027', family]);
+      // Must never query phase6_cycle_certification for a non-committee-only request.
+      expect(prisma.queries.some((q) => q.sql.includes('phase6_cycle_certification'))).toBe(false);
+    },
+  );
+
+  it('reports a non-CERTIFIED embedded status rather than dropping the row', async () => {
+    const prisma = new TableRoutedPrisma();
+    prisma.tables = {
+      defense_budget_projection_plan: [
+        embeddedRow({ status: 'BLOCKED', planDocument: { certification: 'REJECTED' } }),
+      ],
+    };
+    const result = await new PrismaPromotionEligibilityReadRepositoryV1(
+      prisma,
+    ).loadCycleCertifications('c', 2027, ['om']);
+    expect(result).toEqual([{ certificationId: 'plan:pp-om-1', contentSha256: SHA('e'), status: 'REJECTED' }]);
+  });
+
+  it('mixes committee and embedded-bundle families in one call without conflating them', async () => {
+    const prisma = new TableRoutedPrisma();
+    prisma.tables = {
+      phase6_cycle_certification: [
+        { certificationId: 'cert-committee', contentSha256: SHA('f'), status: 'CERTIFIED' },
+      ],
+      defense_budget_projection_plan: [embeddedRow()],
+    };
+    const result = await new PrismaPromotionEligibilityReadRepositoryV1(
+      prisma,
+    ).loadCycleCertifications('c', 2027, ['om', 'committee']);
+
+    expect(result).toHaveLength(2);
+    expect(result).toEqual(
+      expect.arrayContaining([
+        { certificationId: 'cert-committee', contentSha256: SHA('f'), status: 'CERTIFIED' },
+        { certificationId: 'plan:pp-om-1', contentSha256: SHA('e'), status: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' },
+      ]),
+    );
+  });
+
+  it('a family with no supported certifier (alternative_funding is not a BudgetFamilyV1, so use an unsupported member) contributes nothing and issues no query for it', async () => {
+    // BudgetFamilyV1 has no alternative_funding/execution member (those are
+    // AuthorityTrack values) — the closest in-contract analog of "requested
+    // but structurally unsupported" is a family this repository does not
+    // recognize as either committee or an embedded-bundle family, e.g.
+    // 'unknown' or 'public_law'. Neither should ever touch either table.
+    const prisma = new TableRoutedPrisma();
+    prisma.tables = {
+      phase6_cycle_certification: [
+        { certificationId: 'cert-a', contentSha256: SHA('1'), status: 'CERTIFIED' },
+      ],
+      defense_budget_projection_plan: [embeddedRow()],
+    };
+    const result = await new PrismaPromotionEligibilityReadRepositoryV1(
+      prisma,
+    ).loadCycleCertifications('c', 2027, ['unknown']);
+
+    expect(result).toEqual([]);
+    expect(prisma.queries).toEqual([]);
+  });
+
+  it('scopes the embedded-bundle query by exact family — a different family in the same cycle is excluded from the query', async () => {
+    const prisma = new TableRoutedPrisma();
+    prisma.tables = {
+      defense_budget_projection_plan: [embeddedRow({ family: 'om' })],
+    };
+    await new PrismaPromotionEligibilityReadRepositoryV1(prisma).loadCycleCertifications(
+      'c',
+      2027,
+      ['rdte'],
+    );
+    // The SQL scopes by family IN (...) with 'rdte' bound — 'om' rows in the
+    // fake are irrelevant here because the real query would filter them out;
+    // this test proves the adapter sent 'rdte', not 'om', as the bound value.
+    expect(prisma.queries[0]?.values).toEqual(['c', 'rdte']);
   });
 });
 

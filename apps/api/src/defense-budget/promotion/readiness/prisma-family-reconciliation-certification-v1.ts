@@ -31,28 +31,26 @@
  *     `defense_budget_projection_plan.certificationId` names for committee
  *     plans.
  *
- * IMPORTANT — a real, pre-existing Phase 7 architecture gap this adapter
- * does NOT paper over: `DefenseBudgetPromotionEligibilityServiceV1` (called
- * by the orchestrator immediately after this port) reads its own certified
- * set EXCLUSIVELY from `phase6_cycle_certification` via
- * `loadCycleCertifications(cycleId, fiscalYear)` — see
- * `promotion-eligibility-read-repository-prisma-v1.ts:107`. Nothing in the
- * RDT&E or non-RDT&E pipelines (`rdte-cycle-pipeline-v1.ts`,
- * `non-rdte-cycle-pipeline-v1.ts`, `build-rdte-cycle.ts`) ever inserts a row
- * into `phase6_cycle_certification` — only Phase 6's own
- * `phase6-audit-projection-repository-prisma-v1.ts` does. That means, as
- * things stand TODAY, a real RDT&E/procurement/om/milcon cycle that this
- * adapter correctly reports `certified: true` for will still fail the very
- * next orchestrator step (`DefenseBudgetPromotionEligibilityServiceV1.evaluate`)
- * with `cycle_certification_missing`, UNLESS that same `cycleId` also
- * happens to carry an unrelated Phase 6 committee certification row. This is
- * a genuine, pre-existing Phase 7 boundary — not something Phase 10B-2
- * introduced, and explicitly out of scope to fix here (the brief forbids
- * inventing new certifier or persistence logic, and this orchestrator must
- * not weaken or route around the existing eligibility contract). It is
- * called out again in the PR report; Gap 5's fail-closed binding check
- * degrades safely into this gap (refusing to plan) rather than fabricating
- * an answer.
+ * HISTORICAL NOTE (fixed by Phase 10B-2C — read this only if you are
+ * wondering why the eligibility gate used to reject a genuinely certified
+ * RDT&E/procurement/O&M/MILCON family): `DefenseBudgetPromotionEligibilityServiceV1`
+ * used to read its certified set EXCLUSIVELY from `phase6_cycle_certification`
+ * via `loadCycleCertifications(cycleId, fiscalYear)`. Nothing in the RDT&E or
+ * non-RDT&E pipelines (`rdte-cycle-pipeline-v1.ts`, `non-rdte-cycle-pipeline-v1.ts`,
+ * `build-rdte-cycle.ts`) ever inserts a row into `phase6_cycle_certification`
+ * — only Phase 6's own `phase6-audit-projection-repository-prisma-v1.ts`
+ * does — so a real RDT&E/procurement/om/milcon cycle this adapter correctly
+ * reported `certified: true` for would still fail the very next orchestrator
+ * step with `cycle_certification_missing`. This was
+ * `PHASE10B2_EXISTING_ELIGIBILITY_CERTIFICATION_BOUNDARY_GAP`, and Phase
+ * 10B-2C closed it by widening `PrismaPromotionEligibilityReadRepositoryV1
+ * .loadCycleCertifications` to ALSO read the same embedded-bundle
+ * certification this adapter reads (via the shared
+ * `family-certified-plan-read-v1.ts` helper both modules now import), scoped
+ * to the exact families in the eligibility request — never by writing a fake
+ * Phase 6 committee row for a non-committee family. See
+ * `promotion-eligibility-read-repository-prisma-v1.ts`'s own header for the
+ * exact mechanics.
  */
 import type { CycleFamilyReadinessIdentityV1 } from './cycle-family-readiness-v1.js';
 import type {
@@ -60,6 +58,7 @@ import type {
   FamilyReconciliationCertificationResultV1,
 } from './cycle-family-readiness-orchestrator-v1.js';
 import type { CycleFamilyCorpusInputV1 } from './cycle-family-readiness-v1.js';
+import { deriveFamilyCertifiedPlanFactV1 } from '../family-certified-plan-read-v1.js';
 
 export interface FamilyCertificationPrismaQueryPortV1 {
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
@@ -78,20 +77,6 @@ type Phase6CertRow = {
   contentSha256: string;
   status: string;
 };
-
-/**
- * Reads the certification literal a Phase 4/5 bundle embeds in its own
- * document (`planDocument.certification`), without importing the RDT&E or
- * non-RDT&E bundle schema — this adapter deliberately stays structural here
- * (same "read the shared envelope, refuse what you cannot read" stance
- * `projection-plan-record-v1.ts` already takes) rather than depending on
- * either family's full contract.
- */
-function readEmbeddedCertificationLiteral(planDocument: unknown): string | null {
-  if (planDocument == null || typeof planDocument !== 'object') return null;
-  const value = (planDocument as Record<string, unknown>).certification;
-  return typeof value === 'string' ? value : null;
-}
 
 /**
  * Real thin adapter for `FamilyReconciliationCertificationPortV1`. Selects
@@ -139,9 +124,7 @@ export class PrismaFamilyReconciliationCertificationV1
         reason: `no projection plan has been filed for cycle ${cycleId} family ${family} yet; Phase 4/5 has not certified this family`,
       };
     }
-    const embedded = readEmbeddedCertificationLiteral(row.planDocument);
-    const certificationStatus = embedded ?? (row.status === 'PROJECTABLE' ? 'CERTIFIED_READY_FOR_PROJECTION' : 'INCOMPLETE');
-    const certified = certificationStatus.startsWith('CERTIFIED');
+    const { certified, certificationStatus } = deriveFamilyCertifiedPlanFactV1(row);
     return {
       certified,
       certificationStatus,

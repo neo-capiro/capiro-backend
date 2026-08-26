@@ -35,6 +35,7 @@ import type {
   TrustedCycleCertificationRecordV1,
   TrustedProjectionPlanRecordV1,
 } from './promotion-eligibility-service-v1.js';
+import { EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1 } from './promotion-eligibility-service-v1.js';
 import {
   budgetFamilyV1Schema,
   extractionMethodV1Schema,
@@ -45,6 +46,7 @@ import {
   PrismaProjectionPlanRepositoryV1,
   type ProjectionPlanPrismaLikeV1,
 } from '../projection-plan/projection-plan-repository-prisma-v1.js';
+import { deriveFamilyCertifiedPlanFactV1 } from './family-certified-plan-read-v1.js';
 
 /** The narrowest Prisma surface this adapter needs. Reads only. */
 export interface EligibilityReadPrismaLikeV1 extends ProjectionPlanPrismaLikeV1 {
@@ -91,6 +93,14 @@ interface CandidateRowV1 {
   sourceProfileHashCount: number;
 }
 
+interface EmbeddedBundleCertRowV1 {
+  family: string;
+  projectionPlanId: string;
+  certificationSha256: string;
+  status: string;
+  planDocument: unknown;
+}
+
 export class PrismaPromotionEligibilityReadRepositoryV1 implements PromotionEligibilityRepositoryV1 {
   private readonly projectionPlans: PrismaProjectionPlanRepositoryV1;
 
@@ -99,12 +109,63 @@ export class PrismaPromotionEligibilityReadRepositoryV1 implements PromotionElig
   }
 
   /**
-   * Phase 6's `phase6_cycle_certification`. Every certification for the cycle is
-   * returned, not only the CERTIFIED ones: the service distinguishes "no
-   * certification exists" from "certifications exist but none is CERTIFIED",
-   * and those are different refusals.
+   * Phase 10B-2C — closes `PHASE10B2_EXISTING_ELIGIBILITY_CERTIFICATION_BOUNDARY_GAP`.
+   *
+   * Reads certification from TWO existing sources, scoped by `families`,
+   * never conflated:
+   *
+   *   - `committee` (if requested): Phase 6's `phase6_cycle_certification`,
+   *     scoped by `cycle_id` + `fiscal_year` — exactly the pre-existing
+   *     query, unchanged.
+   *   - every other requested family in
+   *     `EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1` (rdte/procurement/om/
+   *     milcon): the embedded bundle certification on that family's own
+   *     `defense_budget_projection_plan` row, scoped by `cycle_id` + exact
+   *     `family` — the SAME row and the SAME embedded-literal
+   *     interpretation `PrismaFamilyReconciliationCertificationV1` (the
+   *     Phase 10B-2 readiness bridge) already reads, via the shared
+   *     `deriveFamilyCertifiedPlanFactV1` helper. This is what lets Phase 7
+   *     eligibility see the EXACT SAME certification fact the readiness
+   *     orchestrator's reconciliation step just produced — not a
+   *     re-derivation that could drift from it.
+   *
+   * A requested family with no supported certifier (`alternative_funding`,
+   * `execution`, and any other `BudgetFamilyV1` outside both lists above)
+   * contributes NOTHING here — it is `certification_not_supported` at the
+   * readiness layer and must never be represented as "certified" or
+   * "uncertified but present" at this layer either; the caller's existing
+   * `cycle_certification_missing`/`cycle_certification_not_certified` block
+   * reasons already handle an empty or all-uncertified result correctly.
+   *
+   * `certificationId` is synthesized as `plan:<projectionPlanId>` for the
+   * embedded-bundle path (these families self-certify inside the bundle and
+   * have no separate certification row — see
+   * `PrismaFamilyReconciliationCertificationV1`'s own header), so
+   * `cycleCertificationIds` in the built eligibility record always names a
+   * durable, dereferenceable identity string, never a synthetic placeholder
+   * that could collide with a real Phase 6 `certificationId`.
    */
   async loadCycleCertifications(
+    cycleId: string,
+    fiscalYear: number,
+    families: BudgetFamilyV1[],
+  ): Promise<TrustedCycleCertificationRecordV1[]> {
+    const embeddedFamilies = families.filter((family): family is
+      (typeof EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1)[number] =>
+      (EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1 as readonly string[]).includes(family),
+    );
+    const wantsCommittee = families.includes('committee');
+
+    const [committeeRecords, embeddedRecords] = await Promise.all([
+      wantsCommittee ? this.loadCommitteeCycleCertifications(cycleId, fiscalYear) : [],
+      embeddedFamilies.length > 0
+        ? this.loadEmbeddedBundleCycleCertifications(cycleId, embeddedFamilies)
+        : [],
+    ]);
+    return [...committeeRecords, ...embeddedRecords];
+  }
+
+  private async loadCommitteeCycleCertifications(
     cycleId: string,
     fiscalYear: number,
   ): Promise<TrustedCycleCertificationRecordV1[]> {
@@ -124,6 +185,49 @@ export class PrismaPromotionEligibilityReadRepositoryV1 implements PromotionElig
       contentSha256: row.contentSha256,
       status: row.status,
     }));
+  }
+
+  /**
+   * One row per (cycleId, family) — the latest filed
+   * `defense_budget_projection_plan` row for that exact family, exactly as
+   * `PrismaFamilyReconciliationCertificationV1.readProjectionPlanCertification`
+   * selects it, so the two adapters can never disagree about which row is
+   * "the" current certification for a family.
+   */
+  private async loadEmbeddedBundleCycleCertifications(
+    cycleId: string,
+    families: readonly (typeof EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1)[number][],
+  ): Promise<TrustedCycleCertificationRecordV1[]> {
+    const placeholders = families.map((_, index) => `$${index + 2}`).join(', ');
+    const rows = await this.prisma.$queryRawUnsafe<EmbeddedBundleCertRowV1[]>(
+      `SELECT DISTINCT ON ("family")
+              "family",
+              "projection_plan_id" AS "projectionPlanId",
+              "certification_sha256" AS "certificationSha256",
+              "status",
+              "plan_document" AS "planDocument"
+         FROM "defense_budget_projection_plan"
+        WHERE "cycle_id" = $1
+          AND "family" IN (${placeholders})
+        ORDER BY "family", "created_at" DESC`,
+      cycleId,
+      ...families,
+    );
+    const records: TrustedCycleCertificationRecordV1[] = [];
+    for (const row of rows) {
+      const { certificationStatus } = deriveFamilyCertifiedPlanFactV1(row);
+      records.push({
+        certificationId: `plan:${row.projectionPlanId}`,
+        contentSha256: row.certificationSha256,
+        // Carries the real derived status literal (CERTIFIED_* or a
+        // non-certified one) — never dropped when non-certified, and never
+        // collapsed into a synthetic boolean, so a non-certified row is
+        // still visible to the caller as "certifications exist but none is
+        // CERTIFIED" per this method's original contract.
+        status: certificationStatus,
+      });
+    }
+    return records;
   }
 
   /**
