@@ -178,6 +178,16 @@ const TESTIMONY_AUTO_MATCH_THRESHOLD = 0.55;
 // client_intel_mapping.source value for testimony client-match confirmations.
 // Same named-constant reasoning as FARA_INTEL_MAPPING_SOURCE above.
 const TESTIMONY_INTEL_MAPPING_SOURCE = 'testimony';
+// Bounded page size for the testimony KEYSET SCAN (distinct from
+// MAX_ADVOCACY_FINDINGS, which caps FINDINGS emitted across the whole
+// gatherAdvocacyHistory call, not rows examined). Unlike FARA's small/
+// rarely-mutating table, `committee_hearing` grows continuously, so the scan
+// must be a real bounded, resumable page — never "however many rows a
+// similarity filter happens to leave after ORDER BY date DESC LIMIT 50",
+// which silently drops any eligible row past the first 50 and never
+// advances at all when a page contains zero matches. See
+// `planTestimonyScanBatch` for the pagination/cursor-advancement contract.
+const TESTIMONY_SCAN_BATCH_SIZE = 500;
 const ADVOCACY_TITLE_TERMS = [
   'appropriation',
   'amendment',
@@ -1302,7 +1312,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     const faraResult = await this.gatherFaraAdvocacyCandidates(ctx, clientId, runId, count);
     count += faraResult.count;
     const testimonyResult = await this.gatherTestimonyAdvocacyCandidates(
-      ctx, clientId, runId, count, asString(cursor.lastTestimonySyncedAt),
+      ctx, clientId, runId, count,
+      asString(cursor.lastTestimonySyncedAt),
+      asString(cursor.lastTestimonyKey),
     );
     count += testimonyResult.count;
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
@@ -1310,6 +1322,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       lastClientSubmissionAt: submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
       lastRelationshipLinkAppliedAt: privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
       lastTestimonySyncedAt: testimonyResult.newestSyncedAt ?? cursor.lastTestimonySyncedAt ?? null,
+      lastTestimonyKey: testimonyResult.newestKey ?? cursor.lastTestimonyKey ?? null,
       refreshedAt: new Date().toISOString(),
     });
     return count;
@@ -1460,21 +1473,35 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
    * plain `similarity()` against the full string would systematically
    * under-score even an exact organization match.
    *
-   * Deterministic-match-or-manual-rationale gate, same shape as
-   * `gatherFaraAdvocacyCandidates`: a CONFIRMED `client_intel_mapping`
-   * (source='testimony') keyed on `${hearingId}::${witnessText}` — the exact
-   * compound key `linkTestimony` already uses for its own link key — always
-   * surfaces regardless of live similarity. Absent a confirmed mapping, only
-   * witness strings at/above TESTIMONY_AUTO_MATCH_THRESHOLD are surfaced.
+   * TWO INDEPENDENT queries, deliberately not one:
    *
-   * Incremental watermark on `committee_hearing.synced_at`: unlike FARA,
-   * `committee_hearing` is NOT small/rarely-mutating (continuously synced by
-   * `scripts/sync-hearings.ts`, including witness-list backfills on existing
-   * rows), so an unbounded full-table unnest+similarity scan on every Fill
-   * run would grow expensive. `synced_at` is bumped on every upsert
-   * (including a witness-only backfill onto a pre-existing row per
-   * `sync-hearings.ts`), so it correctly captures "newly witness-enriched"
-   * rows, not just newly-created ones.
+   * 1. Confirmed-mapping bypass — a direct lookup of every CONFIRMED
+   *    `client_intel_mapping` (source='testimony') compound key, with NO
+   *    cursor/timestamp filter at all. This is what actually satisfies "a
+   *    confirmed mapping always surfaces regardless of similarity" — an
+   *    incremental scan filter applied ahead of the confirmed-mapping check
+   *    would let a user confirm an OLD hearing's mapping after the scan
+   *    cursor has already passed it, and that mapping would then never
+   *    surface again. Confirmed mappings are naturally bounded (per-client,
+   *    human-curated, small), so no pagination is needed here.
+   *
+   * 2. A bounded, resumable KEYSET-PAGINATED scan over
+   *    (committee_hearing.synced_at ASC, compound key ASC) — NOT an
+   *    `ORDER BY date DESC LIMIT 50` similarity filter. `committee_hearing`
+   *    is continuously synced (including witness-list backfills onto
+   *    existing rows), so:
+   *      - Ordering by a value the filter itself doesn't bound (hearing
+   *        date, or "which 50 rows happened to score highest") and then
+   *        advancing the cursor to the max syncedAt among matches SEEN can
+   *        permanently skip an eligible row outside that top-50 slice.
+   *      - A batch with zero similarity matches must still move the cursor
+   *        forward, or every future run rescans the exact same source rows
+   *        forever. The cursor represents "how far the SOURCE has been
+   *        scanned," not "the timestamp of the newest successful match."
+   *    See `planTestimonyScanBatch` for the pure cursor-advancement
+   *    contract this query's results are run through, including the rule
+   *    that hitting MAX_ADVOCACY_FINDINGS mid-batch must stop the cursor at
+   *    the last row actually examined, never past an unexamined one.
    */
   private async gatherTestimonyAdvocacyCandidates(
     ctx: TenantContext,
@@ -1482,15 +1509,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     runId: string,
     currentCount: number,
     lastTestimonySyncedAt: string | null,
-  ): Promise<{ count: number; newestSyncedAt: string | null }> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
-      return { count: 0, newestSyncedAt: lastTestimonySyncedAt };
-    }
+    lastTestimonyKey: string | null,
+  ): Promise<{ count: number; newestSyncedAt: string | null; newestKey: string | null }> {
+    const noAdvance = { count: 0, newestSyncedAt: lastTestimonySyncedAt, newestKey: lastTestimonyKey };
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) return noAdvance;
 
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
     );
-    if (!client?.name) return { count: 0, newestSyncedAt: lastTestimonySyncedAt };
+    if (!client?.name) return noAdvance;
 
     const confirmedMappings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
@@ -1500,7 +1527,40 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     );
     const confirmedKeys = new Set(confirmedMappings.map((m) => m.externalId));
 
-    let candidates: Array<{
+    let count = 0;
+
+    // ── Query 1: confirmed-mapping bypass, NO cursor filter ──────────────
+    if (confirmedKeys.size && currentCount + count < MAX_ADVOCACY_FINDINGS) {
+      let confirmedRows: Array<{
+        hearingId: string;
+        title: string;
+        committeeName: string;
+        chamber: string;
+        date: Date;
+        url: string | null;
+        witnessText: string;
+      }>;
+      try {
+        confirmedRows = await this.prisma.$queryRawUnsafe(
+          `SELECT ch.id AS "hearingId", ch.title, ch.committee_name AS "committeeName",
+                  ch.chamber, ch.date, ch.url, w AS "witnessText"
+             FROM committee_hearing ch, unnest(ch.witnesses) AS w
+            WHERE (ch.id || '::' || w) = ANY($1::text[])`,
+          [...confirmedKeys],
+        );
+      } catch (error) {
+        this.logger.warn(`Testimony discovery confirmed-mapping lookup unavailable: ${this.safeError(error)}`);
+        confirmedRows = [];
+      }
+      for (const row of confirmedRows) {
+        if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+        const inserted = await this.addTestimonyFinding(ctx, clientId, runId, row, true, 1);
+        if (inserted) count += 1;
+      }
+    }
+
+    // ── Query 2: bounded keyset-paginated source scan ────────────────────
+    let scanRows: Array<{
       hearingId: string;
       title: string;
       committeeName: string;
@@ -1510,92 +1570,118 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       syncedAt: Date;
       witnessText: string;
       similarity: number;
-    }>;
-    try {
-      candidates = await this.prisma.$queryRawUnsafe(
-        `WITH candidates AS (
-           SELECT ch.id AS "hearingId", ch.title, ch.committee_name AS "committeeName",
-                  ch.chamber, ch.date, ch.url, ch.synced_at AS "syncedAt", w AS "witnessText"
+    }> = [];
+    if (currentCount + count < MAX_ADVOCACY_FINDINGS) {
+      try {
+        scanRows = await this.prisma.$queryRawUnsafe(
+          `SELECT ch.id AS "hearingId", ch.title, ch.committee_name AS "committeeName",
+                  ch.chamber, ch.date, ch.url, ch.synced_at AS "syncedAt", w AS "witnessText",
+                  GREATEST(similarity(w, $3), word_similarity($3, w))::float AS similarity
              FROM committee_hearing ch, unnest(ch.witnesses) AS w
-            WHERE ($4::timestamptz IS NULL OR ch.synced_at > $4::timestamptz)
-         )
-         SELECT *,
-                GREATEST(similarity("witnessText", $1), word_similarity($1, "witnessText"))::float
-                  AS similarity
-           FROM candidates
-          WHERE ("hearingId" || '::' || "witnessText") = ANY($2::text[])
-             OR GREATEST(similarity("witnessText", $1), word_similarity($1, "witnessText"))
-                  >= $3::float
-          ORDER BY date DESC
-          LIMIT 50`,
-        client.name,
-        [...confirmedKeys],
-        TESTIMONY_AUTO_MATCH_THRESHOLD,
-        lastTestimonySyncedAt,
-      );
-    } catch (error) {
-      this.logger.warn(`Testimony discovery rail unavailable: ${this.safeError(error)}`);
-      return { count: 0, newestSyncedAt: lastTestimonySyncedAt };
+            WHERE ($1::timestamptz IS NULL)
+               OR (ch.synced_at > $1::timestamptz)
+               OR (ch.synced_at = $1::timestamptz AND (ch.id || '::' || w) > $2::text)
+            ORDER BY ch.synced_at ASC, (ch.id || '::' || w) ASC
+            LIMIT $4`,
+          lastTestimonySyncedAt,
+          lastTestimonyKey ?? '',
+          client.name,
+          TESTIMONY_SCAN_BATCH_SIZE,
+        );
+      } catch (error) {
+        this.logger.warn(`Testimony discovery scan rail unavailable: ${this.safeError(error)}`);
+        return { count, newestSyncedAt: lastTestimonySyncedAt, newestKey: lastTestimonyKey };
+      }
     }
-
-    let count = 0;
-    let newestSyncedAt = lastTestimonySyncedAt ? new Date(lastTestimonySyncedAt) : null;
-    for (const row of candidates) {
-      if (!newestSyncedAt || row.syncedAt > newestSyncedAt) newestSyncedAt = row.syncedAt;
-      if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
-      const compoundKey = `${row.hearingId}::${row.witnessText}`;
-      const isConfirmed = confirmedKeys.has(compoundKey);
-      const confidence = testimonyMatchConfidence(isConfirmed, row.similarity);
-      const externalKey = `testimony:${compoundKey}`;
-      const proposedValue = {
-        externalKey,
-        recordType: 'congressional_testimony',
-        title: `Congressional testimony — ${row.witnessText} at ${row.title}`,
-        summary: `${row.chamber} ${row.committeeName}`,
-        activityDate: row.date.toISOString(),
-        status: null,
-        outcome: null,
-        sourceType: 'testimony',
-        sourceId: row.hearingId,
-        sourceUrl: row.url,
-        // HONEST COVERAGE GAP (matches linkTestimony's own comment): no
-        // canonical testimony document/organization row exists in this
-        // repo. This finding's evidence is the witness string as recorded
-        // on the hearing itself — never fabricated beyond that.
-        evidenceClass: 'PUBLIC_VERIFIED',
-        confidence,
-        metadata: {
-          hearingId: row.hearingId,
-          witness: row.witnessText,
-          committeeName: row.committeeName,
-          chamber: row.chamber,
-          clientMatch: {
-            method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
-            confidence,
-            similarity: isConfirmed ? null : row.similarity,
-          },
-        },
-      };
-      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
-        kind: 'advocacy_record',
-        targetKey: `advocacy:${externalKey}`,
-        source: 'advocacy_history',
-        factKind: isConfirmed ? 'fact' : 'recommendation',
-        currentValue: null,
-        proposedValue,
-        confidence,
-        status: 'pending',
-        evidence: [
-          {
-            label: proposedValue.title,
-            source: 'Congressional committee hearing witness list',
-            metadata: { hearingId: row.hearingId, witness: row.witnessText },
-          },
-        ],
-      });
+    // Rows already covered by the confirmed-mapping bypass are excluded from
+    // EMISSION here (Query 1 already handled them, or a future run's bypass
+    // query will) — but they still count as SCANNED for cursor purposes.
+    // The plan function receives the FULL batch, not a pre-filtered one, so
+    // a batch consisting entirely of already-confirmed rows still advances
+    // the cursor past them instead of stalling forever on a spurious
+    // "zero rows to examine" edge case.
+    const remainingBudget = MAX_ADVOCACY_FINDINGS - (currentCount + count);
+    const plan = planTestimonyScanBatch(scanRows, confirmedKeys, TESTIMONY_AUTO_MATCH_THRESHOLD, remainingBudget);
+    for (const row of plan.toEmit) {
+      const inserted = await this.addTestimonyFinding(ctx, clientId, runId, row, false, row.similarity);
       if (inserted) count += 1;
     }
-    return { count, newestSyncedAt: newestSyncedAt?.toISOString() ?? lastTestimonySyncedAt };
+    // The scan cursor only ever advances through rows the SCAN itself
+    // examined (plan.cursor, derived from unconfirmedScanRows) — confirmed
+    // rows never move it, by construction, since they're looked up by a
+    // completely separate, cursor-independent query.
+    return {
+      count,
+      newestSyncedAt: plan.cursor?.syncedAt ?? lastTestimonySyncedAt,
+      newestKey: plan.cursor?.key ?? lastTestimonyKey,
+    };
+  }
+
+  private async addTestimonyFinding(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    row: {
+      hearingId: string;
+      title: string;
+      committeeName: string;
+      chamber: string;
+      date: Date;
+      url: string | null;
+      witnessText: string;
+    },
+    isConfirmed: boolean,
+    similarity: number,
+  ): Promise<boolean> {
+    const confidence = testimonyMatchConfidence(isConfirmed, similarity);
+    const compoundKey = `${row.hearingId}::${row.witnessText}`;
+    const externalKey = `testimony:${compoundKey}`;
+    const proposedValue = {
+      externalKey,
+      recordType: 'congressional_testimony',
+      title: `Congressional testimony — ${row.witnessText} at ${row.title}`,
+      summary: `${row.chamber} ${row.committeeName}`,
+      activityDate: row.date.toISOString(),
+      status: null,
+      outcome: null,
+      sourceType: 'testimony',
+      sourceId: row.hearingId,
+      sourceUrl: row.url,
+      // HONEST COVERAGE GAP (matches linkTestimony's own comment): no
+      // canonical testimony document/organization row exists in this
+      // repo. This finding's evidence is the witness string as recorded
+      // on the hearing itself — never fabricated beyond that.
+      evidenceClass: 'PUBLIC_VERIFIED',
+      confidence,
+      metadata: {
+        hearingId: row.hearingId,
+        witness: row.witnessText,
+        committeeName: row.committeeName,
+        chamber: row.chamber,
+        clientMatch: {
+          method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
+          confidence,
+          similarity: isConfirmed ? null : similarity,
+        },
+      },
+    };
+    return this.addFinding(ctx.tenantId, clientId, runId, {
+      kind: 'advocacy_record',
+      targetKey: `advocacy:${externalKey}`,
+      source: 'advocacy_history',
+      factKind: isConfirmed ? 'fact' : 'recommendation',
+      currentValue: null,
+      proposedValue,
+      confidence,
+      status: 'pending',
+      evidence: [
+        {
+          label: proposedValue.title,
+          source: 'Congressional committee hearing witness list',
+          metadata: { hearingId: row.hearingId, witness: row.witnessText },
+        },
+      ],
+    });
   }
 
   private async gatherClientSubmissionAdvocacy(
@@ -3049,6 +3135,86 @@ export function faraMatchConfidence(isConfirmed: boolean, similarity: number): n
 export function testimonyMatchConfidence(isConfirmed: boolean, similarity: number): number {
   if (isConfirmed) return 1;
   return Number(Math.min(0.95, Math.max(0.55, 0.55 + similarity * 0.4)).toFixed(3));
+}
+
+/**
+ * Pure cursor-advancement logic for the testimony source scan, deliberately
+ * factored out of `gatherTestimonyAdvocacyCandidates` so pagination/cursor
+ * correctness (skip-safety, zero-match advancement, budget-cap behavior) is
+ * independently unit-testable without a real database.
+ *
+ * INPUT ROWS ARE ALREADY THE FULL BOUNDED BATCH, in
+ * `(syncedAt ASC, compoundKey ASC)` order — the exact order the SQL query
+ * scans in. This function's only job is: which rows get emitted as
+ * findings, and — critically — how far the cursor may safely advance.
+ *
+ * `remainingBudget` is the number of NEW findings still allowed this call
+ * (MAX_ADVOCACY_FINDINGS minus everything already emitted by earlier
+ * rails/queries in this Fill run). The rule that matters most: if the
+ * budget runs out partway through the batch, the cursor must land on the
+ * LAST ROW ACTUALLY EXAMINED (the row whose emit-or-skip decision was made),
+ * never on a later row in the batch that was never evaluated — checkpointing
+ * an unexamined row would silently drop it forever, the exact class of bug
+ * this rewrite exists to fix.
+ */
+export function planTestimonyScanBatch(
+  rows: Array<{
+    hearingId: string;
+    title: string;
+    committeeName: string;
+    chamber: string;
+    date: Date;
+    url: string | null;
+    syncedAt: Date;
+    witnessText: string;
+    similarity: number;
+  }>,
+  confirmedKeys: Set<string>,
+  threshold: number,
+  remainingBudget: number,
+): {
+  toEmit: Array<{
+    hearingId: string;
+    title: string;
+    committeeName: string;
+    chamber: string;
+    date: Date;
+    url: string | null;
+    witnessText: string;
+    similarity: number;
+  }>;
+  cursor: { syncedAt: string; key: string } | null;
+} {
+  const toEmit: Array<{
+    hearingId: string;
+    title: string;
+    committeeName: string;
+    chamber: string;
+    date: Date;
+    url: string | null;
+    witnessText: string;
+    similarity: number;
+  }> = [];
+  let cursor: { syncedAt: string; key: string } | null = null;
+  let emitted = 0;
+  for (const row of rows) {
+    if (emitted >= Math.max(0, remainingBudget)) break;
+    const compoundKey = `${row.hearingId}::${row.witnessText}`;
+    const isConfirmed = confirmedKeys.has(compoundKey);
+    // Confirmed rows are never emitted here (the confirmed-mapping bypass
+    // query already emitted, or will emit, them) but they ARE still
+    // "examined" for cursor purposes — the loop does not `continue` before
+    // updating the cursor below.
+    if (!isConfirmed && row.similarity >= threshold) {
+      toEmit.push(row);
+      emitted += 1;
+    }
+    // Cursor advances to THIS row precisely because this row's emit-or-skip
+    // decision was just made — this is the "last row actually examined"
+    // rule. Only rows strictly before the `break` above ever reach here.
+    cursor = { syncedAt: row.syncedAt.toISOString(), key: compoundKey };
+  }
+  return { toEmit, cursor };
 }
 
 export function matchAdvocacyOutcomeDeterministically(
