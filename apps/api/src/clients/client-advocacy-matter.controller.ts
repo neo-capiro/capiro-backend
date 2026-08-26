@@ -203,6 +203,30 @@ class LinkFaraRecordDto {
   registrationNumber!: string;
 }
 
+class LinkProgramElementDto {
+  @IsString()
+  @MaxLength(16)
+  peCode!: string;
+
+  // Required, not optional — unlike linkHearing's manualRationale (which
+  // is only needed when the deterministic committee-code match fails),
+  // there is no deterministic path here at all. See
+  // ClientAdvocacyMatterService.linkProgramElement's doc.
+  @IsString()
+  @MaxLength(1000)
+  manualRationale!: string;
+}
+
+class LinkBillDto {
+  @IsString()
+  @MaxLength(32)
+  billId!: string;
+
+  @IsString()
+  @MaxLength(1000)
+  manualRationale!: string;
+}
+
 /**
  * Advocacy Matter read/manage surface (product spec: "the central
  * abstraction is an Advocacy Matter"). This is a thin API over
@@ -430,5 +454,27 @@ export class ClientAdvocacyMatterController {
     @Body() body: LinkFaraRecordDto,
   ) {
     return this.matters.linkFaraRecord(ctx, clientId, matterId, body.registrationNumber);
+  }
+
+  @Post(':matterId/link-program-element')
+  @Roles('user_admin')
+  linkProgramElement(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkProgramElementDto,
+  ) {
+    return this.matters.linkProgramElement(ctx, clientId, matterId, body.peCode, body.manualRationale);
+  }
+
+  @Post(':matterId/link-bill')
+  @Roles('user_admin')
+  linkBill(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkBillDto,
+  ) {
+    return this.matters.linkBill(ctx, clientId, matterId, body.billId, body.manualRationale);
   }
 }
