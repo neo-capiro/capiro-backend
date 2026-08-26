@@ -17,6 +17,20 @@ import { readFileSync } from 'node:fs';
 
 export type EngagementApiEnvName = 'dev' | 'staging' | 'prod';
 
+/**
+ * Mirrors `ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT` in
+ * `apps/api/src/engagement/runtime/engagement-runtime-env.ts`. Duplicated
+ * rather than imported: this CDK package is a separate CommonJS TypeScript
+ * project (see `infra/cdk/tsconfig.json`'s `rootDir: "."`) with no dependency
+ * on `apps/api`'s Nest/Prisma-laden module graph, and importing across that
+ * boundary for one string constant would be a worse coupling than the
+ * duplication. `engagement-api-promotion-token-lockstep.spec.ts` imports BOTH
+ * copies and fails the moment they diverge, so this cannot silently drift the
+ * way an unpinned duplicate would.
+ */
+export const ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT =
+  'i-understand-this-arms-engagement-api-for-external-actions';
+
 /** Fixed by the Phase 2 contract. Not tunable through config. */
 export const ENGAGEMENT_API_CONTRACT = {
   containerPort: 4500,
@@ -47,6 +61,64 @@ export interface EngagementApiDbBudget {
   observedSevenDayPeak: number;
   perTaskPoolMaximum: number;
   alarmThreshold: number;
+}
+
+/**
+ * Opt-in promotion out of the Phase 1 shadow posture into full ownership of
+ * the Engagement module (meetings, integrations, notetaker, Outreach V3 —
+ * everything the runtime policy gates).
+ *
+ * Absent (the default): the Service stack renders the identical shadow
+ * environment it always has — `engagementApiTaskEnvironment` branches on
+ * whether this key exists at all, not on a boolean inside it, so a config
+ * file that simply doesn't mention this block can never accidentally arm
+ * anything.
+ *
+ * Present: every one of the five `ENGAGEMENT_*` posture env vars flips to its
+ * active value AND `ENGAGEMENT_API_PROMOTION_TOKEN` is set to the
+ * acknowledgement string `apps/api/src/engagement/runtime/engagement-runtime-
+ * env.ts` requires — matching what `resolveEngagementRuntimeEnvironment`
+ * enforces at boot. `acknowledgedRisk` must ALSO be the exact literal below;
+ * this is a third, CDK-level copy of the same "no accidental arming" contract
+ * the application layer already enforces twice (config.schema.ts and
+ * engagement-runtime-env.ts) — belt, suspenders, and a second belt.
+ */
+export interface EngagementApiActivePromotion {
+  /**
+   * Must equal exactly `'i-understand-this-arms-engagement-api-for-external-actions'`
+   * (the same string as `ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT`). Any other
+   * value fails config validation before synthesis, so a `{}` placeholder or a
+   * copy-pasted `true` cannot silently promote the service.
+   */
+  acknowledgedRisk: string;
+  /**
+   * Secrets Manager ARNs this promotion additionally injects. All four are
+   * required together because Microsoft OAuth needs all four of its fields to
+   * do anything (a partial set leaves `capabilities()` reporting
+   * `configured:false` for a service that LOOKS wired) and because Google,
+   * Recall and the OAuth state signer are independent of Microsoft.
+   */
+  secretArns: {
+    microsoftClientId: string;
+    microsoftTenantId: string;
+    microsoftCertThumbprint: string;
+    microsoftCertPrivateKey: string;
+    googleClientId: string;
+    googleClientSecret: string;
+    recallApiKey: string;
+    recallWebhookSecret: string;
+    oauthStateSecret: string;
+    aiCredentialEncryptionKey: string;
+  };
+  /**
+   * Public callback/notification hosts this promoted service must be
+   * reachable at. Wired straight into MICROSOFT_REDIRECT_URI /
+   * MICROSOFT_GRAPH_NOTIFICATION_URL / GOOGLE_REDIRECT_URI so a promoted
+   * engagement-api answers OAuth callbacks at ITS OWN routable path, not main
+   * api's. The schema defaults to `app.capiro.ai` paths, which would silently
+   * misroute every callback landing on a different host once promoted.
+   */
+  callbackBaseUrl: string;
 }
 
 export interface EngagementApiInfraConfig {
@@ -134,6 +206,12 @@ export interface EngagementApiInfraConfig {
   /** Phase 2 forbids both. Present so a future edit is rejected, not silent. */
   allowPublicIp?: boolean;
   allowEcsExec?: boolean;
+
+  /**
+   * Absent = shadow (default, unchanged Phase 1/2 behavior). Present = full
+   * ownership promotion — see {@link EngagementApiActivePromotion}.
+   */
+  activePromotion?: EngagementApiActivePromotion;
 }
 
 export interface ParseOptions {
@@ -336,6 +414,56 @@ export function collectConfigFailures(
   }
   if (c.allowEcsExec === true) {
     fail(`allowEcsExec must be false (${c.environment ?? 'unknown'}); ECS Exec stays disabled`);
+  }
+
+  // ── active promotion (optional; absent = shadow, unchanged) ────────────
+  if (c.activePromotion !== undefined) {
+    const promo = c.activePromotion;
+    if (!promo || typeof promo !== 'object') {
+      fail('activePromotion, if present, must be an object');
+    } else {
+      if (promo.acknowledgedRisk !== ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT) {
+        fail(
+          'activePromotion.acknowledgedRisk must be the exact acknowledgement string ' +
+            `'${ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT}' — a config that merely sets ` +
+            'activePromotion to some other object is not enough to promote the service',
+        );
+      }
+      if (typeof promo.callbackBaseUrl !== 'string' || promo.callbackBaseUrl.length === 0) {
+        fail('activePromotion.callbackBaseUrl is required');
+      } else {
+        try {
+          const parsedUrl = new URL(promo.callbackBaseUrl);
+          if (parsedUrl.protocol !== 'https:') {
+            fail(`activePromotion.callbackBaseUrl must use https, got ${promo.callbackBaseUrl}`);
+          }
+        } catch {
+          fail(`activePromotion.callbackBaseUrl must be a valid URL, got ${promo.callbackBaseUrl}`);
+        }
+      }
+      const secretFields: Array<keyof EngagementApiActivePromotion['secretArns']> = [
+        'microsoftClientId',
+        'microsoftTenantId',
+        'microsoftCertThumbprint',
+        'microsoftCertPrivateKey',
+        'googleClientId',
+        'googleClientSecret',
+        'recallApiKey',
+        'recallWebhookSecret',
+        'oauthStateSecret',
+        'aiCredentialEncryptionKey',
+      ];
+      const secretArns = promo.secretArns;
+      if (!secretArns || typeof secretArns !== 'object') {
+        fail('activePromotion.secretArns is required');
+      } else {
+        for (const field of secretFields) {
+          if (!isArn(secretArns[field], 'secretsmanager')) {
+            fail(`activePromotion.secretArns.${field} is malformed: ${secretArns[field]}`);
+          }
+        }
+      }
+    }
   }
 
   // ── database connection budget ──────────────────────────────────────────

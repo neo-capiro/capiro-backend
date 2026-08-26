@@ -13,6 +13,19 @@
 # Optional release identity (used by isolated/canary web services):
 #   WEB_SURFACE            canonical | vnext | ...
 #   CAPIRO_WEB_RELEASE_SHA exact git SHA for the running web image
+#
+# Optional Engagement ownership override (see
+# docs/runbooks/engagement-api-active-promotion.md):
+#   ENGAGEMENT_API_FULL_OWNERSHIP   'true' to auto-route the FULL Engagement
+#                                    route surface (not just Outreach V3) to
+#                                    engagement-api. Any other value, or unset,
+#                                    keeps the Phase 3 V3-only behavior. Do not
+#                                    set this on any service until the
+#                                    promotion runbook's Gates P1-P5 are
+#                                    complete AND the ALB actually reaches
+#                                    engagement-api for those routes — this
+#                                    variable does not create routing, it only
+#                                    tells the SPA to assume routing exists.
 
 set -e
 
@@ -38,6 +51,7 @@ MAP_STYLE=$(escape "${MAP_STYLE_URL:-}")
 MAP_ATTRIBUTION=$(escape "${MAP_STYLE_ATTRIBUTION:-}")
 WEB_SURFACE_VALUE=$(escape "${WEB_SURFACE:-}")
 WEB_RELEASE_SHA=$(escape "${CAPIRO_WEB_RELEASE_SHA:-}")
+ENGAGEMENT_FULL_OWNERSHIP=$(escape "${ENGAGEMENT_API_FULL_OWNERSHIP:-}")
 
 cat > "$OUT" <<EOF
 // Generated at container start by apps/web/nginx/entrypoint.sh.
@@ -50,6 +64,7 @@ window.__CAPIRO_CONFIG__ = Object.freeze({
   mapStyleAttribution: '${MAP_ATTRIBUTION}',
   webSurface: '${WEB_SURFACE_VALUE}',
   releaseSha: '${WEB_RELEASE_SHA}',
+  engagementApiFullOwnership: '${ENGAGEMENT_FULL_OWNERSHIP}',
 });
 EOF
 

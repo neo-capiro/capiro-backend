@@ -118,5 +118,30 @@
   },
 
   "allowPublicIp": false,
-  "allowEcsExec": false
+  "allowEcsExec": false,
+
+  "_activePromotionReadme": [
+    "OMIT the activePromotion key entirely to deploy the shadow posture — this",
+    "is the default and what every deploy has used through Phase 2/3. Only add",
+    "activePromotion once engagement-api-active-promotion.md's gates P1-P4 are",
+    "satisfied. See that runbook for the full sequence; a filled example of the",
+    "block (not for direct copy — every ARN below is a placeholder) follows:"
+  ],
+  "activePromotion": {
+    "_comment": "DELETE this whole key for a shadow deploy. Example only below.",
+    "acknowledgedRisk": "i-understand-this-arms-engagement-api-for-external-actions",
+    "callbackBaseUrl": "https://<engagement-api-public-host>",
+    "secretArns": {
+      "microsoftClientId": "arn:aws:secretsmanager:us-east-1:<account>:secret:<microsoft-client-id>",
+      "microsoftTenantId": "arn:aws:secretsmanager:us-east-1:<account>:secret:<microsoft-tenant-id>",
+      "microsoftCertThumbprint": "arn:aws:secretsmanager:us-east-1:<account>:secret:<microsoft-cert-thumbprint>",
+      "microsoftCertPrivateKey": "arn:aws:secretsmanager:us-east-1:<account>:secret:<microsoft-cert-private-key>",
+      "googleClientId": "arn:aws:secretsmanager:us-east-1:<account>:secret:<google-client-id>",
+      "googleClientSecret": "arn:aws:secretsmanager:us-east-1:<account>:secret:<google-client-secret>",
+      "recallApiKey": "arn:aws:secretsmanager:us-east-1:<account>:secret:<recall-api-key>",
+      "recallWebhookSecret": "arn:aws:secretsmanager:us-east-1:<account>:secret:<recall-webhook-secret>",
+      "oauthStateSecret": "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-state-secret>",
+      "aiCredentialEncryptionKey": "arn:aws:secretsmanager:us-east-1:<account>:secret:<ai-credential-encryption-key>"
+    }
+  }
 }

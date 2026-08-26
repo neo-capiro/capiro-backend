@@ -20,7 +20,7 @@
  * preview header; `scripts/verify-engagement-web-no-preview-header.mjs` keeps
  * every other file honest.
  */
-import { isVNextSurface } from '../env.js';
+import { isEngagementApiFullOwnership, isVNextSurface } from '../env.js';
 import { ENGAGEMENT_PREVIEW_ROUTE_PATTERNS } from './engagement-api-preview-routes.generated.js';
 
 export type EngagementApiPreviewMode = 'off' | 'v3';
@@ -176,6 +176,13 @@ export function isEngagementApiRequest(url: string | undefined, baseUrl?: string
 /**
  * Exact V3-only routing for os.capiro.ai. This deliberately does not activate
  * the rest of Engagement: Meetings and Reports keep using the canonical API.
+ *
+ * Superseded (only) once `isEngagementApiFullOwnership` is true — see
+ * `isAutoRoutedEngagementRequest` below, which is what `engagementPreviewHeader`
+ * actually consults. This function's behavior and every existing caller of
+ * it are UNCHANGED; a future full-ownership rollout does not need to touch
+ * this function or anything that already depends on its V3-only semantics
+ * (e.g. `isOutreachV3ApiRequest`-specific UI copy or telemetry).
  */
 export function isOutreachV3ApiRequest(url: string | undefined, baseUrl?: string): boolean {
   const pathname = resolveRequestPath(url, baseUrl);
@@ -184,6 +191,32 @@ export function isOutreachV3ApiRequest(url: string | undefined, baseUrl?: string
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   if (!normalized.startsWith('/api/engagement/outreach-v3/')) return false;
   return COMPILED_ROUTE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+/**
+ * True when vNext should auto-attach the preview header for this request
+ * WITHOUT the user having manually activated preview mode.
+ *
+ * Two independent triggers, either is sufficient:
+ *   - Outreach V3 (`isOutreachV3ApiRequest`): the original Phase 3 behavior,
+ *     unconditional on vNext, unchanged by this function's existence.
+ *   - Full ownership (`isEngagementApiFullOwnership`): the opt-in runtime
+ *     flag from `docs/runbooks/engagement-api-active-promotion.md`. When
+ *     true, ANY accepted Engagement route (not just V3) auto-routes. This is
+ *     deliberately gated behind the SAME manifest check
+ *     (`isEngagementApiRequest`) `engagementPreviewHeader` already applies
+ *     after calling this — so widening ownership can never widen WHICH paths
+ *     are eligible, only whether an eligible path needs the manual toggle.
+ *
+ * Both triggers still require `isVNextSurface` — `app.capiro.ai` (classic)
+ * never auto-attaches the header regardless of either flag, matching the
+ * Phase 3 contract this deliberately extends rather than replaces.
+ */
+function isAutoRoutedEngagementRequest(url: string | undefined, baseUrl?: string): boolean {
+  if (!isVNextSurface) return false;
+  if (isOutreachV3ApiRequest(url, baseUrl)) return true;
+  if (!isEngagementApiFullOwnership) return false;
+  return isEngagementApiRequest(url, baseUrl);
 }
 
 /**
@@ -196,8 +229,8 @@ export function engagementPreviewHeader(
   baseUrl?: string,
 ): { name: string; value: string } | null {
   const explicitlyPreviewed = isEngagementPreviewActive();
-  const vNextOutreach = isVNextSurface && isOutreachV3ApiRequest(url, baseUrl);
-  if (!explicitlyPreviewed && !vNextOutreach) return null;
+  const autoRouted = isAutoRoutedEngagementRequest(url, baseUrl);
+  if (!explicitlyPreviewed && !autoRouted) return null;
   if (!isEngagementApiRequest(url, baseUrl)) return null;
   return { name: ENGAGEMENT_PREVIEW_HEADER, value: ENGAGEMENT_PREVIEW_HEADER_VALUE };
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../env.js', () => ({ isVNextSurface: true }));
+vi.mock('../env.js', () => ({ isVNextSurface: true, isEngagementApiFullOwnership: false }));
 
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import {

@@ -27,6 +27,15 @@ export interface WebVNextStackProps extends cdk.StackProps {
   listenerPriority: number;
   desiredCount: number;
   maxCount: number;
+  /**
+   * Absent/false (default): unchanged Phase 3 behavior — the SPA auto-routes
+   * only Outreach V3 to engagement-api. Set true ONLY after
+   * `docs/runbooks/engagement-api-active-promotion.md`'s Gates P1-P5 are
+   * complete AND a real ALB rule delivers the full `/api/engagement/*`
+   * surface to engagement-api for this hostname — this flag tells the SPA to
+   * assume that routing exists, it does not create it.
+   */
+  engagementApiFullOwnership?: boolean;
 }
 
 /**
@@ -153,6 +162,13 @@ export class WebVNextStack extends cdk.Stack {
         MAP_STYLE_ATTRIBUTION: '© OpenStreetMap contributors',
         WEB_SURFACE: 'vnext',
         CAPIRO_WEB_RELEASE_SHA: props.releaseSha,
+        // Omitted entirely (not even 'false') unless explicitly requested —
+        // entrypoint.sh's ${ENGAGEMENT_API_FULL_OWNERSHIP:-} default already
+        // renders '' in that case, identical to today's behavior before this
+        // prop existed.
+        ...(props.engagementApiFullOwnership
+          ? { ENGAGEMENT_API_FULL_OWNERSHIP: 'true' }
+          : {}),
       },
       secrets: {
         CLERK_PUBLISHABLE_KEY: ecs.Secret.fromSecretsManager(clerkPublishableKey),

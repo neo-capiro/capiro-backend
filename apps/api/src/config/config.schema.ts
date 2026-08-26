@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/engagement-runtime-env.js';
 
 export const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
@@ -987,6 +988,13 @@ export const configSchema = z.object({
     .string()
     .default('true')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
+  // Second, independent signature required before an engagement-api process
+  // may run in the active posture (all five ENGAGEMENT_* controls armed). See
+  // ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT in engagement-runtime-env.ts —
+  // this field carries no default of its own because an unset value simply
+  // fails the isActive check below exactly like a wrong one does.
+  ENGAGEMENT_API_PROMOTION_TOKEN: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -1017,47 +1025,52 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
     );
   }
 
-  // Engagement API Phase 1 — cross-field validation for the shadow matrix.
-  //
-  // When CAPIRO_SERVICE_NAME=engagement-api, the process must run in shadow
-  // mode with all external actions disabled. Any armed value in combination
-  // with the engagement-api service name is a configuration error that fails
-  // boot with a field-specific message.
+  // Engagement API Phase 1 — cross-field validation for the shadow/active
+  // matrix. When CAPIRO_SERVICE_NAME=engagement-api, the five posture fields
+  // must ALL resolve to shadow, or ALL resolve to active plus a matching
+  // ENGAGEMENT_API_PROMOTION_TOKEN — see engagement-runtime-env.ts for why a
+  // partial combination and a bare active flip are both rejected. This block
+  // exists in addition to, not instead of, engagement-runtime-env.ts's own
+  // check: main.ts and engagement-main.ts both call
+  // assertEngagementRuntimeEnvironment() before this validator ever runs, so
+  // in practice that earlier check fails first — but validateConfig() is also
+  // reachable directly (config.schema.spec.ts, other test suites), and this
+  // codebase's own precedent (four other cross-field checks in this function)
+  // is to keep the schema authoritative on its own, never relying solely on a
+  // sibling module to catch a bad combination.
   if (parsed.CAPIRO_SERVICE_NAME === 'engagement-api') {
-    const violations: string[] = [];
+    const isShadow =
+      parsed.ENGAGEMENT_PROCESS_MODE === 'shadow' &&
+      parsed.ENGAGEMENT_BACKGROUND_OWNER === 'disabled' &&
+      parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'disabled' &&
+      !parsed.ENGAGEMENT_CALLBACKS_ENABLED &&
+      !parsed.ENGAGEMENT_RECALL_WEBHOOK_ENABLED;
+    const isActive =
+      parsed.ENGAGEMENT_PROCESS_MODE === 'active' &&
+      parsed.ENGAGEMENT_BACKGROUND_OWNER === 'engagement-api' &&
+      parsed.ENGAGEMENT_EXTERNAL_ACTIONS === 'enabled' &&
+      parsed.ENGAGEMENT_CALLBACKS_ENABLED &&
+      parsed.ENGAGEMENT_RECALL_WEBHOOK_ENABLED;
 
-    if (parsed.ENGAGEMENT_PROCESS_MODE !== 'shadow') {
-      violations.push(
-        `ENGAGEMENT_PROCESS_MODE must be 'shadow' when CAPIRO_SERVICE_NAME=engagement-api (got '${parsed.ENGAGEMENT_PROCESS_MODE}')`,
-      );
-    }
-    if (parsed.ENGAGEMENT_BACKGROUND_OWNER !== 'disabled') {
-      violations.push(
-        `ENGAGEMENT_BACKGROUND_OWNER must be 'disabled' when CAPIRO_SERVICE_NAME=engagement-api (got '${parsed.ENGAGEMENT_BACKGROUND_OWNER}')`,
-      );
-    }
-    if (parsed.ENGAGEMENT_EXTERNAL_ACTIONS !== 'disabled') {
-      violations.push(
-        `ENGAGEMENT_EXTERNAL_ACTIONS must be 'disabled' when CAPIRO_SERVICE_NAME=engagement-api (got '${parsed.ENGAGEMENT_EXTERNAL_ACTIONS}')`,
-      );
-    }
-    if (parsed.ENGAGEMENT_CALLBACKS_ENABLED) {
-      violations.push(
-        `ENGAGEMENT_CALLBACKS_ENABLED must be false/0/no/off when CAPIRO_SERVICE_NAME=engagement-api`,
-      );
-    }
-    if (parsed.ENGAGEMENT_RECALL_WEBHOOK_ENABLED) {
-      violations.push(
-        `ENGAGEMENT_RECALL_WEBHOOK_ENABLED must be false/0/no/off when CAPIRO_SERVICE_NAME=engagement-api`,
-      );
-    }
-
-    if (violations.length > 0) {
+    if (!isShadow && !isActive) {
       throw new Error(
-        'Engagement API shadow-mode configuration validation failed:\n  - ' +
-          violations.join('\n  - ') +
-          '\n\nThe engagement-api process must run with all external actions, ' +
-          'background workers, callbacks, and Recall webhooks disabled.',
+        'Engagement API shadow/active-mode configuration validation failed:\n  - ' +
+          'ENGAGEMENT_PROCESS_MODE, ENGAGEMENT_BACKGROUND_OWNER, ENGAGEMENT_EXTERNAL_ACTIONS, ' +
+          'ENGAGEMENT_CALLBACKS_ENABLED and ENGAGEMENT_RECALL_WEBHOOK_ENABLED must ALL be at their ' +
+          'shadow value or ALL be at their active value ' +
+          `(got processMode=${parsed.ENGAGEMENT_PROCESS_MODE}, ` +
+          `backgroundOwner=${parsed.ENGAGEMENT_BACKGROUND_OWNER}, ` +
+          `externalActions=${parsed.ENGAGEMENT_EXTERNAL_ACTIONS}, ` +
+          `callbacksEnabled=${parsed.ENGAGEMENT_CALLBACKS_ENABLED}, ` +
+          `recallWebhookEnabled=${parsed.ENGAGEMENT_RECALL_WEBHOOK_ENABLED})` +
+          '\n\nThe engagement-api process must run with all five controls at the same posture.',
+      );
+    }
+    if (isActive && parsed.ENGAGEMENT_API_PROMOTION_TOKEN !== ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT) {
+      throw new Error(
+        'Engagement API is configured for the ACTIVE posture but ENGAGEMENT_API_PROMOTION_TOKEN ' +
+          'does not match the required acknowledgement string. See ' +
+          'ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT in engagement-runtime-env.ts.',
       );
     }
   }

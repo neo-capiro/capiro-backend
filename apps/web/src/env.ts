@@ -25,6 +25,18 @@ export interface RuntimeConfig {
   webSurface?: string;
   /** Exact release SHA injected into the deployed vNext task definition. */
   releaseSha?: string;
+  /**
+   * True only once engagement-api has been promoted out of shadow posture
+   * (see `docs/runbooks/engagement-api-active-promotion.md`) AND its ALB
+   * routing actually reaches it for the full Engagement route surface, not
+   * just Outreach V3. Absent/false is the safe default — the vNext surface
+   * keeps its Phase 3 behavior (auto-route ONLY Outreach V3) exactly as
+   * before this flag existed. This is deliberately a STRING env var, not
+   * baked into the image, so ops can flip Meetings/Reports/Integrations
+   * over to engagement-api by redeploying the task definition alone — no
+   * rebuild, matching how `webSurface` itself already works.
+   */
+  engagementApiFullOwnership?: string;
 }
 
 declare global {
@@ -62,6 +74,7 @@ function loadConfig(): RuntimeConfig {
     // runtime-config.js generated from ECS environment variables.
     webSurface: env.VITE_WEB_SURFACE as string | undefined,
     releaseSha: env.VITE_RELEASE_SHA as string | undefined,
+    engagementApiFullOwnership: env.VITE_ENGAGEMENT_API_FULL_OWNERSHIP as string | undefined,
   };
 }
 
@@ -73,6 +86,23 @@ export function runtimeConfigIsVNext(value: Pick<RuntimeConfig, 'webSurface'>): 
 
 /** Canonical production switch for the vNext presentation surface. */
 export const isVNextSurface = runtimeConfigIsVNext(config);
+
+/**
+ * True only when the runtime config explicitly says engagement-api owns the
+ * FULL Engagement module (Meetings/Reports/Integrations/Notetaker), not just
+ * Outreach V3. Exact-match against the single accepted literal, same
+ * fail-closed pattern as `ENGAGEMENT_PREVIEW_ACTIVE_VALUE` in
+ * engagement-api-preview.ts — any other value (a stray "true", "1", a typo)
+ * is treated as absent rather than guessed into "on".
+ */
+export function resolveEngagementApiFullOwnership(
+  value: Pick<RuntimeConfig, 'engagementApiFullOwnership'>,
+): boolean {
+  return value.engagementApiFullOwnership?.trim().toLowerCase() === 'true';
+}
+
+/** Canonical production switch — see {@link resolveEngagementApiFullOwnership}. */
+export const isEngagementApiFullOwnership = resolveEngagementApiFullOwnership(config);
 
 export const mapStyleUrl: string = config.mapStyleUrl?.trim() || DEFAULT_MAP_STYLE_URL;
 

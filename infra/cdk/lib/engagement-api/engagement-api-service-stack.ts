@@ -10,6 +10,7 @@ import { Construct } from 'constructs';
 
 import {
   ENGAGEMENT_API_CONTRACT,
+  ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT,
   engagementApiNames,
   uiContractSha256,
   type EngagementApiInfraConfig,
@@ -272,13 +273,51 @@ export class EngagementApiServiceStack extends cdk.Stack {
 /**
  * The exact task environment.
  *
- * The six shadow variables are literals, not config lookups: the point of the
- * Phase 1 runtime policy is that no deployment parameter can arm this service.
- * Provenance values are nonsecret and enable nothing.
+ * The six shadow variables are literals, not config lookups, UNLESS
+ * `cfg.activePromotion` is present — in which case they flip to the matching
+ * active-posture literals plus `ENGAGEMENT_API_PROMOTION_TOKEN`. Absent
+ * `activePromotion` (the default) renders BYTE-IDENTICAL output to before
+ * this function grew the branch; `engagement-api-service-stack.spec.ts`'s
+ * existing shadow-posture assertions pin that.
  */
 export function engagementApiTaskEnvironment(
   cfg: EngagementApiInfraConfig,
 ): Record<string, string> {
+  const promo = cfg.activePromotion;
+  const posture: Record<string, string> = promo
+    ? {
+        ENGAGEMENT_PROCESS_MODE: 'active',
+        ENGAGEMENT_BACKGROUND_OWNER: 'engagement-api',
+        ENGAGEMENT_EXTERNAL_ACTIONS: 'enabled',
+        ENGAGEMENT_CALLBACKS_ENABLED: 'true',
+        ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'true',
+        ENGAGEMENT_API_PROMOTION_TOKEN: ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT,
+      }
+    : {
+        ENGAGEMENT_PROCESS_MODE: 'shadow',
+        ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
+        ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
+        ENGAGEMENT_CALLBACKS_ENABLED: 'false',
+        ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+      };
+
+  // OAuth callback/notification URLs are host-bound. The application schema
+  // defaults every one of these to an app.capiro.ai path (config.schema.ts),
+  // which is correct for the shadow posture (these routes 503 there anyway —
+  // ENGAGEMENT_EXTERNAL_ACTIONS=disabled refuses before any redirect_uri is
+  // ever used) but WRONG once promoted: a real OAuth provider redirect must
+  // land back on THIS service's own routable host, or every connect attempt
+  // 404s at the provider's redirect step before the request even reaches
+  // engagement-api. Only rendered when promo is present — shadow keeps the
+  // application defaults exactly as before.
+  const callbackUrls: Record<string, string> = promo
+    ? {
+        MICROSOFT_REDIRECT_URI: `${promo.callbackBaseUrl}/api/engagement/integrations/microsoft/callback`,
+        MICROSOFT_GRAPH_NOTIFICATION_URL: `${promo.callbackBaseUrl}/api/engagement/integrations/microsoft/notifications`,
+        GOOGLE_REDIRECT_URI: `${promo.callbackBaseUrl}/api/engagement/integrations/google/callback`,
+      }
+    : {};
+
   return {
     NODE_ENV: 'production',
     CAPIRO_SERVICE_NAME: 'engagement-api',
@@ -300,11 +339,8 @@ export function engagementApiTaskEnvironment(
     ENGAGEMENT_API_PORT: String(ENGAGEMENT_API_CONTRACT.containerPort),
     ENGAGEMENT_API_BIND_HOST: '0.0.0.0',
 
-    ENGAGEMENT_PROCESS_MODE: 'shadow',
-    ENGAGEMENT_BACKGROUND_OWNER: 'disabled',
-    ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
-    ENGAGEMENT_CALLBACKS_ENABLED: 'false',
-    ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+    ...posture,
+    ...callbackUrls,
 
     // Bounded Outreach V3 authority. Global Engagement external actions and
     // background ownership remain disabled; runtime policy recognizes only the

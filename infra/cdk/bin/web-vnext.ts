@@ -92,6 +92,23 @@ if (maxCount < desiredCount) {
   throw new Error('webVnextMaxCount must be >= webVnextDesiredCount.');
 }
 
+// Absent/false (default): unchanged Phase 3 behavior. See
+// docs/runbooks/engagement-api-active-promotion.md — do not set 'true' until
+// that runbook's Gates P1-P5 are complete and a real ALB rule delivers the
+// full Engagement route surface to engagement-api.
+const engagementApiFullOwnershipRaw = optional(app, 'engagementApiFullOwnership');
+if (
+  engagementApiFullOwnershipRaw !== null &&
+  engagementApiFullOwnershipRaw !== 'true' &&
+  engagementApiFullOwnershipRaw !== 'false'
+) {
+  throw new Error(
+    `engagementApiFullOwnership must be exactly 'true' or 'false' if provided, ` +
+      `got ${JSON.stringify(engagementApiFullOwnershipRaw)}.`,
+  );
+}
+const engagementApiFullOwnership = engagementApiFullOwnershipRaw === 'true';
+
 new WebVNextStack(app, stackName(vnextCfg.envName, 'WebVNext'), {
   env,
   cfg: vnextCfg,
@@ -114,6 +131,7 @@ new WebVNextStack(app, stackName(vnextCfg.envName, 'WebVNext'), {
   listenerPriority,
   desiredCount,
   maxCount,
+  engagementApiFullOwnership,
 });
 
 app.synth();
