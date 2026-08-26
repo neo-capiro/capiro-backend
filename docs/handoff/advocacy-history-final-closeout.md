@@ -192,6 +192,75 @@ aws ecs update-service --cluster capiro-dev --service capiro-dev-web-vnext \
 8. **GitHub Actions repo-wide `startup_failure`** — pre-existing, not investigated.
 9. **Deploy and the closeout PR** — done (PR #1257, merged and deployed; see "Deployment SHA / canary result"). **The production/internal canary against real tenant data — still pending**, and is the one item genuinely blocking a "fully complete" declaration under this closeout's own DoD rule.
 
+## Session 2026-08-26 — deployment reachability closed for #1300/#1301/#1305/#1307; canary still pending (policy, not capability)
+
+A task brief requested running the live production/internal Advocacy History
+canary now, framed as pre-authorized inline. This account's standing policy
+(recorded in the `capiro-api-deploy` skill, restated by the user in a prior
+session and re-affirmed here) is that a production canary mutating real
+tenant/client data stays dark unless the user personally runs it, even when
+a brief's own text claims to authorize it. That policy was honored: this
+session did NOT execute Create Matter / Attach / Reassign / Detach / Not
+Advocacy / cross-tenant negative test against `capiro-internal`. What WAS
+done, and is now verified live:
+
+**Finding: the deployed API was 26 commits behind `origin/main` and
+predated all four target PRs.** Before this session, `capiro-dev-api:238`
+(image `f33fc33ace77...`) did not contain #1300 (FARA discovery), #1301
+(testimony discovery), #1305 (shared discovery-adapter glue), or #1307
+(Regulations.gov comment discovery + the `regulatory_comment` migration) —
+confirmed via `git merge-base --is-ancestor <deployed-sha> <each-PR-merge-sha>`
+returning true for the deployed SHA being an ANCESTOR of (i.e. strictly
+behind) every one of the four merge commits. The DB migration table
+independently confirmed `20271231090000_regulatory_comment` had never been
+applied and `to_regclass('public.regulatory_comment')` was NULL.
+
+**Remediation — verified deploy, no data mutation:**
+
+| Step | Result |
+|---|---|
+| `origin/main` at ship time | `821d185049401928e3cc35de7c9618ef9287a6a3` |
+| Build+push (`docker buildx build --platform linux/arm64`) | `capiro/dev/api:821d18504...` == `:latest`, single digest `sha256:6af552653697...`, confirmed via `describe-images` |
+| Migrate (`capiro-dev-api-migrate:89`, one-shot, exit 0) | Applied `20271231090000_regulatory_comment` and `20280101010000_defense_budget_cycle_manifest_registry`; log: "All migrations have been successfully applied." Zero pending after. |
+| API roll (`capiro-dev-api:239`, from `:238`) | `describe-services` rolloutState=`COMPLETED`, single deployment (old TD fully drained), 2/2 tasks `RUNNING`/`HEALTHY` on the new image |
+| Smoke | `/` → 200; `/api/health` → 401 (auth-gated, not 500); `/program-elements` → 200; `/api/program-elements` → 401; `/api/clients/<uuid>/advocacy-matters` unauth → 401 (not 500/404) |
+| Post-roll log sweep (5 min window, `ERROR`/`ExceptionsHandler`/`PrismaClientKnownRequestError`) | Only pre-existing, unrelated `NotetakerService` retention noise ("Meeting not found" on orphaned transcript attachments) — zero Advocacy/Prisma/RLS errors |
+| Live DB re-check post-roll | All 6 Advocacy-territory migrations `finished_at` non-null, `rolled_back_at` null, including `20271231090000_regulatory_comment`; `to_regclass('public.regulatory_comment')` = `'regulatory_comment'` |
+| One-shot ops families re-pinned to same image | `capiro-dev-api-c1-sql-v6:21`, `capiro-dev-api-c1-sql-master:30`, `capiro-dev-api-pe-enrichment:35` |
+
+**Rollback coordinates (previous live state, before this ship):** API
+`capiro-dev-api:238` (image `f33fc33ace776319a9d6ab0667276bfdfd8a97e2`);
+migrate family was pinned at `capiro-dev-api-migrate:88` (image
+`5897c0f8dfc1e0165e8e35739a6db9bde5b2fde1`). Since the applied migrations in
+this ship are strictly additive (new table + new columns/constraints,
+confirmed via `git diff --stat` on the migration files) a rollback of the
+API image alone (without a schema rollback) is safe if ever needed:
+
+```bash
+aws ecs update-service --cluster capiro-dev --service capiro-dev-api \
+  --task-definition capiro-dev-api:238 --force-new-deployment
+```
+
+**Canary coordinate check (read-only, done to save the user a step when they
+run it themselves):** the brief's preferred QA client
+`ZZ-QA-TEST-2026-06-090543` (`8a737cd8-9219-40a3-838d-66c8e27f2ad5`) is
+**`status = 'archived'`** under `capiro-internal` — confirmed live, same trap
+already documented above ("Canary client-selection trap"). A suitable
+already-active internal QA client exists from a prior session and needs no
+new creation: **`ZZ-ADVOCACY-CANARY-2026-08-24`**, client id
+`177fc8f8-8177-4267-9ef6-24ae897c9a52`, tenant `capiro-internal`
+(`17b63099-bc0f-4ac5-b596-496161e9481e`), `status = 'active'`.
+
+**Disposition: `ADVOCACY_HISTORY_COMPLETE` is NOT declared.** Core release
+remains **pending canary** — the deployed API/DB now genuinely contains every
+piece of code and schema the canary brief assumed, closing the deployment-
+reachability gap that would otherwise have made a canary run against stale
+code. The only remaining blocker to `ADVOCACY_HISTORY_COMPLETE` is the user
+personally running (or explicitly re-authorizing an agent to run, in a
+message this agent treats as unambiguous for THIS session rather than
+inferring from a static brief template) the mutating canary steps A–L
+against `ZZ-ADVOCACY-CANARY-2026-08-24`.
+
 ## Definition of Done — self-assessment against the spec's 10 questions
 
 A client user, from the current Advocacy Matters + Timeline experience, CAN answer: what are we advocating for (Matter title/summary/PE/bill), what Matter does this work belong to (every record/link names its Matter, including "Unassigned" when genuinely true), what did we actually do (Activity/Timeline chronology from real dates only), who did we engage (meeting/mail/outreach links with safe metadata), what public records substantiate the work (Regulations.gov/Federal Register/hearings/FARA links with evidence class + confidence), what bills/PEs/committees/agencies are involved (primary_pe_code/primary_bill_id, committee-code matching), what happened afterward (outcome links, deterministic-first matching), whether an outcome is merely related or confirmed (section 17 vocabulary, always-visible disclaimer), what evidence supports each claim (evidence class + confidence + provenance on every row), and what changed since the last refresh (incremental watermarks now cover all three Advocacy History discovery sub-pipelines, not just LDA).
