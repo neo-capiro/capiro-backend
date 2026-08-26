@@ -78,6 +78,8 @@ const APPROVED_VERIFICATION_OPERATOR_SCRIPTS = new Set([
   'verify-defense-budget-non-rdte.ts',
   'certify-defense-budget-non-rdte.ts',
   'plan-defense-budget-non-rdte-projection.ts',
+  'verify-defense-budget-rdte.ts',
+  'certify-defense-budget-rdte.ts',
   // Phase 7 Gap 5 decision 1. Non-promoting by construction: it writes only
   // `family` and `extraction_method` on `budget_extraction_candidate_v1`, an
   // audit table, and refuses `--promote` outright. Listed here rather than

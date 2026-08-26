@@ -33,22 +33,10 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import {
-  evaluateAndAdvanceCycleFamilyReadinessV1,
-  type CycleFamilyReadinessOrchestratorPortsV1,
-} from '../src/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.js';
+import { evaluateAndAdvanceCycleFamilyReadinessV1 } from '../src/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.js';
 import type { CycleFamilyReadinessIdentityV1 } from '../src/defense-budget/promotion/readiness/cycle-family-readiness-v1.js';
-import { PrismaReadinessCorpusLoaderV1 } from '../src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.js';
-import { PrismaFamilyReconciliationCertificationV1 } from '../src/defense-budget/promotion/readiness/prisma-family-reconciliation-certification-v1.js';
-import { MaterializingFamilyReconciliationCertificationV1 } from '../src/defense-budget/promotion/readiness/materializing-family-reconciliation-certification-v1.js';
-import { PrismaCycleManifestRegistryV1 } from '../src/defense-budget/promotion/readiness/prisma-cycle-manifest-registry-v1.js';
-import { PrismaMaterializationArtifactSourceV1 } from '../src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.js';
-import { PrismaPromotionPlanInputLoaderV1 } from '../src/defense-budget/promotion/readiness/prisma-promotion-plan-input-loader-v1.js';
-import { PrismaPromotionPlanPersistenceV1 } from '../src/defense-budget/promotion/readiness/prisma-promotion-plan-persistence-v1.js';
-import { PrismaPromotionEligibilityReadRepositoryV1 } from '../src/defense-budget/promotion/promotion-eligibility-read-repository-prisma-v1.js';
-import { PrismaPromotionAuditSinkV1 } from '../src/defense-budget/promotion/promotion-eligibility-service-v1.js';
-import { PrismaProjectionPlanRepositoryV1 } from '../src/defense-budget/projection-plan/projection-plan-repository-prisma-v1.js';
 import type { PromotionModeV1 } from '../src/defense-budget/promotion/promotion-planner-v1.js';
+import { buildCycleFamilyReadinessPorts } from './lib/defense-budget-readiness-wiring.js';
 
 dotenvConfig();
 
@@ -110,30 +98,9 @@ async function main(): Promise<void> {
 
   const prisma = new PrismaClient();
   try {
-    // The read-only #1298 adapter, UNCHANGED — the decorator composes it,
-    // never replaces it, and the decorator's final answer always flows back
-    // through this exact instance (see the decorator's own header).
-    const readOnlyCertification = new PrismaFamilyReconciliationCertificationV1(prisma);
-
-    const reconciliationCertification = new MaterializingFamilyReconciliationCertificationV1(
-      readOnlyCertification,
-      new PrismaCycleManifestRegistryV1(prisma),
-      new PrismaMaterializationArtifactSourceV1(prisma),
-      // ProjectionPlanRepositoryV1 -- reuse the exact same substrate every
-      // other Phase 4/5/6 producer already writes through.
-      new PrismaProjectionPlanRepositoryV1(prisma),
-      'run-defense-budget-cycle-family-readiness-v1@1',
-    );
-
-    const ports: CycleFamilyReadinessOrchestratorPortsV1 = {
-      corpusLoader: new PrismaReadinessCorpusLoaderV1(prisma),
-      reconciliationCertification,
-      eligibilityRepository: new PrismaPromotionEligibilityReadRepositoryV1(prisma),
-      eligibilityAudit: new PrismaPromotionAuditSinkV1(prisma.defenseBudgetPromotionAudit),
-      planInputs: new PrismaPromotionPlanInputLoaderV1(prisma, domain, environment),
-      planPersistence: new PrismaPromotionPlanPersistenceV1(prisma),
-      now: () => new Date(),
-    };
+    // Shared with the ingestion-outbox drain so both real entrypoints compose
+    // the exact same read-only certification decorator and downstream ports.
+    const ports = buildCycleFamilyReadinessPorts(prisma, { domain, environment });
 
     const result = await evaluateAndAdvanceCycleFamilyReadinessV1(identity, ports, {
       mode,

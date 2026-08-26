@@ -103,6 +103,16 @@ export const PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING =
   'PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING' as const;
 
 /**
+ * Production parser artifacts still require a durable/shared implementation
+ * for `BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT`. Whether the existing
+ * immutable S3/proof architecture can provide deterministic replay more
+ * cleanly than EFS is an explicit later infrastructure decision; this phase
+ * deliberately does not provision or choose that substrate.
+ */
+export const PARSER_ARTIFACT_STORAGE_RUNTIME_GAP =
+  'PARSER_ARTIFACT_STORAGE_RUNTIME_GAP' as const;
+
+/**
  * The lifecycle observation represents a specific immutable byte identity.
  * This is the one comparison every code path must route through — never a
  * bespoke `===` at a call site — so the "never overwrite, never silently
