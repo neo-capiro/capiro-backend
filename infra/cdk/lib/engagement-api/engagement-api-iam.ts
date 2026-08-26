@@ -31,6 +31,21 @@ import { assertEngagementApiDeploymentDbBudget } from './engagement-api-db-budge
  * needed to READ existing rows — OAuth connection state and meeting notes are
  * stored encrypted, so safe read parity fails without them.
  *
+ * OPENAI_API_KEY / ANTHROPIC_API_KEY are ALSO unconditional, not
+ * activePromotion-gated: Outreach V3 generation is already active
+ * independent of the shadow/promoted runtime posture (see the
+ * active-promotion runbook's "Outreach V3 was already active" framing), and
+ * `AiCredentialResolverService` reads these two exact env vars as its global
+ * fallback tier whenever a tenant has no BYOK AI credential configured
+ * (apps/api/src/ai-credentials/ai-credential-resolver.service.ts). Live
+ * discovery (2026-08-26) found both already granted on the execution role in
+ * every historical TD revision (10 through 50) — this const previously
+ * listed them as omitted based on stale reasoning ("Outreach V3 generation
+ * already reads its own credential path independent of this list"), which
+ * does not hold against the current call path. Withholding them for real
+ * would silently break generation for every tenant without a configured
+ * BYOK key.
+ *
  * DB_HOST/DB_PORT and DB_USER/DB_PASSWORD come from two DIFFERENT secrets, not
  * one. Live discovery (2.15, capiro-dev, 2026-08-06) against the main API's
  * actual task definition found it splits them the same way: a "master" secret
@@ -43,6 +58,8 @@ export const ENGAGEMENT_API_SECRET_FIELDS = {
     'CLERK_SECRET_KEY',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
     'NOTES_ENCRYPTION_KEY',
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
   ] as const,
 } as const;
 
@@ -63,6 +80,8 @@ const WHOLE_SECRET_CONFIG_KEYS: Record<string, keyof EngagementApiInfraConfig> =
   CLERK_SECRET_KEY: 'clerkSecretKeySecretArn',
   OAUTH_TOKEN_ENCRYPTION_KEY: 'oauthTokenEncryptionKeySecretArn',
   NOTES_ENCRYPTION_KEY: 'notesEncryptionKeySecretArn',
+  OPENAI_API_KEY: 'openaiApiKeySecretArn',
+  ANTHROPIC_API_KEY: 'anthropicApiKeySecretArn',
 };
 
 /**
@@ -72,17 +91,18 @@ const WHOLE_SECRET_CONFIG_KEYS: Record<string, keyof EngagementApiInfraConfig> =
  * to a module the shadow app does not import. Injecting one would only widen
  * blast radius.
  *
- * Once `cfg.activePromotion` is present, EIGHT of these eleven ARE injected —
- * see `ENGAGEMENT_API_ACTIVE_ONLY_SECRETS` below for exactly which, and why
- * OPENAI_API_KEY, ANTHROPIC_API_KEY and SAM_GOV_API_KEY are the three that
- * remain omitted even after promotion (Outreach V3 generation already reads
- * its own credential path independent of this list; promoting Meetings/
- * Notetaker/OAuth ownership grants none of those three anything new to do).
+ * OPENAI_API_KEY and ANTHROPIC_API_KEY are deliberately NOT in this list —
+ * see the comment on {@link ENGAGEMENT_API_SECRET_FIELDS} above for why they
+ * are unconditional, not activePromotion-gated.
+ *
+ * Once `cfg.activePromotion` is present, EIGHT of the remaining nine ARE
+ * injected — see `ENGAGEMENT_API_ACTIVE_ONLY_SECRETS` below for exactly
+ * which, and why SAM_GOV_API_KEY is the one that stays omitted even after
+ * promotion (promoting Meetings/Notetaker/OAuth ownership grants it nothing
+ * new to do).
  */
 export const ENGAGEMENT_API_OMITTED_SECRETS = [
   'CLERK_WEBHOOK_SIGNING_SECRET',
-  'OPENAI_API_KEY',
-  'ANTHROPIC_API_KEY',
   'RECALL_API_KEY',
   'RECALL_WEBHOOK_SECRET',
   'MICROSOFT_CLIENT_ID',

@@ -44,6 +44,7 @@ test('the dark task omits the unused Clerk webhook signing secret completely', (
   }>;
   const names = secrets.map((entry) => entry.Name).sort();
   assert.deepEqual(names, [
+    'ANTHROPIC_API_KEY',
     'CLERK_SECRET_KEY',
     'DB_HOST',
     'DB_PASSWORD',
@@ -51,6 +52,7 @@ test('the dark task omits the unused Clerk webhook signing secret completely', (
     'DB_USER',
     'NOTES_ENCRYPTION_KEY',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
+    'OPENAI_API_KEY',
   ]);
   assert.ok(!names.includes('CLERK_WEBHOOK_SIGNING_SECRET'));
 });

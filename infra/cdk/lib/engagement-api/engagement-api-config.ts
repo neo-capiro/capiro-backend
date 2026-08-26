@@ -173,6 +173,13 @@ export interface EngagementApiInfraConfig {
   oauthTokenEncryptionKeySecretArn: string;
   notesEncryptionKeySecretArn: string;
 
+  // Unconditional, not activePromotion-gated — Outreach V3 generation reads
+  // these two as its global BYOK fallback regardless of shadow/promoted
+  // runtime posture. See engagement-api-iam.ts's ENGAGEMENT_API_SECRET_FIELDS
+  // comment for the full call-path trace (2026-08-26 correction).
+  openaiApiKeySecretArn: string;
+  anthropicApiKeySecretArn: string;
+
   requiredSecretArns: string[];
 
   // No `logs` key here: the Service stack creates and owns its own
@@ -342,6 +349,8 @@ export function collectConfigFailures(
     ['clerkWebhookSigningSecretArn', c.clerkWebhookSigningSecretArn],
     ['oauthTokenEncryptionKeySecretArn', c.oauthTokenEncryptionKeySecretArn],
     ['notesEncryptionKeySecretArn', c.notesEncryptionKeySecretArn],
+    ['openaiApiKeySecretArn', c.openaiApiKeySecretArn],
+    ['anthropicApiKeySecretArn', c.anthropicApiKeySecretArn],
   ] as const) {
     if (!isArn(arn, 'secretsmanager')) fail(`${field} is malformed: ${arn}`);
   }

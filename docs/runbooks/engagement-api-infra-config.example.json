@@ -74,6 +74,8 @@
   "clerkWebhookSigningSecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-webhook-signing-secret>",
   "oauthTokenEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-token-encryption-key>",
   "notesEncryptionKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<notes-encryption-key>",
+  "openaiApiKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<openai-api-key>",
+  "anthropicApiKeySecretArn": "arn:aws:secretsmanager:us-east-1:<account>:secret:<anthropic-api-key>",
   "requiredSecretArns": [
     "arn:aws:secretsmanager:us-east-1:<account>:secret:<clerk-secret-key>",
     "arn:aws:secretsmanager:us-east-1:<account>:secret:<oauth-token-encryption-key>",

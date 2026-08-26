@@ -114,24 +114,28 @@ test('DB_HOST/DB_PORT and DB_USER/DB_PASSWORD resolve from two DIFFERENT secrets
   assert.notEqual(arnOf(secrets.DB_HOST), arnOf(secrets.DB_USER));
 });
 
-test('the four whole-secret fields each resolve from a distinct secret, with no jsonKey', () => {
+test('the six whole-secret fields each resolve from a distinct secret, with no jsonKey', () => {
   // Live discovery (2.15, capiro-dev) found CLERK_SECRET_KEY,
   // CLERK_WEBHOOK_SIGNING_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY and
   // NOTES_ENCRYPTION_KEY are each their OWN flat-string secret on the main
   // API's task — confirmed by the absence of a ":<field>::" suffix, unlike
   // the two DB secrets. Injected whole here, not field-scoped.
+  // OPENAI_API_KEY / ANTHROPIC_API_KEY added 2026-08-26 (see
+  // ENGAGEMENT_API_SECRET_FIELDS comment) — same flat-string shape, unconditional.
   const secrets = containerSecrets(synth());
   const fields = [
     'CLERK_SECRET_KEY',
     'CLERK_WEBHOOK_SIGNING_SECRET',
     'OAUTH_TOKEN_ENCRYPTION_KEY',
     'NOTES_ENCRYPTION_KEY',
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
   ] as const;
   const arnOf = (valueFrom: unknown) => String(valueFrom).split(':secret:')[1]?.split(':')[0];
   const withoutJsonKey = (valueFrom: unknown) => !/:secret:[^:]+:[^:]+::$/.test(String(valueFrom));
 
   const names = fields.map((f) => arnOf(secrets[f]));
-  assert.equal(new Set(names).size, 4, `expected 4 distinct secrets, got ${names.join(', ')}`);
+  assert.equal(new Set(names).size, 6, `expected 6 distinct secrets, got ${names.join(', ')}`);
   for (const field of fields) {
     assert.ok(withoutJsonKey(secrets[field]), `${field} must reference the whole secret, no jsonKey`);
   }

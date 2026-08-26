@@ -297,14 +297,33 @@ test('promoted synth injects exactly the ten active-only secrets, each from its 
   );
 });
 
-test('promoted synth STILL omits OPENAI_API_KEY, ANTHROPIC_API_KEY and SAM_GOV_API_KEY', () => {
+test('shadow AND promoted synth both carry OPENAI_API_KEY and ANTHROPIC_API_KEY (unconditional, not promotion-gated)', () => {
+  // Corrected 2026-08-26: these two were previously asserted omitted based on
+  // stale reasoning. AiCredentialResolverService reads them as its global
+  // BYOK fallback regardless of shadow/promoted runtime posture — see
+  // engagement-api-iam.ts's ENGAGEMENT_API_SECRET_FIELDS comment for the full
+  // call-path trace. Live discovery found both already granted on the
+  // execution role in every historical TD revision.
+  const shadowSecrets = Object.keys(containerSecrets(synth(base())));
+  for (const name of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']) {
+    assert.ok(shadowSecrets.includes(name), `${name} must be present in shadow posture too`);
+  }
+
+  const promotedCfg = base();
+  promotedCfg.activePromotion = validPromotion();
+  const promotedSecrets = Object.keys(containerSecrets(synth(promotedCfg)));
+  for (const name of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']) {
+    assert.ok(promotedSecrets.includes(name), `${name} must remain present after promotion`);
+    assert.ok(!(ENGAGEMENT_API_OMITTED_SECRETS as readonly string[]).includes(name));
+  }
+});
+
+test('promoted synth STILL omits SAM_GOV_API_KEY', () => {
   const cfg = base();
   cfg.activePromotion = validPromotion();
   const secrets = Object.keys(containerSecrets(synth(cfg)));
-  for (const name of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'SAM_GOV_API_KEY']) {
-    assert.ok(!secrets.includes(name), `${name} must remain omitted even after promotion`);
-    assert.ok((ENGAGEMENT_API_OMITTED_SECRETS as readonly string[]).includes(name));
-  }
+  assert.ok(!secrets.includes('SAM_GOV_API_KEY'), 'SAM_GOV_API_KEY must remain omitted even after promotion');
+  assert.ok((ENGAGEMENT_API_OMITTED_SECRETS as readonly string[]).includes('SAM_GOV_API_KEY'));
 });
 
 test('promoted synth env carries the active posture end to end (full stack, not just the unit fn)', () => {
