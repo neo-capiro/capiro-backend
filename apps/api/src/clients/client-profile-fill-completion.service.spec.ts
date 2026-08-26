@@ -3,6 +3,7 @@ import {
   calculateProfileCompletion,
   deriveRegulatoryCommentSubmitterLabel,
   faraMatchConfidence,
+  resolveFaraMatchedRole,
   mergeFillProgress,
   matchAdvocacyOutcomeDeterministically,
   planTestimonyScanBatch,
@@ -188,6 +189,16 @@ describe('Fill with Meri completion workflow', () => {
     // produces a confidence below 0.5 — an unconfirmed public-source match
     // is never presented as less certain than the discovery threshold itself.
     expect(faraMatchConfidence(false, 0)).toBe(0.5);
+  });
+
+  test('resolveFaraMatchedRole: picks whichever role scored higher, never blends the two scores', () => {
+    expect(resolveFaraMatchedRole(0.9, 0.3)).toEqual({ role: 'registrant', similarity: 0.9 });
+    expect(resolveFaraMatchedRole(0.3, 0.9)).toEqual({ role: 'foreign_principal', similarity: 0.9 });
+  });
+
+  test('resolveFaraMatchedRole: a tie (including 0/0, e.g. confirmed-mapping-only) defaults to registrant', () => {
+    expect(resolveFaraMatchedRole(0.6, 0.6)).toEqual({ role: 'registrant', similarity: 0.6 });
+    expect(resolveFaraMatchedRole(0, 0)).toEqual({ role: 'registrant', similarity: 0 });
   });
 
   test('testimonyMatchConfidence: a confirmed client_intel_mapping always yields full confidence regardless of similarity', () => {
