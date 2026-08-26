@@ -67,6 +67,7 @@ export function PfDrawer({
   footer,
   width = 560,
   narrow = false,
+  variant = 'default',
   children,
 }: {
   eyebrow: string;
@@ -76,20 +77,29 @@ export function PfDrawer({
   footer?: ReactNode;
   width?: number;
   narrow?: boolean;
+  /** The client-record prototype uses a wide, edge-to-edge directory drawer. */
+  variant?: 'default' | 'record';
   children: ReactNode;
 }) {
   useEscape(onClose);
   const panelRef = useFocusTrap<HTMLElement>();
-  const w = narrow ? 480 : width;
+  const record = variant === 'record';
+  const w: number | string = record ? 'min(1280px, calc(100% - 56px))' : narrow ? 480 : width;
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 210 }} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : eyebrow}>
       <div
         onClick={onClose}
-        style={{ position: 'absolute', inset: 0, background: SCRIM, animation: 'capPfFade .16s ease' }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: record ? 'rgba(16,24,40,.32)' : SCRIM,
+          animation: `capPfFade ${record ? '.14s' : '.16s'} ease`,
+        }}
       />
       <aside
         ref={panelRef}
         tabIndex={-1}
+        data-drawer-variant={record ? 'record' : 'default'}
         style={{
           outline: 'none',
           position: 'absolute',
@@ -97,23 +107,78 @@ export function PfDrawer({
           right: 0,
           bottom: 0,
           width: w,
-          maxWidth: '92vw',
+          maxWidth: record ? 'none' : '92vw',
           background: '#ffffff',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '-8px 0 24px -4px rgba(16,24,40,.14)',
-          animation: 'capPfSlideIn .2s ease',
+          borderLeft: record ? '1px solid #E4E7EC' : undefined,
+          boxShadow: record
+            ? '-18px 0 44px -18px rgba(16,24,40,.28)'
+            : '-8px 0 24px -4px rgba(16,24,40,.14)',
+          animation: `capPfSlideIn ${record ? '.18s' : '.2s'} ease`,
         }}
       >
-        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '24px 28px 18px', borderBottom: '1px solid #E8E5DF' }}>
+        <div
+          style={{
+            flex: '0 0 auto',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: record ? 14 : 12,
+            padding: record ? '20px 24px 16px' : '24px 28px 18px',
+            borderBottom: `1px solid ${record ? '#E4E7EC' : '#E8E5DF'}`,
+          }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{eyebrow}</div>
-            <h2 style={{ margin: '8px 0 0', fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', textWrap: 'pretty' }}>{title}</h2>
-            {sub ? <div style={{ marginTop: 4, fontSize: 15, color: '#475467', textWrap: 'pretty' }}>{sub}</div> : null}
+            <div
+              style={{
+                fontSize: record ? 11 : 12,
+                fontWeight: 600,
+                letterSpacing: record ? '.06em' : '.05em',
+                textTransform: 'uppercase',
+                color: record ? '#98A2B3' : '#667085',
+              }}
+            >
+              {eyebrow}
+            </div>
+            <h2
+              style={{
+                margin: record ? '3px 0 0' : '8px 0 0',
+                fontSize: record ? 20 : 24,
+                lineHeight: record ? '26px' : undefined,
+                fontWeight: 600,
+                letterSpacing: record ? '-.01em' : '-0.02em',
+                color: '#101828',
+                textWrap: 'pretty',
+              }}
+            >
+              {title}
+            </h2>
+            {sub ? (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: record ? 13 : 15,
+                  lineHeight: record ? '19px' : undefined,
+                  color: record ? '#667085' : '#475467',
+                  textWrap: 'pretty',
+                }}
+              >
+                {sub}
+              </div>
+            ) : null}
           </div>
-          <CloseButton onClick={onClose} />
+          <CloseButton onClick={onClose} record={record} />
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px 28px 28px' }}>{children}</div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: record ? 0 : '22px 28px 28px',
+          }}
+        >
+          {children}
+        </div>
         {footer ? (
           <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 28px', borderTop: '1px solid #E8E5DF', background: '#ffffff' }}>
             <span style={{ flex: 1 }} />
@@ -253,7 +318,7 @@ function useEscape(onClose: () => void) {
   }, [onClose]);
 }
 
-function CloseButton({ onClick }: { onClick: () => void }) {
+function CloseButton({ onClick, record = false }: { onClick: () => void; record?: boolean }) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -267,15 +332,15 @@ function CloseButton({ onClick }: { onClick: () => void }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 32,
-        height: 32,
+        width: record ? 36 : 32,
+        height: record ? 36 : 32,
         borderRadius: 8,
-        color: hover ? '#101828' : '#667085',
-        background: hover ? '#FAF9F6' : 'transparent',
-        border: '1px solid #E8E5DF',
+        color: hover ? '#101828' : record ? '#475467' : '#667085',
+        background: hover ? (record ? '#F2F4F7' : '#FAF9F6') : 'transparent',
+        border: record ? 0 : '1px solid #E8E5DF',
       }}
     >
-      <UIcon name="XClose" size={16} />
+      <UIcon name="XClose" size={record ? 19 : 16} />
     </button>
   );
 }

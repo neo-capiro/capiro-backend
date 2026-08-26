@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Avatar,
   Card,
   CardHead,
   Eyebrow,
@@ -89,7 +90,7 @@ function toTargetRecord(t: ClientTarget): TargetRecord {
   };
 }
 
-export function ClientCrmGovernmentProto({ client }: { client: Client }) {
+export function ClientCrmGovernmentProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const api = useApi();
   const navigate = useNavigate();
   const [drawerTarget, setDrawerTarget] = useState<ClientTarget | null>(null);
@@ -116,7 +117,18 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
   const openAddRelationship = () => setAddOpen(true);
 
   return (
-    <div className="cap-pf-anim-rise rel-gov-root">
+    <div className={`cap-pf-anim-rise rel-gov-root${drawer ? ' rel-gov-root--drawer' : ''}`}>
+      {drawer ? (
+        <GovernmentRelationshipsDrawer
+          targets={realTargets}
+          loading={targetsQ.isPending}
+          error={targetsQ.isError}
+          onRetry={() => void targetsQ.refetch()}
+          onOpen={setDrawerTarget}
+          onAdd={openAddRelationship}
+        />
+      ) : (
+        <>
       <TabPageHead
         title="Government relationships"
         sub="Current targets from Strategies, plus the broader offices and officials connected to this client."
@@ -147,6 +159,8 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
           above already shows — one client's targets listed twice on one
           screen. Only the recommender rail stays beside them. */}
       <TargetRecommendationsCard client={client} targets={realTargets ?? []} />
+        </>
+      )}
 
       <AddRelationshipModal open={addOpen} clientId={client.id} onClose={() => setAddOpen(false)} />
 
@@ -158,6 +172,111 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
         />
       ) : null}
     </div>
+  );
+}
+
+function GovernmentRelationshipsDrawer({
+  targets,
+  loading,
+  error,
+  onRetry,
+  onOpen,
+  onAdd,
+}: {
+  targets: ClientTarget[] | null;
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  onOpen: (target: ClientTarget) => void;
+  onAdd: () => void;
+}) {
+  const congressional = (targets ?? []).filter((target) => target.sourceDirectory !== 'staff');
+  const staff = (targets ?? []).filter((target) => target.sourceDirectory === 'staff');
+
+  return (
+    <div className="rel-gov-drawer">
+      <RelationshipTable
+        title="Congressional targets"
+        targets={congressional}
+        loading={loading}
+        error={error}
+        onRetry={onRetry}
+        onOpen={onOpen}
+        action={<button type="button" onClick={onAdd}>Add relationship</button>}
+      />
+      <RelationshipTable
+        title="Committee staff"
+        targets={staff}
+        loading={loading}
+        error={error}
+        onRetry={onRetry}
+        onOpen={onOpen}
+      />
+      <p className="rel-gov-drawer__note">
+        Targets come from the client&apos;s active strategies. Committee staff are Directory records already attached to those offices; no staffer is inferred onto an office.
+      </p>
+    </div>
+  );
+}
+
+function RelationshipTable({
+  title,
+  targets,
+  loading,
+  error,
+  onRetry,
+  onOpen,
+  action,
+}: {
+  title: string;
+  targets: ClientTarget[];
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  onOpen: (target: ClientTarget) => void;
+  action?: ReactNode;
+}) {
+  return (
+    <section className="rel-gov-drawer__section">
+      <div className="rel-gov-drawer__section-title">
+        <span>{title}</span>
+        <small>{targets.length} record{targets.length === 1 ? '' : 's'}</small>
+        {action}
+      </div>
+      <div className="rel-gov-drawer__scroll">
+        <div className="rel-gov-drawer__table">
+          <div className="rel-gov-drawer__head" aria-hidden>
+            <span>Name</span><span>Type</span><span>Jurisdiction</span><span>Office</span><span>Target</span>
+          </div>
+          {loading ? (
+            <div className="rel-gov-drawer__state" aria-busy="true">Loading relationships…</div>
+          ) : error ? (
+            <div className="rel-gov-drawer__state rel-gov-drawer__state--error">
+              Relationships could not be loaded. <button type="button" onClick={onRetry}>Retry</button>
+            </div>
+          ) : targets.length === 0 ? (
+            <div className="rel-gov-drawer__state">No {title.toLowerCase()} recorded yet.</div>
+          ) : (
+            targets.map((target) => (
+              <button key={target.id} type="button" className="rel-gov-drawer__row" onClick={() => onOpen(target)}>
+                <span className="rel-gov-drawer__person">
+                  <Avatar initials={initialsFor(targetName(target))} size={32} />
+                  <strong>{targetName(target)}</strong>
+                </span>
+                <span>{DIRECTORY_LABEL[target.sourceDirectory]}</span>
+                <span>{[target.state, target.chamber].filter(Boolean).join(' · ') || '—'}</span>
+                <span>{target.committee ?? '—'}</span>
+                <span className="rel-gov-drawer__tier">
+                  <Pill tone={target.tier === 1 ? 'brand' : 'gray'} dotless>
+                    {target.tier ? `Tier ${target.tier}` : 'Current'}
+                  </Pill>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

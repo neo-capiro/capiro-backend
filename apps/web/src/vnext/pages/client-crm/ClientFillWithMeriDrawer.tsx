@@ -1,22 +1,34 @@
-import { useState, type ChangeEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
-import { CapiroBadge } from '../../components/badges/index.js';
-import { CapiroDrawer, CapiroModal } from '../../components/overlays/index.js';
+import { CapiroModal } from '../../components/overlays/index.js';
 import { useApi } from '../../../lib/use-api.js';
 import {
   errorText,
   useClientFillWithMeri,
   type FillFinding,
+  type FillProgress,
+  type FillTask,
+  type FillTaskStatus,
 } from '../../adapters/legacy/useClientFillWithMeri.js';
+import { UIcon } from './portfolio-primitives.js';
 import type { AdvocacyMatterSummary } from './tabs/AdvocacyMattersTab.js';
+import './client-fill-with-meri-drawer.css';
 
 /**
- * Fill with Meri — enrichment review (Figma `1244:4222` §4).
+ * Fill with Meri — prototype-parity review drawer.
  *
- * Explicitly NOT the chat drawer: it never calls `askMeriAboutClient` and never
- * opens a conversation. It proposes field-level changes with source, freshness
- * and confidence, and writes only what the user ticks.
+ * This is a durable enrichment workflow, not chat. The six-pass presentation
+ * is derived from the server's real task ledger. Profile changes are staged in
+ * this drawer and sent only as explicit finding IDs; Advocacy Matter actions
+ * are labelled separately because that backend endpoint commits immediately.
  */
 export function ClientFillWithMeriDrawer({
   clientId,
@@ -30,32 +42,26 @@ export function ClientFillWithMeriDrawer({
   clientName: string;
   open: boolean;
   onClose: () => void;
-  /** Prefill the drawer website field from the live client profile. */
   initialWebsite?: string | null;
-  /** §22/23 follow-up: after "Attach to Matter" / "Create new Matter"
-   *  commits, the caller navigates to and opens that Matter (Relationships
-   *  → Advocacy matters). Optional — omitting it just skips the
-   *  navigate-and-open step; the assignment itself still applies. */
   onOpenMatter?: (matterId: string) => void;
 }) {
   const fill = useClientFillWithMeri(clientId, open);
   const api = useApi();
+  const uploadRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [websiteInput, setWebsiteInput] = useState(initialWebsite ?? '');
 
-  // Same query key AdvocacyMattersTab uses, so this shares its cache rather
-  // than issuing a second, redundant request, and the "Attach to Matter"
-  // picker's options are byte-identical to what the Matters tab shows.
-  // Only fetched once the drawer is open AND at least one advocacy finding
-  // exists — enabled below at the call site, not here, to avoid a request
-  // firing before there is anything to attach.
+  useEffect(() => setWebsiteInput(initialWebsite ?? ''), [clientId, initialWebsite]);
+
+  const hasPendingAdvocacy = fill.proposals.some(isAdvocacyFinding);
   const mattersForPicker = useQuery<AdvocacyMatterSummary[]>({
     queryKey: ['client-advocacy-matters', clientId],
-    queryFn: async () => (await api.get<AdvocacyMatterSummary[]>(`/api/clients/${clientId}/advocacy-matters`)).data,
-    enabled: open,
+    queryFn: async () =>
+      (await api.get<AdvocacyMatterSummary[]>(`/api/clients/${clientId}/advocacy-matters`)).data,
+    enabled: open && hasPendingAdvocacy,
   });
 
   const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
@@ -65,7 +71,7 @@ export function ClientFillWithMeriDrawer({
     fill.start({ website: websiteInput.trim() || undefined });
   };
 
-  const retrySelectedDocument = () => {
+  const retryRun = () => {
     const isDocumentRun = Object.prototype.hasOwnProperty.call(
       fill.run?.sourceStates ?? {},
       'client_document',
@@ -77,7 +83,7 @@ export function ClientFillWithMeriDrawer({
       return;
     }
     if (isDocumentRun) {
-      setRetryError('Document retry is unavailable because the original attachment could not be identified.');
+      setRetryError('The original document is no longer available for retry.');
       return;
     }
     startEnrichment();
@@ -91,14 +97,12 @@ export function ClientFillWithMeriDrawer({
       setUploadError('Choose a file smaller than 25 MB.');
       return;
     }
-    // Use the supported extension mapping rather than a browser-provided MIME
-    // (for example, browsers often report Markdown as text/markdown while the
-    // attachment pipeline correctly accepts it as bounded text/plain).
     const contentType = contentTypeFor(file.name);
     if (!contentType) {
-      setUploadError('This file type is not supported. Upload PDF, DOC/DOCX, PPTX, XLSX, CSV, TXT, or Markdown.');
+      setUploadError('Upload PDF, DOC/DOCX, PPTX, XLSX, CSV, TXT, or Markdown.');
       return;
     }
+
     setUploading(true);
     setUploadError(null);
     try {
@@ -122,11 +126,7 @@ export function ClientFillWithMeriDrawer({
           source: 'fill-with-meri-capability',
         })
       ).data;
-      // Keep this explicit user selection for an attachment-specific retry;
-      // a document failure must never silently fall back to source enrichment.
       setSelectedAttachmentId(confirmed.id);
-      // The document run reads only this server-owned attachment. Extraction,
-      // scanner readiness, and text bounds are enforced again by that run.
       fill.startForAttachment(confirmed.id);
     } catch (error) {
       setUploadError(errorText(error, 'Could not upload and extract this document.'));
@@ -136,596 +136,790 @@ export function ClientFillWithMeriDrawer({
   };
 
   return (
-    <CapiroDrawer open={open} title={`Fill with Meri — ${clientName}`} onClose={onClose}>
-      <div className="capiro-crm-fill">
-        <p className="capiro-crm__foot">
-          Meri reviews connected sources and reliable public records, or you can upload a
-          capability document to propose capability cards, descriptions, and tags. Nothing is
-          written until you apply it.
-        </p>
-
-        <label className="capiro-crm-fill__document-upload">
-          <span className="capiro-crm__meta">Company website</span>
-          <input
-            type="url"
-            name="websiteInput"
-            placeholder="https://example.com"
-            value={websiteInput}
-            disabled={uploading || fill.phase === 'researching' || fill.phase === 'preparing'}
-            onChange={(event) => setWebsiteInput(event.target.value)}
-          />
-        </label>
-        <p className="capiro-crm__foot">
-          Optional. Seed or correct the company site before enrichment so Meri can crawl product,
-          about, and contact pages even when the profile is thin.
-        </p>
-
-        <label className="capiro-crm-fill__document-upload">
-          <span className="capiro-crm__meta">Upload a capability document</span>
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.pptx,.xlsx,.csv,.txt,.md"
-            disabled={uploading || fill.phase === 'researching'}
-            onChange={uploadCapabilityDocument}
-          />
-        </label>
-        <p className="capiro-crm__foot">
-          PDF, Word, PowerPoint, Excel, CSV, and text files up to 25 MB. Meri extracts the
-          server-stored document; it never receives a browser file body.
-        </p>
-        {uploading ? <FillProgress label="Preparing document" detail="Uploading and extracting text…" /> : null}
-        {uploadError ? <p className="capiro-crm__foot capiro-crm__state--error">{uploadError}</p> : null}
-        {retryError ? <p className="capiro-crm__foot capiro-crm__state--error">{retryError}</p> : null}
-
-        <FillBody
-          fill={fill}
-          onClose={onClose}
-          onRetry={retrySelectedDocument}
+    <FillDrawerShell
+      open={open}
+      clientName={clientName}
+      title={drawerTitle(fill.phase)}
+      subtitle={drawerSubtitle(fill.phase)}
+      running={fill.phase === 'preparing' || fill.phase === 'researching'}
+      onClose={onClose}
+    >
+      <input
+        ref={uploadRef}
+        className="meri-fill-visually-hidden"
+        type="file"
+        accept=".pdf,.doc,.docx,.pptx,.xlsx,.csv,.txt,.md"
+        disabled={uploading || fill.phase === 'researching'}
+        onChange={uploadCapabilityDocument}
+      />
+      {fill.phase === 'idle' || fill.phase === 'cancelled' ? (
+        <IdleReview
+          cancelled={fill.phase === 'cancelled'}
+          website={websiteInput}
+          onWebsiteChange={setWebsiteInput}
           onStart={startEnrichment}
+          onUpload={() => uploadRef.current?.click()}
+          uploading={uploading}
+          error={uploadError ?? retryError}
+        />
+      ) : fill.phase === 'failed' || fill.phase === 'permission-denied' ? (
+        <BlockedReview
+          message={
+            fill.phase === 'permission-denied'
+              ? 'You do not have permission to run or apply this review. An administrator can complete it.'
+              : fill.run?.error ?? errorText(fill.startError, 'The review could not be started.')
+          }
+          attemptedAt={fill.run?.startedAt ?? null}
+          onRetry={retryRun}
+          onClose={onClose}
+        />
+      ) : (
+        <ReviewWorkspace
+          fill={fill}
+          retryError={retryError}
+          onRetryRun={retryRun}
+          onRunAgain={startEnrichment}
           matterOptions={mattersForPicker.data ?? []}
           onOpenMatter={onOpenMatter}
         />
-      </div>
-    </CapiroDrawer>
+      )}
+    </FillDrawerShell>
   );
 }
 
 type Fill = ReturnType<typeof useClientFillWithMeri>;
 
-const FILE_CONTENT_TYPES: Record<string, string> = {
-  pdf: 'application/pdf',
-  doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  csv: 'text/csv',
-  txt: 'text/plain',
-  md: 'text/plain',
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function FillDrawerShell({
+  open,
+  clientName,
+  title,
+  subtitle,
+  running,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  clientName: string;
+  title: string;
+  subtitle: string;
+  running: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((element) => element.tabIndex !== -1 && !element.hasAttribute('disabled'));
+      if (!focusable.length) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [open]);
+
+  if (!open) return null;
+  return (
+    <div className="meri-fill-overlay" role="presentation">
+      <button className="meri-fill-scrim" aria-label="Close" onClick={onClose} />
+      <section
+        ref={dialogRef}
+        tabIndex={-1}
+        className="meri-fill-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <header className="meri-fill-header">
+          <span className="meri-fill-mark" aria-hidden>
+            <UIcon name="Stars02" size={19} />
+            {running ? <span className="meri-fill-mark__pulse" /> : null}
+          </span>
+          <span className="meri-fill-header__copy">
+            <span className="meri-fill-eyebrow">{clientName}</span>
+            <strong className="meri-fill-title">{title}</strong>
+            <span className="meri-fill-subtitle">{subtitle}</span>
+          </span>
+          <button className="meri-fill-icon-button" aria-label="Close" onClick={onClose}>
+            <UIcon name="XClose" size={19} />
+          </button>
+        </header>
+        <div className="meri-fill-scroll">{children}</div>
+      </section>
+    </div>
+  );
+}
+
+const REVIEW_PLAN = [
+  ['Understand client', 'Client context and account setup'],
+  ['Research company', 'Website, SAM.gov and client documents'],
+  ['Reconstruct relationships', 'Synced email and known contacts'],
+  ['Government & market footprint', 'Program elements, bills, facilities and districts'],
+  ['Advocacy history', 'LDA filings, activity and lifecycle outcomes'],
+  ['Verify & reconcile', 'Conflict review and completion audit'],
+] as const;
+
+function IdleReview({
+  cancelled,
+  website,
+  onWebsiteChange,
+  onStart,
+  onUpload,
+  uploading,
+  error,
+}: {
+  cancelled: boolean;
+  website: string;
+  onWebsiteChange: (value: string) => void;
+  onStart: () => void;
+  onUpload: () => void;
+  uploading: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="meri-fill-idle">
+      {cancelled ? (
+        <div className="meri-fill-inline-note" role="status">
+          <UIcon name="CheckCircle" size={17} />
+          <span>The last run was cancelled. No profile changes were applied.</span>
+        </div>
+      ) : null}
+      <p className="meri-fill-intro">
+        Meri works through the record in six passes, then brings back what she found. Every
+        proposal keeps the source it came from, and nothing reaches the profile until you accept
+        and apply it.
+      </p>
+      <div className="meri-fill-plan">
+        {REVIEW_PLAN.map(([label, sources], index) => (
+          <div className="meri-fill-plan__row" key={label}>
+            <span className="meri-fill-plan__number">{index + 1}</span>
+            <strong>{label}</strong>
+            <span>{sources}</span>
+          </div>
+        ))}
+      </div>
+      <details className="meri-fill-source-settings">
+        <summary>Review source settings</summary>
+        <label>
+          <span>Company website</span>
+          <input
+            type="url"
+            value={website}
+            placeholder="https://example.com"
+            onChange={(event) => onWebsiteChange(event.target.value)}
+          />
+        </label>
+        <p>Optional. Meri uses this site for company research when the profile is thin.</p>
+      </details>
+      {error ? <p className="meri-fill-error-text">{error}</p> : null}
+      <div className="meri-fill-idle__actions">
+        <button className="meri-fill-button meri-fill-button--primary" onClick={onStart}>
+          Start the review
+        </button>
+        <button
+          className="meri-fill-button meri-fill-button--brand"
+          disabled={uploading}
+          onClick={onUpload}
+        >
+          <UIcon name="File04" size={16} />
+          {uploading ? 'Preparing document…' : 'Add a capability document'}
+        </button>
+        <span className="meri-fill-file-help">
+          Max 25 MB · PDF, DOC/DOCX, PPTX, XLSX, CSV, TXT, MD
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function BlockedReview({
+  message,
+  attemptedAt,
+  onRetry,
+  onClose,
+}: {
+  message: string;
+  attemptedAt: string | null;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="meri-fill-blocked">
+      <div className="meri-fill-blocked__card">
+        <span className="meri-fill-blocked__icon"><UIcon name="AlertCircle" size={18} /></span>
+        <span>
+          <strong>Meri could not start this review</strong>
+          <p>{message} No part of the client record was changed.</p>
+          {attemptedAt ? <small>Last attempted {formatTime(attemptedAt)}</small> : null}
+        </span>
+      </div>
+      <div className="meri-fill-blocked__actions">
+        <button className="meri-fill-button meri-fill-button--primary" onClick={onRetry}>Try again</button>
+        <button className="meri-fill-button meri-fill-button--quiet" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function ReviewWorkspace({
+  fill,
+  retryError,
+  onRetryRun,
+  onRunAgain,
+  matterOptions,
+  onOpenMatter,
+}: {
+  fill: Fill;
+  retryError: string | null;
+  onRetryRun: () => void;
+  onRunAgain: () => void;
+  matterOptions: AdvocacyMatterSummary[];
+  onOpenMatter?: (matterId: string) => void;
+}) {
+  const running = fill.phase === 'preparing' || fill.phase === 'researching';
+  const allFindings = fill.run?.findings ?? [];
+  const reviewFindings = allFindings.filter((finding) => finding.source !== 'completion_audit');
+  const conflicts = reviewFindings.filter(hasCurrentConflict);
+  const safeIds = fill.proposals
+    .filter((finding) => !isAdvocacyFinding(finding) && !hasCurrentConflict(finding))
+    .map((finding) => finding.id);
+
+  return (
+    <div className="meri-fill-work">
+      {!running ? <CompletionSummary fill={fill} conflictCount={conflicts.length} onRetry={onRetryRun} /> : null}
+      {retryError ? <p className="meri-fill-error-text meri-fill-work__error">{retryError}</p> : null}
+      {fill.cancelError ? <p className="meri-fill-error-text meri-fill-work__error">{errorText(fill.cancelError, 'Could not cancel this run.')}</p> : null}
+      {fill.retryTaskError ? <p className="meri-fill-error-text meri-fill-work__error">{errorText(fill.retryTaskError, 'Could not retry that task.')}</p> : null}
+      <div className="meri-fill-work__columns">
+        <ActivityRail fill={fill} onRetryRun={onRetryRun} />
+        <FindingsPanel
+          fill={fill}
+          findings={reviewFindings}
+          running={running}
+          matterOptions={matterOptions}
+          onOpenMatter={onOpenMatter}
+        />
+      </div>
+      <footer className="meri-fill-footer">
+        <span className="meri-fill-footer__copy">
+          <strong>{running ? 'Meri is still working' : footerTitle(fill)}</strong>
+          <span>{running ? 'Findings appear as each pass completes. Closing this drawer does not stop the run.' : 'Profile fields stay unchanged until you apply the accepted proposals.'}</span>
+        </span>
+        {running ? (
+          <button className="meri-fill-button meri-fill-button--quiet" disabled={fill.cancelPending} onClick={fill.cancelRun}>
+            {fill.cancelPending ? 'Cancelling…' : 'Cancel run'}
+          </button>
+        ) : (
+          <span className="meri-fill-footer__actions">
+            <button className="meri-fill-button meri-fill-button--quiet" onClick={onRunAgain}>Run again</button>
+            <button
+              className="meri-fill-button meri-fill-button--brand"
+              disabled={!safeIds.length}
+              onClick={() => fill.setSelectedFindings([...new Set([...fill.selected, ...safeIds])])}
+            >
+              Accept all safe changes
+            </button>
+            <button className="meri-fill-button meri-fill-button--primary" disabled={!fill.selected.size || fill.phase === 'applying'} onClick={fill.applySelected}>
+              {fill.phase === 'applying' ? 'Applying…' : `Apply ${fill.selected.size} update${fill.selected.size === 1 ? '' : 's'}`}
+            </button>
+          </span>
+        )}
+      </footer>
+    </div>
+  );
+}
+
+function CompletionSummary({
+  fill,
+  conflictCount,
+  onRetry,
+}: {
+  fill: Fill;
+  conflictCount: number;
+  onRetry: () => void;
+}) {
+  const coverage = profileCoverage(fill.run?.findings ?? []);
+  const progress = fill.run?.progress;
+  const checks = progress?.completed ?? countCompletedTasks(fill.run?.tasks ?? []);
+  const partial = fill.phase === 'partial' || fill.failedSources.length > 0;
+  const applied = fill.phase === 'applied' || fill.phase === 'apply-partial';
+  return (
+    <section className="meri-fill-summary">
+      <div className="meri-fill-summary__message">
+        <strong>{partial ? 'Meri completed most of the review' : 'Meri finished the first pass'}</strong>
+        <p>
+          {applied
+            ? `${fill.applyOutcome?.applied ?? 0} accepted profile update${fill.applyOutcome?.applied === 1 ? '' : 's'} applied. Review any remaining findings below.`
+            : 'Review the evidence and decide what belongs on the record. Nothing in the profile has been written by this run yet.'}
+        </p>
+      </div>
+      {coverage ? (
+        <div className="meri-fill-coverage">
+          <span className="meri-fill-eyebrow">Profile coverage</span>
+          <strong>{coverage.score}%</strong>
+          <span className="meri-fill-coverage__bar" aria-hidden>
+            <span style={{ width: `${coverage.score}%` }} />
+          </span>
+          <small>Deterministic coverage represented by this run; the API does not provide a before score.</small>
+        </div>
+      ) : null}
+      <div className="meri-fill-summary__stats">
+        <SummaryStat value={checks} label="checks completed" />
+        <SummaryStat value={fill.proposals.length} label="proposed updates" />
+        <SummaryStat value={fill.contextFindings.length} label="informational" />
+        <SummaryStat value={conflictCount} label="need judgment" />
+      </div>
+      {partial ? (
+        <div className="meri-fill-warning">
+          <UIcon name="AlertCircle" size={16} />
+          <span>
+            <strong>Some sources were unavailable.</strong>{' '}
+            {fill.failedSources.length ? `Could not read ${fill.failedSources.map(sourceLabel).join(', ')}.` : ''}
+            {' '}Unavailable data is never reported as zero.
+          </span>
+          <button onClick={onRetry}>Retry</button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SummaryStat({ value, label }: { value: number; label: string }) {
+  return <span><strong>{value}</strong><small>{label}</small></span>;
+}
+
+type StageDefinition = {
+  id: string;
+  label: string;
+  taskTypes: string[];
+  sourceCopy: string;
 };
 
-function contentTypeFor(name: string): string | null {
-  const extension = name.trim().toLowerCase().split('.').pop() ?? '';
-  return FILE_CONTENT_TYPES[extension] ?? null;
-}
+const STAGES: StageDefinition[] = [
+  { id: 'understand', label: 'Understand client', taskTypes: [], sourceCopy: 'Client context and account setup' },
+  { id: 'company', label: 'Research company', taskTypes: ['public_web', 'sam_gov', 'client_document'], sourceCopy: 'Website, SAM.gov and client documents' },
+  { id: 'relationships', label: 'Reconstruct relationships', taskTypes: ['synced_email', 'relationship_history'], sourceCopy: 'Synced email and relationship history' },
+  { id: 'government', label: 'Government & market footprint', taskTypes: ['program_elements', 'bill_tracker', 'federal_market', 'facility_resolution', 'district_nexus'], sourceCopy: 'Programs, bills, facilities and district nexus' },
+  { id: 'advocacy', label: 'Advocacy history', taskTypes: ['lda', 'advocacy_history', 'lifecycle_outcomes'], sourceCopy: 'LDA, activity and lifecycle outcomes' },
+  { id: 'verify', label: 'Verify & reconcile', taskTypes: ['reconciliation', 'completion_audit'], sourceCopy: 'Reconciliation and completion audit' },
+];
 
-function documentAttachmentId(sourceStates: Record<string, unknown> | undefined): string | null {
-  const state = sourceStates?.client_document;
-  if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
-  const attachmentId = (state as { attachmentId?: unknown }).attachmentId;
-  return typeof attachmentId === 'string' && attachmentId.length > 0 ? attachmentId : null;
-}
+type DisplayTask = Pick<FillTask, 'id' | 'taskType' | 'status' | 'errorMessage' | 'attempt' | 'maxAttempts'>;
 
-function FillBody({
-  fill,
-  onClose,
-  onRetry,
-  onStart,
-  matterOptions,
-  onOpenMatter,
-}: {
-  fill: Fill;
-  onClose: () => void;
-  onRetry: () => void;
-  onStart: () => void;
-  matterOptions: AdvocacyMatterSummary[];
-  onOpenMatter?: (matterId: string) => void;
-}) {
-  switch (fill.phase) {
-    case 'idle':
-      return (
-        <div className="capiro-crm-fill__state">
-          <p className="capiro-crm__foot">Ready to look for missing and outdated profile data.</p>
-          <CapiroButton variant="primary" size="compact" onClick={onStart}>
-            Start enrichment
-          </CapiroButton>
-        </div>
-      );
+function ActivityRail({ fill, onRetryRun }: { fill: Fill; onRetryRun: () => void }) {
+  const tasks = useMemo(() => displayTasks(fill.run?.tasks, fill.run?.sourceStates), [fill.run]);
+  const [openStages, setOpenStages] = useState<Set<string>>(new Set(['understand']));
+  const stages = STAGES.map((stage) => {
+    const children = tasks.filter((task) => stage.taskTypes.includes(task.taskType));
+    return { stage, children, status: stageStatus(stage.id, children, fill.run?.stage, fill.run?.status) };
+  });
+  const active = stages.find(({ status }) => status === 'running') ?? stages.find(({ status }) => status === 'queued');
+  const complete = stages.filter(({ status }) => status === 'completed').length;
 
-    case 'preparing':
-      return <FillProgress label="Preparing" detail="Collecting what Capiro already knows…" />;
-
-    case 'researching':
-      return (
-        <FillProgress
-          label="Researching"
-          detail="Reading the selected document or connected sources. This can take a minute."
-        />
-      );
-
-    case 'permission-denied':
-      return (
-        <div className="capiro-crm-fill__state capiro-crm__state--error">
-          <p className="capiro-crm__foot">
-            You do not have permission to run or apply enrichment for this client. An
-            administrator can review and apply proposed changes.
-          </p>
-          <CapiroButton variant="secondary" size="compact" onClick={onClose}>
-            Close
-          </CapiroButton>
-        </div>
-      );
-
-    case 'failed':
-      return (
-        <div className="capiro-crm-fill__state capiro-crm__state--error">
-          <p className="capiro-crm__foot">
-            {fill.run?.error ?? errorText(fill.startError, 'The enrichment run failed.')}
-          </p>
-          <CapiroButton variant="secondary" size="compact" onClick={onRetry}>
-            Try again
-          </CapiroButton>
-        </div>
-      );
-
-    case 'no-changes':
-      return (
-        <div className="capiro-crm-fill__state">
-          <p className="capiro-crm__foot">
-            Meri found nothing worth changing — the profile already matches every source it
-            could read.
-          </p>
-          {fill.failedSources.length > 0 ? <SourceWarning sources={fill.failedSources} /> : null}
-          <CapiroButton variant="secondary" size="compact" onClick={onStart}>
-            Run again
-          </CapiroButton>
-        </div>
-      );
-
-    case 'context-only':
-      return (
-        <div className="capiro-crm-fill__state">
-          <p className="capiro-crm__foot">
-            No applyable profile fields yet. Meri did find related context you can review below
-            (LDA, program elements, bill tracker).
-          </p>
-          {fill.failedSources.length > 0 ? <SourceWarning sources={fill.failedSources} /> : null}
-          <ContextFindings findings={fill.contextFindings} />
-          <CapiroButton variant="secondary" size="compact" onClick={onStart}>
-            Run again
-          </CapiroButton>
-        </div>
-      );
-
-    case 'applying':
-      return <FillProgress label="Applying" detail="Writing the selected changes…" />;
-
-    case 'applied':
-      return (
-        <div className="capiro-crm-fill__state">
-          <p className="capiro-crm__foot">
-            Applied {fill.applyOutcome?.applied ?? 0} change
-            {fill.applyOutcome?.applied === 1 ? '' : 's'}. The profile has been reloaded.
-          </p>
-          <CapiroButton variant="secondary" size="compact" onClick={onClose}>
-            Done
-          </CapiroButton>
-        </div>
-      );
-
-    case 'apply-partial':
-      return (
-        <div className="capiro-crm-fill__state capiro-crm__state--error">
-          <p className="capiro-crm__foot">
-            Applied {fill.applyOutcome?.applied ?? 0}, but {fill.applyOutcome?.failed ?? 0} could
-            not be written. The ones that failed are still listed as proposals.
-          </p>
-          <CapiroButton variant="secondary" size="compact" onClick={() => fill.reset()}>
-            Review remaining
-          </CapiroButton>
-        </div>
-      );
-
-    case 'partial':
-    case 'proposals':
-    default:
-      return <FillProposals fill={fill} matterOptions={matterOptions} onOpenMatter={onOpenMatter} />;
-  }
-}
-
-function FillProgress({ label, detail }: { label: string; detail: string }) {
-  return (
-    <div className="capiro-crm-fill__state" role="status" aria-live="polite">
-      <p className="capiro-crm__meta">{label}</p>
-      <p className="capiro-crm__foot">{detail}</p>
-      <div className="capiro-crm__skeleton" style={{ height: 56 }} aria-hidden />
-      <div className="capiro-crm__skeleton" style={{ height: 56 }} aria-hidden />
-    </div>
-  );
-}
-
-function SourceWarning({ sources }: { sources: string[] }) {
-  return (
-    <p className="capiro-crm__foot capiro-crm-fill__warning">
-      {/* Partial is reported, never hidden — a source that failed is not a
-          source that found nothing. */}
-      Could not read: {sources.map(sourceLabel).join(', ')}. These results are incomplete.
-    </p>
-  );
-}
-
-/** Findings this drawer treats as Advocacy History (product spec §22/23)
- *  rather than a generic client-profile field proposal. Matches the two
- *  `kind`s the backend's advocacy_history Fill source actually emits —
- *  see client-profile-fill-completion.service.ts gatherAdvocacyHistory*. */
-function isAdvocacyFinding(finding: FillFinding): boolean {
-  return finding.kind === 'advocacy_record' || finding.kind === 'advocacy_outcome';
-}
-
-function FillProposals({
-  fill,
-  matterOptions,
-  onOpenMatter,
-}: {
-  fill: Fill;
-  matterOptions: AdvocacyMatterSummary[];
-  onOpenMatter?: (matterId: string) => void;
-}) {
-  const { proposals, selected } = fill;
-  const allSelected = proposals.length > 0 && selected.size === proposals.length;
-  const advocacyProposals = proposals.filter(isAdvocacyFinding);
-  const otherProposals = proposals.filter((finding) => !isAdvocacyFinding(finding));
+  useEffect(() => {
+    if (!active) return;
+    setOpenStages((previous) => new Set(previous).add(active.stage.id));
+  }, [active?.stage.id]);
 
   return (
-    <>
-      {fill.failedSources.length > 0 ? <SourceWarning sources={fill.failedSources} /> : null}
-
-      <div className="capiro-crm-fill__toolbar">
-        <p className="capiro-crm__meta">
-          {proposals.length} proposed change{proposals.length === 1 ? '' : 's'} · {selected.size}{' '}
-          selected
-        </p>
-        <span className="capiro-crm__page-head-spacer" />
-        <CapiroButton variant="quiet" size="compact" onClick={() => fill.setAll(!allSelected)}>
-          {allSelected ? 'Clear all' : 'Select all'}
-        </CapiroButton>
+    <aside className="meri-fill-activity">
+      <div className="meri-fill-section-head">
+        <span>Meri activity</span><small>{complete} of 6 passes complete</small>
       </div>
-
-      {/* §22: Advocacy History gets its own review group instead of being
-          lumped into the generic client-profile-field list — a lobbying
-          filing or a detected outcome is a fundamentally different kind of
-          proposal than "update the company website". */}
-      {advocacyProposals.length > 0 ? (
-        <div className="capiro-crm-fill__group">
-          <p className="capiro-crm__meta capiro-crm-fill__group-title">
-            Advocacy History · {advocacyProposals.length} found
-          </p>
-          <ul className="capiro-crm-fill__list">
-            {advocacyProposals.map((finding) => (
-              <AdvocacyFindingRow
-                key={finding.id}
-                finding={finding}
-                checked={selected.has(finding.id)}
-                onToggle={() => fill.toggle(finding.id)}
-                onNotAdvocacy={() => fill.rejectFinding(finding.id, 'Not advocacy (reviewed in Fill with Meri)')}
-                matterOptions={matterOptions}
-                onAssignMatter={
-                  finding.kind === 'advocacy_record'
-                    ? (target) => fill.assignFindingMatter(finding.id, target)
-                    : undefined
-                }
-                onOpenMatter={onOpenMatter}
-              />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {otherProposals.length > 0 ? (
-        <div className="capiro-crm-fill__group">
-          {advocacyProposals.length > 0 ? (
-            <p className="capiro-crm__meta capiro-crm-fill__group-title">Other proposed changes</p>
-          ) : null}
-          <ul className="capiro-crm-fill__list">
-            {otherProposals.map((finding) => (
-              <FindingRow
-                key={finding.id}
-                finding={finding}
-                checked={selected.has(finding.id)}
-                onToggle={() => fill.toggle(finding.id)}
-              />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {fill.contextFindings.length > 0 ? <ContextFindings findings={fill.contextFindings} /> : null}
-
-      {fill.applyError ? (
-        <p className="capiro-crm__foot capiro-crm__state--error">
-          {errorText(fill.applyError, 'Could not apply the selected changes.')}
-        </p>
-      ) : null}
-
-      <div className="capiro-crm-fill__actions">
-        <CapiroButton
-          variant="primary"
-          size="compact"
-          disabled={selected.size === 0}
-          onClick={fill.applySelected}
-        >
-          Apply selected
-        </CapiroButton>
-        <CapiroButton variant="secondary" size="compact" onClick={fill.applyAll}>
-          Apply all
-        </CapiroButton>
-      </div>
-    </>
-  );
-}
-
-function ContextFindings({ findings }: { findings: FillFinding[] }) {
-  if (!findings.length) return null;
-  return (
-    <div className="capiro-crm-fill__context">
-      <p className="capiro-crm__meta">Related context</p>
-      <ul className="capiro-crm-fill__list">
-        {findings.slice(0, 20).map((finding) => (
-          <li key={finding.id} className="capiro-crm-fill__item">
-            <div className="capiro-crm-fill__item-body">
-              <p className="capiro-crm-fill__field">{humanizeKey(finding.targetKey)}</p>
-              <p className="capiro-crm__foot">{formatValue(finding.proposedValue) ?? '—'}</p>
-              <div className="capiro-crm-fill__meta">
-                <CapiroBadge tone="info">CONTEXT</CapiroBadge>
-                <span className="capiro-crm__meta">{sourceLabel(finding.source)}</span>
-                <span className="capiro-crm__meta">
-                  {Math.round(finding.confidence * 100)}% confidence
+      <div className="meri-fill-stages">
+        {stages.map(({ stage, children, status }) => {
+          const expanded = openStages.has(stage.id);
+          return (
+            <div className="meri-fill-stage" key={stage.id}>
+              <button
+                className="meri-fill-stage__button"
+                aria-expanded={expanded}
+                onClick={() => setOpenStages((previous) => toggleSet(previous, stage.id))}
+              >
+                <StatusDot status={status} />
+                <span className="meri-fill-stage__copy">
+                  <strong>{stage.label}</strong>
+                  <small>{stageMeta(status, children)}</small>
                 </span>
-              </div>
+                <UIcon name="ChevronRight" size={14} />
+              </button>
+              {expanded ? (
+                <div className="meri-fill-stage__children">
+                  {stage.id === 'understand' ? (
+                    <TaskRow
+                      task={{ id: 'client-context', taskType: 'client_context', status, errorMessage: null, attempt: 1, maxAttempts: 1 }}
+                      aggregate
+                    />
+                  ) : children.length ? (
+                    children.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        retrying={fill.retryTaskPending}
+                        onRetry={() => task.id.startsWith('legacy-') ? onRetryRun() : fill.retryTask(task.id)}
+                      />
+                    ))
+                  ) : (
+                    <span className="meri-fill-stage__not-run">Not included in this run.</span>
+                  )}
+                  <span className="meri-fill-stage__sources">{stage.sourceCopy}</span>
+                </div>
+              ) : null}
             </div>
-          </li>
-        ))}
-      </ul>
+          );
+        })}
+      </div>
+      {fill.phase === 'preparing' || fill.phase === 'researching' ? (
+        <div className="meri-fill-current" role="status" aria-live="polite">
+          <span className="meri-fill-current__mark"><UIcon name="Stars02" size={14} /></span>
+          <p>{narration(active?.stage.label, active?.children)}</p>
+          <div className="meri-fill-current__card">
+            <span className="meri-fill-eyebrow">Current activity</span>
+            <strong>{active?.stage.label ?? 'Preparing the review'}</strong>
+            <span>{active?.stage.sourceCopy ?? 'Collecting governed client context.'}</span>
+            <i><span /></i>
+            <small>{taskCounts(fill.run?.progress, tasks)}</small>
+          </div>
+        </div>
+      ) : null}
+      {fill.run?.status === 'failed' && !tasks.some((task) => task.status === 'failed') ? (
+        <button className="meri-fill-rail-retry" onClick={onRetryRun}>Retry the review</button>
+      ) : null}
+    </aside>
+  );
+}
+
+function TaskRow({
+  task,
+  aggregate = false,
+  retrying = false,
+  onRetry,
+}: {
+  task: DisplayTask;
+  aggregate?: boolean;
+  retrying?: boolean;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="meri-fill-task">
+      <StatusDot status={task.status} small />
+      <span><strong>{aggregate ? 'Governed client context' : taskLabel(task.taskType)}</strong><small>{taskDetail(task)}</small></span>
+      {task.status === 'failed' && onRetry ? (
+        <button disabled={retrying} onClick={onRetry}>{retrying ? 'Retrying…' : 'Retry'}</button>
+      ) : null}
     </div>
   );
 }
 
-function FindingRow({
-  finding,
-  checked,
-  onToggle,
+function StatusDot({ status, small = false }: { status: FillTaskStatus; small?: boolean }) {
+  return <span className={`meri-fill-status-dot meri-fill-status-dot--${status}${small ? ' meri-fill-status-dot--small' : ''}`} aria-label={status} />;
+}
+
+const FINDING_GROUPS = [
+  { id: 'company', label: 'Company' },
+  { id: 'capabilities', label: 'Capabilities' },
+  { id: 'people', label: 'People & relationships' },
+  { id: 'government', label: 'Government footprint' },
+  { id: 'advocacy', label: 'Advocacy' },
+] as const;
+
+function FindingsPanel({
+  fill,
+  findings,
+  running,
+  matterOptions,
+  onOpenMatter,
 }: {
-  finding: FillFinding;
-  checked: boolean;
-  onToggle: () => void;
+  fill: Fill;
+  findings: FillFinding[];
+  running: boolean;
+  matterOptions: AdvocacyMatterSummary[];
+  onOpenMatter?: (matterId: string) => void;
 }) {
-  const freshness = freshnessOf(finding);
-  const inputId = `fill-${finding.id}`;
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['company', 'capabilities', 'advocacy']));
+  const grouped = FINDING_GROUPS.map((group) => ({
+    ...group,
+    findings: findings.filter((finding) => findingGroup(finding) === group.id),
+  })).filter((group) => group.findings.length > 0);
 
   return (
-    <li className="capiro-crm-fill__item">
-      <input
-        id={inputId}
-        type="checkbox"
-        checked={checked}
-        onChange={onToggle}
-        className="capiro-crm-fill__check"
-      />
-      <div className="capiro-crm-fill__item-body">
-        <label htmlFor={inputId} className="capiro-crm-fill__field">
-          {humanizeKey(finding.targetKey)}
-        </label>
-
-        {/* before → after, always both, so nothing is overwritten unseen. */}
-        <div className="capiro-crm-fill__diff">
-          <span className="capiro-crm-fill__before">
-            {formatValue(finding.currentValue) ?? <em>not set</em>}
-          </span>
-          <span className="capiro-crm-fill__arrow" aria-hidden>
-            →
-          </span>
-          <span className="capiro-crm-fill__after">{formatValue(finding.proposedValue) ?? '—'}</span>
-        </div>
-
-        <div className="capiro-crm-fill__meta">
-          <CapiroBadge tone={finding.factKind === 'recommendation' ? 'info' : 'neutral'}>
-            {finding.factKind === 'recommendation' ? 'SUGGESTION' : 'FACT'}
-          </CapiroBadge>
-          <span className="capiro-crm__meta">{sourceLabel(finding.source)}</span>
-          <span className="capiro-crm__meta">
-            {Math.round(finding.confidence * 100)}% confidence
-          </span>
-          {freshness ? <span className="capiro-crm__meta">{freshness}</span> : null}
-        </div>
-
-        {finding.evidence.length > 0 ? (
-          <ul className="capiro-crm-fill__evidence">
-            {finding.evidence.slice(0, 2).map((item, index) => (
-              <li key={`${finding.id}-ev-${index}`}>
-                {item.url ? (
-                  <a href={item.url} target="_blank" rel="noreferrer noopener">
-                    {item.label}
-                  </a>
-                ) : (
-                  item.label
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+    <section className="meri-fill-findings">
+      <div className="meri-fill-section-head meri-fill-section-head--findings">
+        <span>What Meri found</span>
+        <small>{findingMeta(fill, running)}</small>
       </div>
-    </li>
+      {!findings.length ? (
+        <div className="meri-fill-none">
+          <span />
+          {running
+            ? 'Findings appear here as each pass completes. You can review them while Meri is still working.'
+            : 'Meri did not find any changes or related records to review.'}
+        </div>
+      ) : null}
+      {grouped.map((group) => {
+        const expanded = openGroups.has(group.id);
+        const pending = group.findings.filter((finding) => finding.status === 'pending').length;
+        return (
+          <div className="meri-fill-finding-group" key={group.id}>
+            <button
+              className="meri-fill-finding-group__head"
+              aria-expanded={expanded}
+              onClick={() => setOpenGroups((previous) => toggleSet(previous, group.id))}
+            >
+              <UIcon name="ChevronRight" size={14} />
+              <strong>{group.label}</strong>
+              <small>{pending ? `${pending} to review` : `${group.findings.length} informational or settled`}</small>
+            </button>
+            {expanded ? (
+              <div className="meri-fill-finding-group__items">
+                {group.findings.map((finding) => (
+                  <FindingCard
+                    key={finding.id}
+                    finding={finding}
+                    selected={fill.selected.has(finding.id)}
+                    onAccept={() => fill.setSelectedFinding(finding.id, true)}
+                    onUndoAccept={() => fill.setSelectedFinding(finding.id, false)}
+                    onIgnore={() => fill.rejectFinding(finding.id, 'Kept current value in Fill with Meri review')}
+                    onRestore={() => fill.restoreFinding(finding.id)}
+                    matterOptions={matterOptions}
+                    onAssignMatter={
+                      finding.kind === 'advocacy_record'
+                        ? (target) => fill.assignFindingMatter(finding.id, target)
+                        : undefined
+                    }
+                    onNotAdvocacy={() => fill.rejectFinding(finding.id, 'Not advocacy (reviewed in Fill with Meri)')}
+                    onOpenMatter={onOpenMatter}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+      {fill.applyError ? (
+        <p className="meri-fill-error-text meri-fill-findings__error">
+          {errorText(fill.applyError, 'Could not apply the accepted changes.')}
+        </p>
+      ) : null}
+      {fill.rejectError || fill.restoreError ? (
+        <p className="meri-fill-error-text meri-fill-findings__error">
+          {errorText(fill.rejectError ?? fill.restoreError, 'Could not save that review decision.')}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
-/** §22/23: Advocacy History finding review card. Distinct from the generic
- *  `FindingRow` because an advocacy finding is not "propose a value for a
- *  named field" — it is "a lobbying filing / outreach send / detected
- *  outcome was found; decide whether it belongs in Advocacy History at
- *  all". The checkbox still drives bulk Apply/Apply selected exactly like
- *  any other finding (accepting = create the client_advocacy_record row,
- *  auto-clustered into a Matter server-side); "Not advocacy" is the one
- *  action a generic FindingRow has no equivalent for.
- *
- *  Matter/target-Matter assignment ("Attach to existing Matter" / "Create
- *  Matter" from §22/23) is intentionally NOT implemented on this pending-
- *  finding card yet — deferred pending a product decision on whether
- *  picking a Matter here should tag-then-apply-later or apply immediately
- *  as its own action. Today, accepting via the checkbox + Apply still goes
- *  through the existing deterministic auto-clustering
- *  (assignMatterForRecord), which is a safe default; the reviewer can
- *  correct the resulting Matter assignment afterward from the Matters tab
- *  (reassign/detach/merge — shipped in an earlier closeout slice). */
-function AdvocacyFindingRow({
+function FindingCard({
   finding,
-  checked,
-  onToggle,
-  onNotAdvocacy,
+  selected,
+  onAccept,
+  onUndoAccept,
+  onIgnore,
+  onRestore,
   matterOptions,
   onAssignMatter,
+  onNotAdvocacy,
   onOpenMatter,
 }: {
   finding: FillFinding;
-  checked: boolean;
-  onToggle: () => void;
-  onNotAdvocacy: () => void;
+  selected: boolean;
+  onAccept: () => void;
+  onUndoAccept: () => void;
+  onIgnore: () => void;
+  onRestore: () => void;
   matterOptions: AdvocacyMatterSummary[];
-  /** Undefined for advocacy_outcome findings — there is no standalone
-   *  record here to attach directly; an outcome always links through an
-   *  already-applied advocacy_record's Matter instead. */
   onAssignMatter?: (
     target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
   ) => Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }>;
+  onNotAdvocacy: () => void;
   onOpenMatter?: (matterId: string) => void;
 }) {
-  const inputId = `fill-advocacy-${finding.id}`;
-  const proposed = finding.proposedValue as Record<string, unknown> | null | undefined;
-  const title =
-    (typeof proposed?.title === 'string' && proposed.title) ||
-    (typeof proposed?.label === 'string' && proposed.label) ||
-    humanizeKey(finding.targetKey);
-  const activityDate =
-    (typeof proposed?.date === 'string' && proposed.date) ||
-    (typeof proposed?.observedAt === 'string' && proposed.observedAt) ||
-    null;
-  const isOutcome = finding.kind === 'advocacy_outcome';
-
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [matterOpen, setMatterOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const [applying, setApplying] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const advocacy = isAdvocacyFinding(finding);
+  const conflict = hasCurrentConflict(finding);
+  const informational = finding.status === 'informational';
+  const rejected = finding.status === 'rejected';
+  const accepted = finding.status === 'accepted';
+  const proposed = finding.proposedValue as Record<string, unknown> | null | undefined;
+  const title = advocacy
+    ? (typeof proposed?.title === 'string' && proposed.title) ||
+      (typeof proposed?.label === 'string' && proposed.label) ||
+      humanizeKey(finding.targetKey)
+    : humanizeKey(finding.targetKey);
 
-  // Non-optimistic by design (per §22/23 follow-up requirement): this
-  // write creates/locks real server state (a Matter, a record's
-  // matter_id, the finding's accepted status) that cannot be cleanly
-  // rolled back on the client if the request fails partway — so the UI
-  // shows a short "Applying…" state and only reflects the change once the
-  // server confirms, rather than assuming success and unwinding later.
-  const handleAssign = async (target: { matterId: string } | { newMatter: { title: string } }) => {
+  const handleAssign = async (
+    target: { matterId: string } | { newMatter: { title: string } },
+  ) => {
     if (!onAssignMatter) return;
-    setApplying(true);
+    setAssigning(true);
     setAssignError(null);
     try {
       const result = await onAssignMatter(target);
-      setAssigning(false);
+      setMatterOpen(false);
       if (result.matterId) onOpenMatter?.(result.matterId);
     } catch (error) {
       setAssignError(errorText(error, 'Could not assign this finding to a matter.'));
     } finally {
-      setApplying(false);
+      setAssigning(false);
     }
   };
 
   return (
-    <li className="capiro-crm-fill__item capiro-crm-fill__item--advocacy">
-      <input
-        id={inputId}
-        type="checkbox"
-        checked={checked}
-        onChange={onToggle}
-        className="capiro-crm-fill__check"
-      />
-      <div className="capiro-crm-fill__item-body">
-        <label htmlFor={inputId} className="capiro-crm-fill__field">
-          {title}
-        </label>
-
-        <div className="capiro-crm-fill__meta">
-          <CapiroBadge tone={isOutcome ? 'success' : 'info'}>
-            {isOutcome ? 'OUTCOME' : 'ADVOCACY'}
-          </CapiroBadge>
-          <span className="capiro-crm__meta">{sourceLabel(finding.source)}</span>
-          <span className="capiro-crm__meta">{Math.round(finding.confidence * 100)}% confidence</span>
-          {activityDate ? <span className="capiro-crm__meta">{formatValue(activityDate)}</span> : null}
+    <article className={`meri-fill-card${conflict ? ' meri-fill-card--conflict' : ''}${selected ? ' meri-fill-card--selected' : ''}`}>
+      <div className="meri-fill-card__body">
+        <div className="meri-fill-card__label">
+          <span>{title}</span>
+          <small>{findingTag(finding, conflict)}</small>
         </div>
-
-        {finding.evidence.length > 0 ? (
-          <ul className="capiro-crm-fill__evidence">
-            {finding.evidence.slice(0, 2).map((item, index) => (
-              <li key={`${finding.id}-ev-${index}`}>
-                {item.url ? (
-                  <a href={item.url} target="_blank" rel="noreferrer noopener">
-                    {item.label}
-                  </a>
-                ) : (
-                  item.label
-                )}
-              </li>
-            ))}
-          </ul>
+        {advocacy ? (
+          <div className="meri-fill-card__advocacy">
+            <strong>{formatValue(finding.proposedValue) ?? title}</strong>
+            <small>{freshnessOf(finding) ?? sourceLabel(finding.source)}</small>
+            {finding.kind === 'advocacy_outcome' ? (
+              <p>This may be a related outcome. Applying it does not claim the client's advocacy caused it.</p>
+            ) : null}
+          </div>
+        ) : informational ? (
+          <div className="meri-fill-card__information">
+            <strong>{formatValue(finding.proposedValue) ?? 'Related record'}</strong>
+            <span>Related context · nothing to apply</span>
+          </div>
+        ) : (
+          <div className="meri-fill-card__values">
+            <span><small>Current</small><span className={!formatValue(finding.currentValue) ? 'is-empty' : ''}>{formatValue(finding.currentValue) ?? 'Not set'}</span></span>
+            <span><small>Meri found</small><strong>{formatValue(finding.proposedValue) ?? '—'}</strong></span>
+          </div>
+        )}
+        {conflict && finding.status === 'pending' ? (
+          <div className="meri-fill-card__conflict">
+            <UIcon name="AlertCircle" size={15} />
+            <span>This differs from the record. The existing value stays in place until you decide.</span>
+          </div>
         ) : null}
-
-        {/* §17 causality contract: an outcome finding is never framed as
-            confirmed causation before a human accepts it either. */}
-        {isOutcome ? (
-          <p className="capiro-crm__foot capiro-crm-fill__disclaimer">
-            This may be a related outcome. Applying it does not claim advocacy caused it.
-          </p>
-        ) : null}
-
-        <div className="capiro-crm-fill__row-actions">
-          {onAssignMatter ? (
-            <CapiroButton variant="quiet" size="compact" disabled={applying} onClick={() => setAssigning(true)}>
-              Attach to Matter…
-            </CapiroButton>
-          ) : null}
-          <CapiroButton variant="quiet" size="compact" disabled={applying} onClick={onNotAdvocacy}>
-            Not advocacy
-          </CapiroButton>
-        </div>
       </div>
-
-      {assigning ? (
-        <CapiroModal open title="Attach to a Matter" onClose={() => setAssigning(false)}>
+      <div className="meri-fill-card__source">
+        <span><b>{sourceLabel(finding.source)}</b>{sourceWhere(finding)}</span>
+        {finding.evidence.length ? (
+          <button aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen((value) => !value)}>
+            {evidenceOpen ? 'Hide evidence' : 'Evidence'}
+          </button>
+        ) : null}
+      </div>
+      {evidenceOpen ? <EvidencePanel finding={finding} /> : null}
+      <div className="meri-fill-card__actions">
+        {selected ? (
+          <span className="meri-fill-card__settled meri-fill-card__settled--accepted">
+            <UIcon name="CheckCircle" size={15} /><strong>Accepted for apply</strong><button onClick={onUndoAccept}>Undo</button>
+          </span>
+        ) : rejected ? (
+          <span className="meri-fill-card__settled">
+            <strong>{advocacy ? 'Marked not advocacy' : 'Keeping current value'}</strong><button onClick={onRestore}>Undo</button>
+          </span>
+        ) : accepted ? (
+          <span className="meri-fill-card__settled meri-fill-card__settled--accepted">
+            <UIcon name="CheckCircle" size={15} /><strong>Applied</strong>
+          </span>
+        ) : informational ? (
+          <span className="meri-fill-card__no-action">Related record · nothing to apply</span>
+        ) : advocacy ? (
+          <>
+            {onAssignMatter ? (
+              <button className="meri-fill-mini-button meri-fill-mini-button--brand" onClick={() => setMatterOpen(true)}>Attach to Matter</button>
+            ) : null}
+            <button className="meri-fill-mini-button" onClick={onNotAdvocacy}>Not advocacy</button>
+            {!onAssignMatter ? <button className="meri-fill-mini-button meri-fill-mini-button--dark" onClick={onAccept}>Accept</button> : null}
+          </>
+        ) : conflict ? (
+          <>
+            <button className="meri-fill-mini-button" onClick={onIgnore}>Keep current</button>
+            <button className="meri-fill-mini-button meri-fill-mini-button--dark" onClick={onAccept}>Use Meri's finding</button>
+          </>
+        ) : (
+          <>
+            <button className="meri-fill-mini-button meri-fill-mini-button--dark" onClick={onAccept}>Accept</button>
+            <button className="meri-fill-mini-button" onClick={onIgnore}>Ignore</button>
+          </>
+        )}
+      </div>
+      {matterOpen ? (
+        <CapiroModal open title="Attach to a Matter" onClose={() => setMatterOpen(false)}>
           <AssignFindingMatterForm
             findingTitle={title}
             matterOptions={matterOptions}
-            busy={applying}
+            busy={assigning}
             error={assignError}
-            onCancel={() => setAssigning(false)}
+            onCancel={() => setMatterOpen(false)}
             onAttach={(matterId) => handleAssign({ matterId })}
             onCreate={(newTitle) => handleAssign({ newMatter: { title: newTitle } })}
           />
         </CapiroModal>
       ) : null}
-    </li>
+    </article>
   );
 }
 
-/** §22/23 follow-up: the picker shown when a reviewer clicks "Attach to
- *  Matter…" on a still-pending advocacy finding. Mirrors
- *  `RecordActionForm`'s reassign UI in AdvocacyMattersTab.tsx (existing-
- *  Matter select) plus a "create new" toggle for the other half of the
- *  same action — picking a target Matter and creating one are the same
- *  decision from the reviewer's point of view, not two different flows. */
+function EvidencePanel({ finding }: { finding: FillFinding }) {
+  const freshness = freshnessOf(finding);
+  return (
+    <div className="meri-fill-evidence">
+      {finding.evidence.slice(0, 4).map((item, index) => (
+        <span key={`${finding.id}-evidence-${index}`}>
+          <small>{index === 0 ? 'Evidence' : ''}</small>
+          <span>
+            {item.url ? <a href={item.url} target="_blank" rel="noreferrer noopener">{item.label}</a> : item.label}
+            {item.excerpt ? <em>{item.excerpt}</em> : null}
+          </span>
+        </span>
+      ))}
+      <span><small>Confidence</small><span>{Math.round(finding.confidence * 100)}%{freshness ? ` · ${freshness}` : ''}</span></span>
+    </div>
+  );
+}
+
 function AssignFindingMatterForm({
   findingTitle,
   matterOptions,
@@ -743,115 +937,112 @@ function AssignFindingMatterForm({
   onAttach: (matterId: string) => void;
   onCreate: (title: string) => void;
 }) {
-  const [mode, setMode] = useState<'existing' | 'new'>(matterOptions.length > 0 ? 'existing' : 'new');
+  const [mode, setMode] = useState<'existing' | 'new'>(matterOptions.length ? 'existing' : 'new');
   const [matterId, setMatterId] = useState('');
   const [newTitle, setNewTitle] = useState(findingTitle);
-
   return (
-    <div className="capiro-crm-fill__assign-matter">
-      <p className="capiro-crm__foot">
-        This applies the finding immediately — the same as ticking it and clicking Apply, plus
-        assigning it to the matter you choose here. It is not a draft; there is nothing to review
-        again afterward besides the usual reassign/detach correction on the Matters tab.
+    <div className="meri-fill-assign">
+      <p>
+        This action applies the advocacy finding immediately and assigns it to the Matter. It does
+        not wait for the drawer's final Apply button.
       </p>
-
-      {matterOptions.length > 0 ? (
-        <div className="capiro-crm-fill__assign-matter-mode" role="radiogroup" aria-label="Matter target">
-          <label>
-            <input
-              type="radio"
-              name="assign-matter-mode"
-              checked={mode === 'existing'}
-              onChange={() => setMode('existing')}
-              disabled={busy}
-            />
-            Attach to an existing matter
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="assign-matter-mode"
-              checked={mode === 'new'}
-              onChange={() => setMode('new')}
-              disabled={busy}
-            />
-            Create a new matter
-          </label>
+      {matterOptions.length ? (
+        <div className="meri-fill-assign__modes" role="radiogroup" aria-label="Matter target">
+          <label><input type="radio" name="meri-fill-matter-mode" checked={mode === 'existing'} onChange={() => setMode('existing')} disabled={busy} />Existing Matter</label>
+          <label><input type="radio" name="meri-fill-matter-mode" checked={mode === 'new'} onChange={() => setMode('new')} disabled={busy} />Create new</label>
         </div>
-      ) : (
-        <p className="capiro-crm__meta">No matters exist for this client yet — this will create the first one.</p>
-      )}
-
-      {mode === 'existing' && matterOptions.length > 0 ? (
+      ) : <small>No Matters exist for this client yet. This will create the first one.</small>}
+      {mode === 'existing' && matterOptions.length ? (
         <select value={matterId} onChange={(event) => setMatterId(event.target.value)} disabled={busy}>
-          <option value="">Select a matter…</option>
-          {matterOptions.map((matter) => (
-            <option key={matter.id} value={matter.id}>
-              {matter.title}
-            </option>
-          ))}
+          <option value="">Select a Matter…</option>
+          {matterOptions.map((matter) => <option key={matter.id} value={matter.id}>{matter.title}</option>)}
         </select>
       ) : (
-        <label className="capiro-crm-fill__field">
-          Matter title
-          <input
-            type="text"
-            value={newTitle}
-            onChange={(event) => setNewTitle(event.target.value)}
-            disabled={busy}
-            maxLength={300}
-          />
-        </label>
+        <label className="meri-fill-assign__title">Matter title<input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} maxLength={300} disabled={busy} /></label>
       )}
-
-      {error ? <p className="capiro-crm__foot capiro-crm__state--error">{error}</p> : null}
-
-      <div className="capiro-crm-fill__actions">
-        <CapiroButton variant="secondary" size="compact" onClick={onCancel} disabled={busy}>
-          Cancel
-        </CapiroButton>
-        {mode === 'existing' && matterOptions.length > 0 ? (
-          <CapiroButton
-            variant="primary"
-            size="compact"
-            disabled={busy || !matterId}
-            onClick={() => onAttach(matterId)}
-          >
-            {busy ? 'Applying…' : 'Attach'}
-          </CapiroButton>
+      {error ? <p className="meri-fill-error-text">{error}</p> : null}
+      <div className="meri-fill-assign__actions">
+        <CapiroButton variant="secondary" size="compact" disabled={busy} onClick={onCancel}>Cancel</CapiroButton>
+        {mode === 'existing' && matterOptions.length ? (
+          <CapiroButton variant="primary" size="compact" disabled={busy || !matterId} onClick={() => onAttach(matterId)}>{busy ? 'Applying…' : 'Attach now'}</CapiroButton>
         ) : (
-          <CapiroButton
-            variant="primary"
-            size="compact"
-            disabled={busy || !newTitle.trim()}
-            onClick={() => onCreate(newTitle.trim())}
-          >
-            {busy ? 'Applying…' : 'Create matter'}
-          </CapiroButton>
+          <CapiroButton variant="primary" size="compact" disabled={busy || !newTitle.trim()} onClick={() => onCreate(newTitle.trim())}>{busy ? 'Applying…' : 'Create and apply'}</CapiroButton>
         )}
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────── formatting ──────────────────────────────── */
-
-const SOURCE_LABELS: Record<string, string> = {
-  public_web: 'Public web',
-  website: 'Client website',
-  synced_email: 'Synced email',
-  sam_gov: 'SAM.gov',
-  lda: 'LDA filings',
-  program_elements: 'Program elements',
-  bill_tracker: 'Bill tracker',
-  client_document: 'Capability document',
+const FILE_CONTENT_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv',
+  txt: 'text/plain',
+  md: 'text/plain',
 };
 
-function sourceLabel(source: string): string {
-  return SOURCE_LABELS[source] ?? source.replace(/_/g, ' ');
+const SOURCE_LABELS: Record<string, string> = {
+  public_web: 'Public web', website: 'Client website', synced_email: 'Synced email',
+  sam_gov: 'SAM.gov', lda: 'LDA filings', program_elements: 'Program elements',
+  bill_tracker: 'Bill tracker', client_document: 'Capability document',
+  federal_market: 'Federal market data', facility_resolution: 'Facility resolution',
+  district_nexus: 'District nexus', advocacy_history: 'Advocacy history',
+  lifecycle_outcomes: 'Lifecycle outcomes', reconciliation: 'Reconciliation',
+  completion_audit: 'Completion audit',
+};
+
+const TASK_LABELS: Record<string, string> = {
+  public_web: 'Public web research', sam_gov: 'SAM.gov identity', client_document: 'Capability document',
+  synced_email: 'Synced email', relationship_history: 'Relationship history',
+  program_elements: 'Program elements', bill_tracker: 'Bill tracker', federal_market: 'Federal market footprint',
+  facility_resolution: 'Facility resolution', district_nexus: 'District nexus', lda: 'LDA filings',
+  advocacy_history: 'Advocacy history', lifecycle_outcomes: 'Lifecycle outcomes',
+  reconciliation: 'Reconcile findings', completion_audit: 'Completion audit', client_context: 'Governed client context',
+};
+
+function drawerTitle(phase: Fill['phase']): string {
+  if (phase === 'preparing' || phase === 'researching') return 'Meri is updating this record';
+  if (['proposals', 'partial', 'context-only', 'no-changes', 'applying', 'apply-partial', 'applied'].includes(phase)) return 'Client record review';
+  return 'Fill with Meri';
 }
 
-/** `intakeData.samExpirationDate` → "Sam expiration date". */
+function drawerSubtitle(phase: Fill['phase']): string {
+  if (phase === 'preparing' || phase === 'researching') return 'Researching, connecting records, and checking what Capiro already knows.';
+  if (phase === 'failed' || phase === 'permission-denied') return 'Meri could not start the review. Nothing was changed.';
+  if (phase === 'partial') return 'Meri completed most of the review. Nothing is written until you apply accepted profile changes.';
+  if (['proposals', 'context-only', 'no-changes', 'applying', 'apply-partial', 'applied'].includes(phase)) return 'Meri finished the first pass. Review every finding before it reaches the profile.';
+  return 'Complete and improve this client record from connected and reliable public sources.';
+}
+
+function footerTitle(fill: Fill): string {
+  if (fill.phase === 'applied') return `${fill.applyOutcome?.applied ?? 0} updates applied`;
+  if (fill.phase === 'apply-partial') return `${fill.applyOutcome?.failed ?? 0} updates still need attention`;
+  if (!fill.proposals.length) return 'Review complete';
+  return `${fill.proposals.length} proposal${fill.proposals.length === 1 ? '' : 's'} ready for review`;
+}
+
+function contentTypeFor(name: string): string | null {
+  return FILE_CONTENT_TYPES[name.trim().toLowerCase().split('.').pop() ?? ''] ?? null;
+}
+
+function documentAttachmentId(sourceStates: Record<string, unknown> | undefined): string | null {
+  const state = sourceStates?.client_document;
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
+  const attachmentId = (state as { attachmentId?: unknown }).attachmentId;
+  return typeof attachmentId === 'string' && attachmentId ? attachmentId : null;
+}
+
+function sourceLabel(source: string): string {
+  return SOURCE_LABELS[source] ?? humanizeKey(source);
+}
+
+function taskLabel(taskType: string): string {
+  return TASK_LABELS[taskType] ?? humanizeKey(taskType);
+}
+
 function humanizeKey(key: string): string {
   const leaf = key.split('.').pop() ?? key;
   const spaced = leaf.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ');
@@ -865,19 +1056,54 @@ function formatValue(value: unknown): string | null {
   if (Array.isArray(value)) return value.map((entry) => formatValue(entry) ?? '—').join(', ');
   if (typeof value === 'object') {
     const record = value as Record<string, unknown>;
-    const name = record.name ?? record.title ?? record.label;
+    const name = record.name ?? record.title ?? record.label ?? record.summary;
     if (typeof name === 'string') return name;
     return Object.entries(record)
-      .filter(([, entry]) => entry != null && entry !== '')
-      .map(([key, entry]) => `${humanizeKey(key)}: ${formatValue(entry)}`)
+      .filter(([key, entry]) => entry != null && entry !== '' && !['warnings', 'calculatedAt', 'completed', 'missing'].includes(key))
+      .slice(0, 6)
+      .map(([key, entry]) => `${humanizeKey(key)}: ${formatValue(entry) ?? '—'}`)
       .join(' · ');
   }
   return String(value);
 }
 
-/** Freshness where the evidence actually carries an observation date. */
+function isAdvocacyFinding(finding: FillFinding): boolean {
+  return finding.kind === 'advocacy_record' || finding.kind === 'advocacy_outcome';
+}
+
+function hasCurrentConflict(finding: FillFinding): boolean {
+  if (finding.status !== 'pending' || isAdvocacyFinding(finding)) return false;
+  if (finding.currentValue == null || finding.currentValue === '') return false;
+  return stableValue(finding.currentValue) !== stableValue(finding.proposedValue);
+}
+
+function stableValue(value: unknown): string {
+  if (typeof value !== 'object' || value == null) return String(value).trim().toLowerCase();
+  try { return JSON.stringify(value); } catch { return String(value); }
+}
+
+function findingTag(finding: FillFinding, conflict: boolean): string {
+  if (finding.status === 'informational') return 'Information';
+  if (isAdvocacyFinding(finding)) return finding.kind === 'advocacy_outcome' ? 'Related outcome' : 'Advocacy record';
+  if (conflict) return 'Needs your judgment';
+  return finding.factKind === 'recommendation' ? 'Recommendation' : 'Proposed update';
+}
+
+function sourceWhere(finding: FillFinding): string {
+  const evidenceSource = finding.evidence.find((item) => item.source)?.source;
+  return evidenceSource && evidenceSource !== finding.source ? ` · ${evidenceSource}` : '';
+}
+
+function findingGroup(finding: FillFinding): typeof FINDING_GROUPS[number]['id'] {
+  if (isAdvocacyFinding(finding) || ['lda_history', 'advocacy_record', 'advocacy_outcome'].includes(finding.kind)) return 'advocacy';
+  if (['capability', 'product', 'offering'].includes(finding.kind) || /capabil|product|offering/i.test(finding.targetKey)) return 'capabilities';
+  if (['person', 'relationship', 'relationship_link'].includes(finding.kind) || /person|contact|relationship/i.test(finding.targetKey)) return 'people';
+  if (['government_identity', 'facility', 'facility_resolution', 'district_nexus', 'federal_footprint', 'program_element', 'bill_recommendation'].includes(finding.kind) || ['sam_gov', 'program_elements', 'bill_tracker', 'federal_market', 'facility_resolution', 'district_nexus'].includes(finding.source)) return 'government';
+  return 'company';
+}
+
 function freshnessOf(finding: FillFinding): string | null {
-  const observed = finding.evidence.map((item) => item.observedAt).filter(Boolean)[0];
+  const observed = finding.evidence.map((item) => item.observedAt).find(Boolean);
   if (!observed) return null;
   const date = new Date(observed);
   if (Number.isNaN(date.getTime())) return null;
@@ -885,6 +1111,102 @@ function freshnessOf(finding: FillFinding): string | null {
   if (days <= 0) return 'Seen today';
   if (days === 1) return 'Seen yesterday';
   if (days < 45) return `Seen ${days} days ago`;
-  // Stale sources are labelled, not silently treated as current.
-  return `Stale · ${date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
+  return `Seen ${date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
+}
+
+function profileCoverage(findings: FillFinding[]): { score: number } | null {
+  const finding = findings.find((item) => item.source === 'completion_audit' && item.kind === 'profile_completion');
+  const proposed = finding?.proposedValue as { score?: unknown } | null | undefined;
+  return typeof proposed?.score === 'number' ? { score: Math.max(0, Math.min(100, proposed.score)) } : null;
+}
+
+function displayTasks(tasks: FillTask[] | undefined, states: Record<string, unknown> | undefined): DisplayTask[] {
+  if (tasks?.length) return tasks;
+  return Object.entries(states ?? {}).map(([taskType, state], index) => {
+    const record = state && typeof state === 'object' && !Array.isArray(state) ? state as Record<string, unknown> : {};
+    const rawStatus = typeof state === 'string' ? state : record.status;
+    return {
+      id: `legacy-${taskType}-${index}`,
+      taskType,
+      status: normalizeTaskStatus(rawStatus),
+      errorMessage: typeof record.error === 'string' ? record.error : null,
+      attempt: 1,
+      maxAttempts: 1,
+    };
+  });
+}
+
+function normalizeTaskStatus(value: unknown): FillTaskStatus {
+  if (value === 'complete' || value === 'succeeded' || value === 'success') return 'completed';
+  if (value === 'error' || value === 'unavailable') return 'failed';
+  if (['queued', 'running', 'completed', 'failed', 'skipped', 'cancelled'].includes(String(value))) return String(value) as FillTaskStatus;
+  return 'queued';
+}
+
+function stageStatus(
+  id: string,
+  tasks: DisplayTask[],
+  runStage: string | undefined,
+  runStatus: string | undefined,
+): FillTaskStatus {
+  if (id === 'understand') {
+    if (runStage === 'preparing' || (!runStage && runStatus === 'running')) return 'running';
+    if (runStage === 'failed') return 'failed';
+    if (runStage === 'cancelled') return 'cancelled';
+    return 'completed';
+  }
+  if (!tasks.length) return 'skipped';
+  if (tasks.some((task) => task.status === 'running')) return 'running';
+  if (tasks.some((task) => task.status === 'failed')) return 'failed';
+  if (tasks.some((task) => task.status === 'queued')) return 'queued';
+  if (tasks.every((task) => task.status === 'cancelled')) return 'cancelled';
+  return 'completed';
+}
+
+function stageMeta(status: FillTaskStatus, tasks: DisplayTask[]): string {
+  if (status === 'running') return 'Working now';
+  if (status === 'failed') return `${tasks.filter((task) => task.status === 'failed').length || 1} check failed`;
+  if (status === 'queued') return 'Waiting';
+  if (status === 'skipped') return 'Not included in this run';
+  if (status === 'cancelled') return 'Cancelled';
+  return `${tasks.filter((task) => task.status === 'completed').length || 1} check${tasks.length === 1 ? '' : 's'} completed`;
+}
+
+function taskDetail(task: DisplayTask): string {
+  if (task.status === 'failed') return task.errorMessage ?? `Failed after ${task.attempt} attempt${task.attempt === 1 ? '' : 's'}`;
+  if (task.status === 'running') return 'Reading and reconciling source records…';
+  if (task.status === 'queued') return 'Waiting for prerequisite checks';
+  if (task.status === 'completed') return 'Completed';
+  if (task.status === 'cancelled') return 'Cancelled';
+  return 'Not required';
+}
+
+function narration(label: string | undefined, tasks: DisplayTask[] | undefined): string {
+  const activeTask = tasks?.find((task) => task.status === 'running');
+  return activeTask ? `Meri is working on ${taskLabel(activeTask.taskType).toLowerCase()}.` : `Meri is ${label?.toLowerCase() ?? 'preparing the review'}.`;
+}
+
+function taskCounts(progress: FillProgress | undefined, tasks: DisplayTask[]): string {
+  if (typeof progress?.total === 'number') return `${progress.completed} of ${progress.total} checks complete${progress.failed ? ` · ${progress.failed} failed` : ''}`;
+  return `${tasks.filter((task) => task.status === 'completed').length} of ${tasks.length} checks complete`;
+}
+
+function countCompletedTasks(tasks: FillTask[]): number {
+  return tasks.filter((task) => task.status === 'completed').length;
+}
+
+function findingMeta(fill: Fill, running: boolean): string {
+  if (running) return `${fill.proposals.length} proposed so far`;
+  return `${fill.proposals.length} proposed · ${fill.contextFindings.length} informational`;
+}
+
+function toggleSet(previous: Set<string>, id: string): Set<string> {
+  const next = new Set(previous);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  return next;
+}
+
+function formatTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }

@@ -10,6 +10,39 @@
   gap: var(--capiro-space-06);
 }
 
+.cap-pf .rel-org-root--drawer { gap: 0; }
+.cap-pf .rel-org-drawer__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  border-bottom: 1px solid #f2f4f7;
+  flex-wrap: wrap;
+}
+.cap-pf .rel-org-drawer__toolbar > span:first-child {
+  color: #98a2b3;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.cap-pf .rel-org-drawer__toolbar > button {
+  color: #294e68;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.cap-pf .rel-org-drawer__toolbar > button:first-of-type { margin-left: auto; }
+.cap-pf .rel-org-drawer__chart > section {
+  border-radius: 0;
+  box-shadow: none !important;
+}
+.cap-pf .rel-org-root--drawer .rel-org-chart-body {
+  min-height: 0;
+  padding: 32px 20px 36px;
+  border-bottom: 1px solid #e4e7ec;
+  background: #fcfcfd;
+}
+
 /* ── person card (real reporting tree) ────────────────────────────────── */
 
 .cap-pf .rel-org-person-card {

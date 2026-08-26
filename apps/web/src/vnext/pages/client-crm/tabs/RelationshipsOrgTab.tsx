@@ -42,14 +42,27 @@ import './relationships-org-tab.css';
  * work through `savePlacement`. The visible-levels list below now reads the
  * real `LEVEL_META` rather than a byte-identical fixture copy of it.
  */
-export function ClientCrmOrganizationProto({ client }: { client: Client }) {
+export function ClientCrmOrganizationProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const model = useClientOrganizationModel(client.id);
   const [person, setPerson] = useState<ClientPerson | null>(null);
   const [configuring, setConfiguring] = useState(false);
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="cap-pf-anim-rise rel-org-root">
+    <div className={`cap-pf-anim-rise rel-org-root${drawer ? ' rel-org-root--drawer' : ''}`}>
+      {drawer ? (
+        <div className="rel-org-drawer__toolbar">
+          <span>Reporting structure</span>
+          <Pill tone="gray" size="sm" dotless>
+            {model.placedCount} {model.placedCount === 1 ? 'person' : 'people'} placed
+          </Pill>
+          <Pill tone="gray" size="sm" dotless>
+            {model.manualOverrides.length} manual placement{model.manualOverrides.length === 1 ? '' : 's'}
+          </Pill>
+          <button type="button" onClick={() => setCreating(true)}>Add contact</button>
+          <button type="button" onClick={() => setConfiguring(true)}>Configure hierarchy</button>
+        </div>
+      ) : (
       <TabPageHead
         title="Client organization"
         sub="A configurable roster automatically structured from titles. Manual placement always wins."
@@ -64,10 +77,11 @@ export function ClientCrmOrganizationProto({ client }: { client: Client }) {
           </>
         }
       />
+      )}
 
-      <div className="cap-pf-grid-side-340">
-        <OrgChartCard model={model} onOpenReal={setPerson} onAdd={() => setCreating(true)} />
-        <HierarchySettingsCard model={model} onEdit={() => setConfiguring(true)} />
+      <div className={drawer ? 'rel-org-drawer__chart' : 'cap-pf-grid-side-340'}>
+        <OrgChartCard model={model} onOpenReal={setPerson} onAdd={() => setCreating(true)} compact={drawer} />
+        {drawer ? null : <HierarchySettingsCard model={model} onEdit={() => setConfiguring(true)} />}
       </div>
 
       {person ? (
@@ -178,10 +192,12 @@ function OrgChartCard({
   model,
   onOpenReal,
   onAdd,
+  compact = false,
 }: {
   model: OrganizationModel;
   onOpenReal: (person: ClientPerson) => void;
   onAdd: () => void;
+  compact?: boolean;
 }) {
   // Strip counters always come from the real model — the fixture's
   // "7 contacts placed · 1 title needs review" / "92% mapped" copy must never
@@ -201,6 +217,7 @@ function OrgChartCard({
   return (
     <Card>
       {/* strip */}
+      {compact ? null : (
       <div className="rel-org-strip">
         <span className="rel-org-strip-label">
           <Eyebrow>Automatic title-based roster</Eyebrow>
@@ -220,6 +237,7 @@ function OrgChartCard({
           </Pill>
         )}
       </div>
+      )}
 
       <div className="rel-org-chart-body">
         {model.isError ? (

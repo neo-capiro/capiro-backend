@@ -290,7 +290,7 @@ function usePfNarrow(): boolean {
 
 /* ── the tab ──────────────────────────────────────────────────────────────── */
 
-export function ClientCrmFilesProto({ client }: { client: Client }) {
+export function ClientCrmFilesProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
   const narrow = usePfNarrow();
@@ -306,6 +306,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   const [moving, setMoving] = useState<{ ids: string[]; count: number } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
+  const [drawerView, setDrawerView] = useState<'folders' | 'files'>('folders');
+  const [drawerGroup, setDrawerGroup] = useState<string | null>(null);
   /** Open with the ids to file into the new folder; `[]` creates a draft. */
   const [creatingFolder, setCreatingFolder] = useState<{ ids: string[] } | null>(null);
   /** Folders named here but not yet holding a file — see the file docblock. */
@@ -518,6 +520,22 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
     [loaded, filesQuery.data],
   );
 
+  const drawerGroups = useMemo(() => {
+    const grouped = new Map<string, FileRowModel[]>();
+    for (const row of allRows) {
+      const key = row.linked.split(/ · | \/ /)[0]?.trim() || 'Unfiled';
+      grouped.set(key, [...(grouped.get(key) ?? []), row]);
+    }
+    return [...grouped.entries()]
+      .map(([name, groupRows]) => ({
+        name,
+        rows: groupRows,
+        exts: [...new Set(groupRows.map((row) => row.ext))],
+        modified: [...groupRows].sort((a, b) => b.modifiedTs - a.modifiedTs)[0]?.modified ?? '—',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allRows]);
+
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     // Search spans every folder (prototype behaviour); otherwise scope to the
@@ -633,7 +651,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   }
 
   return (
-    <div className="cap-pf-anim-rise cap-pf-files">
+    <div className={`cap-pf-anim-rise cap-pf-files${drawer ? ' cap-pf-files--drawer' : ''}`}>
       <input
         ref={inputRef}
         type="file"
@@ -644,6 +662,133 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           event.target.value = '';
         }}
       />
+
+      {drawer ? (
+        <>
+          <div className="cap-pf-files-drawer__toolbar">
+            <div className="cap-pf-files-drawer__tabs" role="tablist" aria-label="Files view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={drawerView === 'folders'}
+                onClick={() => { setDrawerView('folders'); setDrawerGroup(null); }}
+              >
+                Folders
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={drawerView === 'files'}
+                onClick={() => { setDrawerView('files'); setDrawerGroup(null); }}
+              >
+                All files
+              </button>
+            </div>
+            <span className="cap-pf-files-drawer__count">{allRows.length} document{allRows.length === 1 ? '' : 's'}</span>
+            <button type="button" className="cap-pf-files-drawer__link" onClick={() => setCreatingFolder({ ids: [] })}>
+              New folder
+            </button>
+            <button type="button" className="cap-pf-files-drawer__upload" onClick={() => triggerUpload(null)}>
+              + Upload
+            </button>
+          </div>
+
+          {uploads.length > 0 ? (
+            <div className="cap-pf-files__uploads cap-pf-files-drawer__uploads">
+              {uploads.map((entry) => (
+                <div key={entry.name} className={`cap-pf-files__upload-row${entry.status === 'failed' ? ' is-failed' : ''}`}>
+                  <span className="cap-pf-files__upload-name">{entry.name}</span>
+                  <span className={`cap-pf-files__upload-status${entry.status === 'failed' ? ' is-failed' : ''}`}>
+                    {entry.status === 'uploading' ? 'Uploading…' : entry.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {drawerView === 'folders' ? (
+            <>
+              {filesQuery.isPending ? (
+                <div className="cap-pf-files-drawer__state" aria-busy="true">Loading folders…</div>
+              ) : filesQuery.isError ? (
+                <div className="cap-pf-files-drawer__state cap-pf-files-drawer__state--error">
+                  Files could not be loaded. <button type="button" onClick={() => void filesQuery.refetch()}>Retry</button>
+                </div>
+              ) : drawerGroups.length === 0 ? (
+                <div className="cap-pf-files-drawer__state">No files uploaded yet.</div>
+              ) : (
+                <div className="cap-pf-files-drawer__folders">
+                  {drawerGroups.map((group) => (
+                    <button
+                      key={group.name}
+                      type="button"
+                      className="cap-pf-files-drawer__folder"
+                      onClick={() => { setDrawerGroup(group.name); setDrawerView('files'); }}
+                    >
+                      <span className="cap-pf-files-drawer__folder-top">
+                        <span className="cap-pf-files-drawer__folder-icon" aria-hidden><UIcon name="File04" size={20} /></span>
+                        <span>
+                          <strong>{group.name}</strong>
+                          <small>{group.rows.length} file{group.rows.length === 1 ? '' : 's'}</small>
+                        </span>
+                      </span>
+                      <span className="cap-pf-files-drawer__folder-foot">
+                        <span>{group.exts.map((ext) => <i key={ext}>{ext}</i>)}</span>
+                        <small>{group.modified}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="cap-pf-files-drawer__note">
+                <UIcon name="AlertCircle" size={15} />
+                <span>Folders mirror what each file is linked to. A smart-linked file is a reference, never a copy — it stays in one folder and appears wherever it is used.</span>
+              </div>
+            </>
+          ) : (
+            <div className="cap-pf-files-drawer__list-scroll">
+              <div className="cap-pf-files-drawer__list">
+                <div className="cap-pf-files-drawer__head" aria-hidden>
+                  <span>Document</span><span>Linked to</span><span>Modified</span><span>Owner</span><span>Status</span><span />
+                </div>
+                {drawerGroup ? (
+                  <div className="cap-pf-files-drawer__filter-note">
+                    <button type="button" onClick={() => setDrawerGroup(null)}>← All files</button>
+                    <span>{drawerGroup}</span>
+                  </div>
+                ) : null}
+                {(drawerGroup
+                  ? allRows.filter((row) => (row.linked.split(/ · | \/ /)[0]?.trim() || 'Unfiled') === drawerGroup)
+                  : allRows
+                ).map((row, index) => (
+                  <FileRow
+                    key={row.id}
+                    row={row}
+                    real={real}
+                    checked={selected.has(row.id)}
+                    bg={index % 2 === 1 ? '#FCFCFD' : '#FFFFFF'}
+                    menuOpen={menuRowId === row.id}
+                    onToggle={() => toggleRow(row.id)}
+                    onToggleMenu={() => setMenuRowId((previous) => previous === row.id ? null : row.id)}
+                    onCloseMenu={() => setMenuRowId(null)}
+                    onRequestMove={() => { setMenuRowId(null); requestMove([row.id]); }}
+                    onRequestAccess={() => {
+                      setMenuRowId(null);
+                      setAccessTarget({
+                        kind: 'file', id: row.id, name: row.name,
+                        viewerMode: row.viewerMode, viewerUserIds: row.viewerUserIds,
+                      });
+                    }}
+                    onRequestDelete={() => { setMenuRowId(null); setDeletingId(row.id); }}
+                  />
+                ))}
+                {!filesQuery.isPending && allRows.length === 0 ? <div className="cap-pf-files-drawer__state">No files uploaded yet.</div> : null}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
 
       <TabPageHead
         title="Client files"
@@ -931,6 +1076,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           </div>
         </section>
       </div>
+        </>
+      )}
 
       {moving ? (
         <MoveToFolderModal

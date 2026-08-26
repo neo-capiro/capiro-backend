@@ -218,7 +218,7 @@ export function ClientPersonDrawer({
 
           {error ? <p className="capiro-crm__foot capiro-crm__state--error">{error}</p> : null}
 
-          <div className="capiro-crm-fill__actions">
+          <div className="capiro-crm__form-actions">
             <CapiroButton
               variant="primary"
               size="compact"
@@ -249,7 +249,7 @@ export function ClientPersonDrawer({
         onClose={() => setConfirmClose(false)}
       >
         <p className="capiro-crm__foot">You have unsaved changes to this contact.</p>
-        <div className="capiro-crm-fill__actions">
+        <div className="capiro-crm__form-actions">
           <CapiroButton variant="primary" size="compact" onClick={onClose}>
             Discard
           </CapiroButton>
@@ -267,7 +267,7 @@ export function ClientPersonDrawer({
         <p className="capiro-crm__foot">
           Remove <strong>{person?.name}</strong>? Anyone reporting to them becomes unattached.
         </p>
-        <div className="capiro-crm-fill__actions">
+        <div className="capiro-crm__form-actions">
           <CapiroButton variant="primary" size="compact" onClick={() => void onDelete?.()}>
             Remove
           </CapiroButton>

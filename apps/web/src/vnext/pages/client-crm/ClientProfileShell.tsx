@@ -238,7 +238,6 @@ export function ClientProfileShell({
 
       {drawerContent != null ? (
         <RecordDrawer
-          client={client}
           title={drawerTitle ?? ''}
           sub={drawerSub}
           onClose={() => onCloseDrawer?.()}
