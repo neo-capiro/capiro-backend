@@ -34,6 +34,8 @@ describe('ClientAdvocacyMatterService — public source links', () => {
       committeeHearing: { findUnique: jest.fn(async () => null as unknown) },
       congressBillCommittee: { findFirst: jest.fn(async () => null as unknown) },
       faraRegistration: { findUnique: jest.fn(async () => null as unknown) },
+      programElement: { findUnique: jest.fn(async () => null as unknown) },
+      congressBill: { findUnique: jest.fn(async () => null as unknown) },
     };
     const engagement = {
       listMailThreads: jest.fn(async () => []),
@@ -250,6 +252,88 @@ describe('ClientAdvocacyMatterService — public source links', () => {
       (prisma2.faraRegistration.findUnique as jest.Mock).mockRejectedValueOnce(new Error('timeout'));
 
       await expect(service2.linkFaraRecord(ctx, clientId, matterId, '1234-A')).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('linkProgramElement / linkBill (manual, mandatory-rationale)', () => {
+    test('linkProgramElement rejects a missing manualRationale — no deterministic bypass exists for PE/bill relevance', async () => {
+      const { service, tx } = makeService();
+      stubMatterExists(tx);
+
+      await expect(
+        service.linkProgramElement(ctx, clientId, matterId, '0605053A', ''),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    test('linkBill rejects a missing manualRationale — same safeguard as linkProgramElement', async () => {
+      const { service, tx } = makeService();
+      stubMatterExists(tx);
+
+      await expect(
+        service.linkBill(ctx, clientId, matterId, '119-hr-1234', ''),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    test('linkProgramElement links a real PE with an explicit rationale, never claiming causation', async () => {
+      const { service, tx, prisma } = makeService();
+      stubMatterExists(tx); // assertClient/assertMatterBelongsToClient (linkProgramElement's own check)
+      stubMatterExists(tx); // linkToMatter's own withTenant call — a second $queryRawUnsafe isn't made, but stubbing keeps mock queues symmetric across tests
+      (prisma.programElement.findUnique as jest.Mock).mockResolvedValueOnce({
+        peCode: '0605053A',
+        title: 'Ground Robotics Development',
+        service: 'Army',
+        appropriationType: 'RDT&E',
+      });
+
+      await service.linkProgramElement(
+        ctx, clientId, matterId, '0605053A',
+        'Client submitted written comments specifically citing this PE.',
+      );
+
+      const row = insertedRow(tx);
+      expect(row).toContain('program_element');
+      expect(row).toContain('0605053A');
+      const metadataJson = row!.find((arg: unknown) => typeof arg === 'string' && arg.startsWith('{'));
+      const metadata = JSON.parse(metadataJson as string);
+      expect(metadata.causationClaimed).toBe(false);
+      expect(metadata.manualRationale).toContain('written comments');
+    });
+
+    test('linkProgramElement: a genuinely absent PE is NotFoundException, distinct from a query failure', async () => {
+      const { service, tx, prisma } = makeService();
+      stubMatterExists(tx);
+      (prisma.programElement.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        service.linkProgramElement(ctx, clientId, matterId, 'does-not-exist', 'Some rationale'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    test("linkBill links a real bill, using the bill's own latest action date as occurredAt", async () => {
+      const { service, tx, prisma } = makeService();
+      stubMatterExists(tx);
+      (prisma.congressBill.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: '119-hr-1234',
+        title: 'Ground Robotics Act',
+        billType: 'hr',
+        billNumber: '1234',
+        congress: 119,
+        latestActionText: 'Referred to committee',
+        latestActionDate: new Date('2026-03-01T00:00:00Z'),
+      });
+
+      await service.linkBill(
+        ctx, clientId, matterId, '119-hr-1234',
+        'Client filed formal support letter referencing this bill by number.',
+      );
+
+      const row = insertedRow(tx);
+      expect(row).toContain('bill');
+      expect(row).toContain('119-hr-1234');
+      const metadataJson = row!.find((arg: unknown) => typeof arg === 'string' && arg.startsWith('{'));
+      const metadata = JSON.parse(metadataJson as string);
+      expect(metadata.occurredAt).toBe('2026-03-01T00:00:00.000Z');
+      expect(metadata.causationClaimed).toBe(false);
     });
   });
 

@@ -926,6 +926,132 @@ export class ClientAdvocacyMatterService {
     });
   }
 
+  /**
+   * Manual "pick an object to link" for a Program Element or bill (roadmap
+   * item: "Bills / Program Elements — use as policy objects, Matter
+   * anchors, Government Movement, Outcome evidence. Do NOT treat simple
+   * client relevance as proof the client advocated for that bill/PE.
+   * Require attributable Advocacy evidence elsewhere.").
+   *
+   * Audited before building: `linkToMatter` (program_element/bill link
+   * types) already existed but had NO controller endpoint at all — it was
+   * only ever called internally by the outcome-detection pipeline
+   * (`gatherLifecycleOutcomes`/`reconcileFindings` in
+   * client-profile-fill-completion.service.ts) when a PE/bill
+   * RECOMMENDATION finding happened to already be pinned to a Matter via
+   * `primary_pe_code`/`primary_bill_id`. There was no way for a human to
+   * manually attach an EXISTING tracked bill/PE to a Matter as a
+   * Government Movement anchor when no such finding exists. This is the
+   * "browse-and-attach UI flow ... not built yet" item from this module's
+   * own roadmap section, closed here at the API layer (13 other link
+   * types already have this; program_element/bill did not).
+   *
+   * SAFEGUARD (the roadmap's actual product rule, enforced structurally,
+   * not just documented): a `manualRationale` is REQUIRED on every call —
+   * unlike `linkHearing`'s two-path gate (auto-confirm on deterministic
+   * committee-code match, OR manual rationale), there is no deterministic
+   * signal here that could ever auto-confirm a PE/bill link as advocacy
+   * evidence. A client being relevant to a PE or bill (topically,
+   * geographically, by NAICS/PSC) is not evidence the client advocated
+   * for it — that's exactly the conflation `bill_recommendation`/
+   * `program_element` findings already refuse to auto-apply as client
+   * facts (see `client-profile-fill.service.ts`'s `applyFinding` switch:
+   * both throw `BadRequestException('...is informational...')`). This
+   * method is the human's explicit, reviewable judgment call that THIS
+   * bill/PE really is Government Movement evidence for THIS Matter, with
+   * the stated reason recorded in `metadata.manualRationale` for later
+   * audit — never an auto-classification. (`linkToMatter`'s link type has
+   * no dedicated `provenance` column the way the direct-evidence/public-
+   * source link types do — metadata is where this reason lives here.)
+   */
+  async linkProgramElement(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    peCode: string,
+    manualRationale: string,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+    this.assertManualRationale(manualRationale);
+
+    const pe = await this.readLinkSourceOrUnavailable('program_element', () =>
+      this.prisma.programElement.findUnique({
+        where: { peCode },
+        select: { peCode: true, title: true, service: true, appropriationType: true },
+      }),
+    );
+    if (!pe) throw new NotFoundException('Program Element not found');
+
+    await this.linkToMatter(ctx, matterId, {
+      linkType: 'program_element',
+      linkKey: pe.peCode,
+      label: `${pe.peCode} — ${pe.title}`,
+      metadata: {
+        service: pe.service,
+        appropriationType: pe.appropriationType,
+        manualRationale,
+        // No occurredAt: a Program Element is a standing budget line, not
+        // a dated event — same reasoning as Strategy links (§8) never
+        // entering the lifecycle-derivation chronology.
+        causationClaimed: false,
+      },
+    });
+  }
+
+  /** Sibling of linkProgramElement for a tracked bill. Same required-
+   *  rationale safeguard, same reasoning — see linkProgramElement's doc. */
+  async linkBill(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    billId: string,
+    manualRationale: string,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+    this.assertManualRationale(manualRationale);
+
+    const bill = await this.readLinkSourceOrUnavailable('congress_bill', () =>
+      this.prisma.congressBill.findUnique({
+        where: { id: billId },
+        select: { id: true, title: true, billType: true, billNumber: true, congress: true, latestActionText: true, latestActionDate: true },
+      }),
+    );
+    if (!bill) throw new NotFoundException('Bill not found');
+
+    await this.linkToMatter(ctx, matterId, {
+      linkType: 'bill',
+      linkKey: bill.id,
+      label: `${bill.billType.toUpperCase()} ${bill.billNumber} (${bill.congress}th) — ${bill.title}`,
+      metadata: {
+        manualRationale,
+        latestActionText: bill.latestActionText,
+        // occurredAt IS meaningful for a bill (unlike a PE) — a bill has
+        // real dated legislative actions. Use the bill's own latest
+        // action date as the anchor date for lifecycle/timeline purposes,
+        // same convention as every other dated link type (§8's
+        // metadata.occurredAt).
+        occurredAt: bill.latestActionDate?.toISOString() ?? null,
+        causationClaimed: false,
+      },
+    });
+  }
+
+  /** Shared guard for the manual PE/bill link methods above: a bare
+   *  relevance/topic match is never proof of advocacy, so unlike every
+   *  auto-discoverable public source in this file, there is no
+   *  deterministic bypass — a human-supplied reason is mandatory on
+   *  every call, not merely the fallback when a deterministic match
+   *  fails. */
+  private assertManualRationale(manualRationale: string | null | undefined): void {
+    if (!manualRationale || !manualRationale.trim()) {
+      throw new BadRequestException(
+        'manualRationale is required — client relevance to a bill/Program Element is never proof of advocacy on its own',
+      );
+    }
+  }
+
   private safeError(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
   }
