@@ -20,9 +20,8 @@
  *      agreeing on certification status/SHA/selected row (the brief's "do
  *      not reintroduce two independent interpretations" requirement).
  *
- * `rdte` and `committee` pass straight through to the read-only adapter with
- * no materialization attempt -- see `MISSING_DURABLE_INPUT_NOTES` for
- * exactly why, per family.
+ * `rdte` uses the durable materializer. `committee` continues through the
+ * existing read-only adapter.
  *
  * Idempotent: `materializeNonRdteFamilyCertificationV1` inserts via
  * `ProjectionPlanRepositoryV1.insert`, which is `ON CONFLICT (projection_plan_id)
@@ -47,6 +46,7 @@ import {
   type MaterializationManifestInputV1,
 } from './family-certification-materialization-v1.js';
 import type { ProjectionPlanRepositoryV1 } from '../../projection-plan/projection-plan-repository-prisma-v1.js';
+import { materializeRdteFamilyCertificationV1 } from './family-certification-materialization-rdte-v1.js';
 
 export interface ManifestForMaterializationPortV1 {
   /**
@@ -85,7 +85,7 @@ export class MaterializingFamilyReconciliationCertificationV1
     // that must not be silently retried by filing a second competing row.
     if (existing.certificationStatus !== 'INCOMPLETE') return existing;
 
-    if (!isMaterializableNonRdteFamily(identity.familyGroup)) {
+    if (!isMaterializableNonRdteFamily(identity.familyGroup) && identity.familyGroup !== 'rdte') {
       return {
         ...existing,
         reason: MISSING_DURABLE_INPUT_NOTES[identity.familyGroup] ?? existing.reason,
@@ -102,14 +102,19 @@ export class MaterializingFamilyReconciliationCertificationV1
       };
     }
 
-    const materialization = await materializeNonRdteFamilyCertificationV1(
+    const materialization = identity.familyGroup === 'rdte'
+      ? await materializeRdteFamilyCertificationV1(
+          { identity, cycleId: corpus.cycleId, manifest },
+          { artifactSource: this.artifactSource, projectionPlans: this.projectionPlans, producerVersion: this.producerVersion },
+        )
+      : await materializeNonRdteFamilyCertificationV1(
       { identity, cycleId: corpus.cycleId, manifest },
       {
         artifactSource: this.artifactSource,
         projectionPlans: this.projectionPlans,
         producerVersion: this.producerVersion,
       },
-    );
+        );
 
     if (materialization.outcome !== 'materialized') {
       return {

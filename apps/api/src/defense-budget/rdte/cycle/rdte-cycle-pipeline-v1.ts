@@ -63,6 +63,10 @@ import {
   collectBlockingOmissionPeCodes,
   collectDuplicateNaturalKeys,
 } from './rdte-cycle-integrity-v1.js';
+import {
+  reconstructR2PeTotalCellsFromArtifact,
+  reconstructR2aProjectFundingValuesFromArtifact,
+} from './rdte-artifact-reconciliation-input-v1.js';
 
 export interface RdteCycleArtifactBuildInput {
   fiscalYear: number;
@@ -71,6 +75,17 @@ export interface RdteCycleArtifactBuildInput {
   manifestDocuments?: readonly BudgetCycleManifestDocumentV1[];
   /** Supplied documents that completed the Phase 3 parser boundary. */
   documents: readonly RdteCycleDocumentInputV1[];
+  reviewedNewPeExceptions?: readonly string[];
+}
+
+export interface RdtePersistedArtifactBuildInput {
+  fiscalYear: number;
+  manifestContentSha256: string;
+  manifestDocuments?: readonly BudgetCycleManifestDocumentV1[];
+  documents: readonly {
+    document: BudgetCycleManifestDocumentV1;
+    artifact: DefenseBudgetExtractionArtifactV1;
+  }[];
   reviewedNewPeExceptions?: readonly string[];
 }
 
@@ -554,6 +569,127 @@ export function buildRdteCycleArtifacts(
       blockingFindingCount: reconciliation.findings.filter(
         (finding) => finding.severity === 'blocking',
       ).length,
+    },
+  };
+}
+
+/**
+ * Restart-safe Phase 4 entrypoint. It consumes only byte-verified, accepted
+ * extraction artifacts and reconstructs the inputs to the unchanged R-2A
+ * reconciler; no parser pages are needed at this boundary.
+ */
+export function buildRdteCycleArtifactsFromPersistedArtifacts(
+  input: RdtePersistedArtifactBuildInput,
+): RdteCycleArtifactBuildResult {
+  const supplied = [...input.documents].sort((left, right) => {
+    const rank = (EXHIBIT_ORDER[left.document.exhibit] ?? 99) - (EXHIBIT_ORDER[right.document.exhibit] ?? 99);
+    return rank || left.document.documentKey.localeCompare(right.document.documentKey);
+  });
+  const manifestDocuments = orderedManifestDocuments(
+    input.manifestDocuments ?? supplied.map((value) => value.document),
+  );
+  const documents: RdteCycleDocumentInputV1[] = supplied.map(({ document, artifact }) => {
+    if (artifact.source.manifestDocumentKey !== document.documentKey) {
+      throw new Error(`persisted artifact/document mismatch for ${document.documentKey}`);
+    }
+    if (artifact.source.sourceDocumentId == null) {
+      throw new Error(`persisted artifact ${artifact.artifactId} has no sourceDocumentId`);
+    }
+    const unresolvedPages = artifact.sourceFacts.flatMap((fact) => {
+      const match = /^phase3\/unresolved\/page:(\d+)$/.exec(fact.sourcePath);
+      return match == null ? [] : [Number(match[1])];
+    });
+    return {
+      document,
+      source: { ...artifact.source, sourceDocumentId: artifact.source.sourceDocumentId },
+      pages: [],
+      parserRuns: artifact.parserRuns,
+      unresolvedPages,
+    };
+  });
+  const artifacts = supplied.map(({ document, artifact }) => builtArtifact(document.documentKey, artifact));
+  const artifactValues = artifacts.map((value) => value.artifact);
+  const sourceDocuments: RdteCycleSourceDocumentV1[] = documents.map((value) => ({
+    manifestDocumentKey: value.document.documentKey,
+    sourceDocumentId: value.source.sourceDocumentId,
+    exhibitRole: exhibitRoleOf(value.document.exhibit),
+    required: value.document.required,
+    sourcePdfSha256: value.source.sourcePdfSha256,
+    sourceLocator: value.source.sourceLocator,
+    parserRunIds: value.parserRuns.map((run) => run.parserRunId).sort(),
+    unresolvedPages: [...value.unresolvedPages].sort((a, b) => a - b),
+  }));
+  const comparisons = buildR1R2CycleComparisons(artifactValues);
+  const r1PeCodes = artifactValues
+    .filter((artifact) => artifact.source.exhibit === 'R-1')
+    .flatMap((artifact) => artifact.assertions
+      .filter((assertion) => assertion.assertionKind === 'program_element_identity')
+      .map((assertion) => assertion.identity.peCode));
+  const otherPeCodes = artifactValues
+    .filter((artifact) => artifact.source.exhibit !== 'R-1')
+    .flatMap((artifact) => artifact.assertions.map(peCodeOf).filter((value): value is string => !!value));
+  const projectKeys = artifactValues.flatMap((artifact) => artifact.assertions
+    .filter((assertion) => assertion.assertionKind === 'project')
+    .map((assertion) => ({ peCode: assertion.parentPeCode, projectCode: assertion.projectCode })));
+  const peTotals = artifactValues.flatMap(reconstructR2PeTotalCellsFromArtifact);
+  const r2aProjectValues = artifactValues.flatMap(reconstructR2aProjectFundingValuesFromArtifact);
+  const projectSums = peTotals
+    .filter((total) => total.columnRole === 'budget_year_request' || total.columnRole === 'outyear_projection')
+    .map((total) => reconcileR2aProjectColumn({
+      peCode: total.peCode,
+      fiscalYear: total.fiscalYear,
+      columnRole: total.columnRole,
+      peTotal: total,
+      projectValues: r2aProjectValues.filter((project) =>
+        project.parentPeCode === total.peCode && project.fiscalYear === total.fiscalYear && project.columnRole === total.columnRole),
+      unit: total.unit,
+      ...(() => {
+        const expectedProjectCodes = projectKeys.filter((project) => project.peCode === total.peCode).map((project) => project.projectCode);
+        return expectedProjectCodes.length > 0 ? { expectedProjectCodes } : {};
+      })(),
+    }));
+  const reconciliation = reconcileRdteCycle({
+    identity: {
+      r1PeCodes,
+      otherExhibitPeCodes: otherPeCodes,
+      ...(input.reviewedNewPeExceptions ? { reviewedNewPeExceptions: input.reviewedNewPeExceptions } : {}),
+    },
+    fundingComparisons: comparisons.map((comparison) => ({
+      peCode: comparison.peCode,
+      fiscalYear: comparison.fiscalYear,
+      columnRole: comparison.columnRole,
+      result: comparison.result,
+      message: comparison.message,
+      evidenceIds: comparison.evidenceIds,
+    })),
+    projectSumReconciliations: projectSums,
+    projectRelationships: projectRelationships(artifactValues),
+    coverageInputs: buildManifestCoverageInputs({ documents: manifestDocuments, artifacts: artifactValues }),
+    blockingOmissionPeCodes: collectBlockingOmissionPeCodes(artifactValues),
+    unresolvedPages: documents.flatMap((value) => value.unresolvedPages),
+    duplicateNaturalKeys: collectDuplicateNaturalKeys(artifactValues),
+  });
+  const count = (kind: DefenseBudgetAssertionV1['assertionKind']) =>
+    artifactValues.reduce((sum, artifact) => sum + artifact.assertions.filter((assertion) => assertion.assertionKind === kind).length, 0);
+  return {
+    fiscalYear: input.fiscalYear,
+    manifestContentSha256: input.manifestContentSha256,
+    manifestDocuments,
+    documents,
+    sourceDocuments,
+    artifacts,
+    comparisons,
+    reconciliation,
+    ...(input.reviewedNewPeExceptions ? { reviewedNewPeExceptions: input.reviewedNewPeExceptions } : {}),
+    counts: {
+      r1PeCount: new Set(r1PeCodes).size,
+      r2PeCount: new Set(artifactValues.filter((artifact) => artifact.source.exhibit === 'R-2').flatMap((artifact) => artifact.assertions.map(peCodeOf).filter((value): value is string => !!value))).size,
+      r2NarrativeSectionCount: count('narrative'),
+      r2aProjectCount: count('project'),
+      r3PerformerCount: count('performer'),
+      r4MilestoneCount: count('milestone'),
+      comparisonCount: comparisons.length,
+      blockingFindingCount: reconciliation.findings.filter((finding) => finding.severity === 'blocking').length,
     },
   };
 }

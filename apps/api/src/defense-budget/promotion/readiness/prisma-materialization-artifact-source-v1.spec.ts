@@ -122,6 +122,29 @@ function writeArtifactFile(content: DefenseBudgetExtractionArtifactV1): { locato
 }
 
 describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
+  it('preserves the RDT&E policy SHA and accepted/rejected assertion decision snapshot', async () => {
+    const prisma = new FakeMaterializationPrisma([
+      {
+        manifestDocumentKey: 'r2', extractionArtifactId: 'art_r2',
+        extractionArtifactSha256: SHA, extractionArtifactLocator: '/fixture/r2.json',
+        sourceDocumentId: 'doc_r2', sourceSha256: SHA, candidateId: 'cand_r2',
+        manifestContentSha256: SHA, policySha256: 'b'.repeat(64),
+        currentRunId: 'run_r2', runDecision: 'REVIEW', runStatus: 'REVIEW_ACCEPTED',
+      },
+    ], [{ id: 'run_r2', resultSnapshot: {
+      acceptedAssertionIds: ['accepted-r2'], rejectedAssertionIds: ['rejected-r2'],
+    } }]);
+    const refs = await new PrismaMaterializationArtifactSourceV1(prisma).loadCandidateRefs({
+      cycleId: 'cycle-rdte', manifestDocumentKeys: ['r2'],
+    });
+    expect(refs.get('r2')).toMatchObject({
+      policySha256: 'b'.repeat(64),
+      acceptedAssertionIds: ['accepted-r2'],
+      rejectedAssertionIds: ['rejected-r2'],
+      status: 'REVIEW_ACCEPTED',
+    });
+  });
+
   it('returns only rows with a resolvable current run decision, and passes cycleId + document keys as bound params', async () => {
     const prisma = new FakeMaterializationPrisma([
       {
@@ -149,6 +172,10 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
     expect(refs.get('o1')?.status).toBe('VERIFICATION_PASSED');
     const candidateQuery = prisma.queries.find((q) => q.query.includes('budget_extraction_candidate_v1'));
     expect(candidateQuery?.values).toEqual(['cycle-1', 'o1', 'op5']);
+    expect(candidateQuery?.query).toContain('DISTINCT ON (c."manifest_document_key")');
+    expect(candidateQuery?.query).toContain(
+      'ORDER BY c."manifest_document_key", c."created_at" DESC',
+    );
   });
 
   it('omits a candidate with no resolvable current run (never guesses a status)', async () => {
@@ -204,6 +231,30 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
 });
 
 describe('PrismaMaterializationArtifactSourceV1 — loadVerifiedArtifact', () => {
+  it('applies the same byte-SHA-bound reload to an RDT&E candidate artifact', async () => {
+    const artifactJson = makeArtifactJson('art_rdte');
+    artifactJson.source = {
+      ...artifactJson.source,
+      manifestDocumentKey: 'r2',
+      family: 'rdte',
+      exhibit: 'R-2',
+    };
+    const { locator, sha256 } = writeArtifactFile(artifactJson);
+    const adapter = new PrismaMaterializationArtifactSourceV1(new FakeMaterializationPrisma());
+    const ref = {
+      manifestDocumentKey: 'r2', extractionArtifactId: 'art_rdte',
+      extractionArtifactSha256: sha256, extractionArtifactLocator: locator,
+      sourceDocumentId: 'doc_r2', sourceSha256: SHA, candidateId: 'cand_r2',
+      verificationRunId: 'run_r2', decision: 'PASS' as const,
+      status: 'VERIFICATION_PASSED' as const, manifestContentSha256: SHA,
+      acceptedAssertionIds: ['asrt_1'],
+    };
+    const reloaded = await adapter.loadVerifiedArtifact(ref);
+    expect(reloaded.source.family).toBe('rdte');
+    fs.appendFileSync(locator, 'tamper');
+    await expect(adapter.loadVerifiedArtifact(ref)).rejects.toThrow(/byte SHA mismatch/);
+  });
+
   it('reloads a filesystem-located artifact, re-verifies its byte SHA, and filters to accepted assertions', async () => {
     const artifactJson = makeArtifactJson('art_o1');
     const { locator, sha256 } = writeArtifactFile(artifactJson);

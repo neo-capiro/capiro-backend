@@ -46,6 +46,7 @@ interface CandidateRowV1 {
   sourceSha256: string;
   candidateId: string;
   manifestContentSha256: string;
+  policySha256: string;
   currentRunId: string | null;
   runDecision: string | null;
   runStatus: string | null;
@@ -83,6 +84,7 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
               c."source_sha256"             AS "sourceSha256",
               c."id"::text                  AS "candidateId",
               c."manifest_content_sha256"   AS "manifestContentSha256",
+              c."policy_sha256"             AS "policySha256",
               c."current_run_id"::text      AS "currentRunId",
               r."decision"                  AS "runDecision",
               r."status"                    AS "runStatus"
@@ -112,6 +114,7 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
             `extraction_artifact_locator; cannot materialize from this row`,
         );
       }
+      const snapshot = await this.loadVerificationSnapshot(row.currentRunId);
       output.set(row.manifestDocumentKey, {
         manifestDocumentKey: row.manifestDocumentKey,
         extractionArtifactId: row.extractionArtifactId,
@@ -128,13 +131,20 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
           | 'NEEDS_REVIEW'
           | 'REJECTED',
         manifestContentSha256: row.manifestContentSha256,
-        acceptedAssertionIds: await this.loadAcceptedAssertionIds(row.currentRunId),
+        acceptedAssertionIds: snapshot.acceptedAssertionIds,
+        ...(snapshot.rejectedAssertionIds.length > 0
+          ? { rejectedAssertionIds: snapshot.rejectedAssertionIds }
+          : {}),
+        ...(row.policySha256 ? { policySha256: row.policySha256 } : {}),
       });
     }
     return output;
   }
 
-  private async loadAcceptedAssertionIds(runId: string): Promise<readonly string[]> {
+  private async loadVerificationSnapshot(runId: string): Promise<{
+    acceptedAssertionIds: readonly string[];
+    rejectedAssertionIds: readonly string[];
+  }> {
     const rows = await this.prisma.$queryRawUnsafe<Array<{ resultSnapshot: unknown }>>(
       `SELECT "result_snapshot_jsonb" AS "resultSnapshot"
          FROM "budget_verification_run_v1"
@@ -142,11 +152,14 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
       runId,
     );
     const snapshot = rows[0]?.resultSnapshot;
-    if (snapshot == null || typeof snapshot !== 'object') return [];
-    const accepted = (snapshot as Record<string, unknown>).acceptedAssertionIds;
-    return Array.isArray(accepted)
-      ? accepted.filter((value): value is string => typeof value === 'string')
-      : [];
+    if (snapshot == null || typeof snapshot !== 'object') return { acceptedAssertionIds: [], rejectedAssertionIds: [] };
+    const value = snapshot as Record<string, unknown>;
+    const strings = (candidate: unknown): string[] => Array.isArray(candidate)
+      ? candidate.filter((item): item is string => typeof item === 'string') : [];
+    return {
+      acceptedAssertionIds: strings(value.acceptedAssertionIds),
+      rejectedAssertionIds: strings(value.rejectedAssertionIds),
+    };
   }
 
   async loadVerifiedArtifact(
@@ -165,7 +178,10 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
     }
 
     const parsed = parseDefenseBudgetExtractionArtifactV1(JSON.parse(bytes.toString('utf8')));
-    if (parsed.contentSha256 !== ref.extractionArtifactSha256 && parsed.artifactId !== ref.extractionArtifactId) {
+    // The candidate SHA binds the serialized bytes (verified above); the
+    // artifact's canonical content SHA is a distinct identity. Bind the
+    // parsed envelope through its recorded artifact ID here.
+    if (parsed.artifactId !== ref.extractionArtifactId) {
       throw new Error(
         `reloaded artifact for candidate ${ref.candidateId} does not match the candidate's recorded artifact identity`,
       );

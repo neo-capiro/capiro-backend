@@ -362,6 +362,37 @@ describe('evaluateAndAdvanceCycleFamilyReadinessV1', () => {
     expect(secondResult.planHash).toBe(result.planHash);
   });
 
+  it('[RDT&E durable materialization -> awaiting_authorization] a ready certified RDT&E corpus reaches the authorization boundary', async () => {
+    const rdteIdentity: CycleFamilyReadinessIdentityV1 = {
+      ...IDENTITY,
+      familyGroup: 'rdte',
+    };
+    const rdteCorpus: CycleFamilyCorpusInputV1 = {
+      ...readyCorpus(),
+      identity: rdteIdentity,
+      cycleId: 'cycle-fy2027-rdte',
+    };
+    const { ports, planPersistence } = buildPorts({
+      corpus: rdteCorpus,
+      reconciliation: certifiedResult({
+        certificationStatus: 'CERTIFIED_RDTE_READY_FOR_PROJECTION',
+      }),
+      eligibilityState: {
+        ...defaultEligibilityState(),
+        candidates: [candidate({ family: 'rdte' })],
+      },
+    });
+    const result = await evaluateAndAdvanceCycleFamilyReadinessV1(
+      rdteIdentity,
+      ports,
+      RUN_OPTIONS,
+    );
+    expect(result.outcome).toBe('awaiting_authorization');
+    expect(result.planId).not.toBeNull();
+    expect(result.planHash).not.toBeNull();
+    expect(planPersistence.persistCallCount).toBe(1);
+  });
+
   it('[idempotent replay] re-running with identical certified inputs converges to the same plan/hash and creates no duplicate pending promotion', async () => {
     const { ports, planPersistence } = buildPorts();
 

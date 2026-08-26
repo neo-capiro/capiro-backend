@@ -18,9 +18,7 @@
  *     the EXACT SAME unchanged read-only adapter, so readiness and Phase 7
  *     eligibility keep agreeing on certification status/SHA via one shared
  *     interpretation (`family-certified-plan-read-v1.ts`);
- *   - rdte/committee (non-materializable families) fall straight through to
- *     the read-only result with the exact per-family note appended, never
- *     invoking the manifest source or artifact source;
+ *   - committee remains read-only while RDT&E enters durable materialization;
  *   - a missing durable manifest is reported, not silently treated as an
  *     empty one;
  *   - a materialization attempt that does not reach `materialized` (e.g.
@@ -351,10 +349,10 @@ describe('MaterializingFamilyReconciliationCertificationV1', () => {
     expect(manifestSource.calls).toBe(0);
   });
 
-  it('rdte (non-materializable family): falls through to the read-only result with the exact per-family note appended, manifest/artifact source never touched', async () => {
+  it('rdte enters durable materialization and reports a missing governed manifest', async () => {
     const incomplete = result({ certificationStatus: 'INCOMPLETE' });
     const readOnlyAdapter = new FakeReadOnlyAdapter(incomplete);
-    const manifestSource = new FakeManifestSource(omManifest());
+    const manifestSource = new FakeManifestSource(null);
     const artifactSource = new FakeArtifactSource();
     const projectionPlans = new InMemoryProjectionPlanRepository();
     const decorator = buildDecorator({ readOnlyAdapter, manifestSource, artifactSource, projectionPlans });
@@ -362,9 +360,9 @@ describe('MaterializingFamilyReconciliationCertificationV1', () => {
     const outcome = await decorator.reconcileAndCertify(identity('rdte'), corpus('rdte'));
 
     expect(outcome.certified).toBe(false);
-    expect(outcome.reason).toContain('R2PeTotalCell');
+    expect(outcome.reason).toContain('no durable governed manifest');
     expect(readOnlyAdapter.calls).toHaveLength(1);
-    expect(manifestSource.calls).toBe(0);
+    expect(manifestSource.calls).toBe(1);
     expect(artifactSource.loadCandidateRefsCalls).toBe(0);
   });
 
@@ -451,7 +449,7 @@ describe('MaterializingFamilyReconciliationCertificationV1', () => {
     expect(projectionPlans.insertCalls).toBe(0);
   });
 
-  it('alternative_funding/execution never reach the manifest or artifact source (never materializable, same as rdte/committee)', async () => {
+  it('alternative_funding/execution never reach the manifest or artifact source', async () => {
     // `CycleFamilyReadinessIdentityV1['familyGroup']` itself has no member
     // for these two tracks -- evaluateCycleFamilyReadinessV1 already returns
     // certification_not_supported for them before readiness ever reaches

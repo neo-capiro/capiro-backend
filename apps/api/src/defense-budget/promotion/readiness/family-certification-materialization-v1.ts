@@ -50,22 +50,12 @@
  *   as materialized, which is what #1298 already delivers.
  *
  * rdte:
- *   NOT reconstructable TODAY — but not because a durable table is missing.
- *   `BudgetExtractionCandidateV1` / `BudgetVerificationRunV1` already provide
- *   the same family-agnostic durable verification substrate that makes
- *   procurement/om/milcon materializable above; RDT&E extraction and
- *   verification could be written through it exactly like every other
- *   family. The actual blocker is that `scripts/build-rdte-cycle.ts` never
- *   runs that path: it remains a monolithic
- *   extract -> verify -> reconcile -> certify in-memory pipeline for a
- *   single process run (keeping the raw per-cell `R2PeTotalCell[]` /
- *   `R2aProjectFundingValue[]` inputs `reconcileR2aProjectColumn` needs only
- *   in memory), and it hardcodes `persistVerificationAudit: false` when
- *   constructing the router — so no `BudgetExtractionCandidateV1` /
- *   `BudgetVerificationRunV1` row is ever written for RDT&E documents to
- *   reload from. This module therefore reports `rdte` as
- *   `missing_durable_input`, naming that pipeline gap (not a schema gap) as
- *   the exact reason, rather than invoking anything.
+ *   RECONSTRUCTABLE. RDT&E uses the same family-agnostic durable candidate
+ *   and verification-run substrate. The split extraction/verification tools
+ *   persist ordinary extraction artifacts, and the RDT&E materializer reloads
+ *   their accepted bytes. R-2/R-2A reconciliation inputs are reconstructed
+ *   from the accepted assertions and evidence before the existing certifier
+ *   and projection planner run.
  *
  * Unsupported tracks (`alternative_funding`, `execution`) never reach this
  * module: `evaluateCycleFamilyReadinessV1` already reports
@@ -114,23 +104,6 @@ export function isMaterializableNonRdteFamily(
  * reported, never silently reconstructed.
  */
 export const MISSING_DURABLE_INPUT_NOTES: Readonly<Record<string, string>> = Object.freeze({
-  rdte:
-    'BudgetExtractionCandidateV1 / BudgetVerificationRunV1 already provide ' +
-    'the same family-agnostic durable verification substrate used above for ' +
-    'procurement/om/milcon. RDT&E is blocked not by a missing durable table ' +
-    'but by scripts/build-rdte-cycle.ts remaining a monolithic ' +
-    'extract -> verify -> reconcile -> certify in-memory pipeline: it ' +
-    'hardcodes persistVerificationAudit: false when constructing the router, ' +
-    'so no BudgetExtractionCandidateV1/BudgetVerificationRunV1 row is ever ' +
-    'written for RDT&E documents to reload from, and the raw per-cell ' +
-    'R2PeTotalCell[] / R2aProjectFundingValue[] inputs reconcileR2aProjectColumn ' +
-    'needs only ever exist in that single process\u2019s memory. Governed ' +
-    'fix: split build-rdte-cycle.ts into the same durable three-stage shape ' +
-    'already proven for non-RDT&E (extract, then verify with ' +
-    'persistVerificationAudit: true, then reload the accepted persisted ' +
-    'artifact for certification) so a restart-safe materializer can reload ' +
-    'the accepted candidate/run instead of requiring the original process\u2019s ' +
-    'in-memory objects.',
   committee:
     'certifyPhase6CycleV1 requires a full Phase6CycleCertificationInputV1 ' +
     '(document presence, native projections, comparison summaries, binding ' +
@@ -157,6 +130,8 @@ export interface MaterializationCandidateArtifactRefV1 {
   readonly status: 'VERIFICATION_PASSED' | 'REVIEW_ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED';
   readonly manifestContentSha256: string;
   readonly acceptedAssertionIds: readonly string[];
+  readonly rejectedAssertionIds?: readonly string[];
+  readonly policySha256?: string;
 }
 
 /**

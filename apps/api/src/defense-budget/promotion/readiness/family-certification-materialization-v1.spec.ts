@@ -383,8 +383,8 @@ describe('materializeNonRdteFamilyCertificationV1', () => {
     expect(isMaterializableNonRdteFamily('alternative_funding')).toBe(false);
   });
 
-  it('MISSING_DURABLE_INPUT_NOTES names the exact gap for rdte and committee, not a generic message', () => {
-    expect(MISSING_DURABLE_INPUT_NOTES.rdte).toContain('R2PeTotalCell');
+  it('MISSING_DURABLE_INPUT_NOTES names the exact gap for committee, and no longer for rdte', () => {
+    expect(MISSING_DURABLE_INPUT_NOTES.rdte).toBeUndefined();
     expect(MISSING_DURABLE_INPUT_NOTES.committee).toContain('Phase6CycleCertificationInputV1');
   });
 
