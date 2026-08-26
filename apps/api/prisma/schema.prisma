@@ -12393,3 +12393,39 @@ model DefenseBudgetReviewResolution {
   @@index([tenantId, resolvedAt(sort: Desc)], map: "dbrr_tenant_idx")
   @@map("defense_budget_review_resolution")
 }
+
+/// Phase 10B-2D -- the smallest governed persistence addition this PR makes.
+///
+/// Phase A audit finding: no durable table stored the governed
+/// `BudgetCycleManifestV1` itself -- only its content hash, on
+/// `budget_extraction_candidate_v1.manifest_content_sha256` and the RDT&E/
+/// non-RDT&E cycle bundles' own `manifestContentSha256` field. Every family
+/// certifier needs the manifest's document inventory (required keys, exhibit
+/// mapping, family completeness requirements) to run, and after a process
+/// restart there was no way to reload it -- only the CLI file path the
+/// original operator happened to pass. This is restart-unsafe by
+/// construction: readiness/materialization running in a fresh process has no
+/// access to that file.
+///
+/// This table stores the manifest verbatim, keyed by the same
+/// `manifestContentSha256` every other durable row already carries, so a
+/// governed manifest becomes reloadable by content hash alone. It is
+/// append-only and content-addressed (a manifest is immutable once filed
+/// under its hash); write-once via `ON CONFLICT DO NOTHING`.
+///
+/// Preserves the existing schema everywhere else: no other table's shape
+/// changed to make this restart-safe, and every existing consumer of
+/// `manifest_content_sha256` continues to write/read that column exactly as
+/// before.
+model DefenseBudgetCycleManifestRegistry {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycleId               String   @map("cycle_id")
+  manifestContentSha256 String   @map("manifest_content_sha256") @db.Char(64)
+  fiscalYear            Int      @map("fiscal_year")
+  manifestDocument      Json     @map("manifest_document_jsonb")
+  registeredAt          DateTime @default(now()) @map("registered_at") @db.Timestamptz(6)
+
+  @@unique([cycleId, manifestContentSha256], map: "dbcmr_cycle_manifest_hash_key")
+  @@index([cycleId, registeredAt(sort: Desc)], map: "dbcmr_cycle_recent_idx")
+  @@map("defense_budget_cycle_manifest_registry")
+}
