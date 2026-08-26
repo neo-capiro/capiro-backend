@@ -377,7 +377,12 @@ export async function materializeNonRdteFamilyCertificationV1(
           });
 
   const pipelineResult = runNonRdteCyclePipeline({
-    cycleIdIdentity: { cycleId: request.cycleId, family } as unknown as import('../../contracts/canonical-json.js').JsonValue,
+    governedCycleId: request.cycleId,
+    cycleIdIdentity: {
+      family,
+      fiscalYear: request.identity.fiscalYear,
+      manifestContentSha256: request.manifest.manifestContentSha256,
+    },
     fiscalYear: request.identity.fiscalYear,
     family,
     manifestContentSha256: request.manifest.manifestContentSha256,

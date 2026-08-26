@@ -59,6 +59,7 @@ function certifiedBundle(artifact: DefenseBudgetExtractionArtifactV1) {
   const withoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
     cycleId: 'negative-control-cycle',
+    bundleId: 'negative-control-bundle',
     fiscalYear: FY,
     manifestContentSha256: MANIFEST_SHA,
     sourceDocuments: [

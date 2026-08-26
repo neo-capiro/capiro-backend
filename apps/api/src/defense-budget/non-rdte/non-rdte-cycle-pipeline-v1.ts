@@ -53,6 +53,7 @@ export interface NonRdteCycleDocumentInput {
 }
 
 export interface NonRdteCyclePipelineInput {
+  governedCycleId: string;
   cycleIdIdentity: JsonValue;
   fiscalYear: number;
   family: 'procurement' | 'om' | 'milcon';
@@ -198,6 +199,7 @@ export function runNonRdteCyclePipeline(
 
   /* Certify. */
   const certifyInput: NonRdteCycleCertifyInput = {
+    governedCycleId: input.governedCycleId,
     cycleIdIdentity: input.cycleIdIdentity,
     fiscalYear: input.fiscalYear,
     family: input.family,

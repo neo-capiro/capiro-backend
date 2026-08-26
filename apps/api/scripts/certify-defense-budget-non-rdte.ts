@@ -268,10 +268,11 @@ function main(): void {
   // accepts no caller-provided review override; governed acceptance belongs to
   // a future authenticated promotion service.
   const pipeline = runNonRdteCyclePipeline({
+    governedCycleId: loaded.manifest.cycleId,
     cycleIdIdentity: {
-      cycleId: loaded.manifest.cycleId,
-      manifestContentSha256: loaded.contentSha256,
       family,
+      fiscalYear: loaded.manifest.fiscalYear,
+      manifestContentSha256: loaded.contentSha256,
     },
     fiscalYear: loaded.manifest.fiscalYear,
     family,

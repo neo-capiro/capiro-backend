@@ -377,6 +377,7 @@ export function planRdteCanonicalProjection(
     schemaVersion: 'rdte_canonical_projection_plan_v1' as const,
     cycleId: bundle.cycleId,
     cycleBundleContentSha256: bundle.contentSha256,
+    cycleBundleId: bundle.bundleId,
     cycleCertification: 'CERTIFIED_RDTE_READY_FOR_PROJECTION' as const,
     fiscalYear: bundle.fiscalYear,
     positionCycle: `pb_fy${bundle.fiscalYear}`,

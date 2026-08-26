@@ -12,6 +12,8 @@ import {
   goldenCloseoutVerifications,
 } from './rdte-golden-closeout-v1.js';
 import { GOLDEN_CYCLE_FY, GOLDEN_PE } from './rdte-golden-cycle-v1.js';
+import { buildProjectionPlanRecordV1 } from '../../projection-plan/projection-plan-record-v1.js';
+import { rdteCycleBundleId } from '../rdte-cycle-bundle-v1.js';
 
 const MANIFEST_SHA = sha256Hex('golden-phase4-closeout-manifest');
 
@@ -25,6 +27,8 @@ function buildGolden(documents = goldenCloseoutDocuments()): RdteCycleArtifactBu
 }
 
 function finalizeGolden(input?: {
+  governedCycleId?: string;
+  cycleIdIdentity?: { family: 'rdte'; fiscalYear: number; manifestContentSha256: string };
   documents?: RdteCycleDocumentInputV1[];
   verificationOverride?: Parameters<typeof goldenCloseoutVerifications>[0]['override'];
   mutateVerifications?: (
@@ -39,7 +43,12 @@ function finalizeGolden(input?: {
   });
   if (input?.mutateVerifications) verifications = input.mutateVerifications(verifications);
   return finalizeRdteCycle({
-    cycleIdIdentity: { cycle: 'golden', fy: GOLDEN_CYCLE_FY },
+    governedCycleId: input?.governedCycleId ?? 'cycle-fy2027-authorization',
+    cycleIdIdentity: input?.cycleIdIdentity ?? {
+      family: 'rdte',
+      fiscalYear: GOLDEN_CYCLE_FY,
+      manifestContentSha256: MANIFEST_SHA,
+    },
     build,
     verifications,
   });
@@ -135,6 +144,46 @@ describe('Phase 4 exact RDT&E cycle pipeline', () => {
     expect(reverse.artifacts.map((value) => value.artifact.artifactId)).toEqual(
       forward.artifacts.map((value) => value.artifact.artifactId),
     );
+  });
+
+  it('separates governed cycle identity from deterministic bundle content identity', () => {
+    const first = finalizeGolden();
+    const repeated = finalizeGolden();
+    const changedContent = finalizeGolden({
+      verificationOverride: {
+        golden_r3: { phase2Decision: 'REVIEW', status: 'REVIEW_ACCEPTED' },
+      },
+    });
+    const differentGovernedCycle = finalizeGolden({
+      governedCycleId: 'cycle-fy2027-appropriation',
+    });
+    const record = (result: typeof first) =>
+      buildProjectionPlanRecordV1({
+        family: 'rdte',
+        producerVersion: 'identity-invariant-test',
+        certificationId: result.bundle.bundleId,
+        certificationSha256: result.bundle.contentSha256,
+        planDocument: result.projectionPlan,
+      });
+
+    expect(first.bundle.bundleId).toBe(repeated.bundle.bundleId);
+    const identity = {
+      family: 'rdte',
+      fiscalYear: GOLDEN_CYCLE_FY,
+      manifestContentSha256: MANIFEST_SHA,
+    };
+    expect(rdteCycleBundleId(identity)).toBe(rdteCycleBundleId(identity));
+    expect(record(first).projectionPlanId).toBe(record(repeated).projectionPlanId);
+    expect(changedContent.bundle.bundleId).toBe(first.bundle.bundleId);
+    expect(changedContent.bundle.contentSha256).not.toBe(first.bundle.contentSha256);
+    expect(record(changedContent).projectionPlanId).not.toBe(record(first).projectionPlanId);
+    expect(rdteCycleBundleId({ ...identity, fiscalYear: GOLDEN_CYCLE_FY + 1 })).not.toBe(
+      first.bundle.bundleId,
+    );
+    expect(differentGovernedCycle.bundle.bundleId).toBe(first.bundle.bundleId);
+    expect(differentGovernedCycle.bundle.cycleId).toBe('cycle-fy2027-appropriation');
+    expect(record(differentGovernedCycle).cycleId).toBe('cycle-fy2027-appropriation');
+    expect(record(differentGovernedCycle).projectionPlanId).not.toBe(record(first).projectionPlanId);
   });
 
   it('reports a missing required manifest document as incomplete', () => {

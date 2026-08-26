@@ -6,16 +6,9 @@
  * SQL boundary is table-routed in memory, while artifact bytes are real
  * temporary files.
  *
- * Deliberate narrowed boundary: this proof stops after the real
- * MaterializingFamilyReconciliationCertificationV1 has invoked the real
- * RDT&E/non-RDT&E materializer and the real PrismaProjectionPlanRepositoryV1
- * has inserted and loadVerified() has re-verified the persisted record. It
- * does not assert awaiting_authorization because the pre-existing producers
- * derive record.cycleId through rdteCycleBundleId/nonRdteCycleBundleId (for
- * example `non_rdte_cycle_<sha256>`), while readiness and Phase 7 use the
- * governed corpus cycle id (for example `cycle-fy2027-authorization`). The
- * real eligibility-bound loader correctly refuses that structural mismatch.
- * Fixing that separate production cycle-identity gap is outside Phase 10B-3.
+ * The former producer/readiness boundary mismatch is fixed by separating the
+ * governed `cycleId` from the content-addressed `bundleId`; both families now
+ * traverse the real Phase 7 eligibility and deterministic planning boundary.
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -41,6 +34,11 @@ import { MaterializingFamilyReconciliationCertificationV1 } from './promotion/re
 import { PrismaCycleManifestRegistryV1 } from './promotion/readiness/prisma-cycle-manifest-registry-v1.js';
 import { PrismaMaterializationArtifactSourceV1 } from './promotion/readiness/prisma-materialization-artifact-source-v1.js';
 import { PrismaProjectionPlanRepositoryV1 } from './projection-plan/projection-plan-repository-prisma-v1.js';
+import { evaluateAndAdvanceCycleFamilyReadinessV1 } from './promotion/readiness/cycle-family-readiness-orchestrator-v1.js';
+import { PrismaPromotionEligibilityReadRepositoryV1 } from './promotion/promotion-eligibility-read-repository-prisma-v1.js';
+import { PrismaPromotionAuditSinkV1 } from './promotion/promotion-eligibility-service-v1.js';
+import { PrismaPromotionPlanInputLoaderV1 } from './promotion/readiness/prisma-promotion-plan-input-loader-v1.js';
+import { PrismaPromotionPlanPersistenceV1 } from './promotion/readiness/prisma-promotion-plan-persistence-v1.js';
 
 const SHA = (character: string) => character.repeat(64);
 const CYCLE = 'cycle-fy2027-authorization';
@@ -305,6 +303,11 @@ function realMaterializationChain(prisma: SharedReadinessPrisma) {
       new PrismaProjectionPlanRepositoryV1(prisma),
       'real-integration@1',
     ),
+    eligibilityRepository: new PrismaPromotionEligibilityReadRepositoryV1(prisma),
+    eligibilityAudit: new PrismaPromotionAuditSinkV1(prisma.defenseBudgetPromotionAudit),
+    planInputs: new PrismaPromotionPlanInputLoaderV1(prisma, 'defense_budget', 'test'),
+    planPersistence: new PrismaPromotionPlanPersistenceV1(prisma),
+    now: () => new Date('2027-06-03T00:00:00Z'),
   };
 }
 
@@ -372,7 +375,7 @@ describe('real ingestion readiness integration', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('RDT&E materializes and re-verifies the real persisted projection plan', async () => {
+  it('RDT&E reaches awaiting_authorization through the real persisted projection plan', async () => {
     const prisma = new SharedReadinessPrisma();
     prisma.expectedSourceFamily = 'pb_r1';
     const identity: CycleFamilyReadinessIdentityV1 = {
@@ -469,10 +472,11 @@ describe('real ingestion readiness integration', () => {
       );
     }
     const diagnostic = finalizeRdteCycle({
+      governedCycleId: CYCLE,
       cycleIdIdentity: {
-        cycleId: CYCLE,
-        manifestContentSha256: registered.manifestContentSha256,
         family: 'rdte',
+        fiscalYear: manifest.fiscalYear,
+        manifestContentSha256: registered.manifestContentSha256,
       },
       build: buildRdteCycleArtifactsFromPersistedArtifacts({
         fiscalYear: 2027,
@@ -487,18 +491,16 @@ describe('real ingestion readiness integration', () => {
         `RDT&E findings: ${JSON.stringify(diagnostic.bundle.blockingFindings)} totals=${JSON.stringify(persistedDocuments.flatMap((value) => reconstructR2PeTotalCellsFromArtifact(value.artifact)))} values=${JSON.stringify(persistedDocuments.flatMap((value) => reconstructR2aProjectFundingValuesFromArtifact(value.artifact)))}`,
       );
     const chain = realMaterializationChain(prisma);
-    const corpus = await chain.corpusLoader.loadCorpus(identity);
-    const result = await chain.reconciliationCertification.reconcileAndCertify(identity, corpus);
-    if (!result.certified) throw new Error(`RDT&E materialization: ${JSON.stringify(result)}`);
-    expect(result).toMatchObject({
-      certified: true,
-      certificationStatus: 'CERTIFIED_READY_FOR_PROJECTION',
+    const result = await evaluateAndAdvanceCycleFamilyReadinessV1(identity, chain, {
+      mode: 'new_cycle',
+      environment: 'test',
     });
-    expect(result.certificationContentSha256).toBe(prisma.projectionPlans[0]?.certificationSha256);
+    expect(result.outcome).toBe('awaiting_authorization');
+    expect(prisma.projectionPlans[0]?.cycleId).toBe(CYCLE);
     expect(prisma.projectionPlans[0]?.family).toBe('rdte');
   });
 
-  it('O&M composes real assertions, materializes, and re-verifies the persisted projection plan', async () => {
+  it('O&M reaches awaiting_authorization through the real persisted projection plan', async () => {
     const prisma = new SharedReadinessPrisma();
     const identity: CycleFamilyReadinessIdentityV1 = {
       fiscalYear: 2027,
@@ -523,13 +525,12 @@ describe('real ingestion readiness integration', () => {
       });
     }
     const chain = realMaterializationChain(prisma);
-    const corpus = await chain.corpusLoader.loadCorpus(identity);
-    const result = await chain.reconciliationCertification.reconcileAndCertify(identity, corpus);
-    expect(result).toMatchObject({
-      certified: true,
-      certificationStatus: 'CERTIFIED_READY_FOR_PROJECTION',
+    const result = await evaluateAndAdvanceCycleFamilyReadinessV1(identity, chain, {
+      mode: 'new_cycle',
+      environment: 'test',
     });
-    expect(result.certificationContentSha256).toBe(prisma.projectionPlans[0]?.certificationSha256);
+    expect(result.outcome).toBe('awaiting_authorization');
+    expect(prisma.projectionPlans[0]?.cycleId).toBe(CYCLE);
     expect(prisma.projectionPlans[0]?.family).toBe('om');
   });
 });

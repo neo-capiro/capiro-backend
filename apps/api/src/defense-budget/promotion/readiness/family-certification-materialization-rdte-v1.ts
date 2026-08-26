@@ -64,7 +64,12 @@ export async function materializeRdteFamilyCertificationV1(
     }));
   }
   const result = finalizeRdteCycle({
-    cycleIdIdentity: { cycleId: request.cycleId, manifestContentSha256: request.manifest.manifestContentSha256, family: 'rdte' },
+    governedCycleId: request.cycleId,
+    cycleIdIdentity: {
+      family: 'rdte',
+      fiscalYear: request.identity.fiscalYear,
+      manifestContentSha256: request.manifest.manifestContentSha256,
+    },
     build: buildRdteCycleArtifactsFromPersistedArtifacts({
       fiscalYear: request.identity.fiscalYear,
       manifestContentSha256: request.manifest.manifestContentSha256,

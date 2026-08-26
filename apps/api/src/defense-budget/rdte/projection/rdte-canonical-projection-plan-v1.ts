@@ -207,6 +207,7 @@ const planBaseShape = {
   schemaVersion: z.literal(RDTE_PROJECTION_PLAN_SCHEMA_VERSION),
   cycleId: nonBlank,
   cycleBundleContentSha256: sha256Schema,
+  cycleBundleId: nonBlank,
   cycleCertification: z.literal('CERTIFIED_RDTE_READY_FOR_PROJECTION'),
   fiscalYear,
   positionCycle: nonBlank,

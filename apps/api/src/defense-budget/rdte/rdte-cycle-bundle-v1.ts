@@ -211,6 +211,12 @@ export const rdteCycleBundleV1Schema = z
   .object({
     schemaVersion: z.literal(RDTE_CYCLE_BUNDLE_SCHEMA_VERSION),
     cycleId: nonBlank,
+    /**
+     * Stable logical identity over { family, fiscalYear, manifestContentSha256 }.
+     * The same logical subject keeps this ID across certified-content or
+     * governed-cycle changes; contentSha256 proves the exact bundle content.
+     */
+    bundleId: nonBlank,
     fiscalYear,
     manifestContentSha256: sha256Schema,
     sourceDocuments: z.array(rdteCycleSourceDocumentV1Schema),
@@ -227,6 +233,7 @@ export const rdteCycleBundleV1Schema = z
   .strict();
 export type RdteCycleBundleV1 = z.infer<typeof rdteCycleBundleV1Schema>;
 
+/** Stable logical bundle ID; contentSha256 is the content-addressed proof. */
 export function rdteCycleBundleId(identity: JsonValue): string {
   return `rdte_cycle_${sha256CanonicalJson(identity)}`;
 }

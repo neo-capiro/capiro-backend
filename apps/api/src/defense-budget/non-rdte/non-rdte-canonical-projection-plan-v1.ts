@@ -165,6 +165,7 @@ export const nonRdteCanonicalProjectionPlanV1Schema = z
     schemaVersion: z.literal(NON_RDTE_PROJECTION_PLAN_SCHEMA_VERSION),
     cycleId: nonBlank,
     cycleBundleContentSha256: sha256Schema,
+    cycleBundleId: nonBlank,
     cycleCertification: z.literal('CERTIFIED_NON_RDTE_READY_FOR_PROJECTION'),
     fiscalYear,
     family: nonRdteFamilyProjectionV1Schema,

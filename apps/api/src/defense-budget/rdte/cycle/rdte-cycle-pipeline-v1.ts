@@ -119,6 +119,7 @@ export interface RdteCycleArtifactBuildResult {
 }
 
 export interface RdteCycleFinalizeInput {
+  governedCycleId: string;
   cycleIdIdentity: JsonValue;
   build: RdteCycleArtifactBuildResult;
   verifications: readonly RdteCycleVerificationRefV1[];
@@ -135,6 +136,7 @@ export interface RdteCyclePipelineResult {
 }
 
 export interface RdteCyclePipelineInput extends RdteCycleArtifactBuildInput {
+  governedCycleId: string;
   cycleIdIdentity: JsonValue;
   verifications: readonly RdteCycleVerificationRefV1[];
   canonicalRows?: RdteCanonicalRowSnapshotV1;
@@ -699,6 +701,7 @@ export function finalizeRdteCycle(input: RdteCycleFinalizeInput): RdteCyclePipel
     .filter((value) => value.required)
     .map((value) => value.documentKey);
   const common = {
+    governedCycleId: input.governedCycleId,
     cycleIdIdentity: input.cycleIdIdentity,
     fiscalYear: input.build.fiscalYear,
     manifestContentSha256: input.build.manifestContentSha256,
@@ -752,6 +755,7 @@ export function finalizeRdteCycle(input: RdteCycleFinalizeInput): RdteCyclePipel
 
 export function runRdteCyclePipeline(input: RdteCyclePipelineInput): RdteCyclePipelineResult {
   return finalizeRdteCycle({
+    governedCycleId: input.governedCycleId,
     cycleIdIdentity: input.cycleIdIdentity,
     build: buildRdteCycleArtifacts(input),
     verifications: input.verifications,

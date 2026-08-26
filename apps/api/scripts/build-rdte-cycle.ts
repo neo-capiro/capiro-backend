@@ -692,11 +692,12 @@ async function main(): Promise<void> {
       artifactStore: sharedArtifactStore,
     });
     const result = finalizeRdteCycle({
-      cycleIdIdentity: {
-        cycleId: executionManifest.manifest.cycleId,
-        fiscalYear: executionManifest.manifest.fiscalYear,
-        manifestContentSha256: executionManifest.contentSha256,
-      },
+      governedCycleId: executionManifest.manifest.cycleId,
+    cycleIdIdentity: {
+      family: 'rdte',
+      fiscalYear: executionManifest.manifest.fiscalYear,
+      manifestContentSha256: executionManifest.contentSha256,
+    },
       build,
       verifications,
     });

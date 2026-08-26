@@ -128,7 +128,12 @@ function verificationRefs(
 
 function certify(overrides: Partial<Parameters<typeof certifyRdteCycle>[0]> = {}) {
   return certifyRdteCycle({
-    cycleIdIdentity: { fiscalYear: 2027, cycle: 'pb' },
+    governedCycleId: 'cycle-fy2027-authorization',
+    cycleIdIdentity: {
+      family: 'rdte',
+      fiscalYear: 2027,
+      manifestContentSha256: MANIFEST_SHA,
+    },
     fiscalYear: 2027,
     manifestContentSha256: MANIFEST_SHA,
     requiredManifestDocumentKeys: ['r1', 'r2'],

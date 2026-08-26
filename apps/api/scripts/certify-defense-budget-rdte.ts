@@ -37,7 +37,12 @@ function main(): void {
     documents.push({ document, artifact: acceptedArtifact(loadArtifact(entry), result, ref) });
   }
   const pipeline = finalizeRdteCycle({
-    cycleIdIdentity: { cycleId: loaded.manifest.cycleId, manifestContentSha256: loaded.contentSha256, family: 'rdte' },
+    governedCycleId: loaded.manifest.cycleId,
+    cycleIdIdentity: {
+      family: 'rdte',
+      fiscalYear: loaded.manifest.fiscalYear,
+      manifestContentSha256: loaded.contentSha256,
+    },
     build: buildRdteCycleArtifactsFromPersistedArtifacts({ fiscalYear: loaded.manifest.fiscalYear, manifestContentSha256: loaded.contentSha256, manifestDocuments: loaded.manifest.documents.filter((value) => value.family === 'rdte'), documents }),
     verifications: refs,
   });

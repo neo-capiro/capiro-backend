@@ -483,6 +483,7 @@ export function planNonRdteCanonicalProjection(
     schemaVersion: 'non_rdte_canonical_projection_plan_v1' as const,
     cycleId: bundle.cycleId,
     cycleBundleContentSha256: bundle.contentSha256,
+    cycleBundleId: bundle.bundleId,
     cycleCertification: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' as const,
     fiscalYear: bundle.fiscalYear,
     family: bundle.family,

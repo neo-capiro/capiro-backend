@@ -54,6 +54,7 @@ function makeBundle(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     schemaVersion: RDTE_CYCLE_BUNDLE_SCHEMA_VERSION,
     cycleId: 'pb_fy2027_rdte',
+    bundleId: 'pb_fy2027_rdte_bundle',
     fiscalYear: 2027,
     manifestContentSha256: MANIFEST_SHA,
     sourceDocuments: [

@@ -199,6 +199,7 @@ function buildOmProducerPlanRecord(): DefenseBudgetProjectionPlanRecordV1 {
     schemaVersion: NON_RDTE_PROJECTION_PLAN_SCHEMA_VERSION,
     cycleId: CYCLE_ID,
     cycleBundleContentSha256: SHA('1'),
+    cycleBundleId: 'non_rdte_cycle_rehearsal',
     cycleCertification: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' as const,
     fiscalYear: FISCAL_YEAR,
     family: 'om' as const,
