@@ -39,6 +39,27 @@ describe('vNext Meri + app root stay off legacy UI at runtime', () => {
     expect(source).not.toContain('attachmentKindIcon(');
   });
 
+  test('vNext Meri uses governed Institutional Memory, never the legacy Clio memory adapter', () => {
+    const tab = read('vnext/meri/MeriMemoryTab.tsx');
+    const callout = read('vnext/meri/MeriMemoryCallout.tsx');
+    const rail = read('vnext/meri/VNextMeriContextRail.tsx');
+    const message = read('vnext/meri/VNextMeriMessage.tsx');
+    for (const source of [tab, callout, rail, message]) {
+      expect(source).not.toContain('/api/clio/memory');
+      expect(source).not.toContain('MeriLearnedMemory');
+      expect(source).not.toContain('controller.learnedMemories');
+    }
+    expect(tab).toContain('/api/memory/review/candidates');
+    expect(tab).toContain('/api/memory/proposals');
+    expect(tab).toContain('MeriContextPacket');
+
+    const workspace = read('vnext/meri/VNextMeriWorkspace.tsx');
+    const controller = read('components/chat/useMeriChatController.ts');
+    expect(workspace).toContain('legacyMemoryEnabled: false');
+    expect(controller).toContain('if (!legacyMemoryEnabled) return');
+    expect(controller).toContain('if (!legacyMemoryEnabled || isStreaming || !sessionId) return');
+  });
+
   test('the vNext message renders the re-skinned analysis card and feedback dialog', () => {
     const source = read('vnext/meri/VNextMeriMessage.tsx');
     expect(source).not.toContain('components/chat/AnalysisChartCard.js');

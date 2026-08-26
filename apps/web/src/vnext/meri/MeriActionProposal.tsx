@@ -14,7 +14,7 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
  * governed action proposals).
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
 export type MeriActionProposalState =
   | 'needs'
@@ -106,20 +106,20 @@ const LIFE: Record<
   { status: string; icon: MeriIconName; headBg: string; ring: string; fg: string }
 > = {
   needs: { status: 'NEEDS YOUR APPROVAL', icon: 'Shield01', headBg: '#FFFAEB', ring: '#FEDF89', fg: '#B54708' },
-  approved: { status: 'APPROVED · NOT YET EXECUTED', icon: 'CheckCircle', headBg: '#F2F0EB', ring: '#E0DCD4', fg: '#344054' },
-  executing: { status: 'EXECUTING', icon: 'Loading01', headBg: '#F2F0EB', ring: '#E0DCD4', fg: '#101828' },
+  approved: { status: 'APPROVED · NOT YET EXECUTED', icon: 'CheckCircle', headBg: '#F2F4F7', ring: '#D0D5DD', fg: '#344054' },
+  executing: { status: 'EXECUTING', icon: 'Loading01', headBg: '#F2F4F7', ring: '#D0D5DD', fg: '#101828' },
   succeeded: { status: 'SUCCEEDED', icon: 'CheckCircle', headBg: '#ECFDF3', ring: '#ABEFC6', fg: '#027A48' },
   retry: { status: 'FAILED · RETRY AVAILABLE', icon: 'RefreshCcw02', headBg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
   terminal: { status: 'FAILED · NOT RETRYABLE', icon: 'XCircle', headBg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
   unknown: { status: 'OUTCOME UNKNOWN', icon: 'HelpCircle', headBg: '#FFFAEB', ring: '#FEDF89', fg: '#B54708' },
   blocked: { status: 'BLOCKED BY POLICY', icon: 'Lock01', headBg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
-  dismissed: { status: 'DISMISSED', icon: 'SlashCircle01', headBg: '#FAF9F6', ring: '#E8E5DF', fg: '#667085' },
-  expired: { status: 'EXPIRED', icon: 'Hourglass03', headBg: '#FAF9F6', ring: '#E8E5DF', fg: '#667085' },
+  dismissed: { status: 'DISMISSED', icon: 'SlashCircle01', headBg: '#F9FAFB', ring: '#EAECF0', fg: '#667085' },
+  expired: { status: 'EXPIRED', icon: 'Hourglass03', headBg: '#F9FAFB', ring: '#EAECF0', fg: '#667085' },
 };
 
 const FLAG: Record<MeriActionFlagTone, { bg: string; ring: string; fg: string; dot: string }> = {
   ext: { bg: '#FFFAEB', ring: '#FEDF89', fg: '#B54708', dot: '#F79009' },
-  int: { bg: '#FAF9F6', ring: '#E8E5DF', fg: '#344054', dot: '#667085' },
+  int: { bg: '#F9FAFB', ring: '#EAECF0', fg: '#344054', dot: '#667085' },
   rev: { bg: '#ECFDF3', ring: '#ABEFC6', fg: '#027A48', dot: '#12B76A' },
   irrev: { bg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318', dot: '#F04438' },
 };
@@ -131,7 +131,7 @@ const BTN: Record<MeriActionButtonKind, { bg: string; shadow?: string; border?: 
     fg: '#ffffff',
     pad: '15px',
   },
-  ghost: { bg: '#ffffff', border: '1px solid #E0DCD4', fg: '#344054', pad: '13px' },
+  ghost: { bg: '#ffffff', border: '1px solid #D0D5DD', fg: '#344054', pad: '13px' },
   danger: { bg: '#ffffff', border: '1px solid #FECDCA', fg: '#B42318', pad: '13px' },
 };
 
@@ -218,10 +218,10 @@ export function MeriActionProposal({
             display: 'grid',
             gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
             gap: 1,
-            background: '#E8E5DF',
+            background: '#EAECF0',
             borderRadius: 9,
             overflow: 'hidden',
-            border: '1px solid #E8E5DF',
+            border: '1px solid #EAECF0',
           }}
         >
           {proposal.fields.map((field) => (
@@ -259,8 +259,8 @@ export function MeriActionProposal({
               marginTop: 12,
               padding: '13px 14px',
               borderRadius: 9,
-              background: '#FAF9F6',
-              border: '1px solid #E8E5DF',
+              background: '#F9FAFB',
+              border: '1px solid #EAECF0',
               borderLeft: '2px solid #101828',
             }}
           >
@@ -354,7 +354,7 @@ export function MeriActionProposal({
             gap: 9,
             marginTop: 15,
             paddingTop: 14,
-            borderTop: '1px solid #F2F0EB',
+            borderTop: '1px solid #F2F4F7',
           }}
         >
           <button
@@ -407,8 +407,8 @@ export function MeriActionProposal({
               marginTop: 13,
               padding: '13px 14px',
               borderRadius: 9,
-              background: '#FAF9F6',
-              border: '1px solid #E8E5DF',
+              background: '#F9FAFB',
+              border: '1px solid #EAECF0',
             }}
           >
             <div

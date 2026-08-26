@@ -15,7 +15,7 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
  * ever renders as a missing or a partial warning, never a conflict.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
 interface Tone {
   label: string;

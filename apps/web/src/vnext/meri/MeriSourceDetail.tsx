@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { MeriCitation } from '../../components/chat/chat-store.js';
-import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
 
 /**
@@ -13,12 +12,12 @@ import { MeriIcon } from './meri-icons.js';
  * Three prototype fields have no real backing and are dropped rather than
  * fabricated: the "why it matters" narrative (no such field exists — the
  * excerpt below is the real thing citation data can say), a numeric
- * client-fit match percentage, and a second hardcoded evidence citation.
- * "Include in active context" stays local-only UI state — there is no
- * thread-context-membership mutation endpoint to call.
+ * client-fit match percentage, a second hardcoded evidence citation, and an
+ * local context-membership switch. The Context Packet is read-only here;
+ * there is no thread-context-membership mutation endpoint to call.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
 function providerLabel(citation: MeriCitation): string {
   return citation.tool.replace(/_/g, ' ').toUpperCase();
@@ -37,9 +36,7 @@ interface MeriSourceDetailProps {
 }
 
 export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose }: MeriSourceDetailProps) {
-  const toast = useCapiroToast();
   const [index, setIndex] = useState(initialIndex);
-  const [inContext, setInContext] = useState(true);
 
   const count = citations.length;
   const clamped = count > 0 ? ((index % count) + count) % count : 0;
@@ -71,7 +68,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
           BACK TO CONTEXT
         </button>
       </div>
-      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #E8E5DF' }}>
+      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
@@ -86,7 +83,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               width: 26,
               height: 26,
               borderRadius: 7,
-              border: '1px solid #E8E5DF',
+              border: '1px solid #EAECF0',
               color: '#667085',
               opacity: count <= 1 ? 0.5 : 1,
             }}
@@ -106,7 +103,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               width: 26,
               height: 26,
               borderRadius: 7,
-              border: '1px solid #E8E5DF',
+              border: '1px solid #EAECF0',
               color: '#667085',
               opacity: count <= 1 ? 0.5 : 1,
             }}
@@ -126,25 +123,6 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
           >
             SOURCE {clamped + 1} OF {count}
           </span>
-          {inContext ? (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                height: 22,
-                padding: '0 8px',
-                borderRadius: 6,
-                background: '#ECFDF3',
-                border: '1px solid #ABEFC6',
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#12B76A' }} />
-              <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#027A48' }}>
-                IN ACTIVE CONTEXT
-              </span>
-            </span>
-          ) : null}
         </div>
         <div style={{ marginTop: 12, fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.08em', color: '#667085' }}>
           {providerLabel(citation)}
@@ -160,7 +138,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               height: 24,
               padding: '0 9px',
               borderRadius: 6,
-              background: '#F2F0EB',
+              background: '#F2F4F7',
               fontFamily: MONO,
               fontSize: 9,
               fontWeight: 500,
@@ -182,7 +160,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
                 height: 24,
                 padding: '0 9px',
                 borderRadius: 6,
-                border: '1px solid #E0DCD4',
+                border: '1px solid #D0D5DD',
                 textDecoration: 'none',
               }}
             >
@@ -195,7 +173,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
         </div>
       </div>
 
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E5DF' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
           EXCERPT
         </div>
@@ -227,54 +205,6 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
         </div>
         <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: '16px', color: '#98A2B3' }}>
           Meri never edits source content.
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 11,
-            marginTop: 16,
-            paddingTop: 14,
-            borderTop: '1px solid #E8E5DF',
-          }}
-        >
-          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500, color: '#344054' }}>
-            Include in active context
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={inContext}
-            aria-label="Include in active context"
-            onClick={() => {
-              setInContext((value) => !value);
-              toast.success(inContext ? 'Removed for this session.' : 'Included for this session.');
-            }}
-            style={{
-              position: 'relative',
-              width: 38,
-              height: 22,
-              borderRadius: 9999,
-              border: inContext ? '1px solid transparent' : '1px solid #E0DCD4',
-              background: inContext ? 'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))' : '#F2F0EB',
-              boxShadow: inContext ? 'inset 0 1px 0 rgba(255,255,255,.14)' : undefined,
-              cursor: 'pointer',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute',
-                top: 1,
-                left: inContext ? 17 : 1,
-                width: 18,
-                height: 18,
-                borderRadius: 9999,
-                background: '#ffffff',
-                boxShadow: '0 1px 2px rgba(16,24,40,.2)',
-                transition: 'left 140ms ease',
-              }}
-            />
-          </button>
         </div>
       </div>
     </div>

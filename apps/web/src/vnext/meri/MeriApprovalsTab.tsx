@@ -16,7 +16,9 @@ import { MeriActionConfirm, MeriBulkActionConfirm } from './MeriActionConfirm.js
  * local confirm-target state, opened on Approve/Retry, closed on cancel or
  * confirm.
  *
- * Divergence ruling (turn-inspector specific): once an action leaves
+ * The backend returns these proposals at conversation scope. The inspector
+ * therefore labels them as conversation approvals rather than inventing a
+ * turn association. Once an action leaves
  * `proposed`/`failed_retryable`, it is WITHDRAWN from the UI, not disabled —
  * canApprove/canDismiss below carries that forward unchanged from the
  * original inline card.
@@ -66,7 +68,7 @@ export function MeriApprovalsTab({ approvals, approvingProposalId, onApprove, on
   if (approvals.length === 0) {
     return (
       <div className="vnext-meri__evidence-tab-body">
-        <MeriPanelState tone="empty">Nothing is awaiting your approval for this turn.</MeriPanelState>
+        <MeriPanelState tone="empty">Nothing is awaiting your approval for this conversation.</MeriPanelState>
       </div>
     );
   }

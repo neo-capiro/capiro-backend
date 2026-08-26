@@ -104,8 +104,9 @@ function errorMessage(error: unknown, fallback: string): string {
 /**
  * vNext route adapter for the existing MeriV3 conversation runtime.
  *
- * The canonical controller remains untouched. This adapter owns durable URL
- * semantics and one deliberate lifecycle difference: `/meri/new` stays
+ * The shared controller still owns the chat runtime. This adapter owns durable
+ * URL semantics, disables the legacy memory projection in favor of governed
+ * Institutional Memory, and keeps one deliberate lifecycle difference: `/meri/new` stays
  * record-free until the first user Send. The existing controller still owns
  * streaming, stop/abort, attachments, research, actions and memory.
  */
@@ -118,7 +119,10 @@ export function VNextMeriWorkspace() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
-  const controller = useMeriChatController({ selectedClientName: null });
+  const controller = useMeriChatController({
+    selectedClientName: null,
+    legacyMemoryEnabled: false,
+  });
   const { activeConversationId, conversations } = useChatStore();
   const requestedThreadId = threadIdFromPath(location.pathname);
   const isNewRoute = location.pathname === '/meri/new';

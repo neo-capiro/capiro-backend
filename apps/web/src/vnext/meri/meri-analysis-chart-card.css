@@ -3,7 +3,7 @@
    analysis-chart-card.css / --analysis-* namespace must not ship into the
    os surface's runtime graph). Visual language follows the v4 Meri card
    convention (MeriAnalysisCard fixture, screen C): white surface with the
-   hairline chip ring, IBM Plex Mono eyebrows/metadata, INSIGHT strip,
+   hairline chip ring, Inter eyebrows/metadata, INSIGHT strip,
    DERIVED provenance footer. All selectors scoped under .capiro-vnext-root
    with a meri-acc- prefix so nothing collides with the legacy stylesheet the
    shared bundle still carries for app.capiro.ai. */
@@ -14,7 +14,7 @@
   border-radius: 10px;
   /* Raised data card: stays white on the warmer assistant surface. */
   background: var(--m-white, #ffffff);
-  border: 1px solid var(--meri-border, #E8E5DF);
+  border: 1px solid var(--meri-border, #EAECF0);
   overflow: hidden;
 }
 
@@ -32,7 +32,7 @@
 }
 
 .capiro-vnext-root .meri-acc-eyebrow {
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -68,10 +68,10 @@
   justify-content: center;
   height: 26px;
   padding: 0 10px;
-  border: 1px solid var(--meri-border, #E8E5DF);
+  border: 1px solid var(--meri-border, #EAECF0);
   border-radius: 7px;
   background: var(--meri-surface, #ffffff);
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -80,12 +80,12 @@
 }
 
 .capiro-vnext-root .meri-acc-actions button:hover {
-  background: var(--meri-surface-2, #FAF9F6);
+  background: var(--meri-surface-2, #F9FAFB);
 }
 
 .capiro-vnext-root .meri-acc-actions button.is-active {
-  background: var(--meri-accent-soft, #F2F0EB);
-  border-color: var(--meri-border-strong, #E0DCD4);
+  background: var(--meri-accent-soft, #F2F4F7);
+  border-color: var(--meri-border-strong, #D0D5DD);
   color: var(--meri-ink, #101828);
 }
 
@@ -93,14 +93,14 @@
   margin: 0 16px;
   padding: 11px 13px;
   border-radius: 8px;
-  background: var(--meri-accent-soft, #F2F0EB);
+  background: var(--meri-accent-soft, #F2F4F7);
   font-size: 13px;
   line-height: 20px;
   color: var(--meri-text-secondary, #344054);
 }
 
 .capiro-vnext-root .meri-acc-insight > span:first-child {
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.09em;
@@ -120,10 +120,10 @@
   gap: 7px;
   height: 26px;
   padding: 0 10px;
-  border: 1px solid var(--meri-border, #E8E5DF);
+  border: 1px solid var(--meri-border, #EAECF0);
   border-radius: 7px;
   background: var(--meri-surface, #ffffff);
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.07em;
@@ -132,7 +132,7 @@
 }
 
 .capiro-vnext-root .meri-acc-series-toggles button[aria-pressed='false'] {
-  background: var(--meri-surface-2, #FAF9F6);
+  background: var(--meri-surface-2, #F9FAFB);
   color: var(--meri-text-faint, #98a2b3);
 }
 
@@ -144,7 +144,7 @@
 
 .capiro-vnext-root .meri-acc-fallback-note {
   margin: 12px 16px 0;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -161,7 +161,7 @@
   align-items: center;
   gap: 8px;
   padding: 26px 0 12px;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -172,7 +172,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid var(--meri-border-strong, #E0DCD4);
+  border: 2px solid var(--meri-border-strong, #D0D5DD);
   border-top-color: var(--meri-ink, #101828);
   animation: meri-acc-spin 0.7s linear infinite;
 }
@@ -208,9 +208,9 @@
 
 .capiro-vnext-root .meri-acc-data-table th {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--meri-border, #E8E5DF);
+  border-bottom: 1px solid var(--meri-border, #EAECF0);
   text-align: left;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -221,14 +221,14 @@
 
 .capiro-vnext-root .meri-acc-data-table td {
   padding: 9px 10px;
-  border-bottom: 1px solid var(--meri-accent-soft, #F2F0EB);
+  border-bottom: 1px solid var(--meri-accent-soft, #F2F4F7);
   font-size: 13px;
   color: var(--meri-text-secondary, #344054);
 }
 
 .capiro-vnext-root .meri-acc-data-note {
   padding: 9px 0 2px;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 9.5px;
   letter-spacing: 0.06em;
   color: var(--meri-text-muted, #667085);
@@ -245,7 +245,7 @@
 .capiro-vnext-root .meri-acc-heatmap-corner,
 .capiro-vnext-root .meri-acc-heatmap-column,
 .capiro-vnext-root .meri-acc-heatmap-row {
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -261,8 +261,8 @@
 .capiro-vnext-root .meri-acc-heatmap-cell {
   padding: 8px;
   border-radius: 4px;
-  background: var(--meri-surface-2, #FAF9F6);
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  background: var(--meri-surface-2, #F9FAFB);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 11px;
   text-align: right;
   color: var(--meri-ink, #101828);
@@ -298,7 +298,7 @@
 
 .capiro-vnext-root .meri-acc-timeline small {
   display: block;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -315,7 +315,7 @@
 
 .capiro-vnext-root .meri-acc-timeline li > div > span {
   display: block;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
   letter-spacing: 0.04em;
   color: var(--meri-text-muted, #667085);
@@ -358,7 +358,7 @@
 
 .capiro-vnext-root .meri-acc-pie-legend em {
   font-style: normal;
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 11px;
   color: var(--meri-text-muted, #667085);
 }
@@ -377,9 +377,9 @@
   gap: 8px 14px;
   margin-top: 14px;
   padding: 11px 16px;
-  border-top: 1px solid var(--meri-border, #E8E5DF);
-  background: var(--meri-surface-2, #FAF9F6);
-  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  border-top: 1px solid var(--meri-border, #EAECF0);
+  background: var(--meri-surface-2, #F9FAFB);
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.08em;

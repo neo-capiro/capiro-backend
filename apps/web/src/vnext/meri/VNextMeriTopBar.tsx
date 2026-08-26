@@ -17,10 +17,7 @@ interface VNextMeriTopBarProps {
   onClose: () => void;
 }
 
-/**
- * "What Meri can do" content — handoff §1b. Three cards, product-owned copy.
- * Do not reword and do not turn this into a tour.
- */
+/** "What Meri can do" content, kept within capabilities exposed by the build. */
 const PRO_TIPS = [
   {
     n: '01',
@@ -30,11 +27,11 @@ const PRO_TIPS = [
   },
   {
     n: '02',
-    title: 'Turn a routine into a skill',
-    body: 'Describe a workflow you repeat, in your own words, and Meri can save it as a named skill you can call again. No server configuration belongs in this workspace.',
+    title: 'Run an approved skill',
+    body: 'Invoke a published firm skill by name. Firm administrators create and publish skills in Settings before they become available in this workspace.',
     quote:
-      '"Create a skill called Monday Brief: for each client, list what moved last week, what needs a decision, and the sources."',
-    then: 'THEN JUST SAY: RUN MONDAY BRIEF',
+      '"Run Monday Brief for my active clients and show me anything that needs a decision."',
+    then: 'FIRM SKILLS ARE GOVERNED IN SETTINGS',
   },
   {
     n: '03',

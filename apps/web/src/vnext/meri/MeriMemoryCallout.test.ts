@@ -9,24 +9,25 @@ function readMeri(name: string): string {
 }
 
 describe('MeriMemoryCallout', () => {
-  test('never claims a specific answer used a specific memory — no such linkage exists in the data', () => {
+  test('never claims a specific answer used or created a specific memory', () => {
     const source = readMeri('MeriMemoryCallout.tsx');
-    // The real claim is narrower: a pending candidate exists, not "this
-    // answer used it". Guard against regressing to the unsupported framing.
-    expect(source).not.toMatch(/this answer (used|is based on)/i);
-    expect(source).toContain("state === 'pending_review'");
+    expect(source).not.toMatch(/this answer (used|is based on|created)/i);
+    expect(source).toContain('useMeriGovernedMemoryQueues');
+    expect(source).not.toContain('MeriLearnedMemory');
   });
 
-  test('renders nothing when there is no pending candidate, rather than a generic memory summary', () => {
+  test('renders only when a governed review or owned proposal needs attention', () => {
     const source = readMeri('MeriMemoryCallout.tsx');
-    expect(source).toContain('if (pending.length === 0) return null');
+    expect(source).toContain('reviewCount === 0 && pendingProposalCount === 0');
+    expect(source).toContain('return null');
+    expect(source).toContain('INSTITUTIONAL MEMORY');
   });
 
-  test('is wired to the last settled assistant turn, and opens the real rail Memory tab', () => {
+  test('is wired to the last settled assistant turn and opens the Memory rail', () => {
     const message = readMeri('VNextMeriMessage.tsx');
     expect(message).toContain('isLastAssistant && !messageIsStreaming');
-    expect(message).toContain('controller.learnedMemories');
-    expect(message).toContain('onOpenMemory={onOpenMemory}');
+    expect(message).toContain('<MeriMemoryCallout onOpenMemory={onOpenMemory} />');
+    expect(message).not.toContain('controller.learnedMemories');
 
     const shell = readMeri('VNextMeriShell.tsx');
     expect(shell).toContain("onOpenMemory={() => expandSection('memory')}");

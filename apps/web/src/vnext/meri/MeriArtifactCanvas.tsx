@@ -12,7 +12,7 @@ import { MeriIcon } from './meri-icons.js';
  * rather than fabricating it.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
 const DOC_KINDS: Record<string, { ext: string; label: string }> = {
   word_document: { ext: 'docx', label: 'WORD DOCUMENT' },
@@ -119,7 +119,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
           BACK TO CONTEXT
         </button>
       </div>
-      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #E8E5DF' }}>
+      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.08em', color: '#667085' }}>
           {metaLabel}
         </div>
@@ -137,7 +137,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
               height: 30,
               padding: '0 11px',
               borderRadius: 8,
-              border: '1px solid #E0DCD4',
+              border: '1px solid #D0D5DD',
               background: 'transparent',
               cursor: 'pointer',
             }}
@@ -193,7 +193,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
             padding: '22px 20px',
             borderRadius: 8,
             background: '#ffffff',
-            boxShadow: '0 0 0 1px #E8E5DF, 0px 2px 6px rgba(16,24,40,.06)',
+            boxShadow: '0 0 0 1px #EAECF0, 0px 2px 6px rgba(16,24,40,.06)',
             fontSize: 13,
             lineHeight: '20px',
             color: '#344054',

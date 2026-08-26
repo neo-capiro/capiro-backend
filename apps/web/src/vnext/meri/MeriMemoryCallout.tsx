@@ -1,83 +1,40 @@
-import type { MeriLearnedMemory } from '../../components/chat/MeriMemoryPanel.js';
 import { MeriIcon } from './meri-icons.js';
-
-/**
- * MeriMemoryCallout — inline callout naming a memory candidate awaiting the
- * operator's review.
- *
- * Scope note: nothing in the SSE stream or the message payload links a
- * specific answer to the memory it used, so this cannot say "this answer
- * used memory X" the way the v4 spec's screen-D fixture implies. What is
- * real is `controller.learnedMemories`' pending_review state — a candidate
- * Meri wants to remember but hasn't yet, surfaced here rather than only in
- * the rail's Memory tab, since a pending candidate is exactly the kind of
- * thing worth surfacing where the user is already looking.
- */
-
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+import { useMeriGovernedMemoryQueues } from './MeriMemoryTab.js';
 
 interface MeriMemoryCalloutProps {
-  memories: MeriLearnedMemory[];
   onOpenMemory: () => void;
 }
 
-export function MeriMemoryCallout({ memories, onOpenMemory }: MeriMemoryCalloutProps) {
-  const pending = memories.filter((memory) => memory.state === 'pending_review');
-  if (pending.length === 0) return null;
-  const first = pending[0]!;
+/**
+ * A queue-status callout only. The API does not associate a specific memory
+ * candidate with a specific assistant answer, so this never claims that the
+ * answer used or created a particular memory.
+ */
+export function MeriMemoryCallout({ onOpenMemory }: MeriMemoryCalloutProps) {
+  const { reviewCount, pendingProposalCount, review, proposals } = useMeriGovernedMemoryQueues();
+  if (review.isLoading || proposals.isLoading) return null;
+  if (reviewCount === 0 && pendingProposalCount === 0) return null;
+
+  const title =
+    reviewCount > 0
+      ? reviewCount + ' institutional memory ' + (reviewCount === 1 ? 'change needs' : 'changes need') + ' your review'
+      : pendingProposalCount + ' memory ' + (pendingProposalCount === 1 ? 'proposal is' : 'proposals are') + ' awaiting review';
 
   return (
-    <div
-      style={{
-        margin: '0 18px 16px',
-        padding: '13px 15px',
-        borderRadius: 10,
-        background: '#FAF9F6',
-        border: '1px solid #E8E5DF',
-      }}
+    <button
+      type="button"
+      className="vnext-meri__memory-callout"
+      onClick={onOpenMemory}
+      aria-label="Open institutional memory"
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <MeriIcon name="Lightbulb02" size={14} color="#101828" />
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            fontFamily: MONO,
-            fontSize: 9.5,
-            fontWeight: 500,
-            letterSpacing: '.08em',
-            color: '#667085',
-          }}
-        >
-          {pending.length === 1 ? 'MERI WANTS TO REMEMBER SOMETHING' : `MERI WANTS TO REMEMBER ${pending.length} THINGS`}
-        </span>
-      </div>
-      <div style={{ marginTop: 8, fontSize: 13, lineHeight: '20px', color: '#344054' }}>
-        {first.value}
-        {pending.length > 1 ? ` — and ${pending.length - 1} more.` : ''}
-      </div>
-      <button
-        type="button"
-        onClick={onOpenMemory}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 7,
-          height: 28,
-          marginTop: 10,
-          padding: '0 10px',
-          borderRadius: 7,
-          border: '1px solid #E0DCD4',
-          background: '#ffffff',
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: '#344054',
-          cursor: 'pointer',
-        }}
-      >
-        Review in Memory
-        <MeriIcon name="ChevronRight" size={13} color="#98A2B3" />
-      </button>
-    </div>
+      <span className="vnext-meri__memory-callout-icon">
+        <MeriIcon name="ShieldTick" size={14} />
+      </span>
+      <span className="vnext-meri__memory-callout-copy">
+        <span className="vnext-meri__memory-callout-label">INSTITUTIONAL MEMORY</span>
+        <span className="vnext-meri__memory-callout-value">{title}</span>
+      </span>
+      <MeriIcon name="ChevronRight" size={14} color="#667085" />
+    </button>
   );
 }

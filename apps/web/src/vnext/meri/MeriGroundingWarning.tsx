@@ -10,7 +10,7 @@ import { MeriIcon } from './meri-icons.js';
  * VERIFICATION tab).
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
 export type MeriGroundingKind =
   | 'REVERSED BUDGET DIRECTION'

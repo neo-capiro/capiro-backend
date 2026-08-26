@@ -19,7 +19,6 @@ import { listMeriSavedPrompts } from './meri-vnext-api.js';
  * product. Neither tab may invent fixture cards.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
 
 type StartTab = 'SKILLS' | 'PROMPTS';
 
@@ -86,33 +85,21 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
   };
 
   return (
-    <div style={{ marginTop: 22 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div style={{ marginTop: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span
           style={{
-            fontFamily: MONO,
-            fontSize: 10,
-            fontWeight: 500,
-            letterSpacing: '.1em',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '.07em',
             color: '#667085',
           }}
         >
           START WORK
         </span>
-        <span style={{ flex: 1, height: 1, background: '#E8E5DF' }} />
-        <div
-          role="tablist"
-          aria-label="Start work"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 2,
-            padding: 2,
-            borderRadius: 8,
-            background: '#FAF9F6',
-            border: '1px solid #E8E5DF',
-          }}
-        >
+        <span style={{ flex: 1, height: 1, background: '#F2F4F7' }} />
+        <div role="tablist" aria-label="Start work" style={{ display: 'flex', gap: 4 }}>
           {(['SKILLS', 'PROMPTS'] as StartTab[]).map((label) => {
             const on = tab === label;
             return (
@@ -123,15 +110,15 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
                 aria-selected={on}
                 onClick={() => setTab(label)}
                 style={{
-                  height: 24,
-                  padding: '0 10px',
-                  borderRadius: 6,
-                  background: on ? '#ffffff' : 'transparent',
-                  border: on ? '1px solid #E0DCD4' : '1px solid transparent',
-                  fontFamily: MONO,
-                  fontSize: 9.5,
-                  fontWeight: 500,
-                  letterSpacing: '.08em',
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 8,
+                  background: on ? '#F2F4F7' : '#FFFFFF',
+                  border: on ? '1px solid #E4E7EC' : '1px solid transparent',
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: '.02em',
                   color: on ? '#101828' : '#667085',
                 }}
               >
@@ -142,6 +129,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
         </div>
       </div>
       <div
+        role="tabpanel"
         style={{
           marginTop: 14,
           display: 'grid',
@@ -176,93 +164,58 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
             onMouseLeave={() => setHoveredTitle(null)}
             style={{
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'flex-start',
-              gap: 11,
-              padding: 14,
-              borderRadius: 11,
-              background: hoveredTitle === card.title ? '#FAF9F6' : '#ffffff',
+              gap: 7,
+              padding: '14px 15px',
+              borderRadius: 10,
+              background: '#FFFFFF',
               boxShadow:
                 hoveredTitle === card.title
-                  ? '0 0 0 1px #E0DCD4'
-                  : '0 0 0 1px #E8E5DF,0px 1px 2px rgba(16,24,40,.05)',
+                  ? '0 0 0 1px #D0D5DD,0 2px 4px rgba(16,24,40,.04)'
+                  : '0 0 0 1px #EAECF0',
               textAlign: 'left',
             }}
           >
-            <span
-              style={{
-                flex: '0 0 auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: '#F2F0EB',
-              }}
-            >
-              <MeriIcon name={card.icon} size={14} color="#101828" />
-            </span>
-            <span
-              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}
-            >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%' }}>
+              <MeriIcon name={card.icon} size={16} color="#475467" />
               <span
-                style={{ fontSize: 13.5, lineHeight: '19px', fontWeight: 600, color: '#101828' }}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: '#101828',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
               >
                 {card.title}
               </span>
-              <span style={{ fontSize: 12.5, lineHeight: '18px', color: '#475467' }}>
-                {card.desc}
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 2 }}>
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: '.08em',
-                    color: '#667085',
-                  }}
-                >
-                  {card.tag}
-                </span>
-                {card.needsClient ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      height: 18,
-                      padding: '0 6px',
-                      borderRadius: 4,
-                      background: '#FFFAEB',
-                      border: '1px solid #FEDF89',
-                      fontFamily: MONO,
-                      fontSize: 8.5,
-                      fontWeight: 500,
-                      letterSpacing: '.07em',
-                      color: '#B54708',
-                    }}
-                  >
-                    NEEDS A CLIENT
-                  </span>
-                ) : null}
-              </span>
+            </span>
+            <span style={{ fontSize: 12.5, lineHeight: '18px', color: '#667085' }}>
+              {card.desc}
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: 20,
+                padding: '0 7px',
+                borderRadius: 5,
+                background: card.needsClient ? '#FFFAEB' : '#F0F1F7',
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: '.04em',
+                color: card.needsClient ? '#B54708' : '#363F72',
+              }}
+            >
+              {card.needsClient ? 'NEEDS A CLIENT' : card.tag}
             </span>
           </button>
         ))}
-      </div>
-      <div
-        style={{
-          marginTop: 12,
-          fontFamily: MONO,
-          fontSize: 9.5,
-          fontWeight: 500,
-          letterSpacing: '.08em',
-          color: '#98A2B3',
-        }}
-      >
-        SELECTING ONE FILLS AN EDITABLE INTENT IN THE COMPOSER · NOTHING IS SENT UNTIL YOU PRESS
-        SEND
       </div>
     </div>
   );

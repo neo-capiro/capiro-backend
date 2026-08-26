@@ -8,34 +8,43 @@ function readMeri(name: string): string {
   return readFileSync(resolve(meriDir, name), 'utf8');
 }
 
-describe('MeriMemoryTab', () => {
-  test('is wired to the same controller state and handlers the legacy drawer uses, not a new fetch', () => {
+describe('Meri institutional memory', () => {
+  test('uses canonical governance queues and never the legacy Clio memory adapter', () => {
+    const source = readMeri('MeriMemoryTab.tsx');
+    expect(source).toContain('/api/memory/review/candidates');
+    expect(source).toContain('/api/memory/proposals');
+    expect(source).toContain('/api/memory/proposals/');
+    expect(source).not.toContain('/api/clio/memory');
+    expect(source).not.toContain('MeriLearnedMemory');
+    expect(source).not.toContain('learnedMemories');
+  });
+
+  test('renders active recall only from the server-compiled Context Packet', () => {
+    const source = readMeri('MeriMemoryTab.tsx');
+    expect(source).toContain('MeriContextPacket');
+    expect(source).toContain('(packet?.items ?? []).filter(isGovernedMemoryItem)');
+    expect(source).toContain('No governed memory was included in the current context packet');
+  });
+
+  test('enforces server-authoritative review and withdraw capabilities in the UI', () => {
+    const source = readMeri('MeriMemoryTab.tsx');
+    expect(source).toContain('candidate.capabilities.approve');
+    expect(source).toContain('candidate.capabilities.reject');
+    expect(source).toContain('candidate.capabilities.withdraw');
+    expect(source).toContain('candidateRejectRequiresReason');
+  });
+
+  test('the rail passes the real packet and uses governed counts', () => {
     const rail = readMeri('VNextMeriContextRail.tsx');
-    expect(rail).toContain('controller.learnedMemories');
-    expect(rail).toContain('controller.forgottenMemories');
-    expect(rail).toContain('controller.saveMemoryEdit');
-    expect(rail).toContain('controller.forgetMemory');
-    expect(rail).toContain('controller.undoForgetMemory');
-    expect(rail).toContain('controller.suggestMemoryCorrection');
+    expect(rail).toContain('<MeriMemoryTab packet={packet} />');
+    expect(rail).toContain('useMeriGovernedMemoryQueues');
+    expect(rail).not.toContain('controller.learnedMemories');
+    expect(rail).not.toContain('controller.forgottenMemories');
   });
 
-  test('does not fetch its own broader memory list — mutations only know about the recent-5 state', () => {
-    const source = readMeri('MeriMemoryTab.tsx');
-    expect(source).not.toContain('useApi');
-    expect(source).not.toMatch(/api\.get\(/);
-    expect(source).not.toMatch(/fetch\(/);
-  });
-
-  test('does not double the rail section padding', () => {
-    const source = readMeri('MeriMemoryTab.tsx');
-    expect(source).toContain("className=\"vnext-meri__rail-section-content\"");
-    expect(source).not.toMatch(/padding:\s*'18px 20px/);
-  });
-
-  test('memory is a real MeriContextSection value, not a separate ad hoc flag', () => {
+  test('memory remains a real MeriContextSection value', () => {
     const prefs = readMeri('meri-prefs.ts');
     expect(prefs).toMatch(/'context' \| 'sources' \| 'actions' \| 'memory'/);
-    const rail = readMeri('VNextMeriContextRail.tsx');
-    expect(rail).toContain("key: 'memory'");
+    expect(readMeri('VNextMeriContextRail.tsx')).toContain("key: 'memory'");
   });
 });

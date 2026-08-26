@@ -10,7 +10,7 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
  * MERI_ATTACHMENT_STATES for the state gallery.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
 export type MeriAttachmentStateKey =
   | 'uploading'
@@ -33,7 +33,7 @@ export interface MeriAttachmentChipSpec {
 
 /** Prototype fixture — screen Q, nine states. */
 export const MERI_ATTACHMENT_STATES: MeriAttachmentChipSpec[] = [
-  { name: 'FY27-position.pdf', state: 'UPLOADING · 62%', icon: 'UploadCloud02', ring: '#E0DCD4', fg: '#667085' },
+  { name: 'FY27-position.pdf', state: 'UPLOADING · 62%', icon: 'UploadCloud02', ring: '#D0D5DD', fg: '#667085' },
   { name: 'HASC-report.pdf', state: 'READY', icon: 'File05', ring: '#ABEFC6', fg: '#027A48' },
   { name: 'client-brief.docx', state: 'PARSED · 14 PAGES', icon: 'File04', ring: '#ABEFC6', fg: '#027A48' },
   { name: 'exposure.csv', state: 'PARSED · 412 ROWS', icon: 'Rows03', ring: '#ABEFC6', fg: '#027A48' },
@@ -63,7 +63,7 @@ export function attachmentChipSpec(attachment: {
   const GOOD = { ring: '#ABEFC6', fg: '#027A48' };
   const WARN = { ring: '#FEDF89', fg: '#B54708' };
   const BAD = { ring: '#FECDCA', fg: '#B42318' };
-  const NEUTRAL = { ring: '#E0DCD4', fg: '#667085' };
+  const NEUTRAL = { ring: '#D0D5DD', fg: '#667085' };
 
   const kindIcon: MeriIconName =
     attachment.kind === 'image' ? 'Eye' : attachment.kind === 'docx' ? 'File04' : 'File05';

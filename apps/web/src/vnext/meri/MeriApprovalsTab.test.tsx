@@ -43,9 +43,9 @@ function approval(overrides: Partial<PendingApproval> = {}): PendingApproval {
 }
 
 describe('MeriApprovalsTab', () => {
-  test('renders an empty state when nothing is pending for this turn', () => {
+  test('renders an empty state when nothing is pending for this conversation', () => {
     render(<MeriApprovalsTab approvals={[]} approvingProposalId={null} onApprove={vi.fn()} onApproveAll={vi.fn()} onDismiss={vi.fn()} />);
-    expect(screen.getByText('Nothing is awaiting your approval for this turn.')).toBeTruthy();
+    expect(screen.getByText('Nothing is awaiting your approval for this conversation.')).toBeTruthy();
   });
 
   test('a proposed action can be approved after the informed-consent dialog is confirmed', () => {

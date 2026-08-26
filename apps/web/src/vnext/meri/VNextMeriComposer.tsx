@@ -409,13 +409,15 @@ export function VNextMeriComposer({
             className="vnext-meri__add-popover-item"
             onClick={() => {
               setAddOpen(false);
+              toast.error('SharePoint is not connectable yet. Open Integrations to see supported sources.');
               onOpenIntegrations();
             }}
+            aria-label="Connect SharePoint — not connectable yet"
           >
             <span className="vnext-meri__add-popover-tile"><ConnectorMark id="sharepoint" size={15} /></span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Connect SharePoint</span>
-              <span className="vnext-meri__add-popover-item-desc">BROWSE TEAM DOCUMENTS</span>
+              <span className="vnext-meri__add-popover-item-desc">NOT CONNECTABLE YET</span>
             </span>
           </button>
           <button

@@ -299,6 +299,11 @@ interface ClientOption {
 
 export interface ChatDrawerProps {
   selectedClientName?: string | null;
+  /**
+   * Compatibility switch for legacy drawer surfaces. vNext Meri owns memory
+   * through Institutional Memory governance and must disable this adapter.
+   */
+  legacyMemoryEnabled?: boolean;
 }
 
 /**
@@ -371,7 +376,10 @@ export interface PendingApproval {
   updatedAt: string;
 }
 
-export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
+export function useMeriChatController({
+  selectedClientName,
+  legacyMemoryEnabled = true,
+}: ChatDrawerProps) {
   const {
     isOpen,
     messages,
@@ -2310,6 +2318,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   );
 
   const fetchLearnedMemories = useCallback(async () => {
+    if (!legacyMemoryEnabled) return;
     const requestIdentityKey = identityKeyRef.current;
     try {
       const res = await fetch(`${config.apiBaseUrl}/api/clio/memory/recent?limit=5`, {
@@ -2345,7 +2354,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     } catch {
       /* ignore */
     }
-  }, [authHeaders]);
+  }, [authHeaders, legacyMemoryEnabled]);
 
   /**
    * Propose a correction to memory this user cannot edit. The server creates a
@@ -2516,15 +2525,15 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
   useEffect(() => () => stopResize(), [stopResize]);
 
-  // After a streamed turn finishes, refresh the "Meri learned" chips. The
-  // backend extracts memories fire-and-forget post-stream, so delay slightly.
+  // Legacy drawer compatibility only. vNext Meri disables this adapter and
+  // reads governed recall from the Context Packet instead.
   useEffect(() => {
-    if (isStreaming || !sessionId) return;
+    if (!legacyMemoryEnabled || isStreaming || !sessionId) return;
     const t = setTimeout(() => {
       void fetchLearnedMemories();
     }, 1500);
     return () => clearTimeout(t);
-  }, [isStreaming, sessionId, fetchLearnedMemories]);
+  }, [legacyMemoryEnabled, isStreaming, sessionId, fetchLearnedMemories]);
 
   const startResize = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {

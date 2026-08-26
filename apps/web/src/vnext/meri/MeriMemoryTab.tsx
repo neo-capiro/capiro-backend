@@ -1,477 +1,442 @@
-import { useEffect, useState } from 'react';
-import type { MeriLearnedMemory } from '../../components/chat/MeriMemoryPanel.js';
+import { useState, type ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  candidateRejectRequiresReason,
+  memoryQueueErrorMessage,
+  memoryReviewCandidateTitle,
+  memoryReviewOutcomeMessage,
+  ownedMemoryCandidateStatusLabel,
+  ownedMemoryCandidateTitle,
+  type OwnedMemoryCandidate,
+  type OwnedProposalQueueResponse,
+  type ReviewableMemoryCandidate,
+  type ReviewQueueResponse,
+} from '../../components/memory-queue-shared.js';
+import { useApi } from '../../lib/use-api.js';
+import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
+import { MeriPanelState } from './MeriPanelState.js';
+import type { MeriContextPacket, MeriContextPacketItem } from './meri-vnext-api.js';
+
+const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
+
+export function useMeriGovernedMemoryQueues() {
+  const api = useApi();
+  const review = useQuery<ReviewQueueResponse>({
+    queryKey: ['memory-review-candidates'],
+    queryFn: async () =>
+      (await api.get<ReviewQueueResponse>('/api/memory/review/candidates')).data,
+    staleTime: 15_000,
+    retry: 1,
+  });
+  const proposals = useQuery<OwnedProposalQueueResponse>({
+    queryKey: ['memory-own-proposals'],
+    queryFn: async () =>
+      (await api.get<OwnedProposalQueueResponse>('/api/memory/proposals')).data,
+    staleTime: 15_000,
+    retry: 1,
+  });
+
+  return {
+    review,
+    proposals,
+    reviewCount: review.data?.enabled ? review.data.candidates.length : 0,
+    pendingProposalCount: proposals.data?.enabled
+      ? proposals.data.candidates.filter((candidate) => candidate.status === 'pending').length
+      : 0,
+  };
+}
+
+function isGovernedMemoryItem(item: MeriContextPacketItem): boolean {
+  return /(memory|preference|steering|firm[-_ ]identity|firm[-_ ]playbook|user[-_ ]voice)/i.test(
+    item.type,
+  );
+}
+
+function scopeLabel(scope: string): string {
+  if (scope === 'client') return 'CLIENT MEMORY';
+  if (scope === 'personal') return 'PERSONAL MEMORY';
+  return 'FIRM MEMORY';
+}
+
+function kindLabel(kind: string): string {
+  if (kind === 'standard') return 'NEW MEMORY';
+  if (kind === 'correction') return 'CORRECTION';
+  if (kind === 'restore') return 'RESTORE';
+  if (kind === 'contradiction') return 'CONTRADICTION';
+  return kind.replace(/_/g, ' ').toUpperCase();
+}
+
+function reviewBody(candidate: ReviewableMemoryCandidate): Array<{ heading: string; body: string }> {
+  const canonical = candidate.proposal.canonicalItem;
+  if (canonical?.sections.length) {
+    return canonical.sections.map((section) => ({
+      heading: section.heading,
+      body: section.body || '—',
+    }));
+  }
+  return candidate.proposal.value
+    ? [{ heading: 'Proposed value', body: candidate.proposal.value }]
+    : [];
+}
+
+function proposalBody(candidate: OwnedMemoryCandidate): Array<{ heading: string; body: string }> {
+  const canonical = candidate.proposal?.canonicalItem;
+  if (canonical?.sections.length) {
+    return canonical.sections.map((section) => ({
+      heading: section.heading,
+      body: section.body || '—',
+    }));
+  }
+  return candidate.proposal?.value
+    ? [{ heading: 'Proposed value', body: candidate.proposal.value }]
+    : [];
+}
+
+function QueueCard({
+  eyebrow,
+  title,
+  children,
+  actions,
+}: {
+  eyebrow: string;
+  title: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <article
+      style={{
+        padding: '13px 14px',
+        border: '1px solid #EAECF0',
+        borderRadius: 10,
+        background: '#FFFFFF',
+        boxShadow: '0 1px 2px rgba(16,24,40,.03)',
+      }}
+    >
+      <div
+        style={{
+          marginBottom: 5,
+          fontFamily: MONO,
+          fontSize: 9,
+          letterSpacing: '.08em',
+          color: '#7F8A9A',
+        }}
+      >
+        {eyebrow}
+      </div>
+      <div style={{ color: '#182230', fontSize: 13, fontWeight: 650, lineHeight: 1.35 }}>{title}</div>
+      {children}
+      {actions ? <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>{actions}</div> : null}
+    </article>
+  );
+}
+
+function QueueButton({
+  children,
+  onClick,
+  disabled,
+  tone = 'neutral',
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: 'neutral' | 'primary' | 'danger';
+}) {
+  const palette =
+    tone === 'primary'
+      ? { background: '#111827', borderColor: '#111827', color: '#FFFFFF' }
+      : tone === 'danger'
+        ? { background: '#FFFFFF', borderColor: '#F2B8B5', color: '#B42318' }
+        : { background: '#FFFFFF', borderColor: '#D7DCE3', color: '#344054' };
+  return (
+    <button
+      type="button"
+      className="vnext-meri__rail-action-btn"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ flex: 1, justifyContent: 'center', ...palette }}
+    >
+      {children}
+    </button>
+  );
+}
 
 /**
- * MeriMemoryTab — the v4 Memory panel (screen L), re-skinned from the
- * already-real components/chat/MeriMemoryPanel.tsx onto vnext tokens.
+ * Governed Institutional Memory inside Meri.
  *
- * Every field and mutation here is the same one the legacy drawer already
- * uses — scope, state, confidence, dates, canMutate, save/forget/undo/
- * suggest-correction — fetched automatically by useMeriChatController
- * regardless of which surface mounts it. This is a visual port, not new
- * integration.
- *
- * Scope note: the underlying fetch is `/api/clio/memory/recent?limit=5` (the
- * same one the legacy drawer's compact widget uses), not the fuller
- * `/api/clio/memory?limit=100` list a dedicated management tab could show —
- * because forget/save/undo look the memory up by id in this same 5-item
- * state, and pointing this tab at the bigger list would let it show rows
- * those mutations can't act on. A "recent 5" memory tab, kept in sync with
- * mutations, beats a "recent 100" tab where editing a row past the fifth
- * silently does nothing.
+ * This deliberately does not read or mutate the legacy Meri memory adapter. Active recall
+ * comes from the server-compiled Context Packet. Proposals and review decisions
+ * use the same canonical queues as the Governance Center.
  */
+export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const toast = useCapiroToast();
+  const { review, proposals } = useMeriGovernedMemoryQueues();
+  const [rejecting, setRejecting] = useState<ReviewableMemoryCandidate | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
+  const activeMemory = (packet?.items ?? []).filter(isGovernedMemoryItem);
+  const reviewCandidates = review.data?.enabled ? review.data.candidates : [];
+  const ownedProposals = proposals.data?.enabled ? proposals.data.candidates : [];
 
-const SOURCE_LABELS: Record<string, string> = {
-  explicit_save: 'You saved this',
-  candidate_review: 'Meri suggested remembering',
-  auto_learned_legacy: 'Learned automatically (legacy)',
-  imported: 'Imported',
-  user_correction: 'Correction awaiting review',
-  workspace_artifact: 'Promoted from a document',
-};
+  const invalidateMemory = () => {
+    for (const key of [
+      'memory-review-candidates',
+      'memory-own-proposals',
+      'memory-review-summary',
+      'memory-governance-overview',
+      'memory-governance-items',
+      'memory-governance-transitions',
+      'memory-item',
+    ]) {
+      qc.invalidateQueries({ queryKey: [key] });
+    }
+  };
 
-function scopeChip(memory: MeriLearnedMemory): { label: string; bg: string; fg: string } {
-  if (memory.scope === 'user_private') return { label: 'PERSONAL', bg: '#F2F0EB', fg: '#344054' };
-  if (memory.scope === 'client') {
-    return {
-      label: memory.clientName ? `CLIENT · ${memory.clientName.toUpperCase()}` : 'CLIENT',
-      bg: '#F2F0EB',
-      fg: '#344054',
-    };
-  }
-  if (memory.scope === 'firm') return { label: 'FIRM', bg: '#F2F0EB', fg: '#344054' };
-  return { label: (memory.scope || 'UNSCOPED').toUpperCase(), bg: '#F2F0EB', fg: '#344054' };
-}
+  const decision = useMutation({
+    mutationFn: async (input: { id: string; decision: 'approve' | 'reject'; reason?: string }) =>
+      (
+        await api.post('/api/memory/review/candidates/' + input.id + '/' + input.decision, {
+          ...(input.reason ? { reason: input.reason } : {}),
+        })
+      ).data as Record<string, unknown>,
+    onSuccess: (result, input) => {
+      toast.success(memoryReviewOutcomeMessage(result, input.decision));
+      setRejecting(null);
+      setRejectReason('');
+      invalidateMemory();
+    },
+    onError: (error: unknown) => toast.error(memoryQueueErrorMessage(error)),
+  });
 
-function dateLabel(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-}
+  const withdraw = useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post('/api/memory/proposals/' + id + '/withdraw', {})).data,
+    onSuccess: () => {
+      toast.success('Proposal withdrawn');
+      invalidateMemory();
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : 'Withdrawal failed'),
+  });
 
-function confidenceLabel(memory: MeriLearnedMemory): string | null {
-  if (typeof memory.confidence !== 'number') return null;
-  if (memory.source === 'explicit_save') return null;
-  const pct = Math.round(Math.max(0, Math.min(1, memory.confidence)) * 100);
-  return `${pct}% CONFIDENCE`;
-}
+  const rejectCandidate = (candidate: ReviewableMemoryCandidate) => {
+    if (!candidateRejectRequiresReason(candidate)) {
+      decision.mutate({ id: candidate.id, decision: 'reject' });
+      return;
+    }
+    setRejectReason('');
+    setRejecting(candidate);
+  };
 
-interface MeriMemoryTabProps {
-  memories: MeriLearnedMemory[];
-  forgotten: MeriLearnedMemory[];
-  onSave: (id: string, value: string) => void | Promise<void>;
-  onForget: (id: string) => void;
-  onUndo: (id: string) => void;
-  onSuggestCorrection: (id: string, value: string) => void | Promise<void>;
-}
-
-export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, onSuggestCorrection }: MeriMemoryTabProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [suggestingId, setSuggestingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-
-  useEffect(() => {
-    if (editingId && !memories.some((memory) => memory.id === editingId)) setEditingId(null);
-    if (suggestingId && !memories.some((memory) => memory.id === suggestingId)) setSuggestingId(null);
-  }, [editingId, suggestingId, memories]);
-
-  const pendingCount = memories.filter((memory) => memory.state === 'pending_review').length;
-
-  // No outer padding here — the caller nests this inside a
-  // .vnext-meri__rail-section, which already provides the rail's standard
-  // 18px 20px 16px gutter. Padding here too would double it, the same way
-  // the M1 Saved-Prompts/Workspaces class mismatch silently doubled/dropped
-  // spacing.
   return (
-    <div className="vnext-meri__rail-section-content">
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-        <span
+    <div className="vnext-meri__rail-section-content" style={{ display: 'grid', gap: 18 }}>
+      <div>
+        <div
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            height: 24,
-            padding: '0 9px',
-            borderRadius: 6,
-            background: '#F2F0EB',
-            fontFamily: MONO,
-            fontSize: 9,
-            fontWeight: 500,
-            letterSpacing: '.07em',
-            color: '#344054',
+            gap: 8,
+            marginBottom: 6,
+            color: '#101828',
+            fontSize: 14,
+            fontWeight: 650,
           }}
         >
-          {memories.length} MEMOR{memories.length === 1 ? 'Y' : 'IES'}
-        </span>
-        {pendingCount > 0 ? (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              height: 24,
-              padding: '0 9px',
-              borderRadius: 6,
-              background: '#FFFAEB',
-              border: '1px solid #FEDF89',
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#F79009' }} />
-            <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#B54708' }}>
-              {pendingCount} PENDING REVIEW
-            </span>
-          </span>
-        ) : null}
-      </div>
-      <div style={{ marginTop: 11, fontSize: 13, lineHeight: '20px', color: '#475467' }}>
-        What Meri remembers, and who can see it. Nothing here was learned without an approval.
+          <MeriIcon name="ShieldTick" size={16} color="#344054" />
+          Institutional memory
+        </div>
+        <p style={{ margin: 0, color: '#667085', fontSize: 12, lineHeight: 1.55 }}>
+          Governed memory only. Active recall is admitted by the Context Packet; shared changes stay
+          pending until an authorized reviewer decides them.
+        </p>
       </div>
 
-      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {memories.map((memory) => {
-          const pending = memory.state === 'pending_review';
-          const chip = scopeChip(memory);
-          const confidence = confidenceLabel(memory);
-          const learned = dateLabel(memory.learnedAt);
-          const confirmed = dateLabel(memory.confirmedAt);
-          const sourceText = SOURCE_LABELS[memory.source ?? ''] ?? memory.source ?? null;
-          const mayMutate = memory.canMutate === true;
-          const isEditing = editingId === memory.id;
-          const isSuggesting = suggestingId === memory.id;
-
-          return (
-            <div
-              key={memory.id}
-              style={{
-                padding: '13px 14px',
-                borderRadius: 10,
-                background: '#ffffff',
-                boxShadow: `0 0 0 1px ${pending ? '#FEDF89' : '#E8E5DF'}, 0px 1px 2px rgba(16,24,40,.05)`,
-              }}
+      <section>
+        <div className="vnext-meri__section-label" style={{ marginBottom: 8 }}>
+          ACTIVE IN THIS CONTEXT · {activeMemory.length}
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {activeMemory.map((item) => (
+            <QueueCard
+              key={item.id}
+              eyebrow={scopeLabel(item.scope) + ' · ' + item.selection.toUpperCase()}
+              title={item.label}
             >
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7 }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    height: 20,
-                    padding: '0 7px',
-                    borderRadius: 5,
-                    background: chip.bg,
-                    fontFamily: MONO,
-                    fontSize: 8.5,
-                    fontWeight: 500,
-                    letterSpacing: '.07em',
-                    color: chip.fg,
-                  }}
-                >
-                  {chip.label}
-                </span>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    height: 20,
-                    padding: '0 7px',
-                    borderRadius: 5,
-                    background: pending ? '#FFFAEB' : '#ECFDF3',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: 9999,
-                      background: pending ? '#F79009' : '#12B76A',
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: 8.5,
-                      fontWeight: 500,
-                      letterSpacing: '.07em',
-                      color: pending ? '#B54708' : '#027A48',
-                    }}
-                  >
-                    {pending ? 'PENDING REVIEW' : 'ACTIVE'}
-                  </span>
-                </span>
-                <span style={{ flex: 1 }} />
-                {confidence ? (
-                  <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: '.07em', color: '#98A2B3' }}>
-                    {confidence}
-                  </span>
-                ) : null}
+              <p style={{ margin: '7px 0 0', color: '#667085', fontSize: 11.5, lineHeight: 1.48 }}>
+                {item.rationale || 'Admitted by the current governed context packet.'}
+              </p>
+              <div style={{ marginTop: 7, color: '#98A2B3', fontFamily: MONO, fontSize: 9 }}>
+                {item.authority.toUpperCase()}
+                {item.status ? ' · ' + item.status.replace(/_/g, ' ').toUpperCase() : ''}
               </div>
+            </QueueCard>
+          ))}
+          {activeMemory.length === 0 ? (
+            <MeriPanelState tone="empty">
+              No governed memory was included in the current context packet.
+            </MeriPanelState>
+          ) : null}
+        </div>
+      </section>
 
-              {isEditing || isSuggesting ? (
-                <div
-                  style={{
-                    marginTop: 11,
-                    padding: '11px 12px',
-                    borderRadius: 9,
-                    background: '#FAF9F6',
-                    border: '1px solid #E8E5DF',
-                  }}
-                >
+      <section>
+        <div className="vnext-meri__section-label" style={{ marginBottom: 8 }}>
+          NEEDS YOUR REVIEW · {reviewCandidates.length}
+        </div>
+        {review.isLoading ? <MeriPanelState tone="loading">Loading review queue…</MeriPanelState> : null}
+        {review.isError ? (
+          <MeriPanelState tone="error">The institutional review queue could not be loaded.</MeriPanelState>
+        ) : null}
+        {!review.isLoading && !review.isError && reviewCandidates.length === 0 ? (
+          <MeriPanelState tone="empty">Nothing is waiting for your review.</MeriPanelState>
+        ) : null}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {reviewCandidates.map((candidate) => (
+            <QueueCard
+              key={candidate.id}
+              eyebrow={scopeLabel(candidate.scope) + ' · ' + kindLabel(candidate.candidateKind)}
+              title={memoryReviewCandidateTitle(candidate)}
+              actions={
+                <>
+                  {candidate.capabilities.approve ? (
+                    <QueueButton
+                      tone="primary"
+                      disabled={decision.isPending}
+                      onClick={() => decision.mutate({ id: candidate.id, decision: 'approve' })}
+                    >
+                      Approve
+                    </QueueButton>
+                  ) : null}
+                  {candidate.capabilities.reject ? (
+                    <QueueButton
+                      tone="danger"
+                      disabled={decision.isPending}
+                      onClick={() => rejectCandidate(candidate)}
+                    >
+                      Reject
+                    </QueueButton>
+                  ) : null}
+                </>
+              }
+            >
+              {reviewBody(candidate).map((section) => (
+                <div key={section.heading} style={{ marginTop: 8 }}>
+                  <div style={{ color: '#475467', fontSize: 10.5, fontWeight: 650 }}>{section.heading}</div>
+                  <p style={{ margin: '3px 0 0', color: '#667085', fontSize: 11.5, lineHeight: 1.48, whiteSpace: 'pre-wrap' }}>
+                    {section.body}
+                  </p>
+                </div>
+              ))}
+              {rejecting?.id === candidate.id ? (
+                <div style={{ marginTop: 10 }}>
                   <textarea
-                    autoFocus
-                    value={draft}
-                    aria-label={isSuggesting ? 'Suggest a corrected value' : 'Edit memory'}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        setEditingId(null);
-                        setSuggestingId(null);
-                      }
-                    }}
+                    value={rejectReason}
+                    onChange={(event) => setRejectReason(event.target.value)}
+                    aria-label="Rejection reason"
+                    placeholder="Reason for rejecting this governed change"
+                    maxLength={500}
+                    rows={3}
                     style={{
                       width: '100%',
-                      minHeight: 54,
-                      padding: '9px 10px',
-                      border: '1px solid #E0DCD4',
-                      outline: 'none',
-                      borderRadius: 7,
-                      background: '#ffffff',
-                      fontSize: 12.5,
-                      lineHeight: '19px',
-                      color: '#101828',
-                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      border: '1px solid #D7DCE3',
+                      borderRadius: 8,
+                      padding: 9,
+                      color: '#344054',
+                      font: 'inherit',
                     }}
                   />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9 }}>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontFamily: MONO,
-                        fontSize: 8.5,
-                        fontWeight: 500,
-                        letterSpacing: '.07em',
-                        color: '#98A2B3',
-                      }}
-                    >
-                      {isSuggesting
-                        ? 'GOES TO AN ADMINISTRATOR FOR REVIEW · NOTHING CHANGES UNTIL APPROVED'
-                        : ''}
-                    </span>
-                    <button
-                      type="button"
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <QueueButton
                       onClick={() => {
-                        setEditingId(null);
-                        setSuggestingId(null);
-                      }}
-                      style={{
-                        height: 28,
-                        padding: '0 10px',
-                        borderRadius: 7,
-                        border: '1px solid #E0DCD4',
-                        background: '#ffffff',
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        color: '#344054',
-                        cursor: 'pointer',
+                        setRejecting(null);
+                        setRejectReason('');
                       }}
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const value = draft.trim();
-                        if (!value) return;
-                        if (isSuggesting) void onSuggestCorrection(memory.id, value);
-                        else void onSave(memory.id, value);
-                        setEditingId(null);
-                        setSuggestingId(null);
-                      }}
-                      style={{
-                        height: 28,
-                        padding: '0 11px',
-                        borderRadius: 7,
-                        border: 0,
-                        backgroundImage: 'var(--m-metal-bg)',
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                      }}
+                    </QueueButton>
+                    <QueueButton
+                      tone="danger"
+                      disabled={!rejectReason.trim() || decision.isPending}
+                      onClick={() =>
+                        decision.mutate({
+                          id: candidate.id,
+                          decision: 'reject',
+                          reason: rejectReason.trim(),
+                        })
+                      }
                     >
-                      {isSuggesting ? 'Send for review' : 'Save'}
-                    </button>
+                      Reject proposal
+                    </QueueButton>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div style={{ marginTop: 9, fontSize: 13, lineHeight: '20px', color: '#101828' }}>
-                    {memory.value}
-                  </div>
-                  {sourceText ? (
-                    <div style={{ marginTop: 9, fontSize: 12, lineHeight: '18px', color: '#667085' }}>
-                      {sourceText}
-                    </div>
-                  ) : null}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: 8 }}>
-                    {confirmed ? (
-                      <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: '.07em', color: '#98A2B3' }}>
-                        CONFIRMED {confirmed.toUpperCase()}
-                      </span>
-                    ) : learned ? (
-                      <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: '.07em', color: '#98A2B3' }}>
-                        LEARNED {learned.toUpperCase()}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      gap: 7,
-                      marginTop: 12,
-                      paddingTop: 11,
-                      borderTop: '1px solid #F2F0EB',
-                    }}
-                  >
-                    {mayMutate ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSuggestingId(null);
-                            setEditingId(memory.id);
-                            setDraft(memory.value);
-                          }}
-                          style={{
-                            height: 28,
-                            padding: '0 10px',
-                            borderRadius: 7,
-                            border: '1px solid #E0DCD4',
-                            background: '#ffffff',
-                            fontSize: 12.5,
-                            fontWeight: 600,
-                            color: '#344054',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onForget(memory.id)}
-                          style={{
-                            height: 28,
-                            padding: '0 10px',
-                            borderRadius: 7,
-                            border: '1px solid #FECDCA',
-                            background: '#ffffff',
-                            fontSize: 12.5,
-                            fontWeight: 600,
-                            color: '#B42318',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Forget
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(null);
-                            setSuggestingId(memory.id);
-                            setDraft(memory.value);
-                          }}
-                          style={{
-                            height: 28,
-                            padding: '0 10px',
-                            borderRadius: 7,
-                            border: '1px solid #E0DCD4',
-                            background: '#ffffff',
-                            fontSize: 12.5,
-                            fontWeight: 600,
-                            color: '#344054',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Suggest a correction
-                        </button>
-                        <span style={{ fontSize: 11.5, lineHeight: '16px', color: '#667085' }}>
-                          An administrator must approve firm-scope changes.
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-        {memories.length === 0 ? (
-          <div
-            style={{
-              padding: '20px 14px',
-              borderRadius: 10,
-              background: '#FAF9F6',
-              border: '1px solid #E8E5DF',
-              fontSize: 13,
-              lineHeight: '19px',
-              color: '#475467',
-            }}
-          >
-            No memories yet. Meri proposes what it learns for your approval — nothing is remembered
-            silently.
-          </div>
-        ) : null}
-      </div>
-
-      {forgotten.length > 0 ? (
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {forgotten.map((memory) => (
-            <div
-              key={memory.id}
-              role="status"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 8,
-                background: '#FAF9F6',
-                border: '1px solid #EDEAE4',
-              }}
-            >
-              <MeriIcon name="Trash01" size={13} color="#667085" />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: '18px', color: '#475467' }}>
-                Forgot &ldquo;{memory.value.length > 48 ? `${memory.value.slice(0, 45)}…` : memory.value}&rdquo;
-              </span>
-              <button
-                type="button"
-                onClick={() => onUndo(memory.id)}
-                style={{
-                  flex: '0 0 auto',
-                  height: 26,
-                  padding: '0 10px',
-                  borderRadius: 6,
-                  border: '1px solid #E0DCD4',
-                  background: '#ffffff',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: '#344054',
-                  cursor: 'pointer',
-                }}
-              >
-                Undo
-              </button>
-            </div>
+              ) : null}
+            </QueueCard>
           ))}
         </div>
-      ) : null}
+      </section>
+
+      <section>
+        <div className="vnext-meri__section-label" style={{ marginBottom: 8 }}>
+          YOUR PROPOSALS · {ownedProposals.length}
+        </div>
+        {proposals.isLoading ? <MeriPanelState tone="loading">Loading your proposals…</MeriPanelState> : null}
+        {proposals.isError ? (
+          <MeriPanelState tone="error">Your proposal history could not be loaded.</MeriPanelState>
+        ) : null}
+        {!proposals.isLoading && !proposals.isError && ownedProposals.length === 0 ? (
+          <MeriPanelState tone="empty">You have not proposed an institutional memory change.</MeriPanelState>
+        ) : null}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {ownedProposals.slice(0, 5).map((candidate) => (
+            <QueueCard
+              key={candidate.id}
+              eyebrow={scopeLabel(candidate.scope) + ' · ' + ownedMemoryCandidateStatusLabel(candidate.status).toUpperCase()}
+              title={ownedMemoryCandidateTitle(candidate)}
+              actions={
+                candidate.capabilities.withdraw ? (
+                  <QueueButton
+                    tone="danger"
+                    disabled={withdraw.isPending}
+                    onClick={() => withdraw.mutate(candidate.id)}
+                  >
+                    Withdraw
+                  </QueueButton>
+                ) : undefined
+              }
+            >
+              {candidate.restricted ? (
+                <p style={{ margin: '7px 0 0', color: '#667085', fontSize: 11.5, lineHeight: 1.48 }}>
+                  Content is hidden because you no longer have access to this client memory.
+                </p>
+              ) : (
+                proposalBody(candidate).map((section) => (
+                  <div key={section.heading} style={{ marginTop: 8 }}>
+                    <div style={{ color: '#475467', fontSize: 10.5, fontWeight: 650 }}>{section.heading}</div>
+                    <p style={{ margin: '3px 0 0', color: '#667085', fontSize: 11.5, lineHeight: 1.48, whiteSpace: 'pre-wrap' }}>
+                      {section.body}
+                    </p>
+                  </div>
+                ))
+              )}
+            </QueueCard>
+          ))}
+        </div>
+      </section>
+
+      <a
+        href="/settings/memory"
+        target="_blank"
+        rel="noreferrer"
+        className="vnext-meri__rail-action-btn"
+        style={{ justifyContent: 'center', textDecoration: 'none' }}
+      >
+        <MeriIcon name="ArrowUpRight" size={14} color="#344054" />
+        Open Governance Center
+      </a>
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { ConnectorMark } from './meri-connector-logos.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
-import { MeriMemoryTab } from './MeriMemoryTab.js';
+import { MeriMemoryTab, useMeriGovernedMemoryQueues } from './MeriMemoryTab.js';
 import { MeriPanelState } from './MeriPanelState.js';
 import {
   MeriTurnInspector,
@@ -152,11 +152,6 @@ const TURN_TABS: Array<{ key: MeriTurnInspectorTab; icon: MeriIconName; label: s
   { key: 'approvals', icon: 'Lock01', label: 'Approvals' },
 ];
 
-const TURN_TAB_TITLE: Record<MeriTurnInspectorTab, string> = {
-  thinking: 'THINKING',
-  evidence: 'EVIDENCE',
-  approvals: 'APPROVALS',
-};
 
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
 
@@ -268,9 +263,8 @@ export function VNextMeriContextRail({
 
   const connectedSources = managed?.apps ?? [];
 
-  const pendingMemoryCount = controller.learnedMemories.filter(
-    (memory) => memory.state === 'pending_review',
-  ).length;
+  const { reviewCount, pendingProposalCount } = useMeriGovernedMemoryQueues();
+  const pendingMemoryCount = reviewCount + pendingProposalCount;
 
   const badgeFor = (section: MeriContextSection): number => {
     if (section === 'context') return contextItems.length;
@@ -283,15 +277,9 @@ export function VNextMeriContextRail({
       <aside className="vnext-meri__rail-right is-collapsed" data-meri-context-rail aria-label="Context panel (collapsed)">
         <div className="vnext-meri__rail-collapsed">
           <button type="button" className="vnext-meri__rail-expand-btn" title="Expand panel" aria-label="Expand panel" onClick={onToggle}>
-            <MeriIcon name="ChevronLeft" size={16} color="#98A2B3" />
+            <MeriIcon name="Expand01" size={16} color="#667085" />
           </button>
-          <span className="vnext-meri__rail-collapsed-sep" />
-          {PANEL_TABS.map((tab) => (
-            <button key={tab.key} type="button" className="vnext-meri__rail-badge-btn" title={tab.label} aria-label={tab.label} onClick={() => onExpandSection(tab.key)}>
-              <MeriIcon name={tab.icon} size={16} color="#475467" />
-              {badgeFor(tab.key) > 0 ? <span className="vnext-meri__rail-badge">{badgeFor(tab.key)}</span> : null}
-            </button>
-          ))}
+          <span className="vnext-meri__rail-collapsed-label">BEHIND THE ANSWER</span>
         </div>
       </aside>
     );
@@ -354,7 +342,10 @@ export function VNextMeriContextRail({
       <aside className="vnext-meri__rail-right is-turn-inspector" data-meri-context-rail aria-label="Turn inspector">
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div className="vnext-meri__rail-panel-head">
-            <span className="vnext-meri__rail-panel-title">{TURN_TAB_TITLE[turnActiveTab]}</span>
+            <span className="vnext-meri__rail-panel-title-group">
+              <span className="vnext-meri__rail-panel-title">Behind the answer</span>
+              <span className="vnext-meri__rail-panel-eyebrow">{scopeLabel.toUpperCase()}</span>
+            </span>
             <div className="vnext-meri__rail-panel-tabs">
               {TURN_TABS.map((tab) => {
                 const active = turnActiveTab === tab.key;
@@ -376,7 +367,7 @@ export function VNextMeriContextRail({
                     aria-pressed={active}
                     onClick={() => onChangeTurnInspectorTab?.(tab.key)}
                   >
-                    <MeriIcon name={tab.icon} size={15} />
+                    <span>{tab.label.toUpperCase()}</span>
                     {badge > 0 ? <span className="vnext-meri__rail-panel-tab-badge">{badge}</span> : null}
                   </button>
                 );
@@ -406,14 +397,17 @@ export function VNextMeriContextRail({
     <aside className="vnext-meri__rail-right is-expanded" data-meri-context-rail aria-label="Context panel">
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div className="vnext-meri__rail-panel-head">
-          <span className="vnext-meri__rail-panel-title">{panelTitle}</span>
+          <span className="vnext-meri__rail-panel-title-group">
+            <span className="vnext-meri__rail-panel-title">{panelTitle}</span>
+            <span className="vnext-meri__rail-panel-eyebrow">{scopeLabel.toUpperCase()}</span>
+          </span>
           <div className="vnext-meri__rail-panel-tabs">
             {PANEL_TABS.map((tab) => {
               const active = (openSection ?? 'context') === tab.key;
               const badge = badgeFor(tab.key);
               return (
                 <button key={tab.key} type="button" className={`vnext-meri__rail-panel-tab${active ? ' is-active' : ''}`} title={tab.label} aria-label={tab.label} aria-pressed={active} onClick={() => onExpandSection(tab.key)}>
-                  <MeriIcon name={tab.icon} size={15} />
+                  <span>{tab.label.toUpperCase()}</span>
                   {badge > 0 ? <span className="vnext-meri__rail-panel-tab-badge">{badge}</span> : null}
                 </button>
               );
@@ -427,15 +421,8 @@ export function VNextMeriContextRail({
         {isMemoryPanel ? (
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div className="vnext-meri__rail-section">
-              <MeriMemoryTab
-                memories={controller.learnedMemories}
-                forgotten={controller.forgottenMemories}
-                onSave={controller.saveMemoryEdit}
-                onForget={controller.forgetMemory}
-                onUndo={controller.undoForgetMemory}
-                onSuggestCorrection={controller.suggestMemoryCorrection}
-              />
-              <div className="vnext-meri__rail-footer">CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL</div>
+              <MeriMemoryTab packet={packet} />
+              <div className="vnext-meri__rail-footer">INSTITUTIONAL MEMORY · GOVERNED BY SCOPE AND REVIEW</div>
             </div>
           </div>
         ) : (
@@ -503,7 +490,7 @@ export function VNextMeriContextRail({
                 ) : null}
                 <button type="button" className="vnext-meri__rail-action-btn" onClick={() => onOpenContext(packet, packetLoading, packetError)} disabled={!controller.activeConversationId} title={!controller.activeConversationId ? 'Create or open a thread to inspect its context.' : undefined}>
                   <MeriIcon name="Sliders02" size={14} color="#344054" />
-                  Manage context
+                  Open context packet
                 </button>
               </div>
             </div>
