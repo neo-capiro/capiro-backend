@@ -234,6 +234,18 @@ export class ClientAdvocacyMatterController {
     return this.matters.getTimeline(ctx, clientId);
   }
 
+  // Read-only, review-gated: never mutates. A caller accepts a suggestion
+  // by calling POST .../link-regulatory-document (existing endpoint) with
+  // the returned documentNumber — this endpoint only surfaces candidates.
+  @Get(':matterId/federal-register-correlations')
+  federalRegisterCorrelations(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+  ) {
+    return this.matters.suggestFederalRegisterCorrelations(ctx, clientId, matterId);
+  }
+
   @Get(':matterId')
   get(
     @CurrentTenant() ctx: TenantContext,

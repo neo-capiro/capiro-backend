@@ -18,6 +18,21 @@ interface OpenMatterRow {
   externalKey: string;
 }
 
+/** A reviewable Federal Register correlation suggestion — never an
+ *  auto-created link. See suggestFederalRegisterCorrelations. */
+export interface FederalRegisterCorrelationSuggestion {
+  documentNumber: string;
+  title: string;
+  documentType: string;
+  agencyNames: string[];
+  publicationDate: string;
+  matchedDocketIds: string[];
+  sourceUrl: string | null;
+  stage: 'government_movement';
+  matchedOn: 'docket_id';
+  causationClaimed: false;
+}
+
 export interface AdvocacyMatterSummary {
   id: string;
   title: string;
@@ -1608,6 +1623,127 @@ export class ClientAdvocacyMatterService {
         sourceMatterId,
       );
     });
+  }
+
+  /**
+   * Federal Register government-movement correlation (Advocacy History
+   * follow-on, after #1300/#1301/#1305/#1307). Federal Register evidence is
+   * usually Government Movement, not proof of client advocacy — a client's
+   * name appearing in a Federal Register record is NEVER by itself grounds
+   * to create or auto-confirm an Advocacy claim. This method therefore
+   * does not do client-name matching at all (unlike the FARA/testimony/
+   * Regulations.gov-comment discovery adapters); it correlates Federal
+   * Register documents to a Matter the client is ALREADY known to be
+   * advocating on, using the one deterministic relationship this schema
+   * actually carries: shared docket id.
+   *
+   * Deterministic-linking priority actually implemented here: (1) exact
+   * docket id shared with a `regulatory_docket`/`regulatory_document`
+   * source already linked to this Matter (Regulations.gov docket/comment
+   * discovery, #1307, is the client-identity step; this step only extends
+   * a docket the client is already tied to into its Federal Register
+   * lifecycle). Agency + bill/policy-object correlation (priority 4 in the
+   * product brief) is NOT implemented here — `RegulatoryDocket`/
+   * `FederalRegisterDocument` carry `agencyId`/`agencyNames` as free-text
+   * strings with no canonical agency identity table to join through in
+   * this repo (confirmed by schema search), so an agency-name match would
+   * be a text-similarity heuristic dressed up as a deterministic tier, not
+   * a real one. Left as documented follow-on work rather than faked.
+   *
+   * Every result is a REVIEWABLE SUGGESTION, never an auto-created link:
+   * the caller must still call `linkRegulatoryDocument` (existing,
+   * `user_admin`-gated) to accept it, exactly like `linkHearing`'s
+   * manualRationale gate — reviewable, never automatic. `causationClaimed`
+   * is stamped false, and `stage` is always `government_movement` (never
+   * `outcome` or `engagement`) — a later final agency action becoming an
+   * Outcome is a distinct, separately-confirmed step (product spec §8),
+   * not inferred here.
+   */
+  async suggestFederalRegisterCorrelations(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+  ): Promise<FederalRegisterCorrelationSuggestion[]> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    const linkedDocketIds = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ linkType: string; linkKey: string; docketId: string | null }>>(
+        `SELECT link_type AS "linkType", link_key AS "linkKey",
+                metadata_jsonb->>'docketId' AS "docketId"
+           FROM client_advocacy_matter_link
+          WHERE tenant_id = $1::uuid AND matter_id = $2::uuid
+            AND link_type IN ('regulatory_docket', 'regulatory_document')`,
+        ctx.tenantId,
+        matterId,
+      ),
+    );
+
+    // regulatory_docket links carry link_key = regulatory_docket.document_id
+    // (not a docket id) but stamp the real docket_id into metadata at link
+    // time (see linkRegulatoryDocket above) — read it from there, never
+    // re-derive it from link_key. regulatory_document links already carry
+    // a docketIds ARRAY in metadata (Federal Register documents can list
+    // more than one docket) — those need a second read since a single
+    // scalar column can't hold them.
+    const alreadyLinkedDocumentNumbers = new Set(
+      linkedDocketIds.filter((row) => row.linkType === 'regulatory_document').map((row) => row.linkKey),
+    );
+    const docketIdSet = new Set<string>();
+    for (const row of linkedDocketIds) {
+      if (row.docketId) docketIdSet.add(row.docketId);
+    }
+    if (linkedDocketIds.some((row) => row.linkType === 'regulatory_document')) {
+      const documentRows = await this.readLinkSourceOrUnavailable('federal_register_document', () =>
+        this.prisma.federalRegisterDocument.findMany({
+          where: { documentNumber: { in: [...alreadyLinkedDocumentNumbers] } },
+          select: { docketIds: true },
+        }),
+      );
+      for (const doc of documentRows) {
+        for (const id of doc.docketIds) docketIdSet.add(id);
+      }
+    }
+
+    if (docketIdSet.size === 0) {
+      // No deterministic anchor yet — this Matter has no docket-carrying
+      // public-source link at all. Returning candidates without one would
+      // mean guessing by title/agency text, which this method deliberately
+      // does not do. An empty result here is honest, not a source failure.
+      return [];
+    }
+
+    const candidates = await this.readLinkSourceOrUnavailable('federal_register_document', () =>
+      this.prisma.federalRegisterDocument.findMany({
+        where: { docketIds: { hasSome: [...docketIdSet] } },
+        select: {
+          documentNumber: true,
+          title: true,
+          type: true,
+          agencyNames: true,
+          publicationDate: true,
+          docketIds: true,
+          htmlUrl: true,
+        },
+        orderBy: { publicationDate: 'desc' },
+        take: 50,
+      }),
+    );
+
+    return candidates
+      .filter((doc) => !alreadyLinkedDocumentNumbers.has(doc.documentNumber))
+      .map((doc) => ({
+        documentNumber: doc.documentNumber,
+        title: doc.title,
+        documentType: doc.type,
+        agencyNames: doc.agencyNames,
+        publicationDate: doc.publicationDate.toISOString(),
+        matchedDocketIds: doc.docketIds.filter((id) => docketIdSet.has(id)),
+        sourceUrl: doc.htmlUrl,
+        stage: 'government_movement' as const,
+        matchedOn: 'docket_id' as const,
+        causationClaimed: false,
+      }));
   }
 
   private async assertClient(ctx: TenantContext, clientId: string): Promise<void> {
