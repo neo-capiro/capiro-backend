@@ -1,6 +1,7 @@
 /** AWS SDK adapter for the Phase 3 S3 parser artifact store. */
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
   type S3ClientConfig,
@@ -46,16 +47,27 @@ export class AwsParserArtifactObjectStore implements ParserArtifactObjectStoreV1
     }
   }
 
-  async putObject(input: { bucket: string; key: string; bytes: Uint8Array; contentType: string }) {
+  async putObject(input: { bucket: string; key: string; bytes: Uint8Array; contentType: string; ifNoneMatch?: '*' }) {
     const result = await this.client.send(
       new PutObjectCommand({
         Bucket: input.bucket,
         Key: input.key,
         Body: input.bytes,
         ContentType: input.contentType,
+        ...(input.ifNoneMatch ? { IfNoneMatch: input.ifNoneMatch } : {}),
       }),
     );
     return result.VersionId ? { versionId: result.VersionId } : {};
+  }
+
+  async headObject(input: { bucket: string; key: string }) {
+    try {
+      const result = await this.client.send(new HeadObjectCommand({ Bucket: input.bucket, Key: input.key }));
+      return result.VersionId ? { versionId: result.VersionId } : {};
+    } catch (error) {
+      if (isMissingObject(error)) return null;
+      throw error;
+    }
   }
 }
 

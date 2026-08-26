@@ -45,6 +45,8 @@ import {
   type ExtractionArtifactBridgeInput,
   type ExtractionArtifactBridgeOutput,
 } from './extraction-artifact-bridge.js';
+import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
+import { FilesystemExtractionArtifactStore } from './extraction-artifact-store.js';
 import type { LocalParserRuntimeClient } from './local-parser-runtime-client.js';
 import {
   executeLlamaParsePages,
@@ -128,6 +130,7 @@ export interface ParserRouterDependencies {
   artifactStore: ParserArtifactStoreV1;
   runtimeClient: LocalParserRuntimeClient;
   verificationService: BudgetVerificationV1Service;
+  extractionArtifactStore?: ExtractionArtifactStoreV1;
   parserRunRecorder?: ParserRunRecorderV1;
   llamaparseAuthorization?: PaidAuthorization | null;
   llamaparseClient?: LlamaParseClient;
@@ -139,8 +142,8 @@ export interface ParserRouterDependencies {
   };
   artifactFactory?: (
     input: ExtractionArtifactBridgeInput,
-    outputDir: string,
-  ) => ExtractionArtifactBridgeOutput;
+    store: ExtractionArtifactStoreV1,
+  ) => Promise<ExtractionArtifactBridgeOutput> | ExtractionArtifactBridgeOutput;
 }
 
 interface StepExecution {
@@ -210,7 +213,11 @@ export class ParserRouterV1Service {
         parserRunEntries: this.allParserResults,
         plan: activePlan,
       });
-      bridgeOutput = this.artifactFactory(this.buildBridgeInput(composed), this.config.workDir);
+      bridgeOutput = await this.artifactFactory(
+        this.buildBridgeInput(composed),
+        this.dependencies.extractionArtifactStore ??
+          new FilesystemExtractionArtifactStore(`${this.config.workDir}/artifacts`),
+      );
 
       this.transitionTo('VERIFYING');
       verificationResult = await this.runVerification(bridgeOutput);

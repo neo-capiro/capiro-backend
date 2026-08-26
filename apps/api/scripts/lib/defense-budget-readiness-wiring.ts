@@ -16,6 +16,26 @@ import { PrismaPromotionPlanPersistenceV1 } from '../../src/defense-budget/promo
 import { PrismaPromotionEligibilityReadRepositoryV1 } from '../../src/defense-budget/promotion/promotion-eligibility-read-repository-prisma-v1.js';
 import { PrismaPromotionAuditSinkV1 } from '../../src/defense-budget/promotion/promotion-eligibility-service-v1.js';
 import { PrismaProjectionPlanRepositoryV1 } from '../../src/defense-budget/projection-plan/projection-plan-repository-prisma-v1.js';
+import { SdkS3ProofClient } from '../../src/defense-budget/verification/trusted-proof/s3-proof-adapters.js';
+
+function productionS3ArtifactReader() {
+  const client = new SdkS3ProofClient();
+  return {
+    async readObject(locator: string): Promise<Buffer> {
+      const parsed = new URL(locator);
+      if (parsed.protocol !== 's3:' || !parsed.hostname || parsed.pathname.length < 2) {
+        throw new Error(`invalid S3 materialization artifact locator: ${locator}`);
+      }
+      const bytes = await client.getObjectBytes(
+        parsed.hostname,
+        parsed.pathname.slice(1),
+        parsed.searchParams.get('versionId') ?? undefined,
+      );
+      if (!bytes) throw new Error(`materialization artifact object missing: ${locator}`);
+      return bytes;
+    },
+  };
+}
 
 export function buildCycleFamilyReadinessPorts(
   prisma: PrismaClient,
@@ -27,7 +47,7 @@ export function buildCycleFamilyReadinessPorts(
     reconciliationCertification: new MaterializingFamilyReconciliationCertificationV1(
       readOnly,
       new PrismaCycleManifestRegistryV1(prisma),
-      new PrismaMaterializationArtifactSourceV1(prisma),
+      new PrismaMaterializationArtifactSourceV1(prisma, productionS3ArtifactReader()),
       new PrismaProjectionPlanRepositoryV1(prisma),
       'run-defense-budget-cycle-family-readiness-v1@1',
     ),

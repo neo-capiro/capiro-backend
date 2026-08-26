@@ -16,11 +16,15 @@ import { MethodRoutingParserArtifactStore } from './method-routing-parser-artifa
 import { PrismaParserRunRecorder } from './prisma-parser-run-recorder.js';
 import { ProofBoundParserRunRecorder } from './proof-bound-parser-run-recorder.js';
 import { createS3ParserArtifactStore } from './s3-parser-artifact-store.js';
+import { AwsParserArtifactObjectStore } from './s3-parser-artifact-store.js';
+import { S3Client } from '@aws-sdk/client-s3';
+import { FilesystemExtractionArtifactStore, S3ExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 
 export interface ProductionParserVerificationContextV1 {
   verificationService: BudgetVerificationV1Service;
   artifactStore: ParserArtifactStoreV1;
   parserRunRecorder: ProofBoundParserRunRecorder;
+  extractionArtifactStore: ExtractionArtifactStoreV1;
   dispose(): Promise<void>;
 }
 
@@ -51,6 +55,7 @@ export async function createProductionParserVerificationContext(input: {
   const s3ProofClient = new SdkS3ProofClient();
   let wired: Awaited<ReturnType<typeof wireProductionProofBoundary>> | undefined;
   let parserStoreDispose: (() => void) | undefined;
+  let extractionClient: S3Client | undefined;
 
   try {
     wired = await wireProductionProofBoundary({
@@ -62,6 +67,19 @@ export async function createProductionParserVerificationContext(input: {
     });
 
     const localStore = new FilesystemParserArtifactStore(parserArtifactRoot);
+    let extractionArtifactStore: ExtractionArtifactStoreV1 =
+      new FilesystemExtractionArtifactStore(resolve(parserArtifactRoot, 'extraction-artifacts'));
+    const extractionBucket = process.env.BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET?.trim();
+    if (extractionBucket) {
+      const endpoint = process.env.BUDGET_VERIFICATION_S3_ENDPOINT?.trim();
+      extractionClient = new S3Client({ region: process.env.AWS_REGION ?? 'us-east-1', ...(endpoint ? { endpoint, forcePathStyle: true } : {}) });
+      extractionArtifactStore = new S3ExtractionArtifactStore(
+        extractionBucket,
+        process.env.BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_PREFIX?.trim() ?? 'phase10/parser-artifacts',
+        new AwsParserArtifactObjectStore(extractionClient),
+        true,
+      );
+    }
     let artifactStore: ParserArtifactStoreV1 = localStore;
     if (input.allowPaidParse) {
       const endpoint = process.env.BUDGET_VERIFICATION_S3_ENDPOINT?.trim();
@@ -96,10 +114,12 @@ export async function createProductionParserVerificationContext(input: {
       verificationService: new BudgetVerificationV1Service(wired.proofResolver, wired.repository),
       artifactStore,
       parserRunRecorder,
+      extractionArtifactStore,
       async dispose() {
         if (disposed) return;
         disposed = true;
         parserStoreDispose?.();
+        extractionClient?.destroy();
         await wired!.dispose();
         await s3ProofClient.destroy();
         await prisma.$disconnect();
@@ -107,6 +127,7 @@ export async function createProductionParserVerificationContext(input: {
     };
   } catch (error) {
     parserStoreDispose?.();
+    extractionClient?.destroy();
     if (wired) await wired.dispose().catch(() => undefined);
     await s3ProofClient.destroy().catch(() => undefined);
     await prisma.$disconnect().catch(() => undefined);

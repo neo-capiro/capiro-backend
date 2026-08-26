@@ -27,6 +27,7 @@ import { FilesystemProofResolver } from '../verification/trusted-proof/filesyste
 import { FilesystemParserArtifactProofResolver } from '../verification/trusted-proof/filesystem-parser-artifact-proof-resolver.js';
 import { BudgetVerificationV1Service } from '../verification/services/budget-verification-v1.service.js';
 import { createProductionParserVerificationContext } from './production-parser-verification-context.js';
+import { FilesystemExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 
 export interface SourceDocumentParserHandoffInput {
   readonly executionId: string;
@@ -65,6 +66,7 @@ interface VerificationContext {
   service: BudgetVerificationV1Service;
   artifactStore: ParserArtifactStoreV1;
   parserRunRecorder?: ParserRunRecorderV1;
+  extractionArtifactStore: ExtractionArtifactStoreV1;
   dispose(): Promise<void>;
 }
 
@@ -85,6 +87,7 @@ async function createVerificationContext(input: {
         null,
       ),
       artifactStore,
+      extractionArtifactStore: new FilesystemExtractionArtifactStore(path.join(input.parserArtifactRoot, 'extraction-artifacts')),
       dispose: async () => undefined,
     };
   }
@@ -96,6 +99,7 @@ async function createVerificationContext(input: {
     service: production.verificationService,
     artifactStore: production.artifactStore,
     parserRunRecorder: production.parserRunRecorder,
+    extractionArtifactStore: production.extractionArtifactStore,
     dispose: production.dispose,
   };
 }
@@ -186,6 +190,7 @@ export async function runParserHandoffForSourceDocument(
       artifactStore: verification.artifactStore,
       runtimeClient,
       verificationService: verification.service,
+      extractionArtifactStore: verification.extractionArtifactStore,
       ...(verification.parserRunRecorder ? { parserRunRecorder: verification.parserRunRecorder } : {}),
     };
     const router = new ParserRouterV1Service(
@@ -219,7 +224,11 @@ export async function runParserHandoffForSourceDocument(
     const terminal = await router.execute(profile.pages, requestedPages);
     const outputPath = path.join(documentWorkDir, `${input.sourceDocumentId}.extraction-v1.json`);
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.copyFileSync(terminal.artifactLocator, outputPath);
+    const scratch = await verification.extractionArtifactStore.materializeForLocalConsumer({
+      locator: terminal.artifactLocator,
+      expectedByteSha256: terminal.artifactByteSha256,
+    });
+    try { fs.copyFileSync(scratch.localPath, outputPath); } finally { await scratch.cleanup(); }
     fs.writeFileSync(
       path.join(documentWorkDir, 'execution-report.json'),
       `${JSON.stringify(terminal, null, 2)}\n`,

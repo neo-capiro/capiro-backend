@@ -9,11 +9,17 @@
  * The former producer/readiness boundary mismatch is fixed by separating the
  * governed `cycleId` from the content-addressed `bundleId`; both families now
  * traverse the real Phase 7 eligibility and deterministic planning boundary.
+ *
+ * Phase 10B-4 restart extension narrows its starting point to the parser
+ * handoff's composed extraction bytes: HTTP discovery/archive and the parser
+ * engine itself are intentionally excluded because their real bridge behavior
+ * is covered by observation-ingestion-bridge.spec.ts. Here those exact composed
+ * bytes cross the new immutable S3 store boundary, all local state is discarded,
+ * and a brand-new reader instance reloads them before the real readiness chain.
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
 import type { DefenseBudgetExtractionArtifactV1 } from './contracts/extraction-artifact-v1.js';
 import type { BudgetCycleManifestV1 } from './contracts/budget-cycle-manifest-v1.js';
 import {
@@ -39,6 +45,9 @@ import { PrismaPromotionEligibilityReadRepositoryV1 } from './promotion/promotio
 import { PrismaPromotionAuditSinkV1 } from './promotion/promotion-eligibility-service-v1.js';
 import { PrismaPromotionPlanInputLoaderV1 } from './promotion/readiness/prisma-promotion-plan-input-loader-v1.js';
 import { PrismaPromotionPlanPersistenceV1 } from './promotion/readiness/prisma-promotion-plan-persistence-v1.js';
+import { S3ExtractionArtifactStore } from './parser-router/extraction-artifact-store.js';
+import type { ParserArtifactObjectStoreV1 } from './parser-router/parser-artifact-store.js';
+import type { S3ByteReaderPortV1 } from './promotion/readiness/prisma-materialization-artifact-source-v1.js';
 
 const SHA = (character: string) => character.repeat(64);
 const CYCLE = 'cycle-fy2027-authorization';
@@ -171,20 +180,45 @@ class SharedReadinessPrisma {
   }
 }
 
-function byteSha(bytes: Buffer): string {
-  return createHash('sha256').update(bytes).digest('hex');
+class FakeDurableS3 implements ParserArtifactObjectStoreV1 {
+  readonly objects = new Map<string, { bytes: Uint8Array; versionId: string }>();
+  private key(bucket: string, key: string) { return `${bucket}/${key}`; }
+  async headObject(input: { bucket: string; key: string }) {
+    const found = this.objects.get(this.key(input.bucket, input.key));
+    return found ? { versionId: found.versionId } : null;
+  }
+  async getObject(input: { bucket: string; key: string; versionId?: string }) {
+    return this.objects.get(this.key(input.bucket, input.key)) ?? null;
+  }
+  async putObject(input: { bucket: string; key: string; bytes: Uint8Array; contentType: string; ifNoneMatch?: '*' }) {
+    const key = this.key(input.bucket, input.key);
+    if (input.ifNoneMatch && this.objects.has(key)) throw Object.assign(new Error('precondition failed'), { name: 'PreconditionFailed' });
+    const value = { bytes: Uint8Array.from(input.bytes), versionId: `version-${this.objects.size + 1}` };
+    this.objects.set(key, value);
+    return { versionId: value.versionId };
+  }
 }
 
-function writeArtifact(
-  tempDir: string,
+async function persistComposedArtifact(
+  store: S3ExtractionArtifactStore,
   artifact: DefenseBudgetExtractionArtifactV1,
-): { locator: string; sha256: string } {
+): Promise<{ locator: string; sha256: string }> {
   // RDT&E's production persisted-artifact builder defines the byte identity
   // as pretty JSON plus a trailing newline; write those exact real bytes.
   const bytes = Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`);
-  const locator = path.join(tempDir, `${artifact.artifactId}.json`);
-  fs.writeFileSync(locator, bytes);
-  return { locator, sha256: byteSha(bytes) };
+  const persisted = await store.putImmutable({ bytes });
+  return { locator: persisted.locator, sha256: persisted.byteSha256 };
+}
+
+function restartedS3Reader(objects: FakeDurableS3): S3ByteReaderPortV1 {
+  // A new store instance models Task B after Task A's container/local disk died.
+  const restarted = new S3ExtractionArtifactStore('phase10-artifacts', 'phase10/parser-artifacts', objects);
+  return { async readObject(locator: string) {
+    const url = new URL(locator);
+    const object = await objects.getObject({ bucket: url.hostname, key: url.pathname.slice(1), versionId: url.searchParams.get('versionId') ?? undefined });
+    if (!object) throw new Error(`materialization artifact object missing: ${locator}`);
+    return Buffer.from(object.bytes);
+  }};
 }
 
 function omArtifact(key: string, exhibit: string): DefenseBudgetExtractionArtifactV1 {
@@ -293,13 +327,13 @@ function omManifest(): BudgetCycleManifestV1 {
   } as unknown as BudgetCycleManifestV1;
 }
 
-function realMaterializationChain(prisma: SharedReadinessPrisma) {
+function realMaterializationChain(prisma: SharedReadinessPrisma, s3Reader?: S3ByteReaderPortV1) {
   return {
     corpusLoader: new PrismaReadinessCorpusLoaderV1(prisma),
     reconciliationCertification: new MaterializingFamilyReconciliationCertificationV1(
       new PrismaFamilyReconciliationCertificationV1(prisma),
       new PrismaCycleManifestRegistryV1(prisma),
-      new PrismaMaterializationArtifactSourceV1(prisma),
+      new PrismaMaterializationArtifactSourceV1(prisma, s3Reader),
       new PrismaProjectionPlanRepositoryV1(prisma),
       'real-integration@1',
     ),
@@ -377,6 +411,8 @@ describe('real ingestion readiness integration', () => {
 
   it('RDT&E reaches awaiting_authorization through the real persisted projection plan', async () => {
     const prisma = new SharedReadinessPrisma();
+    const remote = new FakeDurableS3();
+    const writer = new S3ExtractionArtifactStore('phase10-artifacts', 'phase10/parser-artifacts', remote);
     prisma.expectedSourceFamily = 'pb_r1';
     const identity: CycleFamilyReadinessIdentityV1 = {
       fiscalYear: 2027,
@@ -423,7 +459,7 @@ describe('real ingestion readiness integration', () => {
               : assertion,
         ),
       } as DefenseBudgetExtractionArtifactV1;
-      const file = writeArtifact(tempDir, artifact);
+      const file = await persistComposedArtifact(writer, artifact);
       seedCandidate(prisma, {
         key: item.documentKey,
         artifact,
@@ -435,7 +471,10 @@ describe('real ingestion readiness integration', () => {
     }
     prisma.sourceDocumentId = prisma.candidates[0]!.sourceDocumentId;
     prisma.sourceSha256 = prisma.candidates[0]!.sourceSha256;
-    const artifactSource = new PrismaMaterializationArtifactSourceV1(prisma);
+    const restartedEmptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase10b4-restarted-task-'));
+    expect(fs.readdirSync(restartedEmptyDir)).toEqual([]);
+    const s3Reader = restartedS3Reader(remote);
+    const artifactSource = new PrismaMaterializationArtifactSourceV1(prisma, s3Reader);
     const refs = await artifactSource.loadCandidateRefs({
       cycleId: CYCLE,
       manifestDocumentKeys: manifest.documents.map((value) => value.documentKey),
@@ -490,7 +529,8 @@ describe('real ingestion readiness integration', () => {
       throw new Error(
         `RDT&E findings: ${JSON.stringify(diagnostic.bundle.blockingFindings)} totals=${JSON.stringify(persistedDocuments.flatMap((value) => reconstructR2PeTotalCellsFromArtifact(value.artifact)))} values=${JSON.stringify(persistedDocuments.flatMap((value) => reconstructR2aProjectFundingValuesFromArtifact(value.artifact)))}`,
       );
-    const chain = realMaterializationChain(prisma);
+    fs.rmSync(restartedEmptyDir, { recursive: true, force: true });
+    const chain = realMaterializationChain(prisma, s3Reader);
     const result = await evaluateAndAdvanceCycleFamilyReadinessV1(identity, chain, {
       mode: 'new_cycle',
       environment: 'test',
@@ -502,6 +542,8 @@ describe('real ingestion readiness integration', () => {
 
   it('O&M reaches awaiting_authorization through the real persisted projection plan', async () => {
     const prisma = new SharedReadinessPrisma();
+    const remote = new FakeDurableS3();
+    const writer = new S3ExtractionArtifactStore('phase10-artifacts', 'phase10/parser-artifacts', remote);
     const identity: CycleFamilyReadinessIdentityV1 = {
       fiscalYear: 2027,
       authorityTrack: 'authorization',
@@ -514,7 +556,7 @@ describe('real ingestion readiness integration', () => {
       ['op5', 'OP-5'],
     ] as const) {
       const artifact = omArtifact(key, exhibit);
-      const file = writeArtifact(tempDir, artifact);
+      const file = await persistComposedArtifact(writer, artifact);
       seedCandidate(prisma, {
         key,
         artifact,
@@ -524,7 +566,10 @@ describe('real ingestion readiness integration', () => {
         family: 'om',
       });
     }
-    const chain = realMaterializationChain(prisma);
+    const restartedEmptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'phase10b4-restarted-task-'));
+    expect(fs.readdirSync(restartedEmptyDir)).toEqual([]);
+    const chain = realMaterializationChain(prisma, restartedS3Reader(remote));
+    fs.rmSync(restartedEmptyDir, { recursive: true, force: true });
     const result = await evaluateAndAdvanceCycleFamilyReadinessV1(identity, chain, {
       mode: 'new_cycle',
       environment: 'test',

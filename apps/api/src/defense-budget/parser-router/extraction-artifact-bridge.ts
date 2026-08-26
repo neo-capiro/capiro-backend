@@ -7,8 +7,6 @@
  * extraction may add assertions in later phases, but this bridge never emits
  * a non-contract pseudo-artifact and never fabricates cell geometry.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   ArtifactBuilderV1,
   evidenceIdV1,
@@ -34,6 +32,7 @@ import type {
   PageLineageEntry,
   SelectedPageResultV1,
 } from './page-result-compositor.js';
+import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 
 export function pagesToContiguousRanges(pages: number[]): PageRangeV1[] {
   if (pages.length === 0) return [];
@@ -151,10 +150,10 @@ function parseFiscalYear(value: number | string): number {
   return fiscalYear;
 }
 
-export function buildExtractionArtifact(
+export async function buildExtractionArtifact(
   input: ExtractionArtifactBridgeInput,
-  outputDir: string,
-): ExtractionArtifactBridgeOutput {
+  store: ExtractionArtifactStoreV1,
+): Promise<ExtractionArtifactBridgeOutput> {
   const parserRuns = buildContributingParserRuns(
     input.composedOutput.lineages,
     input.composedOutput.pages,
@@ -278,17 +277,14 @@ export function buildExtractionArtifact(
 
   const artifact = builder.finalize();
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  const artifactDir = join(outputDir, 'artifacts');
-  mkdirSync(artifactDir, { recursive: true });
-  const artifactLocator = join(artifactDir, `${artifact.artifactId}.extraction-v1.json`);
-  writeFileSync(artifactLocator, serialized, 'utf8');
+  const persisted = await store.putImmutable({ bytes: Buffer.from(serialized, 'utf8') });
 
   return {
     artifact,
     artifactId: artifact.artifactId,
     artifactContentSha256: artifact.contentSha256,
-    artifactByteSha256: sha256Bytes(Buffer.from(serialized, 'utf8')),
-    artifactLocator,
+    artifactByteSha256: persisted.byteSha256,
+    artifactLocator: persisted.locator,
     parserRuns: artifact.parserRuns,
     sourceFactCount: artifact.sourceFacts.length,
     assertionCount: artifact.assertions.length,
