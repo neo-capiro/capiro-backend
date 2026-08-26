@@ -1,6 +1,7 @@
 import {
   buildClientProfileFillCompletionPlan,
   calculateProfileCompletion,
+  faraMatchConfidence,
   mergeFillProgress,
   matchAdvocacyOutcomeDeterministically,
   sameActivityDay,
@@ -148,5 +149,21 @@ describe('Fill with Meri completion workflow', () => {
     expect(titleOverlapRatio('HASC staff meeting on ground robotics', 'SASC hearing on shipbuilding budget')).toBeLessThan(0.3);
     expect(titleOverlapRatio(null, 'anything')).toBe(0);
     expect(titleOverlapRatio('anything', null)).toBe(0);
+  });
+
+  test('faraMatchConfidence: a confirmed client_intel_mapping always yields full confidence regardless of similarity', () => {
+    expect(faraMatchConfidence(true, 0)).toBe(1);
+    expect(faraMatchConfidence(true, 0.03)).toBe(1);
+    expect(faraMatchConfidence(true, 0.99)).toBe(1);
+  });
+
+  test('faraMatchConfidence: an unconfirmed match is scaled by similarity but never reaches 1 and never drops below the auto-match floor', () => {
+    expect(faraMatchConfidence(false, 0.5)).toBe(0.725);
+    expect(faraMatchConfidence(false, 1)).toBe(0.95);
+    // Even a similarity below the query's own >= 0.5 gate (defensive floor,
+    // in case this helper is ever called before that gate is applied) never
+    // produces a confidence below 0.5 — an unconfirmed public-source match
+    // is never presented as less certain than the discovery threshold itself.
+    expect(faraMatchConfidence(false, 0)).toBe(0.5);
   });
 });
