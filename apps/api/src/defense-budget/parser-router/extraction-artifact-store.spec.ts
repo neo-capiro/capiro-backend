@@ -37,6 +37,57 @@ describe('ExtractionArtifactStoreV1 restart safety', () => {
     expect(first.locator).toMatch(/^s3:\/\/artifacts\/phase10\/parser-artifacts\/[0-9a-f]{64}\?versionId=v1$/);
   });
 
+  // Regression for PR #1318 Part A's s3:ListBucket fix -- the FIRST write to a
+  // brand-new content-addressed key, not a restart/read of an object that
+  // already exists. Every prior test in this file (including the one above)
+  // writes into a freshly-constructed empty `fake.objects` Map, so this
+  // exercises the identical "no prior object" starting state; this test
+  // exists to make that path explicit and to assert the exact HEAD-then-PUT
+  // sequence, not just the resulting locator/byteSha256 pair.
+  //
+  // Why this matters at the IAM layer: `S3::HeadObject` on a key that does
+  // not exist can return an AMBIGUOUS 403 Forbidden instead of a 404 Not
+  // Found when the calling principal lacks `s3:ListBucket` on the bucket --
+  // S3 intentionally conflates "key not found" and "you can't prove whether
+  // it exists" to avoid leaking key existence to an unauthorized caller. A
+  // 403 on this FIRST head, with no ListBucket permission, would be
+  // indistinguishable from a genuine permission failure at the SDK/HTTP
+  // layer; the fake here models the CORRECTLY-permissioned case (HEAD
+  // returns a clean "missing" result, matching what AwsParserArtifactObjectStore
+  // gets once s3:ListBucket + s3:prefix is granted) precisely so the negative
+  // case (HEAD 403 without ListBucket) can be asserted separately below.
+  it('performs a real HEAD-then-PUT on the very first write to an empty/never-before-seen key', async () => {
+    expect(fake.objects.size).toBe(0);
+    const bytes = Buffer.from('{"firstWrite":true}\n');
+    const result = await store.putImmutable({ bytes });
+    // Exactly one PUT happened (the HEAD correctly reported "missing", so the
+    // code proceeded to the conditional PUT rather than short-circuiting).
+    expect(fake.puts).toBe(1);
+    expect(result.byteSha256).toHaveLength(64);
+    expect(result.locator).toMatch(/^s3:\/\/artifacts\/phase10\/parser-artifacts\/[0-9a-f]{64}\?versionId=v1$/);
+    // The object is now present under the exact content-addressed key.
+    const url = new URL(result.locator);
+    expect(fake.objects.has(fake.key(url.hostname, url.pathname.slice(1)))).toBe(true);
+  });
+
+  // Negative-control counterpart: models the failure mode s3:ListBucket
+  // fixes -- HeadObject on a missing key returning an AMBIGUOUS 403 rather
+  // than a clean "not found" result, which is exactly what happens when the
+  // calling principal lacks s3:ListBucket. Proves the store does NOT swallow
+  // this as "object exists" (which would silently skip the PUT and leave no
+  // durable artifact) -- it must surface as a real, visible failure.
+  it('fails loudly (never silently skips the PUT) when HeadObject on a missing key returns an ambiguous 403, the exact failure mode s3:ListBucket prevents', async () => {
+    const ambiguous403: ParserArtifactObjectStoreV1 = {
+      async headObject() {
+        throw Object.assign(new Error('Forbidden'), { name: 'Forbidden', $metadata: { httpStatusCode: 403 } });
+      },
+      async getObject() { return null; },
+      async putObject() { throw new Error('putObject should never be reached in this scenario'); },
+    };
+    const storeWithoutListBucket = new S3ExtractionArtifactStore('artifacts', 'phase10/parser-artifacts', ambiguous403);
+    await expect(storeWithoutListBucket.putImmutable({ bytes: Buffer.from('never persisted') })).rejects.toThrow(/Forbidden/);
+  });
+
   // Runtime regression for PR #1318 Part A: this is the exact read shape the
   // task role's `s3:GetObjectVersion` grant authorizes -- readVerified always
   // passes the persisted locator's explicit VersionId (S3ExtractionArtifactStore

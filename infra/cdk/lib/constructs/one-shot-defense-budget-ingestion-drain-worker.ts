@@ -82,6 +82,48 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
       actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
       resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.extractionArtifactBucketName}/${prefix}/*`],
     }));
+    // Bucket-level s3:ListBucket, scoped to the bucket ARN (never bucket/*,
+    // which is an OBJECT resource -- ListBucket is a BUCKET-level action and
+    // only accepts the bare bucket ARN) with an s3:prefix condition narrowing
+    // it to exactly the prefix this task actually touches.
+    //
+    // WHY THIS IS REQUIRED, NOT DEFENSIVE: S3's HeadObject on a key that does
+    // not exist can return a bare 403 Forbidden instead of 404 Not Found when
+    // the calling principal lacks s3:ListBucket on the bucket -- S3 conflates
+    // "key not found" and "you can't prove whether it exists" into the same
+    // ambiguous 403 to avoid leaking key existence to an unauthorized caller.
+    // Both S3 stores in this codebase depend on HEAD reliably distinguishing
+    // "object missing" from a real permission error on their FIRST write to a
+    // brand-new content-addressed key:
+    //   - RawArchiveService.archiveOriginal -> private headSafe(key) (raw-
+    //     archive.service.ts) HEADs the content-addressed original key BEFORE
+    //     the first conditional PUT; headSafe() classifies only NotFound/
+    //     NoSuchKey/404 as "absent" and RE-THROWS anything else (including an
+    //     ambiguous 403) as a hard failure -- so a first-ever write to a new
+    //     document_id/sha256 without ListBucket would fail closed, not open,
+    //     but it WOULD fail the very first ingestion of every new document.
+    //   - S3ExtractionArtifactStore.putImmutable (extraction-artifact-
+    //     store.ts) calls objects.headObject() first; on ANY error from the
+    //     subsequent putObject it re-HEADs to distinguish "someone else's
+    //     PUT already landed" from a genuine failure -- same 403-vs-404
+    //     ambiguity risk on the first-ever write for a new content hash.
+    // Code-trace-verified: headSafe() is called from EXACTLY one call site
+    // (archiveOriginal, on raw/public/dod-budget/* keys only) -- archiveDerived
+    // never HEADs (it PUTs derived/public/dod-budget/* unconditionally), so no
+    // additional raw-bucket ListBucket prefix is added beyond raw/public/dod-
+    // budget/*.
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'RawArchiveBucketList',
+      actions: ['s3:ListBucket'],
+      resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.rawBucketName}`],
+      conditions: { StringLike: { 's3:prefix': ['raw/public/dod-budget/*'] } },
+    }));
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'ExtractionArtifactBucketList',
+      actions: ['s3:ListBucket'],
+      resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.extractionArtifactBucketName}`],
+      conditions: { StringLike: { 's3:prefix': [`${prefix}/*`] } },
+    }));
     // SSE-KMS on the raw/extraction bucket: the bucket policy denies any
     // PutObject that doesn't use this exact CMK, and any SSE-KMS GetObject
     // requires the reading principal to hold kms:Decrypt on it too.

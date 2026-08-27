@@ -67,7 +67,7 @@ test('DB_* secrets are wired from the correct master/app credential fields, matc
   void rendered;
 });
 
-test('S3 permissions are object-scoped to the named buckets and artifact prefix, with GetObjectVersion alongside GetObject/PutObject, never a wildcard resource', () => {
+test('S3 object-level permissions are object-scoped to the named buckets and artifact prefix, with GetObjectVersion alongside GetObject/PutObject, never a wildcard resource', () => {
   const template = synth();
   const rendered = JSON.stringify(template.toJSON());
   assert.ok(rendered.includes('raw-bucket/*'));
@@ -98,32 +98,95 @@ test('S3 permissions are object-scoped to the named buckets and artifact prefix,
     return resources.map((r: any) => JSON.stringify(r));
   }
 
-  const rawStatement = s3Statements.find((s) => resourceStringsOf(s).some((r) => r.includes('raw-bucket/*')));
-  assert.ok(rawStatement, 'expected an S3 statement scoped to raw-bucket/*');
+  const objectStatements = s3Statements.filter((s) => !actionsOf(s).includes('s3:ListBucket'));
+
+  const rawStatement = objectStatements.find((s) => resourceStringsOf(s).some((r) => r.includes('raw-bucket/*')));
+  assert.ok(rawStatement, 'expected an object-level S3 statement scoped to raw-bucket/*');
   const rawActions = actionsOf(rawStatement);
   assert.ok(rawActions.includes('s3:GetObject'));
   assert.ok(rawActions.includes('s3:GetObjectVersion'));
   assert.ok(rawActions.includes('s3:PutObject'));
 
-  const extractionStatement = s3Statements.find((s) =>
+  const extractionStatement = objectStatements.find((s) =>
     resourceStringsOf(s).some((r) => r.includes('artifact-bucket/phase10/parser-artifacts/*')),
   );
-  assert.ok(extractionStatement, 'expected an S3 statement scoped to artifact-bucket/phase10/parser-artifacts/*');
+  assert.ok(extractionStatement, 'expected an object-level S3 statement scoped to artifact-bucket/phase10/parser-artifacts/*');
   const extractionActions = actionsOf(extractionStatement);
   assert.ok(extractionActions.includes('s3:GetObject'));
   assert.ok(extractionActions.includes('s3:GetObjectVersion'));
   assert.ok(extractionActions.includes('s3:PutObject'));
 
-  // Exact resource scoping: no statement carrying s3:GetObjectVersion (or any
-  // other s3: action) is scoped wider than one of these two exact prefixes.
-  for (const statement of s3Statements) {
+  // Exact resource scoping: every OBJECT-level S3 statement (GetObject/
+  // GetObjectVersion/PutObject) is scoped to one of these two exact object
+  // prefixes -- never wider, never a bucket-only ARN.
+  for (const statement of objectStatements) {
     for (const resource of resourceStringsOf(statement)) {
       assert.ok(
         resource.includes('raw-bucket/*') || resource.includes('artifact-bucket/phase10/parser-artifacts/*'),
-        `unexpected S3 resource scope: ${resource}`,
+        `unexpected S3 object resource scope: ${resource}`,
       );
     }
   }
+});
+
+test('s3:ListBucket uses the bare bucket ARN (never bucket/*), carries an s3:prefix condition, and is never a wildcard resource', () => {
+  const template = synth();
+  const policies: any[] = Object.values(template.findResources('AWS::IAM::Policy'));
+
+  function actionsOf(statement: any): string[] {
+    return Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+  }
+  function resourceStringsOf(statement: any): string[] {
+    const resources = Array.isArray(statement.Resource) ? statement.Resource : [statement.Resource];
+    return resources.map((r: any) => JSON.stringify(r));
+  }
+
+  const listStatements: any[] = [];
+  for (const policy of policies) {
+    for (const statement of policy.Properties.PolicyDocument.Statement) {
+      if (actionsOf(statement).includes('s3:ListBucket')) listStatements.push(statement);
+    }
+  }
+  assert.equal(listStatements.length, 2, 'expected exactly one ListBucket statement per bucket (raw + extraction)');
+
+  for (const statement of listStatements) {
+    // Never a wildcard resource.
+    const resources = resourceStringsOf(statement);
+    for (const resource of resources) assert.notEqual(resource, '*');
+    // Bucket ARN only -- no trailing /* (that would be an OBJECT resource,
+    // which ListBucket, a BUCKET-level action, does not accept).
+    assert.ok(
+      resources.every((r) => !r.includes('/*') && !r.endsWith('/"')),
+      `ListBucket resource must be the bare bucket ARN, got: ${resources.join(', ')}`,
+    );
+    // Must carry an s3:prefix condition -- this is what narrows the
+    // otherwise-bucket-wide ListBucket grant down to only the prefix this
+    // task actually reads/writes.
+    assert.ok(statement.Condition, 'expected an IAM Condition block on the ListBucket statement');
+    const prefixCondition =
+      statement.Condition.StringLike?.['s3:prefix'] ?? statement.Condition.StringEquals?.['s3:prefix'];
+    assert.ok(prefixCondition, 'expected an s3:prefix condition on the ListBucket statement');
+  }
+
+  const rendered = JSON.stringify(template.toJSON());
+  // Raw bucket ListBucket is scoped to the exact prefix headSafe() HEADs
+  // (raw/public/dod-budget/*) -- code-trace-verified as the ONLY HEAD call
+  // site in RawArchiveService; archiveDerived() never HEADs, so no second
+  // prefix is added for derived/public/dod-budget/*.
+  assert.ok(rendered.includes('raw/public/dod-budget/*'));
+  // Extraction bucket ListBucket is scoped to the exact configured artifact
+  // prefix (phase10/parser-artifacts by default), matching keyPrefix in
+  // S3ExtractionArtifactStore.
+  assert.ok(rendered.includes('phase10/parser-artifacts/*'));
+
+  const rawList = listStatements.find((s) => resourceStringsOf(s).some((r) => r.includes('raw-bucket')));
+  assert.ok(rawList, 'expected a ListBucket statement on the raw bucket');
+  const rawListResources = Array.isArray(rawList.Resource) ? rawList.Resource : [rawList.Resource];
+  assert.equal(rawListResources.length, 1);
+  // The bucket ARN is built via a Fn::Join (partition token + literal bucket
+  // name), never a plain string containing '/*' -- confirmed structurally,
+  // not just by the rendered-JSON substring check above.
+  assert.ok(!JSON.stringify(rawListResources[0]).includes('/*'));
 });
 
 test('KMS grants are scoped to the exact named keys, never a wildcard resource', () => {

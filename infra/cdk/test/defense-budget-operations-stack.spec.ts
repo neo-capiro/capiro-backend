@@ -114,7 +114,7 @@ test('extraction bucket env + exact artifact prefix + ephemeral parser scratch a
   assert.equal(byName.get('DEFENSE_BUDGET_RAW_BUCKET'), 'capiro-defense-budget-raw-dev-000000000000');
 });
 
-test('GetObjectVersion is present for both the raw bucket and the extraction prefix', () => {
+test('GetObjectVersion is present for both the raw bucket and the extraction prefix (object-level statements)', () => {
   const template = synth({ existingExtractionArtifactBucketName: 'capiro-dev-preverified-extraction-artifacts' });
   const policies: any[] = Object.values(template.findResources('AWS::IAM::Policy'));
   const s3Statements: any[] = [];
@@ -124,12 +124,54 @@ test('GetObjectVersion is present for both the raw bucket and the extraction pre
       if (actions.some((a: string) => a.startsWith('s3:'))) s3Statements.push(statement);
     }
   }
-  const rendered = JSON.stringify(s3Statements);
-  const versionActions = s3Statements.filter((s) => {
+  const objectStatements = s3Statements.filter((s) => {
+    const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
+    return !actions.includes('s3:ListBucket');
+  });
+  const rendered = JSON.stringify(objectStatements);
+  const versionActions = objectStatements.filter((s) => {
     const actions = Array.isArray(s.Action) ? s.Action : [s.Action];
     return actions.includes('s3:GetObjectVersion');
   });
-  assert.ok(versionActions.length >= 2, `expected GetObjectVersion on at least 2 statements, got: ${rendered}`);
+  assert.ok(versionActions.length >= 2, `expected GetObjectVersion on at least 2 object-level statements, got: ${rendered}`);
+});
+
+test('s3:ListBucket is granted bucket-level (bare bucket ARN + s3:prefix condition) for both the raw and extraction buckets, never a wildcard resource', () => {
+  const template = synth({ existingExtractionArtifactBucketName: 'capiro-dev-preverified-extraction-artifacts' });
+  const policies: any[] = Object.values(template.findResources('AWS::IAM::Policy'));
+
+  function actionsOf(statement: any): string[] {
+    return Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+  }
+  function resourceStringsOf(statement: any): string[] {
+    const resources = Array.isArray(statement.Resource) ? statement.Resource : [statement.Resource];
+    return resources.map((r: any) => JSON.stringify(r));
+  }
+
+  const listStatements: any[] = [];
+  for (const policy of policies) {
+    for (const statement of policy.Properties.PolicyDocument.Statement) {
+      if (actionsOf(statement).includes('s3:ListBucket')) listStatements.push(statement);
+    }
+  }
+  assert.equal(listStatements.length, 2, 'expected exactly one ListBucket statement for the raw bucket and one for the extraction bucket');
+
+  for (const statement of listStatements) {
+    for (const resource of resourceStringsOf(statement)) {
+      assert.notEqual(resource, '*');
+      // ListBucket is a bucket-level action -- resource must be the bare
+      // bucket ARN, never an object ARN (bucket/*).
+      assert.ok(!resource.includes('/*'), `ListBucket resource must not include an object suffix: ${resource}`);
+    }
+    assert.ok(statement.Condition, 'expected a Condition block on the ListBucket statement');
+    const prefixCondition =
+      statement.Condition.StringLike?.['s3:prefix'] ?? statement.Condition.StringEquals?.['s3:prefix'];
+    assert.ok(prefixCondition, 'expected an s3:prefix condition on the ListBucket statement');
+  }
+
+  const rendered = JSON.stringify(template.toJSON());
+  assert.ok(rendered.includes('raw/public/dod-budget/*'), 'expected the raw-bucket ListBucket prefix condition');
+  assert.ok(rendered.includes('phase10/parser-artifacts/*'), 'expected the extraction-bucket ListBucket prefix condition');
 });
 
 test('when no pre-verified bucket is supplied, this stack creates its OWN versioned+KMS+block-public extraction bucket', () => {
