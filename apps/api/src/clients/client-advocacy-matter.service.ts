@@ -18,6 +18,28 @@ interface OpenMatterRow {
   externalKey: string;
 }
 
+/**
+ * Deterministic regulatory-outcome matcher (Advocacy History follow-on to
+ * PR #1310). Pure and side-effect free by design: it takes only docket ids
+ * on both sides and NEVER accepts title/agency/text fields at all — so it
+ * is structurally incapable of matching on client-name appearance or
+ * agency-text similarity, exactly the two things the product spec forbids
+ * as proof of advocacy or of a relationship. `suggestFederalRegisterCorrelations`
+ * is this function's only caller; it stays exported and independently
+ * tested because it is also the exact unit the regulatory-outcome finding
+ * pipeline (`gatherFederalRegisterBackfill`) reuses.
+ */
+export function matchRegulatoryOutcomeDeterministically(
+  clientDocketIds: readonly string[],
+  candidate: { documentNumber: string; docketIds: readonly string[] },
+): { matchedOn: 'docket_id'; matchedDocketIds: string[] } | null {
+  const clientSet = new Set(clientDocketIds.filter((id): id is string => !!id));
+  if (clientSet.size === 0) return null;
+  const matchedDocketIds = candidate.docketIds.filter((id) => clientSet.has(id));
+  if (matchedDocketIds.length === 0) return null;
+  return { matchedOn: 'docket_id', matchedDocketIds };
+}
+
 /** A reviewable Federal Register correlation suggestion — never an
  *  auto-created link. See suggestFederalRegisterCorrelations. */
 export interface FederalRegisterCorrelationSuggestion {
@@ -1856,20 +1878,24 @@ export class ClientAdvocacyMatterService {
       }),
     );
 
+    const clientDocketIds = [...docketIdSet];
     return candidates
       .filter((doc) => !alreadyLinkedDocumentNumbers.has(doc.documentNumber))
-      .map((doc) => ({
-        documentNumber: doc.documentNumber,
-        title: doc.title,
-        documentType: doc.type,
-        agencyNames: doc.agencyNames,
-        publicationDate: doc.publicationDate.toISOString(),
-        matchedDocketIds: doc.docketIds.filter((id) => docketIdSet.has(id)),
-        sourceUrl: doc.htmlUrl,
-        stage: 'government_movement' as const,
-        matchedOn: 'docket_id' as const,
-        causationClaimed: false,
-      }));
+      .map((doc) => {
+        const match = matchRegulatoryOutcomeDeterministically(clientDocketIds, doc);
+        return {
+          documentNumber: doc.documentNumber,
+          title: doc.title,
+          documentType: doc.type,
+          agencyNames: doc.agencyNames,
+          publicationDate: doc.publicationDate.toISOString(),
+          matchedDocketIds: match?.matchedDocketIds ?? [],
+          sourceUrl: doc.htmlUrl,
+          stage: 'government_movement' as const,
+          matchedOn: 'docket_id' as const,
+          causationClaimed: false,
+        };
+      });
   }
 
   private async assertClient(ctx: TenantContext, clientId: string): Promise<void> {

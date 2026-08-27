@@ -12,6 +12,10 @@ export const OUTCOME_KINDS = [
   'filing_completed',
   'commitment_secured',
   'no_action',
+  // Deterministic regulatory correlation: a Federal Register document
+  // observed on a docket the client is already attributably advocating on
+  // (exact docket id match) — never a claim of causation.
+  'regulatory_action_published',
 ] as const;
 export type OutcomeKind = (typeof OUTCOME_KINDS)[number];
 
@@ -22,6 +26,8 @@ export const OUTCOME_SOURCE_TYPES = [
   'campaign',
   'submission',
   'manual',
+  // sourceId = federal_register_document.document_number.
+  'regulatory_document',
 ] as const;
 export type OutcomeSourceType = (typeof OUTCOME_SOURCE_TYPES)[number];
 

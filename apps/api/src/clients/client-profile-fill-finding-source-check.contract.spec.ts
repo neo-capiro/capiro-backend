@@ -32,6 +32,7 @@ describe('client_profile_fill_finding_source_check stays in sync with addFinding
     'prisma/migrations/20261120210000_client_profile_fill_capability_document/migration.sql',
     'prisma/migrations/20261219010000_client_profile_fill_bill_recommendation/migration.sql',
     'prisma/migrations/20271231080000_fix_client_profile_fill_finding_source_check/migration.sql',
+    'prisma/migrations/20280101020000_outcome_event_regulatory_correlation/migration.sql',
   ];
   const migrations = migrationFiles.map((f) => readFileSync(resolve(process.cwd(), f), 'utf8'));
   const latestMigration: string = migrations[migrations.length - 1]!;

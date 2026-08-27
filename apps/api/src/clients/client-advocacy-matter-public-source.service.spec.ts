@@ -1,5 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
+import {
+  ClientAdvocacyMatterService,
+  matchRegulatoryOutcomeDeterministically,
+} from './client-advocacy-matter.service.js';
 
 /**
  * Focused unit coverage for public-source Matter links (product spec
@@ -439,6 +442,73 @@ describe('ClientAdvocacyMatterService — public source links', () => {
 
       expect(result[0]!.causationClaimed).toBe(false);
       expect(result[0]!.stage).toBe('government_movement');
+    });
+  });
+
+  /**
+   * Deterministic regulatory-outcome matcher (Advocacy History follow-on to
+   * PR #1310, deterministic regulatory outcome correlation). Pure, no
+   * Prisma/DI needed — the function's own signature makes the "never uses
+   * client-name/agency-text" rule structurally true (it has no title/
+   * agency/text parameter to match on at all), so these tests assert the
+   * behavior directly rather than merely asserting "no text field was
+   * read" indirectly.
+   */
+  describe('matchRegulatoryOutcomeDeterministically', () => {
+    test('exact docket id match returns matchedOn: docket_id with the shared docket id', () => {
+      const matched = matchRegulatoryOutcomeDeterministically(
+        ['DOD-2026-OS-0001'],
+        { documentNumber: '2026-00001', docketIds: ['DOD-2026-OS-0001'] },
+      );
+      expect(matched).toEqual({ matchedOn: 'docket_id', matchedDocketIds: ['DOD-2026-OS-0001'] });
+    });
+
+    test('a different docket id never matches, even when everything else lines up', () => {
+      const matched = matchRegulatoryOutcomeDeterministically(
+        ['DOD-2026-OS-0001'],
+        { documentNumber: '2026-00001', docketIds: ['DOD-2026-OS-9999'] },
+      );
+      expect(matched).toBeNull();
+    });
+
+    test('same agency, different docket, never matches — this function has no agency field to fall back to', () => {
+      // The candidate here plausibly comes from the SAME agency as the
+      // client's docket (a real caller would see matching agencyNames on
+      // both), but this function's signature only ever receives docket
+      // ids — proving agency identity can never leak in as a silent match.
+      const matched = matchRegulatoryOutcomeDeterministically(
+        ['DOD-2026-OS-0001'],
+        { documentNumber: '2026-00099', docketIds: ['DOD-2026-OS-0002'] },
+      );
+      expect(matched).toBeNull();
+    });
+
+    test('Federal Register text/name similarity alone can never produce a match — the function accepts no such field', () => {
+      // There is deliberately no title/agencyNames/text parameter on this
+      // function at all; a candidate object with those extra fields still
+      // only matches on docketIds, proving text similarity is structurally
+      // incapable of producing a match.
+      const candidate = {
+        documentNumber: '2026-00007',
+        docketIds: [] as string[],
+        title: 'Pike Robotics Defense Acquisition Comment Period',
+        agencyNames: ['Department of Defense'],
+      };
+      expect(matchRegulatoryOutcomeDeterministically(['DOD-2026-OS-0001'], candidate)).toBeNull();
+    });
+
+    test('no known client docket ids never matches anything, even an identical-looking candidate', () => {
+      expect(
+        matchRegulatoryOutcomeDeterministically([], { documentNumber: '2026-00001', docketIds: ['DOD-2026-OS-0001'] }),
+      ).toBeNull();
+    });
+
+    test('matches on any one of several overlapping dockets and reports only the overlap', () => {
+      const matched = matchRegulatoryOutcomeDeterministically(
+        ['DOD-2026-OS-0001', 'DOD-2026-OS-0002'],
+        { documentNumber: '2026-00001', docketIds: ['DOD-2026-OS-0002', 'DOD-2026-OS-9999'] },
+      );
+      expect(matched).toEqual({ matchedOn: 'docket_id', matchedDocketIds: ['DOD-2026-OS-0002'] });
     });
   });
 });
