@@ -1,0 +1,2809 @@
+{
+  "schemaVersion": 1,
+  "profile": "senate",
+  "sourceFile": "senate_fy2026_ag_cds.pdf",
+  "pageCount": 11,
+  "rows": [
+    {
+      "page": 1,
+      "row": 1,
+      "columns": [
+        "Agricultural Research Service Buildings and Facilities",
+        "AR",
+        "Dale Bumpers National Rice Research Center Equipment and Infrastructure Modernization.",
+        "Dale Bumpers National Rice Research Center",
+        "3,100,000",
+        "Boozman"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 2,
+      "columns": [
+        "Agricultural Research Service Buildings and Facilities",
+        "AR",
+        "Dale Bumpers National Rice Research Center Facility Repairs and Improvements.",
+        "Dale Bumpers National Rice Research Center",
+        "6,550,000",
+        "Boozman"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 3,
+      "columns": [
+        "Agricultural Research Service Buildings and Facilities",
+        "HI",
+        "Pacific Regional Lab for Control of Agricultural Pests.",
+        "ARS, Hilo",
+        "4,000,000",
+        "Schatz"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 4,
+      "columns": [
+        "Agricultural Research Service Buildings and Facilities",
+        "KY",
+        "University of Kentucky/United States Department of Agriculture Agricultural Research Services Forage-Animal Production Research Unit.",
+        "University of Kentucky Martin-Gatton College of Agriculture, Food and Environment.",
+        "10,000,000",
+        "McConnell"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 5,
+      "columns": [
+        "Agricultural Research Service Buildings and Facilities",
+        "MD",
+        "Beltsville Agricultural Research Center Infrastructure.",
+        "USDA BARC",
+        "3,000,000",
+        "Van Hollen"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 6,
+      "columns": [
+        "Agricultural Research Service Buildings and Facilities",
+        "NE",
+        "ARS National Center for Resilient and Regenerative Precision Agriculture, Lincoln, NE.",
+        "USDA Agricultural Research Service co-located at the University of Nebraska Lincoln.",
+        "16,000,000",
+        "Fischer"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 7,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "AK",
+        "Alaska Native Rural Veterinary Care",
+        "Alaska Federation of Natives",
+        "750,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 8,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "CT",
+        "The Connecticut Agricultural Experiment Station for Monitoring Ticks and Tick-borne Pathogens to Better Guide Public Health Action.",
+        "Connecticut Agriculture Experiment Station",
+        "267,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 9,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "GA",
+        "Athens Veterinary Diagnostic Laboratory Pathological Waste Incinerator.",
+        "University of Georgia Research Foundation, Inc.",
+        "1,900,000",
+        "Ossoff, Warnock"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 10,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "MN",
+        "UMN Vet Diagnostics Lab Testing Capacity",
+        "University of Minnesota",
+        "1,000,000",
+        "Klobuchar, Smith"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 11,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "MS",
+        "Wildlife Damage Management—Mississippi Fish-Eating Bird Control Program.",
+        "APHIS–MS",
+        "1,000,000",
+        "Hyde-Smith"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 12,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "NM",
+        "Innovative Weed Control in Perennial Crops",
+        "New Mexico State University",
+        "467,000",
+        "Heinrich"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 13,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "RI",
+        "Worden Pond Treatment for Invasive Plants",
+        "Rhode Island Department of Environmental Management.",
+        "500,000",
+        "Reed, Whitehouse"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 14,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "SC",
+        "Asian Longhorned Beetle Eradication",
+        "Clemson University",
+        "1,000,000",
+        "Graham"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 15,
+      "columns": [
+        "APHIS Salaries and Expenses",
+        "SC",
+        "Improvements to Agricultural, Animal Health and Quality.",
+        "Clemson University",
+        "4,500,000",
+        "Graham"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 16,
+      "columns": [
+        "Distance Learning and Telemedicine Program",
+        "IL",
+        "Teledentistry initiative",
+        "Sarah Bush Lincoln Health Center",
+        "110,000",
+        "Durbin"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 17,
+      "columns": [
+        "Distance Learning and Telemedicine Program",
+        "OH",
+        "Appalachian Healthcare Access",
+        "Appalachian Children’s Health",
+        "500,000",
+        "Moreno"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 18,
+      "columns": [
+        "Research and Facilities Act Program",
+        "GA",
+        "Fort Valley Center for Agricultural Innovation and Entrepreneurship.",
+        "Fort Valley State University",
+        "1,000,000",
+        "Ossoff, Warnock"
+      ]
+    },
+    {
+      "page": 1,
+      "row": 19,
+      "columns": [
+        "Research and Facilities Act Program",
+        "HI",
+        "Agriculture Center for Technical Innovation",
+        "University of Hawaii",
+        "2,000,000",
+        "Hirono, Schatz"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 1,
+      "columns": [
+        "Research and Facilities Act Program",
+        "KS",
+        "Global Center for Grain and Food Innovation— Interdisciplinary Research Labs and Pilot Plant Development.",
+        "Kansas State University",
+        "5,535,000",
+        "Moran"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 2,
+      "columns": [
+        "Research and Facilities Act Program",
+        "ME",
+        "University of Maine Forest Health Lab",
+        "University of Maine System",
+        "600,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 3,
+      "columns": [
+        "Research and Facilities Act Program",
+        "NH",
+        "Center for Excellence in Education and Discovery for Plant Science (CEED Plant Science).",
+        "University System of New Hampshire",
+        "1,925,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 4,
+      "columns": [
+        "Research and Facilities Act Program",
+        "SD",
+        "South Dakota State University Cottonwood Field Station Renovation and Expansion.",
+        "South Dakota State University",
+        "2,000,000",
+        "Rounds"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 5,
+      "columns": [
+        "Research and Facilities Act Program",
+        "SD",
+        "South Dakota State University Transient Animal Research Support Facility.",
+        "South Dakota State University",
+        "500,000",
+        "Rounds"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Heavy Equipment Improving Rural Community Conditions.",
+        "Alaska Municipal League",
+        "4,200,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Bethel Food Bank and Pantry",
+        "Bethel Food Bank and Pantry",
+        "605,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Public Safety Building and Emergency Operations Center Rehabilitation.",
+        "City and Borough of Wrangell",
+        "2,438,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Houston Alaska Fire Station 9–3 Public Works Shared Facility.",
+        "City of Houston",
+        "1,950,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Community Housing Asbestos Abatement & Remova.",
+        "City of Whittier",
+        "310,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Kenai Peninsula Critical Communications Upgrades.",
+        "Kenai Peninsula Borough",
+        "2,045,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Native Village of Eagle Fire Hall & Public Safety Building.",
+        "Native Village of Eagle",
+        "750,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AK",
+        "Self-Contained Breathing apparatus Equipment Replacement.",
+        "Petersburg Borough",
+        "225,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "City of Samson Water System Improvements",
+        "City of Samson",
+        "2,200,000",
+        "Britt"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "Slocomb Fire Tanker Replacement",
+        "City of Slocomb",
+        "278,000",
+        "Britt"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "Grand Bay Fire District Volunteer Fire Station",
+        "Grand Bay Fire District",
+        "113,000",
+        "Britt"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "Heflin Fire Department Ladder Truck",
+        "Heflin Fire Department",
+        "1,200,000",
+        "Britt"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "Houston County Radio Tower",
+        "Houston County Commission",
+        "248,000",
+        "Britt"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "Piedmont Fire Engine",
+        "Piedmont Fire Department",
+        "488,000",
+        "Britt"
+      ]
+    },
+    {
+      "page": 2,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AL",
+        "Pike Road Agricultural Job Development and Career Center.",
+        "Town of Pike Road",
+        "440,000",
+        "Tuberville"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AZ",
+        "Alpine Fire District Emergency Response Vehicle.",
+        "Alpine Fire District",
+        "140,000",
+        "Gallego, Kelly"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AZ",
+        "Bisbee Fire Truck",
+        "City of Bisbee",
+        "620,000",
+        "Gallego, Kelly"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AZ",
+        "Tonto Basin Fire Station Remodel",
+        "Tonto Basin Fire District",
+        "158,000",
+        "Gallego, Kelly"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AZ",
+        "Clarkdale Police Station",
+        "Town of Clarkdale",
+        "150,000",
+        "Gallego, Kelly"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "AZ",
+        "Superior Fire Engine",
+        "Town of Superior",
+        "718,000",
+        "Gallego, Kelly"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CA",
+        "City of Huron Police Vehicle Conversion Project",
+        "City of Huron",
+        "280,000",
+        "Padilla"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CA",
+        "Mariposa County—6th Street Pedestrian Bridge Project.",
+        "County of Mariposa",
+        "737,000",
+        "Padilla, Schiff"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CA",
+        "Mono County—Emergency Backup Generators",
+        "County of Mono",
+        "900,000",
+        "Padilla, Schiff"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CA",
+        "Guadalupe Union School District—Making Way for Room to Play Project.",
+        "Guadalupe Union School District",
+        "1,967,000",
+        "Padilla, Schiff"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CO",
+        "Gardner Community Center Construction",
+        "Huerfano Community Corporation",
+        "590,000",
+        "Bennet, Hickenlooper"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CO",
+        "Wellington Community Services Center",
+        "Larimer County",
+        "1,000,000",
+        "Bennet, Hickenlooper"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CO",
+        "Regional Fire Training Tower",
+        "NE Teller County Fire Protection District",
+        "529,000",
+        "Bennet, Hickenlooper"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CO",
+        "Fairplay Police Station",
+        "Town of Fairplay",
+        "1,199,000",
+        "Bennet, Hickenlooper"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Community Health Resources for Roots to Recovery (R2R) Facility Enhancements.",
+        "Community Health Resources",
+        "560,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Essex Library Association for Infrastructure and Accessibility Improvements.",
+        "Essex Library Association",
+        "576,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Eugene O’Neill Theater Center for Renovations to Historic Campus.",
+        "Eugene O’Neill Memorial Theater Center",
+        "1,588,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Library Association of Warehouse Point for Facilities Improvements.",
+        "Library Association of Warehouse Point",
+        "182,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Sea Research Foundation Improved Water Quality and Improved Quality of Wastewater Discharges.",
+        "Sea Research Foundation (dba Mystic Aquarium).",
+        "750,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Town of Andover for New Generator Installation and Renovations for Senior/Community Center.",
+        "Town of Andover",
+        "273,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "CT",
+        "Town for Willington for Firehouse and EOC Renovation and Remediation.",
+        "Town of Willington",
+        "525,000",
+        "Blumenthal, Murphy"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "DE",
+        "Cape Henlopen Senior Center",
+        "Cape Henlopen Senior Center Inc.",
+        "1,049,000",
+        "Blunt Rochester"
+      ]
+    },
+    {
+      "page": 3,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "DE",
+        "Emergency Radio Tower Upgrades",
+        "Delaware Division of Communications",
+        "2,208,000",
+        "Coons"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "DE",
+        "Energy Efficiency Improvements",
+        "Food Bank of Delaware, Inc.",
+        "1,126,000",
+        "Blunt Rochester, Coons"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "DE",
+        "Capital Improvements—Georgetown",
+        "La Red Health Center",
+        "2,000,000",
+        "Coons"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "DE",
+        "Capital Improvements—Seaford",
+        "La Red Health Center",
+        "720,000",
+        "Blunt Rochester, Coons"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Tanker Truck for Georgia Mutual Aid Group Resources.",
+        "Allentown Fire Department",
+        "412,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Second Harvest of Coastal Georgia Community Kitchen.",
+        "America’s Second Harvest of Coastal Georgia",
+        "855,000",
+        "Warnock"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Fire Station Construction",
+        "Bleckley County Fire Department",
+        "124,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Improvements to Fire Station and Emergency Operations Center.",
+        "City of Cochran",
+        "314,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Danielsville Community Center",
+        "City of Danielsville",
+        "42,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "New Public Safety Facility for Eastman Fire Department.",
+        "City of Eastman",
+        "1,059,000",
+        "Ossoff, Warnock"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "City of Fitzgerald Fire Department Bedroom Addition.",
+        "City of Fitzgerald",
+        "509,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "New Fire Station and Fire Pumper Truck",
+        "City of Lakeland",
+        "750,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Ambulance Replacement Initiative",
+        "Dade County",
+        "406,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Lodging for Veterans at Learning Apiary",
+        "Doc’s Healing Hives and Honey",
+        "163,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Wildland Brush Trucks",
+        "Fannin County Fire Department",
+        "205,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Manchester Fire Department Station Remodel/ Addition.",
+        "Manchester Fire Department",
+        "300,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "McIntosh County First Responder Mini Ambulance.",
+        "McIntosh County Board of Commissioners",
+        "36,000",
+        "Warnock"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "McIntosh County Public Safety Communication Upgrade.",
+        "McIntosh County Board of Commissioners",
+        "2,303,000",
+        "Ossoff, Warnock"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Okefenokee Experience Nature Center",
+        "Okefenokee Swamp Park, Inc.",
+        "1,000,000",
+        "Ossoff, Warnock"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Baxley and Appling County Hospital Authority HVAC Upgrade.",
+        "The Baxley and Appling County Hospital Authority.",
+        "1,001,000",
+        "Warnock"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Knox Community Center Rehabilitation",
+        "Warren County Board of Commissioners",
+        "652,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Rescue Truck and Electronic Message Boards",
+        "Washington County Emergency Management Agency.",
+        "270,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "White County Library Construction Project",
+        "White County",
+        "500,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 4,
+      "row": 23,
+      "columns": [
+        "Rural Community Facilities Program",
+        "GA",
+        "Wilcox County Fire Stations",
+        "Wilcox County Board of Commissioners",
+        "402,000",
+        "Ossoff"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "IL",
+        "Medical Technology Upgrades",
+        "Lawrence County Memorial Hospital",
+        "450,000",
+        "Durbin"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "IL",
+        "Memorial Hospital Association LaHarpe Clinic Initiative.",
+        "Memorial Hospital Association",
+        "1,382,000",
+        "Duckworth"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "IL",
+        "Rural Health Clinic Expansion",
+        "Southern Illinois Hospital Services",
+        "1,000,000",
+        "Durbin"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "KS",
+        "Barclay College Nursing Program",
+        "Barclay College",
+        "1,875,000",
+        "Moran"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "KS",
+        "Jewell County Courthouse",
+        "Jewell County",
+        "20,000",
+        "Moran"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "KS",
+        "Phillips County Health Systems Operating Room Repairs.",
+        "Phillips County Health Systems",
+        "675,000",
+        "Moran"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "KS",
+        "Rawlins County Health Center Oncology Services Expansion.",
+        "Rawlins County Health Center",
+        "608,000",
+        "Moran"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "KY",
+        "Ohio County Healthcare Hospital Infrastructure Improvement Project.",
+        "Ohio County Hospital",
+        "1,350,000",
+        "McConnell"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "LA",
+        "City of Baker Satellite Fire Station",
+        "City of Baker",
+        "863,000",
+        "Kennedy"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "LA",
+        "Fire Station in Zachary, Louisiana",
+        "CIty of Zachary",
+        "1,050,000",
+        "Kennedy"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "LA",
+        "Northeast Louisiana Infusion Center",
+        "Franklin Medical Center",
+        "1,125,000",
+        "Kennedy"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "LA",
+        "Fire Station St. Bernard Parish",
+        "St. Bernard Parish Government",
+        "4,000,000",
+        "Cassidy, Kennedy"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "LA",
+        "Town of Farmerville Fire Department Renovations.",
+        "Town of Farmerville Fire Department",
+        "263,000",
+        "Cassidy"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MA",
+        "Nantucket Food Hub",
+        "Nantucket Resource Partnership, Inc.",
+        "1,000,000",
+        "Markey, Warren"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MA",
+        "Town of Ashby Highway Loader",
+        "Town of Ashby",
+        "188,000",
+        "Markey, Warren"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MA",
+        "Monson Fire Station renovation, addition, repair project.",
+        "Town of Monson (Fire Department)",
+        "1,000,000",
+        "Markey, Warren"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MA",
+        "WMPF Renovation Project",
+        "Williamstown Meetinghouse Preservation Fund, Inc",
+        "1,500,000",
+        "Markey, Warren"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "STEM Makerspace at the La Plata Library",
+        "Charles County Public Library",
+        "67,000",
+        "Alsobrooks, Van Hollen"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "Kent County EMS Headquarters Enhancement Project.",
+        "Kent County Board of County Commissioners",
+        "45,000",
+        "Alsobrooks, Van Hollen"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "Potomac Fire Company Engine Replacement",
+        "Potomac Fire Company No.2 Inc.",
+        "675,000",
+        "Alsobrooks, Van Hollen"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "The Foxie G Foundation Horses Helping People Center.",
+        "The Foxie G Foundation, Inc",
+        "428,000",
+        "Alsobrooks, Van Hollen"
+      ]
+    },
+    {
+      "page": 5,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "Town of Barclay Community Center and Town Hall.",
+        "Town of Barclay",
+        "1,044,000",
+        "Alsobrooks, Van Hollen"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "Berlin Community Center at Historic Flower Street School Site.",
+        "Town of Berlin",
+        "1,400,000",
+        "Van Hollen"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MD",
+        "Town of Eagle Harbor Community Revitalization",
+        "Town of Eagle Harbor, Inc.",
+        "800,000",
+        "Van Hollen"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Healthy Acadia—Safe Harbor Recovery Home",
+        "Healthy Acadia",
+        "465,000",
+        "King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Marshfield Fire Station",
+        "Marshfield Volunteer Fire Department",
+        "756,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "MDI YMCA Multi-Purpose Facility",
+        "Mount Desert Island YMCA",
+        "500,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Owls Head STEM Community Center",
+        "Owls Head Transportation Museum",
+        "1,533,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Belgrade Fire and Rescue Station",
+        "Town of Belgrade",
+        "4,700,000",
+        "Collins"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Holden Police Department Garage",
+        "Town of Holden",
+        "400,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Littleton Town Garage",
+        "Town of Littleton",
+        "896,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Northport Community Center and Town Office",
+        "Town of Northport",
+        "2,325,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Penobscot Storage Facility",
+        "Town of Penobscot",
+        "1,429,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "A.B. Ricker Memorial Library",
+        "Town of Poland",
+        "750,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Searsmont Storage Facility",
+        "Town of Searsmont",
+        "970,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Town of Solon Public Works and Garage",
+        "Town of Solon",
+        "1,500,000",
+        "Collins"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "St. Agatha Fire Station",
+        "Town of St. Agatha",
+        "345,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "St. Albans Fire Station",
+        "Town of St. Albans",
+        "1,520,000",
+        "Collins"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Swan’s Island Fire and Ambulance Station",
+        "Town of Swan’s Island",
+        "1,444,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Thomaston Fire and EMS Facility",
+        "Town of Thomaston",
+        "3,500,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "Westfield Town Garage",
+        "Town of Westfield",
+        "1,574,000",
+        "Collins"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "ME",
+        "University of Maine at Machias Early College Student Support Center.",
+        "University of Maine System",
+        "750,000",
+        "Collins, King"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "Big Creek Township Fire Department Emergency Radio Upgrade.",
+        "Big Creek Township",
+        "74,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "Caro District Library Elevator Modernization",
+        "Caro Area District Library",
+        "200,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 23,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "Central Montcalm Early Childhood Center",
+        "Central Montcalm Early Childhood Center",
+        "225,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 24,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "City of Alpena Aerial Fire Truck Replacement",
+        "City of Alpena",
+        "1,105,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 25,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "City of Bad Axe Public Safety Building",
+        "City of Bad Axe",
+        "850,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 26,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "City of Berkley Fire Engine Replacement",
+        "City of Berkley",
+        "385,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 27,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "City of Big Rapids Fire Truck Acquisition",
+        "City of Big Rapids",
+        "378,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 28,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "Escanaba Public Safety Ladder Truck",
+        "City of Escanaba",
+        "700,000",
+        "Peters, Slotkin"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 29,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "City of Rockwood Fire Engine Acquisition",
+        "City of Rockwood",
+        "765,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 30,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "Food Bank of Eastern Michigan- Northern Expansion.",
+        "Food Bank of Eastern Michigan",
+        "2,000,000",
+        "Slotkin"
+      ]
+    },
+    {
+      "page": 6,
+      "row": 31,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MI",
+        "Lakeview District Fire Department Wildfire Rigs",
+        "Lakeview District Fire Department Wildfire Rigs",
+        "245,000",
+        "Peters"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MN",
+        "Apple Tree Learning Center Capacity and Infrastructure Project.",
+        "Apple Tree Learning Center",
+        "1,000,000",
+        "Klobuchar, Smith"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MN",
+        "Bemidji Fire Department Fire Station 1 Upgrade",
+        "Bemidji Fire Department",
+        "450,000",
+        "Klobuchar, Smith"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MN",
+        "Early Childhood Hub and Community Center",
+        "KOOTASCA Community Action",
+        "315,000",
+        "Klobuchar, Smith"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MS",
+        "Batesville Aerial Ladder Fire Truck Replacement",
+        "City of Batesville",
+        "1,201,000",
+        "Hyde-Smith, Wicker"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "MS",
+        "Desoto County Agri-Education Center",
+        "Desoto County Board of Supervisors",
+        "275,000",
+        "Wicker"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NC",
+        "Southeastern Community College Truck Driver Training Program Expansion.",
+        "Southeastern Community College",
+        "4,905,000",
+        "Tillis"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NC",
+        "YMCA Blue Ridge Assembly Facilities Construction and Restoration.",
+        "YMCA Blue Ridge Assembly",
+        "1,095,000",
+        "Tillis"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Drive to Safety",
+        "Belmont Police Department",
+        "73,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Chesley Memorial Library Energy Efficiency and Emergency Power Project.",
+        "Chesley Memorial Library",
+        "95,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Cottage Hospital Asbestos Abatement",
+        "Cottage Hospital",
+        "1,725,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Croydon Schoolhouse Renovation and Expansion",
+        "Croydon School District",
+        "1,176,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Interrupting Intergenerational Addiction",
+        "Families Flourish Northeast Inc",
+        "1,000,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Renovation and Upgrade to Health Sciences Facilities at Franklin Pierce University, Rindge Campus.",
+        "Franklin Pierce University",
+        "1,000,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Maplewood Station Community Center",
+        "Maplewood Station",
+        "750,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Walpole Village School",
+        "The Walpole Foundaton",
+        "830,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Bethlehem’s Transfer Station Project",
+        "Town of Bethlehem",
+        "750,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "George B. White Solar Project",
+        "Town of Deerfield",
+        "248,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Replacement of Rescue Truck",
+        "Town of Gorham",
+        "301,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Hampton Public Safety Pier",
+        "Town of Hampton",
+        "125,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Hancock Fire Station Renovation Project",
+        "Town of Hancock",
+        "600,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Unity Fire Station and Emergency Community Shelter.",
+        "Town of Unity",
+        "2,100,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NH",
+        "Walpole NH Police Station",
+        "Town of Walpole",
+        "2,058,000",
+        "Shaheen"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 23,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NJ",
+        "Dumont Borough Ladder Truck Request",
+        "Borough of Dumont",
+        "525,000",
+        "Booker, Kim"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 24,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NJ",
+        "Old Tappan Fire Department Emergency Vehicle",
+        "Borough of Old Tappan",
+        "525,000",
+        "Kim"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 25,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NJ",
+        "Deborah Heart and Lung Center Cardiac Electrophysiology Lab Enhancement.",
+        "Deborah Heart and Lung Center",
+        "789,000",
+        "Booker, Kim"
+      ]
+    },
+    {
+      "page": 7,
+      "row": 26,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NJ",
+        "HSCFD Fire Truck 2025",
+        "Hopewell Township",
+        "186,000",
+        "Booker"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NJ",
+        "Firehouse Critical Infrastructure Update",
+        "Runnemede Fire Company No 1",
+        "329,000",
+        "Booker"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Zuni Pueblo Conservation Career and Cultural Preservation Center.",
+        "Conservation Legacy",
+        "275,000",
+        "Heinrich"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Gila Regional Medical Center Utility Systems Upgrade.",
+        "Gila Regional Medical Center",
+        "193,000",
+        "Heinrich"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Collaborative Expansion of Early Childhood Education in Luna County.",
+        "HELP New Mexico, Inc.",
+        "1,575,000",
+        "Luja´n Heinrich,"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Isleta Learning Center",
+        "Pueblo of Isleta Department of Education",
+        "1,000,000",
+        "Heinrich"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Communications Equipment for Firefighters",
+        "Rio Arriba County",
+        "1,100,000",
+        "Luja´n Heinrich,"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Estancia Town Hall and Community Center Renovation.",
+        "Town of Estancia",
+        "1,513,000",
+        "Luja´n"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Truchas VFD Fire Apparatus",
+        "Truchas Volunteer Fire Department",
+        "750,000",
+        "Luja´n Heinrich,"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NM",
+        "Wildland Fire Engine",
+        "Village of Questa",
+        "375,000",
+        "Heinrich"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NV",
+        "Ely Shoshone Tribe—Community Facility Center",
+        "Ely Shoshone Tribe",
+        "3,100,000",
+        "Cortez Masto, Rosen"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NY",
+        "Art Omi—Pavilions at Chatham",
+        "Art Omi Pavilions at Chatham",
+        "1,000,000",
+        "Gillibrand, Schumer"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NY",
+        "Chenango Memorial Hospital—Facilities Improvements.",
+        "Chenango Memorial Hospital, Inc.",
+        "667,000",
+        "Gillibrand"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NY",
+        "Expansion and Modernization of Arts Education, Early Childhood Education, and Nonprofit Co-Working Community Hub.",
+        "Lake Placid Center for the Arts",
+        "1,000,000",
+        "Gillibrand, Schumer"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NY",
+        "Wild Encounters Trail",
+        "Natural History Museum of the Adirondacks",
+        "466,000",
+        "Schumer"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NY",
+        "Tioga Regional Career and Technical Education Center.",
+        "Owego Apalachin Central School District",
+        "811,000",
+        "Schumer"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "NY",
+        "Tri-County YMCA—Dave Gray Discovery Center",
+        "Tri-County YMCA of New York, Inc.",
+        "2,000,000",
+        "Gillibrand"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OH",
+        "Skips Landing Revitalization",
+        "Coshocton County Board of Commission",
+        "1,000,000",
+        "Moreno"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OH",
+        "Road Salt Storage Facility",
+        "Saint Joseph Township",
+        "43,000",
+        "Moreno"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OH",
+        "Agricultural Service Center Renovation",
+        "Seneca County Board of Commissioners",
+        "560,000",
+        "Moreno"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OK",
+        "Adolescent Centers for Teen Challenge of Oklahoma.",
+        "Central Oklahoma Adult and Teen Challenge",
+        "1,162,000",
+        "Mullin"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OK",
+        "Eastern Oklahoma State Rural Facilities Renovation.",
+        "Eastern Oklahoma State College",
+        "375,000",
+        "Mullin"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OK",
+        "Advising and Career Development Center",
+        "Western Oklahoma State College",
+        "175,000",
+        "Mullin"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 23,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OR",
+        "Fire Station Construction",
+        "Idanha-Detroit Rural Fire Protection District",
+        "2,000,000",
+        "Merkley, Wyden"
+      ]
+    },
+    {
+      "page": 8,
+      "row": 24,
+      "columns": [
+        "Rural Community Facilities Program",
+        "OR",
+        "Wheeler Soil and Water Conservation District Conservation Community Center.",
+        "Wheeler Soil and Water Conservation District",
+        "648,000",
+        "Merkley, Wyden"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "PA",
+        "Friendship Hose Co. No. 1 Orwigsburg Fire Department Station.",
+        "Friendship Hose Co. No. 1 Orwigsburg, PA",
+        "550,000",
+        "McCormick"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "PA",
+        "Laurel Arts Facility Preservation and HVAC Modernization in Somerset County, PA.",
+        "Laurel Arts, Inc",
+        "37,000",
+        "Fetterman"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "PA",
+        "Center For Youth and Community Development Community Education Center in Adams County, PA.",
+        "The Center For Youth and Community Development.",
+        "500,000",
+        "Fetterman"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "PA",
+        "Warren County Emergency Radio Tower Project",
+        "Warren County Commissioners",
+        "550,000",
+        "McCormick"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Ashaway Ambulance Building Expansion",
+        "Ashaway Ambulance Association Inc",
+        "344,000",
+        "Whitehouse"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Block Island Maritime Institute Marine Mammal Rescue and Response and Conservation Project.",
+        "Block Island Maritime Institute",
+        "250,000",
+        "Whitehouse"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Glocester Public Safety Communications Tower",
+        "Glocester Police Department",
+        "237,000",
+        "Reed"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Fire Sub-Station",
+        "Jamestown Fire Department",
+        "248,000",
+        "Whitehouse"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Foster Public Safety Complex",
+        "Town of Foster",
+        "1,000,000",
+        "Reed"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Scituate Emergency Communication Enhancement Project.",
+        "Town of Scituate",
+        "204,000",
+        "Reed"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "Tiverton Fire Rescue Boat",
+        "Town of Tiverton",
+        "210,000",
+        "Reed"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "RI",
+        "West Greenwich Fire Radio System",
+        "Town of West Greenwich",
+        "311,000",
+        "Reed, Whitehouse"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "SC",
+        "Blythewood Fire Station",
+        "Richland County",
+        "1,250,000",
+        "Graham"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "SC",
+        "Tega Cay Fire Department",
+        "Tega Cay Fire Department",
+        "533,000",
+        "Graham"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 15,
+      "columns": [
+        "Rural Community Facilities Program",
+        "SC",
+        "Town of Central Fire Station",
+        "Town of Central",
+        "2,000,000",
+        "Graham"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 16,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "Bedford County Community Center Renovation",
+        "Bedford County, Virginia",
+        "1,000,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 17,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "Carroll County Wellness Center Restoration Expansion.",
+        "Carroll County Wellness Center, Inc.",
+        "1,000,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 18,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "City of Bristol Municipal Vehicles Replacement",
+        "City of Bristol",
+        "285,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 19,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "Appalachian Highlands Community Dental Center Safety Net Dental Lab Access.",
+        "Mission Dental Virginia, Inc. d/b/a Appalachian Highlands Community Dental Center.",
+        "303,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 20,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "Town of Crewe Community Center",
+        "Town of Crewe, Virginia",
+        "376,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 21,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "Town of Grundy Fire Truck Replacement",
+        "Town of Grundy",
+        "398,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 22,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VA",
+        "Town of Lebanon Brush Truck Replacement",
+        "Town of Lebanon, Virginia",
+        "188,000",
+        "Kaine, Warner"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 23,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VT",
+        "Town of Newark Highway Garage and Fire Station.",
+        "Town of Newark",
+        "1,500,000",
+        "Sanders"
+      ]
+    },
+    {
+      "page": 9,
+      "row": 24,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VT",
+        "Rockingham Municipal Fire Department SR Station.",
+        "Town of Rockingham",
+        "598,000",
+        "Welch"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 1,
+      "columns": [
+        "Rural Community Facilities Program",
+        "VT",
+        "Agriculture Training and Food Security at VYCC",
+        "Vermont Youth Conservation Corps",
+        "814,000",
+        "Welch"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 2,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WA",
+        "Othello Fire Department",
+        "City of Othello",
+        "1,375,000",
+        "Murray"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 3,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WA",
+        "Childcare Facility and Library",
+        "City of Republic",
+        "1,000,000",
+        "Cantwell"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 4,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WA",
+        "Installation of a Fixed MRI",
+        "Ocean Beach Hospital and Medical Clinics",
+        "847,000",
+        "Cantwell"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 5,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WA",
+        "YMCA Camp Casey",
+        "YMCA of Snohomish County—YMCA Camp Casey.",
+        "4,000,000",
+        "Murray"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 6,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WI",
+        "Bad River Boys and Girls Club Capital Project",
+        "Bad River Band of the Lake Superior Tribe of Chippewa Indians.",
+        "3,350,000",
+        "Baldwin"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 7,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WI",
+        "Dodge County Childcare Center",
+        "Dodge County Housing Authority",
+        "950,000",
+        "Baldwin"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 8,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WI",
+        "La Pointe Big Bay Town Park Project",
+        "Town of La Pointe",
+        "1,500,000",
+        "Baldwin"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 9,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WV",
+        "Mullens Fire Department Building",
+        "Mullens Volunteer Fire Department",
+        "1,500,000",
+        "Capito"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 10,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WV",
+        "Nicholas County Community Facilities Upgrades",
+        "Nicholas County Commission",
+        "602,000",
+        "Capito, Justice"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 11,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WV",
+        "Pocahontas County OEM Dispatch/Emergency Medical Service.",
+        "Pocahontas County Commission",
+        "1,500,000",
+        "Capito, Justice"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 12,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WV",
+        "Ridgeley VFC No.1 Fire Station",
+        "Ridgeley Volunteer Fire Company No.1",
+        "2,841,000",
+        "Capito"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 13,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WV",
+        "Sistersville General Hospital Bed Capacity Expansion.",
+        "Sistersville General Hospital",
+        "3,580,000",
+        "Capito, Justice"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 14,
+      "columns": [
+        "Rural Community Facilities Program",
+        "WV",
+        "Poca Public Safety Building",
+        "Town of Poca",
+        "2,400,000",
+        "Capito"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 15,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "AK",
+        "Nunavakanukakslak Lake-Johnson River Watershed.",
+        "Native Village of Nunapitchul",
+        "55,000",
+        "Murkowski"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 16,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "AZ",
+        "Smith Wash Watershed Plan",
+        "Pinal County",
+        "1,000,000",
+        "Gallego, Kelly"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 17,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "KS",
+        "Rattlesnake Creek Watershed",
+        "Big Bend Groundwater Management District No. 5.",
+        "4,200,000",
+        "Moran"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 18,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "MS",
+        "Choctaw County Lake",
+        "Choctaw County Board of Supervisors",
+        "1,000,000",
+        "Wicker"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 19,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "MS",
+        "Big and Little Cedar Creeks (George County) Flood Prevention.",
+        "George County",
+        "2,000,000",
+        "Wicker"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 20,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "MS",
+        "Mississippi Watershed and Flood Prevention Operations.",
+        "NRCS–MS",
+        "13,550,000",
+        "Hyde-Smith"
+      ]
+    },
+    {
+      "page": 10,
+      "row": 21,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "MT",
+        "Milk River Watershed Plan",
+        "Milk River Irrigation Project Joint Board of Control.",
+        "2,500,000",
+        "Sheehy"
+      ]
+    },
+    {
+      "page": 11,
+      "row": 1,
+      "columns": [
+        "Watershed and Flood Prevention Operations",
+        "RI",
+        "Pocasset Flood Mitigation Project",
+        "Rhode Island Association of Conservation Districts.",
+        "4,000,000",
+        "Reed"
+      ]
+    }
+  ],
+  "warnings": [],
+  "extraction": {
+    "library": "pymupdf",
+    "method": "positioned-words-v1"
+  }
+}
