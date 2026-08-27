@@ -44,10 +44,9 @@ import type {
   OutreachV3Command,
   OutreachV3ContextSelection,
   OutreachV3ResolvedContextRef,
-  OutreachV3TargetLocator,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
 import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
-import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
+import { TargetWorkspace } from '../../../pages/engagement/outreach/v3/TargetWorkspace.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import {
   classifyOutreachV3FullGenerationResult,
@@ -89,6 +88,16 @@ import {
   type OutreachWorkflowTemplateId,
 } from './outreach-v3-guided-workflow.js';
 import './outreach-v3-guided-workflow.css';
+// TargetWorkspace (Directory / State legislators / Client contacts / Saved
+// audiences / Recent / Add manually tabs) is deliberately css-free — its
+// canonical styles live in outreach-v3.css + target-workspace.css, and the
+// vNext-token versions of both are pre-generated into outreach-decision-vnext.css
+// (structural rules) + outreach-body-vnext.css (the --ov3-* -> --eng-* token
+// remap). Both are scoped to `.capiro-vnext-root .engagement-vnext`, which
+// this guided workspace already renders inside (see VNextEngagementRoutes.tsx),
+// so importing them here is enough — no `.ov3-root` wrapper needed.
+import './outreach-decision-vnext.css';
+import './outreach-body-vnext.css';
 
 interface PreparedContextSection {
   key: ClientProfileContextKey;
@@ -354,17 +363,6 @@ function selectedClient(
   return clients.find((client) => client.id === clientId) ?? null;
 }
 
-function targetProfileSummary(
-  controller: ReturnType<typeof useOutreachV3Session>,
-): { title: string; body: string } | null {
-  const target = controller.targetProfile?.data?.target;
-  if (!target) return null;
-  return {
-    title: targetDisplayName(target),
-    body: targetSubtitle(target) || 'Directory profile',
-  };
-}
-
 export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspaceProps) {
   const api = useApi();
   const controller = useOutreachV3Session({ sessionId: props.sessionId });
@@ -395,7 +393,6 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
   const [personalNotes, setPersonalNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [profileLocator, setProfileLocator] = useState<OutreachV3TargetLocator | null>(null);
 
   useEffect(() => {
     if (!session || hydratedSessionId === session.session.id) return;
@@ -429,7 +426,6 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
     );
   }, [clientSearch, props.clients]);
   const selectedTargets = session?.spec.targeting.selectedTargetRefs ?? [];
-  const profileSummary = targetProfileSummary(controller);
   const steps = useMemo(() => guidedStepsForWorkflow(templateId), [templateId]);
   const availableContentTemplates = useMemo(
     () => contentTemplatesForWorkflow(templateId),
@@ -1010,9 +1006,13 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
         {activeStep === 'target' ? (
           <section className="outreach-guided__surface outreach-guided__surface--wide">
             <div className="outreach-guided__surface-heading">
-              <span>Directory targets</span>
+              <span>Campaign targets</span>
               <h2>Who should receive this campaign?</h2>
-              <p>Select one or more people from the Directory. Every selected person gets a separate destination draft.</p>
+              <p>
+                Select one or more people from the Directory, State legislators, Client contacts,
+                Saved audiences, or add someone manually. Every selected person gets a separate
+                destination draft.
+              </p>
             </div>
             <SavedTargetListsPanel
               selected={selectedTargets}
@@ -1021,30 +1021,21 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
                 void controller.applyCommands(locators.map((locator) => addTargetCommand(locator)));
               }}
             />
-            <TargetDirectoryBrowser
-              selected={selectedTargets}
+            <TargetWorkspace
+              session={session}
               busy={controller.applyingCommands || busy}
               applyCommands={controller.applyCommands}
-              onProfile={(locator) => {
-                setProfileLocator(locator);
-                void controller.getTargetProfile(locator).catch(() => undefined);
-              }}
+              searchTargets={controller.searchTargets}
+              targetCandidates={controller.targetCandidates}
+              targetSearchPending={controller.targetSearchPending}
+              targetSearchError={controller.targetSearchError}
+              getTargetProfile={controller.getTargetProfile}
+              targetProfile={controller.targetProfile}
+              targetProfilePending={controller.targetProfilePending}
+              coverage={controller.coverage}
+              coveragePending={controller.coveragePending}
+              targetsVariant="compact"
             />
-            {profileLocator ? (
-              <aside className="outreach-guided__profile" aria-live="polite">
-                <button type="button" onClick={() => setProfileLocator(null)} aria-label="Close profile">×</button>
-                {controller.targetProfilePending ? (
-                  <span><Loader2 size={15} className="outreach-guided__spin" /> Loading profile…</span>
-                ) : profileSummary ? (
-                  <>
-                    <strong>{profileSummary.title}</strong>
-                    <p>{profileSummary.body}</p>
-                  </>
-                ) : (
-                  <p>{controller.targetSearchError ?? 'Profile details are unavailable.'}</p>
-                )}
-              </aside>
-            ) : null}
             <div className="outreach-guided__selection-receipt">
               <strong>{selectedTargets.length} selected</strong>
               <span>{selectedTargets.slice(0, 4).map(targetDisplayName).join(', ') || 'Choose recipients above.'}</span>

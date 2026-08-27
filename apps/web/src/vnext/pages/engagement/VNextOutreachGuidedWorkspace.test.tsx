@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import type {
@@ -155,10 +156,15 @@ function controller(overrides: Record<string, unknown> = {}) {
     errorMessage: null,
     applyCommands: vi.fn(async () => undefined),
     applyingCommands: false,
+    searchTargets: vi.fn(async () => undefined),
+    targetCandidates: [],
+    targetSearchPending: false,
     getTargetProfile: vi.fn(async () => undefined),
     targetProfile: undefined,
     targetProfilePending: false,
     targetSearchError: null,
+    coverage: undefined,
+    coveragePending: false,
     ...overrides,
   };
 }
@@ -166,16 +172,24 @@ function controller(overrides: Record<string, unknown> = {}) {
 function renderWorkspace() {
   const onStepChange = vi.fn();
   const onExit = vi.fn();
+  // Wrapped in QueryClientProvider because the target step now mounts
+  // TargetWorkspace (and its own SavedAudiencesPanel/relationship mutation),
+  // which use react-query hooks — the same wrapper every sibling workspace
+  // test file (e.g. VNextOutreachApproveSendWorkspace.generation.test.tsx)
+  // already uses for the same reason.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <VNextOutreachGuidedWorkspace
-      sessionId="session-1"
-      clients={[client]}
-      selectedClientId={null}
-      integrations={[]}
-      step="goal"
-      onStepChange={onStepChange}
-      onExit={onExit}
-    />,
+    <QueryClientProvider client={qc}>
+      <VNextOutreachGuidedWorkspace
+        sessionId="session-1"
+        clients={[client]}
+        selectedClientId={null}
+        integrations={[]}
+        step="goal"
+        onStepChange={onStepChange}
+        onExit={onExit}
+      />
+    </QueryClientProvider>,
   );
   return { onStepChange, onExit };
 }
@@ -445,5 +459,48 @@ describe('VNextOutreachGuidedWorkspace', () => {
     // back control and the section's own Back button read "Back" here.
     fireEvent.click(screen.getAllByRole('button', { name: /^back$/i })[0]!);
     expect(await screen.findByText('Choose a writing format')).toBeInTheDocument();
+  });
+
+  /**
+   * Regression: the "target" step used to render only a bare Directory
+   * browser (TargetDirectoryBrowser) — no State legislators, Client contacts,
+   * Recent, or Add manually. It was reported as "not functioning the same as
+   * the legacy directory" (Outreach V2's StepRecipientsSelect, which has
+   * Congressional Directory / State Legislators / Client Contacts / Manual
+   * Add tabs). This asserts the full TargetWorkspace source-tab set now
+   * renders on this step, matching the parity the report asked for.
+   */
+  it('renders every target source tab on the target step, matching legacy directory parity', async () => {
+    const emptyTargetSession = session();
+    emptyTargetSession.spec.targeting.selectedTargetRefs = [];
+    useOutreachV3SessionMock.mockReturnValue(controller({ session: emptyTargetSession }));
+    renderWorkspace();
+
+    expect(await screen.findByText('Who should receive this campaign?')).toBeInTheDocument();
+
+    const tabs = screen.getByRole('tablist', { name: /target sources/i });
+    for (const label of [
+      'Recommended',
+      'Directory',
+      'State legislators',
+      'Client contacts',
+      'Saved audiences',
+      'Recent',
+      'Add manually',
+      'Selected',
+    ]) {
+      expect(within(tabs).getByRole('tab', { name: new RegExp(label, 'i') })).toBeInTheDocument();
+    }
+
+    // "Add manually" reaches a real custom-email form, the other half of the
+    // legacy parity report ("add custom emails").
+    fireEvent.click(within(tabs).getByRole('tab', { name: /add manually/i }));
+    expect(await screen.findByText('Manual target')).toBeInTheDocument();
+    expect(screen.getByText('Add target to campaign')).toBeInTheDocument();
+
+    // Directory tab is still the same TargetDirectoryBrowser as before —
+    // no regression on the one source that already worked.
+    fireEvent.click(within(tabs).getByRole('tab', { name: /^directory$/i }));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/directory/contacts', expect.anything()));
   });
 });
