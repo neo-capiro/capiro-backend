@@ -215,6 +215,75 @@
   font-size: 11.5px;
 }
 
+.ov3p1-history-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ov3p1-history-row[data-current] .ov3p1-history-row__toggle span {
+  color: var(--ov3p1-navy);
+  font-weight: 600;
+}
+
+.ov3p1-history-row__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ov3p1-history-row__chevron {
+  color: var(--ov3p1-faint);
+  transition: transform 0.15s ease;
+  flex: 0 0 auto;
+}
+
+.ov3p1-history-row__chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.ov3p1-history-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 8px 19px;
+  padding: 10px 14px;
+  border: 1px solid var(--ov3p1-border);
+  border-radius: 8px;
+  background: var(--ov3p1-card);
+  font-family: initial;
+  font-size: 13px;
+  color: var(--ov3p1-body);
+}
+
+.ov3p1-history-row__body strong {
+  color: var(--ov3p1-text);
+}
+
+.ov3p1-history-row__body p {
+  margin: 0;
+}
+
+.ov3p1-history-row__loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ov3p1-muted);
+  font-family: initial;
+  font-size: 12.5px;
+}
+
+.ov3p1-inline-hint {
+  margin: 6px 0 0;
+  color: var(--ov3p1-muted);
+  font-size: 12px;
+}
+
 .ov3p1-refine-panel {
   margin-top: 20px;
   padding: 20px 22px;

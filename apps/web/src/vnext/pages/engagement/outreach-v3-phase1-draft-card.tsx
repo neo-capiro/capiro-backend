@@ -188,33 +188,52 @@ export function DraftCard({
   selected,
   open,
   busy,
-  refineBusy,
+  restoreBusy,
   diff,
   onSelect,
   onToggle,
   onApprove,
-  onEdit,
-  onRefine,
+  onViewVersion,
+  onRestoreVersion,
 }: {
   draft: OutreachV3DraftArtifact;
   recipient: RecipientPresentation;
   selected: boolean;
   open: boolean;
   busy: boolean;
-  refineBusy: boolean;
+  restoreBusy: boolean;
   diff?: DraftDiff;
   onSelect: () => void;
   onToggle: () => void;
   onApprove: () => void;
-  onEdit: () => void;
-  onRefine: (instruction: string) => void;
+  onViewVersion: (versionId: string) => Promise<OutreachV3DraftVersion | null>;
+  onRestoreVersion: (version: OutreachV3DraftVersion) => void;
 }) {
   const current = draft.current;
-  const [askOpen, setAskOpen] = useState(false);
-  const [instruction, setInstruction] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewingVersionId, setViewingVersionId] = useState<string | null>(null);
+  const [viewedVersion, setViewedVersion] = useState<OutreachV3DraftVersion | null>(null);
+  const [viewError, setViewError] = useState<string | null>(null);
   if (!current) return null;
   const label = recipient.label;
+
+  const viewVersion = async (versionId: string) => {
+    if (viewingVersionId === versionId) {
+      // Toggle closed on a second click of the same row.
+      setViewingVersionId(null);
+      setViewedVersion(null);
+      return;
+    }
+    setViewingVersionId(versionId);
+    setViewedVersion(null);
+    setViewError(null);
+    const version = await onViewVersion(versionId).catch(() => null);
+    if (!version) {
+      setViewError('This version could not be loaded.');
+      return;
+    }
+    setViewedVersion(version);
+  };
 
   return (
     <article className="ov3p1-draft-card" data-open={open || undefined}>
@@ -283,32 +302,6 @@ export function DraftCard({
 
           {diff ? <VersionDiffPanel diff={diff} /> : null}
 
-          {askOpen ? (
-            <section className="ov3p1-ask-box">
-              <span>Ask Meri about this exact draft</span>
-              <textarea
-                rows={3}
-                value={instruction}
-                onChange={(event) => setInstruction(event.target.value)}
-                placeholder="Example: Remove the disputed number and keep the ask in the first paragraph."
-              />
-              <div>
-                <button
-                  type="button"
-                  className="ov3p1-button is-primary"
-                  disabled={refineBusy || !instruction.trim()}
-                  onClick={() => onRefine(instruction.trim())}
-                >
-                  {refineBusy ? <Loader2 className="ov3p1-spin" size={14} /> : <Sparkles size={14} />}
-                  Create a new version
-                </button>
-                <button type="button" className="ov3p1-button is-secondary" onClick={() => setAskOpen(false)}>
-                  Cancel
-                </button>
-              </div>
-            </section>
-          ) : null}
-
           <footer>
             <button
               type="button"
@@ -319,24 +312,75 @@ export function DraftCard({
               {current.approvalStatus === 'approved' ? <Check size={15} /> : <ShieldCheck size={15} />}
               {current.approvalStatus === 'approved' ? 'Exact version approved' : 'This is good — approve'}
             </button>
-            <button type="button" className="ov3p1-button is-secondary" onClick={() => setAskOpen(true)}>
-              <Sparkles size={14} /> Ask for a change
-            </button>
-            <button type="button" className="ov3p1-button is-secondary" onClick={onEdit}>
-              <Pencil size={14} /> Edit it myself
-            </button>
             <button type="button" className="ov3p1-button is-quiet" onClick={() => setHistoryOpen((value) => !value)}>
-              <FileClock size={14} /> History
+              <FileClock size={14} /> History{draft.history.length > 1 ? ` (${draft.history.length})` : ''}
             </button>
           </footer>
 
           {historyOpen ? (
             <div className="ov3p1-history">
-              {draft.history.map((item) => (
-                <span key={item.id}>
-                  V{item.version} · {item.auditStatus.replaceAll('_', ' ')} · {item.approvalStatus.replaceAll('_', ' ')}
-                </span>
-              ))}
+              {draft.history.length <= 1 ? (
+                <p className="ov3p1-muted">This is the only version.</p>
+              ) : null}
+              {draft.history
+                .slice()
+                .sort((a, b) => b.version - a.version)
+                .map((item) => {
+                  const isCurrent = item.id === current.id;
+                  const isViewing = viewingVersionId === item.id;
+                  return (
+                    <div key={item.id} className="ov3p1-history-row" data-current={isCurrent || undefined}>
+                      <button
+                        type="button"
+                        className="ov3p1-history-row__toggle"
+                        onClick={() => void viewVersion(item.id)}
+                        aria-expanded={isViewing}
+                      >
+                        <ChevronRight
+                          size={13}
+                          className={isViewing ? 'ov3p1-history-row__chevron is-open' : 'ov3p1-history-row__chevron'}
+                        />
+                        <span>
+                          V{item.version} · {item.auditStatus.replaceAll('_', ' ')} · {item.approvalStatus.replaceAll('_', ' ')}
+                          {isCurrent ? ' · current' : ''}
+                        </span>
+                      </button>
+                      {isViewing ? (
+                        <div className="ov3p1-history-row__body">
+                          {!viewedVersion && !viewError ? (
+                            <span className="ov3p1-history-row__loading">
+                              <Loader2 className="ov3p1-spin" size={13} /> Loading…
+                            </span>
+                          ) : viewError ? (
+                            <p className="ov3p1-error" role="alert">{viewError}</p>
+                          ) : viewedVersion ? (
+                            <>
+                              <strong>{viewedVersion.subject}</strong>
+                              <div>
+                                {paragraphs(viewedVersion.body).map((paragraph, index) => (
+                                  <p key={`${index}-${paragraph.slice(0, 20)}`}>{paragraph}</p>
+                                ))}
+                              </div>
+                              {!isCurrent ? (
+                                <button
+                                  type="button"
+                                  className="ov3p1-button is-secondary"
+                                  disabled={restoreBusy}
+                                  onClick={() => onRestoreVersion(viewedVersion)}
+                                >
+                                  {restoreBusy ? <Loader2 className="ov3p1-spin" size={14} /> : <FileClock size={14} />}
+                                  Make this the current version
+                                </button>
+                              ) : (
+                                <p className="ov3p1-muted">This is the current version.</p>
+                              )}
+                            </>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
             </div>
           ) : null}
         </div>

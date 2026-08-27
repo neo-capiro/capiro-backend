@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OutreachV3SessionEnvelope } from '../../../pages/engagement/outreach/v3/contracts.js';
+import { EngagementToastProvider } from './engagement-toast.js';
 import { VNextOutreachApproveSendWorkspace } from './VNextOutreachApproveSendWorkspace.js';
 
 /**
@@ -98,6 +99,8 @@ const {
   approveDraftMock,
   runPreflightMock,
   saveSendSettingsMock,
+  getDraftVersionMock,
+  listDraftsMock,
 } = vi.hoisted(() => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
   reviseMock: vi.fn(async (_api: unknown, _sessionId: string, _draftId: string, input: unknown) => ({
@@ -151,6 +154,32 @@ const {
     appendSignature: false,
     attachmentIds: [],
   })),
+  getDraftVersionMock: vi.fn(async (_api: unknown, _sessionId: string, versionId: string) => ({
+    id: versionId,
+    artifactId: 'draft-1',
+    outreachRecordId: 'record-1',
+    version: versionId === 'version-2' ? 2 : 1,
+    sourceVersionId: null,
+    generationKey: 'd1',
+    recipientKey: 'd1@example.com',
+    audienceKind: 'individual',
+    subject: 'Original subject',
+    body: 'Original body',
+    contentHash: 'hash-1',
+    generationStatus: 'ready',
+    auditStatus: 'pass',
+    approvalStatus: 'unapproved',
+    auditDecision: null,
+    auditChecks: [],
+    reviewRequestId: null,
+    provider: 'openai',
+    model: 'test',
+    promptSpecVersion: 'v1',
+    sendable: false,
+    createdAt: '2026-08-21T12:00:00.000Z',
+    contextNote: 'Governed campaign context',
+  })),
+  listDraftsMock: vi.fn(async () => [draftFixture()]),
 }));
 
 vi.mock('../../../lib/use-api.js', () => ({ useApi: () => api }));
@@ -161,7 +190,7 @@ vi.mock('./engagement-api.js', async () => {
     getLatestOutreachV3FullGenerationJob: vi.fn(async () => null),
     getOutreachV3GenerationPlan: vi.fn(async () => PLAN),
     getOutreachV3ApproachApproval: vi.fn(async () => APPROVAL),
-    listOutreachV3Drafts: vi.fn(async () => [draftFixture()]),
+    listOutreachV3Drafts: listDraftsMock,
     getOutreachV3SendSettings: vi.fn(async () => ({
       senderConnectionId: 'conn-1',
       appendSignature: false,
@@ -175,6 +204,7 @@ vi.mock('./engagement-api.js', async () => {
     approveOutreachV3Draft: approveDraftMock,
     runOutreachV3Preflight: runPreflightMock,
     saveOutreachV3SendSettings: saveSendSettingsMock,
+    getOutreachV3DraftVersion: getDraftVersionMock,
   };
 });
 
@@ -237,17 +267,19 @@ function renderWorkspace(step: 'drafts' | 'send' = 'drafts') {
   const onStepChange = vi.fn();
   render(
     <QueryClientProvider client={qc}>
-      <VNextOutreachApproveSendWorkspace
-        sessionId="session-1"
-        clients={[]}
-        selectedClientId={null}
-        integrations={[
-          { id: 'conn-1', provider: 'microsoft_365', status: 'connected', accountEmail: 'me@example.com' },
-        ]}
-        step={step}
-        onStepChange={onStepChange}
-        onExit={vi.fn()}
-      />
+      <EngagementToastProvider>
+        <VNextOutreachApproveSendWorkspace
+          sessionId="session-1"
+          clients={[]}
+          selectedClientId={null}
+          integrations={[
+            { id: 'conn-1', provider: 'microsoft_365', status: 'connected', accountEmail: 'me@example.com' },
+          ]}
+          step={step}
+          onStepChange={onStepChange}
+          onExit={vi.fn()}
+        />
+      </EngagementToastProvider>
     </QueryClientProvider>,
   );
   return { onStepChange };
@@ -262,6 +294,9 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
     testSendMock.mockClear();
     createSendIntentMock.mockClear();
     approveDraftMock.mockClear();
+    getDraftVersionMock.mockClear();
+    listDraftsMock.mockClear();
+    listDraftsMock.mockImplementation(async () => [draftFixture()]);
     window.sessionStorage.clear();
   });
 
@@ -273,7 +308,7 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
     // explicitly choosing to read it.
     fireEvent.click(await screen.findByRole('button', { name: /read all/i }));
     fireEvent.click(await screen.findByRole('button', { name: /open draft/i }));
-    fireEvent.click(screen.getByRole('button', { name: /edit it myself/i }));
+    fireEvent.click(screen.getByRole('button', { name: /edit text/i }));
 
     const subjectInput = await screen.findByDisplayValue('Original subject');
     fireEvent.change(subjectInput, { target: { value: 'Edited subject' } });
@@ -302,11 +337,11 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /read all/i }));
     fireEvent.click(await screen.findByRole('button', { name: /open draft/i }));
-    fireEvent.click(screen.getByRole('button', { name: /ask for a change/i }));
+    fireEvent.click(screen.getByRole('button', { name: /edit with meri/i }));
 
-    const instructionBox = await screen.findByPlaceholderText(/remove the disputed number/i);
+    const instructionBox = await screen.findByPlaceholderText(/make the opening more personal/i);
     fireEvent.change(instructionBox, { target: { value: 'Make the tone warmer and more direct.' } });
-    fireEvent.click(screen.getByRole('button', { name: /create a new version/i }));
+    fireEvent.click(screen.getByRole('button', { name: /create new version/i }));
 
     await waitFor(() =>
       expect(refineMock).toHaveBeenCalledWith(
@@ -315,7 +350,7 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
         'draft-1',
         expect.objectContaining({
           baseVersionId: 'version-1',
-          instruction: 'Make the tone warmer and more direct.',
+          instruction: expect.stringContaining('Make the tone warmer and more direct.'),
         }),
       ),
     );
@@ -326,11 +361,11 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /read all/i }));
     fireEvent.click(await screen.findByRole('button', { name: /open draft/i }));
-    fireEvent.click(screen.getByRole('button', { name: /ask for a change/i }));
-    fireEvent.change(await screen.findByPlaceholderText(/remove the disputed number/i), {
+    fireEvent.click(screen.getByRole('button', { name: /edit with meri/i }));
+    fireEvent.change(await screen.findByPlaceholderText(/make the opening more personal/i), {
       target: { value: 'Shorten this.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /create a new version/i }));
+    fireEvent.click(screen.getByRole('button', { name: /create new version/i }));
 
     await waitFor(() => expect(refineMock).toHaveBeenCalledTimes(1));
     // The only draft id that appears anywhere in the call is draft-1 — there
@@ -421,5 +456,85 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
     // already persisted before confirmation — proving it's a stable
     // idempotency key for this session, not freshly minted per attempt.
     expect(sendInput.requestKey).toBe(keyBeforeConfirm);
+  });
+
+  it('manual edit shows a save confirmation instead of silently closing, and surfaces a save failure inside the still-open dialog', async () => {
+    renderWorkspace('drafts');
+
+    fireEvent.click(await screen.findByRole('button', { name: /read all/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /open draft/i }));
+    fireEvent.click(screen.getByRole('button', { name: /edit text/i }));
+
+    // Failure path first: the dialog must show the error INSIDE itself,
+    // next to the fields, and must stay open so the user's typed edits are
+    // not lost.
+    reviseMock.mockRejectedValueOnce({
+      response: { data: { message: 'A newer version already exists.' } },
+    });
+    fireEvent.change(await screen.findByDisplayValue('Original subject'), {
+      target: { value: 'Edited subject' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save V2/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(/newer version already exists/i),
+    );
+    // Still open — the user has not lost their edit.
+    expect(screen.getByDisplayValue('Edited subject')).toBeInTheDocument();
+
+    // Success path: saving now must give a real, visible confirmation (the
+    // reported bug was "I can't tell if it's saving the edits") rather than
+    // just silently closing the dialog.
+    fireEvent.click(screen.getByRole('button', { name: /Save V2/i }));
+    await waitFor(() => expect(reviseMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await screen.findByText(/saved as v2/i);
+  });
+
+  it('draft history lets you view an older version and restore it as the new current version', async () => {
+    listDraftsMock.mockImplementation(async () => [
+      draftFixture({
+        history: [
+          { id: 'version-1', version: 1, generationStatus: 'ready', auditStatus: 'pass', approvalStatus: 'unapproved', createdAt: '2026-08-21T12:00:00.000Z' },
+          { id: 'version-2', version: 2, generationStatus: 'ready', auditStatus: 'pass', approvalStatus: 'unapproved', createdAt: '2026-08-21T13:00:00.000Z' },
+        ],
+      }),
+    ]);
+    renderWorkspace('drafts');
+
+    fireEvent.click(await screen.findByRole('button', { name: /read all/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /open draft/i }));
+    // Scoped to the draft card specifically: OutreachConversation's Meri chat
+    // panel also has an unrelated "History" toggle (chat turns), so an
+    // unscoped query would match two different "History" buttons.
+    const card = document.querySelector('.ov3p1-draft-card') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: /^history/i }));
+
+    // V1 is the non-current row here (current is V2, since currentVer…
+    // in the base fixture would be inconsistent — history entries drive this,
+    // and the fixture's `current.id` is 'version-1', so V1 is current and V2
+    // is the one we can restore).
+    const v2Row = screen.getByText(/V2 ·/i);
+    fireEvent.click(v2Row);
+
+    await waitFor(() => expect(getDraftVersionMock).toHaveBeenCalledWith(api, 'session-1', 'version-2'));
+    await waitFor(() => expect(screen.getAllByText('Original subject')).toHaveLength(2));
+
+    const restoreButton = await screen.findByRole('button', { name: /make this the current version/i });
+    fireEvent.click(restoreButton);
+
+    await waitFor(() =>
+      expect(reviseMock).toHaveBeenCalledWith(
+        api,
+        'session-1',
+        'draft-1',
+        expect.objectContaining({
+          baseVersionId: 'version-1',
+          editKind: 'revert',
+        }),
+      ),
+    );
+    await screen.findByText(/restored v2/i);
   });
 });

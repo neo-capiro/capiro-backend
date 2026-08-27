@@ -422,6 +422,19 @@ export async function listOutreachV3Drafts(api: AxiosInstance, sessionId: string
   return (await api.get<OutreachV3DraftArtifact[]>(sessionPath(sessionId, '/drafts'))).data;
 }
 
+/** Fetches one historical (or current) version's full content, for the draft-history version switcher. */
+export async function getOutreachV3DraftVersion(
+  api: AxiosInstance,
+  sessionId: string,
+  versionId: string,
+) {
+  return (
+    await api.get<OutreachV3DraftVersion>(
+      sessionPath(sessionId, `/drafts/${encodeURIComponent(versionId)}`),
+    )
+  ).data;
+}
+
 export async function reviseOutreachV3Draft(
   api: AxiosInstance,
   sessionId: string,

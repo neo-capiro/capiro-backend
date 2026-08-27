@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type {
   OutreachV3DraftArtifact,
+  OutreachV3DraftVersion,
   OutreachV3GenerationPlan,
 } from './engagement-api.js';
 import {
@@ -27,6 +28,7 @@ export function DraftReviewScreen({
   drafts,
   busy,
   refineBusyId,
+  restoreBusyId,
   diffs,
   error,
   onApprove,
@@ -35,12 +37,15 @@ export function DraftReviewScreen({
   onRefineMany,
   onRegenerateMany,
   onEdit,
+  onViewVersion,
+  onRestoreVersion,
   onGoSend,
 }: {
   plan: OutreachV3GenerationPlan | null;
   drafts: OutreachV3DraftArtifact[];
   busy: boolean;
   refineBusyId: string | null;
+  restoreBusyId: string | null;
   diffs: Map<string, DraftDiff>;
   error: string | null;
   onApprove: (draft: OutreachV3DraftArtifact) => void;
@@ -49,6 +54,8 @@ export function DraftReviewScreen({
   onRefineMany: (drafts: OutreachV3DraftArtifact[], instruction: string) => void;
   onRegenerateMany: (drafts: OutreachV3DraftArtifact[]) => void;
   onEdit: (draft: OutreachV3DraftArtifact) => void;
+  onViewVersion: (versionId: string) => Promise<OutreachV3DraftVersion | null>;
+  onRestoreVersion: (draft: OutreachV3DraftArtifact, version: OutreachV3DraftVersion) => void;
   onGoSend: () => void;
 }) {
   const { judgment, matching } = useMemo(() => partitionDrafts(drafts), [drafts]);
@@ -100,13 +107,13 @@ export function DraftReviewScreen({
         selected={selected.has(draft.id)}
         open={open.has(draft.id) || forceOpen}
         busy={busy}
-        refineBusy={refineBusyId === draft.id}
+        restoreBusy={restoreBusyId === draft.id}
         diff={diffs.get(draft.id)}
         onSelect={() => toggleSelect(draft.id)}
         onToggle={() => toggleOpen(draft.id)}
         onApprove={() => onApprove(draft)}
-        onEdit={() => onEdit(draft)}
-        onRefine={(instruction) => onRefine(draft, instruction)}
+        onViewVersion={onViewVersion}
+        onRestoreVersion={(version) => onRestoreVersion(draft, version)}
       />
       <DraftRecipientControls
         draft={draft}

@@ -346,11 +346,13 @@ export function EmptyState({
 export function DraftEditDialog({
   draft,
   pending,
+  error,
   onClose,
   onSave,
 }: {
   draft: OutreachV3DraftArtifact;
   pending: boolean;
+  error?: string | null;
   onClose: () => void;
   onSave: (subject: string, body: string) => void;
 }) {
@@ -367,6 +369,8 @@ export function DraftEditDialog({
       description="Earlier versions remain in history. Saving clears exact-version approval and any preflight based on the previous text."
       width={760}
       busy={pending}
+      busyLabel="Saving…"
+      error={error}
       dirty={subject !== originalSubject || body !== originalBody}
       onClose={onClose}
       footer={

@@ -21,6 +21,7 @@ import {
   generateOutreachV3Samples,
   getLatestOutreachV3FullGenerationJob,
   getOutreachV3ApproachApproval,
+  getOutreachV3DraftVersion,
   getOutreachV3GenerationJob,
   getOutreachV3GenerationPlan,
   getOutreachV3SendIntent,
@@ -83,6 +84,7 @@ import {
   SendingScreen,
 } from './outreach-v3-phase1-results.js';
 import { MeriRail } from './outreach-v3-phase1-meri.js';
+import { useEngagementToast } from './engagement-toast.js';
 import './outreach-v3-phase1.css';
 import './outreach-v3-templates.css';
 
@@ -108,6 +110,14 @@ export function VNextOutreachApproveSendWorkspace({
   const [preflight, setPreflight] = useState<OutreachV3ServerPreflight | null>(null);
   const [preflightAt, setPreflightAt] = useState<Date | null>(null);
   const [editingDraft, setEditingDraft] = useState<OutreachV3DraftArtifact | null>(null);
+  // Distinct from `operationError`: the manual-edit dialog needs its failure
+  // shown INSIDE the still-open dialog, next to the fields the user is
+  // editing, not as a banner on a screen they may have already left behind
+  // (per EngagementDialog's own `error` prop contract). The success side
+  // (silently closing with zero confirmation was the reported bug) uses the
+  // shared engagement toast instead of new banner UI.
+  const [editDialogError, setEditDialogError] = useState<string | null>(null);
+  const toast = useEngagementToast();
   const [diffs, setDiffs] = useState<Map<string, DraftDiff>>(new Map());
   const [confirmInput, setConfirmInput] = useState<OutreachV3PreflightInput | null>(null);
   const [meriCollapsed, setMeriCollapsed] = useState(false);
@@ -269,9 +279,24 @@ export function VNextOutreachApproveSendWorkspace({
     onSuccess: async (version, variables) => {
       if (variables.draft.current) setDiffs((current) => new Map(current).set(variables.draft.id, { from: variables.draft.current!, to: version }));
       setEditingDraft(null);
+      toast.show(`Saved as V${version.version}.`);
       await invalidateDraftState();
     },
-    onError: (error) => setOperationError(errorText(error, 'The new draft version could not be saved.')),
+    onError: (error) => setEditDialogError(errorText(error, 'The new draft version could not be saved.')),
+  });
+  const restoreMutation = useMutation({
+    mutationFn: ({ draft, version }: { draft: OutreachV3DraftArtifact; version: OutreachV3DraftVersion }) => reviseOutreachV3Draft(api, sessionId, draft.id, {
+      baseVersionId: draft.current!.id,
+      subject: version.subject,
+      body: version.body,
+      editKind: 'revert',
+    }),
+    onSuccess: async (newVersion, variables) => {
+      if (variables.draft.current) setDiffs((current) => new Map(current).set(variables.draft.id, { from: variables.draft.current!, to: newVersion }));
+      toast.show(`Restored V${variables.version.version} as the new V${newVersion.version}.`);
+      await invalidateDraftState();
+    },
+    onError: (error) => setOperationError(errorText(error, 'Could not restore that version.')),
   });
   const refineMutation = useMutation({
     mutationFn: ({ draft, instruction }: { draft: OutreachV3DraftArtifact; instruction: string }) => refineOutreachV3Draft(api, sessionId, draft.id, {
@@ -482,7 +507,26 @@ export function VNextOutreachApproveSendWorkspace({
       return <GenerationScreen plan={plan} drafts={drafts} job={job} busy={fullGeneration.isPending} error={operationError} onStart={startFullGeneration} onRetry={(itemId) => jobId && retryOutreachV3GenerationItem(api, sessionId, jobId, itemId).then(() => jobQuery.refetch()).catch((error) => setOperationError(errorText(error, 'Retry failed.')))} onCancel={() => jobId && cancelOutreachV3GenerationJob(api, sessionId, jobId).then(() => jobQuery.refetch()).catch((error) => setOperationError(errorText(error, 'Generation could not be stopped.')))} />;
     }
     if (view === 'draft-review') {
-      return <DraftReviewScreen plan={plan} drafts={drafts} busy={approveMutation.isPending || approveManyMutation.isPending || bulkRefineMutation.isPending} refineBusyId={refineMutation.isPending ? refineMutation.variables?.draft.id ?? null : null} diffs={diffs} error={operationError} onApprove={(draft) => draft.current && approveMutation.mutate(draft.current.id)} onApproveMany={(values) => approveManyMutation.mutate(values)} onRefine={(draft, instruction) => draft.current && refineMutation.mutate({ draft, instruction })} onRefineMany={(values, instruction) => bulkRefineMutation.mutate({ drafts: values, instruction })} onRegenerateMany={(values) => bulkRefineMutation.mutate({ drafts: values, instruction: 'Regenerate these drafts from the approved approach and current governed context. Preserve the campaign ask and do not add unsupported claims.' })} onEdit={setEditingDraft} onGoSend={() => onStepChange('send')} />;
+      return (
+        <DraftReviewScreen
+          plan={plan}
+          drafts={drafts}
+          busy={approveMutation.isPending || approveManyMutation.isPending || bulkRefineMutation.isPending}
+          refineBusyId={refineMutation.isPending ? refineMutation.variables?.draft.id ?? null : null}
+          restoreBusyId={restoreMutation.isPending ? restoreMutation.variables?.draft.id ?? null : null}
+          diffs={diffs}
+          error={operationError}
+          onApprove={(draft) => draft.current && approveMutation.mutate(draft.current.id)}
+          onApproveMany={(values) => approveManyMutation.mutate(values)}
+          onRefine={(draft, instruction) => draft.current && refineMutation.mutate({ draft, instruction })}
+          onRefineMany={(values, instruction) => bulkRefineMutation.mutate({ drafts: values, instruction })}
+          onRegenerateMany={(values) => bulkRefineMutation.mutate({ drafts: values, instruction: 'Regenerate these drafts from the approved approach and current governed context. Preserve the campaign ask and do not add unsupported claims.' })}
+          onEdit={setEditingDraft}
+          onViewVersion={(versionId) => getOutreachV3DraftVersion(api, sessionId, versionId).catch(() => null)}
+          onRestoreVersion={(draft, version) => restoreMutation.mutate({ draft, version })}
+          onGoSend={() => onStepChange('send')}
+        />
+      );
     }
     if (view === 'send') {
       return <SendScreen sessionId={sessionId} sessionClientId={selectedClientId} plan={plan} drafts={drafts} integrations={integrations as IntegrationConnection[]} settings={settingsQuery.data ?? null} attachments={mergedAttachments} preflight={preflight} preflightAt={preflightAt} settingsBusy={saveSettingsMutation.isPending} preflightBusy={preflightMutation.isPending} testBusy={testSendMutation.isPending} testSucceeded={Boolean(testSendMutation.data)} sendBusy={realSendMutation.isPending} error={operationError} onSaveSettings={(input) => saveSettingsMutation.mutate(input)} onUpload={(file) => uploadMutation.mutate(file)} onRunPreflight={(input) => preflightMutation.mutate(input)} onTestSend={(generationKey, input) => testSendMutation.mutate({ generationKey, input })} onOpenConfirm={setConfirmInput} onGoDrafts={() => onStepChange('drafts')} />;
@@ -525,7 +569,21 @@ export function VNextOutreachApproveSendWorkspace({
 
       <MeriRail controller={controller} campaignName={campaignTitle(session)} collapsed={meriCollapsed} receipts={receipts} busyProposalId={busyProposalId} proposalError={proposalError} onToggle={() => setMeriCollapsed((value) => !value)} onApply={(proposal) => void applyProposal(proposal)} onDiscard={(proposal) => void discardProposal(proposal)} onPrepareReversal={prepareReversal} />
 
-      {editingDraft?.current ? <DraftEditDialog draft={editingDraft} pending={reviseMutation.isPending} onClose={() => setEditingDraft(null)} onSave={(subject, body) => reviseMutation.mutate({ draft: editingDraft, subject, body })} /> : null}
+      {editingDraft?.current ? (
+        <DraftEditDialog
+          draft={editingDraft}
+          pending={reviseMutation.isPending}
+          error={editDialogError}
+          onClose={() => {
+            setEditingDraft(null);
+            setEditDialogError(null);
+          }}
+          onSave={(subject, body) => {
+            setEditDialogError(null);
+            reviseMutation.mutate({ draft: editingDraft, subject, body });
+          }}
+        />
+      ) : null}
 
       {confirmInput ? <SendConfirmDialog count={preflight?.draftVersionIds.length ?? approvalCount(drafts)} held={preflight?.excludedGenerationKeys.length ?? 0} sender={providerLabel(selectedConnection as IntegrationConnection | null)} pending={realSendMutation.isPending} onClose={() => setConfirmInput(null)} onConfirm={() => realSendMutation.mutate(confirmInput)} /> : null}
     </div>

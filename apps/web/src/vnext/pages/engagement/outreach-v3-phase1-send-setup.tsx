@@ -304,6 +304,12 @@ export function SendScreen({
           {testSucceeded ? 'Send another test' : 'Send a test to me'}
         </button>
         {testSucceeded ? <StatusChip tone="navy">Test send created</StatusChip> : null}
+        {!settings ? (
+          <p className="ov3p1-inline-hint">
+            Save a sending identity above first — this button turns on once you pick a mailbox and click{' '}
+            <strong>Save sending identity</strong>.
+          </p>
+        ) : null}
       </section>
 
       <section className="ov3p1-preflight">
@@ -312,6 +318,7 @@ export function SendScreen({
             <span>Preflight</span>
             <h3>Fourteen checks, using fresh server reads</h3>
             <p>{preflightAt ? `Last checked ${formatClock(preflightAt)}` : 'Not checked for the current versions.'}</p>
+            {!settings ? <p className="ov3p1-inline-hint">Save a sending identity above first.</p> : null}
           </div>
           <button type="button" className="ov3p1-button is-secondary" disabled={preflightBusy || !settings} onClick={() => onRunPreflight(input)}>
             {preflightBusy ? <Loader2 className="ov3p1-spin" size={14} /> : <RefreshCcw size={14} />}
