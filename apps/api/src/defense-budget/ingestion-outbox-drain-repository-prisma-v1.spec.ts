@@ -1,5 +1,6 @@
 import {
   createIngestionOutboxDrainRepositoryPrismaV1,
+  ingestionOutboxClaimByIdSqlV1,
   ingestionOutboxClaimSqlV1,
   ingestionOutboxReadinessClaimSqlV1,
 } from './ingestion-outbox-drain-repository-prisma-v1.js';
@@ -27,6 +28,43 @@ describe('ingestion outbox Prisma repository', () => {
   });
   test('claim SQL supports lease-expiry recovery', () =>
     expect(ingestionOutboxClaimSqlV1()).toContain('leased_until'));
+  test('governed single-row claim filters on the exact row id, never a different row, and keeps every other eligibility/lease guarantee identical to the batch claim', async () => {
+    const calls: { sql: string; values: unknown[] }[] = [];
+    const prisma = {
+      async $queryRawUnsafe<T>(sql: string, ...values: unknown[]) {
+        calls.push({ sql, values });
+        return [{ id: 'row-9', observation_id: 'obs-9', attempts: 1 }] as T;
+      },
+    };
+    const row = await createIngestionOutboxDrainRepositoryPrismaV1(prisma).claimRowById({
+      rowId: 'row-9',
+      leaseOwner: 'canary-operator',
+      now: new Date('2026-01-01'),
+    });
+    expect(row).toEqual({ id: 'row-9', observationId: 'obs-9', attempts: 1 });
+    const claim = calls[0]!;
+    // Same eligibility predicate as the batch claim (pending/failed due, or
+    // lease-expired) PLUS the id filter -- proven structurally, not just by
+    // the mocked return value, so a future edit that drops the id predicate
+    // fails this test even if the mock still returns a row.
+    expect(claim.sql).toMatch(/state\" IN \('pending','failed'\).*available_at/s);
+    expect(claim.sql).toMatch(/state\" = 'leased'.*leased_until/s);
+    expect(claim.sql).toContain('o."id"=$4::uuid');
+    expect(claim.sql).toContain('FOR UPDATE OF o SKIP LOCKED');
+    expect(claim.sql.trim().split(';')).toHaveLength(1);
+    expect(claim.values[3]).toBe('row-9');
+  });
+  test('governed single-row claim returns null (not an empty-row shape) when the named row is not eligible', async () => {
+    const prisma = { async $queryRawUnsafe<T>() { return [] as T; } };
+    const row = await createIngestionOutboxDrainRepositoryPrismaV1(prisma).claimRowById({
+      rowId: 'not-eligible',
+      leaseOwner: 'canary-operator',
+      now: new Date('2026-01-01'),
+    });
+    expect(row).toBeNull();
+  });
+  test('governed single-row claim SQL structurally cannot select a second row: LIMIT is bound to 1', () =>
+    expect(ingestionOutboxClaimByIdSqlV1()).toMatch(/LIMIT \$2 FOR UPDATE/));
   test('readiness claim is locking, bounded, and only claims succeeded pending readiness', () => {
     const sql = ingestionOutboxReadinessClaimSqlV1();
     expect(sql).toContain(`o."state"='succeeded'`);

@@ -16,6 +16,26 @@ export interface IngestionOutboxDrainRepositoryV1 {
     limit?: number;
     now: Date;
   }): Promise<IngestionOutboxRowV1[]>;
+  /**
+   * Governed single-row canary claim (PR #1318 Part G / Phase 10B-5
+   * activation preflight). `--batch-size 1` on `claimBatch` is
+   * NON-deterministic -- it claims whichever eligible row sorts first by
+   * `(created_at, id)` under `SKIP LOCKED`, which could silently be a
+   * DIFFERENT row than the one an operator inspected and chose as the first
+   * canary. This claims EXACTLY the row identified by `rowId`, using the
+   * same eligibility predicate (`state IN ('pending','failed')` with
+   * `available_at` due, or a `leased` row whose lease has expired) and the
+   * same lease semantics as `claimBatch` -- it just adds `AND "id"=$4::uuid`
+   * to the CTE so no other row can ever be selected. Returns `null` (not an
+   * empty array) when the row does not exist, is not eligible right now
+   * (e.g. still leased by someone else, or in a terminal state), or was
+   * concurrently claimed by another worker between selection and lock.
+   */
+  claimRowById(input: {
+    rowId: string;
+    leaseOwner: string;
+    now: Date;
+  }): Promise<IngestionOutboxRowV1 | null>;
   claimReadinessPendingBatch(input: {
     leaseOwner: string;
     limit?: number;
@@ -86,6 +106,30 @@ export function ingestionOutboxClaimSqlV1(
  RETURNING t."id", t."observation_id", t."attempts"`;
 }
 
+/**
+ * Governed single-row claim. Identical eligibility predicate and lease
+ * semantics to `ingestionOutboxClaimSqlV1`, with one added predicate
+ * (`AND o."id"=$4::uuid`) that makes the CTE's candidate set at most one
+ * row -- the exact row the operator named, never a different one that
+ * happens to sort first. `LIMIT $2` is kept (bound to 1 by the caller) so
+ * the query shape matches the batch claim exactly except for the id filter.
+ */
+export function ingestionOutboxClaimByIdSqlV1(
+  options: IngestionOutboxRepositoryOptionsV1 = {},
+): string {
+  const leaseMs = options.leaseMs ?? OUTBOX_PROCESSING_LEASE_MS_V1;
+  return `WITH eligible AS (
+ SELECT o."id" FROM "defense_budget_ingestion_outbox" o
+ WHERE o."id"=$4::uuid
+   AND ((o."state" IN ('pending','failed') AND o."available_at" <= $1::timestamptz)
+    OR (o."state" = 'leased' AND o."leased_until" <= $1::timestamptz))
+ ORDER BY o."created_at", o."id" LIMIT $2 FOR UPDATE OF o SKIP LOCKED
+) UPDATE "defense_budget_ingestion_outbox" t
+ SET "state"='leased', "leased_by"=$3, "leased_until"=$1::timestamptz + (${leaseMs} * INTERVAL '1 millisecond'), "updated_at"=$1::timestamptz
+ FROM eligible e WHERE t."id"=e."id"
+ RETURNING t."id", t."observation_id", t."attempts"`;
+}
+
 export function ingestionOutboxReadinessClaimSqlV1(
   options: IngestionOutboxRepositoryOptionsV1 = {},
 ): string {
@@ -123,6 +167,22 @@ export function createIngestionOutboxDrainRepositoryPrismaV1(
         observationId: String(r.observation_id),
         attempts: Number(r.attempts ?? 0),
       }));
+    },
+    async claimRowById(input) {
+      const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
+        ingestionOutboxClaimByIdSqlV1(options),
+        input.now.toISOString(),
+        1,
+        input.leaseOwner,
+        input.rowId,
+      );
+      if (rows.length === 0) return null;
+      const r = rows[0]!;
+      return {
+        id: String(r.id),
+        observationId: String(r.observation_id),
+        attempts: Number(r.attempts ?? 0),
+      };
     },
     async claimReadinessPendingBatch(input) {
       const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
