@@ -94,6 +94,7 @@ export function SendScreen({
   preflight,
   preflightAt,
   settingsBusy,
+  settingsSaved,
   preflightBusy,
   testBusy,
   testSucceeded,
@@ -116,6 +117,7 @@ export function SendScreen({
   preflight: OutreachV3ServerPreflight | null;
   preflightAt: Date | null;
   settingsBusy: boolean;
+  settingsSaved: boolean;
   preflightBusy: boolean;
   testBusy: boolean;
   testSucceeded: boolean;
@@ -254,6 +256,7 @@ export function SendScreen({
           {settingsBusy ? <Loader2 className="ov3p1-spin" size={14} /> : <Check size={14} />}
           Save sending identity
         </button>
+        {settingsSaved ? <StatusChip tone="navy">Identity saved</StatusChip> : null}
       </section>
 
       <section className="ov3p1-card ov3p1-timing-card" id="ov3p1-timing">

@@ -537,4 +537,25 @@ describe('VNextOutreachApproveSendWorkspace downstream draft workflow', () => {
     );
     await screen.findByText(/restored v2/i);
   });
+
+  it('saving the sending identity shows a visible confirmation, since a successful save looks identical to a silent failure otherwise', async () => {
+    renderWorkspace('send');
+
+    const saveButton = await screen.findByRole('button', { name: 'Save sending identity' });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveSendSettingsMock).toHaveBeenCalledTimes(1));
+    expect(saveSendSettingsMock).toHaveBeenCalledWith(
+      api,
+      'session-1',
+      expect.objectContaining({ senderConnectionId: 'conn-1' }),
+    );
+
+    // Two independent confirmations: the inline "Saved" chip next to the
+    // button (survives even if the toast is missed/dismissed) and the
+    // toast itself (matches the manual-edit "Saved as V{n}" convention
+    // from the draft-review-ux fix).
+    await screen.findByText('Identity saved');
+    await screen.findByText('Sending identity saved.');
+  });
 });

@@ -355,6 +355,12 @@ export function VNextOutreachApproveSendWorkspace({
     onSuccess: async () => {
       setPreflight(null);
       setPreflightAt(null);
+      // The form's own fields already reflect the saved values (they're
+      // what was just submitted), so a successful save looks visually
+      // IDENTICAL to a save that silently failed — nothing on screen
+      // changes. This toast is the only confirmation the user gets that
+      // the click actually did something.
+      toast.show('Sending identity saved.');
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['outreach-v3', 'send-settings', sessionId] }),
         qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] }),
@@ -529,7 +535,7 @@ export function VNextOutreachApproveSendWorkspace({
       );
     }
     if (view === 'send') {
-      return <SendScreen sessionId={sessionId} sessionClientId={selectedClientId} plan={plan} drafts={drafts} integrations={integrations as IntegrationConnection[]} settings={settingsQuery.data ?? null} attachments={mergedAttachments} preflight={preflight} preflightAt={preflightAt} settingsBusy={saveSettingsMutation.isPending} preflightBusy={preflightMutation.isPending} testBusy={testSendMutation.isPending} testSucceeded={Boolean(testSendMutation.data)} sendBusy={realSendMutation.isPending} error={operationError} onSaveSettings={(input) => saveSettingsMutation.mutate(input)} onUpload={(file) => uploadMutation.mutate(file)} onRunPreflight={(input) => preflightMutation.mutate(input)} onTestSend={(generationKey, input) => testSendMutation.mutate({ generationKey, input })} onOpenConfirm={setConfirmInput} onGoDrafts={() => onStepChange('drafts')} />;
+      return <SendScreen sessionId={sessionId} sessionClientId={selectedClientId} plan={plan} drafts={drafts} integrations={integrations as IntegrationConnection[]} settings={settingsQuery.data ?? null} attachments={mergedAttachments} preflight={preflight} preflightAt={preflightAt} settingsBusy={saveSettingsMutation.isPending} settingsSaved={saveSettingsMutation.isSuccess} preflightBusy={preflightMutation.isPending} testBusy={testSendMutation.isPending} testSucceeded={Boolean(testSendMutation.data)} sendBusy={realSendMutation.isPending} error={operationError} onSaveSettings={(input) => saveSettingsMutation.mutate(input)} onUpload={(file) => uploadMutation.mutate(file)} onRunPreflight={(input) => preflightMutation.mutate(input)} onTestSend={(generationKey, input) => testSendMutation.mutate({ generationKey, input })} onOpenConfirm={setConfirmInput} onGoDrafts={() => onStepChange('drafts')} />;
     }
     if (view === 'sending' && intent) {
       return <SendingScreen intent={intent} plan={plan} drafts={drafts} cancelBusy={cancelIntentMutation.isPending} error={operationError} onCancel={() => cancelIntentMutation.mutate()} onRefresh={() => refreshIntentMutation.mutate()} />;
