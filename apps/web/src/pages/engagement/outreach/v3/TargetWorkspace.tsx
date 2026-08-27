@@ -133,10 +133,12 @@ const NON_CAPABILITY_SOURCES = new Set<TargetSourceKey>([
  * target has no directory/domain signal for that registry's selectPolicy()
  * to resolve on its own, so it fails closed (OUTREACH_COMMAND_BLOCKED,
  * "audience_policy_required") at sample generation unless the person adding
- * it says which audience this is.
+ * it says which audience this is. The blank option is a placeholder ONLY —
+ * addManual() refuses to submit while it's selected, so this can no longer
+ * be added and discovered as broken only at generation time.
  */
 const MANUAL_AUDIENCE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '', label: 'Not sure yet' },
+  { value: '', label: 'Choose one\u2026' },
   { value: 'congressional_office', label: 'Federal congressional office' },
   { value: 'federal_agency', label: 'Federal agency' },
   { value: 'defense_acquisition_office', label: 'Defense acquisition office' },
@@ -833,6 +835,15 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       setError('Enter a valid email address or leave the email blank.');
       return;
     }
+    if (!manual.audienceType) {
+      // A manual target has no directory/domain signal for
+      // government-affairs-policy.registry's selectPolicy() to key off, so
+      // adding one with no audience type would only surface as a much later,
+      // harder-to-diagnose OUTREACH_COMMAND_BLOCKED at Generate — refuse it
+      // here instead, at the moment the person can actually fix it.
+      setError('Choose an audience type — Capiro will not guess government-affairs etiquette.');
+      return;
+    }
     const locator: OutreachV3TargetLocator = {
       source: 'manual',
       id: crypto.randomUUID(),
@@ -842,7 +853,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       title: manual.title.trim() || null,
       organization: manual.organization.trim() || null,
       note: manual.note.trim() || null,
-      audienceType: manual.audienceType || null,
+      audienceType: manual.audienceType,
     };
     setError(null);
     try {
@@ -1047,6 +1058,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
                 <Field label="Organization" value={manual.organization} onChange={(organization) => setManual({ ...manual, organization })} />
                 <Field
                   label="Audience type"
+                  required
                   value={manual.audienceType}
                   onChange={(audienceType) => setManual({ ...manual, audienceType })}
                   options={MANUAL_AUDIENCE_OPTIONS}
@@ -1054,14 +1066,13 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               </div>
               <p className="ov3-muted-copy">
                 Capiro applies different government-affairs etiquette by audience and will not guess.
-                Leaving this as "Not sure yet" blocks sample generation for this target until an
-                audience is set.
+                Choose an audience before adding this target — generation stays blocked for it otherwise.
               </p>
               <Field label="Target note" value={manual.note} onChange={(note) => setManual({ ...manual, note })} multiline />
               <button
                 type="button"
                 className="ov3-button is-primary"
-                disabled={busy}
+                disabled={busy || !manual.name.trim() || !manual.audienceType}
                 onClick={() => void addManual()}
               >
                 Add target to campaign

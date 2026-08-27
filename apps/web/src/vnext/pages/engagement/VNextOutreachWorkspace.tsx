@@ -72,7 +72,7 @@ import {
   type OutreachV3SendIntentView,
   type OutreachV3ServerPreflight,
 } from './engagement-api.js';
-import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
+import { humanizeBlockerCode, safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 // The legacy outreach-v3 stylesheets are NOT imported here anymore (vNext
 // old-UI purge: no legacy-design-system css on this surface). Their vNext
 // port — outreach-decision-vnext.css, a :where()-scoped, token-stripped copy
@@ -213,42 +213,11 @@ function statusTone(status: string): 'navy' | 'warning' | 'neutral' | 'error' {
 }
 
 /**
- * Backend preflight blocker codes (see apps/api's
- * OUTREACH_V3_PREFLIGHT_BLOCKER_CODES) translated to short, human-readable
- * reasons for the held-out recipient list. Falls back to a sentence-cased
- * version of the raw code for anything unmapped, so an unrecognized future
- * code never renders blank or throws — it just looks a little less polished
- * until this map is extended.
+ * Backend preflight blocker codes are humanized via the shared
+ * humanizeBlockerCode() in outreach-v3-api.ts (imported above) — kept there,
+ * not duplicated here, so the live workspace (VNextOutreachApproveSendWorkspace
+ * via safeOutreachV3Error) and this file always agree on the same labels.
  */
-const PREFLIGHT_BLOCKER_LABEL: Record<string, string> = {
-  GENERATION_PLAN_NOT_ELIGIBLE: 'Campaign plan is not generation-eligible',
-  SENDER_REQUIRED: 'No sending mailbox selected',
-  SENDER_NOT_AUTHORIZED: 'Sending mailbox is not authorized',
-  ATTACHMENT_NOT_READY: 'An attachment is not ready',
-  EXCLUSION_NOT_IN_PLAN: 'Held-out recipient is not part of the current plan',
-  DRAFT_MISSING: 'No current draft for this recipient',
-  DRAFT_DUPLICATE: 'More than one current draft for this recipient',
-  DRAFT_NOT_EXACTLY_APPROVED: 'Exact version is not approved',
-  DRAFT_DIRTY: 'Draft changed after generation',
-  DRAFT_STALE: 'Draft is stale for the current plan',
-  DRAFT_HELD: 'Draft is held for review',
-  DRAFT_FAILED: 'Draft generation failed',
-  AUDIT_UNAVAILABLE: 'Draft has no audit verdict yet',
-  RECIPIENT_SNAPSHOT_STALE: 'Recipient changed after generation',
-  RECIPIENT_EMAIL_MISSING: 'Recipient email is missing or malformed',
-  RECIPIENT_EMAIL_COLLISION: 'Recipient email collides with another recipient',
-  TEST_SEND_REQUIRES_ONE_DRAFT: 'Test send requires exactly one draft',
-};
-
-export function humanizeBlockerCode(code: string): string {
-  return (
-    PREFLIGHT_BLOCKER_LABEL[code] ??
-    code
-      .toLowerCase()
-      .replaceAll('_', ' ')
-      .replace(/\b\w/g, (letter) => letter.toUpperCase())
-  );
-}
 
 /**
  * Real tracked delivery states only (Sent/Failed/Unknown/Skipped/Held — see

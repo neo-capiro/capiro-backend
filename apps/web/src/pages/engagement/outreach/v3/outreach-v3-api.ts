@@ -562,6 +562,7 @@ function extractOutreachV3ErrorParts(error: unknown): {
   status: number | null;
   code: string | null;
   message: string | null;
+  metadata: Record<string, unknown> | null;
 } {
   const response = (error as {
     response?: { status?: number; data?: unknown };
@@ -570,10 +571,14 @@ function extractOutreachV3ErrorParts(error: unknown): {
   const data = response?.data;
   let code: string | null = null;
   let message: string | null = null;
+  let metadata: Record<string, unknown> | null = null;
 
   if (data && typeof data === 'object') {
     const record = data as Record<string, unknown>;
     if (typeof record.code === 'string' && record.code.trim()) code = record.code.trim();
+    if (record.metadata && typeof record.metadata === 'object') {
+      metadata = record.metadata as Record<string, unknown>;
+    }
 
     const raw = record.message;
     if (typeof raw === 'string' && raw.trim()) {
@@ -607,7 +612,47 @@ function extractOutreachV3ErrorParts(error: unknown): {
     status: response?.status ?? null,
     code,
     message,
+    metadata,
   };
+}
+
+/**
+ * Backend preflight/generation blocker codes (see apps/api's
+ * OUTREACH_V3_PREFLIGHT_BLOCKER_CODES) translated to short, human-readable
+ * reasons. Falls back to a sentence-cased version of the raw code for
+ * anything unmapped, so an unrecognized future code never renders blank or
+ * throws — it just looks a little less polished until this map is extended.
+ */
+const PREFLIGHT_BLOCKER_LABEL: Record<string, string> = {
+  GENERATION_PLAN_NOT_ELIGIBLE: 'Campaign plan is not generation-eligible',
+  SENDER_REQUIRED: 'No sending mailbox selected',
+  SENDER_NOT_AUTHORIZED: 'Sending mailbox is not authorized',
+  ATTACHMENT_NOT_READY: 'An attachment is not ready',
+  EXCLUSION_NOT_IN_PLAN: 'Held-out recipient is not part of the current plan',
+  DRAFT_MISSING: 'No current draft for this recipient',
+  DRAFT_DUPLICATE: 'More than one current draft for this recipient',
+  DRAFT_NOT_EXACTLY_APPROVED: 'Exact version is not approved — approve it on the Drafts step',
+  DRAFT_DIRTY: 'Draft changed after generation',
+  DRAFT_STALE: 'Draft is stale for the current plan',
+  DRAFT_HELD: 'Draft is held for review',
+  DRAFT_FAILED: 'Draft generation failed',
+  AUDIT_UNAVAILABLE: 'Draft has no audit verdict yet',
+  RECIPIENT_SNAPSHOT_STALE: 'Recipient changed after generation',
+  RECIPIENT_EMAIL_MISSING: 'Recipient email is missing or malformed',
+  RECIPIENT_EMAIL_COLLISION: 'Recipient email collides with another recipient',
+  TEST_SEND_REQUIRES_ONE_DRAFT: 'Test send requires exactly one draft',
+  HELD_RECIPIENTS_NOT_ACKNOWLEDGED: 'Held-out recipients are not acknowledged',
+  SPONSOR_SCOPE_BLOCKED: 'Internal-only campaigns cannot send externally',
+};
+
+export function humanizeBlockerCode(code: string): string {
+  return (
+    PREFLIGHT_BLOCKER_LABEL[code] ??
+    code
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
 }
 
 /**
@@ -615,7 +660,7 @@ function extractOutreachV3ErrorParts(error: unknown): {
  * and shadow-runtime denials stay diagnosable in the UI (audit OpenAI sheet).
  */
 export function safeOutreachV3Error(error: unknown): string {
-  const { status, code, message } = extractOutreachV3ErrorParts(error);
+  const { status, code, message, metadata } = extractOutreachV3ErrorParts(error);
 
   if (code === 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED') {
     return (
@@ -643,9 +688,31 @@ export function safeOutreachV3Error(error: unknown): string {
   }
 
   if (message) {
+    // The server puts the SPECIFIC failed-check codes in safeMetadata
+    // (blockedChecks for preflight, blockers for plan/generation gates) —
+    // extractOutreachV3ErrorParts already reads that into `metadata`, but
+    // without this the UI only ever showed the generic wrapper sentence
+    // ("The campaign did not pass server-authoritative preflight.") and
+    // dropped exactly the detail a user needs to act (e.g. "Approve every
+    // exact current version"). `blockedChecks` is short UI-panel keys
+    // ('approval', 'sender', ...) with no shared label map on the client;
+    // `blockers` is the same OUTREACH_V3_PREFLIGHT_BLOCKER_CODES enum
+    // humanizeBlockerCode() already knows how to render, so prefer it.
+    const rawCodes =
+      typeof metadata?.blockers === 'string' && metadata.blockers.trim()
+        ? metadata.blockers
+        : typeof metadata?.blockedChecks === 'string' && metadata.blockedChecks.trim()
+          ? metadata.blockedChecks
+          : null;
+    const reasons = rawCodes
+      ? [...new Set(rawCodes.split(',').map((value) => value.trim()).filter(Boolean))].map(
+          humanizeBlockerCode,
+        )
+      : [];
+    const withReasons = reasons.length ? `${message} ${reasons.join('; ')}.` : message;
     // Keep the server sentence; append code only when it adds diagnosis value.
-    if (code && !message.includes(code)) return `${message} (${code})`;
-    return message;
+    if (code && !withReasons.includes(code)) return `${withReasons} (${code})`;
+    return withReasons;
   }
 
   if (status === 404) {

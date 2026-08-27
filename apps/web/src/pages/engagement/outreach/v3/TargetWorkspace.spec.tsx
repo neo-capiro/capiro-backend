@@ -212,13 +212,16 @@ describe('TargetWorkspace', () => {
     await waitFor(() => expect(value.searchTargets).toHaveBeenCalledTimes(2));
   });
 
-  it('validates manual target identity and keeps Save to Directory off', async () => {
+  it('validates manual target identity, requires an audience type, and keeps Save to Directory off', async () => {
     const value = props();
     renderWorkspace(value);
     fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
 
     fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Jordan Miller' } });
     fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'not-an-email' } });
+    fireEvent.change(screen.getByLabelText(/Audience type/i), {
+      target: { value: 'client_executive' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
     expect(await screen.findByText('Enter a valid email address or leave the email blank.')).toBeInTheDocument();
     expect(value.applyCommands).not.toHaveBeenCalled();
@@ -236,6 +239,7 @@ describe('TargetWorkspace', () => {
               source: 'manual',
               name: 'Jordan Miller',
               email: 'jordan@example.test',
+              audienceType: 'client_executive',
             }),
           ],
         },
@@ -244,15 +248,22 @@ describe('TargetWorkspace', () => {
     expect(screen.getByText(/Saving to the shared Directory remains off/i)).toBeInTheDocument();
   });
 
-  it('sends the declared audience type for a manual target, or null when left unset', async () => {
+  it('sends the declared audience type for a manual target, and refuses to submit while it is unset', async () => {
     const value = props();
     renderWorkspace(value);
     fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
 
     fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Jordan Miller' } });
+    // Name alone is not enough to submit anymore — the "Add target to
+    // campaign" button stays disabled until an audience type is chosen, so
+    // this can no longer be added and only discovered as broken at
+    // generation time (OUTREACH_COMMAND_BLOCKED, audience_policy_required).
+    expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeDisabled();
+
     fireEvent.change(screen.getByLabelText(/Audience type/i), {
       target: { value: 'client_executive' },
     });
+    expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
 
     await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
@@ -262,16 +273,6 @@ describe('TargetWorkspace', () => {
         payload: {
           refs: [expect.objectContaining({ source: 'manual', audienceType: 'client_executive' })],
         },
-      }),
-    ]);
-
-    (value.applyCommands as ReturnType<typeof vi.fn>).mockClear();
-    fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Alex Rivera' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
-    await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
-    expect(value.applyCommands).toHaveBeenCalledWith([
-      expect.objectContaining({
-        payload: { refs: [expect.objectContaining({ source: 'manual', audienceType: null })] },
       }),
     ]);
   });

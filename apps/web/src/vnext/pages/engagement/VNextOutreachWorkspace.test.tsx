@@ -7,10 +7,10 @@ import {
   attachmentTone,
   buildHonestPreflightRows,
   draftStrategyHeadline,
-  humanizeBlockerCode,
   outreachCampaignHeading,
   type EngagementOutreachStep,
 } from './VNextOutreachWorkspace.js';
+import { humanizeBlockerCode } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import type { OutreachV3SessionEnvelope } from '../../../pages/engagement/outreach/v3/contracts.js';
 import type { OutreachV3NamedPreflightCheck } from './engagement-api.js';
 

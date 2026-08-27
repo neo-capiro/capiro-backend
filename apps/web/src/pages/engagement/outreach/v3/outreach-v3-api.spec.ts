@@ -255,4 +255,60 @@ describe('Outreach V3 browser wire normalization', () => {
       }),
     ).toMatch(/OpenAI on engagement-api/i);
   });
+
+  it('appends the specific blocked-check reasons from safeMetadata.blockedChecks to the wrapper message', () => {
+    // This is the exact server response shape for "Send a test to me" /
+    // "Send" when preflight fails: OutreachV3ExceptionFilter puts the
+    // computed blockedChecks/blockers under `metadata`, but the wrapper
+    // message alone ("The campaign did not pass server-authoritative
+    // preflight.") never told the user WHICH of the 14 checks failed.
+    const text = safeOutreachV3Error({
+      response: {
+        status: 409,
+        data: {
+          code: 'OUTREACH_COMMAND_BLOCKED',
+          message: 'The campaign did not pass server-authoritative preflight.',
+          metadata: {
+            blockers: 'DRAFT_NOT_EXACTLY_APPROVED',
+            blockedChecks: 'approval',
+          },
+        },
+      },
+    });
+    expect(text).toMatch(/did not pass server-authoritative preflight/i);
+    expect(text).toMatch(/approve/i);
+  });
+
+  it('humanizes a blockers list (no blockedChecks) when only the coarser field is present', () => {
+    const text = safeOutreachV3Error({
+      response: {
+        status: 409,
+        data: {
+          code: 'OUTREACH_COMMAND_BLOCKED',
+          message: 'The campaign is not ready for draft refinement.',
+          metadata: {
+            reason: 'generation_plan_not_eligible',
+            blockers: 'PENDING_PROPOSALS,SHARED_THREAD_HIGH_PERSONALIZATION',
+          },
+        },
+      },
+    });
+    expect(text).toMatch(/not ready for draft refinement/i);
+    // Both codes humanized, not left as raw SCREAMING_SNAKE_CASE.
+    expect(text).not.toMatch(/PENDING_PROPOSALS/);
+    expect(text.toLowerCase()).toMatch(/pending proposals/);
+  });
+
+  it('falls back to the raw message untouched when there is no metadata at all', () => {
+    const text = safeOutreachV3Error({
+      response: {
+        status: 409,
+        data: {
+          code: 'OUTREACH_STATE_CONFLICT',
+          message: 'The campaign changed while this draft was being refined.',
+        },
+      },
+    });
+    expect(text).toBe('The campaign changed while this draft was being refined. (OUTREACH_STATE_CONFLICT)');
+  });
 });
