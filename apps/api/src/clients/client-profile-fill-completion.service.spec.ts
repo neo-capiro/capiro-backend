@@ -1,5 +1,6 @@
 import {
   buildClientProfileFillCompletionPlan,
+  buildRegulatoryOutcomeFinding,
   calculateProfileCompletion,
   deriveRegulatoryCommentSubmitterLabel,
   deriveAdvocacyBackfillOverallStatus,
@@ -326,6 +327,66 @@ describe('Fill with Meri completion workflow', () => {
         { peCode: '0605053A', billNumber: '119-hr-1234' },
       ),
     ).toBeNull();
+  });
+
+  describe('buildRegulatoryOutcomeFinding (deterministic regulatory outcome correlation)', () => {
+    const matterId = '33333333-3333-3333-3333-333333333333';
+    const candidate = {
+      documentNumber: '2026-00002',
+      documentType: 'PROPOSED_RULE',
+      agencyNames: ['Department of Defense'],
+      publicationDate: '2026-03-01T00:00:00.000Z',
+      matchedDocketIds: ['DOD-2026-OS-0001'],
+      sourceUrl: 'https://www.federalregister.gov/d/2026-00002',
+    };
+
+    test('a Federal Register document published AFTER the attributable comment produces a strongly_aligned, causation-free finding', () => {
+      const finding = buildRegulatoryOutcomeFinding(
+        matterId,
+        candidate,
+        new Date('2026-01-15T00:00:00.000Z'),
+      );
+      expect(finding).toMatchObject({
+        matterId,
+        documentNumber: '2026-00002',
+        docketId: 'DOD-2026-OS-0001',
+        relationship: 'strongly_aligned',
+        matchedOn: 'docket_id',
+        causationClaimed: false,
+      });
+    });
+
+    test('a Federal Register document published BEFORE the attributable comment produces no finding at all', () => {
+      const finding = buildRegulatoryOutcomeFinding(
+        matterId,
+        { ...candidate, publicationDate: '2025-12-01T00:00:00.000Z' },
+        new Date('2026-01-15T00:00:00.000Z'),
+      );
+      expect(finding).toBeNull();
+    });
+
+    test('published on the exact same instant as the attributable comment is not "after" — no finding', () => {
+      const finding = buildRegulatoryOutcomeFinding(
+        matterId,
+        { ...candidate, publicationDate: '2026-01-15T00:00:00.000Z' },
+        new Date('2026-01-15T00:00:00.000Z'),
+      );
+      expect(finding).toBeNull();
+    });
+
+    test('no attributable advocacy on this Matter at all (null date) never produces a finding', () => {
+      expect(buildRegulatoryOutcomeFinding(matterId, candidate, null)).toBeNull();
+    });
+
+    test('a candidate with no matched docket ids never produces a finding, regardless of dates', () => {
+      expect(
+        buildRegulatoryOutcomeFinding(
+          matterId,
+          { ...candidate, matchedDocketIds: [] },
+          new Date('2026-01-15T00:00:00.000Z'),
+        ),
+      ).toBeNull();
+    });
   });
 
   test('§27: sameActivityDay is the deterministic gate before any text-similarity check', () => {

@@ -8,6 +8,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import { HttpAdapterHost } from '@nestjs/core';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -20,7 +21,10 @@ import {
 } from './client-profile-fill.helpers.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
+import {
+  ClientAdvocacyMatterService,
+  type FederalRegisterCorrelationSuggestion,
+} from './client-advocacy-matter.service.js';
 import {
   ClientProfileFillWorkflowService,
   type StartClientProfileFillWorkflowInput,
@@ -218,6 +222,7 @@ const ADVANCED_FINDING_KINDS = new Set([
   'district_nexus',
   'advocacy_record',
   'advocacy_outcome',
+  'regulatory_outcome',
   'profile_completion',
 ]);
 const NON_APPLYABLE_ADVANCED_KINDS = new Set([
@@ -1545,6 +1550,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     sourceStates.federal_register = await this.gatherFederalRegisterBackfill(
       ctx,
       clientId,
+      runId,
       asRecord(priorSources.federal_register),
     );
 
@@ -2833,6 +2839,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   private async gatherFederalRegisterBackfill(
     ctx: TenantContext,
     clientId: string,
+    runId: string,
     priorState: Record<string, unknown>,
   ): Promise<AdvocacySourceBackfillState> {
     const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
@@ -2880,6 +2887,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         suggestions.push(
           ...matterSuggestions.map((suggestion) => ({ matterId: matter.id, ...suggestion })),
         );
+        await this.emitRegulatoryOutcomeFindings(ctx, clientId, runId, matter.id, matterSuggestions);
       }
       const complete = backfillComplete || matters.length < 50;
       return {
@@ -2911,6 +2919,78 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         candidates: 0,
         lastError,
       };
+    }
+  }
+
+  /**
+   * Completes the "Government Movement -> Outcome" step
+   * `suggestFederalRegisterCorrelations` (PR #1310) deliberately left as
+   * separately-confirmed follow-on work. For each exact-docket-id-matched
+   * Federal Register document on this Matter, checks whether it was
+   * published AFTER the client's earliest attributable Regulations.gov
+   * submission on the SAME Matter (`client_advocacy_record.source_type =
+   * 'regulatory_comment'`, matter-scoped so a client with multiple Matters
+   * never has one Matter's advocacy date gate another's) and, if so, emits
+   * a `regulatory_outcome` finding via the exact same `addFinding`
+   * content-hash/terminal-status machinery every other advocacy-history
+   * finding uses — so rerun idempotency and accepted/rejected review-state
+   * preservation come from that unchanged, already-proven mechanism, not
+   * from new bookkeeping here. Never auto-applies: like every other
+   * advanced finding, a human must accept it (`applyRegulatoryOutcome`)
+   * before an OutcomeEvent is ever created.
+   *
+   * One query per Matter, only when there is at least one deterministic
+   * candidate to gate — a Matter with zero exact-docket matches this run
+   * never touches `client_advocacy_record` at all.
+   */
+  private async emitRegulatoryOutcomeFindings(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    matterId: string,
+    suggestions: FederalRegisterCorrelationSuggestion[],
+  ): Promise<void> {
+    const deterministic = suggestions.filter((suggestion) => suggestion.matchedDocketIds.length > 0);
+    if (deterministic.length === 0) return;
+    const earliest = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ earliestActivityDate: Date | null }>>(
+        `SELECT MIN(activity_date) AS "earliestActivityDate"
+           FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id = $3::uuid
+            AND source_type = 'regulatory_comment'`,
+        ctx.tenantId,
+        clientId,
+        matterId,
+      ),
+    );
+    const attributableActivityDate = earliest[0]?.earliestActivityDate ?? null;
+    for (const suggestion of deterministic) {
+      const proposedValue = buildRegulatoryOutcomeFinding(matterId, suggestion, attributableActivityDate);
+      if (!proposedValue) continue;
+      const docketId = proposedValue.docketId as string;
+      await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'regulatory_outcome',
+        targetKey: `regulatory-outcome:${matterId}:${suggestion.documentNumber}`,
+        source: 'federal_register',
+        factKind: 'recommendation',
+        currentValue: null,
+        proposedValue,
+        confidence: 0.95,
+        status: 'pending',
+        evidence: [
+          {
+            label: `${suggestion.documentType} published on docket ${docketId}, after the client's Regulations.gov submission`,
+            url: suggestion.sourceUrl,
+            source: 'Federal Register government-movement correlation',
+            metadata: {
+              documentNumber: suggestion.documentNumber,
+              docketId,
+              causationClaimed: false,
+              matchedOn: 'docket_id',
+            },
+          },
+        ],
+      });
     }
   }
 
@@ -3470,6 +3550,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       case 'advocacy_outcome':
         await this.applyAdvocacyOutcome(ctx, clientId, finding);
         return;
+      case 'regulatory_outcome':
+        await this.applyRegulatoryOutcome(ctx, clientId, finding);
+        return;
       default:
         throw new BadRequestException(`Unsupported completion finding: ${finding.kind}`);
     }
@@ -3762,6 +3845,76 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           `Advocacy matter outcome link failed for ${clientId}/${matterId}: ${this.safeError(error)}`,
         );
       }
+    }
+  }
+
+  /**
+   * Applies a `regulatory_outcome` finding (built by
+   * `emitRegulatoryOutcomeFindings`/`buildRegulatoryOutcomeFinding`): a
+   * human accepting the finding IS the separately-confirmed step
+   * `suggestFederalRegisterCorrelations` deferred. Creates the OutcomeEvent
+   * directly here (unlike `applyAdvocacyOutcome`, which links a
+   * pre-existing one) since nothing else in the system ever creates an
+   * outcome_event for a Federal Register document — this finding's accept
+   * IS that creation. `evidence` carries the docket/document identifiers
+   * `OutcomeEvent` has no dedicated columns for (§ gap: the smallest
+   * necessary addition is these evidence keys, not new columns, matching
+   * every other outcome kind's snapshot-into-evidence convention).
+   *
+   * `recordedBy` is the accepting user (the record() convention every other
+   * apply* method already uses via `ctx.userId` for its own writes) — the
+   * human review IS the attribution, not a system mirror.
+   */
+  private async applyRegulatoryOutcome(
+    ctx: TenantContext,
+    clientId: string,
+    finding: AdvancedFindingRow,
+  ): Promise<void> {
+    const proposed = asRecord(finding.proposedValue);
+    const matterId = requiredString(proposed.matterId, 'Advocacy matter');
+    const documentNumber = requiredString(proposed.documentNumber, 'Federal Register document number');
+    const docketId = requiredString(proposed.docketId, 'Docket id');
+    const publicationDate = asString(proposed.publicationDate);
+    const evidence = {
+      docketId,
+      documentNumber,
+      documentType: asString(proposed.documentType),
+      agencyNames: Array.isArray(proposed.agencyNames) ? proposed.agencyNames : [],
+      publicationDate,
+      matchedOn: 'docket_id',
+      causationClaimed: false,
+    };
+    const outcomeEvent = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const created = await tx.outcomeEvent.create({
+        data: {
+          tenantId: ctx.tenantId,
+          clientId,
+          kind: 'regulatory_action_published',
+          sourceType: 'regulatory_document',
+          sourceId: documentNumber,
+          evidence: evidence as Prisma.InputJsonValue,
+          notes: `Government movement observed on docket ${docketId} after the client's attributable Regulations.gov advocacy — causation not claimed.`,
+          recordedBy: ctx.userId,
+          ...(publicationDate ? { observedAt: new Date(publicationDate) } : {}),
+        },
+      });
+      await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
+      return created;
+    });
+    // Same looseness as applyAdvocacyOutcome's own Matter link: the
+    // OutcomeEvent is already durably recorded above; a Matter-link failure
+    // is logged, never rolled back into losing that record.
+    try {
+      await this.advocacyMatters.linkToMatter(ctx, matterId, {
+        linkType: 'outcome_event',
+        linkKey: outcomeEvent.id,
+        label: `Observed government movement: ${evidence.documentType ?? 'Federal Register document'} on docket ${docketId}`,
+        metadata: { causationClaimed: false, matchedOn: 'docket_id', relationship: 'strongly_aligned', documentNumber },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Regulatory matter outcome link failed for ${clientId}/${matterId}: ${this.safeError(error)}`,
+      );
     }
   }
 
@@ -4554,6 +4707,66 @@ export function scoreAdvocacyOutcome(
       ? 0.55
       : 0;
   return Number(Math.min(0.99, 0.24 + semantic * 0.65 + sourceMatch).toFixed(3));
+}
+
+/** A single `suggestFederalRegisterCorrelations` result — the shape
+ *  `gatherFederalRegisterBackfill` already receives from `advocacyMatters`. */
+interface RegulatoryOutcomeCandidate {
+  documentNumber: string;
+  documentType: string;
+  agencyNames: string[];
+  publicationDate: string;
+  matchedDocketIds: string[];
+  sourceUrl: string | null;
+}
+
+/**
+ * Deterministic regulatory-outcome finding builder (Advocacy History
+ * follow-on to PR #1310's `suggestFederalRegisterCorrelations`, which
+ * explicitly deferred this exact step: "a later final agency action
+ * becoming an Outcome is a distinct, separately-confirmed step ... not
+ * inferred here"). Pure and side-effect free — never touches Prisma — so
+ * every rule from the product spec is directly testable:
+ *
+ *  - Priority 1 (exact docket id) is the ONLY tier this builds; it never
+ *    falls back to agency/title/text similarity (the candidate shape has
+ *    no such fields to fall back to in the first place).
+ *  - "Regulatory action after attributable comment" is enforced literally:
+ *    a candidate published at or before the client's earliest attributable
+ *    Regulations.gov submission on this Matter produces nothing — a
+ *    Federal Register document that predates the client's own advocacy
+ *    cannot be described as a movement observed after it.
+ *  - `causationClaimed: false` and `relationship: 'strongly_aligned'` are
+ *    hardcoded, matching `matchAdvocacyOutcomeDeterministically`'s own
+ *    deterministic-match tier exactly (same honest-vocabulary rule, §17).
+ *
+ * Returns the `client_profile_fill_finding` `proposedValue` shape (kind
+ * `regulatory_outcome`), or `null` when this candidate should not become a
+ * finding at all.
+ */
+export function buildRegulatoryOutcomeFinding(
+  matterId: string,
+  candidate: RegulatoryOutcomeCandidate,
+  attributableActivityDate: Date | null,
+): Record<string, unknown> | null {
+  if (candidate.matchedDocketIds.length === 0) return null;
+  if (!attributableActivityDate) return null;
+  const publishedAt = parseDate(candidate.publicationDate);
+  if (!publishedAt || publishedAt <= attributableActivityDate) return null;
+  return {
+    matterId,
+    documentNumber: candidate.documentNumber,
+    docketId: candidate.matchedDocketIds[0],
+    matchedDocketIds: candidate.matchedDocketIds,
+    documentType: candidate.documentType,
+    agencyNames: candidate.agencyNames,
+    publicationDate: candidate.publicationDate,
+    sourceUrl: candidate.sourceUrl,
+    attributableActivityDate: attributableActivityDate.toISOString(),
+    relationship: 'strongly_aligned' as const,
+    matchedOn: 'docket_id' as const,
+    causationClaimed: false as const,
+  };
 }
 
 function missingAddressParts(

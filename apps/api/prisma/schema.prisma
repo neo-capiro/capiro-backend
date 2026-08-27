@@ -2538,9 +2538,13 @@ model OutcomeEvent {
   /// | funding_changed | filing_completed | commitment_secured | no_action
   /// | pursuit_won | pursuit_lost | pursuit_passed (P36 — `pursuit_` prefixed
   /// so a procurement outcome can never collide with an advocacy one)
+  /// | regulatory_action_published (deterministic regulatory correlation —
+  /// a Federal Register document observed on a docket the client is already
+  /// attributably advocating on; never a claim of causation)
   kind       String   @db.VarChar(32)
   /// outreach | meeting | artifact | campaign | submission | manual
-  /// | funding_opportunity (P36)
+  /// | funding_opportunity (P36) | regulatory_document (source_id =
+  /// federal_register_document.document_number)
   sourceType String   @map("source_type") @db.VarChar(24)
   sourceId   String?  @map("source_id")
   /// Snapshotted proof: { peCode?, fiscalYear?, stage?, amountFrom?, amountTo?, billNumber?, ... }
