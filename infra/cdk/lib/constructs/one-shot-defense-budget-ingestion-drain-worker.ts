@@ -10,11 +10,39 @@ export interface OneShotDefenseBudgetIngestionDrainWorkerProps {
   envName: string;
   apiRepo: ecr.IRepository;
   apiImageDigest: string;
+  /** Aurora master credential (host/port) -- same secret the API's other one-off
+   * task definitions read DB_HOST/DB_PORT from. This construct's container is
+   * dispatched through the same `entrypoint-dispatcher.inc` every other one-off
+   * verb runs through, which composes DATABASE_URL from DB_HOST/DB_PORT (master)
+   * + DB_USER/DB_PASSWORD (app) + DB_NAME -- never from a single secret's `url`
+   * field, which does not exist on either secret. */
+  dbSecret: secretsmanager.ISecret;
+  /** Aurora app credential (username/password) -- capiro_app role. */
   appDbSecret: secretsmanager.ISecret;
+  databaseName: string;
   rawBucketName: string;
   extractionArtifactBucketName: string;
   extractionArtifactPrefix?: string;
+  /**
+   * KMS key that protects the RAW/EXTRACTION S3 object bytes (SSE-KMS). The raw
+   * archive bucket's own bucket policy denies any PutObject that doesn't use
+   * this exact key, and reading an SSE-KMS object requires the caller (the
+   * task role, not the execution role) to hold kms:Decrypt on it too. Bound at
+   * the operations app to the defense-budget-raw archive CMK, NOT the general
+   * `capiro/<env>/secrets` alias despite the prop name mirroring the brief's
+   * "data KMS key" import.
+   */
   dataKeyArn: string;
+  /**
+   * KMS key that protects the Aurora master/app credential SECRETS at rest
+   * (SecretsManager auto-decrypts on GetSecretValue using whichever CMK the
+   * secret was created with -- both `/capiro/<env>/aurora/master` and
+   * `/capiro/<env>/aurora/app` are created against the DataStack's own CMK,
+   * i.e. what config.ts calls the "data" key elsewhere). This is the EXECUTION
+   * role's grant, distinct from `dataKeyArn` above which is the TASK role's S3
+   * grant -- do not pass the same ARN for both unless they are genuinely the
+   * same key in the target account.
+   */
   secretsKeyArn: string;
   protectFromDestroy: boolean;
 }
@@ -26,20 +54,66 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
     super(scope, id);
     if (!/^sha256:[0-9a-f]{64}$/i.test(props.apiImageDigest)) throw new Error('one-shot ingestion worker requires an immutable ECR digest');
     const prefix = (props.extractionArtifactPrefix ?? 'phase10/parser-artifacts').replace(/^\/+|\/+$/g, '');
+
     const taskRole = new iam.Role(this, 'TaskRole', { assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com') });
-    taskRole.addToPolicy(new iam.PolicyStatement({ actions: ['s3:GetObject', 's3:PutObject'], resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.rawBucketName}/*`] }));
-    taskRole.addToPolicy(new iam.PolicyStatement({ actions: ['s3:GetObject', 's3:PutObject'], resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.extractionArtifactBucketName}/${prefix}/*`] }));
-    taskRole.addToPolicy(new iam.PolicyStatement({ actions: ['kms:Decrypt', 'kms:Encrypt', 'kms:GenerateDataKey'], resources: [props.dataKeyArn] }));
+    // Raw archive bucket: whole-bucket object scope (matches every other reader
+    // of this bucket in this codebase -- DocumentRegistrar/RawArchiveService
+    // write under raw/incoming/derived, S3SourceDocumentArchiveReadAdapter reads
+    // a version-pinned locator back). GetObjectVersion is required because the
+    // read adapter always passes an explicit VersionId when the archive result
+    // carried one -- reading "whatever is live at that key now" would defeat the
+    // whole point of pinning a locator to an exact archived version.
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'RawArchiveBucketObjectAccess',
+      actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
+      resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.rawBucketName}/*`],
+    }));
+    // Extraction artifact bucket + prefix: same three actions, scoped to the
+    // exact immutable-key prefix ExtractionArtifactStoreV1 writes/reads under.
+    // GetObjectVersion is the fix this PR exists for: S3ExtractionArtifactStore
+    // always requires an exact VersionId in its locator (requireVersionId
+    // defaults true) and reads it back with GetObjectCommand({VersionId}) --
+    // plain GetObject alone cannot satisfy a version-pinned read once any
+    // later PUT has landed a newer version at the same key (impossible here
+    // since keys are content-addressed by SHA-256, but IAM must still permit
+    // the exact API action the SDK calls).
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'ExtractionArtifactPrefixObjectAccess',
+      actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
+      resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.extractionArtifactBucketName}/${prefix}/*`],
+    }));
+    // SSE-KMS on the raw/extraction bucket: the bucket policy denies any
+    // PutObject that doesn't use this exact CMK, and any SSE-KMS GetObject
+    // requires the reading principal to hold kms:Decrypt on it too.
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'RawArchiveObjectEncryptionKeyAccess',
+      actions: ['kms:Decrypt', 'kms:Encrypt', 'kms:GenerateDataKey'],
+      resources: [props.dataKeyArn],
+    }));
+
     const logGroup = new logs.LogGroup(this, 'Logs', { retention: logs.RetentionDays.ONE_YEAR, removalPolicy: props.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY });
     this.taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', { family: `capiro-${props.envName}-defense-budget-ingestion-drain`, cpu: 1024, memoryLimitMiB: 2048, taskRole });
-    this.taskDefinition.obtainExecutionRole().addToPrincipalPolicy(new iam.PolicyStatement({ actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'], resources: [props.appDbSecret.secretArn] }));
-    this.taskDefinition.obtainExecutionRole().addToPrincipalPolicy(new iam.PolicyStatement({ actions: ['kms:Decrypt', 'kms:DescribeKey'], resources: [props.secretsKeyArn] }));
+
+    const executionRole = this.taskDefinition.obtainExecutionRole();
+    executionRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      sid: 'DbSecretRead',
+      actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+      resources: [props.dbSecret.secretArn, props.appDbSecret.secretArn],
+    }));
+    // Decrypts the DB secrets' own at-rest encryption, NOT the S3 object key.
+    executionRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      sid: 'DbSecretDecryptionKeyAccess',
+      actions: ['kms:Decrypt', 'kms:DescribeKey'],
+      resources: [props.secretsKeyArn],
+    }));
+
     this.taskDefinition.addContainer('ingestion-drain', {
       image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageDigest),
       command: ['drain-defense-budget-ingestion-outbox-v1'],
       logging: ecs.LogDrivers.awsLogs({ logGroup, streamPrefix: 'worker' }),
       environment: {
         NODE_ENV: props.envName === 'dev' ? 'development' : 'production',
+        DB_NAME: props.databaseName,
         DEFENSE_BUDGET_RAW_BUCKET: props.rawBucketName,
         BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET: props.extractionArtifactBucketName,
         BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_PREFIX: prefix,
@@ -51,7 +125,17 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
         // safe to lose on restart.
         BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT: '/tmp/defense-budget-parser-scratch',
       },
-      secrets: { DATABASE_URL: ecs.Secret.fromSecretsManager(props.appDbSecret, 'url') },
+      secrets: {
+        // Matches the exact DB_* contract entrypoint-dispatcher.inc composes
+        // DATABASE_URL from (host/port from the master secret, username/
+        // password from the app secret). This container's command dispatches
+        // through that same include -- there is no per-task DATABASE_URL
+        // secret field on either credential to read directly.
+        DB_HOST: ecs.Secret.fromSecretsManager(props.dbSecret, 'host'),
+        DB_PORT: ecs.Secret.fromSecretsManager(props.dbSecret, 'port'),
+        DB_USER: ecs.Secret.fromSecretsManager(props.appDbSecret, 'username'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(props.appDbSecret, 'password'),
+      },
       readonlyRootFilesystem: false,
     });
     new cdk.CfnOutput(this, 'TaskDefinitionArn', { value: this.taskDefinition.taskDefinitionArn, description: 'Run manually with aws ecs run-task; this construct creates no schedule.' });

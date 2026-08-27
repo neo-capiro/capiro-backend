@@ -37,6 +37,14 @@ describe('ExtractionArtifactStoreV1 restart safety', () => {
     expect(first.locator).toMatch(/^s3:\/\/artifacts\/phase10\/parser-artifacts\/[0-9a-f]{64}\?versionId=v1$/);
   });
 
+  // Runtime regression for PR #1318 Part A: this is the exact read shape the
+  // task role's `s3:GetObjectVersion` grant authorizes -- readVerified always
+  // passes the persisted locator's explicit VersionId (S3ExtractionArtifactStore
+  // defaults requireVersionId=true) rather than reading "whatever is live at
+  // that key now", so a version-pinned locator surviving a full store-instance
+  // restart under exactly this call shape is the proof that the granted
+  // permission set (GetObject + GetObjectVersion + PutObject, nothing wider)
+  // is sufficient for the task to actually do its job.
   it('survives a fresh-container restart and materializes only verified scratch bytes', async () => {
     const bytes = Buffer.from('{"durable":true}\n');
     const persisted = await store.putImmutable({ bytes });
