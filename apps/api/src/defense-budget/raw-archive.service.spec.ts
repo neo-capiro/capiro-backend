@@ -85,6 +85,15 @@ describe('RawArchiveService.archiveOriginal', () => {
       retentionYears: 7,
     }, () => new Date('2026-07-14T00:00:00Z'));
 
+    // Regression for PR #1318's s3:ListBucket fix: this fake's `store` Map
+    // starts EMPTY, so the HEAD below is a real first-write-to-a-brand-new-key
+    // HEAD, not a restart/read of something already archived. It is the exact
+    // path s3:ListBucket + s3:prefix on the raw bucket exists to keep
+    // reliable -- without it, S3 can return an ambiguous 403 instead of a
+    // clean "not found" on this very first HEAD, which headSafe() would
+    // re-throw as a hard failure (see the negative-control test below) rather
+    // than proceeding to the conditional PUT.
+    expect(sent.length).toBe(0);
     const res = await svc.archiveOriginal(descriptor());
 
     // Order: HEAD, PUT original, PUT retrieval, PUT manifest.
@@ -153,5 +162,35 @@ describe('RawArchiveService.archiveOriginal', () => {
     };
     const svc = new RawArchiveService(s3, commands, { bucket: 'b', retentionYears: 7 });
     await expect(svc.archiveOriginal(descriptor())).rejects.toThrow(/access denied/);
+  });
+
+  // Negative-control counterpart to the s3:ListBucket fix (PR #1318): models
+  // the exact failure mode ListBucket exists to prevent -- HeadObject on a
+  // brand-new, never-before-seen key returning an AMBIGUOUS 403 Forbidden
+  // (S3's behavior when the caller lacks s3:ListBucket on the bucket, since
+  // S3 will not disclose "not found" vs "you can't prove it" to an
+  // unauthorized caller) instead of a clean 404/NotFound. headSafe() only
+  // classifies NotFound/NoSuchKey/404 as "absent"; anything else -- including
+  // this ambiguous 403 -- is correctly re-thrown as a hard failure rather than
+  // silently treated as either "exists" or "absent". Proves the FIRST write
+  // to a new document/sha256 fails LOUDLY (never silently skips the PUT and
+  // never fabricates a false "already archived" result) when ListBucket is
+  // missing, which is exactly why this PR grants it.
+  it('fails loudly on a 403 HEAD response for a brand-new key, the exact ambiguity s3:ListBucket resolves', async () => {
+    const commands: S3CommandFactory = { head: (i) => ({ kind: 'head', input: i }), put: (i) => ({ kind: 'put', input: i }) };
+    let putCalled = false;
+    const s3: S3Like = {
+      async send(command: unknown) {
+        const c = command as { kind: string };
+        if (c.kind === 'put') { putCalled = true; return { VersionId: 'should-not-happen' }; }
+        const err = new Error('Forbidden') as Error & { name: string; $metadata: { httpStatusCode: number } };
+        err.name = 'Forbidden';
+        err.$metadata = { httpStatusCode: 403 };
+        throw err;
+      },
+    };
+    const svc = new RawArchiveService(s3, commands, { bucket: 'b', retentionYears: 7 });
+    await expect(svc.archiveOriginal(descriptor())).rejects.toThrow(/Forbidden/);
+    expect(putCalled).toBe(false);
   });
 });

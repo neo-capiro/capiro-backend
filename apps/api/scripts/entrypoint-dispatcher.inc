@@ -135,6 +135,10 @@ case "${1:-serve}" in
     echo "Running drain-memory-cleanup-outbox $*"
     exec ./node_modules/.bin/tsx scripts/drain-memory-cleanup-outbox.ts "$@"
     ;;
+  drain-defense-budget-ingestion-outbox-v1)
+    shift
+    exec ./node_modules/.bin/tsx scripts/drain-defense-budget-ingestion-outbox-v1.ts "$@"
+    ;;
   drain-mailbox-knowledge)
     shift
     # Claim durable mailbox knowledge jobs and create immutable KnowledgeEvents.

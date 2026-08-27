@@ -15,6 +15,7 @@ import type {
   PageLineageEntry,
   SelectedPageResultV1,
 } from './page-result-compositor.js';
+import { FilesystemExtractionArtifactStore } from './extraction-artifact-store.js';
 
 let workDir: string;
 beforeEach(() => {
@@ -84,8 +85,8 @@ describe('Phase 3 strict extraction artifact bridge', () => {
     });
   });
 
-  it('writes a schema-valid and semantically valid Phase 1 artifact', () => {
-    const output = buildExtractionArtifact(
+  it('writes a schema-valid and semantically valid Phase 1 artifact', async () => {
+    const output = await buildExtractionArtifact(
       {
         executionId: 'exec-1',
         cycleId: 'fy2027-pb',
@@ -102,7 +103,7 @@ describe('Phase 3 strict extraction artifact bridge', () => {
         budgetCycle: 'pb',
         documentType: 'r1',
       },
-      workDir,
+      new FilesystemExtractionArtifactStore(workDir),
     );
 
     const parsed = parseDefenseBudgetExtractionArtifactV1(
@@ -120,7 +121,7 @@ describe('Phase 3 strict extraction artifact bridge', () => {
     expect(output.artifactByteSha256).toHaveLength(64);
   });
 
-  it('turns an unparsed page into an explicit blocking warning', () => {
+  it('turns an unparsed page into an explicit blocking warning', async () => {
     const value = composed();
     value.pages = [
       {
@@ -133,7 +134,7 @@ describe('Phase 3 strict extraction artifact bridge', () => {
       },
     ];
     value.lineages = [];
-    const output = buildExtractionArtifact(
+    const output = await buildExtractionArtifact(
       {
         executionId: 'exec-failure',
         cycleId: 'fy2027-pb',
@@ -145,7 +146,7 @@ describe('Phase 3 strict extraction artifact bridge', () => {
         budgetFamily: 'rdte',
         fiscalYear: 2027,
       },
-      workDir,
+      new FilesystemExtractionArtifactStore(workDir),
     );
     expect(output.artifact.warnings).toEqual(
       expect.arrayContaining([

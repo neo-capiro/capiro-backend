@@ -1,5 +1,10 @@
 /** Public Phase 3 parser-router API. */
 export {
+  FilesystemExtractionArtifactStore,
+  S3ExtractionArtifactStore,
+  type ExtractionArtifactStoreV1,
+} from './extraction-artifact-store.js';
+export {
   DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION,
   DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION,
   DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION,

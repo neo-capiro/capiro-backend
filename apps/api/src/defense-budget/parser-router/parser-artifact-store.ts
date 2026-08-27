@@ -146,6 +146,10 @@ export class FilesystemParserArtifactStore implements ParserArtifactStoreV1 {
 }
 
 export interface ParserArtifactObjectStoreV1 {
+  headObject?(input: {
+    bucket: string;
+    key: string;
+  }): Promise<{ versionId?: string } | null>;
   getObject(input: {
     bucket: string;
     key: string;
@@ -156,6 +160,7 @@ export interface ParserArtifactObjectStoreV1 {
     key: string;
     bytes: Uint8Array;
     contentType: string;
+    ifNoneMatch?: '*';
   }): Promise<{ versionId?: string }>;
 }
 
