@@ -99,7 +99,15 @@ class NewMatterForFindingDto {
   title!: string;
 
   @IsOptional()
-  @IsIn(['funding_request', 'legislative', 'regulatory', 'program_element', 'community_project', 'procurement', 'other'])
+  @IsIn([
+    'funding_request',
+    'legislative',
+    'regulatory',
+    'program_element',
+    'community_project',
+    'procurement',
+    'other',
+  ])
   matterType?: string;
 
   @IsOptional()
@@ -271,10 +279,7 @@ export class ClientProfileFillController {
   }
 
   @Get('refresh-schedule')
-  getRefreshSchedule(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getRefreshSchedule(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getSchedule(ctx, clientId);
   }
 
@@ -292,5 +297,13 @@ export class ClientProfileFillController {
   @HttpCode(HttpStatus.ACCEPTED)
   refreshNow(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.refreshNow(ctx, clientId);
+  }
+
+  @Get('advocacy-history/health')
+  getAdvocacyHistoryHealth(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+  ) {
+    return this.service.getAdvocacyHistoryHealth(ctx, clientId);
   }
 }

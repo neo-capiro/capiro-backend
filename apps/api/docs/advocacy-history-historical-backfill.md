@@ -14,3 +14,28 @@ Advocacy History backfill runs inside the existing durable Fill completion task.
 | Bills / Program Elements | Not advocacy evidence; Matter anchors only                                     | Existing manual link operation                                            | No historical discovery checkpoint                                                                       | Existing mandatory manual rationale is unchanged                                                |
 
 `backfill.status` is never inferred from an incremental timestamp. A source can therefore remain `in_progress` or `partial` while its incremental watermark is current. The extension task copies the per-source status, availability/error, examined count, candidate count, checkpoint, limitation, and completion time to `output_summary_jsonb` for the existing Fill UI/API contract.
+
+## Incremental refresh and source health
+
+Manual refresh and the existing `client_profile_fill_schedule` sweeper enqueue the same
+durable Fill workflow. A completed historical checkpoint is never reset. Continuously
+growing sources resume from their top-level live frontier; FARA performs its inexpensive
+bounded canonical re-evaluation; Regulations.gov repeats the bounded client-scoped search
+while reusing cached details; and Federal Register correlation evaluates only new or changed
+docket-linked Matters after historical coverage completes.
+
+Each source state also stores `availability`, `lastAttemptAt`, `lastSuccessAt`, `freshness`,
+and `nextRefreshAt`. Failures preserve the prior successful timestamp and completed
+historical status. Freshness is derived from the configured client schedule cadence:
+continuously growing activity sources tolerate one cadence, while the low-frequency FARA
+and Federal Register sources tolerate two. The API exposes the normalized contract through
+`GET /clients/:clientId/fill-with-meri/advocacy-history/health`, including conservative overall
+health, historical limitations, and pending/accepted/rejected Advocacy finding counts.
+
+Schedule claiming is an atomic `UPDATE ... FROM` of due rows. This reserves the next due
+time before the transaction releases its row lock; the existing active-run lookup then
+provides a second idempotency guard for manual/scheduled overlap. Source errors are caught
+inside the Advocacy task, so a Regulations.gov or FARA outage degrades only that source and
+does not roll back successful LDA, testimony, client-submission, private-evidence, or Federal
+Register progress. Task-level failures retain the existing bounded three-attempt exponential
+backoff.

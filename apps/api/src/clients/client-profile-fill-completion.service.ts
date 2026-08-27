@@ -113,8 +113,42 @@ export interface AdvocacySourceBackfillState {
   examined: number;
   candidates: number;
   lastError?: string | null;
+  lastErrorAt?: string;
   limitation?: string | null;
   suggestions?: unknown[];
+  availability?: AdvocacySourceAvailability;
+  lastAttemptAt?: string;
+  lastSuccessAt?: string;
+  freshness?: AdvocacySourceFreshness;
+  nextRefreshAt?: string;
+}
+
+export type AdvocacySourceAvailability = 'available' | 'unavailable' | 'degraded' | 'unknown';
+export type AdvocacySourceFreshness = 'fresh' | 'stale' | 'unknown';
+export type AdvocacyOverallHealth =
+  | 'not_built'
+  | 'building_history'
+  | 'current'
+  | 'stale'
+  | 'partial'
+  | 'degraded'
+  | 'failed';
+
+export interface AdvocacySourceHealth extends AdvocacySourceBackfillState {
+  source: string;
+  backfillStatus: AdvocacyBackfillStatus;
+  availability: AdvocacySourceAvailability;
+  freshness: AdvocacySourceFreshness;
+}
+
+export interface AdvocacyHistoryHealth {
+  overall: AdvocacyOverallHealth;
+  refreshedAt?: string;
+  nextRefreshAt?: string;
+  pendingFindings: number;
+  acceptedFindings: number;
+  rejectedFindings: number;
+  sources: AdvocacySourceHealth[];
 }
 
 interface AdvocacyHistoryTaskResult {
@@ -258,6 +292,26 @@ const REGULATIONS_GOV_TIMEOUT_MS = 15_000;
 // ever needs a handful of top hits for one client-name search, not a full
 // paginated crawl.
 const REGULATORY_COMMENT_SEARCH_PAGE_SIZE = 10;
+export const ADVOCACY_SOURCE_NAMES = [
+  'lda',
+  'fara',
+  'testimony',
+  'regulations_gov',
+  'federal_register',
+  'client_submission',
+  'private_evidence',
+] as const;
+// Low-frequency canonical/enrichment sources tolerate two configured cycles;
+// continuously growing activity sources become stale after one missed cycle.
+const ADVOCACY_FRESHNESS_CADENCE_MULTIPLIER: Record<string, number> = {
+  lda: 1,
+  testimony: 1,
+  regulations_gov: 1,
+  client_submission: 1,
+  private_evidence: 1,
+  fara: 2,
+  federal_register: 2,
+};
 // client_intel_mapping.source value for Regulations.gov comment client-match
 // confirmations. Same named-constant reasoning as FARA_INTEL_MAPPING_SOURCE.
 const REGULATORY_COMMENT_INTEL_MAPPING_SOURCE = 'regulatory_comment';
@@ -381,6 +435,35 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   async refreshNow(ctx: TenantContext, clientId: string) {
     const schedule = await this.getSchedule(ctx, clientId);
     return this.startRun(ctx, clientId, { sources: schedule.sources });
+  }
+
+  async getAdvocacyHistoryHealth(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<AdvocacyHistoryHealth> {
+    await this.assertClient(ctx, clientId);
+    const [cursor, schedule, counts] = await Promise.all([
+      this.getCursor(ctx.tenantId, clientId, 'advocacy_history'),
+      this.getSchedule(ctx, clientId),
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRawUnsafe<Array<{ status: string; count: number }>>(
+          `SELECT status, COUNT(*)::int AS count
+             FROM client_profile_fill_finding
+            WHERE tenant_id = $1::uuid AND client_id = $2::uuid
+              AND source = 'advocacy_history' AND kind = 'advocacy_record'
+              AND status IN ('pending', 'accepted', 'rejected')
+            GROUP BY status`,
+          ctx.tenantId,
+          clientId,
+        ),
+      ),
+    ]);
+    const byStatus = new Map(counts.map((row) => [row.status, Number(row.count)]));
+    return buildAdvocacyHistoryHealth(cursor, schedule.cadenceHours, schedule.nextRunAt, {
+      pending: byStatus.get('pending') ?? 0,
+      accepted: byStatus.get('accepted') ?? 0,
+      rejected: byStatus.get('rejected') ?? 0,
+    });
   }
 
   async getLatest(ctx: TenantContext, clientId: string) {
@@ -613,16 +696,24 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
             cadenceHours: number;
           }>
         >(
-          `SELECT tenant_id AS "tenantId",
-                  client_id AS "clientId",
-                  updated_by_user_id AS "userId",
-                  sources,
-                  cadence_hours AS "cadenceHours"
-             FROM client_profile_fill_schedule
-            WHERE enabled = true AND next_run_at <= now()
-            ORDER BY next_run_at ASC
-            LIMIT 5
-            FOR UPDATE SKIP LOCKED`,
+          `WITH due AS (
+             SELECT tenant_id, client_id
+               FROM client_profile_fill_schedule
+              WHERE enabled = true AND next_run_at <= now()
+              ORDER BY next_run_at ASC
+              LIMIT 5
+              FOR UPDATE SKIP LOCKED
+           )
+           UPDATE client_profile_fill_schedule schedule
+              SET next_run_at = now() + make_interval(hours => schedule.cadence_hours),
+                  updated_at = now()
+             FROM due
+            WHERE schedule.tenant_id = due.tenant_id AND schedule.client_id = due.client_id
+           RETURNING schedule.tenant_id AS "tenantId",
+                     schedule.client_id AS "clientId",
+                     schedule.updated_by_user_id AS "userId",
+                     schedule.sources,
+                     schedule.cadence_hours AS "cadenceHours"`,
         ),
       );
       for (const row of due) await this.runScheduledRefresh(row);
@@ -1457,6 +1548,18 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       asRecord(priorSources.federal_register),
     );
 
+    const refreshSchedule = await this.getSchedule(ctx, clientId);
+    for (const source of ADVOCACY_SOURCE_NAMES) {
+      sourceStates[source] = updateAdvocacySourceHealth(
+        source,
+        asRecord(priorSources[source]),
+        sourceStates[source]!,
+        invocationStartedAt,
+        refreshSchedule.cadenceHours,
+        refreshSchedule.nextRunAt,
+      );
+    }
+
     const overallStatus = deriveAdvocacyBackfillOverallStatus(sourceStates);
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
       lastLdaPostedAt:
@@ -1484,7 +1587,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       },
       refreshedAt: new Date().toISOString(),
     });
-    return { count, overallStatus, sources: sourceStates };
+    return {
+      count,
+      overallStatus,
+      overallHealth: deriveAdvocacyOverallHealth(sourceStates),
+      sources: sourceStates,
+    };
   }
 
   /**
@@ -2729,20 +2837,34 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   ): Promise<AdvocacySourceBackfillState> {
     const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
     const checkpointId = asString(asRecord(priorState.checkpoint).matterId);
+    const backfillComplete = asString(priorState.status) === 'complete';
+    const lastSuccessAt = asString(priorState.lastSuccessAt);
     try {
       const matters = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.$queryRawUnsafe<Array<{ id: string }>>(
-          `SELECT DISTINCT m.id
+          `SELECT m.id
              FROM client_advocacy_matter m
-             JOIN client_advocacy_matter_link l
-               ON l.tenant_id = m.tenant_id AND l.matter_id = m.id
             WHERE m.tenant_id = $1::uuid AND m.client_id = $2::uuid
-              AND l.link_type IN ('regulatory_docket', 'regulatory_document')
-              AND ($3::uuid IS NULL OR m.id > $3::uuid)
-            ORDER BY m.id ASC
-            LIMIT 50`,
+              AND EXISTS (
+                SELECT 1 FROM client_advocacy_matter_link l
+                 WHERE l.tenant_id = m.tenant_id AND l.matter_id = m.id
+                   AND l.link_type IN ('regulatory_docket', 'regulatory_document')
+              )
+              AND (NOT $3::boolean
+                OR m.updated_at > $4::timestamptz
+                OR EXISTS (
+                  SELECT 1 FROM client_advocacy_matter_link changed
+                   WHERE changed.tenant_id = m.tenant_id AND changed.matter_id = m.id
+                     AND changed.link_type IN ('regulatory_docket', 'regulatory_document')
+                     AND changed.created_at > $4::timestamptz
+                ))
+              AND ($3::boolean OR $5::uuid IS NULL OR m.id > $5::uuid)
+            ORDER BY CASE WHEN $3::boolean THEN m.updated_at END ASC NULLS FIRST, m.id ASC
+            ${backfillComplete ? '' : 'LIMIT 50'}`,
           ctx.tenantId,
           clientId,
+          backfillComplete,
+          lastSuccessAt ?? '1970-01-01T00:00:00.000Z',
           checkpointId,
         ),
       );
@@ -2759,12 +2881,18 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           ...matterSuggestions.map((suggestion) => ({ matterId: matter.id, ...suggestion })),
         );
       }
-      const complete = matters.length < 50;
+      const complete = backfillComplete || matters.length < 50;
       return {
         status: complete ? 'complete' : 'in_progress',
         startedAt,
         completedAt: complete ? new Date().toISOString() : undefined,
-        checkpoint: matters.at(-1) ? { matterId: matters.at(-1)!.id } : null,
+        checkpoint: backfillComplete
+          ? Object.keys(asRecord(priorState.checkpoint)).length
+            ? asRecord(priorState.checkpoint)
+            : null
+          : matters.at(-1)
+            ? { matterId: matters.at(-1)!.id }
+            : null,
         historyStart: null,
         examined: Number(priorState.examined ?? 0) + matters.length,
         candidates: Number(priorState.candidates ?? 0) + candidates,
@@ -4043,6 +4171,161 @@ export function deriveAdvocacyBackfillOverallStatus(
     return 'backfill_partial';
   }
   return 'backfill_running';
+}
+
+export function deriveAdvocacyFreshness(
+  source: string,
+  lastSuccessAt: string | null | undefined,
+  cadenceHours: number,
+  now = new Date(),
+): AdvocacySourceFreshness {
+  if (!lastSuccessAt) return 'unknown';
+  const lastSuccess = Date.parse(lastSuccessAt);
+  if (!Number.isFinite(lastSuccess)) return 'unknown';
+  const multiplier = ADVOCACY_FRESHNESS_CADENCE_MULTIPLIER[source] ?? 1;
+  const windowMs = Math.max(1, cadenceHours) * multiplier * 60 * 60_000;
+  return now.getTime() - lastSuccess <= windowMs ? 'fresh' : 'stale';
+}
+
+export function updateAdvocacySourceHealth(
+  source: string,
+  prior: Record<string, unknown>,
+  current: AdvocacySourceBackfillState,
+  attemptedAt: string,
+  cadenceHours: number,
+  nextRefreshAt: Date | string | null,
+): AdvocacySourceBackfillState {
+  const hadError = Boolean(current.lastError);
+  const priorSuccess = asString(prior.lastSuccessAt);
+  const limitation = current.limitation ?? null;
+  // A transient refresh failure must never erase already-earned historical
+  // completeness. The failure belongs to availability/freshness, not backfill.
+  const status = hadError && asString(prior.status) === 'complete' ? 'complete' : current.status;
+  const lastSuccessAt = hadError ? priorSuccess : attemptedAt;
+  const availability: AdvocacySourceAvailability = hadError
+    ? priorSuccess
+      ? 'degraded'
+      : 'unavailable'
+    : limitation
+      ? 'degraded'
+      : 'available';
+  return {
+    ...current,
+    status,
+    completedAt:
+      status === 'complete'
+        ? (current.completedAt ?? asString(prior.completedAt) ?? undefined)
+        : current.completedAt,
+    checkpoint:
+      hadError && !current.checkpoint && Object.keys(asRecord(prior.checkpoint)).length
+        ? asRecord(prior.checkpoint)
+        : current.checkpoint,
+    examined: hadError ? Math.max(Number(prior.examined ?? 0), current.examined) : current.examined,
+    candidates: hadError
+      ? Math.max(Number(prior.candidates ?? 0), current.candidates)
+      : current.candidates,
+    availability,
+    lastAttemptAt: attemptedAt,
+    lastSuccessAt: lastSuccessAt ?? undefined,
+    freshness: deriveAdvocacyFreshness(source, lastSuccessAt, cadenceHours, new Date(attemptedAt)),
+    nextRefreshAt:
+      nextRefreshAt instanceof Date ? nextRefreshAt.toISOString() : (nextRefreshAt ?? undefined),
+    lastError: hadError ? sourceHealthMessage(source, current.lastError!) : null,
+    lastErrorAt: hadError ? attemptedAt : undefined,
+  };
+}
+
+export function deriveAdvocacyOverallHealth(
+  sources: Record<
+    string,
+    Pick<AdvocacySourceBackfillState, 'status' | 'availability' | 'freshness' | 'limitation'>
+  >,
+): AdvocacyOverallHealth {
+  const states = Object.values(sources);
+  if (!states.length || states.every((state) => state.status === 'not_started')) return 'not_built';
+  if (states.some((state) => state.status === 'in_progress')) return 'building_history';
+  if (
+    states.length > 0 &&
+    states.every((state) => state.status === 'failed' || state.availability === 'unavailable')
+  ) {
+    return 'failed';
+  }
+  if (states.some((state) => state.status === 'partial' || Boolean(state.limitation))) {
+    return 'partial';
+  }
+  if (
+    states.some(
+      (state) => state.availability === 'unavailable' || state.availability === 'degraded',
+    )
+  ) {
+    return 'degraded';
+  }
+  if (states.some((state) => state.freshness !== 'fresh')) return 'stale';
+  return states.every((state) => state.status === 'complete') ? 'current' : 'not_built';
+}
+
+export function buildAdvocacyHistoryHealth(
+  cursor: Record<string, unknown>,
+  cadenceHours: number,
+  nextRefreshAt: Date | string | null,
+  counts: { pending: number; accepted: number; rejected: number },
+  now = new Date(),
+): AdvocacyHistoryHealth {
+  const persisted = asRecord(asRecord(cursor.backfill).sources);
+  const sources = ADVOCACY_SOURCE_NAMES.map((source): AdvocacySourceHealth => {
+    const state = asRecord(persisted[source]);
+    const lastSuccessAt = asString(state.lastSuccessAt);
+    const lastError = asString(state.lastError);
+    return {
+      source,
+      status: (asString(state.status) as AdvocacyBackfillStatus) ?? 'not_started',
+      backfillStatus: (asString(state.status) as AdvocacyBackfillStatus) ?? 'not_started',
+      startedAt: asString(state.startedAt) ?? undefined,
+      completedAt: asString(state.completedAt) ?? undefined,
+      checkpoint: Object.keys(asRecord(state.checkpoint)).length
+        ? asRecord(state.checkpoint)
+        : null,
+      historyStart: asString(state.historyStart),
+      examined: Number(state.examined ?? 0),
+      candidates: Number(state.candidates ?? 0),
+      limitation: asString(state.limitation),
+      availability: (asString(state.availability) as AdvocacySourceAvailability) ?? 'unknown',
+      lastAttemptAt: asString(state.lastAttemptAt) ?? undefined,
+      lastSuccessAt: lastSuccessAt ?? undefined,
+      freshness: deriveAdvocacyFreshness(source, lastSuccessAt, cadenceHours, now),
+      nextRefreshAt:
+        nextRefreshAt instanceof Date ? nextRefreshAt.toISOString() : (nextRefreshAt ?? undefined),
+      lastError: lastError ? sourceHealthMessage(source, lastError) : null,
+      lastErrorAt: asString(state.lastErrorAt) ?? undefined,
+    };
+  });
+  const sourceRecord = Object.fromEntries(sources.map((source) => [source.source, source]));
+  return {
+    overall: deriveAdvocacyOverallHealth(sourceRecord),
+    refreshedAt: asString(cursor.refreshedAt) ?? undefined,
+    nextRefreshAt:
+      nextRefreshAt instanceof Date ? nextRefreshAt.toISOString() : (nextRefreshAt ?? undefined),
+    pendingFindings: counts.pending,
+    acceptedFindings: counts.accepted,
+    rejectedFindings: counts.rejected,
+    sources,
+  };
+}
+
+function sourceHealthMessage(source: string, error: string): string {
+  const label =
+    source === 'regulations_gov'
+      ? 'Regulations.gov'
+      : source === 'federal_register'
+        ? 'Federal Register'
+        : source === 'client_submission'
+          ? 'Client submissions'
+          : source === 'private_evidence'
+            ? 'Private evidence'
+            : source.toUpperCase();
+  if (/not configured|api.?key/i.test(error))
+    return `${label} is unavailable because it is not configured`;
+  return `${label} is temporarily unavailable`;
 }
 
 export function calculateProfileCompletion(input: ProfileCompletionInput): ProfileCompletionResult {
