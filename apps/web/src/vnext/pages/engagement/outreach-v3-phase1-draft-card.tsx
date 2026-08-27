@@ -149,8 +149,8 @@ export function GenerationScreen({
                 : 'Waiting';
           return (
             <div key={slot.generationKey}>
-              <span>{slot.recipients[0]?.label || slot.recipients[0]?.email || slot.generationKey}</span>
-              <small>{slot.recipients[0]?.targetType || 'Campaign recipient'}</small>
+              <span>{slot.recipients[0]?.displayName || slot.recipients[0]?.email || slot.generationKey}</span>
+              <small>{slot.recipients[0]?.organization || slot.recipients[0]?.chamber || 'Campaign recipient'}</small>
               <StatusChip tone={statusTone(state)}>{state}</StatusChip>
               {item?.status === 'failed' ? (
                 <button type="button" className="ov3p1-button is-small" onClick={() => onRetry(item.id)}>

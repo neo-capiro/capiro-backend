@@ -76,7 +76,7 @@ const plan: OutreachV3GenerationPlan = {
     recipients: [
       {
         targetKey: generationKey,
-        label: generationKey,
+        displayName: generationKey,
         email: `${generationKey}@example.com`,
       },
     ],

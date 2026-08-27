@@ -221,9 +221,10 @@ export function recipientPresentation(
   const slot = plan?.slots.find((candidate) => candidate.generationKey === draft.generationKey);
   const recipient = slot?.recipients[0];
   return {
-    label: recipient?.label?.trim() || recipientLabel(draft),
+    label: recipient?.displayName?.trim() || recipientLabel(draft),
     subtitle:
-      recipient?.targetType?.replaceAll('_', ' ') ||
+      recipient?.organization?.trim() ||
+      recipient?.chamber?.trim() ||
       recipient?.email ||
       'Campaign recipient',
     email: recipient?.email ?? null,

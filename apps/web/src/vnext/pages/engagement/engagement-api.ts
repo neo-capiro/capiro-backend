@@ -4,9 +4,21 @@ const ROOT = '/api/engagement/outreach-v3/sessions';
 
 export interface OutreachV3GenerationRecipient {
   targetKey: string;
-  label: string;
+  /**
+   * The real server field is `displayName` (see `toRecipient()` in
+   * apps/api/src/outreach-v3/generation/outreach-v3-generation-plan.ts).
+   * There is no `label` field in the actual API response — a prior version
+   * of this type declared `label`, which is always undefined at runtime and
+   * silently fell back to the raw recipient key (e.g.
+   * "directory_member:member-3055") wherever it was read. Keep this name in
+   * sync with the server contract; do not rename it back to `label`.
+   */
+  displayName: string;
   email: string | null;
-  targetType?: string;
+  /** Present when the recipient has one; e.g. "Congressional office". */
+  organization?: string | null;
+  /** Present for a government target only (e.g. 'house' | 'senate'). */
+  chamber?: string | null;
 }
 
 export interface OutreachV3GenerationSlot {
