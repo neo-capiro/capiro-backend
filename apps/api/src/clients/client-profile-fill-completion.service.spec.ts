@@ -3,6 +3,9 @@ import {
   calculateProfileCompletion,
   deriveRegulatoryCommentSubmitterLabel,
   deriveAdvocacyBackfillOverallStatus,
+  buildAdvocacyHistoryHealth,
+  deriveAdvocacyFreshness,
+  deriveAdvocacyOverallHealth,
   faraMatchConfidence,
   resolveFaraMatchedRole,
   mergeFillProgress,
@@ -12,6 +15,7 @@ import {
   scoreAdvocacyOutcome,
   testimonyMatchConfidence,
   titleOverlapRatio,
+  updateAdvocacySourceHealth,
 } from './client-profile-fill-completion.service.js';
 
 /** Builds a minimal testimony scan-batch row for planTestimonyScanBatch tests. */
@@ -30,6 +34,133 @@ function scanRow(hearingId: string, witnessText: string, syncedAt: string, simil
 }
 
 describe('Fill with Meri completion workflow', () => {
+  test('derives cadence-aware source freshness, including the exact boundary and unknown state', () => {
+    const now = new Date('2026-08-26T12:00:00.000Z');
+    expect(deriveAdvocacyFreshness('lda', null, 24, now)).toBe('unknown');
+    expect(deriveAdvocacyFreshness('lda', '2026-08-25T12:00:00.000Z', 24, now)).toBe('fresh');
+    expect(deriveAdvocacyFreshness('lda', '2026-08-25T11:59:59.999Z', 24, now)).toBe('stale');
+    expect(deriveAdvocacyFreshness('fara', '2026-08-24T12:00:00.000Z', 24, now)).toBe('fresh');
+  });
+
+  test('preserves completed history while independently degrading a failed refresh', () => {
+    expect(
+      updateAdvocacySourceHealth(
+        'regulations_gov',
+        { status: 'complete', lastSuccessAt: '2026-08-25T00:00:00.000Z' },
+        {
+          status: 'partial',
+          examined: 0,
+          candidates: 0,
+          lastError: 'HTTP 503',
+        },
+        '2026-08-26T00:00:00.000Z',
+        168,
+        new Date('2026-09-02T00:00:00.000Z'),
+      ),
+    ).toMatchObject({
+      status: 'complete',
+      availability: 'degraded',
+      lastAttemptAt: '2026-08-26T00:00:00.000Z',
+      lastSuccessAt: '2026-08-25T00:00:00.000Z',
+      freshness: 'fresh',
+      lastError: 'Regulations.gov is temporarily unavailable',
+    });
+  });
+
+  test('distinguishes missing configuration and deterministic limitations', () => {
+    const unavailable = updateAdvocacySourceHealth(
+      'regulations_gov',
+      {},
+      { status: 'partial', examined: 0, candidates: 0, lastError: 'API key not configured' },
+      '2026-08-26T00:00:00.000Z',
+      168,
+      null,
+    );
+    const limited = updateAdvocacySourceHealth(
+      'regulations_gov',
+      {},
+      {
+        status: 'partial',
+        examined: 250,
+        candidates: 2,
+        limitation: 'Exact-phrase search capped at 250 of 500 results',
+      },
+      '2026-08-26T00:00:00.000Z',
+      168,
+      null,
+    );
+    expect(unavailable).toMatchObject({ availability: 'unavailable', freshness: 'unknown' });
+    expect(limited).toMatchObject({ availability: 'degraded', freshness: 'fresh' });
+  });
+
+  test('derives conservative overall health without collapsing dimensions', () => {
+    expect(deriveAdvocacyOverallHealth({})).toBe('not_built');
+    expect(
+      deriveAdvocacyOverallHealth({
+        lda: { status: 'in_progress', availability: 'available', freshness: 'fresh' },
+      }),
+    ).toBe('building_history');
+    expect(
+      deriveAdvocacyOverallHealth({
+        lda: { status: 'complete', availability: 'available', freshness: 'fresh' },
+        testimony: { status: 'complete', availability: 'degraded', freshness: 'fresh' },
+      }),
+    ).toBe('degraded');
+    expect(
+      deriveAdvocacyOverallHealth({
+        lda: { status: 'complete', availability: 'available', freshness: 'fresh' },
+        regulations: {
+          status: 'partial',
+          availability: 'degraded',
+          freshness: 'fresh',
+          limitation: '250 result cap',
+        },
+      }),
+    ).toBe('partial');
+    expect(
+      deriveAdvocacyOverallHealth({
+        lda: { status: 'complete', availability: 'available', freshness: 'fresh' },
+        testimony: { status: 'complete', availability: 'available', freshness: 'stale' },
+      }),
+    ).toBe('stale');
+  });
+
+  test('builds a readable health response with pending/accepted/rejected counts', () => {
+    const health = buildAdvocacyHistoryHealth(
+      {
+        refreshedAt: '2026-08-26T00:00:00.000Z',
+        backfill: {
+          sources: {
+            lda: {
+              status: 'complete',
+              availability: 'available',
+              lastSuccessAt: '2026-08-26T00:00:00.000Z',
+              examined: 4,
+              candidates: 1,
+            },
+          },
+        },
+      },
+      168,
+      new Date('2026-09-02T00:00:00.000Z'),
+      { pending: 2, accepted: 3, rejected: 4 },
+      new Date('2026-08-26T01:00:00.000Z'),
+    );
+    expect(health).toMatchObject({
+      pendingFindings: 2,
+      acceptedFindings: 3,
+      rejectedFindings: 4,
+      nextRefreshAt: '2026-09-02T00:00:00.000Z',
+    });
+    expect(health.sources.find((source) => source.source === 'lda')).toMatchObject({
+      status: 'complete',
+      availability: 'available',
+      freshness: 'fresh',
+      examined: 4,
+      candidates: 1,
+    });
+  });
+
   test('derives the multi-source completion contract without collapsing partial coverage to a boolean', () => {
     expect(deriveAdvocacyBackfillOverallStatus({})).toBe('never_started');
     expect(deriveAdvocacyBackfillOverallStatus({ lda: { status: 'not_started' } })).toBe(
