@@ -2,6 +2,7 @@ import {
   buildClientProfileFillCompletionPlan,
   calculateProfileCompletion,
   deriveRegulatoryCommentSubmitterLabel,
+  deriveAdvocacyBackfillOverallStatus,
   faraMatchConfidence,
   resolveFaraMatchedRole,
   mergeFillProgress,
@@ -14,12 +15,7 @@ import {
 } from './client-profile-fill-completion.service.js';
 
 /** Builds a minimal testimony scan-batch row for planTestimonyScanBatch tests. */
-function scanRow(
-  hearingId: string,
-  witnessText: string,
-  syncedAt: string,
-  similarity: number,
-) {
+function scanRow(hearingId: string, witnessText: string, syncedAt: string, similarity: number) {
   return {
     hearingId,
     title: `Hearing ${hearingId}`,
@@ -34,6 +30,37 @@ function scanRow(
 }
 
 describe('Fill with Meri completion workflow', () => {
+  test('derives the multi-source completion contract without collapsing partial coverage to a boolean', () => {
+    expect(deriveAdvocacyBackfillOverallStatus({})).toBe('never_started');
+    expect(deriveAdvocacyBackfillOverallStatus({ lda: { status: 'not_started' } })).toBe(
+      'never_started',
+    );
+    expect(
+      deriveAdvocacyBackfillOverallStatus({
+        lda: { status: 'in_progress' },
+        fara: { status: 'complete' },
+      }),
+    ).toBe('backfill_running');
+    expect(
+      deriveAdvocacyBackfillOverallStatus({
+        lda: { status: 'complete' },
+        regulations: { status: 'partial' },
+      }),
+    ).toBe('backfill_partial');
+    expect(
+      deriveAdvocacyBackfillOverallStatus({
+        lda: { status: 'failed' },
+        regulations: { status: 'failed' },
+      }),
+    ).toBe('backfill_failed');
+    expect(
+      deriveAdvocacyBackfillOverallStatus({
+        lda: { status: 'complete' },
+        fara: { status: 'complete' },
+      }),
+    ).toBe('backfill_complete');
+  });
+
   test('builds the downstream graph in dependency order', () => {
     const plan = buildClientProfileFillCompletionPlan();
     const byKey = new Map(plan.map((task) => [task.taskKey, task]));
@@ -131,7 +158,13 @@ describe('Fill with Meri completion workflow', () => {
   test('matches deterministically on exact PE code before any semantic scoring is even needed (§16 priority 1)', () => {
     const matched = matchAdvocacyOutcomeDeterministically(
       { primaryPeCode: '0605053A', primaryBillId: null },
-      { peCode: '0605053A', fiscalYear: 2027, stage: 'HAC-D', amountFrom: 12_000_000, amountTo: 30_000_000 },
+      {
+        peCode: '0605053A',
+        fiscalYear: 2027,
+        stage: 'HAC-D',
+        amountFrom: 12_000_000,
+        amountTo: 30_000_000,
+      },
     );
     expect(matched).toEqual({ matchedOn: 'pe_code', score: 0.95 });
   });
@@ -146,17 +179,21 @@ describe('Fill with Meri completion workflow', () => {
 
   test('never fabricates a deterministic match — a different PE code, an undefined Matter, or empty evidence all fall through to null', () => {
     expect(
-      matchAdvocacyOutcomeDeterministically({ primaryPeCode: '0605053A', primaryBillId: null }, { peCode: '0605055A' }),
+      matchAdvocacyOutcomeDeterministically(
+        { primaryPeCode: '0605053A', primaryBillId: null },
+        { peCode: '0605055A' },
+      ),
     ).toBeNull();
-    expect(
-      matchAdvocacyOutcomeDeterministically(undefined, { peCode: '0605053A' }),
-    ).toBeNull();
+    expect(matchAdvocacyOutcomeDeterministically(undefined, { peCode: '0605053A' })).toBeNull();
     expect(
       matchAdvocacyOutcomeDeterministically({ primaryPeCode: '0605053A', primaryBillId: null }, {}),
     ).toBeNull();
     // A Matter with no PE/bill identifiers of its own can never deterministically match anything.
     expect(
-      matchAdvocacyOutcomeDeterministically({ primaryPeCode: null, primaryBillId: null }, { peCode: '0605053A', billNumber: '119-hr-1234' }),
+      matchAdvocacyOutcomeDeterministically(
+        { primaryPeCode: null, primaryBillId: null },
+        { peCode: '0605053A', billNumber: '119-hr-1234' },
+      ),
     ).toBeNull();
   });
 
@@ -168,9 +205,17 @@ describe('Fill with Meri completion workflow', () => {
   });
 
   test('§27: titleOverlapRatio never collapses two dissimilar titles, and is symmetric', () => {
-    const ratio = titleOverlapRatio('HASC staff meeting on ground robotics', 'Staff meeting HASC ground robotics funding');
+    const ratio = titleOverlapRatio(
+      'HASC staff meeting on ground robotics',
+      'Staff meeting HASC ground robotics funding',
+    );
     expect(ratio).toBeGreaterThan(0.5);
-    expect(titleOverlapRatio('HASC staff meeting on ground robotics', 'SASC hearing on shipbuilding budget')).toBeLessThan(0.3);
+    expect(
+      titleOverlapRatio(
+        'HASC staff meeting on ground robotics',
+        'SASC hearing on shipbuilding budget',
+      ),
+    ).toBeLessThan(0.3);
     expect(titleOverlapRatio(null, 'anything')).toBe(0);
     expect(titleOverlapRatio('anything', null)).toBe(0);
   });
@@ -193,7 +238,10 @@ describe('Fill with Meri completion workflow', () => {
 
   test('resolveFaraMatchedRole: picks whichever role scored higher, never blends the two scores', () => {
     expect(resolveFaraMatchedRole(0.9, 0.3)).toEqual({ role: 'registrant', similarity: 0.9 });
-    expect(resolveFaraMatchedRole(0.3, 0.9)).toEqual({ role: 'foreign_principal', similarity: 0.9 });
+    expect(resolveFaraMatchedRole(0.3, 0.9)).toEqual({
+      role: 'foreign_principal',
+      similarity: 0.9,
+    });
   });
 
   test('resolveFaraMatchedRole: a tie (including 0/0, e.g. confirmed-mapping-only) defaults to registrant', () => {
@@ -244,25 +292,36 @@ describe('Fill with Meri completion workflow', () => {
       const page1 = allRows.slice(0, 2);
       const plan1 = planTestimonyScanBatch(page1, new Set(), 0.55, 200);
       expect(plan1.toEmit.map((r) => r.hearingId)).toEqual(['h1']);
-      expect(plan1.cursor).toEqual({ syncedAt: '2026-01-02T00:00:00.000Z', key: 'h2::w2, No Match' });
+      expect(plan1.cursor).toEqual({
+        syncedAt: '2026-01-02T00:00:00.000Z',
+        key: 'h2::w2, No Match',
+      });
 
       // Page 2: rows synced_at > page1's cursor (simulated by slicing the
       // remaining rows — the real SQL WHERE clause does this filtering).
       const page2 = allRows.slice(2, 4);
       const plan2 = planTestimonyScanBatch(page2, new Set(), 0.55, 200);
       expect(plan2.toEmit.map((r) => r.hearingId)).toEqual(['h3']);
-      expect(plan2.cursor).toEqual({ syncedAt: '2026-01-04T00:00:00.000Z', key: 'h4::w4, No Match' });
+      expect(plan2.cursor).toEqual({
+        syncedAt: '2026-01-04T00:00:00.000Z',
+        key: 'h4::w4, No Match',
+      });
 
       // Page 3: final row.
       const page3 = allRows.slice(4, 5);
       const plan3 = planTestimonyScanBatch(page3, new Set(), 0.55, 200);
       expect(plan3.toEmit.map((r) => r.hearingId)).toEqual(['h5']);
-      expect(plan3.cursor).toEqual({ syncedAt: '2026-01-05T00:00:00.000Z', key: 'h5::w5, Match Org' });
+      expect(plan3.cursor).toEqual({
+        syncedAt: '2026-01-05T00:00:00.000Z',
+        key: 'h5::w5, Match Org',
+      });
 
       // Every row across all three pages was examined exactly once — no
       // row appears in more than one page's toEmit, and h1/h3/h5 (the three
       // genuine matches) all surfaced.
-      const allEmitted = [...plan1.toEmit, ...plan2.toEmit, ...plan3.toEmit].map((r) => r.hearingId);
+      const allEmitted = [...plan1.toEmit, ...plan2.toEmit, ...plan3.toEmit].map(
+        (r) => r.hearingId,
+      );
       expect(allEmitted).toEqual(['h1', 'h3', 'h5']);
     });
 
@@ -313,13 +372,14 @@ describe('Fill with Meri completion workflow', () => {
       // The cursor still lands on the LAST row of the batch — the next Fill
       // run's query starts strictly after this point, never re-scanning
       // these same three rows.
-      expect(plan.cursor).toEqual({ syncedAt: '2026-01-03T00:00:00.000Z', key: 'h3::w3, Unrelated' });
+      expect(plan.cursor).toEqual({
+        syncedAt: '2026-01-03T00:00:00.000Z',
+        key: 'h3::w3, Unrelated',
+      });
     });
 
     test('confirmed old mapping: a confirmed key is excluded from emission (handled by the separate bypass query) but still advances the cursor', () => {
-      const rows = [
-        scanRow('h1', 'old-witness, Confirmed Org', '2020-01-01T00:00:00.000Z', 0.02),
-      ];
+      const rows = [scanRow('h1', 'old-witness, Confirmed Org', '2020-01-01T00:00:00.000Z', 0.02)];
       const confirmedKeys = new Set(['h1::old-witness, Confirmed Org']);
       const plan = planTestimonyScanBatch(rows, confirmedKeys, 0.55, 200);
       // Not emitted from THIS function — the confirmed-mapping bypass query
@@ -327,7 +387,10 @@ describe('Fill with Meri completion workflow', () => {
       // surfaces it. This proves the scan doesn't double-emit a confirmed
       // row and doesn't stall on a batch containing only confirmed rows.
       expect(plan.toEmit).toEqual([]);
-      expect(plan.cursor).toEqual({ syncedAt: '2020-01-01T00:00:00.000Z', key: 'h1::old-witness, Confirmed Org' });
+      expect(plan.cursor).toEqual({
+        syncedAt: '2020-01-01T00:00:00.000Z',
+        key: 'h1::old-witness, Confirmed Org',
+      });
     });
 
     test('MAX_ADVOCACY_FINDINGS budget cap: the cursor stops at the last row actually examined, never past an unevaluated row', () => {
@@ -356,11 +419,15 @@ describe('Fill with Meri completion workflow', () => {
 
   describe('deriveRegulatoryCommentSubmitterLabel', () => {
     test('prefers a real personal name when present', () => {
-      expect(deriveRegulatoryCommentSubmitterLabel('Carl', 'McNair', 'Some Org')).toBe('Carl McNair');
+      expect(deriveRegulatoryCommentSubmitterLabel('Carl', 'McNair', 'Some Org')).toBe(
+        'Carl McNair',
+      );
     });
 
     test('falls back to organization when no personal name is present', () => {
-      expect(deriveRegulatoryCommentSubmitterLabel(null, null, 'Pike Robotics')).toBe('Pike Robotics');
+      expect(deriveRegulatoryCommentSubmitterLabel(null, null, 'Pike Robotics')).toBe(
+        'Pike Robotics',
+      );
     });
 
     test('falls back to Anonymous when neither personal name nor organization is present', () => {

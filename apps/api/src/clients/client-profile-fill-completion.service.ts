@@ -39,13 +39,7 @@ export const CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES = [
 export type ClientProfileFillCompletionTaskType =
   (typeof CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES)[number];
 
-type CompletionTaskStatus =
-  | 'queued'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'skipped'
-  | 'cancelled';
+type CompletionTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled';
 
 interface CompletionTaskPlanEntry {
   taskType: ClientProfileFillCompletionTaskType;
@@ -103,6 +97,59 @@ interface RefreshScheduleRow {
   updatedAt: Date;
 }
 
+export type AdvocacyBackfillStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'complete'
+  | 'partial'
+  | 'failed';
+
+export interface AdvocacySourceBackfillState {
+  status: AdvocacyBackfillStatus;
+  startedAt?: string;
+  completedAt?: string;
+  checkpoint?: Record<string, unknown> | null;
+  historyStart?: string | null;
+  examined: number;
+  candidates: number;
+  lastError?: string | null;
+  limitation?: string | null;
+  suggestions?: unknown[];
+}
+
+interface AdvocacyHistoryTaskResult {
+  [key: string]: unknown;
+  count: number;
+  overallStatus: AdvocacyBackfillOverallStatus;
+  sources: Record<string, AdvocacySourceBackfillState>;
+}
+
+export type AdvocacyBackfillOverallStatus =
+  | 'never_started'
+  | 'backfill_running'
+  | 'backfill_partial'
+  | 'backfill_complete'
+  | 'backfill_failed';
+
+interface LdaBackfillRow {
+  filingUuid: string;
+  clientId: number;
+  clientName: string;
+  filingType: string;
+  filingYear: number;
+  filingPeriod: string | null;
+  dtPosted: Date | null;
+  scanAt: Date;
+  registrantName: string;
+  clientDescription: string | null;
+  income: unknown;
+  expenses: unknown;
+  issueCodes: string[];
+  governmentEntities: unknown;
+  lobbyingActivities: unknown;
+  filingDocumentUrl: string | null;
+}
+
 export interface UpdateClientProfileFillScheduleInput {
   enabled: boolean;
   cadenceHours?: number;
@@ -156,6 +203,8 @@ const TASK_TIMEOUT_MS = 5 * 60_000;
 const SCHEDULE_SWEEP_MS = 60_000;
 const TASK_CLAIM_BATCH = 4;
 const MAX_ADVOCACY_FINDINGS = 200;
+const LDA_BACKFILL_BATCH_SIZE = 250;
+const REGULATORY_COMMENT_MAX_SEARCH_RESULTS = 250;
 // Same trigram-similarity floor client-profile-fill-workflow.service.ts uses
 // for LDA identity suggestion (0.42), lightly raised because FARA registrant
 // names are matched against a client's own registered legal name (a tighter
@@ -314,11 +363,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     };
   }
 
-  async startRun(
-    ctx: TenantContext,
-    clientId: string,
-    input: StartClientProfileFillWorkflowInput,
-  ) {
+  async startRun(ctx: TenantContext, clientId: string, input: StartClientProfileFillWorkflowInput) {
     const activeCompletionRun = await this.latestActiveCompletionRun(ctx.tenantId, clientId);
     if (activeCompletionRun) return this.getRun(ctx, clientId, activeCompletionRun.id);
 
@@ -339,9 +384,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async getLatest(ctx: TenantContext, clientId: string) {
-    const core = (await this.workflow.getLatest(ctx, clientId)) as unknown as
-      | Record<string, unknown>
-      | null;
+    const core = (await this.workflow.getLatest(ctx, clientId)) as unknown as Record<
+      string,
+      unknown
+    > | null;
     if (!core) return null;
     const runId = asString(core.id);
     if (!runId || !(await this.hasCompletionTasks(ctx.tenantId, runId))) return core;
@@ -397,12 +443,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.getRun(ctx, clientId, runId);
   }
 
-  async retryTask(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    taskId: string,
-  ) {
+  async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
     const changed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const count = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_extension_task
@@ -424,12 +465,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.getRun(ctx, clientId, runId);
   }
 
-  async applyFindings(
-    ctx: TenantContext,
-    clientId: string,
-    runId: string,
-    findingIds: string[],
-  ) {
+  async applyFindings(ctx: TenantContext, clientId: string, runId: string, findingIds: string[]) {
     const findings = await this.loadFindings(ctx.tenantId, clientId, runId, findingIds);
     if (findings.length !== new Set(findingIds).size) {
       throw new BadRequestException('One or more findings are no longer available');
@@ -450,7 +486,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         throw new BadRequestException('Only pending findings can be applied');
       }
       if (NON_APPLYABLE_ADVANCED_KINDS.has(finding.kind)) {
-        throw new BadRequestException('This item is informational and is not applied to the client record');
+        throw new BadRequestException(
+          'This item is informational and is not applied to the client record',
+        );
       }
       await this.applyAdvancedFinding(ctx, clientId, finding);
       await this.markAccepted(ctx, clientId, finding.id);
@@ -458,12 +496,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return this.getRun(ctx, clientId, runId);
   }
 
-  rejectFinding(
-    ctx: TenantContext,
-    clientId: string,
-    findingId: string,
-    reason?: string,
-  ) {
+  rejectFinding(ctx: TenantContext, clientId: string, findingId: string, reason?: string) {
     return this.fill.rejectFinding(ctx, clientId, findingId, reason);
   }
 
@@ -514,8 +547,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       throw new BadRequestException('Refresh cadence must be between 6 and 720 hours');
     }
     const allowed = new Set<ClientProfileFillSource>(CLIENT_PROFILE_FILL_SOURCES);
-    const sources = [...new Set(input.sources?.length ? input.sources : CLIENT_PROFILE_FILL_SOURCES)]
-      .filter((source): source is ClientProfileFillSource => allowed.has(source));
+    const sources = [
+      ...new Set(input.sources?.length ? input.sources : CLIENT_PROFILE_FILL_SOURCES),
+    ].filter((source): source is ClientProfileFillSource => allowed.has(source));
     if (!sources.length) throw new BadRequestException('Choose at least one refresh source');
 
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -671,11 +705,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     return rows[0] ?? null;
   }
 
-  private async mergeRun(
-    ctx: TenantContext,
-    clientId: string,
-    core: Record<string, unknown>,
-  ) {
+  private async mergeRun(ctx: TenantContext, clientId: string, core: Record<string, unknown>) {
     const runId = asString(core.id);
     if (!runId) return core;
     const tasks = await this.loadCompletionTasks(ctx.tenantId, clientId, runId);
@@ -687,7 +717,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     const extensionPending = tasks.some(
       (task) => task.status === 'queued' || task.status === 'running',
     );
-    const allTerminal = tasks.length > 0 && tasks.every((task) => TERMINAL_TASK_STATUSES.has(task.status));
+    const allTerminal =
+      tasks.length > 0 && tasks.every((task) => TERMINAL_TASK_STATUSES.has(task.status));
     const anyFailed = allTasks.some((task) => task.status === 'failed');
     const anyCompleted = allTasks.some(
       (task) => task.status === 'completed' || task.status === 'skipped',
@@ -886,8 +917,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     }, 15_000);
     heartbeat.unref?.();
     try {
-      const count = await this.withTaskTimeout(this.executeTask(ctx, task));
-      await this.finishTask(task, 'completed', { count });
+      const result = await this.withTaskTimeout(this.executeTask(ctx, task));
+      await this.finishTask(
+        task,
+        'completed',
+        typeof result === 'number' ? { count: result } : result,
+      );
     } catch (error) {
       if (error instanceof TaskDeferredError) {
         await this.deferTask(task, error.message);
@@ -899,7 +934,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     }
   }
 
-  private async executeTask(ctx: TenantContext, task: CompletionTaskRow): Promise<number> {
+  private async executeTask(
+    ctx: TenantContext,
+    task: CompletionTaskRow,
+  ): Promise<number | AdvocacyHistoryTaskResult> {
     await this.assertCoreDependencies(task);
     switch (task.taskType) {
       case 'federal_market':
@@ -1200,7 +1238,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     ctx: TenantContext,
     clientId: string,
     runId: string,
-  ): Promise<number> {
+  ): Promise<AdvocacyHistoryTaskResult> {
     const runRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRawUnsafe<Array<{ selectedLdaIds: number[] }>>(
         `SELECT selected_lda_ids AS "selectedLdaIds"
@@ -1213,34 +1251,36 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     );
     const ldaIds = runRows[0]?.selectedLdaIds ?? [];
     const cursor = await this.getCursor(ctx.tenantId, clientId, 'advocacy_history');
+    const priorBackfill = asRecord(cursor.backfill);
+    const priorSources = asRecord(priorBackfill.sources);
+    const invocationStartedAt = new Date().toISOString();
+    const sourceStates: Record<string, AdvocacySourceBackfillState> = {};
     const lastDtPosted = asString(cursor.lastLdaPostedAt);
-    const filings = ldaIds.length
-      ? await this.prisma.$queryRawUnsafe<
-          Array<{
-            filingUuid: string;
-            clientId: number;
-            clientName: string;
-            filingType: string;
-            filingYear: number;
-            filingPeriod: string | null;
-            dtPosted: Date | null;
-            registrantName: string;
-            clientDescription: string | null;
-            income: unknown;
-            expenses: unknown;
-            issueCodes: string[];
-            governmentEntities: unknown;
-            lobbyingActivities: unknown;
-            filingDocumentUrl: string | null;
-          }>
-        >(
-          `SELECT filing_uuid AS "filingUuid",
+    const priorLda = asRecord(priorSources.lda);
+    const priorLdaCheckpoint = asRecord(priorLda.checkpoint);
+    const ldaBackfillWasComplete = asString(priorLda.status) === 'complete';
+    const ldaCheckpointAt = ldaBackfillWasComplete
+      ? lastDtPosted
+      : asString(priorLdaCheckpoint.scanAt);
+    const ldaCheckpointKey = ldaBackfillWasComplete
+      ? (asString(cursor.lastLdaKey) ?? '')
+      : (asString(priorLdaCheckpoint.key) ?? '');
+    const ldaCheckpointActivity = ldaBackfillWasComplete
+      ? Number(cursor.lastLdaActivityIndex ?? -1)
+      : Number(priorLdaCheckpoint.activityIndex ?? -1);
+    let filings: LdaBackfillRow[] = [];
+    let ldaError: string | null = null;
+    try {
+      filings = ldaIds.length
+        ? await this.prisma.$queryRawUnsafe<LdaBackfillRow[]>(
+            `SELECT filing_uuid AS "filingUuid",
                   client_id AS "clientId",
                   client_name AS "clientName",
                   filing_type AS "filingType",
                   filing_year AS "filingYear",
                   filing_period AS "filingPeriod",
                   dt_posted AS "dtPosted",
+                  COALESCE(dt_posted, make_date(filing_year, 1, 1)::timestamptz) AS "scanAt",
                   registrant_name AS "registrantName",
                   client_description AS "clientDescription",
                   income,
@@ -1251,22 +1291,43 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
                   filing_document_url AS "filingDocumentUrl"
              FROM lda_filing
             WHERE client_id = ANY($1::int[])
-              AND ($2::timestamptz IS NULL OR dt_posted > $2::timestamptz)
-            ORDER BY dt_posted DESC NULLS LAST, filing_year DESC
-            LIMIT 250`,
-          ldaIds,
-          lastDtPosted,
-        )
-      : [];
+              AND (($2::timestamptz IS NULL)
+                OR (COALESCE(dt_posted, make_date(filing_year, 1, 1)::timestamptz) > $2::timestamptz)
+                OR (COALESCE(dt_posted, make_date(filing_year, 1, 1)::timestamptz) = $2::timestamptz
+                    AND filing_uuid >= $3::text))
+            ORDER BY COALESCE(dt_posted, make_date(filing_year, 1, 1)::timestamptz) ASC,
+                     filing_uuid ASC
+            LIMIT $4`,
+            ldaIds,
+            ldaCheckpointAt,
+            ldaCheckpointKey,
+            LDA_BACKFILL_BATCH_SIZE,
+          )
+        : [];
+    } catch (error) {
+      ldaError = this.safeError(error);
+      this.logger.warn(`LDA historical backfill unavailable: ${ldaError}`);
+    }
     let count = 0;
-    let newestPostedAt = lastDtPosted ? new Date(lastDtPosted) : null;
+    let ldaExamined = 0;
+    let ldaCheckpoint: Record<string, unknown> | null = Object.keys(priorLdaCheckpoint).length
+      ? priorLdaCheckpoint
+      : null;
+    let ldaStoppedAtCap = false;
     for (const filing of filings) {
-      if (filing.dtPosted && (!newestPostedAt || filing.dtPosted > newestPostedAt)) {
-        newestPostedAt = filing.dtPosted;
-      }
       const activities = recordsFromUnknown(filing.lobbyingActivities);
       const records = activities.length ? activities : [{}];
-      for (let index = 0; index < records.length && count < MAX_ADVOCACY_FINDINGS; index += 1) {
+      const resumesSameFiling =
+        ldaCheckpointAt === filing.scanAt.toISOString() && ldaCheckpointKey === filing.filingUuid;
+      for (
+        let index = resumesSameFiling ? ldaCheckpointActivity + 1 : 0;
+        index < records.length;
+        index += 1
+      ) {
+        if (count >= MAX_ADVOCACY_FINDINGS) {
+          ldaStoppedAtCap = true;
+          break;
+        }
         const activity = records[index]!;
         const summary = summarizeLdaActivity(activity, filing.clientDescription);
         const issueCode =
@@ -1322,36 +1383,108 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           ],
         });
         if (inserted) count += 1;
+        ldaExamined += 1;
+        ldaCheckpoint = {
+          scanAt: filing.scanAt.toISOString(),
+          key: filing.filingUuid,
+          activityIndex: index,
+        };
       }
+      if (ldaStoppedAtCap) break;
     }
 
+    const ldaComplete =
+      ldaBackfillWasComplete ||
+      (!ldaError && !ldaStoppedAtCap && filings.length < LDA_BACKFILL_BATCH_SIZE);
+    const ldaStartedAt = asString(priorLda.startedAt) ?? invocationStartedAt;
+    sourceStates.lda = {
+      status: ldaError ? 'partial' : ldaComplete ? 'complete' : 'in_progress',
+      startedAt: ldaStartedAt,
+      completedAt: ldaComplete ? invocationStartedAt : undefined,
+      checkpoint: ldaBackfillWasComplete ? priorLdaCheckpoint : ldaCheckpoint,
+      historyStart: asString(priorLda.historyStart) ?? filings[0]?.scanAt.toISOString() ?? null,
+      examined: Number(priorLda.examined ?? 0) + ldaExamined,
+      candidates: Number(priorLda.candidates ?? 0) + count,
+      lastError: ldaError,
+    };
+
     const submissionResult = await this.gatherClientSubmissionAdvocacy(
-      ctx, clientId, runId, count, asString(cursor.lastClientSubmissionAt),
+      ctx,
+      clientId,
+      runId,
+      count,
+      asString(cursor.lastClientSubmissionAt),
+      asRecord(priorSources.client_submission),
     );
     count += submissionResult.count;
+    sourceStates.client_submission = submissionResult.backfill;
     const privateResult = await this.gatherPrivateAdvocacyCandidates(
-      ctx, clientId, runId, count, asString(cursor.lastRelationshipLinkAppliedAt),
+      ctx,
+      clientId,
+      runId,
+      count,
+      asString(cursor.lastRelationshipLinkAppliedAt),
+      asRecord(priorSources.private_evidence),
     );
     count += privateResult.count;
+    sourceStates.private_evidence = privateResult.backfill;
     const faraResult = await this.gatherFaraAdvocacyCandidates(ctx, clientId, runId, count);
     count += faraResult.count;
+    sourceStates.fara = faraResult.backfill;
     const testimonyResult = await this.gatherTestimonyAdvocacyCandidates(
-      ctx, clientId, runId, count,
+      ctx,
+      clientId,
+      runId,
+      count,
       asString(cursor.lastTestimonySyncedAt),
       asString(cursor.lastTestimonyKey),
+      asRecord(priorSources.testimony),
     );
     count += testimonyResult.count;
-    const regulatoryCommentResult = await this.gatherRegulatoryCommentAdvocacyCandidates(ctx, clientId, runId, count);
+    sourceStates.testimony = testimonyResult.backfill;
+    const regulatoryCommentResult = await this.gatherRegulatoryCommentAdvocacyCandidates(
+      ctx,
+      clientId,
+      runId,
+      count,
+      asRecord(priorSources.regulations_gov),
+    );
     count += regulatoryCommentResult.count;
+    sourceStates.regulations_gov = regulatoryCommentResult.backfill;
+    sourceStates.federal_register = await this.gatherFederalRegisterBackfill(
+      ctx,
+      clientId,
+      asRecord(priorSources.federal_register),
+    );
+
+    const overallStatus = deriveAdvocacyBackfillOverallStatus(sourceStates);
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
-      lastLdaPostedAt: newestPostedAt?.toISOString() ?? lastDtPosted ?? null,
-      lastClientSubmissionAt: submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
-      lastRelationshipLinkAppliedAt: privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
+      lastLdaPostedAt:
+        sourceStates.lda.status === 'complete'
+          ? (asString(ldaCheckpoint?.scanAt) ?? lastDtPosted ?? null)
+          : (lastDtPosted ?? null),
+      lastLdaKey:
+        sourceStates.lda.status === 'complete'
+          ? (asString(ldaCheckpoint?.key) ?? cursor.lastLdaKey ?? null)
+          : (cursor.lastLdaKey ?? null),
+      lastLdaActivityIndex:
+        sourceStates.lda.status === 'complete'
+          ? Number(ldaCheckpoint?.activityIndex ?? cursor.lastLdaActivityIndex ?? -1)
+          : (cursor.lastLdaActivityIndex ?? null),
+      lastClientSubmissionAt:
+        submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
+      lastRelationshipLinkAppliedAt:
+        privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
       lastTestimonySyncedAt: testimonyResult.newestSyncedAt ?? cursor.lastTestimonySyncedAt ?? null,
       lastTestimonyKey: testimonyResult.newestKey ?? cursor.lastTestimonyKey ?? null,
+      backfill: {
+        status: overallStatus,
+        sources: sourceStates,
+        updatedAt: invocationStartedAt,
+      },
       refreshedAt: new Date().toISOString(),
     });
-    return count;
+    return { count, overallStatus, sources: sourceStates };
   }
 
   /**
@@ -1389,7 +1522,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
    * that a shared abstraction over them would hide real differences rather
    * than remove real duplication.
    */
-  private async resolveClientNameForDiscovery(ctx: TenantContext, clientId: string): Promise<string | null> {
+  private async resolveClientNameForDiscovery(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<string | null> {
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
     );
@@ -1510,14 +1646,32 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     currentCount: number,
-  ): Promise<{ count: number }> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0 };
+  ): Promise<{ count: number; backfill: AdvocacySourceBackfillState }> {
+    const startedAt = new Date().toISOString();
+    const state = (
+      status: AdvocacyBackfillStatus,
+      examined = 0,
+      candidates = 0,
+      lastError: string | null = null,
+    ) => ({
+      status,
+      startedAt,
+      completedAt: status === 'complete' ? new Date().toISOString() : undefined,
+      checkpoint: null,
+      historyStart: null,
+      examined,
+      candidates,
+      lastError,
+    });
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0, backfill: state('in_progress') };
 
     const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
-    if (!clientName) return { count: 0 };
+    if (!clientName) return { count: 0, backfill: state('complete') };
 
     const confirmedRegistrationNumbers = await this.getConfirmedIntelMappingKeys(
-      ctx, clientId, FARA_INTEL_MAPPING_SOURCE,
+      ctx,
+      clientId,
+      FARA_INTEL_MAPPING_SOURCE,
     );
 
     let candidates: Array<{
@@ -1571,8 +1725,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         FARA_AUTO_MATCH_THRESHOLD,
       );
     } catch (error) {
-      this.logger.warn(`FARA discovery rail unavailable: ${this.safeError(error)}`);
-      return { count: 0 };
+      const lastError = this.safeError(error);
+      this.logger.warn(`FARA discovery rail unavailable: ${lastError}`);
+      return { count: 0, backfill: state('partial', 0, 0, lastError) };
     }
 
     let count = 0;
@@ -1629,7 +1784,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) count += 1;
     }
-    return { count };
+    return { count, backfill: state('complete', candidates.length, count) };
   }
 
   /**
@@ -1681,14 +1836,40 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     currentCount: number,
     lastTestimonySyncedAt: string | null,
     lastTestimonyKey: string | null,
-  ): Promise<{ count: number; newestSyncedAt: string | null; newestKey: string | null }> {
-    const noAdvance = { count: 0, newestSyncedAt: lastTestimonySyncedAt, newestKey: lastTestimonyKey };
+    priorState: Record<string, unknown>,
+  ): Promise<{
+    count: number;
+    newestSyncedAt: string | null;
+    newestKey: string | null;
+    backfill: AdvocacySourceBackfillState;
+  }> {
+    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
+    const noAdvance = {
+      count: 0,
+      newestSyncedAt: lastTestimonySyncedAt,
+      newestKey: lastTestimonyKey,
+      backfill: {
+        status: 'in_progress' as const,
+        startedAt,
+        checkpoint: lastTestimonySyncedAt
+          ? { syncedAt: lastTestimonySyncedAt, key: lastTestimonyKey }
+          : null,
+        historyStart: asString(priorState.historyStart) ?? null,
+        examined: Number(priorState.examined ?? 0),
+        candidates: Number(priorState.candidates ?? 0),
+        lastError: null,
+      },
+    };
     if (currentCount >= MAX_ADVOCACY_FINDINGS) return noAdvance;
 
     const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
     if (!clientName) return noAdvance;
 
-    const confirmedKeys = await this.getConfirmedIntelMappingKeys(ctx, clientId, TESTIMONY_INTEL_MAPPING_SOURCE);
+    const confirmedKeys = await this.getConfirmedIntelMappingKeys(
+      ctx,
+      clientId,
+      TESTIMONY_INTEL_MAPPING_SOURCE,
+    );
 
     let count = 0;
 
@@ -1712,7 +1893,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           [...confirmedKeys],
         );
       } catch (error) {
-        this.logger.warn(`Testimony discovery confirmed-mapping lookup unavailable: ${this.safeError(error)}`);
+        this.logger.warn(
+          `Testimony discovery confirmed-mapping lookup unavailable: ${this.safeError(error)}`,
+        );
         confirmedRows = [];
       }
       for (const row of confirmedRows) {
@@ -1753,7 +1936,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         );
       } catch (error) {
         this.logger.warn(`Testimony discovery scan rail unavailable: ${this.safeError(error)}`);
-        return { count, newestSyncedAt: lastTestimonySyncedAt, newestKey: lastTestimonyKey };
+        const lastError = this.safeError(error);
+        return {
+          count,
+          newestSyncedAt: lastTestimonySyncedAt,
+          newestKey: lastTestimonyKey,
+          backfill: { ...noAdvance.backfill, status: 'partial', candidates: count, lastError },
+        };
       }
     }
     // Rows already covered by the confirmed-mapping bypass are excluded from
@@ -1764,19 +1953,55 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     // the cursor past them instead of stalling forever on a spurious
     // "zero rows to examine" edge case.
     const remainingBudget = MAX_ADVOCACY_FINDINGS - (currentCount + count);
-    const plan = planTestimonyScanBatch(scanRows, confirmedKeys, TESTIMONY_AUTO_MATCH_THRESHOLD, remainingBudget);
+    const plan = planTestimonyScanBatch(
+      scanRows,
+      confirmedKeys,
+      TESTIMONY_AUTO_MATCH_THRESHOLD,
+      remainingBudget,
+    );
     for (const row of plan.toEmit) {
-      const inserted = await this.addTestimonyFinding(ctx, clientId, runId, row, false, row.similarity);
+      const inserted = await this.addTestimonyFinding(
+        ctx,
+        clientId,
+        runId,
+        row,
+        false,
+        row.similarity,
+      );
       if (inserted) count += 1;
     }
     // The scan cursor only ever advances through rows the SCAN itself
     // examined (plan.cursor, derived from unconfirmedScanRows) — confirmed
     // rows never move it, by construction, since they're looked up by a
     // completely separate, cursor-independent query.
+    const scanComplete =
+      scanRows.length < TESTIMONY_SCAN_BATCH_SIZE &&
+      (scanRows.length === 0 ||
+        plan.cursor?.key === `${scanRows.at(-1)!.hearingId}::${scanRows.at(-1)!.witnessText}`);
     return {
       count,
       newestSyncedAt: plan.cursor?.syncedAt ?? lastTestimonySyncedAt,
       newestKey: plan.cursor?.key ?? lastTestimonyKey,
+      backfill: {
+        status: scanComplete ? 'complete' : 'in_progress',
+        startedAt,
+        completedAt: scanComplete ? new Date().toISOString() : undefined,
+        checkpoint:
+          plan.cursor ??
+          (lastTestimonySyncedAt
+            ? { syncedAt: lastTestimonySyncedAt, key: lastTestimonyKey }
+            : null),
+        historyStart: null,
+        examined:
+          Number(priorState.examined ?? 0) +
+          (plan.cursor
+            ? scanRows.findIndex(
+                (row) => `${row.hearingId}::${row.witnessText}` === plan.cursor!.key,
+              ) + 1
+            : 0),
+        candidates: Number(priorState.candidates ?? 0) + count,
+        lastError: null,
+      },
     };
   }
 
@@ -1881,27 +2106,59 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     currentCount: number,
-  ): Promise<{ count: number }> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0 };
+    priorState: Record<string, unknown>,
+  ): Promise<{ count: number; backfill: AdvocacySourceBackfillState }> {
+    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
+    const priorCheckpoint = asRecord(priorState.checkpoint);
+    const pageNumber = Math.max(1, Number(priorCheckpoint.nextPage ?? 1));
+    const pageOffset = Math.max(0, Number(priorCheckpoint.offset ?? 0));
+    const state = (
+      status: AdvocacyBackfillStatus,
+      examined: number,
+      candidates: number,
+      checkpoint: Record<string, unknown> | null,
+      lastError: string | null = null,
+      limitation: string | null = null,
+    ): AdvocacySourceBackfillState => ({
+      status,
+      startedAt,
+      completedAt: status === 'complete' ? new Date().toISOString() : undefined,
+      checkpoint,
+      historyStart: null,
+      examined: Number(priorState.examined ?? 0) + examined,
+      candidates: Number(priorState.candidates ?? 0) + candidates,
+      lastError,
+      limitation,
+    });
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
+      return { count: 0, backfill: state('in_progress', 0, 0, priorCheckpoint) };
+    }
     const apiKey = process.env.REGULATIONS_GOV_API_KEY;
     if (!apiKey) {
-      this.logger.warn('Regulatory comment discovery rail unavailable: REGULATIONS_GOV_API_KEY not configured');
-      return { count: 0 };
+      const lastError = 'REGULATIONS_GOV_API_KEY not configured';
+      this.logger.warn(`Regulatory comment discovery rail unavailable: ${lastError}`);
+      return { count: 0, backfill: state('partial', 0, 0, priorCheckpoint, lastError) };
     }
 
     const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
-    if (!clientName) return { count: 0 };
+    if (!clientName) return { count: 0, backfill: state('complete', 0, 0, null) };
 
     const confirmedCommentIds = await this.getConfirmedIntelMappingKeys(
-      ctx, clientId, REGULATORY_COMMENT_INTEL_MAPPING_SOURCE,
+      ctx,
+      clientId,
+      REGULATORY_COMMENT_INTEL_MAPPING_SOURCE,
     );
 
-    const candidateCommentIds = new Set<string>(confirmedCommentIds);
+    const searchCommentIds: string[] = [];
+    let searchHitCount = 0;
+    let totalElements: number | null = null;
+    let searchError: string | null = null;
     try {
       const params = new URLSearchParams({
         api_key: apiKey,
         'filter[searchTerm]': `"${clientName}"`,
         'page[size]': String(REGULATORY_COMMENT_SEARCH_PAGE_SIZE),
+        'page[number]': String(pageNumber),
         sort: '-postedDate',
       });
       const res = await fetch(`${REGULATIONS_GOV_COMMENTS_BASE_URL}?${params}`, {
@@ -1910,27 +2167,51 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       if (!res.ok) {
         throw new Error(`Regulations.gov comments search HTTP ${res.status}`);
       }
-      const body = (await res.json()) as { data?: Array<{ id: string }> };
+      const body = (await res.json()) as {
+        data?: Array<{ id: string }>;
+        meta?: { totalElements?: number; totalPages?: number };
+      };
+      searchHitCount = body.data?.length ?? 0;
+      totalElements = Number.isFinite(Number(body.meta?.totalElements))
+        ? Number(body.meta?.totalElements)
+        : null;
       for (const hit of body.data ?? []) {
-        candidateCommentIds.add(hit.id);
+        searchCommentIds.push(hit.id);
       }
     } catch (error) {
-      this.logger.warn(`Regulatory comment search rail unavailable: ${this.safeError(error)}`);
+      searchError = this.safeError(error);
+      this.logger.warn(`Regulatory comment search rail unavailable: ${searchError}`);
       // A search failure still lets a confirmed-mapping id through — a
       // human's prior decision must not be silently lost because the live
       // search call happened to fail this run.
-      if (candidateCommentIds.size === 0) return { count: 0 };
+      if (confirmedCommentIds.size === 0) {
+        return { count: 0, backfill: state('partial', 0, 0, priorCheckpoint, searchError) };
+      }
     }
 
     let count = 0;
+    let processedSearchHits = 0;
+    let detailFailures = 0;
+    const remainingSearchIds = searchCommentIds
+      .slice(pageOffset)
+      .filter((id) => !confirmedCommentIds.has(id));
+    const candidateCommentIds = [...confirmedCommentIds, ...remainingSearchIds];
     for (const commentId of candidateCommentIds) {
       if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
       const isConfirmed = confirmedCommentIds.has(commentId);
+      if (!isConfirmed) processedSearchHits += 1;
       const detail = await this.fetchOrCacheRegulatoryCommentDetail(commentId, apiKey);
-      if (!detail) continue; // detail fetch failed for THIS comment; skip it, don't fail the whole adapter
+      if (!detail) {
+        detailFailures += 1;
+        continue;
+      }
       const confidence = isConfirmed ? 1 : 0.75; // no similarity score from a full-text search hit to scale on
       const externalKey = `regulatory-comment:${commentId}`;
-      const submitterLabel = deriveRegulatoryCommentSubmitterLabel(detail.firstName, detail.lastName, detail.organization);
+      const submitterLabel = deriveRegulatoryCommentSubmitterLabel(
+        detail.firstName,
+        detail.lastName,
+        detail.organization,
+      );
       const proposedValue = {
         externalKey,
         recordType: 'regulatory_comment',
@@ -1975,7 +2256,44 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) count += 1;
     }
-    return { count };
+    const examinedThrough = pageNumber * REGULATORY_COMMENT_SEARCH_PAGE_SIZE;
+    const pageFullyExamined = processedSearchHits === remainingSearchIds.length;
+    const capped = totalElements != null && totalElements > REGULATORY_COMMENT_MAX_SEARCH_RESULTS;
+    const reachedEnd =
+      pageFullyExamined &&
+      (searchHitCount < REGULATORY_COMMENT_SEARCH_PAGE_SIZE ||
+        (totalElements != null && examinedThrough >= totalElements));
+    const reachedCap =
+      pageFullyExamined && examinedThrough >= REGULATORY_COMMENT_MAX_SEARCH_RESULTS;
+    const detailError =
+      detailFailures > 0 ? `${detailFailures} comment detail request(s) unavailable` : null;
+    const status: AdvocacyBackfillStatus =
+      searchError || detailError
+        ? 'partial'
+        : capped && reachedCap
+          ? 'partial'
+          : reachedEnd
+            ? 'complete'
+            : 'in_progress';
+    const limitation =
+      capped && reachedCap
+        ? `Exact-phrase search capped at ${REGULATORY_COMMENT_MAX_SEARCH_RESULTS} of ${totalElements} results`
+        : null;
+    return {
+      count,
+      backfill: state(
+        status,
+        processedSearchHits,
+        count,
+        status === 'complete' || reachedCap
+          ? null
+          : pageFullyExamined
+            ? { nextPage: pageNumber + 1, offset: 0 }
+            : { nextPage: pageNumber, offset: pageOffset + processedSearchHits },
+        searchError ?? detailError,
+        limitation,
+      ),
+    };
   }
 
   /**
@@ -2028,9 +2346,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     }
     try {
       const params = new URLSearchParams({ api_key: apiKey });
-      const res = await fetch(`${REGULATIONS_GOV_COMMENTS_BASE_URL}/${encodeURIComponent(commentId)}?${params}`, {
-        signal: AbortSignal.timeout(REGULATIONS_GOV_TIMEOUT_MS),
-      });
+      const res = await fetch(
+        `${REGULATIONS_GOV_COMMENTS_BASE_URL}/${encodeURIComponent(commentId)}?${params}`,
+        {
+          signal: AbortSignal.timeout(REGULATIONS_GOV_TIMEOUT_MS),
+        },
+      );
       if (!res.ok) return null;
       const body = (await res.json()) as {
         data?: {
@@ -2094,7 +2415,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         sourceUrl,
       };
     } catch (error) {
-      this.logger.warn(`Regulatory comment detail fetch unavailable for ${commentId}: ${this.safeError(error)}`);
+      this.logger.warn(
+        `Regulatory comment detail fetch unavailable for ${commentId}: ${this.safeError(error)}`,
+      );
       return null;
     }
   }
@@ -2105,31 +2428,74 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     runId: string,
     currentCount: number,
     lastClientSubmissionAt: string | null,
-  ): Promise<{ count: number; newestCreatedAt: string | null }> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0, newestCreatedAt: lastClientSubmissionAt };
-    let rows: Array<{ data: unknown; capabilityName: string | null; createdAt: Date }> = [];
+    priorState: Record<string, unknown>,
+  ): Promise<{
+    count: number;
+    newestCreatedAt: string | null;
+    backfill: AdvocacySourceBackfillState;
+  }> {
+    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
+    const priorCheckpoint = asRecord(priorState.checkpoint);
+    const checkpointAt = asString(priorCheckpoint.createdAt);
+    const checkpointKey = asString(priorCheckpoint.key) ?? '';
+    const state = (
+      status: AdvocacyBackfillStatus,
+      examined: number,
+      candidates: number,
+      checkpoint: Record<string, unknown> | null,
+      lastError: string | null = null,
+    ): AdvocacySourceBackfillState => ({
+      status,
+      startedAt,
+      completedAt: status === 'complete' ? new Date().toISOString() : undefined,
+      checkpoint,
+      historyStart: asString(priorState.historyStart) ?? null,
+      examined: Number(priorState.examined ?? 0) + examined,
+      candidates: Number(priorState.candidates ?? 0) + candidates,
+      lastError,
+    });
+    if (currentCount >= MAX_ADVOCACY_FINDINGS)
+      return {
+        count: 0,
+        newestCreatedAt: lastClientSubmissionAt,
+        backfill: state('in_progress', 0, 0, priorCheckpoint),
+      };
+    let rows: Array<{ id: string; data: unknown; capabilityName: string | null; createdAt: Date }> =
+      [];
     try {
       rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.$queryRawUnsafe<Array<{ data: unknown; capabilityName: string | null; createdAt: Date }>>(
-          `SELECT to_jsonb(s) AS data, c.name AS "capabilityName", s.created_at AS "createdAt"
+        tx.$queryRawUnsafe<
+          Array<{ id: string; data: unknown; capabilityName: string | null; createdAt: Date }>
+        >(
+          `SELECT s.id::text AS id, to_jsonb(s) AS data, c.name AS "capabilityName", s.created_at AS "createdAt"
              FROM client_submission_history s
              JOIN client_capabilities c ON c.id = s.capability_id
             WHERE c.tenant_id = $1::uuid AND c.client_id = $2::uuid
-              AND ($3::timestamptz IS NULL OR s.created_at > $3::timestamptz)
-            ORDER BY s.created_at DESC
+              AND (($3::timestamptz IS NULL) OR s.created_at > $3::timestamptz
+                OR (s.created_at = $3::timestamptz AND s.id::text > $4::text))
+            ORDER BY s.created_at ASC, s.id::text ASC
             LIMIT 100`,
           ctx.tenantId,
           clientId,
-          lastClientSubmissionAt,
+          checkpointAt,
+          checkpointKey,
         ),
       );
     } catch (error) {
       this.logger.warn(`Client submission advocacy rail unavailable: ${this.safeError(error)}`);
-      return { count: 0, newestCreatedAt: lastClientSubmissionAt };
+      return {
+        count: 0,
+        newestCreatedAt: lastClientSubmissionAt,
+        backfill: state('partial', 0, 0, priorCheckpoint, this.safeError(error)),
+      };
     }
     let count = 0;
+    let lastSubmissionExamined: (typeof rows)[number] | undefined;
+    let submissionsExamined = 0;
     for (const row of rows) {
       if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+      lastSubmissionExamined = row;
+      submissionsExamined += 1;
       const data = asRecord(row.data);
       const id = asString(data.id);
       if (!id) continue;
@@ -2140,7 +2506,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         title,
         summary: asString(data.detail) ?? asString(data.description) ?? null,
         activityDate:
-          asString(data.submitted_at) ?? asString(data.created_at) ?? asString(data.updated_at) ?? null,
+          asString(data.submitted_at) ??
+          asString(data.created_at) ??
+          asString(data.updated_at) ??
+          null,
         status: asString(data.status),
         outcome: asString(data.outcome),
         sourceType: 'client_submission',
@@ -2173,8 +2542,26 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     // the newest regardless of how many were skipped by the MAX_ADVOCACY_
     // FINDINGS cap, so the watermark still advances correctly even on a
     // capped run.
-    const newestCreatedAt = rows[0]?.createdAt.toISOString() ?? lastClientSubmissionAt;
-    return { count, newestCreatedAt };
+    const lastExamined = lastSubmissionExamined;
+    const complete = rows.length < 100 && submissionsExamined === rows.length;
+    const nextCheckpoint = lastExamined
+      ? { createdAt: lastExamined.createdAt.toISOString(), key: lastExamined.id }
+      : priorCheckpoint;
+    const backfill = state(
+      complete ? 'complete' : 'in_progress',
+      submissionsExamined,
+      count,
+      nextCheckpoint,
+    );
+    backfill.historyStart =
+      asString(priorState.historyStart) ?? rows[0]?.createdAt.toISOString() ?? null;
+    return {
+      count,
+      newestCreatedAt: complete
+        ? (lastExamined?.createdAt.toISOString() ?? lastClientSubmissionAt)
+        : lastClientSubmissionAt,
+      backfill,
+    };
   }
 
   private async gatherPrivateAdvocacyCandidates(
@@ -2183,30 +2570,83 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     runId: string,
     currentCount: number,
     lastRelationshipLinkAppliedAt: string | null,
-  ): Promise<{ count: number; newestAppliedAt: string | null }> {
+    priorState: Record<string, unknown>,
+  ): Promise<{
+    count: number;
+    newestAppliedAt: string | null;
+    backfill: AdvocacySourceBackfillState;
+  }> {
+    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
+    const priorCheckpoint = asRecord(priorState.checkpoint);
+    const checkpointAt = asString(priorCheckpoint.appliedAt);
+    const checkpointKey = asString(priorCheckpoint.key) ?? '';
+    const state = (
+      status: AdvocacyBackfillStatus,
+      examined: number,
+      candidates: number,
+      checkpoint: Record<string, unknown> | null,
+    ): AdvocacySourceBackfillState => ({
+      status,
+      startedAt,
+      completedAt: status === 'complete' ? new Date().toISOString() : undefined,
+      checkpoint,
+      historyStart: asString(priorState.historyStart) ?? null,
+      examined: Number(priorState.examined ?? 0) + examined,
+      candidates: Number(priorState.candidates ?? 0) + candidates,
+      lastError: null,
+    });
     if (currentCount >= MAX_ADVOCACY_FINDINGS) {
-      return { count: 0, newestAppliedAt: lastRelationshipLinkAppliedAt };
+      return {
+        count: 0,
+        newestAppliedAt: lastRelationshipLinkAppliedAt,
+        backfill: state('in_progress', 0, 0, priorCheckpoint),
+      };
     }
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ id: string; proposedValue: unknown; evidence: unknown; appliedAt: Date | null }>>(
-        `SELECT id,
+    let rows: Array<{
+      id: string;
+      proposedValue: unknown;
+      evidence: unknown;
+      appliedAt: Date | null;
+    }> = [];
+    try {
+      rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRawUnsafe<
+          Array<{ id: string; proposedValue: unknown; evidence: unknown; appliedAt: Date | null }>
+        >(
+          `SELECT id,
                 proposed_value_jsonb AS "proposedValue",
                 evidence_jsonb AS evidence,
                 applied_at AS "appliedAt"
            FROM client_profile_fill_finding
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid
             AND kind = 'relationship_link' AND status = 'accepted'
-            AND ($3::timestamptz IS NULL OR applied_at > $3::timestamptz)
-          ORDER BY applied_at DESC NULLS LAST
+            AND applied_at IS NOT NULL
+            AND (($3::timestamptz IS NULL) OR applied_at > $3::timestamptz
+              OR (applied_at = $3::timestamptz AND id::text > $4::text))
+          ORDER BY applied_at ASC, id::text ASC
           LIMIT 250`,
-        ctx.tenantId,
-        clientId,
-        lastRelationshipLinkAppliedAt,
-      ),
-    );
+          ctx.tenantId,
+          clientId,
+          checkpointAt,
+          checkpointKey,
+        ),
+      );
+    } catch (error) {
+      const lastError = this.safeError(error);
+      this.logger.warn(`Private advocacy rail unavailable: ${lastError}`);
+      return {
+        count: 0,
+        newestAppliedAt: lastRelationshipLinkAppliedAt,
+        backfill: { ...state('partial', 0, 0, priorCheckpoint), lastError },
+      };
+    }
     let count = 0;
+    let lastPrivateExamined: (typeof rows)[number] | undefined;
+    let privateExamined = 0;
     for (const row of rows) {
       if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+      lastPrivateExamined = row;
+      privateExamined += 1;
       const proposal = asRecord(row.proposedValue);
       const title = asString(proposal.title) ?? '';
       if (!containsAdvocacyTerm(title)) continue;
@@ -2252,8 +2692,98 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     // (or zero rows) leaves the watermark exactly where it was rather than
     // advancing it on nothing, which would silently make the query above
     // WIDER on some later run if a NULL applied_at ever got backfilled.
-    const newestAppliedAt = rows.find((r) => r.appliedAt)?.appliedAt?.toISOString() ?? lastRelationshipLinkAppliedAt;
-    return { count, newestAppliedAt };
+    const lastExamined = lastPrivateExamined;
+    const complete = rows.length < 250 && privateExamined === rows.length;
+    const nextCheckpoint = lastExamined?.appliedAt
+      ? { appliedAt: lastExamined.appliedAt.toISOString(), key: lastExamined.id }
+      : priorCheckpoint;
+    const backfill = state(
+      complete ? 'complete' : 'in_progress',
+      privateExamined,
+      count,
+      nextCheckpoint,
+    );
+    backfill.historyStart =
+      asString(priorState.historyStart) ?? rows[0]?.appliedAt?.toISOString() ?? null;
+    return {
+      count,
+      newestAppliedAt: complete
+        ? (lastExamined?.appliedAt?.toISOString() ?? lastRelationshipLinkAppliedAt)
+        : lastRelationshipLinkAppliedAt,
+      backfill,
+    };
+  }
+
+  /**
+   * Federal Register history is enrichment-only. The bounded unit is one
+   * client Matter (at most 50 deterministic docket matches are returned by
+   * the existing service); no client-name corpus search or advocacy finding
+   * is created here. A keyset checkpoint makes eligible-Matter coverage
+   * resumable while preserving the existing review-only, causation=false
+   * correlation contract.
+   */
+  private async gatherFederalRegisterBackfill(
+    ctx: TenantContext,
+    clientId: string,
+    priorState: Record<string, unknown>,
+  ): Promise<AdvocacySourceBackfillState> {
+    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
+    const checkpointId = asString(asRecord(priorState.checkpoint).matterId);
+    try {
+      const matters = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT DISTINCT m.id
+             FROM client_advocacy_matter m
+             JOIN client_advocacy_matter_link l
+               ON l.tenant_id = m.tenant_id AND l.matter_id = m.id
+            WHERE m.tenant_id = $1::uuid AND m.client_id = $2::uuid
+              AND l.link_type IN ('regulatory_docket', 'regulatory_document')
+              AND ($3::uuid IS NULL OR m.id > $3::uuid)
+            ORDER BY m.id ASC
+            LIMIT 50`,
+          ctx.tenantId,
+          clientId,
+          checkpointId,
+        ),
+      );
+      let candidates = 0;
+      const suggestions: unknown[] = [];
+      for (const matter of matters) {
+        const matterSuggestions = await this.advocacyMatters.suggestFederalRegisterCorrelations(
+          ctx,
+          clientId,
+          matter.id,
+        );
+        candidates += matterSuggestions.length;
+        suggestions.push(
+          ...matterSuggestions.map((suggestion) => ({ matterId: matter.id, ...suggestion })),
+        );
+      }
+      const complete = matters.length < 50;
+      return {
+        status: complete ? 'complete' : 'in_progress',
+        startedAt,
+        completedAt: complete ? new Date().toISOString() : undefined,
+        checkpoint: matters.at(-1) ? { matterId: matters.at(-1)!.id } : null,
+        historyStart: null,
+        examined: Number(priorState.examined ?? 0) + matters.length,
+        candidates: Number(priorState.candidates ?? 0) + candidates,
+        lastError: null,
+        suggestions,
+      };
+    } catch (error) {
+      const lastError = this.safeError(error);
+      this.logger.warn(`Federal Register correlation backfill unavailable: ${lastError}`);
+      return {
+        status: 'partial',
+        startedAt,
+        checkpoint: null,
+        historyStart: null,
+        examined: 0,
+        candidates: 0,
+        lastError,
+      };
+    }
   }
 
   private async gatherLifecycleOutcomes(
@@ -2261,9 +2791,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
   ): Promise<number> {
-    const [findingRows, persistedRecords, outcomes, matterIdentifiers] = await this.prisma.withTenant(
-      ctx.tenantId,
-      async (tx) => {
+    const [findingRows, persistedRecords, outcomes, matterIdentifiers] =
+      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const findings = await tx.$queryRawUnsafe<Array<{ proposedValue: unknown }>>(
           `SELECT proposed_value_jsonb AS "proposedValue"
              FROM client_profile_fill_finding
@@ -2312,8 +2841,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           clientId,
         );
         return [findings, records, events, identifiers] as const;
-      },
-    );
+      });
     const matterIdentifierById = new Map(matterIdentifiers.map((m) => [m.id, m] as const));
     const advocacy = [
       ...findingRows.map((row) => asRecord(row.proposedValue)),
@@ -2332,13 +2860,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         if (activityDate && outcome.observedAt < activityDate) continue;
         const evidence = asRecord(outcome.evidence);
         const deterministic = matchAdvocacyOutcomeDeterministically(matterIdentifier, evidence);
-        const score = deterministic ? Math.max(0.9, deterministic.score) : scoreAdvocacyOutcome(record, {
-          kind: outcome.kind,
-          sourceType: outcome.sourceType,
-          sourceId: outcome.sourceId,
-          notes: outcome.notes,
-          evidence: outcome.evidence,
-        });
+        const score = deterministic
+          ? Math.max(0.9, deterministic.score)
+          : scoreAdvocacyOutcome(record, {
+              kind: outcome.kind,
+              sourceType: outcome.sourceType,
+              sourceId: outcome.sourceId,
+              notes: outcome.notes,
+              evidence: outcome.evidence,
+            });
         if (!deterministic && score < 0.34) continue;
         // §17 causality contract vocabulary — never a fabricated label. A
         // deterministic PE/bill match is materially stronger evidence than
@@ -2346,11 +2876,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         // explicit source relationship or a human confirmation (§16 steps
         // 5-6) — "strongly_aligned" is the honest word for it, not
         // "confirmed_relationship".
-        const relationship: 'strongly_aligned' | 'related' | 'observed_after_advocacy' = deterministic
-          ? 'strongly_aligned'
-          : score >= 0.6
-            ? 'related'
-            : 'observed_after_advocacy';
+        const relationship: 'strongly_aligned' | 'related' | 'observed_after_advocacy' =
+          deterministic ? 'strongly_aligned' : score >= 0.6 ? 'related' : 'observed_after_advocacy';
         const proposedValue = {
           advocacyExternalKey: externalKey,
           outcomeEventId: outcome.id,
@@ -2460,7 +2987,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           type: 'conflict',
           target: key,
           findingIds: group.map((row) => row.id),
-          message: 'Multiple sources proposed different values. Review them individually; none was auto-selected.',
+          message:
+            'Multiple sources proposed different values. Review them individually; none was auto-selected.',
         },
         confidence: 1,
         status: 'informational',
@@ -2511,7 +3039,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     runId: string,
     rows: AdvancedFindingRow[],
   ): Promise<number> {
-    const advocacyRows = rows.filter((row) => row.kind === 'advocacy_record' && row.status !== 'rejected');
+    const advocacyRows = rows.filter(
+      (row) => row.kind === 'advocacy_record' && row.status !== 'rejected',
+    );
     let changed = 0;
     for (let i = 0; i < advocacyRows.length; i++) {
       for (let j = i + 1; j < advocacyRows.length; j++) {
@@ -2538,8 +3068,16 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           confidence: 0.6,
           status: 'informational',
           evidence: [
-            { label: `${a.source}: ${asString(proposedA.title) ?? a.targetKey}`, source: a.source, metadata: { findingId: a.id } },
-            { label: `${b.source}: ${asString(proposedB.title) ?? b.targetKey}`, source: b.source, metadata: { findingId: b.id } },
+            {
+              label: `${a.source}: ${asString(proposedA.title) ?? a.targetKey}`,
+              source: a.source,
+              metadata: { findingId: a.id },
+            },
+            {
+              label: `${b.source}: ${asString(proposedB.title) ?? b.targetKey}`,
+              source: b.source,
+              metadata: { findingId: b.id },
+            },
           ],
         });
         if (inserted) changed += 1;
@@ -2835,7 +3373,14 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         finding.id,
         JSON.stringify(finding.proposedValue),
       );
-      await this.auditAdvanced(tx, ctx, clientId, finding, asRecord(before.intakeData).federalMarket, finding.proposedValue);
+      await this.auditAdvanced(
+        tx,
+        ctx,
+        clientId,
+        finding,
+        asRecord(before.intakeData).federalMarket,
+        finding.proposedValue,
+      );
     });
   }
 
@@ -2866,7 +3411,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     ctx: TenantContext,
     clientId: string,
     finding: AdvancedFindingRow,
-    matterTarget?: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+    matterTarget?:
+      | { matterId: string }
+      | { newMatter: { title: string; matterType?: string; summary?: string | null } },
   ): Promise<string | null> {
     const proposed = asRecord(finding.proposedValue);
     const externalKey = requiredString(proposed.externalKey, 'Advocacy external key');
@@ -2977,7 +3524,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     findingId: string,
-    target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+    target:
+      | { matterId: string }
+      | { newMatter: { title: string; matterType?: string; summary?: string | null } },
   ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }> {
     if ('matterId' in target === 'newMatter' in target) {
       throw new BadRequestException('Provide exactly one of matterId or newMatter');
@@ -3051,7 +3600,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         JSON.stringify(proposed),
       );
       if (Number(changed) !== 1) {
-        throw new BadRequestException('Apply the related advocacy record before linking its outcome');
+        throw new BadRequestException(
+          'Apply the related advocacy record before linking its outcome',
+        );
       }
       await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
       const matterRows = await tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
@@ -3399,10 +3950,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           id: clientId,
           tenantId: ctx.tenantId,
           status: { not: 'archived' },
-          OR: [
-            { memoryWall: false },
-            { memoryAccessGrants: { some: { userId: ctx.userId } } },
-          ],
+          OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: ctx.userId } } }],
         },
         select: { id: true },
       }),
@@ -3480,6 +4028,21 @@ export function mergeFillProgress(tasks: ReadonlyArray<{ status?: unknown }>) {
     failed: tasks.filter((task) => statusOf(task) === 'failed').length,
     cancelled: tasks.filter((task) => statusOf(task) === 'cancelled').length,
   };
+}
+
+export function deriveAdvocacyBackfillOverallStatus(
+  sources: Record<string, Pick<AdvocacySourceBackfillState, 'status'>>,
+): AdvocacyBackfillOverallStatus {
+  const statuses = Object.values(sources).map((source) => source.status);
+  if (statuses.length === 0 || statuses.every((status) => status === 'not_started')) {
+    return 'never_started';
+  }
+  if (statuses.every((status) => status === 'complete')) return 'backfill_complete';
+  if (statuses.every((status) => status === 'failed')) return 'backfill_failed';
+  if (statuses.some((status) => status === 'partial' || status === 'failed')) {
+    return 'backfill_partial';
+  }
+  return 'backfill_running';
 }
 
 export function calculateProfileCompletion(input: ProfileCompletionInput): ProfileCompletionResult {
@@ -3710,11 +4273,15 @@ export function scoreAdvocacyOutcome(
   return Number(Math.min(0.99, 0.24 + semantic * 0.65 + sourceMatch).toFixed(3));
 }
 
-function missingAddressParts(value: Record<string, unknown> | {
-  addressLine?: string | null;
-  city?: string | null;
-  state?: string | null;
-}) {
+function missingAddressParts(
+  value:
+    | Record<string, unknown>
+    | {
+        addressLine?: string | null;
+        city?: string | null;
+        state?: string | null;
+      },
+) {
   const row = value as Record<string, unknown>;
   const missing: string[] = [];
   if (!asString(row.addressLine)) missing.push('street address');
@@ -3781,9 +4348,7 @@ function requiredString(value: unknown, label: string): string {
 
 function normalizeEvidenceClass(value: unknown) {
   const text = asString(value);
-  return ['PUBLIC_VERIFIED', 'CLIENT_VERIFIED', 'PRIVATE_ACTIVITY', 'INFERRED'].includes(
-    text ?? '',
-  )
+  return ['PUBLIC_VERIFIED', 'CLIENT_VERIFIED', 'PRIVATE_ACTIVITY', 'INFERRED'].includes(text ?? '')
     ? text!
     : 'INFERRED';
 }
