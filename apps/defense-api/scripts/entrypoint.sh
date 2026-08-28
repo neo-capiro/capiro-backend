@@ -50,6 +50,13 @@ case "$mode" in
     exec node scripts/run-live-discovery.mjs "$@"
     ;;
 
+  # ---- Phase 10B-5 governed single-expected-source discovery ------------
+  # Read-only always: resolves exactly one expected source, never sweeps all
+  # 56, never writes an observation/outbox row. No commit flag exists here.
+  discover-expected-source)
+    exec node scripts/discover-expected-source.mjs "$@"
+    ;;
+
   migrate|promote|activate|parse|benchmark)
     echo "REFUSED: defense-api image does not own '$mode' authority" >&2
     exit 64
@@ -58,7 +65,7 @@ case "$mode" in
     echo "Unknown defense-api entrypoint mode: $mode" >&2
     echo "Supported: serve validate-config readiness-probe inventory backfill-plan" >&2
     echo "           backfill-run lifecycle-watch schedule-tick db-check egress-check" >&2
-    echo "           live-discovery-report" >&2
+    echo "           live-discovery-report discover-expected-source" >&2
     exit 64
     ;;
 esac
