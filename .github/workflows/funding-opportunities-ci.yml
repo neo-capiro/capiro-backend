@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|sync-tango-dibbs)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -885,6 +885,7 @@ jobs:
           scripts/process-tango-events.spec.ts
           scripts/diag-funding-opportunities-makegov.spec.ts
           scripts/diag-tango-webhook-contract.spec.ts
+          scripts/diag-tango-dibbs-sbir-ingestion.spec.ts
           scripts/sync-tango-dibbs.spec.ts
           scripts/sync-tango-sbir.spec.ts
           scripts/diag-tango-contract-capture.spec.ts
@@ -2199,9 +2200,30 @@ jobs:
       # 4 tests ADDED, 2 per script, proving the ceiling holds against an
       # absurdly large resetIn/Retry-After on both the proactive-throttle and
       # the 429-retry path.
+      #
+      # 88/2786 -> 92/2826 (2026-08-27): one NEW suite,
+      # diag-tango-dibbs-sbir-ingestion.spec.ts (9 tests), a read-only
+      # row-count + freshness report for DIBBS/SBIR — neither sync can keep a
+      # tango_sync_checkpoint row (D-63/D-68), so raw counts are the only local
+      # completeness signal that exists. Measured against a fresh checkout,
+      # this scope actually totalled 92 suites / 2826 tests, THREE more suites
+      # than this addition alone explains — unrelated coverage landed on main
+      # independently, twice, in the time between the first and second
+      # measurement in this same session. Set from the measured number, not
+      # the arithmetic one, per this file's own rule.
+      #
+      # THIS SCOPE IS CURRENTLY RED, for a reason THIS PR did not cause:
+      # `intelligence.mapping-governance.spec.ts`'s "the web mirror of the
+      # award-bearing set matches the API" test scans source for
+      # `const AWARD_BEARING_SOURCES = new Set<string>([...])` and finds
+      # nothing — that identifier no longer exists anywhere in
+      # apps/api/src/intelligence/. Verified pre-existing, not a regression
+      # introduced here: this diff touches none of intelligence/ or its
+      # subject file. Flagged, not fixed — diagnosing why the constant
+      # disappeared needs someone who owns that area's recent changes.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2786
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 92 2826
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

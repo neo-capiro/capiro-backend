@@ -107,6 +107,11 @@
     // envelope keys against the provider's published sample. Read-only.
     "scripts/diag-tango-webhook-contract.ts",
     "scripts/diag-tango-webhook-contract.spec.ts",
+    // DIBBS/SBIR row-count + freshness report. Read-only; neither sync keeps
+    // a tango_sync_checkpoint row, so raw counts are the only completeness
+    // signal available without calling the provider.
+    "scripts/diag-tango-dibbs-sbir-ingestion.ts",
+    "scripts/diag-tango-dibbs-sbir-ingestion.spec.ts",
     // Shared federal-market substrate: provider subaward sync.
     "scripts/sync-tango-subawards.ts",
     "scripts/sync-tango-subawards.spec.ts",
