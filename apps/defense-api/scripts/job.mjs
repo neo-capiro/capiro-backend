@@ -101,6 +101,13 @@ modes:
   backfill-plan    --fiscal-years 2024,...        read-only
   backfill-run     --fiscal-years 2024,... [--commit] [--max-adapters N] [--adapters a,b]
   lifecycle-watch  --adapter <id> [--commit] [--manifest <path>]
+                   [--source-discovery manifest|catalog] [--catalog-fiscal-years 2024]
+                     manifest (default): network-free, requires --manifest or discovers nothing.
+                     catalog: Phase 10B-5 bounded one-shot activation of
+                       CatalogSourceDiscoveryAdapter for THIS invocation only -- reads the real
+                       expected-source table (request track only, scoped to --catalog-fiscal-years),
+                       requires --commit. Does NOT change the module-level SOURCE_DISCOVERY_PORT
+                       default used by any other process/mode.
   schedule-tick    [--commit]
   db-check                                        read-only
   egress-check     [--hosts a,b]                  read-only
@@ -722,6 +729,24 @@ async function runLifecycleWatch() {
   if (!registry.has(adapterId)) {
     throw new JobPreflightError(`unknown adapter "${adapterId}"`, 64);
   }
+  const sourceMode = value('source-discovery', 'manifest');
+  if (!['manifest', 'catalog'].includes(sourceMode)) {
+    throw new JobPreflightError(
+      `--source-discovery must be "manifest" (default) or "catalog", got "${sourceMode}"`,
+      64,
+    );
+  }
+  const catalogFiscalYearsRaw = value('catalog-fiscal-years');
+  if (sourceMode === 'catalog' && !catalogFiscalYearsRaw) {
+    throw new JobPreflightError(
+      '--source-discovery catalog requires --catalog-fiscal-years <comma-separated 4-digit years> ' +
+        '(e.g. --catalog-fiscal-years 2024). This is a bounded, explicit, one-shot activation of ' +
+        'CatalogSourceDiscoveryAdapter for THIS invocation only -- it never widens the module-level ' +
+        'SOURCE_DISCOVERY_PORT default and never infers a fiscal-year set from the current date.',
+      64,
+    );
+  }
+  const catalogFiscalYears = catalogFiscalYearsRaw ? parseFiscalYears(catalogFiscalYearsRaw) : [];
   assertCommitAuthorised({ mode, commit });
 
   const { AnnualDefenseBudgetCycleController } = dist('annual-cycle-controller.service.js');
@@ -734,7 +759,16 @@ async function runLifecycleWatch() {
   let store;
   if (commit) {
     const identity = resolveDatabaseIdentity();
-    printTargetIdentity({ mode, commit, identity, extra: { adapter: adapterId } });
+    printTargetIdentity({
+      mode,
+      commit,
+      identity,
+      extra: {
+        adapter: adapterId,
+        sourceDiscovery: sourceMode,
+        ...(sourceMode === 'catalog' ? { catalogFiscalYears: catalogFiscalYears.join(',') } : {}),
+      },
+    });
     prisma = openPrisma(identity);
     await assertLiveJobCapability({ mode, commit, sql: prisma });
     store = new PrismaLifecycleStore(prisma);
@@ -744,13 +778,49 @@ async function runLifecycleWatch() {
   }
 
   const controller = new AnnualDefenseBudgetCycleController(store);
-  const discovery = new ManifestSourceDiscoveryAdapter(registry);
-  const manifestPath = value('manifest');
-  if (manifestPath) {
-    const fs = await import('node:fs/promises');
-    discovery.load(JSON.parse(await fs.readFile(path.resolve(manifestPath), 'utf8')));
+
+  let discovery;
+  if (sourceMode === 'catalog') {
+    // Bounded, explicit, ONE-SHOT activation of CatalogSourceDiscoveryAdapter for
+    // this single invocation only. This does NOT touch, import, or reference
+    // budget-lifecycle.module.ts's SOURCE_DISCOVERY_PORT NestJS provider -- that
+    // module-level default (Manifest, or Live when
+    // PHASE8_SESSION8_LIVE_DISCOVERY=true) is completely untouched and remains
+    // what every other composition root (the HTTP serve image, other job modes)
+    // gets. This flag exists so the FIRST canary invocation can use the catalog
+    // resolver without a global default switch. The adapter itself already
+    // refuses every authorityTrack except 'request' and every fiscal year
+    // outside --catalog-fiscal-years (see CatalogSourceDiscoveryAdapter /
+    // resolveExpectedSourceDocument) -- this flag only decides which port THIS
+    // one process instance is constructed with.
+    if (!commit) {
+      throw new JobPreflightError(
+        'lifecycle-watch --source-discovery catalog is real-database read/resolve; run with ' +
+          '--commit (plus the DB identity + PHASE8_SESSION7_COMMIT_AUTHORIZED=true it already ' +
+          'requires) so the catalog is read from the real expected-source table, not an empty ' +
+          'in-memory store that would trivially discover nothing',
+        64,
+      );
+    }
+    const { CatalogSourceDiscoveryAdapter } = dist('discovery/catalog-source-discovery.adapter.js');
+    const { PrismaExpectedSourceCatalog } = dist('discovery/prisma-expected-source-catalog.js');
+    const catalogPort = new PrismaExpectedSourceCatalog(prisma);
+    discovery = new CatalogSourceDiscoveryAdapter(registry, catalogPort, {
+      fiscalYears: catalogFiscalYears,
+    });
+    console.log(
+      `[phase9-lifecycle-watch] source-discovery=catalog fiscalYears=${catalogFiscalYears.join(',')} ` +
+        '(bounded one-shot; module-level SOURCE_DISCOVERY_PORT default untouched)',
+    );
   } else {
-    console.log('[phase9-lifecycle-watch] no --manifest; discovery will return no candidates.');
+    discovery = new ManifestSourceDiscoveryAdapter(registry);
+    const manifestPath = value('manifest');
+    if (manifestPath) {
+      const fs = await import('node:fs/promises');
+      discovery.load(JSON.parse(await fs.readFile(path.resolve(manifestPath), 'utf8')));
+    } else {
+      console.log('[phase9-lifecycle-watch] no --manifest; discovery will return no candidates.');
+    }
   }
 
   const watcher = new DefenseBudgetLifecycleWatcher(
