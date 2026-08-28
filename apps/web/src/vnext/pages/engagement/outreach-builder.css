@@ -1,0 +1,520 @@
+/*
+ * Outreach campaign builder — the shared recipes.
+ *
+ * Every value here is the Engagement V2 prototype's, expressed through the
+ * module's `--eng-*` tokens rather than the literal hex the prototype inlines.
+ * The mapping is exact, not approximate:
+ *
+ *   #ffffff -> --eng-surface        #FCFCFD -> --eng-subtle
+ *   #F9FAFB -> --eng-recessed       #F2F4F7 -> --eng-muted
+ *   #E4E7EC -> --eng-border         #D0D5DD -> --eng-border-strong
+ *   #101828 -> --eng-ink            #344054 -> --eng-ink-strong
+ *   #475467 -> --eng-ink-2          #667085 -> --eng-ink-3
+ *   #98A2B3 -> --eng-ink-4          #294E68 -> --eng-accent
+ *   #EDF3F7 -> --eng-accent-soft    #C3D5E1 -> --eng-accent-border
+ *   #1C3A4E -> --eng-accent-deep    #5D7F97 -> --eng-accent-muted
+ *
+ * The last two, plus --eng-subtle, --eng-ink-strong, --eng-accent-on-dark and
+ * the three --eng-success-* values, are defined in engagement-tones.css.
+ *
+ * Step-specific layout lives in the per-step stylesheets
+ * (`outreach-step-*.css`); this file holds only what more than one step uses.
+ */
+
+/* ── Page shell ─────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb {
+  padding: 22px 24px 48px;
+}
+
+.capiro-vnext-root .ocb-prose {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* The mono eyebrow. Three letter-spacings exist in the prototype; the default
+   is the .06em section label, and the two modifiers are the tighter inline and
+   table-header variants. */
+.capiro-vnext-root .ocb-eyebrow {
+  display: block;
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .ocb-eyebrow--inline {
+  letter-spacing: 0.05em;
+}
+.capiro-vnext-root .ocb-eyebrow--tight {
+  letter-spacing: 0.04em;
+}
+
+/* ── Surfaces ───────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-card {
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+}
+
+/* An inset panel inside a card: one step down, ring drawn inside so it does
+   not add to the parent's rhythm. */
+.capiro-vnext-root .ocb-inset {
+  border-radius: 10px;
+  background: var(--eng-subtle);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+
+/* The accent summary panel — used for the Review step's subject block and the
+   Send step's "What will happen". */
+.capiro-vnext-root .ocb-accent-panel {
+  border-radius: 12px;
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+}
+.capiro-vnext-root .ocb-accent-panel .ocb-eyebrow {
+  color: var(--eng-accent-muted);
+}
+
+/* A card's header band. */
+.capiro-vnext-root .ocb-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--eng-border);
+  background: var(--eng-subtle);
+}
+
+/* ── Selectable option tiles (radio and checkbox rows) ──────────────────── */
+
+.capiro-vnext-root .ocb-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--eng-subtle);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  text-align: left;
+  width: 100%;
+}
+.capiro-vnext-root .ocb-option:hover {
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+}
+.capiro-vnext-root .ocb-option[data-selected='true'] {
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+}
+.capiro-vnext-root .ocb-option--compact {
+  padding: 13px;
+}
+.capiro-vnext-root .ocb-option__title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocb-option__desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .ocb-option__body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The 16px radio dot: a ring drawn inside a white disc, 5px when selected. */
+.capiro-vnext-root .ocb-radio {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1.5px var(--eng-border-strong);
+}
+.capiro-vnext-root .ocb-radio[data-on='true'] {
+  box-shadow: inset 0 0 0 5px var(--eng-accent);
+}
+
+/* The 18px checkbox. */
+.capiro-vnext-root .ocb-check {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 5px;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1px var(--eng-border-strong);
+  color: var(--eng-surface);
+}
+.capiro-vnext-root .ocb-check[data-on='true'] {
+  background: var(--eng-accent);
+  box-shadow: inset 0 0 0 1px var(--eng-accent);
+}
+.capiro-vnext-root .ocb-check svg {
+  display: none;
+}
+.capiro-vnext-root .ocb-check[data-on='true'] svg {
+  display: block;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .ocb-btn--primary {
+  background: var(--eng-primary-fill);
+  color: var(--eng-surface);
+  box-shadow: var(--eng-primary-shadow);
+}
+.capiro-vnext-root .ocb-btn--primary:hover:not(:disabled) {
+  background: var(--eng-primary-fill-hover);
+}
+.capiro-vnext-root .ocb-btn--secondary {
+  background: var(--eng-surface);
+  color: var(--eng-ink-strong);
+  box-shadow: 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .ocb-btn--secondary:hover:not(:disabled) {
+  background: var(--eng-recessed);
+}
+.capiro-vnext-root .ocb-btn--sm {
+  height: 34px;
+  padding: 0 14px;
+  gap: 7px;
+  font-size: 13px;
+}
+.capiro-vnext-root .ocb-btn--xs {
+  height: 30px;
+  padding: 0 11px;
+  gap: 6px;
+  font-size: 13px;
+}
+.capiro-vnext-root .ocb-btn--lg {
+  height: 42px;
+  padding: 0 20px;
+  font-size: 15px;
+}
+/*
+ * The prototype dims a blocked primary with opacity and leaves it clickable,
+ * relying on the handler's own guard. Disabling it here is the same refusal
+ * expressed once, in a way a keyboard and a screen reader can both perceive.
+ */
+.capiro-vnext-root .ocb-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Chips, tabs, segmented control ─────────────────────────────────────── */
+
+/* Filter chip: dark when active, bare when not. */
+.capiro-vnext-root .ocb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.capiro-vnext-root .ocb-chip:hover {
+  opacity: 0.85;
+}
+.capiro-vnext-root .ocb-chip[data-active='true'] {
+  background: var(--eng-primary);
+  color: var(--eng-surface);
+}
+
+/* Tab chip: ringed white when inactive, gradient when active. */
+.capiro-vnext-root .ocb-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  color: var(--eng-ink-2);
+  box-shadow: 0 0 0 1px var(--eng-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.capiro-vnext-root .ocb-tab:hover {
+  opacity: 0.9;
+}
+.capiro-vnext-root .ocb-tab[data-active='true'] {
+  background: var(--eng-primary-fill);
+  color: var(--eng-surface);
+  box-shadow: none;
+}
+
+/* Segmented control (Campaigns | Templates). */
+.capiro-vnext-root .ocb-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .ocb-seg__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--eng-ink-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.capiro-vnext-root .ocb-seg__item[data-active='true'] {
+  background: var(--eng-surface);
+  color: var(--eng-ink);
+  box-shadow: var(--eng-shadow-raise);
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-input,
+.capiro-vnext-root .ocb-select {
+  height: 38px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  outline: none;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border-strong);
+  font-size: 14px;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocb-input--lg {
+  height: 40px;
+  padding: 0 12px;
+}
+.capiro-vnext-root .ocb-textarea {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  outline: none;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border-strong);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--eng-ink);
+  font-family: inherit;
+  resize: vertical;
+}
+.capiro-vnext-root .ocb-input:focus-visible,
+.capiro-vnext-root .ocb-select:focus-visible,
+.capiro-vnext-root .ocb-textarea:focus-visible {
+  box-shadow: 0 0 0 1px var(--eng-accent);
+}
+.capiro-vnext-root .ocb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.capiro-vnext-root .ocb-field__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-ink-strong);
+}
+.capiro-vnext-root .ocb-field__help {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .ocb-field__count {
+  font-size: 12px;
+  color: var(--eng-ink-4);
+}
+
+/* The REQUIRED / OPTIONAL flags beside a field label. */
+.capiro-vnext-root .ocb-flag {
+  font-family: var(--eng-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: var(--eng-muted);
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ocb-flag--required {
+  background: var(--eng-warning-bg);
+  color: var(--eng-warning);
+}
+
+/* Search field with a leading icon. */
+.capiro-vnext-root .ocb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border-strong);
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ocb-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--eng-ink);
+}
+
+/* ── Key/value rows (the hairline-separated stacks) ─────────────────────── */
+
+/*
+ * A stack of rows separated by a 1px gap over a coloured backdrop — the
+ * prototype's way of drawing hairlines without borders. The backdrop shows
+ * through the gaps, so it is the divider colour, not a background.
+ */
+.capiro-vnext-root .ocb-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--eng-border);
+}
+.capiro-vnext-root .ocb-kv--accent {
+  background: var(--eng-accent-border);
+}
+.capiro-vnext-root .ocb-kv__row {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--eng-surface);
+}
+.capiro-vnext-root .ocb-kv__row--narrow {
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 13px;
+  background: var(--eng-subtle);
+}
+.capiro-vnext-root .ocb-kv__key {
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .ocb-kv__value {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-strong);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .ocb-kv__value[data-unset='true'] {
+  color: var(--eng-ink-4);
+}
+
+/* ── Step body scaffolding ──────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-step {
+  margin-top: 18px;
+}
+.capiro-vnext-root .ocb-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.capiro-vnext-root .ocb-stack--wide {
+  gap: 16px;
+}
+.capiro-vnext-root .ocb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* The two-column step layout: body plus a sticky aside. */
+.capiro-vnext-root .ocb-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 20px;
+  margin-top: 18px;
+  align-items: start;
+}
+.capiro-vnext-root .ocb-split--narrow-aside {
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+.capiro-vnext-root .ocb-split--wide-aside {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+}
+.capiro-vnext-root .ocb-split--rail {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+@media (max-width: 1180px) {
+  .capiro-vnext-root .ocb-split,
+  .capiro-vnext-root .ocb-split--narrow-aside,
+  .capiro-vnext-root .ocb-split--wide-aside,
+  .capiro-vnext-root .ocb-split--rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The footnote line that sits under a primary action. */
+.capiro-vnext-root .ocb-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .ocb-note--warn {
+  color: var(--eng-warning);
+}
+.capiro-vnext-root .ocb-note--muted {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--eng-ink-4);
+}
+
+/* An empty state inside a card. */
+.capiro-vnext-root .ocb-empty {
+  padding: 30px 18px;
+  font-size: 14px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .ocb-empty--center {
+  padding: 34px;
+  text-align: center;
+}

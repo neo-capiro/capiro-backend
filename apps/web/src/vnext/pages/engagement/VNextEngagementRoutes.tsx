@@ -13,8 +13,10 @@ import {
   outreachCampaignIdFromPath,
   type EngagementDestination,
 } from './engagement-route-state.js';
-import type { EngagementOutreachStep } from './VNextOutreachWorkspace.js';
-import { VNextOutreachPhase1Workspace } from './VNextOutreachPhase1Workspace.js';
+import {
+  VNextOutreachCampaignBuilder,
+  type OutreachBuilderStep,
+} from './VNextOutreachCampaignBuilder.js';
 import { VNextOutreachHome } from './VNextOutreachHome.js';
 import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
@@ -38,7 +40,7 @@ interface IntegrationConnection {
   displayName?: string | null;
 }
 
-function subline(destination: EngagementDestination, outreachCampaignId?: string | null): string {
+function subline(destination: EngagementDestination): string {
   if (destination === 'reports') return 'Auto-populated activity with explicit manual status overrides and CSV export.';
   /*
    * OWNER-scoped, and this line has now been wrong twice.
@@ -58,8 +60,12 @@ function subline(destination: EngagementDestination, outreachCampaignId?: string
    */
   if (destination === 'library') return 'Your meetings with at least one approved prep, note or debrief. Search by subject or client; filter by client, date, artifact type and visibility.';
   if (destination === 'meetings') return 'Calendar-synced meetings with prep, notes, Meri join, and client context.';
-  if (destination === 'outreach' && !outreachCampaignId) return 'Your campaigns and governed templates. Open one to continue, or start fresh.';
-  return 'Governed outreach: goal, targets, delivery, context, immutable drafts, preflight, send.';
+  /*
+   * One subline for the whole Outreach destination, list and builder alike.
+   * The builder used to get its own ("Governed outreach: goal, targets,
+   * delivery, ...") which named a step order the builder no longer has.
+   */
+  return 'Your draft and sent campaigns. Open one to continue, or start a new campaign.';
 }
 
 export function VNextEngagementRoutes() {
@@ -69,11 +75,11 @@ export function VNextEngagementRoutes() {
   const clientFilter = useClientFilter();
   const destination = engagementDestination(location.pathname);
   const outreachCampaignId = outreachCampaignIdFromPath(location.pathname);
-  const [step, setStep] = useState<EngagementOutreachStep>('goal');
+  const [step, setStep] = useState<OutreachBuilderStep>('workflow');
   /* Arrow / Home / End across Meetings | Outreach | Reports. */
   const onTabsKeyDown = useRovingFocus();
 
-  useEffect(() => { setStep('goal'); }, [outreachCampaignId]);
+  useEffect(() => { setStep('workflow'); }, [outreachCampaignId]);
   useEffect(() => {
     const canonical = canonicalEngagementLocation(location.pathname, location.search);
     if (canonical) navigate(canonical, { replace: true });
@@ -94,6 +100,19 @@ export function VNextEngagementRoutes() {
     [clients.data],
   );
   const scopeLabel = activeClients.find((client) => client.id === clientFilter.selectedClientId)?.name ?? 'All clients';
+  /*
+   * The mailbox the Send step names in its "From" row. A campaign sends from a
+   * connected, owned mailbox or not at all, so an unconnected provider must
+   * read as absent here rather than as a plausible-looking default.
+   */
+  const senderLabel =
+    (integrations.data ?? []).find((row) => row.status === 'connected' && row.accountEmail)
+      ?.accountEmail ?? null;
+  /*
+   * Which entry the home screen's chooser used, carried on the URL so a
+   * refresh keeps it and a deep link honestly has none.
+   */
+  const startedFrom = new URLSearchParams(location.search).get('from') ?? undefined;
   const navigateTab = (tab: 'meetings' | 'outreach' | 'reports') => {
     if (tab === 'meetings') navigate('/engagement/meetings');
     else if (tab === 'reports') navigate('/engagement/reports?period=current');
@@ -104,14 +123,15 @@ export function VNextEngagementRoutes() {
   switch (destination) {
     case 'outreach':
       body = outreachCampaignId ? (
-        <VNextOutreachPhase1Workspace
+        <VNextOutreachCampaignBuilder
           sessionId={outreachCampaignId}
           clients={activeClients}
           selectedClientId={clientFilter.selectedClientId}
-          integrations={integrations.data ?? []}
+          senderLabel={senderLabel}
           step={step}
           onStepChange={setStep}
           onExit={() => navigate('/engagement/outreach')}
+          startedFrom={startedFrom}
         />
       ) : (
         <VNextOutreachHome
@@ -139,7 +159,7 @@ export function VNextEngagementRoutes() {
     <EngagementToastProvider>
       <div className="engagement-vnext" data-destination={destination}>
         <header className="uui-engagement-page-header">
-          <div><h1>Engagement</h1><p>{subline(destination, outreachCampaignId)}</p></div>
+          <div><h1>Engagement</h1><p>{subline(destination)}</p></div>
           <label className="uui-client-scope">
             <span>Client</span><span className="uui-client-scope__value">{scopeLabel}</span><ChevronDown size={16} />
             <select value={clientFilter.selectedClientId ?? ''} onChange={(event) => clientFilter.setSelectedClientId(event.target.value || null)}>

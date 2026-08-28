@@ -1,0 +1,209 @@
+/*
+ * The Outreach campaign builder's chrome: the step header and the step rail.
+ *
+ * Values are the Engagement V2 prototype's (markup 2237-2264), expressed
+ * through `--eng-*` tokens — see outreach-builder.css for the mapping table.
+ */
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .ocb-head__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 800px;
+}
+
+/*
+ * The icon tile hangs 20px below the top of the header so it lines up with the
+ * title rather than the eyebrow above it. That offset is the prototype's, and
+ * it is why this is a margin rather than an alignment.
+ */
+.capiro-vnext-root .ocb-head__icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-top: 20px;
+  border-radius: 10px;
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent);
+}
+
+.capiro-vnext-root .ocb-head__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.capiro-vnext-root .ocb-head__context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
+}
+
+/* "Leave" inherits the eyebrow's type entirely — it is a word in that line, not
+   a button beside it. */
+.capiro-vnext-root .ocb-head__leave {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .ocb-head__leave:hover {
+  color: var(--eng-accent);
+}
+
+.capiro-vnext-root .ocb-head__title {
+  margin: 6px 0 0;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--eng-ink);
+}
+
+.capiro-vnext-root .ocb-head__sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+  text-wrap: pretty;
+}
+
+/* ── Step rail ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+/*
+ * Two chip shapes, not one with a modifier: the setup steps carry a number
+ * badge and a white resting background, the three after the divider carry
+ * neither. That difference is what tells the user which steps are setup and
+ * which are the governed spine.
+ */
+.capiro-vnext-root .ocb-rail__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  color: var(--eng-ink-3);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.capiro-vnext-root .ocb-rail__step:hover {
+  opacity: 0.88;
+}
+.capiro-vnext-root .ocb-rail__step[data-visited='true'] {
+  color: var(--eng-ink-strong);
+}
+.capiro-vnext-root .ocb-rail__step[data-active='true'] {
+  background: var(--eng-primary);
+  color: var(--eng-surface);
+  box-shadow: none;
+}
+
+.capiro-vnext-root .ocb-rail__num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--eng-muted);
+  color: var(--eng-ink-3);
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+}
+.capiro-vnext-root .ocb-rail__step[data-active='true'] .ocb-rail__num {
+  background: var(--eng-on-primary-soft);
+  color: var(--eng-surface);
+}
+
+.capiro-vnext-root .ocb-rail__after {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--eng-ink-4);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.capiro-vnext-root .ocb-rail__after:hover {
+  opacity: 0.88;
+}
+.capiro-vnext-root .ocb-rail__after[data-visited='true'] {
+  color: var(--eng-ink-strong);
+}
+.capiro-vnext-root .ocb-rail__after[data-active='true'] {
+  background: var(--eng-primary);
+  color: var(--eng-surface);
+  box-shadow: none;
+}
+
+.capiro-vnext-root .ocb-rail__divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--eng-border);
+}
+
+/* ── Load / error states ────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-shell-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 18px;
+  padding: 34px;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .ocb-shell-state__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocb-shell-state__body {
+  margin: 0;
+  max-width: 480px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+  text-wrap: pretty;
+}
