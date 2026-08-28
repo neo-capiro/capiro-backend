@@ -27,7 +27,9 @@ import { ObservationIngestionBridgeService } from '../src/defense-budget/observa
 import { createIngestionOutboxDrainRepositoryPrismaV1 } from '../src/defense-budget/ingestion-outbox-drain-repository-prisma-v1.js';
 import {
   drainIngestionOutboxBatchV1,
+  drainIngestionOutboxRowV1,
   drainReadinessPendingBatchV1,
+  emptyIngestionDrainResultV1,
   type IngestionOutboxDrainWorkerPortsV1,
 } from '../src/defense-budget/ingestion-outbox-drain-worker-v1.js';
 import { evaluateAndAdvanceCycleFamilyReadinessV1 } from '../src/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.js';
@@ -53,7 +55,11 @@ async function main(): Promise<void> {
   const environment = argValue('--environment');
   if (!environment) usage('--environment is required');
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
-  const batchSize = Number(argValue('--batch-size') ?? '100');
+  const outboxRowId = argValue('--outbox-row-id');
+  const batchSizeArg = argValue('--batch-size');
+  if (outboxRowId && batchSizeArg)
+    usage('--outbox-row-id and --batch-size are mutually exclusive -- the single-row mode always claims exactly one named row');
+  const batchSize = Number(batchSizeArg ?? '100');
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 1000)
     usage('--batch-size must be an integer from 1 to 1000');
   const leaseOwner = argValue('--lease-owner') ?? `${hostname()}:${process.pid}`;
@@ -115,14 +121,21 @@ async function main(): Promise<void> {
         return { outcome: out.outcome, planId: out.planId, planHash: out.planHash };
       },
     };
-    const result = await drainIngestionOutboxBatchV1(
-      { leaseOwner, now: new Date(), batchSize },
-      workerPorts,
-    );
-    const readinessCatchUp = await drainReadinessPendingBatchV1(
-      { leaseOwner, now: new Date(), batchSize },
-      workerPorts,
-    );
+    const result = await (outboxRowId
+      ? drainIngestionOutboxRowV1({ leaseOwner, now: new Date(), rowId: outboxRowId }, workerPorts)
+      : drainIngestionOutboxBatchV1({ leaseOwner, now: new Date(), batchSize }, workerPorts));
+    // Governed single-row mode must never touch any OTHER row's backlog --
+    // including the separate readiness-catch-up sweep below, which recovers
+    // rows that succeeded in a PRIOR run but crashed before readiness was
+    // invoked. drainIngestionOutboxRowV1 already invokes+persists readiness
+    // for the named row inline (same as the batch path does per-row), so
+    // this sweep is skipped entirely in single-row mode -- it would
+    // otherwise silently process unrelated already-succeeded rows sitting in
+    // the readiness-pending backlog, defeating the whole point of a bounded
+    // canary.
+    const readinessCatchUp = outboxRowId
+      ? emptyIngestionDrainResultV1()
+      : await drainReadinessPendingBatchV1({ leaseOwner, now: new Date(), batchSize }, workerPorts);
     console.log(
       JSON.stringify(
         {
@@ -132,6 +145,7 @@ async function main(): Promise<void> {
           domain,
           environment,
           leaseOwner,
+          outboxRowId: outboxRowId ?? null,
           ...result,
           readinessCatchUp,
         },

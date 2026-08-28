@@ -1,5 +1,6 @@
 import {
   drainIngestionOutboxBatchV1,
+  drainIngestionOutboxRowV1,
   drainReadinessPendingBatchV1,
 } from './ingestion-outbox-drain-worker-v1.js';
 import type {
@@ -52,6 +53,7 @@ function setup(
   const rows = input.rows ?? [{ id: 'row', observationId: 'obs', attempts: input.attempts ?? 0 }];
   const repository: any = {
     claimBatch: async () => rows,
+    claimRowById: async ({ rowId }: { rowId: string }) => rows.find((r) => r.id === rowId) ?? null,
     claimReadinessPendingBatch: async () => rows,
     claimReadinessPendingRow: async () => true,
     markSucceeded: async (...a: any[]) => {
@@ -250,5 +252,53 @@ describe('ingestion outbox worker', () => {
     const out = await drainIngestionOutboxBatchV1({ leaseOwner: 'w', now: new Date() }, x.ports);
     expect(out.readinessInvoked).toBe(1);
     expect(outcome).toBe('awaiting_authorization');
+  });
+  describe('governed single-row canary claim (drainIngestionOutboxRowV1)', () => {
+    test('claims and fully processes exactly the named row through the identical ingest+readiness pipeline', async () => {
+      const { calls, ports } = setup({
+        rows: [
+          { id: 'canary-row', observationId: 'canary-obs', attempts: 0 },
+          { id: 'other-row', observationId: 'other-obs', attempts: 0 },
+        ],
+      });
+      const out = await drainIngestionOutboxRowV1(
+        { leaseOwner: 'operator', now: new Date(), rowId: 'canary-row' },
+        ports,
+      );
+      expect(out.claimed).toBe(1);
+      expect(out.succeeded).toBe(1);
+      expect(calls.succeeded).toEqual([['canary-row', 'operator', expect.any(Date)]]);
+      expect(out.readinessInvoked).toBe(1);
+    });
+    test('never processes a different row: claimed=0 when the named id does not match any row the fake repository holds', async () => {
+      const { ports } = setup({
+        rows: [{ id: 'other-row', observationId: 'other-obs', attempts: 0 }],
+      });
+      const out = await drainIngestionOutboxRowV1(
+        { leaseOwner: 'operator', now: new Date(), rowId: 'nonexistent-row' },
+        ports,
+      );
+      expect(out).toMatchObject({
+        claimed: 0,
+        succeeded: 0,
+        governedReview: 0,
+        governedReject: 0,
+        retried: 0,
+        poisoned: 0,
+      });
+    });
+    test('a governed (review/reject) outcome on the named row is recorded exactly like the batch path, still bounded to one row', async () => {
+      const { calls, ports } = setup({
+        rows: [{ id: 'canary-row', observationId: 'canary-obs', attempts: 0 }],
+        result: bridge('review_required', false),
+      });
+      const out = await drainIngestionOutboxRowV1(
+        { leaseOwner: 'operator', now: new Date(), rowId: 'canary-row' },
+        ports,
+      );
+      expect(out.claimed).toBe(1);
+      expect(out.governedReview).toBe(1);
+      expect(calls.governed).toHaveLength(1);
+    });
   });
 });

@@ -54,6 +54,10 @@ export interface IngestionOutboxDrainWorkerPortsV1 {
   } | null>;
 }
 
+export function emptyIngestionDrainResultV1(claimed = 0): IngestionDrainResultV1 {
+  return emptyResult(claimed);
+}
+
 function emptyResult(claimed: number): IngestionDrainResultV1 {
   return {
     claimed,
@@ -142,6 +146,37 @@ export async function drainIngestionOutboxBatchV1(
     now: input.now,
     limit: input.batchSize ?? OUTBOX_DEFAULT_BATCH_SIZE_V1,
   });
+  return processIngestionOutboxRowsV1(rows, input, ports);
+}
+
+/**
+ * Governed single-row canary drain (PR #1318 Part G). Claims EXACTLY the
+ * outbox row identified by `rowId` -- never a different row -- via
+ * `repository.claimRowById`, then runs it through the identical
+ * ingest-then-readiness pipeline `drainIngestionOutboxBatchV1` uses for a
+ * batch of one. `claimed` is 0 or 1; there is no scenario where this
+ * function processes more than the one named row. Use this for the first
+ * production canary instead of `drainIngestionOutboxBatchV1({batchSize: 1})`,
+ * which claims whichever eligible row sorts first by (created_at, id) --
+ * not necessarily the row an operator inspected and chose.
+ */
+export async function drainIngestionOutboxRowV1(
+  input: { leaseOwner: string; now: Date; rowId: string; maxAttempts?: number },
+  ports: IngestionOutboxDrainWorkerPortsV1,
+): Promise<IngestionDrainResultV1> {
+  const claimed = await ports.repository.claimRowById({
+    leaseOwner: input.leaseOwner,
+    now: input.now,
+    rowId: input.rowId,
+  });
+  return processIngestionOutboxRowsV1(claimed ? [claimed] : [], input, ports);
+}
+
+async function processIngestionOutboxRowsV1(
+  rows: IngestionOutboxRowV1[],
+  input: { leaseOwner: string; now: Date; maxAttempts?: number },
+  ports: IngestionOutboxDrainWorkerPortsV1,
+): Promise<IngestionDrainResultV1> {
   const result = emptyResult(rows.length);
   for (const row of rows) {
     try {
