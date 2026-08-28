@@ -22,25 +22,54 @@ CREATE TABLE "community_funding_request" (
     "appropriations_account_raw" TEXT,
     "appropriations_account_normalized" TEXT,
     "subcommittee" TEXT,
-    "source_document_id" UUID NOT NULL,
-    "source_page" INTEGER,
-    "source_row" INTEGER,
-    "retrieved_at" TIMESTAMPTZ(6) NOT NULL,
-    "source_hash" CHAR(64),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "community_funding_request_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "community_funding_request_chamber_check" CHECK ("chamber" IN ('house', 'senate')),
     CONSTRAINT "community_funding_request_type_check" CHECK (("chamber" = 'house' AND "request_type" = 'cpf') OR ("chamber" = 'senate' AND "request_type" = 'cds')),
-    CONSTRAINT "community_funding_request_amount_check" CHECK ("requested_amount_usd" >= 0 AND ("final_amount_usd" IS NULL OR "final_amount_usd" >= 0)),
-    CONSTRAINT "community_funding_request_provenance_check" CHECK ("source_page" IS NOT NULL OR "source_row" IS NOT NULL)
+    CONSTRAINT "community_funding_request_amount_check" CHECK ("requested_amount_usd" >= 0 AND ("final_amount_usd" IS NULL OR "final_amount_usd" >= 0))
 );
 
 CREATE UNIQUE INDEX "community_funding_request_identity_hash_key" ON "community_funding_request"("identity_hash");
 CREATE INDEX "community_funding_request_fy_chamber_idx" ON "community_funding_request"("fiscal_year", "chamber");
-CREATE INDEX "community_funding_request_document_idx" ON "community_funding_request"("source_document_id");
 CREATE INDEX "community_funding_request_recipient_idx" ON "community_funding_request"("recipient_normalized");
-ALTER TABLE "community_funding_request" ADD CONSTRAINT "community_funding_request_source_document_id_fkey" FOREIGN KEY ("source_document_id") REFERENCES "source_document"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Provenance: one row per (canonical request x source occurrence). A canonical
+-- request can have MULTIPLE authoritative source records — e.g. a House
+-- subcommittee CPF PDF row AND the House consolidated CPF XLSX row for the exact
+-- same real request. This is the repair of the original #1328 design, where
+-- source_document_id/source_page/source_row lived directly on
+-- community_funding_request AND were part of its identity hash, so the same real
+-- request published in two authoritative documents produced two canonical rows.
+CREATE TABLE "community_funding_request_source" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "request_id" UUID NOT NULL,
+    "source_document_id" UUID NOT NULL,
+    "source_page" INTEGER,
+    "source_row" INTEGER NOT NULL,
+    "source_hash" CHAR(64) NOT NULL,
+    "retrieved_at" TIMESTAMPTZ(6) NOT NULL,
+    "requester_name_raw" TEXT NOT NULL,
+    "amount_stage_raw" TEXT NOT NULL,
+    "requested_amount_usd" DECIMAL(18,2) NOT NULL,
+    "final_amount_usd" DECIMAL(18,2),
+    "appropriations_account_raw" TEXT,
+    "subcommittee" TEXT,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "community_funding_request_source_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "community_funding_request_source_amount_check" CHECK ("requested_amount_usd" >= 0 AND ("final_amount_usd" IS NULL OR "final_amount_usd" >= 0))
+);
+
+-- Idempotent provenance identity: the same document re-run (same page+row within
+-- the same source document, for the same canonical request) is a no-op upsert, not
+-- a duplicate insert. Genuinely distinct occurrences (different document, or
+-- different page/row within one document) always coexist.
+CREATE UNIQUE INDEX "community_funding_request_source_occurrence_key" ON "community_funding_request_source"("request_id", "source_document_id", "source_page", "source_row");
+CREATE INDEX "community_funding_request_source_request_idx" ON "community_funding_request_source"("request_id");
+CREATE INDEX "community_funding_request_source_document_idx" ON "community_funding_request_source"("source_document_id");
+ALTER TABLE "community_funding_request_source" ADD CONSTRAINT "community_funding_request_source_request_id_fkey" FOREIGN KEY ("request_id") REFERENCES "community_funding_request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "community_funding_request_source" ADD CONSTRAINT "community_funding_request_source_source_document_id_fkey" FOREIGN KEY ("source_document_id") REFERENCES "source_document"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE TABLE "community_funding_discovery_crawl" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(), "adapter_id" TEXT NOT NULL, "run_key" TEXT NOT NULL,
