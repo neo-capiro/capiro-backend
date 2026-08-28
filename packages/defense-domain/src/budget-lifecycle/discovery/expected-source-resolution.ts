@@ -97,25 +97,39 @@ export const COMPTROLLER_DW_CATALOG: readonly ComptrollerCatalogEntry[] = Object
     sourceFamily: 'pb_r1',
     component: 'DW',
     pathTemplate: '/Portals/45/Documents/defbudget/FY{FY}/FY{FY}_r1.pdf',
-    titleTemplate: 'FY{FY} R-1 RDT&E Programs',
+    // Wording matters here, not just decoration: the EXISTING classifier's
+    // `detectSubjectTrack` only accepts a 'request' track directly (0.9
+    // confidence) when the text states "Department of Defense ... Budget
+    // Request" within ~30 characters. A title lacking that exact phrasing
+    // (e.g. bare "FY{FY} R-1 RDT&E Programs") falls through to the
+    // publisher-native fallback, which the SAME classifier caps at 0.7 —
+    // below the 0.8 accept threshold — so the candidate would resolve but
+    // then classify to `review`, never `changed`. This phrasing plus the
+    // "(R-1)" exhibit token satisfies both the direct subject-track match and
+    // `exhibitFamilyFromTitle`'s family detection in one title.
+    titleTemplate:
+      'Department of Defense Fiscal Year {FY} Budget Request: RDT&E Programs (R-1)',
   },
   {
     sourceFamily: 'pb_p1',
     component: 'DW',
     pathTemplate: '/Portals/45/Documents/defbudget/FY{FY}/FY{FY}_p1.pdf',
-    titleTemplate: 'FY{FY} P-1 Procurement Programs',
+    titleTemplate:
+      'Department of Defense Fiscal Year {FY} Budget Request: Procurement Programs (P-1)',
   },
   {
     sourceFamily: 'pb_o1',
     component: 'DW',
     pathTemplate: '/Portals/45/Documents/defbudget/FY{FY}/FY{FY}_o1.pdf',
-    titleTemplate: 'FY{FY} O-1 Operation and Maintenance Programs',
+    titleTemplate:
+      'Department of Defense Fiscal Year {FY} Budget Request: Operation and Maintenance Programs (O-1)',
   },
   {
     sourceFamily: 'pb_milcon_c1',
     component: 'DW',
     pathTemplate: '/Portals/45/Documents/defbudget/FY{FY}/FY{FY}_c1.pdf',
-    titleTemplate: 'FY{FY} C-1 Military Construction Programs',
+    titleTemplate:
+      'Department of Defense Fiscal Year {FY} Budget Request: Military Construction Programs (C-1)',
   },
 ]);
 
