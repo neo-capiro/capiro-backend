@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -422,5 +424,62 @@ describe('VNextMeetingLibrary', () => {
       // Row survives despite not matching the term locally: the server decides.
       expect(screen.getByText('Totally unrelated subject')).toBeInTheDocument();
     });
+  });
+});
+
+/*
+ * Scope-claim drift guard.
+ *
+ * The Library's scope is stated in TWO places: this component's own subline, and
+ * `subline()` in VNextEngagementRoutes.tsx, which renders above the tabs. They
+ * drifted: the component's copy was corrected while the routes copy still said
+ * "Every approved or saved material in the firm", so the page displayed an
+ * owner-scoped claim and a firm-wide claim simultaneously, and that shipped to
+ * production for a full deploy before anyone saw it on screen.
+ *
+ * A rendering test cannot catch this — the two strings live in different
+ * components. So this reads the source of both and asserts neither has
+ * reacquired a firm-wide claim.
+ */
+describe('Library scope claims do not drift between the two sublines', () => {
+  const read = (rel: string) =>
+    readFileSync(resolve(process.cwd(), 'src/vnext/pages/engagement', rel), 'utf8');
+
+  /*
+   * Comments are stripped before matching. Both files explain this bug in prose
+   * and quote the old wording, which is the clearest way to document it — so a
+   * whole-file match would find the explanation and could never fail.
+   *
+   * Matching quoted string literals instead was the first attempt and was worse:
+   * apostrophes in prose ("component's", "user's") made every comment look like
+   * the start of a literal, so the extracted "strings" were comment fragments.
+   */
+  const codeOnly = (src: string) =>
+    src
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/^[^\n]*\/\/[^\n]*$/gm, ' ');
+
+  const FIRM_WIDE_CLAIMS = [
+    /in the firm/i,
+    /tenant-wide/i,
+    /whole firm/i,
+    /not only your own/i,
+  ];
+
+  it.each([
+    ['VNextMeetingLibrary.tsx'],
+    ['VNextEngagementRoutes.tsx'],
+  ])('%s claims no firm-wide scope', (file) => {
+    const code = codeOnly(read(file));
+    for (const claim of FIRM_WIDE_CLAIMS) {
+      expect(code).not.toMatch(claim);
+    }
+  });
+
+  it('both files state the owner scope', () => {
+    // Not just "absence of the wrong claim" — the right one has to be present,
+    // or a future edit could delete the scope statement entirely and pass.
+    expect(codeOnly(read('VNextMeetingLibrary.tsx'))).toMatch(/Your meetings/i);
+    expect(codeOnly(read('VNextEngagementRoutes.tsx'))).toMatch(/Your meetings/i);
   });
 });

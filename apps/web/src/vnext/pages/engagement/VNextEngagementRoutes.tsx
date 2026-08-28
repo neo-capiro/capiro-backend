@@ -40,10 +40,23 @@ interface IntegrationConnection {
 
 function subline(destination: EngagementDestination, outreachCampaignId?: string | null): string {
   if (destination === 'reports') return 'Auto-populated activity with explicit manual status overrides and CSV export.';
-  // Deliberately does not say "searchable": the Library filters server-side by
-  // client, date, artifact type and visibility, and its text box narrows only
-  // the loaded page. See VNextMeetingLibrary.tsx.
-  if (destination === 'library') return 'Every approved or saved material in the firm, filtered by client, date, artifact type and visibility.';
+  /*
+   * OWNER-scoped, and this line has now been wrong twice.
+   *
+   * `listMeetingLibrary` applies `ownMeetingWhere(ctx.userId)` —
+   * `createdByUserId = me OR connection.createdByUserId = me`. It has never
+   * shown the whole firm. Two earlier versions of this string claimed it did
+   * ("Only approved or saved materials appear here. Searchable by…", then
+   * "Every approved or saved material in the firm…"), because a handoff
+   * document asserted tenant scoping and this string was written from the
+   * document rather than the query.
+   *
+   * It also lagged the Library's own subline by a full deploy: that one was
+   * corrected while this one shipped the old claim, so the page showed both
+   * statements at once. Keep the two in agreement — see
+   * VNextMeetingLibrary.tsx.
+   */
+  if (destination === 'library') return 'Your meetings with at least one approved prep, note or debrief. Search by subject or client; filter by client, date, artifact type and visibility.';
   if (destination === 'meetings') return 'Calendar-synced meetings with prep, notes, Meri join, and client context.';
   if (destination === 'outreach' && !outreachCampaignId) return 'Your campaigns and governed templates. Open one to continue, or start fresh.';
   return 'Governed outreach: goal, targets, delivery, context, immutable drafts, preflight, send.';
