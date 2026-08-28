@@ -6,16 +6,13 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Archive,
   CircleAlert,
   FileText,
   Loader2,
   Mail,
   Plus,
   RotateCcw,
-  Send,
   Sparkles,
-  Users,
 } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
@@ -29,23 +26,63 @@ import {
   type OutreachV3SessionSummary,
 } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { VNextOutreachTemplates } from './VNextOutreachTemplates.js';
+import './outreach-builder.css';
 import './outreach-home-vnext.css';
 
 /**
- * Truthful entry choice (closeout runbook 7.1) — "Use a template" hands off
- * to the real Templates library rather than duplicating template browsing
- * inside a dialog. "Repeat a previous campaign" has no backend this phase,
- * so it is deliberately omitted rather than shown as a dead control.
+ * What the campaign was started from. The prototype's chooser writes this to
+ * `bStart` and surfaces it later as the builder's context label and the Name
+ * step's "Started from" row; here it is handed back through `onOpenCampaign`.
  */
+export type OutreachStartedFrom = 'Firm Template' | 'Capiro Template';
+
+/**
+ * The two entry tiles, verbatim from the prototype's chooser.
+ *
+ * Both create a real campaign and land on step 1 — they differ only in the
+ * provenance label, exactly as the prototype's two handlers do. "Capiro
+ * Template" deliberately does NOT browse a Capiro-curated library: no `capiro`
+ * template scope exists server-side, and inventing one would be a fabricated
+ * capability. Reported as a divergence rather than dropped, because the tile
+ * itself still does something real.
+ */
+const START_OPTIONS: Array<{
+  key: OutreachStartedFrom;
+  Icon: typeof FileText;
+  description: string;
+}> = [
+  {
+    key: 'Firm Template',
+    Icon: FileText,
+    description:
+      'Your firm’s own custom template. Strategy and guardrails carry over; recipients, context and approvals are always fresh.',
+  },
+  {
+    key: 'Capiro Template',
+    // The prototype uses Untitled UI's `MagicWand02`; Sparkles is this repo's
+    // established stand-in for it.
+    Icon: Sparkles,
+    description: 'Capiro’s own campaign structures, maintained for you.',
+  },
+];
+
+/**
+ * The title every new campaign is created with.
+ *
+ * The gap analysis suggested carrying the chooser's provenance in the session
+ * `title` instead. Declined: a brand-new session has no spec topic yet, and
+ * `outreachCampaignName` falls back to `title`, so the list would render a row
+ * literally named "Firm Template" until the operator reached the Name step.
+ */
+const NEW_CAMPAIGN_TITLE = 'New outreach campaign';
+
 function StartCampaignChooser({
   creating,
-  onUseTemplate,
-  onFromScratch,
+  onPick,
   onClose,
 }: {
   creating: boolean;
-  onUseTemplate: () => void;
-  onFromScratch: () => void;
+  onPick: (startedFrom: OutreachStartedFrom) => void;
   onClose: () => void;
 }) {
   return (
@@ -56,24 +93,42 @@ function StartCampaignChooser({
       width={480}
       busy={creating}
       onClose={onClose}
-      footer={<button type="button" className="uui-button" onClick={onClose}>Cancel</button>}
+      footer={
+        <button type="button" className="ocb-btn ocb-btn--secondary" onClick={onClose}>
+          Cancel
+        </button>
+      }
     >
-      <div className="uui-start-chooser">
-        <button type="button" className="uui-start-chooser__option" onClick={onUseTemplate}>
-          <FileText size={20} />
-          <span><strong>Use a template</strong><small>Apply a governed playbook — recipients, context, and approvals refresh fresh.</small></span>
-        </button>
-        <button type="button" className="uui-start-chooser__option" disabled={creating} onClick={onFromScratch}>
-          <Sparkles size={20} />
-          <span><strong>Start from scratch</strong><small>An empty campaign with no reusable defaults applied.</small></span>
-        </button>
+      <div className="ochome-start">
+        {START_OPTIONS.map(({ key, Icon, description }) => (
+          <button
+            key={key}
+            type="button"
+            className="ochome-start__tile"
+            disabled={creating}
+            onClick={() => onPick(key)}
+          >
+            <span className="ochome-start__icon">
+              <Icon size={20} />
+            </span>
+            <span className="ocb-option__body">
+              <span className="ocb-option__title">{key}</span>
+              <span className="ocb-option__desc">{description}</span>
+            </span>
+          </button>
+        ))}
       </div>
     </EngagementDialog>
   );
 }
 
 export interface VNextOutreachHomeProps {
-  onOpenCampaign: (sessionId: string) => void;
+  /**
+   * `startedFrom` is the chooser's provenance label. The route currently
+   * ignores the second argument; appending it as `?from=` there is what makes
+   * it survive into the builder header (the builder already reads that param).
+   */
+  onOpenCampaign: (sessionId: string, startedFrom?: OutreachStartedFrom) => void;
   selectedClientId: string | null;
 }
 
@@ -119,17 +174,17 @@ export function outreachCampaignStatusDetail(row: OutreachV3SessionSummary): str
   return 'In progress';
 }
 
-function formatWhen(value: string | null | undefined): string {
+/**
+ * The prototype's date cells read `Aug 21` — month and day, no year and no
+ * clock. This surface is a scan of "which campaign moved recently", and the
+ * fuller `Aug 21, 2026, 3:04 PM` it used to print made the two 130px columns
+ * the loudest thing in the row.
+ */
+export function outreachCampaignWhen(value: string | null | undefined): string {
   if (!value) return '—';
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '—';
-  return parsed.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function VNextOutreachHome({
@@ -151,11 +206,14 @@ export function VNextOutreachHome({
   });
 
   const create = useMutation({
-    mutationFn: () => createOutreachV3Session(api, 'New outreach campaign'),
-    onSuccess: async (envelope) => {
+    mutationFn: async (startedFrom: OutreachStartedFrom) => ({
+      envelope: await createOutreachV3Session(api, NEW_CAMPAIGN_TITLE),
+      startedFrom,
+    }),
+    onSuccess: async ({ envelope, startedFrom }) => {
       setActionError(null);
       await qc.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
-      onOpenCampaign(envelope.session.id);
+      onOpenCampaign(envelope.session.id, startedFrom);
     },
     onError: (error) => setActionError(safeOutreachV3Error(error)),
   });
@@ -171,6 +229,8 @@ export function VNextOutreachHome({
   });
 
   const rows = campaigns.data ?? [];
+  /* Counted over every campaign, archived included — the summary line
+     describes the library, not the active filter. */
   const counts = useMemo(() => {
     const tally: Record<OutreachV3CampaignBucket, number> = {
       draft: 0,
@@ -181,6 +241,8 @@ export function VNextOutreachHome({
     return tally;
   }, [rows]);
 
+  /* "All" is everything except archived — archived campaigns are reachable
+     only through their own chip. */
   const visible = useMemo(
     () =>
       filter === 'all'
@@ -189,14 +251,33 @@ export function VNextOutreachHome({
     [filter, rows],
   );
   const listError = campaigns.isError ? safeOutreachV3Error(campaigns.error) : null;
-  const activeFilterLabel =
-    FILTERS.find((entry) => entry.key === filter)?.label.toLowerCase() ?? '';
+  const summary = `${counts.draft} draft · ${counts.sent} sent${
+    counts.archived ? ` · ${counts.archived} archived` : ''
+  }`;
 
   return (
-    <div className="uui-outreach-home">
-      <nav className="uui-outreach-home__mode" aria-label="Outreach library">
-        <button type="button" data-active={view === 'campaigns' || undefined} onClick={() => setView('campaigns')}><Mail size={15} />Campaigns</button>
-        <button type="button" data-active={view === 'templates' || undefined} onClick={() => setView('templates')}><FileText size={15} />Templates</button>
+    <div className="ocb ochome">
+      <nav className="ocb-seg ochome__seg" aria-label="Outreach library">
+        <button
+          type="button"
+          className="ocb-seg__item"
+          data-active={view === 'campaigns' || undefined}
+          aria-pressed={view === 'campaigns'}
+          onClick={() => setView('campaigns')}
+        >
+          <Mail size={15} />
+          Campaigns
+        </button>
+        <button
+          type="button"
+          className="ocb-seg__item"
+          data-active={view === 'templates' || undefined}
+          aria-pressed={view === 'templates'}
+          onClick={() => setView('templates')}
+        >
+          <FileText size={15} />
+          Templates
+        </button>
       </nav>
 
       {view === 'templates' ? (
@@ -206,62 +287,115 @@ export function VNextOutreachHome({
         />
       ) : (
         <>
-          <header className="uui-outreach-home__bar">
-            <div className="uui-outreach-home__summary">
-              <span className="uui-eyebrow">Campaigns</span>
-              <p>
-                {campaigns.isLoading
-                  ? 'Loading your campaigns…'
-                  : `${counts.draft} draft · ${counts.sent} sent${
-                      counts.archived ? ` · ${counts.archived} archived` : ''
-                    }`}
+          {/* The prototype's Campaigns view has no h2 and no descriptive
+              paragraph — the mono eyebrow sits straight on the count line. */}
+          <header className="ochome__bar">
+            <div>
+              <span className="ocb-eyebrow">Campaigns</span>
+              <p className="ochome__summary">
+                {campaigns.isLoading ? 'Loading your campaigns…' : summary}
               </p>
             </div>
-            <div className="uui-outreach-home__actions">
-              <button type="button" className="uui-button" disabled={campaigns.isFetching} onClick={() => void campaigns.refetch()}>
-                {campaigns.isFetching ? <Loader2 className="uui-spin" size={14} /> : <RotateCcw size={14} />}
+            <div className="ochome__actions">
+              <button
+                type="button"
+                className="ocb-btn ocb-btn--secondary"
+                disabled={campaigns.isFetching}
+                onClick={() => void campaigns.refetch()}
+              >
+                {campaigns.isFetching ? (
+                  <Loader2 className="uui-spin" size={14} />
+                ) : (
+                  <RotateCcw size={14} />
+                )}
                 Refresh
               </button>
-              <button type="button" className="uui-button--primary uui-outreach-home__new" disabled={create.isPending} onClick={() => setShowChooser(true)}>
+              <button
+                type="button"
+                className="ocb-btn ocb-btn--primary"
+                disabled={create.isPending}
+                onClick={() => setShowChooser(true)}
+              >
                 {create.isPending ? <Loader2 className="uui-spin" size={16} /> : <Plus size={16} />}
                 New campaign
               </button>
             </div>
           </header>
 
-          <nav className="uui-outreach-home__filters" aria-label="Campaign status">
+          <div className="ochome__filters" role="group" aria-label="Campaign status">
             {FILTERS.map((entry) => (
-              <button key={entry.key} type="button" data-active={filter === entry.key || undefined} onClick={() => setFilter(entry.key)}>{entry.label}</button>
+              <button
+                key={entry.key}
+                type="button"
+                className="ocb-chip"
+                data-active={filter === entry.key ? 'true' : undefined}
+                aria-pressed={filter === entry.key}
+                onClick={() => setFilter(entry.key)}
+              >
+                {entry.label}
+              </button>
             ))}
-          </nav>
+          </div>
 
           {listError ? (
             <div className="uui-engagement-error uui-engagement-error--inside" role="alert">
               <strong>Your campaigns could not be loaded</strong>
               <p>{listError}</p>
-              <button type="button" className="uui-button" onClick={() => void campaigns.refetch()}>Try again</button>
+              <button
+                type="button"
+                className="ocb-btn ocb-btn--secondary"
+                onClick={() => void campaigns.refetch()}
+              >
+                Try again
+              </button>
             </div>
           ) : null}
 
-          {actionError ? <div className="uui-outreach-home__error" role="alert"><CircleAlert size={16} />{actionError}</div> : null}
+          {actionError ? (
+            <div className="ochome__error" role="alert">
+              <CircleAlert size={16} />
+              {actionError}
+            </div>
+          ) : null}
 
           {!listError && campaigns.isLoading ? (
-            <div className="uui-outreach-home__skeleton" aria-busy="true"><i /><i /><i /></div>
+            <div className="ochome__skeleton" aria-busy="true">
+              <i />
+              <i />
+              <i />
+            </div>
           ) : null}
 
           {!listError && !campaigns.isLoading && visible.length === 0 ? (
-            <div className="uui-outreach-home__empty">
-              <Mail size={26} />
-              <strong>{rows.length === 0 ? 'No campaigns yet' : `No ${activeFilterLabel} campaigns`}</strong>
-              <p>{rows.length === 0 ? 'Start a governed campaign: goal, targets, delivery, context, immutable drafts, preflight, send.' : 'Nothing in this view. Switch the filter above, or start a new campaign.'}</p>
-              <button type="button" className="uui-button--primary" disabled={create.isPending} onClick={() => setShowChooser(true)}><Plus size={16} />New campaign</button>
+            <div className="ochome__empty">
+              <Mail size={24} />
+              <span className="ochome__empty-title">No campaigns in this view</span>
+              {/* Verbatim, "delivery" included: the prototype's own wizard has
+                  no Delivery step either. Copy is not ours to correct. */}
+              <p className="ochome__empty-body">
+                Start a governed campaign: goal, targets, delivery, context, immutable drafts,
+                preflight, send.
+              </p>
+              <button
+                type="button"
+                className="ocb-btn ocb-btn--primary ochome__empty-cta"
+                disabled={create.isPending}
+                onClick={() => setShowChooser(true)}
+              >
+                New campaign
+              </button>
             </div>
           ) : null}
 
           {visible.length > 0 ? (
-            <div className="uui-outreach-home__table">
-              <div className="uui-outreach-home__head" aria-hidden="true">
-                <span>Status</span><span>Campaign</span><span>Targets</span><span>Last updated</span><span>Sent</span><span />
+            <div className="ochome__table">
+              <div className="ochome__head" aria-hidden="true">
+                <span>Status</span>
+                <span>Campaign</span>
+                <span>Targets</span>
+                <span>Last updated</span>
+                <span>Sent</span>
+                <span />
               </div>
               {visible.map((row) => {
                 const bucket = outreachV3CampaignBucket(row);
@@ -269,20 +403,43 @@ export function VNextOutreachHome({
                 const name = outreachCampaignName(row);
                 const detail = outreachCampaignStatusDetail(row);
                 const record = (row.recordStatus ?? '').trim().toLowerCase();
-                const subline = record === 'partial' || record === 'failed'
-                  ? [detail, row.goal?.trim()].filter(Boolean).join(' · ')
-                  : row.goal?.trim() || detail;
+                /* A partial or failed send is named on the row itself; the
+                   goal alone would let a broken send read as a clean one. */
+                const goal =
+                  record === 'partial' || record === 'failed'
+                    ? [detail, row.goal?.trim()].filter(Boolean).join(' · ')
+                    : row.goal?.trim() || detail;
                 return (
-                  <div key={row.id} className="uui-outreach-home__row" data-archived={bucket === 'archived' || undefined}>
-                    <button type="button" className="uui-outreach-home__open" onClick={() => onOpenCampaign(row.id)} title={`Open ${name}`}>
-                      <span className={`eng-pill eng-pill--sm ${pill.tone}`}>{pill.label}</span>
-                      <span className="uui-outreach-home__title"><strong>{name}</strong><small>{subline} · v{row.currentStateVersion}</small></span>
-                      <span className="uui-outreach-home__count"><Users size={14} />{row.targetCount ?? 0}</span>
-                      <span className="uui-outreach-home__when">{formatWhen(row.updatedAt)}</span>
-                      <span className="uui-outreach-home__when">{row.sentAt ? <><Send size={13} /> {formatWhen(row.sentAt)}</> : '—'}</span>
+                  <div
+                    key={row.id}
+                    className="ochome__row"
+                    data-archived={bucket === 'archived' || undefined}
+                  >
+                    <span className={`eng-pill ${pill.tone}`}>{pill.label}</span>
+                    {/* Only this cell opens the campaign — the row itself is
+                        not a click target, so Archive stays reachable. */}
+                    <button type="button" className="ochome__open" onClick={() => onOpenCampaign(row.id)}>
+                      <span className="ochome__name">{name}</span>
+                      <span className="ochome__goal">{goal}</span>
                     </button>
-                    {bucket === 'archived' ? <span className="uui-outreach-home__rowaction" /> : (
-                      <button type="button" className="uui-button uui-outreach-home__rowaction" disabled={archivingId === row.id} title={`Archive ${name}`} onClick={() => { setArchivingId(row.id); archive.mutate(row.id); }}><Archive size={13} />{archivingId === row.id ? '…' : 'Archive'}</button>
+                    <span className="ochome__count">{row.targetCount ?? 0}</span>
+                    <span className="ochome__when">{outreachCampaignWhen(row.updatedAt)}</span>
+                    <span className="ochome__when">{outreachCampaignWhen(row.sentAt)}</span>
+                    {bucket === 'archived' ? (
+                      <span />
+                    ) : (
+                      <button
+                        type="button"
+                        className="ochome__archive"
+                        disabled={archivingId === row.id}
+                        aria-label={`Archive ${name}`}
+                        onClick={() => {
+                          setArchivingId(row.id);
+                          archive.mutate(row.id);
+                        }}
+                      >
+                        {archivingId === row.id ? '…' : 'Archive'}
+                      </button>
                     )}
                   </div>
                 );
@@ -296,8 +453,10 @@ export function VNextOutreachHome({
         <StartCampaignChooser
           creating={create.isPending}
           onClose={() => setShowChooser(false)}
-          onUseTemplate={() => { setShowChooser(false); setView('templates'); }}
-          onFromScratch={() => { setShowChooser(false); create.mutate(); }}
+          onPick={(startedFrom) => {
+            setShowChooser(false);
+            create.mutate(startedFrom);
+          }}
         />
       ) : null}
     </div>

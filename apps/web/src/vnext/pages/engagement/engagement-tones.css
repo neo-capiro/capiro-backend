@@ -149,4 +149,5 @@
      chip, and the one-pixel lift under an active segmented-control item. */
   --eng-on-primary-soft: rgb(255 255 255 / 18%);
   --eng-shadow-raise: 0 1px 2px rgb(16 24 40 / 8%);
+  --eng-shadow-float: 0 1px 3px rgb(16 24 40 / 8%);
 }

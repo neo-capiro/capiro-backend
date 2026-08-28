@@ -1,0 +1,389 @@
+/*
+ * Builder step 6 — Context.
+ *
+ * Everything the shared builder recipes already carry (`.ocb-card`,
+ * `.ocb-option`, `.ocb-check`, `.ocb-kv`'s 1px-gap hairlines, `.ocb-eyebrow`)
+ * is used as-is; this file holds only the shapes unique to this step: the
+ * fail-closed strip, the two-column options table, the source grid and the
+ * documents card.
+ *
+ * Colours are `--eng-*` only. The prototype's literals map through the table
+ * documented at the top of outreach-builder.css.
+ */
+
+.capiro-vnext-root .ocs__summary {
+  margin: 16px 0 0;
+}
+
+.capiro-vnext-root .ocs__note {
+  margin-top: 10px;
+}
+
+/* Focus is invisible in the prototype; every control here gets a ring. */
+.capiro-vnext-root .ocs button:focus-visible,
+.capiro-vnext-root .ocs select:focus-visible {
+  outline: 2px solid var(--eng-accent);
+  outline-offset: 2px;
+}
+
+/* ── "Fails closed" strip ───────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocs-fail {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px 16px;
+}
+.capiro-vnext-root .ocs-fail__icon {
+  flex: 0 0 auto;
+  display: flex;
+  margin-top: 1px;
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .ocs-fail__text {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .ocs-fail__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--eng-ink-strong);
+}
+.capiro-vnext-root .ocs-fail__body {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-2);
+}
+
+/* ── Per-template options table ─────────────────────────────────────────── */
+
+/* `.ocb-kv` supplies the hairline-by-gap backdrop; only the radius differs. */
+.capiro-vnext-root .ocs-options {
+  margin-top: 14px;
+  border-radius: 12px;
+}
+.capiro-vnext-root .ocs-options__row {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 16px 20px;
+  background: var(--eng-surface);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .capiro-vnext-root .ocs-options__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+.capiro-vnext-root .ocs-options__label,
+.capiro-vnext-root .ocs-options__control {
+  min-width: 0;
+}
+.capiro-vnext-root .ocs-options__name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocs-options__desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+}
+
+.capiro-vnext-root .ocs-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--eng-ink-strong);
+}
+.capiro-vnext-root .ocs-switch .ocb-check {
+  margin-top: 0;
+}
+.capiro-vnext-root .ocs-switch:disabled,
+.capiro-vnext-root .ocs-pill:disabled,
+.capiro-vnext-root .ocs-source:disabled,
+.capiro-vnext-root .ocs-doc__remove:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.capiro-vnext-root .ocs-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .ocs-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+/* Multi-select reads as a pill, single-select as a chip — the prototype's one
+   visual difference between the two. */
+.capiro-vnext-root .ocs-pill[data-shape='multi'] {
+  border-radius: 9999px;
+}
+.capiro-vnext-root .ocs-pill:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+}
+.capiro-vnext-root .ocs-pill[data-selected='true'] {
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent-deep);
+}
+
+/* ── Source cards ───────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocs-sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.capiro-vnext-root .ocs-source {
+  border: 0;
+}
+.capiro-vnext-root .ocs-source__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .ocs-source__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocs-source .ocb-option__desc {
+  margin-top: 4px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .ocs-source__count {
+  margin-top: 6px;
+}
+.capiro-vnext-root .ocs-sources__empty {
+  grid-column: 1 / -1;
+}
+
+/* The small square-cornered-text pill used for a source's scope and for a
+   document's campaign-only badge. */
+.capiro-vnext-root .ocs-pill-static {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--eng-accent-soft);
+  color: var(--eng-accent-deep);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── "Your own documents" ───────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocs-docs {
+  margin-top: 14px;
+  overflow: hidden;
+}
+.capiro-vnext-root .ocs-docs__head {
+  padding: 14px 20px;
+  background: var(--eng-recessed);
+}
+.capiro-vnext-root .ocs-docs__icon {
+  flex: 0 0 auto;
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .ocs-docs__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocs-docs__flag {
+  flex: 0 0 auto;
+}
+.capiro-vnext-root .ocs-docs__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+}
+.capiro-vnext-root .ocs-docs__privacy {
+  max-width: 640px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .ocs-docs__empty {
+  font-size: 13px;
+  color: var(--eng-ink-4);
+}
+
+.capiro-vnext-root .ocs-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--eng-subtle);
+  box-shadow: inset 0 0 0 1px var(--eng-border-strong);
+  cursor: pointer;
+}
+.capiro-vnext-root .ocs-drop:hover {
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+}
+/* No route accepts an uploaded file as campaign context, so the zone renders
+   in its disabled state rather than inviting a click that cannot work. */
+.capiro-vnext-root .ocs-drop[data-disabled='true'],
+.capiro-vnext-root .ocs-drop[data-disabled='true']:hover {
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.capiro-vnext-root .ocs-drop__tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--eng-accent-soft);
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .ocs-drop__text {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .ocs-drop__title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocs-drop__hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ocs-drop__btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--eng-ink-strong);
+}
+/* The classic visually-hidden input: the label still opens the picker and
+   focus still lands on a real control. */
+.capiro-vnext-root .ocs-drop__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.capiro-vnext-root .ocs-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.capiro-vnext-root .ocs-picker__select {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+}
+
+.capiro-vnext-root .ocs-doc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .ocs-doc__icon {
+  flex: 0 0 auto;
+  color: var(--eng-accent-muted);
+}
+.capiro-vnext-root .ocs-doc__text {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .ocs-doc__name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ocs-doc__meta {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ocs-doc__pill {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 9px;
+}
+.capiro-vnext-root .ocs-doc__remove {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ocs-doc__remove:hover:not(:disabled) {
+  background: var(--eng-muted);
+}
+
+.capiro-vnext-root .ocs__next {
+  margin-top: 16px;
+}

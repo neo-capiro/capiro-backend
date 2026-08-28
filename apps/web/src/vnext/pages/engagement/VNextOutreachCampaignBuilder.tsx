@@ -50,6 +50,7 @@ import {
   outreachBuilderStepIndex,
   outreachBuilderSteps,
   outreachCampaignTypeLabel,
+  outreachReadyRecipientCount,
   resolveOutreachBuilderStep,
   type OutreachBuilderStep,
   type OutreachBuilderStepIcon,
@@ -57,7 +58,6 @@ import {
 import {
   outreachBlockedTargets,
   outreachCampaignTypeFromSpec,
-  outreachReadyRecipientCount,
   outreachSelectedTargets,
   type OutreachBuilderStepCommon,
 } from './outreach-builder-model.js';
@@ -163,7 +163,7 @@ export function VNextOutreachCampaignBuilder({
       session: session ?? null,
       campaignType,
       busy: applyingCommands,
-      applyCommands: (commands) => applyCommands({ commands }),
+      applyCommands: (commands) => applyCommands(commands),
       toast: toast.show,
       onNext: goNext,
       primaryLabel: outreachBuilderPrimaryLabel(step, railType, readyCount),

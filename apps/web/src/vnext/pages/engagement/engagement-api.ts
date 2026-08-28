@@ -691,3 +691,44 @@ export async function proposeOutreachReplyLearning(
     )
   ).data;
 }
+
+/**
+ * Review-packet approval — the Outreach builder's human gate.
+ *
+ * The route has existed since the guided flow shipped but had no client
+ * wrapper: the only caller was an inline `api.post` inside
+ * `VNextOutreachGuidedWorkspace`. The Review step calls it, so it lives here
+ * with the rest of the generation client.
+ *
+ * The body is deliberately empty — the server rebuilds the exact packet from
+ * the canonical Campaign Spec and generation plan it already holds, so there
+ * is nothing for the client to assert (see `assertEmptyReviewPacketBody` in
+ * `outreach-v3-generation.controller.ts`).
+ *
+ * Every field is optional here even though the server type declares them
+ * required. That is not laziness: `approval.approvalHash` is the sole input to
+ * the generation request key, so the caller MUST fail closed when it is
+ * absent, and a type that promises it exists would make that guard look like
+ * dead code and invite its removal.
+ */
+export interface OutreachV3ReviewPacketApprovalResult {
+  approval?: OutreachV3ApproachApproval | null;
+  eventId?: string;
+  eventSequence?: string;
+  idempotent?: boolean;
+  /** The bounded marker appended for workers that read the approach stream. */
+  compatibilityEventId?: string;
+  compatibilityEventSequence?: string;
+}
+
+export async function approveOutreachV3ReviewPacket(
+  api: AxiosInstance,
+  sessionId: string,
+): Promise<OutreachV3ReviewPacketApprovalResult> {
+  return (
+    await api.post<OutreachV3ReviewPacketApprovalResult>(
+      sessionPath(sessionId, '/generation/review-packet-approval'),
+      {},
+    )
+  ).data;
+}

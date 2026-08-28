@@ -1,0 +1,49 @@
+/*
+ * Campaign type — the builder's first step.
+ *
+ * Almost nothing here is step-specific: the tiles are `.ocb-option` +
+ * `.ocb-radio` and the button is `.ocb-btn--primary`, all in
+ * `outreach-builder.css`. What is left is the column width, the native radio
+ * the tiles are built on, and the button's 4px offset.
+ */
+
+/* The prototype's column: `max-width:720px`, `gap:12px` (from `.ocb-stack`),
+   `margin-top:18px` (from `.ocb-step`). */
+.capiro-vnext-root .octype {
+  max-width: 720px;
+}
+
+/*
+ * The prototype's tiles are bare <button>s with no role and no checked state.
+ * These are <label>s wrapping a real radio, so the group gets native arrow-key
+ * navigation and an announced checked state. The input is taken out of the
+ * visual flow rather than hidden — `display:none` would take it out of the
+ * accessibility tree with it.
+ */
+.capiro-vnext-root .octype__tile {
+  position: relative;
+  cursor: pointer;
+}
+.capiro-vnext-root .octype__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.capiro-vnext-root .octype__tile:has(.octype__input:disabled) {
+  cursor: not-allowed;
+}
+
+/* Focus lands on the input, which is invisible, so the tile has to show it.
+   The prototype specifies no focus ring anywhere — this is an addition. */
+.capiro-vnext-root .ocb-option.octype__tile:focus-within {
+  box-shadow: inset 0 0 0 2px var(--eng-accent);
+}
+
+.capiro-vnext-root .octype__continue {
+  align-self: flex-start;
+  margin-top: 4px;
+}

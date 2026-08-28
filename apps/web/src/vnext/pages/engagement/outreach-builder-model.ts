@@ -34,12 +34,14 @@ import type {
   OutreachV3ResolvedTargetRef,
   OutreachV3SessionEnvelope,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
+import { goalCommands } from '../../../pages/engagement/outreach/v3/commands.js';
 import {
   OUTREACH_EMAIL_FORMATS,
   OUTREACH_STANDARD_EMAIL_FORMAT,
   type OutreachCampaignType,
   type OutreachEmailFormatOption,
 } from './outreach-campaign-flow.js';
+import { workflowCampaignDefaults } from './outreach-v3-guided-workflow.js';
 
 /* ------------------------------------------------------------------ *
  * Campaign type
@@ -66,15 +68,68 @@ export function outreachCampaignTypeGoalPhrase(type: OutreachCampaignType): stri
  *
  * Returns `null` — not a default — when the spec has no goal yet, so the
  * builder can tell "the user has not chosen" from "the user chose Custom".
+ *
+ * The exact-phrase pass has to come first. The substring pass behind it is a
+ * legacy reader for specs the guided flow wrote, where a custom campaign's goal
+ * is the sentence `Advance <campaign name>` — so a campaign named "FY27 budget
+ * update" would read back as `send_update` and silently change which steps the
+ * rail offers. Campaigns written by this builder always carry the canonical
+ * phrase and never reach the fallback.
  */
 export function outreachCampaignTypeFromSpec(
   session: OutreachV3SessionEnvelope | null,
 ): OutreachCampaignType | null {
-  const goal = session?.spec.goal.goal?.trim().toLowerCase() ?? '';
-  if (!goal) return null;
+  const raw = session?.spec.goal.goal?.trim() ?? '';
+  if (!raw) return null;
+  const canonical = (Object.keys(CAMPAIGN_TYPE_GOAL_PHRASE) as OutreachCampaignType[]).find(
+    (type) => CAMPAIGN_TYPE_GOAL_PHRASE[type] === raw,
+  );
+  if (canonical) return canonical;
+  const goal = raw.toLowerCase();
   if (goal.includes('meeting')) return 'request_meeting';
   if (goal.includes('update')) return 'send_update';
   return 'custom';
+}
+
+/**
+ * The goal draft to write for a campaign type and name.
+ *
+ * Both the Campaign type step and the Name step write the goal, so the phrase
+ * has to be decided in one place — otherwise the two steps disagree about what
+ * a custom campaign's `goal.goal` says and the type read back depends on which
+ * step the user touched last.
+ *
+ * `workflowCampaignDefaults` supplies the objective / desired outcome / ask /
+ * why-now that the generator reads; its `goal` field is overridden here because
+ * it phrases a custom campaign as `Advance <name>`, which does not round-trip.
+ */
+export function outreachGoalCommandsFor(
+  type: OutreachCampaignType,
+  campaignName: string,
+): OutreachV3Command[] {
+  const trimmed = campaignName.trim();
+  if (!trimmed) {
+    /*
+     * Nothing has named the campaign yet. `workflowCampaignDefaults` requires a
+     * name and derives the objective, desired outcome, ask and why-now from it,
+     * so calling it here would invent prose the user never wrote — and
+     * `goalCommands` rejects a draft with any field missing. Record the type
+     * alone; the Name step fills the rest in.
+     *
+     * The command is a literal because `commands.ts` exports builders for whole
+     * decisions, not a bare `command()` helper. Keeping it here means exactly
+     * one file in the builder knows the wire shape.
+     */
+    return [
+      { type: 'SET_GOAL', schemaVersion: 1, payload: { value: outreachCampaignTypeGoalPhrase(type) } },
+    ];
+  }
+  const defaults = workflowCampaignDefaults({ templateId: type, campaignName: trimmed });
+  return goalCommands({
+    ...defaults.goal,
+    goal: outreachCampaignTypeGoalPhrase(type),
+    topic: trimmed,
+  });
 }
 
 /* ------------------------------------------------------------------ *

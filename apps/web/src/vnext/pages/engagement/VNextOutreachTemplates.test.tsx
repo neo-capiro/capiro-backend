@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VNextOutreachTemplates } from './VNextOutreachTemplates.js';
 import {
@@ -7,19 +7,34 @@ import {
   type OutreachTemplateSummary,
 } from './outreach-v3-template-api.js';
 
+type ListParams = {
+  clientId?: string;
+  includeArchived?: boolean;
+  search?: string;
+  mineOnly?: boolean;
+  sort?: string;
+};
+
 const { getCalls, postCalls, listResponse, detailResponse, useResponse, api } = vi.hoisted(() => {
-  const getCalls: Array<{ url: string; params?: unknown }> = [];
+  const getCalls: Array<{ url: string; params: Record<string, unknown> }> = [];
   const postCalls: Array<{ url: string; body?: unknown }> = [];
-  const listResponse: { rows: unknown[] } = { rows: [] };
+  // `forParams` lets a test answer differently depending on what the component
+  // actually asked the server for — the only way to prove a category is a real
+  // server read rather than the prototype's fall-through.
+  const listResponse: {
+    rows: unknown[];
+    forParams?: (params: Record<string, unknown>) => unknown[] | undefined;
+  } = { rows: [] };
   const detailResponse: { value: unknown } = { value: null };
   const useResponse: { value: unknown } = { value: null };
   const api = {
-    get: vi.fn(async (url: string, config?: { params?: unknown }) => {
-      getCalls.push({ url, params: config?.params });
+    get: vi.fn(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      const params = config?.params ?? {};
+      getCalls.push({ url, params });
       if (/\/templates\/[^/]+$/.test(url) && !url.includes('provenance')) {
         return { data: detailResponse.value };
       }
-      return { data: listResponse.rows };
+      return { data: listResponse.forParams?.(params) ?? listResponse.rows };
     }),
     post: vi.fn(async (url: string, body?: unknown) => {
       postCalls.push({ url, body });
@@ -49,7 +64,7 @@ function template(over: Partial<OutreachTemplateSummary> = {}): OutreachTemplate
     duplicatedFromTemplateId: null,
     duplicatedFromVersionId: null,
     draftVersionNumber: null,
-    publishedVersionNumber: 1,
+    publishedVersionNumber: 3,
     previewSummary: {
       topic: 'Autonomy',
       sponsorKind: 'firm',
@@ -73,7 +88,7 @@ function template(over: Partial<OutreachTemplateSummary> = {}): OutreachTemplate
       canRestore: false,
     },
     usageCount: 3,
-    lastUsedAt: '2026-08-20T00:00:00.000Z',
+    lastUsedAt: '2026-08-20T12:00:00.000Z',
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-15T00:00:00.000Z',
     archivedAt: null,
@@ -81,14 +96,19 @@ function template(over: Partial<OutreachTemplateSummary> = {}): OutreachTemplate
   };
 }
 
-function renderLibrary(onOpenCampaign = vi.fn()) {
+function renderLibrary(selectedClientId: string | null = null, onOpenCampaign = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const result = render(
     <QueryClientProvider client={qc}>
-      <VNextOutreachTemplates selectedClientId={null} onOpenCampaign={onOpenCampaign} />
+      <VNextOutreachTemplates selectedClientId={selectedClientId} onOpenCampaign={onOpenCampaign} />
     </QueryClientProvider>,
   );
   return { ...result, onOpenCampaign };
+}
+
+function lastListParams(): ListParams {
+  const listCalls = getCalls.filter((call) => call.url.endsWith('/templates'));
+  return (listCalls.at(-1)?.params ?? {}) as ListParams;
 }
 
 describe('VNextOutreachTemplates', () => {
@@ -96,31 +116,200 @@ describe('VNextOutreachTemplates', () => {
     getCalls.length = 0;
     postCalls.length = 0;
     listResponse.rows = [];
+    listResponse.forParams = undefined;
     detailResponse.value = null;
     useResponse.value = null;
     api.get.mockClear();
     api.post.mockClear();
   });
 
-  it('lists templates from the real endpoint and shows usage metadata', async () => {
+  it('renders the prototype header, the six category chips and the search field verbatim', async () => {
+    renderLibrary();
+    expect(screen.getByText('Templates')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Start from an approved way of working' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Templates carry reusable strategy, questions, and guardrails. Recipients, evidence, context, approvals, and sending are refreshed in the new campaign.',
+      ),
+    ).toBeInTheDocument();
+    for (const label of ['All', 'Capiro', 'Firm', 'Client', 'My templates', 'Archived']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    // U+2026, not three dots.
+    expect(screen.getByPlaceholderText('Search templates…')).toBeInTheDocument();
+    await waitFor(() => expect(getCalls.length).toBeGreaterThan(0));
+  });
+
+  it('renders a card with the prototype scope, version, type and usage lines', async () => {
     listResponse.rows = [template()];
     renderLibrary();
     await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
-    expect(screen.getByText(/3× · last/)).toBeInTheDocument();
-    // "Funding ask" legitimately appears twice: once on the card, once as a
-    // derived option in the campaign-type filter dropdown.
-    expect(screen.getAllByText('Funding ask').length).toBeGreaterThanOrEqual(1);
+    const card = screen.getByRole('article');
+    // Scoped to the card: "Firm" is also a category chip.
+    expect(within(card).getByText('Firm')).toBeInTheDocument();
+    expect(screen.getByText('Published v3')).toBeInTheDocument();
+    expect(screen.getByText('A reusable firm playbook')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
+    expect(screen.getByText('Funding ask')).toBeInTheDocument();
+    expect(screen.getByText('Used')).toBeInTheDocument();
+    // `3× · last Aug 20` — U+00D7 then U+00B7, per the prototype's formula.
+    expect(screen.getByText(/^3× · last /)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use template' })).toBeEnabled();
   });
 
-  it('the Capiro category always shows a truthful empty state, never a fabricated row', async () => {
+  it('shows "Not set" rather than an invented campaign type when the row has none', async () => {
+    listResponse.rows = [template({ campaignType: null, usageCount: 0, lastUsedAt: null })];
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+    expect(screen.getByText('Not set')).toBeInTheDocument();
+    expect(screen.getByText('0× · last never')).toBeInTheDocument();
+  });
+
+  it('the Capiro category always shows its own truthful empty state, never a fabricated row', async () => {
     listResponse.rows = [template()];
     renderLibrary();
     await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Capiro' }));
     await waitFor(() =>
-      expect(screen.getByText(/Capiro-curated templates aren't available in this release yet/)).toBeInTheDocument(),
+      expect(
+        screen.getByText("Capiro-curated templates aren't available in this release yet."),
+      ).toBeInTheDocument(),
     );
     expect(screen.queryByText('Firm playbook')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('No templates match this view. Try a different category or search.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the no-match empty state for a category that filtered everything out', async () => {
+    listResponse.rows = [template()];
+    renderLibrary('client-9');
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Client' }));
+    await waitFor(() =>
+      expect(
+        screen.getByText('No templates match this view. Try a different category or search.'),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Firm playbook')).not.toBeInTheDocument();
+  });
+
+  it('"My templates" is a real owner-scoped read, not the prototype fall-through that shows everything', async () => {
+    const mine = template({ id: 'mine-1', name: 'My own playbook' });
+    listResponse.rows = [template(), template({ id: 'template-2', name: 'Someone elses playbook' })];
+    listResponse.forParams = (params) => (params.mineOnly ? [mine] : undefined);
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'My templates' }));
+    await waitFor(() => expect(screen.getByText('My own playbook')).toBeInTheDocument());
+    expect(lastListParams().mineOnly).toBe(true);
+    expect(screen.queryByText('Someone elses playbook')).not.toBeInTheDocument();
+  });
+
+  it('"Archived" is a real archived read, not the prototype hardcoded empty', async () => {
+    const archived = template({ id: 'arch-1', name: 'Retired playbook', status: 'archived', archivedAt: '2026-08-10T00:00:00.000Z' });
+    listResponse.rows = [template()];
+    listResponse.forParams = (params) => (params.includeArchived ? [template(), archived] : undefined);
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    await waitFor(() => expect(screen.getByText('Retired playbook')).toBeInTheDocument());
+    expect(lastListParams().includeArchived).toBe(true);
+    // Only the archived rows — an active row in the same response must not leak.
+    expect(screen.queryByText('Firm playbook')).not.toBeInTheDocument();
+  });
+
+  it('the "Firm" category filters the shared read client-side without a new request', async () => {
+    listResponse.rows = [template(), template({ id: 'template-3', name: 'Client playbook', scope: 'client' })];
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Client playbook')).toBeInTheDocument());
+    const before = getCalls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Firm' }));
+    await waitFor(() => expect(screen.queryByText('Client playbook')).not.toBeInTheDocument());
+    expect(screen.getByText('Firm playbook')).toBeInTheDocument();
+    expect(getCalls.length).toBe(before);
+  });
+
+  it('disables the Client chip when no client is selected, because that read can only be empty', async () => {
+    listResponse.rows = [template()];
+    renderLibrary(null);
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Client' })).toBeDisabled();
+    renderLibrary('client-9');
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Client' }).at(-1)).toBeEnabled(),
+    );
+  });
+
+  it('sends the typed query to the server search parameter', async () => {
+    listResponse.rows = [template()];
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText('Search templates…'), { target: { value: 'markup' } });
+    await waitFor(() => expect(lastListParams().search).toBe('markup'));
+  });
+
+  it('an unpublished template offers a genuinely inert "Publish before use" button', async () => {
+    listResponse.rows = [template({
+      name: 'Post-hearing thank-you',
+      publishedVersionId: null,
+      publishedVersionNumber: null,
+      currentDraftVersionId: 'version-draft',
+      draftVersionNumber: 1,
+    })];
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Post-hearing thank-you')).toBeInTheDocument());
+    expect(screen.getByText('Draft v1')).toBeInTheDocument();
+
+    const button = screen.getByRole('button', { name: 'Publish before use' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(postCalls).toEqual([]);
+    expect(getCalls.every((call) => call.url.endsWith('/templates'))).toBe(true);
+  });
+
+  it('keeps the management actions behind the card overflow menu', async () => {
+    listResponse.rows = [template()];
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+    // At rest the card reads like the prototype's: one action.
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Firm playbook' }));
+    const menu = screen.getByRole('menu');
+    for (const label of ['Duplicate', 'Edit content', 'Settings', 'History', 'Archive']) {
+      expect(within(menu).getByRole('menuitem', { name: label })).toBeInTheDocument();
+    }
+    // No published draft on this row, so nothing to publish.
+    expect(within(menu).queryByRole('menuitem', { name: 'Publish draft' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Duplicate' }));
+    await waitFor(() =>
+      expect(postCalls).toEqual([
+        { url: '/api/engagement/outreach-v3/templates/template-1/duplicate', body: { clientId: null } },
+      ]),
+    );
+  });
+
+  it('never shows an owner-only management control to a non-manager', async () => {
+    listResponse.rows = [template({
+      capabilities: {
+        canUse: true, canDuplicate: false, canInspect: false, canEdit: false,
+        canCreateVersion: false, canPublish: false, canArchive: false, canRestore: false,
+      },
+    })];
+    renderLibrary();
+    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
+    // With no capability at all the overflow trigger is not rendered either.
+    expect(screen.queryByRole('button', { name: 'Manage Firm playbook' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use template' })).toBeInTheDocument();
   });
 
   it('uses a published template with no variables and shows the application receipt before opening the campaign', async () => {
@@ -156,7 +345,7 @@ describe('VNextOutreachTemplates', () => {
     const { onOpenCampaign } = renderLibrary();
     await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /Use template/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use template' }));
     await waitFor(() => expect(screen.getByText(/Firm playbook · v1/)).toBeInTheDocument());
     expect(screen.getByText('Tone')).toBeInTheDocument();
     expect(screen.getByText('Recipients')).toBeInTheDocument();
@@ -188,41 +377,10 @@ describe('VNextOutreachTemplates', () => {
     renderLibrary();
     await waitFor(() => expect(screen.getByText('Variable playbook')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /Use template/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use template' }));
     await waitFor(() => expect(screen.getByText(/Answer a few questions/)).toBeInTheDocument());
     expect(screen.getByText('Which program?')).toBeInTheDocument();
-    // Cannot start until the required field is filled.
     expect(screen.getByRole('button', { name: /Start campaign/i })).toBeDisabled();
     expect(postCalls.some((call) => call.url.endsWith('/use'))).toBe(false);
-  });
-
-  it('duplicates a template through the real endpoint', async () => {
-    const t = template();
-    listResponse.rows = [t];
-    renderLibrary();
-    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole('button', { name: /Duplicate/i }));
-    await waitFor(() =>
-      expect(postCalls).toEqual([{ url: `/api/engagement/outreach-v3/templates/${t.id}/duplicate`, body: { clientId: null } }]),
-    );
-  });
-
-  it('never shows an owner-only draft management control to a non-manager', async () => {
-    listResponse.rows = [template({
-      capabilities: {
-        canUse: true, canDuplicate: true, canInspect: false, canEdit: false,
-        canCreateVersion: false, canPublish: false, canArchive: false, canRestore: false,
-      },
-    })];
-    renderLibrary();
-    await waitFor(() => expect(screen.getByText('Firm playbook')).toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: /Edit content/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Settings$/i })).not.toBeInTheDocument();
-    // Exact match: the "Archived" category tab also renders and legitimately
-    // matches a loose /Archive/i, but the card's own archive ACTION button
-    // (exact text "Archive") must be absent for a non-manager.
-    expect(screen.queryByRole('button', { name: /^Archive$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Duplicate/i })).toBeInTheDocument();
   });
 });

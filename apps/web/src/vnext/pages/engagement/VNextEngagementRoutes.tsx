@@ -136,7 +136,14 @@ export function VNextEngagementRoutes() {
       ) : (
         <VNextOutreachHome
           selectedClientId={clientFilter.selectedClientId}
-          onOpenCampaign={(sessionId) => navigate(`/engagement/outreach/${encodeURIComponent(sessionId)}`)}
+          onOpenCampaign={(sessionId, startedFromChoice) => {
+            // The chooser's "Firm Template" / "Capiro Template" label rides the
+            // URL rather than component state so a refresh keeps it and a deep
+            // link honestly has none — the Name step's summary then reads
+            // "Not set" instead of guessing.
+            const query = startedFromChoice ? `?from=${encodeURIComponent(startedFromChoice)}` : '';
+            navigate(`/engagement/outreach/${encodeURIComponent(sessionId)}${query}`);
+          }}
         />
       );
       break;
