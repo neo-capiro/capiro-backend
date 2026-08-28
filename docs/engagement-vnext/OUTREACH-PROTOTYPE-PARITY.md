@@ -128,6 +128,18 @@ not followed:
   prototype's "Saved to your personal library only". Nothing persists a content
   template today, and the same step says so twice more.
 
+## 5a. Not built: "Request New Outreach Type"
+
+The prototype's markup carries a modal — "Help us understand the outreach
+pattern you need. Nothing is drafted or sent from this request." with a
+description field, a sample-email field and a Submit button. It is **not
+reachable in the prototype itself**: the only thing that sets `gbReq` is a
+handler on `gbTypes`, and `gbTypes` is bound nowhere in the markup. Its Submit
+posts nothing — it closes the modal and fires a toast. There is no endpoint
+behind it. Building it would ship a form that discards what the user writes,
+which is the specific defect the previous Engagement session had to remove from
+`GoalDecisionSurface`. Left out, deliberately.
+
 ## 5b. What follows the send
 
 The prototype's Send step ends at a toast. A real send creates a durable intent
