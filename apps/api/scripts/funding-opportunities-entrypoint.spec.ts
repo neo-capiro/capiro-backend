@@ -31,6 +31,10 @@ describe('Funding Opportunities container commands', () => {
     // --window-days change what a canary reviewer is actually looking at.
     ['diag-funding-opportunities-makegov', 'diag-funding-opportunities-makegov.ts'],
     ['diag-tango-webhook-contract', 'diag-tango-webhook-contract.ts'],
+    // Read-only DIBBS/SBIR row-count report. No --commit/--full interlock to
+    // forward — it takes no destructive flags at all — but --json changes the
+    // output shape a caller may be parsing.
+    ['diag-tango-dibbs-sbir-ingestion', 'diag-tango-dibbs-sbir-ingestion.ts'],
     // P40 part 3. Same --commit interlock reasoning as P47/P48, plus one more:
     // --full is what turns an issue-date-windowed incremental into a real
     // reconciliation. A dispatcher that dropped it would leave amendments to
