@@ -203,6 +203,78 @@ describe('listMeetingLibrary', () => {
     expect((countArgs!.where as Record<string, unknown>).AND).toEqual(where.AND);
   });
 
+  test('search AND-s an OR over subject and client name, without touching the owner OR', async () => {
+    let findArgs: Record<string, unknown> | undefined;
+    let countArgs: Record<string, unknown> | undefined;
+    const service = serviceWith({
+      meeting: {
+        count: async (args: Record<string, unknown>) => {
+          countArgs = args;
+          return 0;
+        },
+        findMany: async (args: Record<string, unknown>) => {
+          findArgs = args;
+          return [];
+        },
+      },
+    });
+
+    await service.listMeetingLibrary(ctx, { search: '  HASC  ' });
+
+    const where = findArgs!.where as Record<string, unknown>;
+
+    /*
+     * THE important assertion. `ownMeetingWhere()` returns its own top-level
+     * `OR`, and it is the authorization predicate. Putting the search in a
+     * second top-level `OR` would OVERWRITE it and silently widen the query from
+     * "meetings I own" to "every meeting in the tenant whose subject matches" —
+     * a cross-user data leak, not a display bug. The owner OR must survive
+     * untouched.
+     */
+    expect(where.OR).toEqual([
+      { createdByUserId: 'user-1' },
+      { connection: { createdByUserId: 'user-1' } },
+    ]);
+
+    // Trimmed, case-insensitive, and over metadata only — never artifact bodies,
+    // which are stored encrypted and are not decrypted on list endpoints.
+    expect(where.AND).toEqual([
+      { OR: [{ preps: { some: { status: 'approved' } } }, { debriefs: { some: { status: 'approved' } } }, { notes: { some: { status: 'approved' } } }] },
+      {
+        OR: [
+          { subject: { contains: 'HASC', mode: 'insensitive' } },
+          { client: { name: { contains: 'HASC', mode: 'insensitive' } } },
+        ],
+      },
+    ]);
+
+    // The count must apply the search too, or the pager claims more pages than
+    // the search actually has.
+    expect((countArgs!.where as Record<string, unknown>).AND).toEqual(where.AND);
+  });
+
+  test.each([undefined, '', '   '])('search %p adds no predicate', async (search) => {
+    let findArgs: Record<string, unknown> | undefined;
+    const service = serviceWith({
+      meeting: {
+        count: async () => 0,
+        findMany: async (args: Record<string, unknown>) => {
+          findArgs = args;
+          return [];
+        },
+      },
+    });
+
+    await service.listMeetingLibrary(ctx, { search, artifactType: 'notes' });
+
+    // Exactly one AND entry: the artifact filter. A whitespace-only search must
+    // not become `contains: ''`, which matches every row and would make the
+    // query look filtered while filtering nothing.
+    expect((findArgs!.where as Record<string, unknown>).AND).toEqual([
+      { notes: { some: { status: 'approved' } } },
+    ]);
+  });
+
   test('defaults page/limit and matches ANY approved artifact when no type given', async () => {
     let findArgs: Record<string, unknown> | undefined;
     const service = serviceWith({

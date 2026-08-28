@@ -74,6 +74,8 @@ export function useMeeting(meetingId: string | null) {
 }
 
 export interface LibraryParams {
+  /** Free-text over meeting subject + client name. Server-side; reaches every page. */
+  search?: string;
   clientId?: string;
   artifactType?: 'prep' | 'notes' | 'debrief';
   visibility?: 'shared' | 'private';
@@ -92,6 +94,11 @@ export function useMeetingLibrary(params: LibraryParams, enabled = true) {
       (
         await api.get<MeetingLibraryResponse>(`${BASE}/meetings/library`, {
           params: {
+            // Omitted entirely when empty rather than sent as '' — the API's
+            // ValidationPipe accepts it either way, but an empty `search` in the
+            // query string would change the react-query key and refetch on every
+            // keystroke that clears the box.
+            ...(params.search?.trim() ? { search: params.search.trim() } : {}),
             ...(params.clientId ? { clientId: params.clientId } : {}),
             ...(params.artifactType ? { artifactType: params.artifactType } : {}),
             ...(params.visibility ? { visibility: params.visibility } : {}),

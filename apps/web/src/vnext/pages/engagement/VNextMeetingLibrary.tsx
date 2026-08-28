@@ -304,6 +304,10 @@ export function VNextMeetingLibrary() {
   }, [q, clientId, type, vis, fromDate, toDate, page, navigate, location.pathname]);
 
   const library = useMeetingLibrary({
+    // `undefined`, not '': the params object is part of the react-query key, so
+    // `search: ''` is a different key from "no search" and clearing the box
+    // would refetch instead of reusing the unfiltered result.
+    search: q.trim() || undefined,
     clientId,
     artifactType: type === 'all' ? undefined : type,
     visibility: vis === 'all' ? undefined : vis,
@@ -313,23 +317,15 @@ export function VNextMeetingLibrary() {
     limit: PAGE_SIZE,
   });
 
-  const allRows = library.data?.data ?? [];
-  // Client-side substring filter over the CURRENTLY fetched page — the real
-  // useMeetingLibrary hook has no server-side text-search parameter (see
-  // LibraryParams in meetings-api.ts), so this matches the canonical
-  // MeetingLibraryView's own real behavior exactly rather than fabricating a
-  // param the API doesn't support.
   /*
-   * Page-local narrowing only — see the note on the filter field below. Kept
-   * separate from `allRows` so the empty state can tell the two cases apart:
-   * "no approved material matches your server-side filters" (allRows empty) is
-   * a different fact from "nothing on this page matches what you typed".
+   * No client-side text filter any more. `search` is a real server parameter, so
+   * the server has already applied it — and `total` below reflects it, which is
+   * what makes pagination correct. Re-filtering here would be a no-op on the
+   * happy path and actively wrong on the unhappy one: it would hide rows the
+   * server counted, so page N could render empty while the pager claimed
+   * results existed.
    */
-  const rows = allRows.filter((m) => {
-    if (!q.trim()) return true;
-    const haystack = `${m.subject} ${m.client?.name ?? ''}`.toLowerCase();
-    return haystack.includes(q.trim().toLowerCase());
-  });
+  const rows = library.data?.data ?? [];
   const total = library.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -374,23 +370,32 @@ export function VNextMeetingLibrary() {
       </div>
 
       <h2 className="uui-library-heading">Meeting Library</h2>
+      {/*
+        Scope corrected 2026-08-28. This previously read "Tenant-wide: this shows
+        every approved or saved material in the firm, not only your own", on the
+        strength of the handoff's claim that the Library is tenant-scoped.
+        The code says otherwise: `listMeetingLibrary` applies
+        `ownMeetingWhere(ctx.userId)`, which is
+        `createdByUserId = me OR connection.createdByUserId = me`. It is
+        OWNER-scoped. Claiming firm-wide coverage told users an empty result
+        meant "the firm has nothing", when it actually means "you have nothing".
+      */}
       <p className="uui-library-subline">
-        Tenant-wide: this shows every approved or saved material in the firm, not only your own.
-        An empty result means nothing approved matches these filters. Filter server-side by
-        client, date, artifact type and visibility.
+        Your meetings — ones you created, or that came from a calendar you connected —
+        with at least one approved prep, note or debrief. Searchable by subject and
+        client; filter by client, date, artifact type and visibility.
       </p>
 
       <div className="uui-library-filters">
         {/*
-          Named "Filter this page", not "Search", because that is all it is.
-          `MeetingLibraryQueryDto` (engagement.controller.ts) declares clientId,
-          artifactType, visibility, from, to, page and limit — and no text field.
-          There is no server-side text search to bind to, and the global
-          ValidationPipe rejects undeclared query params, so sending `q` would
-          400 rather than search. The list is also paginated, so this narrows the
-          rows already loaded and cannot reach page 2. Calling it "Search
-          meetings, clients..." implied a corpus search that does not exist and
-          made a page-local miss look like "nothing approved matches".
+          A real server-side search now. `MeetingLibraryQueryDto` declares a
+          `search` field, and `listMeetingLibrary` AND-s it into the query as an
+          OR over meeting subject and client name.
+          
+          It was briefly labelled "Filter this page" because no server search
+          existed and the box only narrowed the loaded page of a paginated list
+          — which made a page-local miss look like "nothing matches". That
+          caveat is gone: this reaches every page.
         */}
         <div className="uui-search-field">
           <Search size={18} />
@@ -398,8 +403,8 @@ export function VNextMeetingLibrary() {
             type="text"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            aria-label="Filter this page by meeting or client name"
-            placeholder="Filter this page…"
+            aria-label="Search your meeting library by subject or client"
+            placeholder="Search by meeting or client…"
           />
         </div>
         <LibraryDropdown
@@ -480,18 +485,31 @@ export function VNextMeetingLibrary() {
             </button>
           </div>
         ) : rows.length === 0 ? (
+          /*
+           * One message, because there is only one case left. The search now runs
+           * server-side across every page, so "no rows" can no longer mean
+           * "matches exist but not on the page you are looking at" — the split
+           * empty state that distinction required is gone with it.
+           *
+           * A plain block comment, not the braced JSX form: this sits in a
+           * ternary's expression slot, not a JSX children slot, where the braced
+           * form is a syntax error.
+           */
           <div className="uui-library-empty">
-            {allRows.length === 0 ? (
+            {q.trim() ? (
               <>
-                No approved or saved materials match these filters. This Library covers
-                the whole firm, so it means nothing approved exists for this
-                client/date/type/visibility combination — not that yours is missing.
+                Nothing in your meeting library matches “{q.trim()}”
+                {clientId || type !== 'all' || vis !== 'all' || fromDate || toDate
+                  ? ' with the current filters applied'
+                  : ''}
+                . This searches meetings you own that have an approved prep, note or
+                debrief — a colleague’s meeting will not appear here.
               </>
             ) : (
               <>
-                Nothing on this page matches “{q.trim()}”. This filter only narrows the
-                rows already loaded; clear it to see all {allRows.length} on this page,
-                or use the filters above to search server-side.
+                No approved or saved materials match these filters. This covers only
+                meetings you own, so an empty result means nothing of yours matches —
+                not that the firm has nothing.
               </>
             )}
           </div>

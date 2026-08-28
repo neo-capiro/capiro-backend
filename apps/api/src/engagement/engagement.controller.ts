@@ -334,6 +334,24 @@ class UpdateMeetingPrepDto {
 // Meeting Library filters (Meetings v2 §6). page/limit follow the house
 // pagination convention (default 1 / 50, capped at 100 server-side).
 class MeetingLibraryQueryDto {
+  /**
+   * Free-text search over the meeting subject and the associated client's name.
+   *
+   * Deliberately NOT over artifact bodies. Prep/notes/debrief content is stored
+   * encrypted and `listSharedMeetingsForClient` is explicit that these list
+   * endpoints return "metadata-only (no decrypted bodies)" — searching bodies
+   * would mean decrypting every candidate row on every keystroke, and would
+   * leak artifact content through result counts even where the body is never
+   * returned. Subject + client name is what the client-side filter this
+   * replaces actually matched.
+   *
+   * 160 chars matches the outreach-template `search` field's cap.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  search?: string;
+
   @IsOptional()
   @IsUUID()
   clientId?: string;

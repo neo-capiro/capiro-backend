@@ -1955,6 +1955,7 @@ export class EngagementService {
   async listMeetingLibrary(
     ctx: TenantContext,
     query: {
+      search?: string;
       clientId?: string;
       artifactType?: 'prep' | 'notes' | 'debrief';
       visibility?: 'shared' | 'private';
@@ -1969,6 +1970,27 @@ export class EngagementService {
     const startsAt: Prisma.DateTimeFilter = {};
     if (query.from) startsAt.gte = parseDate(query.from, 'from');
     if (query.to) startsAt.lt = parseDate(query.to, 'to');
+    const search = query.search?.trim() ?? '';
+
+    /*
+     * Search goes in the AND array, never at the top level.
+     *
+     * `ownMeetingWhere()` returns its own top-level `OR` (createdByUserId OR
+     * connection.createdByUserId). Spreading a second `OR` into this object
+     * would OVERWRITE that one — silently widening the query from "meetings I
+     * own" to "every meeting in the tenant whose subject matches", which is an
+     * authorization hole, not a display bug. AND-ing keeps both predicates.
+     */
+    const searchWhere: Prisma.MeetingWhereInput[] = search
+      ? [
+          {
+            OR: [
+              { subject: { contains: search, mode: 'insensitive' } },
+              { client: { name: { contains: search, mode: 'insensitive' } } },
+            ],
+          },
+        ]
+      : [];
 
     const where: Prisma.MeetingWhereInput = {
       tenantId: ctx.tenantId,
@@ -1981,7 +2003,7 @@ export class EngagementService {
           }
         : {}),
       ...(query.from || query.to ? { startsAt } : {}),
-      AND: [libraryArtifactWhere(query.artifactType)],
+      AND: [libraryArtifactWhere(query.artifactType), ...searchWhere],
     };
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {

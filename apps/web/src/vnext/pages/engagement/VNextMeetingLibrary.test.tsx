@@ -113,21 +113,30 @@ describe('VNextMeetingLibrary', () => {
     });
   });
 
-  test('renders the breadcrumb, heading and a subline that does not promise corpus search', () => {
+  test('describes the library as OWNER-scoped, which is what the query actually does', () => {
     renderLibrary();
     expect(screen.getByText('Meetings')).toBeInTheDocument();
     expect(screen.getByText('Library')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Meeting Library' })).toBeInTheDocument();
-    // The Library is tenant-scoped, not owner-scoped: it deliberately shows
-    // other people's approved material, so "empty" means "nothing approved
-    // matches", never "you have nothing".
-    expect(screen.getByText(/tenant-wide/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/nothing approved matches these filters/i),
-    ).toBeInTheDocument();
-    // The old subline said the page was "Searchable by client, date, artifact
-    // type, and visibility" next to a text box that searched none of those and
-    // never reached the server. That claim must not come back.
+
+    /*
+     * `listMeetingLibrary` applies `ownMeetingWhere(ctx.userId)`, i.e.
+     * `createdByUserId = me OR connection.createdByUserId = me`. The Library is
+     * OWNER-scoped.
+     *
+     * This subline briefly claimed the opposite ("Tenant-wide ... every approved
+     * or saved material in the firm"), on the strength of a handoff document
+     * that asserted tenant scoping. That told users an empty result meant "the
+     * firm has nothing" when it actually means "you have nothing" - a
+     * materially different, and wrong, statement. Neither claim may come back.
+     */
+    expect(screen.getByText(/Your meetings/i)).toBeInTheDocument();
+    expect(screen.getByText(/came from a calendar you connected/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tenant-wide/i)).toBeNull();
+
+    // The even older subline claimed the page was "Searchable by client, date,
+    // artifact type, and visibility" next to a text box that searched none of
+    // those and never reached the server. Also must not come back.
     expect(screen.queryByText(/Searchable by client, date, artifact type/i)).toBeNull();
   });
 
@@ -195,22 +204,24 @@ describe('VNextMeetingLibrary', () => {
       expect(screen.queryByText(/only narrows the rows already loaded/i)).toBeNull();
     });
 
-    test('says the text filter is page-local when the server returned rows but none match it', () => {
-      useMeetingLibraryMock.mockReturnValue({
-        data: { data: [makeMeeting({ subject: 'Budget markup prep' })], total: 1, page: 1, limit: 25 },
-        isLoading: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
+    test('names the search term, and still says a colleague-owned meeting will not appear', () => {
       renderLibrary();
-      fireEvent.change(screen.getByPlaceholderText('Filter this page…'), {
+      fireEvent.change(screen.getByPlaceholderText('Search by meeting or client…'), {
         target: { value: 'zzz-no-such-meeting' },
       });
-      expect(screen.getByText(/only narrows the rows already loaded/i)).toBeInTheDocument();
-      // Must NOT claim the corpus has nothing — the server did return a row.
-      expect(
-        screen.queryByText(/No approved or saved materials match these filters/i),
-      ).toBeNull();
+      // getAllByText, not getByText: the harness's LocationSpy also renders
+      // `location.search`, which now carries `q=zzz-no-such-meeting`.
+      expect(screen.getAllByText(/zzz-no-such-meeting/).length).toBeGreaterThan(0);
+      /*
+       * Still owner-scoped, and the empty state has to say so. Without it a user
+       * whose colleague owns the meeting concludes the material does not exist.
+       *
+       * The page-local caveat this replaces ("only narrows the rows already
+       * loaded") is gone on purpose: `search` is now a real server parameter, so
+       * "no rows" can no longer mean "matches exist, just not on this page".
+       */
+      expect(screen.getAllByText(/colleague/i).length).toBeGreaterThan(0);
+      expect(screen.queryByText(/only narrows the rows already loaded/i)).toBeNull();
     });
 
     test('does not render the empty state once a row exists', () => {
@@ -353,30 +364,63 @@ describe('VNextMeetingLibrary', () => {
   describe('search', () => {
     test('typing a query persists it to the URL as `q`', () => {
       renderLibrary();
-      fireEvent.change(screen.getByPlaceholderText('Filter this page…'), {
+      fireEvent.change(screen.getByPlaceholderText('Search by meeting or client…'), {
         target: { value: 'HASC' },
       });
       expect(locationSearch()).toContain('q=HASC');
     });
 
     /*
-     * `MeetingLibraryQueryDto` declares clientId, artifactType, visibility,
-     * from, to, page and limit -- and no text field. The global ValidationPipe
-     * rejects undeclared query params, so a `q` sent to the server would 400
-     * rather than search. It must stay a client-side page filter until a real
-     * server-side search exists.
+     * `MeetingLibraryQueryDto` now declares a `search` field, and
+     * `listMeetingLibrary` AND-s it into the query as an OR over meeting subject
+     * and client name.
+     *
+     * This is the inverse of the test it replaces, which asserted the param was
+     * NEVER sent — correct while no server search existed, wrong now that one
+     * does.
      */
-    test('never sends the page filter to the server as a query param', () => {
+    test('sends the query to the server as `search`, so it reaches every page', () => {
       renderLibrary();
-      fireEvent.change(screen.getByPlaceholderText('Filter this page…'), {
+      fireEvent.change(screen.getByPlaceholderText('Search by meeting or client…'), {
         target: { value: 'HASC' },
       });
+      const sent = useMeetingLibraryMock.mock.calls
+        .map((call) => call[0] as Record<string, unknown> | undefined)
+        .filter((params) => params?.search === 'HASC');
+      expect(sent.length).toBeGreaterThan(0);
+    });
+
+    test('sends no `search` key at all when the box is empty', () => {
+      // `search: ''` would be a distinct react-query key from "absent", so
+      // clearing the box would refetch rather than reuse the unfiltered result.
+      renderLibrary();
       for (const call of useMeetingLibraryMock.mock.calls) {
         const params = call[0] as Record<string, unknown> | undefined;
-        expect(params).not.toHaveProperty('q');
-        expect(params).not.toHaveProperty('search');
-        expect(params).not.toHaveProperty('query');
+        expect(params?.search).toBeUndefined();
       }
+    });
+
+    test('does not re-filter server results on the client', () => {
+      // The server already applied `search`, and `total` reflects it. A second
+      // client-side filter would hide rows the server counted, so page N could
+      // render empty while the pager still claimed results existed.
+      useMeetingLibraryMock.mockReturnValue({
+        data: {
+          data: [makeMeeting({ subject: 'Totally unrelated subject' })],
+          total: 1,
+          page: 1,
+          limit: 25,
+        },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderLibrary();
+      fireEvent.change(screen.getByPlaceholderText('Search by meeting or client…'), {
+        target: { value: 'HASC' },
+      });
+      // Row survives despite not matching the term locally: the server decides.
+      expect(screen.getByText('Totally unrelated subject')).toBeInTheDocument();
     });
   });
 });
