@@ -190,18 +190,54 @@ export class StarterTemplateSeeder {
   }
 
   private async seed(tenantId: string): Promise<StarterSeedResult> {
-    // Owner lookup and the marker check both need to see rows before any tenant
-    // context is established, so they run on the bypass path. Everything that
-    // WRITES template rows runs inside withTenantUser below, under RLS.
-    const admin = await this.findTenantAdmin(tenantId);
+    /*
+     * Both pre-flight reads run inside `withSystem`, which sets
+     * `app.bypass_rls`.
+     *
+     * They originally used `this.prisma.$queryRaw` directly, and that was a real
+     * bug, not a style choice. `tenant_memberships` is RLS-protected, and a bare
+     * query establishes no tenant context — so `current_tenant_id()` is null,
+     * the policy matches nothing, and the admin lookup returns zero rows for
+     * EVERY tenant. The seeder would then take the `no_admin` branch forever and
+     * never seed anything, on any tenant, while looking like it had simply found
+     * nothing to do. (Confirmed empirically: the same query run without a tenant
+     * context reports 0 tenants and 0 memberships against a database that has
+     * plenty of both.)
+     *
+     * `withSystem` is the sanctioned path for exactly this: its own doc comment
+     * names "cross-tenant admin tooling" as the use case, and choosing an owner
+     * for a tenant is cross-tenant by nature — the caller's tenant context
+     * cannot authorize reading a membership row to decide who should own a
+     * template.
+     *
+     * Everything that WRITES template rows still runs inside `withTenantUser`
+     * below, under RLS, as the chosen admin.
+     */
+    const { admin, currentVersion } = await this.prisma.withSystem(async (tx) => ({
+      admin: await this.findTenantAdmin(tx, tenantId),
+      currentVersion: await this.readSeedVersion(tx, tenantId),
+    }));
     if (!admin) {
-      // Not an error: a tenant genuinely may not have an admin yet during
-      // onboarding. Seeding will happen on a later read once one exists.
+      /*
+       * Not an error: a tenant genuinely may not have an active admin yet
+       * during onboarding, and seeding will happen on a later read once one
+       * exists.
+       *
+       * But it MUST be logged. This branch returned silently at first, and that
+       * was the wrong call: "no active admin" is the most likely reason seeding
+       * does nothing in practice, and it is also the one outcome that leaves no
+       * evidence anywhere — no rows, no marker, no log line. Debugging "the
+       * starter templates never appeared" then means reading this source to
+       * discover the branch exists at all. `warn` rather than `log` because the
+       * steady state for a working tenant is that this never fires.
+       */
+      this.logger.warn(
+        `Starter template seeding skipped for tenant ${tenantId}: no ACTIVE tenant_memberships row with role user_admin or capiro_admin. Seeding will retry on the next template-library read.`,
+      );
       return { outcome: 'no_admin', created: 0 };
     }
 
-    const current = await this.readSeedVersion(tenantId);
-    if (current !== null && current >= STARTER_TEMPLATE_SEED_VERSION) {
+    if (currentVersion !== null && currentVersion >= STARTER_TEMPLATE_SEED_VERSION) {
       return { outcome: 'already_current', created: 0 };
     }
 
@@ -230,8 +266,11 @@ export class StarterTemplateSeeder {
    * since-removed user would attach `canEdit`/`canArchive` to an account that
    * cannot or should not exercise them.
    */
-  private async findTenantAdmin(tenantId: string): Promise<SeedOwnerRow | null> {
-    const rows = await this.prisma.$queryRaw<SeedOwnerRow[]>`
+  private async findTenantAdmin(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<SeedOwnerRow | null> {
+    const rows = await tx.$queryRaw<SeedOwnerRow[]>`
       SELECT user_id AS "userId"
       FROM tenant_memberships
       WHERE tenant_id = CAST(${tenantId} AS uuid)
@@ -243,8 +282,11 @@ export class StarterTemplateSeeder {
     return rows[0] ?? null;
   }
 
-  private async readSeedVersion(tenantId: string): Promise<number | null> {
-    const rows = await this.prisma.$queryRaw<SeedStateRow[]>`
+  private async readSeedVersion(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<number | null> {
+    const rows = await tx.$queryRaw<SeedStateRow[]>`
       SELECT seed_version AS "seedVersion"
       FROM outreach_v3_template_seed_state
       WHERE tenant_id = CAST(${tenantId} AS uuid)

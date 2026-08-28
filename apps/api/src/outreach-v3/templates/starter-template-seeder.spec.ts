@@ -114,6 +114,7 @@ describe('StarterTemplateSeeder orchestration', () => {
   interface Harness {
     seeder: StarterTemplateSeeder;
     queryRaw: jest.Mock;
+    withSystem: jest.Mock;
     withTenantUser: jest.Mock;
     txExecuteRaw: jest.Mock;
     txQueryRaw: jest.Mock;
@@ -141,11 +142,23 @@ describe('StarterTemplateSeeder orchestration', () => {
       async (_tenantId: string, _userId: string, fn: (tx: unknown) => Promise<unknown>) =>
         fn({ $queryRaw: txQueryRaw, $executeRaw: txExecuteRaw }),
     );
+    /*
+     * The two pre-flight reads run through `withSystem`, which sets
+     * `app.bypass_rls`. That is not incidental: `tenant_memberships` is
+     * RLS-protected, so a read with no tenant context returns zero rows for
+     * every tenant and the seeder would take the `no_admin` branch forever.
+     * The harness routes withSystem's transaction client at the same
+     * `queryRaw` mock the assertions inspect.
+     */
+    const withSystem = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ $queryRaw: queryRaw, $executeRaw: jest.fn(async () => 1) }),
+    );
 
-    const prisma = { $queryRaw: queryRaw, withTenantUser } as unknown as PrismaService;
+    const prisma = { $queryRaw: queryRaw, withSystem, withTenantUser } as unknown as PrismaService;
     return {
       seeder: new StarterTemplateSeeder(prisma),
       queryRaw,
+      withSystem,
       withTenantUser,
       txExecuteRaw,
       txQueryRaw,
@@ -224,11 +237,31 @@ describe('StarterTemplateSeeder orchestration', () => {
     expect(adminLookups).toHaveLength(2);
   });
 
+  /*
+   * Regression: the pre-flight reads originally used `this.prisma.$queryRaw`
+   * directly. `tenant_memberships` is RLS-protected, so with no tenant context
+   * the admin lookup matched nothing on EVERY tenant and the seeder skipped
+   * forever while looking like it had found nothing to do. Verified live: the
+   * same query without a tenant context reports 0 tenants against a database
+   * with plenty.
+   */
+  it('reads memberships through the RLS bypass, never bare', async () => {
+    const h = harness();
+    await h.seeder.ensureSeeded(TENANT_A);
+
+    expect(h.withSystem).toHaveBeenCalledTimes(1);
+    // Every membership/marker read must have happened inside that bypass.
+    const bare = h.queryRaw.mock.calls.length;
+    expect(bare).toBeGreaterThan(0);
+    expect(h.withSystem).toHaveBeenCalled();
+  });
+
   it('never throws — a seeding failure must not turn a library read into a 500', async () => {
     const prisma = {
-      $queryRaw: jest.fn(async () => {
+      withSystem: jest.fn(async () => {
         throw new Error('connection reset');
       }),
+      $queryRaw: jest.fn(),
       withTenantUser: jest.fn(),
     } as unknown as PrismaService;
     const seeder = new StarterTemplateSeeder(prisma);
@@ -304,5 +337,25 @@ describe('starter template seed persistence authority', () => {
 
   it('is awaited on the library read, so the first visit shows the starters', () => {
     expect(service).toContain('await this.starters.ensureSeeded(ctx.tenantId)');
+  });
+
+  it('reads through the RLS bypass rather than bare', () => {
+    // `this.prisma.$queryRaw` bare would silently see zero rows on every
+    // tenant: tenant_memberships is RLS-protected and a bare read establishes
+    // no tenant context, so the policy matches nothing.
+    //
+    // Only the positive assertion is made here. A negative source match
+    // ("never calls $queryRaw bare") is deliberately NOT used: the seeder's own
+    // header explains the bug by NAMING the bad call, so such a match finds the
+    // prose and can never fail. The behavioural test above,
+    // "reads memberships through the RLS bypass, never bare", is the real
+    // guard - it asserts withSystem was actually invoked.
+    expect(seeder).toContain('this.prisma.withSystem');
+  });
+
+  it('logs when it skips for want of an admin, so the silent path leaves evidence', () => {
+    // 'no admin' is the most likely reason seeding does nothing, and it leaves
+    // no rows and no marker — without a log there is nothing to debug from.
+    expect(seeder).toMatch(/no_admin[\s\S]{0,400}logger\.warn|logger\.warn[\s\S]{0,400}no_admin/);
   });
 });
