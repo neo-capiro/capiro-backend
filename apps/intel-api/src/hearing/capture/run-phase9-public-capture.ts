@@ -7,26 +7,28 @@ import {
   type PublicCaptureTaskResult,
 } from './public-capture-task-runner.js';
 
-const MODES = ['preflight', 'worker', 'both', 'status', 'disposition'] as const;
+const MODES = ['preflight', 'worker', 'both', 'status', 'disposition', 'disposition-backfill'] as const;
 type Phase9CaptureMode = (typeof MODES)[number];
 
 async function main(): Promise<void> {
   const rawMode = process.argv[2] ?? 'both';
   if (!MODES.includes(rawMode as Phase9CaptureMode)) {
-    throw new Error(`usage: run-phase9-public-capture <${MODES.join('|')}> [--manual] [--limit=N] [--hearingId=ID]`);
+    throw new Error(`usage: run-phase9-public-capture <${MODES.join('|')}> [--manual] [--limit=N] [--hearingId=ID] [--lookback-days=N] [--cursor=ISO|hearingId]`);
   }
   const mode = rawMode as Phase9CaptureMode;
   const manual = process.argv.includes('--manual');
-  if (mode === 'disposition' && !manual) {
-    // Demand-free disposition (Step 5/9): determine and persist a canonical
-    // hearing-level stream disposition WITHOUT creating capture demand
-    // (no hearing_subscription, no public_hearing_capture row, no capture
-    // job). This is an explicit operator path, never part of the recurring
-    // scheduled capture-worker cadence — the scheduled `both`/`worker`/
-    // `preflight` verbs never pass --manual and can never select this mode
-    // without one, so an accidental schedule change can't silently start
-    // running disposition on a cadence.
-    throw new Error('disposition mode requires --manual (explicit operator invocation only)');
+  if ((mode === 'disposition' || mode === 'disposition-backfill') && !manual) {
+    // Demand-free disposition (Step 5/9) and the bounded historical
+    // disposition-backfill (Phase 9 shadow-hardening readiness gap): both
+    // determine and persist a canonical hearing-level stream disposition
+    // WITHOUT creating capture demand (no hearing_subscription, no
+    // public_hearing_capture row, no capture job). These are explicit
+    // operator paths, never part of the recurring scheduled capture-worker
+    // cadence — the scheduled `both`/`worker`/`preflight` verbs never pass
+    // --manual and can never select either mode without one, so an
+    // accidental schedule change can't silently start running either mode
+    // on a cadence.
+    throw new Error(`${mode} mode requires --manual (explicit operator invocation only)`);
   }
   const args = process.argv.slice(3).filter((value) => value !== '--manual');
   const prisma = new PrismaService();
@@ -48,6 +50,8 @@ async function main(): Promise<void> {
       results.push(await run('status', args, prisma, workerId));
     } else if (mode === 'disposition') {
       results.push(await run('disposition', args, prisma, workerId));
+    } else if (mode === 'disposition-backfill') {
+      results.push(await run('disposition-backfill', args, prisma, workerId));
     } else {
       if (mode === 'preflight' || mode === 'both') {
         results.push(await run('preflight', args, prisma, workerId));

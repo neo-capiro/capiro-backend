@@ -7,7 +7,11 @@ import {
 } from './automatic-stream-resolver.js';
 import type { HearingVideoReference } from './hearing-video-reference.js';
 import type { PublicStreamResolverPort } from './public-capture.orchestrator.js';
-import type { ResolverResultLike, StreamResolutionState } from './stream-resolution-policy.js';
+import {
+  classifyStreamResolution,
+  type ResolverResultLike,
+  type StreamResolutionState,
+} from './stream-resolution-policy.js';
 
 interface HearingContextRow {
   id: string;
@@ -49,22 +53,46 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     pageUrl?: string;
     hearingId?: string;
   }): Promise<ResolverResultLike> {
+    const result = await this.resolveInternal(input);
+    return result.rawResult;
+  }
+
+  /**
+   * Same resolution/persistence path as {@link resolve}, but returns the full
+   * classified result (state/reasonCode/terminal) instead of just the raw
+   * provider payload. Used by callers that need to report WHICH terminal
+   * disposition was reached (e.g. the historical disposition backfill) —
+   * this does not fork or duplicate the policy: it is the identical
+   * automatic.resolve() + persistAudit() call `resolve()` already makes,
+   * just returning more of what that call already computed.
+   */
+  async resolveClassified(input: {
+    pageUrl?: string;
+    hearingId?: string;
+  }): Promise<AutomaticStreamResolutionResult> {
+    return this.resolveInternal(input);
+  }
+
+  private async resolveInternal(input: {
+    pageUrl?: string;
+    hearingId?: string;
+  }): Promise<AutomaticStreamResolutionResult> {
     const hearingId = input.hearingId?.trim();
     if (!hearingId) {
-      return {
+      return unresolvedShell({
         status: 'unresolvable',
         reference: safeReference(input.pageUrl),
         note: 'Canonical hearing id is required for automatic capture resolution',
-      };
+      });
     }
 
     const hearing = await this.loadHearing(hearingId);
     if (!hearing) {
-      return {
+      return unresolvedShell({
         status: 'unresolvable',
         reference: safeReference(input.pageUrl),
         note: `Canonical hearing not found: ${hearingId}`,
-      };
+      });
     }
     const videos = await this.loadVideoReferences(hearingId, new Date());
     const result = await this.automatic.resolve({
@@ -88,7 +116,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
         `could not persist stream-resolution audit hearing=${hearingId}: ${boundedError(error)}`,
       );
     }
-    return result.rawResult;
+    return result;
   }
 
   private async loadHearing(hearingId: string): Promise<HearingContextRow | null> {
@@ -247,4 +275,18 @@ function bounded(value: string, max: number): string {
 
 function boundedError(error: unknown): string {
   return bounded(error instanceof Error ? error.message : String(error), 1_000);
+}
+
+/// Builds a full AutomaticStreamResolutionResult shell for the two early-exit
+/// cases (no hearingId supplied / hearing not found) that never reach
+/// AutomaticStreamResolver.resolve(). Runs the raw result through the SAME
+/// classifyStreamResolution() policy every other path uses, so a caller
+/// reading `.selected.state` never has to special-case these shells versus a
+/// normal resolution outcome.
+function unresolvedShell(rawResult: ResolverResultLike): AutomaticStreamResolutionResult {
+  return {
+    selected: classifyStreamResolution(rawResult, { now: new Date() }),
+    rawResult,
+    attempts: [],
+  };
 }

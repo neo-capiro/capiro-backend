@@ -18,7 +18,12 @@ import { PublicHearingCaptureAttemptStore } from './public-hearing-capture-attem
 import { PublicHearingCaptureStore } from './public-hearing-capture.store.js';
 import { PublicHearingTranscriptStore } from './public-hearing-transcript.store.js';
 
-export type PublicCaptureTaskMode = 'preflight' | 'worker' | 'status' | 'disposition';
+export type PublicCaptureTaskMode =
+  | 'preflight'
+  | 'worker'
+  | 'status'
+  | 'disposition'
+  | 'disposition-backfill';
 
 export interface PublicCaptureTaskResult {
   mode: PublicCaptureTaskMode;
@@ -29,6 +34,45 @@ export interface PublicCaptureTaskResult {
   failed: number;
   results: Array<Record<string, unknown>>;
 }
+
+export interface DispositionBackfillSummary {
+  mode: 'disposition-backfill';
+  lookbackDays: number;
+  limit: number;
+  scanned: number;
+  attempted: number;
+  terminallyDispositioned: number;
+  noPublicStream: number;
+  policyBlocked: number;
+  sourceErrors: number;
+  stillUnresolved: number;
+  skippedAlreadyExplicit: number;
+  errors: Array<{ hearingId: string; error: string }>;
+  results: Array<{
+    hearingId: string;
+    effectiveStart: string;
+    state: string;
+    reasonCode: string;
+    terminal: boolean;
+  }>;
+  nextCursor: { effectiveStart: string; hearingId: string } | null;
+}
+
+/// Hard operator-safety ceiling on a single backfill invocation. This is a
+/// manual, bounded-batch path — an unbounded run is explicitly forbidden by
+/// the runbook, so the ceiling is enforced here regardless of what --limit
+/// the caller passes.
+const DISPOSITION_BACKFILL_HARD_MAX = 500;
+
+/// A hearing-level coverage_status that already represents a TERMINAL,
+/// explicit disposition (mirrors legiwatch-phase9-readiness.service.ts's
+/// TERMINAL_HEARING_COVERAGE_STATUSES exactly — kept as a literal copy here
+/// rather than a cross-app import because apps/api and apps/intel-api are
+/// separate deployable services with no shared runtime dependency; the
+/// disposable-Postgres readiness-gate test is what keeps these two
+/// definitions from silently drifting apart).
+const TERMINAL_HEARING_COVERAGE_STATUSES_MIRROR = new Set(['no_public_stream', 'blocked']);
+const BACKFILL_ELIGIBLE_EVENT_STATUSES = new Set(['scheduled', 'in_progress', 'completed']);
 
 interface TaskDependencies {
   prisma: PrismaService;
@@ -125,6 +169,19 @@ export async function runPublicCaptureTask(
       log(`PUBLIC_CAPTURE_DISPOSITION_ERROR hearing=${explicitHearingId} ${boundedError(error)}`);
     }
     return result;
+  }
+
+  if (mode === 'disposition-backfill') {
+    const summary = await runDispositionBackfill(dependencies, flags, log);
+    return {
+      mode,
+      discovered: summary.scanned,
+      claimed: 0,
+      completed: summary.terminallyDispositioned,
+      requeued: 0,
+      failed: summary.errors.length,
+      results: [summary as unknown as Record<string, unknown>],
+    };
   }
 
   const limit = boundedPositiveInteger(Number(flags['limit'] ?? 25), 200, 'limit');
@@ -345,6 +402,185 @@ function buildResolver(prisma: PrismaService): PublicCaptureAutomaticResolverAda
   return new PublicCaptureAutomaticResolverAdapter(prisma, resolver);
 }
 
+interface BackfillCandidateRow {
+  hearingId: string;
+  effectiveStart: Date;
+}
+
+interface BackfillHearingCheckRow {
+  candidateCount: number;
+  hasCaptureOutcome: boolean;
+  coverageStatus: string;
+}
+
+/**
+ * Manual-only historical stream-disposition backfill (Phase 9 shadow-hardening
+ * readiness gap). Selects due public hearings that the readiness gate's
+ * STREAM_PATH_EXPLICIT check would still count as unresolved — no
+ * hearing_stream_candidate, no capture terminal/failure disposition, no
+ * terminal hearing-level coverage_status — and calls the SAME resolver used
+ * by `disposition` (PublicCaptureAutomaticResolverAdapter.resolve()) for
+ * each one, in bounded batches, ordered deterministically for safe resume.
+ *
+ * Never calls PublicCaptureOrchestrator.reconcile() and never creates a
+ * hearing_subscription / public_hearing_capture / public_hearing_capture_job
+ * / hearing_stream_candidate row — it is a pure disposition-persistence path
+ * identical in blast radius to the single-hearing `disposition` mode it
+ * loops over.
+ */
+async function runDispositionBackfill(
+  dependencies: TaskDependencies,
+  flags: Record<string, string>,
+  log: (message: string) => void,
+): Promise<DispositionBackfillSummary> {
+  const now = (dependencies.now ?? (() => new Date()))();
+  const lookbackDays = boundedPositiveInteger(
+    Number(flags['lookback-days'] ?? flags['lookbackDays'] ?? 60),
+    3_650,
+    'lookback-days',
+  );
+  const limit = boundedPositiveInteger(
+    Number(flags['limit'] ?? 25),
+    DISPOSITION_BACKFILL_HARD_MAX,
+    'limit',
+  );
+  const windowStart = new Date(now.getTime() - lookbackDays * 86_400_000);
+  const rawCursor = flags['cursor']?.trim();
+  let cursor: { effectiveStart: Date; hearingId: string } | null = null;
+  if (rawCursor) {
+    const [rawTimestamp, rawId] = rawCursor.split('|');
+    const parsed = rawTimestamp ? new Date(rawTimestamp) : null;
+    if (!parsed || Number.isNaN(parsed.getTime()) || !rawId) {
+      throw new Error('disposition-backfill --cursor must be "<ISO timestamp>|<hearingId>"');
+    }
+    cursor = { effectiveStart: parsed, hearingId: rawId };
+  }
+
+  const prisma = dependencies.prisma;
+  const eligibleStatuses = [...BACKFILL_ELIGIBLE_EVENT_STATUSES];
+  const candidates = await prisma.$queryRawUnsafe<BackfillCandidateRow[]>(
+    `SELECT h.id AS "hearingId",
+            COALESCE(h.starts_at, h.date::timestamp) AS "effectiveStart"
+     FROM committee_hearing h
+     LEFT JOIN hearing_stream_candidate sc ON sc.hearing_id = h.id
+     LEFT JOIN public_hearing_capture phc ON phc.hearing_id = h.id
+     WHERE h.visibility = 'public'
+       AND h.event_status = ANY($1::text[])
+       AND COALESCE(h.starts_at, h.date::timestamp) BETWEEN $2 AND $3
+       AND h.coverage_status NOT IN ('no_public_stream','blocked')
+       AND ($4::timestamptz IS NULL OR (COALESCE(h.starts_at, h.date::timestamp), h.id) > ($4::timestamptz, $5))
+     GROUP BY h.id, h.starts_at, h.date
+     HAVING COUNT(DISTINCT sc.id) = 0
+        AND COALESCE(
+              bool_or(COALESCE(phc.terminal_reason_code, '') <> '' OR COALESCE(phc.failure_code, '') <> ''),
+              false
+            ) = false
+     ORDER BY COALESCE(h.starts_at, h.date::timestamp) ASC, h.id ASC
+     LIMIT $6`,
+    eligibleStatuses,
+    windowStart,
+    now,
+    cursor?.effectiveStart ?? null,
+    cursor?.hearingId ?? null,
+    limit,
+  );
+
+  const resolver = buildResolver(prisma);
+  const summary: DispositionBackfillSummary = {
+    mode: 'disposition-backfill',
+    lookbackDays,
+    limit,
+    scanned: candidates.length,
+    attempted: 0,
+    terminallyDispositioned: 0,
+    noPublicStream: 0,
+    policyBlocked: 0,
+    sourceErrors: 0,
+    stillUnresolved: 0,
+    skippedAlreadyExplicit: 0,
+    errors: [],
+    results: [],
+    nextCursor: null,
+  };
+
+  for (const candidate of candidates) {
+    // Idempotency re-check immediately before resolving: a hearing already
+    // made explicit since the selection query ran (e.g. an earlier row in
+    // this same batch touched a shared upstream source, or a concurrent
+    // manual `disposition` call landed) is skipped rather than re-resolved,
+    // so repeated backfill runs never duplicate evidence or thrash a
+    // hearing's audit trail.
+    const fresh = await prisma.$queryRawUnsafe<BackfillHearingCheckRow[]>(
+      `SELECT COUNT(DISTINCT sc.id)::int AS "candidateCount",
+              COALESCE(
+                bool_or(COALESCE(phc.terminal_reason_code, '') <> '' OR COALESCE(phc.failure_code, '') <> ''),
+                false
+              ) AS "hasCaptureOutcome",
+              MIN(h.coverage_status) AS "coverageStatus"
+       FROM committee_hearing h
+       LEFT JOIN hearing_stream_candidate sc ON sc.hearing_id = h.id
+       LEFT JOIN public_hearing_capture phc ON phc.hearing_id = h.id
+       WHERE h.id = $1
+       GROUP BY h.id`,
+      candidate.hearingId,
+    );
+    const check = fresh[0];
+    const alreadyExplicit =
+      Boolean(check) &&
+      (check!.candidateCount > 0 ||
+        check!.hasCaptureOutcome ||
+        TERMINAL_HEARING_COVERAGE_STATUSES_MIRROR.has(check!.coverageStatus));
+    if (alreadyExplicit) {
+      summary.skippedAlreadyExplicit += 1;
+      log(`DISPOSITION_BACKFILL_SKIP_ALREADY_EXPLICIT hearing=${candidate.hearingId}`);
+      continue;
+    }
+
+    summary.attempted += 1;
+    try {
+      const resolved = await resolver.resolveClassified({ hearingId: candidate.hearingId });
+      const state = resolved.selected.state;
+      const reasonCode = resolved.selected.reasonCode;
+      summary.results.push({
+        hearingId: candidate.hearingId,
+        effectiveStart: candidate.effectiveStart.toISOString(),
+        state,
+        reasonCode,
+        terminal: resolved.selected.terminal,
+      });
+      if (state === 'NO_PUBLIC_STREAM') {
+        summary.noPublicStream += 1;
+        summary.terminallyDispositioned += 1;
+      } else if (
+        state === 'BROWSER_CAPTURE_ONLY' ||
+        state === 'POLICY_BLOCKED' ||
+        state === 'CANCELED'
+      ) {
+        summary.policyBlocked += 1;
+        summary.terminallyDispositioned += 1;
+      } else if (state === 'SOURCE_ERROR') {
+        // Explicitly preserved as non-terminal review evidence — never
+        // coerced into NO_PUBLIC_STREAM just to close out the backlog.
+        summary.sourceErrors += 1;
+      }
+      log(
+        `DISPOSITION_BACKFILL hearing=${candidate.hearingId} state=${state} reasonCode=${reasonCode}`,
+      );
+    } catch (error) {
+      summary.errors.push({ hearingId: candidate.hearingId, error: boundedError(error) });
+      log(`DISPOSITION_BACKFILL_ERROR hearing=${candidate.hearingId} ${boundedError(error)}`);
+    }
+  }
+
+  summary.stillUnresolved = summary.attempted - summary.terminallyDispositioned;
+  const last = candidates[candidates.length - 1];
+  summary.nextCursor =
+    last && candidates.length >= limit
+      ? { effectiveStart: last.effectiveStart.toISOString(), hearingId: last.hearingId }
+      : null;
+  return summary;
+}
+
 function parseFlags(args: string[]): Record<string, string> {
   const output: Record<string, string> = {};
   for (const value of args) {
@@ -375,17 +611,18 @@ function boundedPositiveInteger(value: number, max: number, field: string): numb
 
 async function main(): Promise<void> {
   const [rawMode, ...args] = process.argv.slice(2);
-  if (!['preflight', 'worker', 'status', 'disposition'].includes(rawMode ?? '')) {
+  if (!['preflight', 'worker', 'status', 'disposition', 'disposition-backfill'].includes(rawMode ?? '')) {
     throw new Error(
-      'usage: public-capture-task-runner <preflight|worker|status|disposition> [--key=value]',
+      'usage: public-capture-task-runner <preflight|worker|status|disposition|disposition-backfill> [--key=value]',
     );
   }
-  if (rawMode === 'disposition' && !args.includes('--manual')) {
-    // Demand-free disposition is an operator/manual path, never part of the
-    // recurring capture-worker cadence — require the same --manual flag the
-    // other manual invocations use, so it can't be silently added to a
-    // schedule without an explicit, reviewable change.
-    throw new Error('disposition mode requires --manual (explicit operator invocation only)');
+  if ((rawMode === 'disposition' || rawMode === 'disposition-backfill') && !args.includes('--manual')) {
+    // Demand-free disposition (single hearing or bounded backfill) is an
+    // operator/manual path, never part of the recurring capture-worker
+    // cadence — require the same --manual flag the other manual invocations
+    // use, so it can't be silently added to a schedule without an explicit,
+    // reviewable change.
+    throw new Error(`${rawMode} mode requires --manual (explicit operator invocation only)`);
   }
   const prisma = new PrismaService();
   try {
