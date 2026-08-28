@@ -31,11 +31,30 @@ import process from 'node:process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
+// job-preflight.mjs is a real ES module (static `export`s), and this file is
+// itself ESM (.mjs, already using top-level `import`) — so it is imported
+// statically here, exactly like scripts/job.mjs already does. The original
+// merged version of this file wrongly reached for `createRequire(...)` on an
+// ES module, which throws ERR_REQUIRE_ESM at runtime ("require() of ES
+// Module ... not supported"). That path was only ever `node --check`'d for
+// syntax in review, never actually executed — a syntax check cannot catch a
+// CommonJS/ESM boundary mismatch. Confirmed live during the Phase 10B-6
+// single-source dry-run (2026-08-28): the task ran, connected nothing, and
+// exited 1 on this exact line before ever reaching the database.
+import {
+  JobPreflightError,
+  resolveDatabaseIdentity,
+  printTargetIdentity,
+} from './job-preflight.mjs';
+
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(appRoot, '../..');
 
+// dist/budget-lifecycle/*.js and the generated Prisma client are CommonJS
+// build output, so `require()` remains correct for those — only the
+// hand-written job-preflight.mjs ES module needed the static import above.
 const dist = (relative) => require(path.join(appRoot, 'dist/budget-lifecycle', relative));
 function loadDomain() {
   try {
@@ -45,12 +64,6 @@ function loadDomain() {
   }
 }
 const domain = loadDomain();
-
-const {
-  JobPreflightError,
-  resolveDatabaseIdentity,
-  printTargetIdentity,
-} = require(path.join(appRoot, 'scripts/job-preflight.mjs'));
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
