@@ -338,6 +338,11 @@ export const OUTREACH_UNWIRED_CONTROLS: Array<{ control: string; reality: string
       'The Campaign Spec has no format field. The choice is stored as campaign writing guidance, so it steers generation but nothing validates the result.',
   },
   {
+    control: 'Campaign subject line',
+    reality:
+      'The campaign name is stored as goal.topic and as campaign writing guidance telling the writer to use it verbatim. Each generated draft version carries its own subject; nothing validates that it matches.',
+  },
+  {
     control: 'Per-template context options',
     reality:
       'Stored as campaign writing guidance alongside the format. There is no per-template options field on the spec.',

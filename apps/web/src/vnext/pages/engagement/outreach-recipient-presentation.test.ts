@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recipientPresentation } from './outreach-v3-phase1-shared.js';
+import { recipientPresentation } from './outreach-recipient-presentation.js';
 import type { OutreachV3DraftArtifact, OutreachV3GenerationPlan } from './engagement-api.js';
 
 /**

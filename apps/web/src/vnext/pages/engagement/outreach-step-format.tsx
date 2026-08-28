@@ -112,6 +112,7 @@ function campaignContentSkeleton(
 export function OutreachFormatStep(props: OutreachBuilderStepCommon): JSX.Element {
   const { session, campaignType, busy, applyCommands, onNext, primaryLabel } = props;
   const [applying, setApplying] = useState<OutreachEmailFormatId | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const stored = outreachEmailFormatFromSpec(session);
   const selected = outreachEffectiveEmailFormat(session, campaignType);
@@ -151,8 +152,17 @@ export function OutreachFormatStep(props: OutreachBuilderStepCommon): JSX.Elemen
       );
     }
     setApplying(format.id);
+    setError(null);
     try {
       await applyCommands(commands);
+    } catch (cause) {
+      // Without this the tile silently springs back to the saved format on the
+      // next render and the user is left believing they chose the other one.
+      setError(
+        cause instanceof Error && cause.message
+          ? cause.message
+          : 'The email format could not be saved.',
+      );
     } finally {
       setApplying(null);
     }
@@ -209,6 +219,12 @@ export function OutreachFormatStep(props: OutreachBuilderStepCommon): JSX.Elemen
             );
           })}
         </div>
+
+        {error ? (
+          <p className="ocb-note ocb-note--warn ofmt-note" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <p className="ocb-note ofmt-note">{OUTREACH_FORMAT_NOTE}</p>
         {FORMAT_UNWIRED_NOTE ? (

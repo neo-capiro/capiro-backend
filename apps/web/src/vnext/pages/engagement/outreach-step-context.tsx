@@ -750,6 +750,19 @@ function isDocumentRef(ref: OutreachV3ResolvedContextRef): boolean {
 }
 
 /**
+ * The builder's own markers carry a `manual` locator: the subject line, the
+ * email format, the template, this step's own options, and each recipient's
+ * personal note. They are written by the step that owns them and have no
+ * candidate to attribute them to, so without this they collect into one
+ * unattributed card — and that card's single toggle would exclude ALL of them
+ * at once, silently deleting the subject line and the format with one click on
+ * a source the user never chose.
+ */
+function isBuilderGuidanceRef(ref: OutreachV3ResolvedContextRef): boolean {
+  return (ref.locator as Record<string, unknown>)['source'] === 'manual';
+}
+
+/**
  * Cards for the campaign's real context, from two directions at once.
  *
  * Candidates the search found supply the groups; refs already accepted are
@@ -797,7 +810,7 @@ function buildContextSourceGroups(
   }
 
   for (const ref of accepted) {
-    if (isDocumentRef(ref)) continue;
+    if (isDocumentRef(ref) || isBuilderGuidanceRef(ref)) continue;
     const host = [...buckets.values()].find((bucket) =>
       bucket.candidates.some((candidate) =>
         sameLocator(

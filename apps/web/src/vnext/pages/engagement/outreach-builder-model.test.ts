@@ -305,6 +305,7 @@ describe('unwired controls', () => {
     // reports. A control that becomes wired must leave it in the same change.
     expect(OUTREACH_UNWIRED_CONTROLS.map((row) => row.control)).toEqual([
       'Email format',
+      'Campaign subject line',
       'Per-template context options',
       'Campaign document upload',
       'Send scheduling',

@@ -185,6 +185,16 @@
 
 /* Cell 2: the open control. Both lines truncate to one line — `min-width:0`
    is what lets the ellipsis happen inside the `minmax(0,1fr)` track. */
+/*
+ * The grid cell that holds the open control. It exists so the row can carry
+ * `role="cell"` on a real element — a `role` on the button itself would replace
+ * the button's own role and take the control out of the accessibility tree.
+ */
+.capiro-vnext-root .ochome__open-cell {
+  display: block;
+  min-width: 0;
+}
+
 .capiro-vnext-root .ochome__open {
   display: block;
   min-width: 0;

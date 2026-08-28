@@ -301,6 +301,17 @@
   box-shadow: var(--eng-shadow-raise);
 }
 
+/*
+ * Every selectable surface above states its own `box-shadow` at (0,3,0), which
+ * beats the foundation's focus ring — so each has to compose the ring with its
+ * own state ring rather than let the state win and leave focus invisible.
+ */
+.capiro-vnext-root .ocb-option:focus-visible,
+.capiro-vnext-root .ocb-tab:focus-visible,
+.capiro-vnext-root .ocb-seg__item:focus-visible {
+  box-shadow: var(--capiro-focus-ring), inset 0 0 0 1px var(--eng-accent-border);
+}
+
 /* ── Fields ─────────────────────────────────────────────────────────────── */
 
 .capiro-vnext-root .ocb-input,

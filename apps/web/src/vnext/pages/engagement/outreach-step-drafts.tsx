@@ -182,7 +182,19 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
 
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [tool, setTool] = useState<OutreachDraftTool>(null);
-  const [bodyBuffer, setBodyBuffer] = useState('');
+  /**
+   * In-progress body edits, keyed by the draft VERSION they were started from.
+   *
+   * Keying on the version rather than on the panel's open/closed state is what
+   * makes collapsing "Edit text" and reopening it non-destructive, and what
+   * stops a switch to "Edit with Meri" and back from discarding a paragraph
+   * the user had just rewritten. It also cannot leak between recipients: a
+   * different recipient's current version is a different id, so the buffer is
+   * empty and falls back to that draft's own body. Saving creates a NEW
+   * version, whose id has no entry — so the reader shows the saved text, not
+   * the stale draft it came from.
+   */
+  const [bodyEdits, setBodyEdits] = useState<Record<string, string>>({});
   const [instruction, setInstruction] = useState('');
   const [tone, setTone] = useState<OutreachDraftTone>('Professional');
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +226,11 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
   // recovered history version is read-only.
   const editable = active?.artifact.current ?? null;
 
+  const bufferKey = editable?.id ?? '';
+  const bodyBuffer = bodyEdits[bufferKey] ?? reading?.body ?? '';
+  const setBodyBuffer = (text: string) =>
+    setBodyEdits((current) => ({ ...current, [bufferKey]: text }));
+
   const refresh = () => qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
 
   const selectRecipient = (key: string) => {
@@ -226,7 +243,6 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
 
   const toggleTool = (next: Exclude<OutreachDraftTool, null>) => {
     setError(null);
-    if (next === 'edit' && tool !== 'edit') setBodyBuffer(reading?.body ?? '');
     setTool((current) => (current === next ? null : next));
   };
 

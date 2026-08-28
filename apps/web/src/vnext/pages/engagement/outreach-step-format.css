@@ -37,6 +37,15 @@
   background: var(--eng-accent-soft);
   box-shadow: inset 0 0 0 1px var(--eng-accent-border);
 }
+/*
+ * The selected tile's own ring is stated at the same specificity as the
+ * foundation's focus ring, so the ring has to be composed with it here or
+ * focus disappears on the format the user is standing on.
+ */
+.capiro-vnext-root .ofmt-tile:focus-visible {
+  box-shadow: var(--capiro-focus-ring), inset 0 0 0 1px var(--eng-accent-border);
+}
+
 .capiro-vnext-root .ofmt-tile:disabled {
   opacity: 0.55;
   cursor: not-allowed;

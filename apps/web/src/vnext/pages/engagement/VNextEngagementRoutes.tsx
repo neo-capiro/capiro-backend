@@ -105,9 +105,9 @@ export function VNextEngagementRoutes() {
    * connected, owned mailbox or not at all, so an unconnected provider must
    * read as absent here rather than as a plausible-looking default.
    */
-  const senderLabel =
-    (integrations.data ?? []).find((row) => row.status === 'connected' && row.accountEmail)
-      ?.accountEmail ?? null;
+  const senderConnection =
+    (integrations.data ?? []).find((row) => row.status === 'connected' && row.accountEmail) ?? null;
+  const senderLabel = senderConnection?.accountEmail ?? null;
   /*
    * Which entry the home screen's chooser used, carried on the URL so a
    * refresh keeps it and a deep link honestly has none.
@@ -128,6 +128,7 @@ export function VNextEngagementRoutes() {
           clients={activeClients}
           selectedClientId={clientFilter.selectedClientId}
           senderLabel={senderLabel}
+          senderConnectionId={senderConnection?.id ?? null}
           step={step}
           onStepChange={setStep}
           onExit={() => navigate('/engagement/outreach')}

@@ -467,8 +467,15 @@ export function OutreachTemplateStep(props: OutreachBuilderStepCommon): JSX.Elem
           <Plus size={16} aria-hidden="true" />
           <span className="ocbt-scratch__body">
             <span className="ocbt-scratch__title">Create one from scratch</span>
+            {/*
+              The prototype's second sentence is "Saved to your personal library
+              only." Nothing persists a content template today, and this same
+              component says so twice more — in the editor's scope note and in
+              the save toast. Shipping the prototype's sentence here would make
+              the entry point contradict both.
+            */}
             <span className="ocbt-scratch__desc">
-              Write your own structure. Saved to your personal library only.
+              Write your own structure. Applied to this campaign only.
             </span>
           </span>
         </button>

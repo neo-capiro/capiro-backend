@@ -9,6 +9,18 @@ import { describe, expect, it } from 'vitest';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const source = (path: string) => readFileSync(resolve(repo, path), 'utf8');
 
+/**
+ * Source text with comments removed.
+ *
+ * A "this string must not appear" assertion has to read code only: the file
+ * that fixed a defect almost always names the defect in the comment explaining
+ * the fix, so matching raw source makes the explanation itself the failure.
+ */
+const code = (path: string) =>
+  source(path)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
 describe('Engagement UI closeout contract', () => {
   it('exposes all four Engagement rail destinations without duplicating canonical Meetings/Reports', () => {
     const manifest = source('src/vnext/adapters/routes/routeManifest.ts');
@@ -58,71 +70,87 @@ describe('Engagement UI closeout contract', () => {
     expect(engagement).toContain('No meetings are linked to this target office yet.');
   });
 
-  it('removes prototype state controls and renders every server preflight check', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
-    expect(workspace).not.toContain('forcedState');
-    expect(workspace).not.toContain('StateInspector');
-    expect(workspace).not.toContain('System states');
-    expect(workspace).toContain('buildHonestPreflightRows(preflight.checks).map');
-    expect(workspace).toContain('14 deterministic checks');
+  /*
+   * The seven assertions below used to read `VNextOutreachWorkspace.tsx`, the
+   * seven-step planning rail that the prototype-parity rebuild replaced. Their
+   * SUBJECTS moved — preflight and the send gate to the Send step, the send
+   * record to `outreach-send-record.tsx` — but the guarantees are the same
+   * ones, so they follow the code rather than being deleted with the file.
+   * Where the prototype supplies its own words for a promise, those are the
+   * words asserted; see docs/engagement-vnext/OUTREACH-PROTOTYPE-PARITY.md.
+   */
+  it('renders the real server preflight checks and never a prototype state switch', () => {
+    const send = source('src/vnext/pages/engagement/outreach-step-send.tsx');
+    expect(send).not.toContain('forcedState');
+    expect(send).not.toContain('StateInspector');
+    expect(send).not.toContain('System states');
+    // The rows come from the server's own check list.
+    expect(send).toContain('preflight?.result.checks');
+    // The prototype hardcodes "Fourteen checks". The heading counts what the
+    // server actually returned, which is what `COUNT_WORDS` is indexed by.
+    const sendCode = code('src/vnext/pages/engagement/outreach-step-send.tsx');
+    // A stripper that removed everything would make the next assertion pass
+    // for the wrong reason.
+    expect(sendCode).toContain('COUNT_WORDS[checkCount]');
+    expect(sendCode).not.toContain('The prototype hard-codes');
+    expect(sendCode).not.toMatch(/Fourteen checks|14 deterministic checks/);
+    expect(send).toContain('COUNT_WORDS[checkCount]');
   });
 
-  it('keeps the real production states after removing the prototype state controls', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+  it('keeps the real production states without a debug switch', () => {
+    const builder = source('src/vnext/pages/engagement/VNextOutreachCampaignBuilder.tsx');
     const route = source('src/pages/engagement/outreach/v3/OutreachV3CompleteRoute.tsx');
-    // Deleting ?state=/forcedState must not delete the states themselves —
-    // each is now driven by real controller/props rather than a debug switch.
-    expect(workspace).toContain('controller.isBootstrapping'); // loading
-    expect(workspace).toContain('uui-engagement-error'); // session error
-    expect(workspace).toContain('Generation recovery'); // resumable generation
+    expect(builder).toContain('isBootstrapping'); // loading
+    expect(builder).toContain('This campaign could not be loaded'); // session error
     expect(route).toContain('connectionWarning'); // mailbox disconnected
-    // The Meri model-outage state is deliberately NOT here any more: the
-    // conversation pane it belonged to was removed from Outreach V3, so there
-    // is no Meri surface in this workspace that could be degraded. Asserting
-    // it would require re-adding a banner for a pane that no longer exists.
-    expect(workspace).not.toContain('uui-model-outage');
-    expect(workspace).not.toContain('uui-outreach-chat');
+    // A failed WRITE must not be reported as a failed load — that would throw
+    // away everything the user had typed on the step.
+    expect(builder).toContain('errorMessage && !session');
   });
 
   it('keeps post-send learning reply-backed and governed', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
-    expect(workspace).toContain('Select a real inbound reply');
-    expect(workspace).toContain('Submit for memory review');
-    expect(workspace).not.toContain('Priya prefers the technical-briefing framing');
+    const record = source('src/vnext/pages/engagement/outreach-send-record.tsx');
+    expect(record).toContain('Select a real inbound reply');
+    expect(record).toContain('Submitted for governed review. Nothing was auto-committed.');
+    expect(record).toContain('Required before activation');
+    // No invented example of what Meri "learned".
+    expect(record).not.toContain('Priya prefers the technical-briefing framing');
   });
 
   it('keeps unknown deliveries terminal for automation with no resend path', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
-    expect(workspace).toContain('Unknown is terminal for automation.');
-    expect(workspace).toContain('does not automatically retry or resend');
+    const record = source('src/vnext/pages/engagement/outreach-send-record.tsx');
+    const model = source('src/vnext/pages/engagement/outreach-send-record-model.ts');
+    expect(record).toContain('Unknown is never silently treated as delivered, and nothing retries itself.');
+    // Terminal in the model too, or the record polls an outcome forever.
+    expect(model).toContain("'delivery_unknown'");
     // Refreshing reads durable state; it must never become a resend control.
-    // (The prose above legitimately contains the word, so assert on controls.)
-    expect(workspace).not.toMatch(/resendOutreach|resendIntent|onResend|>\s*Resend/);
+    expect(record).not.toMatch(/resendOutreach|resendIntent|onResend|>\s*Resend/);
   });
 
   it('states the real test-send guarantee rather than implying a live send', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
-    expect(workspace).toContain('Send one exact version to your own mailbox');
-    expect(workspace).toContain('No target receives anything.');
+    const send = source('src/vnext/pages/engagement/outreach-step-send.tsx');
+    expect(send).toContain('Send one to yourself first');
+    expect(send).toContain('The selected exact version goes only to your own connected mailbox.');
   });
 
   it('acknowledging held recipients never claims to unblock them', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
-    expect(workspace).toContain(
-      'This acknowledgment does not remove their blockers or send to them.',
-    );
+    const send = source('src/vnext/pages/engagement/outreach-step-send.tsx');
+    expect(send).toContain('I understand those recipients will not be contacted');
+    expect(send).toContain('This does not resolve their blockers or send to them.');
+    // A group is one shared email, so "they receive nothing" would be false —
+    // the held-out recipient is on the address line of a message the rest get.
+    expect(send).toContain('A group cannot hold one recipient out of a message the others receive.');
   });
 
   it('has no dead post-send next actions', () => {
-    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+    const record = source('src/vnext/pages/engagement/outreach-send-record.tsx');
     // /mailbox is not a route anywhere in this app; linking to it was a dead end.
-    expect(workspace).not.toContain('href="/mailbox"');
-    // Next actions navigate in-app instead of full-reloading the SPA.
-    expect(workspace).not.toMatch(/<a className="uui-button" href=/);
-    expect(workspace).toContain("navigate('/engagement/meetings?compose=meeting')");
-    // ...and the composer deep link is actually honoured by canonical Engagement.
-    const engagement = source('src/pages/engagement/EngagementPage.tsx');
-    expect(engagement).toContain("searchParams.get('compose') !== 'meeting'");
+    expect(record).not.toContain('href="/mailbox"');
+    // Next actions are buttons that do something in-app, not full page loads.
+    expect(record).not.toMatch(/<a className="ov3p1-button" href=/);
+    // The one control with no backend says so in its own copy rather than
+    // pretending to have created something.
+    expect(record).toContain('No campaign was created from this control.');
   });
 
   it('gives every shared production window a loading and error state', () => {

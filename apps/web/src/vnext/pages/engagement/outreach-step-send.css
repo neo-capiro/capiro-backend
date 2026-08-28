@@ -326,3 +326,18 @@
     transform: rotate(360deg);
   }
 }
+
+/*
+ * The send record reuses the approve-and-send spine's own stylesheet, whose
+ * tokens and component rules all hang off `.ov3p1-shell`. That class also
+ * declares the two-column grid for a Meri rail this builder does not have, so
+ * only the layout half is cancelled here — the tokens and every `.ov3p1-*`
+ * component rule still apply.
+ */
+.capiro-vnext-root .ov3p1-shell.osend-record {
+  display: block;
+  min-height: 0;
+  overflow: visible;
+  border-top: 0;
+  background: transparent;
+}

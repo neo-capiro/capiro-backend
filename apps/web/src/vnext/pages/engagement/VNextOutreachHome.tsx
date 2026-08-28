@@ -388,14 +388,17 @@ export function VNextOutreachHome({
           ) : null}
 
           {visible.length > 0 ? (
-            <div className="ochome__table">
-              <div className="ochome__head" aria-hidden="true">
-                <span>Status</span>
-                <span>Campaign</span>
-                <span>Targets</span>
-                <span>Last updated</span>
-                <span>Sent</span>
-                <span />
+            /* A CSS grid, so the column names have to be stated in ARIA or a
+               screen reader reads six unlabelled values per row — "12" with no
+               hint that it means Targets, and two bare dates. */
+            <div className="ochome__table" role="table" aria-label="Campaigns">
+              <div className="ochome__head" role="row">
+                <span role="columnheader">Status</span>
+                <span role="columnheader">Campaign</span>
+                <span role="columnheader">Targets</span>
+                <span role="columnheader">Last updated</span>
+                <span role="columnheader">Sent</span>
+                <span role="columnheader" aria-label="Actions" />
               </div>
               {visible.map((row) => {
                 const bucket = outreachV3CampaignBucket(row);
@@ -413,20 +416,25 @@ export function VNextOutreachHome({
                   <div
                     key={row.id}
                     className="ochome__row"
+                    role="row"
                     data-archived={bucket === 'archived' || undefined}
                   >
-                    <span className={`eng-pill ${pill.tone}`}>{pill.label}</span>
+                    <span className={`eng-pill ${pill.tone}`} role="cell">
+                      {pill.label}
+                    </span>
                     {/* Only this cell opens the campaign — the row itself is
                         not a click target, so Archive stays reachable. */}
-                    <button type="button" className="ochome__open" onClick={() => onOpenCampaign(row.id)}>
-                      <span className="ochome__name">{name}</span>
-                      <span className="ochome__goal">{goal}</span>
-                    </button>
-                    <span className="ochome__count">{row.targetCount ?? 0}</span>
-                    <span className="ochome__when">{outreachCampaignWhen(row.updatedAt)}</span>
-                    <span className="ochome__when">{outreachCampaignWhen(row.sentAt)}</span>
+                    <span role="cell" className="ochome__open-cell">
+                      <button type="button" className="ochome__open" onClick={() => onOpenCampaign(row.id)}>
+                        <span className="ochome__name">{name}</span>
+                        <span className="ochome__goal">{goal}</span>
+                      </button>
+                    </span>
+                    <span className="ochome__count" role="cell">{row.targetCount ?? 0}</span>
+                    <span className="ochome__when" role="cell">{outreachCampaignWhen(row.updatedAt)}</span>
+                    <span className="ochome__when" role="cell">{outreachCampaignWhen(row.sentAt)}</span>
                     {bucket === 'archived' ? (
-                      <span />
+                      <span role="cell" />
                     ) : (
                       <button
                         type="button"

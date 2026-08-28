@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, CheckSquare, CircleAlert, Loader2, RefreshCcw } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
@@ -10,17 +10,30 @@ import {
   type OutreachV3GenerationPlan,
   type OutreachV3NamedPreflightCheck,
   type OutreachV3PreflightInput,
+  type OutreachV3SendSettings,
   type OutreachV3ServerPreflight,
+  cancelOutreachV3SendIntent,
   createOutreachV3SendIntent,
   createOutreachV3TestSend,
   getOutreachV3GenerationPlan,
+  getOutreachV3SendIntent,
   getOutreachV3SendSettings,
   listOutreachAttachments,
+  listOutreachReplyCandidates,
   listOutreachV3Drafts,
+  proposeOutreachReplyLearning,
+  refreshOutreachV3SendIntent,
   runOutreachV3Preflight,
+  saveOutreachV3SendSettings,
 } from './engagement-api.js';
+import { ResultsScreen, SendingScreen } from './outreach-send-record.js';
+import { isSendTerminal } from './outreach-send-record-model.js';
 import { getOutreachTemplateProvenance } from './outreach-v3-template-api.js';
-import { outreachReadyRecipientCount, outreachSendGate } from './outreach-campaign-flow.js';
+import {
+  outreachBuilderPrimaryLabel,
+  outreachReadyRecipientCount,
+  outreachSendGate,
+} from './outreach-campaign-flow.js';
 import {
   type OutreachBuilderStepCommon,
   outreachBlockedTargets,
@@ -28,7 +41,7 @@ import {
   outreachSelectedTargets,
   outreachSponsorFromSpec,
 } from './outreach-builder-model.js';
-import { formatClock, randomKey, recipientPresentation } from './outreach-v3-phase1-shared.js';
+import { formatClock, randomKey, recipientPresentation } from './outreach-recipient-presentation.js';
 import './outreach-step-send.css';
 
 /* ------------------------------------------------------------------ *
@@ -43,6 +56,13 @@ const SCHEDULE_CAVEAT =
  * The prototype prints it unconditionally beneath three hard-coded rows.
  */
 const PREFLIGHT_FOOTNOTE = 'Showing what needs attention. The remaining checks passed.';
+
+/**
+ * How often the send record re-reads provider state while a send is in flight.
+ * Long enough that a large campaign does not hammer the provider-status route,
+ * short enough that the progress bar visibly moves.
+ */
+const SEND_POLL_MS = 5000;
 
 const TIMING_OPTIONS: Array<{ id: SendTiming; label: string; desc: string }> = [
   { id: 'now', label: 'Send now', desc: 'Start after final confirmation.' },
@@ -86,9 +106,23 @@ export function outreachSendHowManyRow(input: {
   blockedCount: number;
   readyCount: number;
   holdsAll: boolean;
+  /**
+   * A group audience sends ONE shared email to everyone on it. The prototype
+   * has no group concept, so its sentence asserts "one person each" — which
+   * would be a false promise of privacy here, on exactly the campaign shape
+   * where every recipient can see the others.
+   */
+  sharedThread: boolean;
 }): string {
+  const heldSuffix =
+    input.blockedCount > 0 && !input.holdsAll ? ` · ${input.blockedCount} held out` : '';
+  if (input.sharedThread) {
+    const recipients =
+      input.selectedCount === 1 ? '1 recipient' : `${input.selectedCount} recipients`;
+    return `${recipients}, one shared email everyone can see${heldSuffix}`;
+  }
   if (input.blockedCount > 0 && !input.holdsAll) {
-    return `${input.readyCount} of ${input.selectedCount} emails, one person each · ${input.blockedCount} held out`;
+    return `${input.readyCount} of ${input.selectedCount} emails, one person each${heldSuffix}`;
   }
   return input.selectedCount === 1
     ? '1 email, one person'
@@ -157,6 +191,13 @@ function errorText(error: unknown, fallback: string): string {
 export interface OutreachSendStepProps extends OutreachBuilderStepCommon {
   /** The connected mailbox this campaign sends from, or null when none is. */
   senderLabel: string | null;
+  /** That mailbox's connection id — what the campaign's send settings store. */
+  senderConnectionId: string | null;
+  /**
+   * Return to the Drafts step. The results table offers "Resolve draft" on a
+   * recipient whose delivery did not succeed, and that is where it goes.
+   */
+  onOpenDrafts: () => void;
 }
 
 export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
@@ -178,6 +219,13 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
   const [testBusy, setTestBusy] = useState(false);
   const [sendBusy, setSendBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  /**
+   * The intent this step created, or the one it recovered from the URL-less
+   * reload case below. Once it exists the setup form is gone: a campaign has
+   * exactly one durable send record, and re-rendering the controls that create
+   * one would invite a second attempt at something that already happened.
+   */
+  const [intentId, setIntentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // One request key per mount: retrying a failed confirmation must not create a
   // second send record, which is the whole point of the server's idempotency.
@@ -207,6 +255,53 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
   const provenanceQuery = useQuery({
     queryKey: ['outreach-v3', 'template-provenance', sessionId],
     queryFn: () => getOutreachTemplateProvenance(api, sessionId),
+  });
+
+  const qc = useQueryClient();
+  /*
+   * Poll while the provider is still working. `refetchInterval` returns false
+   * on a terminal status so a finished send stops costing requests — and
+   * `delivery_unknown` IS terminal (see outreach-send-record-model.ts), which
+   * is what stops the record spinning forever on an outcome no retry can move.
+   */
+  const intentQuery = useQuery({
+    queryKey: ['outreach-v3', 'send-intent', sessionId, intentId],
+    queryFn: () => getOutreachV3SendIntent(api, sessionId, intentId ?? ''),
+    enabled: Boolean(intentId),
+    refetchInterval: (query) =>
+      isSendTerminal(query.state.data?.status) ? false : SEND_POLL_MS,
+  });
+  const intent = intentQuery.data ?? null;
+  const sendComplete = isSendTerminal(intent?.status);
+
+  const replyQuery = useQuery({
+    queryKey: ['outreach-v3', 'reply-candidates', intentId],
+    queryFn: () => listOutreachReplyCandidates(api, intentId ?? ''),
+    enabled: Boolean(intentId) && sendComplete,
+    retry: false,
+  });
+
+  const refreshIntent = useMutation({
+    mutationFn: () => refreshOutreachV3SendIntent(api, sessionId, intentId ?? ''),
+    onSuccess: (view) =>
+      qc.setQueryData(['outreach-v3', 'send-intent', sessionId, intentId], view),
+    onError: (cause) => setError(errorText(cause, 'The send record could not be refreshed.')),
+  });
+  const cancelIntent = useMutation({
+    mutationFn: () => cancelOutreachV3SendIntent(api, sessionId, intentId ?? ''),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['outreach-v3', 'send-intent', sessionId, intentId] });
+    },
+    onError: (cause) => setError(errorText(cause, 'The rest of the send could not be stopped.')),
+  });
+  const learning = useMutation({
+    mutationFn: (input: { replyId: string; text: string }) =>
+      proposeOutreachReplyLearning(api, {
+        sendIntentId: intentId ?? '',
+        mailMessageId: input.replyId,
+        learning: input.text,
+      }),
+    onError: (cause) => setError(errorText(cause, 'The proposal could not be submitted.')),
   });
 
   // Until the drafts, plan and settings are in, a preflight would be run
@@ -260,21 +355,53 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     acknowledgeHeldOut: !needsAcknowledgment || acknowledged,
   };
 
+  /*
+   * How many EMAILS this send creates, which is not how many recipients it has.
+   * A group audience is one shared email to everyone on it (the Targets step
+   * sets `shared_thread` when the user saves or applies a group), so counting
+   * targets would tell the user they are sending twelve private notes when the
+   * server is about to send one message that shows all twelve addresses to each
+   * other. The plan's slots are the server's own answer; the target count is
+   * only a fallback for the moment before the plan arrives.
+   */
+  const sharedThread = plan?.deliveryPattern === 'shared_thread';
+  const excludedKeys = preflightInput.excludedGenerationKeys ?? [];
+  const emailCount = plan
+    ? plan.slots.filter((slot) => !excludedKeys.includes(slot.generationKey)).length
+    : readyCount;
+
+  /*
+   * The shell computes `props.primaryLabel` before this step mounts, from the
+   * target count and the assumption that blocked recipients are held out. Both
+   * are this step's to decide — the user can choose to wait for everyone, and a
+   * group sends one email — so the label is recomputed from the same shared
+   * formula rather than inlined here or left stale.
+   */
+  const sendLabel = outreachBuilderPrimaryLabel(
+    'send',
+    props.campaignType ?? 'send_update',
+    emailCount,
+  );
+
   /**
    * Everything a preflight verdict was computed against. When any of it moves,
    * the stored result is no longer about the current campaign, so it is dropped
    * rather than kept behind a "Last checked" line that would then be false —
    * the prototype never invalidates and its own copy can lie.
    */
-  const preflightFingerprint = JSON.stringify([
-    session?.currentStateVersion ?? null,
-    session?.specHash ?? null,
-    settings?.settingsHash ?? null,
-    settings?.stateVersion ?? null,
-    drafts.map((draft) => `${draft.generationKey}:${draft.current?.id ?? ''}:${draft.currentVersion}`),
-    preflightInput.excludedGenerationKeys,
-    preflightInput.acknowledgeHeldOut,
-  ]);
+  const fingerprintFor = (against: OutreachV3SendSettings | null): string =>
+    JSON.stringify([
+      session?.currentStateVersion ?? null,
+      session?.specHash ?? null,
+      against?.settingsHash ?? null,
+      against?.stateVersion ?? null,
+      drafts.map(
+        (draft) => `${draft.generationKey}:${draft.current?.id ?? ''}:${draft.currentVersion}`,
+      ),
+      preflightInput.excludedGenerationKeys,
+      preflightInput.acknowledgeHeldOut,
+    ]);
+  const preflightFingerprint = fingerprintFor(settings);
   const preflight =
     preflightState && preflightState.fingerprint === preflightFingerprint ? preflightState : null;
   const checks: OutreachV3NamedPreflightCheck[] = preflight?.result.checks ?? [];
@@ -309,6 +436,7 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
         blockedCount,
         readyCount,
         holdsAll: sendGate.holdsAll,
+        sharedThread,
       }),
       unset: selectedCount === 0,
     },
@@ -360,8 +488,31 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     setPreflightBusy(true);
     setError(null);
     try {
+      /*
+       * The panel above states the sender, the signature and the attachments as
+       * settled, but a campaign has no send settings until something writes
+       * them — and preflight checks the campaign against its SAVED settings, so
+       * without this the checks would be run against nothing while the screen
+       * says otherwise. Running the checks is the user asking "is this ready?",
+       * which is the honest moment to commit the settings that answer names.
+       * Idempotent server-side, and only ever written when absent.
+       */
+      let against = settings;
+      if (!settings && props.senderConnectionId) {
+        const saved = await saveOutreachV3SendSettings(api, sessionId, {
+          senderConnectionId: props.senderConnectionId,
+          appendSignature: true,
+          attachmentIds: [],
+        });
+        against = saved.settings;
+        qc.setQueryData(['outreach-v3', 'send-settings', sessionId], saved.settings);
+      }
       const result = await runOutreachV3Preflight(api, sessionId, preflightInput);
-      setPreflightState({ result, at: new Date(), fingerprint: preflightFingerprint });
+      // Stamped with the settings it was actually checked against, not the ones
+      // in scope when the click happened — otherwise the save above would move
+      // the fingerprint out from under the verdict it just enabled, and the
+      // first run after saving settings would always discard itself.
+      setPreflightState({ result, at: new Date(), fingerprint: fingerprintFor(against) });
       props.toast('Preflight run against the current exact versions');
     } catch (cause) {
       setError(errorText(cause, 'Preflight could not run.'));
@@ -393,12 +544,16 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     setSendBusy(true);
     setError(null);
     try {
-      await createOutreachV3SendIntent(api, sessionId, {
+      const created = await createOutreachV3SendIntent(api, sessionId, {
         ...preflightInput,
         requestKey: sendRequestKey,
       });
       setConfirmOpen(false);
-      props.toast(`One durable send record created · ${readyCount} queued`);
+      setIntentId(created.intentId);
+      // The header pill reads the campaign's record status from the owned-session
+      // list; without this it keeps saying "Draft" after a real send.
+      void qc.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
+      props.toast(`One durable send record created · ${emailCount} queued`);
       // What follows a real send — progress, delivery reconciliation, results —
       // belongs to the workspace, not to this step.
       props.onNext();
@@ -407,6 +562,44 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     } finally {
       setSendBusy(false);
     }
+  }
+
+  /*
+   * Once a durable send record exists the setup form is finished: it shows the
+   * real record instead. The prototype ends at a toast because it has no send
+   * to report — a real one has provider outcomes, replies and a template worth
+   * capturing, and none of that is reachable anywhere else.
+   */
+  if (intentId && intent) {
+    return (
+      <div className="ocb-step ov3p1-shell osend-record">
+        {sendComplete ? (
+          <ResultsScreen
+            sessionId={sessionId}
+            intent={intent}
+            plan={plan}
+            drafts={drafts}
+            replies={replyQuery.data ?? []}
+            learningBusy={learning.isPending}
+            learningResult={learning.isSuccess}
+            error={error}
+            onRefresh={() => refreshIntent.mutate()}
+            onOpenDraft={() => props.onOpenDrafts()}
+            onProposeLearning={(replyId, text) => learning.mutate({ replyId, text })}
+          />
+        ) : (
+          <SendingScreen
+            intent={intent}
+            plan={plan}
+            drafts={drafts}
+            cancelBusy={cancelIntent.isPending}
+            error={error}
+            onCancel={() => cancelIntent.mutate()}
+            onRefresh={() => refreshIntent.mutate()}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -612,9 +805,16 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
               : `${blockedCount} recipients are not ready`}
           </span>
           <span className="osend-held__sub">
-            {partialChoice === 'ready'
-              ? 'They are held out of this send and receive nothing.'
-              : 'The campaign stays blocked until they are ready.'}
+            {partialChoice !== 'ready'
+              ? 'The campaign stays blocked until they are ready.'
+              : sharedThread
+                ? // A shared thread is one message addressed to the whole
+                  // group. The server drops a slot only when EVERY recipient on
+                  // it is blocked, so promising that these people receive
+                  // nothing would be false — they are on the address line of an
+                  // email the rest of the group is getting.
+                  'They stay on this shared email. A group cannot hold one recipient out of a message the others receive.'
+                : 'They are held out of this send and receive nothing.'}
           </span>
           {blockedTargets.map((target) => (
             <span className="osend-held__row" key={target.targetKey}>
@@ -662,14 +862,15 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
           disabled={!canSend || dataLoading || props.busy || sendBusy}
           onClick={() => setConfirmOpen(true)}
         >
-          {props.primaryLabel}
+          {sendLabel}
         </button>
         <span className="osend-send__gate">{gateReason}</span>
       </div>
 
       {confirmOpen ? (
         <OutreachSendConfirmDialog
-          count={readyCount}
+          count={emailCount}
+          recipients={readyCount}
           held={partialChoice === 'ready' ? blockedCount : 0}
           sender={props.senderLabel ?? 'No mailbox connected'}
           pending={sendBusy}
@@ -698,7 +899,10 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
  * copy is reused and the chrome is the builder's own tokens.
  */
 function OutreachSendConfirmDialog(props: {
+  /** Emails created — one per plan slot, so a group counts as one. */
   count: number;
+  /** People reached. Equal to `count` for a per-recipient send, not for a group. */
+  recipients: number;
   held: number;
   sender: string;
   pending: boolean;
@@ -750,7 +954,7 @@ function OutreachSendConfirmDialog(props: {
         <div className="ocb-kv osend-confirm__rows">
           <div className="ocb-kv__row">
             <span className="ocb-kv__key ocb-eyebrow--tight">Recipients</span>
-            <span className="ocb-kv__value">{props.count}</span>
+            <span className="ocb-kv__value">{props.recipients}</span>
           </div>
           <div className="ocb-kv__row">
             <span className="ocb-kv__key ocb-eyebrow--tight">Sender</span>

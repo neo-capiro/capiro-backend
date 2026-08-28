@@ -46,12 +46,12 @@ import {
   safeOutreachV3Error,
 } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
-import { savedAudienceMemberLocator } from '../../../pages/engagement/outreach/v3/TargetWorkspace.js';
 import {
   createSavedOutreachAudience,
   listSavedOutreachAudiences,
   type CreateSavedOutreachAudienceMemberInput,
   type SavedAudience,
+  type SavedAudienceMember,
 } from './engagement-api.js';
 import {
   outreachSelectedTargets,
@@ -59,6 +59,17 @@ import {
   type OutreachBuilderStepCommon,
 } from './outreach-builder-model.js';
 import './outreach-step-targets.css';
+/*
+ * `TargetDirectoryBrowser` is deliberately css-free: its `.ov3-*` rules live in
+ * the canonical `outreach-v3.css` / `target-workspace.css`, whose vNext-token
+ * ports are pre-generated into these two files (structural rules, then the
+ * `--ov3-*` -> `--eng-*` remap). Both are scoped to
+ * `.capiro-vnext-root .engagement-vnext`, which this step renders inside, so
+ * importing them here is enough. Without them the Directory table renders with
+ * no styling at all.
+ */
+import './outreach-decision-vnext.css';
+import './outreach-body-vnext.css';
 
 type OutreachTargetsTab = 'Directory' | 'Saved audiences' | 'Selected';
 
@@ -105,6 +116,37 @@ function targetToAudienceMemberInput(
     email: (target.email ?? '').trim(),
     title: target.title ?? undefined,
     office: target.organization ?? undefined,
+  };
+}
+
+/**
+ * The locator to re-add a saved audience member with.
+ *
+ * NOT `savedAudienceMemberLocator` from TargetWorkspace: that helper trusts
+ * `member.source`, but the source stored on a saved audience is a coarse
+ * re-resolution hint — `congress` / `client_contact` / `manual` (see
+ * `targetToAudienceMemberInput` above) — and `congress` is not one of the six
+ * sources `OutreachTargetReferenceService.resolveOneWithinTx` knows. Adding a
+ * saved congressional contact with it fails resolution outright, which is the
+ * whole point of the Saved tab.
+ *
+ * A `manual` locator built from the member's own stored fields does resolve.
+ * The cost is honest and visible: the server marks it `roleStatus: 'unknown'`
+ * and `profileStatus: 'limited'` rather than re-verifying the person against
+ * the Directory. `congress` cannot be mapped back to `directory_member` vs
+ * `directory_staff` — the audience row does not record which — so guessing
+ * would trade a failure for a wrong answer.
+ */
+function savedMemberLocator(member: SavedAudienceMember): OutreachV3TargetLocator {
+  return {
+    source: 'manual',
+    id: member.id,
+    name: member.name || member.email,
+    email: member.email || null,
+    phone: null,
+    title: member.title ?? null,
+    organization: member.office ?? null,
+    note: null,
   };
 }
 
@@ -209,16 +251,19 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
 
   const save = useMutation({
     mutationFn: async (input: { kind: OutreachAudienceKind; name: string }) => {
-      const created = await createSavedOutreachAudience(api, {
+      // Delivery first, audience second. Saving a group is the user stating
+      // that this campaign goes out as one shared email, so both writes belong
+      // to the gesture — but only one of them is idempotent. Re-applying the
+      // same delivery pair reports `no_change`, while creating the audience
+      // twice leaves a duplicate in the firm library that nothing cleans up.
+      // In this order a failure leaves either nothing, or a delivery pattern
+      // the user just asserted, and the retry is clean.
+      await applyCommands(deliveryFor(input.kind));
+      return createSavedOutreachAudience(api, {
         kind: input.kind,
         name: input.name,
         members: emailableTargets.map(targetToAudienceMemberInput),
       });
-      // The audience is saved to the firm library AND the campaign's delivery
-      // pattern follows the kind, because saving a group is the user stating
-      // that this campaign goes out as one shared email.
-      await applyCommands(deliveryFor(input.kind));
-      return created;
     },
     onSuccess: (created, input) => {
       void queryClient.invalidateQueries({ queryKey: AUDIENCES_QUERY_KEY });
@@ -239,7 +284,7 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
   const apply = useMutation({
     mutationFn: async (audience: SavedAudience) => {
       await applyCommands([
-        ...audience.members.map((member) => addTargetCommand(savedAudienceMemberLocator(member))),
+        ...audience.members.map((member) => addTargetCommand(savedMemberLocator(member))),
         ...deliveryFor(audience.kind),
       ]);
       return audience;

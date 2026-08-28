@@ -40,6 +40,7 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { outreachV3CampaignBucket } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { useEngagementToast } from './engagement-toast.js';
+import { useRovingFocus } from './use-roving-focus.js';
 import {
   OUTREACH_BUILDER_STEP_ICONS,
   OUTREACH_BUILDER_STEP_SUBLINES,
@@ -91,6 +92,8 @@ export interface VNextOutreachCampaignBuilderProps {
   selectedClientId: string | null;
   /** The connected sending mailbox, for the Send step's "From" row. */
   senderLabel: string | null;
+  /** That mailbox's connection id — what the send settings are saved against. */
+  senderConnectionId: string | null;
   step: OutreachBuilderStep;
   onStepChange: (step: OutreachBuilderStep) => void;
   onExit: () => void;
@@ -103,9 +106,20 @@ export interface VNextOutreachCampaignBuilderProps {
   startedFrom?: string;
 }
 
-/** "Campaign · last updated 21 Aug" — the prototype's header eyebrow. */
-function contextLabel(updatedAt: string | undefined, startedFrom: string | undefined): string {
-  if (updatedAt) {
+/**
+ * "New campaign · Firm Template" / "Campaign · last updated 21 Aug".
+ *
+ * `started` — not the absence of `updatedAt` — decides which. Creating a
+ * campaign writes a row, so a brand-new one already has an `updatedAt` of a few
+ * seconds ago and the "New campaign" half would never be reachable. A campaign
+ * with nothing chosen on it yet is the one the user has just started.
+ */
+function contextLabel(
+  started: boolean,
+  updatedAt: string | undefined,
+  startedFrom: string | undefined,
+): string {
+  if (started && updatedAt) {
     const parsed = new Date(updatedAt);
     if (!Number.isNaN(parsed.getTime())) {
       const stamp = parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -120,12 +134,16 @@ export function VNextOutreachCampaignBuilder({
   clients,
   selectedClientId,
   senderLabel,
+  senderConnectionId,
   step: requestedStep,
   onStepChange,
   onExit,
   startedFrom,
 }: VNextOutreachCampaignBuilderProps) {
   const toast = useEngagementToast();
+  // Arrow / Home / End across the rail. The hook was written for this rail and
+  // the destination tabs; only the tabs were ever wired to it.
+  const onRailKeyDown = useRovingFocus();
   const {
     session,
     applyCommands,
@@ -209,7 +227,7 @@ export function VNextOutreachCampaignBuilder({
           </span>
           <div className="ocb-head__body">
             <span className="ocb-head__context">
-              {contextLabel(session?.session.updatedAt, startedFrom)}
+              {contextLabel(campaignType !== null, session?.session.updatedAt, startedFrom)}
               <button type="button" className="ocb-head__leave" onClick={onExit}>
                 Leave
               </button>
@@ -221,7 +239,7 @@ export function VNextOutreachCampaignBuilder({
         <span className={`eng-pill ${statusTone}`}>{statusLabel}</span>
       </div>
 
-      <nav className="ocb-rail" aria-label="Campaign steps">
+      <nav className="ocb-rail" aria-label="Campaign steps" onKeyDown={onRailKeyDown}>
         {steps.slice(0, setupCount).map((def, index) => (
           <button
             key={def.key}
@@ -255,7 +273,16 @@ export function VNextOutreachCampaignBuilder({
         })}
       </nav>
 
-      {errorMessage ? (
+      {/*
+        `errorMessage` is the hook's single error surface: it folds the session
+        READ and every command WRITE into one value. Only a failed read means
+        the campaign could not be loaded — a rejected write happens with the
+        campaign fully in hand, and replacing the whole builder with a
+        load-failure panel would throw away the name the user just typed, their
+        open editor and every unsaved note, for a save that can simply be
+        retried. Each step reports its own write failure in place.
+      */}
+      {errorMessage && !session ? (
         <div className="ocb-shell-state" role="alert">
           <span className="ocb-shell-state__title">This campaign could not be loaded</span>
           <p className="ocb-shell-state__body">{errorMessage}</p>
@@ -277,8 +304,10 @@ export function VNextOutreachCampaignBuilder({
           clients={clients}
           selectedClientId={selectedClientId}
           senderLabel={senderLabel}
+          senderConnectionId={senderConnectionId}
           startedFrom={startedFrom ?? ''}
           onGenerationStarted={() => onStepChange('drafts')}
+          onOpenDrafts={() => onStepChange('drafts')}
         />
       )}
     </div>
@@ -291,16 +320,20 @@ function StepBody({
   clients,
   selectedClientId,
   senderLabel,
+  senderConnectionId,
   startedFrom,
   onGenerationStarted,
+  onOpenDrafts,
 }: {
   step: OutreachBuilderStep;
   common: OutreachBuilderStepCommon;
   clients: Client[];
   selectedClientId: string | null;
   senderLabel: string | null;
+  senderConnectionId: string | null;
   startedFrom: string;
   onGenerationStarted: () => void;
+  onOpenDrafts: () => void;
 }) {
   switch (step) {
     case 'workflow':
@@ -320,7 +353,14 @@ function StepBody({
     case 'drafts':
       return <OutreachDraftsStep {...common} />;
     case 'send':
-      return <OutreachSendStep {...common} senderLabel={senderLabel} />;
+      return (
+        <OutreachSendStep
+          {...common}
+          senderLabel={senderLabel}
+          senderConnectionId={senderConnectionId}
+          onOpenDrafts={onOpenDrafts}
+        />
+      );
   }
 }
 

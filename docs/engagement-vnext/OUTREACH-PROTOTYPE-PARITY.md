@@ -90,6 +90,7 @@ mirrored here for people who read docs rather than code.
 | **Campaign document upload** | The context endpoint accepts an already-stored document id. There is no upload route for a campaign-scoped file, so the picker lists documents that exist and the drop zone reports rather than pretends. |
 | **Send scheduling** | The send contract creates immediate intents only. "Send now" is the only real path — the prototype says so itself, in copy that ships verbatim. |
 | **Send pacing** | Provider policy governs pacing. There is no per-campaign pacing setting to persist. |
+| **Campaign subject line** | Stored as `goal.topic` and as campaign writing guidance telling the writer to use it verbatim. Each generated draft version carries its own subject; nothing validates that it matches. |
 
 ## 5. Deliberate divergences from the prototype
 
@@ -116,6 +117,35 @@ not followed:
 - **Required fields are enforced.** The prototype marks the campaign name
   REQUIRED and then lets you continue without one.
 - **Blocked primaries are `disabled`**, not dimmed-but-clickable.
+- **A group is counted as one email.** The prototype has no group concept, so
+  its Send step says "N emails, one person each" whatever the audience is. When
+  the Targets step saves or applies a *group*, the campaign's delivery pattern
+  becomes `shared_thread` and the server plans ONE message that shows every
+  recipient to the others. The Send step counts the plan's slots, not the
+  targets, and says so — and it does not promise that a blocked recipient on a
+  shared email "receives nothing", because they do not.
+- **"Create one from scratch"** says "Applied to this campaign only", not the
+  prototype's "Saved to your personal library only". Nothing persists a content
+  template today, and the same step says so twice more.
+
+## 5b. What follows the send
+
+The prototype's Send step ends at a toast. A real send creates a durable intent
+that progresses through provider states, so once one exists the step shows the
+record instead of the setup form: live progress while the provider works, then
+the results — per-recipient delivery outcomes, replies synced, template capture,
+and the governed reply-learning proposal. None of that is reachable anywhere
+else, and `delivery_unknown` stays terminal there, so the record cannot spin
+forever on an outcome no retry can move.
+
+## 5c. Deleted with the old flow
+
+`VNextOutreachWorkspace` (the seven-step planning rail), `VNextOutreachGuided
+Workspace` (the superseded eight-step template-first flow), `VNextOutreach
+OperatorWorkspace`, `VNextOutreachPhase1Workspace` and `VNextOutreachApproveSend
+Workspace`, with their tests and stylesheets. `OutreachV3CompleteRoute` — the
+canonical Engagement host — now mounts the same builder, so there is one
+Outreach flow rather than two that drift.
 
 ## 6. Copy rule
 

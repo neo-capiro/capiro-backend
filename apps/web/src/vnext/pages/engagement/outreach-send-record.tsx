@@ -1,4 +1,18 @@
-import { useState } from 'react';
+/**
+ * What happens after the send button.
+ *
+ * The prototype's Send step ends at a toast, because it has no real send. A
+ * real one creates a durable intent that then progresses through provider
+ * states, and that progress — plus the results, the template capture and the
+ * governed reply-learning that follow it — is real capability the prototype
+ * simply does not model. It is kept.
+ *
+ * Carried over from the superseded phase-1 workspaces (`outreach-v3-phase1-
+ * results.tsx`) unchanged apart from its imports: this surface was reviewed
+ * and tested where it stood, and rewriting it to match a prototype that has no
+ * opinion about it would have been churn.
+ */
+import { useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   Check,
@@ -24,13 +38,44 @@ import {
   isSendTerminal,
   sendProgress,
   statusTone,
-} from './outreach-v3-phase1-model.js';
-import {
-  ProgressBar,
-  StatusChip,
-  formatDateTime,
-  recipientPresentation,
-} from './outreach-v3-phase1-shared.js';
+} from './outreach-send-record-model.js';
+import { formatDateTime, recipientPresentation } from './outreach-recipient-presentation.js';
+/*
+ * Every `.ov3p1-*` rule is scoped under `.ov3p1-shell`, including the custom
+ * properties it declares, so this surface's caller has to carry that class.
+ * The shell also lays itself out as a two-column grid for a Meri rail the
+ * builder does not have — `outreach-step-send.css` cancels that one rule with
+ * `.osend-record` rather than forking the stylesheet.
+ */
+import './outreach-v3-phase1.css';
+
+/*
+ * Two presentational atoms that used to live in `outreach-v3-phase1-shared.tsx`
+ * alongside the phase-1 workspaces. That module went with them; these are the
+ * only pieces of it this surface used, and they are small enough that a shared
+ * home for them would be indirection rather than reuse.
+ */
+function ProgressBar({ percent }: { percent: number }) {
+  return (
+    <div className="ov3p1-progress" aria-label={`${percent}% complete`}>
+      <span style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+    </div>
+  );
+}
+
+function StatusChip({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone?: 'navy' | 'amber' | 'red' | 'neutral';
+}) {
+  return (
+    <span className="ov3p1-chip" data-tone={tone ?? 'neutral'}>
+      {children}
+    </span>
+  );
+}
 
 export function SendConfirmDialog({
   count,

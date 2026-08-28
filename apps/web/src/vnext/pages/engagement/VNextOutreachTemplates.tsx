@@ -492,10 +492,34 @@ export function VNextOutreachTemplates({
     }
   }, [allRows, category]);
 
+  /**
+   * One request key per logical attempt, not per call.
+   *
+   * `useOutreachTemplate` is idempotent on `requestKey` — the server replays the
+   * first result instead of minting a second campaign. Generating the key inside
+   * `mutationFn` threw that away: a retry after a timeout would arrive with a
+   * fresh key and create a duplicate campaign from the same template. The key is
+   * therefore held against a signature of what the attempt is FOR; changing the
+   * answers or the client makes it a different attempt, which matters because
+   * reusing a key with changed inputs is what the server rejects as
+   * `OUTREACH_TEMPLATE_REQUEST_REUSE`.
+   */
+  const useAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const attemptKey = (
+    template: OutreachTemplateSummary,
+    variableValues: Record<string, string>,
+  ): string => {
+    const signature = `${template.id}|${selectedClientId ?? ''}|${JSON.stringify(variableValues)}`;
+    if (useAttempt.current?.signature !== signature) {
+      useAttempt.current = { signature, key: requestKey() };
+    }
+    return useAttempt.current.key;
+  };
+
   const useTemplate = useMutation({
     mutationFn: ({ template, variableValues }: { template: OutreachTemplateSummary; variableValues: Record<string, string> }) =>
       useOutreachTemplate(api, template.id, {
-        requestKey: requestKey(),
+        requestKey: attemptKey(template, variableValues),
         title: template.name,
         clientId: selectedClientId,
         variableValues,
@@ -504,9 +528,16 @@ export function VNextOutreachTemplates({
       setUseError(null);
       setPendingUse(null);
       setUseDetail(null);
+      // A deliberate second campaign from the same template is a new attempt.
+      useAttempt.current = null;
       setReceipt({ sessionId: result.sessionId, receipt: result.receipt });
     },
-    onError: (error) => setUseError(safeOutreachV3Error(error)),
+    onError: (error) => {
+      // Leave the card usable again; the key survives so a retry is a replay.
+      setPendingUse(null);
+      setUseDetail(null);
+      setUseError(safeOutreachV3Error(error));
+    },
   });
   const publish = useMutation({
     mutationFn: (templateId: string) => publishOutreachTemplate(api, templateId),
@@ -537,12 +568,15 @@ export function VNextOutreachTemplates({
       const detail = await getOutreachTemplate(api, template.id, selectedClientId);
       const publishedSpec = detail.versions.find((v) => v.id === template.publishedVersionId)?.spec;
       if (!publishedSpec || !publishedSpec.variables.length) {
+        // `pendingUse` stays set: it is the card's only in-flight marker, and
+        // clearing it here left the button live while the POST was still going,
+        // so a second click created a second campaign.
         useTemplate.mutate({ template, variableValues: {} });
-        setPendingUse(null);
         return;
       }
       setUseDetail(detail);
     } catch (error) {
+      setPendingUse(null);
       setUseError(safeOutreachV3Error(error));
     }
   };
@@ -657,7 +691,7 @@ export function VNextOutreachTemplates({
         <div className="otl-grid">
           {rows.map((template) => {
             const published = Boolean(template.publishedVersionId);
-            const busy = pendingUse?.id === template.id && (useTemplate.isPending || Boolean(useDetail));
+            const busy = pendingUse?.id === template.id;
             const caps = template.capabilities;
             const menuItems: CardMenuItem[] = [];
             if (caps.canDuplicate) menuItems.push({ key: 'duplicate', label: 'Duplicate', icon: <Copy size={14} />, disabled: duplicate.isPending, onSelect: () => duplicate.mutate(template.id) });

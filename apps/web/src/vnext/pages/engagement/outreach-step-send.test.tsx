@@ -30,6 +30,24 @@ const { getCalls, postCalls, responses, api } = vi.hoisted(() => {
       if (url.includes('/send/settings')) return { data: responses.settings };
       if (url.includes('/attachments')) return { data: responses.attachments };
       if (url.includes('/templates/provenance')) return { data: responses.provenance };
+      if (url.includes('/send/intents/')) return { data: responses.intent };
+      if (url.includes('outreach-reply-candidates')) return { data: responses.replies ?? [] };
+      return { data: null };
+    }),
+    put: vi.fn(async (url: string, body?: unknown) => {
+      postCalls.push({ url, body });
+      if (url.includes('/send/settings')) {
+        responses.settings = {
+          schemaVersion: 'v1',
+          senderConnectionId: 'conn-1',
+          appendSignature: true,
+          attachmentIds: [],
+          settingsHash: 'settings-hash-saved',
+          stateVersion: 4,
+          updatedAt: new Date(0).toISOString(),
+        };
+        return { data: { settings: responses.settings, idempotent: false, invalidatedDraftVersionIds: [], invalidationFailures: [] } };
+      }
       return { data: null };
     }),
     post: vi.fn(async (url: string, body?: unknown) => {
@@ -145,6 +163,8 @@ function renderStep(over: Record<string, unknown> = {}) {
     onNext,
     primaryLabel: 'Send 1 email',
     senderLabel: 'Microsoft 365 · neo@capiro.ai',
+    senderConnectionId: 'conn-1',
+    onOpenDrafts: vi.fn(),
     ...over,
   };
   const result = render(
@@ -439,5 +459,131 @@ describe('OutreachSendStep', () => {
 
     await waitFor(() => expect(screen.queryByText('Send 1 email now?')).not.toBeInTheDocument());
     expect(postCalls.some((call) => call.url.includes('/send/intent'))).toBe(false);
+  });
+
+  describe('OutreachSendStep — a group is one email, not one each', () => {
+    function groupPlan() {
+      return {
+        ...(responses.plan as Record<string, unknown>),
+        deliveryPattern: 'shared_thread',
+        slots: [
+          {
+            generationKey: 'gen-shared',
+            audienceKind: 'group',
+            recipients: [
+              { targetKey: 'directory_member:m1', displayName: 'Rep. Jane Smith', email: 'j@x.gov' },
+              { targetKey: 'directory_member:m2', displayName: 'Sen. Mark Reyes', email: 'm@x.gov' },
+            ],
+          },
+        ],
+      };
+    }
+
+    it('says one shared email everyone can see, not one email per person', async () => {
+      responses.plan = groupPlan();
+      renderStep({
+        session: envelope([target(), target({ targetKey: 'directory_member:m2', displayName: 'Sen. Mark Reyes', email: 'm@x.gov' })]),
+      });
+
+      await waitFor(() =>
+        expect(summaryValue('How many')).toBe('2 recipients, one shared email everyone can see'),
+      );
+      // The button counts emails. Calling it "Send 2 emails" is the promise of
+      // privacy this campaign shape cannot keep.
+      expect(await screen.findByRole('button', { name: 'Send 1 email' })).toBeInTheDocument();
+    });
+
+    it('does not promise a blocked recipient receives nothing from a shared email', async () => {
+      responses.plan = groupPlan();
+      renderStep({ session: envelope([target(), BLOCKED]) });
+
+      expect(
+        await screen.findByText(
+          'They stay on this shared email. A group cannot hold one recipient out of a message the others receive.',
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('OutreachSendStep — after the send', () => {
+    it('saves the send settings the summary names before checking against them', async () => {
+      // The panel states the sender, signature and attachments as settled. A
+      // campaign with no saved settings would otherwise be checked against
+      // nothing while the screen says otherwise.
+      responses.settings = null;
+      renderStep();
+      await runPreflight();
+
+      const settingsWrite = postCalls.findIndex((call) => call.url.includes('/send/settings'));
+      const preflightRun = postCalls.findIndex((call) => call.url.includes('/send/preflight'));
+      expect(settingsWrite).toBeGreaterThanOrEqual(0);
+      expect(preflightRun).toBeGreaterThan(settingsWrite);
+      expect(postCalls[settingsWrite]?.body).toMatchObject({
+        senderConnectionId: 'conn-1',
+        appendSignature: true,
+        attachmentIds: [],
+      });
+      // And the verdict survives the save it triggered — a fingerprint taken
+      // before the write would have discarded the run that just happened.
+      expect(screen.getByRole('button', { name: 'Run them again' })).toBeInTheDocument();
+    });
+
+    it('replaces the setup form with the real send record once an intent exists', async () => {
+      responses.intent = {
+        id: 'intent-1',
+        status: 'sending',
+        totals: { total: 1, sent: 0 },
+        deliveries: [],
+        startedAt: new Date(0).toISOString(),
+      };
+      const { toast } = renderStep();
+      await runPreflight();
+      fireEvent.click(screen.getByRole('button', { name: 'Send 1 email' }));
+      const dialog = within(await screen.findByRole('dialog'));
+      fireEvent.click(dialog.getByRole('button', { name: 'Send 1 email' }));
+
+      await waitFor(() => expect(toast).toHaveBeenCalled());
+      // Progress, not a screen that still offers to send.
+      expect(await screen.findByText('Sending now')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Send 1 email' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('shows the results once the provider reaches a terminal state', async () => {
+      responses.intent = {
+        id: 'intent-1',
+        status: 'complete',
+        totals: { total: 1, sent: 1, failed: 0, unknown: 0, skipped: 0, held: 0 },
+        deliveries: [
+          {
+            id: 'delivery-1',
+            generationKey: 'gen-1',
+            recipientKey: 'directory_member:m1',
+            status: 'sent',
+            attempt: 1,
+            to: [{ name: 'Rep. Jane Smith', email: 'j@x.gov' }],
+            cc: [],
+            bcc: [],
+            subject: 'FY27 mark-up',
+            acceptedAt: new Date(0).toISOString(),
+          },
+        ],
+        startedAt: new Date(0).toISOString(),
+      };
+      renderStep();
+      await runPreflight();
+      fireEvent.click(screen.getByRole('button', { name: 'Send 1 email' }));
+      const dialog = within(await screen.findByRole('dialog'));
+      fireEvent.click(dialog.getByRole('button', { name: 'Send 1 email' }));
+
+      expect(await screen.findByText('1 left cleanly.')).toBeInTheDocument();
+      // The guarantee the prototype's toast-and-stop cannot make.
+      expect(
+        screen.getByText(
+          'Provider outcomes remain explicit. Unknown is never silently treated as delivered, and nothing retries itself.',
+        ),
+      ).toBeInTheDocument();
+    });
   });
 });
