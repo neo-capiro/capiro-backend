@@ -100,14 +100,20 @@ export async function buildReport(prisma: PrismaClient): Promise<IngestionReport
   });
   m.push({
     section: 'DIBBS (P40) — freshness',
-    label: 'oldest solicitation issue_date on file',
-    value: await safeValue(prisma, `SELECT min("issue_date")::text AS v FROM "tango_dibbs_solicitation"`),
-    note: 'The sync window is issue-date-anchored (D-63) — an old min here alongside a recent max is expected, not a gap.',
+    label: 'oldest solicitation issued_date on file',
+    value: await safeValue(
+      prisma,
+      `SELECT min("issued_date")::text AS v FROM "tango_dibbs_solicitation"`,
+    ),
+    note: 'The sync window is issue-date-anchored (D-63) — an old min here alongside a recent max is expected, not a gap. Normalized: RFQ states issue_date, RFP states issued_date, both land in this one column.',
   });
   m.push({
     section: 'DIBBS (P40) — freshness',
-    label: 'newest solicitation issue_date on file',
-    value: await safeValue(prisma, `SELECT max("issue_date")::text AS v FROM "tango_dibbs_solicitation"`),
+    label: 'newest solicitation issued_date on file',
+    value: await safeValue(
+      prisma,
+      `SELECT max("issued_date")::text AS v FROM "tango_dibbs_solicitation"`,
+    ),
   });
 
   m.push({
