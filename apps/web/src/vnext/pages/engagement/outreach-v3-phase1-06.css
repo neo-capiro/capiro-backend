@@ -23,7 +23,7 @@
 
 @media (max-width: 980px) {
   .ov3p1-shell { display: block; overflow: visible; }
-  .ov3p1-meri-rail { position: fixed; z-index: 60; inset: 64px 0 0 auto; width: min(390px,100vw); box-shadow: -16px 0 40px rgba(16,24,40,.2); }
+  .ov3p1-meri-rail { position: fixed; z-index: var(--eng-layer-popover, 100); inset: 64px 0 0 auto; width: min(390px,100vw); box-shadow: -16px 0 40px rgba(16,24,40,.2); }
   .ov3p1-shell[data-meri-collapsed='true'] .ov3p1-meri-rail { display: none; }
   .ov3p1-phase-nav { padding: 0 16px; }
   .ov3p1-phase-nav > button { padding: 10px 8px; }

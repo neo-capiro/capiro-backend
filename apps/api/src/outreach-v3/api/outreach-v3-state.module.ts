@@ -11,6 +11,7 @@ import { OutreachUserDecisionEventService } from '../services/outreach-user-deci
 import { OutreachTemplateController } from '../templates/outreach-template.controller.js';
 import { OutreachTemplateRepository } from '../templates/outreach-template.repository.js';
 import { OutreachTemplateService } from '../templates/outreach-template.service.js';
+import { StarterTemplateSeeder } from '../templates/starter-template-seeder.js';
 import { OutreachV3StateController } from './outreach-v3-state.controller.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
@@ -31,6 +32,7 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
     OutreachUserDecisionEventService,
     OutreachTemplateRepository,
     OutreachTemplateService,
+    StarterTemplateSeeder,
     OutreachV3StateGuard,
     OutreachV3ExceptionFilter,
   ],

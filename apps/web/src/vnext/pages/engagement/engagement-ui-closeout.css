@@ -1,9 +1,9 @@
 /* Native Outreach V3 visual closeout. Loaded after engagement.css. */
 .capiro-vnext-root .engagement-vnext {
-  --eng-bg: var(--uui-gray-50, #faf9f6);
-  --eng-surface: var(--uui-white, #fff);
+  --eng-bg: var(--uui-gray-50, #f9fafb);
+  --eng-surface: var(--uui-white, #ffffff);
   --eng-recessed: var(--uui-gray-25, #fdfdfd);
-  --eng-muted: var(--uui-gray-100, #f2f0eb);
+  --eng-muted: var(--uui-gray-100, #f2f4f7);
   /* Hardcoded, NOT `var(--uui-gray-200)` (UI-parity §1.1): historically the
      shell's cool gray-200 and this module's ring were two different values,
      and routing through the shell token would have silently resolved to the
@@ -12,7 +12,7 @@
      same warm hairline, but the literal stays so this file remains the
      module's single source of truth for the ring value. */
   --eng-border: #e8e5df;
-  --eng-border-strong: var(--uui-gray-300, #e0dcd4);
+  --eng-border-strong: var(--uui-gray-300, #d0d5dd);
   --eng-ink: var(--uui-gray-900, #101828);
   --eng-ink-2: var(--uui-gray-600, #475467);
   --eng-ink-3: var(--uui-gray-500, #667085);
@@ -26,7 +26,7 @@
   --eng-accent-hover: #1F3D52;
   --eng-accent-soft: #EDF3F7;
   --eng-accent-border: #C3D5E1;
-  font-family: var(--uui-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--capiro-type-family-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
 }
 /* Primary fill — the three-stop mockup gradient from engagement.css, not the
    shell's two-stop metal face, so Engagement's primary reads identically
@@ -53,7 +53,7 @@
   gap: 12px;
   padding: 10px 20px;
   border-bottom: 1px solid #e8e5df;
-  background: var(--uui-white, #fff);
+  background: var(--uui-white, #ffffff);
 }
 .outreach-v3-route-toolbar__back,
 .outreach-v3-route-toolbar__secondary,
@@ -73,7 +73,7 @@
 }
 .outreach-v3-route-toolbar__back,
 .outreach-v3-route-toolbar__secondary {
-  background: var(--uui-white, #fff);
+  background: var(--uui-white, #ffffff);
   color: var(--uui-gray-700, #344054);
   /* Secondary = white with the standard outer ring (UI-parity §1.5). */
   box-shadow: 0 0 0 1px #e8e5df;
@@ -128,12 +128,12 @@
 }
 .capiro-vnext-root .uui-draft-preview details > div {
   position: absolute;
-  z-index: 12;
+  z-index: var(--eng-layer-popover, 100);
   min-width: 260px;
   margin-top: 8px;
   padding: 10px;
   border-radius: 10px;
-  background: var(--uui-white, #fff);
+  background: var(--uui-white, #ffffff);
   box-shadow: var(--uui-shadow-card);
 }
 .capiro-vnext-root .uui-draft-preview details > div span {
@@ -150,12 +150,12 @@
    needs a layout override: the Meri side rail this block used to stack was
    removed, so the workbench is a single full-width column at every width and
    only its own min-height needs adjusting here. */
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   .capiro-vnext-root .uui-outreach-canvas {
     min-height: 620px;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   .outreach-v3-route-toolbar {
     align-items: flex-start;
     flex-wrap: wrap;

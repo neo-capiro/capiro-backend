@@ -6,8 +6,13 @@
  * Exactly TWO boundaries. Do not add a third.
  *
  *   mobile   @media (max-width: 779px)    no rail, fixed 64px bottom nav
- *   tablet   @media (max-width: 1179px)   80px icon rail
- *   desktop  (no query)                   272px expanded rail
+ *   tablet   @media (max-width: 1179px)   72px icon rail
+ *   desktop  (no query)                   248px expanded rail
+ *
+ * The two rail widths above were documented as 80px and 272px. Neither matched
+ * what the shell renders: shell-uui.css builds its grid from
+ * --uui-rail-w-collapsed (72px) and --uui-rail-w-expanded (248px). Corrected to
+ * the live values — see the note on --capiro-rail-w-collapsed below.
  *
  * Why these numbers, given three sources disagreed:
  *   - The Figma responsive artifacts are STAGE WIDTHS, not boundaries: the
@@ -58,11 +63,22 @@
   --capiro-bp-mobile: 780px;
   --capiro-bp-tablet: 1180px;
 
-  /* Live shell geometry, expressed via var() so it tracks --uui-rail-w-expanded
-     without manual sync. Page modules compute against these without reaching
-     into the untitled-ui layer. */
+  /* Live shell geometry, expressed via var() so it tracks the untitled-ui
+     values without manual sync. Page modules compute against these without
+     reaching into the untitled-ui layer.
+
+     `--capiro-rail-w-collapsed` was a hardcoded 80px, and it was wrong. Three
+     values described one rail and two of them were dead:
+       - --uui-rail-w-collapsed: 72px       -> LIVE. shell-uui.css:57 and :396
+                                               set the actual grid from it.
+       - --capiro-layout-shell-sidebar-collapsed: 72px (tokens.css:145)
+                                            -> agrees, consumed by nothing.
+       - --capiro-rail-w-collapsed: 80px    -> disagreed, consumed by nothing.
+     Any page module that had started computing against the 80px value would
+     have laid itself out 8px wider than the rail actually is. Aliased to the
+     live token, the same way the expanded twin above already is. */
   --capiro-rail-w-expanded: var(--uui-rail-w-expanded, 248px);
-  --capiro-rail-w-collapsed: 80px;
+  --capiro-rail-w-collapsed: var(--uui-rail-w-collapsed, 72px);
   --capiro-content-gutter: 32px;
   --capiro-content-gutter-mobile: 16px;
   --capiro-bottomnav-h: 64px;

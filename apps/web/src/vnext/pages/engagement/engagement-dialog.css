@@ -1,7 +1,7 @@
 .engagement-dialog-layer {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: var(--eng-layer-modal, 200);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -18,9 +18,9 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--uui-radius-card, 12px);
-  background: var(--uui-white, #fff);
+  background: var(--uui-white, #ffffff);
   color: var(--uui-gray-900, #101828);
-  font-family: var(--uui-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--capiro-type-family-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
   box-shadow:
     0 24px 48px -12px rgba(16, 24, 40, 0.28),
     0 0 0 1px rgba(16, 24, 40, 0.04);
@@ -34,7 +34,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 24px 18px;
-  border-bottom: 1px solid var(--uui-gray-200, #e8e5df);
+  border-bottom: 1px solid var(--uui-gray-200, #e4e7ec);
 }
 .engagement-dialog__heading {
   min-width: 0;
@@ -46,7 +46,7 @@
   /* The app self-hosts its faces and ships no remote webfont request, so name
      the stack the browser will actually use rather than a face that never
      resolves and silently falls through. */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -81,7 +81,7 @@
   cursor: pointer;
 }
 .engagement-dialog__close:hover {
-  background: var(--uui-gray-50, #faf9f6);
+  background: var(--uui-gray-50, #f9fafb);
   color: var(--uui-gray-700, #344054);
 }
 .engagement-dialog__close:disabled {
@@ -109,7 +109,7 @@
   gap: 8px;
   margin: 0;
   padding: 10px 24px;
-  border-top: 1px solid var(--uui-gray-200, #e8e5df);
+  border-top: 1px solid var(--uui-gray-200, #e4e7ec);
   background: var(--uui-gray-25, #fdfdfd);
   color: var(--uui-gray-600, #475467);
   font-size: 12.5px;
@@ -120,7 +120,7 @@
   height: 13px;
   flex: none;
   border-radius: 50%;
-  border: 2px solid var(--uui-gray-300, #e0dcd4);
+  border: 2px solid var(--uui-gray-300, #d0d5dd);
   border-top-color: var(--uui-brand-600, #475f9e);
   animation: engagement-dialog-spin 700ms linear infinite;
 }
@@ -137,12 +137,19 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 24px;
-  border-top: 1px solid var(--uui-gray-200, #e8e5df);
+  border-top: 1px solid var(--uui-gray-200, #e4e7ec);
   background: var(--uui-gray-25, #fdfdfd);
 }
+/*
+ * The dialog portals into `.capiro-vnext-root .engagement-vnext` whenever that
+ * element is mounted, so the foundation's `:focus-visible` ring applies to
+ * every control inside it and this rule is redundant there. On the
+ * `document.body` fallback path no `--capiro-*` property resolves, so the
+ * ring is restated with the foundation's own literal as the var() fallback —
+ * the same shape as `engagement-layers.css`, and the same reason.
+ */
 .engagement-dialog :is(button, input, select, textarea, a):focus-visible {
-  outline: 2px solid var(--uui-focus-ring, #717bbc);
-  outline-offset: 2px;
+  box-shadow: var(--capiro-focus-ring, 0 0 0 3px rgba(47, 99, 245, 0.22));
 }
 .engagement-dialog__field-grid {
   display: grid;
@@ -167,7 +174,7 @@
   width: 100%;
   border: 0;
   border-radius: var(--uui-radius-control, 8px);
-  background: var(--uui-white, #fff);
+  background: var(--uui-white, #ffffff);
   box-shadow: var(--uui-shadow-input, 0 0 0 1px #e0dcd4, 0 1px 2px rgba(16, 24, 40, 0.05));
   color: var(--uui-gray-900, #101828);
   font: inherit;
@@ -181,7 +188,7 @@
 .engagement-dialog__list {
   display: grid;
   gap: 0;
-  border: 1px solid var(--uui-gray-200, #e8e5df);
+  border: 1px solid var(--uui-gray-200, #e4e7ec);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -190,7 +197,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--uui-gray-200, #e8e5df);
+  border-bottom: 1px solid var(--uui-gray-200, #e4e7ec);
 }
 .engagement-dialog__list-row:last-child {
   border-bottom: 0;
@@ -233,7 +240,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   .engagement-dialog-layer {
     align-items: end;
     padding: 0;
@@ -267,6 +274,6 @@
   }
   .engagement-dialog__busy-spinner {
     animation: none;
-    border-top-color: var(--uui-gray-300, #e0dcd4);
+    border-top-color: var(--uui-gray-300, #d0d5dd);
   }
 }

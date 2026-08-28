@@ -22,6 +22,7 @@ import {
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { VNextCurrentDecisionSurface } from './VNextCurrentDecisionSurface.js';
 import { TERMINAL_GENERATION } from './outreach-v3-phase1-shared.js';
+import { useRovingFocus } from './use-roving-focus.js';
 import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
 import {
   outreachV3StyleSamples,
@@ -2318,6 +2319,10 @@ export function VNextOutreachWorkspace({
     onSuccess: (result) => setIntentId(result.intentId),
   });
 
+  /* Arrow / Home / End along the step rail. Focus only — Enter or Space
+     commits, so scanning the rail does not fire six step changes. */
+  const onRailKeyDown = useRovingFocus();
+
   const selectStep = (value: EngagementOutreachStep) => {
     const index = stepIndex(value);
     if (index > reachedIndex) return;
@@ -2447,7 +2452,21 @@ export function VNextOutreachWorkspace({
             }}
           />
         </EngagementDialog>
-        <nav className="uui-outreach-step-strip" aria-label="Campaign steps">
+        {/*
+          Arrow keys, Home and End move along the rail; Enter/Space commits.
+          Deliberately NOT role="tablist": the sections below are an accordion
+          (`openSections` is a Set and more than one can be open at once), and a
+          tablist promises exactly one visible panel per selected tab. Claiming
+          tab semantics over an accordion would mis-describe the surface to a
+          screen reader rather than improve it. `aria-current="step"` is the
+          accurate announcement for "this is where you are in the flow", and the
+          `aria-label` is preserved verbatim as a protected string.
+        */}
+        <nav
+          className="uui-outreach-step-strip"
+          aria-label="Campaign steps"
+          onKeyDown={onRailKeyDown}
+        >
           {USER_STEPS.map((candidate, index) => (
             <button
               key={candidate.key}
@@ -2455,6 +2474,7 @@ export function VNextOutreachWorkspace({
               data-active={candidate.key === step || undefined}
               data-reached={index <= reachedIndex || undefined}
               disabled={index > reachedIndex}
+              aria-current={candidate.key === step ? 'step' : undefined}
               onClick={() => selectStep(candidate.key)}
             >
               {candidate.label}
@@ -2465,7 +2485,11 @@ export function VNextOutreachWorkspace({
             label strip (which otherwise just becomes horizontally
             scrollable — see engagement.css's step-strip media query). Same
             reached/active/disabled contract as the strip above. */}
-        <nav className="uui-outreach-step-dots" aria-label="Campaign steps">
+        <nav
+          className="uui-outreach-step-dots"
+          aria-label="Campaign steps"
+          onKeyDown={onRailKeyDown}
+        >
           {USER_STEPS.map((candidate, index) => (
             <button
               key={candidate.key}
@@ -2475,6 +2499,7 @@ export function VNextOutreachWorkspace({
               disabled={index > reachedIndex}
               title={candidate.label}
               aria-label={candidate.label}
+              aria-current={candidate.key === step ? 'step' : undefined}
               onClick={() => selectStep(candidate.key)}
             >
               {STEP_DOT_LABEL[candidate.key]}
@@ -2532,6 +2557,11 @@ export function VNextOutreachWorkspace({
                   type="button"
                   className="uui-outreach-section__header"
                   disabled={waiting}
+                  /* An accordion header has to say whether it is open and what
+                     it opens; without these a screen reader announced seven
+                     identical unlabelled buttons whose effect was invisible. */
+                  aria-expanded={open}
+                  aria-controls={`outreach-section-${candidate.key}`}
                   onClick={() => toggleSection(candidate.key)}
                 >
                   <span className="uui-outreach-section__number">{candidate.number}</span>
@@ -2549,7 +2579,12 @@ export function VNextOutreachWorkspace({
                   {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
                 {open ? (
-                  <div className="uui-outreach-section__body">
+                  <div
+                    className="uui-outreach-section__body"
+                    id={`outreach-section-${candidate.key}`}
+                    role="region"
+                    aria-label={candidate.label}
+                  >
                     {candidate.key === 'samples' ? (
                       <StyleSamplesSurface
                         session={session}

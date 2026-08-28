@@ -20,6 +20,10 @@ import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
 import { VNextReportsTracker } from './VNextReportsTracker.js';
 import { EngagementToastProvider } from './engagement-toast.js';
+import { useRovingFocus } from './use-roving-focus.js';
+// The module's single z-index ladder. Imported FIRST so the four
+// --eng-layer-* aliases are defined before any rule consumes them.
+import './engagement-layers.css';
 import './engagement.css';
 import './engagement-ui-closeout.css';
 import './engagement-tones.css';
@@ -36,7 +40,10 @@ interface IntegrationConnection {
 
 function subline(destination: EngagementDestination, outreachCampaignId?: string | null): string {
   if (destination === 'reports') return 'Auto-populated activity with explicit manual status overrides and CSV export.';
-  if (destination === 'library') return 'Only approved or saved materials appear here. Searchable by client, date, artifact type, and visibility.';
+  // Deliberately does not say "searchable": the Library filters server-side by
+  // client, date, artifact type and visibility, and its text box narrows only
+  // the loaded page. See VNextMeetingLibrary.tsx.
+  if (destination === 'library') return 'Every approved or saved material in the firm, filtered by client, date, artifact type and visibility.';
   if (destination === 'meetings') return 'Calendar-synced meetings with prep, notes, Meri join, and client context.';
   if (destination === 'outreach' && !outreachCampaignId) return 'Your campaigns and governed templates. Open one to continue, or start fresh.';
   return 'Governed outreach: goal, targets, delivery, context, immutable drafts, preflight, send.';
@@ -50,6 +57,8 @@ export function VNextEngagementRoutes() {
   const destination = engagementDestination(location.pathname);
   const outreachCampaignId = outreachCampaignIdFromPath(location.pathname);
   const [step, setStep] = useState<EngagementOutreachStep>('goal');
+  /* Arrow / Home / End across Meetings | Outreach | Reports. */
+  const onTabsKeyDown = useRovingFocus();
 
   useEffect(() => { setStep('goal'); }, [outreachCampaignId]);
   useEffect(() => {
@@ -98,7 +107,17 @@ export function VNextEngagementRoutes() {
         />
       );
       break;
-    case 'meetings': body = <VNextMeetingsWorkspace clientId={clientFilter.selectedClientId} />; break;
+    case 'meetings':
+      body = (
+        <VNextMeetingsWorkspace
+          clientId={clientFilter.selectedClientId}
+          // `scopeLabel` is already resolved here from the client list this
+          // component holds; passing it avoids a second /api/clients read and
+          // lets the New meeting composer name the client it inherits.
+          clientLabel={clientFilter.selectedClientId ? scopeLabel : null}
+        />
+      );
+      break;
     case 'library': body = <VNextMeetingLibrary />; break;
     case 'reports': body = <VNextReportsTracker clientId={clientFilter.selectedClientId} />; break;
   }
@@ -117,10 +136,39 @@ export function VNextEngagementRoutes() {
           </label>
         </header>
         <div className="uui-engagement-tabs">
-          <nav aria-label="Engagement destinations">
-            <button type="button" data-active={destination === 'meetings' || destination === 'library' || undefined} onClick={() => navigateTab('meetings')}>Meetings</button>
-            <button type="button" data-active={destination === 'outreach' || undefined} onClick={() => navigateTab('outreach')}>Outreach</button>
-            <button type="button" data-active={destination === 'reports' || undefined} onClick={() => navigateTab('reports')}>Reports</button>
+          {/*
+            These navigate between routes, so they stay a <nav> with
+            aria-current="page" rather than becoming a tablist — there are no
+            tab panels here, the destination changes the URL. What was missing
+            was any keyboard movement (three separate Tab stops, no arrows) and
+            any announcement of which destination is current: `data-active` is
+            a styling hook and carries no semantics.
+          */}
+          <nav aria-label="Engagement destinations" onKeyDown={onTabsKeyDown}>
+            <button
+              type="button"
+              data-active={destination === 'meetings' || destination === 'library' || undefined}
+              aria-current={destination === 'meetings' || destination === 'library' ? 'page' : undefined}
+              onClick={() => navigateTab('meetings')}
+            >
+              Meetings
+            </button>
+            <button
+              type="button"
+              data-active={destination === 'outreach' || undefined}
+              aria-current={destination === 'outreach' ? 'page' : undefined}
+              onClick={() => navigateTab('outreach')}
+            >
+              Outreach
+            </button>
+            <button
+              type="button"
+              data-active={destination === 'reports' || undefined}
+              aria-current={destination === 'reports' ? 'page' : undefined}
+              onClick={() => navigateTab('reports')}
+            >
+              Reports
+            </button>
           </nav>
         </div>
         {body}

@@ -132,7 +132,7 @@
   to { transform: rotate(360deg); }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   .ov3-recipient-controls__bar > span { width: 100%; }
   .ov3-recipient-controls__panel,
   .ov3-recipient-controls__panel--tone { grid-template-columns: 1fr; }

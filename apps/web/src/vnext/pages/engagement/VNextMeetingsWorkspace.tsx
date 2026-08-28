@@ -68,6 +68,7 @@ import { ShareConfirmation } from '../../../pages/engagement/meetings/ShareConfi
 import { VNextMeetingPanelChrome } from './VNextMeetingPanelChrome.js';
 import { VNextSendMeriModal } from './VNextSendMeriModal.js';
 import { meetingsListKey, useMeeting, useMeetings } from '../../../pages/engagement/meetings/meetings-api.js';
+import { useEngagementCalendarSync } from './use-engagement-calendar-sync.js';
 import { meetingStatus } from '../../../pages/engagement/meetings/meetings-ui.js';
 import {
   approvedDebrief,
@@ -102,6 +103,13 @@ import './drawer-vnext.css';
 
 export interface VNextMeetingsWorkspaceProps {
   clientId: string | null;
+  /**
+   * Human name for `clientId`, resolved by the caller from the client list it
+   * already holds. Passed in rather than re-queried: a new meeting inherits the
+   * page's client scope, and the composer has to be able to NAME what it is
+   * inheriting instead of alluding to "the current client scope above".
+   */
+  clientLabel?: string | null;
 }
 
 const VIEW_OPTIONS: Array<{ key: MeetingViewMode; label: string }> = [
@@ -404,6 +412,8 @@ function NewMeetingModal({
   defaultDate,
   pending,
   error,
+  clientId,
+  clientLabel,
   onClose,
   onSave,
 }: {
@@ -411,6 +421,8 @@ function NewMeetingModal({
   defaultDate: Date;
   pending: boolean;
   error: string | null;
+  clientId: string | null;
+  clientLabel?: string | null;
   onClose: () => void;
   onSave: (input: NewMeetingInput) => void;
 }) {
@@ -437,7 +449,6 @@ function NewMeetingModal({
       open={open}
       eyebrow="Meetings · new"
       title="New meeting"
-      description="Minimal vNext composer — client assignment follows the current client scope above."
       width={520}
       busy={pending}
       dirty={subject.trim().length > 0}
@@ -461,6 +472,24 @@ function NewMeetingModal({
         </>
       }
     >
+      {/*
+        The client is INHERITED from the page's client scope and cannot be set
+        here — POST /api/engagement/meetings takes the scope's clientId. It used
+        to be disclosed only as "client assignment follows the current client
+        scope above", which named neither the client nor the consequence. A
+        meeting silently filed against the wrong client is not a cosmetic
+        problem, so the actual value is stated, with how to change it.
+      */}
+      <div className="vmtg-scope-notice" data-unscoped={clientId ? undefined : true}>
+        <span className="uui-eyebrow">Client</span>
+        <strong>{clientId ? (clientLabel ?? 'Selected client') : 'No client · internal meeting'}</strong>
+        <p>
+          {clientId
+            ? 'This meeting will be filed against that client. To file it elsewhere, change the client scope at the top of the page before saving.'
+            : 'With no client selected this is saved as an internal meeting. Pick a client in the scope selector at the top of the page to file it against one.'}
+        </p>
+      </div>
+
       <div className="engagement-dialog__field-grid">
         <label className="engagement-dialog__field is-full">
           Subject
@@ -492,7 +521,7 @@ function NewMeetingModal({
   );
 }
 
-export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps) {
+export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsWorkspaceProps) {
   const api = useApi();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -739,13 +768,23 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
     setSelectedMeetingId(null);
   }
 
-  function syncCalendar() {
-    // Real, existing mechanism — AppShell.tsx already owns a mutation
-    // listening for this same event (the canonical Meetings empty state uses
-    // it too); this dispatches the identical event rather than inventing a
-    // second sync path.
-    window.dispatchEvent(new Event('capiro:sync-inbox'));
-  }
+  /*
+   * Real calendar sync against the provider sync endpoints.
+   *
+   * This used to be `window.dispatchEvent(new Event('capiro:sync-inbox'))`,
+   * described in a comment as the "real, existing mechanism". It was not one
+   * here: the only listener for that event is in `components/AppShell.tsx`,
+   * and `App.tsx` returns `<VNextApp />` before it ever reaches `<AppShell />`
+   * on the vNext surface. On os.capiro.ai the button therefore dispatched an
+   * event with no listener — silent, no error, no sync. See
+   * use-engagement-calendar-sync.ts for the endpoints it now calls.
+   */
+  const calendarSync = useEngagementCalendarSync({
+    onSynced: (count) =>
+      toast.show(
+        `Calendar synced · ${count} connected mailbox${count === 1 ? '' : 'es'}`,
+      ),
+  });
 
   const createMeeting = useMutation<Meeting, Error, NewMeetingInput>({
     mutationFn: async (input) =>
@@ -768,6 +807,29 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
   });
 
   const viewLabel = viewMode === 'day' ? 'Day' : viewMode === 'list' ? 'List' : 'Month';
+
+  /*
+   * One definition for every place "Sync calendar" appears, so the disabled
+   * state and its stated reason can never drift between the header and the two
+   * empty states. With no connected mailbox the control is disabled and says
+   * why — it is never enabled-but-inert.
+   */
+  const syncCalendarButton = (variant: 'toolbar' | 'empty') => (
+    <button
+      type="button"
+      className="uui-button"
+      onClick={calendarSync.sync}
+      disabled={!calendarSync.canSync}
+      title={calendarSync.disabledReason ?? undefined}
+      aria-describedby={
+        calendarSync.disabledReason ? 'vmtg-sync-reason' : undefined
+      }
+      data-variant={variant}
+    >
+      <RefreshCw size={variant === 'toolbar' ? 15 : 14} className={calendarSync.isPending ? 'uui-spin' : undefined} />
+      {calendarSync.isPending ? 'Syncing…' : 'Sync calendar'}
+    </button>
+  );
 
   return (
     <VNextMeetingPanelChrome>
@@ -815,6 +877,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
               </button>
             ))}
           </div>
+          {syncCalendarButton('toolbar')}
           <button
             type="button"
             className="uui-button"
@@ -832,6 +895,26 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
             New meeting
           </button>
         </div>
+
+        {/*
+          The single node every "Sync calendar" button points its
+          aria-describedby at. One id, one node, referenced from the toolbar and
+          both empty states — so a screen reader gets the real reason the
+          control is disabled instead of a bare "dimmed button".
+        */}
+        {calendarSync.disabledReason ? (
+          <p id="vmtg-sync-reason" className="vmtg-visually-hidden">
+            {calendarSync.disabledReason}
+          </p>
+        ) : null}
+        {calendarSync.error ? (
+          <div className="vmtg-sync-error" role="alert">
+            <AlertTriangle size={15} />
+            <span>
+              <strong>Calendar sync failed.</strong> {calendarSync.error}
+            </span>
+          </div>
+        ) : null}
 
         {meetingsQuery.isLoading ? (
           <div className="vmtg-skeletons">
@@ -874,10 +957,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
                   <Plus size={14} />
                   New meeting
                 </button>
-                <button type="button" className="uui-button" onClick={syncCalendar}>
-                  <RefreshCw size={14} />
-                  Sync calendar
-                </button>
+                {syncCalendarButton('empty')}
               </div>
             </div>
           ) : (
@@ -910,10 +990,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
                 <Plus size={14} />
                 New meeting
               </button>
-              <button type="button" className="uui-button" onClick={syncCalendar}>
-                <RefreshCw size={14} />
-                Sync calendar
-              </button>
+              {syncCalendarButton('empty')}
             </div>
           </div>
         ) : (
@@ -1016,6 +1093,8 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
       <NewMeetingModal
         open={newMeetingOpen}
         defaultDate={cursor}
+        clientId={clientId}
+        clientLabel={clientLabel}
         pending={createMeeting.isPending}
         error={createMeeting.isError ? 'Could not save the meeting. Try again.' : null}
         onClose={() => setNewMeetingOpen(false)}

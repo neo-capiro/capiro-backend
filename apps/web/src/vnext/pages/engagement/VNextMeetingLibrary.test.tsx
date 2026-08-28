@@ -113,16 +113,22 @@ describe('VNextMeetingLibrary', () => {
     });
   });
 
-  test('renders the breadcrumb, heading and the literal design-doc subline', () => {
+  test('renders the breadcrumb, heading and a subline that does not promise corpus search', () => {
     renderLibrary();
     expect(screen.getByText('Meetings')).toBeInTheDocument();
     expect(screen.getByText('Library')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Meeting Library' })).toBeInTheDocument();
+    // The Library is tenant-scoped, not owner-scoped: it deliberately shows
+    // other people's approved material, so "empty" means "nothing approved
+    // matches", never "you have nothing".
+    expect(screen.getByText(/tenant-wide/i)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        'Only approved or saved materials appear here. Searchable by client, date, artifact type, and visibility.',
-      ),
+      screen.getByText(/nothing approved matches these filters/i),
     ).toBeInTheDocument();
+    // The old subline said the page was "Searchable by client, date, artifact
+    // type, and visibility" next to a text box that searched none of those and
+    // never reached the server. That claim must not come back.
+    expect(screen.queryByText(/Searchable by client, date, artifact type/i)).toBeNull();
   });
 
   test('the Meetings breadcrumb button navigates back to /engagement/meetings', () => {
@@ -179,11 +185,32 @@ describe('VNextMeetingLibrary', () => {
   });
 
   describe('empty state', () => {
-    test('renders the literal empty-state copy when no rows match', () => {
+    test('distinguishes "nothing approved matches the filters" from "nothing on this page matches"', () => {
       renderLibrary();
+      // No rows from the server at all: the honest statement is about the
+      // server-side filters and the tenant scope, not about a search term.
       expect(
-        screen.getByText('No approved or saved materials match this search.'),
+        screen.getByText(/No approved or saved materials match these filters/i),
       ).toBeInTheDocument();
+      expect(screen.queryByText(/only narrows the rows already loaded/i)).toBeNull();
+    });
+
+    test('says the text filter is page-local when the server returned rows but none match it', () => {
+      useMeetingLibraryMock.mockReturnValue({
+        data: { data: [makeMeeting({ subject: 'Budget markup prep' })], total: 1, page: 1, limit: 25 },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderLibrary();
+      fireEvent.change(screen.getByPlaceholderText('Filter this page…'), {
+        target: { value: 'zzz-no-such-meeting' },
+      });
+      expect(screen.getByText(/only narrows the rows already loaded/i)).toBeInTheDocument();
+      // Must NOT claim the corpus has nothing — the server did return a row.
+      expect(
+        screen.queryByText(/No approved or saved materials match these filters/i),
+      ).toBeNull();
     });
 
     test('does not render the empty state once a row exists', () => {
@@ -326,10 +353,30 @@ describe('VNextMeetingLibrary', () => {
   describe('search', () => {
     test('typing a query persists it to the URL as `q`', () => {
       renderLibrary();
-      fireEvent.change(screen.getByPlaceholderText('Search meetings, clients…'), {
+      fireEvent.change(screen.getByPlaceholderText('Filter this page…'), {
         target: { value: 'HASC' },
       });
       expect(locationSearch()).toContain('q=HASC');
+    });
+
+    /*
+     * `MeetingLibraryQueryDto` declares clientId, artifactType, visibility,
+     * from, to, page and limit -- and no text field. The global ValidationPipe
+     * rejects undeclared query params, so a `q` sent to the server would 400
+     * rather than search. It must stay a client-side page filter until a real
+     * server-side search exists.
+     */
+    test('never sends the page filter to the server as a query param', () => {
+      renderLibrary();
+      fireEvent.change(screen.getByPlaceholderText('Filter this page…'), {
+        target: { value: 'HASC' },
+      });
+      for (const call of useMeetingLibraryMock.mock.calls) {
+        const params = call[0] as Record<string, unknown> | undefined;
+        expect(params).not.toHaveProperty('q');
+        expect(params).not.toHaveProperty('search');
+        expect(params).not.toHaveProperty('query');
+      }
     });
   });
 });

@@ -18,20 +18,31 @@
      surface (fields, tinted blocks, hover on a white control); before the
      parity pass both roles shared one near-white token, which is why the page
      ground read a full step too light. */
-  /* Warm surface palette (WARM-SURFACE-PALETTE.md): aliases onto the
-     foundation values — never hardcoded cool greys. The literal fallbacks
-     exist only for portalled subtrees that render outside the token roots
-     and must equal the foundation values exactly. */
-  --eng-page: var(--uui-surface-canvas, #f4f3f0);
-  --eng-bg: var(--uui-gray-50, #faf9f6);
+  /*
+   * Aliases onto the foundation values — never hardcoded greys. The literal
+   * fallbacks exist only for portalled subtrees that render outside the token
+   * roots, and must equal the foundation values exactly.
+   *
+   * They did not. The warm-surface palette was reverted in tokens.css on
+   * 2026-08-24 ("back to #f0f1f4/#f2f3f5 canvas"), and `untitled-ui-tokens.css`
+   * went back to the cool Untitled UI ramp with it, but these fallbacks kept
+   * the warm values (#f4f3f0, #faf9f6, #f2f0eb, #e8e5df, #e0dcd4). Any subtree
+   * that resolved a fallback — i.e. anything portalled to `document.body` —
+   * therefore painted the reverted warm palette while the rest of the page
+   * painted the cool one. Corrected against the live foundation values, and
+   * the same correction applied to engagement-dialog.css, engagement-tones.css
+   * and engagement-ui-closeout.css, which carried the same stale set.
+   */
+  --eng-page: var(--uui-surface-canvas, #eff1f5);
+  --eng-bg: var(--uui-gray-50, #f9fafb);
   --eng-surface: #ffffff;
   /* The assistant tier — Meri rails, panels and the launcher read this, not
      --eng-surface. No non-Meri surface may use it. */
   --eng-surface-assistant: var(--capiro-surface-assistant, #fffdfa);
-  --eng-recessed: var(--uui-gray-50, #faf9f6);
-  --eng-muted: var(--uui-gray-100, #f2f0eb);
-  --eng-border: var(--uui-gray-200, #e8e5df);
-  --eng-border-strong: var(--uui-gray-300, #e0dcd4);
+  --eng-recessed: var(--uui-gray-50, #f9fafb);
+  --eng-muted: var(--uui-gray-100, #f2f4f7);
+  --eng-border: var(--uui-gray-200, #e4e7ec);
+  --eng-border-strong: var(--uui-gray-300, #d0d5dd);
   --eng-ink: #101828;
   --eng-ink-2: #475467;
   --eng-ink-3: #667085;
@@ -80,10 +91,39 @@
   --eng-error-dot: #d92d20;
   --eng-error-bg: #fef3f2;
   --eng-error-border: #fecdca;
+  /*
+   * Respect the declared page cap. `--capiro-layout-page-max: 1320px`
+   * (tokens.css:151) is the app's content ceiling, and Engagement referenced it
+   * nowhere — on a wide monitor the tab strip, the 10-column Reports table and
+   * the campaigns list stretched edge to edge while Directory, the one surface
+   * that does honour the token, stopped at 1320. Same construction as
+   * directory.css:193: the cap covers the inner content, so the gutters are
+   * added on top and the whole thing is centred.
+   */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--capiro-layout-page-max) + (2 * var(--capiro-space-06)));
+  margin-inline: auto;
   min-height: 100%;
   background: var(--eng-page);
   color: var(--eng-ink);
-  font-family: Inter, var(--uui-font-sans, sans-serif);
+  /*
+   * One family for the module, from the foundation.
+   *
+   * This was `Inter, var(--uui-font-sans, sans-serif)`. `--uui-font-sans` is
+   * not defined anywhere in the tree, so it resolved to `Inter, sans-serif`
+   * and Engagement rendered Inter — while `engagement-dialog.css` and
+   * `engagement-ui-closeout.css` read `--uui-font-family` (which IS defined,
+   * as var(--capiro-type-family-sans)) and rendered Hanken Grotesk, and
+   * `outreach-decision-vnext.css` asked for Instrument Sans. Four families
+   * inside one surface, with the dialog visibly disagreeing with the page
+   * behind it.
+   *
+   * Inter is the PROTOTYPE's family. Porting onto the existing foundations
+   * (Phase 0, option A) means the app's family wins here; the prototype is the
+   * visual reference for layout and tone, not for type.
+   */
+  font-family: var(--capiro-type-family-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-variant-ligatures: contextual;
@@ -108,11 +148,18 @@
 .capiro-vnext-root .engagement-vnext select:focus-visible,
 .capiro-vnext-root .engagement-vnext textarea:focus-visible,
 .capiro-vnext-root .engagement-vnext a:focus-visible {
-  /* UI-parity §1.6: the module's focus ring is the navy #4A7A9B, not the
-     shell's indigo — the same per-module navy exception documented on
-     `--eng-accent` above. */
-  outline: 2px solid #4a7a9b;
-  outline-offset: 2px;
+  /*
+   * One focus treatment for the whole app. This used to paint a module-local
+   * navy `outline: 2px solid #4a7a9b`, one of FIVE competing focus styles
+   * inside Engagement alone (the others: `--eng-accent`, `--uui-focus-ring`,
+   * a bare `rgba(52,104,245,.28)`, and the foundation's own ring). The
+   * foundation already rings every focusable element via
+   * `reset.css`'s `:focus-visible { box-shadow: var(--capiro-focus-ring) }`,
+   * and `.capiro-vnext-root a` (0,1,1) outranked it here, so this rule was
+   * actively suppressing the canonical ring rather than adding to it.
+   *
+   * Only the radius is Engagement's to set — the ring itself is inherited.
+   */
   border-radius: 8px;
 }
 
@@ -181,9 +228,15 @@
 .capiro-vnext-root .uui-client-scope:hover {
   box-shadow: var(--eng-ring-hover);
 }
+/*
+ * The visible affordance is this <label>; the focusable control is a <select>
+ * overlaid on top of it, so the foundation's per-control ring lands on an
+ * element the user cannot see. `:focus-within` on the wrapper is the correct
+ * place for the ring here — composed with the resting border ring rather
+ * than replacing it, so the control does not lose its outline on focus.
+ */
 .capiro-vnext-root .uui-client-scope:focus-within {
-  outline: 2px solid #4a7a9b;
-  outline-offset: 2px;
+  box-shadow: var(--eng-ring), var(--capiro-focus-ring);
 }
 .capiro-vnext-root .uui-client-scope > span:first-child {
   font-size: 11px;
@@ -691,7 +744,7 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 20;
+  z-index: var(--eng-layer-popover, 100);
   display: flex;
   flex-direction: column;
   min-width: 180px;
@@ -1037,13 +1090,55 @@
   border-bottom: 0;
   border-radius: 0 0 12px 12px;
 }
+/*
+ * Sticky first column.
+ *
+ * The table is 10 columns / 1120px minimum inside an `overflow-x: auto`
+ * container, so on anything narrower than a wide desktop the Member/principal
+ * name — the row's only identity — scrolls out of view and the remaining nine
+ * columns become anonymous. Pinning column 1 keeps every cell attributable
+ * while the rest of the row scrolls.
+ *
+ * `left: 20px` is negative-offset by the row's own 20px inline padding so the
+ * pinned cell lands flush against the container edge rather than 20px into it.
+ * The head and body cells are pinned separately because they are siblings in
+ * two different grids, not one table.
+ */
+.capiro-vnext-root .uui-report-table__head > :first-child,
+.capiro-vnext-root .uui-report-table__row > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: var(--eng-layer-sticky, 20);
+  /* Restores the 20px the row's padding would otherwise leave to the left of
+     the pinned cell, and puts it back as padding INSIDE the cell so the text
+     position is unchanged. */
+  margin-left: -20px;
+  padding-left: 20px;
+}
+.capiro-vnext-root .uui-report-table__head > :first-child {
+  background: var(--eng-recessed);
+}
 .capiro-vnext-root .uui-report-table__row > :first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Opaque, so scrolled columns pass BEHIND the pinned cell instead of
+     showing through it. Must match the row background exactly. */
+  background: var(--eng-surface);
   color: var(--eng-ink);
   font-size: 15px;
   font-weight: 600;
+}
+/* Hairline that reads as the pinned column's trailing edge only once the table
+   is actually scrolled sideways. */
+.capiro-vnext-root .uui-report-table__head > :first-child::after,
+.capiro-vnext-root .uui-report-table__row > :first-child::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  right: -1px;
+  width: 1px;
+  background: var(--eng-border);
 }
 .capiro-vnext-root .uui-report-meetings-link {
   border: 0;
@@ -1139,7 +1234,7 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 30;
+  z-index: var(--eng-layer-popover, 100);
   display: flex;
   flex-direction: column;
   width: 170px;
@@ -1218,7 +1313,7 @@
   position: fixed;
   left: 50%;
   bottom: 28px;
-  z-index: 65;
+  z-index: var(--eng-layer-toast, 300);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -1835,7 +1930,7 @@
   position: absolute;
   bottom: calc(100% + 7px);
   left: 0;
-  z-index: 10;
+  z-index: var(--eng-layer-popover, 100);
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -1929,13 +2024,13 @@
   border-radius: 8px;
   background: var(--eng-bg);
   box-shadow: 0 0 0 1px var(--eng-border);
-  color: var(--eng-ink-1);
+  /* Was `var(--eng-ink-1)`, which is not a token: the ramp is --eng-ink,
+     --eng-ink-2, -3, -4. With no fallback the declaration was invalid and
+     the input inherited its colour instead of taking the primary ink. */
+  color: var(--eng-ink);
   font-size: 13px;
 }
-.capiro-vnext-root .uui-draft-refine__row input:focus-visible {
-  outline: 2px solid var(--eng-accent);
-  outline-offset: 1px;
-}
+/* Ring inherited from the foundation (reset.css). Nothing to declare here. */
 .capiro-vnext-root .uui-draft-refine__row input:disabled {
   color: var(--eng-ink-4);
 }
@@ -2412,7 +2507,7 @@
 .capiro-vnext-root .uui-engagement-modal-layer {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: var(--eng-layer-modal, 200);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -2688,7 +2783,7 @@
 }
 .capiro-vnext-root .uui-toast {
   position: fixed;
-  z-index: 80;
+  z-index: var(--eng-layer-toast, 300);
   bottom: 28px;
   left: 50%;
   display: flex;
@@ -2846,7 +2941,7 @@
   }
 }
 
-@media (max-width: 759px) {
+@media (max-width: 779px) {
   .capiro-vnext-root .uui-engagement-page-header {
     flex-direction: column;
     padding: 20px 16px 0;
@@ -3147,7 +3242,7 @@
 .capiro-vnext-root .uui-outreach-actionbar {
   position: sticky;
   bottom: 0;
-  z-index: 2;
+  z-index: var(--eng-layer-sticky, 20);
   display: flex;
   align-items: center;
   flex-wrap: wrap;

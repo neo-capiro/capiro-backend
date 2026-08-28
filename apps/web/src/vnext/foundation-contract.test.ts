@@ -23,6 +23,10 @@ const cssFiles = [
   './pages/strategies/strategy-library.css',
   './pages/strategies/strategy-editor.css',
   './pages/strategies/step-inspector.css',
+  // Engagement's layer ladder. `engagement-dialog.css` is deliberately NOT in
+  // this list: it styles a subtree that portals to `document.body` when
+  // `.engagement-vnext` is not mounted, so it cannot be root-scoped.
+  './pages/engagement/engagement-layers.css',
 ];
 
 const componentCssFiles = [
@@ -30,6 +34,7 @@ const componentCssFiles = [
   './shell/AppShellUui/shell-uui.css',
   './pages/dashboard/dashboard.css',
   './pages/directory/directory.css',
+  './pages/engagement/engagement-layers.css',
 ];
 
 /**

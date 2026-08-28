@@ -130,8 +130,30 @@
 .capiro-vnext-root .uui-outreach-home__row:hover {
   background: var(--eng-bg);
 }
+/*
+ * Archived rows.
+ *
+ * The list is fetched with `includeArchived=true`, so archived campaigns are
+ * always present and only the status filter hides them — meaning this state
+ * renders in the normal flow and has to be legible, not merely dimmed.
+ *
+ * It was a blanket `opacity: 0.62`, which is the wrong instrument twice over:
+ * it takes the row's body text below AA contrast, and it fades the "Archived"
+ * pill — the one element actually stating the status — along with everything
+ * else. State is carried by the pill (text) and the recessed ground (visual),
+ * one treatment each, and the title stays at full contrast so an archived
+ * campaign is still readable and findable.
+ */
 .capiro-vnext-root .uui-outreach-home__row[data-archived] {
-  opacity: 0.62;
+  background: var(--eng-recessed);
+}
+.capiro-vnext-root .uui-outreach-home__row[data-archived]:hover {
+  background: var(--eng-muted);
+}
+/* Only the secondary line recedes. The title and the pill do not. */
+.capiro-vnext-root .uui-outreach-home__row[data-archived] .uui-outreach-home__title small,
+.capiro-vnext-root .uui-outreach-home__row[data-archived] .uui-outreach-home__when {
+  color: var(--eng-ink-3);
 }
 
 .capiro-vnext-root .uui-outreach-home__open {

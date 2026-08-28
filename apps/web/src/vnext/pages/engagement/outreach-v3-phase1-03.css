@@ -6,7 +6,7 @@
 
 .ov3p1-bulk-bar {
   position: sticky;
-  z-index: 4;
+  z-index: var(--eng-layer-sticky, 20);
   top: 12px;
   display: flex;
   flex-wrap: wrap;

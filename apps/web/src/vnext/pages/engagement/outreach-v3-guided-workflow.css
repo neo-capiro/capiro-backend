@@ -678,7 +678,7 @@
 
 .outreach-guided__profile {
   position: fixed;
-  z-index: 50;
+  z-index: var(--eng-layer-popover, 100);
   right: 24px;
   bottom: 24px;
   width: min(360px, calc(100vw - 48px));

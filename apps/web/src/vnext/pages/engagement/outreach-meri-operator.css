@@ -87,7 +87,7 @@
 .capiro-vnext-root .uui-outreach-operator__brief {
   position: sticky;
   top: 0;
-  z-index: 24;
+  z-index: var(--eng-layer-sticky, 20);
 }
 
 .capiro-vnext-root .uui-outreach-operator .ov3-brief-strip {
@@ -516,7 +516,7 @@
 .capiro-vnext-root .uui-outreach-operator__conversation {
   bottom: 0;
   position: sticky;
-  z-index: 30;
+  z-index: var(--eng-layer-sticky, 20);
 }
 
 .capiro-vnext-root .uui-outreach-operator .ov3-conversation-dock {

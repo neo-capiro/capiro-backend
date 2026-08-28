@@ -129,7 +129,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-context-source-row > span {
   color: var(--ov3-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 8px;
   text-transform: uppercase;
 }
@@ -166,7 +166,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-context-summary-grid span {
   color: var(--ov3-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 7px;
   text-transform: uppercase;
 }
@@ -193,13 +193,13 @@
   font-size: 9px;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1179px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-context-class-guide {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-context-class-guide,
   :where(.capiro-vnext-root .engagement-vnext) .ov3-context-summary-grid {
     grid-template-columns: 1fr 1fr;
@@ -281,7 +281,7 @@
   opacity: 0.45;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-context-review .ov3-context-search.is-unified {
     flex-wrap: wrap;
   }
@@ -457,7 +457,7 @@
   color: var(--ov3-muted);
   display: flex;
   flex-direction: column;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 7px;
   gap: 2px;
   padding: 6px;
@@ -466,7 +466,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-relationship-metrics strong {
   color: var(--ov3-ink);
-  font-family: "Instrument Sans", sans-serif;
+  font-family: var(--capiro-type-family-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
   font-size: 15px;
 }
 
@@ -493,12 +493,12 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-relationship-event span {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 7px;
   margin-top: 1px;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-target-criteria__controls {
     align-items: stretch;
   }
@@ -668,7 +668,14 @@
   border-bottom: 1px solid var(--ov3-border);
   background: var(--ov3-canvas);
   color: var(--ov3-muted);
-  font-family: var(--ov3-font-mono);
+  /*
+   * `--ov3-font-mono` is never defined anywhere in the tree. With no
+   * fallback this declaration was invalid at computed-value time, so the
+   * property fell back to `unset` and this element inherited the SANS
+   * family while every sibling that spelled the same var() with a fallback
+   * rendered mono. Pointed at the foundation token.
+   */
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -797,7 +804,7 @@
 
 /* Narrow widths: drop Committee/State/Party rather than horizontally scroll.
    Name + office + the add control are what the table is for. */
-@media (max-width: 1180px) {
+@media (max-width: 1179px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-dir__head,
   :where(.capiro-vnext-root .engagement-vnext) .ov3-dir__row {
     grid-template-columns: 104px minmax(0, 1.5fr) minmax(0, 1fr);
@@ -811,7 +818,7 @@
     display: none;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-dir__head,
   :where(.capiro-vnext-root .engagement-vnext) .ov3-dir__row {
     grid-template-columns: 104px minmax(0, 1fr);
@@ -836,7 +843,8 @@
     0 22px 64px -36px rgba(7, 16, 29, 0.24);
   display: flex;
   flex-direction: column;
-  font-family: "Instrument Sans", "Hanken Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+  /* Was Instrument Sans first — a third family inside this one module. */
+  font-family: var(--capiro-type-family-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
   min-height: min(900px, calc(100dvh - 146px));
   overflow: hidden;
   width: 100%;
@@ -903,7 +911,7 @@
 :where(.capiro-vnext-root .engagement-vnext) .ov3-proposal-list code,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-stage-rail small,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-future-grid article > span {
-  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-eyebrow,
@@ -927,7 +935,7 @@
   min-height: 64px;
   padding: 9px 14px;
   position: relative;
-  z-index: 4;
+  z-index: var(--eng-layer-sticky, 20);
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-toolbar__identity,
@@ -992,7 +1000,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-toolbar__context small {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -1094,8 +1102,13 @@
 :where(.capiro-vnext-root .engagement-vnext) .ov3-choice-card:focus-visible,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-tab-row button:focus-visible,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-segmented button:focus-visible {
-  outline: 3px solid rgba(52, 104, 245, 0.28);
-  outline-offset: 2px;
+  /*
+   * `.ov3-stage-rail` is `overflow-x: auto` (line 1179) and the tab rows
+   * scroll on narrow viewports, so an outer box-shadow ring is clipped by the
+   * scroll container and the control appears to have no focus at all. The
+   * inset twin paints inside the control's own box and survives the clip.
+   */
+  box-shadow: var(--capiro-focus-ring-inset);
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-icon-button,
@@ -1129,7 +1142,7 @@
   border: 1px solid var(--ov3-border);
   color: var(--ov3-secondary);
   display: inline-flex;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   font-weight: 600;
   gap: 6px;
@@ -1407,7 +1420,7 @@
   align-items: center;
   color: var(--ov3-muted);
   display: flex;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   gap: 6px;
   letter-spacing: 0.06em;
@@ -1594,7 +1607,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-brief__rows dt {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1829,7 +1842,7 @@
   align-items: center;
   color: var(--ov3-muted);
   display: flex;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   font-weight: 600;
   justify-content: space-between;
@@ -2130,7 +2143,7 @@
   color: white;
   display: flex;
   flex: 0 0 auto;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   height: 30px;
   justify-content: center;
@@ -2829,7 +2842,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-root {
     background: var(--ov3-canvas);
     border-radius: 12px;
@@ -2975,7 +2988,7 @@
 :where(.capiro-vnext-root .engagement-vnext) .ov3-goal-readback__label {
   display: block;
   margin: 16px 0 8px;
-  font-family: var(--ov3-font-mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -2994,7 +3007,7 @@
   align-items: baseline;
 }
 :where(.capiro-vnext-root .engagement-vnext) .ov3-goal-readback__row > span:first-child {
-  font-family: var(--ov3-font-mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -3193,7 +3206,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-delivery-card em {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 7px;
   font-style: normal;
   margin-top: 7px;
@@ -3377,7 +3390,7 @@
   margin: 8px 18px 0;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1179px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-choice-grid.is-three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3387,7 +3400,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 779px) {
   :where(.capiro-vnext-root .engagement-vnext) .ov3-choice-grid.is-three,
   :where(.capiro-vnext-root .engagement-vnext) .ov3-client-list,
   :where(.capiro-vnext-root .engagement-vnext) .ov3-ready-grid,
@@ -3449,7 +3462,7 @@
   color: var(--ov3-accent);
   display: inline-flex;
   flex: 0 0 26px;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 11px;
   font-weight: 600;
   height: 26px;
@@ -3499,7 +3512,7 @@
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-sample-form .ov3-field small {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 9px;
   text-align: right;
 }

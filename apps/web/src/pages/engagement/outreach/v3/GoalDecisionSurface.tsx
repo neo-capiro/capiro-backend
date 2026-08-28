@@ -71,20 +71,26 @@ const OUTREACH_TYPES = [
   ['Share an update', 'Keep stakeholders informed with a concise policy update.'],
 ] as const;
 
-function NewOutreachTypeRequest({
-  onClose,
-  onSubmitRequest,
-}: {
-  onClose: () => void;
-  onSubmitRequest: () => void;
-}) {
+/**
+ * Outreach-type request.
+ *
+ * There is NO endpoint for this. The submit button used to validate both
+ * fields and then call `onSubmitRequest`, which the only call site wired to
+ * `() => setRequestOpen(false)` — so a user could write a description and
+ * paste a sample email, press "Submit outreach type request", watch the dialog
+ * close, and have both fields silently discarded with no request recorded
+ * anywhere. On a governed outreach surface that is exactly the failure mode the
+ * product rules forbid: a control with no endpoint is disabled with a stated
+ * reason, or absent.
+ *
+ * Kept, because the two outreach types genuinely are the only ones supported and
+ * users need to be told where to ask for more — but the form is now read-only
+ * and says so. `onSubmitRequest` is gone rather than left unused: an unused
+ * callback is an invitation to re-wire it to another no-op.
+ */
+function NewOutreachTypeRequest({ onClose }: { onClose: () => void }) {
   const [description, setDescription] = useState('');
   const [sampleEmail, setSampleEmail] = useState('');
-
-  const submit = () => {
-    if (!description.trim() || !sampleEmail.trim()) return;
-    onSubmitRequest();
-  };
 
   return (
     <div className="ov3-request-modal__backdrop" role="presentation">
@@ -97,25 +103,33 @@ function NewOutreachTypeRequest({
         <header className="ov3-panel-header">
           <div>
             <span className="ov3-eyebrow">Outreach type request</span>
-            <h2 id="ov3-request-modal-title">Request New Outreach Type</h2>
-            <p>Help us understand the outreach pattern you need.</p>
+            <h2 id="ov3-request-modal-title">Requesting a new outreach type</h2>
+            <p>
+              Meeting requests and updates are the two types this release supports.
+              There is no in-product request form yet — send the two things below to
+              your Capiro contact and they will scope it with you.
+            </p>
           </div>
           <button type="button" className="ov3-button is-quiet" onClick={onClose}>
             Close
           </button>
         </header>
+        {/*
+          Still editable, so a user can compose here and copy it out — but
+          nothing is submitted and the footer says so. The alternative was
+          removing the fields entirely, which loses the useful part: telling
+          someone exactly WHAT to send.
+        */}
         <div className="ov3-form-stack">
           <Field
-            label="Describe what you want to request"
-            required
+            label="What you need (copy this to your Capiro contact)"
             value={description}
             placeholder="Describe the outreach outcome or workflow you need."
             onChange={setDescription}
             multiline
           />
           <Field
-            label="Sample email of the desired outcome"
-            required
+            label="A sample email showing the desired outcome"
             value={sampleEmail}
             placeholder="Paste a sample email that shows the desired outcome."
             onChange={setSampleEmail}
@@ -123,17 +137,23 @@ function NewOutreachTypeRequest({
           />
         </div>
         <footer className="ov3-panel-footer">
-          <button type="button" className="ov3-button is-quiet" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="ov3-button is-primary"
-            disabled={!description.trim() || !sampleEmail.trim()}
-            onClick={submit}
-          >
-            Submit outreach type request
-          </button>
+          {/*
+            A plain <span>, not a new class. `.ov3-panel-footer > span` is the
+            footer's existing muted micro-copy slot and BOTH sheets that style
+            this component already define it identically — outreach-v3.css for
+            the standalone route and outreach-decision-vnext.css for the vNext
+            surface. A new class would have needed adding to both, and would
+            have rendered unstyled in whichever one it was forgotten in. The
+            substantive explanation lives in the header above, where it has room
+            to be read; this is the reinforcement.
+          */}
+          {/*
+            No button here. `ov3-panel-header` above already renders this
+            dialog's Close, and the footer previously held a "Cancel" that
+            became a second "Close" once the submit was removed — two identical
+            dismiss controls in one dialog, which is worse than one.
+          */}
+          <span>Nothing here is submitted.</span>
         </footer>
       </div>
     </div>
@@ -362,7 +382,6 @@ export function GoalDecisionSurface({
       {requestOpen ? (
         <NewOutreachTypeRequest
           onClose={() => setRequestOpen(false)}
-          onSubmitRequest={() => setRequestOpen(false)}
         />
       ) : null}
     </form>

@@ -10,6 +10,7 @@ import {
   type OutreachTemplateSpecV1,
 } from './outreach-template.contract.js';
 import { OutreachTemplateService } from './outreach-template.service.js';
+import type { StarterTemplateSeeder } from './starter-template-seeder.js';
 import type {
   OutreachTemplateRepository,
   OutreachTemplateRow,
@@ -121,12 +122,33 @@ function buildHarness() {
     authorizeClientWithinTx: jest.fn(async () => undefined),
   } as unknown as CapabilityAuthorizationService;
 
+  /*
+   * `list()` asks the seeder to ensure the starter templates exist before it
+   * reads. Stubbed to a no-op here: these tests cover list/create/publish
+   * behaviour against mocked repositories, and seeding is exercised on its own
+   * in starter-template-seeder.spec.ts. Returning 'already_current' is the
+   * steady state a real tenant is in for all but its first read.
+   */
+  const startersMocks = {
+    ensureSeeded: jest.fn(async () => ({ outcome: 'already_current' as const, created: 0 })),
+  };
+  const starters = startersMocks as unknown as StarterTemplateSeeder;
+
   return {
-    service: new OutreachTemplateService(prisma, templates, sessions, state, commands, authorization),
+    service: new OutreachTemplateService(
+      prisma,
+      templates,
+      sessions,
+      state,
+      commands,
+      authorization,
+      starters,
+    ),
     templates: templatesMocks,
     sessions: sessionsMocks,
     state: stateMocks,
     commands: commandsMocks,
+    starters: startersMocks,
   };
 }
 

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { StarterTemplateSeeder } from './starter-template-seeder.js';
 import { CapabilityAuthorizationService } from '../../capabilities/capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../../capabilities/capability-context.js';
 import { CapabilityError } from '../../capabilities/capability-errors.js';
@@ -254,6 +255,7 @@ export class OutreachTemplateService {
     private readonly state: OutreachStateRepository,
     private readonly commands: OutreachCommandEngineService,
     private readonly authorization: CapabilityAuthorizationService,
+    private readonly starters: StarterTemplateSeeder,
   ) {}
 
   async list(
@@ -269,6 +271,22 @@ export class OutreachTemplateService {
   ) {
     const clientId = input.clientId ?? null;
     if (clientId) await this.authorizeClient(ctx, clientId, 'list');
+    /*
+     * Seed the starter content templates on first read of this tenant's
+     * library.
+     *
+     * There is no tenant-bootstrap hook in this codebase to hang seeding off,
+     * and a migration-time backfill would cover existing tenants but not
+     * future ones. Seeding lazily from the one read that every path into the
+     * library goes through covers both, and `StarterTemplateSeeder` keeps the
+     * steady-state cost at zero queries once a tenant is known-current.
+     *
+     * Deliberately awaited rather than fire-and-forget: a user opening the
+     * library for the first time should SEE the starters, not find them on a
+     * second refresh. It never throws — a seeding failure degrades to "the
+     * library shows what already exists" rather than failing the read.
+     */
+    await this.starters.ensureSeeded(ctx.tenantId);
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await this.templates.listVisible(tx, ctx, {
         includeArchived: input.includeArchived ?? false,

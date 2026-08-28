@@ -114,7 +114,7 @@
 .uui-template-card > header > small {
   margin-left: auto;
   color: #98a2b3;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 11px;
 }
 

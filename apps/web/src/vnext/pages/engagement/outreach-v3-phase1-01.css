@@ -28,7 +28,7 @@
   --ov3p1-red: #b42318;
   --ov3p1-red-soft: #fef3f2;
   --ov3p1-red-border: #fecdca;
-  --ov3p1-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ov3p1-mono: var(--capiro-type-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
 
   min-height: min(980px, calc(100vh - 190px));
   display: grid;
@@ -38,7 +38,7 @@
   border-top: 1px solid var(--ov3p1-rule);
   background: var(--ov3p1-canvas);
   color: var(--ov3p1-text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--capiro-type-family-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif);
 }
 
 .ov3p1-shell[data-meri-collapsed='true'] {
@@ -62,13 +62,12 @@
   border: 0;
 }
 
-.ov3p1-shell button:focus-visible,
-.ov3p1-shell input:focus-visible,
-.ov3p1-shell textarea:focus-visible,
-.ov3p1-shell select:focus-visible {
-  outline: 2px solid #4a7a9b;
-  outline-offset: 2px;
-}
+/*
+ * Ring inherited from the foundation (reset.css `:focus-visible`). This block
+ * used to restate a module-local navy outline, which won on specificity and
+ * therefore replaced the canonical ring rather than reinforcing it. See
+ * engagement.css's link-focus rule for the full note.
+ */
 
 .ov3p1-main {
   min-width: 0;

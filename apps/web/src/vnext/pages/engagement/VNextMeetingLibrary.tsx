@@ -319,6 +319,12 @@ export function VNextMeetingLibrary() {
   // LibraryParams in meetings-api.ts), so this matches the canonical
   // MeetingLibraryView's own real behavior exactly rather than fabricating a
   // param the API doesn't support.
+  /*
+   * Page-local narrowing only — see the note on the filter field below. Kept
+   * separate from `allRows` so the empty state can tell the two cases apart:
+   * "no approved material matches your server-side filters" (allRows empty) is
+   * a different fact from "nothing on this page matches what you typed".
+   */
   const rows = allRows.filter((m) => {
     if (!q.trim()) return true;
     const haystack = `${m.subject} ${m.client?.name ?? ''}`.toLowerCase();
@@ -369,18 +375,31 @@ export function VNextMeetingLibrary() {
 
       <h2 className="uui-library-heading">Meeting Library</h2>
       <p className="uui-library-subline">
-        Only approved or saved materials appear here. Searchable by client, date, artifact type,
-        and visibility.
+        Tenant-wide: this shows every approved or saved material in the firm, not only your own.
+        An empty result means nothing approved matches these filters. Filter server-side by
+        client, date, artifact type and visibility.
       </p>
 
       <div className="uui-library-filters">
+        {/*
+          Named "Filter this page", not "Search", because that is all it is.
+          `MeetingLibraryQueryDto` (engagement.controller.ts) declares clientId,
+          artifactType, visibility, from, to, page and limit — and no text field.
+          There is no server-side text search to bind to, and the global
+          ValidationPipe rejects undeclared query params, so sending `q` would
+          400 rather than search. The list is also paginated, so this narrows the
+          rows already loaded and cannot reach page 2. Calling it "Search
+          meetings, clients..." implied a corpus search that does not exist and
+          made a page-local miss look like "nothing approved matches".
+        */}
         <div className="uui-search-field">
           <Search size={18} />
           <input
             type="text"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            placeholder="Search meetings, clients…"
+            aria-label="Filter this page by meeting or client name"
+            placeholder="Filter this page…"
           />
         </div>
         <LibraryDropdown
@@ -461,7 +480,21 @@ export function VNextMeetingLibrary() {
             </button>
           </div>
         ) : rows.length === 0 ? (
-          <div className="uui-library-empty">No approved or saved materials match this search.</div>
+          <div className="uui-library-empty">
+            {allRows.length === 0 ? (
+              <>
+                No approved or saved materials match these filters. This Library covers
+                the whole firm, so it means nothing approved exists for this
+                client/date/type/visibility combination — not that yours is missing.
+              </>
+            ) : (
+              <>
+                Nothing on this page matches “{q.trim()}”. This filter only narrows the
+                rows already loaded; clear it to see all {allRows.length} on this page,
+                or use the filters above to search server-side.
+              </>
+            )}
+          </div>
         ) : (
           rows.map((meeting) => {
             const shared = meeting.visibility === 'shared';

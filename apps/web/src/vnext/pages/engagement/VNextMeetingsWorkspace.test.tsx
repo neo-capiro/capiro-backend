@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -47,15 +47,46 @@ vi.mock('../../../pages/engagement/meetings/meetings-api.js', async (importOrigi
 // stage-pill fixtures below need a populated one); `patch` was added for the
 // drawer's real useUpdatePrep/useUpdateNote/useSaveDebrief, unused by
 // Phase 1a's own tests but now reachable once a meeting is selected.
+/**
+ * `apiGet` / `apiPost` are module-level so a test can steer a specific endpoint
+ * (the calendar-sync tests need `/api/engagement/integrations` to return real
+ * connections) and assert on the exact URLs posted. Defaults reproduce the
+ * previous blanket empty-list / created-meeting behaviour, so every other test
+ * in this file is unaffected.
+ */
+const apiGet = vi.fn((url: string) => {
+  void url;
+  return Promise.resolve({ data: [] as unknown });
+});
+const apiPost = vi.fn((url: string, ..._rest: unknown[]) => {
+  void url;
+  void _rest;
+  return Promise.resolve({
+    data: { id: 'created-1', startsAt: new Date().toISOString() },
+  });
+});
+
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({
-    get: () => Promise.resolve({ data: [] }),
-    post: () => Promise.resolve({ data: { id: 'created-1', startsAt: new Date().toISOString() } }),
+    get: (url: string, ...rest: unknown[]) => apiGet(url, ...(rest as [])),
+    post: (url: string, ...rest: unknown[]) => apiPost(url, ...(rest as [])),
     put: () => Promise.resolve({ data: {} }),
     patch: () => Promise.resolve({ data: {} }),
     delete: () => Promise.resolve({ data: {} }),
   }),
 }));
+
+/** Makes `/api/engagement/integrations` answer with one connected mailbox. */
+function withConnectedMailbox(provider: 'microsoft_365' | 'google' = 'microsoft_365') {
+  apiGet.mockImplementation((url: string) => {
+    if (url === '/api/engagement/integrations') {
+      return Promise.resolve({
+        data: [{ id: 'conn-1', provider, status: 'connected', accountEmail: 'neo@capiro.ai' }],
+      });
+    }
+    return Promise.resolve({ data: [] });
+  });
+}
 
 function makeMeeting(overrides: Partial<Meeting> = {}): Meeting {
   return {
@@ -118,6 +149,11 @@ describe('VNextMeetingsWorkspace', () => {
   beforeEach(() => {
     useMeetingsMock.mockReset();
     useMeetingMock.mockReset();
+    // apiGet is steered per-test by withConnectedMailbox(); reset it back to
+    // the blanket empty response so mailbox state cannot leak between tests.
+    apiGet.mockReset();
+    apiGet.mockImplementation(() => Promise.resolve({ data: [] }));
+    apiPost.mockClear();
     useMeetingsMock.mockReturnValue({
       data: [],
       isLoading: false,
@@ -186,12 +222,89 @@ describe('VNextMeetingsWorkspace', () => {
 
       expect(screen.getByText(/no meetings in this period/i)).toBeInTheDocument();
       expect(screen.getAllByRole('button', { name: /new meeting/i }).length).toBeGreaterThan(0);
+      // Sync now lives in the toolbar as well as the empty state, so there is
+      // more than one. Both must be the same control.
+      expect(screen.getAllByRole('button', { name: /sync calendar/i }).length).toBeGreaterThan(1);
+    });
 
-      const dispatched = vi.fn();
-      window.addEventListener('capiro:sync-inbox', dispatched);
-      fireEvent.click(screen.getByRole('button', { name: /sync calendar/i }));
-      expect(dispatched).toHaveBeenCalledTimes(1);
-      window.removeEventListener('capiro:sync-inbox', dispatched);
+    /*
+     * Calendar sync used to be `window.dispatchEvent(new Event('capiro:sync-inbox'))`.
+     * The only listener for that event is in components/AppShell.tsx, which
+     * App.tsx never mounts on the vNext surface — so on os.capiro.ai the button
+     * did nothing, silently. These two tests pin the replacement: a disabled
+     * control with a stated reason when there is nothing to sync, and real
+     * provider calls when there is.
+     */
+    test('Sync calendar is disabled with a stated reason when no mailbox is connected', async () => {
+      useMeetingsMock.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      renderWorkspace();
+
+      const buttons = screen.getAllByRole('button', { name: /sync calendar/i });
+      for (const button of buttons) expect(button).toBeDisabled();
+      // The integrations query is in flight on first paint, so the reason starts
+      // as "Checking your connected mailboxes..." and only settles once the
+      // empty list resolves. Wait for the settled sentence, not just for the
+      // disabled state - the button is disabled in both.
+      await waitFor(() =>
+        expect(
+          screen.getByText(/no mailbox is connected, so there is no calendar to sync/i),
+        ).toBeInTheDocument(),
+      );
+      for (const button of screen.getAllByRole('button', { name: /sync calendar/i })) {
+        expect(button).toBeDisabled();
+      }
+
+      fireEvent.click(buttons[0]!);
+      expect(
+        apiPost.mock.calls.filter(([url]) => String(url).includes('/sync')),
+      ).toHaveLength(0);
+    });
+
+    test('Sync calendar posts the real provider sync endpoints when a mailbox is connected', async () => {
+      withConnectedMailbox('microsoft_365');
+      useMeetingsMock.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      renderWorkspace();
+
+      const button = (await waitFor(() => {
+        const found = screen.getAllByRole('button', { name: /sync calendar/i })[0]!;
+        expect(found).toBeEnabled();
+        return found;
+      })) as HTMLElement;
+
+      fireEvent.click(button);
+
+      await waitFor(() =>
+        expect(
+          apiPost.mock.calls.some(([url]) =>
+            String(url).includes('/api/engagement/integrations/microsoft/conn-1/sync'),
+          ),
+        ).toBe(true),
+      );
+      // The calendar window is set before the sync, so the sync has a range to
+      // pull. Meetings is the surface; `calendar=true` is the whole point.
+      expect(
+        apiPost.mock.calls.some(([url]) =>
+          String(url).includes('/api/engagement/integrations/microsoft/conn-1/calendar-window'),
+        ),
+      ).toBe(true);
+      const syncCall = apiPost.mock.calls.find(([url]) =>
+        String(url).endsWith('/microsoft/conn-1/sync'),
+      );
+      expect((syncCall?.[2] as { params?: Record<string, string> })?.params).toMatchObject({
+        calendar: 'true',
+      });
     });
 
     test('ready renders the week strip and the real meeting row with its status pill', () => {

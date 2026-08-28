@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { OutreachV3SessionEnvelope } from './contracts.js';
 import { GoalDecisionSurface, type GoalDecisionSurfaceProps } from './GoalDecisionSurface.js';
@@ -74,29 +74,69 @@ describe('GoalDecisionSurface', () => {
     expect(screen.queryByLabelText(/^Why now/i)).not.toBeInTheDocument();
   });
 
-  it('opens a new outreach type request form from its option', () => {
+  it('opens the outreach-type guidance dialog from its option', () => {
     render(<GoalDecisionSurface {...props()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
 
-    expect(screen.getByRole('dialog', { name: 'Request New Outreach Type' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Describe what you want to request/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Sample email of the desired outcome/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('dialog', { name: 'Requesting a new outreach type' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/What you need/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/A sample email showing the desired outcome/i)).toBeInTheDocument();
   });
 
-  it('captures the new outreach type description and sample email before closing the form', () => {
+  /*
+   * There is no endpoint behind this dialog. It previously rendered a "Submit
+   * outreach type request" button that validated both fields and then called a
+   * handler wired to `() => setRequestOpen(false)` — so the dialog closed and
+   * both fields were discarded with nothing recorded anywhere. The test that
+   * covered it was named "captures the ... description and sample email", and
+   * asserted only that the dialog closed; "captures" was never true.
+   *
+   * A control with no endpoint is absent or disabled with a stated reason. The
+   * dialog now says where to send the request and offers no submit at all.
+   */
+  it('offers no submit control, because there is no endpoint behind it', () => {
     render(<GoalDecisionSurface {...props()} />);
-
     fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
-    fireEvent.change(screen.getByLabelText(/Describe what you want to request/i), {
-      target: { value: 'Ask an office to introduce us to the program lead.' },
-    });
-    fireEvent.change(screen.getByLabelText(/Sample email of the desired outcome/i), {
-      target: { value: 'Could you connect us with the program lead?' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit outreach type request' }));
 
-    expect(screen.queryByRole('dialog', { name: 'Request New Outreach Type' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/Nothing here is submitted/i)).toBeInTheDocument();
+  });
+
+  it('tells the user where the request actually has to go', () => {
+    render(<GoalDecisionSurface {...props()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
+
+    // Naming the real route matters: without it the dialog is a dead end that
+    // explains nothing. Scoped to the dialog because "Capiro contact" appears
+    // in both the explanation and a field label.
+    const dialog = screen.getByRole('dialog', { name: 'Requesting a new outreach type' });
+    expect(within(dialog).getByText(/no in-product request form yet/i)).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/Capiro contact/i).length).toBeGreaterThan(0);
+  });
+
+  it('offers exactly one dismiss control, not a Close beside a Cancel', () => {
+    render(<GoalDecisionSurface {...props()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Requesting a new outreach type' });
+    // Removing the submit turned the footer's "Cancel" into a second "Close".
+    expect(within(dialog).getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('still closes, and keeps the two supported types reachable behind it', () => {
+    render(<GoalDecisionSurface {...props()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
+    const dialog = screen.getByRole('dialog', { name: 'Requesting a new outreach type' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Requesting a new outreach type' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Request a meeting/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Share an update/i })).toBeInTheDocument();
   });
 
   it('requires the complete deterministic read-back including objective', async () => {

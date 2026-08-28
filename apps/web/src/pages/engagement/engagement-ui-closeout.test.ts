@@ -209,8 +209,14 @@ describe('Engagement UI closeout contract', () => {
 
   it('keeps the dialog shell responsive and motion-safe', () => {
     const css = source('src/vnext/pages/engagement/engagement-dialog.css');
-    // Bottom sheet on small viewports.
-    expect(css).toContain('@media (max-width: 760px)');
+    // Bottom sheet on small viewports, at the SHELL's mobile boundary.
+    // This asserted 760px, 19px short of the canonical 779px
+    // (foundations/responsive.css: mobile is `max-width: 779px`, named from
+    // `--capiro-bp-mobile: 780px`). Between 760 and 779 the dialog had already
+    // become a bottom sheet while the shell was still rendering its desktop
+    // layout behind it.
+    expect(css).toContain('@media (max-width: 779px)');
+    expect(css).not.toContain('max-width: 760px');
     expect(css).toContain('align-items: end');
     expect(css).toContain('env(safe-area-inset-bottom)');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');

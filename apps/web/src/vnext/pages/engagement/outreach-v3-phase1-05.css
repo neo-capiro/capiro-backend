@@ -9,7 +9,7 @@
 .ov3p1-success { margin: 14px 0 0; padding: 11px 13px; border: 1px solid #cfdae2; border-radius: 8px; background: var(--ov3p1-navy-soft); color: var(--ov3p1-navy); font-size: 13px; }
 
 .ov3p1-meri-rail { position: relative; min-width: 0; display: flex; min-height: 0; flex-direction: column; overflow: auto; border-left: 1px solid var(--ov3p1-rule); background: var(--ov3p1-assistant); }
-.ov3p1-meri-rail > header { position: sticky; z-index: 3; top: 0; display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ov3p1-rule); background: rgba(255,253,250,.96); backdrop-filter: blur(10px); }
+.ov3p1-meri-rail > header { position: sticky; z-index: var(--eng-layer-sticky, 20); top: 0; display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ov3p1-rule); background: rgba(255,253,250,.96); backdrop-filter: blur(10px); }
 .ov3p1-meri-rail > header > div { display: grid; grid-template-columns: auto auto; align-items: center; gap: 0 8px; }
 .ov3p1-meri-rail > header > div > span { grid-row: 1 / 3; display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; border-radius: 9px; background: #18212d; color: #fff; }
 .ov3p1-meri-rail > header strong { color: var(--ov3p1-text); font-size: 14px; }
@@ -67,5 +67,5 @@
 .ov3p1-meri-conversation .ov3-history-turn__meta span { margin-left: auto; }
 .ov3p1-meri-conversation .ov3-history-turn p { margin: 5px 0 0; color: var(--ov3p1-body); font-size: 12px; line-height: 18px; }
 .ov3p1-meri-guardrail { display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 14px 14px; color: var(--ov3p1-faint); font-size: 10.5px; line-height: 16px; }
-.ov3p1-meri-restore { position: fixed; z-index: 20; right: 22px; bottom: 24px; display: inline-flex; min-height: 38px; align-items: center; gap: 7px; padding: 0 14px; border-radius: 9px; background: #18212d; box-shadow: 0 10px 24px rgba(16,24,40,.2); color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; }
+.ov3p1-meri-restore { position: fixed; z-index: var(--eng-layer-sticky, 20); right: 22px; bottom: 24px; display: inline-flex; min-height: 38px; align-items: center; gap: 7px; padding: 0 14px; border-radius: 9px; background: #18212d; box-shadow: 0 10px 24px rgba(16,24,40,.2); color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; }
 .ov3p1-dialog-fields { display: flex; flex-direction: column; gap: 14px; }
