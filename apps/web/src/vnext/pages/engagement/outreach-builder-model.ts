@@ -34,7 +34,12 @@ import type {
   OutreachV3ResolvedTargetRef,
   OutreachV3SessionEnvelope,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
-import { goalCommands } from '../../../pages/engagement/outreach/v3/commands.js';
+import {
+  deliveryCommands,
+  goalCommands,
+  strategyCommands,
+  targetCriteriaCommand,
+} from '../../../pages/engagement/outreach/v3/commands.js';
 import {
   OUTREACH_EMAIL_FORMATS,
   OUTREACH_STANDARD_EMAIL_FORMAT,
@@ -125,11 +130,23 @@ export function outreachGoalCommandsFor(
     ];
   }
   const defaults = workflowCampaignDefaults({ templateId: type, campaignName: trimmed });
-  return goalCommands({
-    ...defaults.goal,
-    goal: outreachCampaignTypeGoalPhrase(type),
-    topic: trimmed,
-  });
+  return [
+    ...goalCommands({
+      ...defaults.goal,
+      goal: outreachCampaignTypeGoalPhrase(type),
+      topic: trimmed,
+    }),
+    /*
+     * The strategy half is NOT optional. `deriveOutreachReadiness` blocks
+     * generation with STRATEGY_INCOMPLETE until `campaignAngle`, `tone` and a
+     * decided `length` all exist, and `workflowCampaignDefaults` computes all
+     * three from the same campaign type and name. Sending only the goal half —
+     * which is what this did at first — left every campaign built by this
+     * builder unable to generate a draft, with the server's only explanation
+     * being a generic "complete the review packet".
+     */
+    ...strategyCommands(defaults.strategy),
+  ];
 }
 
 /* ------------------------------------------------------------------ *
@@ -283,6 +300,89 @@ export function outreachBlockedTargets(
 /** "4 recipients · one email each" / "1 recipient · one email". */
 export function outreachRecipientSummary(count: number): string {
   return count === 1 ? '1 recipient · one email' : `${count} recipients · one email each`;
+}
+
+/**
+ * The spec fields generation requires that the prototype has no control for.
+ *
+ * `deriveOutreachReadiness` blocks generation on TARGET_CRITERIA_MISSING until
+ * `targeting.criteria` is non-null, and on DELIVERY_UNDECIDED until both
+ * delivery fields are decided. The prototype asks for neither: it has no
+ * criteria form, and its delivery decision is implicit in list-vs-group. So
+ * both are derived here rather than invented:
+ *
+ *  - criteria DESCRIBES the selection the user actually made — the chambers,
+ *    states, committees and levels present in it, and whether they picked
+ *    staff, principals or both. It is not a filter they never set.
+ *  - delivery is only defaulted when it is still `undecided`. Saving or
+ *    applying a GROUP sets `shared_thread` in the Targets step, and that must
+ *    never be silently overwritten by a later target edit — a group becoming
+ *    one-email-each without the user asking is the disclosure failure this
+ *    flow exists to prevent.
+ */
+export function outreachGenerationSpecCommands(
+  session: OutreachV3SessionEnvelope | null,
+  targets: OutreachV3ResolvedTargetRef[],
+  campaignType: OutreachCampaignType | null,
+): OutreachV3Command[] {
+  if (targets.length === 0) return [];
+  const commands: OutreachV3Command[] = [];
+
+  const uniq = (values: Array<string | null | undefined>): string[] =>
+    [...new Set(values.filter((value): value is string => Boolean(value && value.trim())))].sort();
+
+  const isStaff = (target: OutreachV3ResolvedTargetRef): boolean =>
+    String(target.locator['source'] ?? '').includes('staff');
+
+  /*
+   * Each half is written ONLY when it is missing. That is not an optimisation:
+   * accepting the packet derives the generation request key from the approval
+   * hash, which moves with the state version — so a batch sent on every accept
+   * would give a retry after a failed start a different key, and mint a second
+   * backend job instead of resolving to the first. Re-deriving criteria the
+   * campaign already has buys nothing (the gate checks only that it is
+   * non-null) and costs that idempotency.
+   */
+  if (session && session.spec.targeting.criteria === null) {
+    commands.push(
+      targetCriteriaCommand({
+        governmentLevels: uniq(targets.map((t) => t.jurisdiction.governmentLevel)),
+        chambers: uniq(targets.map((t) => t.jurisdiction.chamber)),
+        committees: uniq(targets.flatMap((t) => t.jurisdiction.committees)),
+        states: uniq(targets.map((t) => t.jurisdiction.state)),
+        includeStaff: targets.some(isStaff),
+        includePrincipals: targets.some((t) => !isStaff(t)),
+      }),
+    );
+  }
+
+  const delivery = session?.spec.delivery;
+  if (delivery && (delivery.pattern === 'undecided' || delivery.personalization === 'undecided')) {
+    // The prototype's default shape: one tailored email per person.
+    commands.push(...deliveryCommands('personalized_separate', 'high'));
+  }
+
+  /*
+   * The Campaign type and Name steps write the strategy, but a campaign
+   * created before they did — or one whose type was never confirmed — reaches
+   * here with STRATEGY_INCOMPLETE and no step left to fix it, since the user
+   * has already walked past both. Filling it from the type and name the
+   * campaign already carries heals that without sending them backwards.
+   */
+  const strategy = session?.spec.strategy;
+  const name = outreachCampaignNameFromSpec(session);
+  const strategyComplete = Boolean(
+    strategy?.campaignAngle && strategy?.tone && strategy?.length !== 'undecided',
+  );
+  if (session && !strategyComplete && name) {
+    const defaults = workflowCampaignDefaults({
+      templateId: campaignType ?? 'send_update',
+      campaignName: name,
+    });
+    commands.push(...strategyCommands(defaults.strategy));
+  }
+
+  return commands;
 }
 
 /* ------------------------------------------------------------------ *

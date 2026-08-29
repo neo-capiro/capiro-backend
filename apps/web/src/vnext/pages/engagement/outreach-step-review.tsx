@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import {
   acceptContextCommand,
@@ -11,10 +12,14 @@ import type {
   OutreachV3ResolvedContextRef,
   OutreachV3SessionEnvelope,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
-import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
+import {
+  humanizeBlockerCode,
+  safeOutreachV3Error,
+} from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import {
   approveOutreachV3ReviewPacket,
   classifyOutreachV3FullGenerationResult,
+  getOutreachV3GenerationPlan,
   outreachV3FullGenerationRequestKey,
   startOutreachV3FullGeneration,
 } from './engagement-api.js';
@@ -24,6 +29,7 @@ import {
   outreachRecipientSummary,
   outreachSelectedTargets,
   outreachTargetIsSendable,
+  outreachGenerationSpecCommands,
 } from './outreach-builder-model.js';
 import {
   targetDisplayName,
@@ -126,9 +132,44 @@ export interface OutreachReviewStepProps extends OutreachBuilderStepCommon {
   onGenerationStarted: () => void;
 }
 
+/**
+ * What each readiness blocker means, and which step fixes it.
+ *
+ * `humanizeBlockerCode` only knows the PREFLIGHT vocabulary; a readiness code
+ * falls through it to bare title-casing, so "CONTEXT_NOT_REVIEWED" would reach
+ * the user as "Context Not Reviewed" — true, but it does not say where to go.
+ */
+const READINESS_BLOCKER_LABEL: Record<string, string> = {
+  GOAL_MISSING: 'The campaign has no goal yet — set it on Campaign type.',
+  SPONSOR_UNDECIDED: 'No sponsor chosen — pick one on the Name step.',
+  SPONSOR_SCOPE_INVALID: 'The sponsor does not resolve to a client — fix it on the Name step.',
+  TARGET_CRITERIA_MISSING: 'The campaign has no targeting criteria.',
+  TARGETS_MISSING: 'No recipients selected — add them on the Targets step.',
+  DELIVERY_UNDECIDED: 'Delivery is undecided.',
+  CONTEXT_NOT_REVIEWED: 'No context switched on — choose sources on the Context step.',
+  CONTEXT_HAS_UNVERIFIED_EVIDENCE:
+    'A selected source is not usable as evidence — review it on the Context step.',
+  STRATEGY_INCOMPLETE: 'The campaign has no angle, tone or length yet.',
+  PENDING_PROPOSALS: 'A pending proposal is waiting on this campaign.',
+  SHARED_THREAD_HIGH_PERSONALIZATION:
+    'A shared thread cannot use high personalization — a group sends one message to everyone.',
+};
+
+function blockerLabel(code: string): string {
+  return READINESS_BLOCKER_LABEL[code] ?? humanizeBlockerCode(code);
+}
+
 export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element {
-  const { session, sessionId, busy, applyCommands, toast, primaryLabel, onGenerationStarted } =
-    props;
+  const {
+    session,
+    sessionId,
+    busy,
+    campaignType,
+    applyCommands,
+    toast,
+    primaryLabel,
+    onGenerationStarted,
+  } = props;
   const api = useApi();
   const [noteEdits, setNoteEdits] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -165,18 +206,70 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
         noteValue(target.targetKey).trim() !== (savedByTarget.get(target.targetKey) ?? ''),
     );
 
+  /*
+   * What the server would refuse, asked BEFORE the user presses the button.
+   *
+   * Without this the only report of an incomplete campaign is a 409 on accept
+   * reading "Complete the review packet before authorizing draft generation."
+   * — which names no field and leaves the user with nothing to fix. The plan
+   * carries the real blocker codes; they are shown here instead.
+   */
+  const planQuery = useQuery({
+    queryKey: ['outreach-v3', 'plan', sessionId, session?.specHash],
+    queryFn: () => getOutreachV3GenerationPlan(api, sessionId),
+    enabled: Boolean(sessionId),
+    retry: false,
+  });
+
+  /*
+   * The blockers this step's own accept resolves. Derived from the commands it
+   * will actually send, not from a flat list: the strategy fill needs a
+   * campaign name, so a nameless campaign genuinely still has
+   * STRATEGY_INCOMPLETE and hiding it would send the user hunting for a
+   * problem the accept was never going to fix.
+   */
+  const specCommands = useMemo(
+    () => outreachGenerationSpecCommands(session, targets, campaignType),
+    [campaignType, session, targets],
+  );
+  const resolvedBy: Record<string, string> = {
+    SET_TARGET_CRITERIA: 'TARGET_CRITERIA_MISSING',
+    SET_DELIVERY_PATTERN: 'DELIVERY_UNDECIDED',
+    SET_CAMPAIGN_ANGLE: 'STRATEGY_INCOMPLETE',
+  };
+  const selfResolved = new Set(
+    specCommands.map((command) => resolvedBy[command.type]).filter(Boolean),
+  );
+  const blockers = (planQuery.data?.blockers ?? []).filter((code) => !selfResolved.has(code));
+
   const recipientCount = targets.length;
   // The prototype leaves this button live with zero recipients and its handler
   // has no guard, so the press is dead: it toasts "generating 0 drafts" and
   // lands on an empty Drafts step. Here it is disabled, which is the same
   // refusal stated once and perceivable by a keyboard and a screen reader.
-  const canAccept = recipientCount > 0 && !busy && !submitting;
+  const canAccept = recipientCount > 0 && !busy && !submitting && blockers.length === 0;
 
   const accept = async () => {
     if (!canAccept) return;
     setSubmitting(true);
     setError(null);
     try {
+      const commands: OutreachV3Command[] = [];
+
+      /*
+       * The two spec fields the prototype has no control for.
+       *
+       * `deriveOutreachReadiness` blocks generation until `targeting.criteria`
+       * is non-null and delivery is decided, and the plan's only report of
+       * that is a generic "Complete the review packet" — so a campaign built
+       * through this flow could reach Review and then refuse to generate with
+       * nothing on screen explaining why. Both are derived from the selection
+       * the user has just finished making, here, where it is final and
+       * server-resolved. Delivery is only defaulted when still undecided, so a
+       * group's `shared_thread` survives.
+       */
+      commands.push(...specCommands);
+
       if (notesChanged) {
         const selections: OutreachV3ContextSelection[] = [];
         for (const target of targets) {
@@ -186,7 +279,6 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
           });
           if (selection) selections.push(selection);
         }
-        const commands: OutreachV3Command[] = [];
         // Both builders throw on an empty list, and a cleared-every-note accept
         // legitimately produces one — so each is conditional, not defensive.
         if (selections.length) commands.push(acceptContextCommand(selections));
@@ -197,8 +289,9 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
             ),
           );
         }
-        if (commands.length) await applyCommands(commands);
       }
+
+      if (commands.length) await applyCommands(commands);
 
       // Skipping the batch when nothing changed is not just an optimisation:
       // every accept mints fresh note refs, which moves the state version and
@@ -342,6 +435,24 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
         <p className="ocb-note ocb-note--warn" role="alert">
           {error}
         </p>
+      )}
+
+      {blockers.length > 0 && (
+        <section className="ocb-review__blocked" role="status">
+          <span className="ocb-review__blocked-title">
+            <AlertTriangle size={16} aria-hidden="true" />
+            This campaign is not ready to generate
+          </span>
+          <ul className="ocb-review__blocked-list">
+            {blockers.map((code) => (
+              <li key={code}>{blockerLabel(code)}</li>
+            ))}
+          </ul>
+          <span className="ocb-review__blocked-sub">
+            The server refuses generation until each of these is resolved. Go back to the step that
+            owns it — nothing here is lost.
+          </span>
+        </section>
       )}
 
       <div className="ocb-review__foot">
