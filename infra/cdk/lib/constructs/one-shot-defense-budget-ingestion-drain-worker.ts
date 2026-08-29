@@ -191,6 +191,19 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
         // and this container's own local-parser-run cache, both of which are
         // safe to lose on restart.
         BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT: '/tmp/defense-budget-parser-scratch',
+        // Absolute path to the layered parser project inside
+        // Dockerfile.defense-budget-ingestion-drain. Matches the default
+        // path.resolve(workDir, '../../../defense-budget-parser') resolution
+        // from BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT=/tmp/...-scratch.
+        // The sole-live API image intentionally omits Python/uv/parser packages;
+        // without this path LocalParserRuntimeClient fails at spawn with
+        // "failed to start parser runtime: spawn uv ENOENT".
+        DEFENSE_BUDGET_PARSER_PROJECT_DIR: '/defense-budget-parser',
+        // uv refuses to start if it cannot create its cache dir; the non-root
+        // container user cannot write /home/capiro/.cache (proven live on TD:6).
+        UV_CACHE_DIR: '/tmp/uv-cache',
+        UV_PROJECT: '/defense-budget-parser',
+        XDG_CACHE_HOME: '/tmp',
       },
       secrets: {
         // Matches the exact DB_* contract entrypoint-dispatcher.inc composes

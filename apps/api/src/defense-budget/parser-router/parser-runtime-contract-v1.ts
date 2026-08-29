@@ -141,16 +141,19 @@ export type EvidencePrecisionV1 = z.infer<typeof evidencePrecisionV1Schema>;
 export const parserPageResultV1Schema = z
   .object({
     page: z.number().int().positive(),
-    width: z.string().optional(),
-    height: z.string().optional(),
-    rotation: z.number().int().optional(),
-    text: z.string().optional(),
-    markdown: z.string().optional(),
-    printedPage: z.string().optional(),
+    // Python engines emit JSON null for absent optional fields (Pydantic
+    // `str | None = None`). Zod `.optional()` only allows `undefined`, so
+    // accept null here and treat it the same as missing.
+    width: z.string().nullish(),
+    height: z.string().nullish(),
+    rotation: z.number().int().nullish(),
+    text: z.string().nullish(),
+    markdown: z.string().nullish(),
+    printedPage: z.string().nullish(),
     blocks: z.array(layoutBlockV1Schema),
     tables: z.array(parsedTableV1Schema),
     images: z.array(parsedImageRegionV1Schema),
-    confidence: z.string().optional(),
+    confidence: z.string().nullish(),
     evidencePrecision: evidencePrecisionV1Schema,
     warnings: z.array(z.string()),
   })
@@ -196,7 +199,8 @@ export const parserRuntimeMetricsV1Schema = z
     pagesSucceeded: z.number().int().nonnegative(),
     pagesFailed: z.number().int().nonnegative(),
     engineVersion: z.string().min(1),
-    modelVersions: z.array(z.string()).optional(),
+    // Python may emit JSON null when no model list applies (pdfplumber path).
+    modelVersions: z.array(z.string()).nullish(),
   })
   .strict();
 export type ParserRuntimeMetricsV1 = z.infer<typeof parserRuntimeMetricsV1Schema>;

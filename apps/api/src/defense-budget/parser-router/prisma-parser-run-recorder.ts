@@ -81,26 +81,71 @@ export class PrismaParserRunRecorder implements ParserRunRecorderV1 {
       ...(input.metadata ? { recorderMetadata: toJson(input.metadata) } : {}),
     };
 
-    const created = await this.prisma.documentParseJob.create({
-      data: {
-        sourceDocumentId: input.sourceDocumentId,
-        provider,
-        ...(input.providerJobId ? { providerJobId: input.providerJobId } : {}),
-        mode: input.mode ?? provider,
-        resultType: 'json',
-        pageStart,
-        pageEnd,
-        inputSha256: input.inputSha256,
-        outputJsonS3Key: input.outputLocator,
-        status: terminalStatus,
-        ...(input.error ? { error: input.error } : {}),
-        ...(terminalStatus !== 'running' ? { completedAt: new Date() } : {}),
-        metadata,
-      },
-      select: { id: true },
-    });
-    return { parseJobId: created.id };
+    try {
+      const created = await this.prisma.documentParseJob.create({
+        data: {
+          sourceDocumentId: input.sourceDocumentId,
+          provider,
+          ...(input.providerJobId ? { providerJobId: input.providerJobId } : {}),
+          mode: input.mode ?? provider,
+          resultType: 'json',
+          pageStart,
+          pageEnd,
+          inputSha256: input.inputSha256,
+          outputJsonS3Key: input.outputLocator,
+          status: terminalStatus,
+          ...(input.error ? { error: input.error } : {}),
+          ...(terminalStatus !== 'running' ? { completedAt: new Date() } : {}),
+          metadata,
+        },
+        select: { id: true },
+      });
+      return { parseJobId: created.id };
+    } catch (error) {
+      // Unique on (source_document_id, input_sha256, provider, page_start,
+      // page_end). A prior partial handoff (or a retry after verification
+      // advanced past parse) can already own that key with a different
+      // cacheKey/output hash; treat it as an upsert of the terminal identity.
+      if (!isPrismaUniqueViolation(error)) throw error;
+      const existing = await this.prisma.documentParseJob.findFirst({
+        where: {
+          sourceDocumentId: input.sourceDocumentId,
+          provider,
+          inputSha256: input.inputSha256,
+          pageStart,
+          pageEnd,
+        },
+        orderBy: { startedAt: 'desc' },
+        select: { id: true },
+      });
+      if (!existing) throw error;
+      await this.prisma.documentParseJob.update({
+        where: { id: existing.id },
+        data: {
+          mode: input.mode ?? provider,
+          resultType: 'json',
+          outputJsonS3Key: input.outputLocator,
+          status: terminalStatus,
+          ...(input.providerJobId ? { providerJobId: input.providerJobId } : {}),
+          ...(input.error ? { error: input.error } : { error: null }),
+          ...(terminalStatus !== 'running'
+            ? { completedAt: new Date() }
+            : { completedAt: null }),
+          metadata,
+        },
+      });
+      return { parseJobId: existing.id };
+    }
   }
+}
+
+function isPrismaUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2002'
+  );
 }
 
 function asRecord(value: Prisma.JsonValue): Record<string, unknown> {

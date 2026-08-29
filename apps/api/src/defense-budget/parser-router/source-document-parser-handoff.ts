@@ -137,7 +137,24 @@ export async function runParserHandoffForSourceDocument(
   const runtimeWorkDir = path.join(documentWorkDir, 'runtime');
   fs.mkdirSync(runtimeWorkDir, { recursive: true });
 
-  const parserProjectDir = input.parserProjectDir ?? path.resolve(input.workDir, '../../../defense-budget-parser');
+  // Production one-shot drain runs from the API image layout, where the
+  // monorepo-relative default below does not exist. Prefer an explicit
+  // input, then DEFENSE_BUDGET_PARSER_PROJECT_DIR (set on the drain worker
+  // image that layers apps/defense-budget-parser + uv), then the local
+  // monorepo layout used by developer CLIs.
+  const envParserProjectDir = process.env.DEFENSE_BUDGET_PARSER_PROJECT_DIR?.trim();
+  const parserProjectDir =
+    input.parserProjectDir ??
+    (envParserProjectDir && envParserProjectDir.length > 0
+      ? envParserProjectDir
+      : path.resolve(input.workDir, '../../../defense-budget-parser'));
+  if (!fs.existsSync(parserProjectDir)) {
+    throw new Error(
+      `parser project directory not found: ${parserProjectDir} ` +
+        `(set DEFENSE_BUDGET_PARSER_PROJECT_DIR or pass parserProjectDir; ` +
+        `API runtime images intentionally omit the Python parser package)`,
+    );
+  }
   const runtimeClient = new LocalParserRuntimeClient({
     command: 'uv',
     commandArgs: ['run', 'capiro-defense-budget-parser'],
@@ -186,6 +203,66 @@ export async function runParserHandoffForSourceDocument(
     allowPaidParse,
   });
   try {
+    // Phase 2 verification requires a cycle-manifest locator + documentKey.
+    // The lifecycle bridge path has a SourceDocument, not a curated annual
+    // package file, so synthesize a strict single-document manifest that
+    // names this exact SourceDocument and points at the local PDF path.
+    // CLI extract paths still pass a real curated package via extract-*.ts.
+    const component = (input.component ?? 'UNKNOWN') as
+      | 'ARMY'
+      | 'NAVY'
+      | 'AF'
+      | 'SF'
+      | 'USMC'
+      | 'DW'
+      | 'DARPA'
+      | 'DHA'
+      | 'MDA'
+      | 'SOCOM'
+      | 'OTHER'
+      | 'UNKNOWN';
+    const syntheticManifest = {
+      schemaVersion: 'defense_budget_cycle_manifest_v1' as const,
+      cycleId: input.cycleId,
+      fiscalYear: Number(input.fiscalYear),
+      domain: 'defense' as const,
+      documents: [
+        {
+          documentKey: input.sourceDocumentId,
+          required: true,
+          title: input.title,
+          sourceLocator: input.sourcePath,
+          ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+          expectedSourceSha256: input.sourceSha256,
+          family: input.budgetFamily,
+          exhibit: input.exhibitType,
+          authority: input.authority,
+          component,
+          budgetCycle: input.budgetCycle,
+          documentType: input.documentType,
+          parserPolicy: input.parserPolicy,
+          requiredDataCategories:
+            input.budgetFamily === 'rdte'
+              ? (['identity', 'funding'] as const)
+              : (['identity', 'funding'] as const),
+          requiredFundingFields: ['request'] as const,
+          expectedLineKinds:
+            input.budgetFamily === 'rdte'
+              ? (['RDTE_PE'] as const)
+              : input.budgetFamily === 'procurement'
+                ? (['PROCUREMENT_BLIN'] as const)
+                : input.budgetFamily === 'om'
+                  ? (['OM_SAG'] as const)
+                  : input.budgetFamily === 'milcon'
+                    ? (['MILCON_PROJECT'] as const)
+                    : (['UNKNOWN'] as const),
+          allowEmpty: false,
+        },
+      ],
+    };
+    const manifestPath = path.join(documentWorkDir, 'lifecycle-bridge-manifest.json');
+    fs.writeFileSync(manifestPath, `${JSON.stringify(syntheticManifest, null, 2)}\n`, 'utf8');
+
     const dependencies: ParserRouterDependencies = {
       artifactStore: verification.artifactStore,
       runtimeClient,
@@ -198,6 +275,7 @@ export async function runParserHandoffForSourceDocument(
         executionId: input.executionId,
         cycleId: input.cycleId,
         manifestDocumentKey: input.sourceDocumentId,
+        manifestLocator: manifestPath,
         sourceDocumentId: input.sourceDocumentId,
         sourcePath: input.sourcePath,
         sourceSha256: input.sourceSha256,
@@ -208,7 +286,7 @@ export async function runParserHandoffForSourceDocument(
         budgetFamily: input.budgetFamily,
         fiscalYear: input.fiscalYear,
         authority: input.authority,
-        component: input.component ?? 'UNKNOWN',
+        component,
         budgetCycle: input.budgetCycle,
         documentType: input.documentType,
         title: input.title,

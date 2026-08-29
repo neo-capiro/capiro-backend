@@ -1,0 +1,78 @@
+# Defense Budget ingestion-drain worker image.
+#
+# The sole-live API runtime image intentionally contains NO Python / uv /
+# parser-ML packages (see docs/runbooks/defense-budget-parser-router.md §2).
+# The governed one-shot drain still has to invoke
+# `uv run capiro-defense-budget-parser` via LocalParserRuntimeClient after it
+# archives a SourceDocument. This image layers ONLY the table-target parser
+# runtime (pdfplumber + Camelot) onto a pinned API image digest so the drain
+# worker can hand off without changing the long-running API service image.
+#
+# Layout note: source-document-parser-handoff.ts defaults
+#   parserProjectDir = path.resolve(workDir, '../../../defense-budget-parser')
+# with workDir = BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT
+#              = /tmp/defense-budget-parser-scratch
+# which resolves to /defense-budget-parser. Install the package there so the
+# existing API image code path works without a monorepo-relative layout.
+#
+# Build context: REPOSITORY ROOT.
+#   docker buildx build --platform linux/arm64 \
+#     -f apps/api/Dockerfile.defense-budget-ingestion-drain \
+#     --build-arg API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:<digest> \
+#     -t <ecr>/capiro/dev/api:<drain-tag> --push .
+#
+# Targets the same ARM64 Fargate platform as the API image.
+
+ARG API_IMAGE
+FROM ${API_IMAGE} AS api
+
+USER root
+
+# Base pdfplumber path only for the first PE canary (pb_r1). Camelot's
+# transitive pdftopng has no manylinux aarch64 wheel, and this worker runs
+# ARM64 Fargate matching the API image -- so we deliberately omit the
+# camelot/docling/ocr extras here. Escalation to those engines is a later
+# image/target decision (see apps/defense-budget-parser/Dockerfile targets).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /defense-budget-parser
+COPY apps/defense-budget-parser/pyproject.toml apps/defense-budget-parser/uv.lock ./
+COPY apps/defense-budget-parser/src ./src/
+
+# Base deps only (pydantic + pdfplumber + pypdf). No camelot extra on arm64.
+RUN uv sync --locked --no-dev \
+ && chown -R capiro:capiro /defense-budget-parser
+
+# Overlay the TS contract + lifecycle-bridge handoff fixes onto the proven
+# API image without a full monorepo rebuild of apps/api:
+#  - parser-runtime-contract-v1.ts: accept Python JSON null on optional fields
+#  - source-document-parser-handoff.ts: synthetic cycle manifest + parser project dir
+#  - prisma-parser-run-recorder.ts: idempotent upsert on DocumentParseJob unique key
+COPY apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
+  /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts
+COPY apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
+  /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts
+COPY apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts \
+  /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+RUN chown capiro:capiro \
+  /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
+  /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
+  /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+
+# UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
+# (Fargate task user cannot create /home/capiro/.cache/uv).
+ENV DEFENSE_BUDGET_PARSER_PROJECT_DIR=/defense-budget-parser \
+    UV_PROJECT=/defense-budget-parser \
+    UV_CACHE_DIR=/tmp/uv-cache \
+    XDG_CACHE_HOME=/tmp \
+    PATH="/defense-budget-parser/.venv/bin:/usr/local/bin:${PATH}"
+
+USER capiro
+WORKDIR /app/apps/api
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["drain-defense-budget-ingestion-outbox-v1"]
+
