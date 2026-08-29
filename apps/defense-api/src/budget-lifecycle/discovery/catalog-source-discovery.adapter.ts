@@ -24,6 +24,18 @@
  * for: `resolveExpectedSourceDocument` (pure, read-only) here, and the
  * EXISTING lifecycle-watcher's candidate -> observation -> outbox handoff
  * downstream, unmodified.
+ *
+ * Phase 10B-6 — one-source-boundedness selector. `--adapter` +
+ * `--catalog-fiscal-years` alone is NOT single-source bounded: the DW
+ * catalog seeds 5 request-track families per fiscal year
+ * (pb_overview/r1/p1/o1/milcon_c1), and `listExpectedSourcesForAdapter`
+ * filters only on adapterId + fiscalYear. When `options.expectedSourceId` is
+ * set, `discover()` narrows the candidate set to that single expected source
+ * BEFORE resolution — this filters the SAME rows the catalog port already
+ * returned; it does not add a second query path, a second persistence path,
+ * or change what `listExpectedSourcesForAdapter` itself returns. Omitting
+ * the selector preserves byte-identical prior behavior (all matching
+ * request-track rows are still resolved).
  */
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -42,6 +54,16 @@ import {
 export interface CatalogDiscoveryOptions {
   /** Explicit fiscal-year scope. FY24-only for this phase; never widened. */
   readonly fiscalYears: readonly number[];
+  /**
+   * Phase 10B-6 — optional one-source-boundedness selector. When set,
+   * `discover()` narrows to the single expected source with this exact id
+   * (matched against `CatalogExpectedSource.expectedSourceId`) and ignores
+   * every other request-track row the catalog port returned for this
+   * adapter/fiscal-year scope. `null`/undefined preserves prior behavior
+   * (every matching request-track row is resolved) — this option is
+   * strictly additive and narrowing, never broadening.
+   */
+  readonly expectedSourceId?: string | null;
 }
 
 export interface CatalogDiscoveryOutcome {
@@ -75,7 +97,20 @@ export class CatalogSourceDiscoveryAdapter implements SourceDiscoveryPort {
       fiscalYears: this.options.fiscalYears,
     });
 
-    const requestTrack = expectedSources.filter((row) => row.authorityTrack === 'request');
+    let requestTrack = expectedSources.filter((row) => row.authorityTrack === 'request');
+
+    // Phase 10B-6: narrow to exactly one expected source when the caller
+    // supplied a selector. This filters the rows already returned by the
+    // catalog port above; it never changes the port's own query. A selector
+    // that matches nothing is NOT silently ignored -- it must yield zero
+    // candidates, never fall back to "all rows", so a typo'd id fails
+    // closed instead of accidentally widening back to every family.
+    if (this.options.expectedSourceId) {
+      requestTrack = requestTrack.filter(
+        (row) => row.expectedSourceId === this.options.expectedSourceId,
+      );
+    }
+
     if (requestTrack.length === 0) {
       this.lastOutcomes = [];
       return {

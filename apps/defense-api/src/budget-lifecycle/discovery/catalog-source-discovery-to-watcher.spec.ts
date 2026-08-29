@@ -74,6 +74,59 @@ class SingleRowCatalog implements ExpectedSourceCatalogPort {
   }
 }
 
+const PB_P1_DEDUP_KEY = expectedSourceDedupKey({
+  fiscalYear: 2024,
+  authorityTrack: 'request',
+  sourceFamily: 'pb_p1',
+  stage: 'president_budget_request',
+  chamber: null,
+  committee: null,
+  component: 'DW',
+});
+const PB_P1_URL = 'https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_p1.pdf';
+
+/**
+ * Phase 10B-6 fixture: TWO FY24 DW request-track rows for dod-comptroller
+ * (pb_r1 + pb_p1) -- mirrors the real 5-family catalog's boundedness gap at
+ * a smaller scale, so a selector test can prove "one of two", not just
+ * "one of one" (which a selector option existing but doing nothing could
+ * also pass).
+ */
+class TwoRowCatalog implements ExpectedSourceCatalogPort {
+  async listExpectedSourcesForAdapter(input: {
+    adapterId: string;
+    fiscalYears: readonly number[];
+  }): Promise<readonly CatalogExpectedSource[]> {
+    if (input.adapterId !== 'dod-comptroller' || !input.fiscalYears.includes(2024)) return [];
+    return [
+      {
+        expectedSourceId: 'catalog-row-pb-r1-2024',
+        dedupKey: PB_R1_DEDUP_KEY,
+        fiscalYear: 2024,
+        authorityTrack: 'request',
+        sourceFamily: 'pb_r1',
+        stage: 'president_budget_request',
+        chamber: null,
+        committee: null,
+        component: 'DW',
+        adapterId: 'dod-comptroller',
+      },
+      {
+        expectedSourceId: 'catalog-row-pb-p1-2024',
+        dedupKey: PB_P1_DEDUP_KEY,
+        fiscalYear: 2024,
+        authorityTrack: 'request',
+        sourceFamily: 'pb_p1',
+        stage: 'president_budget_request',
+        chamber: null,
+        committee: null,
+        component: 'DW',
+        adapterId: 'dod-comptroller',
+      },
+    ];
+  }
+}
+
 /** A fetch port bound to exact bytes for exact URLs, nothing invented. */
 class SingleUrlFetchPort implements SourceFetchPort {
   private readonly byUrl = new Map<string, string>();
@@ -268,5 +321,53 @@ describe('Phase 10B-5 — CatalogSourceDiscoveryAdapter through the real watcher
       /CatalogSourceDiscoveryAdapter/,
       'budget-lifecycle.module.ts must not reference CatalogSourceDiscoveryAdapter yet',
     );
+  });
+
+  it('Phase 10B-6: expectedSourceId selector through the REAL watcher pipeline discovers/queues only the selected source, leaving the other catalog row completely untouched', async () => {
+    const store = new InMemoryLifecycleStore();
+    const registry = new SourceAdapterRegistry();
+    const catalog = new TwoRowCatalog();
+    // Selector scoped to pb_r1 only, even though the catalog has 2 FY24 DW
+    // rows (pb_r1 + pb_p1) for this adapter -- same shape as the real 5-row
+    // dod-comptroller catalog's boundedness gap.
+    const discovery = new CatalogSourceDiscoveryAdapter(registry, catalog, {
+      fiscalYears: [2024],
+      expectedSourceId: 'catalog-row-pb-r1-2024',
+    });
+    const fetcher = new SingleUrlFetchPort();
+    const controller = new AnnualDefenseBudgetCycleController(store);
+    const watcher = new DefenseBudgetLifecycleWatcher(registry, controller, store, discovery, fetcher);
+
+    await controller.ensureFiscalYear({ fiscalYear: 2024 });
+    fetcher.setBytes(PB_R1_URL, 'fy2024-r1-rdte-programs-v1');
+    fetcher.setBytes(PB_P1_URL, 'fy2024-p1-procurement-v1');
+
+    const result = await watcher.runAdapter({
+      adapterId: 'dod-comptroller',
+      nowIso: NOW,
+      leaseOwner: 'worker-a',
+      runKey: 'phase10b6-selector-run-1',
+      commit: true,
+    });
+
+    assert.equal(result.status, 'succeeded');
+    assert.equal(result.discovered, 1, 'selector bounds discovery to exactly one candidate, not both catalog rows');
+    assert.equal(result.changed, 1);
+    assert.equal(result.queued, 1);
+
+    // The selected source got exactly one observation + one outbox row.
+    assert.equal(store.observationsFor(PB_R1_DEDUP_KEY).length, 1);
+    assert.equal(store.expectedState(PB_R1_DEDUP_KEY), 'published');
+
+    // The OTHER catalog row (pb_p1) was never touched: no observation, no
+    // fetch call, expected state unaffected by this run.
+    assert.equal(store.observationsFor(PB_P1_DEDUP_KEY).length, 0, 'the non-selected source has zero observations');
+    assert.ok(
+      !fetcher.requestedUrls.includes(PB_P1_URL),
+      'the non-selected source URL was never fetched -- proves filtering happens before resolution, not just after',
+    );
+
+    const outboxEntries = store.outboxEntries();
+    assert.equal(outboxEntries.length, 1, 'exactly one outbox row total, for the selected source only');
   });
 });

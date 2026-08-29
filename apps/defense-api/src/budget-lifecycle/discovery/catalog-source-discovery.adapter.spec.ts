@@ -181,4 +181,77 @@ describe('CatalogSourceDiscoveryAdapter', () => {
       second.candidates.map((c) => c.expectedSourceDedupKey),
     );
   });
+
+  it('Phase 10B-6: without a selector, --adapter + --catalog-fiscal-years resolves ALL 5 DW families at once (the boundedness gap)', async () => {
+    const registry = new SourceAdapterRegistry();
+    const families: CatalogExpectedSource['sourceFamily'][] = [
+      'pb_overview',
+      'pb_r1',
+      'pb_p1',
+      'pb_o1',
+      'pb_milcon_c1',
+    ];
+    const catalog = new InMemoryCatalog(families.map((f) => dwExpected(f)));
+    const adapter = new CatalogSourceDiscoveryAdapter(registry, catalog, { fiscalYears: [2024] });
+
+    const result = await adapter.discover({
+      adapterId: 'dod-comptroller',
+      cursor: {},
+      nowIso: '2024-06-15T00:00:00.000Z',
+    });
+
+    assert.equal(result.candidates.length, 5, 'no selector => all 5 FY24 DW families resolve at once');
+  });
+
+  it('Phase 10B-6: expectedSourceId selector narrows the same 5-family catalog to EXACTLY the matching one, not all five', async () => {
+    const registry = new SourceAdapterRegistry();
+    const families: CatalogExpectedSource['sourceFamily'][] = [
+      'pb_overview',
+      'pb_r1',
+      'pb_p1',
+      'pb_o1',
+      'pb_milcon_c1',
+    ];
+    const rows = families.map((f) => dwExpected(f));
+    const targetRow = rows.find((r) => r.sourceFamily === 'pb_r1')!;
+    const catalog = new InMemoryCatalog(rows);
+
+    const adapter = new CatalogSourceDiscoveryAdapter(registry, catalog, {
+      fiscalYears: [2024],
+      expectedSourceId: targetRow.expectedSourceId,
+    });
+
+    const result = await adapter.discover({
+      adapterId: 'dod-comptroller',
+      cursor: {},
+      nowIso: '2024-06-15T00:00:00.000Z',
+    });
+
+    assert.equal(result.candidates.length, 1, 'selector narrows 5 catalog rows to exactly 1 candidate');
+    assert.equal(
+      result.candidates[0]?.url,
+      'https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+    );
+    assert.equal(result.candidates[0]?.expectedSourceDedupKey, targetRow.dedupKey);
+    assert.equal(adapter.lastOutcomes.length, 1, 'only the selected row was even resolved, not just filtered post-hoc');
+    assert.equal(adapter.lastOutcomes[0]?.expectedSourceId, targetRow.expectedSourceId);
+  });
+
+  it('Phase 10B-6: an expectedSourceId selector matching nothing fails closed to zero candidates, never falls back to "all rows"', async () => {
+    const registry = new SourceAdapterRegistry();
+    const catalog = new InMemoryCatalog([dwExpected('pb_r1'), dwExpected('pb_p1')]);
+    const adapter = new CatalogSourceDiscoveryAdapter(registry, catalog, {
+      fiscalYears: [2024],
+      expectedSourceId: 'does-not-exist-in-catalog',
+    });
+
+    const result = await adapter.discover({
+      adapterId: 'dod-comptroller',
+      cursor: {},
+      nowIso: '2024-06-15T00:00:00.000Z',
+    });
+
+    assert.equal(result.candidates.length, 0, 'non-matching selector yields zero candidates, not a silent widen');
+    assert.equal(result.cursor.seen, 0);
+  });
 });
