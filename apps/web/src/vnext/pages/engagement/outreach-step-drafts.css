@@ -279,3 +279,28 @@
     transform: rotate(360deg);
   }
 }
+
+/*
+ * Generation state above the rail. A rail listing only the recipients that
+ * succeeded reads as the whole campaign, so an in-flight or partly-failed job
+ * has to say so where the recipient list is, not only in the reader.
+ *
+ * Same warn tokens as `.ocb-review__blocked`, so the two surfaces that report
+ * a stalled campaign look like one thing.
+ */
+.capiro-vnext-root .ocb-drafts__generation {
+  margin: 0 4px 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--eng-warning-deep);
+  background: var(--eng-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
+}
+
+.capiro-vnext-root .ocb-drafts__generation--running {
+  color: var(--eng-muted);
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}

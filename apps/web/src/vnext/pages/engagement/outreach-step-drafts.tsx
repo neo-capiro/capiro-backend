@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Loader2, RefreshCcw, Sparkles } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
@@ -9,6 +9,7 @@ import type {
 import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import {
   approveOutreachV3Draft,
+  getLatestOutreachV3FullGenerationJob,
   getOutreachV3DraftVersion,
   listOutreachV3Drafts,
   refineOutreachV3Draft,
@@ -16,6 +17,10 @@ import {
   type OutreachV3DraftArtifact,
   type OutreachV3DraftVersion,
 } from './engagement-api.js';
+import {
+  outreachGenerationPollMs,
+  outreachGenerationState,
+} from './outreach-generation-status.js';
 import {
   outreachSelectedTargets,
   type OutreachBuilderStepCommon,
@@ -180,6 +185,37 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
     [draftsQuery.data, session],
   );
 
+  /**
+   * Server truth about the generation behind this step. `engagement-api.ts`
+   * says to call this at Drafts mount precisely so recovery never depends on
+   * `sessionStorage` surviving a refresh, a new tab or a different device —
+   * this step is the reason that endpoint exists.
+   */
+  const jobQuery = useQuery({
+    queryKey: ['outreach-v3', 'generation-job-latest', sessionId],
+    queryFn: () => getLatestOutreachV3FullGenerationJob(api, sessionId),
+    enabled: Boolean(sessionId),
+    retry: false,
+    refetchInterval: (query) =>
+      outreachGenerationPollMs(outreachGenerationState(query.state.data, rows.length)),
+  });
+
+  const generation = outreachGenerationState(jobQuery.data, rows.length);
+  const generationBusy = generation.kind === 'running';
+
+  /**
+   * A job that finishes while the step is open leaves the draft list stale —
+   * polling watches the JOB, so the drafts have to be invalidated when it
+   * lands, or a completed generation still reads as empty.
+   */
+  const settledJobId = generation.kind === 'running' ? null : (jobQuery.data?.id ?? null);
+  const lastSettled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!settledJobId || lastSettled.current === settledJobId) return;
+    lastSettled.current = settledJobId;
+    void qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
+  }, [settledJobId, qc, sessionId]);
+
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [tool, setTool] = useState<OutreachDraftTool>(null);
   /**
@@ -319,6 +355,22 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
     <div className="ocb-split ocb-split--rail ocb-drafts">
       <div className="ocb-drafts__rail">
         <span className="ocb-eyebrow ocb-drafts__rail-label">Recipients</span>
+        {generation.kind === 'running' || generation.kind === 'partial' ? (
+          // A rail that lists only the recipients that succeeded reads as the
+          // whole campaign. Say what is still coming, or what never arrived.
+          <p
+            className={`ocb-drafts__generation ocb-drafts__generation--${generation.kind}`}
+            role="status"
+          >
+            {generation.kind === 'running'
+              ? `Generating… ${generation.progress.done} of ${generation.progress.total} recipients done.`
+              : `${generation.progress.failed} of ${generation.progress.total} recipients have no draft${
+                  generation.progress.codes.length
+                    ? ` (${generation.progress.codes.join(', ')})`
+                    : ''
+                }.`}
+          </p>
+        ) : null}
         {rows.map((row) => {
           const on = row.key === active?.key;
           return (
@@ -355,7 +407,18 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
               ? 'Loading drafts…'
               : draftsQuery.isError
                 ? errorText(draftsQuery.error, 'The drafts could not be loaded.')
-                : 'No drafts yet. Accept the packet on the review step to generate one draft per recipient.'}
+                : generation.kind === 'running'
+                  ? `Generating drafts… ${generation.progress.done} of ${generation.progress.total} recipients done. This step refreshes itself.`
+                  : generation.kind === 'failed'
+                    ? // Naming the step that fixes it is only useful when that
+                      // step CAN fix it. A finished job that produced nothing is
+                      // a failure to report, not a missing action to prompt for.
+                      `Generation finished without producing any drafts. ${generation.progress.failed} of ${generation.progress.total} recipients failed${
+                        generation.progress.codes.length
+                          ? ` (${generation.progress.codes.join(', ')})`
+                          : ''
+                      }. Your campaign is unchanged — run generation again from the review step.`
+                    : 'No drafts yet. Accept the packet on the review step to generate one draft per recipient.'}
           </div>
         ) : (
           <>

@@ -19,10 +19,12 @@ import {
 import {
   approveOutreachV3ReviewPacket,
   classifyOutreachV3FullGenerationResult,
+  getLatestOutreachV3FullGenerationJob,
   getOutreachV3GenerationPlan,
   outreachV3FullGenerationRequestKey,
   startOutreachV3FullGeneration,
 } from './engagement-api.js';
+import { outreachGenerationRetryOf } from './outreach-generation-status.js';
 import {
   type OutreachBuilderStepCommon,
   outreachCampaignNameFromSpec,
@@ -309,7 +311,14 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
         );
       }
 
-      const requestKey = outreachV3FullGenerationRequestKey(sessionId, approvalHash);
+      // A previous job that FAILED must not be handed back: `submit()` is
+      // idempotent on the request key and returns the existing job whatever its
+      // status, so an unchanged spec would resolve to the same failure forever.
+      // The suffix comes from that job's id, which keeps the retry itself
+      // idempotent — pressing it twice cannot mint two jobs.
+      const priorJob = await getLatestOutreachV3FullGenerationJob(api, sessionId).catch(() => null);
+      const retryOf = outreachGenerationRetryOf(priorJob);
+      const requestKey = outreachV3FullGenerationRequestKey(sessionId, approvalHash, retryOf);
       const generation = await startOutreachV3FullGeneration(api, sessionId, requestKey);
       const outcome = classifyOutreachV3FullGenerationResult(generation);
       if (outcome.kind === 'invalid') {

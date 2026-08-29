@@ -338,8 +338,16 @@ export async function startOutreachV3FullGeneration(
 export function outreachV3FullGenerationRequestKey(
   sessionId: string,
   approvalHash: string,
+  /**
+   * Set only to retry a job that FAILED. `submit()` returns the existing job
+   * for a known key whatever its status, so without a new component here a
+   * failed generation is unretryable while the spec is unchanged. Omitted for
+   * a first attempt so existing keys keep resolving to their existing jobs.
+   */
+  retryOf?: string | null,
 ): string {
-  return `${sessionId}:${approvalHash}`;
+  const base = `${sessionId}:${approvalHash}`;
+  return retryOf ? `${base}:r${retryOf}` : base;
 }
 
 export type OutreachV3FullGenerationOutcome =

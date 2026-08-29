@@ -156,6 +156,16 @@ from the approval hash, which moves with the state version, so a batch sent on
 an accept that changes nothing would give a retry a different key and mint a
 second backend job. A group's `shared_thread` is never overwritten.
 
+The derived criteria must use the spec's **own vocabulary**, not the
+Directory's. `targetCriteriaV1Schema` takes closed enums
+(`federal|state|local|agency|mixed`, `house|senate|state_house|state_senate`),
+while a resolved target's jurisdiction is free text — the Directory stores
+`chamber` as `VarChar(24)` ("House of Representatives"), a manual locator
+reports `governmentLevel: 'unknown'`, and the string element type rejects `''`.
+Anything outside the vocabulary is dropped rather than coerced; criteria
+describes the selection, and asserting a chamber the schema has no word for
+would be inventing one.
+
 And the Review step now **asks the server what it would refuse before offering
 the button**: it reads the generation plan, lists the real blocker codes, and
 disables accept — minus the ones its own accept resolves, which it derives from
