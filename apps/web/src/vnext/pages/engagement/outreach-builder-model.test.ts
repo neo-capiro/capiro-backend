@@ -24,6 +24,7 @@ import {
   outreachRecipientSummary,
   outreachSponsorFromSpec,
   outreachTargetIsSendable,
+  outreachGenerationSpecCommands,
 } from './outreach-builder-model.js';
 
 function guidanceRef(title: string): OutreachV3ResolvedContextRef {
@@ -67,6 +68,9 @@ function target(overrides: Partial<OutreachV3ResolvedTargetRef>): OutreachV3Reso
 }
 
 function session(overrides: {
+  criteria?: Record<string, unknown> | null;
+  strategy?: { campaignAngle: string; tone: string; length: string };
+  delivery?: { pattern: string; personalization: string };
   goal?: string | null;
   topic?: string | null;
   writingGuidanceRefs?: OutreachV3ResolvedContextRef[];
@@ -95,11 +99,14 @@ function session(overrides: {
         clientRefs: overrides.sponsor?.clientId ? [{ clientId: overrides.sponsor.clientId }] : [],
       },
       targeting: {
-        criteria: null,
+        criteria: (overrides.criteria ?? null) as never,
         selectedTargetRefs: overrides.selectedTargetRefs ?? [],
         rejectedRecommendationRefs: [],
       },
-      delivery: { pattern: 'undecided', personalization: 'undecided' },
+      delivery: (overrides.delivery ?? {
+        pattern: 'undecided',
+        personalization: 'undecided',
+      }) as never,
       context: {
         requiredPolicyRefs: [],
         writingGuidanceRefs: overrides.writingGuidanceRefs ?? [],
@@ -108,7 +115,9 @@ function session(overrides: {
         groupSafeRefs: [],
         excludedRefs: [],
       },
-      strategy: { campaignAngle: null, tone: null, length: 'undecided', customLengthInstruction: null },
+      strategy: (overrides.strategy
+        ? { ...overrides.strategy, customLengthInstruction: null }
+        : { campaignAngle: null, tone: null, length: 'undecided', customLengthInstruction: null }) as never,
     },
   };
 }
@@ -314,5 +323,108 @@ describe('unwired controls', () => {
     for (const row of OUTREACH_UNWIRED_CONTROLS) {
       expect(row.reality.length).toBeGreaterThan(40);
     }
+  });
+});
+
+describe('spec fields the prototype has no control for', () => {
+  const picked = [
+    target({
+      targetKey: 'directory_member:m1',
+      locator: { source: 'directory_member', id: 'm1' },
+      jurisdiction: {
+        governmentLevel: 'federal',
+        chamber: 'house',
+        state: 'CA',
+        district: '12',
+        committees: ['House Armed Services'],
+        issueAreas: [],
+      },
+    }),
+    target({
+      targetKey: 'directory_staff:s1',
+      locator: { source: 'directory_staff', id: 's1' },
+      jurisdiction: {
+        governmentLevel: 'federal',
+        chamber: 'senate',
+        state: 'TX',
+        district: null,
+        committees: ['Senate Armed Services'],
+        issueAreas: [],
+      },
+    }),
+  ];
+
+  it('derives criteria from the real selection when the campaign has none', () => {
+    // Without this the server blocks generation with TARGET_CRITERIA_MISSING
+    // and reports only "Complete the review packet", naming no field.
+    const commands = outreachGenerationSpecCommands(session({ criteria: null }), picked, 'send_update');
+    const criteria = commands.find((command) => command.type === 'SET_TARGET_CRITERIA');
+    expect((criteria?.payload as { value?: Record<string, unknown> }).value).toMatchObject({
+      governmentLevels: ['federal'],
+      chambers: ['house', 'senate'],
+      committees: ['House Armed Services', 'Senate Armed Services'],
+      states: ['CA', 'TX'],
+      includeStaff: true,
+      includePrincipals: true,
+    });
+  });
+
+  it('describes who was picked, not a filter the user never set', () => {
+    const membersOnly = outreachGenerationSpecCommands(session({ criteria: null }), [picked[0]!], 'send_update');
+    const value = (
+      membersOnly.find((c) => c.type === 'SET_TARGET_CRITERIA')?.payload as {
+        value?: Record<string, unknown>;
+      }
+    ).value;
+    expect(value).toMatchObject({ includeStaff: false, includePrincipals: true, chambers: ['house'] });
+  });
+
+  it('defaults delivery to one tailored email per person when undecided', () => {
+    const commands = outreachGenerationSpecCommands(session({ criteria: null }), picked, 'send_update');
+    const types = commands.map((command) => command.type);
+    expect(types).toContain('SET_DELIVERY_PATTERN');
+  });
+
+  it('never overwrites a group that has already chosen a shared thread', () => {
+    // A group silently becoming one-email-each is the disclosure failure the
+    // list-vs-group distinction exists to prevent.
+    const commands = outreachGenerationSpecCommands(
+      session({
+        criteria: { chambers: ['house'] },
+        delivery: { pattern: 'shared_thread', personalization: 'light' },
+        strategy: { campaignAngle: 'angle', tone: 'tone', length: 'short' },
+      }),
+      picked,
+      'send_update',
+    );
+    expect(commands).toEqual([]);
+  });
+
+  it('writes nothing once the spec is complete, so an accept stays idempotent', () => {
+    const commands = outreachGenerationSpecCommands(
+      session({
+        criteria: { chambers: ['house'] },
+        delivery: { pattern: 'personalized_separate', personalization: 'high' },
+        strategy: { campaignAngle: 'angle', tone: 'tone', length: 'short' },
+      }),
+      picked,
+      'send_update',
+    );
+    expect(commands).toEqual([]);
+  });
+
+  it('writes nothing with no targets', () => {
+    expect(outreachGenerationSpecCommands(session({ criteria: null }), [], 'send_update')).toEqual([]);
+  });
+});
+
+describe('campaign type also writes the strategy', () => {
+  it('sends the strategy half, without which generation is blocked', () => {
+    // `deriveOutreachReadiness` requires campaignAngle + tone + a decided
+    // length. Sending only the goal half left every campaign unable to draft.
+    const types = outreachGoalCommandsFor('send_update', 'FY27 mark-up').map((c) => c.type);
+    expect(types).toContain('SET_CAMPAIGN_ANGLE');
+    expect(types).toContain('SET_TONE');
+    expect(types).toContain('SET_LENGTH');
   });
 });

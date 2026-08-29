@@ -128,6 +128,39 @@ not followed:
   prototype's "Saved to your personal library only". Nothing persists a content
   template today, and the same step says so twice more.
 
+## 4a. Spec fields the prototype has no control for
+
+Generation is gated by `deriveOutreachReadiness`, which requires a non-null
+`targeting.criteria`, a decided `delivery`, and a complete `strategy`
+(`campaignAngle` + `tone` + a decided `length`). The prototype asks for none of
+them — it has no criteria form, its delivery decision is implicit in
+list-vs-group, and it never mentions strategy. A campaign built through it
+therefore reached Review and was refused with a 409 that named no field:
+
+> Complete the review packet before authorizing draft generation.
+> (OUTREACH_COMMAND_BLOCKED)
+
+Two changes close that:
+
+1. **The Campaign type / Name steps write the strategy** alongside the goal.
+   `workflowCampaignDefaults` already computes both halves from the same type
+   and name; only the goal half was being sent.
+2. **Accepting the packet supplies whatever is still missing** — criteria
+   derived from the selection the user actually made (its chambers, states,
+   committees, levels, and whether they picked staff, principals or both),
+   the `personalized_separate` / `high` delivery default when delivery is still
+   undecided, and the strategy when a campaign predates change 1.
+
+Each is written **only when absent**. The generation request key is derived
+from the approval hash, which moves with the state version, so a batch sent on
+an accept that changes nothing would give a retry a different key and mint a
+second backend job. A group's `shared_thread` is never overwritten.
+
+And the Review step now **asks the server what it would refuse before offering
+the button**: it reads the generation plan, lists the real blocker codes, and
+disables accept — minus the ones its own accept resolves, which it derives from
+the commands it is actually about to send rather than a flat list.
+
 ## 5a. Not built: "Request New Outreach Type"
 
 The prototype's markup carries a modal — "Help us understand the outreach

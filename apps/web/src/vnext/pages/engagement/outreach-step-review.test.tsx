@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OutreachReviewStep, type OutreachReviewStepProps } from './outreach-step-review.js';
@@ -24,14 +25,21 @@ import type {
  * Drafts.
  */
 
-const { postCalls, postResponses, api } = vi.hoisted(() => {
+const { postCalls, postResponses, getResponses, api } = vi.hoisted(() => {
   const postCalls: Array<{ url: string; body?: unknown }> = [];
   const postResponses: { approval: unknown; generation: unknown } = {
     approval: { approval: { approvalHash: 'approval-hash-1' } },
     generation: { jobId: 'job-1', deduped: false, complete: false, remaining: 2 },
   };
+  // The step asks the server what it would refuse BEFORE offering the button.
+  const getResponses: { plan: unknown } = {
+    plan: { eligible: true, blockers: [], slots: [] },
+  };
   const api = {
-    get: vi.fn(async () => ({ data: null })),
+    get: vi.fn(async (url: string) => {
+      if (url.includes('/generation/plan')) return { data: getResponses.plan };
+      return { data: null };
+    }),
     post: vi.fn(async (url: string, body?: unknown) => {
       postCalls.push({ url, body });
       if (url.includes('/generation/review-packet-approval')) {
@@ -41,7 +49,7 @@ const { postCalls, postResponses, api } = vi.hoisted(() => {
       return { data: {} };
     }),
   };
-  return { postCalls, postResponses, api };
+  return { postCalls, postResponses, getResponses, api };
 });
 
 vi.mock('../../../lib/use-api.js', () => ({ useApi: () => api }));
@@ -104,6 +112,9 @@ function session(over: {
   campaignFactRefs?: OutreachV3ResolvedContextRef[];
   writingGuidanceRefs?: OutreachV3ResolvedContextRef[];
   targetSpecificRefs?: OutreachV3ResolvedContextRef[];
+  /** Non-null once the campaign has criteria — the state after a first accept. */
+  criteria?: Record<string, unknown> | null;
+  strategy?: { campaignAngle: string; tone: string; length: string };
 } = {}): OutreachV3SessionEnvelope {
   return {
     session: { id: 'session-1', title: 'New outreach campaign', status: 'active' },
@@ -123,7 +134,7 @@ function session(over: {
       },
       sponsor: { kind: 'undecided', label: null, clientRefs: [] },
       targeting: {
-        criteria: null,
+        criteria: (over.criteria ?? null) as never,
         selectedTargetRefs: over.targets ?? [target()],
         rejectedRecommendationRefs: [],
       },
@@ -136,12 +147,14 @@ function session(over: {
         groupSafeRefs: [],
         excludedRefs: [],
       },
-      strategy: {
-        campaignAngle: null,
-        tone: null,
-        length: 'undecided',
-        customLengthInstruction: null,
-      },
+      strategy: (over.strategy
+        ? { ...over.strategy, customLengthInstruction: null }
+        : {
+            campaignAngle: null,
+            tone: null,
+            length: 'undecided',
+            customLengthInstruction: null,
+          }) as never,
     },
   };
 }
@@ -163,7 +176,15 @@ function props(over: Partial<OutreachReviewStepProps> = {}): OutreachReviewStepP
 
 function renderStep(over: Partial<OutreachReviewStepProps> = {}) {
   const resolved = props(over);
-  return { ...render(<OutreachReviewStep {...resolved} />), props: resolved };
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return {
+    ...render(
+      <QueryClientProvider client={qc}>
+        <OutreachReviewStep {...resolved} />
+      </QueryClientProvider>,
+    ),
+    props: resolved,
+  };
 }
 
 describe('OutreachReviewStep', () => {
@@ -172,6 +193,8 @@ describe('OutreachReviewStep', () => {
     api.post.mockClear();
     postResponses.approval = { approval: { approvalHash: 'approval-hash-1' } };
     postResponses.generation = { jobId: 'job-1', deduped: false, complete: false, remaining: 2 };
+    getResponses.plan = { eligible: true, blockers: [], slots: [] };
+    api.get.mockClear();
   });
 
   it('carries the prototype step copy verbatim', () => {
@@ -329,13 +352,18 @@ describe('OutreachReviewStep', () => {
     expect(toast).toHaveBeenCalledWith('Packet accepted · generating 3 drafts');
   });
 
-  it('does not rewrite context when no note changed, so a retry keeps the same request key', async () => {
+  it('writes nothing when the spec is already complete, so a retry keeps the same request key', async () => {
+    // The request key is derived from the approval hash, which moves with the
+    // state version. A batch sent on an accept that changes nothing would give
+    // a retry a different key and mint a second backend job.
     const applyCommands = vi.fn(async (_commands: OutreachV3Command[]) => undefined);
     const onGenerationStarted = vi.fn();
     renderStep({
       applyCommands,
       onGenerationStarted,
       session: session({
+        criteria: { chambers: ['house'], states: ['CA'] },
+        strategy: { campaignAngle: 'angle', tone: 'tone', length: 'short' },
         targetSpecificRefs: [
           noteRef('directory_member:member-1', 'Rep. Jane Smith', 'Mention the May briefing.'),
         ],
@@ -344,6 +372,73 @@ describe('OutreachReviewStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /Accept packet and generate drafts/ }));
     await waitFor(() => expect(onGenerationStarted).toHaveBeenCalled());
     expect(applyCommands).not.toHaveBeenCalled();
+  });
+
+  it('supplies the target criteria the campaign is missing, or generation is refused', async () => {
+    // `deriveOutreachReadiness` blocks on TARGET_CRITERIA_MISSING until
+    // `targeting.criteria` is non-null, and the prototype has no criteria
+    // control — so this step derives it from the selection. Without it every
+    // campaign built here failed at accept with a 409 naming no field.
+    const applyCommands = vi.fn(async (_commands: OutreachV3Command[]) => undefined);
+    const onGenerationStarted = vi.fn();
+    renderStep({
+      applyCommands,
+      onGenerationStarted,
+      session: session({
+        criteria: null,
+        targetSpecificRefs: [
+          noteRef('directory_member:member-1', 'Rep. Jane Smith', 'Mention the May briefing.'),
+        ],
+      }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Accept packet and generate drafts/ }));
+    await waitFor(() => expect(onGenerationStarted).toHaveBeenCalled());
+
+    const sent = applyCommands.mock.calls.at(0)?.[0] ?? [];
+    const criteria = sent.find((command) => command.type === 'SET_TARGET_CRITERIA');
+    expect(criteria).toBeDefined();
+    // Derived from the real selection, not invented filters.
+    expect((criteria?.payload as { value?: Record<string, unknown> }).value).toMatchObject({
+      chambers: ['house'],
+      states: ['CA'],
+    });
+  });
+
+  it('refuses to accept, and says why, when the server would refuse', async () => {
+    getResponses.plan = {
+      eligible: false,
+      blockers: ['CONTEXT_NOT_REVIEWED', 'TARGETS_MISSING'],
+      slots: [],
+    };
+    renderStep();
+
+    expect(await screen.findByText('This campaign is not ready to generate')).toBeInTheDocument();
+    // Each blocker names the step that fixes it, not just the code.
+    expect(
+      screen.getByText('No context switched on — choose sources on the Context step.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('No recipients selected — add them on the Targets step.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Accept packet and generate drafts/ }),
+    ).toBeDisabled();
+  });
+
+  it('does not report the blockers its own accept resolves', async () => {
+    // The accept sends criteria and the delivery default in the same batch, so
+    // naming them as things the user must go and fix would be false.
+    getResponses.plan = {
+      eligible: false,
+      blockers: ['TARGET_CRITERIA_MISSING', 'DELIVERY_UNDECIDED'],
+      slots: [],
+    };
+    renderStep();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Accept packet and generate drafts/ })).toBeEnabled(),
+    );
+    expect(screen.queryByText('This campaign is not ready to generate')).not.toBeInTheDocument();
   });
 
   it('supersedes the previous note refs when a note is edited', async () => {
