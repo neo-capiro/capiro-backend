@@ -328,8 +328,36 @@ export function outreachGenerationSpecCommands(
   if (targets.length === 0) return [];
   const commands: OutreachV3Command[] = [];
 
-  const uniq = (values: Array<string | null | undefined>): string[] =>
-    [...new Set(values.filter((value): value is string => Boolean(value && value.trim())))].sort();
+  /*
+   * The spec's criteria vocabulary is a closed enum server-side
+   * (`targetCriteriaV1Schema`), but a resolved target's jurisdiction is not:
+   * `chamber` comes from the Directory as free text, and a manual locator
+   * reports `governmentLevel: 'unknown'`. Sending either straight through is
+   * rejected as OUTREACH_COMMAND_INVALID and takes the whole accept with it.
+   *
+   * So each field is narrowed to the vocabulary the spec actually has, and
+   * anything outside it is dropped rather than coerced. Criteria is a
+   * description of the selection; asserting a chamber the schema has no word
+   * for would be inventing one.
+   */
+  const GOVERNMENT_LEVELS = ['federal', 'state', 'local', 'agency', 'mixed'];
+  const CHAMBERS = ['house', 'senate', 'state_house', 'state_senate'];
+
+  const uniq = (values: Array<string | null | undefined>, allowed?: string[]): string[] => {
+    const cleaned = values
+      .map((value) => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+      .filter(Boolean)
+      .filter((value) => !allowed || allowed.includes(value));
+    return [...new Set(cleaned)].sort();
+  };
+
+  /** Free text the schema bounds at 120 chars and rejects when empty. */
+  const uniqText = (values: Array<string | null | undefined>): string[] => {
+    const cleaned = values
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => value.length > 0 && value.length <= 120);
+    return [...new Set(cleaned)].sort().slice(0, 100);
+  };
 
   const isStaff = (target: OutreachV3ResolvedTargetRef): boolean =>
     String(target.locator['source'] ?? '').includes('staff');
@@ -346,10 +374,16 @@ export function outreachGenerationSpecCommands(
   if (session && session.spec.targeting.criteria === null) {
     commands.push(
       targetCriteriaCommand({
-        governmentLevels: uniq(targets.map((t) => t.jurisdiction.governmentLevel)),
-        chambers: uniq(targets.map((t) => t.jurisdiction.chamber)),
-        committees: uniq(targets.flatMap((t) => t.jurisdiction.committees)),
-        states: uniq(targets.map((t) => t.jurisdiction.state)),
+        governmentLevels: uniq(
+          targets.map((t) => t.jurisdiction.governmentLevel),
+          GOVERNMENT_LEVELS,
+        ),
+        chambers: uniq(
+          targets.map((t) => t.jurisdiction.chamber),
+          CHAMBERS,
+        ),
+        committees: uniqText(targets.flatMap((t) => t.jurisdiction.committees)),
+        states: uniqText(targets.map((t) => t.jurisdiction.state)),
         includeStaff: targets.some(isStaff),
         includePrincipals: targets.some((t) => !isStaff(t)),
       }),
