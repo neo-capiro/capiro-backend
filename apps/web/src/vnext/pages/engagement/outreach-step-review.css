@@ -1,0 +1,182 @@
+/*
+ * Step 7 — Review (the packet).
+ *
+ * Everything shared with the other steps (the accent panel, the card, the card
+ * header band, the eyebrow, the textarea ring, the primary button) comes from
+ * outreach-builder.css; see its mapping table for how each prototype literal
+ * becomes an `--eng-*` token. What is left here is this step's own geometry:
+ * the packet header's padding, the chip, the two-column recipient row and its
+ * zebra striping.
+ */
+
+/* ── Block A — the packet header ────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-review__packet {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 22px;
+}
+
+.capiro-vnext-root .ocb-review__subject {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--eng-ink);
+  text-wrap: pretty;
+}
+/* Same muted tone the Name step's summary uses for an unfilled row. */
+.capiro-vnext-root .ocb-review__subject[data-unset='true'] {
+  color: var(--eng-ink-4);
+}
+
+.capiro-vnext-root .ocb-review__count {
+  font-size: 13px;
+  color: var(--eng-accent-deep);
+}
+
+/* ── Block B — context chips ────────────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-review__context {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.capiro-vnext-root .ocb-review__ctx-empty {
+  font-size: 14px;
+  color: var(--eng-ink-2);
+}
+
+.capiro-vnext-root .ocb-review__chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Not `.eng-pill`: this chip is 28px, Inter, sentence case — the pill is 24px,
+   mono and uppercase. */
+.capiro-vnext-root .ocb-review__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 9999px;
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  font-size: 13px;
+  color: var(--eng-ink-strong);
+}
+
+.capiro-vnext-root .ocb-review__chip-count {
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  color: var(--eng-ink-4);
+}
+
+/* ── Block C — recipients · personal note ───────────────────────────────── */
+
+/* Clips the row hairlines to the card's rounded corners. */
+.capiro-vnext-root .ocb-review__table {
+  overflow: hidden;
+}
+
+/* The header band's helper sentence sits hard right. */
+.capiro-vnext-root .ocb-review__head-help {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--eng-ink-4);
+  text-align: right;
+}
+
+.capiro-vnext-root .ocb-review__row {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 20px;
+  /* Lighter than the header band's border, as in the prototype. The last row
+     keeps its hairline: the card ends on one, just inside the bottom radius. */
+  border-bottom: 1px solid var(--eng-muted);
+  /* A grown textarea must not re-centre the name beside it. */
+  align-items: start;
+  background: var(--eng-surface);
+}
+/* Zebra striping — the first row matches the card, so the header band and the
+   second row share a tone. */
+.capiro-vnext-root .ocb-review__row:nth-child(even) {
+  background: var(--eng-subtle);
+}
+
+.capiro-vnext-root .ocb-review__id {
+  min-width: 0;
+}
+
+.capiro-vnext-root .ocb-review__id-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .ocb-review__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+
+/* 20px, Inter, sentence case — deliberately not the 24px mono `.eng-pill`,
+   though it borrows that table's warn tone. */
+.capiro-vnext-root .ocb-review__no-email {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--eng-tone-warn-bg);
+  color: var(--eng-tone-warn-fg);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .ocb-review__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+
+.capiro-vnext-root .ocb-review__note {
+  width: 100%;
+  padding: 9px 11px;
+  line-height: 19px;
+}
+
+/* ── Block D — footnote and accept ──────────────────────────────────────── */
+
+.capiro-vnext-root .ocb-review__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .ocb-review__spin {
+  animation: ocb-review-spin 0.9s linear infinite;
+}
+
+@keyframes ocb-review-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .ocb-review__spin {
+    animation: none;
+  }
+}

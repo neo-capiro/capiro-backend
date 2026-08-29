@@ -9,8 +9,10 @@ import {
   safeOutreachV3Error,
 } from './outreach-v3-api.js';
 import type { OutreachSenderInbox } from '../v2/NewOutreachWizard.js';
-import { VNextOutreachPhase1Workspace } from '../../../../vnext/pages/engagement/VNextOutreachPhase1Workspace.js';
-import type { EngagementOutreachStep } from '../../../../vnext/pages/engagement/VNextOutreachWorkspace.js';
+import {
+  VNextOutreachCampaignBuilder,
+  type OutreachBuilderStep,
+} from '../../../../vnext/pages/engagement/VNextOutreachCampaignBuilder.js';
 import '../../../../vnext/pages/engagement/engagement.css';
 import '../../../../vnext/pages/engagement/engagement-ui-closeout.css';
 import '../../../../vnext/pages/engagement/engagement-tones.css';
@@ -57,9 +59,9 @@ function normalizeProvider(provider: string): string {
 /**
  * Canonical Engagement host for a new Outreach V3 campaign.
  *
- * This adapter now mounts the same template-first setup and governed
- * draft/test/send spine as the vNext Outreach route. Existing V2 records remain
- * in Classic Outreach through OutreachWizardRouter.
+ * This adapter mounts the SAME nine-step campaign builder as the vNext
+ * Outreach route, so there is one Outreach flow rather than two that drift.
+ * Existing V2 records remain in Classic Outreach through OutreachWizardRouter.
  */
 export function OutreachV3CompleteRoute({
   clients,
@@ -75,7 +77,7 @@ export function OutreachV3CompleteRoute({
   onSessionReady,
 }: OutreachV3CompleteRouteProps) {
   const api = useApi();
-  const [step, setStep] = useState<EngagementOutreachStep>('goal');
+  const [step, setStep] = useState<OutreachBuilderStep>('workflow');
 
   /**
    * Session durability (reliability repair, section 7).
@@ -124,6 +126,17 @@ export function OutreachV3CompleteRoute({
       })),
     [sendableInboxes],
   );
+
+  /*
+   * The builder names the sending mailbox in the Send step's "From" row. This
+   * route is handed the caller's chosen `sendFrom` address plus the sendable
+   * inbox list; either can be absent, and absent has to read as absent.
+   */
+  const senderConnection =
+    integrations.find((row) => row.accountEmail === sendFrom?.trim()) ??
+    integrations.find((row) => row.accountEmail) ??
+    null;
+  const senderLabel = sendFrom?.trim() || senderConnection?.accountEmail || null;
 
   const connectionWarning = !emailConnected
     ? 'Connect Outlook or Gmail before test or real sending.'
@@ -185,11 +198,12 @@ export function OutreachV3CompleteRoute({
           </div>
         </header>
         {session.data ? (
-          <VNextOutreachPhase1Workspace
+          <VNextOutreachCampaignBuilder
             sessionId={session.data.session.id}
             clients={clients}
             selectedClientId={selectedClientId}
-            integrations={integrations}
+            senderLabel={senderLabel}
+            senderConnectionId={senderConnection?.id ?? null}
             step={step}
             onStepChange={setStep}
             onExit={onCancel}

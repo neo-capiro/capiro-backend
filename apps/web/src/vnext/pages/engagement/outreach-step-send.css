@@ -1,0 +1,343 @@
+/*
+ * Outreach builder — Send step.
+ *
+ * Layout only: every surface, ring, tile and button recipe comes from
+ * outreach-builder.css, and every colour from the `--eng-*` tokens defined in
+ * engagement.css / engagement-tones.css. The prototype's two amber inks (an
+ * amber-700 body and a darker amber-800 for the held-out headings) collapse
+ * onto `--eng-tone-warn-fg` (amber-700) and `--eng-warning-deep` (amber-800),
+ * which engagement.css already carries — the prototype uses both, with the
+ * deeper value on the held-out panel's headings and rows and the lighter one
+ * on their explanatory sublines.
+ */
+
+.capiro-vnext-root .osend {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 840px;
+}
+
+/* ── 1. "What will happen" ──────────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-summary {
+  padding: 20px 22px;
+}
+.capiro-vnext-root .osend-summary__title {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .osend-summary__rows {
+  margin-top: 14px;
+}
+
+/* ── 2. Timing / pacing / partials ──────────────────────────────────────── */
+
+.capiro-vnext-root .osend-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+}
+.capiro-vnext-root .osend-panel__title {
+  display: block;
+  margin: -4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+/* The sub-eyebrows sit tighter to the group they label than the panel's own
+   12px rhythm allows. */
+.capiro-vnext-root .osend-subeyebrow {
+  margin-top: 4px;
+}
+.capiro-vnext-root .osend-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+/* A timing/pacing tile carries its selection in the fill and ring alone —
+   there is no radio dot on these two groups, unlike the partials below. */
+.capiro-vnext-root .osend-tile {
+  flex-direction: column;
+  gap: 3px;
+}
+.capiro-vnext-root .osend-partials {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.capiro-vnext-root .osend-choice__title {
+  font-size: 14px;
+}
+.capiro-vnext-root .osend-choice__desc {
+  margin-top: 2px;
+  line-height: normal;
+}
+.capiro-vnext-root .osend-tile .osend-choice__desc {
+  margin-top: 0;
+}
+
+/* ── 3. Test send ───────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-test {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border-radius: 12px;
+}
+.capiro-vnext-root .osend-test__copy {
+  flex: 1;
+  min-width: 220px;
+}
+.capiro-vnext-root .osend-test__title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .osend-test__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .osend-test__empty {
+  flex-basis: 100%;
+}
+.capiro-vnext-root .osend-select {
+  height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--eng-ink-strong);
+}
+.capiro-vnext-root .osend-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--eng-accent-soft);
+  color: var(--eng-accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── 4. Preflight ───────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-preflight__head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .osend-preflight__copy {
+  flex: 1;
+  min-width: 220px;
+}
+.capiro-vnext-root .osend-preflight__copy .osend-panel__title {
+  margin-top: 4px;
+}
+.capiro-vnext-root .osend-preflight__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .osend-refresh {
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .osend-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.capiro-vnext-root .osend-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+.capiro-vnext-root .osend-check[data-tone='pass'] {
+  background: var(--eng-success-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-success-border);
+  color: var(--eng-success-fg);
+}
+.capiro-vnext-root .osend-check[data-tone='review'] {
+  background: var(--eng-tone-warn-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-tone-warn-ring);
+  color: var(--eng-tone-warn-fg);
+}
+/* The prototype models one failure axis and so has only pass/review. A
+   server-side `blocked` check is a real third state and gets the error tone. */
+.capiro-vnext-root .osend-check[data-tone='blocked'] {
+  background: var(--eng-tone-err-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-tone-err-ring);
+  color: var(--eng-tone-err-fg);
+}
+.capiro-vnext-root .osend-check__icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  line-height: 0;
+}
+.capiro-vnext-root .osend-check__body {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .osend-check__label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+}
+/* Detail text stays neutral in every tone — only the label carries the state. */
+.capiro-vnext-root .osend-check__detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-2);
+  text-wrap: pretty;
+}
+
+/* ── 5. Held-out recipients ─────────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-held {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--eng-tone-warn-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-tone-warn-ring);
+}
+.capiro-vnext-root .osend-held__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-warning-deep);
+}
+.capiro-vnext-root .osend-held__sub {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-tone-warn-fg);
+}
+.capiro-vnext-root .osend-held__row {
+  font-size: 13px;
+  color: var(--eng-warning-deep);
+}
+.capiro-vnext-root .osend-held__row strong {
+  font-weight: 600;
+}
+.capiro-vnext-root .osend-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 2px;
+  text-align: left;
+  cursor: pointer;
+}
+/* The real checkbox stays in the accessibility tree and keeps the label
+   association; the painted box is the prototype's 18px tile beside it. */
+.capiro-vnext-root .osend-ack__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+.capiro-vnext-root .osend-ack__input:focus-visible + .ocb-check {
+  box-shadow:
+    inset 0 0 0 1px var(--eng-accent),
+    0 0 0 3px var(--eng-accent-soft);
+}
+.capiro-vnext-root .osend-ack__body {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .osend-ack__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--eng-warning-deep);
+}
+.capiro-vnext-root .osend-ack__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--eng-tone-warn-fg);
+}
+
+/* ── 6. Send row ────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-send {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .osend-send__gate {
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+
+/* ── Confirmation dialog body ───────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.capiro-vnext-root .osend-confirm__held {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--eng-tone-warn-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-tone-warn-ring);
+  color: var(--eng-tone-warn-fg);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .osend-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.capiro-vnext-root .osend-spin {
+  animation: osend-spin 0.9s linear infinite;
+}
+
+@keyframes osend-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * The send record reuses the approve-and-send spine's own stylesheet, whose
+ * tokens and component rules all hang off `.ov3p1-shell`. That class also
+ * declares the two-column grid for a Meri rail this builder does not have, so
+ * only the layout half is cancelled here — the tokens and every `.ov3p1-*`
+ * component rule still apply.
+ */
+.capiro-vnext-root .ov3p1-shell.osend-record {
+  display: block;
+  min-height: 0;
+  overflow: visible;
+  border-top: 0;
+  background: transparent;
+}

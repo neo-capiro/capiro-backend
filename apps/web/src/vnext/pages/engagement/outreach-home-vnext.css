@@ -1,84 +1,70 @@
 /*
- * Outreach home (campaign list) — vNext.
+ * Outreach home — campaign list and the "How would you like to start?" chooser.
  *
- * Uses this module's existing `--eng-*` tokens and the `eng-pill` tone table
- * (engagement-tones.css) rather than introducing a second palette. Scoped
- * under `.capiro-vnext-root` exactly like engagement.css, so nothing here can
- * leak into the canonical Engagement page.
+ * The shared recipes (page padding, segmented control, chips, buttons, mono
+ * eyebrow, option tile typography) all live in `outreach-builder.css`; this
+ * file holds only what is specific to this surface — the header row, the six
+ * column grid, the row cells, the empty card and the chooser tiles.
+ *
+ * Colours come from the module's `--eng-*` tokens, never literal hex. The
+ * prototype-to-token mapping is documented at the top of outreach-builder.css.
  */
-.capiro-vnext-root .uui-outreach-home {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  /* Fills the module body the way the builder's own canvas does, so a short
-     campaign list does not leave the page background cut off mid-viewport. */
+
+.capiro-vnext-root .ochome {
+  /* `.ocb` already supplies the prototype's 22px 24px 48px page padding. The
+     page ground and the floor are this surface's own: a short campaign list
+     must not leave the module background cut off mid-viewport. */
   min-height: calc(100vh - 214px);
-  padding: 20px 24px 32px;
   background: var(--eng-page);
 }
 
-.capiro-vnext-root .uui-outreach-home__bar {
+.capiro-vnext-root .ochome__seg {
+  margin-bottom: 20px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+/* `flex-end` so the actions sit on the summary line's baseline, and `wrap` so
+   they drop under it rather than crushing the text at narrow widths. */
+.capiro-vnext-root .ochome__bar {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
-.capiro-vnext-root .uui-outreach-home__summary {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.capiro-vnext-root .ochome__summary {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--eng-ink-2);
 }
-.capiro-vnext-root .uui-outreach-home__summary p {
-  margin: 0;
-  color: var(--eng-ink-3);
-  font-size: 13px;
-}
-.capiro-vnext-root .uui-outreach-home__actions {
+.capiro-vnext-root .ochome__actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.capiro-vnext-root .uui-outreach-home__new {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
 
-.capiro-vnext-root .uui-outreach-home__filters {
+/* ── Filters ────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ochome__filters {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.capiro-vnext-root .uui-outreach-home__filters button {
-  height: 30px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 9999px;
-  background: var(--eng-recessed);
-  box-shadow: 0 0 0 1px var(--eng-border);
-  color: var(--eng-ink-3);
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-outreach-home__filters button:hover {
-  color: var(--eng-ink);
-}
-.capiro-vnext-root .uui-outreach-home__filters button[data-active] {
-  background: var(--eng-tone-navy-bg);
-  box-shadow: 0 0 0 1px var(--eng-tone-navy-ring);
-  color: var(--eng-tone-navy-fg);
+  gap: 8px;
+  margin-top: 16px;
 }
 
-.capiro-vnext-root .uui-outreach-home__error {
+/* ── Async states the prototype has no equivalent for ───────────────────── */
+
+/*
+ * The prototype runs on module-level seed data, so it has no loading, error or
+ * per-row failure state anywhere. These are kept: the real list is a network
+ * read and a silent blank is not an honest answer to a failed one.
+ */
+.capiro-vnext-root .ochome__error {
   display: flex;
   align-items: center;
   gap: 9px;
+  margin-top: 16px;
   padding: 11px 14px;
   border-radius: 10px;
   background: var(--eng-tone-err-bg);
@@ -86,218 +72,241 @@
   color: var(--eng-tone-err-fg);
   font-size: 13px;
 }
-
-.capiro-vnext-root .uui-outreach-home__table {
-  overflow: hidden;
-  border-radius: 12px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
-}
-
-/* One grid definition shared by the header and every row, so the columns can
-   never drift apart. The trailing column is the per-row Archive action. */
-.capiro-vnext-root .uui-outreach-home__head,
-.capiro-vnext-root .uui-outreach-home__open {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr) 78px 180px 180px;
-  align-items: center;
-  gap: 14px;
-}
-.capiro-vnext-root .uui-outreach-home__head {
-  grid-template-columns: 86px minmax(0, 1fr) 78px 180px 180px 96px;
-  padding: 11px 20px;
-  border-bottom: 1px solid var(--eng-tone-gray-ring);
-  background: var(--eng-recessed);
-  color: var(--eng-ink-4);
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.capiro-vnext-root .uui-outreach-home__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  align-items: center;
-  gap: 10px;
-  padding-right: 20px;
-  border-bottom: 1px solid var(--eng-muted);
-}
-.capiro-vnext-root .uui-outreach-home__row:last-child {
-  border-bottom: 0;
-}
-.capiro-vnext-root .uui-outreach-home__row:hover {
-  background: var(--eng-bg);
-}
-/*
- * Archived rows.
- *
- * The list is fetched with `includeArchived=true`, so archived campaigns are
- * always present and only the status filter hides them — meaning this state
- * renders in the normal flow and has to be legible, not merely dimmed.
- *
- * It was a blanket `opacity: 0.62`, which is the wrong instrument twice over:
- * it takes the row's body text below AA contrast, and it fades the "Archived"
- * pill — the one element actually stating the status — along with everything
- * else. State is carried by the pill (text) and the recessed ground (visual),
- * one treatment each, and the title stays at full contrast so an archived
- * campaign is still readable and findable.
- */
-.capiro-vnext-root .uui-outreach-home__row[data-archived] {
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-outreach-home__row[data-archived]:hover {
-  background: var(--eng-muted);
-}
-/* Only the secondary line recedes. The title and the pill do not. */
-.capiro-vnext-root .uui-outreach-home__row[data-archived] .uui-outreach-home__title small,
-.capiro-vnext-root .uui-outreach-home__row[data-archived] .uui-outreach-home__when {
-  color: var(--eng-ink-3);
-}
-
-.capiro-vnext-root .uui-outreach-home__open {
-  width: 100%;
-  padding: 15px 0 15px 20px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-outreach-home__title {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-.capiro-vnext-root .uui-outreach-home__title strong {
-  overflow: hidden;
-  color: var(--eng-ink);
-  font-size: 15px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.capiro-vnext-root .uui-outreach-home__title small {
-  overflow: hidden;
-  color: var(--eng-ink-3);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.capiro-vnext-root .uui-outreach-home__count {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--eng-ink-2);
-  font-size: 13px;
-}
-.capiro-vnext-root .uui-outreach-home__when {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--eng-ink-3);
-  font-size: 12px;
-}
-.capiro-vnext-root .uui-outreach-home__rowaction {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 28px;
-}
-
-.capiro-vnext-root .uui-outreach-home__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 54px 24px;
-  border-radius: 12px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
-  color: var(--eng-ink-3);
-  text-align: center;
-}
-.capiro-vnext-root .uui-outreach-home__empty svg {
-  color: var(--eng-ink-4);
-}
-.capiro-vnext-root .uui-outreach-home__empty strong {
-  color: var(--eng-ink);
-  font-size: 16px;
-}
-.capiro-vnext-root .uui-outreach-home__empty p {
-  max-width: 46ch;
-  margin: 0 0 6px;
-  font-size: 13px;
-}
-
-.uui-start-chooser {
+.capiro-vnext-root .ochome__skeleton {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: 16px;
 }
-
-.uui-start-chooser__option {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--eng-border);
-  border-radius: 12px;
-  background: var(--eng-surface);
-  color: var(--eng-ink);
-  text-align: left;
-}
-
-.uui-start-chooser__option:hover:not(:disabled) {
-  border-color: var(--eng-accent);
-  background: var(--eng-recessed);
-}
-
-.uui-start-chooser__option svg {
-  flex-shrink: 0;
-  color: var(--eng-accent);
-}
-
-.uui-start-chooser__option strong {
-  display: block;
-  font-size: 14px;
-}
-
-.uui-start-chooser__option small {
-  display: block;
-  margin-top: 3px;
-  color: var(--eng-ink-3);
-  font-size: 12.5px;
-  line-height: 18px;
-}
-
-.capiro-vnext-root .uui-outreach-home__skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.capiro-vnext-root .uui-outreach-home__skeleton i {
+.capiro-vnext-root .ochome__skeleton i {
   height: 58px;
   border-radius: 12px;
   background: var(--eng-recessed);
   box-shadow: 0 0 0 1px var(--eng-border);
 }
+.capiro-vnext-root .ochome .uui-engagement-error {
+  margin-top: 16px;
+}
 
-/* Narrow widths: drop the two timestamp columns rather than let the row
-   overflow into a horizontal scroller. The status pill, campaign name and
-   target count are what the list is actually for. */
+/* ── Empty state ────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ochome__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 34px;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .ochome__empty svg {
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ochome__empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ochome__empty-body {
+  max-width: 480px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+  text-wrap: pretty;
+}
+/* The empty card's primary is the shorter, unshadowed, icon-less variant of
+   the header's — same gradient, 36px instead of 38px. */
+.capiro-vnext-root .ochome__empty-cta {
+  height: 36px;
+  box-shadow: none;
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ochome__table {
+  overflow: hidden;
+  margin-top: 16px;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+}
+
+/* One grid definition shared by the header band and every row, so the columns
+   can never drift apart. The trailing 90px column is the Archive action. */
+.capiro-vnext-root .ochome__head,
+.capiro-vnext-root .ochome__row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 90px 130px 130px 90px;
+  gap: 16px;
+}
+.capiro-vnext-root .ochome__head {
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--eng-border);
+  background: var(--eng-subtle);
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .ochome__row {
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--eng-muted);
+}
+/*
+ * Archived rows dim wholesale, as the prototype does.
+ *
+ * This surface previously carried a recessed-ground treatment instead, on the
+ * grounds that a blanket fade takes the row's body text below AA and mutes the
+ * "Archived" pill that is doing the explaining. That reasoning still holds and
+ * is worth revisiting; parity with the prototype was the explicit brief here,
+ * and archived rows appear only under their own chip, where the whole table
+ * dims together and nothing has to be told apart from a bright neighbour.
+ */
+.capiro-vnext-root .ochome__row[data-archived] {
+  opacity: 0.6;
+}
+
+/*
+ * The row pill carries tone through background and text only — no ring, and a
+ * hair less tracking than the mono column headers above it. `.eng-pill`'s own
+ * ring reads as a second table border at this density.
+ */
+.capiro-vnext-root .ochome__row .eng-pill {
+  box-shadow: none;
+  letter-spacing: 0.05em;
+  width: fit-content;
+}
+
+/* Cell 2: the open control. Both lines truncate to one line — `min-width:0`
+   is what lets the ellipsis happen inside the `minmax(0,1fr)` track. */
+/*
+ * The grid cell that holds the open control. It exists so the row can carry
+ * `role="cell"` on a real element — a `role` on the button itself would replace
+ * the button's own role and take the control out of the accessibility tree.
+ */
+.capiro-vnext-root .ochome__open-cell {
+  display: block;
+  min-width: 0;
+}
+
+.capiro-vnext-root .ochome__open {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .ochome__open:hover {
+  text-decoration: underline;
+}
+.capiro-vnext-root .ochome__name,
+.capiro-vnext-root .ochome__goal {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .ochome__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ochome__goal {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+
+.capiro-vnext-root .ochome__count {
+  font-size: 14px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .ochome__when {
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+
+.capiro-vnext-root .ochome__archive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--eng-ink-strong);
+  cursor: pointer;
+}
+.capiro-vnext-root .ochome__archive:hover:not(:disabled) {
+  background: var(--eng-recessed);
+}
+.capiro-vnext-root .ochome__archive:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/*
+ * Narrow widths: drop the two date columns rather than let six fixed tracks
+ * push the row into a horizontal scroller. Status, name and target count are
+ * what the list is actually scanned for.
+ */
 @media (max-width: 1080px) {
-  .capiro-vnext-root .uui-outreach-home__head {
-    grid-template-columns: 86px minmax(0, 1fr) 78px 96px;
+  .capiro-vnext-root .ochome__head,
+  .capiro-vnext-root .ochome__row {
+    grid-template-columns: 110px minmax(0, 1fr) 90px 90px;
   }
-  .capiro-vnext-root .uui-outreach-home__open {
-    grid-template-columns: 86px minmax(0, 1fr) 78px;
-  }
-  .capiro-vnext-root .uui-outreach-home__head span:nth-child(4),
-  .capiro-vnext-root .uui-outreach-home__head span:nth-child(5),
-  .capiro-vnext-root .uui-outreach-home__when {
+  .capiro-vnext-root .ochome__head span:nth-child(4),
+  .capiro-vnext-root .ochome__head span:nth-child(5),
+  .capiro-vnext-root .ochome__when {
     display: none;
   }
+}
+
+/* ── "How would you like to start?" chooser ─────────────────────────────── */
+
+.capiro-vnext-root .ochome-start {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The prototype's chooser tile sits one step down from `.ocb-option`: recessed
+   rather than subtle, and it darkens on hover instead of tightening its ring. */
+.capiro-vnext-root .ochome-start__tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .ochome-start__tile:hover:not(:disabled) {
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .ochome-start__tile:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.capiro-vnext-root .ochome-start__icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--eng-accent);
 }

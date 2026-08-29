@@ -119,3 +119,35 @@
 .capiro-vnext-root .eng-pill--err .eng-pill__dot {
   background: var(--eng-tone-err-dot);
 }
+
+/*
+ * ── Outreach builder additions (prototype parity, 2026-08-28) ─────────────
+ *
+ * The Engagement V2 prototype's Outreach surface uses six literal values that
+ * the `--eng-*` ramp in engagement.css does not carry. They live here, beside
+ * the tone table, rather than inline in outreach CSS, so the module keeps one
+ * place to look up a colour.
+ *
+ * `--eng-subtle` is the prototype's #FCFCFD: a step below `--eng-recessed`
+ * (#F9FAFB), used for table header bands, inset panels and alternating rows.
+ * It reads as white on most displays and is deliberately not collapsed into
+ * `--eng-surface` — the prototype leans on the half-step for the seam between
+ * a card's header band and its body.
+ */
+.capiro-vnext-root .engagement-vnext {
+  --eng-subtle: #fcfcfd;
+  --eng-ink-strong: #344054;
+  --eng-accent-deep: #1c3a4e;
+  --eng-accent-muted: #5d7f97;
+  --eng-accent-on-dark: #a9c4d6;
+  --eng-success-bg: #ecfdf3;
+  --eng-success-border: #abefc6;
+  --eng-success-fg: #067647;
+
+  /* Two non-palette values the builder needs and the ramp has no name for:
+     the translucent white a number badge uses on the near-black active rail
+     chip, and the one-pixel lift under an active segmented-control item. */
+  --eng-on-primary-soft: rgb(255 255 255 / 18%);
+  --eng-shadow-raise: 0 1px 2px rgb(16 24 40 / 8%);
+  --eng-shadow-float: 0 1px 3px rgb(16 24 40 / 8%);
+}

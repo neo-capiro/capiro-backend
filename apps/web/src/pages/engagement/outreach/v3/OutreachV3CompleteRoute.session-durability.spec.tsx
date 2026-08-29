@@ -30,9 +30,9 @@ vi.mock('./outreach-v3-api.js', async () => {
   };
 });
 
-vi.mock('../../../../vnext/pages/engagement/VNextOutreachPhase1Workspace.js', () => ({
-  VNextOutreachPhase1Workspace: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid="phase1-workspace" data-session-id={sessionId} />
+vi.mock('../../../../vnext/pages/engagement/VNextOutreachCampaignBuilder.js', () => ({
+  VNextOutreachCampaignBuilder: ({ sessionId }: { sessionId: string }) => (
+    <div data-testid="campaign-builder" data-session-id={sessionId} />
   ),
 }));
 
@@ -107,7 +107,7 @@ describe('OutreachV3CompleteRoute session durability', () => {
     await waitFor(() => expect(createSessionMock).toHaveBeenCalledTimes(1));
     expect(getSessionMock).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(screen.getByTestId('phase1-workspace')).toHaveAttribute(
+      expect(screen.getByTestId('campaign-builder')).toHaveAttribute(
         'data-session-id',
         'fresh-session-1',
       ),
@@ -123,7 +123,7 @@ describe('OutreachV3CompleteRoute session durability', () => {
     await waitFor(() => expect(getSessionMock).toHaveBeenCalledWith(expect.anything(), 'existing-session-42'));
     expect(createSessionMock).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(screen.getByTestId('phase1-workspace')).toHaveAttribute(
+      expect(screen.getByTestId('campaign-builder')).toHaveAttribute(
         'data-session-id',
         'existing-session-42',
       ),

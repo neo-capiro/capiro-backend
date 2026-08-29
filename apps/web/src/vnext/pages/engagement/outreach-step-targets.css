@@ -1,0 +1,309 @@
+/*
+ * Targets step — the tab row, the list/group builder, the Saved-audience grid
+ * and the Selected table. Shared recipes (tab chip, button, card, field, kv,
+ * empty state) come from outreach-builder.css; only what is specific to this
+ * step lives here.
+ *
+ * One colour the prototype uses has no token: #FEF0C7 (amber-100), which it
+ * paints behind a GROUP kind pill and the favourites-on toggle. The closest
+ * named value is --eng-warning-bg (#FFFAEB), used here, with the prototype's
+ * own --eng-warning-deep (#93370D) ink on top. Flagged for the lead rather
+ * than inlined as hex.
+ */
+
+/* ── Tab row + the two "New …" buttons ──────────────────────────────────── */
+
+.capiro-vnext-root .ots-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .ots-tabs__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .ots-tabs__spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+/* Ringed white, tinted on hover — navy for a list, amber for a group, which is
+   the same two-tone code the builder bar and the kind pills use. */
+.capiro-vnext-root .ots-new {
+  background: var(--eng-surface);
+}
+.capiro-vnext-root .ots-new--list {
+  box-shadow: 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent-deep);
+}
+.capiro-vnext-root .ots-new--list:hover:not(:disabled) {
+  background: var(--eng-accent-soft);
+}
+.capiro-vnext-root .ots-new--group {
+  box-shadow: 0 0 0 1px var(--eng-warning-border);
+  color: var(--eng-warning-deep);
+}
+.capiro-vnext-root .ots-new--group:hover:not(:disabled) {
+  background: var(--eng-warning-bg);
+}
+
+/* ── Explainer ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-explainer {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ots-explainer strong {
+  font-weight: 600;
+  color: var(--eng-ink-strong);
+}
+
+/* ── In-progress builder bar ────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-build {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+}
+.capiro-vnext-root .ots-build[data-kind='list'] {
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent-deep);
+}
+.capiro-vnext-root .ots-build[data-kind='group'] {
+  background: var(--eng-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
+  color: var(--eng-warning-deep);
+}
+.capiro-vnext-root .ots-build__text {
+  flex: 1;
+  min-width: 220px;
+}
+.capiro-vnext-root .ots-build__count {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+}
+.capiro-vnext-root .ots-build__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 19px;
+  color: inherit;
+  opacity: 0.85;
+  text-wrap: pretty;
+}
+
+/* ── Save panel ─────────────────────────────────────────────────────────── */
+
+/* The prototype puts this in a 480px modal. Until the builder's modal host
+   lands it sits inline under the bar it belongs to, with the modal's copy
+   unchanged so swapping the container changes no strings. */
+.capiro-vnext-root .ots-save {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 18px 20px;
+  max-width: 520px;
+}
+.capiro-vnext-root .ots-save__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ots-save__lead {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ots-save__field .ocb-input {
+  width: 100%;
+}
+
+/* ── Error line ─────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-error {
+  margin-top: 12px;
+}
+
+/* ── Target profile aside ───────────────────────────────────────────────── */
+
+/* Not a prototype surface: the reused TargetDirectoryBrowser makes each row's
+   name a profile control, and a control that goes nowhere is worse than one
+   extra dismissible card. */
+.capiro-vnext-root .ots-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px 18px;
+}
+.capiro-vnext-root .ots-profile__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ── Tab body ───────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-body {
+  margin-top: 16px;
+}
+
+/* ── Saved audiences grid ───────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-saved {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+.capiro-vnext-root .ots-aud {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+}
+.capiro-vnext-root .ots-aud__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root .ots-aud__kind {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--eng-accent-soft);
+  color: var(--eng-accent-deep);
+}
+.capiro-vnext-root .ots-aud__kind[data-kind='group'] {
+  background: var(--eng-warning-bg);
+  color: var(--eng-warning-deep);
+}
+.capiro-vnext-root .ots-aud__new {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  background: var(--eng-success-bg);
+  color: var(--eng-success-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+.capiro-vnext-root .ots-aud__name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ots-aud__meta {
+  font-size: 13px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .ots-aud__act {
+  align-self: flex-start;
+  margin-top: 2px;
+  height: 32px;
+  padding: 0 14px;
+}
+.capiro-vnext-root .ots-aud__act[data-applied='true'] {
+  background: var(--eng-recessed);
+  color: var(--eng-ink-3);
+}
+
+/* ── Selected table ─────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-sel {
+  overflow: hidden;
+}
+.capiro-vnext-root .ots-sel__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--eng-border);
+  background: var(--eng-subtle);
+}
+.capiro-vnext-root .ots-sel__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--eng-muted);
+}
+.capiro-vnext-root .ots-sel__row:last-child {
+  border-bottom: 0;
+}
+.capiro-vnext-root .ots-sel__who {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .ots-sel__name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .ots-sel__line {
+  display: block;
+  margin-top: 1px;
+  font-size: 13px;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .ots-sel__kind {
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
+  white-space: nowrap;
+}
+
+/* The held-out marker. Inter 12/600, not the mono .eng-pill — the prototype
+   styles this one differently from every other pill on the surface. */
+.capiro-vnext-root .ots-warnpill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  background: var(--eng-warning-bg);
+  color: var(--eng-warning);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Footer action ──────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .ots-next {
+  margin-top: 16px;
+}
+
+.capiro-vnext-root .ots-spin {
+  animation: ots-spin 1s linear infinite;
+}
+@keyframes ots-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
