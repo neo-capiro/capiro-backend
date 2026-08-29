@@ -126,6 +126,7 @@ export class CatalogSourceDiscoveryAdapter implements SourceDiscoveryPort {
       const resolution = resolveExpectedSourceDocument({
         expectedSource: toResolutionTarget(expected),
         officialHosts: adapter.officialHosts,
+        preferredCatalogHost: adapter.preferredRetrievalHost,
       });
       outcomes.push({
         expectedSourceId: expected.expectedSourceId,

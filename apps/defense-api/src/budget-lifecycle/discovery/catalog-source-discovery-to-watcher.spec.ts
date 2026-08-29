@@ -177,7 +177,12 @@ function harness() {
   return { store, discovery, fetcher, watcher, controller };
 }
 
-const PB_R1_URL = 'https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf';
+// Phase 10B-6A: dod-comptroller's registry entry now prefers the publisher's
+// live successor host (comptroller.war.gov) for new catalog-driven
+// discovery — comptroller.defense.gov now answers every path with an Akamai
+// 403. This fixture binds to whatever URL the resolver actually returns
+// today, matching the successor host.
+const PB_R1_URL = 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf';
 
 describe('Phase 10B-5 — CatalogSourceDiscoveryAdapter through the real watcher + InMemoryLifecycleStore', () => {
   it('first discovery: resolves FY24 pb_r1 into one changed observation and one outbox row', async () => {

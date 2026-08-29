@@ -230,3 +230,192 @@ test('authorization track expected sources are refused by this resolver', () => 
   });
   assert.equal(result.outcome, 'refused_unsupported_family');
 });
+
+// Phase 10B-6A — comptroller.war.gov successor-host migration.
+//
+// The publisher migrated its live delivery host from comptroller.defense.gov
+// to comptroller.war.gov (confirmed live 2026-08-28: .defense.gov now answers
+// every path, including the bare root, with an Akamai 403; .war.gov serves
+// the identical FY2024 R-1 exhibit as a real application/pdf response, byte
+// SHA256 ed9f94b6068c8f1ce40483adfe69d644cc3f033bbcc8271537db39ca91101425).
+// These tests prove the migration is supported centrally through the
+// existing officialHosts + preferredCatalogHost mechanism, with NO new
+// adapter and NO broadening of the host allowlist beyond the two exact
+// approved hostnames.
+const MIGRATED_HOSTS = Object.freeze(['comptroller.defense.gov', 'comptroller.war.gov']);
+
+test('successor host comptroller.war.gov is accepted when added to officialHosts', () => {
+  const identity = pbIdentity();
+  const result = resolveExpectedSourceDocument({
+    expectedSource: identity,
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'Department of Defense Fiscal Year 2024 Budget Request: RDT&E Programs (R-1)',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'resolved');
+  assert.equal(result.candidate?.url.startsWith('https://comptroller.war.gov/'), true);
+});
+
+test('preferredCatalogHost steers the deterministic catalog onto the successor host without changing identity', () => {
+  const identity = pbIdentity();
+  const withoutPreference = resolveExpectedSourceDocument({
+    expectedSource: identity,
+    officialHosts: MIGRATED_HOSTS,
+  });
+  const withPreference = resolveExpectedSourceDocument({
+    expectedSource: identity,
+    officialHosts: MIGRATED_HOSTS,
+    preferredCatalogHost: 'comptroller.war.gov',
+  });
+  assert.equal(withoutPreference.outcome, 'resolved');
+  assert.equal(withPreference.outcome, 'resolved');
+  // Default (no preference) keeps officialHosts[0] — historical host — as the
+  // resolved URL's host.
+  assert.equal(new URL(withoutPreference.candidate.url).hostname, 'comptroller.defense.gov');
+  // Explicit preference steers retrieval onto the successor host.
+  assert.equal(new URL(withPreference.candidate.url).hostname, 'comptroller.war.gov');
+  // The expected-source dedup identity is unaffected by host selection in
+  // either case — hostname is not part of the identity hash.
+  assert.equal(withoutPreference.expectedSourceDedupKey, withPreference.expectedSourceDedupKey);
+  assert.equal(
+    withPreference.expectedSourceDedupKey,
+    expectedSourceDedupKey({
+      fiscalYear: 2024,
+      authorityTrack: 'request',
+      sourceFamily: 'pb_r1',
+      stage: 'president_budget_request',
+      chamber: null,
+      committee: null,
+      component: 'DW',
+    }),
+  );
+});
+
+test('historical comptroller.defense.gov host remains valid provenance for an existing listing document', () => {
+  // A historical observation/candidate already anchored to the old host must
+  // not become an unknown host merely because a successor host was added.
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity(),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'Department of Defense Fiscal Year 2024 Budget Request: RDT&E Programs (R-1)',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'resolved');
+  assert.equal(new URL(result.candidate.url).hostname, 'comptroller.defense.gov');
+});
+
+test('unrelated .war.gov host is rejected — exact hostname only, never a wildcard', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity(),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://army.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'FY2024 R-1',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_non_official_host');
+  assert.equal(result.candidate, null);
+});
+
+test('arbitrary subdomain of comptroller.war.gov is rejected — exact hostname only', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity(),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://cdn.comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'FY2024 R-1',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_non_official_host');
+});
+
+test('plain HTTP (non-TLS) on an otherwise official host is rejected', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity(),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'http://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'FY2024 R-1',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_non_official_host');
+});
+
+test('third-party mirror is rejected even when it hosts byte-identical content', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity(),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://govinfo-mirror.example.org/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'FY2024 R-1 (mirror)',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_non_official_host');
+});
+
+test('FY mismatch on the successor host is refused exactly like the historical host', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity({ fiscalYear: 2024 }),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2025/FY2025_r1.pdf',
+        title: 'FY2025 R-1',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_wrong_fiscal_year');
+});
+
+test('family mismatch on the successor host is refused exactly like the historical host', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity({ sourceFamily: 'pb_r1' }),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_p1.pdf',
+        title: 'FY2024 P-1',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_wrong_family');
+});
+
+test('component mismatch on the successor host is refused exactly like the historical host', () => {
+  const result = resolveExpectedSourceDocument({
+    expectedSource: pbIdentity({ sourceFamily: 'pb_r1', component: 'ARMY' }),
+    officialHosts: MIGRATED_HOSTS,
+    useDeterministicCatalog: false,
+    listingDocuments: [
+      {
+        url: 'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+        title: 'Department of Defense Fiscal Year 2024 Budget Request: RDT&E Programs (R-1), Air Force',
+      },
+    ],
+  });
+  assert.equal(result.outcome, 'refused_wrong_component');
+});
