@@ -65,7 +65,12 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
     // whole point of pinning a locator to an exact archived version.
     taskRole.addToPolicy(new iam.PolicyStatement({
       sid: 'RawArchiveBucketObjectAccess',
-      actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
+      // PutObjectRetention: the raw bucket has S3 Object Lock enabled with a
+      // bucket-level default retention rule (GOVERNANCE), so every PutObject
+      // triggers S3 to apply that default retention on the caller's behalf --
+      // without this action every write 403s even though RawArchiveService
+      // never calls PutObjectRetention explicitly itself.
+      actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject', 's3:PutObjectRetention'],
       resources: [`arn:${cdk.Aws.PARTITION}:s3:::${props.rawBucketName}/*`],
     }));
     // Extraction artifact bucket + prefix: same three actions, scoped to the
@@ -134,7 +139,18 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
     }));
 
     const logGroup = new logs.LogGroup(this, 'Logs', { retention: logs.RetentionDays.ONE_YEAR, removalPolicy: props.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY });
-    this.taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', { family: `capiro-${props.envName}-defense-budget-ingestion-drain`, cpu: 1024, memoryLimitMiB: 2048, taskRole });
+    this.taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', {
+      family: `capiro-${props.envName}-defense-budget-ingestion-drain`,
+      cpu: 1024,
+      memoryLimitMiB: 2048,
+      taskRole,
+      // Must match the ECR image's build architecture. Left unset, CDK/Fargate
+      // default to X86_64 -- this image is built for ARM64, and an
+      // architecture mismatch fails at container start with a bare
+      // "exec /usr/bin/dumb-init: exec format error", before any application
+      // code (or its logging) ever runs.
+      runtimePlatform: { cpuArchitecture: ecs.CpuArchitecture.ARM64, operatingSystemFamily: ecs.OperatingSystemFamily.LINUX },
+    });
 
     const executionRole = this.taskDefinition.obtainExecutionRole();
     executionRole.addToPrincipalPolicy(new iam.PolicyStatement({
@@ -157,6 +173,15 @@ export class OneShotDefenseBudgetIngestionDrainWorker extends Construct {
         NODE_ENV: props.envName === 'dev' ? 'development' : 'production',
         DB_NAME: props.databaseName,
         DEFENSE_BUDGET_RAW_BUCKET: props.rawBucketName,
+        // RawArchiveService reads this to set SSEKMSKeyId on every PutObject
+        // (raw-archive.service.ts always sends ServerSideEncryption: 'aws:kms'
+        // unconditionally, so DenyUploadsWithoutSseKms never fires -- but
+        // without this var SSEKMSKeyId is undefined, S3 falls back to the
+        // AWS-managed key, and the bucket's DenyUploadsWithWrongKmsKey
+        // statement denies the PutObject outright). Same CMK the task role is
+        // already granted kms:Encrypt/GenerateDataKey on above -- one ARN,
+        // one source of truth.
+        DEFENSE_BUDGET_RAW_KMS_KEY_ARN: props.dataKeyArn,
         BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET: props.extractionArtifactBucketName,
         BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_PREFIX: prefix,
         // Ephemeral per-task scratch only (Fargate ephemeral storage). Never
