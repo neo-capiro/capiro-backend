@@ -4567,6 +4567,8 @@ model SourceDocument {
   supersededBy SourceDocument?  @relation("SourceDocumentVersion", fields: [supersededByDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   supersedes   SourceDocument[] @relation("SourceDocumentVersion")
 
+  communityFundingRequestSources CommunityFundingRequestSource[]
+
   programElementSources    ProgramElementSource[]
   programElementProjects   ProgramElementProject[]
   programElementPerformers ProgramElementPerformer[]
@@ -4592,6 +4594,153 @@ model SourceDocument {
   @@index([sourceKey], map: "source_document_source_key_idx")
   @@index([archiveVersionId], map: "source_document_archive_version_idx")
   @@map("source_document")
+}
+
+// Canonical public-domain Community Project Funding (House) and
+// Congressionally Directed Spending (Senate) records. GLOBAL: no tenant/RLS.
+//
+// IDENTITY vs PROVENANCE (repaired design — see community-funding.identity.ts and
+// community-funding.upsert.service.ts for the full rationale). This row represents
+// the GOVERNMENT FUNDING REQUEST itself, never any one document that publishes it.
+// `sourceDocumentId`/`sourcePage`/`sourceRow`/`sourceHash` used to live directly on
+// this table and were part of the identity hash — that made the same real request
+// published in two authoritative documents (e.g. a House subcommittee CPF PDF and
+// the House consolidated CPF XLSX) become two different canonical rows. Provenance
+// now lives on CommunityFundingRequestSource (one canonical request, many source
+// occurrences); the fields below are the canonical, best-known projection of the
+// request's own attributes, updated per the deterministic precedence rule in
+// CommunityFundingUpsertService (never overwrite a non-null final/enacted amount
+// with a requested-only one; prefer a more-advanced amount stage; first-seen wins
+// on same-stage/same-nullity conflicts — full raw values from every source stay on
+// the provenance rows regardless of what the canonical projection picks).
+model CommunityFundingRequest {
+  id                              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identityHash                    String   @unique(map: "community_funding_request_identity_hash_key") @map("identity_hash") @db.Char(64)
+  chamber                        String
+  requestType                    String   @map("request_type")
+  congress                       Int?
+  fiscalYear                     Int      @map("fiscal_year")
+  requesterName                  String   @map("requester_name")
+  requesterState                 String?  @map("requester_state") @db.Char(2)
+  requesterDistrict              String?  @map("requester_district")
+  recipientName                  String   @map("recipient_name")
+  recipientNormalized            String   @map("recipient_normalized")
+  recipientAddress               String?  @map("recipient_address")
+  city                            String?
+  state                           String?  @db.Char(2)
+  zip                             String?
+  projectTitle                   String   @map("project_title") @db.Text
+  projectDescription             String?  @map("project_description") @db.Text
+  requestedAmountUsd             Decimal  @map("requested_amount_usd") @db.Decimal(18, 2)
+  // Populated only when a source explicitly distinguishes a later funded/enacted stage.
+  finalAmountUsd                 Decimal? @map("final_amount_usd") @db.Decimal(18, 2)
+  amountStageRaw                 String   @map("amount_stage_raw")
+  appropriationsAccountRaw       String?  @map("appropriations_account_raw") @db.Text
+  appropriationsAccountNormalized String? @map("appropriations_account_normalized") @db.Text
+  subcommittee                   String?
+  createdAt                      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sources CommunityFundingRequestSource[]
+
+  @@index([fiscalYear, chamber], map: "community_funding_request_fy_chamber_idx")
+  @@index([recipientNormalized], map: "community_funding_request_recipient_idx")
+  @@map("community_funding_request")
+}
+
+// Provenance: one row per (canonical request x source occurrence). A canonical
+// request can have MULTIPLE authoritative source records (e.g. the subcommittee
+// PDF row AND the consolidated XLSX row for the same real request). Deterministic
+// uniqueness on (requestId, sourceDocumentId, sourcePage, sourceRow) makes re-running
+// the same document a no-op and never silently collapses two genuinely distinct
+// source occurrences. `sourceHash` covers this specific source occurrence's raw
+// fields (not the whole candidate-vs-canonical comparison) so an unchanged document
+// re-run touches nothing.
+model CommunityFundingRequestSource {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requestId                 String   @map("request_id") @db.Uuid
+  sourceDocumentId          String   @map("source_document_id") @db.Uuid
+  sourcePage                Int?     @map("source_page")
+  sourceRow                 Int      @map("source_row")
+  sourceHash                String   @map("source_hash") @db.Char(64)
+  retrievedAt               DateTime @map("retrieved_at") @db.Timestamptz(6)
+  // This source occurrence's own reported values — preserved verbatim even when the
+  // canonical projection above picks a different value under the precedence rule.
+  requesterNameRaw          String   @map("requester_name_raw")
+  amountStageRaw            String   @map("amount_stage_raw")
+  requestedAmountUsd        Decimal  @map("requested_amount_usd") @db.Decimal(18, 2)
+  finalAmountUsd            Decimal? @map("final_amount_usd") @db.Decimal(18, 2)
+  appropriationsAccountRaw  String?  @map("appropriations_account_raw") @db.Text
+  subcommittee              String?
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  request        CommunityFundingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceDocument SourceDocument          @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([requestId, sourceDocumentId, sourcePage, sourceRow], map: "community_funding_request_source_occurrence_key")
+  @@index([requestId], map: "community_funding_request_source_request_idx")
+  @@index([sourceDocumentId], map: "community_funding_request_source_document_idx")
+  @@map("community_funding_request_source")
+}
+
+model CommunityFundingDiscoveryCrawl {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adapterId    String   @map("adapter_id")
+  runKey       String   @map("run_key")
+  requestUrl   String   @map("request_url")
+  statusCode   Int?     @map("status_code")
+  status       String
+  contentSha256 String? @map("content_sha256") @db.Char(64)
+  byteSize     Int?     @map("byte_size")
+  itemsSeen    Int      @default(0) @map("items_seen")
+  startedAt    DateTime @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime @map("finished_at") @db.Timestamptz(6)
+  failureReason String? @map("failure_reason") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  candidates   CommunityFundingDiscoveryCandidate[]
+  @@index([adapterId, startedAt(sort: Desc)], map: "cfdc_adapter_started_idx")
+  @@index([runKey], map: "cfdc_run_key_idx")
+  @@map("community_funding_discovery_crawl")
+}
+
+model CommunityFundingDiscoveryCandidate {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  crawlId      String   @map("crawl_id") @db.Uuid
+  adapterId    String   @map("adapter_id")
+  runKey       String   @map("run_key")
+  candidateUrl String   @map("candidate_url")
+  title        String?
+  resolution   String
+  reason       String
+  emitted      Boolean
+  fiscalYear   Int      @map("fiscal_year")
+  observedAt   DateTime @map("observed_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  crawl CommunityFundingDiscoveryCrawl @relation(fields: [crawlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([adapterId, runKey, candidateUrl], map: "cfdcand_run_url_uidx")
+  @@index([crawlId], map: "cfdcand_crawl_idx")
+  @@map("community_funding_discovery_candidate")
+}
+
+model CommunityFundingIngestRun {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source         String
+  chamber        String
+  fiscalYear     Int      @map("fiscal_year")
+  subcommittee   String?
+  artifactPath   String?  @map("artifact_path")
+  artifactSha256 String?  @map("artifact_sha256") @db.Char(64)
+  rowsEmitted    Int      @default(0) @map("rows_emitted")
+  upserted       Int      @default(0)
+  changed        Int      @default(0)
+  rejected       Int      @default(0)
+  status         String   @default("ok")
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([chamber, fiscalYear], map: "community_funding_ingest_run_unit_idx")
+  @@index([artifactSha256], map: "community_funding_ingest_run_sha_idx")
+  @@map("community_funding_ingest_run")
 }
 
 /// One row per parse attempt over a SourceDocument page range. Immutable audit
