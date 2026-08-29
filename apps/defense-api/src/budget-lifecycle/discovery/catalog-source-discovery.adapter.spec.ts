@@ -236,9 +236,12 @@ describe('CatalogSourceDiscoveryAdapter', () => {
     });
 
     assert.equal(result.candidates.length, 1, 'selector narrows 5 catalog rows to exactly 1 candidate');
+    // Phase 10B-6A: dod-comptroller now prefers the successor host
+    // (comptroller.war.gov) for new catalog-driven discovery — see
+    // source-adapter.registry.ts's preferredRetrievalHost.
     assert.equal(
       result.candidates[0]?.url,
-      'https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+      'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
     );
     assert.equal(result.candidates[0]?.expectedSourceDedupKey, targetRow.dedupKey);
     assert.equal(adapter.lastOutcomes.length, 1, 'only the selected row was even resolved, not just filtered post-hoc');
