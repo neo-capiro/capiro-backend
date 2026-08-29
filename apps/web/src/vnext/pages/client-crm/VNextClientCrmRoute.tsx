@@ -1,11 +1,55 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
+import { Component, type ReactNode } from 'react';
 import { useApi } from '../../../lib/use-api.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroErrorState } from '../../components/feedback/index.js';
 import { ClientCrmPage } from './ClientCrmPage.js';
 import { PortfolioIndexPage } from '../portfolio/PortfolioIndexPage.js';
 import './client-crm.css';
+
+/**
+ * Module error boundary for the client CRM subtree.
+ *
+ * A render throw inside any tab (or a failed lazy chunk it pulls in) with no
+ * boundary unmounts the whole route tree back to the raw Suspense fallback in
+ * App.tsx — which on a fresh deep-link reads as the profile being stuck on
+ * "Please wait..." with no way to recover short of a manual reload and a
+ * lucky Clerk/network state. Catch it here so the user gets a styled,
+ * in-module recovery state with the shell still mounted above. Same precedent
+ * as StrategiesErrorBoundary in VNextStrategiesRoutes.tsx.
+ */
+export class ClientCrmErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+  override componentDidCatch(error: unknown): void {
+    // Surface to the console for diagnostics; the UI shows the recovery state.
+    console.error('[client-crm] render error boundary caught', error);
+  }
+  override render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div className="capiro-crm">
+          <CapiroErrorState
+            title="This client profile hit an unexpected error"
+            description="The page failed to render. The client's data is intact — reload to try again."
+            onRetry={() => window.location.reload()}
+          />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * Route entry for the vNext Client CRM.
@@ -102,5 +146,9 @@ export function VNextClientCrmRoute() {
 
   // `key` remounts the CRM on a client switch so no per-client state leaks
   // across, matching the canonical page's behaviour.
-  return <ClientCrmPage key={client.data.id} client={client.data} />;
+  return (
+    <ClientCrmErrorBoundary>
+      <ClientCrmPage key={client.data.id} client={client.data} />
+    </ClientCrmErrorBoundary>
+  );
 }

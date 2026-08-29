@@ -397,4 +397,23 @@ describe('PortfolioIndexPage', () => {
     // The rest of the page is unaffected by this one query failing.
     expect(screen.getByText('Portfolio pulse')).toBeInTheDocument();
   });
+
+  it('never renders a real "0" count for the account total or status filters while clients are loading', async () => {
+    // A clients query that never resolves keeps the list in its loading state
+    // long enough to assert what the header + filter chips show mid-load.
+    const base = makeApi();
+    apiOverride = {
+      ...base,
+      get: async (path: string) => {
+        if (path === '/api/clients') return new Promise(() => {});
+        return base.get(path);
+      },
+    };
+    renderIndex();
+    // The header count and the per-status filter counts must not flash a real
+    // "0" — the model has no data yet, so an honest placeholder is required.
+    expect(screen.queryByText(/0 accounts/)).not.toBeInTheDocument();
+    const allChip = screen.getByRole('button', { name: /^All/ });
+    expect(allChip.textContent).not.toMatch(/0/);
+  });
 });

@@ -132,4 +132,29 @@ describe('Intelligence → Legislative on a tracker_v2 tenant', () => {
     });
     expect(screen.queryByText('High-fit recommendations')).not.toBeInTheDocument();
   });
+
+  it('never renders the design-fixture bills while the board query is still loading', async () => {
+    // Hold the board query pending so the panel stays in its loading state.
+    // During that window the hardcoded BILLS/STAGES design fixture must NOT
+    // appear — a slow real board would otherwise read as a fabricated set of
+    // tracked bills that "changes" once the real data lands (§14 / §11).
+    getMock.mockImplementation((url: string) => {
+      if (url.includes('/tracker/board')) return new Promise(() => {});
+      if (url.includes('/intel-api/') && url.includes('/recommendations')) {
+        return Promise.resolve({ data: [INTEL_REC] });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    renderLegislative();
+
+    // Give the panel a chance to (incorrectly) paint the fixture.
+    await waitFor(() => {
+      expect(screen.getAllByText('Tracked bills').length).toBeGreaterThan(0);
+    });
+    // Fixture bill identity must be absent while loading — these strings only
+    // exist in portfolio-fixtures.ts, never in real board data.
+    expect(screen.queryByText('H.R. 8124')).not.toBeInTheDocument();
+    expect(screen.queryByText('Autonomous Systems Readiness Act')).not.toBeInTheDocument();
+    expect(screen.queryByText('P.L. 119-22')).not.toBeInTheDocument();
+  });
 });

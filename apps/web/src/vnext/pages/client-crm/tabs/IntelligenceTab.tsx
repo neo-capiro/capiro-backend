@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardHead,
-  FitChip,
   Pill,
   SegmentedTabs,
   TabPageHead,
@@ -14,8 +13,6 @@ import {
 } from '../portfolio-primitives.js';
 import {
   DOMAIN_STATS,
-  BILLS,
-  STAGES,
   MATTERS,
   DEADLINES,
   OPPS,
@@ -624,22 +621,32 @@ function LegislativePanel({
           )
         ) : boardFailed ? (
           <CouldNotLoad what="The tracked-bill board" error={boardQ.error} onRetry={() => void boardQ.refetch()} />
-        ) : boardView ? (
-          <BillBoard />
         ) : (
-          <BillTable />
+          // Loading: render an honest skeleton, never the BILLS/STAGES design
+          // fixture. A fixture here reads as a fabricated board that "changes"
+          // once the real data lands (§14 / §11 — a missing value is never a
+          // stand-in record). Mirrors DomainStatsStrip's dash-while-loading.
+          <div className="capiro-intel-board" aria-busy="true" aria-label="Loading tracked bills">
+            <div className="capiro-intel-board-grid">
+              {[0, 1, 2, 3].map((col) => (
+                <span key={col} className="capiro-intel-board-col">
+                  <span className="capiro-crm__skeleton" style={{ display: 'block', height: 18, width: '60%', marginBottom: 12 }} />
+                  <span className="capiro-crm__skeleton" style={{ display: 'block', height: 72, marginBottom: 8 }} />
+                  <span className="capiro-crm__skeleton" style={{ display: 'block', height: 72 }} />
+                </span>
+              ))}
+            </div>
+          </div>
         )}
         <div className="capiro-intel-card-foot">
           {/* `withheld` must be stated when > 0 — a bounded board that stays
               silent about it is less honest than an unbounded one. On a
-              confirmed error there is no real or fixture count to state. */}
-          {!boardFailed ? (
+              confirmed error or while loading there is no real count to state. */}
+          {realBoard ? (
             <span className="capiro-intel-eyebrow">
-              {realBoard
-                ? realBoard.withheld
-                  ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
-                  : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
-                : '6 more tracked bills'}
+              {realBoard.withheld
+                ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
+                : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`}
             </span>
           ) : null}
           <span className="capiro-intel-spacer" />
@@ -764,62 +771,6 @@ function RealBillTable({ board, onOpenBill }: { board: BoardResponse; onOpenBill
           <span className="capiro-intel-table-stage">{stageLabel}</span>
           <span className="capiro-intel-table-end-76">
             <Pill tone="gray" dotless>{passagePct(r.probability)}% pass</Pill>
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function BillBoard() {
-  return (
-    <div className="capiro-intel-board">
-      <div className="capiro-intel-board-grid">
-        {STAGES.map((stage) => {
-          const bills = BILLS.filter((b) => b.stage === stage.id);
-          return (
-            <span key={stage.id} className="capiro-intel-board-col">
-              <span className="capiro-intel-board-col-head">
-                <span className="capiro-intel-board-col-title">{stage.label}</span>
-                <span className="capiro-intel-count-badge" style={{ background: GRADIENT_DARK }}>{stage.count}</span>
-              </span>
-              {bills.map((b) => (
-                <BillCard key={b.number} b={b} />
-              ))}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function BillCard({ b }: { b: (typeof BILLS)[number] }) {
-  return (
-    <button type="button" className="capiro-intel-bill-card">
-      <span className="capiro-intel-bill-card-top">
-        <span className="capiro-intel-bill-num">{b.number}</span>
-        <FitChip score={b.fit} suffix="" />
-      </span>
-      <span className="capiro-intel-bill-title">{b.title}</span>
-      <span className="capiro-intel-bill-meta">{b.latest}</span>
-    </button>
-  );
-}
-
-function BillTable() {
-  return (
-    <div>
-      {BILLS.map((r) => (
-        <button key={r.number} type="button" className="capiro-intel-table-row">
-          <span className="capiro-intel-table-num">{r.number}</span>
-          <span className="capiro-intel-table-main">
-            <span className="capiro-intel-table-title">{r.title}</span>
-            <span className="capiro-intel-table-sub">{r.latest}</span>
-          </span>
-          <span className="capiro-intel-table-stage">{r.stage}</span>
-          <span className="capiro-intel-table-end-56">
-            <FitChip score={r.fit} suffix="" />
           </span>
         </button>
       ))}
