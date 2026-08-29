@@ -414,8 +414,8 @@
   white-space: nowrap;
   padding: 4px 8px;
   border-radius: 6px;
-  background: var(--capiro-color-bg-interactive-primary, #131a24);
-  color: var(--capiro-color-text-inverse-primary, #ffffff);
+  background: var(--capiro-color-bg-interactive-primary);
+  color: var(--capiro-color-text-inverse-primary);
   font-family: var(--capiro-type-family-sans);
   font-size: 12px;
   line-height: 18px;
@@ -434,10 +434,27 @@
   background: currentColor;
   flex-shrink: 0;
 }
+/*
+ * No literal fallbacks on any var() in this file.
+ *
+ * It is the one component stylesheet the foundation contract holds to a
+ * zero-literal rule, and the fallbacks that used to be here had gone stale
+ * against the warm remap and the v3 brand correction — `--uui-gray-100` fell
+ * back to #f2f0eb for a token that is #f2f4f7, and `--uui-brand-solid` to the
+ * Slate purple untitled-ui-tokens.css says was never meant to ship. A fallback
+ * that fires is therefore a bug, not a safety net.
+ *
+ * They also cannot fire. `--capiro-*` is declared on `.capiro-vnext-root` and
+ * `--uui-*` on `.capiro-vnext-uui`, which wraps `<main className="uui-content">
+ * {children}</main>` in shell/AppShellUui — so every routed page, and every
+ * primitive it renders, sits inside both. Nothing in components/ portals out
+ * (no `createPortal` anywhere in this directory), and every rule below is
+ * scoped to `.capiro-vnext-root` regardless.
+ */
 .capiro-vnext-root .capiro-badge--neutral {
-  background: var(--uui-gray-100, #f2f0eb);
+  background: var(--uui-gray-100);
   color: var(--capiro-color-text-secondary);
-  border-color: var(--uui-gray-200, #e8e5df);
+  border-color: var(--uui-gray-200);
 }
 
 /* ── CapiroTableSortHeader ──────────────────────────────────────────────────*/
@@ -472,10 +489,10 @@
   color: var(--capiro-color-text-muted);
 }
 .capiro-vnext-root .capiro-feedback--no-access .capiro-feedback__illustration {
-  color: var(--uui-warning-fg, #b54708);
+  color: var(--uui-warning-fg);
 }
 .capiro-vnext-root .capiro-feedback--first-use .capiro-feedback__illustration {
-  color: var(--uui-brand-solid, #444ce7);
+  color: var(--uui-brand-solid);
 }
 
 /* ── SegmentedControl ───────────────────────────────────────────────────────

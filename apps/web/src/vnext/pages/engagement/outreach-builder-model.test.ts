@@ -428,3 +428,56 @@ describe('campaign type also writes the strategy', () => {
     expect(types).toContain('SET_LENGTH');
   });
 });
+
+describe('criteria never violates the spec vocabulary', () => {
+  // The whole accept is rejected as OUTREACH_COMMAND_INVALID if any value
+  // falls outside the server's enums — which is what a Directory `chamber`
+  // (free-form VarChar) and a manual locator's `governmentLevel: 'unknown'`
+  // both do.
+  const odd = target({
+    targetKey: 'manual:x',
+    locator: { source: 'manual', id: 'x' },
+    jurisdiction: {
+      governmentLevel: 'unknown',
+      chamber: 'House of Representatives',
+      state: '   ',
+      district: null,
+      committees: ['', 'House Armed Services'],
+      issueAreas: [],
+    },
+  });
+
+  it('drops jurisdiction values the schema has no word for', () => {
+    const value = (
+      outreachGenerationSpecCommands(session({ criteria: null }), [odd], 'send_update')
+        .find((c) => c.type === 'SET_TARGET_CRITERIA')?.payload as {
+        value?: Record<string, unknown>;
+      }
+    ).value!;
+    expect(value['governmentLevels']).toEqual([]);
+    expect(value['chambers']).toEqual([]);
+    expect(value['states']).toEqual([]);
+    expect(value['committees']).toEqual(['House Armed Services']);
+  });
+
+  it('lower-cases a chamber the Directory capitalised', () => {
+    const cap = target({
+      jurisdiction: {
+        governmentLevel: 'federal',
+        chamber: 'Senate',
+        state: 'TX',
+        district: null,
+        committees: [],
+        issueAreas: [],
+      },
+    });
+    const value = (
+      outreachGenerationSpecCommands(session({ criteria: null }), [cap], 'send_update')
+        .find((c) => c.type === 'SET_TARGET_CRITERIA')?.payload as {
+        value?: Record<string, unknown>;
+      }
+    ).value!;
+    expect(value['chambers']).toEqual(['senate']);
+    expect(value['governmentLevels']).toEqual(['federal']);
+  });
+});

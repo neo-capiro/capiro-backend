@@ -63,7 +63,12 @@ describe('vNext foundation contract', () => {
 
   it('keeps visual color literals in the semantic token layer rather than component CSS', () => {
     for (const path of componentCssFiles) {
-      const css = readFileSync(fromVNext(path), 'utf8');
+      // Declarations only. A comment explaining why a literal does not belong
+      // in component CSS has to be able to name the literal; this rule is
+      // about what the browser renders, not about prose.
+      const css = readFileSync(fromVNext(path), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
+      // Non-vacuity: stripping comments must not leave nothing to check.
+      expect(css).toMatch(/\.capiro-vnext-root/);
       expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
       expect(css).not.toMatch(/rgba?\s*\(/i);
     }
