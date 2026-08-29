@@ -54,7 +54,7 @@ function dwExpected(sourceFamily: CatalogExpectedSource['sourceFamily']): Catalo
 }
 
 describe('CatalogSourceDiscoveryAdapter', () => {
-  it('resolves the FY24 pb_r1 DW expected source into exactly one candidate', async () => {
+  it('resolves the FY24 pb_r1 DW expected source into exactly one candidate, on the current preferred (successor) host', async () => {
     const registry = new SourceAdapterRegistry();
     const catalog = new InMemoryCatalog([dwExpected('pb_r1')]);
     const adapter = new CatalogSourceDiscoveryAdapter(registry, catalog, { fiscalYears: [2024] });
@@ -66,9 +66,17 @@ describe('CatalogSourceDiscoveryAdapter', () => {
     });
 
     assert.equal(result.candidates.length, 1);
+    // Phase 10B-6A: dod-comptroller's registry entry now declares
+    // preferredRetrievalHost: 'comptroller.war.gov' (the publisher's live
+    // successor host — comptroller.defense.gov now answers every path with
+    // an Akamai 403). New catalog-driven discovery resolves onto the
+    // preferred host; comptroller.defense.gov remains a valid, accepted
+    // officialHosts entry for historical provenance only (see the
+    // dedicated source-adapter-comptroller-host-migration.spec.ts for the
+    // full accept/reject matrix on both hosts).
     assert.equal(
       result.candidates[0]?.url,
-      'https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
+      'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2024/FY2024_r1.pdf',
     );
     assert.equal(result.cursor.seen, 1);
     assert.equal(adapter.lastOutcomes.length, 1);

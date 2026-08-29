@@ -20,6 +20,18 @@ export interface OfficialSourceAdapter {
   readonly publisher: string;
   /** Hosts whose bytes may become authoritative funding evidence. */
   readonly officialHosts: readonly string[];
+  /**
+   * When a publisher has migrated its live delivery host (e.g.
+   * comptroller.defense.gov -> comptroller.war.gov), this names which
+   * `officialHosts` entry NEW catalog-driven retrieval should prefer. It is
+   * threaded straight through to `resolveExpectedSourceDocument`'s existing
+   * `preferredCatalogHost` option — this field does not gate anything by
+   * itself; `officialHosts` remains the single source of truth for which
+   * hosts may ever become authoritative evidence, including historical ones
+   * that are no longer preferred. Omit to keep the resolver's default
+   * (`officialHosts[0]`).
+   */
+  readonly preferredRetrievalHost?: string;
   readonly discoveryMode: AdapterDiscoveryMode;
   /**
    * `false` marks a discovery-hint-only adapter. Session 7 registers none, but
@@ -43,7 +55,22 @@ const ADAPTERS: readonly OfficialSourceAdapter[] = Object.freeze([
   {
     adapterId: 'dod-comptroller',
     publisher: 'Office of the Under Secretary of Defense (Comptroller)',
-    officialHosts: ['comptroller.defense.gov'],
+    // Phase 10B-6A: the publisher migrated its live delivery host from
+    // comptroller.defense.gov to comptroller.war.gov (confirmed live
+    // 2026-08-28 — the .defense.gov host now answers every path, including
+    // the bare root, with an Akamai 403; .war.gov serves the identical
+    // FY2024 R-1 exhibit as a real application/pdf response). BOTH hosts
+    // are listed as first-party OUSD(C) publisher hosts: .defense.gov stays
+    // first so it remains valid provenance for any historical
+    // observation/candidate already anchored to it, and the resolver's
+    // `preferredCatalogHost` mechanism (not a second adapter, not a
+    // rewrite of this array's order-as-default) is what actually steers
+    // NEW catalog retrieval onto .war.gov. Do not remove .defense.gov from
+    // this list merely because it is currently unreachable — a publisher
+    // host coming back online later must not become an unknown host to
+    // historical provenance.
+    officialHosts: ['comptroller.defense.gov', 'comptroller.war.gov'],
+    preferredRetrievalHost: 'comptroller.war.gov',
     discoveryMode: 'index_page',
     authoritative: true,
     minRequestIntervalMs: 2_000,
@@ -179,7 +206,9 @@ const ADAPTERS: readonly OfficialSourceAdapter[] = Object.freeze([
   {
     adapterId: 'dod-comptroller-reprogramming',
     publisher: 'Office of the Under Secretary of Defense (Comptroller)',
-    officialHosts: ['comptroller.defense.gov'],
+    // Same publisher, same host migration as the `dod-comptroller` entry
+    // above — see that entry's comment for the full rationale.
+    officialHosts: ['comptroller.defense.gov', 'comptroller.war.gov'],
     discoveryMode: 'index_page',
     authoritative: true,
     minRequestIntervalMs: 2_000,

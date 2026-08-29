@@ -151,6 +151,7 @@ async function main() {
       dedupKey: row.dedup_key,
     },
     officialHosts: adapter.officialHosts,
+    preferredCatalogHost: adapter.preferredRetrievalHost,
   });
 
   console.log(`[phase10b5-discover] outcome=${resolution.outcome}`);
