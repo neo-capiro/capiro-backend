@@ -41,6 +41,9 @@ test('synthesizes exact one-shot command and no EventBridge schedule', () => {
   assert.equal(taskDefs.length, 1);
   const task: any = taskDefs[0];
   assert.deepEqual(task.Properties.ContainerDefinitions[0].Command, ['drain-defense-budget-ingestion-outbox-v1']);
+  // API image is ARM64; unset platform defaults Fargate to X86_64 (exec format error).
+  assert.equal(task.Properties.RuntimePlatform?.CpuArchitecture, 'ARM64');
+  assert.equal(task.Properties.RuntimePlatform?.OperatingSystemFamily, 'LINUX');
   const rendered = JSON.stringify(template.toJSON());
   assert.ok(!rendered.includes('PROMOTER_DATABASE_URL'));
 });
@@ -106,6 +109,9 @@ test('S3 object-level permissions are object-scoped to the named buckets and art
   assert.ok(rawActions.includes('s3:GetObject'));
   assert.ok(rawActions.includes('s3:GetObjectVersion'));
   assert.ok(rawActions.includes('s3:PutObject'));
+  // Object Lock GOVERNANCE default retention on the raw bucket requires this
+  // on every PutObject even when the app never calls PutObjectRetention itself.
+  assert.ok(rawActions.includes('s3:PutObjectRetention'));
 
   const extractionStatement = objectStatements.find((s) =>
     resourceStringsOf(s).some((r) => r.includes('artifact-bucket/phase10/parser-artifacts/*')),

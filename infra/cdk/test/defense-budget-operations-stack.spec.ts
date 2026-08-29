@@ -112,6 +112,12 @@ test('extraction bucket env + exact artifact prefix + ephemeral parser scratch a
   assert.equal(byName.get('BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_PREFIX'), 'phase10/parser-artifacts');
   assert.equal(byName.get('BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT'), '/tmp/defense-budget-parser-scratch');
   assert.equal(byName.get('DEFENSE_BUDGET_RAW_BUCKET'), 'capiro-defense-budget-raw-dev-000000000000');
+  // Layered drain image path for uv + apps/defense-budget-parser (API image has neither).
+  assert.equal(byName.get('DEFENSE_BUDGET_PARSER_PROJECT_DIR'), '/defense-budget-parser');
+  assert.equal(byName.get('UV_CACHE_DIR'), '/tmp/uv-cache');
+  assert.equal(byName.get('UV_PROJECT'), '/defense-budget-parser');
+  assert.equal(byName.get('XDG_CACHE_HOME'), '/tmp');
+  assert.equal(byName.get('DEFENSE_BUDGET_RAW_KMS_KEY_ARN'), 'arn:aws:kms:us-east-1:000000000000:key/data-key-id');
 });
 
 test('GetObjectVersion is present for both the raw bucket and the extraction prefix (object-level statements)', () => {

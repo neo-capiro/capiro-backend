@@ -110,6 +110,31 @@ describe('parser-runtime-contract-v1', () => {
       bad.contentSha256 = realSha2;
       expect(() => parserRuntimeResultV1Schema.parse(bad)).toThrow();
     });
+
+    it('accepts Python-style JSON null on optional page/metrics fields', () => {
+      // Live pdfplumber engines emit null (Pydantic Optional) rather than
+      // omitting keys. Zod .optional() rejects null; .nullish() is required.
+      const result = fixtures.valid_result as Record<string, unknown>;
+      const pages = (result.pages as Record<string, unknown>[]).map((page) => ({
+        ...page,
+        rotation: null,
+        markdown: null,
+        printedPage: null,
+        confidence: null,
+        text: page.text ?? null,
+      }));
+      const metrics = {
+        ...((result.metrics as Record<string, unknown>) ?? {}),
+        modelVersions: null,
+      };
+      const withNulls: Record<string, unknown> = { ...result, pages, metrics };
+      const { contentSha256: _ignored, ...rest } = withNulls;
+      const realSha = computeResultContentSha256(rest as never);
+      const parsed = parseParserRuntimeResultV1({ ...rest, contentSha256: realSha });
+      expect(parsed.pages[0]!.rotation ?? null).toBeNull();
+      expect(parsed.pages[0]!.markdown ?? null).toBeNull();
+      expect(parsed.metrics.modelVersions ?? null).toBeNull();
+    });
   });
 
   /* A4: Page failure contract */

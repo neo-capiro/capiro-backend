@@ -1,18 +1,26 @@
 import type { PrismaClient } from '@prisma/client';
 import { PrismaParserRunRecorder } from './prisma-parser-run-recorder.js';
 
-function fakePrisma(input?: { existing?: Record<string, unknown> }) {
-  const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
-    id: 'parse-job-created',
-    ...data,
-  }));
+function fakePrisma(input?: {
+  existing?: Record<string, unknown>;
+  createError?: unknown;
+  conflictRow?: Record<string, unknown>;
+}) {
+  const create = jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+    if (input?.createError) throw input.createError;
+    return { id: 'parse-job-created', ...data };
+  });
   const findMany = jest.fn(async () => (input?.existing ? [input.existing] : []));
+  const findFirst = jest.fn(async () => input?.conflictRow ?? null);
+  const update = jest.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id }));
   return {
     client: {
-      documentParseJob: { findMany, create },
+      documentParseJob: { findMany, create, findFirst, update },
     } as unknown as PrismaClient,
     create,
     findMany,
+    findFirst,
+    update,
   };
 }
 
@@ -90,5 +98,34 @@ describe('PrismaParserRunRecorder', () => {
         pageEnd: undefined,
       }),
     ).rejects.toThrow(/page set/);
+  });
+
+  it('upserts on P2002 unique conflict instead of failing the handoff retry', async () => {
+    // Live canary: prior partial handoff already owns
+    // (source_document_id, input_sha256, provider, page_start, page_end).
+    const prisma = fakePrisma({
+      createError: { code: 'P2002', meta: { target: ['source_document_id', 'input_sha256'] } },
+      conflictRow: { id: 'conflict-parse-job' },
+    });
+    const recorder = new PrismaParserRunRecorder(prisma.client);
+    expect(await recorder.record(recordInput)).toEqual({ parseJobId: 'conflict-parse-job' });
+    expect(prisma.create).toHaveBeenCalled();
+    expect(prisma.findFirst).toHaveBeenCalled();
+    expect(prisma.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'conflict-parse-job' },
+        data: expect.objectContaining({
+          status: 'succeeded',
+          outputJsonS3Key: recordInput.outputLocator,
+        }),
+      }),
+    );
+  });
+
+  it('rethrows non-unique create failures', async () => {
+    const prisma = fakePrisma({ createError: { code: 'P2025', message: 'other' } });
+    const recorder = new PrismaParserRunRecorder(prisma.client);
+    await expect(recorder.record(recordInput)).rejects.toMatchObject({ code: 'P2025' });
+    expect(prisma.update).not.toHaveBeenCalled();
   });
 });
