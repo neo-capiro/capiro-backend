@@ -102,12 +102,18 @@ modes:
   backfill-run     --fiscal-years 2024,... [--commit] [--max-adapters N] [--adapters a,b]
   lifecycle-watch  --adapter <id> [--commit] [--manifest <path>]
                    [--source-discovery manifest|catalog] [--catalog-fiscal-years 2024]
+                   [--expected-source-id <uuid>]
                      manifest (default): network-free, requires --manifest or discovers nothing.
                      catalog: Phase 10B-5 bounded one-shot activation of
                        CatalogSourceDiscoveryAdapter for THIS invocation only -- reads the real
                        expected-source table (request track only, scoped to --catalog-fiscal-years),
                        requires --commit. Does NOT change the module-level SOURCE_DISCOVERY_PORT
                        default used by any other process/mode.
+                     --expected-source-id: Phase 10B-6 one-source-boundedness selector, catalog
+                       mode only. --adapter + --catalog-fiscal-years alone can resolve MULTIPLE
+                       expected sources at once (e.g. dod-comptroller/FY2024 has 5 DW families).
+                       Pass the exact expected-source UUID to narrow discovery to that single row;
+                       omit it to keep prior (all-matching-rows) behavior unchanged.
   schedule-tick    [--commit]
   db-check                                        read-only
   egress-check     [--hosts a,b]                  read-only
@@ -747,6 +753,19 @@ async function runLifecycleWatch() {
     );
   }
   const catalogFiscalYears = catalogFiscalYearsRaw ? parseFiscalYears(catalogFiscalYearsRaw) : [];
+  const expectedSourceId = value('expected-source-id') || null;
+  if (expectedSourceId && sourceMode !== 'catalog') {
+    throw new JobPreflightError(
+      '--expected-source-id is only meaningful with --source-discovery catalog',
+      64,
+    );
+  }
+  if (expectedSourceId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedSourceId)) {
+    throw new JobPreflightError(
+      `--expected-source-id must be a UUID, got "${expectedSourceId}"`,
+      64,
+    );
+  }
   assertCommitAuthorised({ mode, commit });
 
   const { AnnualDefenseBudgetCycleController } = dist('annual-cycle-controller.service.js');
@@ -767,6 +786,7 @@ async function runLifecycleWatch() {
         adapter: adapterId,
         sourceDiscovery: sourceMode,
         ...(sourceMode === 'catalog' ? { catalogFiscalYears: catalogFiscalYears.join(',') } : {}),
+        ...(expectedSourceId ? { expectedSourceId } : {}),
       },
     });
     prisma = openPrisma(identity);
@@ -807,9 +827,11 @@ async function runLifecycleWatch() {
     const catalogPort = new PrismaExpectedSourceCatalog(prisma);
     discovery = new CatalogSourceDiscoveryAdapter(registry, catalogPort, {
       fiscalYears: catalogFiscalYears,
+      expectedSourceId,
     });
     console.log(
       `[phase9-lifecycle-watch] source-discovery=catalog fiscalYears=${catalogFiscalYears.join(',')} ` +
+        `${expectedSourceId ? `expectedSourceId=${expectedSourceId} (Phase 10B-6 single-source selector active) ` : ''}` +
         '(bounded one-shot; module-level SOURCE_DISCOVERY_PORT default untouched)',
     );
   } else {
