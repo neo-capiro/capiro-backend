@@ -10,6 +10,8 @@ import {
 } from './outreach-campaign-flow.js';
 import {
   OUTREACH_FORMAT_MARKER,
+  OUTREACH_TEMPLATE_MARKER,
+  OUTREACH_TEMPLATE_OPTIONS_MARKER,
   OUTREACH_UNWIRED_CONTROLS,
   outreachBlockedTargets,
   outreachCampaignFacts,
@@ -25,6 +27,7 @@ import {
   outreachSponsorFromSpec,
   outreachTargetIsSendable,
   outreachGenerationSpecCommands,
+  outreachTypeChangeInvalidationCommands,
 } from './outreach-builder-model.js';
 
 function guidanceRef(title: string): OutreachV3ResolvedContextRef {
@@ -240,6 +243,50 @@ describe('email format marker', () => {
     expect(outreachGuidanceRefsWithMarker(spec, OUTREACH_FORMAT_MARKER)).toHaveLength(1);
     expect(outreachGuidanceRefsWithMarker(spec, 'Campaign subject line')).toHaveLength(1);
     expect(outreachGuidanceRefsWithMarker(null, OUTREACH_FORMAT_MARKER)).toEqual([]);
+  });
+});
+
+describe('type-change invalidation', () => {
+  // Observed live: switching an existing "send update" campaign to Custom left
+  // its `Update template — Hearings & markup week-ahead` ref active. Nothing
+  // in the Custom flow revisits or supersedes it (Custom's own Template step
+  // has no template to confirm), so `outreachContextSelectedTemplate` kept
+  // resolving it, and the Context step kept rendering that stale template's
+  // ten options — with the Sources panel a real Custom campaign should show
+  // hidden behind them.
+  it('supersedes the template, format, and per-template-option markers a type switch leaves behind', () => {
+    const spec = session({
+      writingGuidanceRefs: [
+        guidanceRef(`${OUTREACH_TEMPLATE_MARKER}Hearings & markup week-ahead`),
+        guidanceRef(`${OUTREACH_FORMAT_MARKER} · Briefing card`),
+        guidanceRef(`${OUTREACH_TEMPLATE_OPTIONS_MARKER} · Hearings & markup week-ahead`),
+        guidanceRef('Campaign subject line'),
+      ],
+    });
+    const commands = outreachTypeChangeInvalidationCommands(spec);
+    expect(commands).toHaveLength(1);
+    const payload = commands[0]?.payload as { refs: Array<{ contextKey: string; reason: string }> };
+    const excludedKeys = payload.refs.map((ref) => ref.contextKey).sort();
+    expect(excludedKeys).toEqual(
+      [
+        `ctx:${OUTREACH_TEMPLATE_MARKER}Hearings & markup week-ahead`,
+        `ctx:${OUTREACH_FORMAT_MARKER} · Briefing card`,
+        `ctx:${OUTREACH_TEMPLATE_OPTIONS_MARKER} · Hearings & markup week-ahead`,
+      ].sort(),
+    );
+    expect(payload.refs.every((ref) => ref.reason === 'superseded')).toBe(true);
+    // The subject line is the campaign's name, not its type — it stays.
+    expect(excludedKeys).not.toContain('ctx:Campaign subject line');
+  });
+
+  it('does nothing when the campaign never wrote any of those markers', () => {
+    expect(outreachTypeChangeInvalidationCommands(session({}))).toEqual([]);
+    expect(
+      outreachTypeChangeInvalidationCommands(
+        session({ writingGuidanceRefs: [guidanceRef('Campaign subject line')] }),
+      ),
+    ).toEqual([]);
+    expect(outreachTypeChangeInvalidationCommands(null)).toEqual([]);
   });
 });
 

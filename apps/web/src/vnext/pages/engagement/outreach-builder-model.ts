@@ -36,6 +36,7 @@ import type {
 } from '../../../pages/engagement/outreach/v3/contracts.js';
 import {
   deliveryCommands,
+  excludeContextCommand,
   goalCommands,
   strategyCommands,
   targetCriteriaCommand,
@@ -156,6 +157,14 @@ export function outreachGoalCommandsFor(
 export const OUTREACH_SUBJECT_MARKER = 'Campaign subject line';
 export const OUTREACH_FORMAT_MARKER = 'Campaign email format';
 export const OUTREACH_TEMPLATE_OPTIONS_MARKER = 'Campaign template options';
+/**
+ * Was a private, independently-duplicated literal in both
+ * `outreach-step-template.tsx` (`TEMPLATE_GUIDANCE_MARKER`) and
+ * `outreach-step-context.tsx` (`UPDATE_TEMPLATE_MARKER`). Exported so
+ * `outreachTypeChangeInvalidationCommands` below can supersede it without a
+ * third copy of the string drifting from the other two.
+ */
+export const OUTREACH_TEMPLATE_MARKER = 'Update template — ';
 
 export function outreachCampaignNameFromSpec(
   session: OutreachV3SessionEnvelope | null,
@@ -179,6 +188,43 @@ export function outreachGuidanceRefsWithMarker(
   marker: string,
 ): OutreachV3ResolvedContextRef[] {
   return writingGuidanceRefs(session).filter((ref) => ref.title.startsWith(marker));
+}
+
+/**
+ * Excludes every writing-guidance ref that only makes sense for the campaign
+ * type being LEFT, so a type switch cannot leave a stale marker behind for a
+ * later step to read back as if it still applied.
+ *
+ * Observed live: switching an existing campaign from an update-style type to
+ * Custom left its old template selection's `Update template — …` ref active.
+ * Nothing in the Custom flow ever revisits or supersedes that ref (Custom's
+ * own Template step has no template to confirm), so
+ * `outreachContextSelectedTemplate` kept resolving it, and the Context step
+ * kept rendering that stale template's ten options — with the "Sources"
+ * panel any OTHER context would use hidden behind them, since a step reads
+ * `optionSet` from whatever template resolves, real or stale. Generation
+ * would have kept following those options too: a writing-guidance ref is
+ * unconditionally usable evidence for the writer, with no server-side notion
+ * of "the template that wrote this is no longer selected."
+ *
+ * The subject-line marker is deliberately NOT included — a campaign's name
+ * does not become invalid when its type changes; the Name step's own save
+ * keeps that one current.
+ */
+export function outreachTypeChangeInvalidationCommands(
+  session: OutreachV3SessionEnvelope | null,
+): OutreachV3Command[] {
+  const stale = [
+    ...outreachGuidanceRefsWithMarker(session, OUTREACH_TEMPLATE_MARKER),
+    ...outreachGuidanceRefsWithMarker(session, OUTREACH_FORMAT_MARKER),
+    ...outreachGuidanceRefsWithMarker(session, OUTREACH_TEMPLATE_OPTIONS_MARKER),
+  ];
+  if (stale.length === 0) return [];
+  return [
+    excludeContextCommand(
+      stale.map((ref) => ({ contextKey: ref.contextKey, reason: 'superseded' as const })),
+    ),
+  ];
 }
 
 /**

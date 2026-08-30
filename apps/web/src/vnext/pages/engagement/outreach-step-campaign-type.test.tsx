@@ -1,13 +1,18 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { OutreachCampaignTypeStep } from './outreach-step-campaign-type.js';
-import type { OutreachBuilderStepCommon } from './outreach-builder-model.js';
+import {
+  OUTREACH_FORMAT_MARKER,
+  OUTREACH_TEMPLATE_MARKER,
+  type OutreachBuilderStepCommon,
+} from './outreach-builder-model.js';
 import {
   OUTREACH_BUILDER_STEP_SUBLINES,
   OUTREACH_BUILDER_STEP_TITLES,
 } from './outreach-campaign-flow.js';
 import type {
   OutreachV3Command,
+  OutreachV3ResolvedContextRef,
   OutreachV3SessionEnvelope,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
 
@@ -17,7 +22,27 @@ import type {
  * subject line for a campaign the user has not named yet.
  */
 
-function session(topic: string | null): OutreachV3SessionEnvelope {
+function guidanceRef(title: string): OutreachV3ResolvedContextRef {
+  return {
+    contextKey: `ctx:${title}`,
+    locator: { source: 'manual', id: title },
+    contextClass: 'writing_guidance',
+    scope: { kind: 'campaign' },
+    title,
+    summary: '',
+    verificationClass: 'user_supplied',
+    sensitivity: 'normal',
+    instructionsAllowed: true,
+    usableAsEvidence: false,
+    usableAsWritingGuidance: true,
+    snapshotHash: 'hash',
+  };
+}
+
+function session(
+  topic: string | null,
+  writingGuidanceRefs: OutreachV3ResolvedContextRef[] = [],
+): OutreachV3SessionEnvelope {
   return {
     session: { id: 'session-1', title: 'New outreach campaign', status: 'active' },
     currentStateVersion: 1,
@@ -39,7 +64,7 @@ function session(topic: string | null): OutreachV3SessionEnvelope {
       delivery: { pattern: 'undecided', personalization: 'undecided' },
       context: {
         requiredPolicyRefs: [],
-        writingGuidanceRefs: [],
+        writingGuidanceRefs,
         campaignFactRefs: [],
         targetSpecificRefs: [],
         groupSafeRefs: [],
@@ -154,6 +179,45 @@ describe('OutreachCampaignTypeStep', () => {
     expect(payloadValue(commands, 'SET_GOAL')).toBe('Request a meeting');
     // The name already on the spec is reused verbatim, never regenerated.
     expect(payloadValue(commands, 'SET_TOPIC')).toBe('FY27 Ground Robotics');
+  });
+
+  it('supersedes a stale template/format marker when the type actually changes', async () => {
+    // Observed live: switching an existing "send update" campaign to Custom
+    // left its old template's marker active, and the Context step kept
+    // rendering that template's options instead of Custom's Sources panel.
+    const withStaleMarkers = session('FY27 Ground Robotics', [
+      guidanceRef(`${OUTREACH_TEMPLATE_MARKER}Hearings & markup week-ahead`),
+      guidanceRef(`${OUTREACH_FORMAT_MARKER} · Briefing card`),
+    ]);
+    const step = props({ session: withStaleMarkers, campaignType: 'send_update' });
+    render(<OutreachCampaignTypeStep {...step} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /^Custom/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Custom' }));
+
+    await waitFor(() => expect(step.onNext).toHaveBeenCalledTimes(1));
+    const commands = commandsFrom(step.applyCommands);
+    const exclude = commands.find((command) => command.type === 'EXCLUDE_CONTEXT_REFS');
+    expect(exclude).toBeDefined();
+    const refs = (exclude?.payload as { refs: Array<{ contextKey: string }> }).refs;
+    expect(refs.map((ref) => ref.contextKey).sort()).toEqual(
+      [
+        `ctx:${OUTREACH_TEMPLATE_MARKER}Hearings & markup week-ahead`,
+        `ctx:${OUTREACH_FORMAT_MARKER} · Briefing card`,
+      ].sort(),
+    );
+  });
+
+  it('writes no exclude command when the type is unchanged, even with old markers present', () => {
+    const withStaleMarkers = session('FY27 Ground Robotics', [
+      guidanceRef(`${OUTREACH_TEMPLATE_MARKER}Hearings & markup week-ahead`),
+    ]);
+    const step = props({ session: withStaleMarkers, campaignType: 'send_update' });
+    render(<OutreachCampaignTypeStep {...step} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Send update' }));
+
+    expect(step.applyCommands).not.toHaveBeenCalled();
   });
 
   it('stores only the campaign type when the campaign has no name yet', async () => {

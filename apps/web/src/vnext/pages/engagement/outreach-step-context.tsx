@@ -54,6 +54,7 @@ import type {
 } from '../../../pages/engagement/outreach/v3/contracts.js';
 import { outreachCampaignTypeLabel } from './outreach-campaign-flow.js';
 import {
+  OUTREACH_TEMPLATE_MARKER,
   OUTREACH_TEMPLATE_OPTIONS_MARKER,
   OUTREACH_UNWIRED_CONTROLS,
   outreachCampaignNameFromSpec,
@@ -610,8 +611,15 @@ export function outreachContextOptionsFromText(
  * the choice — so the title is what this matches on. A skeleton template writes
  * no such ref and correctly resolves to null: it carries no options, exactly as
  * the prototype's meeting-request template carries no knobs.
+ *
+ * Imported from `outreach-builder-model` rather than declared here — it used
+ * to be a second, independent copy of the same literal as
+ * `outreach-step-template.tsx`'s writer, which is how a stale template
+ * selection survived a campaign-type change: nothing outside these two files
+ * could name the marker to supersede it. See
+ * `outreachTypeChangeInvalidationCommands`.
  */
-const UPDATE_TEMPLATE_MARKER = 'Update template — ';
+const UPDATE_TEMPLATE_MARKER = OUTREACH_TEMPLATE_MARKER;
 
 export function outreachContextSelectedTemplate(
   session: OutreachV3SessionEnvelope | null,

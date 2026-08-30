@@ -7,6 +7,7 @@ import {
 import {
   outreachCampaignNameFromSpec,
   outreachGoalCommandsFor,
+  outreachTypeChangeInvalidationCommands,
   type OutreachBuilderStepCommon,
 } from './outreach-builder-model.js';
 import './outreach-step-campaign-type.css';
@@ -75,10 +76,17 @@ export function OutreachCampaignTypeStep(props: OutreachBuilderStepCommon): JSX.
     // set it, so they share `outreachGoalCommandsFor` — otherwise a custom
     // campaign's `goal.goal` says something different depending on which of
     // the two the user touched last, and the type read back changes with it.
-    const commands = outreachGoalCommandsFor(
-      selected,
-      outreachCampaignNameFromSpec(props.session),
-    );
+    //
+    // A type change also invalidates whatever template/format/per-template
+    // options the OLD type wrote: switching to "Request a meeting" makes a
+    // stale Format marker linger unread but still fed to the writer, and
+    // switching to "Custom" leaves a stale template marker that the Context
+    // step keeps resolving — rendering that old template's options and
+    // hiding the Sources panel a Custom campaign should show instead.
+    const commands = [
+      ...outreachGoalCommandsFor(selected, outreachCampaignNameFromSpec(props.session)),
+      ...outreachTypeChangeInvalidationCommands(props.session),
+    ];
 
     setSaving(true);
     try {

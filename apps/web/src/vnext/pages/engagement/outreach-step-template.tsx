@@ -38,7 +38,10 @@ import {
   outreachSkipsFormatStep,
   outreachTemplateStepLabel,
 } from './outreach-campaign-flow.js';
-import type { OutreachBuilderStepCommon } from './outreach-builder-model.js';
+import {
+  OUTREACH_TEMPLATE_MARKER,
+  type OutreachBuilderStepCommon,
+} from './outreach-builder-model.js';
 import {
   contentTemplateContextSelection,
   contentTemplatesForWorkflow,
@@ -63,9 +66,11 @@ import './outreach-step-template.css';
  * it writes. Reading the selection back by that prefix is how a skeleton-less
  * template survives a reload; the command engine copies `locator.title` onto
  * the resolved ref verbatim, which is the same mechanism the format and
- * subject-line markers already rely on.
+ * subject-line markers already rely on. Imported from `outreach-builder-model`
+ * rather than declared here — it used to be a second, independent copy of the
+ * same literal as `outreach-step-context.tsx`'s reader.
  */
-const TEMPLATE_GUIDANCE_MARKER = 'Update template — ';
+const TEMPLATE_GUIDANCE_MARKER = OUTREACH_TEMPLATE_MARKER;
 
 /** The row label for a structure the user wrote, when they gave it no name. */
 const AUTHORED_FALLBACK_NAME = 'Your own structure';
