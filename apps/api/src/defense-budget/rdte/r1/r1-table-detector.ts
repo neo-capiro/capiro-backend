@@ -47,7 +47,7 @@ export function detectR1TablesOnPage(page: ParserPageResultV1): R1DetectedTable[
   const detected: R1DetectedTable[] = [];
 
   for (const table of page.tables) {
-    const tableResult = analyzeR1Table(page.page, page.printedPage, table);
+    const tableResult = analyzeR1Table(page.page, page.printedPage ?? undefined, table);
     if (tableResult != null) {
       detected.push(tableResult);
     }

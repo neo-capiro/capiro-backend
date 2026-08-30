@@ -181,7 +181,7 @@ const UNIT_RE = /\$?\s*in\s+(?:thousands|millions|dollars)\b|^\s*unit\b/i;
 function detectR2CostTablesOnPage(page: ParserPageResultV1): R2DetectedTable[] {
   const detected: R2DetectedTable[] = [];
   for (const table of page.tables) {
-    const result = analyzeR2Table(page.page, page.printedPage, table);
+    const result = analyzeR2Table(page.page, page.printedPage ?? undefined, table);
     if (result != null) detected.push(result);
   }
   return detected;

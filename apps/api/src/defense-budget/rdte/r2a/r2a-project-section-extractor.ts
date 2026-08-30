@@ -156,7 +156,7 @@ export function extractR2aProjectSectionsFromPage(page: ParserPageResultV1): R2a
       flush();
       currentKind = headerKind;
       currentStartPage = page.page;
-      currentPrintedPage = page.printedPage;
+      currentPrintedPage = page.printedPage ?? undefined;
       const remainder = stripSectionHeader(block, headerKind);
       if (remainder.length > 0) {
         currentTextParts.push(remainder);
