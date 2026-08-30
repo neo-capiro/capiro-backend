@@ -167,8 +167,8 @@ export function extractR1FromPages(input: {
     Array<{
       originalValue: string;
       page: number;
-      sectionHeading?: string;
       budgetActivity?: string;
+      lineNumber?: string;
     }>
   >();
   let usedPositionalFallback = false;
@@ -360,65 +360,107 @@ export function extractR1FromPages(input: {
               : {}),
           };
 
-          /* Duplicate/conflict semantics, keyed by proven source-row
-           * identity (Phase 10B-12): a PE code recurring across pages is
-           * NOT automatically a conflict. Proven against the real 114-page
-           * document (258 cross-page PE codes; zero true same-identity
-           * contradictions found): the same value recurring is a
-           * provenance reprint (e.g. the Defense-Wide roll-up volume
-           * restating an agency's own chapter row) -- deduplicated into a
-           * single funding value, never a second assertion. A different
-           * value recurring under a *different* row identity (section
-           * heading + budget activity -- e.g. PE 0604201F's real BA04 vs
-           * BA05 rows) is a legitimate constituent split, not "automatically
-           * a conflict": both values are kept as independent facts, and
-           * whether/how to reconcile them into one canonical
-           * ProgramElementYear.request is a governed projection-layer
-           * decision (see rdte-projection-planner-v1's duplicate_conflict
-           * exclusion), never resolved here by picking one or summing.
-           * Only a different value recurring under the SAME row identity
-           * (or with no row-identity evidence available at all, e.g. a
-           * structural-table document with no reconstructor context) is a
-           * true blocking conflict. */
+          /* Duplicate/conflict semantics, keyed by proven business-row
+           * identity (Phase 10B-13, correcting a Phase 10B-12 edge case):
+           * a PE code recurring across pages is NOT automatically a
+           * conflict, but neither is "same PE, same dollar value" alone
+           * sufficient to merge -- two legitimate constituent rows can
+           * share a PE and a dollar amount while genuinely differing by
+           * budget activity, and those must remain two distinct facts.
+           *
+           * Row identity is `budgetActivity` (+ `lineNumber` when reliably
+           * present on both sides, for extra distinguishing precision) --
+           * deliberately NOT section heading. Proven empirically against
+           * the real 114-page document's projection-planner dry run: every
+           * one of its ~240 genuine cross-page reprints (the Defense-Wide
+           * roll-up restating an individual agency's own chapter row, e.g.
+           * PE 0303150K's BA08 line 279 printed both in the roll-up and in
+           * DISA's own chapter) matches on budgetActivity+lineNumber
+           * despite printing under two different section headings; the
+           * only 15 PE codes that failed to match were exactly the PE
+           * codes independently proven (from a real budget-activity
+           * subtotal line, for PE 0604201F) to be genuinely split across
+           * two budget activities. Section heading remains pure
+           * provenance metadata (`value.sectionHeading`, set above) -- an
+           * agency chapter and the Defense-Wide roll-up can legitimately
+           * reproduce the exact same source row under different headings,
+           * and using heading as identity would wrongly treat that
+           * reprint as two different rows.
+           *
+           * Decision matrix:
+           *   same row identity + same value      -> deterministic reprint
+           *                                           merge (no 2nd assertion)
+           *   same row identity + different value -> true blocking conflict
+           *   different row identity, any value   -> preserve BOTH facts
+           *                                           (never automatically
+           *                                           a conflict, never merged)
+           *   row identity unknown on either side -> fail closed: never
+           *                                           merge; still conflict
+           *                                           on a value difference
+           *                                           (the original,
+           *                                           identity-blind
+           *                                           behavior for
+           *                                           structural-table
+           *                                           documents with no
+           *                                           reconstructor context)
+           *
+           * Whether/how truthful, un-mergeable constituent rows become one
+           * canonical ProgramElementYear.request is a governed
+           * projection-layer decision (rdte-projection-planner-v1's
+           * duplicate_conflict exclusion), never resolved here by picking
+           * one value or summing. */
           if (fiscalYear != null) {
             const conflictKey = `${peRow.peCode}|${fiscalYear}|${classification.role}`;
             const priorOccurrences = fundingOccurrencesByKey.get(conflictKey) ?? [];
-            const identityKey = (occ: { sectionHeading?: string; budgetActivity?: string }) =>
-              occ.sectionHeading != null && occ.budgetActivity != null
-                ? `${occ.sectionHeading}|${occ.budgetActivity}`
-                : undefined;
-            const thisIdentity = identityKey({
-              sectionHeading: peRow.rowContext?.sectionHeading,
-              budgetActivity: peRow.rowContext?.budgetActivity,
-            });
 
-            const identicalPrior = priorOccurrences.find(
-              (occ) => occ.originalValue === value.originalValue,
+            const rowIdentityMatch = (
+              a: { budgetActivity?: string; lineNumber?: string },
+              b: { budgetActivity?: string; lineNumber?: string },
+            ): boolean | undefined => {
+              if (a.budgetActivity == null || b.budgetActivity == null) return undefined;
+              if (a.budgetActivity !== b.budgetActivity) return false;
+              if (a.lineNumber != null && b.lineNumber != null) {
+                return a.lineNumber === b.lineNumber;
+              }
+              return true; // BA matches; lineNumber not comparable on at least one side
+            };
+            const thisRow = {
+              budgetActivity: peRow.rowContext?.budgetActivity,
+              lineNumber: peRow.rowContext?.lineNumber,
+            };
+
+            const mergeablePrior = priorOccurrences.find(
+              (occ) =>
+                occ.originalValue === value.originalValue &&
+                rowIdentityMatch(thisRow, occ) === true,
             );
-            if (identicalPrior != null) {
-              /* Deterministic duplicate / provenance merge: the same fact,
-               * printed again elsewhere. No second assertion. */
+            if (mergeablePrior != null) {
+              /* Deterministic duplicate / provenance merge: the same
+               * business row, printed again elsewhere. No second
+               * assertion. */
               continue;
             }
 
-            const sameIdentityPrior = priorOccurrences.find((occ) => {
-              const otherIdentity = identityKey(occ);
+            const conflictingPrior = priorOccurrences.find((occ) => {
+              if (occ.originalValue === value.originalValue) return false;
+              const match = rowIdentityMatch(thisRow, occ);
               /* Row identity unknown on either side -> cannot prove they
-               * differ; treat as the same identity (safe default). */
-              if (thisIdentity == null || otherIdentity == null) return true;
-              return otherIdentity === thisIdentity;
+               * differ; fail closed and treat as the same identity. A
+               * *known-different* identity is never automatically a
+               * conflict. */
+              return match === true || match === undefined;
             });
 
             funding.push(value);
             priorOccurrences.push({
               originalValue: value.originalValue,
               page: peRow.page,
-              sectionHeading: peRow.rowContext?.sectionHeading,
               budgetActivity: peRow.rowContext?.budgetActivity,
+              lineNumber: peRow.rowContext?.lineNumber,
             });
             fundingOccurrencesByKey.set(conflictKey, priorOccurrences);
 
-            if (sameIdentityPrior != null) {
+            if (conflictingPrior != null) {
               const existing = conflictMap.get(conflictKey);
               if (existing != null) {
                 if (!existing.values.includes(value.originalValue)) {
@@ -430,8 +472,8 @@ export function extractR1FromPages(input: {
                   peCode: peRow.peCode,
                   fiscalYear,
                   columnRole: classification.role,
-                  values: [sameIdentityPrior.originalValue, value.originalValue],
-                  pages: [sameIdentityPrior.page, peRow.page],
+                  values: [conflictingPrior.originalValue, value.originalValue],
+                  pages: [conflictingPrior.page, peRow.page],
                 });
               }
             }

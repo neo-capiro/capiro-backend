@@ -278,6 +278,44 @@ describe('r1-extractor-v1', () => {
     expect(result.identities).toHaveLength(2); // faithful row-level identity record, unaffected
   });
 
+  it('Phase 10B-13: same PE / different BA / SAME dollar amount -> 2 distinct facts, no silent dedupe', () => {
+    // The Phase 10B-12 dedupe bug: merging purely on value match (ignoring
+    // row identity) would have silently dropped one of these two
+    // legitimate, independent constituent rows just because they happen
+    // to share a dollar figure.
+    const pages = [
+      makeNumberedPage(1, makeRequestTable('0601101A', 'Research', '10,000')),
+      makeNumberedPage(2, makeRequestTable('0601101A', 'Research', '10,000')),
+    ];
+    const rowContextByPage = new Map([
+      [1, new Map([[1, ctx({ sectionHeading: 'Department of the Air Force', budgetActivity: '04', lineNumber: '10' })]])],
+      [2, new Map([[1, ctx({ sectionHeading: 'Department of the Air Force', budgetActivity: '05', lineNumber: '20' })]])],
+    ]);
+    const result = extractR1FromPages({ pages, cycleFiscalYear: CYCLE_FY, rowContextByPage });
+    expect(result.funding).toHaveLength(2); // NOT deduplicated
+    expect(result.funding.map((f) => f.originalValue)).toEqual(['10000', '10000']);
+    expect(result.conflicts).toHaveLength(0); // different identity -- not automatically a conflict either
+  });
+
+  it('Phase 10B-13: reprint across different section headings but SAME budget activity + line number still merges', () => {
+    // Section heading is provenance, not identity: an agency chapter and
+    // the Defense-Wide roll-up can legitimately reproduce the same source
+    // row under different headings (real-source pattern: PE 0303150K's
+    // BA08 line 279, printed identically in both the Defense-Wide roll-up
+    // and DISA's own chapter).
+    const pages = [
+      makeNumberedPage(76, makeRequestTable('0303150K', 'Global Command and Control System', '33,166')),
+      makeNumberedPage(88, makeRequestTable('0303150K', 'Global Command and Control System', '33,166')),
+    ];
+    const rowContextByPage = new Map([
+      [76, new Map([[1, ctx({ sectionHeading: 'Defense-Wide', component: 'DW', budgetActivity: '08', lineNumber: '279' })]])],
+      [88, new Map([[1, ctx({ sectionHeading: 'Defense Information Systems Agency', component: 'DW', budgetActivity: '08', lineNumber: '279' })]])],
+    ]);
+    const result = extractR1FromPages({ pages, cycleFiscalYear: CYCLE_FY, rowContextByPage });
+    expect(result.funding).toHaveLength(1); // merges despite the different heading
+    expect(result.conflicts).toHaveLength(0);
+  });
+
   it('cross-component genuinely different constituent rows -> both kept, not automatically a conflict', () => {
     const pages = [
       makeNumberedPage(1, makeRequestTable('0999999D', 'Shared Initiative', '5,000')),
