@@ -30,8 +30,8 @@ const CONTENT_TYPES = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 } as const;
-const MAX_IN_PROCESS_EXPORTS = 4;
-const MAX_RENDERED_REPORT_BYTES = 32 * 1024 * 1024;
+export const MAX_IN_PROCESS_EXPORTS = 4;
+export const MAX_RENDERED_REPORT_BYTES = 32 * 1024 * 1024;
 export const REPORT_SNAPSHOT_CHANGED = "REPORT_SNAPSHOT_CHANGED";
 
 export interface StrategyReportExportResult {
