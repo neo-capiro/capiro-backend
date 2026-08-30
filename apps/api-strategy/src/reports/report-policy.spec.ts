@@ -48,11 +48,15 @@ describe("executive report policy", () => {
     });
   });
 
-  it("excludes unaccepted suggestions and masks workflow-only status for clients", () => {
+  it("includes only committed delivery states for clients", () => {
     expect(includeNodeForAudience("suggested", "client")).toBe(false);
+    expect(includeNodeForAudience("draft", "client")).toBe(false);
+    expect(includeNodeForAudience("internal_review", "client")).toBe(false);
+    expect(includeNodeForAudience("in_progress", "client")).toBe(true);
+    expect(includeNodeForAudience("active", "client")).toBe(true);
     expect(includeNodeForAudience("suggested", "internal")).toBe(true);
     expect(reportStatusForAudience("internal_review", "client")).toBe(
-      "in_progress",
+      "internal_review",
     );
     expect(reportStatusForAudience("internal_review", "internal")).toBe(
       "internal_review",
@@ -151,6 +155,18 @@ function minimalSnapshot(): ExecutiveReportSnapshot {
       groundedGates: 0,
       overdueNodes: 1,
     },
+    allLiveHealth: {
+      score: 65,
+      label: "Needs attention",
+      coveragePct: 100,
+      groundingPct: 100,
+      timelinessPct: 0,
+      totalNodes: 1,
+      ownedNodes: 1,
+      totalGates: 0,
+      groundedGates: 0,
+      overdueNodes: 1,
+    },
     counts: {
       nodes: 1,
       actions: 1,
@@ -160,14 +176,27 @@ function minimalSnapshot(): ExecutiveReportSnapshot {
       risks: 0,
       artifacts: 0,
     },
+    inclusion: {
+      liveNodes: 1,
+      includedNodes: 1,
+      omittedNodes: 0,
+      includedByStatus: { in_progress: 1 },
+      omittedByStatus: {},
+      placeholderNodes: 0,
+    },
     nodes: [node],
     artifacts: [],
     firmPhases: [],
     referenceWindows: [],
     context: {
       activeDocuments: 0,
+      includedDocuments: 0,
+      excludedDocuments: 0,
       staleDocuments: 0,
       openMaterialConflicts: 0,
+      documents: [],
+      facts: [],
+      sections: [],
     },
     activity: { versions: [], agentRuns: [], changeSets: [] },
     options: {

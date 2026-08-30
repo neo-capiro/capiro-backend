@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -13,10 +14,16 @@ import {
   type ClientLogoReader,
 } from "./client-logo.reader.js";
 import { DocxReportRenderer } from "./docx-report.renderer.js";
-import type { ReportExportDto } from "./dto/report-export.dto.js";
+import type {
+  ReportExportDto,
+  ReportPreflightDto,
+} from "./dto/report-export.dto.js";
 import { PptxReportRenderer } from "./pptx-report.renderer.js";
 import { normalizeReportOptions } from "./report-policy.js";
-import { ReportSnapshotService } from "./report-snapshot.service.js";
+import {
+  reportReadinessErrors,
+  ReportSnapshotService,
+} from "./report-snapshot.service.js";
 import type { ReportPreflight } from "./report.types.js";
 
 const CONTENT_TYPES = {
@@ -25,6 +32,7 @@ const CONTENT_TYPES = {
 } as const;
 const MAX_IN_PROCESS_EXPORTS = 4;
 const MAX_RENDERED_REPORT_BYTES = 32 * 1024 * 1024;
+export const REPORT_SNAPSHOT_CHANGED = "REPORT_SNAPSHOT_CHANGED";
 
 export interface StrategyReportExportResult {
   bytes: Buffer;
@@ -54,9 +62,22 @@ export class StrategyReportService {
   preflight(
     tenantId: string,
     strategyId: string,
-    audience: "client" | "internal" = "client",
+    dto: ReportPreflightDto = {},
   ): Promise<ReportPreflight> {
-    return this.snapshots.preflight(tenantId, strategyId, audience);
+    return this.snapshots.preflight(
+      tenantId,
+      strategyId,
+      normalizeReportOptions({
+        format: dto.format ?? "docx",
+        audience: dto.audience ?? "client",
+        useClientLogo: dto.useClientLogo,
+        includeRoadmap: dto.includeRoadmap,
+        includeEvidenceAppendix: dto.includeEvidenceAppendix,
+        includeChangeLog: dto.includeChangeLog,
+        includeInternalNotes: dto.includeInternalNotes,
+        includeAgentHistory: dto.includeAgentHistory,
+      }),
+    );
   }
 
   async export(
@@ -79,6 +100,7 @@ export class StrategyReportService {
   ): Promise<Omit<StrategyReportExportResult, "release">> {
     const options = normalizeReportOptions(dto);
     const snapshot = await this.snapshots.build(tenantId, strategyId, options);
+    assertExpectedSnapshotHash(dto.expectedSnapshotHash, snapshot.snapshotHash);
     if (snapshot.capacityErrors.length > 0) {
       throw new PayloadTooLargeException({
         code: "REPORT_CAPACITY_EXCEEDED",
@@ -86,10 +108,13 @@ export class StrategyReportService {
         errors: snapshot.capacityErrors,
       });
     }
-    if (snapshot.counts.nodes === 0) {
-      throw new BadRequestException(
-        "Report cannot be exported until the strategy has at least one active plan step.",
-      );
+    const readinessErrors = reportReadinessErrors(snapshot);
+    if (readinessErrors.length > 0) {
+      throw new BadRequestException({
+        code: "REPORT_NOT_READY",
+        message: readinessErrors[0]!.message,
+        errors: readinessErrors,
+      });
     }
 
     const descriptor = snapshot.client.logo;
@@ -120,6 +145,7 @@ export class StrategyReportService {
       snapshot.strategy.title,
       snapshot.asOf,
       options.format,
+      options.audience,
     );
 
     // The audit row is written only after a complete OOXML payload exists, and
@@ -148,6 +174,12 @@ export class StrategyReportService {
           byteLength: bytes.length,
           clientLogoRequested: options.useClientLogo,
           clientLogoIncluded: Boolean(logo),
+          inclusion: snapshot.inclusion,
+          content: {
+            contextDocuments: snapshot.context.includedDocuments,
+            contextFacts: snapshot.context.facts.length,
+            narrativeSections: snapshot.context.sections.length,
+          },
           sections: {
             roadmap: options.includeRoadmap,
             evidenceAppendix: options.includeEvidenceAppendix,
@@ -208,15 +240,35 @@ export class StrategyReportService {
   }
 }
 
+/** Fail before logo reads, rendering, or audit writes when preflight is stale. */
+export function assertExpectedSnapshotHash(
+  expectedSnapshotHash: string | undefined,
+  currentSnapshotHash: string,
+): void {
+  if (!expectedSnapshotHash || expectedSnapshotHash === currentSnapshotHash)
+    return;
+  throw new ConflictException({
+    code: REPORT_SNAPSHOT_CHANGED,
+    message:
+      "The strategy or report settings changed after readiness was checked. Refresh readiness and review the updated report before exporting.",
+    expectedSnapshotHash,
+    currentSnapshotHash,
+  });
+}
+
 export function buildReportFilename(
   clientName: string,
   strategyTitle: string,
   asOf: string,
   extension: "docx" | "pptx",
+  audience: "client" | "internal",
 ): string {
   const deliverable =
     extension === "pptx" ? "executive-briefing" : "executive-report";
-  const stem = slug(`${clientName}-${strategyTitle}-${deliverable}`);
+  const audienceLabel = audience === "client" ? "client" : "internal-working";
+  const stem = slug(
+    `${clientName}-${strategyTitle}-${deliverable}-${audienceLabel}`,
+  );
   return `${stem || `strategy-${deliverable}`}-${asOf}.${extension}`;
 }
 

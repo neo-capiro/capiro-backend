@@ -4,9 +4,9 @@
  * One inspector, two tabs (Step · Meri) — one selection model (§4.1 #3).
  *
  * Governance (§7.4 must-nots, §11):
- *  - The Meri tab can PROPOSE but never apply: "Send to review queue" creates a
- *    proposal (a change-set), never a plan edit. The Meri panel never mutates the
- *    plan directly and never renders a suggestion as if applied.
+ *  - Meri can apply edits to the working plan. Meri-authored additions begin as
+ *    Suggested; a person reviews them here and explicitly promotes them before
+ *    they can appear in a client-ready export.
  *  - "Prepare in Workspace" / "Stage outreach" create STAGED records only; neither
  *    sends anything externally (Stage H gates the send path — §7.9).
  *  - Dismiss suppresses a suggestion until the step changes.
@@ -25,8 +25,15 @@ import {
   useStrategy,
   useStrategyConversation,
   useTenantMembers,
+  useUpdateNode,
 } from './strategies-api.js';
 import type { ArtifactType, StrategyNode } from '../../../pages/strategy/types.js';
+import {
+  CLIENT_EXPORT_READY_STATUSES,
+  clientExportStatusLabel,
+  isClientExportReadyStatus,
+  type ClientExportReadyStatus,
+} from './lib/step-review.js';
 import './step-inspector.css';
 
 const KIND_LABEL: Record<string, string> = {
@@ -236,7 +243,8 @@ export function StepInspector({
           />
         </div>
         <p className="st-meri-hint">
-          Meri proposes; a person approves. Nothing changes the plan from this panel.
+          Meri can update the working plan. Review changed steps here, then mark
+          them In progress or Active when they are ready for client reports.
         </p>
       </div>
     </aside>
@@ -257,6 +265,7 @@ function StepTab({
   ownerName: string;
 }) {
   const navigate = useNavigate();
+  const updateNode = useUpdateNode(strategyId);
   if (isNew) {
     return <NewStepForm strategyId={strategyId} />;
   }
@@ -264,6 +273,26 @@ function StepTab({
     return <div className="st-inspector__body"><CapiroSkeleton height={200} /></div>;
   }
   const evidence = step.provenance?.sources ?? [];
+  const clientExportReady = isClientExportReadyStatus(step.status);
+  const pendingStatus = updateNode.isPending
+    ? (updateNode.variables?.input.status as
+        | ClientExportReadyStatus
+        | undefined)
+    : undefined;
+
+  const markClientExportReady = (status: ClientExportReadyStatus) => {
+    updateNode.mutate({
+      nodeId: step.id,
+      input: {
+        status,
+        changeNote:
+          status === 'active'
+            ? 'Reviewed and marked active for client reporting.'
+            : 'Reviewed and marked in progress for client reporting.',
+      },
+    });
+  };
+
   return (
     <div className="st-inspector__body">
       <div className="st-inspector__pills">
@@ -274,6 +303,63 @@ function StepTab({
           {STATUS_LABEL[step.status] ?? step.status}
         </span>
       </div>
+
+      <section
+        className={`st-inspector__client-review${
+          clientExportReady ? ' is-ready' : ''
+        }`}
+        aria-labelledby="step-client-export-heading"
+        aria-live="polite"
+      >
+        <div className="st-inspector__client-review-head">
+          <div>
+            <p className="st-section-label" id="step-client-export-heading">
+              Client export status
+            </p>
+            <strong>{clientExportStatusLabel(step.status)}</strong>
+          </div>
+          <span
+            className={`st-pill${
+              clientExportReady ? ' st-pill--success' : ' st-pill--warning'
+            }`}
+          >
+            {STATUS_LABEL[step.status] ?? step.status}
+          </span>
+        </div>
+        <p className="st-inspector__client-review-copy">
+          {clientExportReady
+            ? `This step is included in client-ready reports because it is ${
+                step.status === 'active' ? 'Active' : 'In progress'
+              }.`
+            : 'Client-ready reports omit Suggested, Draft and Internal review steps. Review this step, then include it by marking it In progress or Active.'}
+        </p>
+        {!clientExportReady ? (
+          <div
+            className="st-inspector__client-review-actions"
+            role="group"
+            aria-label="Mark step ready for client reports"
+          >
+            {CLIENT_EXPORT_READY_STATUSES.map((status) => (
+              <CapiroButton
+                key={status}
+                size="compact"
+                variant={status === 'active' ? 'primary' : 'secondary'}
+                disabled={updateNode.isPending}
+                loading={pendingStatus === status}
+                onClick={() => markClientExportReady(status)}
+              >
+                {status === 'active' ? 'Mark active' : 'Mark in progress'}
+              </CapiroButton>
+            ))}
+          </div>
+        ) : null}
+        {updateNode.isError ? (
+          <p className="st-inspector__client-review-error" role="alert">
+            The status could not be updated.{' '}
+            {(updateNode.error as Error)?.message || 'Please try again.'}
+          </p>
+        ) : null}
+      </section>
 
       {step.note ? (
         <>
@@ -464,19 +550,19 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
 }
 
 function MeriSuggestionCard({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
-  // A Meri suggestion is a PROPOSAL. "Send to review queue" creates a change-set
-  // (a proposal a human must approve + apply); it never edits the plan here.
-  // There is no direct "suggest" endpoint for an arbitrary step — the grounded
-  // suggestion text arrives via the strategy conversation / Watch state. When no
-  // suggestion is present for this step, render the empty state, never a fake one.
+  // The assistant route can apply grounded edits to the working plan. New Meri
+  // steps remain Suggested until a person promotes their status in the client
+  // export review card above; this copy must not promise a separate queue that
+  // this inspector does not use.
   void strategyId;
   void step;
   return (
     <div className="st-meri-suggestion">
-      <p className="st-section-label">Meri suggestion</p>
+      <p className="st-section-label">Meri-assisted changes</p>
       <p className="st-inspector__empty">
-        No open suggestion for this step. Ask Meri below — a suggestion can be sent to the
-        review queue for a person to approve before anything changes.
+        Ask Meri below to update the working step. Review every change here;
+        Meri-created steps remain Suggested until you mark them In progress or
+        Active.
       </p>
     </div>
   );

@@ -64,7 +64,7 @@ export class StrategyController {
     @Param('id') id: string,
     @Query() query: ReportPreflightDto,
   ) {
-    return this.reports.preflight(ctx.tenantId, id, query.audience ?? 'client');
+    return this.reports.preflight(ctx.tenantId, id, query);
   }
 
   /** Generate and stream a version-pinned executive Word or PowerPoint report. */

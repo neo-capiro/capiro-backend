@@ -8,8 +8,11 @@ import {
 import { computeReportHealth } from "./report-health.js";
 import {
   includeNodeForAudience,
+  isPlaceholderReportTitle,
   reportStatusForAudience,
 } from "./report-policy.js";
+import { assembleReportContext } from "./report-context.js";
+import { reportSectionReadiness } from "./report-content.js";
 import { ooxmlSafeValue } from "./report-text.js";
 import type {
   ExecutiveReportSnapshot,
@@ -27,6 +30,11 @@ interface ClientBrandRow {
   name: string;
   logoS3Key: string | null;
   logoContentType: string | null;
+  description: string | null;
+  productDescription: string | null;
+  profileType: string | null;
+  sectorTag: string | null;
+  website: string | null;
 }
 
 interface MemberRow {
@@ -35,16 +43,15 @@ interface MemberRow {
   lastName: string | null;
 }
 
-interface CountRow {
-  count: number;
-}
-
 const SUPPORTED_LOGO_TYPES = new Set(["image/png", "image/jpeg"]);
 export const REPORT_CAPACITY_LIMITS = {
   nodes: 300,
   artifacts: 600,
   sourcesPerNode: 20,
   dependenciesPerNode: 100,
+  contextDocuments: 40,
+  contextFactsPerDocument: 80,
+  contextSourceBytes: 2 * 1024 * 1024,
   snapshotBytes: 8 * 1024 * 1024,
 } as const;
 
@@ -55,26 +62,10 @@ export class ReportSnapshotService {
   async preflight(
     tenantId: string,
     strategyId: string,
-    audience: "client" | "internal" = "client",
+    options: NormalizedReportOptions,
   ): Promise<ReportPreflight> {
-    const snapshot = await this.build(tenantId, strategyId, {
-      format: "docx",
-      audience,
-      useClientLogo: true,
-      includeRoadmap: true,
-      includeEvidenceAppendix: true,
-      includeChangeLog: false,
-      includeInternalNotes: false,
-      includeAgentHistory: false,
-    });
-    const errors: ReportIssue[] = [...snapshot.capacityErrors];
-    if (snapshot.counts.nodes === 0) {
-      errors.unshift({
-        code: "NO_ACTIVE_NODES",
-        message:
-          "Add at least one active plan step before generating an executive report.",
-      });
-    }
+    const snapshot = await this.build(tenantId, strategyId, options);
+    const errors = reportReadinessErrors(snapshot);
     const { objectKey: _privateObjectKey, ...publicLogo } =
       snapshot.client.logo;
     return {
@@ -85,11 +76,36 @@ export class ReportSnapshotService {
         ready: errors.length === 0,
         asOf: snapshot.asOf,
         formats: ["docx", "pptx"],
+        audience: options.audience,
+        format: options.format,
+        snapshotHash: snapshot.snapshotHash,
+        readiness:
+          errors.length > 0
+            ? "blocked"
+            : snapshot.warnings.length > 0
+              ? "review"
+              : "ready",
       },
       client: { id: snapshot.client.id, name: snapshot.client.name },
       version: { ...snapshot.version, note: null },
       health: snapshot.health,
+      allLiveHealth: snapshot.allLiveHealth,
       counts: snapshot.counts,
+      inclusion: snapshot.inclusion,
+      content: {
+        contextDocuments: snapshot.context.includedDocuments,
+        excludedContextDocuments: snapshot.context.excludedDocuments,
+        narrativeSections: snapshot.context.sections.length,
+        narrativeItems: snapshot.context.sections.reduce(
+          (total, section) => total + section.items.length,
+          0,
+        ),
+        contextFacts: snapshot.context.facts.length,
+        evidenceLinkedNodes: snapshot.nodes.filter(
+          (node) => node.sources.length > 0,
+        ).length,
+      },
+      sections: reportSectionReadiness(snapshot),
       logo: publicLogo,
       warnings: snapshot.warnings,
       errors,
@@ -143,6 +159,32 @@ export class ReportSnapshotService {
           },
         });
         if (!strategy) throw new NotFoundException("Strategy not found");
+        const liveNodeIds = strategy.nodes.map((node) => node.id);
+        const contextWhere = {
+          state: "active" as const,
+          OR: [
+            { scope: "firm" as const, clientId: null, scopeRef: null },
+            {
+              scope: "client" as const,
+              clientId: strategy.clientId,
+              scopeRef: null,
+            },
+            {
+              scope: "strategy" as const,
+              clientId: strategy.clientId,
+              scopeRef: strategyId,
+            },
+            ...(liveNodeIds.length > 0
+              ? [
+                  {
+                    scope: "node" as const,
+                    clientId: strategy.clientId,
+                    scopeRef: { in: liveNodeIds },
+                  },
+                ]
+              : []),
+          ],
+        };
 
         const [
           clientRows,
@@ -151,8 +193,7 @@ export class ReportSnapshotService {
           firmPhases,
           referenceBaseline,
           referenceOverrides,
-          contextSummary,
-          openMaterialConflictRows,
+          contextDocuments,
           agentRuns,
           changeSets,
         ] = await Promise.all([
@@ -161,7 +202,12 @@ export class ReportSnapshotService {
             id::text AS id,
             name,
             logo_s3_key AS "logoS3Key",
-            logo_content_type AS "logoContentType"
+            logo_content_type AS "logoContentType",
+            description,
+            product_description AS "productDescription",
+            profile_type AS "profileType",
+            sector_tag AS "sectorTag",
+            website
           FROM clients
           WHERE id = ${strategy.clientId}::uuid
             AND tenant_id = ${tenantId}::uuid
@@ -219,57 +265,33 @@ export class ReportSnapshotService {
               fy: true,
             },
           }),
-          Promise.all([
-            tx.spContextDocument.count({
-              where: {
-                state: "active",
-                OR: [
-                  { clientId: strategy.clientId },
-                  { scope: "strategy", scopeRef: strategyId },
-                  { scope: "firm", clientId: null },
-                ],
+          tx.spContextDocument.findMany({
+            where: contextWhere,
+            orderBy: [{ templateKey: "asc" }, { updatedAt: "desc" }],
+            take: REPORT_CAPACITY_LIMITS.contextDocuments + 1,
+            select: {
+              id: true,
+              title: true,
+              templateKey: true,
+              content: true,
+              frontmatter: true,
+              validUntil: true,
+              updatedAt: true,
+              facts: {
+                where: { state: "active" },
+                orderBy: [{ asOf: "desc" }, { createdAt: "desc" }],
+                take: REPORT_CAPACITY_LIMITS.contextFactsPerDocument + 1,
+                select: {
+                  id: true,
+                  fact: true,
+                  sourceRef: true,
+                  authority: true,
+                  asOf: true,
+                  confidence: true,
+                },
               },
-            }),
-            tx.spContextDocument.count({
-              where: {
-                state: "active",
-                validUntil: { lt: asOfDate },
-                OR: [
-                  { clientId: strategy.clientId },
-                  { scope: "strategy", scopeRef: strategyId },
-                  { scope: "firm", clientId: null },
-                ],
-              },
-            }),
-          ]).then(([activeDocuments, staleDocuments]) => ({
-            activeDocuments,
-            staleDocuments,
-          })),
-          tx.$queryRaw<CountRow[]>`
-            SELECT COUNT(*)::int AS count
-            FROM sp_context_conflict c
-            WHERE c.tenant_id = ${tenantId}::uuid
-              AND c.material = true
-              AND c.state::text = 'open'
-              AND (
-                EXISTS (
-                  SELECT 1
-                  FROM sp_context_fact f
-                  WHERE f.id = c.fact_a_id
-                    AND f.tenant_id = ${tenantId}::uuid
-                    AND f.client_id = ${strategy.clientId}::uuid
-                    AND f.state::text = 'active'
-                )
-                OR EXISTS (
-                  SELECT 1
-                  FROM sp_context_fact f
-                  WHERE f.id = c.fact_b_id
-                    AND f.tenant_id = ${tenantId}::uuid
-                    AND f.client_id = ${strategy.clientId}::uuid
-                    AND f.state::text = 'active'
-                )
-              )
-          `,
+            },
+          }),
           tx.spAgentRun.findMany({
             where: { strategyId },
             orderBy: { createdAt: "desc" },
@@ -297,6 +319,47 @@ export class ReportSnapshotService {
           }),
         ]);
 
+        const scopedFactIds = new Set(
+          contextDocuments.flatMap((document) =>
+            document.facts.map((fact) => fact.id),
+          ),
+        );
+        const scopedFactIdList = [...scopedFactIds];
+        // Scope first so another client's newer conflicts cannot crowd a
+        // relevant row out of an arbitrary tenant-wide sample. A conflict is
+        // reportable only while both referenced facts remain active.
+        const relevantConflictRows =
+          scopedFactIdList.length > 0
+            ? await tx.spContextConflict.findMany({
+                where: {
+                  material: true,
+                  state: "open",
+                  OR: [
+                    { factAId: { in: scopedFactIdList } },
+                    { factBId: { in: scopedFactIdList } },
+                  ],
+                },
+                select: { factAId: true, factBId: true },
+              })
+            : [];
+        const conflictFactIds = [
+          ...new Set(
+            relevantConflictRows.flatMap((row) => [row.factAId, row.factBId]),
+          ),
+        ];
+        const activeConflictFactIds = new Set(
+          conflictFactIds.length > 0
+            ? (
+                await tx.spContextFact.findMany({
+                  where: {
+                    id: { in: conflictFactIds },
+                    state: "active",
+                  },
+                  select: { id: true },
+                })
+              ).map((fact) => fact.id)
+            : [],
+        );
         return {
           strategy,
           client: clientRows[0] ?? null,
@@ -307,8 +370,12 @@ export class ReportSnapshotService {
             referenceBaseline,
             referenceOverrides,
           ),
-          contextSummary,
-          openMaterialConflicts: openMaterialConflictRows[0]?.count ?? 0,
+          contextDocuments,
+          openMaterialConflicts: relevantConflictRows.filter(
+            (row) =>
+              activeConflictFactIds.has(row.factAId) &&
+              activeConflictFactIds.has(row.factBId),
+          ).length,
           agentRuns,
           changeSets,
         };
@@ -331,9 +398,8 @@ export class ReportSnapshotService {
     const ownerName = (userId: string | null | undefined): string =>
       userId ? (memberNames.get(userId) ?? "Team member") : "Unassigned";
 
-    const nodes: ReportNode[] = loaded.strategy.nodes
+    const mappedNodes: ReportNode[] = loaded.strategy.nodes
       .slice(0, REPORT_CAPACITY_LIMITS.nodes)
-      .filter((node) => includeNodeForAudience(node.status, options.audience))
       .map((node) => {
         const allSources = extractSources(node.provenance);
         return {
@@ -357,12 +423,79 @@ export class ReportSnapshotService {
           targetLabel: extractTargetLabel(node.targetRef),
         };
       });
+    let nodes = mappedNodes.filter((node) =>
+      includeNodeForAudience(node.status, options.audience),
+    );
+    const omittedNodes = mappedNodes.filter(
+      (node) => !includeNodeForAudience(node.status, options.audience),
+    );
+    const inclusion = {
+      liveNodes: mappedNodes.length,
+      includedNodes: nodes.length,
+      omittedNodes: omittedNodes.length,
+      includedByStatus: countStatuses(nodes),
+      omittedByStatus: countStatuses(omittedNodes),
+      placeholderNodes: mappedNodes.filter((node) =>
+        isPlaceholderReportTitle(node.title),
+      ).length,
+    };
     const includedNodeIds = new Set(nodes.map((node) => node.id));
-    const artifacts = loaded.strategy.artifacts
-      .slice(0, REPORT_CAPACITY_LIMITS.artifacts)
-      .filter((artifact) => includedNodeIds.has(artifact.nodeId));
+    // Artifact references identify internal workspace drafts and outreach
+    // records. The artifact model has no client-visible classification, so
+    // these links must remain internal until an explicit safe classification
+    // is added and enforced here.
+    const artifacts =
+      options.audience === "internal"
+        ? loaded.strategy.artifacts
+            .slice(0, REPORT_CAPACITY_LIMITS.artifacts)
+            .filter((artifact) => includedNodeIds.has(artifact.nodeId))
+        : [];
+    const allLiveHealth = computeReportHealth(mappedNodes, asOfDate);
+    const contextDocuments = loaded.contextDocuments.slice(
+      0,
+      REPORT_CAPACITY_LIMITS.contextDocuments,
+    );
+    const context = assembleReportContext(
+      contextDocuments,
+      options.audience,
+      asOf,
+    );
+    const factsById = new Map(context.facts.map((fact) => [fact.id, fact]));
+    nodes = nodes.map((node) => {
+      const sources = node.sources.flatMap((source) => {
+        const factId = source.ref?.startsWith("fact:")
+          ? source.ref.slice("fact:".length)
+          : null;
+        // Arbitrary provenance labels can name internal memos, systems, or
+        // working sessions. A client snapshot may retain only sources that can
+        // be resolved to an audience-safe context fact.
+        if (!factId) return options.audience === "client" ? [] : [source];
+        const fact = factsById.get(factId);
+        if (!fact) return options.audience === "client" ? [] : [source];
+        return [
+          {
+            section: fact.documentTitle,
+            ref:
+              options.audience === "internal"
+                ? `${fact.sourceRef} · fact:${fact.id}`
+                : fact.sourceRef,
+          },
+        ];
+      });
+      return {
+        ...node,
+        sources,
+        sourceCount:
+          options.audience === "client" ? sources.length : node.sourceCount,
+      };
+    });
     const health = computeReportHealth(nodes, asOfDate);
     const counts = countPlan(nodes, artifacts.length);
+    const staleDocuments = contextDocuments.filter(
+      (document) =>
+        document.validUntil !== null &&
+        document.validUntil.getTime() < asOfDate.getTime(),
+    ).length;
 
     const rawLogoKey = loaded.client?.logoS3Key ?? null;
     const canonicalKey = canonicalLogoKey(
@@ -381,7 +514,6 @@ export class ReportSnapshotService {
       contentType,
       objectKey: canonicalKey,
     };
-    const staleDocuments = loaded.contextSummary.staleDocuments;
     const warnings = buildWarnings({
       clientFound: Boolean(loaded.client),
       hasGoal: Boolean(loaded.strategy.goal?.trim()),
@@ -390,6 +522,16 @@ export class ReportSnapshotService {
       logoRequested: options.useClientLogo,
       staleDocuments,
       openMaterialConflicts: loaded.openMaterialConflicts,
+      audience: options.audience,
+      inclusion,
+      narrativeItems: context.sections.reduce(
+        (total, section) => total + section.items.length,
+        0,
+      ),
+      contextFacts: context.facts.length,
+      excludedContextDocuments: context.excludedDocuments,
+      decisions: counts.decisions,
+      risks: counts.risks,
     });
 
     const latestVersion = loaded.versions[0];
@@ -414,6 +556,13 @@ export class ReportSnapshotService {
         id: loaded.strategy.clientId,
         name: loaded.client?.name?.trim() || "Client",
         logo,
+        profile: {
+          description: loaded.client?.description?.trim() || null,
+          productDescription: loaded.client?.productDescription?.trim() || null,
+          profileType: loaded.client?.profileType?.trim() || null,
+          sectorTag: loaded.client?.sectorTag?.trim() || null,
+          website: loaded.client?.website?.trim() || null,
+        },
       },
       version: {
         id: latestVersion?.id ?? null,
@@ -424,25 +573,38 @@ export class ReportSnapshotService {
             : null,
       },
       health,
+      allLiveHealth,
       counts,
+      inclusion,
       nodes,
       artifacts: artifacts.map((artifact) => ({
         nodeId: artifact.nodeId,
         artifactType: artifact.artifactType,
         artifactRef: artifact.artifactRef,
       })),
-      firmPhases: loaded.firmPhases,
-      referenceWindows: loaded.referenceRows.map((row) => ({
-        kind: row.kind,
-        label: row.label,
-        startsOn: dbDate(row.startsOn),
-        endsOn: dbDate(row.endsOn),
-        fy: row.fy,
-      })),
+      // Firm phases and reference windows are operating configuration, not
+      // client report content. Keep them out of client snapshots so no
+      // renderer can accidentally expose them.
+      firmPhases: options.audience === "internal" ? loaded.firmPhases : [],
+      referenceWindows:
+        options.audience === "internal"
+          ? loaded.referenceRows.map((row) => ({
+              kind: row.kind,
+              label: row.label,
+              startsOn: dbDate(row.startsOn),
+              endsOn: dbDate(row.endsOn),
+              fy: row.fy,
+            }))
+          : [],
       context: {
-        activeDocuments: loaded.contextSummary.activeDocuments,
+        activeDocuments: contextDocuments.length,
+        includedDocuments: context.documents.length,
+        excludedDocuments: context.excludedDocuments,
         staleDocuments,
         openMaterialConflicts: loaded.openMaterialConflicts,
+        documents: context.documents,
+        facts: context.facts,
+        sections: context.sections,
       },
       activity: {
         versions: (options.includeChangeLog ? loaded.versions : []).map(
@@ -487,7 +649,30 @@ export class ReportSnapshotService {
     safeWithoutHash.capacityErrors.push(
       ...reportCapacityIssues({
         nodeRows: loaded.strategy.nodes.length,
-        artifactRows: loaded.strategy.artifacts.length,
+        artifactRows:
+          options.audience === "internal"
+            ? loaded.strategy.artifacts.length
+            : 0,
+        maxSourcesPerNode: loaded.strategy.nodes.reduce(
+          (maximum, node) =>
+            Math.max(maximum, extractSources(node.provenance).length),
+          0,
+        ),
+        maxDependenciesPerNode: loaded.strategy.nodes.reduce(
+          (maximum, node) => Math.max(maximum, node.dependsOnIds.length),
+          0,
+        ),
+        contextDocumentRows: loaded.contextDocuments.length,
+        contextFactsExceeded: loaded.contextDocuments.some(
+          (document) =>
+            document.facts.length >
+            REPORT_CAPACITY_LIMITS.contextFactsPerDocument,
+        ),
+        contextSourceBytes: loaded.contextDocuments.reduce(
+          (total, document) =>
+            total + Buffer.byteLength(document.content, "utf8"),
+          0,
+        ),
         estimatedBytes,
       }),
     );
@@ -501,6 +686,11 @@ export class ReportSnapshotService {
 export function reportCapacityIssues(input: {
   nodeRows: number;
   artifactRows: number;
+  maxSourcesPerNode?: number;
+  maxDependenciesPerNode?: number;
+  contextDocumentRows?: number;
+  contextSourceBytes?: number;
+  contextFactsExceeded?: boolean;
   estimatedBytes: number;
 }): ReportIssue[] {
   const issues: ReportIssue[] = [];
@@ -516,6 +706,44 @@ export function reportCapacityIssues(input: {
       message: `This strategy has more than ${REPORT_CAPACITY_LIMITS.artifacts} attached artifacts. Remove older attachments before exporting.`,
     });
   }
+  if ((input.maxSourcesPerNode ?? 0) > REPORT_CAPACITY_LIMITS.sourcesPerNode) {
+    issues.push({
+      code: "REPORT_NODE_SOURCE_LIMIT_EXCEEDED",
+      message: `At least one live plan step has more than ${REPORT_CAPACITY_LIMITS.sourcesPerNode} provenance sources. Remove obsolete sources or split that step before exporting.`,
+    });
+  }
+  if (
+    (input.maxDependenciesPerNode ?? 0) >
+    REPORT_CAPACITY_LIMITS.dependenciesPerNode
+  ) {
+    issues.push({
+      code: "REPORT_NODE_DEPENDENCY_LIMIT_EXCEEDED",
+      message: `At least one live plan step has more than ${REPORT_CAPACITY_LIMITS.dependenciesPerNode} dependencies. Simplify or split that step before exporting.`,
+    });
+  }
+  if (
+    (input.contextDocumentRows ?? 0) > REPORT_CAPACITY_LIMITS.contextDocuments
+  ) {
+    issues.push({
+      code: "REPORT_CONTEXT_LIMIT_EXCEEDED",
+      message: `This strategy resolves more than ${REPORT_CAPACITY_LIMITS.contextDocuments} active context documents. Archive or supersede older context before exporting.`,
+    });
+  }
+  if (input.contextFactsExceeded) {
+    issues.push({
+      code: "REPORT_CONTEXT_FACT_LIMIT_EXCEEDED",
+      message: `At least one context document has more than ${REPORT_CAPACITY_LIMITS.contextFactsPerDocument} active facts. Supersede obsolete facts or split that source before exporting.`,
+    });
+  }
+  if (
+    (input.contextSourceBytes ?? 0) > REPORT_CAPACITY_LIMITS.contextSourceBytes
+  ) {
+    issues.push({
+      code: "REPORT_CONTEXT_CONTENT_LIMIT_EXCEEDED",
+      message:
+        "The active context pack is too large for one executive report. Supersede obsolete context or split oversized documents before exporting.",
+    });
+  }
   if (input.estimatedBytes > REPORT_CAPACITY_LIMITS.snapshotBytes) {
     issues.push({
       code: "REPORT_SNAPSHOT_LIMIT_EXCEEDED",
@@ -524,6 +752,64 @@ export function reportCapacityIssues(input: {
     });
   }
   return issues;
+}
+
+/** One readiness policy is used by both preflight and the export endpoint. */
+export function reportReadinessErrors(
+  snapshot: ExecutiveReportSnapshot,
+): ReportIssue[] {
+  const errors: ReportIssue[] = [...snapshot.capacityErrors];
+  if (snapshot.counts.nodes === 0) {
+    errors.unshift({
+      code: "NO_REPORTABLE_PLAN_STEPS",
+      message:
+        snapshot.options.audience === "client"
+          ? "Move at least one reviewed plan step to In progress or Active before generating a client report."
+          : "Add at least one live plan step before generating an executive report.",
+    });
+  }
+  if (
+    snapshot.options.audience === "client" &&
+    snapshot.inclusion.placeholderNodes > 0
+  ) {
+    errors.push({
+      code: "CLIENT_PLACEHOLDER_CONTENT",
+      message:
+        "Rename or remove placeholder and test plan steps before generating a client-ready report.",
+    });
+  }
+  if (
+    snapshot.options.audience === "client" &&
+    snapshot.context.openMaterialConflicts > 0
+  ) {
+    errors.push({
+      code: "CLIENT_CONTEXT_CONFLICT",
+      message:
+        "Resolve material context conflicts before generating a client-ready report.",
+    });
+  }
+  const hasNarrative = snapshot.context.sections.some((section) =>
+    ["situation", "outcomes", "ask"].includes(section.key),
+  );
+  if (
+    snapshot.options.audience === "client" &&
+    !snapshot.strategy.goal?.trim() &&
+    !hasNarrative
+  ) {
+    errors.push({
+      code: "CLIENT_EXECUTIVE_PREMISE_MISSING",
+      message:
+        "Add a strategy goal or an approved strategy brief before generating a client-ready report.",
+    });
+  }
+  return errors;
+}
+
+function countStatuses(nodes: readonly ReportNode[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const node of nodes)
+    counts[node.status] = (counts[node.status] ?? 0) + 1;
+  return counts;
 }
 
 function countPlan(
@@ -551,6 +837,13 @@ function buildWarnings(input: {
   logoRequested: boolean;
   staleDocuments: number;
   openMaterialConflicts: number;
+  audience: "client" | "internal";
+  inclusion: ExecutiveReportSnapshot["inclusion"];
+  narrativeItems: number;
+  contextFacts: number;
+  excludedContextDocuments: number;
+  decisions: number;
+  risks: number;
 }): ReportIssue[] {
   const warnings: ReportIssue[] = [];
   if (!input.clientFound) {
@@ -565,6 +858,50 @@ function buildWarnings(input: {
       code: "MISSING_STRATEGY_GOAL",
       message:
         "The strategy has no explicit goal; the executive summary will be shorter.",
+    });
+  }
+  if (input.audience === "client" && input.inclusion.omittedNodes > 0) {
+    const reasons = Object.entries(input.inclusion.omittedByStatus)
+      .map(([status, count]) => `${count} ${status.replace(/_/g, " ")}`)
+      .join(", ");
+    warnings.push({
+      code: "WORKING_PLAN_ITEMS_OMITTED",
+      message: `${input.inclusion.includedNodes} of ${input.inclusion.liveNodes} live plan steps will be included. ${reasons} item${input.inclusion.omittedNodes === 1 ? " is" : "s are"} excluded until reviewed and moved to In progress or Active.`,
+    });
+  }
+  if (input.inclusion.placeholderNodes > 0) {
+    warnings.push({
+      code: "PLACEHOLDER_PLAN_CONTENT",
+      message: `${input.inclusion.placeholderNodes} placeholder or test plan step${input.inclusion.placeholderNodes === 1 ? " needs" : "s need"} to be renamed or removed before a client deliverable is ready.`,
+    });
+  }
+  if (input.narrativeItems === 0) {
+    warnings.push({
+      code: "NO_APPROVED_STRATEGIC_CONTEXT",
+      message:
+        input.audience === "client"
+          ? "No approved, client-confidential context is available for the situation, outcomes, ask, constraints, or stakeholder narrative."
+          : "No active context document contributes narrative detail; the report will rely on the plan alone.",
+    });
+  }
+  if (input.audience === "client" && input.excludedContextDocuments > 0) {
+    warnings.push({
+      code: "CONTEXT_WITHHELD_FOR_AUDIENCE",
+      message: `${input.excludedContextDocuments} active context document${input.excludedContextDocuments === 1 ? " is" : "s are"} excluded because it is stale, internal, or not marked as an approved source of truth.`,
+    });
+  }
+  if (input.decisions === 0 && input.risks === 0) {
+    warnings.push({
+      code: "NO_DECISIONS_OR_RISKS",
+      message:
+        "No decision or risk steps are recorded, so the leadership agenda will not include a decision-and-risk register.",
+    });
+  }
+  if (input.contextFacts === 0 && input.health.groundedGates === 0) {
+    warnings.push({
+      code: "NO_REPORT_EVIDENCE",
+      message:
+        "No approved context facts or evidence-grounded gates are available for the evidence section.",
     });
   }
   const unowned = input.health.totalNodes - input.health.ownedNodes;

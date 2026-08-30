@@ -46,6 +46,82 @@ export interface ReportCounts {
   artifacts: number;
 }
 
+export interface ReportInclusion {
+  /** Every live node before audience and quality filtering. */
+  liveNodes: number;
+  includedNodes: number;
+  omittedNodes: number;
+  includedByStatus: Record<string, number>;
+  omittedByStatus: Record<string, number>;
+  placeholderNodes: number;
+}
+
+export type ReportNarrativeSectionKey =
+  | "situation"
+  | "outcomes"
+  | "ask"
+  | "stakeholders"
+  | "constraints"
+  | "timing"
+  | "evidence"
+  | "decisions"
+  | "intelligence"
+  | "governance";
+
+export interface ReportNarrativeItem {
+  text: string;
+  label: string | null;
+  sourceTitle: string;
+  sourceRef: string | null;
+  authority: string | null;
+  asOf: string | null;
+  confidence: number | null;
+}
+
+export interface ReportNarrativeSection {
+  key: ReportNarrativeSectionKey;
+  title: string;
+  items: ReportNarrativeItem[];
+}
+
+export interface ReportContextDocument {
+  id: string;
+  title: string;
+  templateKey: string;
+  authority: string | null;
+  confidentiality: string | null;
+  asOf: string | null;
+  validUntil: string | null;
+  updatedAt: string;
+  highlightCount: number;
+}
+
+export interface ReportContextFact {
+  id: string;
+  text: string;
+  documentTitle: string;
+  templateKey: string;
+  sourceRef: string;
+  authority: string | null;
+  asOf: string | null;
+  confidence: number | null;
+}
+
+export interface ReportSectionReadiness {
+  id:
+    | "summary"
+    | "context"
+    | "priorities"
+    | "decisions_risks"
+    | "roadmap"
+    | "accountability"
+    | "evidence";
+  label: string;
+  state: "ready" | "thin" | "empty" | "excluded";
+  availableCount: number;
+  message: string;
+}
+
 export interface ReportLogoDescriptor {
   available: boolean;
   supported: boolean;
@@ -63,11 +139,26 @@ export interface ReportPreflight {
     ready: boolean;
     asOf: string;
     formats: ReportFormat[];
+    audience: ReportAudience;
+    format: ReportFormat;
+    snapshotHash: string;
+    readiness: "ready" | "review" | "blocked";
   };
   client: { id: string; name: string };
   version: { id: string | null; createdAt: string | null; note: string | null };
   health: ReportHealth;
+  allLiveHealth: ReportHealth;
   counts: ReportCounts;
+  inclusion: ReportInclusion;
+  content: {
+    contextDocuments: number;
+    excludedContextDocuments: number;
+    narrativeSections: number;
+    narrativeItems: number;
+    contextFacts: number;
+    evidenceLinkedNodes: number;
+  };
+  sections: ReportSectionReadiness[];
   logo: Omit<ReportLogoDescriptor, "objectKey">;
   warnings: ReportIssue[];
   errors: ReportIssue[];
@@ -144,10 +235,19 @@ export interface ExecutiveReportSnapshot {
     id: string;
     name: string;
     logo: ReportLogoDescriptor;
+    profile?: {
+      description: string | null;
+      productDescription: string | null;
+      profileType: string | null;
+      sectorTag: string | null;
+      website: string | null;
+    };
   };
   version: { id: string | null; createdAt: string | null; note: string | null };
   health: ReportHealth;
+  allLiveHealth: ReportHealth;
   counts: ReportCounts;
+  inclusion: ReportInclusion;
   nodes: ReportNode[];
   artifacts: ReportArtifact[];
   firmPhases: Array<{
@@ -166,8 +266,13 @@ export interface ExecutiveReportSnapshot {
   }>;
   context: {
     activeDocuments: number;
+    includedDocuments: number;
+    excludedDocuments: number;
     staleDocuments: number;
     openMaterialConflicts: number;
+    documents: ReportContextDocument[];
+    facts: ReportContextFact[];
+    sections: ReportNarrativeSection[];
   };
   activity: {
     versions: ReportVersionEntry[];

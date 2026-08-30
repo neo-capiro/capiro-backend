@@ -52,6 +52,64 @@
 .capiro-vnext-root .capiro-strategies .st-inspector__note { font-size: 14px; line-height: 20px; color: var(--st-gray-700); margin: 0; }
 .capiro-vnext-root .capiro-strategies .st-inspector__empty { font-size: 13px; color: var(--st-gray-500); margin: 0; }
 
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--st-gray-200);
+  border-radius: 10px;
+  background: var(--st-gray-50);
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review.is-ready {
+  border-color: var(--st-success-ring);
+  background: var(--st-success-bg);
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review-head > div {
+  min-width: 0;
+}
+.capiro-vnext-root
+  .capiro-strategies
+  .st-inspector__client-review-head
+  .st-section-label {
+  margin-bottom: 3px;
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review-head strong {
+  display: block;
+  color: var(--st-gray-900);
+  font-size: 14px;
+  font-weight: 600;
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review-copy {
+  margin: 0;
+  color: var(--st-gray-600);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.capiro-vnext-root
+  .capiro-strategies
+  .st-inspector__client-review-actions
+  .capiro-button {
+  width: 100%;
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__client-review-error {
+  margin: 0;
+  color: var(--st-error-fg);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* Field grid (design handoff "Step inspector": "a field grid rendered as
    gap:1px on an #E4E7EC background so rows read as hairline-separated
    #F9FAFB cells (88px uppercase label, then value)"). */

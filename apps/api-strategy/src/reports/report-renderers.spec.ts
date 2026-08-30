@@ -20,6 +20,28 @@ describe("executive report renderers", () => {
   });
 
   it.each([
+    ["DOCX", () => new DocxReportRenderer().render(snapshot(), null)],
+    ["PPTX", () => new PptxReportRenderer().render(snapshot(), null)],
+  ])(
+    "renders the complete executive narrative in %s without client-private notes",
+    async (_label, render) => {
+      const text = await packageText(await render());
+
+      expect(text).toContain("Situation and");
+      expect(text).toContain("Leadership");
+      expect(text.toLowerCase()).toContain("action register");
+      expect(text).toContain(
+        "A compressed committee calendar makes early alignment essential.",
+      );
+      expect(text).toContain("Obtain approval for the preferred path.");
+      expect(text).toContain(
+        "Committee staff expects a quantified evidence pack.",
+      );
+      expect(text).not.toContain("Internal practitioner note");
+    },
+  );
+
+  it.each([
     ["DOCX", () => new DocxReportRenderer().render(unsafeSnapshot(), null)],
     ["PPTX", () => new PptxReportRenderer().render(unsafeSnapshot(), null)],
   ])("normalizes stored text into valid %s XML", async (_label, render) => {
@@ -111,6 +133,15 @@ function snapshot(): ExecutiveReportSnapshot {
     client: {
       id: "client-1",
       name: "Northstar Systems",
+      profile: {
+        description:
+          "Northstar develops secure mission systems for public-sector customers.",
+        productDescription:
+          "Its portfolio combines resilient communications and decision support.",
+        profileType: "Enterprise",
+        sectorTag: "Aerospace and defense",
+        website: "https://northstar.example",
+      },
       logo: {
         available: false,
         supported: false,
@@ -135,6 +166,18 @@ function snapshot(): ExecutiveReportSnapshot {
       groundedGates: 1,
       overdueNodes: 1,
     },
+    allLiveHealth: {
+      score: 84,
+      label: "On track",
+      coveragePct: 100,
+      groundingPct: 100,
+      timelinessPct: 75,
+      totalNodes: 4,
+      ownedNodes: 4,
+      totalGates: 1,
+      groundedGates: 1,
+      overdueNodes: 1,
+    },
     counts: {
       nodes: 4,
       actions: 1,
@@ -143,6 +186,14 @@ function snapshot(): ExecutiveReportSnapshot {
       milestones: 0,
       risks: 1,
       artifacts: 1,
+    },
+    inclusion: {
+      liveNodes: 4,
+      includedNodes: 4,
+      omittedNodes: 0,
+      includedByStatus: { in_progress: 4 },
+      omittedByStatus: {},
+      placeholderNodes: 0,
     },
     nodes,
     artifacts: [
@@ -158,8 +209,67 @@ function snapshot(): ExecutiveReportSnapshot {
     referenceWindows: [],
     context: {
       activeDocuments: 4,
+      includedDocuments: 1,
+      excludedDocuments: 3,
       staleDocuments: 0,
       openMaterialConflicts: 0,
+      documents: [
+        {
+          id: "context-1",
+          title: "Approved strategy brief",
+          templateKey: "strategy_brief",
+          authority: "client_approved",
+          confidentiality: "client_shareable",
+          asOf: "2026-08-29",
+          validUntil: null,
+          updatedAt: "2026-08-29T10:00:00.000Z",
+          highlightCount: 3,
+        },
+      ],
+      facts: [
+        {
+          id: "fact-1",
+          text: "Committee staff expects a quantified evidence pack.",
+          documentTitle: "Approved strategy brief",
+          templateKey: "strategy_brief",
+          sourceRef: "fact:1",
+          authority: "client_approved",
+          asOf: "2026-08-29",
+          confidence: 0.9,
+        },
+      ],
+      sections: [
+        {
+          key: "situation",
+          title: "Situation",
+          items: [
+            {
+              text: "A compressed committee calendar makes early alignment essential.",
+              label: "Timing pressure",
+              sourceTitle: "Approved strategy brief",
+              sourceRef: "context-1#situation",
+              authority: "client_approved",
+              asOf: "2026-08-29",
+              confidence: 0.9,
+            },
+          ],
+        },
+        {
+          key: "ask",
+          title: "Primary ask",
+          items: [
+            {
+              text: "Obtain approval for the preferred path.",
+              label: "Leadership decision",
+              sourceTitle: "Approved strategy brief",
+              sourceRef: "context-1#ask",
+              authority: "client_approved",
+              asOf: "2026-08-29",
+              confidence: 0.95,
+            },
+          ],
+        },
+      ],
     },
     activity: { versions: [], agentRuns: [], changeSets: [] },
     options: {
@@ -175,6 +285,37 @@ function snapshot(): ExecutiveReportSnapshot {
     warnings: [],
     capacityErrors: [],
   };
+}
+
+async function packageText(bytes: Buffer): Promise<string> {
+  const archive = await JSZip.loadAsync(bytes);
+  const xmlFiles = Object.values(archive.files).filter(
+    (entry) =>
+      !entry.dir &&
+      (entry.name === "word/document.xml" ||
+        /^ppt\/slides\/slide\d+\.xml$/.test(entry.name)),
+  );
+  const documents = await Promise.all(
+    xmlFiles.map((entry) => entry.async("string")),
+  );
+
+  return documents
+    .flatMap((xml) =>
+      Array.from(
+        xml.matchAll(/<(?:w:t|a:t)(?:\s[^>]*)?>([\s\S]*?)<\/(?:w:t|a:t)>/g),
+      ),
+    )
+    .map((match) => decodeXml(match[1] ?? ""))
+    .join(" ");
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&amp;", "&");
 }
 
 function node(overrides: Partial<ReportNode>): ReportNode {

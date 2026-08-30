@@ -13,7 +13,7 @@ import { CapiroFileTextIcon } from '../../../components/icons/index.js';
 import {
   type StrategyExportAudience,
   type StrategyExportFormat,
-  type StrategyExportInput,
+  type StrategyExportOptions,
   useClientsLite,
   useCurrentPlanExport,
   useGenerateStrategyExport,
@@ -29,6 +29,13 @@ const LOGO_WARNING_CODES = new Set([
   'CLIENT_LOGO_UNAVAILABLE',
   'CLIENT_LOGO_UNSUPPORTED',
 ]);
+
+const SECTION_STATE_LABELS = {
+  ready: 'Ready',
+  thin: 'Thin',
+  empty: 'Empty',
+  excluded: 'Excluded',
+} as const;
 
 const REPORT_FORMATS: Array<{
   id: StrategyExportFormat;
@@ -84,6 +91,16 @@ function displayDate(value: string | null | undefined): string {
   }).format(date);
 }
 
+function humanizeStatus(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function messageFromPayload(value: unknown): string | null {
   if (typeof value === 'string' && value.trim()) return value;
   if (!value || typeof value !== 'object') return null;
@@ -96,6 +113,26 @@ function messageFromPayload(value: unknown): string | null {
     return parts.length ? parts.join(' ') : null;
   }
   return null;
+}
+
+function codeFromPayload(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null;
+  const code = (value as { code?: unknown }).code;
+  return typeof code === 'string' && code.trim() ? code : null;
+}
+
+async function errorCodeFromResponse(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== 'object') return null;
+  const responseData = (error as { response?: { data?: unknown } }).response
+    ?.data;
+  if (responseData instanceof Blob) {
+    try {
+      return codeFromPayload(JSON.parse(await responseData.text()) as unknown);
+    } catch {
+      return null;
+    }
+  }
+  return codeFromPayload(responseData);
 }
 
 async function readableError(
@@ -199,9 +236,31 @@ export function ExportOverlay() {
   const isReport = choice !== 'markdown';
   const reportFormat: StrategyExportFormat =
     choice === 'pptx' ? 'pptx' : 'docx';
+  const reportOptions = useMemo<StrategyExportOptions>(
+    () => ({
+      format: reportFormat,
+      audience,
+      useClientLogo,
+      includeRoadmap,
+      includeEvidenceAppendix,
+      includeChangeLog: audience === 'internal' && includeChangeLog,
+      includeInternalNotes: audience === 'internal' && includeInternalNotes,
+      includeAgentHistory: audience === 'internal' && includeAgentHistory,
+    }),
+    [
+      audience,
+      includeAgentHistory,
+      includeChangeLog,
+      includeEvidenceAppendix,
+      includeInternalNotes,
+      includeRoadmap,
+      reportFormat,
+      useClientLogo,
+    ],
+  );
   const preflight = useStrategyExportPreflight(
     strategyId ?? null,
-    audience,
+    reportOptions,
     isReport,
   );
   const reportExport = useGenerateStrategyExport(strategyId ?? null);
@@ -243,29 +302,34 @@ export function ExportOverlay() {
   const visiblePreflightWarnings = (preflight.data?.warnings ?? []).filter(
     (warning) => useClientLogo || !LOGO_WARNING_CODES.has(warning.code),
   );
+  const audienceLabel =
+    audience === 'client' ? 'Client-ready' : 'Internal working copy';
+  const audienceFilenameLabel =
+    audience === 'client' ? 'client' : 'internal-working';
+  const evidenceSection = preflight.data?.sections.find(
+    (section) => section.id === 'evidence',
+  );
+  const evidenceUnavailable = evidenceSection?.state === 'empty';
+  const effectiveIncludeEvidenceAppendix =
+    includeEvidenceAppendix && !evidenceUnavailable;
 
   const defaultStem = useMemo(() => {
     if (choice === 'markdown') return `${slugify(reportTitle)}-current-plan`;
     const deliverable =
       choice === 'pptx' ? 'executive-briefing' : 'executive-report';
-    return `${slugify(clientDisplayName)}-${slugify(reportTitle)}-${deliverable}-${reportAsOf}`;
-  }, [choice, clientDisplayName, reportAsOf, reportTitle]);
+    return `${slugify(clientDisplayName)}-${slugify(reportTitle)}-${deliverable}-${audienceFilenameLabel}-${reportAsOf}`;
+  }, [
+    choice,
+    clientDisplayName,
+    reportAsOf,
+    reportTitle,
+    audienceFilenameLabel,
+  ]);
 
   const filenameStem =
     safeFilenameStem(customName ?? defaultStem) || defaultStem;
   const extension = choice === 'markdown' ? '.md' : `.${choice}`;
   const filename = `${filenameStem}${extension}`;
-
-  const reportInput: StrategyExportInput = {
-    format: reportFormat,
-    audience,
-    useClientLogo: effectiveUseClientLogo,
-    includeRoadmap,
-    includeEvidenceAppendix,
-    includeChangeLog: audience === 'internal' && includeChangeLog,
-    includeInternalNotes: audience === 'internal' && includeInternalNotes,
-    includeAgentHistory: audience === 'internal' && includeAgentHistory,
-  };
 
   const formatSupported =
     !preflight.data || preflight.data.report.formats.includes(reportFormat);
@@ -274,13 +338,60 @@ export function ExportOverlay() {
     preflight.data.errors.length === 0 &&
     formatSupported,
   );
+  const readiness =
+    !formatSupported || preflight.data?.errors.length
+      ? 'blocked'
+      : preflight.data?.report.readiness === 'review' &&
+          visiblePreflightWarnings.length === 0
+        ? 'ready'
+        : (preflight.data?.report.readiness ?? 'blocked');
+  const readinessClass =
+    readiness === 'ready'
+      ? 'is-ready'
+      : readiness === 'review'
+        ? 'is-neutral'
+        : 'is-blocked';
+  const readinessLabel =
+    readiness === 'ready'
+      ? 'Ready to generate'
+      : readiness === 'review'
+        ? 'Ready with review notes'
+        : 'Action required';
+  const omittedStatusEntries = Object.entries(
+    preflight.data?.inclusion.omittedByStatus ?? {},
+  ).filter(([, count]) => count > 0);
+  const displayedSections = (preflight.data?.sections ?? []).map((section) => {
+    if (section.id === 'roadmap' && !includeRoadmap) {
+      return {
+        ...section,
+        state: 'excluded' as const,
+        message: 'Excluded by the current report settings.',
+      };
+    }
+    if (
+      section.id === 'evidence' &&
+      !effectiveIncludeEvidenceAppendix &&
+      section.state !== 'empty'
+    ) {
+      return {
+        ...section,
+        state: 'excluded' as const,
+        message: 'Excluded by the current report settings.',
+      };
+    }
+    return section;
+  });
   const downloading = isReport ? reportExport.isPending : planExport.isFetching;
-  const checkingReadiness = isReport && !preflight.data && !preflight.isError;
+  const checkingReadiness = isReport && preflight.isFetching;
   const primaryDisabled =
     !strategyId ||
     downloading ||
     logoUpload.isPending ||
-    (isReport && (preflight.isError || !preflight.data || !reportReady));
+    (isReport &&
+      (preflight.isFetching ||
+        preflight.isError ||
+        !preflight.data ||
+        !reportReady));
 
   const clearResult = () => {
     setDownloadError(null);
@@ -321,7 +432,10 @@ export function ExportOverlay() {
     }
 
     try {
-      const result = await reportExport.mutateAsync(reportInput);
+      const result = await reportExport.mutateAsync({
+        ...reportOptions,
+        expectedSnapshotHash: preflight.data?.report.snapshotHash,
+      });
       const downloadFilename = customName === null ? result.filename : filename;
       saveBlob(result.blob, downloadFilename);
       const snapshot = result.snapshotHash
@@ -335,6 +449,15 @@ export function ExportOverlay() {
         `Downloaded ${downloadFilename}.${snapshot}${brandingFallback}`,
       );
     } catch (error) {
+      if ((await errorCodeFromResponse(error)) === 'REPORT_SNAPSHOT_CHANGED') {
+        const refreshed = await preflight.refetch();
+        setDownloadError(
+          refreshed.isSuccess
+            ? 'The strategy changed after readiness was checked. Readiness was refreshed; review the updated content before downloading again.'
+            : 'The strategy changed after readiness was checked. Refresh readiness and review the updated content before downloading again.',
+        );
+        return;
+      }
       setDownloadError(
         await readableError(
           error,
@@ -394,7 +517,11 @@ export function ExportOverlay() {
   return (
     <StrategiesModalShell
       eyebrow="Executive report"
-      title="Create a client-ready strategy report"
+      title={
+        audience === 'client'
+          ? 'Create a client-ready strategy report'
+          : 'Create an internal strategy report'
+      }
       subtitle={
         strategy.isLoading
           ? 'Loading strategy details…'
@@ -652,8 +779,14 @@ export function ExportOverlay() {
                 <ToggleRow
                   id="include-evidence"
                   title="Evidence appendix"
-                  description="Add the artifacts and sources that ground plan decisions."
-                  checked={includeEvidenceAppendix}
+                  description={
+                    evidenceUnavailable
+                      ? evidenceSection?.message ||
+                        'No grounded sources or artifacts are available yet.'
+                      : 'Add the artifacts and sources that ground plan decisions.'
+                  }
+                  checked={effectiveIncludeEvidenceAppendix}
+                  disabled={evidenceUnavailable}
                   onChange={setIncludeEvidenceAppendix}
                 />
                 <ToggleRow
@@ -723,11 +856,11 @@ export function ExportOverlay() {
                 {strategy.data?.goal ? (
                   <p className="st-export-cover__goal">{strategy.data.goal}</p>
                 ) : null}
-                {audience === 'internal' ? (
-                  <span className="st-export-cover__internal">
-                    Internal working copy
-                  </span>
-                ) : null}
+                <span
+                  className={`st-export-cover__audience st-export-cover__audience--${audience}`}
+                >
+                  {audienceLabel}
+                </span>
                 <div className="st-export-cover__footer">
                   <span>{clientDisplayName}</span>
                   <span>{displayDate(reportAsOf)}</span>
@@ -749,9 +882,16 @@ export function ExportOverlay() {
                 <p className="st-panel__label" id="export-readiness-heading">
                   Report readiness
                 </p>
-                {preflight.isFetching && preflight.data ? (
-                  <span className="st-export-refreshing">Refreshing…</span>
-                ) : null}
+                <div className="st-export-preflight__meta">
+                  <span
+                    className={`st-export-audience-badge st-export-audience-badge--${audience}`}
+                  >
+                    {audienceLabel}
+                  </span>
+                  {preflight.isFetching && preflight.data ? (
+                    <span className="st-export-refreshing">Refreshing…</span>
+                  ) : null}
+                </div>
               </div>
               {!preflight.data && !preflight.isError ? (
                 <div
@@ -777,20 +917,19 @@ export function ExportOverlay() {
               ) : preflight.data ? (
                 <>
                   <div className="st-export-checks">
-                    <div
-                      className={`st-export-check${reportReady ? ' is-ready' : ' is-blocked'}`}
-                    >
-                      <span aria-hidden="true">{reportReady ? '✓' : '!'}</span>
+                    <div className={`st-export-check ${readinessClass}`}>
+                      <span aria-hidden="true">
+                        {readiness === 'ready' ? '✓' : '!'}
+                      </span>
                       <div>
-                        <strong>
-                          {reportReady
-                            ? 'Ready to generate'
-                            : 'Action required'}
-                        </strong>
+                        <strong>{readinessLabel}</strong>
                         <small>
-                          {preflight.data.counts.nodes} plan item
-                          {preflight.data.counts.nodes === 1 ? '' : 's'} in the
-                          current snapshot
+                          {preflight.data.inclusion.includedNodes} of{' '}
+                          {preflight.data.inclusion.liveNodes} live plan item
+                          {preflight.data.inclusion.liveNodes === 1
+                            ? ''
+                            : 's'}{' '}
+                          included
                         </small>
                       </div>
                     </div>
@@ -799,11 +938,23 @@ export function ExportOverlay() {
                         {preflight.data.health.score}
                       </span>
                       <div>
-                        <strong>{preflight.data.health.label}</strong>
+                        <strong>
+                          Included-content health ·{' '}
+                          {preflight.data.health.label}
+                        </strong>
                         <small>
                           {preflight.data.health.coveragePct}% owner coverage ·{' '}
                           {preflight.data.health.groundingPct}% grounded
                         </small>
+                        {preflight.data.allLiveHealth.totalNodes !==
+                          preflight.data.health.totalNodes ||
+                        preflight.data.allLiveHealth.score !==
+                          preflight.data.health.score ? (
+                          <small>
+                            All live plan: {preflight.data.allLiveHealth.score}
+                            /100 · {preflight.data.allLiveHealth.label}
+                          </small>
+                        ) : null}
                       </div>
                     </div>
                     <div
@@ -831,6 +982,57 @@ export function ExportOverlay() {
                         </small>
                       </div>
                     </div>
+                  </div>
+                  {preflight.data.inclusion.omittedNodes > 0 ? (
+                    <div className="st-export-inclusion-note" role="note">
+                      <strong>
+                        {pluralize(
+                          preflight.data.inclusion.omittedNodes,
+                          'plan item',
+                        )}{' '}
+                        omitted for this audience
+                      </strong>
+                      {omittedStatusEntries.length ? (
+                        <span>
+                          {omittedStatusEntries
+                            .map(
+                              ([status, count]) =>
+                                `${humanizeStatus(status)}: ${count}`,
+                            )
+                            .join(' · ')}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="st-export-inclusion-all">
+                      All live plan items are included for this audience.
+                    </p>
+                  )}
+
+                  <div className="st-export-section-readiness">
+                    <p className="st-export-section-readiness__title">
+                      Report sections
+                    </p>
+                    <ul>
+                      {displayedSections.map((section) => (
+                        <li key={section.id}>
+                          <span
+                            className={`st-export-section-state st-export-section-state--${section.state}`}
+                          >
+                            {SECTION_STATE_LABELS[section.state]}
+                          </span>
+                          <span className="st-export-section-readiness__copy">
+                            <strong>{section.label}</strong>
+                            <small>
+                              {section.message}
+                              {section.availableCount > 0
+                                ? ` · ${pluralize(section.availableCount, 'item')}`
+                                : ''}
+                            </small>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                   {!formatSupported ? (
                     <div
@@ -865,6 +1067,9 @@ export function ExportOverlay() {
                     Snapshot as of {displayDate(preflight.data.report.asOf)}
                     {preflight.data.version.createdAt
                       ? ` · Version saved ${displayDate(preflight.data.version.createdAt)}`
+                      : ''}
+                    {preflight.data.report.snapshotHash
+                      ? ` · ${preflight.data.report.snapshotHash.slice(0, 10)}`
                       : ''}
                   </p>
                 </>

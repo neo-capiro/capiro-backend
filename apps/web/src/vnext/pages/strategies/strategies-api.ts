@@ -367,6 +367,9 @@ export function useStrategyDetailWrite(strategyId: string) {
     void qc.invalidateQueries({
       queryKey: ['strategy', 'versions', strategyId],
     });
+    void qc.invalidateQueries({
+      queryKey: ['strategy', 'export-preflight', strategyId],
+    });
   };
 }
 
@@ -419,6 +422,9 @@ export function useAssistant(strategyId: string) {
       void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
       void qc.invalidateQueries({
         queryKey: ['strategy', 'versions', strategyId],
+      });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'export-preflight', strategyId],
       });
     },
     onSettled: (_data, _err, input) => {
@@ -1100,7 +1106,7 @@ export function useCurrentPlanExport(
 export type StrategyExportFormat = 'docx' | 'pptx';
 export type StrategyExportAudience = 'client' | 'internal';
 
-export interface StrategyExportInput {
+export interface StrategyExportOptions {
   format: StrategyExportFormat;
   audience: StrategyExportAudience;
   useClientLogo: boolean;
@@ -1111,6 +1117,39 @@ export interface StrategyExportInput {
   includeAgentHistory: boolean;
 }
 
+export interface StrategyExportInput extends StrategyExportOptions {
+  /** Optimistic concurrency token returned by the matching preflight. */
+  expectedSnapshotHash?: string;
+}
+
+export interface StrategyReportHealth {
+  score: number;
+  label: 'On track' | 'Needs attention' | 'At risk';
+  coveragePct: number;
+  groundingPct: number;
+  timelinessPct: number;
+  totalNodes: number;
+  ownedNodes: number;
+  totalGates: number;
+  groundedGates: number;
+  overdueNodes: number;
+}
+
+export interface StrategyReportSectionReadiness {
+  id:
+    | 'summary'
+    | 'context'
+    | 'priorities'
+    | 'decisions_risks'
+    | 'roadmap'
+    | 'accountability'
+    | 'evidence';
+  label: string;
+  state: 'ready' | 'thin' | 'empty' | 'excluded';
+  availableCount: number;
+  message: string;
+}
+
 export interface StrategyExportPreflight {
   report: {
     strategyId: string;
@@ -1119,21 +1158,15 @@ export interface StrategyExportPreflight {
     asOf: string;
     ready: boolean;
     formats: StrategyExportFormat[];
+    audience: StrategyExportAudience;
+    format: StrategyExportFormat;
+    snapshotHash: string;
+    readiness: 'ready' | 'review' | 'blocked';
   };
   client: { id: string; name: string };
   version: { id: string | null; createdAt: string | null; note: string | null };
-  health: {
-    score: number;
-    label: 'On track' | 'Needs attention' | 'At risk';
-    coveragePct: number;
-    groundingPct: number;
-    timelinessPct: number;
-    totalNodes: number;
-    ownedNodes: number;
-    totalGates: number;
-    groundedGates: number;
-    overdueNodes: number;
-  };
+  health: StrategyReportHealth;
+  allLiveHealth: StrategyReportHealth;
   logo: {
     available: boolean;
     supported: boolean;
@@ -1149,6 +1182,23 @@ export interface StrategyExportPreflight {
     risks: number;
     artifacts: number;
   };
+  inclusion: {
+    liveNodes: number;
+    includedNodes: number;
+    omittedNodes: number;
+    includedByStatus: Record<string, number>;
+    omittedByStatus: Record<string, number>;
+    placeholderNodes: number;
+  };
+  content: {
+    contextDocuments: number;
+    excludedContextDocuments: number;
+    narrativeSections: number;
+    narrativeItems: number;
+    contextFacts: number;
+    evidenceLinkedNodes: number;
+  };
+  sections: StrategyReportSectionReadiness[];
   warnings: Array<{ code: string; message: string }>;
   errors: Array<{ code: string; message: string }>;
 }
@@ -1162,10 +1212,14 @@ export interface StrategyExportFile {
   logoIncluded: boolean;
 }
 
-function exportFallbackFilename(format: StrategyExportFormat): string {
+function exportFallbackFilename(
+  format: StrategyExportFormat,
+  audience: StrategyExportAudience,
+): string {
+  const audienceLabel = audience === 'internal' ? 'internal-working' : 'client';
   return format === 'pptx'
-    ? 'strategy-executive-briefing.pptx'
-    : 'strategy-executive-report.docx';
+    ? `strategy-executive-briefing-${audienceLabel}.pptx`
+    : `strategy-executive-report-${audienceLabel}.docx`;
 }
 
 /** Parse both quoted filename= and UTF-8 filename*= response headers. */
@@ -1189,22 +1243,33 @@ export function exportFilenameFromDisposition(
 
 export function useStrategyExportPreflight(
   strategyId: string | null,
-  audience: StrategyExportAudience,
+  options: StrategyExportOptions,
   enabled = true,
 ) {
   const api = useApi();
   return useQuery<StrategyExportPreflight>({
-    queryKey: ['strategy', 'export-preflight', strategyId, audience],
+    queryKey: ['strategy', 'export-preflight', strategyId, options],
     enabled: !!strategyId && enabled,
     staleTime: 0,
     gcTime: 0,
     refetchOnWindowFocus: false,
-    queryFn: async () =>
-      (
+    queryFn: async () => {
+      const query = new URLSearchParams({
+        format: options.format,
+        audience: options.audience,
+        useClientLogo: String(options.useClientLogo),
+        includeRoadmap: String(options.includeRoadmap),
+        includeEvidenceAppendix: String(options.includeEvidenceAppendix),
+        includeChangeLog: String(options.includeChangeLog),
+        includeInternalNotes: String(options.includeInternalNotes),
+        includeAgentHistory: String(options.includeAgentHistory),
+      });
+      return (
         await api.get<StrategyExportPreflight>(
-          `${BASE}/strategies/${strategyId}/reports/preflight?audience=${audience}`,
+          `${BASE}/strategies/${strategyId}/reports/preflight?${query.toString()}`,
         )
-      ).data,
+      ).data;
+    },
   });
 }
 
@@ -1230,7 +1295,7 @@ export function useGenerateStrategyExport(strategyId: string | null) {
         blob: response.data,
         filename: exportFilenameFromDisposition(
           disposition,
-          exportFallbackFilename(input.format),
+          exportFallbackFilename(input.format, input.audience),
         ),
         contentType,
         snapshotHash:

@@ -21,12 +21,16 @@ import {
 } from "docx";
 import {
   clip,
+  contextItems,
   criticalNodes,
   dateRange,
   decisionsAndRisks,
+  evidenceItems,
   executiveSummary,
+  focusAreas,
   formatDate,
   kindLabel,
+  leadershipAgenda,
   nodeDetail,
   roadmap,
   statusLabel,
@@ -37,6 +41,7 @@ import { ooxmlSafeValue } from "./report-text.js";
 import type {
   ClientLogoAsset,
   ExecutiveReportSnapshot,
+  ReportNarrativeItem,
   ReportNode,
 } from "./report.types.js";
 
@@ -69,26 +74,26 @@ export class DocxReportRenderer {
   ): Promise<Buffer> {
     // Defense in depth for direct renderer callers outside snapshot loading.
     snapshot = ooxmlSafeValue(snapshot);
+    const workingPlanNodes = internalWorkingPlanNodes(snapshot);
+    const deliverySnapshot =
+      workingPlanNodes.length > 0
+        ? {
+            ...snapshot,
+            nodes: snapshot.nodes.filter(
+              (node) =>
+                !workingPlanNodes.some((working) => working.id === node.id),
+            ),
+          }
+        : snapshot;
     const children: Array<Paragraph | Table> = [];
     children.push(...cover(snapshot, logo));
     children.push(new Paragraph({ children: [new PageBreak()] }));
 
-    children.push(sectionHeading("Executive summary"));
+    children.push(sectionHeading("Executive brief"));
     for (const line of executiveSummary(snapshot))
       children.push(bodyParagraph(line));
-    children.push(
-      callout(
-        `${snapshot.health.label} · ${snapshot.health.score}/100`,
-        healthNarrative(snapshot),
-        snapshot.health.score >= 80
-          ? COLORS.teal
-          : snapshot.health.score >= 60
-            ? COLORS.gold
-            : COLORS.red,
-      ),
-    );
 
-    children.push(sectionHeading("Strategy at a glance"));
+    children.push(subheading("Strategy at a glance"));
     children.push(
       twoColumnFacts([
         ["Strategy", snapshot.strategy.title],
@@ -97,14 +102,147 @@ export class DocxReportRenderer {
         ["Accountable lead", snapshot.strategy.ownerName],
         ["Target date", formatDate(snapshot.strategy.targetDate)],
         ["Plan as of", formatDate(snapshot.asOf)],
+        [
+          "Report scope",
+          snapshot.options.audience === "client"
+            ? `${snapshot.inclusion.includedNodes} reviewed delivery step${snapshot.inclusion.includedNodes === 1 ? "" : "s"}`
+            : workingPlanNodes.length > 0
+              ? `${deliverySnapshot.nodes.length} committed · ${workingPlanNodes.length} pending review`
+              : `${snapshot.inclusion.includedNodes} of ${snapshot.inclusion.liveNodes} live plan steps`,
+        ],
       ]),
     );
+    if (
+      snapshot.options.audience === "internal" &&
+      snapshot.inclusion.omittedNodes > 0
+    ) {
+      children.push(
+        mutedParagraph(
+          `${snapshot.inclusion.omittedNodes} live plan step${snapshot.inclusion.omittedNodes === 1 ? " is" : "s are"} outside this ${snapshot.options.audience}-audience report because of review status or content quality.`,
+        ),
+      );
+    }
 
-    children.push(sectionHeading("Plan health"));
+    children.push(
+      callout(
+        `Delivery readiness · ${snapshot.health.label} · ${snapshot.health.score}/100`,
+        healthNarrative(snapshot),
+        snapshot.health.score >= 80
+          ? COLORS.teal
+          : snapshot.health.score >= 60
+            ? COLORS.gold
+            : COLORS.red,
+      ),
+    );
     children.push(healthTable(snapshot));
+    if (workingPlanNodes.length > 0) {
+      children.push(
+        mutedParagraph(
+          "Internal delivery readiness includes committed and working-plan items; the review queue is separated below and is not represented as committed delivery.",
+        ),
+      );
+    }
+
+    const agenda = leadershipAgenda(deliverySnapshot);
+    if (agenda.length > 0) {
+      children.push(subheading("Leadership agenda"));
+      children.push(leadershipAgendaTable(agenda));
+    }
+
+    children.push(sectionHeading("Objectives, outcomes, and primary ask"));
+    const outcomeItems = contextItems(snapshot, ["outcomes"]);
+    const askItems = contextItems(snapshot, ["ask"]);
+    if (snapshot.strategy.goal) {
+      children.push(subheading("Objective"));
+      children.push(bodyParagraph(snapshot.strategy.goal));
+    }
+    appendNarrative(
+      children,
+      "Approved outcomes and definition of success",
+      outcomeItems,
+    );
+    appendNarrative(children, "Primary ask and strategic options", askItems);
+    if (
+      !snapshot.strategy.goal &&
+      outcomeItems.length === 0 &&
+      askItems.length === 0
+    ) {
+      children.push(
+        mutedParagraph(
+          "No approved objective, outcome criteria, or primary ask is available in the current report snapshot.",
+        ),
+      );
+    }
+
+    const situationItems = contextItems(snapshot, ["situation", "timing"]);
+    const constraintItems = contextItems(snapshot, ["constraints"]);
+    const stakeholderItems = contextItems(snapshot, ["stakeholders"]);
+    const intelligenceItems = contextItems(snapshot, ["intelligence"]);
+    const stakeholderNodes = deliverySnapshot.nodes.filter(
+      (node) => node.targetLabel,
+    );
+    const hasClientProfile = Boolean(
+      snapshot.client.profile &&
+      (snapshot.client.profile.description ||
+        snapshot.client.profile.productDescription ||
+        snapshot.client.profile.profileType ||
+        snapshot.client.profile.sectorTag ||
+        snapshot.client.profile.website),
+    );
+    if (
+      hasClientProfile ||
+      situationItems.length > 0 ||
+      constraintItems.length > 0 ||
+      stakeholderItems.length > 0 ||
+      stakeholderNodes.length > 0 ||
+      intelligenceItems.length > 0
+    ) {
+      children.push(sectionHeading("Situation and operating context"));
+      if (hasClientProfile) appendClientContext(children, snapshot);
+      appendNarrative(children, "Current situation and timing", situationItems);
+      appendNarrative(
+        children,
+        "Constraints and sensitivities",
+        constraintItems,
+      );
+      appendNarrative(children, "Stakeholder path", stakeholderItems);
+      if (stakeholderNodes.length > 0) {
+        children.push(subheading("Stakeholder assignments"));
+        children.push(stakeholderPathTable(stakeholderNodes));
+      }
+      appendNarrative(children, "Recent intelligence", intelligenceItems);
+    }
+
+    const areas = focusAreas(deliverySnapshot);
+    if (areas.length > 0) {
+      children.push(sectionHeading("Plan focus areas"));
+      for (const area of areas) {
+        children.push(subheading(`${area.title} · ${area.nodes.length} steps`));
+        children.push(focusAreaDescription(area.description));
+        const displayed = area.nodes.slice(0, 4);
+        for (const node of displayed) children.push(nodeBullet(snapshot, node));
+        if (displayed.length < area.nodes.length) {
+          children.push(
+            mutedParagraph(
+              `Showing ${displayed.length} of ${area.nodes.length} steps in this focus area; every step appears in the complete action register.`,
+            ),
+          );
+        }
+      }
+    }
+
+    if (workingPlanNodes.length > 0) {
+      children.push(sectionHeading("Working-plan review queue"));
+      children.push(
+        bodyParagraph(
+          "The following Suggested, Draft, and Internal review items remain working material. They require review before they are treated as committed delivery.",
+        ),
+      );
+      children.push(actionRegisterTable(snapshot, workingPlanNodes));
+    }
 
     children.push(sectionHeading("Leadership priorities"));
-    const leadershipPriorities = criticalNodes(snapshot);
+    const leadershipPriorities = criticalNodes(deliverySnapshot);
     children.push(
       nodeTable(
         snapshot,
@@ -112,41 +250,59 @@ export class DocxReportRenderer {
         "No plan priorities are available.",
       ),
     );
-    if (leadershipPriorities.length < snapshot.nodes.length) {
+    if (leadershipPriorities.length < deliverySnapshot.nodes.length) {
       children.push(
         mutedParagraph(
-          `Showing the ${leadershipPriorities.length} highest-priority steps from ${snapshot.nodes.length} current plan steps.`,
+          `Showing the ${leadershipPriorities.length} highest-priority steps from ${deliverySnapshot.nodes.length} committed plan steps.`,
         ),
       );
     }
 
-    const risksAndDecisions = decisionsAndRisks(snapshot);
-    children.push(sectionHeading("Decisions and risk posture"));
-    children.push(
-      risksAndDecisions.length
-        ? nodeTable(snapshot, risksAndDecisions, "")
-        : bodyParagraph(
-            "No decisions or risks are currently recorded in the plan.",
-          ),
-    );
+    const risksAndDecisions = decisionsAndRisks(deliverySnapshot);
+    const decisionContext = contextItems(snapshot, ["decisions"]);
+    if (risksAndDecisions.length > 0 || decisionContext.length > 0) {
+      children.push(sectionHeading("Decision agenda and risk response"));
+      appendNarrative(children, "Approved decision context", decisionContext);
+      const decisions = risksAndDecisions.filter(
+        (node) => node.kind === "decision",
+      );
+      const risks = risksAndDecisions.filter((node) => node.kind === "risk");
+      if (decisions.length > 0) {
+        children.push(subheading("Decision points"));
+        children.push(nodeTable(snapshot, decisions, ""));
+      }
+      if (risks.length > 0) {
+        children.push(subheading("Risks and response ownership"));
+        children.push(nodeTable(snapshot, risks, ""));
+        if (
+          snapshot.options.audience === "client" &&
+          !snapshot.options.includeInternalNotes
+        ) {
+          children.push(
+            mutedParagraph(
+              "Risk response detail is shown only when it is recorded in approved client-safe context; the exporter does not infer mitigations.",
+            ),
+          );
+        }
+      }
+    }
 
     if (snapshot.options.includeRoadmap) {
-      children.push(sectionHeading("90-day roadmap"));
-      for (const group of roadmap(snapshot)) {
+      children.push(sectionHeading("Delivery roadmap"));
+      const roadmapGroups = roadmap(deliverySnapshot);
+      for (const group of roadmapGroups.filter(
+        (entry) => entry.nodes.length > 0,
+      )) {
         children.push(subheading(group.label));
-        if (group.nodes.length === 0) {
-          children.push(mutedParagraph("No plan steps in this window."));
-        } else {
-          for (const node of group.nodes)
-            children.push(nodeBullet(snapshot, node));
-        }
+        for (const node of group.nodes)
+          children.push(nodeBullet(snapshot, node));
       }
       if (
         snapshot.firmPhases.length > 0 ||
         snapshot.referenceWindows.length > 0
       ) {
         children.push(subheading("Planning calendar context"));
-        const displayedPhases = snapshot.firmPhases.slice(0, 8);
+        const displayedPhases = snapshot.firmPhases;
         for (const phase of displayedPhases) {
           children.push(
             bulletParagraph(
@@ -154,14 +310,7 @@ export class DocxReportRenderer {
             ),
           );
         }
-        if (displayedPhases.length < snapshot.firmPhases.length) {
-          children.push(
-            mutedParagraph(
-              `Showing ${displayedPhases.length} of ${snapshot.firmPhases.length} loaded firm phases.`,
-            ),
-          );
-        }
-        const displayedWindows = snapshot.referenceWindows.slice(0, 8);
+        const displayedWindows = relevantReferenceWindows(snapshot);
         for (const window of displayedWindows) {
           const timing = window.fy
             ? `FY${window.fy}`
@@ -170,39 +319,70 @@ export class DocxReportRenderer {
               : "Current";
           children.push(bulletParagraph(`${window.label}: ${timing}`));
         }
-        if (displayedWindows.length < snapshot.referenceWindows.length) {
+        if (
+          displayedWindows.length > 0 &&
+          displayedWindows.length < snapshot.referenceWindows.length
+        ) {
           children.push(
             mutedParagraph(
-              `Showing ${displayedWindows.length} of ${snapshot.referenceWindows.length} loaded reference windows.`,
+              `Showing ${displayedWindows.length} of ${snapshot.referenceWindows.length} reference windows that intersect the report horizon.`,
             ),
           );
         }
       }
     }
 
-    children.push(sectionHeading("Accountability and stakeholders"));
-    const accountable = snapshot.nodes.filter(
-      (node) => node.ownerName !== "Unassigned" || Boolean(node.targetLabel),
+    if (deliverySnapshot.nodes.length >= 6) {
+      children.push(new Paragraph({ children: [new PageBreak()] }));
+    }
+    children.push(
+      sectionHeading(
+        workingPlanNodes.length > 0
+          ? "Committed delivery register"
+          : "Complete action register",
+      ),
     );
     children.push(
-      accountable.length
-        ? accountabilityTable(accountable)
-        : bodyParagraph(
-            "Accountable owners and stakeholder targets have not yet been assigned.",
-          ),
+      deliverySnapshot.nodes.length > 0
+        ? actionRegisterTable(snapshot, deliverySnapshot.nodes)
+        : bodyParagraph("No committed delivery steps are available."),
     );
+    const unassignedDelivery = deliverySnapshot.nodes.filter(
+      (node) => !node.ownerAssigned,
+    ).length;
+    if (unassignedDelivery > 0) {
+      children.push(
+        mutedParagraph(
+          `${unassignedDelivery} committed plan step${unassignedDelivery === 1 ? " remains" : "s remain"} unassigned.`,
+        ),
+      );
+    }
 
-    if (snapshot.options.includeEvidenceAppendix) {
-      children.push(new Paragraph({ children: [new PageBreak()] }));
-      children.push(sectionHeading("Evidence and outputs appendix"));
-      const grounded = snapshot.nodes.filter((node) => node.sources.length > 0);
-      if (grounded.length === 0) {
-        children.push(
-          bodyParagraph(
-            "No evidence sources are attached to current plan steps.",
-          ),
-        );
-      } else {
+    const evidence = evidenceItems(snapshot);
+    const grounded = deliverySnapshot.nodes.filter(
+      (node) => node.sources.length > 0,
+    );
+    const hasEvidenceAppendix =
+      snapshot.options.includeEvidenceAppendix &&
+      (evidence.length > 0 ||
+        grounded.length > 0 ||
+        snapshot.artifacts.length > 0 ||
+        snapshot.context.documents.length > 0);
+    if (hasEvidenceAppendix) {
+      // No forced PageBreak here: an unconditional break right after a table
+      // that already lands near a page boundary (e.g. a large working-plan
+      // queue pushing the delivery register onto a near-full page) can
+      // render as a fully blank page in Word/LibreOffice — reproduced with a
+      // 20-node/17-suggested-item strategy. Every other section transition in
+      // this document already flows naturally without a forced break; this
+      // one now matches that pattern instead of risking a blank page.
+      children.push(sectionHeading("Evidence and context source register"));
+      if (evidence.length > 0) {
+        children.push(subheading("Approved evidence and facts"));
+        children.push(evidenceTable(evidence));
+      }
+      if (grounded.length > 0) {
+        children.push(subheading("Evidence linked to plan steps"));
         for (const node of grounded) {
           children.push(subheading(node.title));
           for (const source of node.sources) {
@@ -221,6 +401,10 @@ export class DocxReportRenderer {
             );
           }
         }
+      }
+      if (snapshot.context.documents.length > 0) {
+        children.push(subheading("Context source register"));
+        children.push(contextSourceTable(snapshot));
       }
       const artifactCounts = new Map<string, number>();
       for (const artifact of snapshot.artifacts) {
@@ -266,7 +450,10 @@ export class DocxReportRenderer {
       creator: "Capiro",
       title: `${snapshot.strategy.title} — Executive Strategy Report`,
       subject: `Executive strategy report for ${snapshot.client.name}`,
-      description: `Generated from strategy snapshot ${snapshot.snapshotHash.slice(0, 12)}`,
+      description:
+        snapshot.options.audience === "client"
+          ? `Executive strategy report prepared for ${snapshot.client.name}`
+          : `Generated from strategy snapshot ${snapshot.snapshotHash.slice(0, 12)}`,
       styles: {
         default: {
           document: {
@@ -474,6 +661,15 @@ function mutedParagraph(text: string): Paragraph {
   });
 }
 
+function focusAreaDescription(text: string): Paragraph {
+  return new Paragraph({
+    keepNext: true,
+    children: [
+      new TextRun({ text, size: 17, color: COLORS.slate, italics: true }),
+    ],
+  });
+}
+
 function bulletParagraph(text: string): Paragraph {
   return new Paragraph({
     bullet: { level: 0 },
@@ -499,6 +695,130 @@ function nodeBullet(
         size: 17,
         color: COLORS.slate,
       }),
+    ],
+  });
+}
+
+function appendClientContext(
+  children: Array<Paragraph | Table>,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const profile = snapshot.client.profile;
+  if (!profile) return;
+  children.push(subheading("Client context"));
+  const descriptors: Array<[string, string]> = [];
+  if (profile.profileType) descriptors.push(["Profile", profile.profileType]);
+  if (profile.sectorTag) descriptors.push(["Sector", profile.sectorTag]);
+  if (profile.website) descriptors.push(["Website", profile.website]);
+  if (descriptors.length > 0) children.push(twoColumnFacts(descriptors));
+  if (profile.description) {
+    children.push(
+      labeledParagraph("Organization", clip(profile.description, 900)),
+    );
+  }
+  if (profile.productDescription) {
+    children.push(
+      labeledParagraph(
+        "Product or program context",
+        clip(profile.productDescription, 900),
+      ),
+    );
+  }
+}
+
+function appendNarrative(
+  children: Array<Paragraph | Table>,
+  title: string,
+  items: readonly ReportNarrativeItem[],
+): void {
+  if (items.length === 0) return;
+  children.push(subheading(title));
+  for (const item of items) {
+    children.push(narrativeParagraph(item));
+    children.push(narrativeSourceParagraph(item));
+  }
+}
+
+function labeledParagraph(label: string, text: string): Paragraph {
+  return new Paragraph({
+    keepNext: false,
+    children: [
+      new TextRun({
+        text: `${label}: `,
+        bold: true,
+        size: 20,
+        color: COLORS.blue,
+      }),
+      new TextRun({ text, size: 20, color: COLORS.ink }),
+    ],
+  });
+}
+
+function narrativeParagraph(item: ReportNarrativeItem): Paragraph {
+  return new Paragraph({
+    bullet: { level: 0 },
+    keepNext: true,
+    spacing: { after: 30 },
+    children: [
+      ...(item.label
+        ? [
+            new TextRun({
+              text: `${item.label}: `,
+              bold: true,
+              size: 19,
+              color: COLORS.blue,
+            }),
+          ]
+        : []),
+      new TextRun({ text: item.text, size: 19, color: COLORS.ink }),
+    ],
+  });
+}
+
+function narrativeSourceParagraph(item: ReportNarrativeItem): Paragraph {
+  const details = [
+    item.sourceTitle,
+    item.asOf ? `as of ${formatDate(item.asOf)}` : null,
+    item.authority ? kindLabel(item.authority) : null,
+    item.confidence === null
+      ? null
+      : `${Math.round(item.confidence * 100)}% confidence`,
+  ].filter((part): part is string => Boolean(part));
+  return new Paragraph({
+    indent: { left: 360 },
+    spacing: { after: 100 },
+    children: [
+      new TextRun({
+        text: `Source: ${details.join(" · ")}`,
+        size: 14,
+        color: COLORS.slate,
+        italics: true,
+      }),
+    ],
+  });
+}
+
+function leadershipAgendaTable(
+  items: ReturnType<typeof leadershipAgenda>,
+): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      headerRow(["Leadership action", "Owner / timing"]),
+      ...items.map(
+        (item, index) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              richCell(item.title, kindLabel(item.tone)),
+              cell(
+                item.detail,
+                false,
+                index % 2 === 0 ? COLORS.pale : COLORS.white,
+              ),
+            ],
+          }),
+      ),
     ],
   });
 }
@@ -656,24 +976,174 @@ function nodeTable(
   });
 }
 
-function accountabilityTable(nodes: ReportNode[]): Table {
+function actionRegisterTable(
+  snapshot: ExecutiveReportSnapshot,
+  nodes: readonly ReportNode[] = snapshot.nodes,
+): Table {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      headerRow(["Plan step", "Accountable owner", "Stakeholder / target"]),
+      headerRow([
+        "Plan step",
+        "Type / status",
+        "Owner",
+        "Timing",
+        "Stakeholder / target",
+      ]),
       ...nodes.map(
         (node) =>
           new TableRow({
             cantSplit: true,
             children: [
-              cell(node.title),
+              richCell(
+                node.title,
+                snapshot.options.includeInternalNotes ? node.note : null,
+              ),
+              cell(`${kindLabel(node.kind)} · ${statusLabel(node.status)}`),
               cell(node.ownerName),
+              cell(dateRange(node)),
               cell(node.targetLabel ?? "—"),
             ],
           }),
       ),
     ],
   });
+}
+
+function stakeholderPathTable(nodes: readonly ReportNode[]): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      headerRow(["Stakeholder / target", "Plan step", "Owner", "Timing"]),
+      ...nodes.map(
+        (node) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              cell(node.targetLabel ?? "—", true),
+              cell(node.title),
+              cell(node.ownerName),
+              cell(dateRange(node)),
+            ],
+          }),
+      ),
+    ],
+  });
+}
+
+function evidenceTable(items: ReturnType<typeof evidenceItems>): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      headerRow(["Evidence or approved fact", "Source", "As of", "Confidence"]),
+      ...items.map(
+        (item) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              richCell(item.text, null),
+              cell(item.source),
+              cell(formatDate(item.asOf)),
+              cell(
+                item.confidence === null
+                  ? "Not stated"
+                  : `${Math.round(item.confidence * 100)}%`,
+              ),
+            ],
+          }),
+      ),
+    ],
+  });
+}
+
+function contextSourceTable(snapshot: ExecutiveReportSnapshot): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      headerRow([
+        "Source",
+        "Context type",
+        "Authority",
+        "As of / review",
+        "Highlights",
+      ]),
+      ...snapshot.context.documents.map(
+        (document) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              cell(document.title),
+              cell(kindLabel(document.templateKey.replace(/^\d+_/, ""))),
+              cell(
+                document.authority
+                  ? kindLabel(document.authority)
+                  : "Not stated",
+              ),
+              cell(
+                [
+                  document.asOf ? `As of ${formatDate(document.asOf)}` : null,
+                  document.validUntil
+                    ? `Review by ${formatDate(document.validUntil)}`
+                    : null,
+                ]
+                  .filter((part): part is string => Boolean(part))
+                  .join(" · ") || "Not stated",
+              ),
+              cell(String(document.highlightCount)),
+            ],
+          }),
+      ),
+    ],
+  });
+}
+
+function relevantReferenceWindows(
+  snapshot: ExecutiveReportSnapshot,
+): ExecutiveReportSnapshot["referenceWindows"] {
+  const asOf = Date.parse(`${snapshot.asOf}T00:00:00.000Z`);
+  if (!Number.isFinite(asOf)) return snapshot.referenceWindows;
+  const fallbackEnd = asOf + 180 * 86_400_000;
+  const target = snapshot.strategy.targetDate
+    ? Date.parse(`${snapshot.strategy.targetDate}T00:00:00.000Z`)
+    : Number.NaN;
+  const horizonEnd = Number.isFinite(target)
+    ? Math.max(fallbackEnd, target)
+    : fallbackEnd;
+  const horizonStart = asOf - 30 * 86_400_000;
+  const fiscalYears = new Set<number>();
+  for (
+    let year = federalFiscalYear(horizonStart);
+    year <= federalFiscalYear(horizonEnd);
+    year++
+  ) {
+    fiscalYears.add(year);
+  }
+  return snapshot.referenceWindows.filter((window) => {
+    if (window.fy !== null) return fiscalYears.has(window.fy);
+    const starts = window.startsOn
+      ? Date.parse(`${window.startsOn}T00:00:00.000Z`)
+      : Number.NaN;
+    const ends = window.endsOn
+      ? Date.parse(`${window.endsOn}T00:00:00.000Z`)
+      : starts;
+    if (!Number.isFinite(starts) && !Number.isFinite(ends)) return false;
+    const normalizedStart = Number.isFinite(starts) ? starts : ends;
+    const normalizedEnd = Number.isFinite(ends) ? ends : starts;
+    return normalizedStart <= horizonEnd && normalizedEnd >= horizonStart;
+  });
+}
+
+function internalWorkingPlanNodes(
+  snapshot: ExecutiveReportSnapshot,
+): ReportNode[] {
+  if (snapshot.options.audience !== "internal") return [];
+  const workingStatuses = new Set(["suggested", "draft", "internal_review"]);
+  return snapshot.nodes.filter((node) => workingStatuses.has(node.status));
+}
+
+function federalFiscalYear(value: number): number {
+  const date = new Date(value);
+  return date.getUTCFullYear() + (date.getUTCMonth() >= 9 ? 1 : 0);
 }
 
 function internalAppendix(

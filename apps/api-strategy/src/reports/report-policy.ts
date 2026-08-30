@@ -22,20 +22,29 @@ export function normalizeReportOptions(
   };
 }
 
-/** Unaccepted Meri suggestions are working material, never client deliverables. */
+/** Only committed delivery states are eligible for a client deliverable. */
 export function includeNodeForAudience(
   status: string,
   audience: "client" | "internal",
 ): boolean {
-  return audience === "internal" || status !== "suggested";
+  return (
+    audience === "internal" || status === "in_progress" || status === "active"
+  );
 }
 
-/** Replace workflow-only review state with client-safe delivery language. */
+/** Preserve the stored workflow state; audience filtering is handled above. */
 export function reportStatusForAudience(
   status: string,
-  audience: "client" | "internal",
+  _audience: "client" | "internal",
 ): string {
-  return audience === "client" && status === "internal_review"
-    ? "in_progress"
-    : status;
+  return status;
+}
+
+/** Obvious scaffolding must never make it into a polished client file. */
+export function isPlaceholderReportTitle(title: string): boolean {
+  const normalized = title.replace(/\s+/g, " ").trim().toLowerCase();
+  return (
+    /^(?:new|untitled)\s+(?:step|item|node)$/.test(normalized) ||
+    /^(?:test|sample|example|placeholder)(?:\s|$)/.test(normalized)
+  );
 }

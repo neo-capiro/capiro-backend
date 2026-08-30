@@ -10,6 +10,8 @@ describe("executive report capacity policy", () => {
       reportCapacityIssues({
         nodeRows: REPORT_CAPACITY_LIMITS.nodes,
         artifactRows: REPORT_CAPACITY_LIMITS.artifacts,
+        maxSourcesPerNode: REPORT_CAPACITY_LIMITS.sourcesPerNode,
+        maxDependenciesPerNode: REPORT_CAPACITY_LIMITS.dependenciesPerNode,
         estimatedBytes: REPORT_CAPACITY_LIMITS.snapshotBytes,
       }),
     ).toEqual([]);
@@ -20,11 +22,15 @@ describe("executive report capacity policy", () => {
       reportCapacityIssues({
         nodeRows: REPORT_CAPACITY_LIMITS.nodes + 1,
         artifactRows: REPORT_CAPACITY_LIMITS.artifacts + 1,
+        maxSourcesPerNode: REPORT_CAPACITY_LIMITS.sourcesPerNode + 1,
+        maxDependenciesPerNode: REPORT_CAPACITY_LIMITS.dependenciesPerNode + 1,
         estimatedBytes: REPORT_CAPACITY_LIMITS.snapshotBytes + 1,
       }).map(({ code }) => code),
     ).toEqual([
       "REPORT_NODE_LIMIT_EXCEEDED",
       "REPORT_ARTIFACT_LIMIT_EXCEEDED",
+      "REPORT_NODE_SOURCE_LIMIT_EXCEEDED",
+      "REPORT_NODE_DEPENDENCY_LIMIT_EXCEEDED",
       "REPORT_SNAPSHOT_LIMIT_EXCEEDED",
     ]);
   });

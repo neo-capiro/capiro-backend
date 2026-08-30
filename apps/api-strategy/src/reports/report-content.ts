@@ -1,4 +1,10 @@
-import type { ExecutiveReportSnapshot, ReportNode } from "./report.types.js";
+import type {
+  ExecutiveReportSnapshot,
+  ReportNarrativeItem,
+  ReportNarrativeSectionKey,
+  ReportNode,
+  ReportSectionReadiness,
+} from "./report.types.js";
 
 export interface RoadmapGroup {
   label:
@@ -10,18 +16,268 @@ export interface RoadmapGroup {
   nodes: ReportNode[];
 }
 
+export interface ReportFocusArea {
+  title: string;
+  description: string;
+  nodes: ReportNode[];
+}
+
+export interface LeadershipAgendaItem {
+  title: string;
+  detail: string;
+  tone: "decision" | "risk" | "delivery" | "evidence" | "ownership";
+}
+
 export function executiveSummary(snapshot: ExecutiveReportSnapshot): string[] {
   const lines: string[] = [];
   const summary = compact(snapshot.strategy.summary);
   const goal = compact(snapshot.strategy.goal);
   if (summary) lines.push(clip(summary, 700));
   if (goal && goal !== summary) lines.push(`Objective: ${clip(goal, 600)}`);
+  for (const item of contextItems(snapshot, ["situation", "outcomes"]).slice(
+    0,
+    summary ? 1 : 2,
+  )) {
+    if (!lines.some((line) => comparable(line).includes(comparable(item.text))))
+      lines.push(clip(item.text, 700));
+  }
   if (lines.length === 0) {
     lines.push(
       `This report summarizes the current ${strategyTypeLabel(snapshot.strategy.type).toLowerCase()} plan for ${snapshot.client.name}.`,
     );
   }
   return lines;
+}
+
+export function contextItems(
+  snapshot: ExecutiveReportSnapshot,
+  keys?: readonly ReportNarrativeSectionKey[],
+): ReportNarrativeItem[] {
+  return snapshot.context.sections
+    .filter((section) => !keys || keys.includes(section.key))
+    .flatMap((section) => section.items);
+}
+
+export function focusAreas(
+  snapshot: ExecutiveReportSnapshot,
+): ReportFocusArea[] {
+  const definitions: Array<{
+    title: string;
+    description: string;
+    subjects: string[];
+  }> = [
+    {
+      title: "Evidence and deliverables",
+      description:
+        "Products, submissions, and proof points that move the plan.",
+      subjects: ["deliverable", "submission"],
+    },
+    {
+      title: "Stakeholder engagement",
+      description:
+        "Member, committee, and agency engagement around the outcome.",
+      subjects: ["member", "committee", "agency"],
+    },
+    {
+      title: "Decision path and outcomes",
+      description: "Asks, choices, gates, and outcome milestones.",
+      subjects: ["ask", "outcome"],
+    },
+    {
+      title: "Positioning and communications",
+      description: "Narrative, optics, and coalition positioning.",
+      subjects: ["optics"],
+    },
+  ];
+  return definitions.flatMap((definition) => {
+    const nodes = snapshot.nodes.filter((node) =>
+      definition.subjects.includes(node.subject),
+    );
+    return nodes.length ? [{ ...definition, nodes }] : [];
+  });
+}
+
+export function leadershipAgenda(
+  snapshot: ExecutiveReportSnapshot,
+  limit = 6,
+): LeadershipAgendaItem[] {
+  const agenda: LeadershipAgendaItem[] = [];
+  const asOf = Date.parse(`${snapshot.asOf}T00:00:00.000Z`);
+  const ordered = criticalNodes(snapshot, snapshot.nodes.length);
+
+  for (const node of ordered.filter(
+    (candidate) => candidate.kind === "decision",
+  )) {
+    agenda.push({
+      title: `Decide: ${node.title}`,
+      detail: `${node.ownerName} · ${dateRange(node)}`,
+      tone: "decision",
+    });
+  }
+  for (const node of ordered.filter((candidate) => candidate.kind === "risk")) {
+    agenda.push({
+      title: `Confirm response: ${node.title}`,
+      detail: `${node.ownerName} · ${dateRange(node)}`,
+      tone: "risk",
+    });
+  }
+  for (const node of ordered.filter(
+    (candidate) => !candidate.openEnded && dueMs(candidate) < asOf,
+  )) {
+    agenda.push({
+      title: `Recover or rebaseline: ${node.title}`,
+      detail: `${node.ownerName} · due ${formatDate(node.endsOn ?? node.startsOn)}`,
+      tone: "delivery",
+    });
+  }
+  for (const node of ordered.filter((candidate) => !candidate.ownerAssigned)) {
+    agenda.push({
+      title: `Assign an owner: ${node.title}`,
+      detail: `${kindLabel(node.kind)} · ${dateRange(node)}`,
+      tone: "ownership",
+    });
+  }
+  for (const node of ordered.filter(
+    (candidate) => candidate.kind === "gate" && candidate.sources.length === 0,
+  )) {
+    agenda.push({
+      title: `Ground the gate: ${node.title}`,
+      detail: "Attach an approved source before the decision point.",
+      tone: "evidence",
+    });
+  }
+  if (agenda.length === 0) {
+    for (const node of ordered.slice(0, 3)) {
+      agenda.push({
+        title: `Advance: ${node.title}`,
+        detail: `${node.ownerName} · ${dateRange(node)}`,
+        tone: "delivery",
+      });
+    }
+  }
+  const unique = agenda.filter(
+    (item, index) =>
+      agenda.findIndex(
+        (candidate) => comparable(candidate.title) === comparable(item.title),
+      ) === index,
+  );
+  return unique.slice(0, limit);
+}
+
+export function evidenceItems(snapshot: ExecutiveReportSnapshot): Array<{
+  text: string;
+  source: string;
+  asOf: string | null;
+  confidence: number | null;
+}> {
+  const facts = snapshot.context.facts.map((fact) => ({
+    text: fact.text,
+    source: fact.documentTitle,
+    asOf: fact.asOf,
+    confidence: fact.confidence,
+  }));
+  const highlights = contextItems(snapshot, ["evidence"]).map((item) => ({
+    text: item.text,
+    source: item.sourceTitle,
+    asOf: item.asOf,
+    confidence: item.confidence,
+  }));
+  return [...facts, ...highlights].filter(
+    (item, index, all) =>
+      all.findIndex(
+        (candidate) => comparable(candidate.text) === comparable(item.text),
+      ) === index,
+  );
+}
+
+export function reportSectionReadiness(
+  snapshot: ExecutiveReportSnapshot,
+): ReportSectionReadiness[] {
+  const narrativeCount = contextItems(snapshot).length;
+  const decisionRiskCount = decisionsAndRisks(snapshot).length;
+  const accountableCount = snapshot.nodes.filter(
+    (node) => node.ownerAssigned || node.targetLabel,
+  ).length;
+  const evidenceCount =
+    evidenceItems(snapshot).length +
+    snapshot.nodes.filter((node) => node.sources.length > 0).length +
+    snapshot.artifacts.length;
+  const state = (count: number, thinAt = 2) =>
+    count === 0
+      ? ("empty" as const)
+      : count < thinAt
+        ? ("thin" as const)
+        : ("ready" as const);
+  return [
+    {
+      id: "summary",
+      label: "Executive summary",
+      state: snapshot.strategy.goal || narrativeCount ? "ready" : "empty",
+      availableCount: Number(Boolean(snapshot.strategy.goal)) + narrativeCount,
+      message:
+        snapshot.strategy.goal || narrativeCount
+          ? "Objective and approved narrative are available."
+          : "Add a strategy goal or approved strategy brief.",
+    },
+    {
+      id: "context",
+      label: "Strategic context",
+      state: state(narrativeCount, 3),
+      availableCount: narrativeCount,
+      message:
+        narrativeCount > 0
+          ? `${narrativeCount} approved context item${narrativeCount === 1 ? "" : "s"} available.`
+          : "No audience-safe context narrative is available.",
+    },
+    {
+      id: "priorities",
+      label: "Leadership priorities",
+      state: state(snapshot.nodes.length, 3),
+      availableCount: snapshot.nodes.length,
+      message: `${snapshot.nodes.length} plan step${snapshot.nodes.length === 1 ? "" : "s"} will be represented.`,
+    },
+    {
+      id: "decisions_risks",
+      label: "Decisions and risks",
+      state: state(decisionRiskCount, 2),
+      availableCount: decisionRiskCount,
+      message:
+        decisionRiskCount > 0
+          ? `${decisionRiskCount} decision and risk item${decisionRiskCount === 1 ? "" : "s"} available.`
+          : "No decision or risk steps are recorded.",
+    },
+    {
+      id: "roadmap",
+      label: "Roadmap",
+      state: snapshot.options.includeRoadmap
+        ? state(snapshot.nodes.length, 3)
+        : "excluded",
+      availableCount: snapshot.nodes.length,
+      message: snapshot.options.includeRoadmap
+        ? "All included plan steps will appear in the detailed roadmap or action register."
+        : "Excluded by export settings.",
+    },
+    {
+      id: "accountability",
+      label: "Accountability",
+      state: state(accountableCount, Math.min(3, snapshot.nodes.length)),
+      availableCount: accountableCount,
+      message: `${accountableCount} of ${snapshot.nodes.length} included steps have an owner or stakeholder target.`,
+    },
+    {
+      id: "evidence",
+      label: "Evidence and sources",
+      state: snapshot.options.includeEvidenceAppendix
+        ? state(evidenceCount, 2)
+        : "excluded",
+      availableCount: evidenceCount,
+      message: snapshot.options.includeEvidenceAppendix
+        ? evidenceCount > 0
+          ? `${evidenceCount} evidence, source, or output item${evidenceCount === 1 ? "" : "s"} available.`
+          : "No evidence or connected outputs are available."
+        : "Excluded by export settings.",
+    },
+  ];
 }
 
 export function criticalNodes(
@@ -150,6 +406,13 @@ export function clip(value: string, max: number): string {
 function compact(value: string | null | undefined): string | null {
   const compacted = value?.replace(/\s+/g, " ").trim();
   return compacted || null;
+}
+
+function comparable(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function priority(node: ReportNode, asOf: number): number {
