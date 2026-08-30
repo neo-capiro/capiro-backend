@@ -1148,6 +1148,15 @@ export class LegiWatchPhase9ReadinessService {
     intelligenceDueBefore: Date;
     now: Date;
   }): Promise<Snapshot> {
+    // This read-only transaction gathers bodies/sources/observations/
+    // candidates/captures across the full lookback window. As the historical
+    // disposition backlog is worked down (more hearings carry candidate/
+    // capture join rows), its real Aurora duration grows past Prisma's
+    // default 5000ms interactive-transaction timeout even though no query is
+    // individually slow — confirmed live 2026-08-30 (two consecutive runs at
+    // 5642ms/6012ms). Reuse the same escape hatch already applied to the
+    // persist transaction below (READINESS_PERSIST_TIMEOUT_MS) rather than
+    // inventing a second constant for what is the same underlying tradeoff.
     return this.prisma.withSystem(async (tx) => {
       const bodies = await tx.$queryRawUnsafe<BodyRow[]>(
         `SELECT system_code AS "systemCode",
@@ -1364,7 +1373,7 @@ export class LegiWatchPhase9ReadinessService {
         evidence,
         captureAllPublicEvents: cutoverRows[0]?.captureAllPublicEvents ?? false,
       };
-    });
+    }, { timeoutMs: READINESS_PERSIST_TIMEOUT_MS });
   }
 }
 
