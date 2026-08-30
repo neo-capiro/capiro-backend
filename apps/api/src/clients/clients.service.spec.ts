@@ -188,7 +188,13 @@ describe('ClientsService client logos — tenant and object validation', () => {
   const uploadId = '00000000-0000-4000-8000-000000000001';
   const pngKey = `tenants/client-logo-uploads/tenant-1/client-1/${uploadId}.png`;
   const jpegKey = `tenants/client-logo-uploads/tenant-1/client-1/${uploadId}.jpeg`;
+  const svgKey = `tenants/client-logo-uploads/tenant-1/client-1/${uploadId}.svg`;
+  const webpKey = `tenants/client-logo-uploads/tenant-1/client-1/${uploadId}.webp`;
   const previousPngKey = 'tenants/tenant-1/clients/client-1/logo.png';
+  const validSvg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#1a2b3c"/></svg>',
+  );
+  const validWebp = buildWebp({ width: 10, height: 10 });
   const validPng = removePngChunk(
     Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURRI0Vv///1EAcnUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggeERon835/3gAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=',
@@ -576,6 +582,195 @@ describe('ClientsService client logos — tenant and object validation', () => {
     );
   });
 
+  test.each([
+    [
+      'an embedded script tag',
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    ],
+    [
+      'an event-handler attribute',
+      '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="1" height="1"/></svg>',
+    ],
+    [
+      'a foreignObject element',
+      '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><script>alert(1)</script></foreignObject></svg>',
+    ],
+    [
+      'a DOCTYPE with an external entity declaration',
+      '<?xml version="1.0"?><!DOCTYPE svg [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]><svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>',
+    ],
+    [
+      'a fill referencing an external url()',
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1" fill="url(https://evil.example/track.svg#g)"/></svg>',
+    ],
+  ])('rejects an SVG with %s', async (_label, markup) => {
+    const { service, tenantTx, s3Send } = makeService();
+    tenantTx.client.findFirst.mockResolvedValue({
+      id: 'client-1',
+      logoS3Key: previousPngKey,
+    });
+    const malicious = Buffer.from(markup);
+    s3Send.mockResolvedValue({
+      ContentType: 'image/svg+xml',
+      ContentLength: malicious.length,
+      Body: { transformToByteArray: jest.fn(async () => malicious) },
+    });
+
+    await expect(
+      service.confirmLogoUpload(ctx, 'client-1', svgKey, 'image/svg+xml'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tenantTx.client.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('persists a validated SVG logo through a tenant-scoped update', async () => {
+    const { service, tenantTx, s3Send } = makeService();
+    tenantTx.client.findFirst
+      .mockResolvedValueOnce({ id: 'client-1', logoS3Key: previousPngKey })
+      .mockImplementationOnce(async () => ({
+        id: 'client-1',
+        tenantId: 'tenant-1',
+        logoS3Key:
+          tenantTx.client.updateMany.mock.calls[0]?.[0]?.data.logoS3Key,
+        logoContentType: 'image/svg+xml',
+      }));
+    tenantTx.client.updateMany.mockResolvedValue({ count: 1 });
+    s3Send.mockResolvedValue({
+      ContentType: 'image/svg+xml',
+      ContentLength: validSvg.length,
+      Body: { transformToByteArray: jest.fn(async () => validSvg) },
+    });
+    mockedGetSignedUrl.mockResolvedValue(
+      'https://downloads.example.test/logo.svg',
+    );
+
+    await service.confirmLogoUpload(ctx, 'client-1', svgKey, 'image/svg+xml');
+
+    const persisted = s3Send.mock.calls[1]?.[0]?.input.Body as Buffer;
+    // xmlMode parsing expands self-closing tags to explicit open/close pairs;
+    // that reformatting is expected and harmless, so assert on content, not
+    // byte-for-byte equality with the self-closed input fixture.
+    expect(persisted.toString('utf8')).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">' +
+        '<rect width="10" height="10" fill="#1a2b3c"></rect></svg>',
+    );
+  });
+
+  test('rejects an oversized/decompression-bomb WEBP', async () => {
+    const { service, tenantTx, s3Send } = makeService();
+    tenantTx.client.findFirst.mockResolvedValue({
+      id: 'client-1',
+      logoS3Key: previousPngKey,
+    });
+    // Declared dimensions alone exceed the pixel/side budget while the file
+    // itself stays a few dozen bytes (VP8L's 14-bit dimension fields cap out
+    // at 16384, so 5000x5000 is the largest a single VP8L image can declare
+    // without needing VP8X — it is still 25M pixels against a 1M-pixel cap).
+    const bomb = buildWebp({ width: 5_000, height: 5_000 });
+    s3Send.mockResolvedValue({
+      ContentType: 'image/webp',
+      ContentLength: bomb.length,
+      Body: { transformToByteArray: jest.fn(async () => bomb) },
+    });
+
+    await expect(
+      service.confirmLogoUpload(ctx, 'client-1', webpKey, 'image/webp'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tenantTx.client.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('rejects an animated WEBP', async () => {
+    const { service, tenantTx, s3Send } = makeService();
+    tenantTx.client.findFirst.mockResolvedValue({
+      id: 'client-1',
+      logoS3Key: previousPngKey,
+    });
+    const animated = buildWebp({
+      width: 10,
+      height: 10,
+      useVp8x: true,
+      animated: true,
+    });
+    s3Send.mockResolvedValue({
+      ContentType: 'image/webp',
+      ContentLength: animated.length,
+      Body: { transformToByteArray: jest.fn(async () => animated) },
+    });
+
+    await expect(
+      service.confirmLogoUpload(ctx, 'client-1', webpKey, 'image/webp'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tenantTx.client.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('strips WEBP metadata before persistence', async () => {
+    const { service, tenantTx, s3Send } = makeService();
+    tenantTx.client.findFirst
+      .mockResolvedValueOnce({ id: 'client-1', logoS3Key: previousPngKey })
+      .mockImplementationOnce(async () => ({
+        id: 'client-1',
+        tenantId: 'tenant-1',
+        logoS3Key:
+          tenantTx.client.updateMany.mock.calls[0]?.[0]?.data.logoS3Key,
+        logoContentType: 'image/webp',
+      }));
+    tenantTx.client.updateMany.mockResolvedValue({ count: 1 });
+    const withMetadata = buildWebp({
+      width: 10,
+      height: 10,
+      useVp8x: true,
+      extraChunks: [
+        { fourCc: 'ICCP', data: Buffer.from('fake-icc-profile-payload') },
+        { fourCc: 'EXIF', data: Buffer.from('fake-exif-payload') },
+      ],
+    });
+    // The VP8X flag byte announces ICC + EXIF presence, matching real encoders.
+    withMetadata[20] = withMetadata[20]! | 0x50;
+    s3Send.mockResolvedValue({
+      ContentType: 'image/webp',
+      ContentLength: withMetadata.length,
+      Body: { transformToByteArray: jest.fn(async () => withMetadata) },
+    });
+    mockedGetSignedUrl.mockResolvedValue(
+      'https://downloads.example.test/logo.webp',
+    );
+
+    await service.confirmLogoUpload(ctx, 'client-1', webpKey, 'image/webp');
+
+    const persisted = s3Send.mock.calls[1]?.[0]?.input.Body as Buffer;
+    expect(persisted.includes(Buffer.from('fake-icc-profile-payload'))).toBe(
+      false,
+    );
+    expect(persisted.includes(Buffer.from('fake-exif-payload'))).toBe(false);
+    expect(persisted[20]! & 0x58).toBe(0);
+  });
+
+  test('persists a validated WEBP logo through a tenant-scoped update', async () => {
+    const { service, tenantTx, s3Send } = makeService();
+    tenantTx.client.findFirst
+      .mockResolvedValueOnce({ id: 'client-1', logoS3Key: previousPngKey })
+      .mockImplementationOnce(async () => ({
+        id: 'client-1',
+        tenantId: 'tenant-1',
+        logoS3Key:
+          tenantTx.client.updateMany.mock.calls[0]?.[0]?.data.logoS3Key,
+        logoContentType: 'image/webp',
+      }));
+    tenantTx.client.updateMany.mockResolvedValue({ count: 1 });
+    s3Send.mockResolvedValue({
+      ContentType: 'image/webp',
+      ContentLength: validWebp.length,
+      Body: { transformToByteArray: jest.fn(async () => validWebp) },
+    });
+    mockedGetSignedUrl.mockResolvedValue(
+      'https://downloads.example.test/logo.webp',
+    );
+
+    await service.confirmLogoUpload(ctx, 'client-1', webpKey, 'image/webp');
+
+    const persisted = s3Send.mock.calls[1]?.[0]?.input.Body as Buffer;
+    expect(persisted).toEqual(validWebp);
+  });
+
   test('bounds confirmations before downloading logo bodies', async () => {
     const { service, tenantTx, s3Send } = makeService();
     tenantTx.client.findFirst.mockResolvedValue({
@@ -901,4 +1096,61 @@ function pngCrc32(bytes: Buffer, start: number, end: number): number {
     }
   }
   return (crc ^ 0xffffffff) >>> 0;
+}
+
+function webpChunk(fourCc: string, data: Buffer): Buffer {
+  const header = Buffer.alloc(8);
+  header.write(fourCc, 0, 4, 'ascii');
+  header.writeUInt32LE(data.length, 4);
+  const pad = data.length % 2 === 1 ? Buffer.from([0]) : Buffer.alloc(0);
+  return Buffer.concat([header, data, pad]);
+}
+
+/**
+ * Builds a minimal WEBP fixture: an optional VP8X canvas-size chunk followed
+ * by a VP8L "lossless" image chunk carrying only the 5-byte signature +
+ * packed-dimensions header real decoders read the size from — no actual
+ * pixel bitstream, since sanitizeWebpLogo (like the PNG/JPEG paths) only
+ * bounds declared dimensions and never decodes pixels for WEBP.
+ */
+function buildWebp(options: {
+  width: number;
+  height: number;
+  useVp8x?: boolean;
+  animated?: boolean;
+  extraChunks?: Array<{ fourCc: string; data: Buffer }>;
+}): Buffer {
+  const { width, height, useVp8x = false, animated = false } = options;
+  const parts: Buffer[] = [];
+
+  if (useVp8x) {
+    const vp8x = Buffer.alloc(10);
+    vp8x[0] = animated ? 0x04 : 0x00;
+    const w = width - 1;
+    const h = height - 1;
+    vp8x[4] = w & 0xff;
+    vp8x[5] = (w >> 8) & 0xff;
+    vp8x[6] = (w >> 16) & 0xff;
+    vp8x[7] = h & 0xff;
+    vp8x[8] = (h >> 8) & 0xff;
+    vp8x[9] = (h >> 16) & 0xff;
+    parts.push(webpChunk('VP8X', vp8x));
+  }
+
+  for (const extra of options.extraChunks ?? []) {
+    parts.push(webpChunk(extra.fourCc, extra.data));
+  }
+
+  const vp8lData = Buffer.alloc(5);
+  vp8lData[0] = 0x2f;
+  vp8lData.writeUInt32LE((((height - 1) << 14) | (width - 1)) >>> 0, 1);
+  parts.push(webpChunk('VP8L', vp8lData));
+
+  const body = Buffer.concat(parts);
+  const out = Buffer.alloc(12 + body.length);
+  out.write('RIFF', 0, 4, 'ascii');
+  out.writeUInt32LE(4 + body.length, 4);
+  out.write('WEBP', 8, 4, 'ascii');
+  body.copy(out, 12);
+  return out;
 }

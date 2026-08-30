@@ -18,6 +18,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { decode as decodeJpeg } from 'jpeg-js';
+import sanitizeHtml from 'sanitize-html';
 import type { TenantContext } from '@capiro/shared';
 import { CLIENT_SLOT_LIMIT_CODE, effectiveClientSlots } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -171,25 +172,322 @@ function sanitizeClientLogoBytes(
     return validPngLogo(bytes) ? stripPngMetadata(bytes) : null;
   }
   if (contentType === 'image/jpeg') return sanitizeJpegLogo(bytes);
-  if (contentType === 'image/webp') {
-    return bytes.length >= 12 &&
-      bytes.toString('ascii', 0, 4) === 'RIFF' &&
-      bytes.toString('ascii', 8, 12) === 'WEBP'
-      ? bytes
-      : null;
-  }
-  if (contentType === 'image/svg+xml') {
-    const prefix = bytes
-      .toString('utf8', 0, Math.min(bytes.length, 4096))
-      .replace(/^\uFEFF/, '')
-      .trimStart();
-    return /^(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/i.test(
-      prefix,
-    )
-      ? bytes
-      : null;
-  }
+  if (contentType === 'image/webp') return sanitizeWebpLogo(bytes);
+  if (contentType === 'image/svg+xml') return sanitizeSvgLogo(bytes);
   return null;
+}
+
+// SVG logos are untrusted, potentially attacker-authored markup that gets
+// served back verbatim via <img src>. sanitize-html is already this
+// codebase's trust boundary for untrusted markup (see sanitize-signature.ts,
+// outreach-email-renderer.ts); here its real XML parser is used to detect
+// (see sanitizeSvgLogo below) anything outside the allowlist, including
+// <script> and <foreignObject> (a common SVG-to-HTML/script smuggling
+// vector) - the whole file is then rejected rather than silently stripped.
+// xmlMode plus disabled case-lowering keep SVG's case-sensitive names
+// (viewBox, clipPath, ...) intact.
+const SVG_ALLOWED_TAGS = [
+  'svg',
+  'g',
+  'defs',
+  'symbol',
+  'title',
+  'desc',
+  'rect',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'path',
+  'text',
+  'tspan',
+  'clipPath',
+  'mask',
+  'pattern',
+  'linearGradient',
+  'radialGradient',
+  'stop',
+  'use',
+];
+const SVG_PRESENTATION_ATTRS = [
+  'fill',
+  'stroke',
+  'opacity',
+  'fill-opacity',
+  'stroke-opacity',
+  'fill-rule',
+  'clip-rule',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'stroke-dasharray',
+  'transform',
+  'clip-path',
+  'mask',
+];
+const SVG_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: SVG_ALLOWED_TAGS,
+  allowedAttributes: {
+    '*': ['id', 'class', ...SVG_PRESENTATION_ATTRS],
+    svg: [
+      'xmlns',
+      'xmlns:xlink',
+      'viewBox',
+      'width',
+      'height',
+      'preserveAspectRatio',
+      'version',
+    ],
+    rect: ['x', 'y', 'width', 'height', 'rx', 'ry'],
+    circle: ['cx', 'cy', 'r'],
+    ellipse: ['cx', 'cy', 'rx', 'ry'],
+    line: ['x1', 'y1', 'x2', 'y2'],
+    polyline: ['points'],
+    polygon: ['points'],
+    path: ['d'],
+    text: [
+      'x',
+      'y',
+      'dx',
+      'dy',
+      'font-family',
+      'font-size',
+      'font-weight',
+      'font-style',
+      'text-anchor',
+    ],
+    tspan: ['x', 'y', 'dx', 'dy'],
+    clipPath: ['clipPathUnits'],
+    mask: ['maskUnits', 'maskContentUnits', 'x', 'y', 'width', 'height'],
+    pattern: [
+      'patternUnits',
+      'patternContentUnits',
+      'patternTransform',
+      'x',
+      'y',
+      'width',
+      'height',
+      'viewBox',
+    ],
+    linearGradient: [
+      'x1',
+      'y1',
+      'x2',
+      'y2',
+      'gradientUnits',
+      'gradientTransform',
+      'spreadMethod',
+    ],
+    radialGradient: [
+      'cx',
+      'cy',
+      'r',
+      'fx',
+      'fy',
+      'gradientUnits',
+      'gradientTransform',
+      'spreadMethod',
+    ],
+    stop: ['offset', 'stop-color', 'stop-opacity'],
+    use: ['href', 'xlink:href', 'x', 'y', 'width', 'height'],
+    symbol: ['viewBox', 'preserveAspectRatio'],
+  },
+  // No scheme is allowlisted, so any href/xlink:href carrying an absolute or
+  // javascript: URL is dropped; a same-document `#fragment` reference always
+  // survives regardless of this list (verified empirically against
+  // sanitize-html - it treats scheme-less references as inherently safe).
+  allowedSchemes: [],
+  allowedSchemesByTag: {},
+  parser: {
+    lowerCaseTags: false,
+    lowerCaseAttributeNames: false,
+    xmlMode: true,
+    decodeEntities: true,
+  },
+};
+// Presentation attributes (fill/stroke/clip-path/mask) are NOT covered by
+// sanitize-html's scheme allowlist, so `fill="url(https://evil/track.svg#g)"`
+// survives it unchanged (verified empirically) and would make the SVG fetch
+// a remote resource the moment it is rendered. Only a same-document fragment
+// reference is allowed; anything else fails the whole file closed.
+const SVG_EXTERNAL_URL_REF = /url\(\s*(['"]?)(?!#)[^)]*\1\s*\)/i;
+// sanitize-html always strips event-handler attributes (on*) and any
+// attribute value it does not allowlist BEFORE transformTags ever runs
+// (verified empirically), so a disallowed attribute is invisible to the
+// tag-name check below - there is nothing post-parse to reject on. Reject on
+// raw presence instead of silently dropping it, matching how a script tag or
+// unknown element is rejected rather than quietly stripped.
+const SVG_EVENT_HANDLER_ATTR = /\son[a-z]+\s*=/i;
+
+/**
+ * A logo SVG is untrusted markup rendered back verbatim via <img src>. Unlike
+ * the PNG/JPEG paths (which strip inert-but-unneeded metadata and keep the
+ * rest), anything outside the presentational allowlist here is inherently
+ * unsafe rather than merely superfluous, so the whole file is rejected the
+ * moment a disallowed construct is found - never silently stripped and
+ * stored.
+ */
+function sanitizeSvgLogo(bytes: Buffer): Buffer | null {
+  if (bytes.length === 0 || bytes.length > MAX_LOGO_BYTES) return null;
+  const text = bytes.toString('utf8').replace(/^\uFEFF/, '');
+  if (!/^(?:<\?xml[^>]*>\s*)?<svg(?:\s|>)/i.test(text.trimStart())) {
+    return null;
+  }
+  // A DOCTYPE/ENTITY declaration is never needed by an authored logo and is
+  // the classic XXE / entity-expansion vector; reject outright rather than
+  // rely on the parser never resolving it.
+  if (
+    /<!doctype\b/i.test(text) ||
+    /<!entity\b/i.test(text) ||
+    /<\?xml-stylesheet\b/i.test(text) ||
+    SVG_EVENT_HANDLER_ATTR.test(text) ||
+    /javascript:/i.test(text)
+  ) {
+    return null;
+  }
+
+  let sawDisallowedTag = false;
+  const sanitized = sanitizeHtml(text, {
+    ...SVG_SANITIZE_OPTIONS,
+    transformTags: {
+      // The wildcard transform fires for every tag the parser encounters,
+      // including ones outside allowedTags (verified empirically against
+      // sanitize-html) - this is what actually enforces "reject `<script>`
+      // and `<foreignObject>` instead of silently dropping them".
+      '*': (tagName, attribs) => {
+        if (!SVG_ALLOWED_TAGS.includes(tagName)) sawDisallowedTag = true;
+        return { tagName, attribs };
+      },
+    },
+  }).trim();
+  if (sawDisallowedTag) return null;
+  if (!/^<svg(?:\s|>)/.test(sanitized) || !sanitized.endsWith('</svg>')) {
+    return null;
+  }
+  if (SVG_EXTERNAL_URL_REF.test(sanitized)) return null;
+  return Buffer.from(sanitized, 'utf8');
+}
+
+// WEBP dimensions live in the VP8/VP8L/VP8X chunk headers themselves - unlike
+// a generic compressed-size lie, a WEBP's decoded pixel count is a direct
+// function of these header fields, so bounding them here closes the same
+// decompression-bomb class the JPEG path closes via jpeg-js's
+// maxResolutionInMP/maxMemoryUsageInMB. (No pure-JS WEBP pixel decoder is a
+// dependency of this service, so - unlike JPEG - a corrupt-but-small-declared
+// bitstream cannot additionally be caught by a real decode; see PR notes.)
+const WEBP_MAX_CHUNKS = 64;
+
+function sanitizeWebpLogo(bytes: Buffer): Buffer | null {
+  if (
+    bytes.length < 20 ||
+    bytes.length > MAX_LOGO_BYTES ||
+    bytes.toString('ascii', 0, 4) !== 'RIFF' ||
+    bytes.toString('ascii', 8, 12) !== 'WEBP'
+  ) {
+    return null;
+  }
+  if (bytes.readUInt32LE(4) + 8 !== bytes.length) return null;
+
+  let offset = 12;
+  let chunkCount = 0;
+  let width = 0;
+  let height = 0;
+  let sawVp8x = false;
+  let sawImageChunk = false;
+  const parts: Buffer[] = [];
+
+  while (offset + 8 <= bytes.length) {
+    chunkCount += 1;
+    if (chunkCount > WEBP_MAX_CHUNKS) return null;
+    const fourCc = bytes.toString('ascii', offset, offset + 4);
+    const size = bytes.readUInt32LE(offset + 4);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + size;
+    const padded = dataEnd + (size % 2);
+    if (dataEnd < dataStart || padded > bytes.length) return null;
+
+    if (fourCc === 'ANIM' || fourCc === 'ANMF') return null;
+
+    if (fourCc === 'VP8X') {
+      if (sawVp8x || sawImageChunk || size !== 10) return null;
+      const flags = bytes[dataStart]!;
+      if (flags & 0x83) return null; // reserved bits must be zero
+      if (flags & 0x04) return null; // animation flag set
+      width =
+        (bytes[dataStart + 4]! |
+          (bytes[dataStart + 5]! << 8) |
+          (bytes[dataStart + 6]! << 16)) +
+        1;
+      height =
+        (bytes[dataStart + 7]! |
+          (bytes[dataStart + 8]! << 8) |
+          (bytes[dataStart + 9]! << 16)) +
+        1;
+      sawVp8x = true;
+      const chunk = Buffer.from(bytes.subarray(offset, padded));
+      // Clear the ICC/EXIF/XMP presence bits: those chunks are stripped
+      // below, and a VP8X announcing metadata it no longer carries can
+      // confuse strict consumers.
+      chunk[8] = chunk[8]! & ~0x58;
+      parts.push(chunk);
+    } else if (fourCc === 'VP8 ') {
+      if (
+        sawImageChunk ||
+        size < 10 ||
+        (bytes[dataStart]! & 0x1) !== 0 || // must be a keyframe
+        bytes[dataStart + 3] !== 0x9d ||
+        bytes[dataStart + 4] !== 0x01 ||
+        bytes[dataStart + 5] !== 0x2a
+      ) {
+        return null;
+      }
+      const w = (bytes[dataStart + 6]! | (bytes[dataStart + 7]! << 8)) & 0x3fff;
+      const h = (bytes[dataStart + 8]! | (bytes[dataStart + 9]! << 8)) & 0x3fff;
+      if (sawVp8x) {
+        if (w !== width || h !== height) return null;
+      } else {
+        width = w;
+        height = h;
+      }
+      sawImageChunk = true;
+      parts.push(Buffer.from(bytes.subarray(offset, padded)));
+    } else if (fourCc === 'VP8L') {
+      if (sawImageChunk || size < 5 || bytes[dataStart] !== 0x2f) return null;
+      const bits = bytes.readUInt32LE(dataStart + 1);
+      const w = (bits & 0x3fff) + 1;
+      const h = ((bits >> 14) & 0x3fff) + 1;
+      const version = (bits >>> 29) & 0x7;
+      if (version !== 0) return null;
+      if (sawVp8x) {
+        if (w !== width || h !== height) return null;
+      } else {
+        width = w;
+        height = h;
+      }
+      sawImageChunk = true;
+      parts.push(Buffer.from(bytes.subarray(offset, padded)));
+    } else if (fourCc === 'ALPH') {
+      if (!sawVp8x || sawImageChunk) return null;
+      parts.push(Buffer.from(bytes.subarray(offset, padded)));
+    } else if (fourCc === 'ICCP' || fourCc === 'EXIF' || fourCc === 'XMP ') {
+      // Metadata: bounds-checked above, intentionally dropped from output.
+    } else {
+      return null;
+    }
+    offset = padded;
+  }
+
+  if (!sawImageChunk || offset !== bytes.length) return null;
+  if (!validLogoDimensions(width, height)) return null;
+
+  const body = Buffer.concat(parts);
+  const out = Buffer.alloc(12 + body.length);
+  out.write('RIFF', 0, 4, 'ascii');
+  out.writeUInt32LE(4 + body.length, 4);
+  out.write('WEBP', 8, 4, 'ascii');
+  body.copy(out, 12);
+  return out;
 }
 
 function validPngLogo(bytes: Buffer): boolean {
