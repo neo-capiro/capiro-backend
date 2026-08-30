@@ -212,7 +212,8 @@
     "verify:pe-phase-9:full": "tsx scripts/verify-pe-phase-9.ts --full --skip-install",
     "verify:pe-phase-10": "tsx scripts/verify-pe-phase-10.ts",
     "rehearse:pe-phase-9-migrations": "bash scripts/pe-phase-9-migration-replay.sh",
-    "probe:pe-phase-10-staging": "bash scripts/pe-phase-10-staging-probe.sh"
+    "probe:pe-phase-10-staging": "bash scripts/pe-phase-10-staging-probe.sh",
+    "ingest:cpf-cds:campaign": "tsx scripts/run-cpf-cds-campaign.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",
