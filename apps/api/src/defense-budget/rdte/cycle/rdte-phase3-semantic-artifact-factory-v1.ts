@@ -14,6 +14,7 @@ import type {
 } from '../../parser-router/extraction-artifact-bridge.js';
 import { extractR1FromPages } from '../r1/r1-extractor-v1.js';
 import { buildR1Artifact } from '../r1/r1-artifact-builder-v1.js';
+import { applyR1TextReconstructionV1 } from '../r1/r1-text-row-reconstructor-v1.js';
 import { segmentR2ExhibitPages } from '../r2/r2-exhibit-segmenter.js';
 import { resolveR2Contexts } from '../r2/r2-context-resolver.js';
 import { extractR2Identities } from '../r2/r2-identity-extractor-v1.js';
@@ -125,10 +126,26 @@ function buildSemanticArtifact(input: {
   const exhibit = value.document.exhibit;
 
   if (exhibit === 'R-1') {
+    // Phase 10B-11: the real production deterministic_pdfplumber run for
+    // the FY2024 R-1 canary emits every page's tabular data as positioned/
+    // plain text -- pdfplumber's structural table detection finds zero
+    // tables on all 114 real pages. `applyR1TextReconstructionV1` backfills
+    // `page.tables` ONLY for pages where that is true and a canonical R-1
+    // header is recognized; a page that already has real structural tables
+    // (or no recognizable header at all) passes through unchanged, so
+    // `extractR1FromPages` and `buildR1Artifact` below are exactly the
+    // existing, unmodified R1 semantics either way -- this seam only ever
+    // supplies input they didn't already have.
+    const reconstruction = applyR1TextReconstructionV1(value.pages, input.fiscalYear);
+    const extraction = extractR1FromPages({
+      pages: reconstruction.pages,
+      cycleFiscalYear: input.fiscalYear,
+      rowContextByPage: reconstruction.rowContextByPage,
+    });
     return buildR1Artifact({
       source: value.source,
       parserRuns: value.parserRuns,
-      extraction: extractR1FromPages({ pages: value.pages, cycleFiscalYear: input.fiscalYear }),
+      extraction: { ...extraction, omissions: [...extraction.omissions, ...reconstruction.omissions] },
       cycleFiscalYear: input.fiscalYear,
     });
   }

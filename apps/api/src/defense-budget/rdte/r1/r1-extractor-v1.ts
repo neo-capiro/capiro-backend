@@ -19,11 +19,13 @@ import {
   parseCanonicalDecimalString,
 } from '../../contracts/decimal-string.js';
 import type { MoneyUnitV1 } from '../../contracts/decimal-string.js';
+import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.js';
 import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
 import { type RdteColumnRoleV1, type RdteValueDispositionV1 } from '../rdte-column-role-v1.js';
 import { detectR1TablesOnPage } from './r1-table-detector.js';
+import type { R1RowContextV1 } from './r1-text-row-reconstructor-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Output types                                                        */
@@ -45,6 +47,9 @@ export interface R1FundingValue {
   columnIndex: number;
   headerText: string;
   direct: boolean;
+  /** Source-row context (see `R1PeIdentity.sectionHeading`); not canonical. */
+  sectionHeading?: string;
+  budgetActivity?: string;
 }
 
 export interface R1PeIdentity {
@@ -59,6 +64,20 @@ export interface R1PeIdentity {
   budgetActivity?: string;
   budgetActivityName?: string;
   classificationMarker?: string;
+  /**
+   * The organizational section heading this row was printed under (e.g.
+   * "Defense Threat Reduction Agency"), when known. This is source-row
+   * provenance/context, NOT a canonical field: the canonical PE identity
+   * remains keyed by `peCode` alone (see `rdtePeIdentityV1Schema`), since
+   * an RDT&E PE code already self-encodes its owning service via its
+   * suffix letter. Distinct from `component` (the coarse, canonical
+   * `BudgetComponentV1` enum) because proven, real-document evidence shows
+   * many genuinely different sections (an agency's own chapter vs. the
+   * broader Defense-Wide roll-up volume that restates it) share the same
+   * coarse component value.
+   */
+  sectionHeading?: string;
+  component?: BudgetComponentV1;
 }
 
 export interface R1ExtractionOmission {
@@ -102,6 +121,13 @@ export function extractR1FromPages(input: {
     policyId: string;
     positionToRole: Readonly<Record<number, string>>;
   };
+  /**
+   * Optional row context recovered by `r1-text-row-reconstructor-v1`'s
+   * text-reconstruction path (see `R1RowContextV1`), keyed by physical
+   * page then by the row index used in that page's `table.cells`. Absent
+   * for structural-table R-1 documents, where behavior is unchanged.
+   */
+  rowContextByPage?: ReadonlyMap<number, ReadonlyMap<number, R1RowContextV1>>;
 }): R1ExtractionResult {
   const { pages, cycleFiscalYear } = input;
 
@@ -135,11 +161,21 @@ export function extractR1FromPages(input: {
   const funding: R1FundingValue[] = [];
   const omissions: R1ExtractionOmission[] = [];
   const conflictMap = new Map<string, R1ExtractionConflict>();
+  /** Prior (peCode|FY|role) funding occurrences, for dedupe/conflict decisions. */
+  const fundingOccurrencesByKey = new Map<
+    string,
+    Array<{
+      originalValue: string;
+      page: number;
+      budgetActivity?: string;
+      lineNumber?: string;
+    }>
+  >();
   let usedPositionalFallback = false;
   let fallbackPolicyId: string | undefined;
 
   for (const page of pages) {
-    const tables = detectR1TablesOnPage(page);
+    const tables = detectR1TablesOnPage(page, input.rowContextByPage?.get(page.page));
 
     for (const table of tables) {
       /* Build header from detected header rows. */
@@ -195,6 +231,21 @@ export function extractR1FromPages(input: {
           printedPage: peRow.printedPage,
           tableIndex: peRow.tableIndex,
           rowIndex: peRow.rowIndex,
+          ...(peRow.rowContext?.lineNumber != null
+            ? { lineNumber: peRow.rowContext.lineNumber }
+            : {}),
+          ...(peRow.rowContext?.appropriation != null
+            ? { appropriation: peRow.rowContext.appropriation }
+            : {}),
+          ...(peRow.rowContext?.budgetActivity != null
+            ? { budgetActivity: peRow.rowContext.budgetActivity }
+            : {}),
+          ...(peRow.rowContext?.sectionHeading != null
+            ? { sectionHeading: peRow.rowContext.sectionHeading }
+            : {}),
+          ...(peRow.rowContext?.component != null
+            ? { component: peRow.rowContext.component }
+            : {}),
         });
 
         /* Numeric cells: skip first two columns (PE code + title). */
@@ -301,27 +352,133 @@ export function extractR1FromPages(input: {
               header.columns.find((column) => column.columnIndex === cell.columnIndex)
                 ?.normalizedText ?? '',
             direct: true,
+            ...(peRow.rowContext?.sectionHeading != null
+              ? { sectionHeading: peRow.rowContext.sectionHeading }
+              : {}),
+            ...(peRow.rowContext?.budgetActivity != null
+              ? { budgetActivity: peRow.rowContext.budgetActivity }
+              : {}),
           };
-          funding.push(value);
 
-          /* Conflict detection: same PE/FY/role with different values. */
+          /* Duplicate/conflict semantics, keyed by proven business-row
+           * identity (Phase 10B-13, correcting a Phase 10B-12 edge case):
+           * a PE code recurring across pages is NOT automatically a
+           * conflict, but neither is "same PE, same dollar value" alone
+           * sufficient to merge -- two legitimate constituent rows can
+           * share a PE and a dollar amount while genuinely differing by
+           * budget activity, and those must remain two distinct facts.
+           *
+           * Row identity is `budgetActivity` (+ `lineNumber` when reliably
+           * present on both sides, for extra distinguishing precision) --
+           * deliberately NOT section heading. Proven empirically against
+           * the real 114-page document's projection-planner dry run: every
+           * one of its ~240 genuine cross-page reprints (the Defense-Wide
+           * roll-up restating an individual agency's own chapter row, e.g.
+           * PE 0303150K's BA08 line 279 printed both in the roll-up and in
+           * DISA's own chapter) matches on budgetActivity+lineNumber
+           * despite printing under two different section headings; the
+           * only 15 PE codes that failed to match were exactly the PE
+           * codes independently proven (from a real budget-activity
+           * subtotal line, for PE 0604201F) to be genuinely split across
+           * two budget activities. Section heading remains pure
+           * provenance metadata (`value.sectionHeading`, set above) -- an
+           * agency chapter and the Defense-Wide roll-up can legitimately
+           * reproduce the exact same source row under different headings,
+           * and using heading as identity would wrongly treat that
+           * reprint as two different rows.
+           *
+           * Decision matrix:
+           *   same row identity + same value      -> deterministic reprint
+           *                                           merge (no 2nd assertion)
+           *   same row identity + different value -> true blocking conflict
+           *   different row identity, any value   -> preserve BOTH facts
+           *                                           (never automatically
+           *                                           a conflict, never merged)
+           *   row identity unknown on either side -> fail closed: never
+           *                                           merge; still conflict
+           *                                           on a value difference
+           *                                           (the original,
+           *                                           identity-blind
+           *                                           behavior for
+           *                                           structural-table
+           *                                           documents with no
+           *                                           reconstructor context)
+           *
+           * Whether/how truthful, un-mergeable constituent rows become one
+           * canonical ProgramElementYear.request is a governed
+           * projection-layer decision (rdte-projection-planner-v1's
+           * duplicate_conflict exclusion), never resolved here by picking
+           * one value or summing. */
           if (fiscalYear != null) {
             const conflictKey = `${peRow.peCode}|${fiscalYear}|${classification.role}`;
-            const existing = conflictMap.get(conflictKey);
-            if (existing != null) {
-              if (!existing.values.includes(value.originalValue)) {
-                existing.values.push(value.originalValue);
-                existing.pages.push(peRow.page);
+            const priorOccurrences = fundingOccurrencesByKey.get(conflictKey) ?? [];
+
+            const rowIdentityMatch = (
+              a: { budgetActivity?: string; lineNumber?: string },
+              b: { budgetActivity?: string; lineNumber?: string },
+            ): boolean | undefined => {
+              if (a.budgetActivity == null || b.budgetActivity == null) return undefined;
+              if (a.budgetActivity !== b.budgetActivity) return false;
+              if (a.lineNumber != null && b.lineNumber != null) {
+                return a.lineNumber === b.lineNumber;
               }
-            } else {
-              conflictMap.set(conflictKey, {
-                peCode: peRow.peCode,
-                fiscalYear,
-                columnRole: classification.role,
-                values: [value.originalValue],
-                pages: [peRow.page],
-              });
+              return true; // BA matches; lineNumber not comparable on at least one side
+            };
+            const thisRow = {
+              budgetActivity: peRow.rowContext?.budgetActivity,
+              lineNumber: peRow.rowContext?.lineNumber,
+            };
+
+            const mergeablePrior = priorOccurrences.find(
+              (occ) =>
+                occ.originalValue === value.originalValue &&
+                rowIdentityMatch(thisRow, occ) === true,
+            );
+            if (mergeablePrior != null) {
+              /* Deterministic duplicate / provenance merge: the same
+               * business row, printed again elsewhere. No second
+               * assertion. */
+              continue;
             }
+
+            const conflictingPrior = priorOccurrences.find((occ) => {
+              if (occ.originalValue === value.originalValue) return false;
+              const match = rowIdentityMatch(thisRow, occ);
+              /* Row identity unknown on either side -> cannot prove they
+               * differ; fail closed and treat as the same identity. A
+               * *known-different* identity is never automatically a
+               * conflict. */
+              return match === true || match === undefined;
+            });
+
+            funding.push(value);
+            priorOccurrences.push({
+              originalValue: value.originalValue,
+              page: peRow.page,
+              budgetActivity: peRow.rowContext?.budgetActivity,
+              lineNumber: peRow.rowContext?.lineNumber,
+            });
+            fundingOccurrencesByKey.set(conflictKey, priorOccurrences);
+
+            if (conflictingPrior != null) {
+              const existing = conflictMap.get(conflictKey);
+              if (existing != null) {
+                if (!existing.values.includes(value.originalValue)) {
+                  existing.values.push(value.originalValue);
+                  existing.pages.push(peRow.page);
+                }
+              } else {
+                conflictMap.set(conflictKey, {
+                  peCode: peRow.peCode,
+                  fiscalYear,
+                  columnRole: classification.role,
+                  values: [conflictingPrior.originalValue, value.originalValue],
+                  pages: [conflictingPrior.page, peRow.page],
+                });
+              }
+            }
+          } else {
+            funding.push(value);
           }
         }
       }
