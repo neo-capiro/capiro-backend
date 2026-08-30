@@ -10,6 +10,7 @@ import {
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { CustomizeDrawer } from './CustomizeDrawer.js';
 import { resolveNewsOutletMark } from './news-outlet-logos.js';
+import type { NewsLookback } from '../../../pages/dashboard/news-preferences.js';
 import './dashboard.css';
 
 type WireFilter = 'all' | 'x' | 'news';
@@ -85,7 +86,12 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
   }, [model.news.items, model.xFeed.posts]);
 
   const wireLimit = model.density === 'presentation' ? 6 : 8;
-  const wireWindow = wireItems.filter((item) => item.at >= Date.now() - 24 * 60 * 60 * 1000);
+  // Was hardcoded to 24h regardless of the news module's own Lookback
+  // preference (24h/48h/7d, default 48h — see news-preferences.ts), so the
+  // Wire silently discarded up to half of whatever the news source actually
+  // returned. Windowing on the same preference means the count shown here
+  // always matches what was actually fetched.
+  const wireWindow = wireItems.filter((item) => item.at >= Date.now() - lookbackMs(model.news.preferences.lookback));
   const filteredWire = wireWindow
     .filter((item) => wireFilter === 'all' || item.type === wireFilter)
     .slice(0, showAllWire ? undefined : wireLimit);
@@ -370,7 +376,7 @@ function Wire({ model, filter, onFilter, items, windowItems, showAll, hasMore, o
           zero) as a hover title rather than a visible pill — the two
           SourceBanners below already state "temporarily unavailable" in
           full when a source is down. */}
-      <header className="dashv2-wire__head"><h2 title={countLabel}>The Wire</h2><span className="dashv2-triage__spacer"/><span className="dashv2-wire__window"><span className="dashv2-wire__desktop">Last </span>24 hours</span></header>
+      <header className="dashv2-wire__head"><h2 title={countLabel}>The Wire</h2><span className="dashv2-triage__spacer"/><span className="dashv2-wire__window"><span className="dashv2-wire__desktop">Last </span>{WIRE_WINDOW_LABEL[model.news.preferences.lookback]}</span></header>
       <div className="dashv2-wire__filters"><div className="dashv2-segmented">{(['all','x','news'] as const).map((value)=><button key={value} type="button" data-selected={filter===value||undefined} onClick={()=>onFilter(value)}>{value==='all'?'All':value==='x'?'X':'News'}</button>)}</div><button type="button" className="dashv2-link" onClick={onManage}>Manage accounts</button></div>
       <div className="dashv2-wire__list">
         {filter !== 'news' ? <SourceBanner source="x" status={model.xFeed.status.state} hasSubscriptions={model.xFeed.subscriptions.some((sub) => sub.enabled)} onCustomize={onManage} onRetry={onRefresh} /> : null}
@@ -480,5 +486,13 @@ function sourceCountKnown(state: string, count: number) { return count > 0 || st
 function wireStaleDisclosure(model: DashboardVNextModel) { const stale=[model.xFeed.status.state==='stale'?'X cached':null,model.news.status.state==='stale'?'News cached':null].filter(Boolean); return stale.length ? ` · ${stale.join(' · ')}` : ''; }
 function attentionCountBase(model: DashboardVNextModel, count: number) { const state=model.needsAttention.status.state; if(state==='loading') return 'Refreshing'; if(state==='unavailable') return 'Source unavailable'; if(state==='partial') return `${count}+ open`; return `${count} open`; }
 function relativeTime(iso: string) { const ms=Date.now()-Date.parse(iso); if(!Number.isFinite(ms)) return ''; const minutes=Math.max(0,Math.floor(ms/60000)); if(minutes<60)return `${minutes}m`; const hours=Math.floor(minutes/60); if(hours<24)return `${hours}h`; return `${Math.floor(hours/24)}d`; }
+function lookbackMs(lookback: NewsLookback): number {
+  if (lookback === '24h') return 24 * 60 * 60 * 1000;
+  if (lookback === '7d') return 7 * 24 * 60 * 60 * 1000;
+  return 48 * 60 * 60 * 1000;
+}
+const WIRE_WINDOW_LABEL: Record<NewsLookback, string> = {
+  '24h': '24 hours', '48h': '48 hours', '7d': '7 days',
+};
 function relativeLabelEpoch(label: string) { const m=label.match(/(\d+)\s*(m|h|d)/i); if(!m||!m[1]||!m[2])return Date.now(); const amount=Number(m[1]); const unit=m[2].toLowerCase(); const scale=unit==='m'?60000:unit==='h'?3600000:86400000; return Date.now()-amount*scale; }
 function initialsOf(value: string) { return value.split(/\s+/).filter(Boolean).slice(0,2).map((part)=>part[0]?.toUpperCase()).join('') || '—'; }

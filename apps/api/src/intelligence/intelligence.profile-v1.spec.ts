@@ -112,6 +112,7 @@ describe('IntelligenceService.getClientProfileV1', () => {
     jest.spyOn(service as any, 'getDistrictNexus').mockResolvedValue({ topDistricts: [], capabilities: [] });
     jest.spyOn(service as any, 'getTrackedBills').mockResolvedValue({ total: 0, issueCodes: [], bills: [] });
     jest.spyOn(service as any, 'getBillRegulationLinks').mockResolvedValue({ links: [], totalBills: 0, totalRegulations: 0 });
+    jest.spyOn(service as any, 'getClientRelevantRegulations').mockResolvedValue([]);
     jest.spyOn(service as any, 'getKnowledgeGraph').mockResolvedValue({
       resolutionQuality: { avgConfidence: 0, confirmedCount: 0, unconfirmedCount: 0 },
       nodes: [],
@@ -242,6 +243,39 @@ describe('IntelligenceService.getClientProfileV1', () => {
       expect(lifecycle.totalRegulations).toBe(0);
       expect(lifecycle.rails).toEqual([]);
     });
+  });
+
+  /**
+   * getBillRegulationLinks only ever surfaces a Federal Register document that
+   * topically overlaps a TRACKED bill (getTrackedBills is mocked empty by
+   * default in this suite), so a client that tracks no bills previously always
+   * got regulatoryLifecycle.rails === [] regardless of real regulatory
+   * activity. getClientRelevantRegulations closes that gap by matching
+   * independently of bill tracking; this proves the rail actually surfaces
+   * what it returns.
+   */
+  test('regulatory rails include client-relevant regulations even with zero tracked bills', async () => {
+    const { service } = makeService();
+    (service as any).getClientRelevantRegulations.mockResolvedValue([
+      {
+        documentNumber: 'FR-2026-99999',
+        type: 'PROPOSED_RULE',
+        title: 'Some Rule Affecting The Client Sector',
+        agencyNames: ['Department of Defense'],
+        publicationDate: new Date('2026-08-01T00:00:00.000Z'),
+        commentEndDate: new Date(Date.now() + 10 * 86_400_000),
+        effectiveDate: null,
+      },
+    ]);
+
+    const payload = await service.getClientProfileV1(clientId, tenantId);
+    const lifecycle = (payload.sections.legislativeRegulatory as Record<string, any>)
+      .regulatoryLifecycle;
+
+    expect(lifecycle.rails).toHaveLength(1);
+    expect(lifecycle.rails[0].documentNumber).toBe('FR-2026-99999');
+    // Found only through client relevance, not a tracked bill.
+    expect(lifecycle.rails[0].linkedBills).toEqual([]);
   });
 
   test('throws NotFoundException when client does not exist in tenant', async () => {

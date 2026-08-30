@@ -505,6 +505,7 @@ export class IntelligenceService {
       'contractAwards',
       'alertStates',
       'hearingAlerts',
+      'clientRelevantRegulations',
     ] as const;
 
     // Each source is resolved independently via allSettled so one failing
@@ -621,6 +622,11 @@ export class IntelligenceService {
       // legacy Hearings panel was removed from the UI; this surfaces the same
       // signal as time-sensitive alert rows on the Top alerts card.
       this.getHearingAlerts(clientId, tenantId, now, day21, trackedBillsPromise),
+      // [24] Regulatory matters relevant to this client with NO dependency on
+      // bill tracking (see getBillRegulationLinks, index 5, and
+      // getClientRelevantRegulations below) — a client that tracks no bills
+      // otherwise gets a permanently empty Regulatory panel.
+      this.getClientRelevantRegulations(clientId, tenantId, now),
     ];
 
     // Every source runs under a wall-clock budget. Without one, a single source
@@ -773,6 +779,10 @@ export class IntelligenceService {
       [] as Array<{ alertId: string; state: string; snoozedUntil: Date | null }>,
     );
     const hearingAlerts = settle(23, [] as Awaited<ReturnType<typeof this.getHearingAlerts>>);
+    const clientRelevantRegs = settle(
+      24,
+      [] as Awaited<ReturnType<typeof this.getClientRelevantRegulations>>,
+    );
 
     // Freshness + unresolved metadata derived from the tenant-scoped mapping query.
     // mappingRows is fetched via withTenant, clientId is guaranteed to belong to tenantId.
@@ -1146,6 +1156,29 @@ export class IntelligenceService {
           linkedBills: [link.bill.identifier],
         });
       }
+    }
+    // A client that tracks no bills (or whose tracked bills happen not to
+    // overlap any indexed Federal Register document) got NOTHING from the
+    // loop above — regDocByNumber stayed empty and the whole Regulatory panel
+    // read as "no active matters" regardless of real regulatory activity.
+    // clientRelevantRegs is matched independently of bill tracking (the same
+    // agency/sector/capability relevance already proven by
+    // getOverdueCommentAlerts/getCommentPeriodAlerts), so it adds coverage for
+    // exactly that gap. A document already found via a tracked bill keeps its
+    // `linkedBills`; one found only through client relevance gets none, which
+    // the rail already renders correctly (no "Linked …" line).
+    for (const reg of clientRelevantRegs) {
+      if (regDocByNumber.has(reg.documentNumber)) continue;
+      regDocByNumber.set(reg.documentNumber, {
+        documentNumber: reg.documentNumber,
+        type: reg.type,
+        title: reg.title,
+        agencyNames: reg.agencyNames,
+        publicationDate: new Date(reg.publicationDate),
+        commentEndDate: reg.commentEndDate ? new Date(reg.commentEndDate) : null,
+        effectiveDate: reg.effectiveDate ? new Date(reg.effectiveDate) : null,
+        linkedBills: [],
+      });
     }
     // The rulemaking lifecycle rail tracks ONE Federal Register document's
     // position through the standard FR pipeline. `federal_register_document.type`
@@ -6413,6 +6446,122 @@ export class IntelligenceService {
       totalBills: tracked.bills.length,
       totalRegulations: regulations.length,
     };
+  }
+
+  /**
+   * Regulatory matters relevant to a client, independent of bill tracking.
+   *
+   * getBillRegulationLinks (above) only ever surfaces a Federal Register
+   * document when it topically overlaps a TRACKED bill. A client that does no
+   * legislative tracking — a purely regulatory/rulemaking advocacy practice,
+   * with no bills to track — therefore always got a completely empty
+   * Regulatory panel (profile-v1.regulatoryLifecycle.rails === []),
+   * regardless of any real regulatory activity affecting that client.
+   *
+   * This reuses the SAME client-relevance matching getOverdueCommentAlerts
+   * and getCommentPeriodAlerts already use in production (agency → sector map
+   * against the client's sectorTag/capabilities, falling back to topic/
+   * capability keyword overlap) rather than inventing a second, unproven
+   * relevance signal. Scope here is open/recent rulemakings for one client —
+   * not restricted to a lapsed comment window like getOverdueCommentAlerts,
+   * since this panel shows ongoing matters, not a deadline-just-closed nudge.
+   */
+  private async getClientRelevantRegulations(
+    clientId: string,
+    tenantId: string,
+    now: Date,
+  ): Promise<
+    Array<{
+      documentNumber: string;
+      type: string;
+      title: string;
+      agencyNames: string[];
+      publicationDate: Date;
+      commentEndDate: Date | null;
+      effectiveDate: Date | null;
+    }>
+  > {
+    try {
+      const client = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.client.findFirst({
+          where: { id: clientId },
+          select: {
+            id: true,
+            sectorTag: true,
+            capabilities: { select: { sector: true, tags: true, name: true } },
+          },
+        }),
+      );
+      if (!client) return [];
+
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const docs = await this.prisma.federalRegisterDocument.findMany({
+        where: {
+          type: { in: ['PROPOSED_RULE', 'RULE'] },
+          OR: [{ commentEndDate: { gte: now } }, { publicationDate: { gte: ninetyDaysAgo } }],
+        },
+        orderBy: { publicationDate: 'desc' },
+        take: 200,
+      });
+      if (!docs.length) return [];
+
+      const capKeywords = new Set<string>();
+      if (client.sectorTag) capKeywords.add(String(client.sectorTag).toLowerCase());
+      for (const cap of client.capabilities) {
+        if (cap.sector) capKeywords.add(cap.sector.toLowerCase());
+        if (cap.name)
+          cap.name
+            .split(/\s+/)
+            .filter((w) => w.length > 3)
+            .forEach((w) => capKeywords.add(w.toLowerCase()));
+        const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
+        for (const t of tags) {
+          if (typeof t === 'string' && t.length > 3) capKeywords.add(t.toLowerCase());
+        }
+      }
+      const normalizedClientSector = normalizeSector(client.sectorTag);
+
+      const matched: typeof docs = [];
+      for (const doc of docs) {
+        const agencies = (doc.agencyNames as string[]) ?? [];
+        const docSectors = new Set<SectorTag>();
+        for (const agency of agencies) {
+          for (const sector of AGENCY_SECTOR_MAP[agency] ?? []) docSectors.add(sector);
+        }
+        let relevant = false;
+        if (normalizedClientSector && docSectors.has(normalizedClientSector)) relevant = true;
+        if (!relevant) {
+          const topics = Array.isArray(doc.topics) ? (doc.topics as string[]) : [];
+          for (const topic of topics) {
+            const tl = topic.toLowerCase();
+            for (const kw of capKeywords) {
+              if (tl.includes(kw) || kw.includes(tl)) {
+                relevant = true;
+                break;
+              }
+            }
+            if (relevant) break;
+          }
+        }
+        if (relevant) matched.push(doc);
+        if (matched.length >= 20) break;
+      }
+
+      return matched.map((doc) => ({
+        documentNumber: doc.documentNumber,
+        type: doc.type,
+        title: doc.title,
+        agencyNames: (doc.agencyNames as string[]) ?? [],
+        publicationDate: doc.publicationDate,
+        commentEndDate: doc.commentEndDate,
+        effectiveDate: doc.effectiveDate,
+      }));
+    } catch (err) {
+      this.logger.warn(
+        `getClientRelevantRegulations failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return [];
+    }
   }
 
   /**

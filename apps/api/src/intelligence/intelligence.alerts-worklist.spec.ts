@@ -75,6 +75,7 @@ describe('IntelligenceService alerts worklist', () => {
     jest.spyOn(service as any, 'getOverdueCommentAlerts').mockResolvedValue([]);
     jest.spyOn(service as any, 'getCompetitorLdaAlerts').mockResolvedValue([]);
     jest.spyOn(service as any, 'getContractAwardAlerts').mockResolvedValue([]);
+    jest.spyOn(service as any, 'getClientRelevantRegulations').mockResolvedValue([]);
 
     return { service, prisma, tenantTx };
   };

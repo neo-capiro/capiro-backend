@@ -1192,8 +1192,7 @@ function FundingPanel({ client }: { client: Client }) {
   const opportunitiesFailed = foReady && foEnabled && opportunitiesQ.isError;
 
   // Item 4: Open budget / Open PE. Real PE ids + titles from the relevance
-  // engine (same threshold the already-built, currently-unrouted
-  // ClientCrmIntelligence.tsx FundingView uses: minScore 0.5).
+  // engine (minScore 0.5).
   const pesQ = useQuery({
     queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
     queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
