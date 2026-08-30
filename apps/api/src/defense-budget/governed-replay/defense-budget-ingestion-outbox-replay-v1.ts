@@ -66,6 +66,9 @@ export interface GovernedReplayPreviewV1 {
 export interface GovernedReplayResultV1 {
   id: string;
   attempts: number;
+  /** Always null immediately after a replay -- the prior message moved to replayHistory[].previousLastError. */
+  lastError: string | null;
+  /** No longer carries top-level `governedDisposition`/`verifierDecision` -- see `replayHistory` for those. */
   metadataJsonb: Record<string, unknown>;
 }
 
@@ -111,7 +114,16 @@ export function governedReplayPreviewSqlV1(): string {
  * The audit entry is built entirely from THIS row's own pre-transition
  * columns (`t."metadata_jsonb"->>'governedDisposition'`, `t."last_error"`,
  * etc.), read and written in the same statement -- no separate read step
- * that could race against a concurrent transition.
+ * that could race against a concurrent transition. Those same pre-
+ * transition values are then removed from the top level of metadata_jsonb
+ * (via the `-` key-delete operator, applied to the `jsonb_set(...)` result,
+ * so the delete only ever sees values already captured in this same
+ * expression): the CURRENT row must never still look rejected once it is
+ * back in `pending`, but the history the row's own metadata used to carry is
+ * now permanently the replayHistory entry's `previous*` fields instead --
+ * nothing is lost, only relocated from "current" to "historical". last_error
+ * is cleared the same way, for the same reason: a freshly re-queued row must
+ * read as freshly re-queued, not as still-carrying-the-old-rejection-message.
  */
 export function governedReplaySqlV1(): string {
   return `WITH eligible AS (
@@ -127,6 +139,7 @@ export function governedReplaySqlV1(): string {
      "leased_by"=NULL,
      "leased_until"=NULL,
      "available_at"=$2::timestamptz,
+     "last_error"=NULL,
      "metadata_jsonb"=jsonb_set(
        t."metadata_jsonb",
        '{replayHistory}',
@@ -141,10 +154,10 @@ export function governedReplaySqlV1(): string {
          'previousLastError', t."last_error",
          'replaySequence', COALESCE(jsonb_array_length(t."metadata_jsonb"->'replayHistory'), 0) + 1
        ))
-     ),
+     ) - 'governedDisposition' - 'verifierDecision',
      "updated_at"=$2::timestamptz
  FROM eligible e WHERE t."id"=e."id"
- RETURNING t."id", t."attempts", t."metadata_jsonb"`;
+ RETURNING t."id", t."attempts", t."metadata_jsonb", t."last_error"`;
 }
 
 export function createGovernedReplayRepositoryV1(
@@ -194,6 +207,7 @@ export function createGovernedReplayRepositoryV1(
       return {
         id: String(r.id),
         attempts: Number(r.attempts ?? 0),
+        lastError: r.last_error == null ? null : String(r.last_error),
         metadataJsonb: r.metadata_jsonb as Record<string, unknown>,
       };
     },

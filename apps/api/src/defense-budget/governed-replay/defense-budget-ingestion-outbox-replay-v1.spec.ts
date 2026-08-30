@@ -143,9 +143,13 @@ describe('governed replay -- eligibility outcomes against a stateful fake outbox
         row.leased_by = null;
         row.leased_until = null;
         row.available_at = nowIso;
-        row.metadata_jsonb = { ...metadata, replayHistory: [...history, entry] };
+        row.last_error = null;
+        const { governedDisposition: _gd, verifierDecision: _vd, ...currentMetadataMinusStale } = metadata;
+        row.metadata_jsonb = { ...currentMetadataMinusStale, replayHistory: [...history, entry] };
         row.updated_at = nowIso;
-        return [{ id: row.id, attempts: row.attempts, metadata_jsonb: row.metadata_jsonb }] as T;
+        return [
+          { id: row.id, attempts: row.attempts, metadata_jsonb: row.metadata_jsonb, last_error: null },
+        ] as T;
       }
       if (sql.startsWith('SELECT "id", "state"')) {
         const [rowId] = values as [string];
@@ -175,11 +179,29 @@ describe('governed replay -- eligibility outcomes against a stateful fake outbox
         row.leased_until = 'later';
         return [{ id: row.id, observation_id: row.observation_id ?? 'obs-1', attempts: row.attempts }] as T;
       }
+      if (sql.includes(`"state"='succeeded'`) && sql.includes('readinessPhase')) {
+        // markSucceeded (real ingestion-outbox-drain-repository-prisma-v1.ts SQL)
+        const [rowId, leasedBy, nowIso] = values as [string, string, string];
+        const row = this.rows.get(rowId);
+        if (!row) return [] as T;
+        if (row.state !== 'leased' || row.leased_by !== leasedBy) return [] as T;
+        row.state = 'succeeded';
+        row.metadata_jsonb = {
+          ...(row.metadata_jsonb as Record<string, unknown>),
+          readinessPhase: 'pending',
+          readinessAttempts: 0,
+        };
+        row.last_error = null;
+        row.leased_by = null;
+        row.leased_until = null;
+        row.available_at = nowIso;
+        return [{ id: row.id }] as T;
+      }
       throw new Error(`StatefulOutboxFake: unrecognized SQL: ${sql.slice(0, 120)}`);
     }
   }
 
-  test('eligible verifier-rejected dead_letter row -> pending, prior metadata preserved, audit entry added, attempts untouched', async () => {
+  test('eligible verifier-rejected dead_letter row -> pending, history retains old REJECT, current top-level disposition cleared, attempts untouched', async () => {
     const fake = new StatefulOutboxFake([eligibleRow()]);
     const repo = createGovernedReplayRepositoryV1(fake);
     const result = await repo.replayDeadLetterForVerifierFixV1({
@@ -190,19 +212,53 @@ describe('governed replay -- eligibility outcomes against a stateful fake outbox
     });
     expect(result).not.toBeNull();
     expect(result!.attempts).toBe(2); // preserved, never reset
+    expect(result!.lastError).toBeNull();
     const row = fake.row(CANARY_ROW_ID)!;
     expect(row.state).toBe('pending');
     expect(row.leased_by).toBeNull();
+    expect(row.last_error).toBeNull();
     const metadata = row.metadata_jsonb as Record<string, unknown>;
-    // Historical governed disposition is never erased.
-    expect(metadata.governedDisposition).toBe('verification_rejected');
-    expect(metadata.verifierDecision).toBe('REJECT');
+    // The CURRENT row must no longer look rejected -- the top-level keys are
+    // gone, not merely stale-but-present.
+    expect(metadata.governedDisposition).toBeUndefined();
+    expect(metadata.verifierDecision).toBeUndefined();
+    // History retains the old REJECT permanently.
     const history = metadata.replayHistory as Array<Record<string, unknown>>;
     expect(history).toHaveLength(1);
     expect(history[0]!.replayRequestedBy).toBe('neo@capiro.ai');
     expect(history[0]!.replayReason).toMatch(/PR #1350/);
+    expect(history[0]!.previousState).toBe('dead_letter');
     expect(history[0]!.previousGovernedDisposition).toBe('verification_rejected');
+    expect(history[0]!.previousVerifierDecision).toBe('REJECT');
+    expect(history[0]!.previousLastError).toEqual(eligibleRow().last_error);
     expect(history[0]!.replaySequence).toBe(1);
+  });
+
+  test('a subsequent successful drain (claim + markSucceeded, through the REAL unmodified repository) cannot still look currently rejected', async () => {
+    const fake = new StatefulOutboxFake([eligibleRow({ observation_id: 'obs-canary' })]);
+    const replayRepo = createGovernedReplayRepositoryV1(fake);
+    const claimRepo = createIngestionOutboxDrainRepositoryPrismaV1(fake);
+
+    await replayRepo.replayDeadLetterForVerifierFixV1({
+      rowId: CANARY_ROW_ID,
+      now: NOW,
+      actor: 'neo@capiro.ai',
+      reason: 'fix landed, retry',
+    });
+    const claimed = await claimRepo.claimRowById({ rowId: CANARY_ROW_ID, leaseOwner: 'drain-worker', now: NOW });
+    expect(claimed).not.toBeNull();
+    const succeeded = await claimRepo.markSucceeded(CANARY_ROW_ID, 'drain-worker', NOW);
+    expect(succeeded).toBe(true);
+
+    const row = fake.row(CANARY_ROW_ID)!;
+    expect(row.state).toBe('succeeded');
+    const metadata = row.metadata_jsonb as Record<string, unknown>;
+    expect(metadata.governedDisposition).toBeUndefined();
+    expect(metadata.verifierDecision).toBeUndefined();
+    expect(row.last_error).toBeNull();
+    // The old REJECT is still permanently on record, just historical.
+    const history = metadata.replayHistory as Array<Record<string, unknown>>;
+    expect(history[0]!.previousGovernedDisposition).toBe('verification_rejected');
   });
 
   test('wrong row id -> no-op (returns null, no row created or altered)', async () => {

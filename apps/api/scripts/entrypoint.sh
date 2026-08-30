@@ -208,6 +208,19 @@ case "${1:-serve}" in
     echo "Running persist-defense-budget-projection-plan-v1 (dry run unless --commit; writes only this one plan row)"
     exec ./node_modules/.bin/tsx scripts/persist-defense-budget-projection-plan-v1.ts "$@"
     ;;
+  # Phase 10B-10 Part I. Governed terminal-replay for the ingestion outbox --
+  # same shape as the promotion-chain verbs above: serve role (composed via
+  # compose_database_url, never PROMOTER_DATABASE_URL -- the outbox is not a
+  # promotion table), dry run unless --commit --confirm <env>, exact-row
+  # only. Given its own explicit case rather than falling through to the
+  # legacy dispatcher, exactly like every other trust-critical verb in this
+  # file.
+  replay-defense-budget-ingestion-outbox-v1)
+    shift
+    compose_database_url
+    echo "Running replay-defense-budget-ingestion-outbox-v1 (exact-row only; dry run unless --commit --confirm <env>)"
+    exec ./node_modules/.bin/tsx scripts/replay-defense-budget-ingestion-outbox-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;
