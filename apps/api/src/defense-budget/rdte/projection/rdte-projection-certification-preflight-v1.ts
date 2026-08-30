@@ -11,6 +11,7 @@ export function planRdteProjectionForCertification(input: {
   preflightBundle: RdteCycleBundleV1;
   artifacts: readonly DefenseBudgetExtractionArtifactV1[];
   canonicalRows?: RdteCanonicalRowSnapshotV1;
+  allowedReviewedAcceptances?: ReadonlySet<string>;
 }) {
   const blockerCodes = input.preflightBundle.blockingFindings.map((finding) => finding.code);
   if (blockerCodes.length !== 1 || blockerCodes[0] !== 'projection_planning_not_complete') {
@@ -39,5 +40,8 @@ export function planRdteProjectionForCertification(input: {
     bundle: authorizedBundle,
     artifacts: input.artifacts,
     ...(input.canonicalRows ? { canonicalRows: input.canonicalRows } : {}),
+    ...(input.allowedReviewedAcceptances
+      ? { allowedReviewedAcceptances: input.allowedReviewedAcceptances }
+      : {}),
   });
 }

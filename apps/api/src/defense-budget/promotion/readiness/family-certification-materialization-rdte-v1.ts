@@ -5,6 +5,10 @@ import {
   finalizeRdteCycle,
 } from '../../rdte/cycle/rdte-cycle-pipeline-v1.js';
 import { rdteCycleVerificationRefV1Schema } from '../../rdte/rdte-cycle-bundle-v1.js';
+import {
+  resolveAllowedReviewedAcceptancesV1,
+  type ProjectionReviewAcceptanceReaderV1,
+} from '../../governed-acceptance/rdte-projection-review-acceptance-resolver-v1.js';
 import type {
   MaterializationArtifactSourcePortV1,
   MaterializationRequestV1,
@@ -17,6 +21,18 @@ export async function materializeRdteFamilyCertificationV1(
     artifactSource: MaterializationArtifactSourcePortV1;
     projectionPlans: ProjectionPlanRepositoryV1;
     producerVersion: string;
+    /**
+     * Phase 10B-15 Part H. Optional so every existing caller/test keeps
+     * working unchanged; when supplied, this is the ONLY source of the
+     * projection planner's `allowedReviewedAcceptances` -- never
+     * constructed by hand here or anywhere else. Omitting it simply means
+     * no REVIEW_ACCEPTED candidate in this cycle gets a resolved
+     * acceptance binding (harmless for RDT&E today: certifyRdteCycle's own
+     * decision/status-equality invariant already lets a genuinely accepted
+     * candidate through independently of this set -- see
+     * rdte-proof-bound-projection-planner-v1.ts's isTrustedTerminal).
+     */
+    reviewAcceptanceReader?: ProjectionReviewAcceptanceReaderV1;
   },
 ): Promise<MaterializationResultV1> {
   if (request.identity.familyGroup !== 'rdte') {
@@ -63,6 +79,21 @@ export async function materializeRdteFamilyCertificationV1(
       decisionId: ref.verificationRunId,
     }));
   }
+  const allowedReviewedAcceptances = ports.reviewAcceptanceReader
+    ? await resolveAllowedReviewedAcceptancesV1(
+        ports.reviewAcceptanceReader,
+        [...refs.values()]
+          .filter((ref) => ref.status === 'REVIEW_ACCEPTED')
+          .map((ref) => ({
+            candidateId: ref.candidateId,
+            runId: ref.verificationRunId,
+            expectedSourceSha256: ref.sourceSha256,
+            expectedArtifactSha256: ref.extractionArtifactSha256,
+            expectedManifestContentSha256: ref.manifestContentSha256,
+          })),
+      )
+    : undefined;
+
   const result = finalizeRdteCycle({
     governedCycleId: request.cycleId,
     cycleIdIdentity: {
@@ -77,6 +108,7 @@ export async function materializeRdteFamilyCertificationV1(
       documents,
     }),
     verifications,
+    ...(allowedReviewedAcceptances ? { allowedReviewedAcceptances } : {}),
   });
   if (result.certification !== 'CERTIFIED_RDTE_READY_FOR_PROJECTION' || result.projectionPlan == null) {
     return { outcome: 'certification_failed', detail: `rdte cycle certification reports ${result.certification}: ${result.reason}`, record: null, replay: false };

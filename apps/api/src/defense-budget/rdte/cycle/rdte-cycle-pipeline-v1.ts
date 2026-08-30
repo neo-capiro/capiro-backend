@@ -124,6 +124,8 @@ export interface RdteCycleFinalizeInput {
   build: RdteCycleArtifactBuildResult;
   verifications: readonly RdteCycleVerificationRefV1[];
   canonicalRows?: RdteCanonicalRowSnapshotV1;
+  /** Phase 10B-15 Part H -- see rdte-proof-bound-projection-planner-v1.ts. */
+  allowedReviewedAcceptances?: ReadonlySet<string>;
 }
 
 export interface RdteCyclePipelineResult {
@@ -734,6 +736,9 @@ export function finalizeRdteCycle(input: RdteCycleFinalizeInput): RdteCyclePipel
     preflightBundle: preflight.bundle,
     artifacts: input.build.artifacts.map((value) => value.artifact),
     ...(input.canonicalRows ? { canonicalRows: input.canonicalRows } : {}),
+    ...(input.allowedReviewedAcceptances
+      ? { allowedReviewedAcceptances: input.allowedReviewedAcceptances }
+      : {}),
   });
   const final = certifyRdteCycle({
     ...common,
