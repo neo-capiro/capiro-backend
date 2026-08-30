@@ -37,6 +37,11 @@ import {
   resolveCommunityFundingRecipientMatch,
   type CommunityFundingMatchDecision,
 } from './community-funding-advocacy-match.js';
+import {
+  buildAppropriationsOutcomeFinding,
+  isCommunityFundingAdvocacyRecord,
+  matchCommunityFundingAppropriationsDeterministically,
+} from './community-funding-appropriations-outcome.js';
 
 export const CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES = [
   'federal_market',
@@ -3579,6 +3584,118 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       for (const outcome of outcomes) {
         if (activityDate && outcome.observedAt < activityDate) continue;
         const evidence = asRecord(outcome.evidence);
+        const metadata = asRecord(record.metadata);
+
+        // CPF/CDS path: ONLY deterministic appropriations correlation. Never fall
+        // back to title/temporal similarity — that would invent "secured funding"
+        // from weak signals (handoff after #1345).
+        if (isCommunityFundingAdvocacyRecord({
+          externalKey,
+          recordType: asString(record.recordType),
+          sourceType: asString(record.sourceType),
+          sourceId: asString(record.sourceId),
+          communityFundingRequestId:
+            asString(metadata.communityFundingRequestId) ?? asString(record.sourceId),
+        })) {
+          const cpfMatch = matchCommunityFundingAppropriationsDeterministically(
+            {
+              externalKey,
+              recordType: asString(record.recordType),
+              sourceType: asString(record.sourceType),
+              sourceId: asString(record.sourceId),
+              communityFundingRequestId:
+                asString(metadata.communityFundingRequestId) ?? asString(record.sourceId),
+              appropriationsAccountRaw:
+                asString(metadata.appropriationsAccountRaw) ??
+                asString(metadata.appropriations_account_raw),
+              appropriationsAccountNormalized: asString(
+                metadata.appropriationsAccountNormalized,
+              ),
+              fiscalYear:
+                typeof metadata.fiscalYear === 'number'
+                  ? metadata.fiscalYear
+                  : Number(asString(metadata.fiscalYear) ?? NaN) || null,
+            },
+            {
+              communityFundingRequestId: asString(evidence.communityFundingRequestId),
+              appropriationsAccountRaw:
+                asString(evidence.appropriationsAccountRaw) ??
+                asString(evidence.appropriations_account_raw) ??
+                asString(evidence.account),
+              appropriationsAccountNormalized: asString(
+                evidence.appropriationsAccountNormalized,
+              ),
+              fiscalYear:
+                typeof evidence.fiscalYear === 'number' || typeof evidence.fiscalYear === 'string'
+                  ? evidence.fiscalYear
+                  : typeof evidence.fy === 'number' || typeof evidence.fy === 'string'
+                    ? evidence.fy
+                    : asString(evidence.fiscalYear) ?? asString(evidence.fy),
+              amountStage: asString(evidence.amountStage) ?? asString(evidence.stage),
+              amountFrom:
+                typeof evidence.amountFrom === 'number' || typeof evidence.amountFrom === 'string'
+                  ? evidence.amountFrom
+                  : asString(evidence.amountFrom),
+              amountTo:
+                typeof evidence.amountTo === 'number' || typeof evidence.amountTo === 'string'
+                  ? evidence.amountTo
+                  : asString(evidence.amountTo),
+              notes: outcome.notes,
+            },
+            {
+              attributableActivityDate: activityDate,
+              outcomeObservedAt: outcome.observedAt,
+            },
+          );
+          if (!cpfMatch) continue;
+          const proposedValue = buildAppropriationsOutcomeFinding({
+            matterId,
+            advocacyExternalKey: externalKey,
+            communityFundingRequestId: cpfMatch.communityFundingRequestId,
+            outcome: {
+              id: outcome.id,
+              kind: outcome.kind,
+              sourceType: outcome.sourceType,
+              sourceId: outcome.sourceId,
+              observedAt: outcome.observedAt.toISOString(),
+              notes: outcome.notes,
+              evidence: evidence as never,
+            },
+            match: cpfMatch,
+          });
+          const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+            kind: 'advocacy_outcome',
+            targetKey: `advocacy-outcome:${externalKey}:${outcome.id}`,
+            source: 'lifecycle_outcomes',
+            factKind: 'recommendation',
+            currentValue: null,
+            proposedValue,
+            confidence: cpfMatch.score,
+            status: 'pending',
+            evidence: [
+              {
+                label:
+                  cpfMatch.matchedOn === 'community_funding_request_id'
+                    ? `Later appropriations/funding evidence cites this exact canonical CPF/CDS request (identifier alignment only — not proof funding was secured)`
+                    : `Later appropriations/funding evidence matches this CPF/CDS request on exact account + FY (identifier alignment only — not proof funding was secured)`,
+                source: 'Capiro Outcome Event',
+                metadata: {
+                  outcomeEventId: outcome.id,
+                  observedAt: outcome.observedAt.toISOString(),
+                  causationClaimed: false,
+                  matchedOn: cpfMatch.matchedOn,
+                  communityFundingRequestId: cpfMatch.communityFundingRequestId,
+                  appropriationsAccountKey: cpfMatch.accountKey,
+                  fiscalYear: cpfMatch.fiscalYear,
+                },
+              },
+            ],
+          });
+          if (inserted) count += 1;
+          if (count >= 75) break;
+          continue;
+        }
+
         const deterministic = matchAdvocacyOutcomeDeterministically(matterIdentifier, evidence);
         const score = deterministic
           ? Math.max(0.9, deterministic.score)
