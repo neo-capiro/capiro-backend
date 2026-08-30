@@ -112,7 +112,7 @@ export function extractR1FromPages(input: {
       candidates.push({
         rawText: page.text.slice(0, 2000),
         page: page.page,
-        printedPage: page.printedPage,
+        printedPage: page.printedPage ?? undefined,
       });
     }
     for (const block of page.blocks) {
@@ -120,7 +120,7 @@ export function extractR1FromPages(input: {
         candidates.push({
           rawText: block.text,
           page: page.page,
-          printedPage: page.printedPage,
+          printedPage: page.printedPage ?? undefined,
         });
       }
     }

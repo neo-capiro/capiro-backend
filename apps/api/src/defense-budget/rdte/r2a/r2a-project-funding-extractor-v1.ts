@@ -151,7 +151,7 @@ const R2A_TABLE_LABEL_RE = /\bcost\b|\bfunding\b|\bbudget\b/i;
 function detectR2aFundingTablesOnPage(page: ParserPageResultV1): R2aDetectedTable[] {
   const detected: R2aDetectedTable[] = [];
   for (const table of page.tables) {
-    const result = analyzeR2aTable(page.page, page.printedPage, table);
+    const result = analyzeR2aTable(page.page, page.printedPage ?? undefined, table);
     if (result != null) detected.push(result);
   }
   return detected;

@@ -215,7 +215,7 @@ export function extractR2aProjectsFromGroups(input: {
 
     for (const page of pages) {
       const info = extractPageHeaderInfo(page);
-      pageHeaders.push({ page: page.page, printedPage: page.printedPage, info });
+      pageHeaders.push({ page: page.page, printedPage: page.printedPage ?? undefined, info });
 
       const sections = extractR2aProjectSectionsFromPage(page);
       allSections.push(...sections);

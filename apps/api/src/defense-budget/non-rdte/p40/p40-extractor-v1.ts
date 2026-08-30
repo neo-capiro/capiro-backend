@@ -169,7 +169,7 @@ export function extractP40FromPages(input: {
       parentIdentity = detectParentIdentityFromText(
         page.text,
         page.page,
-        page.printedPage,
+        page.printedPage ?? undefined,
         account,
         component,
       );
@@ -221,7 +221,7 @@ export function extractP40FromPages(input: {
           parentIdentity = detectParentIdentityFromText(
             tableText,
             page.page,
-            page.printedPage,
+            page.printedPage ?? undefined,
             account,
             component,
           );

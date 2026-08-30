@@ -280,7 +280,7 @@ export function extractOp5FromPages(input: {
       const detected = detectSagIdentityFromText(
         page.text,
         page.page,
-        page.printedPage,
+        page.printedPage ?? undefined,
         account,
         component,
       );

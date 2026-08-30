@@ -153,7 +153,7 @@ interface R4DetectedTable {
 function detectR4TablesOnPage(page: ParserPageResultV1): R4DetectedTable[] {
   const detected: R4DetectedTable[] = [];
   for (const table of page.tables) {
-    const result = analyzeR4Table(page.page, page.printedPage, table);
+    const result = analyzeR4Table(page.page, page.printedPage ?? undefined, table);
     if (result != null) detected.push(result);
   }
   return detected;
