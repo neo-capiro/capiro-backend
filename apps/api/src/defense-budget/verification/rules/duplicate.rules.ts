@@ -8,12 +8,23 @@
  *     explicitly represented as separate alternatives with a duplicate
  *     discrepancy. The verifier never chooses "last wins."
  *
- * G5: Cross-kind consistency:
- *     - project funding must reference a represented project or force review
- *     - performer must reference a known parent PE
- *     - procurement quantity/unit-cost/funding must use the same parent
- *       identity and FY
- *     - relationship endpoints cannot be identical for non-other relationships
+ *     Phase 10B-13: for `exhibit === 'R-1'` ONLY, the natural key also
+ *     includes the row's proven budget-activity dimension (persisted as
+ *     `metadata.rowBudgetActivity` by r1-artifact-builder-v1, see PR
+ *     #1355's Phase 10B-12/13 forensics). Two R-1 funding assertions for
+ *     the same PE/FY/field but a genuinely different budget activity (the
+ *     real production example: PE 0604201F, BA04 FY24 request 18,041 vs
+ *     BA05 FY24 request 163,156, each independently rolling into its own
+ *     budget-activity subtotal) are truthfully-represented, legitimate
+ *     constituent rows, not a duplicate -- whether they can ever become
+ *     one canonical ProgramElementYear.request is a projection-layer
+ *     question the RDT&E projection planner already answers conservatively
+ *     (never last-wins, never summed), not a verification-layer failure.
+ *     An R-1 funding assertion with no persisted row-budget-activity
+ *     context (older artifacts, or a structural-table document this
+ *     reconstruction metadata never applied to) fails closed onto the
+ *     exact original, identity-blind key, so a real duplicate is still
+ *     caught. No other exhibit family's natural key changes at all.
  */
 import type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from './rule-types.js';
@@ -21,13 +32,25 @@ import type { DefenseBudgetAssertionV1 } from '../../contracts/extraction-artifa
 
 function fundingNaturalKey(
   a: Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }>,
+  exhibit: string | undefined,
 ): string {
-  return JSON.stringify({
+  const base = {
     identity: a.identity,
     fiscalYear: a.fiscalYear,
     field: a.field,
     artifactId: '', // same artifact — all funding assertions from one artifact share this
-  });
+  };
+  if (exhibit === 'R-1') {
+    const metadata = (a.metadata ?? {}) as Record<string, unknown>;
+    const rowBudgetActivity =
+      typeof metadata.rowBudgetActivity === 'string' ? metadata.rowBudgetActivity : null;
+    if (rowBudgetActivity != null) {
+      return JSON.stringify({ ...base, rowBudgetActivity });
+    }
+    // Fail closed: no persisted R-1 row context -- retain the exact
+    // original, exhibit-agnostic key so a real duplicate is still caught.
+  }
+  return JSON.stringify(base);
 }
 
 export const DUPLICATE_RULE: VerificationRuleV1 = {
@@ -47,10 +70,11 @@ export const DUPLICATE_RULE: VerificationRuleV1 = {
     const reviewIds: string[] = [];
 
     // G4: Duplicate funding detection using a map
+    const exhibit = artifact.source.exhibit;
     const seenKeys = new Map<string, string[]>();
     for (const assertion of artifact.assertions) {
       if (assertion.assertionKind !== 'funding') continue;
-      const key = fundingNaturalKey(assertion);
+      const key = fundingNaturalKey(assertion, exhibit);
       const existing = seenKeys.get(key);
       if (existing) {
         existing.push(assertion.assertionId);

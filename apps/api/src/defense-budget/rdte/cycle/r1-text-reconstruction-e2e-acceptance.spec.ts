@@ -268,37 +268,26 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
     expect(blockingWarningDiscrepancies).toHaveLength(0);
     expect(byCode.get('warning_policy')?.outcome).not.toBe('FAIL');
 
-    // --- duplicate_detection STILL fails -- correctly. This is the exact
-    // acceptance bar (brief, Step 9): "false duplicate conflicts caused by
-    // lost identity disappear while genuine contradictory source rows
-    // still fail." Before this fix, 182 cross-page PE pairs collided here
+    // --- duplicate_detection now fully PASSES on the real document
+    // (Phase 10B-13 part 2: verification-layer fix, stacked on this
+    // branch). Before Phase 10B-12, 182 cross-page PE pairs collided here
     // (mostly the Defense-Wide roll-up volume restating an agency's own
-    // chapter row, identical values -- a false alarm). The extractor now
-    // deduplicates same-value reprints into a single funding assertion
-    // before they ever reach this generic, unmodified verifier rule, so
-    // ONLY the one genuine value contradiction (0604201F, two different
-    // real request values under the same canonical PE identity) remains. ---
+    // chapter row, identical values -- a false alarm); Phase 10B-12's
+    // extractor-level provenance merge eliminated 181 of those, leaving
+    // exactly one genuine, real value difference (PE 0604201F, BA04
+    // request 18,041 vs BA05 request 163,156). Phase 10B-13 proves that
+    // remaining case is ALSO not a duplicate -- it is two truthfully
+    // represented, independent constituent rows under different budget
+    // activities, each rolling into its own real budget-activity subtotal
+    // -- and makes the generic verifier's funding natural key row-aware
+    // for `exhibit === 'R-1'` ONLY (never weakening it for any other
+    // family, and never for an R-1 row missing this context). With that
+    // fix, zero `duplicate_funding_natural_key` discrepancies remain. ---
     const naturalKeyDiscrepancies = verification.discrepancies.filter(
       (d) => d.code === 'duplicate_funding_natural_key',
     );
-    const assertionById = new Map(artifact.assertions.map((a) => [a.assertionId, a]));
-    const naturalKeyPeCodes = new Set(
-      naturalKeyDiscrepancies.flatMap((d) =>
-        d.assertionIds
-          .map((id) => assertionById.get(id))
-          .map((a) => (a as { identity?: { peCode?: string } } | undefined)?.identity?.peCode)
-          .filter((v): v is string => v != null),
-      ),
-    );
-    expect(naturalKeyPeCodes).toEqual(new Set(['0604201F']));
-    for (const d of naturalKeyDiscrepancies) {
-      const pages = new Set(
-        d.assertionIds
-          .map((id) => assertionById.get(id))
-          .map((a) => (a as { metadata?: { physicalPage?: number } } | undefined)?.metadata?.physicalPage),
-      );
-      expect(pages.size).toBeGreaterThan(1);
-    }
+    expect(naturalKeyDiscrepancies).toHaveLength(0);
+    expect(byCode.get('duplicate_detection')?.outcome).not.toBe('FAIL');
 
     // --- page_only_reconciliation resolves NOT_RUN, never FAIL: every
     // page-only money assertion this module produces is legitimately
@@ -325,7 +314,7 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
     const conflictWarnings = artifact.warnings.filter((w) => w.code === 'r1_duplicate_conflicting_value');
     // eslint-disable-next-line no-console
     console.log(
-      'Phase 10B-12 real-parser acceptance -- aggregate result:',
+      'Phase 10B-13 real-parser acceptance -- aggregate result:',
       JSON.stringify(
         {
           decision: verification.decision,
@@ -337,7 +326,21 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
           omissionCount: artifact.omissions.length,
           conflictCount: conflictWarnings.length,
           pagesWithRecognizedIdentities: uniquePages.size,
-          remainingChecks: verification.checks
+          requiredChecks: [
+            'completeness',
+            'r1_specific',
+            'duplicate_detection',
+            'warning_policy',
+            'identity_validation',
+            'numeric_validation',
+            'money_evidence_policy',
+            'page_only_reconciliation',
+            'rdte_summary_detail',
+          ].map((code) => {
+            const check = byCode.get(code);
+            return { code, outcome: check?.outcome ?? 'MISSING', message: check?.message };
+          }),
+          allNonPassChecks: verification.checks
             .filter((c) => c.outcome === 'FAIL' || c.outcome === 'NOT_RUN')
             .map((c) => ({ code: c.code, outcome: c.outcome, message: c.message })),
         },
