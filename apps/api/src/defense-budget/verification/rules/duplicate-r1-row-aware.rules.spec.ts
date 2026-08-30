@@ -148,6 +148,43 @@ describe('DUPLICATE_RULE — Phase 10B-13 R-1 row-aware natural key', () => {
     ).toHaveLength(1);
   });
 
+  it('R-1: same PE, SAME budget activity, DIFFERENT known line numbers, different request -> NOT automatically a duplicate', () => {
+    // Phase 10B-14: two constituent lines can share a PE and a budget
+    // activity while genuinely being different rows -- line number, when
+    // reliably known on both sides, further distinguishes them.
+    const pages = [
+      makeNumberedPage(1, makeRequestTable('0601101A', 'Research', '1,200')),
+      makeNumberedPage(2, makeRequestTable('0601101A', 'Research', '1,300')),
+    ];
+    const rowContextByPage = new Map([
+      [1, new Map([[1, ctx({ budgetActivity: '02', lineNumber: '5' })]])],
+      [2, new Map([[1, ctx({ budgetActivity: '02', lineNumber: '9' })]])],
+    ]);
+    const artifact = buildArtifact('R-1', pages, rowContextByPage);
+    const result = DUPLICATE_RULE.execute(context(artifact));
+    expect(result.check?.outcome).toBe('PASS');
+    expect(
+      result.discrepancies.filter((d) => d.code === 'duplicate_funding_natural_key'),
+    ).toHaveLength(0);
+  });
+
+  it('R-1: same budget activity but line number missing on one side -> falls back conservatively to BA-level comparison (still blocking)', () => {
+    const pages = [
+      makeNumberedPage(1, makeRequestTable('0601101A', 'Research', '1,200')),
+      makeNumberedPage(2, makeRequestTable('0601101A', 'Research', '1,300')),
+    ];
+    const rowContextByPage = new Map([
+      [1, new Map([[1, ctx({ budgetActivity: '02', lineNumber: '5' })]])],
+      [2, new Map([[1, ctx({ budgetActivity: '02', lineNumber: undefined as unknown as string })]])],
+    ]);
+    const artifact = buildArtifact('R-1', pages, rowContextByPage);
+    const result = DUPLICATE_RULE.execute(context(artifact));
+    expect(result.check?.outcome).toBe('FAIL');
+    expect(
+      result.discrepancies.filter((d) => d.code === 'duplicate_funding_natural_key'),
+    ).toHaveLength(1);
+  });
+
   it('R-1: no persisted row-budget-activity context -> fails closed onto the original conservative key', () => {
     const pages = [
       makeNumberedPage(1, makeRequestTable('0601101A', 'Research', '1,200')),

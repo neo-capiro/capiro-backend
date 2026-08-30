@@ -195,6 +195,7 @@ export function buildR1Artifact(input: {
           columnIndex: value.columnIndex,
           ...(value.sectionHeading != null ? { sectionHeading: value.sectionHeading } : {}),
           ...(value.budgetActivity != null ? { rowBudgetActivity: value.budgetActivity } : {}),
+          ...(value.lineNumber != null ? { rowLineNumber: value.lineNumber } : {}),
         },
       });
     } else {

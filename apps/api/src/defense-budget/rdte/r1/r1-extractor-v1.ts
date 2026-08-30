@@ -50,6 +50,7 @@ export interface R1FundingValue {
   /** Source-row context (see `R1PeIdentity.sectionHeading`); not canonical. */
   sectionHeading?: string;
   budgetActivity?: string;
+  lineNumber?: string;
 }
 
 export interface R1PeIdentity {
@@ -357,6 +358,9 @@ export function extractR1FromPages(input: {
               : {}),
             ...(peRow.rowContext?.budgetActivity != null
               ? { budgetActivity: peRow.rowContext.budgetActivity }
+              : {}),
+            ...(peRow.rowContext?.lineNumber != null
+              ? { lineNumber: peRow.rowContext.lineNumber }
               : {}),
           };
 
