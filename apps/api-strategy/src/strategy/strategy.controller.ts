@@ -7,8 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
@@ -20,6 +23,11 @@ import { CreateStrategyDto } from './dto/create-strategy.dto.js';
 import { PatchStrategyDto } from './dto/patch-strategy.dto.js';
 import { CreateNodeDto, UpdateNodeDto } from './dto/node.dto.js';
 import { CreateArtifactDto } from './dto/artifact.dto.js';
+import {
+  ReportExportDto,
+  ReportPreflightDto,
+} from '../reports/dto/report-export.dto.js';
+import { StrategyReportService } from '../reports/strategy-report.service.js';
 
 /**
  * /strategy-api/strategies — library read + manual create (G2), node CRUD +
@@ -33,6 +41,7 @@ export class StrategyController {
     private readonly strategies: StrategyService,
     private readonly nodes: NodeService,
     private readonly versions: VersionService,
+    private readonly reports: StrategyReportService,
   ) {}
 
   @Get()
@@ -41,8 +50,66 @@ export class StrategyController {
   }
 
   @Post()
-  create(@CurrentTenant() ctx: AuthTenantContext, @Body() dto: CreateStrategyDto) {
+  create(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: CreateStrategyDto,
+  ) {
     return this.strategies.create(ctx.tenantId, ctx.clerkUserId, dto);
+  }
+
+  /** Read-only readiness and branding metadata for the current report snapshot. */
+  @Get(':id/reports/preflight')
+  reportPreflight(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Query() query: ReportPreflightDto,
+  ) {
+    return this.reports.preflight(ctx.tenantId, id, query.audience ?? 'client');
+  }
+
+  /** Generate and stream a version-pinned executive Word or PowerPoint report. */
+  @Post(':id/reports/export')
+  async exportReport(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: ReportExportDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    let responseEnded = false;
+    let releaseReport: (() => void) | null = null;
+    const onResponseEnd = () => {
+      responseEnded = true;
+      releaseReport?.();
+    };
+    response.once('finish', onResponseEnd);
+    response.once('close', onResponseEnd);
+
+    try {
+      const report = await this.reports.export(
+        ctx.tenantId,
+        ctx.clerkUserId,
+        id,
+        dto,
+      );
+      releaseReport = report.release;
+      if (responseEnded) report.release();
+
+      response.setHeader('Cache-Control', 'private, no-store');
+      response.setHeader('X-Content-Type-Options', 'nosniff');
+      response.setHeader('X-Report-Snapshot-Hash', report.snapshotHash);
+      response.setHeader('X-Report-Audience', report.audience);
+      response.setHeader('X-Report-Logo-Included', String(report.logoIncluded));
+      return new StreamableFile(report.bytes, {
+        type: report.contentType,
+        disposition: `attachment; filename="${report.filename}"`,
+        length: report.bytes.length,
+      });
+    } catch (error) {
+      response.off('finish', onResponseEnd);
+      response.off('close', onResponseEnd);
+      releaseReport?.();
+      throw error;
+    }
   }
 
   @Get(':id')
@@ -105,7 +172,13 @@ export class StrategyController {
     @Param('nodeId') nodeId: string,
     @Body() dto: CreateArtifactDto,
   ) {
-    return this.nodes.linkArtifact(ctx.tenantId, ctx.clerkUserId, id, nodeId, dto);
+    return this.nodes.linkArtifact(
+      ctx.tenantId,
+      ctx.clerkUserId,
+      id,
+      nodeId,
+      dto,
+    );
   }
 
   // ---- version history ----
@@ -144,7 +217,10 @@ export class StrategyController {
    * plan stays discoverable instead of silently disappearing.
    */
   @Get(':id/detached')
-  listDetached(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
+  listDetached(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+  ) {
     return this.versions.listDetached(ctx.tenantId, id);
   }
 

@@ -13,7 +13,12 @@
  * surface — not UI. Every component in this module is new; no old strategy
  * component is imported anywhere.
  */
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 /* NOTE (overlay build, 2026-08): this import previously read
  * '../../../../../lib/use-api.js' (5 levels up → apps/lib/, which does not
  * exist — verified with ls). use-api lives at apps/web/src/lib/use-api.ts,
@@ -85,7 +90,8 @@ export function useStrategies() {
   const api = useApi();
   return useQuery<StrategyListItem[]>({
     queryKey: ['strategy', 'strategies'],
-    queryFn: async () => (await api.get<StrategyListItem[]>(`${BASE}/strategies`)).data,
+    queryFn: async () =>
+      (await api.get<StrategyListItem[]>(`${BASE}/strategies`)).data,
     staleTime: 30_000,
   });
 }
@@ -95,7 +101,8 @@ export function useStrategy(id: string | null) {
   return useQuery<StrategyDetail>({
     queryKey: ['strategy', 'strategy', id],
     enabled: !!id,
-    queryFn: async () => (await api.get<StrategyDetail>(`${BASE}/strategies/${id}`)).data,
+    queryFn: async () =>
+      (await api.get<StrategyDetail>(`${BASE}/strategies/${id}`)).data,
   });
 }
 
@@ -105,11 +112,15 @@ export function useVersions(strategyId: string | null, enabled = true) {
     queryKey: ['strategy', 'versions', strategyId],
     enabled: !!strategyId && enabled,
     queryFn: async () =>
-      (await api.get<VersionsPage>(`${BASE}/strategies/${strategyId}/versions`)).data.items,
+      (await api.get<VersionsPage>(`${BASE}/strategies/${strategyId}/versions`))
+        .data.items,
   });
 }
 
-export function useRestoreImpact(strategyId: string | null, versionId: string | null) {
+export function useRestoreImpact(
+  strategyId: string | null,
+  versionId: string | null,
+) {
   const api = useApi();
   return useQuery<RestoreImpact>({
     queryKey: ['strategy', 'restore-impact', strategyId, versionId],
@@ -131,7 +142,8 @@ export function useFirmPhases() {
   const api = useApi();
   return useQuery<FirmPhase[]>({
     queryKey: ['strategy', 'firm-phases'],
-    queryFn: async () => (await api.get<FirmPhase[]>(`${BASE}/firm-phases`)).data,
+    queryFn: async () =>
+      (await api.get<FirmPhase[]>(`${BASE}/firm-phases`)).data,
     staleTime: 60_000,
   });
 }
@@ -140,7 +152,8 @@ export function useReferenceCalendars() {
   const api = useApi();
   return useQuery<ReferenceCalendars>({
     queryKey: ['strategy', 'reference-calendars'],
-    queryFn: async () => (await api.get<ReferenceCalendars>(`${BASE}/reference-calendars`)).data,
+    queryFn: async () =>
+      (await api.get<ReferenceCalendars>(`${BASE}/reference-calendars`)).data,
     staleTime: 60_000,
   });
 }
@@ -153,7 +166,8 @@ export function useContextDocuments() {
     queryKey: ['strategy', 'context-documents'],
     queryFn: async () =>
       normalizeDocumentList(
-        (await api.get<unknown>(`${BASE}/context/documents?includeStale=true`)).data,
+        (await api.get<unknown>(`${BASE}/context/documents?includeStale=true`))
+          .data,
       ),
     staleTime: 30_000,
   });
@@ -165,7 +179,9 @@ export function useContextDocument(id: string | null) {
     queryKey: ['strategy', 'context-document', id],
     enabled: !!id,
     queryFn: async () =>
-      normalizeDocument((await api.get<unknown>(`${BASE}/context/documents/${id}`)).data),
+      normalizeDocument(
+        (await api.get<unknown>(`${BASE}/context/documents/${id}`)).data,
+      ),
   });
 }
 
@@ -175,7 +191,10 @@ export function useContextSections(id: string | null) {
     queryKey: ['strategy', 'context-sections', id],
     enabled: !!id,
     queryFn: async () =>
-      normalizeSections((await api.get<unknown>(`${BASE}/context/documents/${id}/sections`)).data),
+      normalizeSections(
+        (await api.get<unknown>(`${BASE}/context/documents/${id}/sections`))
+          .data,
+      ),
     staleTime: 30_000,
   });
 }
@@ -185,7 +204,10 @@ export function useContextSections(id: string | null) {
  * fact's `sourceRef` (no LLM). The Resolve-conflict overlay (§7.10f) uses this
  * to render the "exact line evidence" the decision record cites.
  */
-export function useContextLocate(documentId: string | null, ref: string | null) {
+export function useContextLocate(
+  documentId: string | null,
+  ref: string | null,
+) {
   const api = useApi();
   return useQuery<ContextLocateResult>({
     queryKey: ['strategy', 'context-locate', documentId, ref],
@@ -209,7 +231,8 @@ export function useContextFacts() {
   const api = useApi();
   return useQuery<ContextFact[]>({
     queryKey: ['strategy', 'context-facts'],
-    queryFn: async () => normalizeFacts((await api.get<unknown>(`${BASE}/context/facts`)).data),
+    queryFn: async () =>
+      normalizeFacts((await api.get<unknown>(`${BASE}/context/facts`)).data),
     staleTime: 30_000,
   });
 }
@@ -219,7 +242,9 @@ export function useContextConflicts() {
   return useQuery<ContextConflict[]>({
     queryKey: ['strategy', 'context-conflicts'],
     queryFn: async () =>
-      normalizeConflicts((await api.get<unknown>(`${BASE}/context/conflicts`)).data),
+      normalizeConflicts(
+        (await api.get<unknown>(`${BASE}/context/conflicts`)).data,
+      ),
     staleTime: 30_000,
   });
 }
@@ -231,8 +256,11 @@ export function useContextHealth(clientId: string | null) {
     enabled: !!clientId,
     queryFn: async () =>
       normalizeContextHealth(
-        (await api.get<unknown>(`${BASE}/context/health?clientId=${encodeURIComponent(clientId ?? '')}`))
-          .data,
+        (
+          await api.get<unknown>(
+            `${BASE}/context/health?clientId=${encodeURIComponent(clientId ?? '')}`,
+          )
+        ).data,
       ),
     staleTime: 30_000,
   });
@@ -250,10 +278,17 @@ export function useChangeSets(
   if (filter.strategyId) qs.set('strategyId', filter.strategyId);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
   return useQuery<ChangeSet[]>({
-    queryKey: ['strategy', 'change-sets', filter.status ?? 'all', filter.strategyId ?? 'all'],
+    queryKey: [
+      'strategy',
+      'change-sets',
+      filter.status ?? 'all',
+      filter.strategyId ?? 'all',
+    ],
     enabled,
     queryFn: async () =>
-      normalizeChangeSets((await api.get<unknown>(`${BASE}/agents/change-sets${suffix}`)).data),
+      normalizeChangeSets(
+        (await api.get<unknown>(`${BASE}/agents/change-sets${suffix}`)).data,
+      ),
     staleTime: 15_000,
   });
 }
@@ -263,19 +298,28 @@ export function useFirmReviewRuns() {
   return useQuery<AgentRun[]>({
     queryKey: ['strategy', 'firm-review-runs'],
     queryFn: async () =>
-      normalizeRuns((await api.get<unknown>(`${BASE}/agents/runs/firm-review`)).data),
+      normalizeRuns(
+        (await api.get<unknown>(`${BASE}/agents/runs/firm-review`)).data,
+      ),
     staleTime: 15_000,
   });
 }
 
-export function useWatchReviewState(strategyId: string | null, enabled: boolean) {
+export function useWatchReviewState(
+  strategyId: string | null,
+  enabled: boolean,
+) {
   const api = useApi();
   return useQuery<WatchReviewState>({
     queryKey: ['strategy', 'watch-state', strategyId ?? ''],
     enabled: !!strategyId && enabled,
     staleTime: 0,
     queryFn: async () =>
-      (await api.get<WatchReviewState>(`${BASE}/agents/watch/strategies/${strategyId}`)).data,
+      (
+        await api.get<WatchReviewState>(
+          `${BASE}/agents/watch/strategies/${strategyId}`,
+        )
+      ).data,
   });
 }
 
@@ -285,7 +329,11 @@ export function usePendingWatchCounts(enabled: boolean) {
     queryKey: ['strategy', 'watch-pending-counts'],
     enabled,
     queryFn: async () =>
-      (await api.get<Record<string, number>>(`${BASE}/agents/watch/pending-counts`)).data,
+      (
+        await api.get<Record<string, number>>(
+          `${BASE}/agents/watch/pending-counts`,
+        )
+      ).data,
     staleTime: 15_000,
   });
 }
@@ -294,7 +342,9 @@ export function usePendingWatchCounts(enabled: boolean) {
 
 export function useExecutionRuns(strategyId?: string | null, enabled = true) {
   const api = useApi();
-  const suffix = strategyId ? `?strategyId=${encodeURIComponent(strategyId)}` : '';
+  const suffix = strategyId
+    ? `?strategyId=${encodeURIComponent(strategyId)}`
+    : '';
   return useQuery<ExecutionRun[]>({
     queryKey: ['strategy', 'execution-runs', strategyId ?? 'all'],
     enabled,
@@ -314,17 +364,28 @@ export function useStrategyDetailWrite(strategyId: string) {
   return (detail: StrategyDetail) => {
     qc.setQueryData(['strategy', 'strategy', strategyId], detail);
     void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
-    void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+    void qc.invalidateQueries({
+      queryKey: ['strategy', 'versions', strategyId],
+    });
   };
 }
 
 /* ------------------------------------------------- Meri conversation (tab) */
 
 export function conversationKey(strategyId: string, nodeId: string | null) {
-  return ['strategy', 'conversation', strategyId, nodeId ?? 'strategy'] as const;
+  return [
+    'strategy',
+    'conversation',
+    strategyId,
+    nodeId ?? 'strategy',
+  ] as const;
 }
 
-export function useStrategyConversation(strategyId: string | null, nodeId: string | null, enabled = true) {
+export function useStrategyConversation(
+  strategyId: string | null,
+  nodeId: string | null,
+  enabled = true,
+) {
   const api = useApi();
   return useQuery<StrategyChatMessage[]>({
     queryKey: conversationKey(strategyId ?? '', nodeId),
@@ -332,7 +393,9 @@ export function useStrategyConversation(strategyId: string | null, nodeId: strin
     queryFn: async () => {
       const qs = nodeId ? `?nodeId=${encodeURIComponent(nodeId)}` : '';
       return (
-        await api.get<StrategyChatMessage[]>(`${BASE}/strategies/${strategyId}/conversations${qs}`)
+        await api.get<StrategyChatMessage[]>(
+          `${BASE}/strategies/${strategyId}/conversations${qs}`,
+        )
       ).data;
     },
   });
@@ -344,16 +407,26 @@ export function useAssistant(strategyId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: AssistantInput) =>
-      (await api.post<AssistantResponse>(`${BASE}/strategies/${strategyId}/assistant`, input, { timeout: 90_000 }))
-        .data,
+      (
+        await api.post<AssistantResponse>(
+          `${BASE}/strategies/${strategyId}/assistant`,
+          input,
+          { timeout: 90_000 },
+        )
+      ).data,
     onSuccess: (resp) => {
       qc.setQueryData(['strategy', 'strategy', strategyId], resp.strategy);
       void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
-      void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'versions', strategyId],
+      });
     },
     onSettled: (_data, _err, input) => {
       void qc.invalidateQueries({
-        queryKey: conversationKey(strategyId, input.scope === 'node' ? (input.nodeId ?? null) : null),
+        queryKey: conversationKey(
+          strategyId,
+          input.scope === 'node' ? (input.nodeId ?? null) : null,
+        ),
       });
     },
   });
@@ -367,7 +440,8 @@ export function useCreateStrategy() {
   return useMutation({
     mutationFn: async (body: CreateStrategyInput) =>
       (await api.post<StrategyDetail>(`${BASE}/strategies`, body)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] }),
   });
 }
 
@@ -376,7 +450,11 @@ export function useDraftStrategy() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: DraftStrategyInput) =>
-      (await api.post<StrategyDetail>(`${BASE}/strategies/draft`, body, { timeout: 90_000 })).data,
+      (
+        await api.post<StrategyDetail>(`${BASE}/strategies/draft`, body, {
+          timeout: 90_000,
+        })
+      ).data,
     onSuccess: (detail) => {
       qc.setQueryData(['strategy', 'strategy', detail.id], detail);
       void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
@@ -389,7 +467,12 @@ export function useAddNode(strategyId: string) {
   const onOk = useStrategyDetailWrite(strategyId);
   return useMutation({
     mutationFn: async (input: CreateNodeInput) =>
-      (await api.post<StrategyDetail>(`${BASE}/strategies/${strategyId}/nodes`, input)).data,
+      (
+        await api.post<StrategyDetail>(
+          `${BASE}/strategies/${strategyId}/nodes`,
+          input,
+        )
+      ).data,
     onSuccess: onOk,
   });
 }
@@ -414,7 +497,11 @@ export function useDeleteNode(strategyId: string) {
   const onOk = useStrategyDetailWrite(strategyId);
   return useMutation({
     mutationFn: async (nodeId: string) =>
-      (await api.delete<StrategyDetail>(`${BASE}/strategies/${strategyId}/nodes/${nodeId}`)).data,
+      (
+        await api.delete<StrategyDetail>(
+          `${BASE}/strategies/${strategyId}/nodes/${nodeId}`,
+        )
+      ).data,
     onSuccess: onOk,
   });
 }
@@ -432,9 +519,13 @@ export function useRestoreVersion(strategyId: string) {
       ).data,
     onSuccess: (detail) => {
       onOk(detail);
-      void qc.invalidateQueries({ queryKey: ['strategy', 'detached', strategyId] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'detached', strategyId],
+      });
       void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
-      void qc.invalidateQueries({ queryKey: ['strategy', 'restore-impact', strategyId] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'restore-impact', strategyId],
+      });
     },
   });
 }
@@ -450,8 +541,11 @@ export function useDeleteStrategy() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (strategyId: string) =>
-      (await api.delete<{ id: string; archivedAt: string }>(`${BASE}/strategies/${strategyId}`))
-        .data,
+      (
+        await api.delete<{ id: string; archivedAt: string }>(
+          `${BASE}/strategies/${strategyId}`,
+        )
+      ).data,
     onSuccess: (result) => {
       // Drop the detail cache entry so a stale back-navigation cannot render a
       // deleted strategy from cache, then refresh the library list.
@@ -491,9 +585,13 @@ export function useExtractContextFacts() {
     mutationFn: async (documentId: string): Promise<ExtractFactsResult> =>
       normalizeExtractResult(
         (
-          await api.post<unknown>(`${BASE}/context/documents/${documentId}/extract`, undefined, {
-            timeout: 120_000,
-          })
+          await api.post<unknown>(
+            `${BASE}/context/documents/${documentId}/extract`,
+            undefined,
+            {
+              timeout: 120_000,
+            },
+          )
         ).data,
       ),
     onSuccess: invalidate,
@@ -514,9 +612,16 @@ export function useResolveContextConflict() {
   const api = useApi();
   const invalidate = useStewardInvalidate();
   return useMutation({
-    mutationFn: async (vars: { conflictId: string; input: ResolveConflictInput }) =>
-      (await api.post<unknown>(`${BASE}/context/conflicts/${vars.conflictId}/resolve`, vars.input))
-        .data,
+    mutationFn: async (vars: {
+      conflictId: string;
+      input: ResolveConflictInput;
+    }) =>
+      (
+        await api.post<unknown>(
+          `${BASE}/context/conflicts/${vars.conflictId}/resolve`,
+          vars.input,
+        )
+      ).data,
     onSuccess: invalidate,
   });
 }
@@ -526,7 +631,11 @@ export function useDismissContextConflict() {
   const invalidate = useStewardInvalidate();
   return useMutation({
     mutationFn: async (conflictId: string) =>
-      (await api.post<unknown>(`${BASE}/context/conflicts/${conflictId}/dismiss`)).data,
+      (
+        await api.post<unknown>(
+          `${BASE}/context/conflicts/${conflictId}/dismiss`,
+        )
+      ).data,
     onSuccess: invalidate,
   });
 }
@@ -536,10 +645,14 @@ export function useUploadContextDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UploadContextDocumentInput) =>
-      normalizeDocument((await api.post<unknown>(`${BASE}/context/documents`, input)).data),
+      normalizeDocument(
+        (await api.post<unknown>(`${BASE}/context/documents`, input)).data,
+      ),
     onSuccess: (doc) => {
       qc.setQueryData(['strategy', 'context-document', doc.id], doc);
-      void qc.invalidateQueries({ queryKey: ['strategy', 'context-documents'] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'context-documents'],
+      });
     },
   });
 }
@@ -549,10 +662,15 @@ export function useArchiveContextDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) =>
-      normalizeDocument((await api.post<unknown>(`${BASE}/context/documents/${id}/archive`)).data),
+      normalizeDocument(
+        (await api.post<unknown>(`${BASE}/context/documents/${id}/archive`))
+          .data,
+      ),
     onSuccess: (doc) => {
       qc.setQueryData(['strategy', 'context-document', doc.id], doc);
-      void qc.invalidateQueries({ queryKey: ['strategy', 'context-documents'] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'context-documents'],
+      });
     },
   });
 }
@@ -573,8 +691,12 @@ export function useApproveChangeSet() {
   const invalidate = useAgentsInvalidate();
   return useMutation({
     mutationFn: async (vars: { id: string; input?: ApproveChangeSetInput }) =>
-      (await api.post<unknown>(`${BASE}/agents/change-sets/${vars.id}/approve`, vars.input ?? {}))
-        .data,
+      (
+        await api.post<unknown>(
+          `${BASE}/agents/change-sets/${vars.id}/approve`,
+          vars.input ?? {},
+        )
+      ).data,
     onSuccess: invalidate,
   });
 }
@@ -596,11 +718,17 @@ export function useApplyChangeSet() {
   const invalidate = useAgentsInvalidate();
   return useMutation({
     mutationFn: async (vars: { id: string; strategyId: string }) =>
-      (await api.post<StrategyDetail>(`${BASE}/agents/change-sets/${vars.id}/apply`)).data,
+      (
+        await api.post<StrategyDetail>(
+          `${BASE}/agents/change-sets/${vars.id}/apply`,
+        )
+      ).data,
     onSuccess: (detail, vars) => {
       qc.setQueryData(['strategy', 'strategy', vars.strategyId], detail);
       void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
-      void qc.invalidateQueries({ queryKey: ['strategy', 'versions', vars.strategyId] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'versions', vars.strategyId],
+      });
       invalidate();
     },
     onError: invalidate,
@@ -614,11 +742,17 @@ export function useUndoChangeSet() {
   const invalidate = useAgentsInvalidate();
   return useMutation({
     mutationFn: async (vars: { id: string; strategyId: string }) =>
-      (await api.post<StrategyDetail>(`${BASE}/agents/change-sets/${vars.id}/undo`)).data,
+      (
+        await api.post<StrategyDetail>(
+          `${BASE}/agents/change-sets/${vars.id}/undo`,
+        )
+      ).data,
     onSuccess: (detail, vars) => {
       qc.setQueryData(['strategy', 'strategy', vars.strategyId], detail);
       void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
-      void qc.invalidateQueries({ queryKey: ['strategy', 'versions', vars.strategyId] });
+      void qc.invalidateQueries({
+        queryKey: ['strategy', 'versions', vars.strategyId],
+      });
       invalidate();
     },
   });
@@ -640,7 +774,11 @@ export function useExecuteRun() {
   return useMutation({
     mutationFn: async (vars: { id: string }) =>
       normalizeExecutionRunsList(
-        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/execute`)).data,
+        (
+          await api.post<unknown>(
+            `${BASE}/agents/execution/runs/${vars.id}/execute`,
+          )
+        ).data,
       ),
     onSuccess: invalidate,
   });
@@ -652,10 +790,12 @@ export function useResumeRun() {
   return useMutation({
     mutationFn: async (vars: { id: string; input?: ResumeRunInput }) =>
       normalizeExecutionRunsList(
-        (await api.post<unknown>(
-          `${BASE}/agents/execution/runs/${vars.id}/resume`,
-          vars.input ?? {},
-        )).data,
+        (
+          await api.post<unknown>(
+            `${BASE}/agents/execution/runs/${vars.id}/resume`,
+            vars.input ?? {},
+          )
+        ).data,
       ),
     onSuccess: invalidate,
   });
@@ -667,7 +807,11 @@ export function useCancelRun() {
   return useMutation({
     mutationFn: async (vars: { id: string }) =>
       normalizeExecutionRunsList(
-        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/cancel`)).data,
+        (
+          await api.post<unknown>(
+            `${BASE}/agents/execution/runs/${vars.id}/cancel`,
+          )
+        ).data,
       ),
     onSuccess: invalidate,
   });
@@ -687,6 +831,10 @@ function normalizeExecutionRunsList(data: unknown) {
 export interface ClientLite {
   id: string;
   name: string;
+  /** Short-lived signed URL returned by the core Clients API. Preview only. */
+  logoUrl?: string | null;
+  logoContentType?: string | null;
+  logoUploadedAt?: string | null;
 }
 
 export function useClientsLite() {
@@ -695,6 +843,155 @@ export function useClientsLite() {
     queryKey: ['strategy', 'clients-lite'],
     queryFn: async () => (await api.get<ClientLite[]>('/api/clients')).data,
     staleTime: 60_000,
+  });
+}
+
+const CLIENT_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const CLIENT_LOGO_MAX_SIDE = 4_096;
+const CLIENT_LOGO_MAX_PIXELS = 1_000_000;
+const CLIENT_LOGO_MIME_TYPES = new Set(['image/png', 'image/jpeg']);
+
+interface ClientLogoUploadTarget {
+  url: string;
+  fields: Record<string, string>;
+  s3Key: string;
+}
+
+async function clientLogoDimensions(
+  file: File,
+): Promise<{ width: number; height: number; interlaced: boolean }> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (
+    file.type === 'image/png' &&
+    bytes.length >= 29 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    String.fromCharCode(...bytes.subarray(12, 16)) === 'IHDR'
+  ) {
+    return {
+      width: view.getUint32(16),
+      height: view.getUint32(20),
+      interlaced: bytes[28] === 1,
+    };
+  }
+  if (
+    file.type === 'image/jpeg' &&
+    bytes.length >= 12 &&
+    view.getUint16(0) === 0xffd8
+  ) {
+    let offset = 2;
+    while (offset + 8 < bytes.length) {
+      if (bytes[offset] !== 0xff) {
+        offset += 1;
+        continue;
+      }
+      const marker = bytes[offset + 1] ?? 0;
+      if (marker === 0xd8 || marker === 0xd9) {
+        offset += 2;
+        continue;
+      }
+      if (offset + 4 > bytes.length) break;
+      const segmentLength = view.getUint16(offset + 2);
+      if (segmentLength < 2 || offset + 2 + segmentLength > bytes.length) break;
+      if (
+        segmentLength >= 7 &&
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        ![0xc4, 0xc8, 0xcc].includes(marker)
+      ) {
+        return {
+          width: view.getUint16(offset + 7),
+          height: view.getUint16(offset + 5),
+          interlaced: false,
+        };
+      }
+      offset += 2 + segmentLength;
+    }
+  }
+  throw new Error('Choose a valid PNG or JPG logo.');
+}
+
+/**
+ * Persist a logo on the strategy's linked Client record. This deliberately
+ * reuses the canonical Clients upload lifecycle instead of creating a
+ * report-only asset: future reports and the Client profile see one mark.
+ */
+export function useUploadClientLogo(clientId: string | null) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation<ClientLite, Error, File>({
+    mutationFn: async (file) => {
+      if (!clientId) throw new Error('The strategy is not linked to a client.');
+      if (!CLIENT_LOGO_MIME_TYPES.has(file.type)) {
+        throw new Error('Choose a PNG or JPG logo.');
+      }
+      if (file.size < 1 || file.size > CLIENT_LOGO_MAX_BYTES) {
+        throw new Error('The client logo must be 2 MB or smaller.');
+      }
+      const dimensions = await clientLogoDimensions(file);
+      if (dimensions.interlaced) {
+        throw new Error('Choose a standard non-interlaced PNG logo.');
+      }
+      if (
+        dimensions.width < 1 ||
+        dimensions.height < 1 ||
+        dimensions.width > CLIENT_LOGO_MAX_SIDE ||
+        dimensions.height > CLIENT_LOGO_MAX_SIDE ||
+        dimensions.width * dimensions.height > CLIENT_LOGO_MAX_PIXELS
+      ) {
+        throw new Error(
+          'Choose a logo no larger than 1 megapixel or 4096 px on either side.',
+        );
+      }
+
+      const presigned = (
+        await api.post<ClientLogoUploadTarget>(
+          `/api/clients/${clientId}/logo/upload-url`,
+          {
+            contentType: file.type,
+            contentLength: file.size,
+          },
+        )
+      ).data;
+
+      const form = new FormData();
+      for (const [key, value] of Object.entries(presigned.fields)) {
+        form.append(key, String(value));
+      }
+      form.append('file', file);
+      const uploaded = await fetch(presigned.url, {
+        method: 'POST',
+        body: form,
+      });
+      if (!uploaded.ok)
+        throw new Error(`Logo upload failed (${uploaded.status}).`);
+
+      return (
+        await api.post<ClientLite>(`/api/clients/${clientId}/logo/confirm`, {
+          s3Key: presigned.s3Key,
+          contentType: file.type,
+        })
+      ).data;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData<ClientLite[]>(['strategy', 'clients-lite'], (current) =>
+        current?.map((client) =>
+          client.id === updated.id ? { ...client, ...updated } : client,
+        ),
+      );
+      qc.setQueryData<unknown>(['client', updated.id], (current: unknown) =>
+        current && typeof current === 'object'
+          ? { ...current, ...updated }
+          : current,
+      );
+      void qc.invalidateQueries({ queryKey: ['strategy', 'clients-lite'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'export-preflight'] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+      void qc.invalidateQueries({ queryKey: ['client', updated.id] });
+    },
   });
 }
 
@@ -728,7 +1025,10 @@ export function memberName(
 }
 
 /** Resolve a client id to a display name. */
-export function clientName(clients: ClientLite[] | undefined, clientId: string | null | undefined): string {
+export function clientName(
+  clients: ClientLite[] | undefined,
+  clientId: string | null | undefined,
+): string {
   if (!clientId) return '—';
   return clients?.find((c) => c.id === clientId)?.name ?? 'Client';
 }
@@ -746,13 +1046,23 @@ export function clientName(clients: ClientLite[] | undefined, clientId: string |
  */
 export function useVersionsInfinite(strategyId: string | null, enabled = true) {
   const api = useApi();
-  return useInfiniteQuery<VersionsPage, Error, VersionsPage[], (string | null)[], string | null>({
+  return useInfiniteQuery<
+    VersionsPage,
+    Error,
+    VersionsPage[],
+    (string | null)[],
+    string | null
+  >({
     queryKey: ['strategy', 'versions', strategyId, 'pages'],
     enabled: !!strategyId && enabled,
     initialPageParam: null,
     queryFn: async ({ pageParam }) => {
       const qs = pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : '';
-      return (await api.get<VersionsPage>(`${BASE}/strategies/${strategyId}/versions${qs}`)).data;
+      return (
+        await api.get<VersionsPage>(
+          `${BASE}/strategies/${strategyId}/versions${qs}`,
+        )
+      ).data;
     },
     getNextPageParam: (last) => last.nextCursor,
     select: (data) => data.pages,
@@ -766,7 +1076,10 @@ export function useVersionsInfinite(strategyId: string | null, enabled = true) {
  * disabled and refetches on demand when the user clicks Download, so the
  * file always reflects the plan at click time.
  */
-export function useCurrentPlanExport(strategyId: string | null, enabled = false) {
+export function useCurrentPlanExport(
+  strategyId: string | null,
+  enabled = false,
+) {
   const api = useApi();
   return useQuery<{ markdown: string }>({
     queryKey: ['strategy', 'current-plan-export', strategyId],
@@ -774,8 +1087,159 @@ export function useCurrentPlanExport(strategyId: string | null, enabled = false)
     staleTime: 0,
     gcTime: 0,
     queryFn: async () =>
-      (await api.get<{ markdown: string }>(`${BASE}/context/strategies/${strategyId}/current-plan`))
-        .data,
+      (
+        await api.get<{ markdown: string }>(
+          `${BASE}/context/strategies/${strategyId}/current-plan`,
+        )
+      ).data,
+  });
+}
+
+/* ---------------------------------------------------- executive report export */
+
+export type StrategyExportFormat = 'docx' | 'pptx';
+export type StrategyExportAudience = 'client' | 'internal';
+
+export interface StrategyExportInput {
+  format: StrategyExportFormat;
+  audience: StrategyExportAudience;
+  useClientLogo: boolean;
+  includeRoadmap: boolean;
+  includeEvidenceAppendix: boolean;
+  includeChangeLog: boolean;
+  includeInternalNotes: boolean;
+  includeAgentHistory: boolean;
+}
+
+export interface StrategyExportPreflight {
+  report: {
+    strategyId: string;
+    title: string;
+    type: string;
+    asOf: string;
+    ready: boolean;
+    formats: StrategyExportFormat[];
+  };
+  client: { id: string; name: string };
+  version: { id: string | null; createdAt: string | null; note: string | null };
+  health: {
+    score: number;
+    label: 'On track' | 'Needs attention' | 'At risk';
+    coveragePct: number;
+    groundingPct: number;
+    timelinessPct: number;
+    totalNodes: number;
+    ownedNodes: number;
+    totalGates: number;
+    groundedGates: number;
+    overdueNodes: number;
+  };
+  logo: {
+    available: boolean;
+    supported: boolean;
+    contentType: string | null;
+    url?: string | null;
+  };
+  counts: {
+    nodes: number;
+    actions: number;
+    decisions: number;
+    gates: number;
+    milestones: number;
+    risks: number;
+    artifacts: number;
+  };
+  warnings: Array<{ code: string; message: string }>;
+  errors: Array<{ code: string; message: string }>;
+}
+
+export interface StrategyExportFile {
+  blob: Blob;
+  filename: string;
+  contentType: string;
+  snapshotHash: string | null;
+  audience: StrategyExportAudience;
+  logoIncluded: boolean;
+}
+
+function exportFallbackFilename(format: StrategyExportFormat): string {
+  return format === 'pptx'
+    ? 'strategy-executive-briefing.pptx'
+    : 'strategy-executive-report.docx';
+}
+
+/** Parse both quoted filename= and UTF-8 filename*= response headers. */
+export function exportFilenameFromDisposition(
+  disposition: string | undefined,
+  fallback: string,
+): string {
+  if (!disposition) return fallback;
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded.replace(/^"|"$/g, ''));
+    } catch {
+      // Fall through to the ordinary filename token.
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(disposition)?.[1];
+  const bare = /filename=([^;\s]+)/i.exec(disposition)?.[1];
+  return quoted ?? bare ?? fallback;
+}
+
+export function useStrategyExportPreflight(
+  strategyId: string | null,
+  audience: StrategyExportAudience,
+  enabled = true,
+) {
+  const api = useApi();
+  return useQuery<StrategyExportPreflight>({
+    queryKey: ['strategy', 'export-preflight', strategyId, audience],
+    enabled: !!strategyId && enabled,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async () =>
+      (
+        await api.get<StrategyExportPreflight>(
+          `${BASE}/strategies/${strategyId}/reports/preflight?audience=${audience}`,
+        )
+      ).data,
+  });
+}
+
+/** Synchronous, deterministic server render. The Blob is never query-cached. */
+export function useGenerateStrategyExport(strategyId: string | null) {
+  const api = useApi();
+  return useMutation<StrategyExportFile, Error, StrategyExportInput>({
+    mutationFn: async (input) => {
+      if (!strategyId) throw new Error('The strategy could not be identified.');
+      const response = await api.post<Blob>(
+        `${BASE}/strategies/${strategyId}/reports/export`,
+        input,
+        { responseType: 'blob', timeout: 120_000 },
+      );
+      const disposition = response.headers['content-disposition'] as
+        | string
+        | undefined;
+      const contentType =
+        (response.headers['content-type'] as string | undefined) ??
+        'application/octet-stream';
+      const responseAudience = response.headers['x-report-audience'];
+      return {
+        blob: response.data,
+        filename: exportFilenameFromDisposition(
+          disposition,
+          exportFallbackFilename(input.format),
+        ),
+        contentType,
+        snapshotHash:
+          (response.headers['x-report-snapshot-hash'] as string | undefined) ??
+          null,
+        audience: responseAudience === 'internal' ? 'internal' : 'client',
+        logoIncluded: response.headers['x-report-logo-included'] === 'true',
+      };
+    },
   });
 }
 
@@ -795,9 +1259,13 @@ function useWatchInvalidate(strategyId: string) {
     void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
     void qc.invalidateQueries({ queryKey: ['strategy', 'missions'] });
-    void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+    void qc.invalidateQueries({
+      queryKey: ['strategy', 'versions', strategyId],
+    });
     void qc.invalidateQueries({ queryKey: conversationKey(strategyId, null) });
-    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-pending-counts'] });
+    void qc.invalidateQueries({
+      queryKey: ['strategy', 'watch-pending-counts'],
+    });
   };
 }
 
@@ -808,7 +1276,11 @@ export function useRevalidateWatch(strategyId: string) {
   const invalidate = useWatchInvalidate(strategyId);
   return useMutation({
     mutationFn: async () =>
-      (await api.post<WatchReviewState>(`${BASE}/agents/watch/strategies/${strategyId}/revalidate`)).data,
+      (
+        await api.post<WatchReviewState>(
+          `${BASE}/agents/watch/strategies/${strategyId}/revalidate`,
+        )
+      ).data,
     onSuccess: (state) => {
       qc.setQueryData(watchStateKey(strategyId), state);
       invalidate();
@@ -823,7 +1295,11 @@ export function useAcceptWatchProposal(strategyId: string) {
   const invalidate = useWatchInvalidate(strategyId);
   return useMutation({
     mutationFn: async (proposalId: string) =>
-      (await api.post<WatchAcceptResult>(`${BASE}/agents/watch/proposals/${proposalId}/accept`)).data,
+      (
+        await api.post<WatchAcceptResult>(
+          `${BASE}/agents/watch/proposals/${proposalId}/accept`,
+        )
+      ).data,
     onSuccess: (res) => {
       qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
       qc.setQueryData(watchStateKey(strategyId), res.state);
@@ -839,7 +1315,11 @@ export function useDismissWatchProposal(strategyId: string) {
   const invalidate = useWatchInvalidate(strategyId);
   return useMutation({
     mutationFn: async (proposalId: string) =>
-      (await api.post<WatchReviewState>(`${BASE}/agents/watch/proposals/${proposalId}/dismiss`)).data,
+      (
+        await api.post<WatchReviewState>(
+          `${BASE}/agents/watch/proposals/${proposalId}/dismiss`,
+        )
+      ).data,
     onSuccess: (state) => {
       qc.setQueryData(watchStateKey(strategyId), state);
       invalidate();
@@ -875,7 +1355,9 @@ export function useCreateMission() {
   const invalidate = useAgentsInvalidate();
   return useMutation({
     mutationFn: async (input: CreateMissionInput) =>
-      normalizeMission((await api.post<unknown>(`${BASE}/agents/missions`, input)).data),
+      normalizeMission(
+        (await api.post<unknown>(`${BASE}/agents/missions`, input)).data,
+      ),
     onSuccess: invalidate,
   });
 }
@@ -886,7 +1368,14 @@ export function useUpdateMission() {
   const invalidate = useAgentsInvalidate();
   return useMutation({
     mutationFn: async (vars: { id: string; input: UpdateMissionInput }) =>
-      normalizeMission((await api.patch<unknown>(`${BASE}/agents/missions/${vars.id}`, vars.input)).data),
+      normalizeMission(
+        (
+          await api.patch<unknown>(
+            `${BASE}/agents/missions/${vars.id}`,
+            vars.input,
+          )
+        ).data,
+      ),
     onSuccess: invalidate,
   });
 }
@@ -899,9 +1388,13 @@ export function useRunCheck() {
     mutationFn: async (missionId: string): Promise<RunCheckResult> =>
       normalizeRunCheck(
         (
-          await api.post<unknown>(`${BASE}/agents/missions/${missionId}/run-check`, undefined, {
-            timeout: 120_000,
-          })
+          await api.post<unknown>(
+            `${BASE}/agents/missions/${missionId}/run-check`,
+            undefined,
+            {
+              timeout: 120_000,
+            },
+          )
         ).data,
       ),
     onSuccess: invalidate,
@@ -937,7 +1430,12 @@ export function useForkReferenceCalendar(kind: 'congress' | 'ppbe') {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (rows: ReferenceForkRow[]) =>
-      (await api.put<ReferenceCalendars>(`${BASE}/reference-calendars/${kind}`, { rows })).data,
+      (
+        await api.put<ReferenceCalendars>(
+          `${BASE}/reference-calendars/${kind}`,
+          { rows },
+        )
+      ).data,
     onSuccess: (data) => {
       qc.setQueryData(['strategy', 'reference-calendars'], data);
     },
@@ -957,7 +1455,9 @@ export function useDismissContextGap(strategyId: string) {
         )
       ).data,
     onSuccess: (_msg, vars) => {
-      void qc.invalidateQueries({ queryKey: conversationKey(strategyId, vars.nodeId) });
+      void qc.invalidateQueries({
+        queryKey: conversationKey(strategyId, vars.nodeId),
+      });
     },
   });
 }

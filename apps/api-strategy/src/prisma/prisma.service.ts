@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 // Import from the CUSTOM generated client (not @prisma/client). This is
 // load-bearing: `Prisma.dmmf` below drives the tenant-scoped model set, and it
 // must reflect THIS service's schema, not apps/api's default client.
@@ -56,7 +61,11 @@ export function applyTenantScope(
   args: unknown,
   scopedModels: ReadonlySet<string>,
 ): unknown {
-  if (scope.bypass === true || !scopedModels.has(model) || !WHERE_BEARING_OPS.has(operation)) {
+  if (
+    scope.bypass === true ||
+    !scopedModels.has(model) ||
+    !WHERE_BEARING_OPS.has(operation)
+  ) {
     return args;
   }
   const next = { ...((args as Record<string, unknown> | undefined) ?? {}) };
@@ -67,7 +76,10 @@ export function applyTenantScope(
 
 /** True for transient tx errors worth retrying (deadlock / serialization). */
 export function isRetryableTransactionError(err: unknown): boolean {
-  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === 'P2034'
+  ) {
     return true;
   }
   const message = err instanceof Error ? err.message : String(err);
@@ -80,7 +92,10 @@ export function isRetryableTransactionError(err: unknown): boolean {
 }
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
 
   // Tenant-scoped model set, derived once from the DMMF: every model that has a
@@ -112,7 +127,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           $allModels: {
             async $allOperations({ model, operation, args, query }) {
               return query(
-                applyTenantScope(scope, model, operation, args, scopedModels) as typeof args,
+                applyTenantScope(
+                  scope,
+                  model,
+                  operation,
+                  args,
+                  scopedModels,
+                ) as typeof args,
               );
             },
           },
@@ -125,14 +146,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: {
+      timeoutMs?: number;
+      isolationLevel?: Prisma.TransactionIsolationLevel;
+    },
   ): Promise<T> {
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       },
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      opts
+        ? {
+            ...(opts.timeoutMs === undefined
+              ? {}
+              : { timeout: opts.timeoutMs }),
+            ...(opts.isolationLevel === undefined
+              ? {}
+              : { isolationLevel: opts.isolationLevel }),
+          }
+        : undefined,
     );
   }
 
@@ -141,7 +174,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     tenantId: string,
     userId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number },
+    opts?: {
+      timeoutMs?: number;
+      isolationLevel?: Prisma.TransactionIsolationLevel;
+    },
   ): Promise<T> {
     return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
@@ -149,7 +185,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       },
-      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+      opts
+        ? {
+            ...(opts.timeoutMs === undefined
+              ? {}
+              : { timeout: opts.timeoutMs }),
+            ...(opts.isolationLevel === undefined
+              ? {}
+              : { isolationLevel: opts.isolationLevel }),
+          }
+        : undefined,
     );
   }
 
@@ -158,7 +203,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * baseline). Sets app.bypass_rls and injects NO tenant predicate. Use
    * sparingly and never on a user request path.
    */
-  async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  async withSystem<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
     return this.scopedClient({ bypass: true }).$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
       return fn(tx as unknown as Prisma.TransactionClient);
@@ -169,7 +216,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async withTenantRetry<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    opts?: { timeoutMs?: number; maxAttempts?: number },
+    opts?: {
+      timeoutMs?: number;
+      maxAttempts?: number;
+      isolationLevel?: Prisma.TransactionIsolationLevel;
+    },
   ): Promise<T> {
     const maxAttempts = opts?.maxAttempts ?? 3;
     let lastErr: unknown;

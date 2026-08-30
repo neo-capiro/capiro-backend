@@ -15,6 +15,7 @@ import { RunReconcilerService } from '../src/agents/run-reconciler.service.js';
 import { StrategyService } from '../src/strategy/strategy.service.js';
 import { NodeService } from '../src/strategy/node.service.js';
 import { VersionService } from '../src/strategy/version.service.js';
+import { StrategyReportService } from '../src/reports/strategy-report.service.js';
 import { TenantGuard } from '../src/auth/tenant.guard.js';
 import { StrategyPlannerGuard } from '../src/flags/strategy-planner.guard.js';
 import { AgenticGuard } from '../src/flags/agentic.guard.js';
@@ -99,6 +100,7 @@ describe('P0 route wiring (e2e)', () => {
         { provide: StrategyService, useValue: {} },
         { provide: NodeService, useValue: {} },
         { provide: VersionService, useValue: versions },
+        { provide: StrategyReportService, useValue: {} },
       ],
     })
       .overrideGuard(TenantGuard)

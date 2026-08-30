@@ -13,6 +13,8 @@ export interface AssetsStackProps extends cdk.StackProps {
  * Tenant-uploaded assets: logos today, document attachments and meeting
  * media later. Bucket layout enforces per-tenant key prefixes:
  *   tenants/{tenantId}/branding/logo.{ext}
+ *   tenants/{tenantId}/clients/{clientId}/logos/{uploadId}.{ext}
+ *   tenants/client-logo-uploads/{tenantId}/{clientId}/{uploadId}.{ext} (staging)
  *   tenants/{tenantId}/documents/{docId}/{filename}
  *
  * Per-tenant separation is enforced at the API edge (presigned URLs only
@@ -24,11 +26,14 @@ export interface AssetsStackProps extends cdk.StackProps {
 export class AssetsStack extends cdk.Stack {
   public readonly bucket: s3.Bucket;
   public readonly key: kms.Key;
+  public readonly strategyReportTaskRole: iam.Role;
 
   constructor(scope: Construct, id: string, props: AssetsStackProps) {
     super(scope, id, props);
     const { cfg } = props;
-    Object.entries(commonTags(cfg)).forEach(([k, v]) => cdk.Tags.of(this).add(k, v));
+    Object.entries(commonTags(cfg)).forEach(([k, v]) =>
+      cdk.Tags.of(this).add(k, v),
+    );
 
     this.key = new kms.Key(this, 'AssetsKey', {
       alias: `alias/capiro/${cfg.envName}/assets`,
@@ -93,18 +98,66 @@ export class AssetsStack extends cdk.Stack {
           id: 'ExpireOldVersions',
           noncurrentVersionExpiration: cdk.Duration.days(90),
         },
+        {
+          id: 'ExpireUnconfirmedClientLogos',
+          prefix: 'tenants/client-logo-uploads/',
+          expiration: cdk.Duration.days(1),
+          // This bucket is versioned. Expiration alone creates a delete marker;
+          // remove the noncurrent staging payload on the same short schedule.
+          noncurrentVersionExpiration: cdk.Duration.days(1),
+        },
       ],
     });
 
-    new cdk.CfnOutput(this, 'AssetsBucketName', { value: this.bucket.bucketName });
+    // This role lives with the deployable Assets stack rather than the currently
+    // wedged Compute stack. The manual Strategy task definition can therefore
+    // adopt least-privilege logo reads before Compute is reconciled.
+    this.strategyReportTaskRole = new iam.Role(this, 'StrategyReportTaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      description: 'Capiro Strategy report-serving task role',
+      roleName: `capiro-${cfg.envName}-api-strategy-task-role`,
+    });
+    this.grantClientLogoRead(this.strategyReportTaskRole);
+
+    new cdk.CfnOutput(this, 'AssetsBucketName', {
+      value: this.bucket.bucketName,
+    });
     new cdk.CfnOutput(this, 'AssetsKeyArn', { value: this.key.keyArn });
+    new cdk.CfnOutput(this, 'StrategyReportTaskRoleArn', {
+      value: this.strategyReportTaskRole.roleArn,
+    });
+  }
+
+  /** Read-only access to confirmed per-client logo objects used in reports. */
+  grantClientLogoRead(grantee: iam.IGrantable): void {
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject', 's3:GetObjectVersion'],
+        resources: [
+          `${this.bucket.bucketArn}/tenants/*/clients/*/logos/*.png`,
+          `${this.bucket.bucketArn}/tenants/*/clients/*/logos/*.jpg`,
+          `${this.bucket.bucketArn}/tenants/*/clients/*/logos/*.jpeg`,
+        ],
+      }),
+    );
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt'],
+        resources: [this.key.keyArn],
+      }),
+    );
   }
 
   /** Add the IAM policy statements an API task role needs to mint presigned URLs. */
   grantApiAccess(grantee: iam.IGrantable): void {
     grantee.grantPrincipal.addToPrincipalPolicy(
       new iam.PolicyStatement({
-        actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject', 's3:GetObjectVersion'],
+        actions: [
+          's3:GetObject',
+          's3:PutObject',
+          's3:DeleteObject',
+          's3:GetObjectVersion',
+        ],
         resources: [`${this.bucket.bucketArn}/tenants/*`],
       }),
     );

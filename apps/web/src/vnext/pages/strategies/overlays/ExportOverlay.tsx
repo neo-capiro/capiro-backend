@@ -1,105 +1,429 @@
 /*
- * §7.10d — Export overlay. Route: /strategies/:strategyId/export (over the editor).
+ * Executive report export — /strategies/:strategyId/export.
  *
- * CONFIRMED GAP: the strategies API exposes exactly ONE export endpoint —
- * GET /strategy-api/context/strategies/:id/current-plan → { markdown }.
- * The design's generated formats (PDF / DOCX / PPTX / PNG) have no backend;
- * their cards render DISABLED with "Not yet available" and the content
- * toggles are marked as applying to generated formats only. The one working
- * path is the Markdown · current plan card: it refetches on click and saves
- * a real Blob download — nothing is faked, nothing downloads that the server
- * did not produce.
- *
- * Focus trap / Escape / dirty guard / route sync live in StrategiesModalShell.
+ * DOCX and PPTX are rendered synchronously by api-strategy from the same
+ * server snapshot used by the readiness check. Markdown remains the exact,
+ * separate current-plan export for technical hand-off. Client logos are
+ * stored on the linked Client through the canonical core API lifecycle.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { CapiroSkeleton } from '../../../components/feedback/index.js';
 import { CapiroFileTextIcon } from '../../../components/icons/index.js';
-import { useCurrentPlanExport, useStrategy } from '../strategies-api.js';
+import {
+  type StrategyExportAudience,
+  type StrategyExportFormat,
+  type StrategyExportInput,
+  useClientsLite,
+  useCurrentPlanExport,
+  useGenerateStrategyExport,
+  useStrategy,
+  useStrategyExportPreflight,
+  useUploadClientLogo,
+} from '../strategies-api.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
 
-/** The design's generated formats — all without an endpoint today. */
-const UNAVAILABLE_FORMATS = [
-  { id: 'pdf', name: 'PDF document', desc: 'Board-ready layout with cover, contents and phase diagrams.' },
-  { id: 'docx', name: 'Word (DOCX)', desc: 'Editable document for redlining and client markup.' },
-  { id: 'pptx', name: 'Slides (PPTX)', desc: 'One slide per phase for committee and client briefings.' },
-  { id: 'png', name: 'Image (PNG)', desc: 'The timeline as a single shareable graphic.' },
-] as const;
+type ExportChoice = StrategyExportFormat | 'markdown';
 
-function slugify(title: string | undefined | null): string {
-  const slug = (title ?? '')
+const LOGO_WARNING_CODES = new Set([
+  'CLIENT_LOGO_UNAVAILABLE',
+  'CLIENT_LOGO_UNSUPPORTED',
+]);
+
+const REPORT_FORMATS: Array<{
+  id: StrategyExportFormat;
+  name: string;
+  description: string;
+  extension: string;
+}> = [
+  {
+    id: 'docx',
+    name: 'Word document',
+    description:
+      'Polished, editable executive report for review, redlining and delivery.',
+    extension: '.docx',
+  },
+  {
+    id: 'pptx',
+    name: 'PowerPoint deck',
+    description:
+      'Concise 16:9 briefing deck for leadership and client presentations.',
+    extension: '.pptx',
+  },
+];
+
+function slugify(value: string | undefined | null): string {
+  const slug = (value ?? '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return slug || 'strategy';
 }
 
+function safeFilenameStem(value: string): string {
+  return value
+    .replace(/\.(docx|pptx|md)$/i, '')
+    .replace(/[<>:"/\\|?*]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s-]+$/g, '')
+    .trim()
+    .slice(0, 120);
+}
+
+function displayDate(value: string | null | undefined): string {
+  if (!value) return 'Current snapshot';
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value,
+  );
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+function messageFromPayload(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (!value || typeof value !== 'object') return null;
+  const message = (value as { message?: unknown }).message;
+  if (typeof message === 'string' && message.trim()) return message;
+  if (Array.isArray(message)) {
+    const parts = message.filter(
+      (part): part is string => typeof part === 'string',
+    );
+    return parts.length ? parts.join(' ') : null;
+  }
+  return null;
+}
+
+async function readableError(
+  error: unknown,
+  fallback: string,
+): Promise<string> {
+  if (error && typeof error === 'object') {
+    const responseData = (error as { response?: { data?: unknown } }).response
+      ?.data;
+    if (responseData instanceof Blob) {
+      try {
+        const text = await responseData.text();
+        const parsed = JSON.parse(text) as unknown;
+        const message = messageFromPayload(parsed);
+        if (message) return message;
+      } catch {
+        // A non-JSON error blob falls through to the ordinary error message.
+      }
+    } else {
+      const responseMessage = messageFromPayload(responseData);
+      if (responseMessage) return responseMessage;
+    }
+    const message = messageFromPayload(error);
+    if (message) return message;
+  }
+  return fallback;
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Revoke on the next task so Safari has time to begin consuming the Blob.
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function ToggleRow({
+  id,
+  title,
+  description,
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const descriptionId = `${id}-description`;
+  return (
+    <div
+      className={`st-toggle-row${disabled ? ' st-toggle-row--disabled' : ''}`}
+    >
+      <span className="st-export-toggle__copy">
+        <strong id={id}>{title}</strong>
+        <span id={descriptionId}>{description}</span>
+      </span>
+      <button
+        type="button"
+        className="st-switch"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={id}
+        aria-describedby={descriptionId}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+      />
+    </div>
+  );
+}
+
 export function ExportOverlay() {
   const { strategyId } = useParams<{ strategyId: string }>();
   const strategy = useStrategy(strategyId ?? null);
-  const planExport = useCurrentPlanExport(strategyId ?? null, false);
+  const clients = useClientsLite();
 
-  const [customName, setCustomName] = useState<string | null>(null);
+  const [choice, setChoice] = useState<ExportChoice>('docx');
+  const [audience, setAudience] = useState<StrategyExportAudience>('client');
+  const [useClientLogo, setUseClientLogo] = useState(true);
+  const [includeRoadmap, setIncludeRoadmap] = useState(true);
+  const [includeEvidenceAppendix, setIncludeEvidenceAppendix] = useState(true);
+  const [includeChangeLog, setIncludeChangeLog] = useState(false);
   const [includeInternalNotes, setIncludeInternalNotes] = useState(false);
   const [includeAgentHistory, setIncludeAgentHistory] = useState(false);
+  const [customName, setCustomName] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const logoInput = useRef<HTMLInputElement>(null);
+  const refreshedLogoVersions = useRef(new Set<string>());
 
-  const defaultName = useMemo(
-    () => `${slugify(strategy.data?.title)}-current-plan.md`,
-    [strategy.data?.title],
+  const isReport = choice !== 'markdown';
+  const reportFormat: StrategyExportFormat =
+    choice === 'pptx' ? 'pptx' : 'docx';
+  const preflight = useStrategyExportPreflight(
+    strategyId ?? null,
+    audience,
+    isReport,
   );
-  const filename = (customName ?? defaultName).trim() || defaultName;
+  const reportExport = useGenerateStrategyExport(strategyId ?? null);
+  const planExport = useCurrentPlanExport(strategyId ?? null, false);
 
-  const downloading = planExport.isFetching;
+  const linkedClient = useMemo(
+    () =>
+      clients.data?.find((client) => client.id === strategy.data?.clientId) ??
+      null,
+    [clients.data, strategy.data?.clientId],
+  );
+  const logoUpload = useUploadClientLogo(strategy.data?.clientId ?? null);
+
+  const clientDisplayName =
+    preflight.data?.client.name ?? linkedClient?.name ?? 'Client';
+  const reportTitle =
+    preflight.data?.report.title ?? strategy.data?.title ?? 'Strategy';
+  const reportAsOf =
+    preflight.data?.report.asOf ?? new Date().toISOString().slice(0, 10);
+  const clientLogoUrl =
+    preflight.data?.logo.url ?? linkedClient?.logoUrl ?? null;
+  const savedLogoVersion = linkedClient
+    ? `${linkedClient.id}:${linkedClient.logoUploadedAt ?? 'legacy'}`
+    : null;
+  const savedLogoContentType =
+    preflight.data?.logo.contentType ?? linkedClient?.logoContentType;
+  const savedLogoPortable =
+    !savedLogoContentType ||
+    ['image/png', 'image/jpeg'].includes(savedLogoContentType);
+  const logoSupported = preflight.data?.logo.supported ?? savedLogoPortable;
+  const logoAvailable =
+    preflight.data?.logo.available ?? Boolean(clientLogoUrl);
+  const effectiveUseClientLogo = useClientLogo && logoSupported;
+  const logoPreviewFailed = Boolean(
+    clientLogoUrl && failedLogoUrl === clientLogoUrl,
+  );
+  const showClientLogo =
+    effectiveUseClientLogo && Boolean(clientLogoUrl) && !logoPreviewFailed;
+  const visiblePreflightWarnings = (preflight.data?.warnings ?? []).filter(
+    (warning) => useClientLogo || !LOGO_WARNING_CODES.has(warning.code),
+  );
+
+  const defaultStem = useMemo(() => {
+    if (choice === 'markdown') return `${slugify(reportTitle)}-current-plan`;
+    const deliverable =
+      choice === 'pptx' ? 'executive-briefing' : 'executive-report';
+    return `${slugify(clientDisplayName)}-${slugify(reportTitle)}-${deliverable}-${reportAsOf}`;
+  }, [choice, clientDisplayName, reportAsOf, reportTitle]);
+
+  const filenameStem =
+    safeFilenameStem(customName ?? defaultStem) || defaultStem;
+  const extension = choice === 'markdown' ? '.md' : `.${choice}`;
+  const filename = `${filenameStem}${extension}`;
+
+  const reportInput: StrategyExportInput = {
+    format: reportFormat,
+    audience,
+    useClientLogo: effectiveUseClientLogo,
+    includeRoadmap,
+    includeEvidenceAppendix,
+    includeChangeLog: audience === 'internal' && includeChangeLog,
+    includeInternalNotes: audience === 'internal' && includeInternalNotes,
+    includeAgentHistory: audience === 'internal' && includeAgentHistory,
+  };
+
+  const formatSupported =
+    !preflight.data || preflight.data.report.formats.includes(reportFormat);
+  const reportReady = Boolean(
+    preflight.data?.report.ready &&
+    preflight.data.errors.length === 0 &&
+    formatSupported,
+  );
+  const downloading = isReport ? reportExport.isPending : planExport.isFetching;
+  const checkingReadiness = isReport && !preflight.data && !preflight.isError;
+  const primaryDisabled =
+    !strategyId ||
+    downloading ||
+    logoUpload.isPending ||
+    (isReport && (preflight.isError || !preflight.data || !reportReady));
+
+  const clearResult = () => {
+    setDownloadError(null);
+    setLiveStatus(null);
+  };
+
+  const selectChoice = (next: ExportChoice) => {
+    setChoice(next);
+    clearResult();
+  };
+
+  const selectAudience = (next: StrategyExportAudience) => {
+    setAudience(next);
+    clearResult();
+  };
 
   const download = async () => {
-    if (!strategyId || downloading) return;
+    if (!strategyId || primaryDisabled) return;
     setDownloadError(null);
-    const result = await planExport.refetch();
-    const markdown = result.data?.markdown;
-    if (result.isError || markdown === undefined) {
-      setDownloadError(
-        (result.error as Error | null)?.message ||
-          'The current plan export could not be generated. Please try again.',
+    setLiveStatus(null);
+
+    if (choice === 'markdown') {
+      const result = await planExport.refetch();
+      const markdown = result.data?.markdown;
+      if (result.isError || markdown === undefined) {
+        setDownloadError(
+          (result.error as Error | null)?.message ||
+            'The current plan could not be generated. Please try again.',
+        );
+        return;
+      }
+      saveBlob(
+        new Blob([markdown], { type: 'text/markdown;charset=utf-8' }),
+        filename,
       );
+      setLiveStatus(`Downloaded ${filename}.`);
       return;
     }
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename.endsWith('.md') ? filename : `${filename}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+
+    try {
+      const result = await reportExport.mutateAsync(reportInput);
+      const downloadFilename = customName === null ? result.filename : filename;
+      saveBlob(result.blob, downloadFilename);
+      const snapshot = result.snapshotHash
+        ? ` Snapshot ${result.snapshotHash.slice(0, 10)}.`
+        : '';
+      const brandingFallback =
+        effectiveUseClientLogo && !result.logoIncluded
+          ? ' The saved logo could not be embedded, so client-name branding was used.'
+          : '';
+      setLiveStatus(
+        `Downloaded ${downloadFilename}.${snapshot}${brandingFallback}`,
+      );
+    } catch (error) {
+      setDownloadError(
+        await readableError(
+          error,
+          'The executive report could not be generated. Review readiness and try again.',
+        ),
+      );
+    }
   };
+
+  const chooseLogo = () => logoInput.current?.click();
+
+  const handleLogoPreviewError = () => {
+    setFailedLogoUrl(clientLogoUrl);
+    // A signed URL can expire, so refresh it once for this saved logo version.
+    // If the refreshed URL also fails, keep the wordmark fallback instead of
+    // creating an onError -> refetch -> new URL loop across the two previews.
+    if (
+      savedLogoVersion &&
+      !refreshedLogoVersions.current.has(savedLogoVersion)
+    ) {
+      refreshedLogoVersions.current.add(savedLogoVersion);
+      void clients.refetch();
+    }
+  };
+
+  const uploadLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setLogoError(null);
+    setLiveStatus(null);
+    try {
+      await logoUpload.mutateAsync(file);
+      refreshedLogoVersions.current.clear();
+      setFailedLogoUrl(null);
+      setUseClientLogo(true);
+      setLiveStatus(
+        `${clientDisplayName}'s logo was saved for this and future reports.`,
+      );
+    } catch (error) {
+      setLogoError(
+        await readableError(error, 'The client logo could not be uploaded.'),
+      );
+    }
+  };
+
+  const primaryLabel = checkingReadiness
+    ? 'Checking readiness…'
+    : downloading
+      ? 'Preparing download…'
+      : choice === 'docx'
+        ? 'Download Word report'
+        : choice === 'pptx'
+          ? 'Download PowerPoint'
+          : 'Download Markdown';
 
   return (
     <StrategiesModalShell
-      eyebrow="Export"
-      title="Take this plan out of Capiro"
+      eyebrow="Executive report"
+      title="Create a client-ready strategy report"
       subtitle={
         strategy.isLoading
-          ? 'Loading the strategy…'
-          : strategy.data
-            ? strategy.data.title
-            : 'The strategy title could not be loaded — the export still works.'
+          ? 'Loading strategy details…'
+          : `${clientDisplayName} · ${reportTitle}`
       }
       closeTo={`/strategies/${strategyId ?? ''}`}
-      maxWidth={980}
-      primaryLabel={downloading ? 'Preparing…' : 'Download markdown'}
+      maxWidth={1080}
+      primaryLabel={primaryLabel}
       onPrimary={download}
-      primaryDisabled={!strategyId || downloading}
-      primaryBusy={downloading}
+      primaryDisabled={primaryDisabled}
+      primaryBusy={downloading || checkingReadiness}
       footerNote={
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
-          <span style={{ flex: 'none' }}>File name</span>
-          <input
-            className="capiro-input st-filename st-mono"
-            aria-label="Export file name"
-            value={customName ?? defaultName}
-            onChange={(event) => setCustomName(event.target.value)}
-          />
+        <label className="st-export-filename">
+          <span>File name</span>
+          <span className="st-export-filename__control">
+            <input
+              className="capiro-input st-filename st-mono"
+              aria-label="Export file name without extension"
+              value={customName ?? defaultStem}
+              onChange={(event) => setCustomName(event.target.value)}
+              spellCheck={false}
+            />
+            <span
+              className="st-export-filename__extension st-mono"
+              aria-hidden="true"
+            >
+              {extension}
+            </span>
+          </span>
         </label>
       }
     >
@@ -108,95 +432,455 @@ export function ExportOverlay() {
           {downloadError}
         </p>
       ) : null}
+      {liveStatus ? (
+        <p className="st-export-status" role="status" aria-live="polite">
+          {liveStatus}
+        </p>
+      ) : null}
 
-      <div className="st-format-grid">
-        {UNAVAILABLE_FORMATS.map((format) => (
-          <div
-            key={format.id}
-            className="st-option-card"
-            aria-disabled="true"
-            style={{ cursor: 'not-allowed', opacity: 0.72 }}
-          >
-            <span className="st-format-card__icon" aria-hidden="true">
-              <CapiroFileTextIcon style={{ width: 16, height: 16 }} />
-            </span>
-            <span className="st-option-card__head">
-              {format.name}
-              <span className="st-pill st-pill--warning">Not yet available</span>
-            </span>
-            <span className="st-option-card__desc">{format.desc}</span>
-            <span className="st-option-card__foot">
-              <span className="st-format-card__ext st-mono">.{format.id}</span>
-            </span>
+      <section
+        className="st-export-section"
+        aria-labelledby="export-format-heading"
+      >
+        <div className="st-export-section__heading">
+          <div>
+            <p className="st-panel__label" id="export-format-heading">
+              Format
+            </p>
+            <p className="st-export-section__intro">
+              Choose the final deliverable.
+            </p>
           </div>
-        ))}
-      </div>
-
-      <div className="st-gap" role="note">
-        <strong>Generated formats are not yet available.</strong>
-        The strategies API currently exports the current plan as Markdown only. PDF, DOCX, slides
-        and image generation ship in a later release — the cards above show what is coming.
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="st-option-card"
-          onClick={download}
-          disabled={!strategyId || downloading}
-        >
-          <span className="st-format-card__icon" aria-hidden="true">
-            <CapiroFileTextIcon style={{ width: 16, height: 16 }} />
-          </span>
-          <span className="st-option-card__head">
-            Markdown · current plan
-            <span className="st-pill st-pill--success">Available now</span>
-          </span>
-          <span className="st-option-card__desc">
-            {downloading
-              ? 'Generating the current plan from the server…'
-              : 'Downloads the current plan exactly as the strategies API generates it.'}
-          </span>
-          <span className="st-option-card__foot">
-            <span className="st-format-card__ext st-mono">.md</span>
-          </span>
-        </button>
-      </div>
-
-      <div className="st-cols" style={{ marginTop: 20 }}>
-        <div style={{ minWidth: 0 }}>
-          <p className="st-panel__label">Contents</p>
-          <div className="st-field-stack">
-            <div className="st-toggle-row st-toggle-row--disabled" aria-disabled="true">
-              <span>Include internal notes</span>
+        </div>
+        <div className="st-format-grid">
+          {REPORT_FORMATS.map((format) => {
+            const selected = choice === format.id;
+            const supported =
+              !preflight.data ||
+              preflight.data.report.formats.includes(format.id);
+            return (
               <button
+                key={format.id}
                 type="button"
-                className="st-switch"
-                role="switch"
-                aria-checked={includeInternalNotes}
-                aria-label="Include internal notes"
-                aria-disabled="true"
-                disabled
-                title="Applies to generated formats (PDF, DOCX, slides, image) — not yet available"
-              />
+                className="st-option-card st-export-format-card"
+                aria-pressed={selected}
+                disabled={!supported}
+                onClick={() => selectChoice(format.id)}
+              >
+                <span className="st-format-card__icon" aria-hidden="true">
+                  <CapiroFileTextIcon style={{ width: 16, height: 16 }} />
+                </span>
+                <span className="st-option-card__head">
+                  {format.name}
+                  {!supported ? (
+                    <span className="st-pill st-pill--warning">
+                      Unavailable
+                    </span>
+                  ) : format.id === 'docx' ? (
+                    <span className="st-pill st-pill--accent">Recommended</span>
+                  ) : null}
+                </span>
+                <span className="st-option-card__desc">
+                  {format.description}
+                </span>
+                <span className="st-option-card__foot">
+                  <span className="st-format-card__ext st-mono">
+                    {format.extension}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {isReport ? (
+        <div className="st-cols st-export-layout">
+          <div className="st-export-config">
+            <section
+              className="st-export-section"
+              aria-labelledby="export-audience-heading"
+            >
+              <p className="st-panel__label" id="export-audience-heading">
+                Audience
+              </p>
+              <div
+                className="st-export-audience"
+                role="radiogroup"
+                aria-labelledby="export-audience-heading"
+              >
+                <label
+                  className={`st-option-card st-export-radio${
+                    audience === 'client' ? ' is-selected' : ''
+                  }`}
+                >
+                  <input
+                    className="st-export-radio__input"
+                    type="radio"
+                    name="report-audience"
+                    value="client"
+                    checked={audience === 'client'}
+                    onChange={() => selectAudience('client')}
+                  />
+                  <span className="st-option-card__head">Client-ready</span>
+                  <span className="st-option-card__desc">
+                    External language and presentation. Internal material is
+                    always excluded.
+                  </span>
+                </label>
+                <label
+                  className={`st-option-card st-export-radio${
+                    audience === 'internal' ? ' is-selected' : ''
+                  }`}
+                >
+                  <input
+                    className="st-export-radio__input"
+                    type="radio"
+                    name="report-audience"
+                    value="internal"
+                    checked={audience === 'internal'}
+                    onChange={() => selectAudience('internal')}
+                  />
+                  <span className="st-option-card__head">
+                    Internal working copy
+                  </span>
+                  <span className="st-option-card__desc">
+                    Adds optional delivery detail for the Capiro team.
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            <section
+              className="st-panel st-export-branding"
+              aria-labelledby="export-branding-heading"
+            >
+              <p className="st-panel__label" id="export-branding-heading">
+                Client branding
+              </p>
+              <div className="st-export-branding__grid">
+                <div className="st-export-logo-tile">
+                  {clientLogoUrl && !logoPreviewFailed ? (
+                    <img
+                      src={clientLogoUrl}
+                      alt={`${clientDisplayName} logo`}
+                      onError={handleLogoPreviewError}
+                    />
+                  ) : (
+                    <span className="st-export-wordmark">
+                      {clientDisplayName}
+                    </span>
+                  )}
+                </div>
+                <div className="st-export-branding__copy">
+                  <strong>
+                    {logoAvailable ? 'Client logo saved' : 'Add a client logo'}
+                  </strong>
+                  <p>
+                    The logo is stored on {clientDisplayName}'s client profile
+                    and reused in future reports.
+                  </p>
+                  <input
+                    ref={logoInput}
+                    className="st-export-file-input"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={uploadLogo}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    className="st-export-small-button"
+                    onClick={chooseLogo}
+                    disabled={!strategy.data?.clientId || logoUpload.isPending}
+                  >
+                    {logoUpload.isPending
+                      ? 'Uploading…'
+                      : logoAvailable
+                        ? 'Replace logo'
+                        : 'Upload logo'}
+                  </button>
+                  <span className="st-export-branding__hint">
+                    PNG or JPG · 2 MB and 1 megapixel maximum. A transparent,
+                    non-interlaced PNG works best.
+                  </span>
+                </div>
+              </div>
+              {logoError ? (
+                <p className="st-export-field-error" role="alert">
+                  {logoError}
+                </p>
+              ) : null}
+              {!logoSupported ? (
+                <p className="st-export-field-error" role="note">
+                  This saved logo type cannot be embedded in Word or PowerPoint.
+                  Replace it with a PNG or JPG to use client branding.
+                </p>
+              ) : null}
+              <div className="st-export-logo-toggle">
+                <ToggleRow
+                  id="use-client-logo"
+                  title="Use client logo"
+                  description={
+                    logoAvailable
+                      ? 'Place the saved mark on the cover and section pages.'
+                      : 'Upload a mark now, or export with client-name typography.'
+                  }
+                  checked={effectiveUseClientLogo}
+                  disabled={!logoSupported}
+                  onChange={setUseClientLogo}
+                />
+              </div>
+            </section>
+
+            <section
+              className="st-export-section"
+              aria-labelledby="export-contents-heading"
+            >
+              <p className="st-panel__label" id="export-contents-heading">
+                Contents
+              </p>
+              <div className="st-field-stack">
+                <ToggleRow
+                  id="include-roadmap"
+                  title="Roadmap & milestones"
+                  description="Show the phased plan, dates, owners and milestone callouts."
+                  checked={includeRoadmap}
+                  onChange={setIncludeRoadmap}
+                />
+                <ToggleRow
+                  id="include-evidence"
+                  title="Evidence appendix"
+                  description="Add the artifacts and sources that ground plan decisions."
+                  checked={includeEvidenceAppendix}
+                  onChange={setIncludeEvidenceAppendix}
+                />
+                <ToggleRow
+                  id="include-change-log"
+                  title="Change log"
+                  description="Summarize material plan revisions since the prior version."
+                  checked={audience === 'internal' && includeChangeLog}
+                  disabled={audience === 'client'}
+                  onChange={setIncludeChangeLog}
+                />
+                <ToggleRow
+                  id="include-internal-notes"
+                  title="Internal notes"
+                  description="Include working commentary that is not intended for clients."
+                  checked={audience === 'internal' && includeInternalNotes}
+                  disabled={audience === 'client'}
+                  onChange={setIncludeInternalNotes}
+                />
+                <ToggleRow
+                  id="include-agent-history"
+                  title="Agent activity"
+                  description="Append an audit summary of agent-assisted plan work."
+                  checked={audience === 'internal' && includeAgentHistory}
+                  disabled={audience === 'client'}
+                  onChange={setIncludeAgentHistory}
+                />
+              </div>
+              {audience === 'client' ? (
+                <p className="st-export-policy-note">
+                  Client-ready exports always suppress the change log, internal
+                  notes and agent activity, even if they were selected in an
+                  earlier internal export.
+                </p>
+              ) : null}
+            </section>
+          </div>
+
+          <aside className="st-export-aside">
+            <div className="st-dark-panel st-export-preview-panel">
+              <p className="st-dark-panel__label">Cover preview</p>
+              <div
+                className={`st-export-cover st-export-cover--${reportFormat}`}
+                aria-label={`${reportFormat === 'docx' ? 'Word report' : 'PowerPoint'} cover preview`}
+              >
+                <div className="st-export-cover__brand">
+                  {showClientLogo ? (
+                    <img
+                      src={clientLogoUrl ?? ''}
+                      alt=""
+                      onError={handleLogoPreviewError}
+                    />
+                  ) : (
+                    <span>
+                      {effectiveUseClientLogo
+                        ? clientDisplayName
+                        : 'Executive strategy'}
+                    </span>
+                  )}
+                </div>
+                <div className="st-export-cover__rule" />
+                <p className="st-export-cover__eyebrow">
+                  {reportFormat === 'docx'
+                    ? 'Executive strategy report'
+                    : 'Executive briefing'}
+                </p>
+                <h3>{reportTitle}</h3>
+                {strategy.data?.goal ? (
+                  <p className="st-export-cover__goal">{strategy.data.goal}</p>
+                ) : null}
+                {audience === 'internal' ? (
+                  <span className="st-export-cover__internal">
+                    Internal working copy
+                  </span>
+                ) : null}
+                <div className="st-export-cover__footer">
+                  <span>{clientDisplayName}</span>
+                  <span>{displayDate(reportAsOf)}</span>
+                </div>
+              </div>
+              <div className="st-preview-meta">
+                <span>
+                  {reportFormat === 'docx' ? 'Word report' : 'PowerPoint deck'}
+                </span>
+                <span className="st-mono">{filename}</span>
+              </div>
             </div>
-            <div className="st-toggle-row st-toggle-row--disabled" aria-disabled="true">
-              <span>Include agent history</span>
-              <button
-                type="button"
-                className="st-switch"
-                role="switch"
-                aria-checked={includeAgentHistory}
-                aria-label="Include agent history"
-                aria-disabled="true"
-                disabled
-                title="Applies to generated formats (PDF, DOCX, slides, image) — not yet available"
-              />
-            </div>
-            <p className="st-ns__note">
-              Content options apply to generated formats (PDF, DOCX, slides, image) only — they do
-              not change the Markdown export, which is the current plan as the server renders it.
-              The toggles are disabled because no generated format is available yet.
+
+            <section
+              className="st-panel st-export-preflight"
+              aria-labelledby="export-readiness-heading"
+            >
+              <div className="st-export-preflight__head">
+                <p className="st-panel__label" id="export-readiness-heading">
+                  Report readiness
+                </p>
+                {preflight.isFetching && preflight.data ? (
+                  <span className="st-export-refreshing">Refreshing…</span>
+                ) : null}
+              </div>
+              {!preflight.data && !preflight.isError ? (
+                <div
+                  className="st-skel-stack"
+                  aria-label="Checking report readiness"
+                >
+                  <CapiroSkeleton height={14} />
+                  <CapiroSkeleton height={14} width="72%" />
+                  <CapiroSkeleton height={14} width="84%" />
+                </div>
+              ) : preflight.isError ? (
+                <div className="st-export-preflight__error" role="alert">
+                  <strong>Readiness check unavailable</strong>
+                  <span>The server could not validate this report.</span>
+                  <button
+                    type="button"
+                    className="st-export-small-button"
+                    onClick={() => void preflight.refetch()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : preflight.data ? (
+                <>
+                  <div className="st-export-checks">
+                    <div
+                      className={`st-export-check${reportReady ? ' is-ready' : ' is-blocked'}`}
+                    >
+                      <span aria-hidden="true">{reportReady ? '✓' : '!'}</span>
+                      <div>
+                        <strong>
+                          {reportReady
+                            ? 'Ready to generate'
+                            : 'Action required'}
+                        </strong>
+                        <small>
+                          {preflight.data.counts.nodes} plan item
+                          {preflight.data.counts.nodes === 1 ? '' : 's'} in the
+                          current snapshot
+                        </small>
+                      </div>
+                    </div>
+                    <div className="st-export-check is-neutral">
+                      <span aria-hidden="true">
+                        {preflight.data.health.score}
+                      </span>
+                      <div>
+                        <strong>{preflight.data.health.label}</strong>
+                        <small>
+                          {preflight.data.health.coveragePct}% owner coverage ·{' '}
+                          {preflight.data.health.groundingPct}% grounded
+                        </small>
+                      </div>
+                    </div>
+                    <div
+                      className={`st-export-check${
+                        !effectiveUseClientLogo || logoAvailable
+                          ? ' is-ready'
+                          : ' is-neutral'
+                      }`}
+                    >
+                      <span aria-hidden="true">
+                        {!effectiveUseClientLogo || logoAvailable ? '✓' : '—'}
+                      </span>
+                      <div>
+                        <strong>
+                          {!effectiveUseClientLogo
+                            ? 'Client-name branding'
+                            : logoAvailable
+                              ? 'Client logo ready'
+                              : 'Logo not yet added'}
+                        </strong>
+                        <small>
+                          {!effectiveUseClientLogo || logoAvailable
+                            ? 'Branding can be rendered.'
+                            : 'The report can still be generated without a mark.'}
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                  {!formatSupported ? (
+                    <div
+                      className="st-export-issues st-export-issues--error"
+                      role="alert"
+                    >
+                      <strong>This format is not enabled.</strong>
+                      <span>
+                        Choose one of the formats returned by the report
+                        service.
+                      </span>
+                    </div>
+                  ) : null}
+                  {preflight.data.errors.length ? (
+                    <div
+                      className="st-export-issues st-export-issues--error"
+                      role="alert"
+                    >
+                      {preflight.data.errors.map((issue) => (
+                        <span key={issue.code}>{issue.message}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {visiblePreflightWarnings.length ? (
+                    <div className="st-export-issues" role="note">
+                      {visiblePreflightWarnings.map((issue) => (
+                        <span key={issue.code}>{issue.message}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="st-export-snapshot">
+                    Snapshot as of {displayDate(preflight.data.report.asOf)}
+                    {preflight.data.version.createdAt
+                      ? ` · Version saved ${displayDate(preflight.data.version.createdAt)}`
+                      : ''}
+                  </p>
+                </>
+              ) : null}
+            </section>
+          </aside>
+        </div>
+      ) : (
+        <div className="st-export-markdown">
+          <div className="st-panel">
+            <p className="st-panel__label">Technical export</p>
+            <h3>Markdown · current plan</h3>
+            <p>
+              Downloads the current plan exactly as the Strategies API renders
+              it. Branding, audience and report-content options do not alter
+              this file.
             </p>
             {strategy.isLoading ? (
               <div className="st-skel-stack">
@@ -205,27 +889,53 @@ export function ExportOverlay() {
               </div>
             ) : null}
           </div>
+          <div className="st-dark-panel st-export-markdown__meta">
+            <p className="st-dark-panel__label">Export details</p>
+            <dl>
+              <div>
+                <dt>Strategy</dt>
+                <dd>{reportTitle}</dd>
+              </div>
+              <div>
+                <dt>Client</dt>
+                <dd>{clientDisplayName}</dd>
+              </div>
+              <div>
+                <dt>File</dt>
+                <dd className="st-mono">{filename}</dd>
+              </div>
+            </dl>
+          </div>
         </div>
+      )}
 
-        <aside className="st-dark-panel" style={{ minWidth: 0 }}>
-          <p className="st-dark-panel__label">Client-ready preview</p>
-          <div className="st-preview-page" aria-hidden="true" style={{ marginTop: 12 }}>
-            <div className="st-preview-block--logo" />
-            <div className="st-preview-block--line" />
-            <div className="st-preview-block--line-short" />
-            <div className="st-preview-row">
-              <div className="st-preview-block" />
-              <div className="st-preview-block" />
-              <div className="st-preview-block" />
-            </div>
-            <div className="st-preview-block st-preview-block--wide" />
-          </div>
-          <div className="st-preview-meta">
-            <span>Markdown · current plan</span>
-            <span className="st-mono">{filename.endsWith('.md') ? filename : `${filename}.md`}</span>
-          </div>
-        </aside>
-      </div>
+      <section
+        className="st-export-advanced"
+        aria-labelledby="export-advanced-heading"
+      >
+        <div>
+          <p className="st-panel__label" id="export-advanced-heading">
+            Advanced export
+          </p>
+          <p>
+            Use the server's raw current-plan Markdown for technical workflows.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="st-option-card st-export-advanced__card"
+          aria-pressed={choice === 'markdown'}
+          onClick={() => selectChoice('markdown')}
+        >
+          <span className="st-format-card__icon" aria-hidden="true">
+            <CapiroFileTextIcon style={{ width: 16, height: 16 }} />
+          </span>
+          <span>
+            <strong>Markdown · current plan</strong>
+            <small>.md</small>
+          </span>
+        </button>
+      </section>
     </StrategiesModalShell>
   );
 }

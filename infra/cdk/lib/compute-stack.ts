@@ -105,7 +105,9 @@ export class ComputeStack extends cdk.Stack {
       assetsStack,
     } = props;
 
-    Object.entries(commonTags(cfg)).forEach(([k, v]) => cdk.Tags.of(this).add(k, v));
+    Object.entries(commonTags(cfg)).forEach(([k, v]) =>
+      cdk.Tags.of(this).add(k, v),
+    );
 
     // ------------------------------------------------------------------ Cross-stack imports
     // Re-import secrets + KMS keys by ARN so CDK treats them as external to
@@ -123,11 +125,12 @@ export class ComputeStack extends cdk.Stack {
       'ImportedAppDbSecret',
       appDbSecret.secretArn,
     );
-    const promoterDbSecretImported = secretsmanager.Secret.fromSecretCompleteArn(
-      this,
-      'ImportedPromoterDbSecret',
-      promoterDbSecret.secretArn,
-    );
+    const promoterDbSecretImported =
+      secretsmanager.Secret.fromSecretCompleteArn(
+        this,
+        'ImportedPromoterDbSecret',
+        promoterDbSecret.secretArn,
+      );
     const clerkSecretKeyImported = secretsmanager.Secret.fromSecretCompleteArn(
       this,
       'ImportedClerkSecretKey',
@@ -333,8 +336,16 @@ export class ComputeStack extends cdk.Stack {
     // first ComputeStack deploy (otherwise the Fargate service has no image
     // to pull on first boot). CDK imports the existing repos and references
     // their `:latest` tag for the task definitions.
-    this.apiRepo = ecr.Repository.fromRepositoryName(this, 'ApiRepo', `capiro/${cfg.envName}/api`);
-    this.webRepo = ecr.Repository.fromRepositoryName(this, 'WebRepo', `capiro/${cfg.envName}/web`);
+    this.apiRepo = ecr.Repository.fromRepositoryName(
+      this,
+      'ApiRepo',
+      `capiro/${cfg.envName}/api`,
+    );
+    this.webRepo = ecr.Repository.fromRepositoryName(
+      this,
+      'WebRepo',
+      `capiro/${cfg.envName}/web`,
+    );
     this.workspaceRepo = ecr.Repository.fromRepositoryName(
       this,
       'WorkspaceRepo',
@@ -397,7 +408,9 @@ export class ComputeStack extends cdk.Stack {
       logGroup: apiLogGroup,
       metricNamespace: 'Capiro/Security',
       metricName: 'auth.denied_count',
-      filterPattern: logs.FilterPattern.literal('{ $.security_event = "auth.denied" }'),
+      filterPattern: logs.FilterPattern.literal(
+        '{ $.security_event = "auth.denied" }',
+      ),
       metricValue: '$.count',
       defaultValue: 0,
     });
@@ -410,15 +423,23 @@ export class ComputeStack extends cdk.Stack {
     const migrateLogGroup = new logs.LogGroup(this, 'ApiMigrateLogs', {
       logGroupName: `/capiro/${cfg.envName}/api-migrate`,
       retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy
+        ? cdk.RemovalPolicy.RETAIN
+        : cdk.RemovalPolicy.DESTROY,
     });
     // Dedicated log group for the embed-backfill one-shot so a 3-hour LDA run
     // doesn't bury the rest of the api-migrate logs.
-    const embedBackfillLogGroup = new logs.LogGroup(this, 'ApiEmbedBackfillLogs', {
-      logGroupName: `/capiro/${cfg.envName}/api-embed-backfill`,
-      retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
+    const embedBackfillLogGroup = new logs.LogGroup(
+      this,
+      'ApiEmbedBackfillLogs',
+      {
+        logGroupName: `/capiro/${cfg.envName}/api-embed-backfill`,
+        retention: logs.RetentionDays.ONE_YEAR,
+        removalPolicy: cfg.protectFromDestroy
+          ? cdk.RemovalPolicy.RETAIN
+          : cdk.RemovalPolicy.DESTROY,
+      },
+    );
 
     // ------------------------------------------------------------------ Task roles
     // Execution role: pulls images from ECR + writes logs + reads ECS-managed secrets.
@@ -440,7 +461,10 @@ export class ComputeStack extends cdk.Stack {
     // → Secrets.
     apiTaskRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+        actions: [
+          'secretsmanager:GetSecretValue',
+          'secretsmanager:DescribeSecret',
+        ],
         resources: [
           dbSecretImported.secretArn,
           appDbSecretImported.secretArn,
@@ -510,38 +534,65 @@ export class ComputeStack extends cdk.Stack {
     // only the username/password switch between the two tasks.
     const apiServeSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
-      CLERK_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(clerkWebhookImported),
+      CLERK_WEBHOOK_SIGNING_SECRET:
+        ecs.Secret.fromSecretsManager(clerkWebhookImported),
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
-      DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
-      MICROSOFT_CLIENT_ID: ecs.Secret.fromSecretsManager(microsoftClientIdSecret),
-      MICROSOFT_TENANT_ID: ecs.Secret.fromSecretsManager(microsoftTenantIdSecret),
-      MICROSOFT_CERT_THUMBPRINT: ecs.Secret.fromSecretsManager(microsoftCertThumbprintSecret),
-      MICROSOFT_CERT_PRIVATE_KEY: ecs.Secret.fromSecretsManager(microsoftCertPrivateKeySecret),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(
+        appDbSecretImported,
+        'password',
+      ),
+      MICROSOFT_CLIENT_ID: ecs.Secret.fromSecretsManager(
+        microsoftClientIdSecret,
+      ),
+      MICROSOFT_TENANT_ID: ecs.Secret.fromSecretsManager(
+        microsoftTenantIdSecret,
+      ),
+      MICROSOFT_CERT_THUMBPRINT: ecs.Secret.fromSecretsManager(
+        microsoftCertThumbprintSecret,
+      ),
+      MICROSOFT_CERT_PRIVATE_KEY: ecs.Secret.fromSecretsManager(
+        microsoftCertPrivateKeySecret,
+      ),
       GOOGLE_CLIENT_ID: ecs.Secret.fromSecretsManager(googleClientIdSecret),
-      GOOGLE_CLIENT_SECRET: ecs.Secret.fromSecretsManager(googleClientSecretSecret),
-      OAUTH_TOKEN_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(oauthTokenEncryptionKeySecret),
+      GOOGLE_CLIENT_SECRET: ecs.Secret.fromSecretsManager(
+        googleClientSecretSecret,
+      ),
+      OAUTH_TOKEN_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(
+        oauthTokenEncryptionKeySecret,
+      ),
       OAUTH_STATE_SECRET: ecs.Secret.fromSecretsManager(oauthStateSecret),
-      NOTES_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(notesEncryptionKeySecret),
-      AI_CREDENTIAL_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(aiCredentialEncryptionKeySecret),
+      NOTES_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(
+        notesEncryptionKeySecret,
+      ),
+      AI_CREDENTIAL_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(
+        aiCredentialEncryptionKeySecret,
+      ),
       OPENAI_API_KEY: ecs.Secret.fromSecretsManager(openaiApiKeySecret),
       ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
       GOVINFO_API_KEY: ecs.Secret.fromSecretsManager(govInfoApiKeyImported),
       // Meeting notetaker (serve only — see the import above for the gating).
       RECALL_API_KEY: ecs.Secret.fromSecretsManager(recallApiKeySecret),
       ...(recallWebhookSecret
-        ? { RECALL_WEBHOOK_SECRET: ecs.Secret.fromSecretsManager(recallWebhookSecret) }
+        ? {
+            RECALL_WEBHOOK_SECRET:
+              ecs.Secret.fromSecretsManager(recallWebhookSecret),
+          }
         : {}),
       // Tango webhook receiver (P46) — SERVE ONLY, by design. Absent until the
       // provider endpoint exists (P50), and the receiver runs dark without it.
       ...(tangoWebhookSecret
-        ? { TANGO_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(tangoWebhookSecret) }
+        ? {
+            TANGO_WEBHOOK_SIGNING_SECRET:
+              ecs.Secret.fromSecretsManager(tangoWebhookSecret),
+          }
         : {}),
     };
     const apiMigrateSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
-      CLERK_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(clerkWebhookImported),
+      CLERK_WEBHOOK_SIGNING_SECRET:
+        ecs.Secret.fromSecretsManager(clerkWebhookImported),
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(dbSecretImported, 'username'),
@@ -625,7 +676,8 @@ export class ComputeStack extends cdk.Stack {
       // UPDATE_ROLLBACK_FAILED and `cdk deploy` is frozen, so this line is
       // defensive for the eventual maintenance window, not a live-effective
       // change until then.
-      LEGISTORM_DISTRICTS_BASE_URL: 'https://api.legistorm.com/v2.023.07/legislative_districts',
+      LEGISTORM_DISTRICTS_BASE_URL:
+        'https://api.legistorm.com/v2.023.07/legislative_districts',
       // MeriV2 Phase 0 (fix/meriv2-p0-control-boundaries) — codified to match the
       // LIVE prod task def, applied OUT-OF-BAND same as the block above. Forces
       // ToolServiceSecretGuard (meri/tool-service-secret.guard.ts) to fail CLOSED
@@ -770,14 +822,20 @@ export class ComputeStack extends cdk.Stack {
     const apiContainer = apiTaskDef.addContainer('api', {
       image: ecs.ContainerImage.fromEcrRepository(this.apiRepo, 'latest'),
       essential: true,
-      logging: ecs.LogDrivers.awsLogs({ logGroup: apiLogGroup, streamPrefix: 'api' }),
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: apiLogGroup,
+        streamPrefix: 'api',
+      }),
       environment: apiSharedEnv,
       secrets: apiServeSecrets,
       readonlyRootFilesystem: true,
       // Container exposes 4000; ALB target group hits /health.
       portMappings: [{ containerPort: 4000, protocol: ecs.Protocol.TCP }],
       healthCheck: {
-        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/health || exit 1'],
+        command: [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:4000/health || exit 1',
+        ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         retries: 3,
@@ -831,7 +889,10 @@ export class ComputeStack extends cdk.Stack {
     webTaskDef.addContainer('web', {
       image: ecs.ContainerImage.fromEcrRepository(this.webRepo, 'latest'),
       essential: true,
-      logging: ecs.LogDrivers.awsLogs({ logGroup: webLogGroup, streamPrefix: 'web' }),
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: webLogGroup,
+        streamPrefix: 'web',
+      }),
       environment: {
         // Read by the web container's entrypoint to generate /runtime-config.js
         // at boot. Same image promotes through environments.
@@ -846,12 +907,16 @@ export class ComputeStack extends cdk.Stack {
         MAP_STYLE_ATTRIBUTION: '© OpenStreetMap contributors',
       },
       secrets: {
-        CLERK_PUBLISHABLE_KEY: ecs.Secret.fromSecretsManager(clerkPubKeyImported),
+        CLERK_PUBLISHABLE_KEY:
+          ecs.Secret.fromSecretsManager(clerkPubKeyImported),
       },
       readonlyRootFilesystem: false, // nginx writes pid/temp files; locked down via tmpfs in Dockerfile
       portMappings: [{ containerPort: 8080, protocol: ecs.Protocol.TCP }],
       healthCheck: {
-        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/healthz || exit 1'],
+        command: [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:8080/healthz || exit 1',
+        ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         retries: 3,
@@ -876,7 +941,9 @@ export class ComputeStack extends cdk.Stack {
       minCapacity: cfg.webDesiredCount,
       maxCapacity: cfg.webMaxCount,
     });
-    webScaling.scaleOnCpuUtilization('CpuScaling', { targetUtilizationPercent: 60 });
+    webScaling.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 60,
+    });
 
     // ------------------------------------------------------------------ Marketing task definition + service
     // Static landing page served by nginx at the apex `capiro.ai`. Same
@@ -892,16 +959,20 @@ export class ComputeStack extends cdk.Stack {
       description: 'Capiro marketing task role',
     });
 
-    const marketingTaskDef = new ecs.FargateTaskDefinition(this, 'MarketingTaskDef', {
-      family: `capiro-${cfg.envName}-marketing`,
-      cpu: cfg.marketingCpu,
-      memoryLimitMiB: cfg.marketingMemoryMib,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    const marketingTaskDef = new ecs.FargateTaskDefinition(
+      this,
+      'MarketingTaskDef',
+      {
+        family: `capiro-${cfg.envName}-marketing`,
+        cpu: cfg.marketingCpu,
+        memoryLimitMiB: cfg.marketingMemoryMib,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: marketingTaskRole,
       },
-      taskRole: marketingTaskRole,
-    });
+    );
 
     this.marketingRepo = ecr.Repository.fromRepositoryName(
       this,
@@ -912,11 +983,17 @@ export class ComputeStack extends cdk.Stack {
     marketingTaskDef.addContainer('marketing', {
       image: ecs.ContainerImage.fromEcrRepository(this.marketingRepo, 'latest'),
       essential: true,
-      logging: ecs.LogDrivers.awsLogs({ logGroup: marketingLogGroup, streamPrefix: 'marketing' }),
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: marketingLogGroup,
+        streamPrefix: 'marketing',
+      }),
       readonlyRootFilesystem: false,
       portMappings: [{ containerPort: 8080, protocol: ecs.Protocol.TCP }],
       healthCheck: {
-        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/healthz || exit 1'],
+        command: [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:8080/healthz || exit 1',
+        ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         retries: 3,
@@ -955,11 +1032,17 @@ export class ComputeStack extends cdk.Stack {
       retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-    const workspaceMigrateLogGroup = new logs.LogGroup(this, 'WorkspaceMigrateLogs', {
-      logGroupName: `/capiro/${cfg.envName}/workspace-migrate`,
-      retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
+    const workspaceMigrateLogGroup = new logs.LogGroup(
+      this,
+      'WorkspaceMigrateLogs',
+      {
+        logGroupName: `/capiro/${cfg.envName}/workspace-migrate`,
+        retention: logs.RetentionDays.ONE_YEAR,
+        removalPolicy: cfg.protectFromDestroy
+          ? cdk.RemovalPolicy.RETAIN
+          : cdk.RemovalPolicy.DESTROY,
+      },
+    );
 
     const workspaceTaskRole = new iam.Role(this, 'WorkspaceTaskRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
@@ -969,7 +1052,10 @@ export class ComputeStack extends cdk.Stack {
     // API task role). The engine reads the same Clerk + AI provider secrets.
     workspaceTaskRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+        actions: [
+          'secretsmanager:GetSecretValue',
+          'secretsmanager:DescribeSecret',
+        ],
         resources: [
           dbSecretImported.secretArn,
           appDbSecretImported.secretArn,
@@ -993,12 +1079,17 @@ export class ComputeStack extends cdk.Stack {
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
-      DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(
+        appDbSecretImported,
+        'password',
+      ),
       OPENAI_API_KEY: ecs.Secret.fromSecretsManager(openaiApiKeySecret),
       ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
       // Tenant-scoped AI keys: decrypt BYO Anthropic keys from
       // tenant_ai_credentials (same envelope scheme + key as the API).
-      AI_CREDENTIAL_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(aiCredentialEncryptionKeySecret),
+      AI_CREDENTIAL_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(
+        aiCredentialEncryptionKeySecret,
+      ),
     };
     // Migrate secrets: master DB role (needs DDL for prisma migrate deploy).
     const workspaceMigrateSecrets = {
@@ -1017,16 +1108,20 @@ export class ComputeStack extends cdk.Stack {
       WEB_ORIGIN: `https://${cfg.appHost}`,
     };
 
-    const workspaceTaskDef = new ecs.FargateTaskDefinition(this, 'WorkspaceTaskDef', {
-      family: `capiro-${cfg.envName}-workspace`,
-      cpu: cfg.workspaceCpu,
-      memoryLimitMiB: cfg.workspaceMemoryMib,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    const workspaceTaskDef = new ecs.FargateTaskDefinition(
+      this,
+      'WorkspaceTaskDef',
+      {
+        family: `capiro-${cfg.envName}-workspace`,
+        cpu: cfg.workspaceCpu,
+        memoryLimitMiB: cfg.workspaceMemoryMib,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: workspaceTaskRole,
       },
-      taskRole: workspaceTaskRole,
-    });
+    );
     grantSecretsAndKmsToExecutionRole(
       workspaceTaskDef,
       [
@@ -1042,13 +1137,19 @@ export class ComputeStack extends cdk.Stack {
     workspaceTaskDef.addContainer('workspace', {
       image: ecs.ContainerImage.fromEcrRepository(this.workspaceRepo, 'latest'),
       essential: true,
-      logging: ecs.LogDrivers.awsLogs({ logGroup: workspaceLogGroup, streamPrefix: 'workspace' }),
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: workspaceLogGroup,
+        streamPrefix: 'workspace',
+      }),
       environment: workspaceSharedEnv,
       secrets: workspaceServeSecrets,
       readonlyRootFilesystem: false,
       portMappings: [{ containerPort: 4200, protocol: ecs.Protocol.TCP }],
       healthCheck: {
-        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4200/health || exit 1'],
+        command: [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:4200/health || exit 1',
+        ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         retries: 3,
@@ -1086,22 +1187,33 @@ export class ComputeStack extends cdk.Stack {
     // lookup; owns NO tables) and the SAME Clerk JWT secret as the API. Routed
     // via the ALB at /meri-api/* (listener rule below). Existing surfaces are
     // untouched (SC0.2); the meriv2.* feature flags ship OFF.
-    const meriv2OrchestratorLogGroup = new logs.LogGroup(this, 'MeriV2OrchestratorLogs', {
-      logGroupName: `/capiro/${cfg.envName}/meriv2-orchestrator`,
-      retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
+    const meriv2OrchestratorLogGroup = new logs.LogGroup(
+      this,
+      'MeriV2OrchestratorLogs',
+      {
+        logGroupName: `/capiro/${cfg.envName}/meriv2-orchestrator`,
+        retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+      },
+    );
 
-    const meriv2OrchestratorTaskRole = new iam.Role(this, 'MeriV2OrchestratorTaskRole', {
-      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
-      description: 'Capiro MeriV2 orchestrator task role',
-    });
+    const meriv2OrchestratorTaskRole = new iam.Role(
+      this,
+      'MeriV2OrchestratorTaskRole',
+      {
+        assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+        description: 'Capiro MeriV2 orchestrator task role',
+      },
+    );
     // Least-privilege: Clerk (verify JWTs) + the app DB role (the MeriContext
     // user lookup; no DDL). No AI provider secrets — Phase-0 tools delegate to
     // the API, which holds those.
     meriv2OrchestratorTaskRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+        actions: [
+          'secretsmanager:GetSecretValue',
+          'secretsmanager:DescribeSecret',
+        ],
         resources: [
           dbSecretImported.secretArn,
           appDbSecretImported.secretArn,
@@ -1121,7 +1233,10 @@ export class ComputeStack extends cdk.Stack {
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
-      DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(
+        appDbSecretImported,
+        'password',
+      ),
       // BYOK global fallback for the orchestrator's chat/hearing LLM calls
       // (RequestScopedLlmClient prefers the per-request tenant key and only falls
       // back to this). Previously wired ONLY on the hand-authored
@@ -1176,7 +1291,10 @@ export class ComputeStack extends cdk.Stack {
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
     );
     meriv2OrchestratorTaskDef.addContainer('meriv2-orchestrator', {
-      image: ecs.ContainerImage.fromEcrRepository(this.meriv2OrchestratorRepo, 'latest'),
+      image: ecs.ContainerImage.fromEcrRepository(
+        this.meriv2OrchestratorRepo,
+        'latest',
+      ),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({
         logGroup: meriv2OrchestratorLogGroup,
@@ -1187,7 +1305,10 @@ export class ComputeStack extends cdk.Stack {
       readonlyRootFilesystem: false,
       portMappings: [{ containerPort: 4300, protocol: ecs.Protocol.TCP }],
       healthCheck: {
-        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4300/meri-api/health || exit 1'],
+        command: [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:4300/meri-api/health || exit 1',
+        ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         retries: 3,
@@ -1195,29 +1316,37 @@ export class ComputeStack extends cdk.Stack {
       },
     });
 
-    this.meriv2OrchestratorService = new ecs.FargateService(this, 'MeriV2OrchestratorService', {
-      cluster: this.cluster,
-      taskDefinition: meriv2OrchestratorTaskDef,
-      serviceName: `capiro-${cfg.envName}-meriv2-orchestrator`,
-      desiredCount: cfg.meriv2OrchestratorDesiredCount,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
-      assignPublicIp: false,
-      enableExecuteCommand: cfg.envName !== 'prod',
-      cloudMapOptions: { name: 'meriv2-orchestrator' },
-      circuitBreaker: { rollback: true },
-      minHealthyPercent: 100,
-      maxHealthyPercent: 200,
-    });
-    const meriv2OrchestratorScaling = this.meriv2OrchestratorService.autoScaleTaskCount({
-      minCapacity: cfg.meriv2OrchestratorDesiredCount,
-      maxCapacity: cfg.meriv2OrchestratorMaxCount,
-    });
-    meriv2OrchestratorScaling.scaleOnCpuUtilization('MeriV2OrchestratorCpuScaling', {
-      targetUtilizationPercent: 60,
-      scaleInCooldown: cdk.Duration.seconds(60),
-      scaleOutCooldown: cdk.Duration.seconds(30),
-    });
+    this.meriv2OrchestratorService = new ecs.FargateService(
+      this,
+      'MeriV2OrchestratorService',
+      {
+        cluster: this.cluster,
+        taskDefinition: meriv2OrchestratorTaskDef,
+        serviceName: `capiro-${cfg.envName}-meriv2-orchestrator`,
+        desiredCount: cfg.meriv2OrchestratorDesiredCount,
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+        securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
+        assignPublicIp: false,
+        enableExecuteCommand: cfg.envName !== 'prod',
+        cloudMapOptions: { name: 'meriv2-orchestrator' },
+        circuitBreaker: { rollback: true },
+        minHealthyPercent: 100,
+        maxHealthyPercent: 200,
+      },
+    );
+    const meriv2OrchestratorScaling =
+      this.meriv2OrchestratorService.autoScaleTaskCount({
+        minCapacity: cfg.meriv2OrchestratorDesiredCount,
+        maxCapacity: cfg.meriv2OrchestratorMaxCount,
+      });
+    meriv2OrchestratorScaling.scaleOnCpuUtilization(
+      'MeriV2OrchestratorCpuScaling',
+      {
+        targetUtilizationPercent: 60,
+        scaleInCooldown: cdk.Duration.seconds(60),
+        scaleOutCooldown: cdk.Duration.seconds(30),
+      },
+    );
 
     // ---------------------------------------------------------- Strategy Planner API
     // Separate service (/strategy-api/*) that owns the sp_* tables in the SHARED
@@ -1230,31 +1359,33 @@ export class ComputeStack extends cdk.Stack {
       retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-    const apiStrategyMigrateLogGroup = new logs.LogGroup(this, 'ApiStrategyMigrateLogs', {
-      logGroupName: `/capiro/${cfg.envName}/api-strategy-migrate`,
-      retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
-
-    const apiStrategyTaskRole = new iam.Role(this, 'ApiStrategyTaskRole', {
-      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
-      description: 'Capiro Strategy API task role',
-    });
-    apiStrategyTaskRole.addToPolicy(
-      new iam.PolicyStatement({
-        actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
-        resources: [
-          dbSecretImported.secretArn,
-          appDbSecretImported.secretArn,
-          clerkSecretKeyImported.secretArn,
-        ],
-      }),
+    const apiStrategyMigrateLogGroup = new logs.LogGroup(
+      this,
+      'ApiStrategyMigrateLogs',
+      {
+        logGroupName: `/capiro/${cfg.envName}/api-strategy-migrate`,
+        retention: logs.RetentionDays.ONE_YEAR,
+        removalPolicy: cfg.protectFromDestroy
+          ? cdk.RemovalPolicy.RETAIN
+          : cdk.RemovalPolicy.DESTROY,
+      },
     );
-    apiStrategyTaskRole.addToPolicy(
-      new iam.PolicyStatement({
-        actions: ['kms:Decrypt', 'kms:DescribeKey'],
-        resources: [dataKey.keyArn, secretsStack.secretsKey.keyArn],
-      }),
+
+    // Report-serving asset access is owned by the independently deployable
+    // Assets stack, so the manual task definition can use the same narrow role
+    // while this legacy Compute stack remains frozen for reconciliation.
+    const apiStrategyTaskRole = assetsStack.strategyReportTaskRole;
+
+    // Migrations do not render reports or touch tenant assets. Keep their task
+    // role separate so one-off DDL/seed runs cannot read or decrypt client logos.
+    const apiStrategyMigrateTaskRole = new iam.Role(
+      this,
+      'ApiStrategyMigrateTaskRole',
+      {
+        assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+        description: 'Capiro Strategy API migration task role',
+        roleName: `capiro-${cfg.envName}-api-strategy-migrate-task-role`,
+      },
     );
 
     // Serve: app DB role (least-privilege) + host/port from the master secret.
@@ -1263,7 +1394,10 @@ export class ComputeStack extends cdk.Stack {
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
-      DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(
+        appDbSecretImported,
+        'password',
+      ),
     };
     // Migrate: master role for DDL + RLS grants.
     const apiStrategyMigrateSecrets = {
@@ -1280,25 +1414,38 @@ export class ComputeStack extends cdk.Stack {
       DB_NAME: databaseName,
       ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
       WEB_ORIGIN: `https://${cfg.appHost}`,
+      ASSETS_BUCKET: assetsStack.bucket.bucketName,
+      AWS_REGION_DEFAULT: this.region,
     };
 
-    const apiStrategyTaskDef = new ecs.FargateTaskDefinition(this, 'ApiStrategyTaskDef', {
-      family: `capiro-${cfg.envName}-api-strategy`,
-      cpu: cfg.apiStrategyCpu,
-      memoryLimitMiB: cfg.apiStrategyMemoryMib,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    const apiStrategyTaskDef = new ecs.FargateTaskDefinition(
+      this,
+      'ApiStrategyTaskDef',
+      {
+        family: `capiro-${cfg.envName}-api-strategy`,
+        cpu: cfg.apiStrategyCpu,
+        memoryLimitMiB: cfg.apiStrategyMemoryMib,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: apiStrategyTaskRole,
       },
-      taskRole: apiStrategyTaskRole,
-    });
+    );
     grantSecretsAndKmsToExecutionRole(
       apiStrategyTaskDef,
-      [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],
+      [
+        dbSecretImported.secretArn,
+        appDbSecretImported.secretArn,
+        clerkSecretKeyImported.secretArn,
+      ],
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
     );
     apiStrategyTaskDef.addContainer('api-strategy', {
-      image: ecs.ContainerImage.fromEcrRepository(this.apiStrategyRepo, 'latest'),
+      image: ecs.ContainerImage.fromEcrRepository(
+        this.apiStrategyRepo,
+        'latest',
+      ),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({
         logGroup: apiStrategyLogGroup,
@@ -1309,7 +1456,10 @@ export class ComputeStack extends cdk.Stack {
       readonlyRootFilesystem: false,
       portMappings: [{ containerPort: 4400, protocol: ecs.Protocol.TCP }],
       healthCheck: {
-        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4400/strategy-api/health || exit 1'],
+        command: [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:4400/strategy-api/health || exit 1',
+        ],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(5),
         retries: 3,
@@ -1317,20 +1467,24 @@ export class ComputeStack extends cdk.Stack {
       },
     });
 
-    this.apiStrategyService = new ecs.FargateService(this, 'ApiStrategyService', {
-      cluster: this.cluster,
-      taskDefinition: apiStrategyTaskDef,
-      serviceName: `capiro-${cfg.envName}-api-strategy`,
-      desiredCount: cfg.apiStrategyDesiredCount,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
-      assignPublicIp: false,
-      enableExecuteCommand: cfg.envName !== 'prod',
-      cloudMapOptions: { name: 'api-strategy' },
-      circuitBreaker: { rollback: true },
-      minHealthyPercent: 100,
-      maxHealthyPercent: 200,
-    });
+    this.apiStrategyService = new ecs.FargateService(
+      this,
+      'ApiStrategyService',
+      {
+        cluster: this.cluster,
+        taskDefinition: apiStrategyTaskDef,
+        serviceName: `capiro-${cfg.envName}-api-strategy`,
+        desiredCount: cfg.apiStrategyDesiredCount,
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+        securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
+        assignPublicIp: false,
+        enableExecuteCommand: cfg.envName !== 'prod',
+        cloudMapOptions: { name: 'api-strategy' },
+        circuitBreaker: { rollback: true },
+        minHealthyPercent: 100,
+        maxHealthyPercent: 200,
+      },
+    );
     const apiStrategyScaling = this.apiStrategyService.autoScaleTaskCount({
       minCapacity: cfg.apiStrategyDesiredCount,
       maxCapacity: cfg.apiStrategyMaxCount,
@@ -1355,7 +1509,7 @@ export class ComputeStack extends cdk.Stack {
           cpuArchitecture: ecs.CpuArchitecture.ARM64,
           operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
         },
-        taskRole: apiStrategyTaskRole,
+        taskRole: apiStrategyMigrateTaskRole,
       },
     );
     grantSecretsAndKmsToExecutionRole(
@@ -1364,7 +1518,10 @@ export class ComputeStack extends cdk.Stack {
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
     );
     this.apiStrategyMigrateTaskDefinition.addContainer('api-strategy-migrate', {
-      image: ecs.ContainerImage.fromEcrRepository(this.apiStrategyRepo, 'latest'),
+      image: ecs.ContainerImage.fromEcrRepository(
+        this.apiStrategyRepo,
+        'latest',
+      ),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({
         logGroup: apiStrategyMigrateLogGroup,
@@ -1410,16 +1567,20 @@ export class ComputeStack extends cdk.Stack {
     });
 
     // ------------------------------------------------------------------ Migration task (run manually before API rollout)
-    this.apiMigrateTaskDefinition = new ecs.FargateTaskDefinition(this, 'ApiMigrateTaskDef', {
-      family: `capiro-${cfg.envName}-api-migrate`,
-      cpu: 512,
-      memoryLimitMiB: 1024,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    this.apiMigrateTaskDefinition = new ecs.FargateTaskDefinition(
+      this,
+      'ApiMigrateTaskDef',
+      {
+        family: `capiro-${cfg.envName}-api-migrate`,
+        cpu: 512,
+        memoryLimitMiB: 1024,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: apiTaskRole,
       },
-      taskRole: apiTaskRole,
-    });
+    );
     grantSecretsAndKmsToExecutionRole(
       this.apiMigrateTaskDefinition,
       [
@@ -1434,7 +1595,10 @@ export class ComputeStack extends cdk.Stack {
     this.apiMigrateTaskDefinition.addContainer('api-migrate', {
       image: ecs.ContainerImage.fromEcrRepository(this.apiRepo, 'latest'),
       essential: true,
-      logging: ecs.LogDrivers.awsLogs({ logGroup: migrateLogGroup, streamPrefix: 'migrate' }),
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: migrateLogGroup,
+        streamPrefix: 'migrate',
+      }),
       command: ['migrate'],
       environment: { ...apiSharedEnv, MIGRATE_ONLY: '1' },
       secrets: apiMigrateSecrets,
@@ -1504,7 +1668,8 @@ export class ComputeStack extends cdk.Stack {
     // instead of the task def's default `--source bills`.
     const embedRule = new events.Rule(this, 'EmbedBackfillDailyRule', {
       ruleName: `capiro-${cfg.envName}-embed-backfill-daily`,
-      description: 'Daily autonomous embeddings refresh (bills, lda, capabilities).',
+      description:
+        'Daily autonomous embeddings refresh (bills, lda, capabilities).',
       schedule: events.Schedule.cron({ minute: '0', hour: '13' }),
     });
     embedRule.addTarget(
@@ -1537,7 +1702,9 @@ export class ComputeStack extends cdk.Stack {
     const syncJobsLogGroup = new logs.LogGroup(this, 'ApiSyncJobsLogs', {
       logGroupName: `/capiro/${cfg.envName}/api-sync-jobs`,
       retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy
+        ? cdk.RemovalPolicy.RETAIN
+        : cdk.RemovalPolicy.DESTROY,
     });
     // Metric filter: turn the helper's `INGESTION_METRIC {...error_count...}`
     // stdout lines into a CloudWatch metric the Alarms stack watches. Zero
@@ -1551,16 +1718,20 @@ export class ComputeStack extends cdk.Stack {
       metricValue: '$.error_count',
       defaultValue: 0,
     });
-    const syncJobsTaskDef = new ecs.FargateTaskDefinition(this, 'ApiSyncJobsTaskDef', {
-      family: `capiro-${cfg.envName}-api-sync-jobs`,
-      cpu: 512,
-      memoryLimitMiB: 1024,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    const syncJobsTaskDef = new ecs.FargateTaskDefinition(
+      this,
+      'ApiSyncJobsTaskDef',
+      {
+        family: `capiro-${cfg.envName}-api-sync-jobs`,
+        cpu: 512,
+        memoryLimitMiB: 1024,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: apiTaskRole,
       },
-      taskRole: apiTaskRole,
-    });
+    );
     grantSecretsAndKmsToExecutionRole(
       syncJobsTaskDef,
       [dbSecretImported.secretArn, appDbSecretImported.secretArn],
@@ -1642,14 +1813,35 @@ export class ComputeStack extends cdk.Stack {
       secrets: {
         DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
         DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
-        DB_PASSWORD: ecs.Secret.fromSecretsManager(dbSecretImported, 'password'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(
+          dbSecretImported,
+          'password',
+        ),
         DB_USER: ecs.Secret.fromSecretsManager(dbSecretImported, 'username'),
-        MASTER_USER: ecs.Secret.fromSecretsManager(dbSecretImported, 'username'),
-        MASTER_PASSWORD: ecs.Secret.fromSecretsManager(dbSecretImported, 'password'),
-        APP_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
-        APP_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
-        PROMOTER_USER: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'username'),
-        PROMOTER_PASSWORD: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'password'),
+        MASTER_USER: ecs.Secret.fromSecretsManager(
+          dbSecretImported,
+          'username',
+        ),
+        MASTER_PASSWORD: ecs.Secret.fromSecretsManager(
+          dbSecretImported,
+          'password',
+        ),
+        APP_USER: ecs.Secret.fromSecretsManager(
+          appDbSecretImported,
+          'username',
+        ),
+        APP_PASSWORD: ecs.Secret.fromSecretsManager(
+          appDbSecretImported,
+          'password',
+        ),
+        PROMOTER_USER: ecs.Secret.fromSecretsManager(
+          promoterDbSecretImported,
+          'username',
+        ),
+        PROMOTER_PASSWORD: ecs.Secret.fromSecretsManager(
+          promoterDbSecretImported,
+          'password',
+        ),
       },
       readonlyRootFilesystem: false,
     });
@@ -1667,18 +1859,24 @@ export class ComputeStack extends cdk.Stack {
     const promoterLogGroup = new logs.LogGroup(this, 'ApiPromoterLogGroup', {
       logGroupName: `/capiro/${cfg.envName}/api-promoter`,
       retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy
+        ? cdk.RemovalPolicy.RETAIN
+        : cdk.RemovalPolicy.DESTROY,
     });
-    this.apiPromoterTaskDefinition = new ecs.FargateTaskDefinition(this, 'ApiPromoterTaskDef', {
-      family: `capiro-${cfg.envName}-api-promoter`,
-      cpu: 512,
-      memoryLimitMiB: 1024,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    this.apiPromoterTaskDefinition = new ecs.FargateTaskDefinition(
+      this,
+      'ApiPromoterTaskDef',
+      {
+        family: `capiro-${cfg.envName}-api-promoter`,
+        cpu: 512,
+        memoryLimitMiB: 1024,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: apiTaskRole,
       },
-      taskRole: apiTaskRole,
-    });
+    );
     grantSecretsAndKmsToExecutionRole(
       this.apiPromoterTaskDefinition,
       [dbSecretImported.secretArn, promoterDbSecretImported.secretArn],
@@ -1698,8 +1896,14 @@ export class ComputeStack extends cdk.Stack {
       secrets: {
         DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
         DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
-        DB_USER: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'username'),
-        DB_PASSWORD: ecs.Secret.fromSecretsManager(promoterDbSecretImported, 'password'),
+        DB_USER: ecs.Secret.fromSecretsManager(
+          promoterDbSecretImported,
+          'username',
+        ),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(
+          promoterDbSecretImported,
+          'password',
+        ),
       },
       readonlyRootFilesystem: false,
     });
@@ -1777,84 +1981,110 @@ export class ComputeStack extends cdk.Stack {
       }),
     });
 
-    this.apiTargetGroup = new elb.ApplicationTargetGroup(this, 'ApiTargetGroup', {
-      vpc,
-      port: 4000,
-      protocol: elb.ApplicationProtocol.HTTP,
-      targetType: elb.TargetType.IP,
-      targets: [this.apiService.loadBalancerTarget({ containerName: 'api', containerPort: 4000 })],
-      healthCheck: {
-        path: '/health',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        unhealthyThresholdCount: 3,
-        healthyThresholdCount: 2,
+    this.apiTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'ApiTargetGroup',
+      {
+        vpc,
+        port: 4000,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.apiService.loadBalancerTarget({
+            containerName: 'api',
+            containerPort: 4000,
+          }),
+        ],
+        healthCheck: {
+          path: '/health',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
+        stickinessCookieDuration: cdk.Duration.minutes(5),
       },
-      deregistrationDelay: cdk.Duration.seconds(15),
-      stickinessCookieDuration: cdk.Duration.minutes(5),
-    });
+    );
 
-    this.webTargetGroup = new elb.ApplicationTargetGroup(this, 'WebTargetGroup', {
-      vpc,
-      port: 8080,
-      protocol: elb.ApplicationProtocol.HTTP,
-      targetType: elb.TargetType.IP,
-      targets: [this.webService.loadBalancerTarget({ containerName: 'web', containerPort: 8080 })],
-      healthCheck: {
-        path: '/healthz',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        unhealthyThresholdCount: 3,
-        healthyThresholdCount: 2,
+    this.webTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'WebTargetGroup',
+      {
+        vpc,
+        port: 8080,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.webService.loadBalancerTarget({
+            containerName: 'web',
+            containerPort: 8080,
+          }),
+        ],
+        healthCheck: {
+          path: '/healthz',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
       },
-      deregistrationDelay: cdk.Duration.seconds(15),
-    });
+    );
 
-    this.marketingTargetGroup = new elb.ApplicationTargetGroup(this, 'MarketingTargetGroup', {
-      vpc,
-      port: 8080,
-      protocol: elb.ApplicationProtocol.HTTP,
-      targetType: elb.TargetType.IP,
-      targets: [
-        this.marketingService.loadBalancerTarget({
-          containerName: 'marketing',
-          containerPort: 8080,
-        }),
-      ],
-      healthCheck: {
-        path: '/healthz',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        unhealthyThresholdCount: 3,
-        healthyThresholdCount: 2,
+    this.marketingTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'MarketingTargetGroup',
+      {
+        vpc,
+        port: 8080,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.marketingService.loadBalancerTarget({
+            containerName: 'marketing',
+            containerPort: 8080,
+          }),
+        ],
+        healthCheck: {
+          path: '/healthz',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
       },
-      deregistrationDelay: cdk.Duration.seconds(15),
-    });
+    );
 
-    this.workspaceTargetGroup = new elb.ApplicationTargetGroup(this, 'WorkspaceTargetGroup', {
-      vpc,
-      port: 4200,
-      protocol: elb.ApplicationProtocol.HTTP,
-      targetType: elb.TargetType.IP,
-      targets: [
-        this.workspaceService.loadBalancerTarget({
-          containerName: 'workspace',
-          containerPort: 4200,
-        }),
-      ],
-      healthCheck: {
-        path: '/health',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        unhealthyThresholdCount: 3,
-        healthyThresholdCount: 2,
+    this.workspaceTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'WorkspaceTargetGroup',
+      {
+        vpc,
+        port: 4200,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.workspaceService.loadBalancerTarget({
+            containerName: 'workspace',
+            containerPort: 4200,
+          }),
+        ],
+        healthCheck: {
+          path: '/health',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
       },
-      deregistrationDelay: cdk.Duration.seconds(15),
-    });
+    );
 
     this.meriv2OrchestratorTargetGroup = new elb.ApplicationTargetGroup(
       this,
@@ -1882,27 +2112,31 @@ export class ComputeStack extends cdk.Stack {
       },
     );
 
-    this.apiStrategyTargetGroup = new elb.ApplicationTargetGroup(this, 'ApiStrategyTargetGroup', {
-      vpc,
-      port: 4400,
-      protocol: elb.ApplicationProtocol.HTTP,
-      targetType: elb.TargetType.IP,
-      targets: [
-        this.apiStrategyService.loadBalancerTarget({
-          containerName: 'api-strategy',
-          containerPort: 4400,
-        }),
-      ],
-      healthCheck: {
-        path: '/strategy-api/health',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        unhealthyThresholdCount: 3,
-        healthyThresholdCount: 2,
+    this.apiStrategyTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'ApiStrategyTargetGroup',
+      {
+        vpc,
+        port: 4400,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.apiStrategyService.loadBalancerTarget({
+            containerName: 'api-strategy',
+            containerPort: 4400,
+          }),
+        ],
+        healthCheck: {
+          path: '/strategy-api/health',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
       },
-      deregistrationDelay: cdk.Duration.seconds(15),
-    });
+    );
 
     // Listener rules, ORDER MATTERS, lower priority wins.
     //   3  /api/*, /webhooks/*, /health (any host) → api  [must beat marketing host rule]
@@ -1915,7 +2149,13 @@ export class ComputeStack extends cdk.Stack {
     // otherwise intercept /health and /api/* before the path rule could fire.
     httpsListener.addAction('ApiPaths', {
       priority: 3,
-      conditions: [elb.ListenerCondition.pathPatterns(['/api/*', '/webhooks/*', '/health'])],
+      conditions: [
+        elb.ListenerCondition.pathPatterns([
+          '/api/*',
+          '/webhooks/*',
+          '/health',
+        ]),
+      ],
       action: elb.ListenerAction.forward([this.apiTargetGroup]),
     });
     // Workspace engine: /workspace-api/* → workspace service. Priority 10 sits
@@ -1964,13 +2204,20 @@ export class ComputeStack extends cdk.Stack {
     if (cfg.rootDomain !== cfg.appHost) {
       httpsListener.addAction('Marketing', {
         priority: 5,
-        conditions: [elb.ListenerCondition.hostHeaders([cfg.rootDomain, `www.${cfg.rootDomain}`])],
+        conditions: [
+          elb.ListenerCondition.hostHeaders([
+            cfg.rootDomain,
+            `www.${cfg.rootDomain}`,
+          ]),
+        ],
         action: elb.ListenerAction.forward([this.marketingTargetGroup]),
       });
     }
     httpsListener.addAction('WebDefault', {
       priority: 20,
-      conditions: [elb.ListenerCondition.hostHeaders([cfg.appHost, cfg.wildcardHost])],
+      conditions: [
+        elb.ListenerCondition.hostHeaders([cfg.appHost, cfg.wildcardHost]),
+      ],
       action: elb.ListenerAction.forward([this.webTargetGroup]),
     });
 
@@ -1989,7 +2236,10 @@ export class ComputeStack extends cdk.Stack {
           priority: 1,
           overrideAction: { none: {} },
           statement: {
-            managedRuleGroupStatement: { vendorName: 'AWS', name: 'AWSManagedRulesCommonRuleSet' },
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesCommonRuleSet',
+            },
           },
           visibilityConfig: {
             cloudWatchMetricsEnabled: true,
@@ -2053,13 +2303,17 @@ export class ComputeStack extends cdk.Stack {
     new route53.ARecord(this, 'AppAlias', {
       zone: hostedZone,
       recordName: cfg.appHost,
-      target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(this.alb)),
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.LoadBalancerTarget(this.alb),
+      ),
     });
     // Wildcard alias for tenant vanity URLs ({slug}.app.capiro.ai).
     new route53.ARecord(this, 'AppWildcardAlias', {
       zone: hostedZone,
       recordName: cfg.wildcardHost,
-      target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(this.alb)),
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.LoadBalancerTarget(this.alb),
+      ),
     });
     // Apex alias only when rootDomain differs from appHost (prod: capiro.ai vs
     // app.capiro.ai; dev: both equal app-dev.capiro.ai, so skip to avoid
@@ -2068,19 +2322,31 @@ export class ComputeStack extends cdk.Stack {
       new route53.ARecord(this, 'ApexAlias', {
         zone: hostedZone,
         recordName: cfg.rootDomain,
-        target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(this.alb)),
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.LoadBalancerTarget(this.alb),
+        ),
       });
       new route53.AaaaRecord(this, 'ApexAliasIpv6', {
         zone: hostedZone,
         recordName: cfg.rootDomain,
-        target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(this.alb)),
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.LoadBalancerTarget(this.alb),
+        ),
       });
     }
 
-    new cdk.CfnOutput(this, 'AlbDnsName', { value: this.alb.loadBalancerDnsName });
-    new cdk.CfnOutput(this, 'ApiRepoUri', { value: this.apiRepo.repositoryUri });
-    new cdk.CfnOutput(this, 'WebRepoUri', { value: this.webRepo.repositoryUri });
-    new cdk.CfnOutput(this, 'ApiServiceArn', { value: this.apiService.serviceArn });
+    new cdk.CfnOutput(this, 'AlbDnsName', {
+      value: this.alb.loadBalancerDnsName,
+    });
+    new cdk.CfnOutput(this, 'ApiRepoUri', {
+      value: this.apiRepo.repositoryUri,
+    });
+    new cdk.CfnOutput(this, 'WebRepoUri', {
+      value: this.webRepo.repositoryUri,
+    });
+    new cdk.CfnOutput(this, 'ApiServiceArn', {
+      value: this.apiService.serviceArn,
+    });
     new cdk.CfnOutput(this, 'ApiMigrateTaskDefArn', {
       value: this.apiMigrateTaskDefinition.taskDefinitionArn,
     });
@@ -2117,7 +2383,10 @@ function grantSecretsAndKmsToExecutionRole(
   // the role exists once the task definition is constructed.
   taskDef.addToExecutionRolePolicy(
     new iam.PolicyStatement({
-      actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+      actions: [
+        'secretsmanager:GetSecretValue',
+        'secretsmanager:DescribeSecret',
+      ],
       resources: secretArns,
     }),
   );

@@ -234,11 +234,13 @@
   background-color: var(--st-error-fg);
   box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
 }
-.capiro-strategies .capiro-button--primary.st-modal__primary--danger:hover:not(:disabled) {
+.capiro-strategies
+  .capiro-button--primary.st-modal__primary--danger:hover:not(:disabled) {
   background-color: var(--st-error-fg);
   filter: brightness(1.08);
 }
-.capiro-strategies .capiro-button--primary.st-modal__primary--danger:active:not(:disabled) {
+.capiro-strategies
+  .capiro-button--primary.st-modal__primary--danger:active:not(:disabled) {
   background-color: var(--st-error-fg);
   filter: brightness(0.96);
 }
@@ -870,13 +872,9 @@
 
 /* ------------------------------------------------------------------- export */
 
-/* Four format cards. Each card's head is `name + "Not yet available" pill`
-   (nowrap, ~130px), so a card needs ~200px before it starts crushing. A fixed
-   repeat(4) held that only while the lg modal was near its 1020px cap; between
-   ~900 and ~1050 viewport the tracks fall under the pill's min-content and the
-   heads spill. auto-fit with a min() floor still lays out 4-up at the full
-   width, steps to 3/2 through the tablet band, and drops to a single track
-   narrower than 200px on a phone — no extra breakpoint. */
+/* Executive report format cards. auto-fit keeps the Word and PowerPoint
+   choices balanced at modal width, and safely collapses either card when the
+   shell becomes a phone-sized sheet. */
 .capiro-strategies .st-format-grid {
   display: grid;
   min-width: 0;
@@ -985,6 +983,686 @@
 .capiro-strategies .st-filename {
   width: 100%;
   min-width: 0;
+}
+
+/* ------------------------------------------------ executive report export */
+
+.capiro-strategies .st-export-section,
+.capiro-strategies .st-export-config,
+.capiro-strategies .st-export-aside {
+  min-width: 0;
+}
+
+.capiro-strategies .st-export-section__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.capiro-strategies .st-export-section__heading .st-panel__label {
+  margin-bottom: 4px;
+}
+
+.capiro-strategies .st-export-section__intro {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-export-format-card {
+  min-height: 144px;
+}
+
+.capiro-strategies .st-export-format-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.capiro-strategies .st-export-format-card:disabled:hover {
+  border-color: var(--st-gray-200);
+}
+
+.capiro-strategies .st-export-layout {
+  margin-top: 20px;
+}
+
+.capiro-strategies .st-export-config,
+.capiro-strategies .st-export-aside {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+}
+
+.capiro-strategies .st-export-audience {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.capiro-strategies .st-export-radio {
+  position: relative;
+  min-width: 0;
+}
+
+.capiro-strategies .st-export-radio__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.capiro-strategies .st-export-radio:focus-within {
+  outline: none;
+  border-color: var(--st-accent-focus);
+  box-shadow: var(--st-shadow-focus);
+}
+
+.capiro-strategies .st-export-branding {
+  min-width: 0;
+}
+
+.capiro-strategies .st-export-branding__grid {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.capiro-strategies .st-export-logo-tile {
+  min-width: 0;
+  min-height: 92px;
+  padding: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--st-white);
+  border: 1px solid var(--st-gray-200);
+  border-radius: 10px;
+  box-shadow: var(--st-shadow-card-sm);
+  overflow: hidden;
+}
+
+.capiro-strategies .st-export-logo-tile img {
+  display: block;
+  max-width: 100%;
+  max-height: 66px;
+  object-fit: contain;
+}
+
+.capiro-strategies .st-export-wordmark {
+  max-width: 100%;
+  color: var(--st-gray-900);
+  font-size: 13px;
+  line-height: 17px;
+  font-weight: 700;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-branding__copy {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.capiro-strategies .st-export-branding__copy > strong {
+  color: var(--st-gray-900);
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.capiro-strategies .st-export-branding__copy > p {
+  margin: 0;
+  color: var(--st-gray-600);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.capiro-strategies .st-export-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.capiro-strategies .st-export-small-button {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--st-gray-300);
+  border-radius: 8px;
+  background: var(--st-white);
+  color: var(--st-gray-700);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: var(--st-shadow-card-sm);
+}
+
+.capiro-strategies .st-export-small-button:hover:not(:disabled) {
+  border-color: var(--st-accent-tint-border);
+  color: var(--st-accent);
+}
+
+.capiro-strategies .st-export-small-button:focus-visible {
+  outline: none;
+  border-color: var(--st-accent-focus);
+  box-shadow: var(--st-shadow-focus);
+}
+
+.capiro-strategies .st-export-small-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.capiro-strategies .st-export-branding__hint {
+  color: var(--st-gray-500);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.capiro-strategies .st-export-field-error {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--st-warning-ring);
+  border-radius: 8px;
+  background: var(--st-warning-bg);
+  color: var(--st-warning-fg);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-logo-toggle {
+  margin-top: 12px;
+}
+
+.capiro-strategies .st-export-toggle__copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.capiro-strategies .st-export-toggle__copy strong {
+  color: var(--st-gray-900);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.capiro-strategies .st-export-toggle__copy > span {
+  color: var(--st-gray-500);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-policy-note {
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--st-accent-tint-border);
+  color: var(--st-gray-500);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-preview-panel {
+  min-width: 0;
+}
+
+.capiro-strategies .st-export-cover {
+  width: 100%;
+  margin: 12px auto 0;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--st-white);
+  border-radius: 8px;
+  color: var(--st-gray-900);
+  box-shadow: var(--st-shadow-card-sm);
+}
+
+.capiro-strategies .st-export-cover--docx {
+  max-width: 286px;
+  aspect-ratio: 17 / 22;
+}
+
+.capiro-strategies .st-export-cover--pptx {
+  max-width: 420px;
+  aspect-ratio: 16 / 9;
+  padding: 18px 20px;
+}
+
+.capiro-strategies .st-export-cover__brand {
+  width: 100%;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  color: var(--st-gray-900);
+  font-size: 13px;
+  line-height: 17px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-cover__brand img {
+  display: block;
+  max-width: 42%;
+  max-height: 32px;
+  object-fit: contain;
+}
+
+.capiro-strategies .st-export-cover__rule {
+  width: 100%;
+  height: 2px;
+  margin: 12px 0 20px;
+  border-radius: 999px;
+  background: var(--st-accent);
+}
+
+.capiro-strategies .st-export-cover__eyebrow {
+  margin: 0 0 8px;
+  color: var(--st-accent);
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.capiro-strategies .st-export-cover h3 {
+  margin: 0;
+  color: var(--st-gray-900);
+  font-size: 20px;
+  line-height: 24px;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-cover__goal {
+  margin: 10px 0 0;
+  color: var(--st-gray-600);
+  font-size: 10px;
+  line-height: 15px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.capiro-strategies .st-export-cover__internal {
+  align-self: start;
+  margin-top: 12px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--st-warning-bg);
+  color: var(--st-warning-fg);
+  font-size: 8px;
+  line-height: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.capiro-strategies .st-export-cover__footer {
+  min-width: 0;
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--st-gray-200);
+  color: var(--st-gray-500);
+  font-size: 8px;
+  line-height: 12px;
+}
+
+.capiro-strategies .st-export-cover__footer span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-cover--pptx .st-export-cover__brand {
+  min-height: 22px;
+}
+
+.capiro-strategies .st-export-cover--pptx .st-export-cover__brand img {
+  max-height: 24px;
+}
+
+.capiro-strategies .st-export-cover--pptx .st-export-cover__rule {
+  margin: 7px 0 9px;
+}
+
+.capiro-strategies .st-export-cover--pptx h3 {
+  max-width: 82%;
+  font-size: 17px;
+  line-height: 20px;
+}
+
+.capiro-strategies .st-export-cover--pptx .st-export-cover__goal {
+  max-width: 86%;
+  margin-top: 6px;
+  -webkit-line-clamp: 2;
+}
+
+.capiro-strategies .st-export-cover--pptx .st-export-cover__internal {
+  margin-top: 6px;
+}
+
+.capiro-strategies .st-export-cover--pptx .st-export-cover__footer {
+  padding-top: 7px;
+}
+
+.capiro-strategies .st-export-preflight {
+  min-width: 0;
+}
+
+.capiro-strategies .st-export-preflight__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.capiro-strategies .st-export-refreshing {
+  margin-bottom: 10px;
+  color: var(--st-gray-500);
+  font-size: 11px;
+}
+
+.capiro-strategies .st-export-checks {
+  display: grid;
+  gap: 8px;
+}
+
+.capiro-strategies .st-export-check {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--st-gray-200);
+  border-radius: 9px;
+  background: var(--st-white);
+}
+
+.capiro-strategies .st-export-check > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--st-gray-100);
+  color: var(--st-gray-600);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.capiro-strategies .st-export-check strong,
+.capiro-strategies .st-export-check small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-check strong {
+  color: var(--st-gray-900);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-check small {
+  color: var(--st-gray-500);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.capiro-strategies .st-export-check.is-ready {
+  border-color: var(--st-success-ring);
+  background: var(--st-success-bg);
+}
+
+.capiro-strategies .st-export-check.is-ready > span {
+  background: var(--st-white);
+  color: var(--st-success-fg);
+}
+
+.capiro-strategies .st-export-check.is-blocked {
+  border-color: var(--st-error-ring);
+  background: var(--st-error-bg);
+}
+
+.capiro-strategies .st-export-check.is-blocked > span {
+  background: var(--st-white);
+  color: var(--st-error-fg);
+}
+
+.capiro-strategies .st-export-check.is-neutral {
+  border-color: var(--st-accent-tint-border);
+  background: var(--st-accent-tint);
+}
+
+.capiro-strategies .st-export-check.is-neutral > span {
+  background: var(--st-white);
+  color: var(--st-accent);
+}
+
+.capiro-strategies .st-export-issues {
+  margin-top: 10px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--st-warning-ring);
+  border-radius: 8px;
+  background: var(--st-warning-bg);
+  color: var(--st-warning-fg);
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-issues--error {
+  border-color: var(--st-error-ring);
+  background: var(--st-error-bg);
+  color: var(--st-error-fg);
+}
+
+.capiro-strategies .st-export-issues strong,
+.capiro-strategies .st-export-issues span {
+  display: block;
+}
+
+.capiro-strategies .st-export-snapshot {
+  margin: 10px 0 0;
+  color: var(--st-gray-500);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.capiro-strategies .st-export-preflight__error {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--st-error-ring);
+  border-radius: 8px;
+  background: var(--st-error-bg);
+  color: var(--st-error-fg);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-preflight__error span {
+  color: var(--st-error-fg);
+}
+
+.capiro-strategies .st-export-status {
+  margin: 0 0 16px;
+  padding: 9px 11px;
+  border: 1px solid var(--st-success-ring);
+  border-radius: 8px;
+  background: var(--st-success-bg);
+  color: var(--st-success-fg);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-markdown {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.capiro-strategies .st-export-markdown h3 {
+  margin: 0 0 8px;
+  color: var(--st-gray-900);
+  font-size: 17px;
+  line-height: 23px;
+}
+
+.capiro-strategies .st-export-markdown p:not(.st-panel__label) {
+  margin: 0 0 14px;
+  color: var(--st-gray-600);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.capiro-strategies .st-export-markdown__meta dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.capiro-strategies .st-export-markdown__meta dl > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.capiro-strategies .st-export-markdown__meta dt {
+  color: var(--st-accent-deep-eyebrow);
+  font-size: 10px;
+  line-height: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.capiro-strategies .st-export-markdown__meta dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--st-white);
+  font-size: 12px;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-advanced {
+  min-width: 0;
+  margin-top: 24px;
+  padding-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid var(--st-gray-200);
+}
+
+.capiro-strategies .st-export-advanced > div {
+  min-width: 0;
+}
+
+.capiro-strategies .st-export-advanced .st-panel__label {
+  margin-bottom: 3px;
+}
+
+.capiro-strategies .st-export-advanced > div > p:last-child {
+  margin: 0;
+  color: var(--st-gray-500);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.capiro-strategies .st-export-advanced__card {
+  width: min(100%, 330px);
+  flex: none;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.capiro-strategies .st-export-advanced__card .st-format-card__icon {
+  margin: 0;
+}
+
+.capiro-strategies .st-export-advanced__card > span:last-child {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.capiro-strategies .st-export-advanced__card strong {
+  min-width: 0;
+  color: var(--st-gray-900);
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.capiro-strategies .st-export-advanced__card small {
+  color: var(--st-gray-500);
+  font-size: 11px;
+}
+
+.capiro-strategies .st-export-filename {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capiro-strategies .st-export-filename > span:first-child {
+  flex: none;
+}
+
+.capiro-strategies .st-export-filename__control {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+}
+
+.capiro-strategies .st-export-filename__control .st-filename {
+  border-radius: 8px 0 0 8px;
+  border-right: 0;
+}
+
+.capiro-strategies .st-export-filename__extension {
+  flex: none;
+  min-width: 56px;
+  padding: 8px 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--st-gray-300);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--st-gray-50);
+  color: var(--st-gray-500);
+  font-size: 12px;
 }
 
 /* ------------------------------------------------------------------ history */
@@ -1453,8 +2131,34 @@
   .capiro-strategies .st-history,
   .capiro-strategies .st-candidates,
   .capiro-strategies .st-field-row,
-  .capiro-strategies .st-meta-grid {
+  .capiro-strategies .st-meta-grid,
+  .capiro-strategies .st-export-audience,
+  .capiro-strategies .st-export-branding__grid,
+  .capiro-strategies .st-export-markdown {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .capiro-strategies .st-export-logo-tile {
+    min-height: 104px;
+  }
+
+  .capiro-strategies .st-export-advanced {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .capiro-strategies .st-export-advanced__card {
+    width: 100%;
+  }
+
+  .capiro-strategies .st-export-filename {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .capiro-strategies .st-export-small-button {
+    min-height: var(--capiro-hit-size, 44px);
   }
 
   .capiro-strategies .st-history__list {
