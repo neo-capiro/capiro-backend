@@ -221,6 +221,19 @@ case "${1:-serve}" in
     echo "Running replay-defense-budget-ingestion-outbox-v1 (exact-row only; dry run unless --commit --confirm <env>)"
     exec ./node_modules/.bin/tsx scripts/replay-defense-budget-ingestion-outbox-v1.ts "$@"
     ;;
+  # Phase 10B-15 Parts E/F. Governed REVIEW acceptance for the ingestion
+  # outbox -- the mirror-image verb to the replay above, for the opposite
+  # terminal disposition (verifierDecision=REVIEW, not REJECT). Same shape:
+  # serve role (compose_database_url), dry run unless --commit --confirm
+  # <env>, exact-row only. Never reuses replay-defense-budget-ingestion-
+  # outbox-v1 -- that command's own SQL predicate refuses any row whose
+  # verifierDecision is not exactly 'REJECT'.
+  accept-defense-budget-ingestion-review-v1)
+    shift
+    compose_database_url
+    echo "Running accept-defense-budget-ingestion-review-v1 (exact-row only; dry run unless --commit --confirm <env>)"
+    exec ./node_modules/.bin/tsx scripts/accept-defense-budget-ingestion-review-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;
