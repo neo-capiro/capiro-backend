@@ -174,9 +174,11 @@ def _create_paddle_structure(config: dict[str, Any]) -> Any:
     This is lazily imported so the engine module can be loaded without
     PaddleOCR installed (e.g. for config/validation tests).
     """
+    is_real_v3 = True
     try:
         from paddleocr import PPStructureV3  # PyMuPDF
     except ImportError:
+        is_real_v3 = False
         try:
             from paddleocr import PPStructure as PPStructureV3  # type: ignore[import-not-found]
         except ImportError as e:
@@ -197,8 +199,22 @@ def _create_paddle_structure(config: dict[str, Any]) -> Any:
         engine_kwargs['lang'] = 'en'
         engine_kwargs['table_model_dir'] = str(cache_path)
 
-    # Feature toggles — disabled by default per I1
-    engine_kwargs['structure_version'] = 'PP-StructureV3'
+    # Phase 10B-17 Blocker 1: `structure_version='PP-StructureV3'` is only a
+    # valid constructor argument for the real PPStructureV3 class. Older
+    # installed paddleocr releases (confirmed: 2.10.0) do not export that
+    # class at all -- the ImportError above already detects this and falls
+    # back to the older `PPStructure` class, but this kwarg was previously
+    # set unconditionally regardless of which class was actually imported,
+    # so the fallback class's own constructor validation rejected it
+    # ("structure_version must in ['PP-Structure', 'PP-StructureV2'], but
+    # get PP-StructureV3") and raised before processing a single page --
+    # an uncaught exception the CLI could only report as a bare, per-job
+    # exit 6 with no structured per-page result at all. Only request the V3
+    # behavior when the real V3 class was actually found; let the fallback
+    # class use its own default otherwise rather than guessing between its
+    # two valid values.
+    if is_real_v3:
+        engine_kwargs['structure_version'] = 'PP-StructureV3'
 
     return PPStructureV3(**engine_kwargs)
 
@@ -636,11 +652,21 @@ def run_paddleocr_engine(
             )
         )
 
-    # Initialize PaddleOCR engine (lazy)
+    # Initialize PaddleOCR engine (lazy). Any failure to construct the
+    # engine -- not installed (RuntimeError, the original case), or an
+    # incompatible installed version rejecting our constructor arguments
+    # (the fallback-class case fixed above; still guarded here defensively
+    # in case a future paddleocr release changes its own validation again)
+    # -- means this job cannot run, not that the whole process should
+    # crash: fail every requested page with a real reason code and return a
+    # valid result, exactly like the already-established "not installed"
+    # path, so the router can compose whatever DID succeed in earlier
+    # steps instead of aborting the entire multi-page parse plan.
     try:
         engine = _create_paddle_structure(cfg)
-    except RuntimeError as e:
-        # PaddleOCR not installed — fail all pages
+    except (RuntimeError, ValueError, TypeError) as e:
+        # PaddleOCR not installed, or installed but unusable for this job —
+        # fail all pages
         for pn in requested_pages:
             failed_pages.append(
                 ParserPageFailureV1(
