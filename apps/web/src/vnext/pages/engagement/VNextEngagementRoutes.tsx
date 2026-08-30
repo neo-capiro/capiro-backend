@@ -23,6 +23,7 @@ import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
 import { VNextReportsTracker } from './VNextReportsTracker.js';
 import { EngagementToastProvider } from './engagement-toast.js';
 import { useRovingFocus } from './use-roving-focus.js';
+import { readOutreachBuilderProgress, writeOutreachBuilderProgress } from './outreach-builder-progress.js';
 // The module's single z-index ladder. Imported FIRST so the four
 // --eng-layer-* aliases are defined before any rule consumes them.
 import './engagement-layers.css';
@@ -79,7 +80,18 @@ export function VNextEngagementRoutes() {
   /* Arrow / Home / End across Meetings | Outreach | Reports. */
   const onTabsKeyDown = useRovingFocus();
 
-  useEffect(() => { setStep('workflow'); }, [outreachCampaignId]);
+  /*
+   * Resume where you left off: opening a campaign restores whichever step
+   * this browser last saw the user standing on, instead of always
+   * restarting at Campaign type. `writeOutreachBuilderProgress` (below, on
+   * every step change) is what keeps this current. See
+   * `outreach-builder-progress.ts` for why this is a UI navigation cursor,
+   * not a second copy of campaign data — every field the user actually
+   * types is already durably saved server-side on confirm.
+   */
+  useEffect(() => {
+    setStep(outreachCampaignId ? readOutreachBuilderProgress(outreachCampaignId) ?? 'workflow' : 'workflow');
+  }, [outreachCampaignId]);
   useEffect(() => {
     const canonical = canonicalEngagementLocation(location.pathname, location.search);
     if (canonical) navigate(canonical, { replace: true });
@@ -130,7 +142,10 @@ export function VNextEngagementRoutes() {
           senderLabel={senderLabel}
           senderConnectionId={senderConnection?.id ?? null}
           step={step}
-          onStepChange={setStep}
+          onStepChange={(next) => {
+            setStep(next);
+            writeOutreachBuilderProgress(outreachCampaignId, next);
+          }}
           onExit={() => navigate('/engagement/outreach')}
           startedFrom={startedFrom}
         />

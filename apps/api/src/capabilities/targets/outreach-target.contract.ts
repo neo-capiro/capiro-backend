@@ -9,6 +9,7 @@ export const OUTREACH_TARGET_SOURCES = [
   'directory_member',
   'directory_staff',
   'state_legislator',
+  'committee_staff',
   'client_person',
   'engagement_contact',
   'manual',
@@ -55,6 +56,16 @@ const directoryStaffLocatorSchema = z
 const stateLegislatorLocatorSchema = z
   .object({ source: z.literal('state_legislator'), id: sourceId })
   .strict();
+/**
+ * `id` is the same `staff-${staffId}` identity `DirectoryCommitteeStafferer`
+ * carries (see `DirectoryService.getCommitteeStafferById`) — a committee
+ * staffer has no committee id on the locator itself; the resolver looks the
+ * roster entry up by staffer id alone, exactly like `directory_staff` does
+ * for a general staffer.
+ */
+const committeeStaffLocatorSchema = z
+  .object({ source: z.literal('committee_staff'), id: sourceId })
+  .strict();
 const clientPersonLocatorSchema = z
   .object({ source: z.literal('client_person'), id: z.string().uuid(), clientId })
   .strict();
@@ -90,6 +101,7 @@ export const outreachTargetLocatorV1Schema = z.discriminatedUnion('source', [
   directoryMemberLocatorSchema,
   directoryStaffLocatorSchema,
   stateLegislatorLocatorSchema,
+  committeeStaffLocatorSchema,
   clientPersonLocatorSchema,
   engagementContactLocatorSchema,
   manualTargetLocatorSchema,

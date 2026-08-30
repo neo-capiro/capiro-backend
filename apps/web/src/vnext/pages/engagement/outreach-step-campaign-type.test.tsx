@@ -283,4 +283,39 @@ describe('OutreachCampaignTypeStep', () => {
     expect(screen.getByRole('radio', { name: /^Request a meeting/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: /^Custom/ })).not.toBeChecked();
   });
+
+  describe('started from Capiro Template', () => {
+    it('greys out Send update and Custom with a Coming soon tag, leaving Request a meeting live', () => {
+      render(<OutreachCampaignTypeStep {...props()} startedFrom="Capiro Template" />);
+
+      expect(screen.getByRole('radio', { name: /^Request a meeting/ })).toBeEnabled();
+      expect(screen.getByRole('radio', { name: /^Send update/ })).toBeDisabled();
+      expect(screen.getByRole('radio', { name: /^Custom/ })).toBeDisabled();
+      expect(screen.getAllByText('Coming soon')).toHaveLength(2);
+    });
+
+    it('defaults the selection to Request a meeting instead of Send update', () => {
+      render(<OutreachCampaignTypeStep {...props()} startedFrom="Capiro Template" />);
+
+      expect(screen.getByRole('radio', { name: /^Request a meeting/ })).toBeChecked();
+    });
+
+    it('cannot select a disabled tile — clicking it does not move the selection', () => {
+      render(<OutreachCampaignTypeStep {...props()} startedFrom="Capiro Template" />);
+
+      fireEvent.click(screen.getByRole('radio', { name: /^Send update/ }));
+
+      expect(screen.getByRole('radio', { name: /^Request a meeting/ })).toBeChecked();
+      expect(screen.getByRole('radio', { name: /^Send update/ })).not.toBeChecked();
+    });
+
+    it('does not disable any tile for Firm Template or a deep link with no startedFrom', () => {
+      render(<OutreachCampaignTypeStep {...props()} startedFrom="Firm Template" />);
+      for (const radio of screen.getAllByRole('radio')) expect(radio).toBeEnabled();
+
+      const { unmount } = render(<OutreachCampaignTypeStep {...props()} />);
+      for (const radio of screen.getAllByRole('radio')) expect(radio).toBeEnabled();
+      unmount();
+    });
+  });
 });

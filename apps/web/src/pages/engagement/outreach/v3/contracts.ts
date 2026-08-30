@@ -149,6 +149,15 @@ export interface OutreachV3CampaignSpec {
     } | null;
     selectedTargetRefs: OutreachV3ResolvedTargetRef[];
     rejectedRecommendationRefs: Array<Record<string, unknown>>;
+    /**
+     * Per-target Cc/Bcc, keyed by targetKey. Deliberately separate from
+     * `selectedTargetRefs` — never a field on the resolved target ref itself
+     * — because that ref's `snapshotHash` is persisted per Campaign Spec
+     * version and validated against its own canonical fields server-side;
+     * see apps/api's outreach-campaign-spec.v1.ts for the full rationale.
+     * Absent (not `{}`) when no target has a Cc/Bcc set.
+     */
+    targetCcBcc?: Record<string, { cc: string[]; bcc: string[] }>;
   };
   delivery: {
     pattern: OutreachV3DeliveryPattern;

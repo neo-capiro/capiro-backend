@@ -45,6 +45,7 @@ export const OUTREACH_V3_LIMITS = Object.freeze({
   campaignAngle: 4_000,
   tone: 120,
   customLengthInstruction: 1_000,
+  targetCcBccPerList: 25,
 });
 
 const FORBIDDEN_CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u;
@@ -95,6 +96,28 @@ const contextArray = z
 const excludedContextArray = z
   .array(outreachExcludedContextRefV1Schema)
   .max(OUTREACH_V3_LIMITS.futureContextRefs);
+
+/**
+ * One target's Cc/Bcc list, stored SEPARATELY from `selectedTargetRefs`
+ * (see `targeting.targetCcBcc` below) — never as fields on
+ * `OutreachResolvedTargetRefV1` itself. That schema's `snapshotHash` is
+ * validated against a canonical hash of its own fields and persisted per
+ * Campaign Spec version; adding `cc`/`bcc` there would change what gets
+ * hashed and break `outreachResolvedTargetRefV1Schema.parse()` for every
+ * already-stored spec version minted before this field existed.
+ */
+const targetCcBccEmailSchema = z.string().trim().toLowerCase().email().max(320);
+const targetCcBccListSchema = z
+  .array(targetCcBccEmailSchema)
+  .max(OUTREACH_V3_LIMITS.targetCcBccPerList);
+export const targetCcBccEntryV1Schema = z
+  .object({
+    cc: targetCcBccListSchema,
+    bcc: targetCcBccListSchema,
+  })
+  .strict();
+export type TargetCcBccEntryV1 = z.infer<typeof targetCcBccEntryV1Schema>;
+export type TargetCcBccMapV1 = Record<string, TargetCcBccEntryV1>;
 
 /**
  * The campaign's copy of the chosen template's email skeleton.
@@ -200,6 +223,17 @@ const outreachCampaignSpecV1BaseSchema = z
         rejectedRecommendationRefs: z
           .array(outreachRejectedTargetRecommendationV1Schema)
           .max(OUTREACH_V3_LIMITS.futureTargetRefs),
+        /**
+         * Per-target Cc/Bcc, keyed by `targetKey`. OPTIONAL AND OMITTED WHEN
+         * EMPTY for the exact same content-addressing reason as
+         * `styleSamples`/`contentSkeleton` below: a required key (or an
+         * optional key that canonicalizes to `{}`) would change the
+         * canonical bytes — and therefore the hash — of every campaign
+         * written before this field existed. `normalizeCampaignSpecV1`
+         * deletes the key when there are no entries, so "no Cc/Bcc" and
+         * "field did not exist" stay byte-identical.
+         */
+        targetCcBcc: z.record(boundedText(384, 1), targetCcBccEntryV1Schema).optional(),
       })
       .strict(),
     delivery: z
@@ -324,6 +358,38 @@ export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.sup
         path: ['targeting', 'selectedTargetRefs'],
         message: 'Selected target keys must be unique.',
       });
+    }
+
+    if (spec.targeting.targetCcBcc !== undefined) {
+      const entries = Object.entries(spec.targeting.targetCcBcc);
+      // Same discipline as `styleSamples`: an explicit empty map is a second
+      // spelling of "no Cc/Bcc" that would hash differently from the omitted
+      // key — reject it so normalizeCampaignSpecV1's delete-when-empty stays
+      // the ONLY way to represent "none".
+      if (entries.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['targeting', 'targetCcBcc'],
+          message: 'Target Cc/Bcc must be omitted entirely rather than stored empty.',
+        });
+      }
+      const selectedTargetKeySet = new Set(targetKeys);
+      for (const [targetKey, entry] of entries) {
+        if (!selectedTargetKeySet.has(targetKey)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['targeting', 'targetCcBcc', targetKey],
+            message: 'Target Cc/Bcc must reference a currently selected campaign target.',
+          });
+        }
+        if (entry.cc.length === 0 && entry.bcc.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['targeting', 'targetCcBcc', targetKey],
+            message: 'A Cc/Bcc entry with no addresses must be removed rather than stored empty.',
+          });
+        }
+      }
     }
 
     validateContextClass(spec.context.requiredPolicyRefs, 'required_policy', 'requiredPolicyRefs', ctx);
@@ -494,12 +560,49 @@ function normalizeSet(values: string[]): string[] {
   );
 }
 
+/**
+ * Normalize one target's Cc/Bcc map: dedupe/sort each address list, drop any
+ * entry left with no addresses in either list (never store a degenerate
+ * `{cc:[],bcc:[]}` — see the field's schema comment), and drop the whole
+ * result to `{}` when nothing remains so the caller's `Object.keys(...).length`
+ * check can decide whether to omit the key entirely.
+ */
+function normalizeTargetCcBccV1(
+  value: TargetCcBccMapV1 | undefined,
+): TargetCcBccMapV1 {
+  if (!value) return {};
+  const normalized: TargetCcBccMapV1 = {};
+  for (const targetKey of Object.keys(value).sort(compareCanonicalStrings)) {
+    const entry = value[targetKey];
+    if (!entry) continue;
+    const cc = normalizeSet(entry.cc);
+    const bcc = normalizeSet(entry.bcc);
+    if (cc.length === 0 && bcc.length === 0) continue;
+    normalized[targetKey] = { cc, bcc };
+  }
+  return normalized;
+}
+
+/**
+ * Read a target's Cc/Bcc without every caller re-deriving the
+ * absent-vs-empty case. `targetCcBcc` is deliberately absent (not `{}`) when
+ * no target has one — see the field's schema comment — so this is the one
+ * place that special-cases the missing key.
+ */
+export function campaignTargetCcBccV1(
+  spec: Pick<OutreachCampaignSpecV1, 'targeting'>,
+  targetKey: string,
+): TargetCcBccEntryV1 {
+  return spec.targeting.targetCcBcc?.[targetKey] ?? { cc: [], bcc: [] };
+}
+
 export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachCampaignSpecV1 {
   const sortedClientRefs = [...spec.sponsor.clientRefs].sort((a, b) =>
     compareCanonicalStrings(a.clientId, b.clientId),
   );
   const normalizedStyleSamples = normalizeStyleSamplesV1(spec.styleSamples ?? []);
   const normalizedSkeleton = normalizeContentSkeletonV1(spec.contentSkeleton);
+  const normalizedTargetCcBcc = normalizeTargetCcBccV1(spec.targeting.targetCcBcc);
   const normalized: OutreachCampaignSpecV1 = {
     ...spec,
     goal: {
@@ -540,6 +643,9 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
       rejectedRecommendationRefs: normalizeRejectedTargetRecommendationsV1(
         spec.targeting.rejectedRecommendationRefs,
       ),
+      // Conditional key, same discipline as `styleSamples`/`contentSkeleton`
+      // below — see `withStyleSamples`-style deletion in the reducer.
+      ...(Object.keys(normalizedTargetCcBcc).length ? { targetCcBcc: normalizedTargetCcBcc } : {}),
     },
     delivery: { ...spec.delivery },
     context: {

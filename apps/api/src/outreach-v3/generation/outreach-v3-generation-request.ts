@@ -7,6 +7,7 @@ import type { EnrichmentChannel } from '../../engagement/generation/evidence-pac
 import type { SelectedContextItemRef } from '../../engagement/generation/evidence-source.service.js';
 import {
   campaignStyleSamplesV1,
+  campaignTargetCcBccV1,
   type OutreachCampaignSpecV1,
 } from '../state/outreach-campaign-spec.v1.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
@@ -48,7 +49,7 @@ export function buildOutreachV3GatewayUnit(
     ...input.prepared.selectedItems,
     ...strategyDirectives(input.spec, input.plan.stateVersion),
   ];
-  const recipient = gatewayRecipient(input.prepared);
+  const recipient = gatewayRecipient(input.prepared, input.spec);
   const styleSamples = campaignStyleSamplesV1(input.spec).map((sample) => ({
     sampleKey: sample.sampleKey,
     label: sample.label,
@@ -166,9 +167,12 @@ function manualAudienceOverride(
   return target && target.locator.source === 'manual' ? target.locator.audienceType : null;
 }
 
-function gatewayRecipient(prepared: PreparedOutreachV3GenerationSlot): GatewayRecipient {
+function gatewayRecipient(
+  prepared: PreparedOutreachV3GenerationSlot,
+  spec: OutreachCampaignSpecV1,
+): GatewayRecipient {
   if (prepared.slot.audienceKind === 'group') {
-    const members = prepared.currentTargets.map(targetSnapshot);
+    const members = prepared.currentTargets.map((target) => targetSnapshot(target, spec));
     const sourceTypes = [...new Set(members.map((member) => member.source))].sort();
     return {
       generationKey: prepared.slot.generationKey,
@@ -223,11 +227,15 @@ function gatewayRecipient(prepared: PreparedOutreachV3GenerationSlot): GatewayRe
     sourceTypes: [target.locator.source],
     governmentLevel: target.jurisdiction.governmentLevel,
     chamber: target.jurisdiction.chamber,
-    snapshot: targetSnapshot(target),
+    snapshot: targetSnapshot(target, spec),
   };
 }
 
-function targetSnapshot(target: PreparedOutreachV3GenerationSlot['currentTargets'][number]) {
+function targetSnapshot(
+  target: PreparedOutreachV3GenerationSlot['currentTargets'][number],
+  spec: OutreachCampaignSpecV1,
+) {
+  const ccBcc = campaignTargetCcBccV1(spec, target.targetKey);
   return {
     targetKey: target.targetKey,
     name: target.displayName,
@@ -243,6 +251,12 @@ function targetSnapshot(target: PreparedOutreachV3GenerationSlot['currentTargets
     sourceSnapshot: target.sourceSnapshot,
     state: target.jurisdiction.state,
     chamber: target.jurisdiction.chamber,
+    // Read from the campaign spec's separate (non-hashed) targetCcBcc map —
+    // see outreach-campaign-spec.v1.ts's field comment for why Cc/Bcc is not
+    // part of the resolved target ref's own snapshotHash. Consumed directly
+    // by OutreachSendIntentService.buildEnvelope()'s r.cc/r.bcc reads.
+    cc: ccBcc.cc,
+    bcc: ccBcc.bcc,
   };
 }
 

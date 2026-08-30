@@ -337,7 +337,7 @@ function StepBody({
 }) {
   switch (step) {
     case 'workflow':
-      return <OutreachCampaignTypeStep {...common} />;
+      return <OutreachCampaignTypeStep {...common} startedFrom={startedFrom} />;
     case 'name':
       return <OutreachNameStep {...common} clients={clients} startedFrom={startedFrom} />;
     case 'update':

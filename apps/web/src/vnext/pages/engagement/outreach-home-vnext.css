@@ -310,3 +310,8 @@
   margin-top: 1px;
   color: var(--eng-accent);
 }
+.capiro-vnext-root .ochome-start__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

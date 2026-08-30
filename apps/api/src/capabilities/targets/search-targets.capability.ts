@@ -23,6 +23,25 @@ export const TARGET_SEARCH_SOURCES = [
   'client_recommendation',
 ] as const;
 
+/**
+ * `committee_staff` is a real `OutreachTargetLocatorV1` source (see
+ * `outreach-target.contract.ts`) with its own resolver
+ * (`OutreachTargetReferenceService.resolveCommitteeStaff`), but it is
+ * deliberately NOT in `TARGET_SEARCH_SOURCES`. This capability's candidate
+ * generation is a flat, cross-source text/criteria search with no notion of
+ * "pick a committee first" — wiring committee staff into it would mean
+ * either fanning out over every committee's roster per keystroke (the
+ * dataset this capability queries has no committee-scoped index) or
+ * flattening the whole committee-staff roster into one unscoped list, both
+ * of which are a materially different feature than this capability's
+ * existing sources. The vNext Targets step's "Committee staff" tab instead
+ * drives a two-step UI (pick committee via `GET /directory/committees`, then
+ * roster via `GET /directory/committees/:id/staff`) — the same source data
+ * `DirectoryService.getCommitteeStaff` already serves the standalone
+ * Directory > Committee Staff page — and adds targets directly via
+ * `committee_staff` locators, bypassing `search_targets` entirely.
+ */
+
 const criteriaSchema = z
   .object({
     governmentLevels: z

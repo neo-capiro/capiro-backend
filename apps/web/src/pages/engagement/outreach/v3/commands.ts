@@ -117,6 +117,24 @@ export function removeTargetCommand(targetKey: string): OutreachV3Command {
   return command('REMOVE_TARGET_REFS', { targetKeys: [required(targetKey, 'Target key')] });
 }
 
+/**
+ * Upsert (or clear, by passing both lists empty) one target's Cc/Bcc list.
+ * Server-side this writes `spec.targeting.targetCcBcc[targetKey]` — a
+ * SEPARATE, non-hashed map — never a field on the target's own resolved ref
+ * (that ref's `snapshotHash` is validated against its canonical fields and
+ * persisted per Campaign Spec version; see outreach-campaign-spec.v1.ts).
+ */
+export function setTargetCcBccCommand(
+  targetKey: string,
+  addresses: { cc: string[]; bcc: string[] },
+): OutreachV3Command {
+  return command('SET_TARGET_CC_BCC', {
+    targetKey: required(targetKey, 'Target key'),
+    cc: addresses.cc,
+    bcc: addresses.bcc,
+  });
+}
+
 export function rejectTargetRecommendationCommand(input: {
   recommendationRef: string;
   targetKey: string;

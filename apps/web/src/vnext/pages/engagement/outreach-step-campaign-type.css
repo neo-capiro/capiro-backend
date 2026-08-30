@@ -36,6 +36,18 @@
 .capiro-vnext-root .octype__tile:has(.octype__input:disabled) {
   cursor: not-allowed;
 }
+/* Coming-soon tiles (Capiro Template's Send update / Custom) grey out fully —
+   opacity rather than a border/background swap, matching the home chooser's
+   `.ochome-start__tile:disabled` treatment for the same "not built yet"
+   state. */
+.capiro-vnext-root .octype__tile[data-disabled='true'] {
+  opacity: 0.55;
+}
+.capiro-vnext-root .octype__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* Focus lands on the input, which is invisible, so the tile has to show it.
    The prototype specifies no focus ring anywhere — this is an addition. */

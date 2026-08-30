@@ -26,6 +26,7 @@ import {
   type OutreachV3SessionSummary,
 } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { VNextOutreachTemplates } from './VNextOutreachTemplates.js';
+import { clearOutreachBuilderProgress } from './outreach-builder-progress.js';
 import './outreach-builder.css';
 import './outreach-home-vnext.css';
 
@@ -45,17 +46,27 @@ export type OutreachStartedFrom = 'Firm Template' | 'Capiro Template';
  * template scope exists server-side, and inventing one would be a fabricated
  * capability. Reported as a divergence rather than dropped, because the tile
  * itself still does something real.
+ *
+ * "Firm Template" is disabled (`comingSoon: true`) at Neo's direction
+ * (2026-08-30): the firm-template flow (browse/pick a saved firm template as
+ * a campaign's starting point) is not built yet, and there is no template
+ * picker behind this tile today — clicking it would silently fall through to
+ * the same bare "New outreach campaign" every other start does, with no
+ * actual template applied. Greying it out with an explicit "Coming soon" tag
+ * is honest; a clickable tile that does nothing distinctive is not.
  */
 const START_OPTIONS: Array<{
   key: OutreachStartedFrom;
   Icon: typeof FileText;
   description: string;
+  comingSoon?: boolean;
 }> = [
   {
     key: 'Firm Template',
     Icon: FileText,
     description:
       'Your firm’s own custom template. Strategy and guardrails carry over; recipients, context and approvals are always fresh.',
+    comingSoon: true,
   },
   {
     key: 'Capiro Template',
@@ -100,19 +111,29 @@ function StartCampaignChooser({
       }
     >
       <div className="ochome-start">
-        {START_OPTIONS.map(({ key, Icon, description }) => (
+        {START_OPTIONS.map(({ key, Icon, description, comingSoon }) => (
           <button
             key={key}
             type="button"
             className="ochome-start__tile"
-            disabled={creating}
-            onClick={() => onPick(key)}
+            disabled={creating || comingSoon}
+            aria-disabled={comingSoon || undefined}
+            title={comingSoon ? `${key} is coming soon` : undefined}
+            onClick={() => {
+              if (comingSoon) return;
+              onPick(key);
+            }}
           >
             <span className="ochome-start__icon">
               <Icon size={20} />
             </span>
             <span className="ocb-option__body">
-              <span className="ocb-option__title">{key}</span>
+              <span className="ochome-start__title-row">
+                <span className="ocb-option__title">{key}</span>
+                {comingSoon ? (
+                  <span className="eng-pill eng-pill--gray eng-pill--sm">Coming soon</span>
+                ) : null}
+              </span>
               <span className="ocb-option__desc">{description}</span>
             </span>
           </button>
@@ -220,8 +241,11 @@ export function VNextOutreachHome({
 
   const archive = useMutation({
     mutationFn: (sessionId: string) => archiveOutreachV3Session(api, sessionId),
-    onSuccess: async () => {
+    onSuccess: async (_data, sessionId) => {
       setActionError(null);
+      // Housekeeping only: an archived campaign will not be reopened through
+      // the builder, so its remembered resume step is dead weight.
+      clearOutreachBuilderProgress(sessionId);
       await qc.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
     },
     onError: (error) => setActionError(safeOutreachV3Error(error)),

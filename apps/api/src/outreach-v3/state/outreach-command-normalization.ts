@@ -151,6 +151,20 @@ export function normalizeOutreachCommandEnvelope(
       const parsed = outreachRejectedTargetRecommendationV1Schema.parse(payload);
       return { ...command, payload: parsed };
     }
+    case 'SET_TARGET_CC_BCC':
+      // Addresses are already lower-cased/trimmed by targetCcBccEmailSchema at
+      // parse time; the only cross-batch-hash normalization left is de-duping
+      // and sorting each list the same way REMOVE_TARGET_REFS's targetKeys are,
+      // so two submissions that differ only in address order or duplicates
+      // hash identically.
+      return {
+        ...command,
+        payload: {
+          targetKey: payload.targetKey as string,
+          cc: normalizeSet((payload.cc as string[]) ?? []),
+          bcc: normalizeSet((payload.bcc as string[]) ?? []),
+        },
+      };
     case 'ACCEPT_CONTEXT_REFS':
       return {
         ...command,

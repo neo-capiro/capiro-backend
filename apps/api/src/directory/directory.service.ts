@@ -823,6 +823,25 @@ export class DirectoryService implements OnModuleInit {
     };
   }
 
+  /**
+   * A committee staffer's locator carries only the staffer id — no committee
+   * id — because Outreach's `committee_staff` target source resolves a person,
+   * not a roster row. `committeeStaff` is keyed by committee, so this scans
+   * every roster for a matching `staff-${id}`. The dataset is a few hundred
+   * rows at most (Congressional committee staff), so a linear scan here costs
+   * nothing worth caching separately from `getDirectoryData()`'s own cache.
+   */
+  async getCommitteeStafferById(
+    staffId: string,
+  ): Promise<{ staffer: DirectoryCommitteeStaffer; sourceId: string } | null> {
+    const base = await this.getDirectoryData();
+    for (const roster of base.committeeStaff.values()) {
+      const found = roster.find((staffer) => staffer.id === staffId);
+      if (found) return { staffer: found, sourceId: base.sourceId };
+    }
+    return null;
+  }
+
   // ---------------------------------------------------------------- Detail + dictionary APIs (Task 12)
 
   /** Unified people search: name-inverts to members AND staff, optional committee filter. */

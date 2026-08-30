@@ -29,7 +29,21 @@ import './outreach-step-campaign-type.css';
  */
 const DEFAULT_CAMPAIGN_TYPE: OutreachCampaignType = 'send_update';
 
-export function OutreachCampaignTypeStep(props: OutreachBuilderStepCommon): JSX.Element {
+/**
+ * Campaign types disabled when the campaign was started from the "Capiro
+ * Template" chooser tile (2026-08-30, Neo's direction). Only the meeting
+ * request workflow is built out for Capiro-authored campaign structures
+ * today; "Send update" and "Custom" behind that entry point have no backing
+ * template library yet. Started-from-Firm-Template and deep-linked campaigns
+ * (no `startedFrom` at all) are unaffected — every type stays live there.
+ */
+const CAPIRO_TEMPLATE_DISABLED_TYPES = new Set<OutreachCampaignType>(['send_update', 'custom']);
+const CAPIRO_TEMPLATE_DISABLED_REASON =
+  'Coming soon for Capiro Template campaigns. Choose Request a meeting, or start again from Firm Template.';
+
+export function OutreachCampaignTypeStep(
+  props: OutreachBuilderStepCommon & { startedFrom?: string },
+): JSX.Element {
   // The prototype's tile click writes local wizard state and nothing else, so a
   // mis-click costs nothing. Confirming is what reaches the spec, which keeps
   // the promise the Name step footer makes: a new immutable version is created
@@ -38,6 +52,8 @@ export function OutreachCampaignTypeStep(props: OutreachBuilderStepCommon): JSX.
   const [savedSeen, setSavedSeen] = useState<OutreachCampaignType | null>(props.campaignType);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const disabledByCapiroTemplate = props.startedFrom === 'Capiro Template';
 
   // The session usually arrives after mount, and a rail chip can bring the user
   // back here after the type changed elsewhere. Either way the local pick is
@@ -49,7 +65,10 @@ export function OutreachCampaignTypeStep(props: OutreachBuilderStepCommon): JSX.
     setPending(null);
   }
 
-  const selected = pending ?? props.campaignType ?? DEFAULT_CAMPAIGN_TYPE;
+  const selected =
+    pending ??
+    props.campaignType ??
+    (disabledByCapiroTemplate ? 'request_meeting' : DEFAULT_CAMPAIGN_TYPE);
   const busy = props.busy || saving;
 
   // The prototype re-labels this button the instant a tile is clicked, before
@@ -114,11 +133,14 @@ export function OutreachCampaignTypeStep(props: OutreachBuilderStepCommon): JSX.
       <div className="ocb-stack" role="radiogroup" aria-label="Campaign type">
         {OUTREACH_CAMPAIGN_TYPES.map((option) => {
           const on = option.id === selected;
+          const disabledHere = disabledByCapiroTemplate && CAPIRO_TEMPLATE_DISABLED_TYPES.has(option.id);
           return (
             <label
               key={option.id}
               className="ocb-option octype__tile"
               data-selected={on ? 'true' : 'false'}
+              data-disabled={disabledHere ? 'true' : undefined}
+              title={disabledHere ? CAPIRO_TEMPLATE_DISABLED_REASON : undefined}
             >
               <input
                 type="radio"
@@ -126,13 +148,29 @@ export function OutreachCampaignTypeStep(props: OutreachBuilderStepCommon): JSX.
                 name="outreach-campaign-type"
                 value={option.id}
                 checked={on}
-                disabled={busy}
-                onChange={() => setPending(option.id)}
+                disabled={busy || disabledHere}
+                onChange={() => {
+                  // Real browsers never fire `change` on a disabled radio, but
+                  // jsdom's click-activation path in this test environment
+                  // does not consistently respect `disabled` for the native
+                  // checked-flip, so this guard is load-bearing, not
+                  // defensive dead code — without it a disabled tile's click
+                  // still moves the selection.
+                  if (disabledHere) return;
+                  setPending(option.id);
+                }}
               />
               <span className="ocb-radio" data-on={on ? 'true' : 'false'} aria-hidden="true" />
               <span className="ocb-option__body">
-                <span className="ocb-option__title">{option.label}</span>
-                <span className="ocb-option__desc">{option.description}</span>
+                <span className="octype__title-row">
+                  <span className="ocb-option__title">{option.label}</span>
+                  {disabledHere ? (
+                    <span className="eng-pill eng-pill--gray eng-pill--sm">Coming soon</span>
+                  ) : null}
+                </span>
+                <span className="ocb-option__desc">
+                  {disabledHere ? CAPIRO_TEMPLATE_DISABLED_REASON : option.description}
+                </span>
               </span>
             </label>
           );

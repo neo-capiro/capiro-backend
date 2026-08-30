@@ -426,4 +426,74 @@ describe('Outreach V3 gateway request compiler', () => {
     });
     expect(unit.request.explicitAudience).toBeNull();
   });
+
+  it('threads a target\'s Cc/Bcc from the campaign spec\'s separate targetCcBcc map into the recipient snapshot', () => {
+    const spec = createBlankCampaignSpecV1();
+    spec.targeting.targetCcBcc = {
+      'directory_member:alpha': { cc: ['chief@office.test'], bcc: ['archive@firm.test'] },
+    };
+    const generationSlot = slot('directory_member:alpha');
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: plan(generationSlot),
+      spec,
+      prepared: prepared(generationSlot),
+    });
+
+    expect(unit.request.recipient.snapshot).toEqual(
+      expect.objectContaining({
+        cc: ['chief@office.test'],
+        bcc: ['archive@firm.test'],
+      }),
+    );
+  });
+
+  it('defaults a target\'s Cc/Bcc to empty arrays when the campaign spec has no entry for it', () => {
+    const spec = createBlankCampaignSpecV1();
+    const generationSlot = slot('directory_member:alpha');
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: plan(generationSlot),
+      spec,
+      prepared: prepared(generationSlot),
+    });
+
+    expect(unit.request.recipient.snapshot).toEqual(
+      expect.objectContaining({ cc: [], bcc: [] }),
+    );
+  });
+
+  it('threads each shared-thread group member\'s own Cc/Bcc into its groupMembers snapshot', () => {
+    const spec = createBlankCampaignSpecV1();
+    spec.targeting.targetCcBcc = {
+      'directory_member:bravo': { cc: ['legal@firm.test'], bcc: [] },
+    };
+    const groupSlot: OutreachV3GenerationSlot = {
+      ...slot('shared'),
+      generationKey: 'v3:session:shared:abc',
+      recipientKey: 'shared:abc',
+      audienceKind: 'group',
+    };
+    const groupPlan = plan(groupSlot);
+    groupPlan.deliveryPattern = 'shared_thread';
+    groupPlan.personalization = 'light';
+    const preparedGroup: PreparedOutreachV3GenerationSlot = {
+      ...prepared(groupSlot),
+      currentTargets: [target('alpha'), target('bravo')],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: groupPlan,
+      spec,
+      prepared: preparedGroup,
+    });
+
+    const members = (unit.request.recipient.snapshot as { members: Array<{ targetKey: string; cc: string[]; bcc: string[] }> }).members;
+    expect(members.find((m) => m.targetKey === 'directory_member:alpha')).toEqual(
+      expect.objectContaining({ cc: [], bcc: [] }),
+    );
+    expect(members.find((m) => m.targetKey === 'directory_member:bravo')).toEqual(
+      expect.objectContaining({ cc: ['legal@firm.test'], bcc: [] }),
+    );
+  });
 });

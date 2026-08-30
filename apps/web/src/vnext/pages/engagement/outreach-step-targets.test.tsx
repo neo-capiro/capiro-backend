@@ -18,7 +18,7 @@ import type { OutreachV3Command, OutreachV3SessionEnvelope } from '../../../page
  *  - list vs group must drive the campaign's delivery pattern, and a group can
  *    never carry high personalization — `deliveryCommands` refuses that pair.
  */
-const { api, directory, audienceRows, created } = vi.hoisted(() => {
+const { api, directory, audienceRows, created, committees, targetSearch } = vi.hoisted(() => {
   const directory = {
     contacts: [] as unknown[],
     total: 0,
@@ -27,17 +27,49 @@ const { api, directory, audienceRows, created } = vi.hoisted(() => {
   };
   const audienceRows: { rows: unknown[] } = { rows: [] };
   const created: { row: unknown } = { row: null };
+  const committees = {
+    list: [] as Array<{ id: string; name: string }>,
+    rosters: {} as Record<string, unknown[]>,
+  };
+  const targetSearch: { candidates: unknown[] } = { candidates: [] };
   const api = {
     get: vi.fn(async (url: string) => {
       if (url.includes('/api/directory/favorites')) return { data: [] };
+      if (url.includes('/api/directory/committees') && url.includes('/staff')) {
+        const match = /\/committees\/([^/]+)\/staff/.exec(url);
+        const committeeId = match ? decodeURIComponent(match[1]!) : '';
+        return {
+          data: {
+            committee: committees.list.find((c) => c.id === committeeId) ?? null,
+            staff: committees.rosters[committeeId] ?? [],
+            total: (committees.rosters[committeeId] ?? []).length,
+            page: 1,
+            pageSize: 500,
+          },
+        };
+      }
+      if (url.includes('/api/directory/committees')) {
+        return { data: { committees: committees.list, total: committees.list.length, page: 1, pageSize: 200 } };
+      }
       if (url.includes('/api/directory/contacts')) return { data: directory };
       if (url.includes('/outreach/audiences')) return { data: audienceRows.rows };
       return { data: null };
     }),
-    post: vi.fn(async (_url: string, _body?: unknown) => ({ data: created.row })),
+    post: vi.fn(async (url: string, _body?: unknown) => {
+      if (url.includes('/targets/search')) {
+        return {
+          data: {
+            capability: 'search_targets',
+            data: { candidates: targetSearch.candidates, totalConsidered: targetSearch.candidates.length, unsupportedCriteria: [] },
+            provenance: [],
+          },
+        };
+      }
+      return { data: created.row };
+    }),
     delete: vi.fn(async () => ({ data: null })),
   };
-  return { api, directory, audienceRows, created };
+  return { api, directory, audienceRows, created, committees, targetSearch };
 });
 
 vi.mock('../../../lib/use-api.js', () => ({ useApi: () => api }));
@@ -119,6 +151,9 @@ describe('OutreachTargetsStep', () => {
     directory.total = 0;
     audienceRows.rows = [];
     created.row = null;
+    committees.list = [];
+    committees.rosters = {};
+    targetSearch.candidates = [];
     api.get.mockClear();
     api.post.mockClear();
   });
@@ -136,6 +171,9 @@ describe('OutreachTargetsStep', () => {
     );
 
     expect(screen.getByRole('tab', { name: 'Directory' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'State legislators' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Committee staff' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Add manually' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Saved audiences' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Selected · 0' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New list' })).toBeInTheDocument();
@@ -365,5 +403,225 @@ describe('OutreachTargetsStep', () => {
         ),
       ).toBeInTheDocument(),
     );
+  });
+
+  it('Add manually refuses to submit without a name or an audience type, and adds a valid manual target', async () => {
+    const { applyCommands } = renderStep();
+    fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
+
+    // No name yet: the primary action stays disabled, same idiom as every
+    // other gated primary button on this step.
+    expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeDisabled();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
+      target: { value: 'Alex Rivera' },
+    });
+    // Name alone is not enough — no audience type chosen yet.
+    expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeDisabled();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Audience type' }), {
+      target: { value: 'client_executive' },
+    });
+    expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
+    await waitFor(() => expect(applyCommands).toHaveBeenCalled());
+    const [commands] = applyCommands.mock.calls[0]! as [OutreachV3Command[]];
+    expect(commands).toHaveLength(1);
+    expect(commands[0]!.type).toBe('ADD_TARGET_REFS');
+    const payload = commands[0]!.payload as { refs: Array<Record<string, unknown>> };
+    expect(payload.refs[0]).toEqual(
+      expect.objectContaining({
+        source: 'manual',
+        name: 'Alex Rivera',
+        audienceType: 'client_executive',
+      }),
+    );
+  });
+
+  it('Add manually rejects a malformed email before submitting', () => {
+    renderStep();
+    fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
+      target: { value: 'Alex Rivera' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Audience type' }), {
+      target: { value: 'client_executive' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
+
+    expect(
+      screen.getByText('Enter a valid email address or leave the email blank.'),
+    ).toBeInTheDocument();
+  });
+
+  it('State legislators searches via the search_targets capability and adds a candidate', async () => {
+    targetSearch.candidates = [
+      {
+        recommendationRef: 'orec_abc',
+        targetKey: 'state_legislator:sl-1',
+        locator: { source: 'state_legislator', id: 'sl-1' },
+        displayName: 'Sen. Pat Alvarez',
+        title: 'State Senator',
+        organization: 'District 12',
+        email: 'pat.alvarez@state.gov',
+        clientId: null,
+        score: 1,
+        signals: [],
+        roleStatus: 'current',
+        emailStatus: 'available',
+        jurisdiction: {
+          governmentLevel: 'state',
+          chamber: 'state_senate',
+          state: 'CA',
+          district: '12',
+          committees: [],
+          issueAreas: [],
+        },
+      },
+    ];
+    const { applyCommands } = renderStep();
+    fireEvent.click(screen.getByRole('tab', { name: 'State legislators' }));
+
+    await waitFor(() => expect(screen.getByText('Sen. Pat Alvarez')).toBeInTheDocument());
+    expect(screen.getByText('State Senator · District 12')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    await waitFor(() => expect(applyCommands).toHaveBeenCalled());
+    const [commands] = applyCommands.mock.calls[0]! as [OutreachV3Command[]];
+    expect(commands).toEqual([
+      {
+        type: 'ADD_TARGET_REFS',
+        schemaVersion: 1,
+        payload: { refs: [{ source: 'state_legislator', id: 'sl-1' }] },
+      },
+    ]);
+
+    expect(api.post).toHaveBeenCalledWith(
+      expect.stringContaining('/targets/search'),
+      expect.objectContaining({ sources: ['state_legislator'] }),
+    );
+  });
+
+  it('State legislators renders an honest empty state when nothing matches', async () => {
+    renderStep();
+    fireEvent.click(screen.getByRole('tab', { name: 'State legislators' }));
+    await waitFor(() =>
+      expect(
+        screen.getByText('No matching state legislators. Try a different search.'),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('Committee staff lists the selected committee\'s roster and adds a staffer', async () => {
+    committees.list = [{ id: 'committee-118', name: 'Committee on Armed Services' }];
+    committees.rosters['committee-118'] = [
+      {
+        id: 'staff-42',
+        fullName: 'Jordan Rivera',
+        title: 'Professional Staff Member',
+        email: 'jordan.rivera@mail.house.gov',
+        phone: '202-555-0100',
+        officeLocation: '2129 RHOB',
+        isCurrent: true,
+        committee: { id: 'committee-118', name: 'Committee on Armed Services', chamber: 'House', kind: 'committee' },
+      },
+    ];
+    const { applyCommands } = renderStep();
+    fireEvent.click(screen.getByRole('tab', { name: 'Committee staff' }));
+
+    await waitFor(() => expect(screen.getByText('Jordan Rivera')).toBeInTheDocument());
+    expect(
+      screen.getByText('Professional Staff Member · Committee on Armed Services'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }));
+    await waitFor(() => expect(applyCommands).toHaveBeenCalled());
+    const [commands] = applyCommands.mock.calls[0]! as [OutreachV3Command[]];
+    expect(commands).toEqual([
+      {
+        type: 'ADD_TARGET_REFS',
+        schemaVersion: 1,
+        payload: { refs: [{ source: 'committee_staff', id: 'staff-42' }] },
+      },
+    ]);
+  });
+
+  it('Committee staff marks a former staffer distinctly from a current one', async () => {
+    committees.list = [{ id: 'committee-118', name: 'Committee on Armed Services' }];
+    committees.rosters['committee-118'] = [
+      {
+        id: 'staff-99',
+        fullName: 'Former Staffer',
+        title: 'Counsel',
+        email: 'former@mail.house.gov',
+        phone: '',
+        officeLocation: '',
+        isCurrent: false,
+        committee: { id: 'committee-118', name: 'Committee on Armed Services', chamber: 'House', kind: 'committee' },
+      },
+    ];
+    renderStep();
+    fireEvent.click(screen.getByRole('tab', { name: 'Committee staff' }));
+
+    await waitFor(() => expect(screen.getByText('Former Staffer')).toBeInTheDocument());
+    expect(screen.getByText('Former staff')).toBeInTheDocument();
+  });
+
+  it('Selected tab opens the Cc/Bcc popover, validates input, and saves via SET_TARGET_CC_BCC', async () => {
+    const { applyCommands } = renderStep({ session: session([target()]) });
+    fireEvent.click(screen.getByRole('tab', { name: 'Selected · 1' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cc/Bcc' }));
+    expect(screen.getByRole('dialog', { name: /Cc\/Bcc for Rep\. Jane Smith/ })).toBeInTheDocument();
+
+    // Malformed address blocks the save with no command issued.
+    const [ccFieldInvalid] = screen.getAllByPlaceholderText('name@example.com, name2@example.com');
+    fireEvent.change(ccFieldInvalid!, {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByText('"not-an-email" is not a valid email address.')).toBeInTheDocument();
+    expect(applyCommands).not.toHaveBeenCalled();
+
+    const [ccField, bccField] = screen.getAllByPlaceholderText('name@example.com, name2@example.com');
+    fireEvent.change(ccField!, { target: { value: 'chief@office.test, deputy@office.test' } });
+    fireEvent.change(bccField!, { target: { value: 'archive@firm.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(applyCommands).toHaveBeenCalled());
+    const [commands] = applyCommands.mock.calls[0]! as [OutreachV3Command[]];
+    expect(commands).toEqual([
+      {
+        type: 'SET_TARGET_CC_BCC',
+        schemaVersion: 1,
+        payload: {
+          targetKey: 'tk-1',
+          cc: ['chief@office.test', 'deputy@office.test'],
+          bcc: ['archive@firm.test'],
+        },
+      },
+    ]);
+  });
+
+  it('Selected tab shows an existing Cc/Bcc count on the button and pre-fills the popover', () => {
+    const withCcBcc = {
+      spec: {
+        targeting: {
+          selectedTargetRefs: [target()],
+          targetCcBcc: { 'tk-1': { cc: ['chief@office.test'], bcc: [] } },
+        },
+      },
+    } as unknown as OutreachV3SessionEnvelope;
+    renderStep({ session: withCcBcc });
+    fireEvent.click(screen.getByRole('tab', { name: 'Selected · 1' }));
+
+    expect(screen.getByRole('button', { name: 'Cc/Bcc · 1' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cc/Bcc · 1' }));
+    expect(screen.getByDisplayValue('chief@office.test')).toBeInTheDocument();
   });
 });

@@ -9,6 +9,7 @@ import {
   hashCampaignSpecV1,
   parseCampaignSpecV1,
   type OutreachCampaignSpecV1,
+  type TargetCcBccMapV1,
 } from './outreach-campaign-spec.v1.js';
 import {
   normalizeStyleSamplesV1,
@@ -279,6 +280,23 @@ export function reduceOutreachCommand(
         command,
       );
     }
+    case 'SET_TARGET_CC_BCC': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_TARGET_CC_BCC.parse(command.payload);
+      return withValidatedSpec(
+        current,
+        (spec) => ({
+          ...spec,
+          targeting: {
+            ...spec.targeting,
+            targetCcBcc: withTargetCcBcc(spec.targeting.targetCcBcc, payload.targetKey, {
+              cc: payload.cc,
+              bcc: payload.bcc,
+            }),
+          },
+        }),
+        command,
+      );
+    }
     case 'ACCEPT_CONTEXT_REFS': {
       const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.ACCEPT_CONTEXT_REFS.parse(command.payload);
       const expectedKeys = payload.selections.map(contextKeyForSelection).sort(compare);
@@ -488,6 +506,28 @@ function withStyleSamples(
   const normalized = normalizeStyleSamplesV1(samples);
   const { styleSamples: _dropped, ...rest } = spec;
   return normalized.length ? { ...rest, styleSamples: normalized } : rest;
+}
+
+/**
+ * Upsert (or clear) one target's Cc/Bcc entry within the map, deleting the
+ * whole key when the entry ends up empty in both lists — the map never
+ * stores a degenerate `{cc:[],bcc:[]}` (enforced again by the spec's own
+ * superRefine, this just avoids ever handing it one). Returns `undefined`
+ * when the map itself ends up empty, so the caller's conditional-spread
+ * idiom keeps `targetCcBcc` omitted rather than stored as `{}`.
+ */
+function withTargetCcBcc(
+  current: TargetCcBccMapV1 | undefined,
+  targetKey: string,
+  entry: { cc: string[]; bcc: string[] },
+): TargetCcBccMapV1 | undefined {
+  const next = { ...(current ?? {}) };
+  if (entry.cc.length === 0 && entry.bcc.length === 0) {
+    delete next[targetKey];
+  } else {
+    next[targetKey] = { cc: entry.cc, bcc: entry.bcc };
+  }
+  return Object.keys(next).length ? next : undefined;
 }
 
 function contextBucket(

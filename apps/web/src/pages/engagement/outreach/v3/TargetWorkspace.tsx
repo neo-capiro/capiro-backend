@@ -137,7 +137,7 @@ const NON_CAPABILITY_SOURCES = new Set<TargetSourceKey>([
  * addManual() refuses to submit while it's selected, so this can no longer
  * be added and discovered as broken only at generation time.
  */
-const MANUAL_AUDIENCE_OPTIONS: Array<{ value: string; label: string }> = [
+export const MANUAL_AUDIENCE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '', label: 'Choose one\u2026' },
   { value: 'congressional_office', label: 'Federal congressional office' },
   { value: 'federal_agency', label: 'Federal agency' },

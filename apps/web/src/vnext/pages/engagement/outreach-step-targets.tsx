@@ -29,23 +29,33 @@
  */
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Users, X } from 'lucide-react';
+import { Loader2, Mail, Plus, Users, X } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import type {
   OutreachV3ResolvedTargetRef,
+  OutreachV3TargetCandidate,
   OutreachV3TargetLocator,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
 import {
   addTargetCommand,
   deliveryCommands,
   removeTargetCommand,
+  setTargetCcBccCommand,
 } from '../../../pages/engagement/outreach/v3/commands.js';
 import {
   getOutreachV3TargetProfile,
   getOutreachV3TargetRelationships,
   safeOutreachV3Error,
+  searchOutreachV3Targets,
 } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
+import { MANUAL_AUDIENCE_OPTIONS } from '../../../pages/engagement/outreach/v3/TargetWorkspace.js';
+import type {
+  DirectoryCommittee,
+  DirectoryCommitteesResponse,
+  DirectoryCommitteeStaffer,
+  DirectoryCommitteeStaffResponse,
+} from '../../../pages/directory/directoryData.js';
 import {
   createSavedOutreachAudience,
   listSavedOutreachAudiences,
@@ -71,7 +81,13 @@ import './outreach-step-targets.css';
 import './outreach-decision-vnext.css';
 import './outreach-body-vnext.css';
 
-type OutreachTargetsTab = 'Directory' | 'Saved audiences' | 'Selected';
+type OutreachTargetsTab =
+  | 'Directory'
+  | 'State legislators'
+  | 'Committee staff'
+  | 'Add manually'
+  | 'Saved audiences'
+  | 'Selected';
 
 type OutreachAudienceKind = 'list' | 'group';
 
@@ -164,6 +180,7 @@ const TARGET_KIND_LABEL: Record<string, string> = {
   directory_member: 'Member',
   directory_staff: 'Staffer',
   state_legislator: 'State legislator',
+  committee_staff: 'Committee staff',
   client_contact: 'Client contact',
   manual: 'Manual',
 };
@@ -183,6 +200,496 @@ function targetSubline(target: OutreachV3ResolvedTargetRef): string {
     .map((part) => part?.trim() ?? '')
     .filter(Boolean)
     .join(' · ');
+}
+
+/**
+ * "Add manually" tab. Ports `TargetWorkspace.tsx`'s `addManual` flow: same
+ * required-name / optional-but-validated-email / required-audienceType
+ * gating (a manual target has no directory signal for
+ * government-affairs-policy.registry's selectPolicy() to key off, so it
+ * fails closed at generation without one — refusing here, where the person
+ * can still fix it, is cheaper than discovering it later).
+ */
+function AddManuallyPanel({
+  busy,
+  applyCommands,
+}: {
+  busy: boolean;
+  applyCommands: (commands: ReturnType<typeof addTargetCommand>[]) => Promise<unknown>;
+}): JSX.Element {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [title, setTitle] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [note, setNote] = useState('');
+  const [audienceType, setAudienceType] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const submit = async () => {
+    if (!name.trim()) {
+      setError('Enter the target name.');
+      return;
+    }
+    if (email.trim() && !EMAIL_RE.test(email.trim())) {
+      setError('Enter a valid email address or leave the email blank.');
+      return;
+    }
+    if (!audienceType) {
+      setError('Choose an audience type — Capiro will not guess government-affairs etiquette.');
+      return;
+    }
+    const locator: OutreachV3TargetLocator = {
+      source: 'manual',
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      title: title.trim() || null,
+      organization: organization.trim() || null,
+      note: note.trim() || null,
+      audienceType,
+    };
+    setError(null);
+    setPending(true);
+    try {
+      await applyCommands([addTargetCommand(locator)]);
+      setName('');
+      setEmail('');
+      setPhone('');
+      setTitle('');
+      setOrganization('');
+      setNote('');
+      setAudienceType('');
+    } catch (caught) {
+      setError(safeOutreachV3Error(caught));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div className="ocb-card ots-manual">
+      <label className="ocb-field">
+        <span className="ocb-field__label">Name</span>
+        <input className="ocb-input" value={name} onChange={(event) => setName(event.target.value)} />
+      </label>
+      <label className="ocb-field">
+        <span className="ocb-field__label">Email</span>
+        <input
+          className="ocb-input"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+      </label>
+      <label className="ocb-field">
+        <span className="ocb-field__label">Phone</span>
+        <input className="ocb-input" value={phone} onChange={(event) => setPhone(event.target.value)} />
+      </label>
+      <label className="ocb-field">
+        <span className="ocb-field__label">Title</span>
+        <input className="ocb-input" value={title} onChange={(event) => setTitle(event.target.value)} />
+      </label>
+      <label className="ocb-field">
+        <span className="ocb-field__label">Organization</span>
+        <input
+          className="ocb-input"
+          value={organization}
+          onChange={(event) => setOrganization(event.target.value)}
+        />
+      </label>
+      <label className="ocb-field">
+        <span className="ocb-field__label">Audience type</span>
+        <select
+          className="ocb-input"
+          value={audienceType}
+          onChange={(event) => setAudienceType(event.target.value)}
+        >
+          {MANUAL_AUDIENCE_OPTIONS.map((option) => (
+            <option key={option.value || 'unset'} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="ocb-note ocb-note--muted">
+        Capiro applies different government-affairs etiquette by audience and will not guess.
+        Choose an audience before adding this target — generation stays blocked for it otherwise.
+      </p>
+      <label className="ocb-field">
+        <span className="ocb-field__label">Note</span>
+        <textarea
+          className="ocb-input"
+          rows={3}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </label>
+      {error ? (
+        <p className="ocb-note ocb-note--warn" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        className="ocb-btn ocb-btn--primary ocb-btn--sm"
+        disabled={busy || pending || !name.trim() || !audienceType}
+        onClick={() => void submit()}
+      >
+        {pending ? <Loader2 size={14} className="ots-spin" aria-hidden="true" /> : null}
+        Add target to campaign
+      </button>
+    </div>
+  );
+}
+
+/**
+ * "State legislators" tab. Reuses the governed `search_targets` capability
+ * exactly like `TargetWorkspace.tsx`'s 'statelegislators' source tab does,
+ * but hits it directly via `searchOutreachV3Targets` (already wired for
+ * another vNext surface) instead of threading `searchTargets`/
+ * `targetCandidates` through this step's props — a lean, standalone query
+ * scoped to one source is simpler here than lifting that whole controller.
+ */
+function StateLegislatorsPanel({
+  sessionId,
+  selected,
+  busy,
+  applyCommands,
+}: {
+  sessionId: string;
+  selected: OutreachV3ResolvedTargetRef[];
+  busy: boolean;
+  applyCommands: (commands: ReturnType<typeof addTargetCommand>[]) => Promise<unknown>;
+}): JSX.Element {
+  const api = useApi();
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const search = useQuery({
+    queryKey: ['outreach-v3', 'target-search', sessionId, 'state_legislator', query],
+    queryFn: () =>
+      searchOutreachV3Targets(api, sessionId, {
+        query: query.trim() || undefined,
+        sources: ['state_legislator'],
+        limit: 25,
+      }),
+  });
+
+  const selectedByKey = useMemo(() => {
+    const map = new Map<string, OutreachV3ResolvedTargetRef>();
+    for (const target of selected) map.set(target.targetKey, target);
+    return map;
+  }, [selected]);
+
+  const add = async (candidate: OutreachV3TargetCandidate) => {
+    setError(null);
+    try {
+      await applyCommands([addTargetCommand(candidate.locator)]);
+    } catch (caught) {
+      setError(safeOutreachV3Error(caught));
+    }
+  };
+
+  const candidates = search.data?.data.candidates ?? [];
+
+  return (
+    <div className="ocb-stack">
+      <input
+        className="ocb-input"
+        placeholder="Search state legislators by name, chamber, or state…"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      {error ? (
+        <p className="ocb-note ocb-note--warn" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {search.isLoading ? (
+        <p className="ocb-empty">Searching state legislators…</p>
+      ) : search.isError ? (
+        <p className="ocb-empty" role="alert">
+          {safeOutreachV3Error(search.error)}
+        </p>
+      ) : candidates.length === 0 ? (
+        <p className="ocb-empty">No matching state legislators. Try a different search.</p>
+      ) : (
+        <div className="ots-search-list">
+          {candidates.map((candidate) => {
+            const isSelected = selectedByKey.has(candidate.targetKey);
+            return (
+              <div key={candidate.targetKey} className="ocb-card ots-search-row">
+                <span className="ots-sel__who">
+                  <span className="ots-sel__name">{candidate.displayName}</span>
+                  <span className="ots-sel__line">
+                    {[candidate.title, candidate.organization].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="ocb-btn ocb-btn--secondary ocb-btn--xs"
+                  disabled={isSelected || busy}
+                  onClick={() => void add(candidate)}
+                >
+                  {isSelected ? 'Added' : '+ Add'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Committee staff" tab. Committee staff has no `search_targets` source (see
+ * capiro-outreach-v3-build skill notes — it would need a full capability
+ * candidate-generation implementation for a source with no independent text
+ * search of its own). The two-step committee→roster pattern is exactly what
+ * the standalone Directory > Committee Staff page already does
+ * (`useCommitteeStaffModel.ts`); this reuses the same two endpoints directly
+ * rather than pulling in that hook's URL-as-state / hierarchy machinery,
+ * which belongs to that page, not this campaign-builder step.
+ */
+function CommitteeStaffPanel({
+  selected,
+  busy,
+  applyCommands,
+}: {
+  selected: OutreachV3ResolvedTargetRef[];
+  busy: boolean;
+  applyCommands: (commands: ReturnType<typeof addTargetCommand>[]) => Promise<unknown>;
+}): JSX.Element {
+  const api = useApi();
+  const [committeeId, setCommitteeId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  const committees = useQuery({
+    queryKey: ['outreach-v3', 'committees'],
+    queryFn: async () =>
+      (await api.get<DirectoryCommitteesResponse>('/api/directory/committees', {
+        params: { page: 1, pageSize: 200 },
+      })).data,
+    staleTime: 10 * 60_000,
+  });
+
+  const effectiveCommitteeId = committeeId || committees.data?.committees[0]?.id || '';
+
+  const staff = useQuery({
+    queryKey: ['outreach-v3', 'committee-staff', effectiveCommitteeId],
+    queryFn: async () =>
+      (
+        await api.get<DirectoryCommitteeStaffResponse>(
+          `/api/directory/committees/${encodeURIComponent(effectiveCommitteeId)}/staff`,
+          { params: { pageSize: 500 } },
+        )
+      ).data,
+    enabled: Boolean(effectiveCommitteeId),
+    staleTime: 5 * 60_000,
+  });
+
+  const selectedByKey = useMemo(() => {
+    const map = new Map<string, OutreachV3ResolvedTargetRef>();
+    for (const target of selected) map.set(target.targetKey, target);
+    return map;
+  }, [selected]);
+
+  const add = async (staffer: DirectoryCommitteeStaffer) => {
+    setError(null);
+    const locator: OutreachV3TargetLocator = { source: 'committee_staff', id: staffer.id };
+    try {
+      await applyCommands([addTargetCommand(locator)]);
+    } catch (caught) {
+      setError(safeOutreachV3Error(caught));
+    }
+  };
+
+  const roster = staff.data?.staff ?? [];
+
+  return (
+    <div className="ocb-stack">
+      <div className="ocb-field">
+        <span className="ocb-field__label">Committee</span>
+        <select
+          className="ocb-input"
+          value={effectiveCommitteeId}
+          onChange={(event) => setCommitteeId(event.target.value)}
+        >
+          {(committees.data?.committees ?? []).map((committee: DirectoryCommittee) => (
+            <option key={committee.id} value={committee.id}>
+              {committee.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {error ? (
+        <p className="ocb-note ocb-note--warn" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {staff.isLoading ? (
+        <p className="ocb-empty">Loading committee staff…</p>
+      ) : staff.isError ? (
+        <p className="ocb-empty" role="alert">
+          {safeOutreachV3Error(staff.error)}
+        </p>
+      ) : roster.length === 0 ? (
+        <p className="ocb-empty">No staff on file for this committee.</p>
+      ) : (
+        <div className="ots-search-list">
+          {roster.map((staffer) => {
+            // A committee_staff locator's targetKey is derived server-side
+            // from `${source}:${id}` exactly like every other source (see
+            // targetKeyForLocator in outreach-target.contract.ts) — computed
+            // the same way here rather than re-adding just to find out.
+            const targetKey = `committee_staff:${staffer.id}`;
+            const isSelected = selectedByKey.has(targetKey);
+            return (
+              <div key={staffer.id} className="ocb-card ots-search-row">
+                <span className="ots-sel__who">
+                  <span className="ots-sel__name">{staffer.fullName}</span>
+                  <span className="ots-sel__line">{[staffer.title, staffer.committee.name].filter(Boolean).join(' · ')}</span>
+                </span>
+                {staffer.isCurrent ? null : <span className="ots-warnpill">Former staff</span>}
+                <button
+                  type="button"
+                  className="ocb-btn ocb-btn--secondary ocb-btn--xs"
+                  disabled={isSelected || busy}
+                  onClick={() => void add(staffer)}
+                >
+                  {isSelected ? 'Added' : '+ Add'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Per-target Cc/Bcc popover for the Selected tab. A deliberately scoped-down
+ * port of V2's `NewOutreachWizard.tsx` `CcBccPopover` — manual, comma/line
+ * separated email entry only, no Directory/Client/Team contact search and no
+ * bulk/list/group apply modes. Those V2 features operate over a whole
+ * selection at once; V3's Cc/Bcc is stored per-target
+ * (`spec.targeting.targetCcBcc[targetKey]`), and this campaign builder's
+ * Targets step has no bulk-selection concept to apply them to. A working
+ * per-target manual popover covers the actual requirement without inventing
+ * selection machinery this step doesn't have.
+ */
+function CcBccButton({
+  target,
+  current,
+  busy,
+  applyCommands,
+}: {
+  target: OutreachV3ResolvedTargetRef;
+  current: { cc: string[]; bcc: string[] };
+  busy: boolean;
+  applyCommands: (commands: ReturnType<typeof setTargetCcBccCommand>[]) => Promise<unknown>;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [cc, setCc] = useState(current.cc.join(', '));
+  const [bcc, setBcc] = useState(current.bcc.join(', '));
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const parseList = (value: string): string[] =>
+    value
+      .split(/[,\n]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+  const submit = async () => {
+    const ccList = parseList(cc);
+    const bccList = parseList(bcc);
+    const invalid = [...ccList, ...bccList].find((address) => !EMAIL_RE.test(address));
+    if (invalid) {
+      setError(`"${invalid}" is not a valid email address.`);
+      return;
+    }
+    setError(null);
+    setPending(true);
+    try {
+      await applyCommands([
+        setTargetCcBccCommand(target.targetKey, { cc: ccList, bcc: bccList }),
+      ]);
+      setOpen(false);
+    } catch (caught) {
+      setError(safeOutreachV3Error(caught));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const count = current.cc.length + current.bcc.length;
+
+  return (
+    <span className="ots-ccbcc">
+      <button
+        type="button"
+        className="ocb-btn ocb-btn--secondary ocb-btn--xs"
+        disabled={busy}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Mail size={13} aria-hidden="true" />
+        {count > 0 ? `Cc/Bcc · ${count}` : 'Cc/Bcc'}
+      </button>
+      {open ? (
+        <div className="ocb-card ots-ccbcc__pop" role="dialog" aria-label={`Cc/Bcc for ${target.displayName}`}>
+          <div className="ocb-field">
+            <span className="ocb-field__label">Cc</span>
+            <textarea
+              className="ocb-input"
+              rows={2}
+              placeholder="name@example.com, name2@example.com"
+              value={cc}
+              onChange={(event) => setCc(event.target.value)}
+            />
+          </div>
+          <div className="ocb-field">
+            <span className="ocb-field__label">Bcc</span>
+            <textarea
+              className="ocb-input"
+              rows={2}
+              placeholder="name@example.com, name2@example.com"
+              value={bcc}
+              onChange={(event) => setBcc(event.target.value)}
+            />
+          </div>
+          {error ? (
+            <p className="ocb-note ocb-note--warn" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="ocb-row">
+            <button
+              type="button"
+              className="ocb-btn ocb-btn--primary ocb-btn--sm"
+              disabled={pending || busy}
+              onClick={() => void submit()}
+            >
+              {pending ? <Loader2 size={14} className="ots-spin" aria-hidden="true" /> : null}
+              Save
+            </button>
+            <button
+              type="button"
+              className="ocb-btn ocb-btn--secondary ocb-btn--sm"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </span>
+  );
 }
 
 export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Element {
@@ -333,6 +840,9 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
 
   const tabs: Array<{ id: OutreachTargetsTab; label: string }> = [
     { id: 'Directory', label: 'Directory' },
+    { id: 'State legislators', label: 'State legislators' },
+    { id: 'Committee staff', label: 'Committee staff' },
+    { id: 'Add manually', label: 'Add manually' },
     { id: 'Saved audiences', label: 'Saved audiences' },
     { id: 'Selected', label: `Selected · ${nSel}` },
   ];
@@ -556,6 +1066,23 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
           />
         ) : null}
 
+        {tab === 'State legislators' ? (
+          <StateLegislatorsPanel
+            sessionId={sessionId}
+            selected={selected}
+            busy={busy}
+            applyCommands={applyCommands}
+          />
+        ) : null}
+
+        {tab === 'Committee staff' ? (
+          <CommitteeStaffPanel selected={selected} busy={busy} applyCommands={applyCommands} />
+        ) : null}
+
+        {tab === 'Add manually' ? (
+          <AddManuallyPanel busy={busy} applyCommands={applyCommands} />
+        ) : null}
+
         {tab === 'Saved audiences' ? (
           audiences.isLoading ? (
             <p className="ocb-empty">Loading your saved lists and groups…</p>
@@ -633,6 +1160,14 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
                     <span className="ots-warnpill">No email on file</span>
                   )}
                   <span className="ots-sel__kind">{targetKindLabel(target)}</span>
+                  <CcBccButton
+                    target={target}
+                    current={
+                      session?.spec.targeting.targetCcBcc?.[target.targetKey] ?? { cc: [], bcc: [] }
+                    }
+                    busy={busy}
+                    applyCommands={applyCommands}
+                  />
                   <button
                     type="button"
                     className="ocb-btn ocb-btn--secondary ocb-btn--xs"

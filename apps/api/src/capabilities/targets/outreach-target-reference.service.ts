@@ -98,6 +98,8 @@ export class OutreachTargetReferenceService {
         return this.resolveDirectoryStaff(locator);
       case 'state_legislator':
         return this.resolveStateLegislator(tx, locator);
+      case 'committee_staff':
+        return this.resolveCommitteeStaff(locator);
       case 'client_person':
         return this.resolveClientPerson(tx, ctx, locator);
       case 'engagement_contact':
@@ -286,6 +288,41 @@ export class OutreachTargetReferenceService {
         system: 'openstates',
         version: row.syncedAt.toISOString(),
         lastVerifiedAt: row.syncedAt.toISOString(),
+      },
+    });
+  }
+
+  private async resolveCommitteeStaff(
+    locator: Extract<OutreachTargetLocatorV1, { source: 'committee_staff' }>,
+  ): Promise<OutreachResolvedTargetRefV1> {
+    const found = await this.directory.getCommitteeStafferById(locator.id);
+    if (!found) throw targetNotFound();
+    const { staffer, sourceId } = found;
+    const email = normalizeEmail(staffer.email);
+    return createResolvedTargetRefV1({
+      locator,
+      displayName: staffer.fullName,
+      email,
+      phone: staffer.phone || null,
+      title: staffer.title || null,
+      organization: staffer.committee.name,
+      clientId: null,
+      jurisdiction: {
+        // Committee staff are Congressional staff — always federal.
+        governmentLevel: 'federal',
+        chamber: staffer.committee.chamber ?? null,
+        state: null,
+        district: null,
+        committees: staffer.committee.name ? [staffer.committee.name] : [],
+        issueAreas: [],
+      },
+      roleStatus: staffer.isCurrent ? 'current' : 'historical',
+      emailStatus: emailStatusFor(email),
+      profileStatus: 'complete',
+      sourceSnapshot: {
+        system: 'capiro_directory',
+        version: sourceId,
+        lastVerifiedAt: null,
       },
     });
   }

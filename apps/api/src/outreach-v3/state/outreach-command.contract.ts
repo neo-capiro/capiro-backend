@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   canonicalJsonStringify,
   OUTREACH_V3_LIMITS,
+  targetCcBccEntryV1Schema,
   targetCriteriaV1Schema,
 } from './outreach-campaign-spec.v1.js';
 import {
@@ -31,6 +32,7 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
   'ADD_TARGET_REFS',
   'REMOVE_TARGET_REFS',
   'REJECT_TARGET_RECOMMENDATION',
+  'SET_TARGET_CC_BCC',
   'ACCEPT_CONTEXT_REFS',
   'EXCLUDE_CONTEXT_REFS',
   'SET_DELIVERY_PATTERN',
@@ -195,6 +197,19 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
     })
     .strict(),
   REJECT_TARGET_RECOMMENDATION: outreachRejectedTargetRecommendationV1Schema,
+  /**
+   * Upsert (or clear) one target's Cc/Bcc list. `cc`/`bcc` empty together is
+   * legal INPUT — it means "clear this target's Cc/Bcc" — even though the
+   * stored campaign-spec form never persists a degenerate empty entry (the
+   * reducer deletes the map key in that case instead of storing it).
+   */
+  SET_TARGET_CC_BCC: z
+    .object({
+      targetKey: boundedRef,
+      cc: targetCcBccEntryV1Schema.shape.cc,
+      bcc: targetCcBccEntryV1Schema.shape.bcc,
+    })
+    .strict(),
   ACCEPT_CONTEXT_REFS: z
     .object({
       selections: z

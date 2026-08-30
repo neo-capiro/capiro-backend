@@ -377,22 +377,21 @@ describe('VNextOutreachHome', () => {
       expect(postCalls).toHaveLength(0);
     });
 
-    it('creates a real session from Firm Template and carries the provenance label', async () => {
+    it('Firm Template is disabled with a Coming soon tag — not yet built, so it must not silently no-op', async () => {
       getResponse.rows = [row()];
       const { onOpenCampaign } = renderHome();
       await waitFor(() => expect(screen.getByText('Ground robotics')).toBeInTheDocument());
 
       fireEvent.click(screen.getAllByRole('button', { name: /New campaign/ })[0]!);
-      fireEvent.click(await screen.findByRole('button', { name: /Firm Template/ }));
-      await waitFor(() =>
-        expect(onOpenCampaign).toHaveBeenCalledWith('created-session', 'Firm Template'),
-      );
-      expect(postCalls).toEqual([
-        { url: '/api/engagement/outreach-v3/sessions', body: { title: 'New outreach campaign' } },
-      ]);
+      const tile = await screen.findByRole('button', { name: /Firm Template/ });
+      expect(tile).toBeDisabled();
+      expect(screen.getByText('Coming soon')).toBeInTheDocument();
+      fireEvent.click(tile);
+      expect(onOpenCampaign).not.toHaveBeenCalled();
+      expect(postCalls).toHaveLength(0);
     });
 
-    it('creates a real session from Capiro Template too — the tile is never a dead control', async () => {
+    it('creates a real session from Capiro Template — the only live tile', async () => {
       getResponse.rows = [row()];
       const { onOpenCampaign } = renderHome();
       await waitFor(() => expect(screen.getByText('Ground robotics')).toBeInTheDocument());
@@ -415,9 +414,9 @@ describe('VNextOutreachHome', () => {
       );
 
       fireEvent.click(screen.getAllByRole('button', { name: /New campaign/ })[1]!);
-      fireEvent.click(await screen.findByRole('button', { name: /Firm Template/ }));
+      fireEvent.click(await screen.findByRole('button', { name: /Capiro Template/ }));
       await waitFor(() =>
-        expect(onOpenCampaign).toHaveBeenCalledWith('created-session', 'Firm Template'),
+        expect(onOpenCampaign).toHaveBeenCalledWith('created-session', 'Capiro Template'),
       );
     });
 
