@@ -127,8 +127,11 @@ describe('demand-free stream disposition (Postgres)', () => {
     expect(captures[0]?.count).toBe(0);
     expect(queuedJobs[0]?.count).toBe(0);
 
-    // D. Candidate integrity: the disposition path never CREATES a candidate
-    // row for a hearing that had none to begin with.
+    // D. Candidate integrity for a NO_PUBLIC_STREAM disposition: the path
+    // never CREATES a candidate row when no stream was discovered. (A
+    // READY_FOR_SERVER_CAPTURE result with a real first-party target DOES
+    // insert one durable candidate — see adapter persistAudit — so that
+    // STREAM_PATH_EXPLICIT can close; that is covered separately.)
     const candidates = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
       `SELECT COUNT(*)::int AS count FROM hearing_stream_candidate WHERE hearing_id='disposition-test-hearing'`,
     );

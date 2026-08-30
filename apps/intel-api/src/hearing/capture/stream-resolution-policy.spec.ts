@@ -87,6 +87,32 @@ describe('stream resolution policy', () => {
     expect(result.terminal).toBe(true);
   });
 
+  it('expires grace from a calendar-date-only scheduledStart (starts_at null historical rows)', () => {
+    // congress.gov historical rows often have starts_at=null and only a date
+    // (UTC midnight). The adapter COALESCE's date into scheduledStart so this
+    // path can terminalize instead of looping WAITING_FOR_STREAM forever.
+    const result = classifyStreamResolution(
+      { status: 'unresolvable', note: 'No stream found on the committee page' },
+      {
+        now: new Date('2026-08-30T12:00:00Z'),
+        scheduledStart: new Date('2026-07-14T00:00:00.000Z'),
+        delayedStartGraceMs: 90 * 60 * 1000,
+      },
+    );
+    expect(result.state).toBe('NO_PUBLIC_STREAM');
+    expect(result.reasonCode).toBe('NO_MEDIA_DISCOVERED');
+    expect(result.terminal).toBe(true);
+  });
+
+  it('stays WAITING when scheduledStart is missing entirely (cannot invent a cutoff)', () => {
+    const result = classifyStreamResolution(
+      { status: 'unresolvable', note: 'No stream found on the committee page' },
+      { now: new Date('2026-08-30T12:00:00Z') },
+    );
+    expect(result.state).toBe('WAITING_FOR_STREAM');
+    expect(result.terminal).toBe(false);
+  });
+
   it('blocks closed and classified proceedings before considering media', () => {
     const closed = classifyStreamResolution(
       { status: 'pending' },

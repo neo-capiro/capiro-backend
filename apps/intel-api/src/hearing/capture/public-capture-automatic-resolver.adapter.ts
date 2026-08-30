@@ -17,6 +17,7 @@ interface HearingContextRow {
   id: string;
   eventStatus: string;
   publicAccess: string;
+  /** Timed start when present; otherwise the calendar date (UTC midnight). */
   scheduledStart: Date | null;
   officialPageUrl: string | null;
 }
@@ -120,11 +121,16 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
   }
 
   private async loadHearing(hearingId: string): Promise<HearingContextRow | null> {
+    // COALESCE starts_at → date so delayed-start grace can expire for the large
+    // class of historical congress.gov rows that only carry a calendar date
+    // (starts_at IS NULL). Without this, classifyStreamResolution() leaves
+    // NO_MEDIA_DISCOVERED as non-terminal WAITING_FOR_STREAM forever, and the
+    // disposition-backfill re-selects the same rows on every batch.
     const rows = await this.prisma.$queryRawUnsafe<HearingContextRow[]>(
       `SELECT id,
               event_status AS "eventStatus",
               CASE WHEN visibility='private' THEN 'CLOSED' ELSE 'PUBLIC' END AS "publicAccess",
-              starts_at AS "scheduledStart",
+              COALESCE(starts_at, date::timestamptz) AS "scheduledStart",
               url AS "officialPageUrl"
        FROM committee_hearing
        WHERE id=$1
@@ -167,7 +173,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
   ): Promise<void> {
     for (const attempt of result.attempts) {
       const candidateState = candidateResolutionState(attempt.outcome.state);
-      await this.prisma.$executeRawUnsafe(
+      const updated = await this.prisma.$executeRawUnsafe(
         `UPDATE hearing_stream_candidate
          SET resolution_state=$3,
              capture_policy=$4,
@@ -188,6 +194,44 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
               1_000,
             ),
       );
+      // UPDATE alone is a no-op when no prior candidate row exists (the common
+      // case for demand-free disposition / historical backfill). READINESS
+      // STREAM_PATH_EXPLICIT treats coverage_status='stream_ready' as
+      // NON-terminal, so a READY_FOR_SERVER_CAPTURE result with zero candidate
+      // rows still increments unresolvedEvents and is re-selected forever by
+      // disposition-backfill. Persist the real selected first-party target as
+      // a candidate only when the resolver actually found one — never invent
+      // a synthetic candidate from thin air.
+      if (
+        Number(updated) === 0 &&
+        attempt.outcome.state === 'READY_FOR_SERVER_CAPTURE' &&
+        !attempt.skipped
+      ) {
+        await this.insertReadyCandidate(hearingId, attempt, result, now);
+      }
+    }
+
+    // Also ensure the selected READY outcome leaves a durable candidate even
+    // when attempts[] was empty or only contained skipped browser-only rows
+    // (selected can still be READY via a direct first-party probe).
+    if (result.selected.state === 'READY_FOR_SERVER_CAPTURE') {
+      const existing = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT COUNT(*)::int AS count FROM hearing_stream_candidate WHERE hearing_id=$1`,
+        hearingId,
+      );
+      if ((existing[0]?.count ?? 0) === 0 && result.selectedTarget) {
+        await this.insertReadyCandidate(
+          hearingId,
+          {
+            target: result.selectedTarget,
+            rawResult: result.rawResult,
+            outcome: result.selected,
+            skipped: false,
+          },
+          result,
+          now,
+        );
+      }
     }
 
     await this.prisma.$executeRawUnsafe(
@@ -199,6 +243,59 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
       hearingId,
       hearingCoverageStatus(result.selected.state),
       hearingStreamAvailability(result.selected.state),
+      now,
+    );
+  }
+
+  /**
+   * Insert one real hearing_stream_candidate for a READY first-party result.
+   * official_page_url is required by schema; media_url is optional and only
+   * written when the resolver returned durable (non-IP-bound) media.
+   */
+  private async insertReadyCandidate(
+    hearingId: string,
+    attempt: AutomaticStreamResolutionResult['attempts'][number],
+    result: AutomaticStreamResolutionResult,
+    now: Date,
+  ): Promise<void> {
+    const officialPageUrl =
+      attempt.target.kind === 'OFFICIAL_PAGE'
+        ? attempt.target.url
+        : safeReference(result.rawResult.reference) ??
+          safeReference(attempt.target.url) ??
+          null;
+    if (!officialPageUrl) return;
+
+    const media = attempt.outcome.media ?? result.selected.media;
+    const mediaUrl =
+      media && attempt.outcome.mayPersistResolvedMediaUrl
+        ? safeReference(media.url) ?? null
+        : attempt.target.kind === 'MEDIA_REFERENCE'
+          ? safeReference(attempt.target.url) ?? null
+          : null;
+    const provider =
+      (media?.provider || attempt.target.providerHint || 'unknown').trim() || 'unknown';
+    const mediaType = media?.kind ?? null;
+
+    await this.prisma.$executeRawUnsafe(
+      `INSERT INTO hearing_stream_candidate (
+         hearing_id, provider, official_page_url, media_url, media_type,
+         priority, resolution_state, capture_policy,
+         first_seen_at, last_probe_at, created_at, updated_at
+       )
+       SELECT $1, $2, $3, $4, $5,
+              100, 'READY', 'SERVER_CAPTURE_ALLOWED',
+              $6, $6, $6, $6
+       WHERE NOT EXISTS (
+         SELECT 1 FROM hearing_stream_candidate
+         WHERE hearing_id=$1
+           AND (official_page_url=$3 OR ($4::text IS NOT NULL AND media_url=$4))
+       )`,
+      hearingId,
+      bounded(provider, 120),
+      officialPageUrl,
+      mediaUrl,
+      mediaType,
       now,
     );
   }
