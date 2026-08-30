@@ -279,6 +279,12 @@ export class EngagementApiServiceStack extends cdk.Stack {
  * `activePromotion` (the default) renders BYTE-IDENTICAL output to before
  * this function grew the branch; `engagement-api-service-stack.spec.ts`'s
  * existing shadow-posture assertions pin that.
+ *
+ * `ASSETS_BUCKET` is likewise only rendered when promoted (see the
+ * `assetsBucket` block below) — it must stay in lockstep with the S3 write
+ * grant `buildEngagementApiIam()` gives this task role under the same
+ * `cfg.activePromotion` gate, or the app has permission to write but no
+ * bucket name to write to (or vice versa, a bucket name with no permission).
  */
 export function engagementApiTaskEnvironment(
   cfg: EngagementApiInfraConfig,
@@ -318,6 +324,23 @@ export function engagementApiTaskEnvironment(
       }
     : {};
 
+  // ASSETS_BUCKET gates every attachment/document S3 path in
+  // engagement.service.ts (createAttachmentUploadUrl, confirmAttachment,
+  // readAttachmentBytes, createAttachmentFromBuffer, ...) via
+  // `if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET
+  // is not configured')`. buildEngagementApiIam() already grants this task's
+  // role s3:PutObject/DeleteObject on `cfg.bucketNames.assets` exactly when
+  // `activePromotion` is present (see engagement-api-iam.ts's
+  // EngagementApiActivePromotionWriteObjects statement) — but until now
+  // nothing set the env var the app actually reads to find that bucket, so
+  // the IAM grant existed with no way for the app to use it and every
+  // promoted attachment upload 503'd. Shadow keeps this unset: the app
+  // treats an absent bucket as "uploads unsupported" rather than crashing,
+  // and the shadow task's read-only grant is for the Directory/attachment
+  // READ path, not uploads.
+  const assetsBucket: Record<string, string> =
+    promo && cfg.bucketNames.assets ? { ASSETS_BUCKET: cfg.bucketNames.assets } : {};
+
   return {
     NODE_ENV: 'production',
     CAPIRO_SERVICE_NAME: 'engagement-api',
@@ -341,6 +364,7 @@ export function engagementApiTaskEnvironment(
 
     ...posture,
     ...callbackUrls,
+    ...assetsBucket,
 
     // Bounded Outreach V3 authority. Global Engagement external actions and
     // background ownership remain disabled; runtime policy recognizes only the

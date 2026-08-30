@@ -135,6 +135,25 @@ test('absent activePromotion renders the exact same env as before this feature e
   assert.equal(env.MICROSOFT_REDIRECT_URI, undefined);
   assert.equal(env.MICROSOFT_GRAPH_NOTIFICATION_URL, undefined);
   assert.equal(env.GOOGLE_REDIRECT_URI, undefined);
+  assert.equal(env.ASSETS_BUCKET, undefined);
+});
+
+// Regression: PR #1297 granted this task's role s3:PutObject/DeleteObject on
+// cfg.bucketNames.assets once promoted (engagement-api-iam.ts's
+// EngagementApiActivePromotionWriteObjects statement), but
+// engagementApiTaskEnvironment() never set ASSETS_BUCKET — the env var
+// engagement.service.ts actually reads to find that bucket
+// (`this.bucket = config.get('ASSETS_BUCKET', ...)`). The IAM grant existed
+// with no way for the app to use it, so every attachment
+// upload/confirm/extract/delete call on the promoted task 503'd with
+// "ASSETS_BUCKET is not configured" — live-confirmed on capiro-dev
+// 2026-08-30 (QA-01). This test would have caught it before merge.
+test('activePromotion sets ASSETS_BUCKET to cfg.bucketNames.assets, matching the S3 write grant', () => {
+  const cfg = base();
+  cfg.activePromotion = validPromotion();
+  const env = engagementApiTaskEnvironment(cfg);
+  assert.equal(env.ASSETS_BUCKET, cfg.bucketNames.assets);
+  assert.ok(env.ASSETS_BUCKET, 'ASSETS_BUCKET must be a non-empty bucket name once promoted');
 });
 
 test('activePromotion flips all five posture fields AND sets the promotion token', () => {
@@ -336,6 +355,31 @@ test('promoted synth env carries the active posture end to end (full stack, not 
   assert.equal(env.ENGAGEMENT_CALLBACKS_ENABLED, 'true');
   assert.equal(env.ENGAGEMENT_RECALL_WEBHOOK_ENABLED, 'true');
   assert.equal(env.ENGAGEMENT_API_PROMOTION_TOKEN, ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT);
+});
+
+// Regression (full stack): proves the S3 write IAM grant and the ASSETS_BUCKET
+// env var the app needs to exercise that grant are never split — a promoted
+// synth with a write allow but no bucket name (or vice versa) is exactly the
+// live QA-01 bug (attachments/upload-url 503 "ASSETS_BUCKET is not
+// configured" despite both ECS services reporting healthy).
+test('promoted synth: ASSETS_BUCKET env var and the S3 write IAM grant are never split', () => {
+  const cfg = base();
+  cfg.activePromotion = validPromotion();
+  const template = synth(cfg);
+
+  const env = containerEnv(template);
+  assert.equal(env.ASSETS_BUCKET, cfg.bucketNames.assets);
+
+  const allowedWriteResources = allStatements(template)
+    .filter((s) => s.Effect === 'Allow' && actionsOf(s).includes('s3:PutObject'))
+    .flatMap((s) => (Array.isArray(s.Resource) ? s.Resource : [s.Resource]));
+  const grantsWriteOnAssetsBucket = allowedWriteResources.some((r) =>
+    JSON.stringify(r).includes(String(cfg.bucketNames.assets)),
+  );
+  assert.ok(
+    grantsWriteOnAssetsBucket,
+    'the promoted task role must hold s3:PutObject on the exact bucket ASSETS_BUCKET points at',
+  );
 });
 
 test('shadow synth grants NO s3:PutObject/DeleteObject allow, and denies both (unchanged baseline)', () => {
