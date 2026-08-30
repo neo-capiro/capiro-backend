@@ -86,6 +86,13 @@ const APPROVED_VERIFICATION_OPERATOR_SCRIPTS = new Set([
   // exempted from the rule, so the "approved operators import no canonical
   // writers" check below covers it too.
   'backfill-budget-candidate-source-metadata-v1.ts',
+  // Phase 10B-15/#1361. Governed REVIEW acceptance: imports
+  // `createPrismaBudgetVerificationRepository` to read/append immutable
+  // verification-review records only -- never a canonical PE/PE-year
+  // writer, never `--promote`. Missed when #1361 merged; added here so
+  // this containment gate actually covers it going forward, per the same
+  // "approved operators import no canonical writers" re-check below.
+  'accept-defense-budget-ingestion-review-v1.ts',
 ]);
 
 const CANONICAL_WRITER_PATTERNS = [
