@@ -120,14 +120,46 @@ export interface R1TextReconstructionOmissionV1 {
   rawLine: string;
 }
 
+/**
+ * Row-level context recovered by this module but with no slot in the
+ * existing `ParsedTableV1`/`R1DetectedRow`/`R1PeIdentity` money-cell
+ * contract. Threaded as a parallel, R-1-only side channel (never as a fake
+ * table column) so extraction/verification/audit code can tell WHY two
+ * occurrences of the same PE code might legitimately differ, without
+ * touching the shared, exhibit-agnostic `ParsedTableV1` schema used by
+ * R-2/R2A/R3/R4/non-RDTE exhibits.
+ *
+ * `sectionHeading` is the actual page-heading text (e.g. "Defense Threat
+ * Reduction Agency"), distinct from and finer-grained than the coarse,
+ * canonical `BudgetComponentV1` enum: proven against the real 114-page
+ * document that many genuinely different organizational sections (DTRA,
+ * Secretary of Defense, Chemical and Biological Defense Program, ...) all
+ * resolve to the same `DW` component value, so `component` alone cannot
+ * distinguish "the Defense-Wide roll-up volume" from "an individual
+ * agency's own chapter" -- exactly the relationship behind the majority of
+ * this document's cross-page PE duplicates.
+ */
+export interface R1RowContextV1 {
+  lineNumber: string;
+  budgetActivity: string;
+  budgetActivityCategory: string;
+  sectionHeading: string;
+  component: BudgetComponentV1;
+  componentEvidence: string;
+  appropriation?: string;
+}
+
 export interface R1ReconstructedPageV1 {
   page: number;
   printedPage?: string;
   table: ParsedTableV1;
   component: BudgetComponentV1;
   componentEvidence: string;
+  sectionHeading: string;
   dataRowCount: number;
   confidentFundingRowCount: number;
+  /** Row context keyed by the same `rowIndex` used in `table.cells`. */
+  rowContextByRowIndex: Map<number, R1RowContextV1>;
 }
 
 export interface R1TextReconstructionResultV1 {
@@ -333,6 +365,7 @@ function reconstructR1PageTable(
     page.blocks.find((b) => b.text.trim() === blockText.trim())?.boundingBox;
 
   const cells: ParsedTableCellV1[] = [];
+  const rowContextByRowIndex = new Map<number, R1RowContextV1>();
   let rowIndex = 1; // row 0 reserved for the synthesized header
   let dataRowCount = 0;
   let confidentFundingRowCount = 0;
@@ -365,7 +398,18 @@ function reconstructR1PageTable(
     // for validation/provenance (see reconstructR1RowFromLine) but have no
     // slot in the existing extractor's cells[0]=PE/cells[1]=title contract
     // -- emitting them as cells would just become spurious
-    // unresolved_column_role/invalid_number omissions downstream.
+    // unresolved_column_role/invalid_number omissions downstream. They are
+    // instead preserved via `rowContextByRowIndex`, a parallel side channel
+    // (see `R1RowContextV1`).
+    rowContextByRowIndex.set(rowIndex, {
+      lineNumber: row.lineNumber,
+      budgetActivity: row.budgetActivity,
+      budgetActivityCategory: row.category,
+      sectionHeading: headingLine ?? '',
+      component,
+      componentEvidence: evidence,
+      ...(appropriationLine != null ? { appropriation: appropriationLine } : {}),
+    });
     pushCell(R1_RECONSTRUCTED_COLUMNS.peCode, row.peCode);
     pushCell(R1_RECONSTRUCTED_COLUMNS.title, row.title);
 
@@ -415,8 +459,10 @@ function reconstructR1PageTable(
     table,
     component,
     componentEvidence: evidence,
+    sectionHeading: headingLine ?? '',
     dataRowCount,
     confidentFundingRowCount,
+    rowContextByRowIndex,
   };
 }
 
@@ -443,9 +489,17 @@ export function applyR1TextReconstructionV1(
 ): {
   pages: ParserPageResultV1[];
   omissions: Array<{ peCode?: string; page: number; reason: string; rawText: string }>;
+  /**
+   * Row context keyed by physical page, then by the same `rowIndex` used in
+   * that page's `table.cells` -- an R-1-only side channel (see
+   * `R1RowContextV1`) carrying budget-activity/section-heading/component
+   * context that has no slot in the shared `ParsedTableV1` cell grid.
+   */
+  rowContextByPage: Map<number, Map<number, R1RowContextV1>>;
 } {
   const { pages: reconstructed, omissions } = reconstructR1TablesFromTextV1(pages, cycleFiscalYear);
   const byPage = new Map(reconstructed.map((r) => [r.page, r.table]));
+  const rowContextByPage = new Map(reconstructed.map((r) => [r.page, r.rowContextByRowIndex]));
   const outPages = pages.map((page) => {
     const table = byPage.get(page.page);
     return table ? { ...page, tables: [table] } : page;
@@ -453,6 +507,7 @@ export function applyR1TextReconstructionV1(
   return {
     pages: outPages,
     omissions: omissions.map((o) => ({ peCode: o.peCode, page: o.page, reason: o.reason, rawText: o.rawLine })),
+    rowContextByPage,
   };
 }
 

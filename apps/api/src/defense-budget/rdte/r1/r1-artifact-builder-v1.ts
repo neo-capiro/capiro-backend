@@ -109,6 +109,14 @@ export function buildR1Artifact(input: {
         ...(identity.printedPage != null ? { printedPage: identity.printedPage } : {}),
         tableIndex: identity.tableIndex,
         rowIndex: identity.rowIndex,
+        /* Source-row provenance only -- never the canonical PE identity
+         * (which remains keyed by peCode alone). sectionHeading/component
+         * let a human reviewing a duplicate/conflict exclusion see WHY two
+         * occurrences of this PE might legitimately differ (e.g. a
+         * Defense-Wide roll-up restating an agency chapter's own row, or a
+         * genuine cross-budget-activity split). */
+        ...(identity.sectionHeading != null ? { sectionHeading: identity.sectionHeading } : {}),
+        ...(identity.component != null ? { rowComponent: identity.component } : {}),
       },
     });
   }
@@ -185,6 +193,8 @@ export function buildR1Artifact(input: {
           tableIndex: value.tableIndex,
           rowIndex: value.rowIndex,
           columnIndex: value.columnIndex,
+          ...(value.sectionHeading != null ? { sectionHeading: value.sectionHeading } : {}),
+          ...(value.budgetActivity != null ? { rowBudgetActivity: value.budgetActivity } : {}),
         },
       });
     } else {

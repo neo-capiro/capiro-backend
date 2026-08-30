@@ -241,34 +241,56 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
     );
     expect(r1ZeroIdentityDiscrepancies).toHaveLength(0);
 
-    // --- r1_specific still FAILs, but only because of ONE real,
-    // legitimate cross-budget-activity duplicate: PE 0604201F genuinely
-    // appears twice in the archived document (page 41, BA 04, request
-    // 18,041 vs page 43, BA 05, request 163,156) with two different real
-    // request values. This is exactly the "duplicate conflicting PE/FY
-    // request values" negative control the brief requires the existing
-    // verifier to keep catching -- assert it IS caught, and that nothing
-    // else is misclassified as a conflict. ---
+    // --- Phase 10B-12: r1_specific no longer treats PE 0604201F as "a
+    // conflict" -- it is a real, legitimate cross-budget-activity split
+    // (page 41 BA04 request 18,041; page 43 BA05 request 163,156; proven
+    // from document structure, not inferred from the numbers -- a real
+    // BA04 subtotal line ["Advanced Component Development & Prototypes"]
+    // appears between the two rows, and each is independently rolled into
+    // its own budget-activity subtotal). "Different legitimate BA/
+    // component row identity is not automatically a conflict" (brief, Step
+    // 6): the extractor's OWN conflict mechanism is now row-identity-aware
+    // and no longer fires for this case. Reconciling it into one canonical
+    // ProgramElementYear.request is deliberately left to the projection
+    // layer (see the projection dry-run below), never resolved here. ---
     const r1SpecificConflicts = verification.discrepancies.filter(
       (d) => d.code === 'r1_duplicate_conflicting_value',
     );
-    expect(r1SpecificConflicts.length).toBeGreaterThan(0);
-    expect(r1SpecificConflicts.every((d) => d.description.includes('0604201F'))).toBe(true);
+    expect(r1SpecificConflicts).toHaveLength(0);
+    expect(byCode.get('r1_specific')?.outcome).not.toBe('FAIL');
 
-    // --- duplicate_detection still FAILs on `duplicate_funding_natural_key`
-    // (peCode + fiscalYear + field collisions across assertions, by the
-    // verifier's own "never chooses last wins" policy -- unrelated to
-    // r1_specific's conflicting-VALUE check above). Confirm every one of
-    // these is a genuine CROSS-PAGE duplicate (a real property of this
-    // consolidated, multi-service document -- e.g. the same MDA-titled PE
-    // legitimately cross-listed on two different physical pages with
-    // identical values), never two assertions the reconstructor itself
-    // double-emitted from the SAME page. ---
+    // --- warning_policy: the same fix removes the only blocking extraction
+    // warning that existed (r1_duplicate_conflicting_value for 0604201F),
+    // so warning_policy no longer fails either. ---
+    const blockingWarningDiscrepancies = verification.discrepancies.filter(
+      (d) => d.code === 'blocking_extraction_warning',
+    );
+    expect(blockingWarningDiscrepancies).toHaveLength(0);
+    expect(byCode.get('warning_policy')?.outcome).not.toBe('FAIL');
+
+    // --- duplicate_detection STILL fails -- correctly. This is the exact
+    // acceptance bar (brief, Step 9): "false duplicate conflicts caused by
+    // lost identity disappear while genuine contradictory source rows
+    // still fail." Before this fix, 182 cross-page PE pairs collided here
+    // (mostly the Defense-Wide roll-up volume restating an agency's own
+    // chapter row, identical values -- a false alarm). The extractor now
+    // deduplicates same-value reprints into a single funding assertion
+    // before they ever reach this generic, unmodified verifier rule, so
+    // ONLY the one genuine value contradiction (0604201F, two different
+    // real request values under the same canonical PE identity) remains. ---
     const naturalKeyDiscrepancies = verification.discrepancies.filter(
       (d) => d.code === 'duplicate_funding_natural_key',
     );
-    expect(naturalKeyDiscrepancies.length).toBeGreaterThan(0);
     const assertionById = new Map(artifact.assertions.map((a) => [a.assertionId, a]));
+    const naturalKeyPeCodes = new Set(
+      naturalKeyDiscrepancies.flatMap((d) =>
+        d.assertionIds
+          .map((id) => assertionById.get(id))
+          .map((a) => (a as { identity?: { peCode?: string } } | undefined)?.identity?.peCode)
+          .filter((v): v is string => v != null),
+      ),
+    );
+    expect(naturalKeyPeCodes).toEqual(new Set(['0604201F']));
     for (const d of naturalKeyDiscrepancies) {
       const pages = new Set(
         d.assertionIds
@@ -277,15 +299,6 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
       );
       expect(pages.size).toBeGreaterThan(1);
     }
-
-    // --- warning_policy FAILs from exactly the same 0604201F conflict
-    // (R1ArtifactBuilder turns each `extraction.conflicts` entry into a
-    // blocking warning) -- not a distinct, unexplained cause. ---
-    const blockingWarningDiscrepancies = verification.discrepancies.filter(
-      (d) => d.code === 'blocking_extraction_warning',
-    );
-    expect(blockingWarningDiscrepancies.length).toBeGreaterThan(0);
-    expect(blockingWarningDiscrepancies.every((d) => d.description.includes('0604201F'))).toBe(true);
 
     // --- page_only_reconciliation resolves NOT_RUN, never FAIL: every
     // page-only money assertion this module produces is legitimately
@@ -296,18 +309,30 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
     // that is success for this PR"). ---
     expect(byCode.get('page_only_reconciliation')?.outcome).not.toBe('FAIL');
 
+    // Reprint deduplication proof: 258 real PE codes appear on 2+ physical
+    // pages (Phase 10B-12 forensics), but only ONE of them (0604201F) has a
+    // genuine value difference. Every other cross-page PE with a resolved
+    // FY2024 request must now produce exactly ONE funding assertion (the
+    // provenance merge), not one per physical occurrence.
+    const requestPeCodes = fundingRequests.map(
+      (a) => (a as { identity?: { peCode?: string } }).identity?.peCode,
+    );
+    const distinctRequestPeCodes = new Set(requestPeCodes);
+    expect(requestPeCodes.length - distinctRequestPeCodes.size).toBe(1); // only 0604201F duplicates
+
     // Deliberately NOT asserting overall verifier PASS, per the brief.
     const uniquePages = new Set(identities.map((a) => (a as { metadata?: { physicalPage?: number } }).metadata?.physicalPage));
     const conflictWarnings = artifact.warnings.filter((w) => w.code === 'r1_duplicate_conflicting_value');
     // eslint-disable-next-line no-console
     console.log(
-      'Phase 10B-11 real-parser acceptance -- aggregate result:',
+      'Phase 10B-12 real-parser acceptance -- aggregate result:',
       JSON.stringify(
         {
           decision: verification.decision,
           totalAssertions: artifact.assertions.length,
           identityCount: identities.length,
           fundingRequestCount: fundingRequests.length,
+          distinctPeCodesWithRequest: distinctRequestPeCodes.size,
           documentFactAssertionCount: artifact.assertions.filter((a) => a.assertionKind === 'document_fact').length,
           omissionCount: artifact.omissions.length,
           conflictCount: conflictWarnings.length,

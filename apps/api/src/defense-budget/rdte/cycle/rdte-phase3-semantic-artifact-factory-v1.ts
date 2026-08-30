@@ -137,7 +137,11 @@ function buildSemanticArtifact(input: {
     // existing, unmodified R1 semantics either way -- this seam only ever
     // supplies input they didn't already have.
     const reconstruction = applyR1TextReconstructionV1(value.pages, input.fiscalYear);
-    const extraction = extractR1FromPages({ pages: reconstruction.pages, cycleFiscalYear: input.fiscalYear });
+    const extraction = extractR1FromPages({
+      pages: reconstruction.pages,
+      cycleFiscalYear: input.fiscalYear,
+      rowContextByPage: reconstruction.rowContextByPage,
+    });
     return buildR1Artifact({
       source: value.source,
       parserRuns: value.parserRuns,
