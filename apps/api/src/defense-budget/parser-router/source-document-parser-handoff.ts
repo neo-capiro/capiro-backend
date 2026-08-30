@@ -28,6 +28,7 @@ import { FilesystemParserArtifactProofResolver } from '../verification/trusted-p
 import { BudgetVerificationV1Service } from '../verification/services/budget-verification-v1.service.js';
 import { createProductionParserVerificationContext } from './production-parser-verification-context.js';
 import { FilesystemExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
+import { resolveArtifactFactoryForFamilyV1 } from './rdte-durable-semantic-artifact-factory-v1.js';
 
 export interface SourceDocumentParserHandoffInput {
   readonly executionId: string;
@@ -241,21 +242,26 @@ export async function runParserHandoffForSourceDocument(
           budgetCycle: input.budgetCycle,
           documentType: input.documentType,
           parserPolicy: input.parserPolicy,
-          requiredDataCategories:
-            input.budgetFamily === 'rdte'
-              ? (['identity', 'funding'] as const)
-              : (['identity', 'funding'] as const),
-          requiredFundingFields: ['request'] as const,
-          expectedLineKinds:
-            input.budgetFamily === 'rdte'
-              ? (['RDTE_PE'] as const)
-              : input.budgetFamily === 'procurement'
-                ? (['PROCUREMENT_BLIN'] as const)
-                : input.budgetFamily === 'om'
-                  ? (['OM_SAG'] as const)
-                  : input.budgetFamily === 'milcon'
-                    ? (['MILCON_PROJECT'] as const)
-                    : (['UNKNOWN'] as const),
+          // Both branches of the old ternary here produced the identical
+          // array; a plain (mutable) literal is both simpler and required --
+          // `BudgetCycleManifestDocumentV1.requiredDataCategories` is a
+          // mutable array type, which an `as const` tuple cannot satisfy.
+          // This document is now also passed as `document` to the durable
+          // RDT&E semantic factory below (Phase 10B-10), so it must
+          // structurally match that type, not just survive a JSON.stringify.
+          requiredDataCategories: ['identity', 'funding'] as Array<'identity' | 'funding'>,
+          requiredFundingFields: ['request'] as Array<'request'>,
+          expectedLineKinds: (input.budgetFamily === 'rdte'
+            ? ['RDTE_PE']
+            : input.budgetFamily === 'procurement'
+              ? ['PROCUREMENT_BLIN']
+              : input.budgetFamily === 'om'
+                ? ['OM_SAG']
+                : input.budgetFamily === 'milcon'
+                  ? ['MILCON_PROJECT']
+                  : ['UNKNOWN']) as Array<
+            'RDTE_PE' | 'PROCUREMENT_BLIN' | 'OM_SAG' | 'MILCON_PROJECT' | 'UNKNOWN'
+          >,
           allowEmpty: false,
         },
       ],
@@ -263,12 +269,42 @@ export async function runParserHandoffForSourceDocument(
     const manifestPath = path.join(documentWorkDir, 'lifecycle-bridge-manifest.json');
     fs.writeFileSync(manifestPath, `${JSON.stringify(syntheticManifest, null, 2)}\n`, 'utf8');
 
+    // Phase 10B-10: for RDT&E, replace the generic lineage-only default
+    // (`buildExtractionArtifact`) with the real, already-tested R-1/R-2/R-2A/
+    // R-3/R-4 semantic extractor -- durably wrapped so the persisted locator
+    // is always the caller-supplied `ExtractionArtifactStoreV1`'s (S3-backed
+    // in production), never the underlying factory's local scratch path. See
+    // `rdte-durable-semantic-artifact-factory-v1.ts` for why the raw factory
+    // cannot be assigned here directly. Unrelated (non-RDT&E) families are
+    // untouched -- they keep falling back to the generic builder exactly as
+    // before this change.
+    const artifactFactory = resolveArtifactFactoryForFamilyV1(input.budgetFamily, {
+      document: syntheticManifest.documents[0]!,
+      source: {
+        manifestDocumentKey: input.sourceDocumentId,
+        sourceDocumentId: input.sourceDocumentId,
+        sourcePdfSha256: input.sourceSha256,
+        sourceLocator: input.sourceLocator,
+        ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+        fiscalYear: Number(input.fiscalYear),
+        family: input.budgetFamily,
+        exhibit: input.exhibitType,
+        authority: input.authority,
+        component,
+        budgetCycle: input.budgetCycle,
+        documentType: input.documentType,
+        ...(input.title ? { title: input.title } : {}),
+      },
+      fiscalYear: Number(input.fiscalYear),
+    });
+
     const dependencies: ParserRouterDependencies = {
       artifactStore: verification.artifactStore,
       runtimeClient,
       verificationService: verification.service,
       extractionArtifactStore: verification.extractionArtifactStore,
       ...(verification.parserRunRecorder ? { parserRunRecorder: verification.parserRunRecorder } : {}),
+      ...(artifactFactory ? { artifactFactory } : {}),
     };
     const router = new ParserRouterV1Service(
       {
