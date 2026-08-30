@@ -17,6 +17,7 @@ import {
   testimonyMatchConfidence,
   titleOverlapRatio,
   updateAdvocacySourceHealth,
+  ADVOCACY_SOURCE_NAMES,
 } from './client-profile-fill-completion.service.js';
 
 /** Builds a minimal testimony scan-batch row for planTestimonyScanBatch tests. */
@@ -35,6 +36,13 @@ function scanRow(hearingId: string, witnessText: string, syncedAt: string, simil
 }
 
 describe('Fill with Meri completion workflow', () => {
+
+  test('ADVOCACY_SOURCE_NAMES includes community_funding for CPF/CDS discovery health/backfill', () => {
+    expect(ADVOCACY_SOURCE_NAMES).toContain('community_funding');
+    expect(deriveAdvocacyFreshness('community_funding', '2026-08-26T12:00:00.000Z', 24, new Date('2026-08-26T12:00:00.000Z'))).toBe('fresh');
+  });
+
+
   test('derives cadence-aware source freshness, including the exact boundary and unknown state', () => {
     const now = new Date('2026-08-26T12:00:00.000Z');
     expect(deriveAdvocacyFreshness('lda', null, 24, now)).toBe('unknown');

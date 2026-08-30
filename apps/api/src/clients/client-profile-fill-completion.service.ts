@@ -29,6 +29,14 @@ import {
   ClientProfileFillWorkflowService,
   type StartClientProfileFillWorkflowInput,
 } from './client-profile-fill-workflow.service.js';
+import {
+  COMMUNITY_FUNDING_INTEL_MAPPING_SOURCE,
+  communityFundingFindingSummary,
+  communityFundingFindingTitle,
+  filterAmbiguousCommunityFundingMatches,
+  resolveCommunityFundingRecipientMatch,
+  type CommunityFundingMatchDecision,
+} from './community-funding-advocacy-match.js';
 
 export const CLIENT_PROFILE_FILL_COMPLETION_TASK_TYPES = [
   'federal_market',
@@ -303,6 +311,7 @@ export const ADVOCACY_SOURCE_NAMES = [
   'testimony',
   'regulations_gov',
   'federal_register',
+  'community_funding',
   'client_submission',
   'private_evidence',
 ] as const;
@@ -316,7 +325,15 @@ const ADVOCACY_FRESHNESS_CADENCE_MULTIPLIER: Record<string, number> = {
   private_evidence: 1,
   fara: 2,
   federal_register: 2,
+  // Canonical CPF/CDS tables grow with each congressional cycle, not daily —
+  // same low-frequency class as FARA / Federal Register.
+  community_funding: 2,
 };
+// Bounded page for the CPF/CDS canonical-request KEYSET SCAN. Distinct from
+// MAX_ADVOCACY_FINDINGS (which caps FINDINGS emitted). community_funding_request
+// is global and can hold thousands of rows per FY; the scan must be a real
+// bounded, resumable page that advances even when a page yields zero matches.
+const COMMUNITY_FUNDING_SCAN_BATCH_SIZE = 500;
 // client_intel_mapping.source value for Regulations.gov comment client-match
 // confirmations. Same named-constant reasoning as FARA_INTEL_MAPPING_SOURCE.
 const REGULATORY_COMMENT_INTEL_MAPPING_SOURCE = 'regulatory_comment';
@@ -1553,6 +1570,17 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       runId,
       asRecord(priorSources.federal_register),
     );
+    const communityFundingResult = await this.gatherCommunityFundingAdvocacyCandidates(
+      ctx,
+      clientId,
+      runId,
+      count,
+      asString(cursor.lastCommunityFundingCreatedAt),
+      asString(cursor.lastCommunityFundingKey),
+      asRecord(priorSources.community_funding),
+    );
+    count += communityFundingResult.count;
+    sourceStates.community_funding = communityFundingResult.backfill;
 
     const refreshSchedule = await this.getSchedule(ctx, clientId);
     for (const source of ADVOCACY_SOURCE_NAMES) {
@@ -1586,6 +1614,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
       lastTestimonySyncedAt: testimonyResult.newestSyncedAt ?? cursor.lastTestimonySyncedAt ?? null,
       lastTestimonyKey: testimonyResult.newestKey ?? cursor.lastTestimonyKey ?? null,
+      lastCommunityFundingCreatedAt:
+        communityFundingResult.newestCreatedAt ?? cursor.lastCommunityFundingCreatedAt ?? null,
+      lastCommunityFundingKey:
+        communityFundingResult.newestKey ?? cursor.lastCommunityFundingKey ?? null,
       backfill: {
         status: overallStatus,
         sources: sourceStates,
@@ -2534,6 +2566,486 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       );
       return null;
     }
+  }
+
+  /**
+   * Public-source auto-discovery: House CPF / Senate CDS via canonical
+   * `community_funding_request` rows (PR #1328). Primary identity is the
+   * funding RECIPIENT, never the Member/Senator requester (brief §16).
+   *
+   * Flow is review-gated only — this rail emits pending Fill findings; it
+   * never writes client_advocacy_record rows directly. One logical request
+   * → one finding, even when multiple provenance source documents exist
+   * (brief §19); provenance is attached as evidence metadata.
+   *
+   * TWO independent queries (same shape as testimony):
+   *  1. Confirmed-mapping bypass — every confirmed client_intel_mapping
+   *     (source=community_funding) externalId = request UUID, no cursor.
+   *  2. Bounded keyset scan over (created_at ASC, id ASC) joining recipient
+   *     similarity + client facility geography for fuzzy corroboration.
+   *
+   * Matching hierarchy is pure (community-funding-advocacy-match.ts):
+   * confirmed → exact recipient → exact alias → fuzzy+geography → skip.
+   */
+  private async gatherCommunityFundingAdvocacyCandidates(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    currentCount: number,
+    lastCreatedAt: string | null,
+    lastKey: string | null,
+    priorState: Record<string, unknown>,
+  ): Promise<{
+    count: number;
+    newestCreatedAt: string | null;
+    newestKey: string | null;
+    backfill: AdvocacySourceBackfillState;
+  }> {
+    const startedAt = asString(priorState.startedAt) ?? new Date().toISOString();
+    const priorCheckpoint = asRecord(priorState.checkpoint);
+    const priorWasComplete = asString(priorState.status) === 'complete';
+    const state = (
+      status: AdvocacyBackfillStatus,
+      examined = 0,
+      candidates = 0,
+      lastError: string | null = null,
+      checkpoint: Record<string, unknown> | null = null,
+      limitation: string | null = null,
+    ): AdvocacySourceBackfillState => ({
+      status,
+      startedAt,
+      completedAt: status === 'complete' ? new Date().toISOString() : undefined,
+      checkpoint,
+      historyStart: asString(priorState.historyStart) ?? null,
+      examined: Number(priorState.examined ?? 0) + examined,
+      candidates: Number(priorState.candidates ?? 0) + candidates,
+      lastError,
+      limitation: limitation ?? asString(priorState.limitation) ?? null,
+    });
+
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
+      return {
+        count: 0,
+        newestCreatedAt: lastCreatedAt,
+        newestKey: lastKey,
+        backfill: state('in_progress', 0, 0, null, priorCheckpoint),
+      };
+    }
+
+    const clientName = await this.resolveClientNameForDiscovery(ctx, clientId);
+    if (!clientName) {
+      return {
+        count: 0,
+        newestCreatedAt: lastCreatedAt,
+        newestKey: lastKey,
+        backfill: state('complete', 0, 0, null, priorCheckpoint),
+      };
+    }
+
+    const confirmedRequestIds = await this.getConfirmedIntelMappingKeys(
+      ctx,
+      clientId,
+      COMMUNITY_FUNDING_INTEL_MAPPING_SOURCE,
+    );
+
+    // Facility states for geography corroboration of fuzzy matches.
+    let clientStates = new Set<string>();
+    try {
+      const facilities = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clientFacility.findMany({
+          where: { clientId },
+          select: { state: true },
+        }),
+      );
+      clientStates = new Set(
+        facilities
+          .map((f) => (f.state ?? '').trim().toUpperCase())
+          .filter((s) => s.length === 2),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Community funding facility geography unavailable: ${this.safeError(error)}`,
+      );
+    }
+
+    type FundingRow = {
+      id: string;
+      chamber: string;
+      requestType: string;
+      fiscalYear: number;
+      requesterName: string;
+      recipientName: string;
+      recipientNormalized: string;
+      state: string | null;
+      city: string | null;
+      projectTitle: string;
+      projectDescription: string | null;
+      requestedAmountUsd: string;
+      finalAmountUsd: string | null;
+      amountStageRaw: string;
+      appropriationsAccountRaw: string | null;
+      subcommittee: string | null;
+      createdAt: Date;
+      recipientSimilarity: number;
+      provenanceCount: number;
+      provenanceDocs: Array<{
+        sourceDocumentId: string;
+        sourcePage: number | null;
+        sourceRow: number;
+        sourceUrl: string | null;
+        title: string | null;
+      }> | null;
+    };
+
+    const loadProvenance = async (requestIds: string[]) => {
+      if (!requestIds.length) return new Map<string, FundingRow['provenanceDocs']>();
+      try {
+        const rows = await this.prisma.$queryRawUnsafe<
+          Array<{
+            requestId: string;
+            sourceDocumentId: string;
+            sourcePage: number | null;
+            sourceRow: number;
+            sourceUrl: string | null;
+            title: string | null;
+          }>
+        >(
+          `SELECT s.request_id AS "requestId",
+                  s.source_document_id AS "sourceDocumentId",
+                  s.source_page AS "sourcePage",
+                  s.source_row AS "sourceRow",
+                  sd.source_url AS "sourceUrl",
+                  sd.title AS title
+             FROM community_funding_request_source s
+             LEFT JOIN source_document sd ON sd.id = s.source_document_id
+            WHERE s.request_id = ANY($1::uuid[])
+            ORDER BY s.request_id, s.source_page NULLS FIRST, s.source_row`,
+          requestIds,
+        );
+        const map = new Map<string, NonNullable<FundingRow['provenanceDocs']>>();
+        for (const r of rows) {
+          const list = map.get(r.requestId) ?? [];
+          list.push({
+            sourceDocumentId: r.sourceDocumentId,
+            sourcePage: r.sourcePage,
+            sourceRow: r.sourceRow,
+            sourceUrl: r.sourceUrl,
+            title: r.title,
+          });
+          map.set(r.requestId, list);
+        }
+        return map;
+      } catch {
+        return new Map();
+      }
+    };
+
+    const emitForRow = async (
+      row: FundingRow,
+      decision: Extract<CommunityFundingMatchDecision, { matched: true }>,
+    ): Promise<boolean> => {
+      const isConfirmed = decision.method === 'confirmed_client_intel_mapping';
+      const externalKey = `community_funding:${row.id}`;
+      const title = communityFundingFindingTitle({
+        chamber: row.chamber,
+        requestType: row.requestType,
+        fiscalYear: row.fiscalYear,
+        recipientName: row.recipientName,
+      });
+      const summary = communityFundingFindingSummary({
+        chamber: row.chamber,
+        requestType: row.requestType,
+        fiscalYear: row.fiscalYear,
+        requesterName: row.requesterName,
+        recipientName: row.recipientName,
+        projectTitle: row.projectTitle,
+        requestedAmountUsd: row.requestedAmountUsd,
+        finalAmountUsd: row.finalAmountUsd,
+        amountStageRaw: row.amountStageRaw,
+        appropriationsAccountRaw: row.appropriationsAccountRaw,
+        subcommittee: row.subcommittee,
+      });
+      const provenance = row.provenanceDocs ?? [];
+      const primaryUrl = provenance.find((p) => p.sourceUrl)?.sourceUrl ?? null;
+      const proposedValue = {
+        externalKey,
+        recordType: row.requestType === 'cds' ? 'cds_request' : 'cpf_request',
+        title,
+        summary,
+        activityDate: null,
+        status: row.amountStageRaw,
+        outcome: null,
+        sourceType: 'community_funding',
+        sourceId: row.id,
+        sourceUrl: primaryUrl,
+        evidenceClass: 'PUBLIC_VERIFIED',
+        confidence: decision.confidence,
+        metadata: {
+          communityFundingRequestId: row.id,
+          chamber: row.chamber,
+          requestType: row.requestType,
+          fiscalYear: row.fiscalYear,
+          requesterName: row.requesterName,
+          recipientName: row.recipientName,
+          recipientNormalized: row.recipientNormalized,
+          projectTitle: row.projectTitle,
+          projectDescription: row.projectDescription,
+          requestedAmountUsd: row.requestedAmountUsd,
+          finalAmountUsd: row.finalAmountUsd,
+          amountStageRaw: row.amountStageRaw,
+          appropriationsAccountRaw: row.appropriationsAccountRaw,
+          subcommittee: row.subcommittee,
+          state: row.state,
+          city: row.city,
+          // One finding per canonical request — provenance is attached, never multiplied.
+          provenanceCount: provenance.length || row.provenanceCount || 0,
+          provenance: provenance.map((p) => ({
+            sourceDocumentId: p.sourceDocumentId,
+            sourcePage: p.sourcePage,
+            sourceRow: p.sourceRow,
+            sourceUrl: p.sourceUrl,
+            title: p.title,
+          })),
+          clientMatch: {
+            method: decision.method,
+            confidence: decision.confidence,
+            similarity: decision.similarity,
+            geographyCorroborated: decision.geographyCorroborated,
+            matchedRole: 'recipient',
+          },
+        },
+      };
+      return this.emitDiscoveryFinding(ctx, clientId, runId, {
+        externalKey,
+        isConfirmed,
+        confidence: decision.confidence,
+        proposedValue,
+        evidence: [
+          {
+            label: title,
+            url: primaryUrl,
+            source:
+              row.requestType === 'cds'
+                ? 'Senate Congressionally Directed Spending (canonical)'
+                : 'House Community Project Funding (canonical)',
+            metadata: {
+              communityFundingRequestId: row.id,
+              provenanceCount: provenance.length || row.provenanceCount || 0,
+              matchMethod: decision.method,
+            },
+          },
+          ...provenance
+            .filter((p) => p.sourceUrl)
+            .slice(0, 5)
+            .map((p) => ({
+              label: p.title ?? `Source row ${p.sourceRow}`,
+              url: p.sourceUrl,
+              // Evidence-item prose label — must NOT be a snake_case `source: '...'`
+              // literal that the finding-source-check contract regex would treat as
+              // an addFinding() source value (see FARA_INTEL_MAPPING_SOURCE note).
+              source: 'CPF/CDS canonical provenance row',
+              metadata: {
+                sourceDocumentId: p.sourceDocumentId,
+                sourcePage: p.sourcePage,
+                sourceRow: p.sourceRow,
+              },
+            })),
+        ],
+      });
+    };
+
+    let count = 0;
+    let examined = 0;
+    let scanError: string | null = null;
+
+    // 1) Confirmed-mapping bypass — no cursor filter.
+    if (confirmedRequestIds.size && currentCount + count < MAX_ADVOCACY_FINDINGS) {
+      try {
+        const confirmedRows = await this.prisma.$queryRawUnsafe<FundingRow[]>(
+          `SELECT r.id, r.chamber, r.request_type AS "requestType", r.fiscal_year AS "fiscalYear",
+                  r.requester_name AS "requesterName", r.recipient_name AS "recipientName",
+                  r.recipient_normalized AS "recipientNormalized", r.state, r.city,
+                  r.project_title AS "projectTitle", r.project_description AS "projectDescription",
+                  r.requested_amount_usd::text AS "requestedAmountUsd",
+                  r.final_amount_usd::text AS "finalAmountUsd",
+                  r.amount_stage_raw AS "amountStageRaw",
+                  r.appropriations_account_raw AS "appropriationsAccountRaw",
+                  r.subcommittee, r.created_at AS "createdAt",
+                  1::float AS "recipientSimilarity",
+                  (SELECT COUNT(*)::int FROM community_funding_request_source s WHERE s.request_id = r.id) AS "provenanceCount"
+             FROM community_funding_request r
+            WHERE r.id = ANY($1::uuid[])
+            ORDER BY r.created_at ASC, r.id ASC
+            LIMIT 200`,
+          [...confirmedRequestIds],
+        );
+        const prov = await loadProvenance(confirmedRows.map((r) => r.id));
+        for (const row of confirmedRows) {
+          if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+          row.provenanceDocs = prov.get(row.id) ?? null;
+          const decision = resolveCommunityFundingRecipientMatch({
+            requestId: row.id,
+            recipientName: row.recipientName,
+            recipientNormalized: row.recipientNormalized,
+            state: row.state,
+            confirmedRequestIds,
+            clientName,
+            clientStates,
+            recipientSimilarity: 1,
+          });
+          if (!decision.matched) continue;
+          examined += 1;
+          if (await emitForRow(row, decision)) count += 1;
+        }
+      } catch (error) {
+        scanError = this.safeError(error);
+        this.logger.warn(`Community funding confirmed-mapping rail unavailable: ${scanError}`);
+      }
+    }
+
+    // 2) Keyset scan for exact/fuzzy matches.
+    const checkpointAt = priorWasComplete
+      ? lastCreatedAt
+      : (asString(priorCheckpoint.createdAt) ?? lastCreatedAt);
+    const checkpointKey = priorWasComplete
+      ? lastKey
+      : (asString(priorCheckpoint.key) ?? lastKey);
+
+    let scanRows: FundingRow[] = [];
+    try {
+      scanRows = await this.prisma.$queryRawUnsafe<FundingRow[]>(
+        `SELECT r.id, r.chamber, r.request_type AS "requestType", r.fiscal_year AS "fiscalYear",
+                r.requester_name AS "requesterName", r.recipient_name AS "recipientName",
+                r.recipient_normalized AS "recipientNormalized", r.state, r.city,
+                r.project_title AS "projectTitle", r.project_description AS "projectDescription",
+                r.requested_amount_usd::text AS "requestedAmountUsd",
+                r.final_amount_usd::text AS "finalAmountUsd",
+                r.amount_stage_raw AS "amountStageRaw",
+                r.appropriations_account_raw AS "appropriationsAccountRaw",
+                r.subcommittee, r.created_at AS "createdAt",
+                GREATEST(
+                  similarity(r.recipient_normalized, $1),
+                  word_similarity($1, r.recipient_normalized),
+                  similarity(r.recipient_name, $1),
+                  word_similarity($1, r.recipient_name)
+                )::float AS "recipientSimilarity",
+                (SELECT COUNT(*)::int FROM community_funding_request_source s WHERE s.request_id = r.id) AS "provenanceCount"
+           FROM community_funding_request r
+          WHERE (($2::timestamptz IS NULL)
+             OR (r.created_at > $2::timestamptz)
+             OR (r.created_at = $2::timestamptz AND r.id > $3::uuid))
+          ORDER BY r.created_at ASC, r.id ASC
+          LIMIT $4`,
+        clientName,
+        checkpointAt,
+        checkpointKey || '00000000-0000-0000-0000-000000000000',
+        COMMUNITY_FUNDING_SCAN_BATCH_SIZE,
+      );
+    } catch (error) {
+      const err = this.safeError(error);
+      this.logger.warn(`Community funding scan rail unavailable: ${err}`);
+      scanError = scanError ?? err;
+      return {
+        count,
+        newestCreatedAt: lastCreatedAt,
+        newestKey: lastKey,
+        backfill: state(
+          'partial',
+          examined,
+          count,
+          scanError,
+          priorCheckpoint,
+          'Canonical CPF/CDS table unavailable or not yet migrated',
+        ),
+      };
+    }
+
+    // Cursor advances across the full batch even when zero matches — same
+    // contract as testimony (scan frontier, not match frontier).
+    let newestCreatedAt: string | null = lastCreatedAt;
+    let newestKey: string | null = lastKey;
+    if (scanRows.length) {
+      const last = scanRows[scanRows.length - 1]!;
+      newestCreatedAt = last.createdAt.toISOString();
+      newestKey = last.id;
+    }
+
+    const resolved: Array<{ row: FundingRow; decision: CommunityFundingMatchDecision; requestId: string }> =
+      [];
+    for (const row of scanRows) {
+      // Confirmed rows already handled above; still "examined" for cursor.
+      if (confirmedRequestIds.has(row.id)) {
+        examined += 1;
+        continue;
+      }
+      const decision = resolveCommunityFundingRecipientMatch({
+        requestId: row.id,
+        recipientName: row.recipientName,
+        recipientNormalized: row.recipientNormalized,
+        state: row.state,
+        confirmedRequestIds,
+        clientName,
+        clientStates,
+        recipientSimilarity: row.recipientSimilarity,
+      });
+      examined += 1;
+      if (decision.matched) {
+        resolved.push({ row, decision, requestId: row.id });
+      }
+    }
+
+    const accepted = filterAmbiguousCommunityFundingMatches(resolved);
+    const prov = await loadProvenance(accepted.map((a) => a.row.id));
+    for (const item of accepted) {
+      if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
+      if (!item.decision.matched) continue;
+      item.row.provenanceDocs = prov.get(item.row.id) ?? null;
+      if (await emitForRow(item.row, item.decision)) count += 1;
+    }
+
+    // Coverage honesty: surface FY/chamber counts when available.
+    let limitation: string | null = asString(priorState.limitation);
+    try {
+      const coverage = await this.prisma.$queryRawUnsafe<
+        Array<{ chamber: string; fiscalYear: number; n: number }>
+      >(
+        `SELECT chamber, fiscal_year AS "fiscalYear", COUNT(*)::int AS n
+           FROM community_funding_request
+          GROUP BY chamber, fiscal_year
+          ORDER BY fiscal_year DESC, chamber
+          LIMIT 20`,
+      );
+      if (coverage.length) {
+        const bits = coverage.map((c) => `${c.chamber} FY${c.fiscalYear}:${c.n}`);
+        limitation = `Canonical coverage present for ${bits.join(', ')}. Match is recipient-primary; requester is never treated as the client.`;
+      } else {
+        limitation =
+          'Canonical community_funding_request table is empty — run CPF/CDS ingestion before expecting matches.';
+      }
+    } catch {
+      // leave prior limitation
+    }
+
+    const batchExhausted = scanRows.length < COMMUNITY_FUNDING_SCAN_BATCH_SIZE;
+    const complete = priorWasComplete || (!scanError && batchExhausted);
+    const checkpoint = {
+      createdAt: newestCreatedAt,
+      key: newestKey,
+    };
+
+    return {
+      count,
+      newestCreatedAt: complete ? newestCreatedAt : lastCreatedAt,
+      newestKey: complete ? newestKey : lastKey,
+      backfill: state(
+        scanError ? 'partial' : complete ? 'complete' : 'in_progress',
+        examined,
+        count,
+        scanError,
+        complete || scanRows.length ? checkpoint : priorCheckpoint,
+        limitation,
+      ),
+    };
   }
 
   private async gatherClientSubmissionAdvocacy(
@@ -4471,11 +4983,13 @@ function sourceHealthMessage(source: string, error: string): string {
       ? 'Regulations.gov'
       : source === 'federal_register'
         ? 'Federal Register'
-        : source === 'client_submission'
-          ? 'Client submissions'
-          : source === 'private_evidence'
-            ? 'Private evidence'
-            : source.toUpperCase();
+        : source === 'community_funding'
+          ? 'Community Project Funding / Congressionally Directed Spending'
+          : source === 'client_submission'
+            ? 'Client submissions'
+            : source === 'private_evidence'
+              ? 'Private evidence'
+              : source.toUpperCase();
   if (/not configured|api.?key/i.test(error))
     return `${label} is unavailable because it is not configured`;
   return `${label} is temporarily unavailable`;
