@@ -532,3 +532,109 @@ describe('acceptance criteria', () => {
     }
   });
 });
+
+describe('Phase 10B-16 Part D -- structured-evidence-first, body-text fallback', () => {
+  /* Real DoD budget PDFs (confirmed against the FY2024 Army R-2 Volume 1
+   * BA1 document) carry their exhibit-type boilerplate, PE number/title,
+   * and appropriation/BA context entirely inside ordinary body-text lines
+   * -- not inside any block the engine classifies as 'header' or 'heading'.
+   * Before this fix, `classifyPage()` computed `allText` (including body
+   * text) but never read it, so these real pages always fell through to
+   * 'unresolved'. */
+  function bodyOnlyR2Page(peCode: string, title: string, page: number): ParserPageResultV1 {
+    return makePage({
+      page,
+      blocks: [
+        makeBlock(0, 'text', 'UNCLASSIFIED'),
+        makeBlock(1, 'text', 'Exhibit R-2 RDT&E Budget Item Justification: PB 2024 Army'),
+        makeBlock(
+          2,
+          'text',
+          `Appropriation/Budget Activity R-1 Program Element (Number/Name) ` +
+            `2040: Research, Development, Test & Evaluation, Army BA 1: Basic PE ${peCode} ${title}`,
+        ),
+        makeBlock(3, 'text', 'Total Program Element - 358.521 391.642 296.670 - 296.670'),
+      ],
+    });
+  }
+
+  it('resolves a real-shaped R-2 page to its PE code from body text alone when no header/heading evidence exists', () => {
+    const page = bodyOnlyR2Page('0601102A', 'Defense Research Sciences', 43);
+    const result = segmentR2ExhibitPages([page]);
+    const classification = result.classifications[0]!;
+    expect(classification.kind).toBe('r2_pe_summary');
+    expect(classification.headerPeCodes).toEqual(['0601102A']);
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0]!.peCode).toBe('0601102A');
+  });
+
+  it('does NOT let body-text scanning override an already-resolved structured header/heading (structured evidence wins)', () => {
+    const page = makePage({
+      page: 1,
+      blocks: [
+        ...r2PeHeader('0601101A', 'Research A'),
+        // A stray, unrelated PE code mentioned in ordinary narrative body
+        // text on the same page must never contaminate the page's
+        // already-resolved structured identity.
+        makeBlock(3, 'text', 'See also the related discussion of PE 0699999Z elsewhere in this volume.'),
+      ],
+    });
+    const result = segmentR2ExhibitPages([page]);
+    const classification = result.classifications[0]!;
+    expect(classification.kind).toBe('r2_pe_summary');
+    expect(classification.headerPeCodes).toEqual(['0601101A']);
+  });
+
+  it('does NOT falsely classify a narrative/multi-PE listing page as a valid R-2 segment (negative control)', () => {
+    // Modeled on the real Army R-2 volume's "Program Element/Project
+    // Restructures" summary table (physical pages 7-8): many distinct PE
+    // codes on one page, no R-2 exhibit-type boilerplate anywhere.
+    const page = makePage({
+      page: 7,
+      blocks: [
+        makeBlock(0, 'text', '05 0604818A / DD1 Unified Network Technology Trans & Integ (UNTTI)'),
+        makeBlock(1, 'text', '05 0605206A / DG3 CI and HUMINT Equipment Program-Army (CIHEP-A)'),
+        makeBlock(2, 'text', 'Program Element/Project Restructures:'),
+      ],
+    });
+    const result = segmentR2ExhibitPages([page]);
+    const classification = result.classifications[0]!;
+    expect(classification.kind).toBe('unresolved');
+    expect(classification.reason).toMatch(/conflicting PE headers/);
+  });
+
+  it('does NOT falsely classify an ordinary narrative body paragraph with no exhibit or PE evidence (negative control)', () => {
+    const page = makePage({
+      page: 44,
+      blocks: [
+        makeBlock(
+          0,
+          'text',
+          'This Program Element builds fundamental scientific knowledge contributing to the ' +
+            'sustainment of United States scientific and technological superiority in land warfighting ' +
+            'capability and to solving military problems related to long-term national security needs.',
+        ),
+      ],
+    });
+    const result = segmentR2ExhibitPages([page]);
+    const classification = result.classifications[0]!;
+    expect(classification.kind).toBe('unresolved');
+    expect(classification.headerPeCodes).toEqual([]);
+  });
+
+  it('does not route a wrong-PE/different document as a valid continuation of an unrelated prior segment', () => {
+    const pages = [
+      bodyOnlyR2Page('0601102A', 'Defense Research Sciences', 43),
+      // A DIFFERENT, unrelated PE's own R-2 PE-summary page (body-text
+      // only) immediately following -- must start its OWN new segment
+      // with its own correct PE code, never silently inherit or merge
+      // into the preceding, unrelated PE's segment.
+      bodyOnlyR2Page('0601103A', 'Some Other Program', 126),
+    ];
+    const result = segmentR2ExhibitPages(pages);
+    expect(result.segments).toHaveLength(2);
+    const byPage = new Map(result.segments.map((s) => [s.pages[0], s]));
+    expect(byPage.get(43)?.peCode).toBe('0601102A');
+    expect(byPage.get(126)?.peCode).toBe('0601103A');
+  });
+});

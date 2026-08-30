@@ -77,8 +77,16 @@ export const parsedTableCellV1Schema = z
     rowIndex: z.number().int().nonnegative(),
     columnIndex: z.number().int().nonnegative(),
     text: z.string(),
-    rowSpan: z.number().int().positive().optional(),
-    colSpan: z.number().int().positive().optional(),
+    // Phase 10B-16 Part B: empirically confirmed against the real FY2024
+    // Army R-2 (143 real structural tables, 7,905 real cells) -- the
+    // Python engine's `lines`-strategy table extractor emits explicit JSON
+    // `null` for every one of these four fields on every real cell (it
+    // never computes span/geometry/confidence for a line-based table).
+    // Zod `.optional()` only allows `undefined`; without `.nullish()` here
+    // this rejects 100% of real R-2 tables outright (Blocker A). R-1 never
+    // exercised this path: its real document has zero structural tables.
+    rowSpan: z.number().int().positive().nullish(),
+    colSpan: z.number().int().positive().nullish(),
     boundingBox: z
       .object({
         x0: z.string(),
@@ -87,8 +95,8 @@ export const parsedTableCellV1Schema = z
         y1: z.string(),
       })
       .strict()
-      .optional(),
-    confidence: z.string().optional(),
+      .nullish(),
+    confidence: z.string().nullish(),
   })
   .strict();
 export type ParsedTableCellV1 = z.infer<typeof parsedTableCellV1Schema>;
@@ -96,10 +104,17 @@ export type ParsedTableCellV1 = z.infer<typeof parsedTableCellV1Schema>;
 export const parsedTableV1Schema = z
   .object({
     tableIndex: z.number().int().nonnegative(),
-    label: z.string().optional(),
+    // Empirically null on all 143 real tables (see cell-level comment
+    // above) -- the engine never assigns a table label or a reported
+    // accuracy score for a `lines`-strategy table.
+    label: z.string().nullish(),
     rowCount: z.number().int().nonnegative(),
     columnCount: z.number().int().nonnegative(),
     cells: z.array(parsedTableCellV1Schema),
+    // Table-level boundingBox, unlike the cell-level ones above, is
+    // ALWAYS populated by the real engine (confirmed: present and
+    // non-null on all 143 real tables) -- left as `.optional()`
+    // deliberately, not widened to `.nullish()` without evidence.
     boundingBox: z
       .object({
         x0: z.string(),
@@ -109,7 +124,7 @@ export const parsedTableV1Schema = z
       })
       .strict()
       .optional(),
-    parserReportAccuracy: z.string().optional(),
+    parserReportAccuracy: z.string().nullish(),
     warnings: z.array(z.string()),
   })
   .strict();

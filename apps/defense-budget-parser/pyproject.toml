@@ -22,6 +22,10 @@ docling = [
 ocr = [
     "paddleocr>=2.7,<3",
     "paddlepaddle>=2.6,<3",
+    # paddlepaddle's cpp_extension module imports setuptools directly but
+    # does not declare it as a dependency; Python no longer bundles
+    # setuptools by default, so the ocr extra must pull it in explicitly.
+    "setuptools",
 ]
 dev = [
     "pytest>=8.0,<9",

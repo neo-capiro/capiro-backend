@@ -144,6 +144,27 @@ function extractPeTitle(
 
   const peCode = resolvedPage.peCode!;
 
+  /* Phase 10B-16: prefer a structured table cell over header/heading block
+   * text when both exist. On real R-2 exhibit pages the appropriation/BA
+   * context and the "R-1 Program Element (Number/Name)" cell sit in
+   * SEPARATE table columns but on the SAME printed line -- plain
+   * word-by-line text extraction (what header/heading blocks are built
+   * from) merges them into one run-together string with no column
+   * boundary, so stripping only the "PE {code}" token from that merged
+   * line leaves the unrelated appropriation/BA text attached to the title.
+   * The table cell itself has no such ambiguity: it isolates "PE {code} /
+   * {title}" (optionally on its own line within the cell) cleanly. */
+  const peTitleCellRe = new RegExp(`\\bPE\\s+${peCode}\\s*/\\s*([^\\n]+)`, 'i');
+  for (const table of page.tables) {
+    for (const cell of table.cells) {
+      const match = peTitleCellRe.exec(cell.text);
+      if (match?.[1] != null) {
+        const title = match[1].trim();
+        if (title.length > 0) return title;
+      }
+    }
+  }
+
   /* Look for a heading that contains the PE code. */
   for (const block of page.blocks) {
     if (block.blockType !== 'heading' && block.blockType !== 'header') continue;

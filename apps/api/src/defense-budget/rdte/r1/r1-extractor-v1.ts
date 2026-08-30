@@ -191,8 +191,8 @@ export function extractR1FromPages(input: {
             text: cell.text,
             rowIndex: cell.rowIndex,
             columnIndex: cell.columnIndex,
-            colSpan: cell.colSpan,
-            rowSpan: cell.rowSpan,
+            colSpan: cell.colSpan ?? undefined,
+            rowSpan: cell.rowSpan ?? undefined,
           })),
         };
       });

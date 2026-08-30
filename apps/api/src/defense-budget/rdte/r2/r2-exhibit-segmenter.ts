@@ -300,31 +300,64 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
   }
 
   const allHeaderFooter = [...headerTexts, ...footerTexts].join(' ');
-  const allText = [page.text ?? '', ...bodyTexts, allHeaderFooter].join(' ');
+  const bodyOnlyText = bodyTexts.join(' ');
+  const allText = [page.text ?? '', bodyOnlyText, allHeaderFooter].join(' ');
 
-  /* Extract PE codes from header/footer AND heading blocks. In real R-2
-   * pages the PE code often appears in a heading, not a running header. */
-  const headerPeCodes = extractPeCodes(allHeaderFooter);
-  const headingPeCodes = extractPeCodes(headingTexts.join(' '));
-  const allPeCodes = [...new Set([...headerPeCodes, ...headingPeCodes])];
+  /* Phase 10B-16 Part D: structured evidence (header/footer/heading) is
+   * tried FIRST and is sufficient for most pages. Real R-2 exhibit pages,
+   * however, can carry their PE code, exhibit title, and appropriation/BA
+   * context entirely inside ordinary body-text blocks when nothing on the
+   * page is structurally header/footer/heading-shaped -- `allText` used to
+   * be computed here and never read, so that content was invisible to every
+   * check below. Body text is now consulted, but ONLY as a fallback when
+   * structured evidence found no exhibit-type signal at all, so a page that
+   * already resolves from header/heading evidence is never altered by
+   * scanning body text, and the four exhibit types never get a mismatched
+   * per-type fallback (e.g. one type's body match contradicting another
+   * type's structured match). */
+  const structuredExhibitText = [allHeaderFooter, headingTexts.join(' ')].join(' ');
+  const structuredIsR2 = R2_HEADER_RE.test(structuredExhibitText);
+  const structuredIsR2A = R2A_HEADER_RE.test(structuredExhibitText);
+  const structuredIsR3 = R3_HEADER_RE.test(structuredExhibitText);
+  const structuredIsR4 = R4_HEADER_RE.test(structuredExhibitText);
+  const hasStructuredExhibitSignal =
+    structuredIsR2 || structuredIsR2A || structuredIsR3 || structuredIsR4;
 
-  const headerProjectCodes = extractProjectCodes(allHeaderFooter);
-  const headingProjectCodes = extractProjectCodes(headingTexts.join(' '));
-  const allProjectCodes = [...new Set([...headerProjectCodes, ...headingProjectCodes])];
+  const isR2 = hasStructuredExhibitSignal ? structuredIsR2 : R2_HEADER_RE.test(bodyOnlyText);
+  const isR2A = hasStructuredExhibitSignal ? structuredIsR2A : R2A_HEADER_RE.test(bodyOnlyText);
+  const isR3 = hasStructuredExhibitSignal ? structuredIsR3 : R3_HEADER_RE.test(bodyOnlyText);
+  const isR4 = hasStructuredExhibitSignal ? structuredIsR4 : R4_HEADER_RE.test(bodyOnlyText);
 
-  /* Detect exhibit type from header/footer/heading text. */
-  const isR2 = R2_HEADER_RE.test(allHeaderFooter) || R2_HEADER_RE.test(headingTexts.join(' '));
-  const isR2A = R2A_HEADER_RE.test(allHeaderFooter) || R2A_HEADER_RE.test(headingTexts.join(' '));
-  const isR3 = R3_HEADER_RE.test(allHeaderFooter) || R3_HEADER_RE.test(headingTexts.join(' '));
-  const isR4 = R4_HEADER_RE.test(allHeaderFooter) || R4_HEADER_RE.test(headingTexts.join(' '));
+  /* Extract PE/project codes from header/footer AND heading blocks first;
+   * fall back to body text using the same "structured evidence found
+   * nothing" gate as the exhibit-type detection above. */
+  const structuredPeCodes = [
+    ...new Set([...extractPeCodes(allHeaderFooter), ...extractPeCodes(headingTexts.join(' '))]),
+  ];
+  const allPeCodes = hasStructuredExhibitSignal
+    ? structuredPeCodes
+    : [...new Set([...structuredPeCodes, ...extractPeCodes(bodyOnlyText)])];
+
+  const structuredProjectCodes = [
+    ...new Set([
+      ...extractProjectCodes(allHeaderFooter),
+      ...extractProjectCodes(headingTexts.join(' ')),
+    ]),
+  ];
+  const allProjectCodes = hasStructuredExhibitSignal
+    ? structuredProjectCodes
+    : [...new Set([...structuredProjectCodes, ...extractProjectCodes(bodyOnlyText)])];
 
   /* Conflicting headers: multiple distinct PE codes in header/footer/heading. */
   const uniquePeCodes = [...new Set(allPeCodes)];
   const hasConflict = uniquePeCodes.length > 1;
 
-  /* Detect explicit continuation markers. */
-  const hasContinuationMarker =
-    CONTINUATION_RE.test(allHeaderFooter) || CONTINUATION_RE.test(headingTexts.join(' '));
+  /* Detect explicit continuation markers, using the same structured-first,
+   * body-fallback-only-when-structured-is-silent gate as above. */
+  const structuredHasContinuationMarker = CONTINUATION_RE.test(structuredExhibitText);
+  const hasContinuationMarker = hasStructuredExhibitSignal
+    ? structuredHasContinuationMarker
+    : structuredHasContinuationMarker || CONTINUATION_RE.test(bodyOnlyText);
 
   /* Continuation evidence: repeated header/footer patterns that match the
    * prior page's segment, or explicit "continued" markers. A bare R-2 volume

@@ -186,6 +186,7 @@ docling = [
 ocr = [
     { name = "paddleocr" },
     { name = "paddlepaddle" },
+    { name = "setuptools" },
 ]
 
 [package.metadata]
@@ -202,6 +203,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0,<9" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0,<6" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5,<1" },
+    { name = "setuptools", marker = "extra == 'ocr'" },
 ]
 provides-extras = ["camelot", "docling", "ocr", "dev"]
 

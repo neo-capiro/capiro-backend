@@ -400,6 +400,123 @@ class TestRunPdfplumberEngine:
         assert '($1,234,567)' in cell_texts
         assert '($789)' in cell_texts
 
+    def _word(self, text, top, bottom, x0, x1, size=10.0, fontname='ArialMT'):
+        return {
+            'text': text,
+            'top': top,
+            'bottom': bottom,
+            'x0': x0,
+            'x1': x1,
+            'size': size,
+            'fontname': fontname,
+        }
+
+    def _run_with_words(self, tmp_path: Path, words: list[dict]):
+        pdf_path = tmp_path / 'test.pdf'
+        actual_sha = _make_test_pdf(pdf_path, num_pages=1)
+        with patch('capiro_defense_budget_parser.pdfplumber_engine.pdfplumber') as mock_pp:
+            mock_pdf = MagicMock()
+            mock_page = MagicMock()
+            mock_page.page_number = 1
+            mock_page.width = 612.0
+            mock_page.height = 792.0
+            mock_page.rotation = 0
+            mock_page.extract_text.return_value = ' '.join(w['text'] for w in words)
+            mock_page.extract_words.return_value = words
+            mock_page.find_tables.return_value = []
+            mock_page.images = []
+            mock_page.lines = []
+            mock_page.rects = []
+            mock_pdf.pages = [mock_page]
+            mock_pp.open.return_value.__enter__.return_value = mock_pdf
+            return run_pdfplumber_engine(
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
+            )
+
+    def test_top_of_page_line_is_classified_header(self, tmp_path: Path):
+        """Phase 10B-16 Part C: position-based header zone, not "first line
+        on the page" (the prior rule matched only the classification banner
+        on real documents)."""
+        words = [self._word('UNCLASSIFIED', 20.0, 32.0, 36.0, 120.0, size=12.0)]
+        result = self._run_with_words(tmp_path, words)
+        assert result.pages[0].blocks[0].blockType == 'header'
+
+    def test_bottom_of_page_line_is_classified_footer(self, tmp_path: Path):
+        words = [self._word('Volume 1a - 1', 760.0, 772.0, 36.0, 120.0, size=10.0)]
+        result = self._run_with_words(tmp_path, words)
+        assert result.pages[0].blocks[0].blockType == 'footer'
+
+    def test_bold_midpage_line_is_classified_heading(self, tmp_path: Path):
+        """A structurally bold line -- not a markdown '#' (real PDFs never
+        contain one) -- is heading-weight regardless of what it says."""
+        words = [
+            self._word('Program Element/Project Restructures:', 300.0, 312.0, 36.0, 250.0,
+                        size=12.0, fontname='TimesNewRomanPS-BoldMT')
+        ]
+        result = self._run_with_words(tmp_path, words)
+        assert result.pages[0].blocks[0].blockType == 'heading'
+
+    def test_larger_than_body_size_midpage_line_is_classified_heading(self, tmp_path: Path):
+        words = [
+            self._word('Section Title', 300.0, 314.0, 36.0, 150.0, size=14.0, fontname='ArialMT'),
+            self._word('Ordinary body text line one at the normal size.', 320.0, 330.0, 36.0, 300.0,
+                        size=10.0, fontname='ArialMT'),
+            self._word('Ordinary body text line two at the normal size.', 340.0, 350.0, 36.0, 300.0,
+                        size=10.0, fontname='ArialMT'),
+            self._word('Ordinary body text line three at the normal size.', 360.0, 370.0, 36.0, 300.0,
+                        size=10.0, fontname='ArialMT'),
+        ]
+        result = self._run_with_words(tmp_path, words)
+        blocks_by_text = {b.text: b.blockType for b in result.pages[0].blocks}
+        assert blocks_by_text['Section Title'] == 'heading'
+        assert blocks_by_text['Ordinary body text line one at the normal size.'] == 'text'
+
+    def test_ordinary_midpage_paragraph_is_classified_text(self, tmp_path: Path):
+        """Negative control: a plain, non-bold, body-sized paragraph in the
+        middle of the page must never be misclassified as header/footer/
+        heading just because it is the only line on the page."""
+        words = [
+            self._word('This Program Element builds fundamental scientific knowledge.',
+                        300.0, 312.0, 36.0, 400.0, size=10.0, fontname='ArialMT'),
+        ]
+        result = self._run_with_words(tmp_path, words)
+        assert result.pages[0].blocks[0].blockType == 'text'
+
+    def test_table_text_is_not_reclassified_by_block_extraction(self, tmp_path: Path):
+        """Negative control: table cell text (extracted separately via
+        find_tables) must not influence -- or be influenced by -- the
+        independent block/line classification pass."""
+        mock_table = MagicMock()
+        mock_table.extract.return_value = [['296.670', '309.571']]
+        mock_table.bbox = None
+        mock_table.cells = {}
+        pdf_path = tmp_path / 'test.pdf'
+        actual_sha = _make_test_pdf(pdf_path, num_pages=1)
+        body_words = [
+            self._word('Total Program Element', 400.0, 412.0, 36.0, 200.0, size=10.0),
+        ]
+        with patch('capiro_defense_budget_parser.pdfplumber_engine.pdfplumber') as mock_pp:
+            mock_pdf = MagicMock()
+            mock_page = MagicMock()
+            mock_page.page_number = 1
+            mock_page.width = 612.0
+            mock_page.height = 792.0
+            mock_page.rotation = 0
+            mock_page.extract_text.return_value = 'Total Program Element'
+            mock_page.extract_words.return_value = body_words
+            mock_page.find_tables.return_value = [mock_table]
+            mock_page.images = []
+            mock_page.lines = []
+            mock_page.rects = []
+            mock_pdf.pages = [mock_page]
+            mock_pp.open.return_value.__enter__.return_value = mock_pdf
+            result = run_pdfplumber_engine(
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
+            )
+        assert result.pages[0].blocks[0].blockType == 'text'
+        cell_texts = [c.text for c in result.pages[0].tables[0].cells]
+        assert '296.670' in cell_texts
+
     def test_deterministic_page_ordering(self, tmp_path: Path):
         """F5: deterministic ordering."""
         pdf_path = tmp_path / 'test.pdf'

@@ -10,6 +10,7 @@ Money values remain strings. No fake bounding boxes are generated.
 from __future__ import annotations
 
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -99,55 +100,96 @@ def _to_decimal_string(value: float) -> str:
     return repr(value)
 
 
+# Phase 10B-16 Part C: classification zones, as a fraction of page height,
+# for the running header/footer band real DoD budget exhibit pages use.
+# Empirically calibrated against the real FY2024 Army R-2 Volume 1 BA1 PDF
+# (landscape Letter, 792x612): on the PE 0601102A exhibit page the entire
+# fixed per-page context block -- classification banner, "Date:"/"Exhibit
+# R-2..." line, and the Appropriation/BA + PE-number/title row -- sits
+# within the top ~117pt (19.1%) of the page; the repeated footer block
+# (classification banner, PE code, volume/page numbers) sits within the
+# bottom ~44pt (7.2%). Both zones are structural (position-only): they say
+# nothing about what the text means, only where it physically sits.
+HEADER_ZONE_HEIGHT_RATIO = 0.22
+FOOTER_ZONE_HEIGHT_RATIO = 0.08
+
+# A line is heading-weight when its dominant font is bold/bold-italic, or
+# its size is meaningfully larger than the page's modal (most common) body
+# size. This replaces a markdown '#' check that real PDFs never satisfy.
+HEADING_SIZE_DELTA = 1.0
+
+
 def _extract_blocks(page: Any) -> list[LayoutBlockV1]:
-    """Extract text blocks from a pdfplumber page."""
+    """Extract text blocks from a pdfplumber page.
+
+    blockType is assigned from purely structural evidence -- position on the
+    page and font size/weight -- never from the text's content. Semantic
+    interpretation (is this a PE number? an appropriation line?) is the
+    downstream TS segmenter/extractors' job, not this function's.
+    """
     blocks: list[LayoutBlockV1] = []
 
-    # Use pdfplumber's text layout extraction
     try:
-        words = page.extract_words(keep_blank_chars=False, use_text_flow=True)
+        words = page.extract_words(
+            keep_blank_chars=False, use_text_flow=True, extra_attrs=['size', 'fontname']
+        )
     except Exception:
         words = []
 
+    if not words:
+        return blocks
+
     # Group words into lines by their 'top' coordinate
-    if words:
-        lines: dict[float, list[dict[str, Any]]] = {}
-        for word in words:
-            top = round(float(word.get('top', 0)), 1)
-            if top not in lines:
-                lines[top] = []
-            lines[top].append(word)
+    lines: dict[float, list[dict[str, Any]]] = {}
+    for word in words:
+        top = round(float(word.get('top', 0)), 1)
+        if top not in lines:
+            lines[top] = []
+        lines[top].append(word)
 
-        for idx, (_, line_words) in enumerate(sorted(lines.items())):
-            text = ' '.join(w.get('text', '') for w in line_words)
-            if text.strip():
-                # Determine block type
-                block_type: str = 'text'
-                if text.strip().startswith('#'):
-                    block_type = 'heading'
-                elif idx == 0 and len(text) < 100:
-                    block_type = 'header'
+    page_height = float(getattr(page, 'height', 0) or 0)
+    header_cutoff = page_height * HEADER_ZONE_HEIGHT_RATIO
+    footer_cutoff = page_height * (1 - FOOTER_ZONE_HEIGHT_RATIO)
 
-                # Real bounding box from word coordinates
-                x0 = min(float(w.get('x0', 0)) for w in line_words)
-                y0 = min(float(w.get('top', 0)) for w in line_words)
-                x1 = max(float(w.get('x1', 0)) for w in line_words)
-                y1 = max(float(w.get('bottom', 0)) for w in line_words)
+    all_sizes = [round(float(w['size']), 1) for w in words if w.get('size')]
+    body_size = Counter(all_sizes).most_common(1)[0][0] if all_sizes else 0.0
 
-                blocks.append(
-                    LayoutBlockV1(
-                        blockIndex=idx,
-                        blockType=block_type,  # type: ignore[arg-type]
-                        text=text.strip(),
-                        readingOrder=idx,
-                        boundingBox=BoundingBoxV1(
-                            x0=_to_decimal_string(x0),
-                            y0=_to_decimal_string(y0),
-                            x1=_to_decimal_string(x1),
-                            y1=_to_decimal_string(y1),
-                        ),
-                    )
-                )
+    for idx, (_, line_words) in enumerate(sorted(lines.items())):
+        text = ' '.join(w.get('text', '') for w in line_words)
+        if not text.strip():
+            continue
+
+        x0 = min(float(w.get('x0', 0)) for w in line_words)
+        y0 = min(float(w.get('top', 0)) for w in line_words)
+        x1 = max(float(w.get('x1', 0)) for w in line_words)
+        y1 = max(float(w.get('bottom', 0)) for w in line_words)
+
+        line_sizes = [round(float(w['size']), 1) for w in line_words if w.get('size')]
+        line_size = max(line_sizes) if line_sizes else 0.0
+        is_bold = any('bold' in str(w.get('fontname', '')).lower() for w in line_words)
+
+        block_type: str = 'text'
+        if page_height > 0 and y1 <= header_cutoff:
+            block_type = 'header'
+        elif page_height > 0 and y0 >= footer_cutoff:
+            block_type = 'footer'
+        elif is_bold or (body_size > 0 and line_size >= body_size + HEADING_SIZE_DELTA):
+            block_type = 'heading'
+
+        blocks.append(
+            LayoutBlockV1(
+                blockIndex=idx,
+                blockType=block_type,  # type: ignore[arg-type]
+                text=text.strip(),
+                readingOrder=idx,
+                boundingBox=BoundingBoxV1(
+                    x0=_to_decimal_string(x0),
+                    y0=_to_decimal_string(y0),
+                    x1=_to_decimal_string(x1),
+                    y1=_to_decimal_string(y1),
+                ),
+            )
+        )
 
     return blocks
 
