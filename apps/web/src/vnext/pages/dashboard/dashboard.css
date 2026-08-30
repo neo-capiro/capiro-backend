@@ -142,6 +142,13 @@
 .capiro-vnext-root .capiro-vnext-uui .dashv2-spine__head { padding: 20px 24px 16px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-spine__body { padding: 0 24px 20px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group { position: relative; }
+/* Visual separation between TODAY / TOMORROW / LATER THIS WEEK sections
+   (QA finding: previously only the text label distinguished them). A hairline
+   above each subsequent section plus a little extra top padding reads as a
+   section break without adding a heavier card-within-a-card look; the current
+   ("today") section gets a faint tint so it stays the visual anchor. */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group + .dashv2-spine-group { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--uui-gray-100); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group[data-today] { margin: 0 -12px; padding: 0 12px 4px; border-radius: 10px; background: var(--uui-gray-25); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__rows { position: relative; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group__label { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 14px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--uui-gray-500); white-space: nowrap; background: var(--uui-white); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-spine-group:first-child .dashv2-spine-group__label { padding-top: 6px; }

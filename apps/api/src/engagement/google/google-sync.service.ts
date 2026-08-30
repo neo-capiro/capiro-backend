@@ -262,6 +262,12 @@ interface CalendarEvent {
   description?: string | null;
   location?: string | null;
   htmlLink?: string | null;
+  // Google Calendar visibility: "default" | "public" | "private" |
+  // "confidential". Private/confidential events on a shared calendar can
+  // come back with summary omitted for a non-organizer viewer — mirrors the
+  // Microsoft Graph `sensitivity` handling below so a redacted subject
+  // reads as "Private meeting", not the generic "Untitled calendar event".
+  visibility?: string | null;
   // Google Meet auto-link (legacy field) + the modern conferenceData block.
   // Present in the API response and stored to raw_jsonb; declared here so the
   // virtuality classifier can read structured join links.
@@ -596,7 +602,7 @@ export class GoogleSyncService {
           connectionId,
           source: EngagementSource.google,
           externalId: event.id!,
-          subject: clean(event.summary) || 'Untitled calendar event',
+          subject: googleEventSubject(event),
           description: clean(event.description),
           location: clean(event.location),
           startsAt,
@@ -1725,6 +1731,20 @@ export function googleEventVirtuality(event: CalendarEvent) {
     description: clean(event.description),
     metadata: { webLink: event.htmlLink ?? null },
   });
+}
+
+// Google returns summary: undefined (not an empty string) for private/
+// confidential events on a shared calendar when the viewer lacks full-detail
+// access. Distinguishing that from a genuinely untitled event mirrors the
+// Microsoft Graph `sensitivity` handling in microsoft-graph-sync.service.ts —
+// without it every redacted subject reads as the generic "Untitled calendar
+// event", which is misleading (QA finding, dashboard vNext).
+export function googleEventSubject(event: CalendarEvent): string {
+  const summary = clean(event.summary);
+  if (summary) return summary;
+  return event.visibility === 'private' || event.visibility === 'confidential'
+    ? 'Private meeting'
+    : 'Untitled calendar event';
 }
 
 function parseEpochMs(value?: string | null): Date | null {

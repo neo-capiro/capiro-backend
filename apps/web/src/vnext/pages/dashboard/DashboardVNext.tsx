@@ -324,7 +324,7 @@ function SpineGroup({ label, events, today = false, week = false, model, selecte
           <>
             <span className="dashv2-spine-row__time">{week ? weekDayToken(event) : event.time}</span>
             <i className="dashv2-spine-row__node" data-kind={kind}/>
-            <span className="dashv2-spine-row__copy"><strong>{event.title}</strong><span>{stripDayPrefix(event.meta)}</span></span>
+            <span className="dashv2-spine-row__copy"><strong title={event.title}>{event.title}</strong><span title={stripDayPrefix(event.meta)}>{stripDayPrefix(event.meta)}</span></span>
             {event.isMeeting && event.action === 'join' && event.joinUrl ? <a className="dashv2-secondary dashv2-spine-row__action" href={event.joinUrl} target="_blank" rel="noreferrer" onClick={(e)=>e.stopPropagation()}>Join</a> : null}
             {!event.isMeeting && kind === 'hearing' ? <Link className="dashv2-secondary dashv2-spine-row__action" to={event.href ?? '/legiwatch'} onClick={(e)=>e.stopPropagation()}>Brief</Link> : null}
           </>

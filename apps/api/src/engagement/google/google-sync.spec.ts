@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
 import {
+  googleEventSubject,
   googleEventVirtuality,
   parseAddressList,
   parseCalendarDateTime,
@@ -137,5 +138,42 @@ describe('googleEventVirtuality', () => {
     expect(v.isVirtual).toBe(false);
     expect(v.joinLink).toBeNull();
     expect(v.provider).toBeNull();
+  });
+});
+
+describe('googleEventSubject', () => {
+  // Guards the fix for the "Untitled calendar event" QA finding (dashboard
+  // vNext): a real subject always wins; a private/confidential event with a
+  // redacted summary should read as "Private meeting", not the generic
+  // untitled fallback; a genuinely untitled event keeps the generic fallback.
+  it('uses the real summary when present', () => {
+    expect(googleEventSubject({ summary: 'Weekly check-in' })).toBe('Weekly check-in');
+  });
+
+  it('trims whitespace-only summaries and falls through', () => {
+    expect(googleEventSubject({ summary: '   ' })).toBe('Untitled calendar event');
+  });
+
+  it('labels a private event with a redacted summary as "Private meeting"', () => {
+    expect(googleEventSubject({ summary: null, visibility: 'private' })).toBe('Private meeting');
+  });
+
+  it('labels a confidential event with a redacted summary as "Private meeting"', () => {
+    expect(googleEventSubject({ summary: undefined, visibility: 'confidential' })).toBe(
+      'Private meeting',
+    );
+  });
+
+  it('falls back to "Untitled calendar event" when visibility is default/absent', () => {
+    expect(googleEventSubject({ summary: null, visibility: 'default' })).toBe(
+      'Untitled calendar event',
+    );
+    expect(googleEventSubject({ summary: null })).toBe('Untitled calendar event');
+  });
+
+  it('prefers a present summary even on a private event', () => {
+    expect(googleEventSubject({ summary: 'Board sync', visibility: 'private' })).toBe(
+      'Board sync',
+    );
   });
 });
