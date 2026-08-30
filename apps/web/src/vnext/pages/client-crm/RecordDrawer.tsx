@@ -16,15 +16,25 @@ import { PfDrawer } from './portfolio-overlays.js';
  */
 
 export interface RecordDrawerProps {
+  /**
+   * QA-02: the kicker label above the drawer title must identify the client
+   * the drawer is actually showing. This used to be hardcoded to a single
+   * fixture client name ("Overland AI"), so every directory drawer (across
+   * all four surfaces — Relationships, Work, Files, Capabilities) showed
+   * that name regardless of which client's profile was open. Callers must
+   * pass the real client's name; there is no honest fallback here (an empty
+   * eyebrow is more truthful than a wrong one), so this prop is required.
+   */
+  eyebrow: string;
   title: string;
   sub?: string;
   onClose: () => void;
   children: ReactNode;
 }
 
-export function RecordDrawer({ title, sub, onClose, children }: RecordDrawerProps) {
+export function RecordDrawer({ eyebrow, title, sub, onClose, children }: RecordDrawerProps) {
   return (
-    <PfDrawer eyebrow="Overland AI" title={title} sub={sub} onClose={onClose} variant="record">
+    <PfDrawer eyebrow={eyebrow} title={title} sub={sub} onClose={onClose} variant="record">
       {children}
     </PfDrawer>
   );

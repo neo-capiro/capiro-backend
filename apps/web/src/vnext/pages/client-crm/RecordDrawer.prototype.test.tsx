@@ -6,6 +6,7 @@ describe('prototype client-record drawer shell', () => {
   it('uses the wide prototype geometry and compact edge-to-edge chrome', () => {
     render(
       <RecordDrawer
+        eyebrow="Overland AI"
         title="Relationships"
         sub="Current targets and client people."
         onClose={() => undefined}

@@ -7,6 +7,7 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { sectorLabel } from '../../lib/labels.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
+import { useCapiroToast } from '../../components/feedback/toast.js';
 import type { CrmSurface, CrmView } from './client-crm-routing.js';
 import { useClientAccountOwner } from './useClientAccountOwner.js';
 import { ClientRecordDirectory } from './ClientRecordDirectory.js';
@@ -238,6 +239,7 @@ export function ClientProfileShell({
 
       {drawerContent != null ? (
         <RecordDrawer
+          eyebrow={client.name}
           title={drawerTitle ?? ''}
           sub={drawerSub}
           onClose={() => onCloseDrawer?.()}
@@ -592,6 +594,7 @@ function OverflowMenu({
   onArchive?: () => void;
 }) {
   const api = useApi();
+  const toast = useCapiroToast();
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -659,13 +662,38 @@ function OverflowMenu({
       // workspace scoped to this client. The prompt is required — Meri's own
       // `readContextRequest()` drops a clientId that arrives without one — so
       // it carries the client by name rather than being left blank.
+      //
+      // QA-04: `openMeriWorkspaceWithContext` returns `null` when the popup is
+      // blocked (silently — no thrown error). Every sibling call-site
+      // (DistrictFederalMarketPanel, FederalMarketDetailDrawerVNext, FilesTab's
+      // own "Create with Meri") checks that return value and gives the user a
+      // clipboard-backup + toast; this menu item used to ignore it entirely, so
+      // a blocked popup looked like a dead click with no feedback at all.
       label: 'Ask Meri about this client',
       onSelect: () => {
         setOpen(false);
-        openMeriWorkspaceWithContext({
-          prompt: `What should I know about ${client.name} right now?`,
-          clientId: client.id,
-        });
+        void (async () => {
+          const prompt = `What should I know about ${client.name} right now?`;
+          let copied = false;
+          try {
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(prompt);
+              copied = true;
+            }
+          } catch {
+            copied = false;
+          }
+          const popup = openMeriWorkspaceWithContext({ prompt, clientId: client.id });
+          if (!popup) {
+            toast.error(
+              copied
+                ? 'The Meri window was blocked. The prompt is copied to your clipboard.'
+                : 'The Meri window was blocked. Allow pop-ups for Capiro and try again.',
+            );
+            return;
+          }
+          toast.success('Meri opened with this client in context.');
+        })();
       },
     },
     { label: 'Profile & source health', onSelect: () => { setOpen(false); onDataHealth(); } },

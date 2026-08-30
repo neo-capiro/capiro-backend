@@ -9,6 +9,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ClientCrmPage } from './ClientCrmPage.js';
+import { CapiroToastProvider } from '../../components/feedback/toast.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
 vi.mock('../../../lib/me.js', () => ({
@@ -79,19 +80,21 @@ function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/clients']}>
-        <Routes>
-          <Route
-            path="/clients"
-            element={
-              <div className="capiro-vnext-root">
-                <ClientCrmPage client={client} />
-                <LocationProbe />
-              </div>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
+      <CapiroToastProvider>
+        <MemoryRouter initialEntries={['/clients']}>
+          <Routes>
+            <Route
+              path="/clients"
+              element={
+                <div className="capiro-vnext-root">
+                  <ClientCrmPage client={client} />
+                  <LocationProbe />
+                </div>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </CapiroToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -165,7 +168,8 @@ describe('ClientCrmPage header wiring', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/clients');
   });
 
-  it('opens the real Meri workspace scoped to this client from the overflow menu (item 18)', () => {
+  it('opens the real Meri workspace scoped to this client from the overflow menu (item 18)', async () => {
+    openMeriMock.mockReturnValue({ focus: vi.fn() });
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: /more/i }));
@@ -173,9 +177,26 @@ describe('ClientCrmPage header wiring', () => {
 
     // clientId must be carried, and a prompt must be present — Meri's own
     // readContextRequest() drops a clientId that arrives without one.
-    expect(openMeriMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientId: 'client-1', prompt: expect.stringContaining('Overland AI') }),
+    await waitFor(() =>
+      expect(openMeriMock).toHaveBeenCalledWith(
+        expect.objectContaining({ clientId: 'client-1', prompt: expect.stringContaining('Overland AI') }),
+      ),
     );
+  });
+
+  it('QA-04: gives visible feedback instead of silently doing nothing when the Meri popup is blocked', async () => {
+    // A blocked popup: window.open resolves to null, no thrown error — this
+    // is exactly the silent-dead-click bug (the item did nothing, no dialog,
+    // no navigation, no console error).
+    openMeriMock.mockReturnValue(null);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByText('Ask Meri about this client'));
+
+    await waitFor(() => expect(openMeriMock).toHaveBeenCalled());
+    // The menu item now surfaces a real toast rather than doing nothing.
+    expect(await screen.findByText(/Meri window was blocked/i)).toBeInTheDocument();
   });
 });
 
