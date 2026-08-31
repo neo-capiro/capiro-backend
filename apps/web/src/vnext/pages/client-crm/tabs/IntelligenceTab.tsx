@@ -142,11 +142,37 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
   // LegislativePanel below (which owns the track mutation + AddBill modal) drive
   // the same modal — the button lives in the header, the write in the panel.
   const [addBillOpen, setAddBillOpen] = useState(false);
+  // Federal Footprint's header "Export profile" — same defect class as
+  // Configure/Manage facilities/Sync sources: a static <SecondaryBtn> in
+  // DOMAIN_META with no onClick at all did nothing on click. The real
+  // destination is the report-card export route, which used to return the
+  // exact same JSON as the plain GET (no file); it now renders a real .docx
+  // (report-card-docx.ts, apps/api). Same blob-fetch-then-download pattern
+  // already proven in this app for the Artifacts export
+  // (useExportArtifactDocx, apps/web/src/pages/actions/artifacts-api.ts).
+  const exportProfile = useMutation({
+    mutationFn: async () => {
+      const res = await api.get<Blob>(`/api/intelligence/clients/${client.id}/report-card/export`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${client.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-report-card.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  });
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
-  // existing APIs") and Legislative's "Configure" (item 4, "3 Compose
-  // extend") — a static <SecondaryBtn> in DOMAIN_META with no onClick at all
-  // did nothing on click.
+  // existing APIs"), Legislative's "Configure" (item 4, "3 Compose extend")
+  // and Footprint's "Export profile" — a static <SecondaryBtn> in DOMAIN_META
+  // with no onClick at all did nothing on click.
   const actions =
     view === 'district' ? (
       // This used to `navigate('?tab=facilities')`, which client-crm-routing maps
@@ -174,6 +200,10 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
             opens the shared modal via the lifted `addBillOpen` state. */}
         <PrimaryBtn onClick={() => setAddBillOpen(true)}>Track bill</PrimaryBtn>
       </>
+    ) : view === 'footprint' ? (
+      <SecondaryBtn onClick={() => exportProfile.mutate()} disabled={exportProfile.isPending}>
+        {exportProfile.isPending ? 'Exporting…' : 'Export profile'}
+      </SecondaryBtn>
     ) : (
       domain.actions
     );
@@ -373,7 +403,7 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
   footprint: {
     title: 'Federal footprint',
     sub: 'Lobbying activity, federal awards, political giving, past performance, and the government entities connected to the client.',
-    actions: <SecondaryBtn>Export profile</SecondaryBtn>,
+    // actions computed in ClientCrmIntelligenceProto — see the comment there.
   },
   district: {
     title: 'District Nexus',
@@ -384,9 +414,9 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
 
 /* ── shared buttons ───────────────────────────────────────────────────────── */
 
-export function SecondaryBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+export function SecondaryBtn({ children, onClick, disabled }: { children: ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className="capiro-intel-btn-secondary">
+    <button type="button" onClick={onClick} disabled={disabled} className="capiro-intel-btn-secondary">
       {children}
     </button>
   );

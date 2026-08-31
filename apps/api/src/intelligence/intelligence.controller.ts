@@ -25,6 +25,7 @@ import { IntelligenceService } from './intelligence.service.js';
 import { InsightGeneratorService } from './insight-generator.service.js';
 import { EntityResolutionService } from './entity-resolution.service.js';
 import { ReportCardService } from './report-card.service.js';
+import { REPORT_CARD_DOCX_MIME, renderReportCardDocx, reportCardFilename } from './report-card-docx.js';
 
 class ChangesQueryDto {
   @IsOptional()
@@ -546,13 +547,26 @@ export class IntelligenceController {
     return this.reportCard.generateReportCard(clientId, ctx.tenantId, q.period ?? 'quarter');
   }
 
+  /**
+   * Download the report card as a client-ready .docx. Previously returned the
+   * exact same JSON as the plain GET above — no file, nothing to download —
+   * which is why the Intelligence tab's "Export profile" button (Federal
+   * Footprint) had nothing to wire an onClick to. Renders via the `docx` lib,
+   * the same approach already used in this service (alert-memo-docx.ts,
+   * artifact-docx.ts) rather than a new one.
+   */
   @Get('clients/:clientId/report-card/export')
-  exportReportCard(
+  async exportReportCard(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
     @Query() q: ReportCardQueryDto,
+    @Res() res: Response,
   ) {
-    return this.reportCard.generateReportCard(clientId, ctx.tenantId, q.period ?? 'quarter');
+    const data = await this.reportCard.generateReportCard(clientId, ctx.tenantId, q.period ?? 'quarter');
+    const buffer = await renderReportCardDocx(data);
+    res.setHeader('Content-Type', REPORT_CARD_DOCX_MIME);
+    res.setHeader('Content-Disposition', `attachment; filename="${reportCardFilename(data)}"`);
+    res.send(buffer);
   }
 
   // ── Feature 4.2: Knowledge Graph ───────────────────────────────────────
