@@ -42,6 +42,22 @@ describe('resolveCrmRoute — canonical state', () => {
     }
   });
 
+  it('redirects a stale ?tab=intelligence&view=funding bookmark to the Opportunities tab', () => {
+    expect(at('tab=intelligence&view=funding')).toEqual({
+      tab: 'opportunities',
+      view: null,
+      didNormalize: true,
+    });
+  });
+
+  it('resolves the Opportunities tab, which takes no secondary view', () => {
+    expect(at('tab=opportunities&view=funding')).toEqual({
+      tab: 'opportunities',
+      view: null,
+      didNormalize: true,
+    });
+  });
+
   it('supplies the default secondary view when a two-level tab arrives without one', () => {
     expect(at('tab=relationships')).toEqual({
       tab: 'relationships',
@@ -154,9 +170,9 @@ describe('applyCrmRoute', () => {
   it('keeps an explicit secondary view', () => {
     const next = applyCrmRoute(new URLSearchParams(''), {
       tab: 'intelligence',
-      view: 'funding',
+      view: 'footprint',
     });
-    expect(next.get('view')).toBe('funding');
+    expect(next.get('view')).toBe('footprint');
   });
 
   it('rejects a view that does not belong to the tab', () => {

@@ -15,8 +15,6 @@ import {
   DOMAIN_STATS,
   MATTERS,
   DEADLINES,
-  OPPS,
-  PROGRAMS,
   LDA,
   DISTRICTS,
   FACILITIES,
@@ -69,27 +67,16 @@ import {
 } from '../../../../pages/clients/intelligence-v1/representation-api.js';
 import type { ClientProfileV1 } from '../../../../pages/clients/intelligence-v1/mappers.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
-import {
-  getRelevantPesForClient,
-  formatScorePct,
-  type RelevantPeRow,
-} from '../../../../pages/clients/relevance-api.js';
-import {
-  FUNDING_OPPORTUNITIES_FEATURE,
-  KIND_LABELS,
-  SOURCE_LABELS,
-  formatDeadline,
-  moneyLine,
-  type ClientFundingOpportunitySummary,
-  type FundingOpportunity,
-  type OpportunityWorkflowStatus,
-} from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 import './intelligence-tab.css';
 
 /**
- * Intelligence tab (spec §10). Five domains via a segmented bar: Legislative ·
- * Regulatory · Funding & Budget · Federal Footprint · District Nexus. Every
- * domain opens with the 5-cell domain stats strip.
+ * Intelligence tab (spec §10). Three domains, stacked on one page: Legislative
+ * & Regulatory · Federal Footprint · District Nexus. Every domain opens with
+ * the 5-cell domain stats strip. Funding & Budget (the former fourth domain)
+ * moved out into its own top-level client directory, "Opportunities" — see
+ * tabs/OpportunitiesTab.tsx — since it read as a distinct workflow (pursuits
+ * to go after) rather than a fourth lens on the same client-intelligence
+ * surface the other three share.
  *
  * Overview is gone: its pulse band and domain list restated the same figures
  * each domain panel already reads from the same query keys, so a client's
@@ -149,7 +136,6 @@ function useDistrictNexusV2(client: Client, active: boolean) {
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
   const navigate = useNavigate();
   const api = useApi();
-  const qc = useQueryClient();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.legislative!;
   const [facilitiesOpen, setFacilitiesOpen] = useState(false);
   // Lifted here so the Legislative domain header's "Track bill" button and the
@@ -158,12 +144,9 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
   const [addBillOpen, setAddBillOpen] = useState(false);
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
-  // existing APIs"), Legislative's "Configure" (item 4, "3 Compose extend"),
-  // and Funding's "Sync sources" (same defect class as Configure: a static
-  // <SecondaryBtn> in DOMAIN_META with no onClick at all did nothing on
-  // click). There is no dedicated funding-sync API — this invalidates the
-  // SAME query keys FundingPanel's own opportunities/PE-relevance queries
-  // use, so a click forces a real re-read rather than a fabricated delay.
+  // existing APIs") and Legislative's "Configure" (item 4, "3 Compose
+  // extend") — a static <SecondaryBtn> in DOMAIN_META with no onClick at all
+  // did nothing on click.
   const actions =
     view === 'district' ? (
       // This used to `navigate('?tab=facilities')`, which client-crm-routing maps
@@ -191,15 +174,6 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
             opens the shared modal via the lifted `addBillOpen` state. */}
         <PrimaryBtn onClick={() => setAddBillOpen(true)}>Track bill</PrimaryBtn>
       </>
-    ) : view === 'funding' ? (
-      <SecondaryBtn
-        onClick={() => {
-          void qc.invalidateQueries({ queryKey: ['client-funding-opportunities', client.id] });
-          void qc.invalidateQueries({ queryKey: ['client-pe-relevance', client.id] });
-        }}
-      >
-        Sync sources
-      </SecondaryBtn>
     ) : (
       domain.actions
     );
@@ -229,7 +203,6 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
           <RegulatoryPanel client={client} />
         </>
       ) : null}
-      {view === 'funding' ? <FundingPanel client={client} /> : null}
       {view === 'footprint' ? <FootprintPanel client={client} /> : null}
       {view === 'district' ? <DistrictPanel client={client} /> : null}
 
@@ -270,24 +243,6 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     enabled: view === 'legislative',
     staleTime: 2 * 60_000,
     retry: 1,
-  });
-
-  const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
-  const oppsQ = useQuery<ClientFundingOpportunitySummary>({
-    queryKey: ['client-funding-opportunities', client.id],
-    queryFn: async () =>
-      (await api.get<ClientFundingOpportunitySummary>(
-        `/api/intelligence/clients/${client.id}/opportunities/summary`,
-      )).data,
-    enabled: Boolean(client.id) && foReady && foEnabled && view === 'funding',
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
-  const pesQ = useQuery({
-    queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
-    queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
-    enabled: view === 'funding',
-    staleTime: 60_000,
   });
 
   const ldaQ = useQuery({
@@ -341,19 +296,6 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
       [deadlineSoon, 'Deadline < 14 days'],
       ['—', 'Material changes'],
       ['—', 'Watchlist coverage'],
-    ];
-  }
-
-  if (view === 'funding' && foReady && foEnabled && oppsQ.isSuccess && pesQ.isSuccess) {
-    const c = oppsQ.data.counts;
-    const pursuing = oppsQ.data.topGrants.filter((o) => o.workflow?.status === 'pursuing').length
-      + oppsQ.data.topContracts.filter((o) => o.workflow?.status === 'pursuing').length;
-    return [
-      [String(c.activeGrants + c.activeContracts), 'Active opportunities'],
-      [String(pursuing), 'Pursuing'],
-      ['—', 'Largest ceiling'],
-      [String(pesQ.data.data.length), 'Relevant programs'],
-      ['—', 'Next deadline'],
     ];
   }
 
@@ -414,11 +356,6 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
     sub: 'Tracked bills, hearings, and material changes from LegiWatch, plus Federal Register matters shown as decision-oriented lifecycle rails with client deadlines.',
     // actions computed in ClientCrmIntelligenceProto — see the comment there.
   },
-  funding: {
-    title: 'Funding & Budget',
-    sub: 'Grant and contract opportunities, active pursuits, and relevant defense budget programs in one domain.',
-    actions: <SecondaryBtn>Sync sources</SecondaryBtn>,
-  },
   footprint: {
     title: 'Federal footprint',
     sub: 'Lobbying activity, federal awards, political giving, past performance, and the government entities connected to the client.',
@@ -433,7 +370,7 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
 
 /* ── shared buttons ───────────────────────────────────────────────────────── */
 
-function SecondaryBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+export function SecondaryBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   return (
     <button type="button" onClick={onClick} className="capiro-intel-btn-secondary">
       {children}
@@ -456,7 +393,7 @@ function PrimaryBtn({ children, onClick }: { children: ReactNode; onClick?: () =
     </button>
   );
 }
-function LinkBtn({
+export function LinkBtn({
   children,
   onClick,
   disabled,
@@ -482,7 +419,7 @@ function LinkBtn({
  * loading with error) now checks this explicitly instead; see the module
  * doc-comment at the top of this file.
  */
-function CouldNotLoad({ what, error, onRetry }: { what: string; error?: unknown; onRetry?: () => void }) {
+export function CouldNotLoad({ what, error, onRetry }: { what: string; error?: unknown; onRetry?: () => void }) {
   const detail = error instanceof Error && error.message ? error.message : `The service did not answer.`;
   return (
     <div className="capiro-intel-error">
@@ -500,7 +437,7 @@ function CouldNotLoad({ what, error, onRetry }: { what: string; error?: unknown;
  * the design fixture's invented figures ("8 districts · 92% coverage") never
  * stand in for a client's numbers.
  */
-function DomainStatsStrip({ view, realValues }: { view: IntelligenceView; realValues?: Array<[string, string]> }) {
+export function DomainStatsStrip({ view, realValues }: { view: string; realValues?: Array<[string, string]> }) {
   const labelSource = (DOMAIN_STATS as unknown as Record<string, Array<[string, string]>>)[view] ?? [];
   const cells: Array<[string, string]> =
     realValues && realValues.length > 0 ? realValues : labelSource.map(([, label]) => ['—', label]);
@@ -1152,258 +1089,6 @@ function MatterRail({ steps }: { steps: Array<[string, string]> }) {
           );
         })}
       </span>
-    </div>
-  );
-}
-
-/* ══════════════════════════ §10.4 Funding & Budget ═════════════════════════ */
-
-/** Workflow status → pill presentation. Reads the real `OpportunityWorkflow.status`
- * enum directly; `null` means no workflow row exists yet (nothing decided either way). */
-function workflowStatusPill(status: OpportunityWorkflowStatus | null): { label: string; tone: PillTone; dotless: boolean } {
-  switch (status) {
-    case 'pursuing':
-      return { label: 'Pursuing', tone: 'brand', dotless: false };
-    case 'won':
-      return { label: 'Won', tone: 'success', dotless: false };
-    case 'saved':
-      return { label: 'Saved', tone: 'gray', dotless: true };
-    case 'dismissed':
-      return { label: 'Dismissed', tone: 'gray', dotless: true };
-    case 'lost':
-      return { label: 'Lost', tone: 'gray', dotless: true };
-    case 'expired':
-      return { label: 'Expired', tone: 'gray', dotless: true };
-    case 'suggested':
-      return { label: 'Suggested', tone: 'gray', dotless: true };
-    default:
-      return { label: 'Match', tone: 'gray', dotless: true };
-  }
-}
-
-function FundingPanel({ client }: { client: Client }) {
-  const api = useApi();
-  const navigate = useNavigate();
-
-  // Item 5: Opportunities list. Same endpoint + feature gate as the established
-  // legacy widget (FundingOpportunitiesSection.tsx) — a disabled flag is an
-  // unavailable feature, not an empty result, so the design fixture stays up
-  // rather than showing a broken-looking blank card.
-  const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
-  const opportunitiesQ = useQuery<ClientFundingOpportunitySummary>({
-    queryKey: ['client-funding-opportunities', client.id],
-    queryFn: async () =>
-      (
-        await api.get<ClientFundingOpportunitySummary>(
-          `/api/intelligence/clients/${client.id}/opportunities/summary`,
-        )
-      ).data,
-    enabled: Boolean(client.id) && foReady && foEnabled,
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
-  const realOpportunities = foReady && foEnabled && opportunitiesQ.isSuccess ? opportunitiesQ.data : null;
-  const opportunityRows = realOpportunities
-    ? [...realOpportunities.topGrants, ...realOpportunities.topContracts].slice(0, 6)
-    : [];
-  // Distinct from "the feature is off" (fixture stays, per the comment above —
-  // a disabled flag is a configuration answer, not an outage) — a confirmed
-  // fetch error on an ENABLED feature must not fall back to the OPPS fixture.
-  const opportunitiesFailed = foReady && foEnabled && opportunitiesQ.isError;
-
-  // Item 4: Open budget / Open PE. Real PE ids + titles from the relevance
-  // engine (minScore 0.5).
-  const pesQ = useQuery({
-    queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
-    queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
-    staleTime: 60_000,
-  });
-  const realPes = pesQ.isSuccess ? pesQ.data.data : null;
-  const pesFailed = pesQ.isError;
-
-  return (
-    <div className="capiro-intel-stack-24">
-      {/* The nested Overview/Opportunities/Programs/Pursuits bar is gone: its
-          state was never read — all four options rendered these same two
-          cards. Dead chrome that promises filtering is worse than none. */}
-      <div className="cap-pf-grid-intel">
-        {/* Opportunities */}
-        <Card>
-          <div className="capiro-intel-panel-head">
-            <span className="capiro-intel-panel-head-copy">
-              <span className="capiro-intel-title-md" style={{ display: 'block' }}>Opportunities</span>
-              <span className="capiro-intel-body" style={{ display: 'block', marginTop: 4 }}>
-                Matches use capabilities, facilities, eligibility, agencies, and Strategy context.
-              </span>
-            </span>
-            {realOpportunities ? (
-              <LinkBtn onClick={() => navigate(`/intelligence/opportunities?clientId=${client.id}`)}>
-                View all {realOpportunities.counts.activeGrants + realOpportunities.counts.activeContracts}
-              </LinkBtn>
-            ) : opportunitiesFailed ? null : (
-              <LinkBtn>View all 7</LinkBtn>
-            )}
-          </div>
-          {opportunitiesFailed ? (
-            <CouldNotLoad what="Funding opportunities" error={opportunitiesQ.error} onRetry={() => void opportunitiesQ.refetch()} />
-          ) : (
-            <div className="capiro-intel-panel-body">
-              {realOpportunities ? (
-                opportunityRows.length ? (
-                  opportunityRows.map((o) => <RealOppRow key={o.id} o={o} />)
-                ) : (
-                  <p className="capiro-intel-note capiro-intel-note-inset">
-                    {realOpportunities.emptyExplanation ??
-                      'No opportunity currently clears the relevance threshold for this client.'}
-                  </p>
-                )
-              ) : (
-                OPPS.map((o) => <OppRow key={o.title} o={o} />)
-              )}
-            </div>
-          )}
-        </Card>
-
-        {/* Relevant budget programs */}
-        <Card>
-          <CardHead
-            title="Relevant budget programs"
-            action={<LinkBtn onClick={() => navigate('/program-elements')}>Open budget</LinkBtn>}
-          />
-          {pesFailed ? (
-            <CouldNotLoad what="Relevant budget programs" error={pesQ.error} onRetry={() => void pesQ.refetch()} />
-          ) : (
-            <div className="capiro-intel-panel-body-16">
-              {realPes ? (
-                realPes.length ? (
-                  realPes.map((pe) => (
-                    <RealProgramRow key={pe.peCode} pe={pe} onOpen={() => navigate(`/program-elements/${pe.peCode}`)} />
-                  ))
-                ) : (
-                  <p className="capiro-intel-note capiro-intel-note-inset">
-                    No program elements scored above the relevance threshold for this client.
-                  </p>
-                )
-              ) : (
-                PROGRAMS.map((p) => <ProgramCard key={p.code} p={p} />)
-              )}
-              {/* The "Pursuit pipeline" pills that used to sit here were two
-                  permanently-hardcoded names ("Army AGV · Qualifying", "ONR
-                  Autonomy · Saved") with, per the prior comment here, "no wired
-                  data source yet" — not even a fixture standing in for a real
-                  feature, just invented content with no backing endpoint for
-                  every client. Removed rather than left permanently fake; the
-                  real opportunities list above already surfaces each
-                  opportunity's actual workflow status (Pursuing/Saved/…). */}
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function RealOppRow({ o }: { o: FundingOpportunity }) {
-  const money = moneyLine(o);
-  const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
-  const soon = deadline.daysRemaining != null && deadline.daysRemaining >= 0 && deadline.daysRemaining <= 14;
-  const { label: statusLabel, tone: statusTone, dotless } = workflowStatusPill(o.workflow?.status ?? null);
-  return (
-    <div className="capiro-intel-opp-row">
-      <span className="capiro-intel-opp-kind">{KIND_LABELS[o.kind]}</span>
-      <span className="capiro-intel-opp-main">
-        <span className="capiro-intel-opp-title">
-          {o.sourceUrl ? (
-            <a href={o.sourceUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
-              {o.title}
-            </a>
-          ) : (
-            o.title
-          )}
-        </span>
-        <span className="capiro-intel-opp-agency">{o.agency ?? SOURCE_LABELS[o.source]}</span>
-      </span>
-      <span className="capiro-intel-opp-money">
-        <span className="capiro-intel-opp-amount">{money.value}</span>
-        <span className={soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'}>
-          {deadline.daysRemaining != null ? `Due ${deadline.text}` : deadline.text}
-        </span>
-      </span>
-      <span className="capiro-intel-opp-pills">
-        <Pill tone="gray" dotless>{o.relevanceScore}% fit</Pill>
-        <Pill tone={statusTone} dotless={dotless}>{statusLabel}</Pill>
-      </span>
-    </div>
-  );
-}
-
-function RealProgramRow({ pe, onOpen }: { pe: RelevantPeRow; onOpen: () => void }) {
-  return (
-    <div className="capiro-intel-pe-card">
-      <div className="capiro-intel-pe-top">
-        <span className="capiro-intel-pe-code">{pe.peCode}</span>
-        <span className="capiro-intel-pe-title">{pe.title ?? pe.peCode}</span>
-      </div>
-      <div className="capiro-intel-pe-rel">
-        <span className="capiro-intel-eyebrow-xs">Relevance</span>
-        <span className="capiro-intel-pe-figure-value">{formatScorePct(pe.score)}</span>
-      </div>
-      <div className="capiro-intel-pe-foot">
-        <LinkBtn onClick={onOpen}>Open PE →</LinkBtn>
-      </div>
-    </div>
-  );
-}
-
-function OppRow({ o }: { o: (typeof OPPS)[number] }) {
-  const statusTone = o.status === 'Pursuing' ? 'brand' : 'gray';
-  return (
-    <button type="button" className="capiro-intel-opp-row">
-      {/* Fixture rows use a fixed 26px badge height (vs. the real row's
-          min-height: 26px, which lets long real KIND_LABELS wrap) — harmless
-          layout-only override, not a color/token concern. */}
-      <span className="capiro-intel-opp-kind" style={{ height: 26 }}>
-        {o.type}
-      </span>
-      <span className="capiro-intel-opp-main">
-        <span className="capiro-intel-opp-title">{o.title}</span>
-        <span className="capiro-intel-opp-agency">{o.agency}</span>
-      </span>
-      <span className="capiro-intel-opp-money">
-        <span className="capiro-intel-opp-amount">{o.amount}</span>
-        <span className={o.soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'}>Due {o.due}</span>
-      </span>
-      <span className="capiro-intel-opp-pills">
-        <Pill tone="gray" dotless>{o.fit}% fit</Pill>
-        <Pill tone={statusTone as PillTone} dotless={o.status === 'Match'}>{o.status}</Pill>
-      </span>
-    </button>
-  );
-}
-
-function ProgramCard({ p }: { p: (typeof PROGRAMS)[number] }) {
-  return (
-    <div className="capiro-intel-pe-card">
-      <div className="capiro-intel-pe-top">
-        <span className="capiro-intel-pe-code">{p.code}</span>
-        <span className="capiro-intel-pe-title">{p.name}</span>
-      </div>
-      <div className="capiro-intel-pe-figures">
-        {([['PB', p.pb], ['Auth', p.auth], ['Approp', p.approp]] as const).map(([label, value], i) => (
-          <span key={label} className="capiro-intel-pe-figure-row">
-            {i > 0 ? <span className="capiro-intel-pe-figure-sep">—</span> : null}
-            <span style={{ flex: '0 0 auto' }}>
-              <span className="capiro-intel-eyebrow-xs" style={{ display: 'block' }}>{label}</span>
-              <span className="capiro-intel-pe-figure-value">{value}</span>
-            </span>
-          </span>
-        ))}
-      </div>
-      <div className="capiro-intel-pe-foot">
-        <LinkBtn>Open PE →</LinkBtn>
-        <span className="capiro-intel-spacer" />
-        <Pill tone={p.down ? 'error' : 'success'}>{p.delta}</Pill>
-      </div>
     </div>
   );
 }
