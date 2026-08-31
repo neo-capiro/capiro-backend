@@ -156,7 +156,12 @@ describe('PastPerformanceCard (was Capabilities §7.3, row 12)', () => {
     expect(screen.queryByText('ULTRA autonomy integration')).not.toBeInTheDocument();
     expect(screen.queryByText('GPS-denied navigation study')).not.toBeInTheDocument();
     // Nor the "N records" chip / View all — we don't know a real count.
-    expect(screen.queryByText(/record/)).not.toBeInTheDocument();
+    // Anchored to the chip's exact "N record(s)" shape: a bare /record/
+    // also matches the card's own always-present description ("Submissions
+    // recorded against this client's capabilities…"), which is not a count
+    // and must still render on an error.
+    expect(screen.queryByText(/^\d+ records?$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^View all \d+$/)).not.toBeInTheDocument();
   });
 
   it('re-fetches capabilities and submission history when Retry is clicked', async () => {
