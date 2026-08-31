@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { LegiWatchPhase9CentralDiscoveryService } from './legiwatch-phase9-central-discovery.service.js';
 import { LegiWatchPhase9MetricsService } from './legiwatch-phase9-metrics.service.js';
 import { LegiWatchPhase9PreflightService } from './legiwatch-phase9-preflight.service.js';
+import { LegiWatchPhase9ProvenanceBackfillService } from './legiwatch-phase9-provenance-backfill.service.js';
 import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.service.js';
 import { LegiWatchPhase9RuntimeService } from './legiwatch-phase9-runtime.service.js';
 import type {
@@ -27,6 +28,7 @@ export const LEGIWATCH_PHASE9_API_JOBS = [
   'archive-reconciliation',
   'parallel-comparison',
   'metrics',
+  'provenance-backfill',
 ] as const;
 
 export type LegiWatchPhase9ApiJob = (typeof LEGIWATCH_PHASE9_API_JOBS)[number];
@@ -39,6 +41,7 @@ export class LegiWatchPhase9JobsService {
     private readonly central: LegiWatchPhase9CentralDiscoveryService,
     private readonly readiness: LegiWatchPhase9ReadinessService,
     private readonly preflight: LegiWatchPhase9PreflightService,
+    private readonly provenanceBackfill: LegiWatchPhase9ProvenanceBackfillService,
     private readonly metrics: LegiWatchPhase9MetricsService,
   ) {}
 
@@ -125,6 +128,16 @@ export class LegiWatchPhase9JobsService {
           });
         }
         if (input.job === 'metrics') return this.metrics.emit();
+        if (input.job === 'provenance-backfill') {
+          // MANUAL-ONLY. Never scheduled, never registered as a required job.
+          return this.provenanceBackfill.run({
+            manual: input.manual === true,
+            lookbackDays: integerEnv('LEGIWATCH_AUDIT_LOOKBACK_DAYS', 60),
+            limit: input.limit ?? integerEnv('LEGIWATCH_PROVENANCE_BACKFILL_LIMIT', 25),
+            cursor: stringEnv('LEGIWATCH_PROVENANCE_BACKFILL_CURSOR'),
+            reportOnly: booleanEnv('LEGIWATCH_PROVENANCE_BACKFILL_REPORT_ONLY', false),
+          });
+        }
         return assertNever(input.job);
       },
       metrics: (result) => resultMetrics(result),
@@ -176,6 +189,17 @@ function rolloutAuditMode(): LegiWatchPhase9Mode {
 function integerEnv(name: string, fallback: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function stringEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
+function booleanEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw) return fallback;
+  return raw === '1' || raw === 'true' || raw === 'yes';
 }
 
 function resultMetrics(value: unknown): Record<string, unknown> {
