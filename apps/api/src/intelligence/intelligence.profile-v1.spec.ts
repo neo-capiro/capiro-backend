@@ -265,6 +265,7 @@ describe('IntelligenceService.getClientProfileV1', () => {
         publicationDate: new Date('2026-08-01T00:00:00.000Z'),
         commentEndDate: new Date(Date.now() + 10 * 86_400_000),
         effectiveDate: null,
+        htmlUrl: 'https://www.federalregister.gov/documents/2026/08/01/FR-2026-99999',
       },
     ]);
 
@@ -276,6 +277,48 @@ describe('IntelligenceService.getClientProfileV1', () => {
     expect(lifecycle.rails[0].documentNumber).toBe('FR-2026-99999');
     // Found only through client relevance, not a tracked bill.
     expect(lifecycle.rails[0].linkedBills).toEqual([]);
+    // The real Federal Register link — the frontend's "Open matter →" needs
+    // this or it renders nothing.
+    expect(lifecycle.rails[0].htmlUrl).toBe(
+      'https://www.federalregister.gov/documents/2026/08/01/FR-2026-99999',
+    );
+  });
+
+  test('regulatory rails carry htmlUrl through for a bill-linked regulation too', async () => {
+    const { service } = makeService();
+    (service as any).getBillRegulationLinks.mockResolvedValue({
+      links: [
+        {
+          bill: { identifier: '119-hr-1234', title: 'Some Act', latestActionDate: null },
+          regulations: [
+            {
+              documentNumber: 'FR-2026-11111',
+              type: 'PROPOSED_RULE',
+              title: 'A Rule Implementing Some Act',
+              agencyNames: ['Department of Defense'],
+              publicationDate: new Date('2026-08-01T00:00:00.000Z'),
+              commentEndDate: new Date(Date.now() + 10 * 86_400_000),
+              effectiveDate: null,
+              significantRule: false,
+              htmlUrl: 'https://www.federalregister.gov/documents/2026/08/01/FR-2026-11111',
+              matchedTopics: [],
+            },
+          ],
+        },
+      ],
+      totalBills: 1,
+      totalRegulations: 1,
+    });
+
+    const payload = await service.getClientProfileV1(clientId, tenantId);
+    const lifecycle = (payload.sections.legislativeRegulatory as Record<string, any>)
+      .regulatoryLifecycle;
+
+    expect(lifecycle.rails).toHaveLength(1);
+    expect(lifecycle.rails[0].linkedBills).toEqual(['119-hr-1234']);
+    expect(lifecycle.rails[0].htmlUrl).toBe(
+      'https://www.federalregister.gov/documents/2026/08/01/FR-2026-11111',
+    );
   });
 
   test('throws NotFoundException when client does not exist in tenant', async () => {

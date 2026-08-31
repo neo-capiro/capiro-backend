@@ -823,6 +823,10 @@ interface MatterView {
   steps: Array<[string, string]> | null;
   /** Sort key only (mirrors DeadlineView's own `on`) — never rendered directly; null on fixture rows and on real rows with no dated deadline. */
   on: Date | null;
+  /** The real Federal Register document link. Null on fixture rows (nothing
+   * real to link to) and never fabricated on real rows — "Open matter" only
+   * renders when this is present. */
+  htmlUrl: string | null;
 }
 
 const MATTER_FIXTURE_TONE: Record<string, PillTone> = { warning: 'warning', blue: 'blue', brand: 'brand' };
@@ -839,6 +843,7 @@ function matterViewFromFixture(m: (typeof MATTERS)[number]): MatterView {
     linked: m.linked,
     steps: m.steps as Array<[string, string]>,
     on: null,
+    htmlUrl: null,
   };
 }
 
@@ -943,6 +948,7 @@ function RegulatoryPanel({ client }: { client: Client }) {
           linked: rail.linkedBills.length ? rail.linkedBills.join(' · ') : null,
           steps,
           on,
+          htmlUrl: rail.htmlUrl ?? null,
         };
       })
       .sort((a, b) => (a.on?.getTime() ?? Infinity) - (b.on?.getTime() ?? Infinity));
@@ -967,7 +973,13 @@ function RegulatoryPanel({ client }: { client: Client }) {
     <div className="cap-pf-grid-intel">
       {/* Active matters */}
       <Card>
-        <CardHead title="Active matters" action={<LinkBtn>View all</LinkBtn>} />
+        {/* "View all" was removed: there is no "all regulatory matters for
+            this client" destination anywhere in the routed app to send it to
+            (unlike Funding's "View all N", which navigates to a real route).
+            A control that promises a page that doesn't exist is worse than no
+            control, per this file's own convention (see the removed Pursuit
+            pipeline pills and hardcoded hearing footer above). */}
+        <CardHead title="Active matters" />
         {aggFailed ? (
           <CouldNotLoad what="Active regulatory matters" error={aggregate.error} onRetry={() => void aggregate.refetch()} />
         ) : !showFixture && matters.length === 0 ? (
@@ -1102,7 +1114,15 @@ function MatterCard({ m }: { m: MatterView }) {
       <div className="capiro-intel-matter-foot">
         {m.detail ? <span className="capiro-intel-matter-detail">{m.detail}</span> : <span className="capiro-intel-spacer" />}
         {m.linked ? <span className="capiro-intel-matter-linked">Linked {m.linked}</span> : null}
-        <LinkBtn>Open matter →</LinkBtn>
+        {/* Real Federal Register link, same pattern as the legacy
+            RegulationsPanel.tsx (Data Explorer's Regulations tab) — never a
+            button with no destination. Fixture rows and real rows with no
+            known URL render nothing here rather than a dead control. */}
+        {m.htmlUrl ? (
+          <a href={m.htmlUrl} target="_blank" rel="noreferrer" className="capiro-intel-btn-link">
+            Open matter →
+          </a>
+        ) : null}
       </div>
     </div>
   );

@@ -277,6 +277,7 @@ export interface ClientProfileV1 {
           currentStage: string;
           deadline: string | Date | null;
           stages: Array<{ key: string; label: string }>;
+          htmlUrl?: string | null;
         }>;
       };
       hearingsAndMarkups: Array<{

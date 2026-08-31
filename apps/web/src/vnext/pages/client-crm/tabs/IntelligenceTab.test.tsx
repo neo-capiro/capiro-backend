@@ -810,6 +810,44 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     expect(screen.queryByText('AI Assurance for Defense Systems')).not.toBeInTheDocument();
   });
 
+  it('"Open matter" links to the real Federal Register document when the rail carries an htmlUrl, and renders nothing when it does not', async () => {
+    mockAggregate({
+      ...AGGREGATE_WITH_DEADLINES,
+      sections: {
+        legislativeRegulatory: {
+          regulatoryLifecycle: {
+            ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle,
+            rails: [
+              {
+                ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle.rails[0],
+                htmlUrl: 'https://www.federalregister.gov/documents/2026/08/16/2026-17422',
+              },
+              AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle.rails[1],
+            ],
+          },
+        },
+      },
+    });
+    renderWithRoutes();
+
+    const activeMatters = await screen.findByTestId('capiro-intel-active-matters');
+    const link = await within(activeMatters).findByRole('link', { name: 'Open matter →' });
+    expect(link).toHaveAttribute('href', 'https://www.federalregister.gov/documents/2026/08/16/2026-17422');
+    expect(link).toHaveAttribute('target', '_blank');
+    // Only ONE link: the second rail has no htmlUrl and must render no
+    // control at all rather than a button with nowhere to go.
+    expect(within(activeMatters).getAllByRole('link', { name: 'Open matter →' })).toHaveLength(1);
+  });
+
+  it('does not render a dead "View all" control on Active matters', async () => {
+    mockAggregate(AGGREGATE_WITH_DEADLINES);
+    renderWithRoutes();
+
+    const activeMattersCard = (await screen.findByTestId('capiro-intel-active-matters')).closest('section');
+    expect(activeMattersCard).not.toBeNull();
+    expect(within(activeMattersCard as HTMLElement).queryByText('View all')).not.toBeInTheDocument();
+  });
+
   it('downloads an .ics built from the real deadlines', async () => {
     mockAggregate(AGGREGATE_WITH_DEADLINES);
     const blobs: Blob[] = [];

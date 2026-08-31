@@ -1129,6 +1129,7 @@ export class IntelligenceService {
         commentEndDate: Date | null;
         effectiveDate: Date | null;
         linkedBills: string[];
+        htmlUrl: string | null;
       }
     >();
     // `?? []` on purpose: a degraded source must never be able to throw here.
@@ -1154,6 +1155,7 @@ export class IntelligenceService {
             ? new Date((reg as { effectiveDate: Date | string }).effectiveDate)
             : null,
           linkedBills: [link.bill.identifier],
+          htmlUrl: (reg as { htmlUrl?: string | null }).htmlUrl ?? null,
         });
       }
     }
@@ -1178,6 +1180,7 @@ export class IntelligenceService {
         commentEndDate: reg.commentEndDate ? new Date(reg.commentEndDate) : null,
         effectiveDate: reg.effectiveDate ? new Date(reg.effectiveDate) : null,
         linkedBills: [],
+        htmlUrl: (reg as { htmlUrl?: string | null }).htmlUrl ?? null,
       });
     }
     // The rulemaking lifecycle rail tracks ONE Federal Register document's
@@ -1209,6 +1212,11 @@ export class IntelligenceService {
           // Once the rule is final/effective there is no open comment deadline.
           deadline: currentStage === 'nprm' ? reg.commentEndDate : null,
           stages: RULE_LIFECYCLE_STAGES.map((s) => ({ key: s.key, label: s.label })),
+          // The real Federal Register document link. Was fetched by
+          // getBillRegulationLinks and getClientRelevantRegulations alike but
+          // dropped here, so "Open matter →" on the frontend had nowhere to
+          // point even for a document with a real, known URL.
+          htmlUrl: reg.htmlUrl,
         };
       });
 
@@ -6479,6 +6487,7 @@ export class IntelligenceService {
       publicationDate: Date;
       commentEndDate: Date | null;
       effectiveDate: Date | null;
+      htmlUrl: string | null;
     }>
   > {
     try {
@@ -6555,6 +6564,7 @@ export class IntelligenceService {
         publicationDate: doc.publicationDate,
         commentEndDate: doc.commentEndDate,
         effectiveDate: doc.effectiveDate,
+        htmlUrl: doc.htmlUrl,
       }));
     } catch (err) {
       this.logger.warn(
