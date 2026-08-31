@@ -434,6 +434,37 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     expect(screen.getAllByText('$84.2M').length).toBeGreaterThan(0);
     expect(screen.getByText('Northwest Government Affairs')).toBeInTheDocument();
   });
+
+  /**
+   * Federal Footprint reads three independent sources (LDA, district-nexus
+   * spend, FEC). Each of the five domain-stats-strip cells maps to exactly
+   * ONE source, so a slow/failed source must only blank ITS OWN cells — not
+   * the other two sources' cells, which already have a real answer. This
+   * used to require ALL THREE to succeed before showing anything.
+   */
+  it('fills in LDA- and awards-derived stats immediately even while FEC is still loading', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
+        return Promise.resolve({
+          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
+        });
+      }
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return new Promise(() => {}); // never resolves
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderFootprint();
+
+    const awardsCell = await screen.findByText('Federal awards · TTM');
+    expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
+
+    const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
+    expect(within(ldaCell as HTMLElement).getByText('1')).toBeInTheDocument();
+
+    // FEC never answered — its own cell stays an honest dash, not $0 and not blank.
+    const pacCell = screen.getByText('PAC disbursements').closest('.capiro-intel-stats-cell');
+    expect(within(pacCell as HTMLElement).getByText('—')).toBeInTheDocument();
+  });
 });
 
 

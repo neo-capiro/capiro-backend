@@ -299,17 +299,31 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     ];
   }
 
-  if (view === 'footprint' && ldaQ.isSuccess && nexusQ.isSuccess && fecQ.isSuccess) {
-    const lda = ldaQ.data;
-    const ldaAmount = lda.matched ? lda.filings.reduce((s, f) => s + f.amount, 0) : null;
-    const pac = fecQ.data.pacGiving;
+  // Federal Footprint reads three INDEPENDENT sources (LDA filings,
+  // district-nexus spend, FEC money flow), and each of the five cells below
+  // maps to EXACTLY ONE of them — none needs more than one source to answer.
+  // Requiring all three to succeed before showing ANY of them (the previous
+  // behavior) meant one slow or failed source blanked cells that already had
+  // a real, ready answer. Same "fill in from whichever query answers first"
+  // rule Legislative & Regulatory already applies above; this domain simply
+  // never followed it.
+  if (view === 'footprint' && (ldaQ.isSuccess || nexusQ.isSuccess || fecQ.isSuccess)) {
+    const lda = ldaQ.isSuccess ? ldaQ.data : null;
+    const ldaAmount = lda?.matched ? lda.filings.reduce((s, f) => s + f.amount, 0) : null;
+    const pac = fecQ.isSuccess ? fecQ.data.pacGiving : null;
     return [
-      [lda.matched ? formatNumber(lda.totalFilings) : '0', 'LDA filings'],
-      [formatMoney(ldaAmount), 'Lobbying · TTM'],
+      [lda ? (lda.matched ? formatNumber(lda.totalFilings) : '0') : '—', 'LDA filings'],
+      [lda ? formatMoney(ldaAmount) : '—', 'Lobbying · TTM'],
       // Unlinked is "no confirmed mapping", never $0 — formatMoney(null) = '—'.
-      [formatMoney(nexusQ.data.linked ? nexusQ.data.totalAmount : null), 'Federal awards · TTM'],
-      [formatMoney(pac?.tracked && pac.summary ? pac.summary.totalAmount : null), 'PAC disbursements'],
-      [lda.matched ? formatNumber(lda.registrants.length) : '0', 'Registrants'],
+      [
+        nexusQ.isSuccess ? formatMoney(nexusQ.data.linked ? nexusQ.data.totalAmount : null) : '—',
+        'Federal awards · TTM',
+      ],
+      [
+        fecQ.isSuccess ? formatMoney(pac?.tracked && pac.summary ? pac.summary.totalAmount : null) : '—',
+        'PAC disbursements',
+      ],
+      [lda ? (lda.matched ? formatNumber(lda.registrants.length) : '0') : '—', 'Registrants'],
     ];
   }
 
