@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ClientsController } from './clients.controller.js';
 import { ClientsService } from './clients.service.js';
 import { ClientCapabilitiesController } from './client-capabilities.controller.js';
@@ -24,6 +25,7 @@ import { ClientProfileFillRelationshipHistoryService } from './client-profile-fi
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import { ClientAdvocacyMatterController } from './client-advocacy-matter.controller.js';
 import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
+import { AdvocacyHistoryPresentationInterceptor } from './advocacy-history-presentation.interceptor.js';
 import {
   createGovernedClientProfileFillService,
   RAW_CLIENT_PROFILE_FILL_SERVICE,
@@ -121,6 +123,14 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     // completion service so applyAdvocacyRecord can assign a Matter in the
     // same transaction as the record upsert.
     ClientAdvocacyMatterService,
+    // Existing LDA rows retain their durable source title/status. This
+    // read-side layer turns filing slugs into issue-first product copy only
+    // on Advocacy Matter GET responses, so historical UI improves without a
+    // migration or source-data rewrite.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AdvocacyHistoryPresentationInterceptor,
+    },
     ClientActivityService,
     ClientFilesService,
     ClientAccountOwnerService,
