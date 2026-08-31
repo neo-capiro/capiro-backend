@@ -95,7 +95,7 @@ const url = () => screen.getByTestId('location').textContent ?? '';
 const directoryRow = (key: string) => screen.getByTestId(`client-directory-${key}`);
 
 describe('prototype client-record information architecture', () => {
-  it('renders one seven-row directory in the prototype order', () => {
+  it('renders one eight-row directory in the prototype order', () => {
     renderAt('/clients?clientId=client-1');
     const directory = screen.getByRole('complementary', { name: 'Client record directories' });
     expect(
@@ -104,6 +104,7 @@ describe('prototype client-record information architecture', () => {
       'client-directory-timeline',
       'client-directory-advocacy',
       'client-directory-intelligence',
+      'client-directory-opportunities',
       'client-directory-capabilities',
       'client-directory-relationships',
       'client-directory-work',
