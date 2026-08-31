@@ -31,6 +31,7 @@ export const OUTREACH_TARGET_LIMITS = Object.freeze({
   issueAreas: 50,
   textListItem: 240,
   recommendationRef: 80,
+  careerBackgroundField: 240,
 });
 
 const forbiddenControlCharacters = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u;
@@ -138,6 +139,26 @@ const targetSourceSnapshotSchema = z
   })
   .strict();
 
+/**
+ * Career-relevant bio facts for a Request-a-meeting campaign's context
+ * packet — deliberately NOT the full Directory bio (excludes date of birth,
+ * race, religion; see `outreach-target-reference.service.ts`). Optional on
+ * the base schema, not required, so every existing resolver branch
+ * (`state_legislator`, `client_person`, `engagement_contact`, `manual`) keeps
+ * compiling unchanged — only `directory_member`/`directory_staff` populate
+ * it. Education and military are member-only in Capiro's data (Directory's
+ * bioguide-keyed overlay has no staff-side equivalent), so a staffer's value
+ * here can only ever carry hometown/occupation.
+ */
+const targetCareerBackgroundSchema = z
+  .object({
+    hometown: nullable(OUTREACH_TARGET_LIMITS.careerBackgroundField),
+    occupation: nullable(OUTREACH_TARGET_LIMITS.careerBackgroundField),
+    education: nullable(OUTREACH_TARGET_LIMITS.careerBackgroundField),
+    military: nullable(OUTREACH_TARGET_LIMITS.careerBackgroundField),
+  })
+  .strict();
+
 const resolvedTargetBaseSchema = z
   .object({
     targetKey: bounded(384, 1),
@@ -149,6 +170,7 @@ const resolvedTargetBaseSchema = z
     organization: nullable(OUTREACH_TARGET_LIMITS.organization),
     clientId: clientId.nullable(),
     jurisdiction: targetJurisdictionSchema,
+    careerBackground: targetCareerBackgroundSchema.nullable().optional(),
     roleStatus: z.enum(OUTREACH_TARGET_ROLE_STATUSES),
     emailStatus: z.enum(OUTREACH_TARGET_EMAIL_STATUSES),
     profileStatus: z.enum(OUTREACH_TARGET_PROFILE_STATUSES),
@@ -260,8 +282,17 @@ export function targetKeyForLocator(input: OutreachTargetLocatorV1): string {
 export function normalizeResolvedTargetRefV1(input: unknown): OutreachResolvedTargetRefV1 {
   const parsed = resolvedTargetBaseSchema.parse(input);
   const locator = normalizeTargetLocatorV1(parsed.locator);
+  // `canonicalJsonStringify` (`outreach-campaign-spec.v1.ts`) walks
+  // `Object.keys()` and rejects any value that is literally `undefined` — it
+  // cannot tell "absent" from "present but undefined". A plain `{ ...parsed,
+  // careerBackground: parsed.careerBackground }` line creates an OWN property
+  // even when the value is `undefined`, which broke canonicalization for
+  // every resolved target that never had this field at all. Destructuring it
+  // out and only conditionally re-adding it keeps "no career background" an
+  // absent key, exactly as it was before this field existed.
+  const { careerBackground: parsedCareerBackground, ...parsedWithoutCareerBackground } = parsed;
   const normalizedWithoutHash = {
-    ...parsed,
+    ...parsedWithoutCareerBackground,
     targetKey: targetKeyForLocator(locator),
     locator,
     displayName: parsed.displayName.trim(),
@@ -278,6 +309,16 @@ export function normalizeResolvedTargetRefV1(input: unknown): OutreachResolvedTa
       committees: normalizeSet(parsed.jurisdiction.committees),
       issueAreas: normalizeSet(parsed.jurisdiction.issueAreas),
     },
+    ...(parsedCareerBackground
+      ? {
+          careerBackground: {
+            hometown: normalizeNullable(parsedCareerBackground.hometown),
+            occupation: normalizeNullable(parsedCareerBackground.occupation),
+            education: normalizeNullable(parsedCareerBackground.education),
+            military: normalizeNullable(parsedCareerBackground.military),
+          },
+        }
+      : {}),
     sourceSnapshot: {
       ...parsed.sourceSnapshot,
       version: normalizeNullable(parsed.sourceSnapshot.version),

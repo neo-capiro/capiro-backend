@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OutreachV3Command,
@@ -31,11 +31,15 @@ const { api, state } = vi.hoisted(() => {
     government: unknown[];
     documents: unknown[];
     accepted: unknown;
-  } = { memory: [], government: [], documents: [], accepted: null };
+    capabilities: unknown[];
+    facilities: unknown[];
+  } = { memory: [], government: [], documents: [], accepted: null, capabilities: [], facilities: [] };
   const api = {
     get: vi.fn(async (url: string) => {
       if (url.includes('/context/review')) return { data: { accepted: state.accepted } };
       if (url.includes('/context-library')) return { data: { documents: state.documents } };
+      if (url.includes('/capabilities')) return { data: state.capabilities };
+      if (url.includes('/facilities')) return { data: state.facilities };
       return { data: {} };
     }),
     post: vi.fn(async (url: string) => {
@@ -143,6 +147,7 @@ function acceptedRef(over: Record<string, unknown> = {}) {
 function renderStep(
   over: Partial<OutreachBuilderStepCommon> = {},
   envelope: OutreachV3SessionEnvelope = makeSession(),
+  queryClient?: QueryClient,
 ) {
   state.accepted = envelope.spec.context;
   const props: OutreachBuilderStepCommon = {
@@ -156,7 +161,7 @@ function renderStep(
     primaryLabel: outreachBuilderPrimaryLabel('context', 'send_update'),
     ...over,
   };
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <div className="capiro-vnext-root">
@@ -198,6 +203,8 @@ describe('OutreachContextStep', () => {
     state.government = [];
     state.documents = [];
     state.accepted = null;
+    state.capabilities = [];
+    state.facilities = [];
     applyCommands.mockClear();
     toast.mockClear();
     onNext.mockClear();
@@ -483,6 +490,151 @@ describe('OutreachContextStep', () => {
           'Stored documents become available once the campaign names a single client sponsor.',
         ),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('Request-a-meeting auto-attached sponsor + target profile context', () => {
+    const memberTarget = {
+      targetKey: 'directory_member:person-1',
+      locator: { source: 'directory_member', id: 'person-1' },
+      displayName: 'Rep. Jordan Smith',
+      title: null,
+      organization: null,
+      email: 'jordan@house.gov',
+      clientId: null,
+      roleStatus: 'current',
+      snapshotHash: 'hash-1',
+      jurisdiction: {
+        governmentLevel: 'federal',
+        chamber: 'house',
+        state: 'VA',
+        district: '01',
+        committees: [],
+        issueAreas: [],
+      },
+    };
+    // No career-background source exists for this target type at all — must
+    // never be attempted, or the server rejects the whole accept batch.
+    const legislatorTarget = {
+      ...memberTarget,
+      targetKey: 'state_legislator:sl-1',
+      locator: { source: 'state_legislator', id: 'sl-1' },
+      displayName: 'State Sen. Alex Rivera',
+    };
+
+    function requestMeetingSession(over: Record<string, unknown> = {}) {
+      return makeSession({
+        targeting: {
+          criteria: null,
+          selectedTargetRefs: [memberTarget, legislatorTarget],
+          rejectedRecommendationRefs: [],
+        },
+        ...over,
+      });
+    }
+
+    it('attaches sponsor overview, each capability, each facility, and eligible targets’ career background', async () => {
+      // Pre-seeded so capabilities/facilities are already in the cache on the
+      // component's FIRST render — otherwise the sponsor record (derivable
+      // synchronously) and the capability/facility pieces (which need their
+      // own queries to resolve first) land in separate effect passes, and
+      // since this test's `applyCommands` mock never feeds anything back into
+      // `accepted`, a second pass would re-send the first pass's pieces too.
+      // Pre-seeding collapses everything into one pass, matching what a real,
+      // warm client cache gives a user revisiting this step.
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      queryClient.setQueryData(['client-capabilities', 'client-1'], [{ id: 'cap-1' }, { id: 'cap-2' }]);
+      queryClient.setQueryData(['client-facilities', 'client-1'], [{ id: 'fac-1' }]);
+      renderStep({ campaignType: 'request_meeting' }, requestMeetingSession(), queryClient);
+
+      // The server's ACCEPT_CONTEXT_REFS is content-addressed and
+      // deduplicates by contextKey (`normalizeResolvedContextRefsV1`), so a
+      // second identical batch — possible here since this test's mocked
+      // `applyCommands` never marks anything accepted, unlike the real
+      // session-refetch that normally stops the effect — would be harmless
+      // in production. Only the first call's completeness is asserted.
+      await waitFor(() => expect(applyCommands).toHaveBeenCalled());
+      const [commands] = applyCommands.mock.calls[0] as [OutreachV3Command[]];
+      const accept = commands.find((command) => command.type === 'ACCEPT_CONTEXT_REFS');
+      expect(accept).toBeDefined();
+      const selections = (accept?.payload as { selections: Array<Record<string, unknown>> }).selections;
+      const byRecordType = (recordType: string) =>
+        selections.filter(
+          (selection) => (selection.locator as Record<string, unknown>)['recordType'] === recordType,
+        );
+
+      expect(byRecordType('client')).toHaveLength(1);
+      expect(byRecordType('client')[0]).toMatchObject({ locator: { id: 'client-1' } });
+      expect(byRecordType('client_capability').map((s) => (s.locator as any).id).sort()).toEqual([
+        'cap-1',
+        'cap-2',
+      ]);
+      expect(byRecordType('client_facility').map((s) => (s.locator as any).id)).toEqual(['fac-1']);
+
+      const careerBackground = selections.filter(
+        (selection) => (selection.locator as Record<string, unknown>)['factCode'] === 'career_background',
+      );
+      expect(careerBackground).toHaveLength(1);
+      expect(careerBackground[0]).toMatchObject({
+        scope: { kind: 'target', targetKey: memberTarget.targetKey },
+      });
+    });
+
+    it('never fires for send_update or custom campaigns', async () => {
+      state.capabilities = [{ id: 'cap-1' }];
+      state.facilities = [{ id: 'fac-1' }];
+      renderStep({ campaignType: 'send_update' }, requestMeetingSession());
+
+      // Give any stray effect a turn to run before asserting the negative.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(applyCommands).not.toHaveBeenCalled();
+    });
+
+    it('does not resend a piece that is already accepted', async () => {
+      state.capabilities = [{ id: 'cap-1' }];
+      state.facilities = [];
+      const envelope = requestMeetingSession({
+        context: {
+          ...emptyContext(),
+          campaignFactRefs: [
+            acceptedRef({
+              contextKey: 'ctx-client',
+              locator: { source: 'capiro_record', recordType: 'client', id: 'client-1', clientId: 'client-1' },
+              contextClass: 'campaign_fact',
+            }),
+            acceptedRef({
+              contextKey: 'ctx-cap-1',
+              locator: {
+                source: 'capiro_record',
+                recordType: 'client_capability',
+                id: 'cap-1',
+                clientId: 'client-1',
+              },
+              contextClass: 'campaign_fact',
+            }),
+          ],
+          targetSpecificRefs: [
+            acceptedRef({
+              contextKey: 'ctx-career',
+              locator: {
+                source: 'target_profile_fact',
+                targetRef: memberTarget.locator,
+                factCode: 'career_background',
+              },
+              contextClass: 'target_specific',
+              scope: { kind: 'target', targetKey: memberTarget.targetKey },
+            }),
+          ],
+        },
+      });
+      renderStep({ campaignType: 'request_meeting' }, envelope);
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(applyCommands).not.toHaveBeenCalled();
     });
   });
 });

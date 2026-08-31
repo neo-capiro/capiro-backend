@@ -252,6 +252,79 @@ export class OutreachContextReferenceService {
       };
     }
 
+    if (locator.recordType === 'client_capability') {
+      const row = await tx.clientCapability.findFirst({
+        where: { id: locator.id, tenantId: ctx.tenantId },
+        select: {
+          clientId: true,
+          name: true,
+          type: true,
+          description: true,
+          sector: true,
+          serviceBranch: true,
+          keywords: true,
+          updatedAt: true,
+        },
+      });
+      if (!row || row.clientId !== locator.clientId) throw contextNotFound();
+      await this.authorizeClient(tx, ctx, row.clientId);
+      return {
+        title: row.name,
+        summary: boundedSummary([
+          row.description,
+          row.type ? `Type: ${row.type}` : null,
+          row.sector ? `Sector: ${row.sector}` : null,
+          row.serviceBranch ? `Service branch: ${row.serviceBranch}` : null,
+          row.keywords.length ? `Keywords: ${row.keywords.join(', ')}` : null,
+        ]),
+        clientId: row.clientId,
+        verificationClass: 'first_party',
+        sensitivity: 'confidential',
+        instructionsAllowed: false,
+        usableAsEvidence: true,
+        sourceSystem: 'capiro_client_capability',
+        sourceVersion: row.updatedAt.toISOString(),
+        lastVerifiedAt: row.updatedAt.toISOString(),
+      };
+    }
+
+    if (locator.recordType === 'client_facility') {
+      const row = await tx.clientFacility.findFirst({
+        where: { id: locator.id, tenantId: ctx.tenantId },
+        select: {
+          clientId: true,
+          name: true,
+          addressLine: true,
+          city: true,
+          state: true,
+          zip: true,
+          congressionalDistrict: true,
+          employeeCount: true,
+          updatedAt: true,
+        },
+      });
+      if (!row || row.clientId !== locator.clientId) throw contextNotFound();
+      await this.authorizeClient(tx, ctx, row.clientId);
+      const cityStateZip = [row.city, row.state].filter(Boolean).join(', ');
+      return {
+        title: row.name,
+        summary: boundedSummary([
+          row.addressLine,
+          [cityStateZip, row.zip].filter(Boolean).join(' ') || null,
+          row.congressionalDistrict ? `Congressional district: ${row.congressionalDistrict}` : null,
+          row.employeeCount != null ? `Employees: ${row.employeeCount}` : null,
+        ]),
+        clientId: row.clientId,
+        verificationClass: 'first_party',
+        sensitivity: 'confidential',
+        instructionsAllowed: false,
+        usableAsEvidence: true,
+        sourceSystem: 'capiro_client_facility',
+        sourceVersion: row.updatedAt.toISOString(),
+        lastVerifiedAt: row.updatedAt.toISOString(),
+      };
+    }
+
     if (locator.recordType === 'meeting') {
       const row = await tx.meeting.findFirst({
         where: {
@@ -838,6 +911,26 @@ function targetFact(
             summary: target.jurisdiction.issueAreas.join(', '),
           }
         : null;
+    case 'career_background': {
+      // Only members and staffers carry this at all (see `careerBackground` on
+      // `resolveDirectoryMember`/`resolveDirectoryStaff`), and even for them,
+      // education/military come from a bioguide-keyed overlay that only ever
+      // covers members — a staffer's fact can only ever be hometown+occupation.
+      const bg = target.careerBackground;
+      if (!bg) return null;
+      const parts = [
+        bg.hometown ? `Hometown: ${bg.hometown}` : null,
+        bg.occupation ? `Occupation: ${bg.occupation}` : null,
+        bg.education ? `Education: ${bg.education}` : null,
+        bg.military ? `Military service: ${bg.military}` : null,
+      ].filter((part): part is string => Boolean(part));
+      return parts.length
+        ? {
+            title: `${target.displayName} — career background`,
+            summary: parts.join('\n'),
+          }
+        : null;
+    }
     default:
       return null;
   }

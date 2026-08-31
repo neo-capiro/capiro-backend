@@ -216,6 +216,46 @@ export function clientRecordContextSelection(clientId: string): OutreachV3Contex
   };
 }
 
+/**
+ * One selection per capability/facility record — not one bundled blob — so
+ * a user can exclude a single wrong capability or a closed facility without
+ * losing the rest. Resolved server-side against `ClientCapability` /
+ * `ClientFacility` (`outreach-context-reference.service.ts`'s
+ * `resolveCapiroRecord`), the same authorization path as the sponsor
+ * overview above — never baked in from client-side data.
+ */
+export function clientCapabilityContextSelection(
+  clientId: string,
+  capabilityId: string,
+): OutreachV3ContextSelection {
+  return {
+    locator: {
+      source: 'capiro_record',
+      recordType: 'client_capability',
+      id: capabilityId,
+      clientId,
+    },
+    contextClass: 'campaign_fact',
+    scope: { kind: 'campaign' },
+  };
+}
+
+export function clientFacilityContextSelection(
+  clientId: string,
+  facilityId: string,
+): OutreachV3ContextSelection {
+  return {
+    locator: {
+      source: 'capiro_record',
+      recordType: 'client_facility',
+      id: facilityId,
+      clientId,
+    },
+    contextClass: 'campaign_fact',
+    scope: { kind: 'campaign' },
+  };
+}
+
 export function manualProfileContextSelection(input: {
   sectionLabel: string;
   text: string;
@@ -287,6 +327,43 @@ export function targetNoteContextSelection(input: {
     contextClass: 'target_specific',
     scope: { kind: 'target', targetKey: input.target.targetKey },
   };
+}
+
+/**
+ * Career-relevant bio facts (hometown, occupation, education, military —
+ * never date of birth, race, or religion) for a Request-a-meeting campaign.
+ * Server-resolved (`outreach-context-reference.service.ts`'s `targetFact()`,
+ * `career_background` case) against whatever the target's own
+ * `careerBackground` actually carries — this selection can safely be sent
+ * for any target locator, but only ever resolves to something for
+ * `directory_member`/`directory_staff` sources, so callers should check
+ * `outreachTargetHasCareerBackgroundSource` first rather than sending one
+ * that is certain to fail.
+ */
+export function targetCareerBackgroundContextSelection(
+  target: OutreachV3ResolvedTargetRef,
+): OutreachV3ContextSelection {
+  return {
+    locator: {
+      source: 'target_profile_fact',
+      targetRef: target.locator,
+      factCode: 'career_background',
+    },
+    contextClass: 'target_specific',
+    scope: { kind: 'target', targetKey: target.targetKey },
+  };
+}
+
+/**
+ * Members and staffers are the only target sources with ANY career
+ * background data in Capiro — state legislators, client contacts and manual
+ * targets have no such field on the backend's resolved-target shape at all
+ * (`outreach-target-reference.service.ts`).
+ */
+export function outreachTargetHasCareerBackgroundSource(
+  target: OutreachV3ResolvedTargetRef,
+): boolean {
+  return target.locator.source === 'directory_member' || target.locator.source === 'directory_staff';
 }
 
 export function targetDisplayName(target: OutreachV3ResolvedTargetRef): string {

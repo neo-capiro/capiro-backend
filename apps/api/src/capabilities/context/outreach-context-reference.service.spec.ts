@@ -86,18 +86,31 @@ function matchesWhere(row: Record<string, unknown>, where: Record<string, unknow
 }
 
 function harness(options: {
-  attachment: ReturnType<typeof attachmentRow> | null;
+  attachment?: ReturnType<typeof attachmentRow> | null;
   scanRequired?: boolean;
   meeting?: { id: string } | null;
+  clientCapability?: Record<string, unknown> | null;
+  clientFacility?: Record<string, unknown> | null;
+  resolvedTarget?: Record<string, unknown> | null;
 }) {
   const findFirstAttachment = jest.fn(async (args: { where: Record<string, unknown> }) => {
     if (!options.attachment) return null;
     return matchesWhere(options.attachment, args.where) ? options.attachment : null;
   });
   const findFirstMeeting = jest.fn(async () => options.meeting ?? null);
+  const findFirstClientCapability = jest.fn(async (args: { where: Record<string, unknown> }) => {
+    if (!options.clientCapability) return null;
+    return matchesWhere(options.clientCapability, args.where) ? options.clientCapability : null;
+  });
+  const findFirstClientFacility = jest.fn(async (args: { where: Record<string, unknown> }) => {
+    if (!options.clientFacility) return null;
+    return matchesWhere(options.clientFacility, args.where) ? options.clientFacility : null;
+  });
   const tx = {
     engagementAttachment: { findFirst: findFirstAttachment },
     meeting: { findFirst: findFirstMeeting },
+    clientCapability: { findFirst: findFirstClientCapability },
+    clientFacility: { findFirst: findFirstClientFacility },
   } as unknown as Prisma.TransactionClient;
 
   const authorizeClientWithinTx = jest.fn(async (_tx: unknown, _c: unknown, clientId: string) => ({
@@ -110,7 +123,11 @@ function harness(options: {
     updatedAt: new Date('2026-08-01T00:00:00Z'),
   }));
   const authorization = { authorizeClientWithinTx } as unknown as CapabilityAuthorizationService;
-  const targetReferences = {} as unknown as OutreachTargetReferenceService;
+  const resolveOneWithinTx = jest.fn(async () => {
+    if (!options.resolvedTarget) throw new CapabilityError('CAPABILITY_NOT_FOUND', 'Target not found.');
+    return options.resolvedTarget;
+  });
+  const targetReferences = { resolveOneWithinTx } as unknown as OutreachTargetReferenceService;
   const attachmentContent = new AttachmentContentService();
   const attachmentScanner = {
     scanRequired: options.scanRequired ?? false,
@@ -125,7 +142,16 @@ function harness(options: {
     attachmentScanner,
   );
 
-  return { service, tx, findFirstAttachment, findFirstMeeting, authorizeClientWithinTx };
+  return {
+    service,
+    tx,
+    findFirstAttachment,
+    findFirstMeeting,
+    findFirstClientCapability,
+    findFirstClientFacility,
+    authorizeClientWithinTx,
+    resolveOneWithinTx,
+  };
 }
 
 function documentSelection(clientId: string | null): OutreachContextSelectionV1 {
@@ -133,6 +159,92 @@ function documentSelection(clientId: string | null): OutreachContextSelectionV1 
     locator: { source: 'document', id: attachmentId, clientId },
     contextClass: 'campaign_fact',
     scope: { kind: 'campaign' },
+  };
+}
+
+const capabilityId = 'a1a1a1a1-0000-4000-8000-000000000001';
+const facilityId = 'b2b2b2b2-0000-4000-8000-000000000002';
+
+function capabilityRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: capabilityId,
+    tenantId,
+    clientId: authorizedClientId,
+    name: 'Autonomy Kit — Ground Robotics',
+    type: 'product',
+    description: 'Modular autonomy retrofit for tracked ground vehicles.',
+    sector: 'Defense',
+    serviceBranch: 'Army',
+    keywords: ['autonomy', 'ground robotics'],
+    updatedAt: new Date('2026-08-01T00:00:00Z'),
+    ...overrides,
+  };
+}
+
+function facilityRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: facilityId,
+    tenantId,
+    clientId: authorizedClientId,
+    name: 'Huntsville Plant',
+    addressLine: '100 Rocket Rd',
+    city: 'Huntsville',
+    state: 'AL',
+    zip: '35806',
+    congressionalDistrict: '05',
+    employeeCount: 240,
+    updatedAt: new Date('2026-08-01T00:00:00Z'),
+    ...overrides,
+  };
+}
+
+function capabilitySelection(clientId: string): OutreachContextSelectionV1 {
+  return {
+    locator: { source: 'capiro_record', recordType: 'client_capability', id: capabilityId, clientId },
+    contextClass: 'campaign_fact',
+    scope: { kind: 'campaign' },
+  };
+}
+
+function facilitySelection(clientId: string): OutreachContextSelectionV1 {
+  return {
+    locator: { source: 'capiro_record', recordType: 'client_facility', id: facilityId, clientId },
+    contextClass: 'campaign_fact',
+    scope: { kind: 'campaign' },
+  };
+}
+
+const targetKey = 'target:directory_staff:staff-9001';
+
+function careerBackgroundSelection(): OutreachContextSelectionV1 {
+  return {
+    locator: {
+      source: 'target_profile_fact',
+      targetRef: { source: 'directory_staff', id: 'staff-9001' },
+      factCode: 'career_background',
+    },
+    contextClass: 'target_specific',
+    scope: { kind: 'target', targetKey },
+  };
+}
+
+function resolvedTargetFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    targetKey,
+    locator: { source: 'directory_staff', id: 'staff-9001' },
+    displayName: 'Jordan Rivera',
+    clientId: null,
+    jurisdiction: {
+      governmentLevel: 'federal',
+      chamber: 'house',
+      state: 'AL',
+      district: '05',
+      committees: [],
+      issueAreas: [],
+    },
+    roleStatus: 'current',
+    sourceSnapshot: { system: 'capiro_directory', version: 'v1', lastVerifiedAt: '2026-08-01' },
+    ...overrides,
   };
 }
 
@@ -208,6 +320,141 @@ describe('OutreachContextReferenceService — document locator authorization', (
 
     await expect(
       service.resolveOneWithinTx(tx, ctx, documentSelection(authorizedClientId)),
+    ).rejects.toBeInstanceOf(CapabilityError);
+  });
+});
+
+// Request-a-meeting context enrichment: sponsor capabilities/locations
+// surface as real capiro_record Sources, same authorization/isolation
+// pattern as the existing client/meeting/engagement_task branches above.
+describe('OutreachContextReferenceService — capiro_record client capability', () => {
+  it('resolves a capability belonging to the authorized client', async () => {
+    const { service, tx } = harness({ clientCapability: capabilityRow() });
+
+    const resolved = await service.resolveOneWithinTx(
+      tx,
+      ctx,
+      capabilitySelection(authorizedClientId),
+    );
+
+    expect(resolved.title).toBe('Autonomy Kit — Ground Robotics');
+    expect(resolved.summary).toContain('Modular autonomy retrofit');
+    expect(resolved.summary).toContain('Sector: Defense');
+    expect(resolved.summary).toContain('Service branch: Army');
+    expect(resolved.summary).toContain('Keywords: autonomy, ground robotics');
+    expect(resolved.clientId).toBe(authorizedClientId);
+  });
+
+  it('rejects a capability belonging to a DIFFERENT client', async () => {
+    const { service, tx, authorizeClientWithinTx } = harness({
+      clientCapability: capabilityRow({ clientId: otherClientId }),
+    });
+
+    await expect(
+      service.resolveOneWithinTx(tx, ctx, capabilitySelection(authorizedClientId)),
+    ).rejects.toMatchObject({ code: 'CAPABILITY_NOT_FOUND' });
+    expect(authorizeClientWithinTx).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the capability does not exist at all', async () => {
+    const { service, tx } = harness({ clientCapability: null });
+
+    await expect(
+      service.resolveOneWithinTx(tx, ctx, capabilitySelection(authorizedClientId)),
+    ).rejects.toBeInstanceOf(CapabilityError);
+  });
+});
+
+describe('OutreachContextReferenceService — capiro_record client facility', () => {
+  it('resolves a facility belonging to the authorized client', async () => {
+    const { service, tx } = harness({ clientFacility: facilityRow() });
+
+    const resolved = await service.resolveOneWithinTx(tx, ctx, facilitySelection(authorizedClientId));
+
+    expect(resolved.title).toBe('Huntsville Plant');
+    expect(resolved.summary).toContain('100 Rocket Rd');
+    expect(resolved.summary).toContain('Huntsville, AL 35806');
+    expect(resolved.summary).toContain('Congressional district: 05');
+    expect(resolved.summary).toContain('Employees: 240');
+    expect(resolved.clientId).toBe(authorizedClientId);
+  });
+
+  it('rejects a facility belonging to a DIFFERENT client', async () => {
+    const { service, tx, authorizeClientWithinTx } = harness({
+      clientFacility: facilityRow({ clientId: otherClientId }),
+    });
+
+    await expect(
+      service.resolveOneWithinTx(tx, ctx, facilitySelection(authorizedClientId)),
+    ).rejects.toMatchObject({ code: 'CAPABILITY_NOT_FOUND' });
+    expect(authorizeClientWithinTx).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the facility does not exist at all', async () => {
+    const { service, tx } = harness({ clientFacility: null });
+
+    await expect(
+      service.resolveOneWithinTx(tx, ctx, facilitySelection(authorizedClientId)),
+    ).rejects.toBeInstanceOf(CapabilityError);
+  });
+});
+
+describe('OutreachContextReferenceService — target_profile_fact career_background', () => {
+  it('builds one fact from whichever career-background fields a member/staffer has', async () => {
+    const { service, tx } = harness({
+      resolvedTarget: resolvedTargetFixture({
+        careerBackground: { hometown: 'Huntsville, AL', occupation: 'Legislative aide', education: null, military: null },
+      }),
+    });
+
+    const resolved = await service.resolveOneWithinTx(tx, ctx, careerBackgroundSelection());
+
+    expect(resolved.title).toBe('Jordan Rivera — career background');
+    expect(resolved.summary).toContain('Hometown: Huntsville, AL');
+    expect(resolved.summary).toContain('Occupation: Legislative aide');
+    // A staffer's fact never carries these — Capiro has no such source for staff.
+    expect(resolved.summary).not.toContain('Education:');
+    expect(resolved.summary).not.toContain('Military');
+  });
+
+  it('includes education/military when the resolved target carries them (members only)', async () => {
+    const { service, tx } = harness({
+      resolvedTarget: resolvedTargetFixture({
+        displayName: 'Rep. Robert Aderholt',
+        careerBackground: {
+          hometown: 'Haleyville, AL',
+          occupation: 'Attorney',
+          education: 'University of Alabama (BA); Cumberland School of Law (JD)',
+          military: 'U.S. Army Reserve',
+        },
+      }),
+    });
+
+    const resolved = await service.resolveOneWithinTx(tx, ctx, careerBackgroundSelection());
+
+    expect(resolved.summary).toContain('Education: University of Alabama');
+    expect(resolved.summary).toContain('Military service: U.S. Army Reserve');
+  });
+
+  it('rejects (contextNotFound) when the target has no career background at all', async () => {
+    const { service, tx } = harness({
+      resolvedTarget: resolvedTargetFixture({ careerBackground: null }),
+    });
+
+    await expect(
+      service.resolveOneWithinTx(tx, ctx, careerBackgroundSelection()),
+    ).rejects.toBeInstanceOf(CapabilityError);
+  });
+
+  it('rejects (contextNotFound) for a target type with no career background field at all — e.g. a state legislator', async () => {
+    const { service, tx } = harness({
+      // resolvedTargetFixture never sets careerBackground unless asked to —
+      // this is exactly what resolveOneWithinTx returns for a state legislator.
+      resolvedTarget: resolvedTargetFixture(),
+    });
+
+    await expect(
+      service.resolveOneWithinTx(tx, ctx, careerBackgroundSelection()),
     ).rejects.toBeInstanceOf(CapabilityError);
   });
 });

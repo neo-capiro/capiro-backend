@@ -167,6 +167,16 @@ export class OutreachTargetReferenceService {
         committees: contact.committees ?? [],
         issueAreas: contact.focusAreas ?? [],
       },
+      // Members are the only target source with education/military at all —
+      // both come from `bioOverlay`, which `buildContacts()` only ever looks
+      // up keyed on a member's bioguide ID (`directory.service.ts`). No new
+      // fetch: `contact` is the same `getAllContacts()` call already made above.
+      careerBackground: {
+        hometown: contact.bio.hometown || null,
+        occupation: contact.bio.occupation || null,
+        education: contact.bio.education || null,
+        military: contact.bio.military || null,
+      },
       roleStatus: contact.outgoingStatus || currentOffice?.endDate ? 'historical' : 'current',
       emailStatus: emailStatusFor(email),
       profileStatus: 'complete',
@@ -223,6 +233,15 @@ export class OutreachTargetReferenceService {
         issueAreas: detail.issues
           .map((entry) => entry.issueName)
           .filter((value): value is string => Boolean(value)),
+      },
+      // Unlike members, staffers have no education/military source at all in
+      // Capiro's data — `getStaffDetail`'s `bioDetails` never carries them
+      // (see `directory.service.ts`), so those two stay null here.
+      careerBackground: {
+        hometown: detail.bioDetails.hometown || null,
+        occupation: detail.bioDetails.occupation || null,
+        education: null,
+        military: null,
       },
       roleStatus: current?.isCurrent ? 'current' : current ? 'historical' : 'unknown',
       emailStatus: emailStatusFor(email),

@@ -7,12 +7,16 @@ import type {
 import {
   CLIENT_PROFILE_CONTEXT_OPTIONS,
   OUTREACH_WORKFLOW_TEMPLATES,
+  clientCapabilityContextSelection,
+  clientFacilityContextSelection,
   guidedStepsForWorkflow,
   inferOutreachGuidedStep,
   inferOutreachWorkflowTemplate,
   manualProfileContextSelection,
+  outreachTargetHasCareerBackgroundSource,
   programElementContextSelection,
   subjectLineContextSelection,
+  targetCareerBackgroundContextSelection,
   targetNoteContextSelection,
   workflowCampaignDefaults,
 } from './outreach-v3-guided-workflow.js';
@@ -225,5 +229,52 @@ describe('Outreach V3 guided workflow', () => {
       'context',
       'review',
     ]);
+  });
+
+  it('resolves one campiro_record selection per capability/facility — never a bundled blob', () => {
+    const capability = clientCapabilityContextSelection('client-1', 'cap-1');
+    expect(capability).toEqual({
+      locator: { source: 'capiro_record', recordType: 'client_capability', id: 'cap-1', clientId: 'client-1' },
+      contextClass: 'campaign_fact',
+      scope: { kind: 'campaign' },
+    });
+
+    const facility = clientFacilityContextSelection('client-1', 'fac-1');
+    expect(facility).toEqual({
+      locator: { source: 'capiro_record', recordType: 'client_facility', id: 'fac-1', clientId: 'client-1' },
+      contextClass: 'campaign_fact',
+      scope: { kind: 'campaign' },
+    });
+  });
+
+  it('scopes a career-background selection to its own target, reusing the target’s own locator', () => {
+    const selection = targetCareerBackgroundContextSelection(target);
+    expect(selection).toEqual({
+      locator: {
+        source: 'target_profile_fact',
+        targetRef: target.locator,
+        factCode: 'career_background',
+      },
+      contextClass: 'target_specific',
+      scope: { kind: 'target', targetKey: target.targetKey },
+    });
+  });
+
+  it('only members and staffers have any career-background source at all', () => {
+    expect(outreachTargetHasCareerBackgroundSource(target)).toBe(true); // directory_member
+    expect(
+      outreachTargetHasCareerBackgroundSource({
+        ...target,
+        locator: { source: 'directory_staff', id: 'staff-1' },
+      }),
+    ).toBe(true);
+    for (const source of ['state_legislator', 'client_person', 'engagement_contact', 'manual']) {
+      expect(
+        outreachTargetHasCareerBackgroundSource({
+          ...target,
+          locator: { source, id: 'x' },
+        }),
+      ).toBe(false);
+    }
   });
 });

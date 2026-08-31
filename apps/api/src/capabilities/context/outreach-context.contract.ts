@@ -78,7 +78,13 @@ const memoryItemLocatorSchema = z
 const capiroRecordLocatorSchema = z
   .object({
     source: z.literal('capiro_record'),
-    recordType: z.enum(['client', 'meeting', 'engagement_task']),
+    recordType: z.enum([
+      'client',
+      'meeting',
+      'engagement_task',
+      'client_capability',
+      'client_facility',
+    ]),
     id: z.string().uuid(),
     clientId: clientId.nullable(),
   })

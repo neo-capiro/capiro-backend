@@ -50,8 +50,11 @@ import type {
   OutreachV3ContextDocumentCandidate,
   OutreachV3ContextSelection,
   OutreachV3ResolvedContextRef,
+  OutreachV3ResolvedTargetRef,
   OutreachV3SessionEnvelope,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
+import type { CapabilityRecord } from '../../../pages/clients/client-profile-crm-model.js';
+import type { ClientFacility } from '../../../pages/clients/facilities-api.js';
 import { outreachCampaignTypeLabel } from './outreach-campaign-flow.js';
 import {
   OUTREACH_TEMPLATE_MARKER,
@@ -60,8 +63,16 @@ import {
   outreachCampaignNameFromSpec,
   outreachGuidanceRefsWithMarker,
   outreachGuidanceSelection,
+  outreachSelectedTargets,
   type OutreachBuilderStepCommon,
 } from './outreach-builder-model.js';
+import {
+  clientCapabilityContextSelection,
+  clientFacilityContextSelection,
+  clientRecordContextSelection,
+  outreachTargetHasCareerBackgroundSource,
+  targetCareerBackgroundContextSelection,
+} from './outreach-v3-guided-workflow.js';
 import {
   OUTREACH_CONTENT_TEMPLATES,
   type OutreachContentTemplateDefinition,
@@ -938,6 +949,28 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
     retry: false,
   });
 
+  // Request-a-meeting only: the sponsor's capabilities and locations, fetched
+  // so each can become its own real Source below — never a bundled blob, so
+  // excluding one wrong capability never takes the rest with it. Same plain
+  // GET pattern already used for the same two endpoints in
+  // `pages/clients/useClientProfileData.ts`.
+  const isRequestMeeting = campaignType === 'request_meeting';
+  const capabilitiesQuery = useQuery({
+    queryKey: ['client-capabilities', clientId],
+    enabled: isRequestMeeting && Boolean(clientId),
+    queryFn: async () =>
+      (await api.get<CapabilityRecord[]>(`/api/clients/${clientId}/capabilities`)).data,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const facilitiesQuery = useQuery({
+    queryKey: ['client-facilities', clientId],
+    enabled: isRequestMeeting && Boolean(clientId),
+    queryFn: async () => (await api.get<ClientFacility[]>(`/api/clients/${clientId}/facilities`)).data,
+    staleTime: 60_000,
+    retry: false,
+  });
+
   const accepted = useMemo(
     () => acceptedContextRefs(reviewQuery.data?.accepted ?? session?.spec.context),
     [reviewQuery.data, session],
@@ -1014,6 +1047,64 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
     },
     [applyCommands],
   );
+
+  /* -- Request-a-meeting: auto-attach sponsor + target profile context --- */
+
+  const targets = useMemo(() => outreachSelectedTargets(session), [session]);
+
+  const hasCapiroRecordRef = (recordId: string) =>
+    accepted.some(
+      (ref) =>
+        (ref.locator as Record<string, unknown>)['source'] === 'capiro_record' &&
+        locatorId(ref.locator as Record<string, unknown>) === recordId,
+    );
+  const hasCareerBackgroundRef = (target: OutreachV3ResolvedTargetRef) =>
+    accepted.some(
+      (ref) =>
+        ref.scope.kind === 'target' &&
+        ref.scope.targetKey === target.targetKey &&
+        (ref.locator as Record<string, unknown>)['factCode'] === 'career_background',
+    );
+
+  useEffect(() => {
+    if (!isRequestMeeting || !clientId || pending !== null) return;
+    // Each of the four pieces is checked independently — a slow/failed
+    // capabilities or facilities fetch never blocks the other pieces from
+    // attaching, and each is its own `capiro_record`/`target_profile_fact`
+    // Source once accepted, never a `manual` marker the user can't see.
+    const missing: OutreachV3ContextSelection[] = [];
+    if (!hasCapiroRecordRef(clientId)) missing.push(clientRecordContextSelection(clientId));
+    for (const capability of capabilitiesQuery.data ?? []) {
+      if (!hasCapiroRecordRef(capability.id)) {
+        missing.push(clientCapabilityContextSelection(clientId, capability.id));
+      }
+    }
+    for (const facility of facilitiesQuery.data ?? []) {
+      if (!hasCapiroRecordRef(facility.id)) {
+        missing.push(clientFacilityContextSelection(clientId, facility.id));
+      }
+    }
+    for (const target of targets) {
+      if (outreachTargetHasCareerBackgroundSource(target) && !hasCareerBackgroundRef(target)) {
+        missing.push(targetCareerBackgroundContextSelection(target));
+      }
+    }
+    if (missing.length === 0) return;
+    void runCommands('auto-request-meeting-context', [acceptContextCommand(missing)]);
+    // `accepted` already reflects every locator currently on the spec, so it
+    // (not `session` directly) is what tells this effect whether a prior
+    // batch landed — applyCommands invalidates the session query on success,
+    // which is what refreshes it.
+  }, [
+    isRequestMeeting,
+    clientId,
+    accepted,
+    capabilitiesQuery.data,
+    facilitiesQuery.data,
+    targets,
+    pending,
+    runCommands,
+  ]);
 
   /* -- per-template options -------------------------------------------- */
 

@@ -69,6 +69,21 @@ describe('Outreach target contract', () => {
     ).toThrow();
   });
 
+  it('leaves snapshotHash unchanged when careerBackground is added — a fixture that never had it must not suddenly mismatch', () => {
+    // `hashResolvedTargetSnapshot` hashes an explicit, fixed field list that
+    // does not include careerBackground; this pins that invariant so a future
+    // edit that widens the hash input would fail loudly here instead of
+    // silently invalidating every already-stored resolved-target snapshot.
+    const id = '00000000-0000-4000-8000-00000000000a';
+    const without = resolved(id);
+    const withCareerBackground = createResolvedTargetRefV1({
+      ...without,
+      careerBackground: { hometown: 'Testville, TS', occupation: 'Aide', education: null, military: null },
+    });
+    expect(withCareerBackground.snapshotHash).toBe(without.snapshotHash);
+    expect(() => outreachResolvedTargetRefV1Schema.parse(withCareerBackground)).not.toThrow();
+  });
+
   it('deduplicates exact target keys without merging distinct identities by email', () => {
     const first = resolved('00000000-0000-4000-8000-000000000003');
     const duplicateKey = resolved('00000000-0000-4000-8000-000000000003');
