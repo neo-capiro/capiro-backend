@@ -470,6 +470,54 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     const pacCell = screen.getByText('PAC disbursements').closest('.capiro-intel-stats-cell');
     expect(within(pacCell as HTMLElement).getByText('—')).toBeInTheDocument();
   });
+
+  /**
+   * "Export profile" (header) previously had no onClick at all — a static
+   * <SecondaryBtn> in DOMAIN_META, same defect class as the already-fixed
+   * Manage facilities/Configure buttons. The real destination is the
+   * report-card export route, now rendering an actual .docx server-side.
+   */
+  it('downloads the report card .docx when "Export profile" is clicked', async () => {
+    const docxBlob = new Blob(['fake-docx-bytes'], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
+        return Promise.resolve({
+          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
+        });
+      }
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: PAC_GIVING_REAL });
+      if (url === '/api/intelligence/clients/client-1/report-card/export') return Promise.resolve({ data: docxBlob });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+
+    const blobs: Blob[] = [];
+    const createUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob: Blob | MediaSource) => {
+        blobs.push(blob as Blob);
+        return 'blob:report-card';
+      });
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    renderFootprint();
+    await waitFor(() => expect(screen.getByText('Export profile')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Export profile'));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    // The mutation wraps the fetched blob in a fresh Blob (to set the download's
+    // content type), so it is not the SAME object as the mocked response —
+    // assert on the bytes it carries instead.
+    await expect(blobs[0]!.text()).resolves.toBe('fake-docx-bytes');
+
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
+    clickSpy.mockRestore();
+  });
 });
 
 

@@ -167,7 +167,6 @@ describe('outreach send gate', () => {
       preflightRan: false,
       blockedCount: 0,
       partialChoice: 'ready',
-      acknowledged: false,
     });
     expect(gate.canSend).toBe(false);
     expect(gate.reason).toBe('Run preflight first.');
@@ -178,31 +177,27 @@ describe('outreach send gate', () => {
       preflightRan: true,
       blockedCount: 0,
       partialChoice: 'ready',
-      acknowledged: false,
     });
     expect(gate.canSend).toBe(true);
-    expect(gate.needsAcknowledgment).toBe(false);
     expect(gate.reason).toBe('The confirmation dialog is the only real-send trigger.');
   });
 
-  it('requires an acknowledgment before a partial send', () => {
-    const unacknowledged = outreachSendGate({
+  /**
+   * The held-out acknowledgement gate was removed deliberately. It asked the
+   * user to tick a box confirming they knew some recipients were excluded, but
+   * those recipients are dropped from the envelope server-side either way, so
+   * the box could never change who received mail. This pins the de-gated
+   * behaviour so it is not reintroduced by accident.
+   */
+  it('allows a partial send with held-out recipients and no acknowledgment', () => {
+    const gate = outreachSendGate({
       preflightRan: true,
       blockedCount: 1,
       partialChoice: 'ready',
-      acknowledged: false,
     });
-    expect(unacknowledged.needsAcknowledgment).toBe(true);
-    expect(unacknowledged.canSend).toBe(false);
-    expect(unacknowledged.reason).toBe('Acknowledge the held-out recipients.');
-
-    const acknowledged = outreachSendGate({
-      preflightRan: true,
-      blockedCount: 1,
-      partialChoice: 'ready',
-      acknowledged: true,
-    });
-    expect(acknowledged.canSend).toBe(true);
+    expect(gate.canSend).toBe(true);
+    expect(gate.holdsAll).toBe(false);
+    expect(gate.reason).toBe('The confirmation dialog is the only real-send trigger.');
   });
 
   it('blocks the whole campaign when the user chooses to wait for everyone', () => {
@@ -210,7 +205,6 @@ describe('outreach send gate', () => {
       preflightRan: true,
       blockedCount: 1,
       partialChoice: 'all',
-      acknowledged: true,
     });
     expect(gate.holdsAll).toBe(true);
     expect(gate.canSend).toBe(false);
