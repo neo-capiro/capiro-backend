@@ -344,15 +344,30 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     ];
   }
 
-  if (view === 'funding' && foReady && foEnabled && oppsQ.isSuccess && pesQ.isSuccess) {
-    const c = oppsQ.data.counts;
-    const pursuing = oppsQ.data.topGrants.filter((o) => o.workflow?.status === 'pursuing').length
-      + oppsQ.data.topContracts.filter((o) => o.workflow?.status === 'pursuing').length;
+  // "Relevant programs" (pesQ) carries no dependency on the funding_opportunities
+  // canary flag — it never did — so it must not be held hostage by the other
+  // four cells, which do. Same "fill in from whichever query answers first"
+  // rule Legislative & Regulatory already applies above; this domain simply
+  // never followed it.
+  if (view === 'funding' && ((foReady && foEnabled && oppsQ.isSuccess) || pesQ.isSuccess)) {
+    const relevantPrograms = pesQ.isSuccess ? String(pesQ.data.data.length) : '—';
+    if (foReady && foEnabled && oppsQ.isSuccess) {
+      const c = oppsQ.data.counts;
+      const pursuing = oppsQ.data.topGrants.filter((o) => o.workflow?.status === 'pursuing').length
+        + oppsQ.data.topContracts.filter((o) => o.workflow?.status === 'pursuing').length;
+      return [
+        [String(c.activeGrants + c.activeContracts), 'Active opportunities'],
+        [String(pursuing), 'Pursuing'],
+        ['—', 'Largest ceiling'],
+        [relevantPrograms, 'Relevant programs'],
+        ['—', 'Next deadline'],
+      ];
+    }
     return [
-      [String(c.activeGrants + c.activeContracts), 'Active opportunities'],
-      [String(pursuing), 'Pursuing'],
+      ['—', 'Active opportunities'],
+      ['—', 'Pursuing'],
       ['—', 'Largest ceiling'],
-      [String(pesQ.data.data.length), 'Relevant programs'],
+      [relevantPrograms, 'Relevant programs'],
       ['—', 'Next deadline'],
     ];
   }
@@ -488,6 +503,21 @@ function CouldNotLoad({ what, error, onRetry }: { what: string; error?: unknown;
     <div className="capiro-intel-error">
       <p className="capiro-intel-error-text">{what} could not be loaded. {detail}</p>
       {onRetry ? <SecondaryBtn onClick={onRetry}>Retry</SecondaryBtn> : null}
+    </div>
+  );
+}
+
+/**
+ * A canary feature flag confirmed OFF for this tenant — not an error (nothing
+ * to retry) and not "no results" (there is no result to have). Same visual
+ * treatment as CouldNotLoad, since both are "this card has no real content
+ * to show and says so honestly," but distinct copy: retrying a flag that is
+ * off will never turn it on.
+ */
+function FeatureNotEnabled({ what }: { what: string }) {
+  return (
+    <div className="capiro-intel-error">
+      <p className="capiro-intel-error-text">{what} is not enabled for this account yet.</p>
     </div>
   );
 }
@@ -1185,10 +1215,19 @@ function FundingPanel({ client }: { client: Client }) {
   const api = useApi();
   const navigate = useNavigate();
 
-  // Item 5: Opportunities list. Same endpoint + feature gate as the established
-  // legacy widget (FundingOpportunitiesSection.tsx) — a disabled flag is an
-  // unavailable feature, not an empty result, so the design fixture stays up
-  // rather than showing a broken-looking blank card.
+  // Item 5: Opportunities list. `funding_opportunities` is a per-tenant CANARY
+  // flag (see funding-opportunities-flag.guard.ts) — "off" means "not rolled
+  // out to this tenant yet," not "this tenant doesn't get this feature." The
+  // backend 404s every route behind it when off; there is no teaser payload.
+  // Showing the OPPS design fixture indefinitely in that state — invented
+  // company names, dollar amounts and deadlines, with no indication they are
+  // not real — is exactly the failure mode this file's own rule elsewhere
+  // forbids ("never fake a number a real query could have answered"), and it
+  // is inconsistent with how every other canary-gated surface in this app
+  // behaves (Dashboard's X Feed, District Nexus v2 both show an honest
+  // "not available" state instead of a fake one). The fixture now renders
+  // ONLY during the genuine loading flash — before flags have resolved, or
+  // while an enabled tenant's own query is still in flight.
   const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
   const opportunitiesQ = useQuery<ClientFundingOpportunitySummary>({
     queryKey: ['client-funding-opportunities', client.id],
@@ -1206,10 +1245,13 @@ function FundingPanel({ client }: { client: Client }) {
   const opportunityRows = realOpportunities
     ? [...realOpportunities.topGrants, ...realOpportunities.topContracts].slice(0, 6)
     : [];
-  // Distinct from "the feature is off" (fixture stays, per the comment above —
-  // a disabled flag is a configuration answer, not an outage) — a confirmed
-  // fetch error on an ENABLED feature must not fall back to the OPPS fixture.
+  // A confirmed fetch error on an ENABLED feature must not fall back to the
+  // OPPS fixture either.
   const opportunitiesFailed = foReady && foEnabled && opportunitiesQ.isError;
+  // Confirmed OFF (flags have resolved and the tenant isn't canaried in) —
+  // distinct from "still loading," which is the only state the fixture may
+  // still stand in for.
+  const opportunitiesDisabled = foReady && !foEnabled;
 
   // Item 4: Open budget / Open PE. Real PE ids + titles from the relevance
   // engine (minScore 0.5).
@@ -1240,12 +1282,14 @@ function FundingPanel({ client }: { client: Client }) {
               <LinkBtn onClick={() => navigate(`/intelligence/opportunities?clientId=${client.id}`)}>
                 View all {realOpportunities.counts.activeGrants + realOpportunities.counts.activeContracts}
               </LinkBtn>
-            ) : opportunitiesFailed ? null : (
+            ) : opportunitiesFailed || opportunitiesDisabled ? null : (
               <LinkBtn>View all 7</LinkBtn>
             )}
           </div>
           {opportunitiesFailed ? (
             <CouldNotLoad what="Funding opportunities" error={opportunitiesQ.error} onRetry={() => void opportunitiesQ.refetch()} />
+          ) : opportunitiesDisabled ? (
+            <FeatureNotEnabled what="Funding opportunities" />
           ) : (
             <div className="capiro-intel-panel-body">
               {realOpportunities ? (
