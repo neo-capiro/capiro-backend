@@ -26,6 +26,7 @@ export type DefenseExpectedSourceStateDto =
   | 'expected'
   | 'not_filed'
   | 'published'
+  | 'partially_published'
   | 'superseded'
   | 'withdrawn'
   | 'unavailable'
