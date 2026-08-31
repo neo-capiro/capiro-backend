@@ -140,7 +140,6 @@ function preflight(over: Record<string, unknown> = {}) {
     ],
     draftVersionIds: ['version-1'],
     excludedGenerationKeys: [],
-    heldOutAcknowledged: false,
     plan: null,
     settings: null,
     draftResults: [],
@@ -391,19 +390,20 @@ describe('OutreachSendStep', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Rep. Caleb Hart')).toBeInTheDocument();
 
+    // One preflight run is now enough. This used to demand a held-out
+    // acknowledgement checkbox and then a SECOND preflight run, because ticking
+    // the box changed the preflight input. The box only ever told the server
+    // what the client already knew — held-out recipients are dropped from the
+    // envelope server-side either way — so it added two clicks and a round-trip
+    // without changing who received mail.
     await runPreflight();
-    expect(screen.getByText('Acknowledge the held-out recipients.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send 1 email' })).toBeDisabled();
-
-    fireEvent.click(
-      screen.getByRole('checkbox', { name: /I understand those recipients will not be contacted/ }),
-    );
-    // Acknowledging changes the preflight input, so the verdict has to be re-run.
-    expect(screen.getByText('Run preflight first.')).toBeInTheDocument();
-    await runPreflight();
-
-    expect(screen.getByText('The confirmation dialog is the only real-send trigger.')).toBeInTheDocument();
+    expect(
+      screen.getByText('The confirmation dialog is the only real-send trigger.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send 1 email' })).toBeEnabled();
+    expect(
+      screen.queryByRole('checkbox', { name: /I understand those recipients/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the campaign blocked when the user waits for everyone', async () => {

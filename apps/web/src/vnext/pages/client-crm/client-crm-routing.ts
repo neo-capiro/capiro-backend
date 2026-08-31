@@ -7,10 +7,19 @@
  * parameter, and this module is the single place that reads and writes them.
  *
  * Contract:
- *   tab=overview | relationships | work | intelligence | files
+ *   tab=overview | relationships | work | intelligence | opportunities | files
  *   tab=relationships  view=organization | government | history | matters
- *   tab=intelligence   view=legislative | funding | footprint | district
+ *   tab=intelligence   view=legislative | footprint | district
  *   tab=capabilities   preserved capability-management surface (§13)
+ *
+ * `opportunities` (grant/contract opportunities + relevant budget programs)
+ * was the Intelligence tab's "Funding & Budget" domain (`?tab=intelligence
+ * &view=funding`) until it moved out into its own top-level client directory
+ * — it read as a distinct workflow, not another lens on the same client-
+ * intelligence surface Legislative/Footprint/District share. A stale
+ * `?tab=intelligence&view=funding` bookmark redirects to `?tab=opportunities`
+ * (see the special case in resolveCrmRoute below), the same courtesy every
+ * other legacy value in this file gets.
  *
  * Legacy values keep resolving, and are rewritten to their canonical form so
  * the URL always describes the view that is actually on screen.
@@ -37,7 +46,7 @@
  * remaining debt in docs/handoff/advocacy-history-final-closeout.md.
  */
 
-export const CRM_TABS = ['overview', 'capabilities', 'relationships', 'work', 'intelligence', 'files'] as const;
+export const CRM_TABS = ['overview', 'capabilities', 'relationships', 'work', 'intelligence', 'opportunities', 'files'] as const;
 export type CrmTab = (typeof CRM_TABS)[number];
 
 /** `capabilities` IS a primary tab in the Portfolio prototype (§5.3, §16). */
@@ -58,7 +67,6 @@ export type RelationshipView = (typeof RELATIONSHIP_VIEWS)[number];
  */
 export const INTELLIGENCE_VIEWS = [
   'legislative',
-  'funding',
   'footprint',
   'district',
 ] as const;
@@ -132,6 +140,16 @@ export function resolveCrmRoute(params: URLSearchParams | null | undefined): Crm
     return { tab: legacy.tab, view: legacy.view, didNormalize: true };
   }
 
+  // `funding` moved from an Intelligence VIEW to its own top-level TAB
+  // (`opportunities`) — a redirect LEGACY_TABS can't express, since that map
+  // is keyed by tab name alone and `intelligence` still means something else
+  // for every other `view=`. Checked before the generic canonical-tab
+  // resolution below so a stale bookmark lands on the real destination
+  // instead of silently normalizing to Legislative.
+  if (rawTab === 'intelligence' && rawView === 'funding') {
+    return { tab: 'opportunities', view: null, didNormalize: true };
+  }
+
   if (!isCanonicalTab(rawTab)) {
     // Absent or unrecognised. Absent is the ordinary case (`/clients?clientId=…`)
     // and must not be reported as a normalization, or every plain client open
@@ -180,6 +198,7 @@ export const CRM_TAB_LABELS: Array<{ key: CrmTab; label: string }> = [
   { key: 'relationships', label: 'Relationships' },
   { key: 'work', label: 'Work' },
   { key: 'intelligence', label: 'Intelligence' },
+  { key: 'opportunities', label: 'Opportunities' },
   { key: 'files', label: 'Files' },
 ];
 
@@ -192,7 +211,6 @@ export const RELATIONSHIP_VIEW_LABELS: Array<{ key: RelationshipView; label: str
 
 export const INTELLIGENCE_VIEW_LABELS: Array<{ key: IntelligenceView; label: string }> = [
   { key: 'legislative', label: 'Legislative & Regulatory' },
-  { key: 'funding', label: 'Funding & Budget' },
   { key: 'footprint', label: 'Federal Footprint' },
   { key: 'district', label: 'District Nexus' },
 ];
