@@ -42,6 +42,30 @@ describe("executive report renderers", () => {
   );
 
   it.each([
+    ["DOCX", () => new DocxReportRenderer().render(workingPlanSnapshot(), null)],
+    ["PPTX", () => new PptxReportRenderer().render(workingPlanSnapshot(), null)],
+  ])(
+    "emits each internal-audience working-plan item exactly once in %s",
+    async (_label, render) => {
+      const snap = workingPlanSnapshot();
+      const workingTitles = snap.nodes
+        .filter((node) =>
+          ["suggested", "draft", "internal_review"].includes(node.status),
+        )
+        .map((node) => node.title);
+      // More than 5 so PPTX's paginated working-plan appendix (5 items per
+      // slide) is actually exercised, not just its single-page case.
+      expect(workingTitles.length).toBeGreaterThan(5);
+
+      const text = await packageText(await render());
+      for (const title of workingTitles) {
+        const occurrences = text.split(title).length - 1;
+        expect(occurrences).toBe(1);
+      }
+    },
+  );
+
+  it.each([
     ["DOCX", () => new DocxReportRenderer().render(unsafeSnapshot(), null)],
     ["PPTX", () => new PptxReportRenderer().render(unsafeSnapshot(), null)],
   ])("normalizes stored text into valid %s XML", async (_label, render) => {
@@ -284,6 +308,80 @@ function snapshot(): ExecutiveReportSnapshot {
     },
     warnings: [],
     capacityErrors: [],
+  };
+}
+
+function workingPlanSnapshot(): ExecutiveReportSnapshot {
+  const base = snapshot();
+  const workingNodes: ReportNode[] = [
+    node({
+      id: "wp-decision",
+      kind: "decision",
+      subject: "ask",
+      title: "Suggested decision: adjust authorization ask",
+      status: "suggested",
+      startsOn: "2026-09-15",
+      endsOn: "2026-09-15",
+      ownerName: "Jordan Lee",
+    }),
+    node({
+      id: "wp-risk",
+      kind: "risk",
+      subject: "member",
+      title: "Draft risk: committee turnover",
+      status: "draft",
+      startsOn: "2026-08-01",
+      endsOn: null,
+      openEnded: true,
+      ownerName: "Avery Cole",
+    }),
+    node({
+      id: "wp-overdue",
+      kind: "action",
+      subject: "deliverable",
+      title: "Internal review: overdue evidence packet",
+      status: "internal_review",
+      startsOn: "2026-01-01",
+      endsOn: "2026-02-01",
+      ownerName: "Riley Chen",
+    }),
+    node({
+      id: "wp-unowned",
+      kind: "action",
+      subject: "optics",
+      title: "Suggested outreach: op-ed placement",
+      status: "suggested",
+      ownerAssigned: false,
+      ownerName: "",
+      startsOn: "2026-08-20",
+      endsOn: "2026-09-20",
+    }),
+    node({
+      id: "wp-5",
+      subject: "member",
+      title: "Draft step five",
+      status: "draft",
+      ownerName: "Sam Ito",
+    }),
+    node({
+      id: "wp-6",
+      subject: "agency",
+      title: "Suggested step six",
+      status: "suggested",
+      ownerName: "Sam Ito",
+    }),
+    node({
+      id: "wp-7",
+      subject: "committee",
+      title: "Internal review step seven",
+      status: "internal_review",
+      ownerName: "Sam Ito",
+    }),
+  ];
+  return {
+    ...base,
+    nodes: [...base.nodes, ...workingNodes],
+    options: { ...base.options, audience: "internal" },
   };
 }
 

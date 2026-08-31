@@ -62,6 +62,17 @@ export class PptxReportRenderer {
   ): Promise<Buffer> {
     // Defense in depth for direct renderer callers outside snapshot loading.
     snapshot = ooxmlSafeValue(snapshot);
+    const workingPlanNodes = internalWorkingPlanNodes(snapshot);
+    const deliverySnapshot: ExecutiveReportSnapshot =
+      workingPlanNodes.length > 0
+        ? {
+            ...snapshot,
+            nodes: snapshot.nodes.filter(
+              (node) =>
+                !workingPlanNodes.some((working) => working.id === node.id),
+            ),
+          }
+        : snapshot;
     const pptx = new PptxGenJS();
     pptx.layout = "LAYOUT_WIDE";
     pptx.author = "Capiro";
@@ -280,10 +291,10 @@ export class PptxReportRenderer {
           fit: "shrink",
         },
       );
-      const focus = criticalNodes(snapshot, 2);
+      const focus = criticalNodes(deliverySnapshot, 2);
       slide.addText(
-        focus.length < snapshot.nodes.length
-          ? `IMMEDIATE FOCUS · ${focus.length} OF ${snapshot.nodes.length}`
+        focus.length < deliverySnapshot.nodes.length
+          ? `IMMEDIATE FOCUS · ${focus.length} OF ${deliverySnapshot.nodes.length}`
           : "IMMEDIATE FOCUS",
         {
           x: 0.72,
@@ -310,7 +321,7 @@ export class PptxReportRenderer {
           fontSize: 15.5,
         },
       );
-      if (focus.length < snapshot.nodes.length) {
+      if (focus.length < deliverySnapshot.nodes.length) {
         slide.addText("Complete action register in appendix", {
           x: 9.15,
           y: 5.18,
@@ -324,9 +335,7 @@ export class PptxReportRenderer {
         });
       }
       if (snapshot.options.audience === "internal") {
-        const workingPlanCount = snapshot.nodes.filter((node) =>
-          ["suggested", "draft", "internal_review"].includes(node.status),
-        ).length;
+        const workingPlanCount = workingPlanNodes.length;
         if (workingPlanCount > 0) {
           slide.addText(
             `WORKING PLAN · ${workingPlanCount} suggested, draft, or review item${workingPlanCount === 1 ? "" : "s"} included for internal review — not committed client delivery`,
@@ -397,10 +406,10 @@ export class PptxReportRenderer {
     {
       const asks = contextItems(snapshot, ["ask", "decisions"]);
       const outcomes = contextItems(snapshot, ["outcomes"]);
-      const decisionFallback = decisionsAndRisks(snapshot)
+      const decisionFallback = decisionsAndRisks(deliverySnapshot)
         .filter((node) => node.kind === "decision")
         .map(nodeDisplayItem);
-      const outcomeFallback = snapshot.nodes
+      const outcomeFallback = deliverySnapshot.nodes
         .filter((node) => node.kind === "gate" || node.kind === "milestone")
         .map(nodeDisplayItem);
       const askItems = asks.length
@@ -484,11 +493,13 @@ export class PptxReportRenderer {
 
     // Strategic focus areas
     {
-      const defined = focusAreas(snapshot);
+      const defined = focusAreas(deliverySnapshot);
       const covered = new Set(
         defined.flatMap((area) => area.nodes.map((node) => node.id)),
       );
-      const remaining = snapshot.nodes.filter((node) => !covered.has(node.id));
+      const remaining = deliverySnapshot.nodes.filter(
+        (node) => !covered.has(node.id),
+      );
       const areas = [
         ...defined,
         ...(remaining.length
@@ -525,7 +536,7 @@ export class PptxReportRenderer {
         });
       }
       slide.addText(
-        `${snapshot.nodes.length} included plan step${snapshot.nodes.length === 1 ? "" : "s"} · Complete action register in appendix`,
+        `${deliverySnapshot.nodes.length} included plan step${deliverySnapshot.nodes.length === 1 ? "" : "s"} · Complete action register in appendix`,
         {
           x: 0.75,
           y: 6.62,
@@ -652,17 +663,17 @@ export class PptxReportRenderer {
 
     // Critical moves
     {
-      const nodes = criticalNodes(snapshot, 6);
+      const nodes = criticalNodes(deliverySnapshot, 6);
       const slide = nextSlide(
         "Critical moves",
-        nodes.length < snapshot.nodes.length
-          ? `What leadership should track · Showing ${nodes.length} of ${snapshot.nodes.length}`
+        nodes.length < deliverySnapshot.nodes.length
+          ? `What leadership should track · Showing ${nodes.length} of ${deliverySnapshot.nodes.length}`
           : "What leadership should track",
       );
       nodes.forEach((node, index) =>
         addNodeCard(pptx, slide, snapshot, node, index),
       );
-      if (nodes.length < snapshot.nodes.length) {
+      if (nodes.length < deliverySnapshot.nodes.length) {
         slide.addText("Complete action register in appendix", {
           x: 8.7,
           y: 6.62,
@@ -678,7 +689,7 @@ export class PptxReportRenderer {
     }
 
     if (snapshot.options.includeRoadmap) {
-      const groups = roadmap(snapshot);
+      const groups = roadmap(deliverySnapshot);
       addRoadmapSlide(
         pptx,
         nextSlide("Near-term roadmap", "Now through 60 days"),
@@ -697,7 +708,9 @@ export class PptxReportRenderer {
       const stakeholderItems: DisplayItem[] = [
         ...stakeholderNarrative.map(narrativeDisplayItem),
         ...uniqueStrings(
-          snapshot.nodes.map((node) => node.targetLabel).filter(isString),
+          deliverySnapshot.nodes
+            .map((node) => node.targetLabel)
+            .filter(isString),
         ).map((target) => ({
           text: target,
           detail: "Named stakeholder or target in the current plan",
@@ -709,7 +722,7 @@ export class PptxReportRenderer {
       ]);
       const constraintItems: DisplayItem[] = [
         ...constraintNarrative.map(narrativeDisplayItem),
-        ...snapshot.nodes
+        ...deliverySnapshot.nodes
           .filter((node) => node.kind === "risk")
           .map((node) => ({
             text: node.title,
@@ -760,7 +773,7 @@ export class PptxReportRenderer {
         "Decision agenda and risk posture",
         "Leadership attention",
       );
-      const items = decisionsAndRisks(snapshot);
+      const items = decisionsAndRisks(deliverySnapshot);
       const panelLimit = snapshot.options.includeInternalNotes ? 3 : 5;
       const allDecisions = items.filter((node) => node.kind === "decision");
       const allRisks = items.filter((node) => node.kind === "risk");
@@ -796,7 +809,7 @@ export class PptxReportRenderer {
 
     // Accountability
     {
-      const allRows = snapshot.nodes.filter(
+      const allRows = deliverySnapshot.nodes.filter(
         (node) => node.ownerName !== "Unassigned" || node.targetLabel,
       );
       const rows = allRows.slice(0, 7);
@@ -861,7 +874,7 @@ export class PptxReportRenderer {
         );
       }
       slide.addText(
-        `${allRows.length} of ${snapshot.nodes.length} included steps have an owner or stakeholder target · Complete action register in appendix`,
+        `${allRows.length} of ${deliverySnapshot.nodes.length} included steps have an owner or stakeholder target · Complete action register in appendix`,
         {
           x: 0.75,
           y: 6.58,
@@ -879,8 +892,8 @@ export class PptxReportRenderer {
     // Leadership agenda and next steps
     {
       const fullAgenda = leadershipAgenda(
-        snapshot,
-        Math.max(24, snapshot.nodes.length * 5),
+        deliverySnapshot,
+        Math.max(24, deliverySnapshot.nodes.length * 5),
       );
       const agenda = fullAgenda.slice(0, 6);
       const slide = nextSlide(
@@ -919,7 +932,7 @@ export class PptxReportRenderer {
     }
 
     const contextEvidence = evidenceItems(snapshot);
-    const groundedNodes = snapshot.nodes.filter(
+    const groundedNodes = deliverySnapshot.nodes.filter(
       (node) => node.sources.length > 0,
     );
     const evidenceDisplay = evidenceDisplayItems(
@@ -1016,13 +1029,15 @@ export class PptxReportRenderer {
 
     // The appendix is intentionally paginated rather than capped. Every
     // included plan step appears exactly once even when main slides summarize.
-    const actionPages = chunk(snapshot.nodes, 5);
+    // Working-plan items are committed-delivery-excluded here — they get
+    // their own paginated appendix below instead, so no step is emitted twice.
+    const actionPages = chunk(deliverySnapshot.nodes, 5);
     actionPages.forEach((nodes, pageIndex) => {
       const first = pageIndex * 5 + 1;
       const last = first + nodes.length - 1;
       const slide = nextSlide(
         "Action register",
-        `Appendix · Steps ${first}–${last} of ${snapshot.nodes.length}`,
+        `Appendix · Steps ${first}–${last} of ${deliverySnapshot.nodes.length}`,
       );
       addActionRegisterPage(pptx, slide, nodes);
     });
@@ -1041,56 +1056,67 @@ export class PptxReportRenderer {
     }
 
     if (snapshot.options.audience === "internal") {
-      const workingNodes = snapshot.nodes.filter((node) =>
-        ["suggested", "draft", "internal_review"].includes(node.status),
-      );
-      if (workingNodes.length > 0) {
-        const shown = workingNodes.slice(0, 5);
-        const slide = nextSlide(
-          "Working plan and review queue",
-          shown.length < workingNodes.length
-            ? `Internal appendix · Showing ${shown.length} of ${workingNodes.length} uncommitted items`
-            : "Internal appendix · Uncommitted items",
-        );
-        slide.addShape(pptx.ShapeType.rect, {
-          x: 0.72,
-          y: 1.5,
-          w: 11.85,
-          h: 0.78,
-          fill: { color: "FFF6E5" },
-          line: { color: C.gold, width: 1 },
-        });
-        slide.addText(
-          "Suggested, draft, and internal-review items are working-plan material. They are included for internal review and are not committed client delivery.",
-          {
-            x: 1.0,
-            y: 1.72,
-            w: 11.25,
-            h: 0.34,
-            fontSize: 13,
-            bold: true,
-            color: C.ink,
-            margin: 0,
-            fit: "shrink",
-          },
-        );
-        addTextPanel(
-          pptx,
-          slide,
-          shown.length < workingNodes.length
-            ? `REVIEW QUEUE · ${shown.length} OF ${workingNodes.length}`
-            : "REVIEW QUEUE",
-          shown.map(nodeDisplayItem),
-          {
+      if (workingPlanNodes.length > 0) {
+        // Paginated like the action register above: every working-plan item
+        // appears exactly once across these pages, never just the first 5.
+        const workingPages = chunk(workingPlanNodes, 5);
+        workingPages.forEach((nodes, pageIndex) => {
+          const first = pageIndex * 5 + 1;
+          const last = first + nodes.length - 1;
+          const slide = nextSlide(
+            "Working plan and review queue",
+            workingPlanNodes.length > 5
+              ? `Internal appendix · Steps ${first}–${last} of ${workingPlanNodes.length} uncommitted items`
+              : "Internal appendix · Uncommitted items",
+          );
+          slide.addShape(pptx.ShapeType.rect, {
             x: 0.72,
-            y: 2.55,
-            w: 8.0,
-            h: 3.9,
-            accent: C.gold,
-            empty: "No working-plan items are included.",
-          },
-        );
-        addWorkingStatusPanel(pptx, slide, workingNodes, 8.98, 2.55, 3.59, 3.9);
+            y: 1.5,
+            w: 11.85,
+            h: 0.78,
+            fill: { color: "FFF6E5" },
+            line: { color: C.gold, width: 1 },
+          });
+          slide.addText(
+            "Suggested, draft, and internal-review items are working-plan material. They are included for internal review and are not committed client delivery.",
+            {
+              x: 1.0,
+              y: 1.72,
+              w: 11.25,
+              h: 0.34,
+              fontSize: 13,
+              bold: true,
+              color: C.ink,
+              margin: 0,
+              fit: "shrink",
+            },
+          );
+          addTextPanel(
+            pptx,
+            slide,
+            workingPlanNodes.length > 5
+              ? `REVIEW QUEUE · ${first}–${last} OF ${workingPlanNodes.length}`
+              : "REVIEW QUEUE",
+            nodes.map(nodeDisplayItem),
+            {
+              x: 0.72,
+              y: 2.55,
+              w: 8.0,
+              h: 3.9,
+              accent: C.gold,
+              empty: "No working-plan items are included.",
+            },
+          );
+          addWorkingStatusPanel(
+            pptx,
+            slide,
+            workingPlanNodes,
+            8.98,
+            2.55,
+            3.59,
+            3.9,
+          );
+        });
       }
 
       const slide = nextSlide(
@@ -1217,6 +1243,14 @@ function narrativeDisplayItem(item: ReportNarrativeItem): DisplayItem {
       .filter(isString)
       .join(" · "),
   };
+}
+
+function internalWorkingPlanNodes(
+  snapshot: ExecutiveReportSnapshot,
+): ReportNode[] {
+  if (snapshot.options.audience !== "internal") return [];
+  const workingStatuses = new Set(["suggested", "draft", "internal_review"]);
+  return snapshot.nodes.filter((node) => workingStatuses.has(node.status));
 }
 
 function nodeDisplayItem(node: ReportNode): DisplayItem {
