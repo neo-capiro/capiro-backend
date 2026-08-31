@@ -118,7 +118,10 @@ function extractIssueCode(metadata: JsonRecord, sourceTitle: string): string | n
 }
 
 function extractFilingYear(metadata: JsonRecord, sourceTitle: string): number | null {
-  return asNumber(metadata.filingYear) ?? Number(sourceTitle.match(/\b(20\d{2})\b/)?.[1] ?? '') || null;
+  const metadataYear = asNumber(metadata.filingYear);
+  if (metadataYear != null) return metadataYear;
+  const titleYear = sourceTitle.match(/\b(20\d{2})\b/)?.[1];
+  return titleYear ? Number(titleYear) : null;
 }
 
 function extractFilingPeriod(metadata: JsonRecord, sourceTitle: string): string | null {
