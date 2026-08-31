@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHead, Pill, TabPageHead, type PillTone } from '../portfolio-primitives.js';
+import { Card, CardHead, Pill, type PillTone } from '../portfolio-primitives.js';
 import { OPPS, PROGRAMS } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
@@ -106,23 +106,29 @@ export function ClientCrmOpportunitiesProto({ client }: { client: Client }) {
 
   return (
     <div className="cap-pf-anim-rise capiro-intel capiro-intel-stack-24">
-      <TabPageHead
-        title="Funding & Budget"
-        sub="Grant and contract opportunities, active pursuits, and relevant defense budget programs in one domain."
-        actions={
-          // There is no dedicated funding-sync API — this invalidates the SAME
-          // query keys FundingPanel's own opportunities/PE-relevance queries
-          // use, so a click forces a real re-read rather than a fabricated delay.
-          <SecondaryBtn
-            onClick={() => {
-              void qc.invalidateQueries({ queryKey: ['client-funding-opportunities', client.id] });
-              void qc.invalidateQueries({ queryKey: ['client-pe-relevance', client.id] });
-            }}
-          >
-            Sync sources
-          </SecondaryBtn>
-        }
-      />
+      {/* No TabPageHead here, unlike every sibling tab. Those each sit under a
+          record-surface header whose description says something DIFFERENT from
+          their own; this panel's did not — it restated the surface description
+          verbatim but for "in one place" / "in one domain", under a title
+          ("Funding & Budget") that contradicted the row the user had just
+          clicked ("Opportunities"). That reads as two headings for one thing.
+          Carried over from when this was a domain INSIDE Intelligence, where
+          the domain name was what distinguished it from the other three in the
+          stack; standing alone it distinguishes nothing. The surface header
+          already names and describes this tab, so only the action remains. */}
+      <div className="capiro-intel-actions-row">
+        {/* There is no dedicated funding-sync API — this invalidates the SAME
+            query keys FundingPanel's own opportunities/PE-relevance queries
+            use, so a click forces a real re-read rather than a fabricated delay. */}
+        <SecondaryBtn
+          onClick={() => {
+            void qc.invalidateQueries({ queryKey: ['client-funding-opportunities', client.id] });
+            void qc.invalidateQueries({ queryKey: ['client-pe-relevance', client.id] });
+          }}
+        >
+          Sync sources
+        </SecondaryBtn>
+      </div>
       <DomainStatsStrip view="funding" realValues={realStats} />
       <FundingPanel client={client} />
     </div>

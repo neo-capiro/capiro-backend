@@ -120,6 +120,25 @@ describe('ClientCrmOpportunitiesProto (items 4-5, wire-audit)', () => {
     getMock.mockReset();
   });
 
+  /**
+   * The panel renders NO heading of its own. It sits under a record-surface
+   * header that already reads "Opportunities", and it used to add a second
+   * one titled "Funding & Budget" whose subtitle restated that header verbatim
+   * but for "in one place" / "in one domain" — two headings for one thing,
+   * under a name that contradicted the row the user had just clicked. Keep the
+   * action; don't let the heading come back.
+   */
+  it('renders no second heading of its own, only the Sync sources action', async () => {
+    mockFundingApis();
+    renderOpportunities();
+
+    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
+
+    expect(screen.queryByText('Funding & Budget')).not.toBeInTheDocument();
+    expect(screen.queryByText(/relevant defense budget programs in one domain\./)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sync sources' })).toBeInTheDocument();
+  });
+
   it('re-fetches the opportunities and PE-relevance sources when Sync sources is clicked', async () => {
     mockFundingApis();
     renderOpportunities();
