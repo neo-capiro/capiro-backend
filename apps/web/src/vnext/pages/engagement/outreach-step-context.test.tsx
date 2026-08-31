@@ -636,5 +636,40 @@ describe('OutreachContextStep', () => {
       });
       expect(applyCommands).not.toHaveBeenCalled();
     });
+
+    it('retries the same missing set only once, even if the server keeps rejecting it', async () => {
+      // Observed live: a deploy mismatch made the server reject this batch
+      // every time. Nothing marked it accepted, so the original effect kept
+      // re-firing as fast as React would allow — over 1,000 identical
+      // requests hit the API before the tab was closed. This pins the fix:
+      // one failed attempt at a given missing-set does not retry itself.
+      state.capabilities = [{ id: 'cap-1' }];
+      state.facilities = [];
+      applyCommands.mockImplementation(async () => {
+        throw new Error('OUTREACH_COMMAND_INVALID');
+      });
+      // Pre-seeded so capabilities are in the cache on the first render —
+      // otherwise the sponsor record and the capability arrive in separate
+      // effect passes, each a genuinely distinct missing-set that legitimately
+      // gets its own single try. Collapsing to one pass keeps this test about
+      // the one thing it's pinning: a given set is never retried twice.
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      queryClient.setQueryData(['client-capabilities', 'client-1'], [{ id: 'cap-1' }]);
+      queryClient.setQueryData(['client-facilities', 'client-1'], []);
+      try {
+        renderStep({ campaignType: 'request_meeting' }, requestMeetingSession(), queryClient);
+
+        await waitFor(() => expect(applyCommands).toHaveBeenCalledTimes(1));
+        // Give the failed attempt's `pending` state time to settle back to
+        // null and any effect re-run a chance to fire — this is exactly the
+        // window the original bug looped in.
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        });
+        expect(applyCommands).toHaveBeenCalledTimes(1);
+      } finally {
+        applyCommands.mockImplementation(async () => ({}));
+      }
+    });
   });
 });

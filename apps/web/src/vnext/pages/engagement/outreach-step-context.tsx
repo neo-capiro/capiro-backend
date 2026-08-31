@@ -1066,6 +1066,23 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
         (ref.locator as Record<string, unknown>)['factCode'] === 'career_background',
     );
 
+  /**
+   * Observed live: a deploy mismatch left the server rejecting this batch
+   * every time. `accepted` never changed (nothing landed), so the retry
+   * condition below stayed true on every render, and `pending` cycling back
+   * to `null` after each failed attempt re-armed the effect immediately —
+   * over 1,000 identical batches hit the API in seconds. The server's
+   * content-addressed dedup made each individual accept idempotent, but
+   * nothing stopped the CLIENT from hammering a request that was failing.
+   *
+   * This remembers the exact set of context keys the last attempt sent. A
+   * later render only retries when that SET has actually changed (a query
+   * resolved, a target got added) — never merely because `pending` cycled.
+   * A genuinely new piece still gets tried once; a piece that keeps failing
+   * does not turn into a client-side denial-of-service against the API.
+   */
+  const lastAttemptedKeys = useRef<string | null>(null);
+
   useEffect(() => {
     if (!isRequestMeeting || !clientId || pending !== null) return;
     // Each of the four pieces is checked independently — a slow/failed
@@ -1090,6 +1107,12 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
       }
     }
     if (missing.length === 0) return;
+    const signature = missing
+      .map((selection) => JSON.stringify(selection.locator))
+      .sort()
+      .join('|');
+    if (signature === lastAttemptedKeys.current) return;
+    lastAttemptedKeys.current = signature;
     void runCommands('auto-request-meeting-context', [acceptContextCommand(missing)]);
     // `accepted` already reflects every locator currently on the spec, so it
     // (not `session` directly) is what tells this effect whether a prior
