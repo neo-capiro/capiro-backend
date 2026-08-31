@@ -10,6 +10,7 @@ import { ClientCrmHistoryProto } from './tabs/RelationshipsHistoryTab.js';
 import { ClientCrmAdvocacyMattersProto } from './tabs/AdvocacyMattersTab.js';
 import { ClientCrmWorkProto } from './tabs/WorkTab.js';
 import { ClientCrmIntelligenceProto } from './tabs/IntelligenceTab.js';
+import { ClientCrmOpportunitiesProto } from './tabs/OpportunitiesTab.js';
 import { ClientCrmFilesProto } from './tabs/FilesTab.js';
 import {
   applyCrmRoute,
@@ -301,6 +302,8 @@ function ClientCrmBody({
     );
   } else if (row.key === 'intelligence') {
     content = <IntelligenceDomainStack client={client} />;
+  } else if (row.key === 'opportunities') {
+    content = <ClientCrmOpportunitiesProto client={client} />;
   } else {
     content = <ClientCrmHistoryProto client={client} />;
   }
@@ -318,7 +321,7 @@ function ClientCrmBody({
   );
 }
 
-/** Intelligence is one active directory surface containing its four domains. */
+/** Intelligence is one active directory surface containing its three domains. */
 function IntelligenceDomainStack({ client }: { client: Client }) {
   return (
     <div className="cap-pf-intelligence-domain-stack">

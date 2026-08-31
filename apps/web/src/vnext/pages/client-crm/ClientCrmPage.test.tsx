@@ -39,6 +39,9 @@ vi.mock('./tabs/IntelligenceTab.js', () => ({
     <div data-testid={`intelligence-surface-${view}`}>{view}</div>
   ),
 }));
+vi.mock('./tabs/OpportunitiesTab.js', () => ({
+  ClientCrmOpportunitiesProto: () => <div data-testid="opportunities-surface">opportunities</div>,
+}));
 vi.mock('./tabs/FilesTab.js', () => ({
   ClientCrmFilesProto: () => <div data-testid="files-surface">files</div>,
 }));
@@ -128,12 +131,31 @@ describe('prototype client-record information architecture', () => {
     expect(directoryRow('advocacy')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('uses one Intelligence surface containing the four real domains', () => {
-    renderAt('/clients?clientId=client-1&tab=intelligence&view=funding');
-    for (const view of ['legislative', 'funding', 'footprint', 'district']) {
+  it('uses one Intelligence surface containing the three real domains', () => {
+    renderAt('/clients?clientId=client-1&tab=intelligence&view=footprint');
+    for (const view of ['legislative', 'footprint', 'district']) {
       expect(screen.getByTestId(`intelligence-surface-${view}`)).toBeInTheDocument();
     }
+    // Funding & Budget moved out into its own Opportunities directory — it is
+    // no longer one of Intelligence's stacked domains.
+    expect(screen.queryByTestId('intelligence-surface-funding')).not.toBeInTheDocument();
     expect(screen.queryByTestId('history-surface')).not.toBeInTheDocument();
+  });
+
+  it('redirects a stale ?tab=intelligence&view=funding bookmark to Opportunities', () => {
+    renderAt('/clients?clientId=client-1&tab=intelligence&view=funding');
+    expect(screen.getByTestId('opportunities-surface')).toBeInTheDocument();
+    expect(url()).toContain('tab=opportunities');
+  });
+
+  it('swaps to Opportunities from the directory', () => {
+    renderAt('/clients?clientId=client-1');
+    fireEvent.click(directoryRow('opportunities'));
+
+    expect(url()).toContain('tab=opportunities');
+    expect(screen.getByTestId('opportunities-surface')).toBeInTheDocument();
+    expect(screen.queryByTestId('history-surface')).not.toBeInTheDocument();
+    expect(directoryRow('opportunities')).toHaveAttribute('aria-current', 'page');
   });
 });
 
