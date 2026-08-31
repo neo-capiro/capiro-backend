@@ -3,6 +3,9 @@
 Status target after engineering closeout:
 `READY_FOR_PRODUCTION_INGESTION_AUTHORIZATION`
 
+**Merged main SHA for this authorization packet:** `ed1ea3803ba44c6b73720b694e3d14642c778e83`
+(ops PR #1385; includes sourceKey fix, `--from-cache`, bulk extract, upsert timeout, senate_joint investigative-only)
+
 Do **not** execute production bulk ingest, Fill-with-Meri against real clients,
 or the final Advocacy canary until separately authorized.
 
