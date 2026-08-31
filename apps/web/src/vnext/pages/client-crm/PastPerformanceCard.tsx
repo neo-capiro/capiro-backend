@@ -24,13 +24,17 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
  * federal record) rather than on Capabilities, where it used to be §7.3.
  */
 export function PastPerformanceCard({ client }: { client: Client }) {
-  const { rows, settled, failed } = useClientSubmissions(client.id);
+  const { rows, settled, failed, retry } = useClientSubmissions(client.id);
   const [showAll, setShowAll] = useState(false);
-  // Fixture only while the reads are in flight or errored — never as a
-  // stand-in for a client with no recorded history.
-  const showFixture = !settled || failed;
+  // Fixture only while the reads are genuinely still in flight — NEVER on a
+  // confirmed error. Every other card on this page (Lobbying activity,
+  // Federal awards, Political giving, the domain stats strip) already draws
+  // this exact line between "still loading" and "confirmed failed"; this
+  // card was the one exception, silently showing invented submission history
+  // with no way to tell it apart from a real one and no way to retry.
+  const showFixture = !settled && !failed;
   const genuinelyEmpty = settled && !failed && rows.length === 0;
-  const hasMore = !showFixture && rows.length > 3;
+  const hasMore = !showFixture && !failed && rows.length > 3;
   const visibleRows = hasMore && !showAll ? rows.slice(0, 3) : rows;
 
   return (
@@ -40,7 +44,7 @@ export function PastPerformanceCard({ client }: { client: Client }) {
         title="Past performance"
         description="Submissions recorded against this client's capabilities, and what happened to each."
         action={
-          showFixture || rows.length === 0 ? null : hasMore ? (
+          showFixture || failed || rows.length === 0 ? null : hasMore ? (
             <LinkBtn onClick={() => setShowAll((current) => !current)}>
               {showAll ? 'Show recent' : `View all ${rows.length}`}
             </LinkBtn>
@@ -51,7 +55,14 @@ export function PastPerformanceCard({ client }: { client: Client }) {
           )
         }
       />
-      {genuinelyEmpty ? (
+      {failed ? (
+        <div style={{ margin: 0, padding: '4px 24px 20px' }}>
+          <p style={{ margin: '0 0 8px', fontSize: 14, color: '#667085' }}>
+            Past performance could not be loaded.
+          </p>
+          <LinkBtn onClick={retry}>Retry</LinkBtn>
+        </div>
+      ) : genuinelyEmpty ? (
         <p style={{ margin: 0, padding: '4px 24px 20px', fontSize: 14, color: '#667085' }}>
           No submissions recorded against this client&apos;s capabilities yet.
         </p>
