@@ -340,21 +340,24 @@ export const OUTREACH_FORMAT_SKIP_NOTE =
   'Meeting requests always send as standard email, so there is no format step.';
 
 /**
- * The send step's gate. `preflightRan` is the only hard prerequisite; the other
- * two arms exist because a recipient with no verified address cannot be sent to
- * and the user has to say what should happen to the rest.
+ * The send step's gate. `preflightRan` is the only hard prerequisite; `holdsAll`
+ * is the user's own "wait for everyone" choice rather than a safety gate.
+ *
+ * There is deliberately no held-out acknowledgement arm. That gate asked the
+ * user to tick a box confirming they knew some recipients were excluded, but
+ * held-out recipients are dropped from the envelope server-side regardless, so
+ * the box could never change who received mail — it only added a click and a
+ * second preflight round-trip. The held-out set is still disclosed twice: in
+ * the send step's held list and again in the confirmation dialog.
  */
 export interface OutreachSendGateInput {
   preflightRan: boolean;
   blockedCount: number;
   partialChoice: 'ready' | 'all';
-  acknowledged: boolean;
 }
 
 export interface OutreachSendGate {
   canSend: boolean;
-  /** Held-out recipients need an explicit acknowledgment before a partial send. */
-  needsAcknowledgment: boolean;
   /** The whole campaign is blocked because the user chose to wait for everyone. */
   holdsAll: boolean;
   reason: string;
@@ -362,17 +365,13 @@ export interface OutreachSendGate {
 
 export function outreachSendGate(input: OutreachSendGateInput): OutreachSendGate {
   const holdsAll = input.partialChoice === 'all' && input.blockedCount > 0;
-  const needsAcknowledgment = input.partialChoice === 'ready' && input.blockedCount > 0;
-  const canSend =
-    input.preflightRan && !holdsAll && (!needsAcknowledgment || input.acknowledged);
+  const canSend = input.preflightRan && !holdsAll;
   const reason = !input.preflightRan
     ? 'Run preflight first.'
     : holdsAll
       ? 'With this choice one blocked recipient keeps the whole campaign from sending.'
-      : needsAcknowledgment && !input.acknowledged
-        ? 'Acknowledge the held-out recipients.'
-        : 'The confirmation dialog is the only real-send trigger.';
-  return { canSend, needsAcknowledgment, holdsAll, reason };
+      : 'The confirmation dialog is the only real-send trigger.';
+  return { canSend, holdsAll, reason };
 }
 
 export function outreachReadyRecipientCount(

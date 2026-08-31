@@ -44,6 +44,16 @@ export interface OutreachV3SendSettings extends OutreachV3SendSettingsInput {
 export interface OutreachV3PreflightRequest {
   excludedGenerationKeys?: string[];
   testGenerationKey?: string | null;
+  /**
+   * Accepted and ignored. This once gated send behind a client-supplied
+   * "I acknowledge the held-out recipients" boolean, which the server could
+   * only ever check for the literal value `true` and never persisted, so it
+   * constrained nobody. Exclusion itself is carried by
+   * `excludedGenerationKeys` and each held recipient stays independently
+   * blocked by its own per-draft blockers, so dropping the acknowledgement
+   * cannot change who receives mail. Kept on the wire so a client from a
+   * previous release that still sends it does not get a 400 mid-rollout.
+   */
   acknowledgeHeldOut?: boolean;
 }
 
@@ -63,7 +73,6 @@ export interface OutreachV3ServerPreflight {
   checks: OutreachV3NamedPreflightCheck[];
   draftVersionIds: string[];
   excludedGenerationKeys: string[];
-  heldOutAcknowledged: boolean;
   plan: OutreachV3GenerationPlan;
   settings: OutreachV3SendSettings | null;
   draftResults: ReturnType<typeof evaluateOutreachV3Preflight>['draftResults'];
@@ -255,13 +264,10 @@ export class OutreachV3SendService {
     const blockers: string[] = [...evaluated.blockers];
     const internalOnly = current.spec.sponsor.kind === 'internal_team';
     if (internalOnly) blockers.push('SPONSOR_SCOPE_BLOCKED');
-    const heldOutAcknowledged =
-      excludedGenerationKeys.length === 0 || request.acknowledgeHeldOut === true;
-    if (!heldOutAcknowledged) blockers.push('HELD_RECIPIENTS_NOT_ACKNOWLEDGED');
     if (attachmentReadiness.blockers.length) blockers.push(...attachmentReadiness.blockers);
 
     const uniqueBlockers = uniqueStrings(blockers);
-    const eligible = evaluated.eligible && !internalOnly && heldOutAcknowledged;
+    const eligible = evaluated.eligible && !internalOnly;
     return {
       eligible,
       testMode,
@@ -273,12 +279,11 @@ export class OutreachV3SendService {
         senderAuthorized,
         attachmentsReady: attachmentReadiness.ready,
         internalOnly,
-        heldOutAcknowledged,
+        heldOutCount: evaluated.excludedGenerationKeys.length,
         intentReady: eligible,
       }),
       draftVersionIds: evaluated.draftVersionIds,
       excludedGenerationKeys: evaluated.excludedGenerationKeys,
-      heldOutAcknowledged,
       plan,
       settings,
       draftResults: evaluated.draftResults,
@@ -487,7 +492,7 @@ function buildNamedChecks(input: {
   senderAuthorized: boolean;
   attachmentsReady: boolean;
   internalOnly: boolean;
-  heldOutAcknowledged: boolean;
+  heldOutCount: number;
   intentReady: boolean;
 }): OutreachV3NamedPreflightCheck[] {
   const draftBlockers = input.evaluated.draftResults.flatMap((row) => row.blockers);
@@ -590,13 +595,21 @@ function buildNamedChecks(input: {
         : 'Recipient addresses are present and unique.',
       state(has('RECIPIENT_EMAIL_MISSING') || has('RECIPIENT_EMAIL_COLLISION')),
     ),
+    /**
+     * Disclosure, not a gate. Held-out recipients are already excluded from
+     * the envelope by `excludedGenerationKeys` and each one stays blocked by
+     * its own per-draft blockers, so this row reports what will happen rather
+     * than withholding send until a box is ticked.
+     */
     check(
       'held',
       'Held-out recipients',
-      input.heldOutAcknowledged
-        ? 'Any held-out recipients were explicitly acknowledged.'
-        : 'Acknowledge held-out recipients before sending.',
-      state(!input.heldOutAcknowledged),
+      input.heldOutCount === 0
+        ? 'No recipients are held out of this send.'
+        : input.heldOutCount === 1
+          ? '1 recipient is held out of this send and receives nothing.'
+          : `${input.heldOutCount} recipients are held out of this send and receive nothing.`,
+      state(false, input.heldOutCount > 0),
     ),
     check(
       'intent',

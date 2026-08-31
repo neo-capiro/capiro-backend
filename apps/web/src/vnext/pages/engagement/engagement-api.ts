@@ -194,7 +194,6 @@ export interface OutreachV3ServerPreflight {
   checks: OutreachV3NamedPreflightCheck[];
   draftVersionIds: string[];
   excludedGenerationKeys: string[];
-  heldOutAcknowledged: boolean;
   plan: OutreachV3GenerationPlan;
   settings: OutreachV3SendSettings | null;
   draftResults: OutreachV3PreflightDraftResult[];
@@ -516,7 +515,6 @@ export async function saveOutreachV3SendSettings(
 export interface OutreachV3PreflightInput {
   excludedGenerationKeys?: string[];
   testGenerationKey?: string | null;
-  acknowledgeHeldOut?: boolean;
 }
 
 export async function runOutreachV3Preflight(

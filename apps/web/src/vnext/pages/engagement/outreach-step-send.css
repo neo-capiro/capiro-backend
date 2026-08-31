@@ -235,45 +235,8 @@
 .capiro-vnext-root .osend-held__row strong {
   font-weight: 600;
 }
-.capiro-vnext-root .osend-ack {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 2px;
-  text-align: left;
-  cursor: pointer;
-}
 /* The real checkbox stays in the accessibility tree and keeps the label
    association; the painted box is the prototype's 18px tile beside it. */
-.capiro-vnext-root .osend-ack__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: 0;
-  opacity: 0;
-}
-.capiro-vnext-root .osend-ack__input:focus-visible + .ocb-check {
-  box-shadow:
-    inset 0 0 0 1px var(--eng-accent),
-    0 0 0 3px var(--eng-accent-soft);
-}
-.capiro-vnext-root .osend-ack__body {
-  flex: 1;
-  min-width: 0;
-}
-.capiro-vnext-root .osend-ack__label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--eng-warning-deep);
-}
-.capiro-vnext-root .osend-ack__sub {
-  display: block;
-  margin-top: 2px;
-  font-size: 13px;
-  color: var(--eng-tone-warn-fg);
-}
-
 /* ── 6. Send row ────────────────────────────────────────────────────────── */
 
 .capiro-vnext-root .osend-send {
