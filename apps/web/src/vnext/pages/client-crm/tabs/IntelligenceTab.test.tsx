@@ -455,7 +455,12 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     });
     renderFootprint();
 
-    const awardsCell = await screen.findByText('Federal awards · TTM');
+    // Wait on the awards VALUE, not its label: every label renders on the
+    // first paint in the dash state, so awaiting the label would resolve
+    // before the district-nexus query settles and assert against a cell that
+    // is still legitimately loading.
+    await screen.findByText('$12.0M');
+    const awardsCell = screen.getByText('Federal awards · TTM');
     expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
 
     const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
