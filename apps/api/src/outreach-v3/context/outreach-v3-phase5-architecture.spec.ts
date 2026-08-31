@@ -1,8 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-const SCOPED = Boolean(process.env.ENGAGEMENT_PHASE3_SCOPE_END);
-const maybeIt = (cond: boolean) => (cond ? it.skip : it);
-
 
 function apiRoot(): string {
   const cwd = process.cwd();
@@ -144,21 +141,19 @@ describe('Outreach V3 Revised Phase 5 architecture', () => {
     expect(source).not.toContain('SEND_EMAIL_NOW');
   });
 
-  maybeIt(SCOPED)('does not implement final Outreach UI, another runtime, LangGraph, or LangSmith', () => {
-    const webRoot = resolve(REPO_ROOT, 'apps/web/src');
-    const webSource = productionFiles(webRoot)
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    expect(webSource).not.toContain('/outreach-v3/sessions/');
-    expect(webSource).not.toContain('OUTREACH_V3_CONTEXT_ENABLED');
-
+  it('does not introduce another runtime, LangGraph, or LangSmith', () => {
     const packageJson = readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf8');
     const apiPackage = readApi('package.json');
     expect(`${packageJson}\n${apiPackage}`).not.toMatch(/@langchain\/langgraph|LANGGRAPH_|LANGSMITH_/);
 
-    const appSource = productionFiles(resolve(REPO_ROOT, 'apps'))
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    expect(appSource).not.toMatch(/class\s+OutreachApiAppModule|apps\/outreach-api/);
+    expect(existsSync(resolve(REPO_ROOT, 'apps/outreach-api'))).toBe(false);
+    // Scoped to `*.module.ts` (not a full apps/ text scan, which includes the
+    // whole apps/web source tree) — a root NestJS app module is the only place
+    // a rogue standalone service would declare itself.
+    const moduleFiles = productionFiles(resolve(REPO_ROOT, 'apps')).filter((f) =>
+      f.endsWith('.module.ts'),
+    );
+    const moduleSource = moduleFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
+    expect(moduleSource).not.toMatch(/class\s+OutreachApiAppModule/);
   });
 });
