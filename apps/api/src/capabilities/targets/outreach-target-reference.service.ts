@@ -149,7 +149,23 @@ export class OutreachTargetReferenceService {
       throw targetNotFound();
     }
     if (!contact) throw targetNotFound();
-    const currentOffice = detail.offices.find((office) => office.endDate === null) ?? detail.offices[0];
+    // LegiStorm populates `end_date` on an in-office term too (a sitting
+    // Senator's seat already carries its constitutionally fixed term-end
+    // date), so `endDate === null` almost never matches — this fell through
+    // to `offices[0]`, the OLDEST term (`member_offices` is oldest-first),
+    // and read that stale term's end date as proof the member had left,
+    // marking sitting members `historical`. `status === 'in office'` is the
+    // same primary signal `selectCurrentMemberOffice` (directory-indexes.ts)
+    // uses as the single source of truth for this across the app; the
+    // `endDate === null` check stays only as a fallback for a record with no
+    // status string, and the final fallback is the NEWEST term (`.at(-1)`),
+    // never the oldest.
+    const inOfficeOffice = detail.offices.find(
+      (office) => (office.status ?? '').toLowerCase() === 'in office',
+    );
+    const openEndedOffice = detail.offices.find((office) => office.endDate === null);
+    const currentOffice = inOfficeOffice ?? openEndedOffice ?? detail.offices.at(-1) ?? null;
+    const isCurrentlyInOffice = Boolean(inOfficeOffice ?? openEndedOffice);
     const email = normalizeEmail(contact.email || emailContactMethod(detail.socialContacts));
     return createResolvedTargetRefV1({
       locator,
@@ -177,7 +193,7 @@ export class OutreachTargetReferenceService {
         education: contact.bio.education || null,
         military: contact.bio.military || null,
       },
-      roleStatus: contact.outgoingStatus || currentOffice?.endDate ? 'historical' : 'current',
+      roleStatus: contact.outgoingStatus || !isCurrentlyInOffice ? 'historical' : 'current',
       emailStatus: emailStatusFor(email),
       profileStatus: 'complete',
       sourceSnapshot: {
