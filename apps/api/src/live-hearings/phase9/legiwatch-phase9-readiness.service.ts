@@ -499,12 +499,16 @@ export class LegiWatchPhase9ReadinessService {
       const captures = capturesByHearing.get(hearing.id) ?? [];
       const capture = captures[0];
       const demand = demandByHearing.get(hearing.id) ?? 0;
-      const serverAllowed = candidates.some(
-        (candidate) => candidate.capturePolicy === 'SERVER_CAPTURE_ALLOWED',
-      );
+      // Capture-outcome eligibility must mirror the Phase 9 runtime contract:
+      // scheduled stream-preflight only plans captures when capture_all is on
+      // OR hearing demand exists. A SERVER_CAPTURE_ALLOWED candidate proves a
+      // stream is technically capturable — NOT that the system was authorized
+      // to capture it. Historical completed hearings discovered by the
+      // disposition backfill get READY first-party candidates with demand=0;
+      // counting them as "eligible but uncaptured" would make the outcome gate
+      // permanently unpassable for events no capture could ever have covered.
       const eligible =
         snapshot.captureAllPublicEvents ||
-        serverAllowed ||
         demand > 0 ||
         Boolean(capture);
       const explicitStreamPath =

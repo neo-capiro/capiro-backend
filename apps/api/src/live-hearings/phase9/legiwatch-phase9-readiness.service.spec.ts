@@ -248,11 +248,124 @@ describe('LegiWatchPhase9ReadinessService', () => {
     expect(gate.status).toBe('FAIL');
   });
 
+  it('historical completed SERVER_CAPTURE_ALLOWED with demand=0 and captureAll=false is NOT in the capture-outcome denominator', async () => {
+    // Semantic alignment: preflight only plans captures for captureAll || demand>0.
+    // A READY first-party candidate on a completed historical hearing (found by
+    // the disposition backfill) proves technical capturability, not authorization.
+    const value = snapshot();
+    value.hearings = [
+      {
+        id: 'hearing-hist-ready',
+        chamber: 'house',
+        committeeSystemCode: 'hsas00',
+        subcommitteeSystemCode: 'hsas01',
+        title: 'Historical Hearing With Backfilled READY Candidate',
+        eventStatus: 'completed',
+        visibility: 'public',
+        startsAt: new Date('2026-07-14T14:00:00Z'),
+        calendarDate: new Date('2026-07-14T00:00:00Z'),
+      },
+    ];
+    value.candidates = [
+      {
+        hearingId: 'hearing-hist-ready',
+        capturePolicy: 'SERVER_CAPTURE_ALLOWED',
+        resolutionState: 'READY',
+        failureReason: null,
+      },
+    ];
+    value.captures = [];
+    value.demand = [];
+    value.transcript = [];
+    // Keep provenance healthy so only the eligibility semantics are under test.
+    value.observations = [
+      {
+        id: '00000000-0000-0000-0000-000000000914',
+        hearingId: 'hearing-hist-ready',
+        bodyCode: 'hsas01',
+        reconciliationStatus: 'RECONCILED',
+        reconciliationReasonCode: 'CANONICAL_HEARING_LINKED',
+        observedAt: new Date('2026-08-20T09:00:00Z'),
+      },
+    ];
+
+    const report = await evaluate(value);
+    expect(report.counts.duePublicEvents).toBe(1);
+    expect(report.counts.eligibleEvents).toBe(0);
+    expect(report.counts.eventsWithOutcomes).toBe(0);
+    expect(report.counts.unresolvedEvents).toBe(0);
+    // STREAM_PATH_EXPLICIT still satisfied by the READY candidate row.
+    expect(findGate(report, 'STREAM_PATH_EXPLICIT').status).toBe('PASS');
+  });
+
+  it('a SERVER_CAPTURE_ALLOWED candidate WITH demand>0 stays eligible and requires a terminal outcome', async () => {
+    const value = snapshot();
+    value.captures = [];
+    value.transcript = [];
+    // Base snapshot already has demand=2 and a SERVER_CAPTURE_ALLOWED candidate.
+    const report = await evaluate(value);
+    expect(report.counts.eligibleEvents).toBe(1);
+    expect(report.counts.eventsWithOutcomes).toBe(0);
+    const gate = findGate(report, 'CAPTURE_OUTCOMES_EXPLICIT');
+    expect(gate.status).toBe('FAIL');
+    expect(gate.reasonCode).toBe('ELIGIBLE_CAPTURE_OUTCOME_INCOMPLETE');
+  });
+
+  it('captureAll=true makes even demandless historical candidates eligible', async () => {
+    const value = snapshot();
+    value.captureAllPublicEvents = true;
+    value.captures = [];
+    value.transcript = [];
+    value.demand = [];
+    const report = await evaluate(value);
+    expect(report.counts.eligibleEvents).toBe(1);
+    const gate = findGate(report, 'CAPTURE_OUTCOMES_EXPLICIT');
+    expect(gate.status).toBe('FAIL');
+  });
+
+  it('an existing capture row keeps the event eligible regardless of demand', async () => {
+    // Base snapshot: capture-1 COMPLETE with terminal reason; demand would be
+    // removed to prove the capture row alone drives eligibility.
+    const value = snapshot();
+    value.demand = [];
+    const report = await evaluate(value);
+    expect(report.counts.eligibleEvents).toBe(1);
+    expect(report.counts.eventsWithOutcomes).toBe(1);
+    expect(findGate(report, 'CAPTURE_OUTCOMES_EXPLICIT').status).toBe('PASS');
+  });
+
+  it('duplicate and capture safety gates are unchanged by the eligibility alignment', async () => {
+    const value = snapshot();
+    // Same-shape hearing twice → duplicate fingerprint detection must stay on.
+    // Terminal coverage on both keeps STREAM_PATH_EXPLICIT independently PASS,
+    // proving the safety gates are unaffected by the eligibility change.
+    value.hearings = [
+      { ...value.hearings[0], id: 'hearing-dup-a', coverageStatus: 'no_public_stream' },
+      { ...value.hearings[0], id: 'hearing-dup-b', coverageStatus: 'no_public_stream' },
+    ];
+    value.candidates = [];
+    value.captures = [];
+    value.demand = [];
+    value.transcript = [];
+    value.observations = value.hearings.map((h: any, i: number) => ({
+      id: `00000000-0000-0000-0000-00000000092${i}`,
+      hearingId: h.id,
+      bodyCode: 'hsas01',
+      reconciliationStatus: 'RECONCILED',
+      reconciliationReasonCode: 'CANONICAL_HEARING_LINKED',
+      observedAt: new Date('2026-08-20T09:00:00Z'),
+    }));
+    const report = await evaluate(value);
+    // Counting convention: extras beyond the first row in each duplicate group.
+    expect(report.counts.duplicateCanonicalEvents).toBe(1);
+    expect(findGate(report, 'NO_DUPLICATE_CANONICAL_EVENTS').status).toBe('FAIL');
+    expect(findGate(report, 'STREAM_PATH_EXPLICIT').status).toBe('PASS');
+  });
+
   it('blocks zero-event audits rather than reporting full coverage', async () => {
     const value = snapshot();
     value.observations = [];
     value.hearings = [];
-    value.candidates = [];
     value.captures = [];
     value.demand = [];
     value.transcript = [];
