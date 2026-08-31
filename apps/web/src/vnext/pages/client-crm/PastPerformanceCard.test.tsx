@@ -135,4 +135,51 @@ describe('PastPerformanceCard (was Capabilities §7.3, row 12)', () => {
       await screen.findByText("No submissions recorded against this client's capabilities yet."),
     ).toBeInTheDocument();
   });
+
+  /**
+   * This card used to be the one exception on this page: every other card
+   * (Lobbying activity, Federal awards, Political giving) shows an honest
+   * "could not be loaded" message with a Retry action on a confirmed error;
+   * this one silently rendered the CAP_PERF design fixture instead, with no
+   * way to tell it apart from real data and no way to retry.
+   */
+  it('shows an honest "could not be loaded" message with Retry, not the CAP_PERF fixture, when a read fails', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url.endsWith('/capabilities')) return Promise.reject(new Error('capabilities service unavailable'));
+      return Promise.resolve({ data: [] });
+    });
+    renderPastPerformance();
+
+    expect(await screen.findByText('Past performance could not be loaded.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    // The CAP_PERF fixture must never survive a confirmed error.
+    expect(screen.queryByText('ULTRA autonomy integration')).not.toBeInTheDocument();
+    expect(screen.queryByText('GPS-denied navigation study')).not.toBeInTheDocument();
+    // Nor the "N records" chip / View all — we don't know a real count.
+    // Anchored to the chip's exact "N record(s)" shape: a bare /record/
+    // also matches the card's own always-present description ("Submissions
+    // recorded against this client's capabilities…"), which is not a count
+    // and must still render on an error.
+    expect(screen.queryByText(/^\d+ records?$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^View all \d+$/)).not.toBeInTheDocument();
+  });
+
+  it('re-fetches capabilities and submission history when Retry is clicked', async () => {
+    let capabilitiesCalls = 0;
+    getMock.mockImplementation((url: string) => {
+      if (url.endsWith('/capabilities')) {
+        capabilitiesCalls += 1;
+        return Promise.reject(new Error('capabilities service unavailable'));
+      }
+      return Promise.resolve({ data: [] });
+    });
+    renderPastPerformance();
+
+    await screen.findByText('Past performance could not be loaded.');
+    const callsBeforeRetry = capabilitiesCalls;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => expect(capabilitiesCalls).toBeGreaterThan(callsBeforeRetry));
+  });
 });

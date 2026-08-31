@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useApi } from '../../../lib/use-api.js';
@@ -45,6 +45,9 @@ export interface ClientSubmissions {
   settled: boolean;
   /** Any read failed — callers must not render "no submissions" in that case. */
   failed: boolean;
+  /** Re-fetch every source behind `failed` (capabilities, the prime read, and
+   * every per-capability history query currently in flight or settled). */
+  retry: () => void;
 }
 
 /** Max per-capability history requests in flight on the fallback path. */
@@ -133,6 +136,17 @@ export function useClientSubmissions(clientId: string): ClientSubmissions {
   const historiesSettled =
     wave >= list.length && histories.every((query) => query.data !== undefined || query.isError);
 
+  const retry = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['client-capabilities', clientId] });
+    void queryClient.invalidateQueries({ queryKey: ['client-submission-history-prime', clientId] });
+    for (const capability of list) {
+      void queryClient.invalidateQueries({
+        queryKey: submissionHistoryKeys.forCapability(clientId, capability.id),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, clientId, list.length]);
+
   return {
     rows,
     capabilities: list,
@@ -140,5 +154,6 @@ export function useClientSubmissions(clientId: string): ClientSubmissions {
     // A failed read is not "no submissions" — the caller keeps its skeleton or
     // says nothing rather than rendering a zero it cannot stand behind.
     failed: capabilities.isError || histories.some((query) => query.isError),
+    retry,
   };
 }
