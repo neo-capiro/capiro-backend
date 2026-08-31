@@ -6,6 +6,7 @@ export type ClientDirectoryKey =
   | 'timeline'
   | 'advocacy'
   | 'intelligence'
+  | 'opportunities'
   | 'capabilities'
   | 'relationships'
   | 'work'
@@ -51,11 +52,20 @@ export const CLIENT_DIRECTORY_ROWS: readonly ClientDirectoryRow[] = [
   {
     key: 'intelligence',
     label: 'Intelligence',
-    detail: '4 domains',
-    description: 'Four domains read from the client-intelligence surface.',
+    detail: '3 domains',
+    description: 'Three domains read from the client-intelligence surface.',
     icon: 'Eye',
     tab: 'intelligence',
     view: 'legislative',
+    drawer: false,
+  },
+  {
+    key: 'opportunities',
+    label: 'Opportunities',
+    detail: 'Grants, contracts and budget programs',
+    description: 'Grant and contract opportunities, active pursuits, and relevant defense budget programs in one place.',
+    icon: 'Briefcase01',
+    tab: 'opportunities',
     drawer: false,
   },
   {
@@ -106,6 +116,7 @@ export function activeDirectoryKey(tab: CrmSurface, view: CrmView | null): Clien
     return 'relationships';
   }
   if (tab === 'intelligence') return 'intelligence';
+  if (tab === 'opportunities') return 'opportunities';
   if (tab === 'capabilities' || tab === 'work' || tab === 'files') return tab;
   // Plain client opens and old explicit Overview links land on the prototype's
   // lead surface without destroying the old URL contract.

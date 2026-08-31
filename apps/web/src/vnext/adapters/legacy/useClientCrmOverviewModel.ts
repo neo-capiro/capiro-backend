@@ -601,7 +601,7 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
       opportunities:
         opportunityCount == null
           ? unavailable('Opportunity summary unavailable')
-          : value(opportunityCount, crmHref(clientId, 'intelligence', 'funding')),
+          : value(opportunityCount, crmHref(clientId, 'opportunities')),
       districts: facilities.data
         ? value(distinctDistrictCount, crmHref(clientId, 'intelligence', 'district'))
         : unavailable('Facilities unavailable'),

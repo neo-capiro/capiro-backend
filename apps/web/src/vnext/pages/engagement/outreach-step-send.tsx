@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, CheckSquare, CircleAlert, Loader2, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, CheckSquare, CircleAlert, Loader2, RefreshCcw } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import {
@@ -207,7 +207,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
   const [timing, setTiming] = useState<SendTiming>('now');
   const [pacing, setPacing] = useState<SendPacing>('steady');
   const [partialChoice, setPartialChoice] = useState<PartialChoice>('ready');
-  const [acknowledged, setAcknowledged] = useState(false);
   const [testGenerationKey, setTestGenerationKey] = useState('');
   const [tested, setTested] = useState(false);
   const [preflightState, setPreflightState] = useState<{
@@ -321,16 +320,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
   const blockedCount = blockedTargets.length;
   const readyCount = outreachReadyRecipientCount(selectedCount, blockedCount, partialChoice);
 
-  // `needsAcknowledgment` and `holdsAll` do not depend on whether preflight has
-  // run, and preflight's own input depends on them — so the gate is asked those
-  // two questions first, and asked again below once the verdict is known.
-  const choiceGate = outreachSendGate({
-    preflightRan: false,
-    blockedCount,
-    partialChoice,
-    acknowledged,
-  });
-
   /**
    * The generation keys a held-out target owns. A slot is excluded only when
    * every one of its recipients is blocked — a shared-thread slot with one
@@ -349,10 +338,8 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
       .sort();
   }, [blockedTargets, plan]);
 
-  const needsAcknowledgment = choiceGate.needsAcknowledgment;
   const preflightInput: OutreachV3PreflightInput = {
     excludedGenerationKeys: partialChoice === 'ready' ? blockedGenerationKeys : [],
-    acknowledgeHeldOut: !needsAcknowledgment || acknowledged,
   };
 
   /*
@@ -399,7 +386,15 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
         (draft) => `${draft.generationKey}:${draft.current?.id ?? ''}:${draft.currentVersion}`,
       ),
       preflightInput.excludedGenerationKeys,
-      preflightInput.acknowledgeHeldOut,
+      /*
+       * The partial-send choice is named directly rather than relied on to
+       * show through `excludedGenerationKeys`. Those keys only differ between
+       * the two choices when the blocked targets happen to own whole slots, so
+       * a plan where they do not would otherwise leave a verdict computed
+       * under "send the ready recipients" on screen after the user switched to
+       * "wait for everyone".
+       */
+      partialChoice,
     ]);
   const preflightFingerprint = fingerprintFor(settings);
   const preflight =
@@ -413,7 +408,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     preflightRan: Boolean(preflight),
     blockedCount,
     partialChoice,
-    acknowledged,
   });
   const serverEligible = preflight?.result.eligible ?? false;
   const canSend = sendGate.canSend && serverEligible && timing === 'now';
@@ -678,12 +672,7 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
               aria-checked={partialChoice === option.id}
               className="ocb-option ocb-option--compact"
               data-selected={partialChoice === option.id ? 'true' : undefined}
-              onClick={() => {
-                setPartialChoice(option.id);
-                // The acknowledgment is about one specific choice; changing the
-                // choice must not carry a consent granted under the other one.
-                setAcknowledged(false);
-              }}
+              onClick={() => setPartialChoice(option.id)}
             >
               <span className="ocb-radio" data-on={partialChoice === option.id ? 'true' : 'false'} />
               <span className="ocb-option__body">
@@ -824,27 +813,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
                 : 'no verified email address'}
             </span>
           ))}
-          {needsAcknowledgment ? (
-            <label className="osend-ack">
-              <input
-                type="checkbox"
-                className="osend-ack__input"
-                checked={acknowledged}
-                onChange={(event) => setAcknowledged(event.target.checked)}
-              />
-              <span className="ocb-check" data-on={acknowledged ? 'true' : 'false'} aria-hidden="true">
-                <Check size={12} />
-              </span>
-              <span className="osend-ack__body">
-                <span className="osend-ack__label">
-                  I understand those recipients will not be contacted
-                </span>
-                <span className="osend-ack__sub">
-                  This does not resolve their blockers or send to them.
-                </span>
-              </span>
-            </label>
-          ) : null}
         </section>
       ) : null}
 

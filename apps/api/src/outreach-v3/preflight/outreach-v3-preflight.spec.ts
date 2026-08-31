@@ -205,6 +205,37 @@ describe('Outreach V3 deterministic preflight', () => {
     expect(bad.blockers).toContain('EXCLUSION_NOT_IN_PLAN');
   });
 
+  /**
+   * This is the invariant that carries the whole weight of holding a recipient
+   * out, now that the "I understand those recipients will not be contacted"
+   * acknowledgement has been removed from preflight.
+   *
+   * That gate was a client-supplied boolean the server could only compare
+   * against `true` and never persisted, so it constrained nobody — but it was
+   * the thing a reader might mistake for the reason a held-out recipient gets
+   * no mail. The real reason is here: an excluded slot contributes no draft
+   * version id, so it is absent from the send envelope no matter what any
+   * client asserts. If this test ever fails, held-out recipients are being
+   * mailed and the acknowledgement checkbox would not have saved them.
+   */
+  it('gives an excluded slot no outbound draft, with no acknowledgement involved', () => {
+    const result = evaluateOutreachV3Preflight({
+      plan: plan(),
+      drafts: [draft('slot-a', 'a@example.test'), draft('slot-b', 'b@example.test')],
+      senderConnectionId: 'sender-1',
+      senderAuthorized: true,
+      attachmentsReady: true,
+      excludedGenerationKeys: ['slot-b'],
+    });
+
+    expect(result.eligible).toBe(true);
+    expect(result.excludedGenerationKeys).toEqual(['slot-b']);
+    // slot-b is held out, so nothing addressed to it can be sent.
+    expect(result.draftVersionIds).not.toContain('version-slot-b');
+    expect(result.draftVersionIds).toContain('version-slot-a');
+    expect(result.blockers).not.toContain('HELD_RECIPIENTS_NOT_ACKNOWLEDGED');
+  });
+
   it('makes test-send preflight exactly one selected logical draft', () => {
     const result = evaluateOutreachV3Preflight({
       plan: plan(),
