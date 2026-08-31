@@ -1321,4 +1321,38 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Committee membership gain/loss/role-change alerts for tracked members (daily 06:00 UTC)',
     enabled: false,
   },
+
+  // ── TIER 10 — MAINTENANCE (storage garbage collection) ────────────────────
+  // Reclaims confirmed-but-unreferenced client-logo objects
+  // (tenants/*/clients/*/logos/*) — see the header comment in
+  // apps/api/scripts/gc-client-logos.ts for the full reachability rule and
+  // safety margins (30-day age floor, the assets bucket's own 90-day
+  // noncurrent-version undo window, per-key delete with its own try/catch,
+  // a --max-deletes cap per run).
+  //
+  // Ships DISABLED, for a stronger reason than every other `enabled: false`
+  // entry above: those withhold a WRITE path that has never run in prod;
+  // this is the only entry in this whole matrix that PERMANENTLY DELETES
+  // data (an S3 object, not a DB row a future job could reconstruct).
+  // Before flipping this to enabled:
+  //   1. Run it manually with no flags (dry run) against capiro-dev and read
+  //      the scanned/inScope/byVerdict summary — confirm the orphan count
+  //      and a sample of the keys it would delete look right.
+  //   2. Run it once manually with --commit and read the same summary.
+  //   3. Only then enable this rule.
+  // Weekly, not daily: logo churn (swaps + tenant deletions) is a handful of
+  // events a day across every tenant at most, so there is no freshness
+  // reason to run more often, and a slower cadence keeps any early mistake
+  // small and easy to reason about. `--commit` is deliberate in the
+  // scheduled command — the dry run is for an operator at a shell, same
+  // rationale as ProcessTangoEvents above.
+  {
+    id: 'GcClientLogos',
+    command: ['gc-client-logos', '--commit'],
+    cron: { minute: '15', hour: '7', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Reclaim confirmed-but-unreferenced client-logo S3 objects, 30-day age floor (weekly Sun 07:15 UTC)',
+    enabled: false,
+  },
 ];

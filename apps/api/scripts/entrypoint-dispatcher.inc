@@ -412,6 +412,13 @@ case "${1:-serve}" in
   # the existing queue. DRY RUN by default, --commit to delete, never touches a
   # confirmed row. Deliberately NOT scheduled — a one-off remediation.
   prune-stale-assistance-recipient-candidates) shift; exec ./node_modules/.bin/tsx scripts/prune-stale-assistance-recipient-candidates.ts "$@" ;;
+  # Reclaims confirmed-but-unreferenced client-logo objects
+  # (tenants/*/clients/*/logos/*) left behind by a logo swap or a hard tenant
+  # delete — see the header comment in gc-client-logos.ts for the full
+  # reachability rule. DRY RUN by default, --commit to delete; unlike the
+  # prune job above, this one runs indefinitely on a schedule (every future
+  # swap/delete creates a fresh orphan), see ingestion-schedule.ts.
+  gc-client-logos) shift; exec ./node_modules/.bin/tsx scripts/gc-client-logos.ts "$@" ;;
   # Step 32: LLM NER over recent DoD press releases (IntelArticle source=dod).
   extract-press-personnel) shift; exec ./node_modules/.bin/tsx scripts/extract-personnel-from-press-releases.ts "$@" ;;
   # Step 33: SAM.gov DoD solicitation KO/CS personnel (email domain only).

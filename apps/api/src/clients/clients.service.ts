@@ -142,6 +142,18 @@ function clientLogoKey(
   return `tenants/${tenantId}/clients/${clientId}/logos/${randomUUID()}.${extension}`;
 }
 
+/**
+ * Exact key shape `clientLogoKey()` above produces: uuid tenant/client path
+ * segments, a fresh v4 upload id, and the literal extension
+ * `clientLogoExtension()` maps each allowed content type to (note
+ * `image/jpeg` maps to `jpeg`, never the three-letter `jpg` — this pattern
+ * intentionally does not accept it). Exported so the client-logo garbage
+ * collector (scripts/gc-client-logos.ts) can recognize a confirmed logo
+ * object without re-deriving this shape and risking drift from this writer.
+ */
+export const CONFIRMED_CLIENT_LOGO_KEY_PATTERN =
+  /^tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/clients\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/logos\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:png|jpeg|svg|webp)$/i;
+
 function isStoredClientLogoKey(
   s3Key: string,
   tenantId: string,

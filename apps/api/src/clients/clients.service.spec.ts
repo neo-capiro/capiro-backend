@@ -2,12 +2,51 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ClientsService } from './clients.service.js';
+import { randomUUID } from 'node:crypto';
+import {
+  ClientsService,
+  CONFIRMED_CLIENT_LOGO_KEY_PATTERN,
+} from './clients.service.js';
 
 jest.mock('@aws-sdk/s3-presigned-post', () => ({
   createPresignedPost: jest.fn(),
 }));
 jest.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: jest.fn() }));
+
+describe('CONFIRMED_CLIENT_LOGO_KEY_PATTERN', () => {
+  const tenantId = randomUUID();
+  const clientId = randomUUID();
+
+  test('matches every extension clientLogoExtension() actually produces', () => {
+    for (const ext of ['png', 'jpeg', 'svg', 'webp']) {
+      const key = `tenants/${tenantId}/clients/${clientId}/logos/${randomUUID()}.${ext}`;
+      expect(CONFIRMED_CLIENT_LOGO_KEY_PATTERN.test(key)).toBe(true);
+    }
+  });
+
+  test('rejects the three-letter jpg extension this writer never produces', () => {
+    const key = `tenants/${tenantId}/clients/${clientId}/logos/${randomUUID()}.jpg`;
+    expect(CONFIRMED_CLIENT_LOGO_KEY_PATTERN.test(key)).toBe(false);
+  });
+
+  test('rejects the unconfirmed staging prefix', () => {
+    const key = `tenants/client-logo-uploads/${tenantId}/${clientId}/${randomUUID()}.png`;
+    expect(CONFIRMED_CLIENT_LOGO_KEY_PATTERN.test(key)).toBe(false);
+  });
+
+  test('rejects a tenant branding logo key', () => {
+    expect(
+      CONFIRMED_CLIENT_LOGO_KEY_PATTERN.test(`tenants/${tenantId}/branding/logo.png`),
+    ).toBe(false);
+  });
+
+  test('captures tenantId and clientId', () => {
+    const key = `tenants/${tenantId}/clients/${clientId}/logos/${randomUUID()}.png`;
+    const match = CONFIRMED_CLIENT_LOGO_KEY_PATTERN.exec(key);
+    expect(match?.[1]).toBe(tenantId);
+    expect(match?.[2]).toBe(clientId);
+  });
+});
 
 describe('ClientsService.list — archived filtering', () => {
   const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as never;
