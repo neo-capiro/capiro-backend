@@ -358,6 +358,16 @@ export function StrategyEditorVNext() {
 
       {openStep || openStepId === '__new__' ? (
         <StepInspector
+          // Keyed on the selected step so React remounts the whole subtree on
+          // a step switch instead of re-rendering the same instance with a
+          // new `step` prop — otherwise local state that isn't itself keyed
+          // to the step (composer draft, the evidence-artifact form, tab
+          // selection) survives the switch and bleeds into the next step's
+          // view. Composer draft is still meant to survive a Step/Meri tab
+          // switch *within* the same step (see StepInspector's own "Composer
+          // pinned across tabs" comment) — that keeps working since tab
+          // changes don't touch `openStepId`.
+          key={openStepId}
           strategyId={detail.id}
           step={openStep}
           isNew={openStepId === '__new__'}
