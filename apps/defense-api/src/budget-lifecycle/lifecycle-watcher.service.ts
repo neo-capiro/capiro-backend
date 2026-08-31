@@ -24,7 +24,9 @@ import {
   canAcquireWatcherLease,
   classifyLifecycleSource,
   conditionalFetchHeaders,
+  decideExpectedSourceStateOnDocumentArrivalV1,
   detectSourceRevision,
+  evaluateBundleCompletenessV1,
   ingestionOutboxDedupKey,
   nextWatcherCheckAt,
   observationDedupKey,
@@ -541,9 +543,18 @@ export class DefenseBudgetLifecycleWatcher {
       await this.store.supersedeObservation({ previousId: previous.id, nextId: recorded.observation.id });
     }
 
+    // Phase 10B-18 Part D: a document arriving for an expected source that
+    // owns a registered multi-member bundle (currently: none seeded in
+    // production) must not flip the WHOLE expected source to `published`
+    // while required members remain outstanding. An expected source with no
+    // bundle members resolves to `no_bundle`, which is `published` — exactly
+    // the pre-existing behavior, unchanged.
+    const bundleMembers = (await this.store.loadBundleMembers?.(expected.id)) ?? [];
     await this.store.setExpectedSourceState({
       expectedSourceId: expected.id,
-      expectedState: 'published',
+      expectedState: decideExpectedSourceStateOnDocumentArrivalV1(
+        evaluateBundleCompletenessV1(bundleMembers),
+      ),
       reviewReason: null,
     });
 

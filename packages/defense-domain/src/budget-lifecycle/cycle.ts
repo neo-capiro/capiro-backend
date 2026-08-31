@@ -346,6 +346,11 @@ export const NEVER_ZERO_EXPECTED_STATES: readonly ExpectedSourceState[] = Object
   'withdrawn',
   'unavailable',
   'review_required',
+  // A bundle with at least one verified member but required members still
+  // missing (Phase 10B-18) has NO trustworthy whole-family amount yet —
+  // exactly the same "no dollars until governed ingestion of the full
+  // family" rule `published` itself is already subject to below.
+  'partially_published',
 ]);
 
 /**

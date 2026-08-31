@@ -115,6 +115,33 @@ describe('evaluateCycleFamilyReadinessV1', () => {
     expect(decision.state).not.toBe('ready_for_reconciliation');
   });
 
+  it('[waiting_for_sources] Phase 10B-18 Part D: a partially_published multi-document bundle blocks readiness on its own reason, never falls through to the ingestion-outcome check', () => {
+    // Simulates Army FY24 pb_r2: Volume 1 BA1 is fully ingested_pass, but the
+    // watcher/governed-import layer wrote expectedState = 'partially_published'
+    // (not 'published') because the bundle still has 9 other required members
+    // outstanding. This must block — the false-completeness Part D forbids is
+    // exactly readiness certifying the family the moment ONE member passes.
+    const decision = evaluateCycleFamilyReadinessV1(
+      corpus([
+        source({ expectedSourceId: 'r1', expectedState: 'published', latestIngestion: 'ingested_pass' }),
+        source({
+          expectedSourceId: 'army-r2',
+          sourceFamily: 'pb_r2',
+          expectedState: 'partially_published',
+          latestIngestion: 'ingested_pass',
+        }),
+      ]),
+    );
+    expect(decision.state).toBe('waiting_for_sources');
+    expect(decision.blocks).toEqual([
+      {
+        reason: 'required_source_bundle_incomplete',
+        detail: expect.stringContaining('army-r2'),
+      },
+    ]);
+    expect(decision.state).not.toBe('ready_for_reconciliation');
+  });
+
   it('[negative control] network/unavailable is never converted to not_filed: a published-but-ingestion-incomplete source reports required_source_ingestion_incomplete, never not_filed semantics', () => {
     // "unavailable" here is the GOVERNED terminal state (a human/watcher already
     // decided the source cannot be fetched) — readiness reports it faithfully as

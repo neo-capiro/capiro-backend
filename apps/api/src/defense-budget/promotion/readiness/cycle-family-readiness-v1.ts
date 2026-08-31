@@ -304,6 +304,7 @@ export const READINESS_BLOCK_REASON_V1_VALUES = [
   'required_source_ingestion_incomplete',
   'required_source_review_required',
   'required_source_rejected',
+  'required_source_bundle_incomplete',
 ] as const;
 export type ReadinessBlockReasonV1 = (typeof READINESS_BLOCK_REASON_V1_VALUES)[number];
 
@@ -429,6 +430,21 @@ export function evaluateCycleFamilyReadinessV1(
       blocks.push({
         reason: 'required_source_not_yet_resolved',
         detail: `required expected source ${source.expectedSourceId} (${source.sourceFamily}) has not been observed yet`,
+      });
+      continue;
+    }
+    // Phase 10B-18 Part D: at least one bundle member has been verified, but
+    // `evaluateBundleCompletenessV1` (@capiro/defense-domain) still reports
+    // `partial` for this expected source's registered member manifest — a
+    // real, distinct fact from both `expected` (nothing observed) and
+    // `published` (whole family complete). This must block on its own
+    // reason, never fall through to the ingestion-outcome check below: doing
+    // so would certify the family the moment the FIRST required member's
+    // ingestion passes, exactly the false-completeness Part D forbids.
+    if (source.expectedState === 'partially_published') {
+      blocks.push({
+        reason: 'required_source_bundle_incomplete',
+        detail: `expected source ${source.expectedSourceId} (${source.sourceFamily}) has a multi-document bundle with required members still missing or unverified`,
       });
       continue;
     }

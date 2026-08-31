@@ -229,6 +229,7 @@ export type ExpectedSourceState =
   | 'expected'
   | 'not_filed'
   | 'published'
+  | 'partially_published'
   | 'superseded'
   | 'withdrawn'
   | 'unavailable'
@@ -238,6 +239,7 @@ export const EXPECTED_SOURCE_STATES: readonly ExpectedSourceState[] = Object.fre
   'expected',
   'not_filed',
   'published',
+  'partially_published',
   'superseded',
   'withdrawn',
   'unavailable',

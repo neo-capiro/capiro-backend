@@ -234,6 +234,31 @@ case "${1:-serve}" in
     echo "Running accept-defense-budget-ingestion-review-v1 (exact-row only; dry run unless --commit --confirm <env>)"
     exec ./node_modules/.bin/tsx scripts/accept-defense-budget-ingestion-review-v1.ts "$@"
     ;;
+  # Phase 10B-18/19. Governed operator-attested import for an expected
+  # source/bundle member whose official publisher host blocks production
+  # fetches (asafm.army.mil's Akamai block). Same shape as the promotion-
+  # chain/outbox-replay verbs above: serve role (compose_database_url, never
+  # PROMOTER_DATABASE_URL — this never touches a canonical PE/budget row,
+  # only lifecycle observation/SourceDocument/audit rows through the same
+  # governed pipeline drain-defense-budget-ingestion-outbox-v1 already uses),
+  # dry run unless --commit --confirm <environment>, exact expected-source-
+  # id/member-id only — no batch mode, no family mode, no wildcard source.
+  import-defense-budget-source-v1)
+    shift
+    compose_database_url
+    echo "Running import-defense-budget-source-v1 (dry run unless --commit --confirm <env>)"
+    exec ./node_modules/.bin/tsx scripts/import-defense-budget-source-v1.ts "$@"
+    ;;
+  # Phase 10B-19 Part N. Seeds the ten DefenseBudgetSourceBundleMember rows
+  # (ARMY_RDTE_VOLUME_CATALOG) under one existing Army FY24 pb_r2 expected
+  # source. Never marks a member observed/verified, never writes
+  # expected_state. Dry run unless --commit --confirm <environment>.
+  seed-army-r2-bundle-members-v1)
+    shift
+    compose_database_url
+    echo "Running seed-army-r2-bundle-members-v1 (dry run unless --commit --confirm <env>)"
+    exec ./node_modules/.bin/tsx scripts/seed-army-r2-bundle-members-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;

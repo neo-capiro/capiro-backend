@@ -15,3 +15,4 @@ export * from './candidate-resolution.js';
 export * from './crawl-cursor.js';
 export * from './publisher-native-kinds.js';
 export * from './expected-source-resolution.js';
+export * from './army-rdte-volume-catalog.js';

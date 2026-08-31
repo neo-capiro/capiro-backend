@@ -9,6 +9,7 @@
 
 import type {
   AuthorityTrack,
+  BundleMemberFactsV1,
   ExpectedSourceState,
   IngestionJobKind,
   LifecycleStage,
@@ -178,6 +179,17 @@ export interface LifecycleStore {
     expectedState: ExpectedSourceState;
     reviewReason: string | null;
   }): Promise<void>;
+
+  /**
+   * Phase 10B-18 Part D. Optional: an implementation that never registers
+   * bundle members (every store predating this phase) may omit it entirely —
+   * the watcher treats a missing method exactly like an empty array, which is
+   * `evaluateBundleCompletenessV1`'s `no_bundle` case, i.e. byte-for-byte the
+   * pre-Phase-10B-18 behavior. Only an expected source with rows in
+   * `defense_budget_source_bundle_member` (currently: none in production —
+   * this phase does not seed any) is affected.
+   */
+  loadBundleMembers?(expectedSourceId: string): Promise<readonly BundleMemberFactsV1[]>;
 
   /** `created: false` when this observation already has a job of this kind. */
   enqueueIngestion(input: {

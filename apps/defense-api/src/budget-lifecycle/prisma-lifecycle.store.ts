@@ -15,6 +15,7 @@
 import { Injectable } from '@nestjs/common';
 import type {
   AuthorityTrack,
+  BundleMemberFactsV1,
   ExpectedSourceState,
   IngestionJobKind,
   LifecycleStage,
@@ -302,6 +303,22 @@ export class PrismaLifecycleStore implements LifecycleStore {
       input.expectedState,
       input.reviewReason,
     );
+  }
+
+  /** Phase 10B-18 Part D — see `LifecycleStore.loadBundleMembers`'s doc comment. */
+  async loadBundleMembers(expectedSourceId: string): Promise<readonly BundleMemberFactsV1[]> {
+    const result = rows<{ required: boolean; member_status: string }>(
+      await this.prisma.$queryRawUnsafe(
+        `SELECT "required", "member_status"
+           FROM "defense_budget_source_bundle_member"
+          WHERE "expected_source_id" = $1::uuid`,
+        expectedSourceId,
+      ),
+    );
+    return result.map((row) => ({
+      required: row.required,
+      memberStatus: row.member_status as BundleMemberFactsV1['memberStatus'],
+    }));
   }
 
   async enqueueIngestion(input: {

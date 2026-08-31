@@ -4588,6 +4588,8 @@ model SourceDocument {
   federalFundingAllocationEvidence  FederalFundingAllocation[] @relation("FederalFundingAllocationEvidence")
   // Phase 8 Session 7 — lifecycle watcher observations bound to immutable source identity.
   defenseBudgetObservations         DefenseBudgetSourceObservation[] @relation("DefenseBudgetObservationSource")
+  // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
+  bundleMemberBindings              DefenseBudgetSourceBundleMember[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -12219,12 +12221,103 @@ model DefenseBudgetExpectedSource {
 
   cycle        DefenseBudgetCycle              @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   observations DefenseBudgetSourceObservation[]
+  bundleMembers DefenseBudgetSourceBundleMember[]
 
   @@unique([dedupKey], map: "defense_budget_expected_source_dedup_key_key")
   @@index([cycleId, stage], map: "defense_budget_expected_source_cycle_idx")
   @@index([expectedState, fiscalYear], map: "defense_budget_expected_source_state_idx")
   @@index([adapterId], map: "defense_budget_expected_source_adapter_idx")
   @@map("defense_budget_expected_source")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Phase 10B-18 Part C — source-bundle member manifest.
+//
+// `DefenseBudgetExpectedSource` is one identity slot per (fiscalYear,
+// authorityTrack, sourceFamily, stage, chamber, committee, component); its
+// dedup key structurally CANNOT distinguish more than one physical document
+// for that slot (Phase 10B-18 Part B). For source families that really are
+// one document, that has always been fine. For families the publisher splits
+// across multiple volumes (Army's FY24 R-2 exhibit is 10 separate BA-volume
+// PDFs under ONE Army/pb_r2/FY2024 slot), this table is the deterministic
+// member manifest: one row per REQUIRED-OR-OPTIONAL physical document the
+// bundle needs, keyed by a stable identity derived from publication structure
+// (volume/budget-activity), never a physical filename (those are unstable).
+//
+// A row's `member_status` only ever advances forward (missing -> observed ->
+// verified) and is the input `evaluateBundleCompletenessV1` (@capiro/
+// defense-domain) reduces to a single completeness fact. An expected source
+// with ZERO rows here is the ordinary single-document case and is untouched
+// by this table — see that function's `no_bundle` outcome.
+// ───────────────────────────────────────────────────────────────────────────
+model DefenseBudgetSourceBundleMember {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expectedSourceId String   @map("expected_source_id") @db.Uuid
+  memberKey        String   @map("member_key")
+  volume           String?
+  budgetActivity   String?  @map("budget_activity")
+  officialUrl      String   @map("official_url")
+  title            String
+  required         Boolean  @default(true)
+  // missing | observed | verified
+  memberStatus     String   @default("missing") @map("member_status")
+  observationId    String?  @map("observation_id") @db.Uuid
+  sourceDocumentId String?  @map("source_document_id") @db.Uuid
+  // Identity snapshot the seeding caller asserts this member belongs under —
+  // NOT authoritative on its own. A trigger (see migration.sql) re-derives
+  // the SAME five fields from the joined expected_source row on every
+  // INSERT/UPDATE and rejects the write if they disagree, so a member can
+  // never bind to an expected source of a different FY/track/stage/family/
+  // component even if the seeding code computed the wrong expectedSourceId.
+  expectedFiscalYear     Int     @map("expected_fiscal_year")
+  expectedAuthorityTrack String  @map("expected_authority_track")
+  expectedStage          String  @map("expected_stage")
+  expectedSourceFamily   String  @map("expected_source_family")
+  expectedComponent      String? @map("expected_component")
+  metadata         Json     @default("{}") @map("metadata_jsonb")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  expectedSource DefenseBudgetExpectedSource     @relation(fields: [expectedSourceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observation    DefenseBudgetSourceObservation? @relation(fields: [observationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sourceDocument SourceDocument?                 @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([expectedSourceId, memberKey], map: "defense_budget_source_bundle_member_expected_key_key")
+  @@index([expectedSourceId, memberStatus], map: "defense_budget_source_bundle_member_status_idx")
+  @@index([observationId], map: "defense_budget_source_bundle_member_observation_idx")
+  @@map("defense_budget_source_bundle_member")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Phase 10B-18 Part J — governed operator-attested import audit trail.
+//
+// One row per successful `import-defense-budget-source-v1` commit. INSERT
+// only: the migration adds a trigger that rejects UPDATE and DELETE outright
+// (see migration.sql), so this table can never be edited after the fact to
+// hide that bytes were operator-acquired rather than network-fetched — the
+// exact non-negotiable Part J states. Prisma has no way to express "insert
+// only" itself, so the guarantee lives in the database, not the ORM layer.
+// ───────────────────────────────────────────────────────────────────────────
+model DefenseBudgetGovernedImportAudit {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expectedSourceId     String   @map("expected_source_id") @db.Uuid
+  bundleMemberId       String   @map("bundle_member_id") @db.Uuid
+  observationId        String?  @map("observation_id") @db.Uuid
+  operator             String
+  reason               String
+  officialUrl          String   @map("official_url")
+  contentSha256        String   @map("content_sha256") @db.Char(64)
+  byteSize             Int      @map("byte_size")
+  archiveBucket        String   @map("archive_bucket")
+  archiveS3Key         String   @map("archive_s3_key")
+  archiveVersionId     String?  @map("archive_version_id")
+  importCommandVersion String   @map("import_command_version")
+  identityChecks       Json     @map("identity_checks_jsonb")
+  importedAt           DateTime @default(now()) @map("imported_at") @db.Timestamptz(6)
+
+  @@index([expectedSourceId], map: "defense_budget_governed_import_audit_expected_idx")
+  @@index([bundleMemberId], map: "defense_budget_governed_import_audit_member_idx")
+  @@map("defense_budget_governed_import_audit")
 }
 
 model DefenseBudgetSourceObservation {
@@ -12268,6 +12361,7 @@ model DefenseBudgetSourceObservation {
   outbox      DefenseBudgetIngestionOutbox[]
   signalsFrom DefenseBudgetLifecycleSignal[] @relation("DefenseBudgetSignalFrom")
   signalsTo   DefenseBudgetLifecycleSignal[] @relation("DefenseBudgetSignalTo")
+  bundleMemberBindings DefenseBudgetSourceBundleMember[]
 
   // Idempotency: the same bytes for the same expected source are ONE
   // observation, so two watcher runs seeing the same source cannot diverge.
