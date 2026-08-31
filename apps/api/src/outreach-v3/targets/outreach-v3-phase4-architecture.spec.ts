@@ -1,9 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const SCOPED = Boolean(process.env.ENGAGEMENT_PHASE3_SCOPE_END);
-const maybeIt = (cond: boolean) => (cond ? it.skip : it);
-
 function apiRoot(): string {
   const cwd = process.cwd();
   if (existsSync(resolve(cwd, 'src/outreach-v3'))) return cwd;
@@ -109,34 +106,16 @@ describe('Outreach V3 Revised Phase 4 architecture', () => {
     expect(source).not.toContain('SEND_EMAIL_NOW');
   });
 
-  maybeIt(SCOPED)('keeps Phase 4 read-only and leaves context/generation/send commands future-owned', () => {
-    const commands = readApi('src/outreach-v3/state/outreach-command.contract.ts');
-    const contextSchema = readApi('src/outreach-v3/state/outreach-campaign-spec.v1.ts');
-    for (const future of [
-      'ACCEPT_CONTEXT_REFS',
-      'EXCLUDE_CONTEXT_REFS',
-      'REQUEST_SAMPLE_GENERATION',
-      'REQUEST_FULL_GENERATION',
-      'REQUEST_SEND_REVIEW',
-    ]) {
-      expect(commands).toContain(`'${future}'`);
-    }
-    expect(contextSchema).toContain('reservedFutureContextRefsSchema');
-    expect(contextSchema).not.toContain('wizardStep');
-    expect(contextSchema).not.toContain('currentStage');
-  });
-
-  maybeIt(SCOPED)('does not implement the new Outreach UI or add another service', () => {
-    const webRoot = resolve(REPO_ROOT, 'apps/web/src');
-    const webSource = productionFiles(webRoot)
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    expect(webSource).not.toContain('/outreach-v3/sessions/');
-    expect(webSource).not.toContain('OUTREACH_V3_TARGETS_ENABLED');
-    const repoSource = productionFiles(resolve(REPO_ROOT, 'apps'))
-      .map((file) => readFileSync(file, 'utf8'))
-      .join('\n');
-    expect(repoSource).not.toMatch(/class\s+OutreachApiAppModule|apps\/outreach-api/);
+  it('does not run Outreach V3 as a separate service outside engagement-api', () => {
+    expect(existsSync(resolve(REPO_ROOT, 'apps/outreach-api'))).toBe(false);
+    // Scoped to `*.module.ts` (not a full apps/ text scan, which includes the
+    // whole apps/web source tree) — a root NestJS app module is the only place
+    // a rogue standalone service would declare itself.
+    const moduleFiles = productionFiles(resolve(REPO_ROOT, 'apps')).filter((f) =>
+      f.endsWith('.module.ts'),
+    );
+    const moduleSource = moduleFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
+    expect(moduleSource).not.toMatch(/class\s+OutreachApiAppModule/);
   });
 
   it('does not introduce LangGraph or a general LangChain agent', () => {
