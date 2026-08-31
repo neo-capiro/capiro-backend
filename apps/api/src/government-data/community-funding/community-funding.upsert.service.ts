@@ -29,7 +29,13 @@ export class CommunityFundingUpsertService {
     // a real consolidated-XLSX batch (thousands of candidates, each requiring several
     // round trips); the real FY2026 XLSX rehearsal in
     // community-funding.cross-source-dedup.spec.ts is the proof this needs raising.
-    const timeoutMs = Math.max(20_000, candidates.length * 50);
+    //
+    // Full-corpus disposable proof (2026-08-31): length*50 still expired on large
+    // House PDFs (937 / 2886 rows) under concurrent host load — interactive txn
+    // closed mid-batch. Scale more generously with a hard 15-minute ceiling so a
+    // single official source document can finish without abandoning the whole
+    // campaign, while remaining bounded (no infinite wait).
+    const timeoutMs = Math.min(900_000, Math.max(120_000, candidates.length * 150));
     return this.prisma.$transaction(async (tx) => {
       let upserted = 0, changed = 0, provenanceInserted = 0, provenanceUnchanged = 0;
       for (const candidate of candidates) {

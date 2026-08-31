@@ -18,7 +18,8 @@ Campaign: `apps/api/scripts/run-cpf-cds-campaign.ts`
   - #1328 CPF/CDS canonical identity
   - #1345 CPF/CDS advocacy discovery
   - #1349 CPF/CDS appropriations outcome correlation
-  - source-coverage PR (`agent/advocacy-history-cpf-cds-source-coverage`)
+  - #1357 source-coverage (`agent/advocacy-history-cpf-cds-source-coverage`, merge `74bf7132f`)
+  - follow-up ops PR: `--from-cache`, sourceKey URL disambiguator, bulk offline extract, Windows extractor retry
 - `DATABASE_URL` pointing at the **intended** target (disposable → staging → prod only with auth)
 - Python with `pymupdf` for PDF extraction
 - Network egress to:
@@ -28,6 +29,15 @@ Campaign: `apps/api/scripts/run-cpf-cds-campaign.ts`
 ```bash
 python -c "import pymupdf; print(pymupdf.__version__)"
 ```
+
+### Windows host notes (this engineering workstation)
+
+- Prefer bare `python` on PATH. Do **not** export `PYTHON` as an MSYS path — native Node `spawnSync` will fail every extractor call.
+- Rapid sequential `python.exe` + pymupdf spawns can fail with exit `3221225794` (`0xC0000142` STATUS_DLL_INIT_FAILED). Mitigations:
+  1. Campaign runner retries with exponential backoff
+  2. Prefer offline bulk extract then `--from-cache` (no per-doc spawn)
+- Hyper-V excluded port ranges may block `55432`. Disposable Postgres may need another host port (e.g. `54329`).
+- Jest `community-funding` cross-source-dedup **truncates** `community_funding_request*` — never run it against a corpus you still need.
 
 ---
 
@@ -122,11 +132,23 @@ pnpm --filter @capiro/api ingest:cpf-cds:campaign -- --chamber house --fy 2026
 
 # Force re-parse/re-upsert after parser fix
 pnpm --filter @capiro/api ingest:cpf-cds:campaign -- --chamber house --fy 2026 --force
+
+# Restore / Windows-safe path: offline bulk extract then cache-only force ingest
+python apps/api/scripts/__tools__/bulk_extract_cpf_cds_cache.py ./.cache/cpf-cds-campaign
+# chamber-aware: Senate paths force senate profile; House uses auto
+pnpm --filter @capiro/api exec tsx scripts/run-cpf-cds-campaign.ts -- \
+  --all-years --force --from-cache \
+  --work-dir ./.cache/cpf-cds-campaign \
+  --report ./.cache/cpf-cds-campaign/report-restore.json
 ```
 
-There is **no** “delete all CPF/CDS and retry” procedure. Corrections update
+`--from-cache` uses on-disk `source.pdf` / `source.xlsx` + precomputed `rows.json`
+when present (skips network download and PDF spawn). Still discovers live indexes
+so coverage stays tied to official pages.
+
+There is **no** “delete all CPF/CDS and retry” procedure on production. Corrections update
 non-identity fields under the same `identity_hash`; new publications add
-provenance rows.
+provenance rows. Disposable QA may truncate only when the corpus is disposable.
 
 ---
 
@@ -188,3 +210,39 @@ canonical CPF/CDS request
 - Fail closed: account-only, FY-only, title similarity, disagreeing request ids,
   outcome not strictly after activity
 - Always `causationClaimed:false`
+
+---
+
+## I. Known coverage gaps (fail closed — do not fabricate)
+
+Documented from disposable full-corpus rehearsal (2026-08-31):
+
+| Gap | Scope | Production posture |
+|---|---|---|
+| Senate joint / multi-origination “Amount Provided” tables | Many FY22/FY24 (and some later) PDFs extract **0 rows** under house/senate/auto | Fail closed. `senate_joint` extractor is **investigative only** — not wired to `auto` (wrapped-cell contamination risk) |
+| Senate LHHS-style (no Recipient/State column) | Subset of Senate tables | Fail closed until dedicated profile is clean |
+| House FY22/FY23 index | Only Jurisdictions/Rules after filters | No table docs on public index |
+| Senate FY27 | Guidance-only | No CDS tables yet |
+| Truncated single-letter recipients | Rare house_location parse noise (3 rows in full corpus) | Do not auto-match; review if they surface |
+| Multi-member same project | Distinct `identity_hash` per primary requester (by design) | One finding per request id; co-sponsors are display |
+
+### Disposable rehearsal proof (not production)
+
+- Restore: **153 ingested / 0 failed / 13 non-table** → **29,728 canonical / 39,042 provenance**
+- Idempotent rerun: **153 skipped_unchanged**, Δ canonical = 0
+- Force House FY2026: re-ingested 13 docs, Δ canonical = 0
+- Identity: 29,728 unique hashes
+- Multi-provenance requests: 9,227 (max 7 sources)
+- Stages: `amount_requested` 14,716 / `house_amount` 13,187 / `senate_recommendation` 1,825
+- Account populated: ~47% (outcome tier-2 only when present)
+
+### Recommended production authorization shape
+
+1. **Authorize House-first** FY-bounded backfill (A) for FY2024–FY2027
+2. Senate FY2025–FY2026 subcommittee tables that extract non-zero rows (B)
+3. Leave Senate joint/LHHS zero-row docs as known gaps until a clean profile lands
+4. Only after House prod tables + verification SQL (C): authorize Advocacy canary (G)
+
+Gate string when ops is ready to request human authorization:
+
+`READY_FOR_PRODUCTION_INGESTION_AUTHORIZATION`
