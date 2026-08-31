@@ -279,11 +279,11 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
 
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO hearing_stream_candidate (
-         hearing_id, provider, official_page_url, media_url, media_type,
+         id, hearing_id, provider, official_page_url, media_url, media_type,
          priority, resolution_state, capture_policy,
          first_seen_at, last_probe_at, created_at, updated_at
        )
-       SELECT $1, $2, $3, $4, $5,
+       SELECT gen_random_uuid()::text, $1, $2, $3, $4, $5,
               100, 'READY', 'SERVER_CAPTURE_ALLOWED',
               $6, $6, $6, $6
        WHERE NOT EXISTS (
