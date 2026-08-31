@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -168,13 +168,31 @@ describe('ClientCrmOpportunitiesProto (items 4-5, wire-audit)', () => {
     expect(screen.queryByText('Ground Robotics Autonomy Kit')).not.toBeInTheDocument();
   });
 
-  it('keeps the opportunities design fixture when funding_opportunities is disabled for the tenant', async () => {
+  it('shows an honest "not enabled" message instead of the OPPS fixture when funding_opportunities is disabled for the tenant', async () => {
+    mockFundingApis({ flags: {} });
+    renderOpportunities();
+
+    // Relevant Programs is unaffected by this flag and must still answer for real.
+    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
+
+    expect(screen.getByText('Funding opportunities is not enabled for this account yet.')).toBeInTheDocument();
+    // Neither the real data nor the OPPS design fixture — and no dead button
+    // promising a list that was never fetched.
+    expect(screen.queryByText('Autonomy Research Grant')).not.toBeInTheDocument();
+    expect(screen.queryByText('Autonomous Ground Vehicle Integration')).not.toBeInTheDocument();
+    expect(screen.queryByText('View all 7')).not.toBeInTheDocument();
+  });
+
+  it('still fills in Relevant programs on the domain stats strip when funding_opportunities is disabled', async () => {
     mockFundingApis({ flags: {} });
     renderOpportunities();
 
     await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    expect(screen.getByText('View all 7')).toBeInTheDocument();
-    expect(screen.queryByText('Autonomy Research Grant')).not.toBeInTheDocument();
+    // 1 relevant PE from RELEVANT_PE — real, despite the opportunities flag
+    // being off. The other four cells have nothing to answer with and stay dashes.
+    const cell = screen.getByText('Relevant programs').closest('.capiro-intel-stats-cell');
+    expect(cell).not.toBeNull();
+    expect(within(cell as HTMLElement).getByText('1')).toBeInTheDocument();
   });
 
   it('shows an honest empty message when no program element clears the relevance threshold', async () => {
