@@ -321,6 +321,24 @@ export class MeriV3ProxyService {
       }
     };
 
+    // SSE keep-alive toward the BROWSER: while the orchestrator runs a long
+    // no-tools synthesis it can emit no frames for many minutes. The browser
+    // and every proxy hop between it and apps/api then see an idle connection
+    // and may time it out (2026-09-01: turn errored "terminated" at 600s while
+    // the orchestrator completed the synthesis 5 minutes later and the output
+    // was discarded). A comment frame every 20s — alongside the orchestrator's
+    // own keep-alive on the API↔orchestrator hop shipped in the same change —
+    // keeps every hop's idle timer fed for the full max-mode turn budget.
+    // SSE comments are ignored by standard parsers; the browser reader treats
+    // only "data: " lines as frames, so this is invisible to it by construction.
+    const keepAlive = setInterval(() => {
+      try {
+        sse.write(': ping\n\n');
+      } catch {
+        /* client already gone; the abort signal handles teardown */
+      }
+    }, 20_000);
+    const stopKeepAlive = () => clearInterval(keepAlive);
     try {
       await this.client.streamChat({
         bearerToken,
@@ -353,6 +371,8 @@ export class MeriV3ProxyService {
             : 'The MeriV3 runtime could not complete this turn.');
         this.logger.error(`MeriV3 proxy failed: ${errorMessage}`);
       }
+    } finally {
+      stopKeepAlive();
     }
 
     const aborted = Boolean(clientSignal?.aborted);

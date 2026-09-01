@@ -100,6 +100,17 @@ export class MeriV3Controller {
     const frame = (event: unknown) => {
       if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
+    // SSE keep-alive: during long no-tools synthesis the assistant can emit no
+    // frames for many minutes. Idle hops between apps/api and the orchestrator
+    // then tear the connection down (2026-09-01: "terminated" at exactly
+    // 600,233ms while the turn completed server-side ~5 minutes later and its
+    // output was discarded). A tiny SSE comment every 20s feeds every
+    // intermediate hop's idle timer. SSE comments are ignored by standard
+    // parsers, and the apps/api reader only treats lines starting with
+    // "data: " as frames, so this is invisible to it by construction.
+    const keepAlive = setInterval(() => {
+      if (!res.writableEnded) res.write(': ping\n\n');
+    }, 20_000);
 
     const execute = async () => {
       const governed = requireGovernedContext(dto);
@@ -146,6 +157,7 @@ export class MeriV3Controller {
               : 'The MeriV3 reasoning runtime could not complete this turn.',
         });
       } finally {
+        clearInterval(keepAlive);
         if (!res.writableEnded) res.end();
       }
     };
