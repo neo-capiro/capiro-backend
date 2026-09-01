@@ -492,17 +492,34 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     );
     if (sameDay.length === 0) return null;
     if (sameDay.length > 1) {
-      const titleKey = (row.title ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const byTitle = sameDay.filter((e) => {
-        const k = (e.title ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-        return titleKey && (k.includes(titleKey) || titleKey.includes(k));
+      // Committees wrap titles ("Hearings to examine …", "Business Meeting to
+      // consider …"), so exact containment is too strict. Match on significant
+      // token overlap in EITHER direction with a floor, and require it to be
+      // unambiguous — anything else surfaces as an honest ERROR.
+      const tokens = (s: string) =>
+        new Set(
+          (s ?? '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .split(' ')
+            .filter((t) => t.length > 2),
+        );
+      const rowTokens = tokens(row.title ?? '');
+      const candidates = sameDay.filter((e) => {
+        const pageTokens = tokens(e.title ?? '');
+        let shared = 0;
+        for (const t of pageTokens) if (rowTokens.has(t)) shared += 1;
+        return shared >= 3;
       });
-      if (byTitle.length !== 1) {
+      if (candidates.length !== 1) {
         throw new Error(
-          `senate-committee-calendar: ${sameDay.length} same-day entries for ${row.id}; ambiguous`,
+          `senate-committee-calendar: ${sameDay.length} same-day entries for ${row.id}, ` +
+            `${candidates.length} title candidates; ambiguous`,
         );
       }
-      return byTitle[0] ? { event: byTitle[0], adapterKey: 'senate-committee-calendar', source: senateSource } : null;
+      return candidates[0]
+        ? { event: candidates[0], adapterKey: 'senate-committee-calendar', source: senateSource }
+        : null;
     }
     return sameDay[0]
       ? { event: sameDay[0], adapterKey: 'senate-committee-calendar', source: senateSource }
