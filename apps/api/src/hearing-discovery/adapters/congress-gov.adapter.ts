@@ -229,6 +229,45 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
     return `${CONGRESS_BASE}/committee-meeting/${congress}?${params.toString()}`;
   }
 
+  /**
+   * Single-event fetch for the provenance backfill: the SAME detail endpoint,
+   * the SAME normalizer (`toSourceEvent`) and the SAME parser version as
+   * scheduled discovery — so an observation written by the backfill is
+   * indistinguishable from one written by the recurring job. Exposed as a
+   * public method instead of teaching the backfill to page the list endpoint.
+   */
+  async fetchCommitteeMeetingDetail(
+    externalEventId: string,
+    congress: number = this.options.congresses?.[0] ?? currentCongress(),
+  ): Promise<MeetingDetail | null> {
+    if (!this.options.apiKey) {
+      throw new Error('CONGRESS_API_KEY is required for the congress-gov adapter');
+    }
+    const detail = await fetchJson<{ committeeMeeting: MeetingDetail }>(
+      `${CONGRESS_BASE}/committee-meeting/${congress}/${externalEventId}?api_key=${this.options.apiKey}&format=json`,
+      { timeoutMs: 15_000 },
+    );
+    return detail.data?.committeeMeeting ?? null;
+  }
+
+  /**
+   * Public wrapper over the private normalizer for the single-event fetch path.
+   * `item` carries only what the detail record omits (list metadata), which for
+   * a direct event fetch is the congress number itself.
+   */
+  toSourceEventPublic(
+    d: MeetingDetail,
+    source: SourceDescriptor,
+  ): SourceEvent | null {
+    const congress = d.congress ?? currentCongress();
+    return this.toSourceEvent(d, { eventId: null, congress }, congress, {
+      since: null,
+      daysAhead: 0,
+      delayMs: 0,
+      log: () => {},
+    });
+  }
+
   private withAuth(rawUrl: string): string {
     const sep = rawUrl.includes('?') ? '&' : '?';
     return `${rawUrl}${sep}api_key=${this.options.apiKey}&format=json`;
