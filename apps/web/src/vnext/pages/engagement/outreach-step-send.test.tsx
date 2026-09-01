@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OutreachV3SessionEnvelope } from '../../../pages/engagement/outreach/v3/contracts.js';
 import {
@@ -169,9 +170,12 @@ function renderStep(over: Record<string, unknown> = {}) {
   const result = render(
     <div className="capiro-vnext-root">
       <div className="engagement-vnext">
-        <QueryClientProvider client={qc}>
-          <OutreachSendStep {...(props as unknown as OutreachSendStepProps)} />
-        </QueryClientProvider>
+        {/* MemoryRouter: the step's follow-up seeding calls useNavigate. */}
+        <MemoryRouter>
+          <QueryClientProvider client={qc}>
+            <OutreachSendStep {...(props as unknown as OutreachSendStepProps)} />
+          </QueryClientProvider>
+        </MemoryRouter>
       </div>
     </div>,
   );

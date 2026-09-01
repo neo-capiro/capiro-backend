@@ -24,6 +24,8 @@ import {
   outreachGoalCommandsFor,
   outreachGuidanceRefsWithMarker,
   outreachRecipientSummary,
+  outreachSameOfficeGroups,
+  outreachSameOfficeWarning,
   outreachSponsorFromSpec,
   outreachTargetIsSendable,
   outreachGenerationSpecCommands,
@@ -155,6 +157,48 @@ describe('campaign type round-trip', () => {
     expect(types.length).toBeGreaterThan(1);
     const topic = commands.find((command) => command.type === 'SET_TOPIC');
     expect((topic?.payload as { value?: string } | undefined)?.value).toBe('Section 215 update');
+  });
+
+  // ── why-now override (the "Why now / scheduling window" Name-step field) ──
+
+  it('derives the default why-now when no override information is given', () => {
+    const commands = outreachGoalCommandsFor('request_meeting', 'Ground robotics');
+    const whyNow = commands.find((command) => command.type === 'SET_WHY_NOW');
+    const value = (whyNow?.payload as { value?: string | null } | undefined)?.value;
+    expect(value).toBeTruthy();
+    expect(value).toContain('Ground robotics');
+  });
+
+  it('carries a non-empty why-now override verbatim (trimmed) instead of the derived default', () => {
+    const commands = outreachGoalCommandsFor(
+      'request_meeting',
+      'Ground robotics',
+      '  We will be in Washington the week of October 6  ',
+    );
+    const whyNow = commands.find((command) => command.type === 'SET_WHY_NOW');
+    expect((whyNow?.payload as { value?: string | null } | undefined)?.value).toBe(
+      'We will be in Washington the week of October 6',
+    );
+  });
+
+  it('clears the why-now (null) when the user emptied the override', () => {
+    const commands = outreachGoalCommandsFor('request_meeting', 'Ground robotics', null);
+    const whyNow = commands.find((command) => command.type === 'SET_WHY_NOW');
+    expect((whyNow?.payload as { value?: string | null } | undefined)?.value).toBeNull();
+  });
+
+  it('treats a whitespace-only override as a clear, not as a value', () => {
+    const commands = outreachGoalCommandsFor('request_meeting', 'Ground robotics', '   ');
+    const whyNow = commands.find((command) => command.type === 'SET_WHY_NOW');
+    expect((whyNow?.payload as { value?: string | null } | undefined)?.value).toBeNull();
+  });
+
+  it('still derives the default when the override is absent AND the name is missing', () => {
+    // An unnamed campaign writes only SET_GOAL — the override never reaches an
+    // empty spec, because the Name step that owns the field always also names
+    // the campaign in the same batch.
+    const commands = outreachGoalCommandsFor('request_meeting', '', 'Some window');
+    expect(commands.map((command) => command.type)).toEqual(['SET_GOAL']);
   });
 
   it('has no type at all before a goal is written', () => {
@@ -355,6 +399,49 @@ describe('sponsor', () => {
   });
 });
 
+describe('same-office dedupe advisory', () => {
+  it('groups only offices with 2+ recipients, largest first, normalizing case and whitespace', () => {
+    const groups = outreachSameOfficeGroups([
+      target({ targetKey: 't1', organization: 'Office of Rep. Smith' }),
+      target({ targetKey: 't2', organization: 'office of  rep. smith' }),
+      target({ targetKey: 't3', organization: 'HASC' }),
+      target({ targetKey: 't4', organization: 'HASC' }),
+      target({ targetKey: 't5', organization: 'HASC' }),
+      target({ targetKey: 't6', organization: 'Office of Sen. Doe' }),
+      target({ targetKey: 't7', organization: null }),
+      target({ targetKey: 't8', organization: null }),
+    ]);
+    expect(groups.map((group) => [group.office, group.targets.length])).toEqual([
+      ['HASC', 3],
+      ['Office of Rep. Smith', 2],
+    ]);
+    // The first-seen spelling names the group.
+    expect(groups[1]?.targets.map((entry) => entry.targetKey)).toEqual(['t1', 't2']);
+  });
+
+  it('never groups targets with no organization — an unknown office is not the SAME office', () => {
+    expect(
+      outreachSameOfficeGroups([
+        target({ targetKey: 't1', organization: null }),
+        target({ targetKey: 't2', organization: '' }),
+        target({ targetKey: 't3', organization: '   ' }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('renders one advisory naming every crowded office, and null when there is none', () => {
+    const warning = outreachSameOfficeWarning(
+      outreachSameOfficeGroups([
+        target({ targetKey: 't1', organization: 'HASC' }),
+        target({ targetKey: 't2', organization: 'HASC' }),
+      ]),
+    );
+    expect(warning).toContain('HASC (2 recipients)');
+    expect(warning).toContain('trim to the best-placed contact per office');
+    expect(outreachSameOfficeWarning([])).toBeNull();
+  });
+});
+
 describe('unwired controls', () => {
   it('names every control the prototype shows that no endpoint backs', () => {
     // This list is the deliverable, not a nicety: it is what the release note
@@ -363,7 +450,8 @@ describe('unwired controls', () => {
       'Email format',
       'Campaign subject line',
       'Per-template context options',
-      'Campaign document upload',
+      // 'Campaign document upload' left this list when the Context step's drop
+      // zone was wired to attachments/upload-url → confirm → context/document.
       'Send scheduling',
       'Send pacing',
     ]);

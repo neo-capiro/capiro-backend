@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { PrismaService } from '../../prisma/prisma.service.js';
-import { parseOutreachTemplateSpecV1 } from './outreach-template.contract.js';
+import {
+  hashOutreachTemplateSpecV1,
+  parseOutreachTemplateSpecV1,
+} from './outreach-template.contract.js';
 import { STARTER_CONTENT_TEMPLATES } from './starter-content-templates.js';
 import {
   STARTER_TEMPLATE_SEED_VERSION,
@@ -279,6 +282,164 @@ describe('StarterTemplateSeeder orchestration', () => {
     await h.seeder.ensureSeeded(TENANT_A);
     await h.seeder.ensureSeeded(TENANT_A);
     expect(h.queryRaw.mock.calls.length).toBe(afterFirst);
+  });
+
+  /*
+   * The revision path (seed-version bump reaching already-seeded tenants).
+   * Before `reviseStarter` existed, a bump re-ran the loop, every existing row
+   * no-op'd on its deterministic id, and the marker was rewritten at the new
+   * version — a "revised starter set" that changed nothing for anyone already
+   * seeded. These tests pin the fix and its guard rails.
+   */
+  describe('seed-version revision path', () => {
+    interface RevisionRow {
+      key: string;
+      status?: string;
+      publishedVersionId?: string | null;
+      publishedHash?: string | null;
+      seederAuthored?: boolean;
+    }
+
+    function revisionHarness(
+      rows: RevisionRow[],
+    ): ReturnType<typeof harness> & { versionInserts: number } {
+      const h = harness({ seededVersion: STARTER_TEMPLATE_SEED_VERSION - 1 });
+      const byKey = new Map(rows.map((row) => [row.key, row]));
+      // Re-route the withSystem/withTenantUser mocks so the revision SELECT
+      // returns a row per starter key. The key travels as an INTERPOLATED
+      // value of the tagged template (the starterKey parameter), never as
+      // part of the static strings.
+      const knownKeys = new Set(STARTER_CONTENT_TEMPLATES.map((starter) => starter.key));
+      h.queryRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+        const sql = Array.isArray(strings) ? strings.join('') : String(strings);
+        if (sql.includes('tenant_memberships')) return [{ userId: ADMIN }];
+        if (sql.includes('outreach_v3_template_seed_state')) return [{ seedVersion: STARTER_TEMPLATE_SEED_VERSION - 1 }];
+        return [];
+      });
+      let versionInserts = 0;
+      // The revision SELECT runs INSIDE withTenantUser's transaction client
+      // (txQueryRaw), not the pre-flight withSystem client.
+      h.txQueryRaw.mockImplementation(
+        async (strings: TemplateStringsArray, ...values: unknown[]) => {
+          const sql = Array.isArray(strings) ? strings.join('') : String(strings);
+          if (sql.includes('FOR UPDATE OF t')) {
+            for (const value of values) {
+              const key = typeof value === 'string' && knownKeys.has(value) ? value : undefined;
+              if (!key) continue;
+              const row = byKey.get(key);
+              if (!row) return [];
+              return [
+                {
+                  id: 'template-row',
+                  status: row.status ?? 'active',
+                  publishedVersionId: row.publishedVersionId ?? 'pub-1',
+                  publishedHash: row.publishedHash ?? null,
+                  seederAuthored: row.seederAuthored ?? false,
+                },
+              ];
+            }
+            return [];
+          }
+          if (sql.includes('COALESCE(MAX(version_number)')) return [{ nextVersion: 2 }];
+          // insertStarter's template INSERT: [] = the row already exists, so
+          // the loop falls through to the revision path (the point here).
+          return [];
+        },
+      );
+      h.txExecuteRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+        const sql = Array.isArray(strings) ? strings.join('') : String(strings);
+        if (sql.includes('INSERT INTO outreach_v3_template_versions')) versionInserts += 1;
+        return 1;
+      });
+      // The counter lives in the closure; expose it live via a getter.
+      const exposed = h as typeof h & { versionInserts: number };
+      Object.defineProperty(exposed, 'versionInserts', {
+        get: () => versionInserts,
+        configurable: true,
+      });
+      return exposed;
+    }
+
+    it('publishes a new version for a starter the seeder last wrote', async () => {
+      const starter = STARTER_CONTENT_TEMPLATES[0]!;
+      // The published version still carries the seeder's audit marker and its
+      // hash differs from the current spec — the exact "roll the revision
+      // out" case. (Its hash being the OLD spec's hash is incidental; the
+      // decision rests on seederAuthored, which is what keeps future bumps
+      // working.)
+      const h = revisionHarness([
+        {
+          key: starter.key,
+          seederAuthored: true,
+          publishedVersionId: 'pub-v1',
+          publishedHash: 'seed-v1-hash',
+        },
+      ]);
+      const result = await h.seeder.ensureSeeded(TENANT_A);
+      expect(result.outcome).toBe('seeded');
+      expect(h.versionInserts).toBe(1);
+    });
+
+    it('leaves an ARCHIVED starter deleted — a revision never resurrects it', async () => {
+      const starter = STARTER_CONTENT_TEMPLATES[0]!;
+      const h = revisionHarness([
+        { key: starter.key, status: 'archived', seederAuthored: true },
+      ]);
+      const result = await h.seeder.ensureSeeded(TENANT_A);
+      expect(result.outcome).toBe('seeded');
+      expect(h.versionInserts).toBe(0);
+    });
+
+    it('leaves a starter whose current published version the TENANT wrote', async () => {
+      const starter = STARTER_CONTENT_TEMPLATES[0]!;
+      // No seeder marker on the published version = a member published it.
+      // Theirs, regardless of what its hash happens to be.
+      const h = revisionHarness([
+        {
+          key: starter.key,
+          seederAuthored: false,
+          publishedHash: 'seed-v1-hash',
+        },
+      ]);
+      const result = await h.seeder.ensureSeeded(TENANT_A);
+      expect(result.outcome).toBe('seeded');
+      expect(h.versionInserts).toBe(0);
+    });
+
+    it('no-ops a starter whose published version already carries the current spec hash', async () => {
+      const starter = STARTER_CONTENT_TEMPLATES[0]!;
+      const h = revisionHarness([
+        {
+          key: starter.key,
+          seederAuthored: true,
+          publishedVersionId: 'pub-current',
+          publishedHash: hashOutreachTemplateSpecV1(starterTemplateSpec(starter)),
+        },
+      ]);
+      const result = await h.seeder.ensureSeeded(TENANT_A);
+      expect(result.outcome).toBe('seeded');
+      expect(h.versionInserts).toBe(0);
+    });
+
+    it('treats a starter with nothing published as nothing to revise', async () => {
+      const starter = STARTER_CONTENT_TEMPLATES[0]!;
+      const h = revisionHarness([
+        { key: starter.key, seederAuthored: true, publishedVersionId: null, publishedHash: null },
+      ]);
+      const result = await h.seeder.ensureSeeded(TENANT_A);
+      expect(result.outcome).toBe('seeded');
+      expect(h.versionInserts).toBe(0);
+    });
+
+    it('treats a starter with no provenance signal as tenant-owned', async () => {
+      const starter = STARTER_CONTENT_TEMPLATES[0]!;
+      const h = revisionHarness([
+        { key: starter.key, seederAuthored: false, publishedVersionId: null, publishedHash: null },
+      ]);
+      const result = await h.seeder.ensureSeeded(TENANT_A);
+      expect(result.outcome).toBe('seeded');
+      expect(h.versionInserts).toBe(0);
+    });
   });
 });
 

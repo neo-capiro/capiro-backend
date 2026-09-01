@@ -3689,6 +3689,11 @@ export class EngagementService {
               ? 'client'
               : null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
+        // Server-resolved committee context — reaches the recipient brief so
+        // even a bioguide-less staffer hands the planner a committee hook.
+        ...(match?.member?.committees?.length
+          ? { committees: match.member.committees }
+          : {}),
         snapshot: pruneForAi(recipient as unknown as Record<string, unknown>) as Record<
           string,
           unknown
@@ -3818,16 +3823,21 @@ export class EngagementService {
             "The recipient's votes on the client's tracked bills could not be loaded.",
           );
         }
+      }
+      // Hearings key on COMMITTEE NAMES, not on the member's bioguide — a
+      // staffer match carries their office's committee list even though only
+      // press/votes need a bioguide. Gating this channel on bioguideId (as it
+      // used to be) silently stripped the timeliest hook from every staffer
+      // recipient, the exact audience of a mass meeting-request send.
+      const recipientCommittees = o.directoryMatch?.member?.committees ?? [];
+      if (recipientCommittees.length) {
         add(
           'upcomingHearings',
           'Upcoming hearings in the recipient’s committees',
           'server_record',
           async () => {
             const hearings = await this.outreachUpcomingHearings();
-            return this.renderRecipientHearings(
-              hearings,
-              o.directoryMatch?.member?.committees ?? [],
-            );
+            return this.renderRecipientHearings(hearings, recipientCommittees);
           },
           'The upcoming-hearings list could not be loaded.',
         );

@@ -64,6 +64,8 @@ import {
   type SavedAudienceMember,
 } from './engagement-api.js';
 import {
+  outreachSameOfficeGroups,
+  outreachSameOfficeWarning,
   outreachSelectedTargets,
   outreachTargetIsSendable,
   type OutreachBuilderStepCommon,
@@ -709,6 +711,13 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
   const nSel = selected.length;
   const emailableTargets = useMemo(() => selected.filter(audienceEmailable), [selected]);
   const emailless = nSel - emailableTargets.length;
+  // Office-level dedupe advisory. Only for one-email-each delivery: a shared
+  // thread is a single email the whole office can see, so same-office members
+  // there are the point, not a hazard.
+  const sameOfficeWarning = useMemo(() => {
+    if (session?.spec.delivery?.pattern === 'shared_thread') return null;
+    return outreachSameOfficeWarning(outreachSameOfficeGroups(selected));
+  }, [selected, session?.spec.delivery?.pattern]);
 
   const audiences = useQuery({
     queryKey: AUDIENCES_QUERY_KEY,
@@ -1145,6 +1154,11 @@ export function OutreachTargetsStep(props: OutreachTargetsStepProps): JSX.Elemen
                 {nSel === 1 ? '1 target selected' : `${nSel} targets selected`}
               </span>
             </div>
+            {sameOfficeWarning ? (
+              <p className="ocb-note ocb-note--warn ots-sel__office-warn" role="status">
+                {sameOfficeWarning}
+              </p>
+            ) : null}
             {nSel === 0 ? (
               <p className="ocb-empty">
                 No targets yet. Add members or staffers from the Directory.

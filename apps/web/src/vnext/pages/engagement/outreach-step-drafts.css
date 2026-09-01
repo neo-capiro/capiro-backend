@@ -101,6 +101,12 @@
   font-weight: 600;
 }
 
+/* Connection-coverage badge: warn tint, same geometry as the note pill. */
+.capiro-vnext-root .ocb-drafts__coverage-pill {
+  background: var(--eng-warn-soft, #fef3c7);
+  color: var(--eng-warn-deep, #92400e);
+}
+
 /* ── Reader card ────────────────────────────────────────────────────────── */
 
 .capiro-vnext-root .ocb-drafts__reader {

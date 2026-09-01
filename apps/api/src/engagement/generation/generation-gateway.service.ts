@@ -883,6 +883,13 @@ export class GenerationGatewayService {
       r.title ? `Title: ${r.title}` : null,
       r.office ? `Office: ${r.office}` : null,
       r.state ? `State/District: ${r.state}${r.district ? `-${r.district}` : ''}` : null,
+      // Staffer-shaped identity: a committee staffer or office staffer has no
+      // bioguide-keyed enrichment (press/votes), so the committee they serve
+      // is often the ONLY hook the planner gets. Members carry their
+      // assignments here too — harmless duplication with the directory
+      // profile channel, and the brief is the one input the plan pass always
+      // has even when every enrichment channel came back empty.
+      r.committees?.length ? `Committee(s): ${r.committees.slice(0, 6).join('; ')}` : null,
       r.email ? `Email: ${r.email}` : null,
     ].filter((s): s is string => Boolean(s));
     return lines.length ? lines.join('\n') : null;

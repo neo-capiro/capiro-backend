@@ -18,18 +18,19 @@
  *     previous one in the same batch. That is real steering with no enforcement
  *     behind it, which is what `OUTREACH_UNWIRED_CONTROLS` says and what the
  *     step prints.
- *  3. **There is no upload.** `POST context/document` takes an already-stored
- *     document id; no route accepts a new file as campaign context. The
- *     prototype's drop zone still renders — it is part of the step's shape —
- *     but its input is disabled and a note says so. Pretending a picked file
- *     had been accepted would be a fabricated success state.
+ *  3. **Upload goes through the firm's document store.** `POST
+ *     context/document` takes an already-stored document id, so the drop zone
+ *     uploads to the client's document library first (the same presigned
+ *     `attachments/upload-url` → `confirm` pair every other surface uses) and
+ *     then registers the confirmed id as campaign context. It requires a sole
+ *     client sponsor — a clientless campaign has no library to store into.
  *
  * The option catalogue below is the prototype's, verbatim, keyed to the repo's
  * real content-template ids (the six seeded update templates are the same six
  * letters). They are controls, not data: no server ever returns them.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, FileText, Lock, Plus, X } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import {
@@ -50,11 +51,8 @@ import type {
   OutreachV3ContextDocumentCandidate,
   OutreachV3ContextSelection,
   OutreachV3ResolvedContextRef,
-  OutreachV3ResolvedTargetRef,
   OutreachV3SessionEnvelope,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
-import type { CapabilityRecord } from '../../../pages/clients/client-profile-crm-model.js';
-import type { ClientFacility } from '../../../pages/clients/facilities-api.js';
 import { outreachCampaignTypeLabel } from './outreach-campaign-flow.js';
 import {
   OUTREACH_TEMPLATE_MARKER,
@@ -63,20 +61,21 @@ import {
   outreachCampaignNameFromSpec,
   outreachGuidanceRefsWithMarker,
   outreachGuidanceSelection,
-  outreachSelectedTargets,
   type OutreachBuilderStepCommon,
 } from './outreach-builder-model.js';
-import {
-  clientCapabilityContextSelection,
-  clientFacilityContextSelection,
-  clientRecordContextSelection,
-  outreachTargetHasCareerBackgroundSource,
-  targetCareerBackgroundContextSelection,
-} from './outreach-v3-guided-workflow.js';
 import {
   OUTREACH_CONTENT_TEMPLATES,
   type OutreachContentTemplateDefinition,
 } from './outreach-v3-content-templates.js';
+// The request-a-meeting auto-attach (sponsor overview, capabilities,
+// facilities, target career background) moved to the builder shell — see
+// `use-outreach-meeting-auto-context.ts`. The step still renders the accepted
+// refs as cards; these three helpers are the card-side view of the same spec.
+import {
+  acceptedContextRefs,
+  contextRefLocatorId as locatorId,
+  soleSponsorClientId,
+} from './use-outreach-meeting-auto-context.js';
 import './outreach-builder.css';
 import './outreach-step-context.css';
 
@@ -90,9 +89,8 @@ export const OUTREACH_CONTEXT_DOCUMENT_ISOLATION_COPY =
 export const OUTREACH_CONTEXT_DOCUMENTS_EMPTY_COPY =
   'No documents added. The letter runs on the sources above.';
 
-const UPLOAD_UNWIRED_NOTE =
-  OUTREACH_UNWIRED_CONTROLS.find((entry) => entry.control === 'Campaign document upload')
-    ?.reality ?? '';
+/** The drop zone's own stated cap: "PDF, DOCX, XLSX or TXT · up to 25 MB each". */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 const OPTIONS_UNWIRED_NOTE =
   OUTREACH_UNWIRED_CONTROLS.find((entry) => entry.control === 'Per-template context options')
@@ -644,11 +642,9 @@ export function outreachContextSelectedTemplate(
   return null;
 }
 
-function soleSponsorClientId(session: OutreachV3SessionEnvelope | null): string | null {
-  const sponsor = session?.spec.sponsor;
-  if (!sponsor || sponsor.kind !== 'client' || sponsor.clientRefs.length !== 1) return null;
-  return sponsor.clientRefs[0]?.clientId ?? null;
-}
+// soleSponsorClientId / acceptedContextRefs / locatorId are imported from
+// `use-outreach-meeting-auto-context.ts` — they were moved there with the
+// auto-attach effect and are re-used here as the card-side view of the spec.
 
 /**
  * What Capiro looks for context with.
@@ -667,23 +663,8 @@ function contextSearchQuery(session: OutreachV3SessionEnvelope | null): string {
   );
 }
 
-function acceptedContextRefs(
-  context: OutreachV3CampaignSpec['context'] | undefined,
-): OutreachV3ResolvedContextRef[] {
-  if (!context) return [];
-  return [
-    ...context.requiredPolicyRefs,
-    ...context.writingGuidanceRefs,
-    ...context.campaignFactRefs,
-    ...context.targetSpecificRefs,
-    ...context.groupSafeRefs,
-  ];
-}
-
-function locatorId(locator: Record<string, unknown>): string {
-  const value = locator['id'] ?? locator['memoryItemId'] ?? locator['documentId'];
-  return typeof value === 'string' ? value : '';
-}
+// (acceptedContextRefs and locatorId also live in
+// `use-outreach-meeting-auto-context.ts` now — see the import note above.)
 
 function sameLocator(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
   return left['source'] === right['source'] && locatorId(left) === locatorId(right);
@@ -915,9 +896,12 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
   const { session, sessionId, campaignType, busy, applyCommands, toast, onNext, primaryLabel } =
     props;
   const api = useApi();
+  const qc = useQueryClient();
   const idBase = useId();
   const [pending, setPending] = useState<string | null>(null);
   const [documentPick, setDocumentPick] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const template = outreachContextSelectedTemplate(session);
   const optionSet = template ? OUTREACH_CONTEXT_OPTION_SETS[template.id] ?? null : null;
@@ -949,27 +933,11 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
     retry: false,
   });
 
-  // Request-a-meeting only: the sponsor's capabilities and locations, fetched
-  // so each can become its own real Source below — never a bundled blob, so
-  // excluding one wrong capability never takes the rest with it. Same plain
-  // GET pattern already used for the same two endpoints in
-  // `pages/clients/useClientProfileData.ts`.
-  const isRequestMeeting = campaignType === 'request_meeting';
-  const capabilitiesQuery = useQuery({
-    queryKey: ['client-capabilities', clientId],
-    enabled: isRequestMeeting && Boolean(clientId),
-    queryFn: async () =>
-      (await api.get<CapabilityRecord[]>(`/api/clients/${clientId}/capabilities`)).data,
-    staleTime: 60_000,
-    retry: false,
-  });
-  const facilitiesQuery = useQuery({
-    queryKey: ['client-facilities', clientId],
-    enabled: isRequestMeeting && Boolean(clientId),
-    queryFn: async () => (await api.get<ClientFacility[]>(`/api/clients/${clientId}/facilities`)).data,
-    staleTime: 60_000,
-    retry: false,
-  });
+  // The request-a-meeting capabilities/facilities queries and the auto-attach
+  // effect that consumed them moved to the builder shell
+  // (`use-outreach-meeting-auto-context.ts`) so the context attaches on ANY
+  // step, not only while this one is open. The accepted refs render below as
+  // ordinary source cards regardless of which step accepted them.
 
   const accepted = useMemo(
     () => acceptedContextRefs(reviewQuery.data?.accepted ?? session?.spec.context),
@@ -1047,87 +1015,6 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
     },
     [applyCommands],
   );
-
-  /* -- Request-a-meeting: auto-attach sponsor + target profile context --- */
-
-  const targets = useMemo(() => outreachSelectedTargets(session), [session]);
-
-  const hasCapiroRecordRef = (recordId: string) =>
-    accepted.some(
-      (ref) =>
-        (ref.locator as Record<string, unknown>)['source'] === 'capiro_record' &&
-        locatorId(ref.locator as Record<string, unknown>) === recordId,
-    );
-  const hasCareerBackgroundRef = (target: OutreachV3ResolvedTargetRef) =>
-    accepted.some(
-      (ref) =>
-        ref.scope.kind === 'target' &&
-        ref.scope.targetKey === target.targetKey &&
-        (ref.locator as Record<string, unknown>)['factCode'] === 'career_background',
-    );
-
-  /**
-   * Observed live: a deploy mismatch left the server rejecting this batch
-   * every time. `accepted` never changed (nothing landed), so the retry
-   * condition below stayed true on every render, and `pending` cycling back
-   * to `null` after each failed attempt re-armed the effect immediately —
-   * over 1,000 identical batches hit the API in seconds. The server's
-   * content-addressed dedup made each individual accept idempotent, but
-   * nothing stopped the CLIENT from hammering a request that was failing.
-   *
-   * This remembers the exact set of context keys the last attempt sent. A
-   * later render only retries when that SET has actually changed (a query
-   * resolved, a target got added) — never merely because `pending` cycled.
-   * A genuinely new piece still gets tried once; a piece that keeps failing
-   * does not turn into a client-side denial-of-service against the API.
-   */
-  const lastAttemptedKeys = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!isRequestMeeting || !clientId || pending !== null) return;
-    // Each of the four pieces is checked independently — a slow/failed
-    // capabilities or facilities fetch never blocks the other pieces from
-    // attaching, and each is its own `capiro_record`/`target_profile_fact`
-    // Source once accepted, never a `manual` marker the user can't see.
-    const missing: OutreachV3ContextSelection[] = [];
-    if (!hasCapiroRecordRef(clientId)) missing.push(clientRecordContextSelection(clientId));
-    for (const capability of capabilitiesQuery.data ?? []) {
-      if (!hasCapiroRecordRef(capability.id)) {
-        missing.push(clientCapabilityContextSelection(clientId, capability.id));
-      }
-    }
-    for (const facility of facilitiesQuery.data ?? []) {
-      if (!hasCapiroRecordRef(facility.id)) {
-        missing.push(clientFacilityContextSelection(clientId, facility.id));
-      }
-    }
-    for (const target of targets) {
-      if (outreachTargetHasCareerBackgroundSource(target) && !hasCareerBackgroundRef(target)) {
-        missing.push(targetCareerBackgroundContextSelection(target));
-      }
-    }
-    if (missing.length === 0) return;
-    const signature = missing
-      .map((selection) => JSON.stringify(selection.locator))
-      .sort()
-      .join('|');
-    if (signature === lastAttemptedKeys.current) return;
-    lastAttemptedKeys.current = signature;
-    void runCommands('auto-request-meeting-context', [acceptContextCommand(missing)]);
-    // `accepted` already reflects every locator currently on the spec, so it
-    // (not `session` directly) is what tells this effect whether a prior
-    // batch landed — applyCommands invalidates the session query on success,
-    // which is what refreshes it.
-  }, [
-    isRequestMeeting,
-    clientId,
-    accepted,
-    capabilitiesQuery.data,
-    facilitiesQuery.data,
-    targets,
-    pending,
-    runCommands,
-  ]);
 
   /* -- per-template options -------------------------------------------- */
 
@@ -1221,6 +1108,74 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
     setDocumentPick('');
     // The prototype's own toast copy, for the one document that really landed.
     toast('1 document added to this campaign’s context');
+  };
+
+  /**
+   * The upload bridge: presigned-POST to S3 via the firm's existing
+   * attachment routes, confirm, then register the CONFIRMED id as campaign
+   * context through the same `document` locator the picker uses. Nothing new
+   * server-side — `POST context/document` always took a stored id; what was
+   * missing was the two calls that store one. The file lands in the client's
+   * document library (that is what makes it resolvable), which the isolation
+   * copy above already tells the user; context acceptance is still campaign-
+   * scoped and the file is never attached to an outgoing email.
+   */
+  const uploadDocument = async (file: File) => {
+    if (!clientId || uploading) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError(`${file.name} is larger than 25 MB — store a smaller export.`);
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const contentType = file.type || 'application/octet-stream';
+      const { data: presigned } = await api.post<{
+        url: string;
+        fields: Record<string, string>;
+        s3Key: string;
+      }>('/api/engagement/attachments/upload-url', {
+        clientId,
+        fileName: file.name,
+        contentType,
+        contentLength: file.size,
+      });
+      const form = new FormData();
+      Object.entries(presigned.fields).forEach(([key, value]) => form.append(key, value));
+      form.append('file', file); // file must be last for the S3 POST policy
+      const s3Res = await fetch(presigned.url, { method: 'POST', body: form });
+      if (!s3Res.ok) throw new Error(`The file store refused the upload (${s3Res.status}).`);
+      const { data: created } = await api.post<{ id: string }>(
+        '/api/engagement/attachments/confirm',
+        { clientId, fileName: file.name, contentType, s3Key: presigned.s3Key },
+      );
+      const ok = await runCommands(`document:${created.id}`, [
+        acceptContextCommand([
+          {
+            locator: { source: 'document', id: created.id, clientId },
+            contextClass: 'campaign_fact',
+            scope: { kind: 'campaign' },
+          },
+        ]),
+      ]);
+      // The stored-library list now contains the new file either way.
+      void qc.invalidateQueries({ queryKey: ['outreach-v3', 'context-documents', clientId] });
+      if (ok) {
+        toast('1 document added to this campaign’s context');
+      } else {
+        setUploadError(
+          `${file.name} was stored in the client's documents but could not be attached — add it from “Add a stored document” below.`,
+        );
+      }
+    } catch (caught) {
+      setUploadError(
+        caught instanceof Error && caught.message
+          ? `${file.name} could not be uploaded. ${caught.message}`
+          : `${file.name} could not be uploaded.`,
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeDocument = async (attachedDocument: AttachedDocument) => {
@@ -1416,15 +1371,19 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
         <div className="ocs-docs__body">
           <p className="ocb-prose ocs-docs__privacy">{OUTREACH_CONTEXT_DOCUMENT_ISOLATION_COPY}</p>
 
-          {/* The prototype's drop zone, kept for the step's shape. The input is
-              disabled because no route accepts an uploaded file as campaign
-              context — an enabled control here could only lie. */}
-          <label className="ocs-drop" data-disabled="true">
+          {/* The drop zone is real now: presigned upload to the client's
+              document store, confirm, then campaign-context registration —
+              see uploadDocument above. It stays disabled until the campaign
+              names a single client sponsor, because the stored document must
+              belong to a client for the context resolver to accept it. */}
+          <label className="ocs-drop" data-disabled={clientId && !uploading ? undefined : 'true'}>
             <span className="ocs-drop__tile" aria-hidden="true">
               <Plus size={18} />
             </span>
             <span className="ocs-drop__text">
-              <span className="ocs-drop__title">Drop a file here or browse</span>
+              <span className="ocs-drop__title">
+                {uploading ? 'Uploading…' : 'Drop a file here or browse'}
+              </span>
               <span className="ocs-drop__hint">PDF, DOCX, XLSX or TXT · up to 25 MB each</span>
             </span>
             <span className="ocs-drop__btn" aria-hidden="true">
@@ -1433,14 +1392,31 @@ export function OutreachContextStep(props: OutreachBuilderStepCommon): JSX.Eleme
             <input
               type="file"
               multiple
-              disabled
+              disabled={!clientId || uploading || locked}
               className="ocs-drop__input"
+              accept=".pdf,.docx,.xlsx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
               aria-describedby={uploadNoteId}
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                // Allow re-picking the same file after a failure.
+                event.target.value = '';
+                // Sequential, not parallel: each upload ends in a spec command
+                // batch, and concurrent batches would race on the state version.
+                void (async () => {
+                  for (const file of files) await uploadDocument(file);
+                })();
+              }}
             />
           </label>
-          {UPLOAD_UNWIRED_NOTE ? (
+          {uploadError ? (
+            <p className="ocb-note ocb-note--warn" role="alert">
+              {uploadError}
+            </p>
+          ) : null}
+          {!clientId ? (
             <p className="ocb-note ocb-note--muted" id={uploadNoteId}>
-              {UPLOAD_UNWIRED_NOTE}
+              Uploads become available once the campaign names a single client sponsor — the file
+              is stored in that client’s documents.
             </p>
           ) : null}
 

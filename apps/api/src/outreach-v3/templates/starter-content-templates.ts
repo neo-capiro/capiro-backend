@@ -52,6 +52,9 @@ const MEETING_REQUEST: StarterContentTemplate = {
       '',
       '{{opening}}',
       '',
+      'About the client',
+      '{{about_client}}',
+      '',
       'Why this matters to your office',
       '{{why_it_matters}}',
       '',
@@ -68,7 +71,7 @@ const MEETING_REQUEST: StarterContentTemplate = {
         key: 'topic_line',
         label: 'Subject topic',
         instruction:
-          'The campaign topic as it should read in a subject line. A short noun phrase, no trailing punctuation.',
+          'The campaign topic as it should read in a subject line, sharpened with ONE recipient-specific angle when the Message Plan supports it — their committee, a district or state tie, or a timely event already in evidence. Fall back to the plain campaign topic when the plan supports no such hook. A short noun phrase, no trailing punctuation, no invented specifics.',
         required: true,
       },
       {
@@ -84,6 +87,13 @@ const MEETING_REQUEST: StarterContentTemplate = {
         instruction:
           'One or two sentences: who is writing, on whose behalf, and that they are requesting a short meeting about the topic. No factual claims beyond the sponsor relationship.',
         required: true,
+      },
+      {
+        key: 'about_client',
+        label: 'About the client',
+        instruction:
+          'One or two sentences on what the client does and the capability most relevant to this recipient — products, services, technologies, or facilities — drawn ONLY from the client brief and the campaign’s capability records. Plain facts, no superlatives, no invented connections. Return an empty string only if no client-overview or capability evidence was supplied.',
+        required: false,
       },
       {
         key: 'why_it_matters',
@@ -103,7 +113,7 @@ const MEETING_REQUEST: StarterContentTemplate = {
         key: 'availability',
         label: 'Availability',
         instruction:
-          'The scheduling ask, deferring to their team’s preference. Include a proposed window only if the plan’s ask specifies one; otherwise ask them to propose times. Return an empty string if the plan makes no scheduling ask.',
+          'The scheduling ask, deferring to their team’s preference. Include a proposed window only if the plan’s ask or why-now specifies one; otherwise ask them to propose times. Return an empty string if the plan makes no scheduling ask.',
         required: false,
       },
       {

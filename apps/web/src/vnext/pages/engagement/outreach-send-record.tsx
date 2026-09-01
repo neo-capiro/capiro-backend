@@ -211,6 +211,7 @@ export function ResultsScreen({
   onRefresh,
   onOpenDraft,
   onProposeLearning,
+  followUp,
 }: {
   /**
    * The canonical Outreach V3 session id, passed explicitly by the caller
@@ -231,6 +232,17 @@ export function ResultsScreen({
   onRefresh: () => void;
   onOpenDraft: () => void;
   onProposeLearning: (replyId: string, learning: string) => void;
+  /**
+   * Real follow-up seeding, provided by the send step (which owns the spec
+   * and the router). Absent = the capability is not wired on this surface and
+   * the button keeps its honest "reserved" notice.
+   */
+  followUp?: {
+    /** Sent recipients with no synced reply — who the follow-up would target. */
+    count: number;
+    busy: boolean;
+    run: () => void;
+  };
 }) {
   const clientFilter = useClientFilter();
   const totals = intent.totals ?? {};
@@ -285,7 +297,21 @@ export function ResultsScreen({
       </section>
 
       <div className="ov3p1-result-actions">
-        <button type="button" className="ov3p1-button is-primary" onClick={() => setResultNotice('Follow-up campaign creation is reserved for the next workflow release. No campaign was created from this control.')}><ArrowRight size={15} /> Create follow-up campaign</button>
+        {followUp ? (
+          <button
+            type="button"
+            className="ov3p1-button is-primary"
+            disabled={followUp.busy || followUp.count === 0}
+            onClick={followUp.run}
+          >
+            {followUp.busy ? <Loader2 className="ov3p1-spin" size={15} /> : <ArrowRight size={15} />}
+            {followUp.count === 0
+              ? 'Create follow-up campaign — everyone replied'
+              : `Create follow-up campaign · ${followUp.count} no-reply recipient${followUp.count === 1 ? '' : 's'}`}
+          </button>
+        ) : (
+          <button type="button" className="ov3p1-button is-primary" onClick={() => setResultNotice('Follow-up campaign creation is reserved for the next workflow release. No campaign was created from this control.')}><ArrowRight size={15} /> Create follow-up campaign</button>
+        )}
         <button type="button" className="ov3p1-button is-secondary" onClick={() => setTemplateMode('save')}>Save this campaign as a template</button>
         <button type="button" className="ov3p1-button is-quiet" onClick={() => setTemplateMode('update')}>Update a template from this campaign</button>
       </div>

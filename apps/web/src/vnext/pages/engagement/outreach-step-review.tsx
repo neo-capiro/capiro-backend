@@ -29,6 +29,8 @@ import {
   type OutreachBuilderStepCommon,
   outreachCampaignNameFromSpec,
   outreachRecipientSummary,
+  outreachSameOfficeGroups,
+  outreachSameOfficeWarning,
   outreachSelectedTargets,
   outreachTargetIsSendable,
   outreachGenerationSpecCommands,
@@ -181,6 +183,14 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
   const subject = outreachCampaignNameFromSpec(session);
   const chips = useMemo(() => contextChips(session), [session]);
   const saved = useMemo(() => savedPersonalNotes(session), [session]);
+  // Same advisory the Targets step's Selected tab shows — repeated here
+  // because Review is the last stop before generation and the rail lets a
+  // user skip Targets entirely on a revisit. Shared-thread campaigns are one
+  // email, so same-office members there are deliberate, not duplication.
+  const sameOfficeWarning = useMemo(() => {
+    if (session?.spec.delivery?.pattern === 'shared_thread') return null;
+    return outreachSameOfficeWarning(outreachSameOfficeGroups(targets));
+  }, [targets, session?.spec.delivery?.pattern]);
 
   const savedByTarget = useMemo(() => {
     const map = new Map<string, string>();
@@ -389,6 +399,11 @@ export function OutreachReviewStep(props: OutreachReviewStepProps): JSX.Element 
             A note reaches that person’s draft and no one else’s
           </span>
         </div>
+        {sameOfficeWarning ? (
+          <p className="ocb-note ocb-note--warn ocb-review__office-warn" role="status">
+            {sameOfficeWarning}
+          </p>
+        ) : null}
         <div className="ocb-review__rows">
           {targets.length === 0 ? (
             /* The prototype has no zero-recipient state here — it renders the
