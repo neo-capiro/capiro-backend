@@ -41,6 +41,7 @@ import {
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
 import { normalizeChamber } from '../../hearing-discovery/hearing-identity.js';
 import { GovInfoChrgAdapter } from '../../hearing-discovery/adapters/govinfo-chrg.adapter.js';
+import { SenateCommitteeCalendarAdapter } from '../../hearing-discovery/adapters/senate-committee-calendar.adapter.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
 import type {
   SourceDescriptor,
@@ -119,6 +120,7 @@ interface CandidateRow {
   chamber: string | null;
   congress: number | null;
   committee_system_code: string | null;
+  committee_code: string | null;
   title: string | null;
   url: string | null;
   starts_at: Date | null;
@@ -259,19 +261,32 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     const { row } = item;
     if (item.classification === 'UNFETCHABLE') return;
     try {
-      const event = ctx.options.observeEvent
+      // The observeEvent seam (unit tests) returns a bare SourceEvent; the
+      // production path returns { event, adapterKey, source } so the guard and
+      // reconciler always see the adapter that actually produced the event
+      // (congress-gov OR the Senate committee-calendar fallback).
+      const raw = ctx.options.observeEvent
         ? await ctx.options.observeEvent(row.id)
         : item.likelyAdapter === 'govinfo-chrg'
           ? await this.observeEvent(row, ctx.govInfoSource)
           : await this.observeEvent(row, ctx.source);
+      const isWrapper = (
+        v: unknown,
+      ): v is { event: SourceEvent; adapterKey: string; source: SourceDescriptor | null } =>
+        typeof v === 'object' && v !== null && 'event' in v;
+      const { event, adapterKey: evtAdapterKey, source: evtSource } = isWrapper(raw)
+        ? raw
+        : {
+            event: raw,
+            adapterKey: item.likelyAdapter === 'govinfo-chrg' ? 'govinfo-chrg' : 'congress-gov',
+            source: item.likelyAdapter === 'govinfo-chrg' ? ctx.govInfoSource : ctx.source,
+          };
       ctx.result.observablesFetched += 1;
       // Pre-resolve identity BEFORE any write. Production uses the real
       // canonical ladder (same resolver the reconciler will consult); the
       // optional probe seam exists only for unit tests. A `new` answer means
       // reconciling would mint a NEW canonical hearing — the backfill creates
       // observations, never canonical identity.
-      const evtAdapterKey =
-        item.likelyAdapter === 'govinfo-chrg' ? 'govinfo-chrg' : 'congress-gov';
       const probe = ctx.options.identityProbe
         ? ctx.options.identityProbe
         : async (evt: SourceEvent) =>
@@ -287,7 +302,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
         return;
       }
       const outcome = await ctx.reconciler.reconcileEvent(
-        ctx.source as SourceDescriptor,
+        (evtSource ?? ctx.source) as SourceDescriptor,
         event,
         new Date(),
       );
@@ -339,7 +354,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     }
     return this.prisma.$queryRawUnsafe<CandidateRow[]>(
       `SELECT h.id, h.event_status, h.chamber, h.congress, h.committee_system_code,
-              h.title, h.url, h.starts_at, h.date
+              h.committee_code, h.title, h.url, h.starts_at, h.date
        FROM committee_hearing h
        WHERE COALESCE(h.starts_at, h.date::timestamp)
                BETWEEN now() - ($1 || ' days')::interval
@@ -403,10 +418,11 @@ export class LegiWatchPhase9ProvenanceBackfillService {
   private async observeEvent(
     row: CandidateRow,
     source: SourceDescriptor | null,
-  ): Promise<SourceEvent> {
+  ): Promise<{ event: SourceEvent; adapterKey: string; source: SourceDescriptor | null }> {
     const adapterKey = classifyCandidate(row).likelyAdapter;
     if (adapterKey === 'govinfo-chrg') {
-      return this.observeGovInfoChrgEvent(row);
+      const event = await this.observeGovInfoChrgEvent(row);
+      return { event, adapterKey: 'govinfo-chrg', source };
     }
     if (adapterKey !== 'congress-gov' || !source) {
       throw new Error(`no fetchable official adapter for ${row.id}`);
@@ -425,14 +441,125 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     await new Promise((resolve) => setTimeout(resolve, 250));
     const chamber = normalizeChamber(row.chamber);
     const detail = await adapter.fetchCommitteeMeetingDetail(derived, currentCongress(), chamber);
-    if (!detail) {
-      throw new Error(`congress-gov returned no payload for event ${derived}`);
+    if (detail) {
+      const event = adapter.toSourceEventPublic(detail, source);
+      if (!event) {
+        throw new Error(`congress-gov payload not normalizable for event ${derived}`);
+      }
+      return { event, adapterKey: 'congress-gov', source };
     }
-    const event = adapter.toSourceEventPublic(detail, source);
-    if (!event) {
-      throw new Error(`congress-gov payload not normalizable for event ${derived}`);
+    // Congress.gov publishes no meeting record for this event. Some Senate
+    // committees publish the SAME event on their own official calendar — a
+    // legitimate first-party source. Fall through to it rather than failing:
+    // the observation still flows through the same ledger + reconciler, and the
+    // identity guard below still refuses anything that does not resolve to the
+    // existing canonical row.
+    if (chamber === 'senate') {
+      const senate = await this.observeSenateCalendarEvent(row);
+      if (senate) return senate;
     }
-    return event;
+    throw new Error(`congress-gov returned no payload for event ${derived}`);
+  }
+
+  /**
+   * Observe one Senate hearing through its own committee's official calendar
+   * page (`senate-committee-calendar`). The committee's page is located via the
+   * congress_committee registry URL (data, not code); the event is the page
+   * entry whose calendar day matches the canonical row. Exactly-one-day-match
+   * is unambiguous; multiple same-day entries require a title match, and
+   * anything else throws so the row surfaces as an honest ERROR.
+   */
+  private async observeSenateCalendarEvent(
+    row: CandidateRow,
+  ): Promise<{ event: SourceEvent; adapterKey: string; source: SourceDescriptor } | null> {
+    const systemCode = row.committee_system_code ?? row.committee_code;
+    if (!systemCode) return null;
+    const senateSource = await this.ensureSenateCalendarSource(systemCode);
+    if (!senateSource?.sourceUrl) return null;
+    const adapter = new SenateCommitteeCalendarAdapter({
+      congress: row.congress ?? currentCongress(),
+    });
+    const events = await adapter.discoverEvents(senateSource, {
+      since: null,
+      daysAhead: 0,
+      delayMs: 250,
+      log: () => {},
+    });
+    const rowDay = (row.starts_at ?? row.date)?.toISOString().slice(0, 10);
+    if (!rowDay) return null;
+    const sameDay = events.filter(
+      (e) => (e.calendarDate ? e.calendarDate.toISOString().slice(0, 10) : null) === rowDay,
+    );
+    if (sameDay.length === 0) return null;
+    if (sameDay.length > 1) {
+      const titleKey = (row.title ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const byTitle = sameDay.filter((e) => {
+        const k = (e.title ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        return titleKey && (k.includes(titleKey) || titleKey.includes(k));
+      });
+      if (byTitle.length !== 1) {
+        throw new Error(
+          `senate-committee-calendar: ${sameDay.length} same-day entries for ${row.id}; ambiguous`,
+        );
+      }
+      return byTitle[0] ? { event: byTitle[0], adapterKey: 'senate-committee-calendar', source: senateSource } : null;
+    }
+    return sameDay[0]
+      ? { event: sameDay[0], adapterKey: 'senate-committee-calendar', source: senateSource }
+      : null;
+  }
+
+  /**
+   * The senate-committee-calendar source row for one committee (created on
+   * demand; manual backfill only — never scheduled discovery). The page URL is
+   * derived from the committee's registry URL (…/hearings), which is data the
+   * registry already owns.
+   */
+  private async ensureSenateCalendarSource(
+    systemCode: string,
+  ): Promise<SourceDescriptor | null> {
+    const existing = await this.prisma.$queryRawUnsafe<SourceDescriptor[]>(
+      `SELECT id, committee_system_code AS "committeeSystemCode", chamber,
+              source_type AS "sourceType", source_url AS "sourceUrl",
+              adapter_key AS "adapterKey", priority, parser_version AS "parserVersion"
+       FROM committee_source
+       WHERE adapter_key = 'senate-committee-calendar' AND committee_system_code = $1 AND enabled = true
+       ORDER BY priority ASC
+       LIMIT 1`,
+      systemCode,
+    );
+    if (existing[0]) return existing[0];
+    const registry = await this.prisma.$queryRawUnsafe<Array<{ url: string | null }>>(
+      `SELECT url FROM congress_committee WHERE system_code = $1`,
+      systemCode,
+    );
+    const base = registry[0]?.url;
+    if (!base) return null;
+    const pageUrl = `${base.replace(/\/+$/, '')}/hearings`;
+    await this.prisma.$executeRawUnsafe(
+      `INSERT INTO committee_source
+         (id, committee_system_code, chamber, source_type, source_url, adapter_key,
+          priority, parser_version, enabled, source_health, created_at, updated_at)
+       SELECT gen_random_uuid()::text, $1, 'senate', 'COMMITTEE_SITE', $2,
+              'senate-committee-calendar', 65, 'senate-committee-calendar/2026-09-01',
+              true, 'unknown', now(), now()
+       WHERE NOT EXISTS (
+         SELECT 1 FROM committee_source
+         WHERE adapter_key = 'senate-committee-calendar' AND committee_system_code = $1
+       )`,
+      systemCode,
+      pageUrl,
+    );
+    const created = await this.prisma.$queryRawUnsafe<SourceDescriptor[]>(
+      `SELECT id, committee_system_code AS "committeeSystemCode", chamber,
+              source_type AS "sourceType", source_url AS "sourceUrl",
+              adapter_key AS "adapterKey", priority, parser_version AS "parserVersion"
+       FROM committee_source
+       WHERE adapter_key = 'senate-committee-calendar' AND committee_system_code = $1 AND enabled = true
+       ORDER BY priority ASC LIMIT 1`,
+      systemCode,
+    );
+    return created[0] ?? null;
   }
 
   /**
