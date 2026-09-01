@@ -475,7 +475,7 @@ function GoalSurface({ session, busy, applyCommands }: DecisionSurfacesProps) {
           ) : null}
           <Field
             label="Why now"
-            value={draft.whyNow}
+            value={draft.whyNow ?? ''}
             example="The current mark is below the request"
             onChange={(value) => setDraft((current) => ({ ...current, whyNow: value }))}
             multiline
