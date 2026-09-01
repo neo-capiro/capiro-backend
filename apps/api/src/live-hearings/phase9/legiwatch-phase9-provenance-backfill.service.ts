@@ -381,6 +381,11 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       congresses: [currentCongress()],
       maxPages: 1,
     });
+    // Pace every detail fetch: the discovery context uses 200ms per request so
+    // bursts never trip Congress.gov's per-IP throttle. Same contract here —
+    // a 25-row batch fires 25 detail calls and un-paced bursts surface as
+    // "no payload" failures (live 2026-09-01).
+    await new Promise((resolve) => setTimeout(resolve, 250));
     const chamber = normalizeChamber(row.chamber);
     const detail = await adapter.fetchCommitteeMeetingDetail(derived, currentCongress(), chamber);
     if (!detail) {
