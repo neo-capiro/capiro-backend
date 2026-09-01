@@ -51,7 +51,7 @@ describe('Fill with Meri Advocacy review durability migration', () => {
 
   it('retires only duplicate or terminal-shadowed historical pending copies', () => {
     expect(migration).toContain("SET status = 'informational'");
-    expect(migration).toMatch(/NOT EXISTS\s*\(\s*SELECT 1\s+FROM moved[\s\S]*moved\.id = old\.id/);
+    expect(migration).toMatch(/NOT EXISTS\s*\(\s*SELECT 1\s+FROM moved[\s\S]*moved\.id = retire\.id/);
   });
 
   it('does not rewind source cursors or create canonical Advocacy records', () => {

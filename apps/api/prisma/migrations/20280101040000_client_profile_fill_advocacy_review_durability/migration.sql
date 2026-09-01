@@ -71,15 +71,15 @@ BEGIN
   -- If historical retries somehow left duplicate pending copies, retain the
   -- newest as the one current review item and retire the older copies. A hash
   -- with an accepted/rejected decision is also terminal and cannot resurrect.
-  UPDATE client_profile_fill_finding old
+  UPDATE client_profile_fill_finding AS retire
      SET status = 'informational',
          updated_at = now()
-   WHERE old.id IN (SELECT id FROM locked_pending)
-     AND old.status = 'pending'
+   WHERE retire.id IN (SELECT id FROM locked_pending)
+     AND retire.status = 'pending'
      AND NOT EXISTS (
        SELECT 1
          FROM moved
-        WHERE moved.id = old.id
+        WHERE moved.id = retire.id
      );
 
   RETURN NEW;
