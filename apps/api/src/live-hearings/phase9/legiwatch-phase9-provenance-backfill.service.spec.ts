@@ -285,6 +285,18 @@ describe('LegiWatchPhase9ProvenanceBackfillService', () => {
     expect(second.observed).toBe(1);
   });
 
+  it('is DI-injectable: PrismaService param metadata is emitted for Nest', async () => {
+    // Regression: without @Injectable(), emitDecoratorMetadata skips the class and Nest injects
+    // undefined for prisma (live failure 2026-09-01: prisma undefined at selectCandidates).
+    const designParamtypes = 'design:paramtypes';
+    expect(
+      Reflect.hasOwnMetadata(designParamtypes, LegiWatchPhase9ProvenanceBackfillService),
+    ).toBe(true);
+    expect(Reflect.getMetadata(designParamtypes, LegiWatchPhase9ProvenanceBackfillService)[0]).toBe(
+      PrismaService,
+    );
+  });
+
   it('refuses to run when not explicitly manual', async () => {
     const prisma = prismaStub({ candidates: [] });
     const service = new LegiWatchPhase9ProvenanceBackfillService(prisma);

@@ -32,6 +32,7 @@
  *  - conflict-aware: fetch errors and identity conflicts are counted and
  *    surfaced per row, never swallowed, never fatal to the batch
  */
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   CongressGovAdapter,
@@ -131,6 +132,7 @@ const DEFAULT_LOOKBACK_DAYS = 60;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 200;
 
+@Injectable()
 export class LegiWatchPhase9ProvenanceBackfillService {
   constructor(private readonly prisma: PrismaService) {}
 
