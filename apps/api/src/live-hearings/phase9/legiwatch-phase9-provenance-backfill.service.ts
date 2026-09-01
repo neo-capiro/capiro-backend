@@ -547,7 +547,7 @@ export function classifyCandidate(row: CandidateRow): {
   // is derivable from the official URL — CHRG-119hhrg64224 etc.
   const g = /(CHRG-\d+(?:hhrg|shrg|sjrg)\d+)/i.exec(row.url ?? '');
   if (g) {
-    return { likelyAdapter: 'govinfo-chrg', externalEventId: (g[1] ?? '').toUpperCase(), derive: 'url' };
+    return { likelyAdapter: 'govinfo-chrg', externalEventId: g[1] ?? null, derive: 'url' };
   }
   return { likelyAdapter: 'UNFETCHABLE', externalEventId: null, derive: 'none' };
 }
