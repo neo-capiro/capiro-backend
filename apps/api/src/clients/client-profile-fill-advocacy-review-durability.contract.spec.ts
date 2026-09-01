@@ -17,7 +17,7 @@ describe('Fill with Meri Advocacy review durability migration', () => {
     expect(migration).toContain('RETURN NEW');
   });
 
-  it('carries only unresolved applyable Advocacy review kinds for the same tenant and client', () => {
+  it('selects only unresolved applyable Advocacy review kinds for the same tenant and client', () => {
     expect(migration).toContain('f.tenant_id = NEW.tenant_id');
     expect(migration).toContain('f.client_id = NEW.client_id');
     expect(migration).toContain("f.status = 'pending'");
@@ -26,23 +26,32 @@ describe('Fill with Meri Advocacy review durability migration', () => {
     }
   });
 
+  it('does not steal pending work from another active run if two run creators race', () => {
+    expect(migration).toContain("prior_run.status <> 'running'");
+  });
+
   it('never resurrects a content hash that already has an accepted or rejected decision', () => {
     expect(migration).toContain('terminal.content_hash = pending.content_hash');
     expect(migration).toContain("terminal.status IN ('accepted', 'rejected')");
   });
 
-  it('deduplicates historical pending copies and remains idempotent for the current run', () => {
-    expect(migration).toContain('DISTINCT ON (pending.content_hash)');
-    expect(migration).toContain(
-      'ORDER BY pending.content_hash, pending.created_at DESC, pending.id DESC',
-    );
-    expect(migration).toContain('ON CONFLICT (run_id, content_hash) DO NOTHING');
+  it('moves the same newest pending finding row instead of cloning review work', () => {
+    expect(migration).toContain('ROW_NUMBER() OVER');
+    expect(migration).toContain('PARTITION BY pending.content_hash');
+    expect(migration).toContain('ORDER BY pending.created_at DESC, pending.id DESC');
+    expect(migration).toContain('SET run_id = NEW.id');
+    expect(migration).toContain('eligible.review_rank = 1');
+    expect(migration).not.toMatch(/INSERT\s+INTO\s+client_profile_fill_finding/i);
   });
 
-  it('serializes against concurrent review and retires old pending rows only after a current copy exists', () => {
-    expect(migration).toContain('FOR UPDATE');
+  it('locks pending rows before re-homing so an in-flight review keeps one stable finding id', () => {
+    expect(migration).toContain('FOR UPDATE OF f');
+    expect(migration).toContain('RETURNING current_review.id');
+  });
+
+  it('retires only duplicate or terminal-shadowed historical pending copies', () => {
     expect(migration).toContain("SET status = 'informational'");
-    expect(migration).toMatch(/EXISTS\s*\(\s*SELECT 1\s+FROM inserted[\s\S]*inserted\.content_hash = old\.content_hash/);
+    expect(migration).toMatch(/NOT EXISTS\s*\(\s*SELECT 1\s+FROM moved[\s\S]*moved\.id = old\.id/);
   });
 
   it('does not rewind source cursors or create canonical Advocacy records', () => {
