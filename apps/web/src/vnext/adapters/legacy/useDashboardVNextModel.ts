@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/clerk-react';
+import { isAxiosError } from 'axios';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
 import { useClientFilter } from '../../../state/client-filter.js';
@@ -332,8 +333,20 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       setSendMeriTargetId(null);
       void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     },
-    onError: (error: unknown) =>
-      toast.error(error instanceof Error ? error.message : 'Could not send Meri'),
+    onError: (error: unknown) => {
+      // notetaker.service.ts's dispatch() throws a specific, actionable reason
+      // for every gate it checks (tenant not enabled, unsupported join URL, a
+      // notetaker already assigned, etc) — show that instead of Axios's own
+      // generic "Request failed with status code ..." message.
+      const backendMessage = isAxiosError(error) ? error.response?.data?.message : undefined;
+      toast.error(
+        typeof backendMessage === 'string' && backendMessage
+          ? backendMessage
+          : error instanceof Error
+            ? error.message
+            : 'Could not send Meri',
+      );
+    },
   });
   const sendMeri = {
     targetEventId: sendMeriTargetId,

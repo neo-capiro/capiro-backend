@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
+import { isAxiosError } from 'axios';
 import { extractMeetingJoinUrl, isSupportedMeetingJoinUrl } from '@capiro/shared';
 import { NOTETAKER_CONSENT_COPY } from '../../../pages/engagement/notetaker-consent-copy.js';
 import { useDispatchNotetaker } from '../../../pages/engagement/meetings/meetings-api.js';
@@ -32,6 +33,22 @@ import { useCapiroToast } from '../../components/feedback/toast.js';
  * EngagementDialog's inline `error` slot (the canonical AntD modal left that
  * rejection silent — dialog stayed open with no feedback).
  */
+
+/**
+ * `dispatch()` (notetaker.service.ts) throws a specific, actionable
+ * BadRequestException/ForbiddenException for every gate it checks — tenant
+ * not enabled, unsupported join URL, a notetaker already assigned, etc. Show
+ * that real reason instead of a one-size-fits-all string whenever the API
+ * actually sent one.
+ */
+function notetakerErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message) return message;
+  }
+  return 'Could not send Meri. Try again.';
+}
+
 export function VNextSendMeriModal({
   meeting,
   open,
@@ -114,7 +131,7 @@ export function VNextSendMeriModal({
       width={520}
       busy={dispatch.isPending}
       busyLabel="Scheduling Meri…"
-      error={dispatch.isError ? 'Could not send Meri. Try again.' : null}
+      error={dispatch.isError ? notetakerErrorMessage(dispatch.error) : null}
       dirty={Boolean(authorized || notified)}
       onClose={onClose}
       footer={
