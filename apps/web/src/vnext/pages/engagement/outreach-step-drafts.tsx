@@ -18,6 +18,8 @@ import {
   type OutreachV3DraftVersion,
 } from './engagement-api.js';
 import {
+  formatOutreachGenerationEta,
+  outreachGenerationLivePreviewSnippet,
   outreachGenerationPollMs,
   outreachGenerationState,
 } from './outreach-generation-status.js';
@@ -241,6 +243,8 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
 
   const generation = outreachGenerationState(jobQuery.data, rows.length);
   const generationBusy = generation.kind === 'running';
+  const livePreview =
+    generation.kind === 'running' ? outreachGenerationLivePreviewSnippet(jobQuery.data) : null;
 
   /**
    * A job that finishes while the step is open leaves the draft list stale —
@@ -402,12 +406,21 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
             role="status"
           >
             {generation.kind === 'running'
-              ? `Generating… ${generation.progress.done} of ${generation.progress.total} recipients done.`
+              ? `Generating… ${generation.progress.done} of ${generation.progress.total} recipients done. ${formatOutreachGenerationEta(generation.eta.estimatedSecondsRemaining)}`
               : `${generation.progress.failed} of ${generation.progress.total} recipients have no draft${
                   generation.progress.codes.length
                     ? ` (${generation.progress.codes.join(', ')})`
                     : ''
                 }.`}
+          </p>
+        ) : null}
+        {livePreview ? (
+          // A snippet of whichever recipient's draft is currently streaming —
+          // not attributed to one recipient (several can be in flight at
+          // once), just a live signal that text is actively being written
+          // rather than a silent multi-minute wait.
+          <p className="ocb-drafts__generation ocb-drafts__generation--preview" role="status">
+            Currently drafting: "{livePreview}"
           </p>
         ) : null}
         {rows.map((row) => {
@@ -458,7 +471,7 @@ export function OutreachDraftsStep(props: OutreachBuilderStepCommon): JSX.Elemen
               : draftsQuery.isError
                 ? errorText(draftsQuery.error, 'The drafts could not be loaded.')
                 : generation.kind === 'running'
-                  ? `Generating drafts… ${generation.progress.done} of ${generation.progress.total} recipients done. This step refreshes itself.`
+                  ? `Generating drafts… ${generation.progress.done} of ${generation.progress.total} recipients done. ${formatOutreachGenerationEta(generation.eta.estimatedSecondsRemaining)} This step refreshes itself.`
                   : generation.kind === 'failed'
                     ? // Naming the step that fixes it is only useful when that
                       // step CAN fix it. A finished job that produced nothing is

@@ -106,6 +106,12 @@ export interface LlmCompletionResult {
   raw: Record<string, unknown>;
 }
 
+/** One streamOnce() attempt's outcome — mirrors the retry decision `completeInner` makes for the non-streaming path. */
+type StreamOutcome =
+  | { kind: 'ok'; result: LlmCompletionResult }
+  | { kind: 'retryable'; status: number | null; retryAfterMs: number | null; message: string }
+  | { kind: 'fatal'; status: number | null; message: string };
+
 const DEFAULT_TIMEOUT_MS = 90_000;
 
 /**
@@ -163,6 +169,210 @@ export class LlmCompletionService {
     // active Context Plane scope this is a no-op, so non-governed callers and
     // unit tests are unaffected.
     return contextStageTimer.time('provider', () => this.completeInner(req));
+  }
+
+  /**
+   * Same request/result contract as {@link complete}, but calls `onProgress`
+   * with the RAW, still-incomplete response text as it streams in, so a
+   * caller can extract a live preview of a structured-output field (see
+   * `streaming-json-field.ts`) before the call finishes. The final
+   * `LlmCompletionResult` is identical either way — this only adds a
+   * side-channel of partial text, never changes what gets returned.
+   *
+   * OpenAI only today (the pinned outreach-generation provider). Anthropic
+   * silently falls back to {@link complete} with no progress callbacks —
+   * never an error — so a caller can always call this method regardless of
+   * provider and simply get no live preview on the Anthropic path.
+   *
+   * `onProgress` receives the FULL accumulated text so far on every call, not
+   * a delta, specifically so a retried attempt (which starts a fresh,
+   * separately-accumulated stream) naturally supersedes a failed attempt's
+   * partial text — the caller just overwrites its stored preview each time,
+   * no explicit "reset" signal needed.
+   */
+  async completeStreaming(
+    req: LlmCompletionRequest,
+    onProgress: (rawTextSoFar: string) => void,
+  ): Promise<LlmCompletionResult> {
+    return contextStageTimer.time('provider', () => this.completeStreamingInner(req, onProgress));
+  }
+
+  private async completeStreamingInner(
+    req: LlmCompletionRequest,
+    onProgress: (rawTextSoFar: string) => void,
+  ): Promise<LlmCompletionResult> {
+    if (req.provider !== 'openai') {
+      return this.completeInner(req);
+    }
+    this.runtimePolicy?.assertExternalAction(req.runtimeAction ?? 'outreach_generate');
+    const maxRetries = req.maxRetries ?? DEFAULT_MAX_RETRIES;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const outcome = await this.streamOnce(req, onProgress);
+        if (outcome.kind === 'ok') {
+          contextStageTimer.recordProvider({
+            status: 'ok',
+            model: req.model,
+            inputTokens: outcome.result.usage.inputTokens,
+            outputTokens: outcome.result.usage.outputTokens,
+            cacheReadTokens: outcome.result.usage.cacheReadTokens ?? null,
+            cacheWriteTokens: outcome.result.usage.cacheCreationTokens ?? null,
+          });
+          return outcome.result;
+        }
+        contextStageTimer.recordProvider({
+          status: outcome.status ? `http_${outcome.status}` : 'stream_error',
+          model: req.model,
+        });
+        if (outcome.kind === 'retryable' && attempt < maxRetries) {
+          const backoff = outcome.retryAfterMs ?? this.backoffMs(attempt);
+          this.logger.warn(
+            `openai streaming completion ${outcome.status ?? 'stream error'}; retry ${attempt + 1}/${maxRetries} in ${backoff}ms: ${outcome.message}`,
+          );
+          await this.sleep(backoff);
+          continue;
+        }
+        throw new ServiceUnavailableException(
+          `openai streaming completion failed: ${outcome.message}`,
+        );
+      } catch (err) {
+        if (err instanceof ServiceUnavailableException) throw err;
+        lastError = err;
+        if (attempt < maxRetries) {
+          const backoff = this.backoffMs(attempt);
+          this.logger.warn(
+            `openai streaming completion network error; retry ${attempt + 1}/${maxRetries} in ${backoff}ms: ${(err as Error).message}`,
+          );
+          await this.sleep(backoff);
+          continue;
+        }
+      }
+    }
+    throw new ServiceUnavailableException(
+      `openai streaming completion failed after ${maxRetries + 1} attempts: ${
+        (lastError as Error)?.message ?? 'unknown error'
+      }`,
+    );
+  }
+
+  /**
+   * One streaming attempt. Reads Server-Sent Events off the OpenAI Responses
+   * API's `stream: true` body: `response.output_text.delta` events feed
+   * `onProgress` with the accumulated raw text; `response.completed` carries
+   * the SAME full response shape the non-streaming path receives in one
+   * shot, so it runs through the identical {@link parseResult} — nothing
+   * about how the final result is parsed or validated differs by transport.
+   *
+   * A stream that ends without ever seeing `response.completed` (dropped
+   * connection, a mid-stream provider error) is treated as retryable: no
+   * partial result is ever returned as if it were final.
+   */
+  private async streamOnce(
+    req: LlmCompletionRequest,
+    onProgress: (rawTextSoFar: string) => void,
+  ): Promise<StreamOutcome> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), req.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    try {
+      const { url, headers, body } = this.buildRequest(req);
+      const res = await this.fetchImpl(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...body, stream: true }),
+        signal: controller.signal,
+      });
+      if (res.status < 200 || res.status >= 300) {
+        // Rejected before any streaming began — same shape as the
+        // non-streaming failure path.
+        let json: Record<string, unknown> = {};
+        try {
+          json = (await res.json()) as Record<string, unknown>;
+        } catch {
+          // Non-JSON error body — fall through with an empty object; readError
+          // below falls back to a generic HTTP-status message.
+        }
+        const retryAfter = res.headers?.get?.('retry-after');
+        const retryAfterMs = retryAfter ? Math.max(0, Number(retryAfter) * 1000) || null : null;
+        const message = readError(json, res.status);
+        return RETRYABLE_STATUS.has(res.status)
+          ? { kind: 'retryable', status: res.status, retryAfterMs, message }
+          : { kind: 'fatal', status: res.status, message };
+      }
+      if (!res.body) {
+        return {
+          kind: 'retryable',
+          status: null,
+          retryAfterMs: null,
+          message: 'no response body for streaming request',
+        };
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let rawTextSoFar = '';
+      let finalResponseJson: Record<string, unknown> | null = null;
+      let streamError: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? ''; // last (possibly incomplete) event stays buffered
+        for (const rawEvent of events) {
+          const dataLine = rawEvent.split('\n').find((line) => line.startsWith('data:'));
+          if (!dataLine) continue;
+          const jsonText = dataLine.slice(5).trim();
+          if (!jsonText || jsonText === '[DONE]') continue;
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(jsonText) as Record<string, unknown>;
+          } catch {
+            continue; // an unparseable/partial event line — ignore, not fatal
+          }
+          const type = typeof parsed.type === 'string' ? parsed.type : '';
+          if (type === 'response.output_text.delta' && typeof parsed.delta === 'string') {
+            rawTextSoFar += parsed.delta;
+            onProgress(rawTextSoFar);
+          } else if (type === 'response.completed') {
+            finalResponseJson = toRec(parsed.response);
+          } else if (
+            type === 'response.failed' ||
+            type === 'response.incomplete' ||
+            type === 'error'
+          ) {
+            const responseStatus = toRec(parsed.response).status;
+            streamError =
+              typeof responseStatus === 'string'
+                ? responseStatus
+                : typeof parsed.message === 'string'
+                  ? parsed.message
+                  : type;
+          }
+        }
+      }
+
+      if (finalResponseJson) {
+        return { kind: 'ok', result: this.parseResult('openai', finalResponseJson) };
+      }
+      return {
+        kind: 'retryable',
+        status: null,
+        retryAfterMs: null,
+        message: streamError ?? 'stream ended without a completed event',
+      };
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        throw new ServiceUnavailableException(
+          `${req.provider} request timed out after ${(req.timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000}s`,
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async completeInner(req: LlmCompletionRequest): Promise<LlmCompletionResult> {

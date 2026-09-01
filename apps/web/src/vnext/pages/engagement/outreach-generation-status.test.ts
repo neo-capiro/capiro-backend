@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { OutreachV3GenerationJob } from './engagement-api.js';
 import { outreachV3FullGenerationRequestKey } from './engagement-api.js';
 import {
+  formatOutreachGenerationEta,
+  outreachGenerationEta,
   outreachGenerationItemCode,
+  outreachGenerationLivePreviewSnippet,
   outreachGenerationPollMs,
   outreachGenerationProgress,
   outreachGenerationRetryOf,
@@ -11,18 +14,22 @@ import {
 
 function job(
   status: string,
-  items: Array<{ status: string; error?: unknown }>,
+  items: Array<{ status: string; error?: unknown; livePreview?: string | null }>,
   id = '77675445-47eb-4aee-bf89-26ae4f6c28e7',
+  timing: { startedAt?: string | null; createdAt?: string } = {},
 ): OutreachV3GenerationJob {
   return {
     id,
     status,
+    startedAt: timing.startedAt ?? null,
+    createdAt: timing.createdAt ?? '2026-08-31T00:00:00.000Z',
     items: items.map((item, index) => ({
       id: `i${index}`,
       generationKey: `k${index}`,
       attempt: 1,
       status: item.status,
       error: item.error ?? null,
+      livePreview: item.livePreview ?? null,
     })),
   } as unknown as OutreachV3GenerationJob;
 }
@@ -120,9 +127,114 @@ describe('outreachGenerationState', () => {
   });
 });
 
+describe('outreachGenerationEta', () => {
+  const NOW = new Date('2026-08-31T00:20:00.000Z').getTime();
+
+  it('has nothing to estimate before any item has finished', () => {
+    const running = job('running', [{ status: 'pending' }, { status: 'pending' }], undefined, {
+      startedAt: '2026-08-31T00:00:00.000Z',
+    });
+    const eta = outreachGenerationEta(running, outreachGenerationProgress(running), NOW);
+    expect(eta.estimatedSecondsRemaining).toBeNull();
+  });
+
+  it('extrapolates from elapsed-time-so-far divided by items done, not a fixed per-draft constant', () => {
+    // Started 20 minutes ago (1200s); 1 of 4 done → 1200s/item → 3 remaining × 1200s.
+    const running = job(
+      'running',
+      [{ status: 'done' }, { status: 'pending' }, { status: 'pending' }, { status: 'pending' }],
+      undefined,
+      { startedAt: '2026-08-31T00:00:00.000Z' },
+    );
+    const eta = outreachGenerationEta(running, outreachGenerationProgress(running), NOW);
+    expect(eta.estimatedSecondsRemaining).toBe(3600);
+  });
+
+  it('falls back to createdAt when the job has no startedAt yet', () => {
+    const running = job('running', [{ status: 'done' }, { status: 'pending' }], undefined, {
+      startedAt: null,
+      createdAt: '2026-08-31T00:10:00.000Z',
+    });
+    // 10 minutes elapsed, 1 of 2 done → 600s/item → 1 remaining × 600s.
+    const eta = outreachGenerationEta(running, outreachGenerationProgress(running), NOW);
+    expect(eta.estimatedSecondsRemaining).toBe(600);
+  });
+
+  it('reports zero once nothing is left, without needing a timestamp', () => {
+    const done = job('running', [{ status: 'done' }], undefined, { startedAt: null, createdAt: undefined });
+    const eta = outreachGenerationEta(done, outreachGenerationProgress(done), NOW);
+    expect(eta.estimatedSecondsRemaining).toBe(0);
+  });
+
+  it('flows through outreachGenerationState so callers get it for free', () => {
+    const running = job('running', [{ status: 'done' }, { status: 'pending' }], undefined, {
+      startedAt: '2026-08-31T00:10:00.000Z',
+    });
+    const state = outreachGenerationState(running, 0, NOW);
+    expect(state.kind).toBe('running');
+    expect(state.kind === 'running' && state.eta.estimatedSecondsRemaining).toBe(600);
+  });
+});
+
+describe('formatOutreachGenerationEta', () => {
+  it('never claims false precision — whole minutes or hours only', () => {
+    expect(formatOutreachGenerationEta(null)).toBe('Estimating time remaining…');
+    expect(formatOutreachGenerationEta(0)).toBe('Finishing up…');
+    expect(formatOutreachGenerationEta(20)).toBe('Finishing up…');
+    expect(formatOutreachGenerationEta(45)).toBe('Under a minute remaining.');
+    expect(formatOutreachGenerationEta(90)).toBe('About 2 min remaining.');
+    expect(formatOutreachGenerationEta(12 * 60)).toBe('About 12 min remaining.');
+    expect(formatOutreachGenerationEta(90 * 60)).toBe('About 1 hr 30 min remaining.');
+    expect(formatOutreachGenerationEta(3 * 3600)).toBe('About 3 hr remaining.');
+  });
+});
+
+describe('outreachGenerationLivePreviewSnippet', () => {
+  it('returns null with no job, no items, or nothing streaming yet', () => {
+    expect(outreachGenerationLivePreviewSnippet(null)).toBeNull();
+    expect(outreachGenerationLivePreviewSnippet(job('running', []))).toBeNull();
+    expect(
+      outreachGenerationLivePreviewSnippet(job('running', [{ status: 'pending' }])),
+    ).toBeNull();
+  });
+
+  it('returns the first in-flight item that has a live preview', () => {
+    const running = job('running', [
+      { status: 'pending', livePreview: null },
+      { status: 'pending', livePreview: 'Dear Representative, thank you' },
+      { status: 'pending', livePreview: 'a second one that should not win' },
+    ]);
+    expect(outreachGenerationLivePreviewSnippet(running)).toBe(
+      'Dear Representative, thank you',
+    );
+  });
+
+  it('trims whitespace and treats an all-whitespace preview as none', () => {
+    const running = job('running', [
+      { status: 'pending', livePreview: '   ' },
+      { status: 'pending', livePreview: '  Hello there  ' },
+    ]);
+    expect(outreachGenerationLivePreviewSnippet(running)).toBe('Hello there');
+  });
+
+  it('truncates a long preview with an ellipsis rather than showing it in full', () => {
+    const long = 'x'.repeat(200);
+    const running = job('running', [{ status: 'pending', livePreview: long }]);
+    const snippet = outreachGenerationLivePreviewSnippet(running)!;
+    expect(snippet.length).toBe(141); // 140 chars + the ellipsis character
+    expect(snippet.endsWith('…')).toBe(true);
+  });
+});
+
 describe('outreachGenerationPollMs', () => {
   it('polls only while a job is in flight', () => {
-    expect(outreachGenerationPollMs({ kind: 'running', progress: { done: 0, total: 2, failed: 0, codes: [] } })).toBe(4000);
+    expect(
+      outreachGenerationPollMs({
+        kind: 'running',
+        progress: { done: 0, total: 2, failed: 0, codes: [] },
+        eta: { estimatedSecondsRemaining: null },
+      }),
+    ).toBe(4000);
     for (const kind of ['none', 'ready'] as const) {
       expect(outreachGenerationPollMs({ kind })).toBe(false);
     }

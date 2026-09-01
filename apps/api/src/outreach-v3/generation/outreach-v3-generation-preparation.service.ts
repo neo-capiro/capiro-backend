@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  OUTREACH_REFERENCE_TX_TIMEOUT_MS,
+  OutreachTargetReferenceService,
+} from '../../capabilities/targets/outreach-target-reference.service.js';
 import { OutreachContextReferenceService } from '../../capabilities/context/outreach-context-reference.service.js';
-import { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
 import type { OutreachResolvedTargetRefV1 } from '../../capabilities/targets/outreach-target.contract.js';
 import {
   allAcceptedContextRefs,
@@ -23,6 +27,7 @@ export interface PreparedOutreachV3GenerationSlot extends PreparedOutreachV3Cont
 @Injectable()
 export class OutreachV3GenerationPreparationService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly targetReferences: OutreachTargetReferenceService,
     private readonly contextReferences: OutreachContextReferenceService,
   ) {}
@@ -30,6 +35,17 @@ export class OutreachV3GenerationPreparationService {
   /**
    * Reauthorize the exact target and context snapshots for ONE already-partitioned
    * slot. Any changed/unavailable source blocks before a model can be called.
+   *
+   * Every ref resolves within ONE shared transaction rather than one
+   * transaction per ref. The per-ref `resolveOne`/`resolveOne`-style calls
+   * this replaced each opened and committed their own transaction against a
+   * 10-connection pool, so a slot with 20 accepted context refs cost 20
+   * separate transaction acquisitions before generation even began — pure
+   * overhead that scales with how much context a campaign carries, not with
+   * anything the LLM call needs. Sharing one transaction (the same pattern
+   * `OutreachCommandEngineService` already uses for target/context
+   * reauthorization) keeps identical per-ref error messages — each ref still
+   * gets its own try/catch — while cutting that to one acquisition per slot.
    */
   async prepareSlot(
     ctx: TenantContext,
@@ -50,29 +66,6 @@ export class OutreachV3GenerationPreparationService {
       return selected;
     });
 
-    const currentTargets: OutreachResolvedTargetRefV1[] = [];
-    for (const selected of selectedTargets) {
-      let current: OutreachResolvedTargetRefV1;
-      try {
-        current = await this.targetReferences.resolveOne(ctx, selected.locator);
-      } catch {
-        throw generationBlocked(
-          'A selected target is no longer available. Review Targets before generating.',
-          { targetKey: selected.targetKey, reason: 'target_unavailable' },
-        );
-      }
-      if (
-        current.targetKey !== selected.targetKey ||
-        current.snapshotHash !== selected.snapshotHash
-      ) {
-        throw generationBlocked(
-          'A selected target changed after review. Review the updated target before generating.',
-          { targetKey: selected.targetKey, reason: 'target_snapshot_changed' },
-        );
-      }
-      currentTargets.push(current);
-    }
-
     const wantedContextKeys = new Set(contextKeysFor(slot));
     const allSelectedContext = allAcceptedContextRefs(spec);
     const selectedContext = allSelectedContext.filter((entry) =>
@@ -86,23 +79,55 @@ export class OutreachV3GenerationPreparationService {
       );
     }
 
-    const currentContext = [];
-    for (const selected of selectedContext) {
-      try {
-        currentContext.push(
-          await this.contextReferences.resolveOne(ctx, {
-            locator: selected.locator,
-            contextClass: selected.contextClass,
-            scope: selected.scope,
-          }),
-        );
-      } catch {
-        throw generationBlocked(
-          'Selected campaign context is no longer available. Review Context before generating.',
-          { contextKey: selected.contextKey, reason: 'context_unavailable' },
-        );
-      }
-    }
+    const { currentTargets, currentContext } = await this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      async (tx) => {
+        const resolvedTargets: OutreachResolvedTargetRefV1[] = [];
+        for (const selected of selectedTargets) {
+          let current: OutreachResolvedTargetRefV1;
+          try {
+            current = await this.targetReferences.resolveOneWithinTx(tx, ctx, selected.locator);
+          } catch {
+            throw generationBlocked(
+              'A selected target is no longer available. Review Targets before generating.',
+              { targetKey: selected.targetKey, reason: 'target_unavailable' },
+            );
+          }
+          if (
+            current.targetKey !== selected.targetKey ||
+            current.snapshotHash !== selected.snapshotHash
+          ) {
+            throw generationBlocked(
+              'A selected target changed after review. Review the updated target before generating.',
+              { targetKey: selected.targetKey, reason: 'target_snapshot_changed' },
+            );
+          }
+          resolvedTargets.push(current);
+        }
+
+        const resolvedContext = [];
+        for (const selected of selectedContext) {
+          try {
+            resolvedContext.push(
+              await this.contextReferences.resolveOneWithinTx(tx, ctx, {
+                locator: selected.locator,
+                contextClass: selected.contextClass,
+                scope: selected.scope,
+              }),
+            );
+          } catch {
+            throw generationBlocked(
+              'Selected campaign context is no longer available. Review Context before generating.',
+              { contextKey: selected.contextKey, reason: 'context_unavailable' },
+            );
+          }
+        }
+
+        return { currentTargets: resolvedTargets, currentContext: resolvedContext };
+      },
+      { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS },
+    );
 
     let prepared: PreparedOutreachV3Context;
     try {

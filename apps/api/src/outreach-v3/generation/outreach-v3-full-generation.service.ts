@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -26,9 +27,13 @@ import {
 } from './outreach-v3-generation-plan.js';
 import { OutreachV3GenerationPreparationService } from './outreach-v3-generation-preparation.service.js';
 import { buildOutreachV3GatewayUnit } from './outreach-v3-generation-request.js';
+import { OutreachV3LivePreviewService } from '../../engagement/generation/outreach-v3-live-preview.service.js';
 
 export const OUTREACH_V3_FULL_GENERATION_JOB_KIND = 'generate_v3' as const;
 const MAX_JOB_ITEMS = 500;
+// Mirrors the frontend's own ITEM_TERMINAL set (outreach-generation-status.ts)
+// — a live preview is only meaningful before an item reaches one of these.
+const ITEM_TERMINAL_STATUSES = new Set(['done', 'failed', 'skipped', 'sent']);
 
 const JOB_SELECT = {
   id: true,
@@ -59,6 +64,11 @@ export class OutreachV3FullGenerationService {
     private readonly preparation: OutreachV3GenerationPreparationService,
     private readonly gateway: GenerationGatewayService,
     private readonly roots: OutreachV3ArtifactRootService,
+    // Optional so every existing direct construction of this service (its
+    // specs build it with `new OutreachV3FullGenerationService(...)`, no Nest
+    // module) keeps working unchanged. When absent, `livePreview` on each
+    // returned item is simply always null.
+    @Optional() private readonly livePreview?: OutreachV3LivePreviewService,
   ) {}
 
   async submit(
@@ -366,6 +376,13 @@ export class OutreachV3FullGenerationService {
         result: safeResult(item.result),
         error: item.status === 'held' ? null : safeError(item.error),
         attempt: item.attempt,
+        // Only while still in flight — once an item is terminal, the real
+        // draft version (already persisted by then) is the answer, not a
+        // cosmetic preview. Absent when streaming is off/unavailable, same as
+        // every item having none.
+        livePreview: ITEM_TERMINAL_STATUSES.has(item.status)
+          ? null
+          : (this.livePreview?.get(item.recipientKey) ?? null),
       })),
     };
   }

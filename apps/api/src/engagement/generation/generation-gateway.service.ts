@@ -33,6 +33,8 @@ import {
 } from '../llm-completion.service.js';
 import { OutreachDraftService } from '../outreach-draft.service.js';
 import { AttachmentScannerService } from '../attachment-scanner.service.js';
+import { OutreachV3LivePreviewService } from './outreach-v3-live-preview.service.js';
+import { extractStreamingJsonStringField } from './streaming-json-field.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { engagementFirmMailContextEnabled } from '../../common/tenant-flags.js';
 import type { ResolvedAiCredential } from '../ai-credential-resolver.service.js';
@@ -103,6 +105,7 @@ export class GenerationGatewayService {
   private readonly envEmailScope: EmailContextScope;
   private readonly v3GenerationEffort: ReasoningEffort;
   private readonly v3GenerationModel: string;
+  private readonly streamingEnabled: boolean;
 
   constructor(
     config: ConfigService<AppConfig, true>,
@@ -121,11 +124,19 @@ export class GenerationGatewayService {
     // When absent, generate()'s behavior and return value are byte-identical
     // to before this dependency existed.
     @Optional() private readonly evaluation?: OutreachEvaluationRunner,
+    // Same reasoning as `evaluation` above — optional so existing tests that
+    // construct the gateway directly are unaffected. When absent, or when
+    // OUTREACH_V3_GENERATION_STREAMING_ENABLED is off (the default), the
+    // draft call behaves byte-identically to before this dependency existed.
+    @Optional() private readonly livePreview?: OutreachV3LivePreviewService,
   ) {
     this.enabled = config.get('ENGAGEMENT_GENERATION_GATEWAY', { infer: true });
     this.envEmailScope = config.get('ENGAGEMENT_EMAIL_CONTEXT_SCOPE', { infer: true });
     this.v3GenerationEffort = config.get('OUTREACH_V3_GENERATION_EFFORT', { infer: true });
     this.v3GenerationModel = config.get('OUTREACH_V3_GENERATION_MODEL', { infer: true });
+    this.streamingEnabled = config.get('OUTREACH_V3_GENERATION_STREAMING_ENABLED', {
+      infer: true,
+    });
   }
 
   /**
@@ -508,6 +519,9 @@ export class GenerationGatewayService {
         ...(request.groupMemberCount != null ? { groupMemberCount: request.groupMemberCount } : {}),
         clientName: enrichment.clientName,
         tone: request.tone,
+        // Same recipient scoping the draft call uses below — see buildPlan's
+        // own comment for why this matters for both caching and correctness.
+        recipientScopeKeys: recipient.scopeKeys,
         // Same pinned depth as the draft: the plan fixes which claims the draft
         // may make, so a shallow plan caps a deep draft.
         ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
@@ -593,7 +607,7 @@ export class GenerationGatewayService {
     let modelContextNote: string | undefined;
     try {
       const cred = pinnedCreds[0]!;
-      const completion = await this.llm.complete({
+      const completionRequest = {
         runtimeAction: request.runtimeAction,
         provider: cred.provider,
         apiKey: cred.apiKey,
@@ -615,7 +629,24 @@ export class GenerationGatewayService {
         // The PINNED effort, for the same reason as the pinned model: every chunk
         // of one campaign must reason at the same depth.
         ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
-      });
+      };
+      // Streaming only applies to the plain subject/body/contextNote shape —
+      // a content-skeleton draft's sections don't map onto a single 'body'
+      // field, so that path (and Anthropic, and streaming turned off) keeps
+      // the ordinary non-streaming call. Either way the FINAL result below is
+      // identical; this only changes whether a live preview gets written.
+      const canStream =
+        this.streamingEnabled &&
+        !skeleton &&
+        cred.provider === 'openai' &&
+        Boolean(this.livePreview) &&
+        Boolean(recipient.generationKey);
+      const completion = canStream
+        ? await this.llm.completeStreaming(completionRequest, (rawTextSoFar) => {
+            const preview = extractStreamingJsonStringField(rawTextSoFar, 'body');
+            if (preview) this.livePreview!.update(recipient.generationKey, preview);
+          })
+        : await this.llm.complete(completionRequest);
       // ── 7. Strict output parse (+ skeleton assembly) ──
       if (skeleton) {
         const parsedSections = parseSkeletonDraft(completion.text);

@@ -105,6 +105,7 @@ function validate(p: MessagePlan, over: { packet?: EvidencePacketV2; audienceKin
     audienceKind: over.audienceKind ?? 'individual',
     clientName: 'Aperture Defense Systems',
     tone: 'professional',
+    recipientScopeKeys: [],
   });
 }
 
@@ -378,6 +379,7 @@ describe('no drafting call on an invalid plan', () => {
         audienceKind: 'individual',
         clientName: null,
         tone: 'professional',
+        recipientScopeKeys: [],
       }),
     ).rejects.toBeInstanceOf(MessagePlanInvalidError);
   });
@@ -411,6 +413,7 @@ describe('plan pass token ceiling', () => {
       audienceKind: 'individual',
       clientName: null,
       tone: 'professional',
+      recipientScopeKeys: [],
     });
     const arg = (llm.complete as jest.Mock).mock.calls[0]![0] as { maxTokens: number };
     expect(arg.maxTokens).toBe(MESSAGE_PLAN_MAX_OUTPUT_TOKENS);
