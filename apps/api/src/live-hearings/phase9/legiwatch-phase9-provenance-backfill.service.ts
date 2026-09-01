@@ -226,8 +226,10 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       (c) => c.classification === 'SKIPPED_IDENTITY_CONFLICT',
     ).length;
     result.remaining = await this.countRemaining(lookbackDays);
-    result.nextCursor =
-      result.scanned === limit ? (enriched[enriched.length - 1]?.row.id ?? null) : null;
+    const lastItem = result.scanned === limit ? enriched[enriched.length - 1] : undefined;
+    result.nextCursor = lastItem
+      ? `${lastItem.row.starts_at?.toISOString() ?? lastItem.row.date?.toISOString() ?? ''}|${lastItem.row.id}`
+      : null;
     return result;
   }
 
@@ -307,6 +309,21 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     limit: number;
     cursor: string | null;
   }): Promise<CandidateRow[]> {
+    // Keyset cursor on the SORT KEY tuple (effectiveWhen, id) — an id-only cursor
+    // silently skips rows when a later-start row has a smaller id (live 2026-09-01:
+    // House cm-119-119xxx rows sort after Senate cm-119-338xxx by date but BEFORE it
+    // by id, so 38 rows were skipped once the cursor passed a Senate id).
+    let cursorEff: string | null = null;
+    let cursorId: string | null = null;
+    if (input.cursor) {
+      const sep = input.cursor.indexOf('|');
+      if (sep > 0) {
+        cursorEff = input.cursor.slice(0, sep);
+        cursorId = input.cursor.slice(sep + 1);
+      } else {
+        cursorId = input.cursor;
+      }
+    }
     return this.prisma.$queryRawUnsafe<CandidateRow[]>(
       `SELECT h.id, h.event_status, h.chamber, h.congress, h.committee_system_code,
               h.title, h.url, h.starts_at, h.date
@@ -319,12 +336,16 @@ export class LegiWatchPhase9ProvenanceBackfillService {
            SELECT 1 FROM hearing_source_observation o
            WHERE o.hearing_id = h.id AND o.reconciliation_status = 'RECONCILED'
          )
-         AND ($3::text IS NULL OR h.id > $3::text)
+         AND (
+           $3::timestamptz IS NULL
+           OR (COALESCE(h.starts_at, h.date::timestamp), h.id) > ($3::timestamptz, $4::text)
+         )
        ORDER BY COALESCE(h.starts_at, h.date::timestamp) ASC, h.id ASC
        LIMIT $2::int`,
       String(input.lookbackDays),
       input.limit,
-      input.cursor,
+      cursorEff,
+      cursorId,
     );
   }
 
