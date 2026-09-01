@@ -40,6 +40,7 @@ import {
 } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
 import { normalizeChamber } from '../../hearing-discovery/hearing-identity.js';
+import { GovInfoChrgAdapter } from '../../hearing-discovery/adapters/govinfo-chrg.adapter.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
 import type {
   SourceDescriptor,
@@ -193,11 +194,18 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     // (id, date, title, URL, adapter, external id) before any mutation.
     if (!input.reportOnly) {
       const source = await this.congressGovSource();
+      const govInfoSource = await this.ensureGovInfoSource();
       const reconciler = input.reconcilerFactory
         ? input.reconcilerFactory()
         : new HearingReconcilerService(this.prisma);
       for (const item of enriched) {
-        await this.applyCandidate(item, { result, source, reconciler, options: input });
+        await this.applyCandidate(item, {
+          result,
+          source,
+          govInfoSource,
+          reconciler,
+          options: input,
+        });
       }
     }
 
@@ -243,6 +251,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     ctx: {
       result: ProvenanceBackfillResult;
       source: SourceDescriptor | null;
+      govInfoSource: SourceDescriptor | null;
       reconciler: Pick<HearingReconcilerService, 'reconcileEvent'>;
       options: ProvenanceBackfillOptions;
     },
@@ -252,20 +261,24 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     try {
       const event = ctx.options.observeEvent
         ? await ctx.options.observeEvent(row.id)
-        : await this.observeEvent(row, ctx.source);
+        : item.likelyAdapter === 'govinfo-chrg'
+          ? await this.observeEvent(row, ctx.govInfoSource)
+          : await this.observeEvent(row, ctx.source);
       ctx.result.observablesFetched += 1;
       // Pre-resolve identity BEFORE any write. Production uses the real
       // canonical ladder (same resolver the reconciler will consult); the
       // optional probe seam exists only for unit tests. A `new` answer means
       // reconciling would mint a NEW canonical hearing — the backfill creates
       // observations, never canonical identity.
+      const evtAdapterKey =
+        item.likelyAdapter === 'govinfo-chrg' ? 'govinfo-chrg' : 'congress-gov';
       const probe = ctx.options.identityProbe
         ? ctx.options.identityProbe
         : async (evt: SourceEvent) =>
             (
               await (await this.identityResolver)?.resolveHearingId(
                 evt,
-                'congress-gov',
+                evtAdapterKey,
               )
             )?.kind ?? 'new';
       const kind = await probe(event);
@@ -392,6 +405,9 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     source: SourceDescriptor | null,
   ): Promise<SourceEvent> {
     const adapterKey = classifyCandidate(row).likelyAdapter;
+    if (adapterKey === 'govinfo-chrg') {
+      return this.observeGovInfoChrgEvent(row);
+    }
     if (adapterKey !== 'congress-gov' || !source) {
       throw new Error(`no fetchable official adapter for ${row.id}`);
     }
@@ -417,6 +433,87 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       throw new Error(`congress-gov payload not normalizable for event ${derived}`);
     }
     return event;
+  }
+
+  /**
+   * Observe one GovInfo CHRG package: summary + MODS -> the same SourceEvent
+   * shape the reconciler consumes. calendarDate = package dateIssued (the
+   * canonical row represents the PUBLISHED RECORD); actual heldDates are kept
+   * verbatim in raw for audit — never silently rewritten to match identity.
+   */
+  private async observeGovInfoChrgEvent(row: CandidateRow): Promise<SourceEvent> {
+    const pkgId = classifyCandidate(row).externalEventId;
+    if (!pkgId) throw new Error(`cannot derive GovInfo package id for ${row.id}`);
+    const adapter = new GovInfoChrgAdapter(process.env.GOVINFO_API_KEY ?? '');
+    const summary = await adapter.fetchSummary(pkgId);
+    if (!summary || !summary.dateIssued) {
+      throw new Error(`govinfo returned no summary for ${pkgId}`);
+    }
+    const mods = await adapter.fetchMods(pkgId);
+    const authorityId = mods?.committees[0]?.authorityId ?? row.committee_system_code ?? null;
+    const chamber = normalizeChamber(
+      (summary.chamber ?? row.chamber ?? 'house').toLowerCase().includes('sen') ? 'senate' : 'house',
+    );
+    const calendarDate = new Date(`${summary.dateIssued}T00:00:00.000Z`);
+    return {
+      externalEventId: pkgId,
+      congress: Number(summary.congress ?? row.congress ?? 0) || (row.congress ?? null),
+      chamber,
+      committeeSystemCode: authorityId,
+      title: summary.title ?? row.title,
+      eventType: 'Congressional Hearing (published record)',
+      eventStatus: (row.event_status as SourceEvent['eventStatus']) ?? 'completed',
+      visibility: 'public',
+      startsAt: null,
+      calendarDate,
+      location: null,
+      officialPageUrl:
+        summary.detailsLink ??
+        `https://www.govinfo.gov/app/details/${pkgId}`,
+      witnesses: [],
+      agendaBillIds: [],
+      sourceUpdatedAt: summary.lastModified ? new Date(summary.lastModified) : null,
+      raw: {
+        collectionCode: summary.documentType,
+        heldDates: mods?.heldDates ?? [],
+        pages: null,
+        canonicalHearingRowId: row.id,
+      },
+    };
+  }
+
+  /** The govinfo-chrg source row (created on demand; manual backfill only). */
+  private async ensureGovInfoSource(): Promise<SourceDescriptor | null> {
+    const existing = await this.prisma.$queryRawUnsafe<SourceDescriptor[]>(
+      `SELECT id, committee_system_code AS "committeeSystemCode", chamber,
+              source_type AS "sourceType", source_url AS "sourceUrl",
+              adapter_key AS "adapterKey", priority, parser_version AS "parserVersion"
+       FROM committee_source
+       WHERE adapter_key = 'govinfo-chrg' AND enabled = true
+       ORDER BY priority ASC
+       LIMIT 1`,
+    );
+    if (existing[0]) return existing[0];
+    await this.prisma.$executeRawUnsafe(
+      `INSERT INTO committee_source
+         (id, committee_system_code, chamber, source_type, source_url, adapter_key,
+          priority, parser_version, enabled, source_health, created_at, updated_at)
+       SELECT gen_random_uuid()::text, NULL, 'joint', 'COMMITTEE_STRUCTURED_DATA',
+              'https://api.govinfo.gov', 'govinfo-chrg', 60, 'govinfo-chrg/2026-09-01',
+              true, 'unknown', now(), now()
+       WHERE NOT EXISTS (
+         SELECT 1 FROM committee_source WHERE adapter_key = 'govinfo-chrg'
+       )`,
+    );
+    const created = await this.prisma.$queryRawUnsafe<SourceDescriptor[]>(
+      `SELECT id, committee_system_code AS "committeeSystemCode", chamber,
+              source_type AS "sourceType", source_url AS "sourceUrl",
+              adapter_key AS "adapterKey", priority, parser_version AS "parserVersion"
+       FROM committee_source
+       WHERE adapter_key = 'govinfo-chrg' AND enabled = true
+       ORDER BY priority ASC LIMIT 1`,
+    );
+    return created[0] ?? null;
   }
 }
 
@@ -445,6 +542,12 @@ export function classifyCandidate(row: CandidateRow): {
   );
   if (u) {
     return { likelyAdapter: 'congress-gov', externalEventId: u[2] ?? null, derive: 'url' };
+  }
+  // GovInfo Congressional Hearings (CHRG) transcript-record rows: the package id
+  // is derivable from the official URL — CHRG-119hhrg64224 etc.
+  const g = /CHRG-(\d+)(?:hhrg|shrg|sjrg)(\d+)/i.exec(row.url ?? '');
+  if (g) {
+    return { likelyAdapter: 'govinfo-chrg', externalEventId: `CHRG-${g[1]}-${g[2]}`, derive: 'url' };
   }
   return { likelyAdapter: 'UNFETCHABLE', externalEventId: null, derive: 'none' };
 }

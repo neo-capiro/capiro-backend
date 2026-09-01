@@ -111,20 +111,61 @@ describe('LegiWatchPhase9ProvenanceBackfillService', () => {
     expect(result.nextCursor).toBeNull();
   });
 
-  it('skips rows whose external event id cannot be derived', async () => {
+  it('routes CHRG transcript-record rows to the govinfo-chrg adapter via URL package id', async () => {
     const chrg = {
       ...CANDIDATE,
       id: '119-64224-2026-07-14',
       url: 'https://congress.gov/119/chrg/CHRG-119hhrg64224/generated/CHRG-119hhrg64224.htm',
     };
-    const prisma = prismaStub({ candidates: [chrg] });
+    const prisma = prismaStub({ candidates: [chrg], congressSource: { id: 'src-gov' } });
+    const service = new LegiWatchPhase9ProvenanceBackfillService(prisma);
+    const result = await service.run({
+      manual: true,
+      lookbackDays: 60,
+      limit: 25,
+      observeEvent: async () => ({
+        externalEventId: 'CHRG-119-64224',
+        chamber: 'house' as const,
+        calendarDate: new Date('2026-07-14'),
+      }),
+      reconcilerFactory: () => ({
+        reconcileEvent: async () => ({
+          hearingId: chrg.id,
+          match: 'day' as const,
+          observationCreated: true,
+          observationChanged: false,
+          hearingCreated: false,
+          changedFields: [],
+          filledFields: [],
+          siteUpdatesInserted: 0,
+          streamCandidatesCreated: 0,
+        }),
+      }),
+      identityProbe: async () => 'day' as const,
+    });
+    expect(result.skippedUnfetchable).toBe(0);
+    expect(result.observed).toBe(1);
+    expect(result.candidates[0]).toMatchObject({
+      hearingId: chrg.id,
+      likelyAdapter: 'govinfo-chrg',
+      classification: 'OBSERVED',
+    });
+  });
+
+  it('skips rows whose external event id cannot be derived at all', async () => {
+    const unknown = {
+      ...CANDIDATE,
+      id: 'unknown-shape-row',
+      url: 'https://example.invalid/no-known-adapter',
+    };
+    const prisma = prismaStub({ candidates: [unknown] });
     const service = new LegiWatchPhase9ProvenanceBackfillService(prisma);
     const result = await service.run({ manual: true, lookbackDays: 60, limit: 25 });
     expect(result.scanned).toBe(1);
     expect(result.observablesFetched).toBe(0);
     expect(result.skippedUnfetchable).toBe(1);
     expect(result.candidates[0]).toMatchObject({
-      hearingId: chrg.id,
+      hearingId: unknown.id,
       classification: 'UNFETCHABLE',
     });
   });
