@@ -40,11 +40,11 @@ function prismaStub(rows: {
     $queryRawUnsafe: async (sql: string, ...params: unknown[]) => {
       const s = sql.replace(/\s+/g, ' ');
       if (s.includes('FROM committee_hearing h') && s.includes('NOT EXISTS') && s.includes('LIMIT')) {
-        // params follow selectCandidates: [lookbackDays, limit, cursor]
+        // params follow selectCandidates: [lookbackDays, limit, cursorEff, cursorId]
         const limit = Number(params[1] ?? 25);
-        const cursor = (params[2] as string | null) ?? null;
+        const cursorId = (params[3] as string | null) ?? null;
         const all = rows.candidates ?? [];
-        const start = cursor ? all.findIndex((r) => r.id === cursor) + 1 : 0;
+        const start = cursorId ? all.findIndex((r) => r.id === cursorId) + 1 : 0;
         return all.slice(start, start + limit);
       }
       if (s.includes('COUNT(*)::int AS n')) {
@@ -326,7 +326,7 @@ describe('LegiWatchPhase9ProvenanceBackfillService', () => {
       }),
     });
     expect(result.scanned).toBe(25);
-    expect(result.nextCursor).toBe(many[24]!.id);
+    expect(result.nextCursor).toContain(`|${many[24]!.id}`);
     expect(result.remaining).toBe(15);
   });
 });
