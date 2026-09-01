@@ -108,10 +108,20 @@ export function outreachCampaignTypeFromSpec(
  * `workflowCampaignDefaults` supplies the objective / desired outcome / ask /
  * why-now that the generator reads; its `goal` field is overridden here because
  * it phrases a custom campaign as `Advance <name>`, which does not round-trip.
+ *
+ * `whyNowOverride` lets the Name step carry a real scheduling window / timing
+ * hook ("in DC the week of Oct 6") instead of the derived boilerplate, and both
+ * steps pass the saved spec value back through so confirming a step never
+ * clobbers a why-now the user already saved. Three states, deliberately:
+ *  - `undefined` — no override information; derive the default (today's shape,
+ *    so existing callers and tests are untouched).
+ *  - `string` — a non-empty user value; it wins.
+ *  - `null` — the user cleared the field; why-now is explicitly cleared.
  */
 export function outreachGoalCommandsFor(
   type: OutreachCampaignType,
   campaignName: string,
+  whyNowOverride?: string | null,
 ): OutreachV3Command[] {
   const trimmed = campaignName.trim();
   if (!trimmed) {
@@ -131,11 +141,18 @@ export function outreachGoalCommandsFor(
     ];
   }
   const defaults = workflowCampaignDefaults({ templateId: type, campaignName: trimmed });
+  const override =
+    whyNowOverride === undefined
+      ? undefined
+      : whyNowOverride && whyNowOverride.trim()
+        ? whyNowOverride.trim()
+        : null;
   return [
     ...goalCommands({
       ...defaults.goal,
       goal: outreachCampaignTypeGoalPhrase(type),
       topic: trimmed,
+      ...(override !== undefined ? { whyNow: override } : {}),
     }),
     /*
      * The strategy half is NOT optional. `deriveOutreachReadiness` blocks
@@ -343,6 +360,51 @@ export function outreachBlockedTargets(
   return outreachSelectedTargets(session).filter((target) => !outreachTargetIsSendable(target));
 }
 
+/**
+ * Groups of selected targets that share ONE office, for the office-level
+ * dedupe warning: four staffers in the same member office each get the same
+ * personalized pitch with no cross-awareness, which reads as a form blast to
+ * the office that receives it. Nothing is blocked — a multi-staffer office is
+ * sometimes deliberate — but the user should choose it, not stumble into it.
+ *
+ * "Office" is the server-resolved `organization` string (member office name,
+ * committee name), normalized case/whitespace-insensitively. Targets with no
+ * organization are never grouped: an unknown office is not the SAME office.
+ * Groups are returned largest-first; members keep selection order.
+ */
+export function outreachSameOfficeGroups(
+  targets: OutreachV3ResolvedTargetRef[],
+): Array<{ office: string; targets: OutreachV3ResolvedTargetRef[] }> {
+  const byOffice = new Map<string, { office: string; targets: OutreachV3ResolvedTargetRef[] }>();
+  for (const target of targets) {
+    const office = target.organization?.trim();
+    if (!office) continue;
+    const key = office.toLowerCase().replace(/\s+/g, ' ');
+    const group = byOffice.get(key);
+    if (group) group.targets.push(target);
+    else byOffice.set(key, { office, targets: [target] });
+  }
+  return [...byOffice.values()]
+    .filter((group) => group.targets.length > 1)
+    .sort((a, b) => b.targets.length - a.targets.length);
+}
+
+/** The warning sentence both the Targets and Review steps print. */
+export function outreachSameOfficeWarning(
+  groups: Array<{ office: string; targets: OutreachV3ResolvedTargetRef[] }>,
+): string | null {
+  if (groups.length === 0) return null;
+  const parts = groups.map(
+    (group) => `${group.office} (${group.targets.length} recipients)`,
+  );
+  return (
+    `Multiple recipients share the same office: ${parts.join('; ')}. ` +
+    'Each gets their own separately-generated email with no mention of the others — ' +
+    'an office comparing notes will see near-identical messages. Keep them all if that is deliberate, ' +
+    'or trim to the best-placed contact per office.'
+  );
+}
+
 /** "4 recipients · one email each" / "1 recipient · one email". */
 export function outreachRecipientSummary(count: number): string {
   return count === 1 ? '1 recipient · one email' : `${count} recipients · one email each`;
@@ -526,11 +588,6 @@ export const OUTREACH_UNWIRED_CONTROLS: Array<{ control: string; reality: string
     control: 'Per-template context options',
     reality:
       'Stored as campaign writing guidance alongside the format. There is no per-template options field on the spec.',
-  },
-  {
-    control: 'Campaign document upload',
-    reality:
-      'The context endpoint accepts an already-stored document id; there is no upload route for a campaign-scoped file.',
   },
   {
     control: 'Send scheduling',

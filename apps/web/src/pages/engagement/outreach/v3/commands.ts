@@ -27,7 +27,12 @@ export interface GoalDraft {
   desiredOutcome: string;
   askMode: 'explicit' | 'none';
   askText: string;
-  whyNow: string;
+  /**
+   * `null` means "the user explicitly cleared the why-now" — a real
+   * SET_WHY_NOW(null) rather than absence. `''` trims to null at command time,
+   * exactly as before, so existing string-only callers are unaffected.
+   */
+  whyNow: string | null;
 }
 
 export function goalCommands(draft: GoalDraft): OutreachV3Command[] {
@@ -282,7 +287,8 @@ export function setContentSkeletonCommand(
   return command('SET_CONTENT_SKELETON', { value });
 }
 
-function nullable(value: string): string | null {
+function nullable(value: string | null): string | null {
+  if (value === null) return null;
   const normalized = value.trim();
   return normalized ? normalized : null;
 }

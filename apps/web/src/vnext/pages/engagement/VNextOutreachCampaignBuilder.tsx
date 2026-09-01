@@ -39,6 +39,7 @@ import {
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { outreachV3CampaignBucket } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
+import { useOutreachMeetingAutoContext } from './use-outreach-meeting-auto-context.js';
 import { useEngagementToast } from './engagement-toast.js';
 import { useRovingFocus } from './use-roving-focus.js';
 import {
@@ -199,6 +200,19 @@ export function VNextOutreachCampaignBuilder({
       toast.show,
     ],
   );
+
+  /*
+   * Request-a-meeting auto-context runs at the SHELL, not inside the Context
+   * step: a user who rides the rail straight from Targets to Review still gets
+   * the sponsor overview, capabilities, facilities and target career-background
+   * attached before generation. Placing the effect here means it fires on every
+   * step; its own guards (content-addressed dedup on the spec, the
+   * retry-once signature) keep it a no-op once everything is attached.
+   */
+  useOutreachMeetingAutoContext({
+    session: session ?? null,
+    applyCommands: common.applyCommands,
+  });
 
   const StepIcon = STEP_ICON_COMPONENTS[OUTREACH_BUILDER_STEP_ICONS[step]];
 

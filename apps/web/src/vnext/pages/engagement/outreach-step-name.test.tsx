@@ -165,7 +165,8 @@ describe('OutreachNameStep', () => {
     );
 
     expect(screen.getByText('REQUIRED')).toBeTruthy();
-    expect(screen.getByText('OPTIONAL')).toBeTruthy();
+    // Two OPTIONAL flags now: the sponsor choice and the why-now field.
+    expect(screen.getAllByText('OPTIONAL')).toHaveLength(2);
     expect(
       screen.getByText(
         'This is the subject line every recipient sees — not an internal label. Write it the way you want it to land in an inbox.',
@@ -457,5 +458,69 @@ describe('OutreachNameStep', () => {
 
     expect(primary().disabled).toBe(true);
     expect(nameInput().disabled).toBe(true);
+  });
+
+  // ── Why now / scheduling window ──────────────────────────────────────────
+
+  function whyNowInput(): HTMLTextAreaElement {
+    return screen.getByLabelText(/Why now \/ scheduling window/) as HTMLTextAreaElement;
+  }
+
+  it('renders the why-now field empty when the spec holds none', () => {
+    renderStep();
+    expect(whyNowInput().value).toBe('');
+  });
+
+  it('seeds the why-now field from the saved spec value', () => {
+    renderStep({
+      session: envelope({
+        goal: {
+          goal: 'Request a meeting',
+          objective: null,
+          topic: 'Ground robotics briefing',
+          desiredOutcome: null,
+          ask: { mode: 'undecided', text: null },
+          whyNow: 'We will be in Washington the week of October 6',
+        },
+      }),
+    });
+    expect(whyNowInput().value).toBe('We will be in Washington the week of October 6');
+  });
+
+  it('writes a filled why-now into the goal batch instead of the derived default', async () => {
+    const { applyCommands, onNext } = renderStep({ campaignType: 'request_meeting' });
+
+    fireEvent.change(nameInput(), { target: { value: 'Ground robotics briefing' } });
+    fireEvent.change(whyNowInput(), {
+      target: { value: '  Ahead of the FY28 posture hearings  ' },
+    });
+    fireEvent.click(primary());
+
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(commandsOfType(applyCommands, 'SET_WHY_NOW').at(0)?.payload).toEqual({
+      value: 'Ahead of the FY28 posture hearings',
+    });
+  });
+
+  it('clears the why-now (null) when the user empties a previously saved one', async () => {
+    const { applyCommands, onNext } = renderStep({
+      campaignType: 'request_meeting',
+      session: envelope({
+        goal: {
+          goal: 'Request a meeting',
+          objective: null,
+          topic: 'Ground robotics briefing',
+          desiredOutcome: null,
+          ask: { mode: 'undecided', text: null },
+          whyNow: 'We will be in Washington the week of October 6',
+        },
+      }),
+    });
+
+    fireEvent.change(whyNowInput(), { target: { value: '' } });
+    fireEvent.click(primary());
+
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(commandsOfType(applyCommands, 'SET_WHY_NOW').at(0)?.payload).toEqual({ value: null });
   });
 });

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckSquare, CircleAlert, Loader2, RefreshCcw } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
@@ -30,6 +31,16 @@ import { ResultsScreen, SendingScreen } from './outreach-send-record.js';
 import { isSendTerminal } from './outreach-send-record-model.js';
 import { getOutreachTemplateProvenance } from './outreach-v3-template-api.js';
 import {
+  applyOutreachV3Commands,
+  createOutreachV3Session,
+} from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
+import {
+  acceptContextCommand,
+  addTargetCommand,
+  deliveryCommands,
+  sponsorCommand,
+} from '../../../pages/engagement/outreach/v3/commands.js';
+import {
   outreachBuilderPrimaryLabel,
   outreachReadyRecipientCount,
   outreachSendGate,
@@ -37,7 +48,11 @@ import {
 import {
   type OutreachBuilderStepCommon,
   outreachBlockedTargets,
+  outreachCampaignNameFromSpec,
+  outreachCampaignTypeFromSpec,
   outreachEffectiveEmailFormat,
+  outreachGoalCommandsFor,
+  outreachGuidanceSelection,
   outreachSelectedTargets,
   outreachSponsorFromSpec,
 } from './outreach-builder-model.js';
@@ -301,6 +316,79 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
         learning: input.text,
       }),
     onError: (cause) => setError(errorText(cause, 'The proposal could not be submitted.')),
+  });
+
+  const navigate = useNavigate();
+  /**
+   * The recipients a follow-up would target: everyone this send actually
+   * REACHED (sent/accepted/delivered) who has no synced reply. Failed/held
+   * recipients are excluded — following up on an email that never arrived
+   * compounds the failure — and so is anyone who answered.
+   */
+  const noReplyTargets = useMemo(() => {
+    if (!intent || !sendComplete) return [];
+    const replies = replyQuery.data ?? [];
+    const repliedEmails = new Set(
+      replies.map((reply) => reply.fromEmail?.trim().toLowerCase()).filter(Boolean),
+    );
+    const reachedEmails = new Set<string>();
+    for (const delivery of intent.deliveries) {
+      const status = delivery.status.toLowerCase();
+      if (!['sent', 'accepted', 'delivered'].some((value) => status.includes(value))) continue;
+      for (const to of delivery.to) {
+        const email = to.email?.trim().toLowerCase();
+        if (email && !repliedEmails.has(email)) reachedEmails.add(email);
+      }
+    }
+    return outreachSelectedTargets(session).filter((target) => {
+      const email = target.email?.trim().toLowerCase();
+      return Boolean(email && reachedEmails.has(email));
+    });
+  }, [intent, sendComplete, replyQuery.data, session]);
+
+  /**
+   * Seed a REAL follow-up campaign: a fresh session carrying this campaign's
+   * sponsor and the no-reply targets, its goal derived from the same campaign
+   * type, plus one campaign-scoped writing-guidance ref telling the writer
+   * this is a follow-up to a dated, unanswered send (reference it, do not
+   * repeat it — the priorOutreach enrichment channel independently reinforces
+   * this per recipient at generation time). The user lands on the new
+   * campaign's builder to review targets/context before anything generates —
+   * seeding writes spec state only; no draft or send happens here.
+   */
+  const followUpMutation = useMutation({
+    mutationFn: async () => {
+      const campaignType = outreachCampaignTypeFromSpec(session) ?? 'request_meeting';
+      const baseName = outreachCampaignNameFromSpec(session) || 'Outreach campaign';
+      const created = await createOutreachV3Session(api, `Follow-up: ${baseName}`);
+      const newSessionId = created.session.id;
+      const sponsor = outreachSponsorFromSpec(session);
+      const sentDate = (intent?.finishedAt ?? intent?.startedAt ?? intent?.createdAt ?? '').slice(0, 10);
+      const commands = [
+        ...outreachGoalCommandsFor(campaignType, `Follow-up: ${baseName}`),
+        ...(sponsor.kind === 'client' && sponsor.clientId
+          ? [sponsorCommand({ kind: 'client', clientIds: [sponsor.clientId] })]
+          : []),
+        ...noReplyTargets.map((target) => addTargetCommand(target.locator)),
+        ...deliveryCommands('personalized_separate', 'high'),
+        acceptContextCommand([
+          outreachGuidanceSelection({
+            title: 'Follow-up framing',
+            text:
+              `This campaign follows up on "${baseName}"${sentDate ? `, sent ${sentDate}` : ''}, which received no reply from these recipients. ` +
+              'Acknowledge the earlier note briefly and without reproach, add one new reason to engage now, and keep the same ask. Do not repeat the original email.',
+          }),
+        ]),
+      ];
+      await applyOutreachV3Commands(api, newSessionId, created.currentStateVersion, commands);
+      return newSessionId;
+    },
+    onSuccess: (newSessionId) => {
+      void qc.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
+      props.toast(`Follow-up campaign created · ${noReplyTargets.length} recipients carried over`);
+      navigate(`/engagement/outreach/${encodeURIComponent(newSessionId)}`);
+    },
+    onError: (cause) => setError(errorText(cause, 'The follow-up campaign could not be created.')),
   });
 
   // Until the drafts, plan and settings are in, a preflight would be run
@@ -580,6 +668,11 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
             onRefresh={() => refreshIntent.mutate()}
             onOpenDraft={() => props.onOpenDrafts()}
             onProposeLearning={(replyId, text) => learning.mutate({ replyId, text })}
+            followUp={{
+              count: noReplyTargets.length,
+              busy: followUpMutation.isPending,
+              run: () => followUpMutation.mutate(),
+            }}
           />
         ) : (
           <SendingScreen

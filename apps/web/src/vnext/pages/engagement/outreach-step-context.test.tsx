@@ -418,15 +418,74 @@ describe('OutreachContextStep', () => {
       ).toBeInTheDocument();
     });
 
-    it('never pretends a picked file was accepted — the upload leg is disabled', async () => {
+    it('uploads a file through the attachment store and registers it as campaign context', async () => {
       const { container } = renderStep();
+      await screen.findByText('Your own documents');
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+      expect(input).toBeTruthy();
+      // Wired now: enabled whenever the campaign has a sole client sponsor.
+      expect(input.disabled).toBe(false);
+
+      const fetchMock = vi.fn(async () => ({ ok: true, status: 204 }));
+      vi.stubGlobal('fetch', fetchMock);
+      // `beforeEach` only mockClear()s, which does NOT undo an implementation
+      // override — restore the hoisted default in finally or it leaks into
+      // every later test in this file.
+      const defaultPost = api.post.getMockImplementation();
+      try {
+        api.post.mockImplementation(async (url: string) => {
+          if (url.includes('/attachments/upload-url')) {
+            return { data: { url: 'https://s3.test/bucket', fields: { key: 'k1' }, s3Key: 's3-key-1' } };
+          }
+          if (url.includes('/attachments/confirm')) return { data: { id: 'att-new-1' } };
+          if (url.includes('/context/memory/search')) return { data: { data: { candidates: state.memory } } };
+          if (url.includes('/context/government/search')) return { data: { data: { candidates: state.government } } };
+          return { data: {} };
+        });
+
+        const file = new File(['capability'], 'capability-statement.pdf', {
+          type: 'application/pdf',
+        });
+        fireEvent.change(input, { target: { files: [file] } });
+
+        await waitFor(() => expect(applyCommands).toHaveBeenCalled());
+        // Presign carries the sponsor client; S3 got the actual bytes.
+        expect(api.post).toHaveBeenCalledWith(
+          '/api/engagement/attachments/upload-url',
+          expect.objectContaining({ clientId: 'client-1', fileName: 'capability-statement.pdf' }),
+        );
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://s3.test/bucket',
+          expect.objectContaining({ method: 'POST' }),
+        );
+        // The CONFIRMED id — never the picked File — is what becomes context.
+        const batch = applyCommands.mock.calls.at(-1)?.[0] as unknown as Array<{
+          kind: string;
+          payload: { selections?: Array<{ locator: Record<string, unknown> }> };
+        }>;
+        expect(batch[0]?.payload.selections?.[0]?.locator).toMatchObject({
+          source: 'document',
+          id: 'att-new-1',
+          clientId: 'client-1',
+        });
+        expect(toast).toHaveBeenCalledWith('1 document added to this campaign’s context');
+      } finally {
+        if (defaultPost) api.post.mockImplementation(defaultPost);
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('keeps the upload leg disabled without a sole client sponsor — there is no library to store into', async () => {
+      const { container } = renderStep({
+        session: makeSession({ sponsor: { kind: 'none', label: '', clientRefs: [] } }),
+      });
       await screen.findByText('Your own documents');
       const input = container.querySelector('input[type="file"]') as HTMLInputElement;
       expect(input).toBeTruthy();
       expect(input.disabled).toBe(true);
       expect(
         screen.getByText(
-          'The context endpoint accepts an already-stored document id; there is no upload route for a campaign-scoped file.',
+          'Uploads become available once the campaign names a single client sponsor — the file is stored in that client’s documents.',
         ),
       ).toBeInTheDocument();
     });
@@ -493,183 +552,22 @@ describe('OutreachContextStep', () => {
     });
   });
 
-  describe('Request-a-meeting auto-attached sponsor + target profile context', () => {
-    const memberTarget = {
-      targetKey: 'directory_member:person-1',
-      locator: { source: 'directory_member', id: 'person-1' },
-      displayName: 'Rep. Jordan Smith',
-      title: null,
-      organization: null,
-      email: 'jordan@house.gov',
-      clientId: null,
-      roleStatus: 'current',
-      snapshotHash: 'hash-1',
-      jurisdiction: {
-        governmentLevel: 'federal',
-        chamber: 'house',
-        state: 'VA',
-        district: '01',
-        committees: [],
-        issueAreas: [],
-      },
-    };
-    // No career-background source exists for this target type at all — must
-    // never be attempted, or the server rejects the whole accept batch.
-    const legislatorTarget = {
-      ...memberTarget,
-      targetKey: 'state_legislator:sl-1',
-      locator: { source: 'state_legislator', id: 'sl-1' },
-      displayName: 'State Sen. Alex Rivera',
-    };
-
-    function requestMeetingSession(over: Record<string, unknown> = {}) {
-      return makeSession({
-        targeting: {
-          criteria: null,
-          selectedTargetRefs: [memberTarget, legislatorTarget],
-          rejectedRecommendationRefs: [],
-        },
-        ...over,
-      });
-    }
-
-    it('attaches sponsor overview, each capability, each facility, and eligible targets’ career background', async () => {
-      // Pre-seeded so capabilities/facilities are already in the cache on the
-      // component's FIRST render — otherwise the sponsor record (derivable
-      // synchronously) and the capability/facility pieces (which need their
-      // own queries to resolve first) land in separate effect passes, and
-      // since this test's `applyCommands` mock never feeds anything back into
-      // `accepted`, a second pass would re-send the first pass's pieces too.
-      // Pre-seeding collapses everything into one pass, matching what a real,
-      // warm client cache gives a user revisiting this step.
-      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-      queryClient.setQueryData(['client-capabilities', 'client-1'], [{ id: 'cap-1' }, { id: 'cap-2' }]);
-      queryClient.setQueryData(['client-facilities', 'client-1'], [{ id: 'fac-1' }]);
-      renderStep({ campaignType: 'request_meeting' }, requestMeetingSession(), queryClient);
-
-      // The server's ACCEPT_CONTEXT_REFS is content-addressed and
-      // deduplicates by contextKey (`normalizeResolvedContextRefsV1`), so a
-      // second identical batch — possible here since this test's mocked
-      // `applyCommands` never marks anything accepted, unlike the real
-      // session-refetch that normally stops the effect — would be harmless
-      // in production. Only the first call's completeness is asserted.
-      await waitFor(() => expect(applyCommands).toHaveBeenCalled());
-      const [commands] = applyCommands.mock.calls[0] as [OutreachV3Command[]];
-      const accept = commands.find((command) => command.type === 'ACCEPT_CONTEXT_REFS');
-      expect(accept).toBeDefined();
-      const selections = (accept?.payload as { selections: Array<Record<string, unknown>> }).selections;
-      const byRecordType = (recordType: string) =>
-        selections.filter(
-          (selection) => (selection.locator as Record<string, unknown>)['recordType'] === recordType,
-        );
-
-      expect(byRecordType('client')).toHaveLength(1);
-      expect(byRecordType('client')[0]).toMatchObject({ locator: { id: 'client-1' } });
-      expect(byRecordType('client_capability').map((s) => (s.locator as any).id).sort()).toEqual([
-        'cap-1',
-        'cap-2',
-      ]);
-      expect(byRecordType('client_facility').map((s) => (s.locator as any).id)).toEqual(['fac-1']);
-
-      const careerBackground = selections.filter(
-        (selection) => (selection.locator as Record<string, unknown>)['factCode'] === 'career_background',
-      );
-      expect(careerBackground).toHaveLength(1);
-      expect(careerBackground[0]).toMatchObject({
-        scope: { kind: 'target', targetKey: memberTarget.targetKey },
-      });
-    });
-
-    it('never fires for send_update or custom campaigns', async () => {
+  describe('Request-a-meeting auto-attach (moved to the builder shell)', () => {
+    // The auto-attach effect moved to `use-outreach-meeting-auto-context.ts`,
+    // which runs at the builder SHELL on every step. What must still hold HERE
+    // is the negative: the step itself no longer fetches capabilities or
+    // auto-accepts anything — it only renders what is already on the spec.
+    it('no longer auto-attaches from the step, even for a request-meeting campaign', async () => {
       state.capabilities = [{ id: 'cap-1' }];
       state.facilities = [{ id: 'fac-1' }];
-      renderStep({ campaignType: 'send_update' }, requestMeetingSession());
-
-      // Give any stray effect a turn to run before asserting the negative.
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      });
-      expect(applyCommands).not.toHaveBeenCalled();
-    });
-
-    it('does not resend a piece that is already accepted', async () => {
-      state.capabilities = [{ id: 'cap-1' }];
-      state.facilities = [];
-      const envelope = requestMeetingSession({
-        context: {
-          ...emptyContext(),
-          campaignFactRefs: [
-            acceptedRef({
-              contextKey: 'ctx-client',
-              locator: { source: 'capiro_record', recordType: 'client', id: 'client-1', clientId: 'client-1' },
-              contextClass: 'campaign_fact',
-            }),
-            acceptedRef({
-              contextKey: 'ctx-cap-1',
-              locator: {
-                source: 'capiro_record',
-                recordType: 'client_capability',
-                id: 'cap-1',
-                clientId: 'client-1',
-              },
-              contextClass: 'campaign_fact',
-            }),
-          ],
-          targetSpecificRefs: [
-            acceptedRef({
-              contextKey: 'ctx-career',
-              locator: {
-                source: 'target_profile_fact',
-                targetRef: memberTarget.locator,
-                factCode: 'career_background',
-              },
-              contextClass: 'target_specific',
-              scope: { kind: 'target', targetKey: memberTarget.targetKey },
-            }),
-          ],
-        },
-      });
-      renderStep({ campaignType: 'request_meeting' }, envelope);
+      renderStep({ campaignType: 'request_meeting' }, makeSession());
 
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 20));
       });
       expect(applyCommands).not.toHaveBeenCalled();
-    });
-
-    it('retries the same missing set only once, even if the server keeps rejecting it', async () => {
-      // Observed live: a deploy mismatch made the server reject this batch
-      // every time. Nothing marked it accepted, so the original effect kept
-      // re-firing as fast as React would allow — over 1,000 identical
-      // requests hit the API before the tab was closed. This pins the fix:
-      // one failed attempt at a given missing-set does not retry itself.
-      state.capabilities = [{ id: 'cap-1' }];
-      state.facilities = [];
-      applyCommands.mockImplementation(async () => {
-        throw new Error('OUTREACH_COMMAND_INVALID');
-      });
-      // Pre-seeded so capabilities are in the cache on the first render —
-      // otherwise the sponsor record and the capability arrive in separate
-      // effect passes, each a genuinely distinct missing-set that legitimately
-      // gets its own single try. Collapsing to one pass keeps this test about
-      // the one thing it's pinning: a given set is never retried twice.
-      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-      queryClient.setQueryData(['client-capabilities', 'client-1'], [{ id: 'cap-1' }]);
-      queryClient.setQueryData(['client-facilities', 'client-1'], []);
-      try {
-        renderStep({ campaignType: 'request_meeting' }, requestMeetingSession(), queryClient);
-
-        await waitFor(() => expect(applyCommands).toHaveBeenCalledTimes(1));
-        // Give the failed attempt's `pending` state time to settle back to
-        // null and any effect re-run a chance to fire — this is exactly the
-        // window the original bug looped in.
-        await act(async () => {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        });
-        expect(applyCommands).toHaveBeenCalledTimes(1);
-      } finally {
-        applyCommands.mockImplementation(async () => ({}));
-      }
+      // And the endpoint the old effect fetched is no longer queried here.
+      expect(api.get.mock.calls.filter(([url]) => String(url).includes('/capabilities'))).toHaveLength(0);
     });
   });
 });

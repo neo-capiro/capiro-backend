@@ -496,4 +496,98 @@ describe('Outreach V3 gateway request compiler', () => {
       expect.objectContaining({ cc: ['legal@firm.test'], bcc: [] }),
     );
   });
+
+  it('unions every member\'s Cc/Bcc onto the shared-thread group snapshot\'s own top-level cc/bcc (what buildEnvelope reads)', () => {
+    const spec = createBlankCampaignSpecV1();
+    spec.targeting.targetCcBcc = {
+      'directory_member:alpha': { cc: ['chief@office.test'], bcc: ['archive@firm.test'] },
+      'directory_member:bravo': { cc: ['legal@firm.test', 'chief@office.test'], bcc: [] },
+    };
+    const groupSlot: OutreachV3GenerationSlot = {
+      ...slot('shared'),
+      generationKey: 'v3:session:shared:abc',
+      recipientKey: 'shared:abc',
+      audienceKind: 'group',
+    };
+    const groupPlan = plan(groupSlot);
+    groupPlan.deliveryPattern = 'shared_thread';
+    groupPlan.personalization = 'light';
+    const preparedGroup: PreparedOutreachV3GenerationSlot = {
+      ...prepared(groupSlot),
+      currentTargets: [target('alpha'), target('bravo')],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: groupPlan,
+      spec,
+      prepared: preparedGroup,
+    });
+
+    const snapshot = unit.request.recipient.snapshot as { cc: string[]; bcc: string[] };
+    // Deduped union: chief@office.test appears once even though two members Cc it.
+    expect(snapshot.cc).toEqual(['chief@office.test', 'legal@firm.test']);
+    expect(snapshot.bcc).toEqual(['archive@firm.test']);
+  });
+
+  it('excludes a group member\'s own To address from the unioned Cc/Bcc and keeps Cc/Bcc disjoint (Cc wins)', () => {
+    const spec = createBlankCampaignSpecV1();
+    const alpha = target('alpha');
+    const bravo = target('bravo');
+    spec.targeting.targetCcBcc = {
+      // bravo Cc's alpha's own To address → must not be duplicated into Cc.
+      'directory_member:alpha': { cc: [String(bravo.email)], bcc: ['shared@firm.test'] },
+      // alpha's Bcc address is also Cc'd by bravo → Cc wins, Bcc drops it.
+      'directory_member:bravo': { cc: ['shared@firm.test'], bcc: [] },
+    };
+    const groupSlot: OutreachV3GenerationSlot = {
+      ...slot('shared'),
+      generationKey: 'v3:session:shared:abc',
+      recipientKey: 'shared:abc',
+      audienceKind: 'group',
+    };
+    const groupPlan = plan(groupSlot);
+    groupPlan.deliveryPattern = 'shared_thread';
+    groupPlan.personalization = 'light';
+    const preparedGroup: PreparedOutreachV3GenerationSlot = {
+      ...prepared(groupSlot),
+      currentTargets: [alpha, bravo],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: groupPlan,
+      spec,
+      prepared: preparedGroup,
+    });
+
+    const snapshot = unit.request.recipient.snapshot as { cc: string[]; bcc: string[] };
+    expect(snapshot.cc).toEqual(['shared@firm.test']);
+    expect(snapshot.bcc).toEqual([]);
+  });
+
+  it('leaves the shared-thread group snapshot cc/bcc empty when no member has any', () => {
+    const spec = createBlankCampaignSpecV1();
+    const groupSlot: OutreachV3GenerationSlot = {
+      ...slot('shared'),
+      generationKey: 'v3:session:shared:abc',
+      recipientKey: 'shared:abc',
+      audienceKind: 'group',
+    };
+    const groupPlan = plan(groupSlot);
+    groupPlan.deliveryPattern = 'shared_thread';
+    groupPlan.personalization = 'light';
+    const preparedGroup: PreparedOutreachV3GenerationSlot = {
+      ...prepared(groupSlot),
+      currentTargets: [target('alpha'), target('bravo')],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: groupPlan,
+      spec,
+      prepared: preparedGroup,
+    });
+
+    const snapshot = unit.request.recipient.snapshot as { cc: string[]; bcc: string[] };
+    expect(snapshot.cc).toEqual([]);
+    expect(snapshot.bcc).toEqual([]);
+  });
 });

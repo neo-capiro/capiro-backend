@@ -58,6 +58,9 @@ const NAME_PLACEHOLDER = 'FY27 Ground Robotics — where the autonomy provision 
 const NAME_HELP =
   'This is the subject line every recipient sees — not an internal label. Write it the way you want it to land in an inbox.';
 
+const WHY_NOW_HELP =
+  'Optional. The timing hook the drafts use — why this request is timely, or a concrete window to hold, e.g. “We will be in Washington the week of October 6” or “ahead of the FY28 posture hearings”. Leave empty and the Availability section simply defers to each office’s schedule.';
+
 const SPONSOR_HELP =
   'Who the campaign is sent on behalf of. A client sponsor scopes every later context read to that client; the firm sponsor keeps client-scoped material out entirely.';
 
@@ -137,6 +140,8 @@ export function OutreachNameStep(props: OutreachNameStepProps): JSX.Element {
   const fieldId = useId();
   const nameId = `${fieldId}-name`;
   const nameHelpId = `${fieldId}-name-help`;
+  const whyNowId = `${fieldId}-whynow`;
+  const whyNowHelpId = `${fieldId}-whynow-help`;
   const sponsorLabelId = `${fieldId}-sponsor`;
 
   const specName = outreachCampaignNameFromSpec(props.session);
@@ -151,6 +156,13 @@ export function OutreachNameStep(props: OutreachNameStepProps): JSX.Element {
   const [seenName, setSeenName] = useState(specName);
   const [pendingSponsorKey, setPendingSponsorKey] = useState<string | null>(null);
   const [seenSponsorKey, setSeenSponsorKey] = useState(specSponsorKey);
+  // The why-now / scheduling window rides the goal batch, so it gets the same
+  // "pending local edits win until the saved value moves" treatment as the
+  // name and sponsor above. An empty saved value is `null` on the spec and ''
+  // here — the textarea is always controlled by a string.
+  const specWhyNow = props.session?.spec.goal.whyNow ?? '';
+  const [pendingWhyNow, setPendingWhyNow] = useState<string | null>(null);
+  const [seenWhyNow, setSeenWhyNow] = useState(specWhyNow);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -162,9 +174,14 @@ export function OutreachNameStep(props: OutreachNameStepProps): JSX.Element {
     setSeenSponsorKey(specSponsorKey);
     setPendingSponsorKey(null);
   }
+  if (seenWhyNow !== specWhyNow) {
+    setSeenWhyNow(specWhyNow);
+    setPendingWhyNow(null);
+  }
 
   const name = pendingName ?? specName;
   const selectedSponsorKey = pendingSponsorKey ?? specSponsorKey;
+  const whyNow = pendingWhyNow ?? specWhyNow;
   const busy = props.busy || saving;
 
   const tiles: SponsorTile[] = [
@@ -217,8 +234,12 @@ export function OutreachNameStep(props: OutreachNameStepProps): JSX.Element {
     // requires a goal phrase, and Custom is the type that asserts the least.
     const type: OutreachCampaignType = props.campaignType ?? 'custom';
     // Shared with the Campaign type step so the two never disagree about the
-    // goal phrase — see `outreachGoalCommandsFor`.
-    const commands: OutreachV3Command[] = [...outreachGoalCommandsFor(type, trimmedName)];
+    // goal phrase — see `outreachGoalCommandsFor`. The trimmed why-now rides
+    // along: a filled field replaces the derived boilerplate, an emptied one
+    // clears it (null), and the goal batch stays one immutable spec version.
+    const commands: OutreachV3Command[] = [
+      ...outreachGoalCommandsFor(type, trimmedName, whyNow.trim() || null),
+    ];
 
     // One subject-line marker, not a pile of them: re-pressing Continue without
     // changing the name must not add a second ref, and a changed name replaces
@@ -299,6 +320,25 @@ export function OutreachNameStep(props: OutreachNameStepProps): JSX.Element {
           {/* The prototype has no plural form and no length thresholds — one
               constant grey line at every length. Reproduced as written. */}
           <span className="ocb-field__count">{`${name.length} characters`}</span>
+        </div>
+
+        <div className="ocb-field osn__whynow">
+          <label className="ocb-field__label" htmlFor={whyNowId}>
+            Why now / scheduling window
+            <span className="ocb-flag">OPTIONAL</span>
+          </label>
+          <span className="ocb-field__help" id={whyNowHelpId}>
+            {WHY_NOW_HELP}
+          </span>
+          <textarea
+            id={whyNowId}
+            className="ocb-input ocb-input--lg"
+            rows={3}
+            value={whyNow}
+            aria-describedby={whyNowHelpId}
+            disabled={busy}
+            onChange={(event) => setPendingWhyNow(event.target.value)}
+          />
         </div>
 
         <div className="osn__sponsor">
