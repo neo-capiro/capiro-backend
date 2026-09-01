@@ -1,8 +1,20 @@
-import { presentAdvocacyHierarchy } from './advocacy-history-hierarchy.interceptor.js';
+import {
+  presentAdvocacyHierarchy,
+  presentMatterDisplayTitle,
+} from './advocacy-history-hierarchy.interceptor.js';
 import { presentAdvocacyHistoryResponse } from './advocacy-history-presentation.interceptor.js';
 
 describe('Advocacy History Matter / Timeline hierarchy', () => {
-  test('uses the Matter title as the record headline while preserving the event and source titles', () => {
+  test('normalizes only machine-shaped LDA Matter titles', () => {
+    expect(presentMatterDisplayTitle('2021 first_quarter — BUD')).toBe(
+      'Federal budget & appropriations — Q1 2021',
+    );
+    expect(presentMatterDisplayTitle('2026 second_quarter — SCI')).toBe('Science policy — Q2 2026');
+    expect(presentMatterDisplayTitle('Sentinel modernization')).toBe('Sentinel modernization');
+    expect(presentMatterDisplayTitle('FY27 Ground Robotics Funding')).toBe('FY27 Ground Robotics Funding');
+  });
+
+  test('uses the displayed Matter title as the record headline while preserving event and source titles', () => {
     const original = {
       id: 'matter-1',
       title: '2021 first_quarter — BUD',
@@ -43,10 +55,12 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
       }>;
     };
 
-    expect(presented.title).toBe('2021 first_quarter — BUD');
-    expect(presented.records[0]?.title).toBe('2021 first_quarter — BUD');
+    expect(presented.title).toBe('Federal budget & appropriations — Q1 2021');
+    expect(presented.records[0]?.title).toBe('Federal budget & appropriations — Q1 2021');
     expect(presented.records[0]?.status).toBe('LDA · Q1 2021 · BUD');
-    expect(presented.records[0]?.metadata.presentation.matterTitle).toBe('2021 first_quarter — BUD');
+    expect(presented.records[0]?.metadata.presentation.matterTitle).toBe(
+      'Federal budget & appropriations — Q1 2021',
+    );
     expect(presented.records[0]?.metadata.presentation.eventTitle).toBe(
       'FY2022 NDAA — GBSD & Space Propulsion',
     );
@@ -56,7 +70,8 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
     expect(presented.records[0]?.metadata.presentation.topics).toContain('GBSD');
 
     // Read presentation is non-destructive: callers that hold the durable
-    // service result still see its original record title.
+    // service result still see its original record and Matter titles.
+    expect(original.title).toBe('2021 first_quarter — BUD');
     expect(original.records[0]?.title).toBe('FY2022 NDAA — GBSD & Space Propulsion');
   });
 
@@ -102,8 +117,8 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
       }>;
     };
 
-    expect(final.title).toBe('2021 first_quarter — BUD');
-    expect(final.records[0]?.title).toBe('2021 first_quarter — BUD');
+    expect(final.title).toBe('Federal budget & appropriations — Q1 2021');
+    expect(final.records[0]?.title).toBe('Federal budget & appropriations — Q1 2021');
     expect(final.records[0]?.metadata.presentation.eventTitle).toBe(
       'FY2022 NDAA — GBSD & Space Propulsion',
     );
@@ -139,7 +154,7 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
     expect(presented.records[0]?.metadata.presentation.eventTitle).toBe('Meeting with HASC staff');
   });
 
-  test('turns LDA timeline rows into dated events instead of a second Matter headline', () => {
+  test('turns LDA timeline rows into dated events with separate Matter context', () => {
     const presented = presentAdvocacyHierarchy(
       '/api/clients/client-1/advocacy-matters/timeline',
       [
@@ -156,7 +171,7 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
     ) as Array<{ title: string; matterTitle: string }>;
 
     expect(presented[0]?.title).toBe('Quarterly lobbying disclosure — Q1 2021');
-    expect(presented[0]?.matterTitle).toBe('2021 first_quarter — BUD');
+    expect(presented[0]?.matterTitle).toBe('Federal budget & appropriations — Q1 2021');
   });
 
   test('pins the composed LDA Timeline shape after semantic presentation', () => {
@@ -178,10 +193,10 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
     }>;
 
     expect(final[0]?.title).toBe('Quarterly lobbying disclosure — Q1 2021');
-    expect(final[0]?.matterTitle).toBe('2021 first_quarter — BUD');
+    expect(final[0]?.matterTitle).toBe('Federal budget & appropriations — Q1 2021');
   });
 
-  test('preserves specific non-LDA event titles on Timeline', () => {
+  test('preserves specific non-LDA event titles and human Matter titles on Timeline', () => {
     const entry = {
       id: 'meeting-1',
       kind: 'record',
@@ -200,11 +215,21 @@ describe('Advocacy History Matter / Timeline hierarchy', () => {
     expect(presented[0]).toEqual(entry);
   });
 
-  test('leaves the Matters list and Federal Register correlation responses untouched', () => {
-    const matters = [{ id: 'matter-1', title: 'FY27 Ground Robotics Funding' }];
-    expect(
-      presentAdvocacyHierarchy('/api/clients/client-1/advocacy-matters', matters),
-    ).toBe(matters);
+  test('normalizes raw LDA Matters in the list but preserves human titles and correlation responses', () => {
+    const matters = [
+      { id: 'matter-1', title: '2021 first_quarter — BUD' },
+      { id: 'matter-2', title: 'FY27 Ground Robotics Funding' },
+    ];
+    const presented = presentAdvocacyHierarchy(
+      '/api/clients/client-1/advocacy-matters',
+      matters,
+    ) as Array<{ id: string; title: string }>;
+
+    expect(presented).toEqual([
+      { id: 'matter-1', title: 'Federal budget & appropriations — Q1 2021' },
+      { id: 'matter-2', title: 'FY27 Ground Robotics Funding' },
+    ]);
+    expect(matters[0]?.title).toBe('2021 first_quarter — BUD');
 
     const correlations = [{ documentNumber: '2026-1234', title: 'Final rule' }];
     expect(
