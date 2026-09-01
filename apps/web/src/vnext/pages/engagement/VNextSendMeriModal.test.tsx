@@ -42,6 +42,8 @@ const meeting: Meeting = {
   visibility: 'private',
   sharedAt: null,
   sharedByUserId: null,
+  contributors: [],
+  sharedBy: null,
   client: null,
   attendees: [],
   attachments: [],
