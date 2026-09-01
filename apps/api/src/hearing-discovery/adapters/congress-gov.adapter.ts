@@ -239,15 +239,33 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
   async fetchCommitteeMeetingDetail(
     externalEventId: string,
     congress: number = this.options.congresses?.[0] ?? currentCongress(),
+    chamber?: 'house' | 'senate' | 'joint',
   ): Promise<MeetingDetail | null> {
     if (!this.options.apiKey) {
       throw new Error('CONGRESS_API_KEY is required for the congress-gov adapter');
     }
-    const detail = await fetchJson<{ committeeMeeting: MeetingDetail }>(
-      `${CONGRESS_BASE}/committee-meeting/${congress}/${externalEventId}?api_key=${this.options.apiKey}&format=json`,
-      { timeoutMs: 15_000 },
-    );
-    return detail.data?.committeeMeeting ?? null;
+    // The detail resource is namespaced by chamber:
+    // /committee-meeting/{congress}/{chamber}/{eventId} — verified live 2026-09-01
+    // (a chamber-less path 404s with "Unknown resource").
+    const segments = chamber
+      ? `${congress}/${chamber}`
+      : `${congress}/house/${externalEventId}|${congress}/senate/${externalEventId}`;
+    const urls = chamber
+      ? [`${CONGRESS_BASE}/committee-meeting/${segments}/${externalEventId}?api_key=${this.options.apiKey}&format=json`]
+      : segments
+          .split('|')
+          .map(
+            (s) =>
+              `${CONGRESS_BASE}/committee-meeting/${s}/${externalEventId}?api_key=${this.options.apiKey}&format=json`,
+          );
+    for (const url of urls) {
+      const detail = await fetchJson<{ committeeMeeting: MeetingDetail }>(url, {
+        timeoutMs: 15_000,
+      });
+      const meeting = detail.data?.committeeMeeting ?? null;
+      if (meeting) return meeting;
+    }
+    return null;
   }
 
   /**

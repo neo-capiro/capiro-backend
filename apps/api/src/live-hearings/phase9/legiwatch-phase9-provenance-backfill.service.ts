@@ -39,6 +39,7 @@ import {
   currentCongress,
 } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
+import { normalizeChamber } from '../../hearing-discovery/hearing-identity.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
 import type {
   SourceDescriptor,
@@ -380,7 +381,8 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       congresses: [currentCongress()],
       maxPages: 1,
     });
-    const detail = await adapter.fetchCommitteeMeetingDetail(derived);
+    const chamber = normalizeChamber(row.chamber);
+    const detail = await adapter.fetchCommitteeMeetingDetail(derived, currentCongress(), chamber);
     if (!detail) {
       throw new Error(`congress-gov returned no payload for event ${derived}`);
     }
