@@ -71,11 +71,15 @@ function coverageLines(s: StaffMember): { primary: string; secondary: string } {
 export function DirectoryBrowser({
   api,
   pickedMemberIds,
+  pickedStafferIds,
   onPick,
+  onPickStaff,
 }: {
   api: HillDayClient;
   pickedMemberIds: Set<string>;
+  pickedStafferIds: Set<string>;
   onPick: (contact: DirectoryBrowseContact) => void;
+  onPickStaff: (staffer: StaffMember, contact: DirectoryBrowseContact) => void | Promise<void>;
 }) {
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
@@ -234,6 +238,7 @@ export function DirectoryBrowser({
                 c.staff.map((s) => {
                   const coverage = coverageLines(s);
                   const staffOffice = staffOfficeLines(s, c);
+                  const staffPicked = pickedStafferIds.has(s.id);
                   return (
                     <div key={s.id} className="hd-dir-row hd-dir-row--staff hd-dir-hgrid">
                       <span className="hd-dir-branch" aria-hidden="true" />
@@ -262,7 +267,20 @@ export function DirectoryBrowser({
                           <span className="hd-dir-cell__primary">{s.email || 'No email'}</span>
                           <span className="hd-dir-cell__secondary">{s.phone || 'No phone'}</span>
                         </span>
-                        <span className="hd-dir-cell hd-dir-cell--trailing" />
+                        <span className="hd-dir-cell hd-dir-cell--trailing">
+                          {staffPicked ? (
+                            <HdPill tone="navy">Added</HdPill>
+                          ) : (
+                            <button
+                              type="button"
+                              className="hd-dir-staffpick"
+                              onClick={() => void onPickStaff(s, c)}
+                              aria-label={`Add ${s.fullName} to the packet`}
+                            >
+                              <HdIcon name="Plus" size={15} />
+                            </button>
+                          )}
+                        </span>
                       </div>
                     </div>
                   );

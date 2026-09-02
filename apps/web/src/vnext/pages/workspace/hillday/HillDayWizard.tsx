@@ -121,7 +121,7 @@ export function HillDayWizard() {
   // them. Client-side only until commit, same as `selected` for calendar
   // events; committed via a separate addManualMeeting() call per pick.
   const [manualMeetings, setManualMeetings] = useState<
-    Array<{ tempId: string; memberId: string; label: string; subline: string }>
+    Array<{ tempId: string; memberId: string; label: string; subline: string; stafferId?: string; stafferLabel?: string }>
   >([]);
 
   // Context
@@ -312,8 +312,15 @@ export function HillDayWizard() {
     if (manualMeetings.length) {
       await Promise.all(
         manualMeetings.map(async (mm) => {
-          const { event: created } = await api.addManualMeeting(id, mm.memberId);
+          const { event: created, resolution: createdRes } = await api.addManualMeeting(id, mm.memberId);
           setEventIndex((prev) => ({ ...prev, [created.eventId]: created }));
+          // Pre-attach the staffer picked from the Directory's expanded roster,
+          // same assign_staffer correction the step-4 attendee search uses —
+          // with no attendeeId, it creates a fresh attendee rather than fixing
+          // an existing one (there are none yet on a manual meeting).
+          if (mm.stafferId) {
+            await api.correct(id, createdRes.meetingId, { kind: 'assign_staffer', stafferId: mm.stafferId });
+          }
         }),
       );
       setManualMeetings([]);
@@ -524,6 +531,15 @@ export function HillDayWizard() {
     [committedMemberIds, manualMeetings],
   );
 
+  // Staffers already queued as a pending pick's attendee, or already resolved
+  // as an attendee on a committed meeting — the Directory tab marks both "Added".
+  const pickedStafferIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const mm of manualMeetings) if (mm.stafferId) ids.add(mm.stafferId);
+    for (const m of meetings) for (const a of m.attendees) if (a.stafferId) ids.add(a.stafferId);
+    return ids;
+  }, [manualMeetings, meetings]);
+
   const pickFromDirectory = (contact: DirectoryBrowseContact) => {
     if (pickedMemberIds.has(contact.id)) return;
     const stateChamber = [contact.chamber, contact.state].filter(Boolean).join(' · ');
@@ -539,6 +555,38 @@ export function HillDayWizard() {
   };
   const removePendingPick = (memberId: string) =>
     setManualMeetings((prev) => prev.filter((mm) => mm.memberId !== memberId));
+
+  // Picking a staffer from a member's expanded roster is the same "add to the
+  // packet" action as the member row's own +, plus it pre-attaches that
+  // person as the meeting's attendee. If the member is already committed
+  // (revisiting step 3 after resolving), attach straight to the real
+  // meeting instead of queuing a pending pick — there's nothing left to queue.
+  const pickStafferFromDirectory = async (staffer: DirectoryBrowseContact['staff'][number], contact: DirectoryBrowseContact) => {
+    const committed = meetings.find((m) => m.office.memberId === contact.id);
+    if (committed) {
+      await applyCorrection(committed.meetingId, { kind: 'assign_staffer', stafferId: staffer.id });
+      return;
+    }
+    const stateChamber = [contact.chamber, contact.state].filter(Boolean).join(' · ');
+    const stafferLabel = `${staffer.fullName}${staffer.title ? ` · ${staffer.title}` : ''}`;
+    setManualMeetings((prev) => {
+      const idx = prev.findIndex((mm) => mm.memberId === contact.id);
+      const entry = {
+        tempId: idx >= 0 ? prev[idx]!.tempId : `pending-${contact.id}`,
+        memberId: contact.id,
+        label: contact.fullName,
+        subline: [stateChamber, contact.committees[0]].filter(Boolean).join(' · '),
+        stafferId: staffer.id,
+        stafferLabel,
+      };
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = entry;
+        return next;
+      }
+      return [...prev, entry];
+    });
+  };
 
   const toggle = (id: string) => {
     setDecided((prev) => new Set(prev).add(id));
@@ -1016,14 +1064,23 @@ export function HillDayWizard() {
                       <div key={mm.tempId} className="hd-client-row" style={{ cursor: 'default' }}>
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span className="hd-client-row__name">{mm.label}</span>
-                          <span className="hd-client-row__meta">{mm.subline}</span>
+                          <span className="hd-client-row__meta">
+                            {mm.subline}
+                            {mm.stafferLabel ? ` · with ${mm.stafferLabel}` : ''}
+                          </span>
                         </span>
                         <HdSecondary onClick={() => removePendingPick(mm.memberId)}>Remove</HdSecondary>
                       </div>
                     ))}
                   </div>
                 )}
-                <DirectoryBrowser api={api} pickedMemberIds={pickedMemberIds} onPick={pickFromDirectory} />
+                <DirectoryBrowser
+                  api={api}
+                  pickedMemberIds={pickedMemberIds}
+                  pickedStafferIds={pickedStafferIds}
+                  onPick={pickFromDirectory}
+                  onPickStaff={pickStafferFromDirectory}
+                />
               </div>
             )}
           </div>
