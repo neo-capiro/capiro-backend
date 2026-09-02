@@ -637,4 +637,180 @@ describe('Phase 10B-16 Part D -- structured-evidence-first, body-text fallback',
     expect(byPage.get(43)?.peCode).toBe('0601102A');
     expect(byPage.get(126)?.peCode).toBe('0601103A');
   });
+
+  /* Phase 10B-21A Part 5: `non_semantic` false-positive regression coverage.
+   * A real Army FY2024 R-2 volume's front matter (cover, blanks, tables of
+   * contents, appropriation-language boilerplate, roman-numeral-paginated
+   * index sections) is correctly classified `non_semantic` -- but a page
+   * that genuinely IS R-2 PE content must never be reclassified away from
+   * its real exhibit type merely because it happens to mention a phrase
+   * like "Table of Contents" or a roman numeral somewhere in its own body
+   * text. Every positive case here is paired with the negative control that
+   * proves the same phrase, on a page with NO real exhibit header, DOES
+   * classify as non_semantic. */
+  describe('non_semantic classification: proven true positives and false-positive negative controls', () => {
+    it('classifies a genuinely blank separator page as non_semantic', () => {
+      const page = makePage({ page: 2, blocks: [], text: '' });
+      const result = segmentR2ExhibitPages([page]);
+      expect(result.classifications[0]!.kind).toBe('non_semantic');
+      expect(result.segments[0]!.kind).toBe('non_semantic');
+      // Part E: the page is still accounted for in the coverage ledger.
+      expect(result.pageCoverage.get(2)).toBeDefined();
+    });
+
+    it('classifies a real document-level Table of Contents page as non_semantic', () => {
+      const page = makePage({
+        page: 3,
+        blocks: [
+          makeBlock(0, 'heading', 'Volume 1a Table of Contents'),
+          makeBlock(
+            1,
+            'text',
+            'Introduction and Explanation of Contents....................Volume 1a - ii',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      expect(result.classifications[0]!.kind).toBe('non_semantic');
+    });
+
+    it('classifies a real roman-numeral-paginated index page (no exhibit header) as non_semantic', () => {
+      const page = makePage({
+        page: 15,
+        text: 'Volume 1a - xi',
+        blocks: [makeBlock(0, 'footer', 'Volume 1a - xi')],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      expect(result.classifications[0]!.kind).toBe('non_semantic');
+    });
+
+    it('does NOT reclassify a genuine R-2 PE page as non_semantic merely because its narrative body mentions "Table of Contents" (false-positive negative control)', () => {
+      const page = makePage({
+        page: 43,
+        blocks: [
+          ...r2PeHeader('0601102A', 'Defense Research Sciences'),
+          makeBlock(
+            3,
+            'text',
+            'Related programs across the Army RDT&E portfolio are cross-referenced in the ' +
+              'Program Element Table of Contents at the front of this volume.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2_pe_summary');
+      expect(classification.headerPeCodes).toContain('0601102A');
+    });
+
+    it('does NOT reclassify a genuine R-2 PE page as non_semantic merely because its narrative body mentions a roman-numeral volume reference (false-positive negative control)', () => {
+      const page = makePage({
+        page: 43,
+        blocks: [
+          ...r2PeHeader('0601102A', 'Defense Research Sciences'),
+          makeBlock(
+            3,
+            'text',
+            'See Volume 1a - iv for the full list of program element restructures affecting this line.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2_pe_summary');
+      expect(classification.headerPeCodes).toContain('0601102A');
+    });
+
+    it('keeps a STRUCTURED-header page with a genuine PE-code conflict as unresolved (for human review), even when its body text also matches a front-matter phrase (2nd-round independent-review regression: the !hasConflict veto must not override an unconditionally-protected structured header)', () => {
+      const page = makePage({
+        page: 44,
+        blocks: [
+          ...r2PeHeader('0601102A', 'Defense Research Sciences'),
+          // A second, distinct PE code inside a structured header/footer
+          // block -- e.g. a cross-reference or restructuring note on an
+          // otherwise real exhibit page -- makes this page genuinely
+          // ambiguous (Class 5), not provably non-semantic. It must stay
+          // 'unresolved' and blocking, never be silently absorbed into
+          // non_semantic just because the SAME page's body text also
+          // happens to mention "Table of Contents".
+          makeBlock(3, 'footer', 'formerly PE 0601103A'),
+          makeBlock(
+            4,
+            'text',
+            'Cross-referenced in the Program Element Table of Contents at the front of this volume.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('unresolved');
+      expect(classification.reason).toMatch(/conflicting PE headers/);
+      expect(classification.headerPeCodes).toEqual(
+        expect.arrayContaining(['0601102A', '0601103A']),
+      );
+    });
+
+    it('does NOT reclassify a genuine R-2A project page as non_semantic merely because its narrative body mentions "Table of Contents" (false-positive negative control)', () => {
+      const page = makePage({
+        page: 51,
+        blocks: [
+          ...r2aProjectHeader('0601102A', 'H09', 'In-House Laboratory Independent Research'),
+          makeBlock(
+            3,
+            'text',
+            'Refer to the Table of Contents for the parent program element summary.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2a_project');
+    });
+
+    it('does NOT reclassify a BODY-TEXT-ONLY (no structured header/heading block at all) genuine R-2 PE page as non_semantic merely because it mentions "Table of Contents" or a roman-numeral cross-reference (independent-review Finding 1 regression)', () => {
+      // Real DoD budget PDFs sometimes carry the exhibit header/PE code
+      // entirely inside plain 'text' blocks (Phase 10B-16 Part D,
+      // `bodyOnlyR2Page` above) -- `hasStructuredExhibitSignal` is FALSE for
+      // these pages even though `isR2` still resolves TRUE via the body-text
+      // fallback. Gating the front-matter signals on
+      // `!hasStructuredExhibitSignal` alone (rather than the fully-resolved
+      // `!hasAnyExhibitSignal`) would have let this exact page be
+      // reclassified away with zero omission recorded -- a silent loss of a
+      // real program element, not merely a missed positive.
+      const page = bodyOnlyR2Page('0601102A', 'Defense Research Sciences', 43);
+      page.blocks.push(
+        makeBlock(
+          4,
+          'text',
+          'Cross-referenced in the Program Element Table of Contents; see also Volume 1a - iv ' +
+            'for the full list of program element restructures affecting this line.',
+        ),
+      );
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2_pe_summary');
+      expect(classification.headerPeCodes).toContain('0601102A');
+
+      const resolution = resolveR2Contexts(result);
+      const identities = extractR2Identities({ pages: [page], contextResolution: resolution });
+      expect(identities.identities).toHaveLength(1);
+      expect(identities.identities[0]!.peCode).toBe('0601102A');
+      expect(identities.omissions).toHaveLength(0);
+    });
+
+    it('DOES classify an ordinary body paragraph mentioning "Table of Contents" as non_semantic when there is no exhibit header at all (contrasting positive case)', () => {
+      const page = makePage({
+        page: 3,
+        blocks: [
+          makeBlock(
+            0,
+            'text',
+            'Refer to the Table of Contents at the front of this volume for the full program listing.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      expect(result.classifications[0]!.kind).toBe('non_semantic');
+    });
+  });
 });

@@ -128,15 +128,10 @@ function extractPageHeaderInfo(page: ParserPageResultV1): PageHeaderInfo {
   const blockTexts = page.blocks.map((b) => b.text);
 
   /* Detect R-2A exhibit markers. */
-  if (R2A_HEADER_RE.test(allText) || RDT_PROJECT_JUSTIFICATION_RE.test(allText)) {
-    info.isR2aPage = true;
-  }
-  for (const text of blockTexts) {
-    if (R2A_HEADER_RE.test(text) || RDT_PROJECT_JUSTIFICATION_RE.test(text)) {
-      info.isR2aPage = true;
-      break;
-    }
-  }
+  const hasR2aMarker =
+    R2A_HEADER_RE.test(allText) ||
+    RDT_PROJECT_JUSTIFICATION_RE.test(allText) ||
+    blockTexts.some((text) => R2A_HEADER_RE.test(text) || RDT_PROJECT_JUSTIFICATION_RE.test(text));
 
   /* Scan blocks for identity fields; tables are not used for identity on
    * R-2A pages (identity is in header blocks). */
@@ -163,6 +158,22 @@ function extractPageHeaderInfo(page: ParserPageResultV1): PageHeaderInfo {
       if (ba.length > 0) info.budgetActivity = ba;
     }
   }
+
+  /* Phase 10B-21 Area 8 real-document finding: a genuine R-2A project
+   * header page always carries its own labeled parent-PE ("PE NNNNNNNL")
+   * or "Project Code:" field alongside the "R-2A" / "RDT&E Project
+   * Justification" marker text. A front-matter page that merely explains
+   * what an R-2A exhibit IS in prose (e.g. "...comprised of R-2 ..., R-2A
+   * (Army RDT&E Budget Item Justification - project level)...") mentions
+   * the same marker text without ever printing a labeled identity field,
+   * and must never open a project group with no code -- that produced a
+   * spurious blocking "missing_or_invalid_parent_pe" omission against the
+   * real FY2024 Army R-2 Volume 1 document's page 6 (confirmed: this exact
+   * page's restructuring table lists PE/project codes in a compact
+   * "0602146A / AM6" form that never matches either labeled-field regex,
+   * so it was never actually a source of real project identity either).
+   */
+  info.isR2aPage = hasR2aMarker && (info.parentPeCode != null || info.projectCode != null);
 
   return info;
 }
