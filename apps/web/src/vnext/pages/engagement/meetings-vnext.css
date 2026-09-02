@@ -363,7 +363,11 @@
   box-shadow: 0 0 0 1px var(--eng-accent-border);
 }
 .capiro-vnext-root .vmtg-row__time {
-  flex: 0 0 58px;
+  /* Was 58px for the meridiem-free "8:30"/"11:00" 24h format (see
+     formatTime's own call site below) — the widest 12-hour string
+     ("12:30 PM") needs more room at this same 13px mono size, so this
+     widened alongside switching this row back to a real 12-hour clock. */
+  flex: 0 0 76px;
   font-family: var(--eng-font-mono);
   font-size: 13px;
   font-weight: 500;

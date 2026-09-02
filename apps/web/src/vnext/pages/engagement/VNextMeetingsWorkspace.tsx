@@ -198,20 +198,6 @@ function meetingLifecycleStatus(m: Meeting): LifecycleStatus {
   return { label: 'Needs prep', tone: 'warn' };
 }
 
-/**
- * Row/when-line clock — UI-parity §4.4: "the format is `8:30` / `11:00`, no
- * meridiem", because the meridiem does not fit the 58px time column and wraps
- * it to two lines. Deliberately NOT a change to the shared `formatTime` in
- * meetings-format.ts: that helper is app.capiro.ai's canonical Meetings page
- * too, and this format is a vNext presentation choice, not a shared one.
- * Dropping the meridiem makes the clock 24h — 1pm reads `13:00` — otherwise
- * 1:00 and 13:00 would be indistinguishable.
- */
-export function formatRowTime(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
 /** UI-parity §4.4: `Client · Place · N attendees`. The client segment comes
  *  from the Meeting payload's own `client` ref — never inferred. */
 function metaLine(m: Meeting, clientName?: string | null): string {
@@ -387,7 +373,7 @@ function MeetingRowCard({
       <span className="vmtg-row__time">
         {isAllDayMeeting(meeting.startsAt, meeting.endsAt)
           ? 'All day'
-          : formatRowTime(meeting.startsAt)}
+          : formatTime(meeting.startsAt)}
       </span>
       <span className="vmtg-row__main">
         <span className="vmtg-row__title">{meeting.subject}</span>
