@@ -532,7 +532,7 @@ export function HillDayWizard() {
       {
         tempId: `pending-${contact.id}`,
         memberId: contact.id,
-        label: `${contact.honorific ? `${contact.honorific} ` : ''}${contact.fullName}`.trim(),
+        label: contact.fullName,
         subline: [stateChamber, contact.committees[0]].filter(Boolean).join(' · '),
       },
     ]);

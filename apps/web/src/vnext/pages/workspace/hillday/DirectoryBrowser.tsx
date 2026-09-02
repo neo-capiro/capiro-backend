@@ -132,10 +132,7 @@ export function DirectoryBrowser({
           >
             <span className="hd-client-row__mono">{c.state || '—'}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span className="hd-client-row__name">
-                {c.honorific ? `${c.honorific} ` : ''}
-                {c.fullName}
-              </span>
+              <span className="hd-client-row__name">{c.fullName}</span>
               <span className="hd-client-row__meta">{contactSubline(c)}</span>
             </span>
             {picked ? (
