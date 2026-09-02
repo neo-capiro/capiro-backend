@@ -34,12 +34,15 @@ import './capabilities-tab.css';
  * capabilities. They are now omitted on live records (wire-audit "4 New
  * capability" row 2). §7.2 registrations & codes is real — it reads the
  * government identifiers the Company Info wizard writes (see
- * `readClientRegistrations`). §7.2 capability-fit rows have no per-client
- * backend and stay fixture. Past performance moved to Intelligence / Federal
- * Footprint (`PastPerformanceCard`): the profile header already carries one
- * "Fill with Meri" for the whole client, and delivery history reads with the
- * rest of the client's federal record rather than beside its capability
- * roster.
+ * `readClientRegistrations`). §7.2 capability-fit IS backed by a real
+ * per-client endpoint (`GET/POST …/capability-fit`,
+ * client-capability-fit.service.ts) — it fans out to the client's actual PE
+ * relevance, bill matches, and funding opportunities and caches the result;
+ * this was previously (and incorrectly) documented here as fixture-only.
+ * Past performance moved to Intelligence / Federal Footprint
+ * (`PastPerformanceCard`): the profile header already carries one "Fill with
+ * Meri" for the whole client, and delivery history reads with the rest of the
+ * client's federal record rather than beside its capability roster.
  *
  * All editing happens in the vNext capability editor (CapabilityDrawerVNext —
  * a re-skin of the canonical CapabilityDrawer on the same PATCH/attachment
@@ -52,6 +55,11 @@ import './capabilities-tab.css';
  * `CapabilityCreateFormVNext` (POST `…/capabilities`), and on success the same
  * modal switches to the editor on the record just created, so PE numbers, match
  * keywords, and documents — all of which need an id — are one step away.
+ *
+ * `ClientCrmPage.tsx` only ever renders this component with `drawer` — the
+ * `drawer={false}` branch below has no real caller in the app (only tests
+ * render it bare), so its styling is not what a user sees; the drawer
+ * branch's own controls are what must actually read as clickable.
  */
 
 export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
@@ -92,7 +100,7 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
         <>
           <div className="cap-pf-caps-drawer__toolbar">
             <span>Capability areas</span>
-            <button type="button" onClick={() => setCreating(true)}>Add capability</button>
+            <SecondaryBtn onClick={() => setCreating(true)}>Add capability</SecondaryBtn>
             {areas.length > 0 ? (
               <span className="cap-pf-caps-drawer__range">
                 {safeDrawerPage * 3 + 1}–{Math.min(areas.length, safeDrawerPage * 3 + 3)} of {areas.length}
@@ -127,7 +135,7 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
           ) : drawerAreas.length === 0 ? (
             <div className="cap-pf-caps-drawer__state">
               <span>No capability areas recorded yet.</span>
-              <button type="button" onClick={() => setCreating(true)}>Add capability</button>
+              <SecondaryBtn onClick={() => setCreating(true)}>Add capability</SecondaryBtn>
             </div>
           ) : (
             <div className="cap-pf-caps-drawer__cards">
@@ -246,8 +254,8 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
       {/* Destructive mutations confirm; the overlay traps focus while open. */}
       <CapiroModal open={Boolean(pendingDelete)} title="Delete capability" onClose={() => setPendingDelete(null)}>
         <p className="cap-pf-caps__modal-text">
-          Delete <strong>{pendingDelete?.name}</strong>? Its advocacy history and linked documents are removed with it.
-          This cannot be undone.
+          Delete <strong>{pendingDelete?.name}</strong>? The capability record itself is removed. Any advocacy
+          history already logged against it is kept, just no longer linked to a capability. This cannot be undone.
         </p>
         {remove.isError ? (
           <p className="cap-pf-caps__modal-error">
