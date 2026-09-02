@@ -63,6 +63,8 @@ export interface IntelAlertEvent {
    *  never decrypts; the Feed does that read-side). */
   hearing?: {
     sessionId: string;
+    /** Canonical committee_hearing id (LW-QA-003) — deep-links the detail route. */
+    hearingId?: string | null;
     title: string | null;
     committeeId: string | null;
     occurredAt: string | null;

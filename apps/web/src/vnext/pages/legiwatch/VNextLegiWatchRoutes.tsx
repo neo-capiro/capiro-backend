@@ -17,6 +17,14 @@ const LiveHearingRoomVNext = lazy(async () => ({
   default: (await import('./live/LiveHearingRoomVNext.js')).LiveHearingRoomVNext,
 }));
 
+// PR B (LW-QA-003/004/013): canonical hearing detail + committee room routes.
+const HearingDetailRoute = lazy(async () => ({
+  default: (await import('./hearings/HearingDetailRoute.js')).HearingDetailRoute,
+}));
+const CommitteeRoomRoute = lazy(async () => ({
+  default: (await import('./hearings/CommitteeRoomRoute.js')).CommitteeRoomRoute,
+}));
+
 function LiveRoomRoute() {
   const { sessionId } = useParams<{ sessionId: string }>();
   if (!sessionId) return <Navigate to="/legiwatch?tab=hearings" replace />;
@@ -33,10 +41,46 @@ function LiveRoomRoute() {
   );
 }
 
+function HearingDetailRouteWrapped() {
+  const { hearingId } = useParams<{ hearingId: string }>();
+  if (!hearingId) return <Navigate to="/legiwatch?tab=hearings" replace />;
+  return (
+    <Suspense
+      fallback={
+        <div className="lw" style={{ padding: 24 }}>
+          <LwStateLoading rows={4} />
+        </div>
+      }
+    >
+      <HearingDetailRoute />
+    </Suspense>
+  );
+}
+
+function CommitteeRoomRouteWrapped() {
+  const { systemCode } = useParams<{ systemCode: string }>();
+  if (!systemCode) return <Navigate to="/legiwatch?tab=hearings" replace />;
+  return (
+    <Suspense
+      fallback={
+        <div className="lw" style={{ padding: 24 }}>
+          <LwStateLoading rows={4} />
+        </div>
+      }
+    >
+      <CommitteeRoomRoute />
+    </Suspense>
+  );
+}
+
 export function VNextLegiWatchRoutes() {
   return (
     <Routes>
       <Route path="/legiwatch" element={<LegiWatchModule />} />
+      {/* PR B — canonical hearing detail (LW-QA-003/004). */}
+      <Route path="/legiwatch/hearings/:hearingId" element={<HearingDetailRouteWrapped />} />
+      {/* PR B — committee room (LW-QA-013). */}
+      <Route path="/legiwatch/committees/:systemCode" element={<CommitteeRoomRouteWrapped />} />
       {/* §7.8 — the live hearing room is a full-width route. */}
       <Route path="/intelligence/hearing-watch/:sessionId" element={<LiveRoomRoute />} />
       {/* §7.2/§7.9 — removed surfaces canonicalize onto the landing tab. */}
