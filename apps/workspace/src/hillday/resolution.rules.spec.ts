@@ -128,6 +128,27 @@ describe('resolution rules — labels', () => {
     );
   });
 
+  it('keeps only full committees, strips the "Committee" suffix and drops ex officio seats', () => {
+    const office = officeRefFromContext(
+      ctx({
+        committeesWithRole: [
+          { name: 'Commerce, Science and Transportation Committee Coast Guard, Maritime and Fisheries Subcommittee', role: 'Member' },
+          { name: 'Rules and Administration Committee', role: 'Member' },
+          { name: 'Armed Services Committee Seapower Subcommittee', role: 'Ex Officio' },
+          { name: 'Intelligence', role: 'Ex Officio' },
+          { name: 'Armed Services Committee', role: 'Chair' },
+          { name: 'Commerce, Science and Transportation Committee', role: null },
+        ],
+      }),
+    );
+    expect(office.committees).toEqual([
+      'Armed Services (Chair)',
+      'Rules and Administration',
+      'Intelligence',
+      'Commerce, Science and Transportation',
+    ]);
+  });
+
   it('builds an office ref with committee roles and salience-ordered issue areas', () => {
     const office = officeRefFromContext(ctx());
     expect(office.member).toBe('Sen. Roger Wicker (R-MS)');

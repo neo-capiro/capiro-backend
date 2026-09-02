@@ -105,13 +105,29 @@ export function partyLine(office: Pick<OfficeRef, 'partyName' | 'party' | 'state
   return [party, place].filter(Boolean).join(' · ');
 }
 
-/** `Senate Committee on Armed Services` → `Armed Services`. */
+/**
+ * `Senate Committee on Armed Services` / `Armed Services Committee` → `Armed Services`.
+ * LegiStorm names subcommittees as `<Parent> Committee <Name> Subcommittee`.
+ */
 export function shortCommittee(name: string): string {
   return name
     .replace(/^(senate|house|joint)\s+/i, '')
     .replace(/^(select\s+|permanent\s+select\s+|special\s+)?committee\s+on\s+(the\s+)?/i, '')
     .replace(/^subcommittee\s+on\s+(the\s+)?/i, '')
+    .replace(/\s+committee$/i, '')
     .trim();
+}
+
+/** Full committees only — a member's subcommittee seats are not office facts. */
+export function isSubcommittee(name: string): boolean {
+  return /subcommittee/i.test(name);
+}
+
+/** Leadership roles worth printing next to a committee; plain and ex officio seats are not. */
+function printableRole(role: string | null | undefined): string | null {
+  const trimmed = (role ?? '').trim();
+  if (!trimmed || /^member$/i.test(trimmed) || /ex\s*officio/i.test(trimmed)) return null;
+  return trimmed;
 }
 
 function committeeLabels(ctx: BridgeMemberContext): string[] {
@@ -124,12 +140,15 @@ function committeeLabels(ctx: BridgeMemberContext): string[] {
     out.push(label);
   };
   if (ctx.committeesWithRole?.length) {
-    for (const c of ctx.committeesWithRole) {
-      const role = (c.role ?? '').trim();
-      const plain = /^member$/i.test(role) || !role;
-      push(plain ? shortCommittee(c.name) : `${shortCommittee(c.name)} (${role})`);
+    const full = ctx.committeesWithRole.filter((c) => !isSubcommittee(c.name));
+    // Leadership first, then the rest in Directory order — the prototype's
+    // `Armed Services (Chair) · Commerce, Science and Transportation · Rules`.
+    const ranked = [...full].sort((a, b) => Number(Boolean(printableRole(b.role))) - Number(Boolean(printableRole(a.role))));
+    for (const c of ranked) {
+      const role = printableRole(c.role);
+      push(role ? `${shortCommittee(c.name)} (${role})` : shortCommittee(c.name));
     }
-    return out;
+    if (out.length) return out;
   }
   // Fallback: plain committee names plus leadership strings ("Chair — X").
   const leadership = new Map<string, string>();

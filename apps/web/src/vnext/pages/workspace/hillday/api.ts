@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import type { AxiosInstance } from 'axios';
 import { useApi } from '../../../../lib/use-api.js';
+import { unbridgedFetch } from '../api/transport-bridge.js';
 import type {
   Blueprint,
   CalendarResponse,
@@ -137,8 +138,11 @@ export function parseSseFrame(raw: string): JobEvent | null {
 
 /**
  * Consume the generation SSE stream with fetch (EventSource cannot carry the
- * Authorization header). Resolves with the terminal outcome, or `closed` when
- * the stream ended without one — the caller then falls back to polling.
+ * Authorization header). Uses the UN-bridged fetch: the Workspace transport
+ * bridge routes same-origin `/workspace-api/*` fetches through axios and
+ * re-wraps them as JSON, which would buffer the whole stream. Resolves with
+ * the terminal outcome, or `closed` when the stream ended without one — the
+ * caller then falls back to polling.
  */
 export async function streamJobEvents(params: {
   apiBaseUrl: string;
@@ -148,12 +152,14 @@ export async function streamJobEvents(params: {
   after: number;
   onEvent: (event: JobEvent) => void;
   signal: AbortSignal;
+  fetchImpl?: typeof fetch;
 }): Promise<'complete' | 'failed' | 'closed'> {
   const token = await params.getToken();
+  const doFetch = params.fetchImpl ?? unbridgedFetch();
   const url = `${params.apiBaseUrl}${HILLDAY_BASE}/documents/${encodeURIComponent(params.docId)}/generate/${encodeURIComponent(
     params.jobId,
   )}/events?after=${params.after}`;
-  const res = await fetch(url, {
+  const res = await doFetch(url, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       Accept: 'text/event-stream',
