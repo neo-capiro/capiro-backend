@@ -28,13 +28,18 @@ FROM ${API_IMAGE} AS api
 
 USER root
 
-# Base pdfplumber path only for the first PE canary (pb_r1). Camelot's
-# transitive pdftopng has no manylinux aarch64 wheel, and this worker runs
-# ARM64 Fargate matching the API image -- so we deliberately omit the
-# camelot/docling/ocr extras here. Escalation to those engines is a later
-# image/target decision (see apps/defense-budget-parser/Dockerfile targets).
+# Phase 10B-23A: table-target (pdfplumber) PLUS the `ocr` extra (PaddleOCR +
+# PaddlePaddle CPU). Camelot's transitive pdftopng still has no manylinux
+# aarch64 wheel and stays deliberately omitted here, same as before; Docling
+# is a separate, still-undecided escalation target (see
+# apps/defense-budget-parser/Dockerfile targets) -- this image intentionally
+# does not add it. `libgomp1` (GNU OpenMP runtime) is required by
+# paddlepaddle's compiled core (`paddle/base/libpaddle.so` dynamically links
+# it); without it, `import paddle` fails
+# `ImportError: libgomp.so.1: cannot open shared object file`, confirmed
+# empirically against this exact ARM64 image before this fix.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 \
+ && apt-get install -y --no-install-recommends python3 libgomp1 \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -43,8 +48,9 @@ WORKDIR /defense-budget-parser
 COPY apps/defense-budget-parser/pyproject.toml apps/defense-budget-parser/uv.lock ./
 COPY apps/defense-budget-parser/src ./src/
 
-# Base deps only (pydantic + pdfplumber + pypdf). No camelot extra on arm64.
-RUN uv sync --locked --no-dev \
+# pydantic + pdfplumber + pypdf (base) + paddleocr/paddlepaddle (ocr extra).
+# No camelot/docling extras on arm64 -- see comment above.
+RUN uv sync --locked --no-dev --extra ocr \
  && chown -R capiro:capiro /defense-budget-parser
 
 # Overlay the TS contract + lifecycle-bridge handoff fixes onto the proven
