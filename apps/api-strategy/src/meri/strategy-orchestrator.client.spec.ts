@@ -148,6 +148,45 @@ describe('StrategyOrchestratorClient governed transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  test('report narrative is an internal, delegated hop that needs no governed bundle', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sections: [], model: 'm', usage: { inputTokens: 1, outputTokens: 1 } }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await client().reportNarrative(
+      { audience: 'client', evidence: [{ id: 'plan:strategy', text: 'x' }] },
+      undefined,
+      undefined,
+      { tenantId: 'tenant-1', clerkUserId: 'user-1' },
+      12_345,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://meri.internal/meri-api/strategy-report-narrative',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-internal-service-secret': 'secret',
+          'x-capiro-delegated-tenant': 'tenant-1',
+          'x-capiro-delegated-user': 'user-1',
+        }),
+      }),
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body.governedContext).toBeUndefined();
+    expect(body.evidence).toEqual([{ id: 'plan:strategy', text: 'x' }]);
+  });
+
+  test('report narrative without a bearer or delegation fails before transport', async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await expect(
+      client().reportNarrative({ audience: 'client', evidence: [] }, undefined),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   test('requires the internal secret for governed reasoning routes', async () => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;

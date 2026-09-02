@@ -37,12 +37,25 @@ import {
   strategyTypeLabel,
 } from "./report-content.js";
 import { containSize, readRasterSize } from "./report-image.js";
+import {
+  narrativeSection,
+  type VerifiedNarrativeParagraph,
+  type VerifiedReportNarrative,
+} from "./report-narrative.types.js";
 import { ooxmlSafeValue } from "./report-text.js";
+import {
+  buildTimelineModel,
+  timelineHorizonLabel,
+  type TimelineModel,
+} from "./report-timeline.js";
 import type {
   ClientLogoAsset,
   ExecutiveReportSnapshot,
+  ReportMemberDetail,
   ReportNarrativeItem,
   ReportNode,
+  ReportRasterAsset,
+  ReportRenderExtras,
 } from "./report.types.js";
 
 const COLORS = {
@@ -66,14 +79,33 @@ const CELL_BORDERS = {
   right: { style: BorderStyle.SINGLE, size: 4, color: COLORS.line },
 };
 
+const TIMELINE_MAX_ROWS = 18;
+const TIMELINE_TONES: Record<ReportNode["kind"], string> = {
+  action: COLORS.teal,
+  decision: COLORS.blue,
+  gate: COLORS.gold,
+  milestone: COLORS.gold,
+  risk: COLORS.red,
+};
+
 @Injectable()
 export class DocxReportRenderer {
   async render(
     snapshot: ExecutiveReportSnapshot,
     logo: ClientLogoAsset | null,
+    extras: ReportRenderExtras = {},
   ): Promise<Buffer> {
     // Defense in depth for direct renderer callers outside snapshot loading.
     snapshot = ooxmlSafeValue(snapshot);
+    const narrative = extras.narrative
+      ? ooxmlSafeValue(extras.narrative)
+      : null;
+    const memberDetails = (extras.memberDetails ?? []).map((detail) =>
+      ooxmlSafeValue(detail),
+    );
+    const memberPhotos = extras.memberPhotos ?? new Map<string, ReportRasterAsset>();
+    const prose = (id: Parameters<typeof narrativeSection>[1]) =>
+      narrativeSection(narrative, id);
     const workingPlanNodes = internalWorkingPlanNodes(snapshot);
     const deliverySnapshot =
       workingPlanNodes.length > 0
@@ -90,8 +122,13 @@ export class DocxReportRenderer {
     children.push(new Paragraph({ children: [new PageBreak()] }));
 
     children.push(sectionHeading("Executive brief"));
-    for (const line of executiveSummary(snapshot))
-      children.push(bodyParagraph(line));
+    const executiveProse = prose("executive_summary");
+    if (executiveProse.length > 0) {
+      appendProse(children, executiveProse);
+    } else {
+      for (const line of executiveSummary(snapshot))
+        children.push(bodyParagraph(line));
+    }
 
     children.push(subheading("Strategy at a glance"));
     children.push(
@@ -156,16 +193,23 @@ export class DocxReportRenderer {
       children.push(subheading("Objective"));
       children.push(bodyParagraph(snapshot.strategy.goal));
     }
-    appendNarrative(
-      children,
-      "Approved outcomes and definition of success",
-      outcomeItems,
-    );
-    appendNarrative(children, "Primary ask and strategic options", askItems);
+    const objectivesProse = prose("objectives_and_ask");
+    if (objectivesProse.length > 0) {
+      children.push(subheading("Outcomes and the ask"));
+      appendProse(children, objectivesProse);
+    } else {
+      appendNarrative(
+        children,
+        "Approved outcomes and definition of success",
+        outcomeItems,
+      );
+      appendNarrative(children, "Primary ask and strategic options", askItems);
+    }
     if (
       !snapshot.strategy.goal &&
       outcomeItems.length === 0 &&
-      askItems.length === 0
+      askItems.length === 0 &&
+      objectivesProse.length === 0
     ) {
       children.push(
         mutedParagraph(
@@ -189,28 +233,77 @@ export class DocxReportRenderer {
         snapshot.client.profile.sectorTag ||
         snapshot.client.profile.website),
     );
+    const situationProse = prose("situation");
+    const constraintProse = prose("constraints_and_timing");
+    const stakeholderProse = prose("stakeholders");
+    const profiledMembers = memberDetails.filter((detail) =>
+      snapshot.members.some((member) => member.memberId === detail.memberId),
+    );
     if (
       hasClientProfile ||
       situationItems.length > 0 ||
       constraintItems.length > 0 ||
       stakeholderItems.length > 0 ||
       stakeholderNodes.length > 0 ||
-      intelligenceItems.length > 0
+      intelligenceItems.length > 0 ||
+      situationProse.length > 0 ||
+      constraintProse.length > 0 ||
+      stakeholderProse.length > 0 ||
+      profiledMembers.length > 0
     ) {
       children.push(sectionHeading("Situation and operating context"));
       if (hasClientProfile) appendClientContext(children, snapshot);
-      appendNarrative(children, "Current situation and timing", situationItems);
-      appendNarrative(
-        children,
-        "Constraints and sensitivities",
-        constraintItems,
-      );
-      appendNarrative(children, "Stakeholder path", stakeholderItems);
+      if (situationProse.length > 0) {
+        children.push(subheading("Current situation and timing"));
+        appendProse(children, situationProse);
+      } else {
+        appendNarrative(
+          children,
+          "Current situation and timing",
+          situationItems,
+        );
+      }
+      if (constraintProse.length > 0) {
+        children.push(subheading("Constraints and sensitivities"));
+        appendProse(children, constraintProse);
+      } else {
+        appendNarrative(
+          children,
+          "Constraints and sensitivities",
+          constraintItems,
+        );
+      }
+      if (stakeholderProse.length > 0) {
+        children.push(subheading("Stakeholder path"));
+        appendProse(children, stakeholderProse);
+      } else {
+        appendNarrative(children, "Stakeholder path", stakeholderItems);
+      }
+      if (profiledMembers.length > 0) {
+        children.push(subheading("Member offices in the plan"));
+        children.push(
+          focusAreaDescription(
+            "Congressional offices targeted by included plan steps. Portraits and Washington office details come from the public congressional directory.",
+          ),
+        );
+        for (const detail of profiledMembers) {
+          children.push(
+            memberProfileTable(
+              snapshot,
+              detail,
+              memberPhotos.get(detail.memberId) ?? null,
+            ),
+          );
+          children.push(new Paragraph({ spacing: { after: 60 }, children: [] }));
+        }
+      }
       if (stakeholderNodes.length > 0) {
         children.push(subheading("Stakeholder assignments"));
         children.push(stakeholderPathTable(stakeholderNodes));
       }
-      appendNarrative(children, "Recent intelligence", intelligenceItems);
+      if (situationProse.length === 0) {
+        appendNarrative(children, "Recent intelligence", intelligenceItems);
+      }
     }
 
     const areas = focusAreas(deliverySnapshot);
@@ -260,9 +353,15 @@ export class DocxReportRenderer {
 
     const risksAndDecisions = decisionsAndRisks(deliverySnapshot);
     const decisionContext = contextItems(snapshot, ["decisions"]);
-    if (risksAndDecisions.length > 0 || decisionContext.length > 0) {
+    const decisionProse = prose("decisions_and_risks");
+    if (
+      risksAndDecisions.length > 0 ||
+      decisionContext.length > 0 ||
+      decisionProse.length > 0
+    ) {
       children.push(sectionHeading("Decision agenda and risk response"));
-      appendNarrative(children, "Approved decision context", decisionContext);
+      if (decisionProse.length > 0) appendProse(children, decisionProse);
+      else appendNarrative(children, "Approved decision context", decisionContext);
       const decisions = risksAndDecisions.filter(
         (node) => node.kind === "decision",
       );
@@ -289,6 +388,21 @@ export class DocxReportRenderer {
 
     if (snapshot.options.includeRoadmap) {
       children.push(sectionHeading("Delivery roadmap"));
+      const roadmapProse = prose("roadmap_outlook");
+      if (roadmapProse.length > 0) appendProse(children, roadmapProse);
+      const timeline = buildTimelineModel(deliverySnapshot, deliverySnapshot.nodes, {
+        maxRows: TIMELINE_MAX_ROWS,
+      });
+      if (timeline) {
+        children.push(subheading("Delivery timeline"));
+        children.push(
+          focusAreaDescription(
+            `${timelineHorizonLabel(timeline)} · bars follow each step's stored dates; diamonds mark single-day steps, gates and milestones.`,
+          ),
+        );
+        children.push(timelineTable(timeline));
+        children.push(timelineLegend(snapshot, timeline));
+      }
       const roadmapGroups = roadmap(deliverySnapshot);
       for (const group of roadmapGroups.filter(
         (entry) => entry.nodes.length > 0,
@@ -439,7 +553,7 @@ export class DocxReportRenderer {
     }
 
     if (snapshot.options.audience === "internal") {
-      children.push(...internalAppendix(snapshot));
+      children.push(...internalAppendix(snapshot, narrative));
     }
 
     const confidentiality =
@@ -1148,6 +1262,7 @@ function federalFiscalYear(value: number): number {
 
 function internalAppendix(
   snapshot: ExecutiveReportSnapshot,
+  narrative: VerifiedReportNarrative | null,
 ): Array<Paragraph | Table> {
   const result: Array<Paragraph | Table> = [
     new Paragraph({ children: [new PageBreak()] }),
@@ -1167,6 +1282,46 @@ function internalAppendix(
       ["Connected artifacts", String(snapshot.counts.artifacts)],
     ]),
   ];
+  if (snapshot.options.includeNarrative) {
+    result.push(subheading("Narrative generation"));
+    if (!narrative) {
+      result.push(
+        mutedParagraph(
+          "Grounded narrative was requested but not available for this export; deterministic fact listings were rendered instead.",
+        ),
+      );
+    } else {
+      result.push(
+        twoColumnFacts([
+          ["Model", narrative.model],
+          ["Paragraphs accepted", String(narrative.acceptedParagraphs)],
+          [
+            "Paragraphs rejected by verification",
+            String(narrative.rejectedParagraphs),
+          ],
+          [
+            "Paragraphs dropped by orchestrator citation gate",
+            String(narrative.orchestratorDroppedParagraphs),
+          ],
+          ["Model attempts", String(narrative.attempts)],
+        ]),
+      );
+      for (const rejection of narrative.rejections.slice(0, 12)) {
+        result.push(
+          mutedParagraph(
+            `Rejected (${kindLabel(rejection.sectionId)}): ${kindLabel(rejection.reason)}${
+              rejection.detail ? ` · "${rejection.detail}"` : ""
+            }`,
+          ),
+        );
+      }
+      result.push(
+        mutedParagraph(
+          "Every rendered paragraph cites evidence from the report snapshot and passed number, date and name verification against that evidence. Rejected paragraphs were replaced by the deterministic fact listing.",
+        ),
+      );
+    }
+  }
   if (snapshot.options.includeChangeLog) {
     result.push(subheading("Recent plan changes (latest report sample)"));
     if (snapshot.activity.versions.length === 0)
@@ -1219,6 +1374,394 @@ function internalAppendix(
     }
   }
   return result;
+}
+
+/** Verified narrative prose: flowing paragraphs followed by one compact sources line. */
+function appendProse(
+  children: Array<Paragraph | Table>,
+  paragraphs: readonly VerifiedNarrativeParagraph[],
+): void {
+  for (const paragraph of paragraphs) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 140, line: 300 },
+        children: [
+          new TextRun({ text: paragraph.text, size: 20, color: COLORS.ink }),
+        ],
+      }),
+    );
+  }
+  const sources = [
+    ...new Set(paragraphs.flatMap((paragraph) => paragraph.sourceTitles)),
+  ];
+  if (sources.length > 0) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 160 },
+        children: [
+          new TextRun({
+            text: `Sources: ${sources.slice(0, 8).join(" · ")}${
+              sources.length > 8 ? ` · and ${sources.length - 8} more` : ""
+            }`,
+            size: 14,
+            color: COLORS.slate,
+            italics: true,
+          }),
+        ],
+      }),
+    );
+  }
+}
+
+const TIMELINE_LABEL_WIDTH = 3_300;
+const TIMELINE_TOTAL_WIDTH = 10_080;
+
+/** Gantt-style table: one row per plan step, one shaded column per month or quarter. */
+function timelineTable(model: TimelineModel): Table {
+  const columnWidth = Math.floor(
+    (TIMELINE_TOTAL_WIDTH - TIMELINE_LABEL_WIDTH) /
+      Math.max(1, model.columns.length),
+  );
+  const header = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
+    children: [
+      cell("Plan step", true, COLORS.navy, COLORS.white),
+      ...model.columns.map(
+        (column) =>
+          new TableCell({
+            borders: CELL_BORDERS,
+            width: { size: columnWidth, type: WidthType.DXA },
+            shading: {
+              type: ShadingType.CLEAR,
+              fill: column.isCurrent ? COLORS.teal : COLORS.navy,
+              color: "auto",
+            },
+            margins: { top: 70, bottom: 70, left: 40, right: 40 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: column.isCurrent ? `${column.label} ▼` : column.label,
+                    bold: true,
+                    size: model.columns.length > 12 ? 12 : 14,
+                    color: COLORS.white,
+                  }),
+                ],
+              }),
+            ],
+          }),
+      ),
+    ],
+  });
+  const rows = model.rows.map((row, rowIndex) => {
+    const tone = row.overdue ? COLORS.red : TIMELINE_TONES[row.node.kind];
+    const background = rowIndex % 2 === 0 ? COLORS.white : COLORS.pale;
+    return new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({
+          borders: CELL_BORDERS,
+          width: { size: TIMELINE_LABEL_WIDTH, type: WidthType.DXA },
+          shading: { type: ShadingType.CLEAR, fill: background, color: "auto" },
+          margins: { top: 60, bottom: 60, left: 100, right: 80 },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: clip(row.node.title, 70),
+                  bold: true,
+                  size: 16,
+                  color: COLORS.ink,
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `${kindLabel(row.node.kind)} · ${clip(row.node.ownerName, 26)} · ${dateRange(row.node)}${
+                    row.overdue ? " · Overdue" : ""
+                  }`,
+                  size: 13,
+                  color: row.overdue ? COLORS.red : COLORS.slate,
+                }),
+              ],
+            }),
+          ],
+        }),
+        ...model.columns.map((_column, index) => {
+          const active = index >= row.firstColumn && index <= row.lastColumn;
+          const glyph = !active
+            ? ""
+            : row.marker
+              ? "◆"
+              : index === row.firstColumn && row.clippedStart
+                ? "◄"
+                : index === row.lastColumn && row.clippedEnd
+                  ? "►"
+                  : " ";
+          return new TableCell({
+            borders: CELL_BORDERS,
+            width: { size: columnWidth, type: WidthType.DXA },
+            shading: {
+              type: ShadingType.CLEAR,
+              fill: active && !row.marker ? tone : background,
+              color: "auto",
+            },
+            margins: { top: 60, bottom: 60, left: 20, right: 20 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: glyph,
+                    bold: true,
+                    size: row.marker ? 18 : 12,
+                    color: row.marker ? tone : COLORS.white,
+                  }),
+                ],
+              }),
+            ],
+          });
+        }),
+      ],
+    });
+  });
+  return new Table({
+    width: { size: TIMELINE_TOTAL_WIDTH, type: WidthType.DXA },
+    columnWidths: [
+      TIMELINE_LABEL_WIDTH,
+      ...model.columns.map(() => columnWidth),
+    ],
+    rows: [header, ...rows],
+  });
+}
+
+function timelineLegend(
+  snapshot: ExecutiveReportSnapshot,
+  model: TimelineModel,
+): Paragraph {
+  const parts = [
+    "Teal: actions · Blue: decisions · Gold ◆: gates and milestones · Red: risks or overdue steps · ▼ marks the current period",
+  ];
+  if (snapshot.strategy.targetDate && model.targetFraction !== null) {
+    parts.push(`Target date ${formatDate(snapshot.strategy.targetDate)}`);
+  }
+  if (model.omittedRows > 0) {
+    parts.push(
+      `${model.omittedRows} later step${model.omittedRows === 1 ? "" : "s"} appear in the action register only`,
+    );
+  }
+  if (model.truncatedHorizon) {
+    parts.push("► marks work that continues past the drawn horizon");
+  }
+  return new Paragraph({
+    spacing: { before: 60, after: 160 },
+    children: [
+      new TextRun({
+        text: parts.join(" · "),
+        size: 14,
+        color: COLORS.slate,
+        italics: true,
+      }),
+    ],
+  });
+}
+
+const MEMBER_PHOTO_WIDTH = 2_000;
+
+/** Portrait + Washington office card for one congressional member. */
+function memberProfileTable(
+  snapshot: ExecutiveReportSnapshot,
+  detail: ReportMemberDetail,
+  photo: ReportRasterAsset | null,
+): Table {
+  const size = photo ? photo.dimensions ?? readRasterSize(photo) : null;
+  const portrait: Paragraph[] = [];
+  if (photo && size) {
+    const fitted = containSize(size, 92, 118);
+    portrait.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            type: photo.contentType === "image/png" ? "png" : "jpg",
+            data: photo.bytes,
+            transformation: { width: fitted.width, height: fitted.height },
+            altText: {
+              name: `${detail.name} portrait`,
+              title: `${detail.name} portrait`,
+              description: "Official congressional directory portrait",
+            },
+          }),
+        ],
+      }),
+    );
+  } else {
+    portrait.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 200 },
+        children: [
+          new TextRun({
+            text: initials(detail.name),
+            bold: true,
+            size: 40,
+            color: COLORS.blue,
+          }),
+        ],
+      }),
+    );
+  }
+
+  const descriptor = [
+    detail.party ? partyDisplay(detail.party) : null,
+    detail.state,
+    detail.chamber,
+    detail.district ? `District ${detail.district}` : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" · ");
+  const office = detail.washingtonOffice;
+  const steps = snapshot.members
+    .find((member) => member.memberId === detail.memberId)
+    ?.nodeIds.map((id) => snapshot.nodes.find((node) => node.id === id))
+    .filter((node): node is ReportNode => Boolean(node)) ?? [];
+
+  const body: Paragraph[] = [
+    new Paragraph({
+      spacing: { after: 40 },
+      children: [
+        new TextRun({ text: detail.name, bold: true, size: 22, color: COLORS.navy }),
+      ],
+    }),
+  ];
+  if (descriptor) {
+    body.push(
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [new TextRun({ text: descriptor, size: 17, color: COLORS.slate })],
+      }),
+    );
+  }
+  if (detail.committees.length > 0) {
+    body.push(
+      labeledSmall("Committee", clip(detail.committees.join("; "), 160)),
+    );
+  }
+  if (office) {
+    const lines = [
+      office.address1,
+      office.address2,
+      [office.city, office.state].filter(Boolean).join(", ") +
+        (office.zip ? ` ${office.zip}` : ""),
+    ].filter((line): line is string => Boolean(line && line.trim()));
+    body.push(
+      new Paragraph({
+        spacing: { before: 60, after: 20 },
+        children: [
+          new TextRun({
+            text: "WASHINGTON OFFICE",
+            bold: true,
+            size: 13,
+            color: COLORS.teal,
+            characterSpacing: 80,
+          }),
+        ],
+      }),
+    );
+    for (const line of lines) {
+      body.push(
+        new Paragraph({
+          spacing: { after: 10 },
+          children: [new TextRun({ text: line, size: 17, color: COLORS.ink })],
+        }),
+      );
+    }
+    if (office.phone) body.push(labeledSmall("Phone", office.phone));
+  } else {
+    body.push(
+      new Paragraph({
+        spacing: { before: 60, after: 20 },
+        children: [
+          new TextRun({
+            text: detail.resolved
+              ? "No Washington office address is listed in the directory."
+              : "Directory detail was not available for this office at export time.",
+            size: 15,
+            color: COLORS.slate,
+            italics: true,
+          }),
+        ],
+      }),
+    );
+  }
+  if (steps.length > 0) {
+    body.push(
+      labeledSmall(
+        steps.length === 1 ? "Plan step" : "Plan steps",
+        steps.map((node) => clip(node.title, 60)).join("; "),
+      ),
+    );
+  }
+
+  return new Table({
+    width: { size: TIMELINE_TOTAL_WIDTH, type: WidthType.DXA },
+    columnWidths: [MEMBER_PHOTO_WIDTH, TIMELINE_TOTAL_WIDTH - MEMBER_PHOTO_WIDTH],
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            borders: CELL_BORDERS,
+            width: { size: MEMBER_PHOTO_WIDTH, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, fill: COLORS.mist, color: "auto" },
+            margins: { top: 120, bottom: 120, left: 100, right: 100 },
+            verticalAlign: "center",
+            children: portrait,
+          }),
+          new TableCell({
+            borders: CELL_BORDERS,
+            width: {
+              size: TIMELINE_TOTAL_WIDTH - MEMBER_PHOTO_WIDTH,
+              type: WidthType.DXA,
+            },
+            shading: { type: ShadingType.CLEAR, fill: COLORS.pale, color: "auto" },
+            margins: { top: 120, bottom: 120, left: 180, right: 160 },
+            children: body,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+function labeledSmall(label: string, text: string): Paragraph {
+  return new Paragraph({
+    spacing: { after: 20 },
+    children: [
+      new TextRun({ text: `${label}: `, bold: true, size: 15, color: COLORS.blue }),
+      new TextRun({ text, size: 15, color: COLORS.ink }),
+    ],
+  });
+}
+
+function initials(name: string): string {
+  const letters = name
+    .replace(/^(sen|rep|hon|dr|mr|ms|mrs)\.?\s+/i, "")
+    .split(/[\s,]+/)
+    .filter((part) => /^[a-z]/i.test(part))
+    .map((part) => part[0]!.toUpperCase());
+  return (letters.slice(0, 1).join("") + (letters.at(-1) ?? "")).slice(0, 2) || "—";
+}
+
+function partyDisplay(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "d" || normalized.startsWith("dem")) return "Democratic";
+  if (normalized === "r" || normalized.startsWith("rep")) return "Republican";
+  if (normalized === "i" || normalized.startsWith("ind")) return "Independent";
+  return value.trim();
 }
 
 function headerRow(labels: string[]): TableRow {

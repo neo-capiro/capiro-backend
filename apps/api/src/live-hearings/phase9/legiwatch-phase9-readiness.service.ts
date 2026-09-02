@@ -167,6 +167,18 @@ interface EvidenceRow {
   captureId: string | null;
 }
 
+/// One reviewed canonical-provenance disposition row. A hearing with a valid
+/// ACTIVE, unexpired disposition is provenance-ACCEPTED even though it has no
+/// reconciled official observation. An observation always supersedes a
+/// disposition (DB-level trigger); REVOKED/SUPERSEDED rows are history only.
+interface DispositionRow {
+  hearingId: string;
+  dispositionType: string;
+  artifactUri: string;
+  status: string;
+  expiresAt: Date | null;
+}
+
 interface CutoverStateRow {
   captureAllPublicEvents: boolean;
 }
@@ -184,6 +196,7 @@ interface Snapshot {
   runtime: RuntimeRow[];
   laggingJobs: LaggingJobRow[];
   evidence: EvidenceRow[];
+  dispositions: DispositionRow[];
   captureAllPublicEvents: boolean;
 }
 
@@ -411,12 +424,57 @@ export class LegiWatchPhase9ReadinessService {
     }
 
     const canonicalEvents = snapshot.hearings.length;
-    const canonicalEventsWithProvenance = snapshot.hearings.filter(
+    // Provenance precedence per hearing (counted exactly once):
+    //   1. >=1 RECONCILED official observation  -> OBSERVED (strongest)
+    //   2. valid reviewed disposition (ACTIVE, unexpired) -> ACCEPTED_DISPOSITION
+    //   3. otherwise -> UNRESOLVED (unexplained provenance gap; gate blocker)
+    // A disposition never inflates the observation count and never creates a
+    // hearing_source_observation row; the DB-level supersede trigger flips
+    // dispositions to SUPERSEDED the moment an observation is linked.
+    const acceptedDispositionByHearing = new Map<string, DispositionRow>();
+    for (const row of snapshot.dispositions) {
+      if (row.status !== 'ACTIVE') continue;
+      if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) continue;
+      if (!acceptedDispositionByHearing.has(row.hearingId)) {
+        acceptedDispositionByHearing.set(row.hearingId, row);
+      }
+    }
+    const canonicalEventsWithObservation = snapshot.hearings.filter(
       (hearing) => (provenanceByHearing.get(hearing.id) ?? 0) > 0,
     ).length;
-    const legacyOnlyCanonicalEvents = canonicalEvents - canonicalEventsWithProvenance;
+    const canonicalEventsWithAcceptedDisposition = snapshot.hearings.filter((hearing) =>
+      (provenanceByHearing.get(hearing.id) ?? 0) === 0 &&
+      acceptedDispositionByHearing.has(hearing.id),
+    ).length;
+    const unresolvedCanonicalProvenance = snapshot.hearings.filter((hearing) =>
+      (provenanceByHearing.get(hearing.id) ?? 0) === 0 &&
+      !acceptedDispositionByHearing.has(hearing.id),
+    ).length;
+    // Backward-compatible rollup: observation-backed + accepted-disposition.
+    const canonicalEventsWithProvenance =
+      canonicalEventsWithObservation + canonicalEventsWithAcceptedDisposition;
+    const legacyOnlyCanonicalEvents = unresolvedCanonicalProvenance;
     for (const hearing of snapshot.hearings) {
       if ((provenanceByHearing.get(hearing.id) ?? 0) === 0) {
+        if (acceptedDispositionByHearing.has(hearing.id)) {
+          // Non-failing informational exception: keeps the distinction visible
+          // in the event audit without emitting a failing gap for a documented,
+          // reviewed disposition.
+          pushException({
+            hearingId: hearing.id,
+            committeeSystemCode:
+              hearing.subcommitteeSystemCode ?? hearing.committeeSystemCode ?? undefined,
+            gateKey: 'CANONICAL_PROVENANCE',
+            status: 'NOT_APPLICABLE',
+            reasonCode: 'CANONICAL_EVENT_PROVENANCE_ACCEPTED_DISPOSITION',
+            details: {
+              title: hearing.title,
+              dispositionType: acceptedDispositionByHearing.get(hearing.id)?.dispositionType,
+              artifactUri: acceptedDispositionByHearing.get(hearing.id)?.artifactUri ?? null,
+            },
+          });
+          continue;
+        }
         pushException({
           hearingId: hearing.id,
           committeeSystemCode:
@@ -499,12 +557,16 @@ export class LegiWatchPhase9ReadinessService {
       const captures = capturesByHearing.get(hearing.id) ?? [];
       const capture = captures[0];
       const demand = demandByHearing.get(hearing.id) ?? 0;
-      const serverAllowed = candidates.some(
-        (candidate) => candidate.capturePolicy === 'SERVER_CAPTURE_ALLOWED',
-      );
+      // Capture-outcome eligibility must mirror the Phase 9 runtime contract:
+      // scheduled stream-preflight only plans captures when capture_all is on
+      // OR hearing demand exists. A SERVER_CAPTURE_ALLOWED candidate proves a
+      // stream is technically capturable — NOT that the system was authorized
+      // to capture it. Historical completed hearings discovered by the
+      // disposition backfill get READY first-party candidates with demand=0;
+      // counting them as "eligible but uncaptured" would make the outcome gate
+      // permanently unpassable for events no capture could ever have covered.
       const eligible =
         snapshot.captureAllPublicEvents ||
-        serverAllowed ||
         demand > 0 ||
         Boolean(capture);
       const explicitStreamPath =
@@ -714,12 +776,14 @@ export class LegiWatchPhase9ReadinessService {
       ),
       gate(
         'CANONICAL_PROVENANCE',
-        canonicalEvents > 0 && legacyOnlyCanonicalEvents === 0,
+        canonicalEvents > 0 && unresolvedCanonicalProvenance === 0,
         true,
         canonicalProvenance,
         100,
         'CANONICAL_EVENTS_MISSING_PROVENANCE',
-        `${legacyOnlyCanonicalEvents} canonical event(s) have no reconciled official observation.`,
+        unresolvedCanonicalProvenance === 0
+          ? `All canonical events have explicit provenance: ${canonicalEventsWithObservation} with reconciled official observations and ${canonicalEventsWithAcceptedDisposition} with reviewed official-observation-unavailable dispositions.`
+          : `${legacyOnlyCanonicalEvents} canonical event(s) have no reconciled official observation and no reviewed provenance disposition.`,
       ),
       gate(
         'NO_DUPLICATE_CANONICAL_EVENTS',
@@ -874,6 +938,9 @@ export class LegiWatchPhase9ReadinessService {
       ignoredInvalidObservations,
       pendingObservations,
       canonicalEvents,
+      canonicalEventsWithObservation,
+      canonicalEventsWithAcceptedDisposition,
+      unresolvedCanonicalProvenance,
       canonicalEventsWithProvenance,
       legacyOnlyCanonicalEvents,
       duePublicEvents,
@@ -1358,6 +1425,14 @@ export class LegiWatchPhase9ReadinessService {
          WHERE id='global'
          LIMIT 1`,
       );
+      const dispositions = await tx.$queryRawUnsafe<DispositionRow[]>(
+        `SELECT hearing_id AS "hearingId",
+                disposition_type AS "dispositionType",
+                artifact_uri AS "artifactUri",
+                status,
+                expires_at AS "expiresAt"
+         FROM canonical_provenance_disposition`,
+      );
       return {
         bodies,
         sources,
@@ -1371,6 +1446,7 @@ export class LegiWatchPhase9ReadinessService {
         runtime,
         laggingJobs,
         evidence,
+        dispositions,
         captureAllPublicEvents: cutoverRows[0]?.captureAllPublicEvents ?? false,
       };
     }, { timeoutMs: READINESS_PERSIST_TIMEOUT_MS });

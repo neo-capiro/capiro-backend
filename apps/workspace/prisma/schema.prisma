@@ -681,3 +681,127 @@ model WsBrandAsset {
   @@index([tenantId])
   @@map("ws_brand_asset")
 }
+
+// ── Hill Day workflow (Workspace vNext, 2026-09) ────────────────────────────
+// A Hill Day document turns a sponsoring client's calendar week into a
+// congressional briefing packet: one section per selected calendar event.
+// Deliberately separate from WsDraft: the document is meeting-structured,
+// carries a per-meeting resolution record (address → staffer → office →
+// member, plus the user's corrections, which govern for THIS document only)
+// and a per-meeting carry-over selection the generator must honour exactly.
+// None of that fits the free-form ws_draft.config shape. References apps/api
+// rows (clients, meetings) by id only — no cross-schema FKs.
+enum WsHillDayDocStatus {
+  draft
+  generating
+  generated
+  partial
+  delivered
+
+  @@map("ws_hillday_doc_status")
+}
+
+model WsHillDayDocument {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
+  // Clerk user id of the owner (same id-space as WsDraft.ownerId).
+  ownerId          String             @map("owner_id")
+  blueprintSlug    String             @map("blueprint_slug")
+  // apps/api clients.id — the sponsoring client. No FK (cross-schema).
+  clientId         String             @map("client_id") @db.Uuid
+  clientName       String             @map("client_name")
+  name             String
+  status           WsHillDayDocStatus @default(draft)
+  lookbackDays     Int                @default(90) @map("lookback_days")
+  timeZone         String             @default("America/New_York") @map("time_zone")
+  weekStart        DateTime?          @map("week_start") @db.Date
+  // clean | partial | null (resolution not run yet)
+  resolutionStatus String?            @map("resolution_status")
+  // As-generated provenance summary (source counts, corrections, model).
+  provenance       Json?
+  generatedAt      DateTime?          @map("generated_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  meetings WsHillDayMeeting[]
+  jobs     WsHillDayJob[]
+  exports  WsHillDayExport[]
+
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, clientId])
+  @@map("ws_hillday_document")
+}
+
+model WsHillDayMeeting {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  // apps/api meetings.id (the calendar event). No FK.
+  eventId    String   @map("event_id")
+  ordinal    Int      @default(0)
+  // Calendar event snapshot as selected (subject, times, attendees, reason).
+  event      Json     @default("{}")
+  // MeetingResolution — the chain plus user corrections (authoritative here).
+  resolution Json?
+  // MeetingContextRecord — { note, carry, threadIds }: what the user chose.
+  context    Json?
+  // MeetingSection — Focus / Background, status and flags.
+  section    Json?
+  // The source set actually assembled into the last prompt (provenance).
+  sourceSet  Json?    @map("source_set")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, eventId])
+  @@index([tenantId, documentId])
+  @@map("ws_hillday_meeting")
+}
+
+model WsHillDayJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  documentId  String    @map("document_id") @db.Uuid
+  actorId     String    @map("actor_id")
+  // queued | running | complete | failed
+  status      String    @default("queued")
+  // [{ meetingId, state, sectionId, reason, at }]
+  units       Json      @default("[]")
+  // Ordered SSE replay log: [{ seq, event, data }]
+  events      Json      @default("[]")
+  quality     Float?
+  error       String?
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId, createdAt])
+  @@map("ws_hillday_job")
+}
+
+model WsHillDayExport {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  documentId String    @map("document_id") @db.Uuid
+  actorId    String    @map("actor_id")
+  format     String    @default("pdf")
+  pageSize   String    @default("letter") @map("page_size")
+  // queued | ready | failed
+  status     String    @default("queued")
+  filename   String?
+  // Rendered bytes, kept so the signed URL serves exactly what was rendered.
+  file       Bytes?
+  sizeBytes  Int?      @map("size_bytes")
+  error      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readyAt    DateTime? @map("ready_at")
+
+  document WsHillDayDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentId])
+  @@map("ws_hillday_export")
+}

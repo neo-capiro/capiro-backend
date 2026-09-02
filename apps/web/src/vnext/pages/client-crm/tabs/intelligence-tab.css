@@ -34,6 +34,11 @@
 
 /* ── Layout utilities ─────────────────────────────────────────────────────── */
 .capiro-vnext-root .capiro-intel-stack-24 { display: flex; flex-direction: column; gap: 24px; }
+/* Opportunities' lone action ("Sync sources"). That tab renders no TabPageHead
+   — its record-surface header already names and describes it — so the action
+   needs its own right-aligned row to sit in, matching where TabPageHead used
+   to place it. */
+.capiro-vnext-root .capiro-intel-actions-row { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; }
 .capiro-vnext-root .capiro-intel-stack-16 { display: flex; flex-direction: column; gap: 16px; }
 .capiro-vnext-root .capiro-intel-spacer { flex: 1; }
 

@@ -128,12 +128,25 @@ describe('starter content templates', () => {
     const meeting = STARTER_CONTENT_TEMPLATES.find(
       (t) => t.key === 'starter_meeting_request_standard',
     )!;
-    // The literal headings the user asked to be preserved, in order.
+    // The literal headings the user asked to be preserved, in order. The
+    // client-introduction section sits between the opening and the
+    // recipient-connection section: it is the campaign's whole point for
+    // mass capability-introduction sends.
     const body = meeting.skeleton.body;
+    expect(body).toContain('About the client');
     expect(body).toContain('Why this matters to your office');
     expect(body).toContain('What we’d cover');
     expect(body).toContain('Availability');
+    expect(body.indexOf('About the client')).toBeLessThan(body.indexOf('Why this matters'));
     expect(body.indexOf('Why this matters')).toBeLessThan(body.indexOf('What we’d cover'));
     expect(body.indexOf('What we’d cover')).toBeLessThan(body.indexOf('Availability'));
+    // The capability-introduction slot itself: optional (a sponsor with no
+    // capability evidence drops the section rather than inventing one), and
+    // instructed to draw only from the client brief / capability records.
+    const about = meeting.skeleton.slots.find((s) => s.key === 'about_client');
+    expect(about).toBeDefined();
+    expect(about?.required).toBe(false);
+    const availability = meeting.skeleton.slots.find((s) => s.key === 'availability');
+    expect(availability?.instruction).toContain('why-now');
   });
 });

@@ -258,6 +258,7 @@ export class OutreachEvaluationRunner {
       ...(request.groupMemberCount != null ? { groupMemberCount: request.groupMemberCount } : {}),
       clientName: enrichment.clientName,
       tone: request.tone,
+      recipientScopeKeys: request.recipient.scopeKeys,
       ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
     });
 

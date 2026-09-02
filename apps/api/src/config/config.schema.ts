@@ -299,6 +299,38 @@ export const configSchema = z.object({
   // Set 1 to restore the old strictly-serial behaviour.
   OUTREACH_V3_GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
 
+  // Ships DARK: default false, so nothing about the existing draft-generation
+  // path changes until this is explicitly flipped on.
+  //
+  // When true, the draft call (only the draft — the Message Plan call stays
+  // non-streaming; its output is internal structured JSON with no UI value in
+  // showing partial fragments) uses completeStreaming() instead of complete().
+  // The FINAL result is byte-identical either way — same parse, same schema
+  // validation, same verifiers — this only adds a live preview of the body
+  // text as it's written, surfaced to the Drafts step so the multi-minute
+  // wait isn't a silent blank spinner.
+  //
+  // Streaming is implemented for OpenAI only today (the pinned outreach
+  // provider); LlmCompletionService.completeStreaming() silently falls back
+  // to the non-streaming path for Anthropic regardless of this flag.
+  //
+  // The live preview is held in an in-memory, per-process store
+  // (OutreachV3LivePreviewService) — correct only when engagement-api runs as
+  // a single instance, as it does today (capiro-dev-engagement-api is
+  // desiredCount=1). Flip this on only after a live smoke test with real
+  // credentials confirms the SSE event shapes this was written against
+  // (response.output_text.delta / response.completed) match what the
+  // Responses API actually sends — unverifiable from a dev sandbox with no
+  // live model credentials, same reason WEB_SURFACE and
+  // ENGAGEMENT_API_FULL_OWNERSHIP both shipped dark before their own rollout.
+  // Uses the house string-allowlist transform (NOT z.coerce.boolean() — see
+  // the Phase 6 note above), so only 'true'/'1'/'yes'/'on' enable and anything
+  // else (incl. unset) stays off.
+  OUTREACH_V3_GENERATION_STREAMING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
   // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
   // output) AI tokens across outreach generation workflows in the current UTC
   // day. Soft-warn at 80% (generation proceeds, wizard shows a banner), hard-stop

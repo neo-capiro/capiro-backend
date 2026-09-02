@@ -7,7 +7,7 @@ import {
   OUTREACH_BUILDER_STEP_TITLES,
   outreachBuilderPrimaryLabel,
 } from './outreach-campaign-flow.js';
-import { OutreachDraftsStep, outreachDraftRows } from './outreach-step-drafts.js';
+import { OutreachDraftsStep, outreachDraftEmptySections, outreachDraftRows } from './outreach-step-drafts.js';
 
 /**
  * The Drafts step is the best-wired surface in the builder: all four draft
@@ -500,6 +500,55 @@ describe('OutreachDraftsStep', () => {
       );
       expect(rows[0]?.name).toBe('Rep. Jane Smith · Priya Anand');
       expect(rows[0]?.note).toBe('');
+    });
+  });
+
+  describe('outreachDraftEmptySections (connection coverage)', () => {
+    const fullBody = [
+      'Hi Dana —',
+      '',
+      'Opening prose.',
+      '',
+      'About the client',
+      'Acme builds ground robots.',
+      '',
+      'Why this matters to your office',
+      'Your committee oversees autonomy programs.',
+      '',
+      'Closing.',
+    ].join('\n');
+
+    it('reports [] when every known section carries content', () => {
+      expect(outreachDraftEmptySections(fullBody)).toEqual([]);
+    });
+
+    it('flags a heading the skeleton kept whose optional slot rendered empty', () => {
+      // assembleSkeletonBody keeps the heading but drops the empty content
+      // line, collapsing to one blank line before the next section.
+      const generic = [
+        'Hi Dana —',
+        '',
+        'Opening prose.',
+        '',
+        'About the client',
+        '',
+        'Why this matters to your office',
+        'Your committee oversees autonomy programs.',
+      ].join('\n');
+      expect(outreachDraftEmptySections(generic)).toEqual(['About the client']);
+    });
+
+    it('flags a heading stranded at the very end of the body', () => {
+      const trailing = ['Opening prose.', '', 'Why this matters to your office'].join('\n');
+      expect(outreachDraftEmptySections(trailing)).toEqual([
+        'Why this matters to your office',
+      ]);
+    });
+
+    it('returns null for a body with no known headings (custom template) and for no body', () => {
+      expect(outreachDraftEmptySections('Just a plain custom email.')).toBeNull();
+      expect(outreachDraftEmptySections(null)).toBeNull();
+      expect(outreachDraftEmptySections(undefined)).toBeNull();
     });
   });
 });

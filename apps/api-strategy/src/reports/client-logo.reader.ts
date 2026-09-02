@@ -70,7 +70,7 @@ export class S3ClientLogoReader implements ClientLogoReader {
   }
 }
 
-function sniffRasterContentType(
+export function sniffRasterContentType(
   bytes: Buffer,
 ): ClientLogoAsset["contentType"] | null {
   if (

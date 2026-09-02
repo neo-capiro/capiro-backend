@@ -229,6 +229,63 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
     return `${CONGRESS_BASE}/committee-meeting/${congress}?${params.toString()}`;
   }
 
+  /**
+   * Single-event fetch for the provenance backfill: the SAME detail endpoint,
+   * the SAME normalizer (`toSourceEvent`) and the SAME parser version as
+   * scheduled discovery — so an observation written by the backfill is
+   * indistinguishable from one written by the recurring job. Exposed as a
+   * public method instead of teaching the backfill to page the list endpoint.
+   */
+  async fetchCommitteeMeetingDetail(
+    externalEventId: string,
+    congress: number = this.options.congresses?.[0] ?? currentCongress(),
+    chamber?: 'house' | 'senate' | 'joint',
+  ): Promise<MeetingDetail | null> {
+    if (!this.options.apiKey) {
+      throw new Error('CONGRESS_API_KEY is required for the congress-gov adapter');
+    }
+    // The detail resource is namespaced by chamber:
+    // /committee-meeting/{congress}/{chamber}/{eventId} — verified live 2026-09-01
+    // (a chamber-less path 404s with "Unknown resource").
+    const segments = chamber
+      ? `${congress}/${chamber}`
+      : `${congress}/house/${externalEventId}|${congress}/senate/${externalEventId}`;
+    const urls = chamber
+      ? [`${CONGRESS_BASE}/committee-meeting/${segments}/${externalEventId}?api_key=${this.options.apiKey}&format=json`]
+      : segments
+          .split('|')
+          .map(
+            (s) =>
+              `${CONGRESS_BASE}/committee-meeting/${s}/${externalEventId}?api_key=${this.options.apiKey}&format=json`,
+          );
+    for (const url of urls) {
+      const detail = await fetchJson<{ committeeMeeting: MeetingDetail }>(url, {
+        timeoutMs: 15_000,
+      });
+      const meeting = detail.data?.committeeMeeting ?? null;
+      if (meeting) return meeting;
+    }
+    return null;
+  }
+
+  /**
+   * Public wrapper over the private normalizer for the single-event fetch path.
+   * `item` carries only what the detail record omits (list metadata), which for
+   * a direct event fetch is the congress number itself.
+   */
+  toSourceEventPublic(
+    d: MeetingDetail,
+    source: SourceDescriptor,
+  ): SourceEvent | null {
+    const congress = d.congress ?? currentCongress();
+    return this.toSourceEvent(d, { eventId: null, congress }, congress, {
+      since: null,
+      daysAhead: 0,
+      delayMs: 0,
+      log: () => {},
+    });
+  }
+
   private withAuth(rawUrl: string): string {
     const sep = rawUrl.includes('?') ? '&' : '?';
     return `${rawUrl}${sep}api_key=${this.options.apiKey}&format=json`;

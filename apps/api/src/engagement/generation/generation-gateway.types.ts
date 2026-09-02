@@ -117,6 +117,16 @@ export interface GatewayRecipient {
   /** Server-resolved government level for an individual or homogeneous group. */
   governmentLevel?: 'federal' | 'state' | 'local' | 'agency' | 'corporate' | 'unknown' | null;
   chamber: string | null;
+  /**
+   * Server-resolved committee names for the recipient. For a member these are
+   * their assignments; for committee/office staff, the committee or office
+   * they serve. Carried so the recipient brief can hand the planner a
+   * committee hook even when the recipient has no bioguide id (committee
+   * staff, most directory staff) — the exact audience that used to lose every
+   * press/hearing angle because enrichment keyed solely on the member's
+   * bioguide.
+   */
+  committees?: string[];
   defenseAcquisition?: boolean;
   /** The full snapshot persisted on the Phase 0 artifact. */
   snapshot: Record<string, unknown>;

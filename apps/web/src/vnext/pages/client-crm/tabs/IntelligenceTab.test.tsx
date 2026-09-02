@@ -232,149 +232,6 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
   });
 });
 
-function renderFunding() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/clients']}>
-        <Routes>
-          <Route
-            path="/clients"
-            element={
-              <>
-                <ClientCrmIntelligenceProto client={client} view="funding" />
-                <LocationProbe />
-              </>
-            }
-          />
-          <Route path="*" element={<LocationProbe />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-}
-
-const RELEVANT_PE = {
-  peCode: '0602308A',
-  title: 'Advanced Robotics Research',
-  score: 0.82,
-  paths: [{ path: 'capability_pe_direct', score: 0.82, evidence: ['Capability "Autonomy stack" lists PE 0602308A'] }],
-};
-
-const OPPORTUNITY_SUMMARY = {
-  clientId: 'client-1',
-  counts: { activeGrants: 2, activeContracts: 3, saved: 1, pursuing: 1, dismissed: 0, deadlinesIn30Days: 1 },
-  nextDeadline: null,
-  topGrants: [
-    {
-      id: 'opp-1',
-      source: 'grants_gov',
-      sourceUrl: 'https://grants.gov/opp-1',
-      kind: 'grant',
-      title: 'Autonomy Research Grant',
-      agency: 'DARPA',
-      responseDeadline: '2026-09-01T00:00:00.000Z',
-      responseDeadlineNote: null,
-      grantFunding: { estimatedProgramFunding: 2_000_000, awardFloor: null, awardCeiling: 2_400_000, expectedAwardCount: null, costSharingRequired: null },
-      contractValue: null,
-      relevanceScore: 87,
-      workflow: { id: 'wf-1', status: 'pursuing', owner: null, facility: null, notes: null, dismissedReason: null, outcomeNote: null, userCreated: false, staleAt: null, createdAt: '2026-01-01T00:00:00.000Z' },
-    },
-  ],
-  topContracts: [],
-  missingProfileFields: [],
-  freshness: [],
-  emptyReason: null,
-  emptyExplanation: null,
-  generatedAt: '2026-08-16T00:00:00.000Z',
-};
-
-function mockFundingApis(overrides: { pes?: unknown; flags?: unknown; opportunities?: unknown } = {}) {
-  const pes = overrides.pes ?? { data: [RELEVANT_PE], total: 1, page: 1, limit: 12 };
-  const flags = overrides.flags ?? { funding_opportunities: true };
-  const opportunities = overrides.opportunities ?? OPPORTUNITY_SUMMARY;
-  getMock.mockImplementation((url: string) => {
-    if (url === '/api/intelligence/clients/client-1/pe-relevance') return Promise.resolve({ data: pes });
-    if (url === '/intel-api/feature-flags') return Promise.resolve({ data: flags });
-    if (url === '/api/intelligence/clients/client-1/opportunities/summary') return Promise.resolve({ data: opportunities });
-    return Promise.reject(new Error(`unexpected GET ${url}`));
-  });
-}
-
-describe('ClientCrmIntelligenceProto — funding panel (items 4-5, wire-audit)', () => {
-  beforeEach(() => {
-    getMock.mockReset();
-  });
-
-  it('re-fetches the opportunities and PE-relevance sources when Sync sources is clicked', async () => {
-    mockFundingApis();
-    renderFunding();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    const callsBeforeSync = getMock.mock.calls.length;
-
-    fireEvent.click(screen.getByText('Sync sources'));
-
-    // A static button with no onClick did nothing on click; this asserts a
-    // real re-read of the same sources the panel below already renders.
-    await waitFor(() => expect(getMock.mock.calls.length).toBeGreaterThan(callsBeforeSync));
-  });
-
-  it('renders real relevant PEs and wires "Open PE" navigation using the real peCode (item 4)', async () => {
-    mockFundingApis();
-    renderFunding();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    expect(screen.getByText('82%')).toBeInTheDocument();
-    // The fixture's own PE must not leak through as if real.
-    expect(screen.queryByText('Ground Vehicle Autonomy Kit')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Open PE →'));
-    expect(screen.getByTestId('location')).toHaveTextContent('/program-elements/0602308A');
-  });
-
-  it('wires the "Open budget" header link to the real Program Elements index (item 4)', async () => {
-    mockFundingApis();
-    renderFunding();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Open budget'));
-    expect(screen.getByTestId('location')).toHaveTextContent('/program-elements');
-  });
-
-  it('renders the real opportunities list when funding_opportunities is enabled (item 5)', async () => {
-    mockFundingApis();
-    renderFunding();
-
-    await waitFor(() => expect(screen.getByText('Autonomy Research Grant')).toBeInTheDocument());
-    // "Pursuing" also appears in the domain stats strip's own fixture cell.
-    expect(screen.getAllByText('Pursuing').length).toBeGreaterThan(0);
-    expect(screen.getByText('87% fit')).toBeInTheDocument();
-    // The fixture's own opportunities must not leak through as if real.
-    expect(screen.queryByText('Ground Robotics Autonomy Kit')).not.toBeInTheDocument();
-  });
-
-  it('keeps the opportunities design fixture when funding_opportunities is disabled for the tenant', async () => {
-    mockFundingApis({ flags: {} });
-    renderFunding();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    expect(screen.getByText('View all 7')).toBeInTheDocument();
-    expect(screen.queryByText('Autonomy Research Grant')).not.toBeInTheDocument();
-  });
-
-  it('shows an honest empty message when no program element clears the relevance threshold', async () => {
-    mockFundingApis({ pes: { data: [], total: 0, page: 1, limit: 12 } });
-    renderFunding();
-
-    await waitFor(() =>
-      expect(
-        screen.getByText('No program elements scored above the relevance threshold for this client.'),
-      ).toBeInTheDocument(),
-    );
-  });
-});
-
 function renderLegislative() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -576,6 +433,90 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     expect(screen.getAllByText('$1.8M').length).toBeGreaterThan(0);
     expect(screen.getAllByText('$84.2M').length).toBeGreaterThan(0);
     expect(screen.getByText('Northwest Government Affairs')).toBeInTheDocument();
+  });
+
+  /**
+   * Federal Footprint reads three independent sources (LDA, district-nexus
+   * spend, FEC). Each of the five domain-stats-strip cells maps to exactly
+   * ONE source, so a slow/failed source must only blank ITS OWN cells — not
+   * the other two sources' cells, which already have a real answer. This
+   * used to require ALL THREE to succeed before showing anything.
+   */
+  it('fills in LDA- and awards-derived stats immediately even while FEC is still loading', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
+        return Promise.resolve({
+          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
+        });
+      }
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return new Promise(() => {}); // never resolves
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderFootprint();
+
+    // Wait on the awards VALUE, not its label: every label renders on the
+    // first paint in the dash state, so awaiting the label would resolve
+    // before the district-nexus query settles and assert against a cell that
+    // is still legitimately loading.
+    await screen.findByText('$12.0M');
+    const awardsCell = screen.getByText('Federal awards · TTM');
+    expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
+
+    const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
+    expect(within(ldaCell as HTMLElement).getByText('1')).toBeInTheDocument();
+
+    // FEC never answered — its own cell stays an honest dash, not $0 and not blank.
+    const pacCell = screen.getByText('PAC disbursements').closest('.capiro-intel-stats-cell');
+    expect(within(pacCell as HTMLElement).getByText('—')).toBeInTheDocument();
+  });
+
+  /**
+   * "Export profile" (header) previously had no onClick at all — a static
+   * <SecondaryBtn> in DOMAIN_META, same defect class as the already-fixed
+   * Manage facilities/Configure buttons. The real destination is the
+   * report-card export route, now rendering an actual .docx server-side.
+   */
+  it('downloads the report card .docx when "Export profile" is clicked', async () => {
+    const docxBlob = new Blob(['fake-docx-bytes'], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
+        return Promise.resolve({
+          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
+        });
+      }
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: PAC_GIVING_REAL });
+      if (url === '/api/intelligence/clients/client-1/report-card/export') return Promise.resolve({ data: docxBlob });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+
+    const blobs: Blob[] = [];
+    const createUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob: Blob | MediaSource) => {
+        blobs.push(blob as Blob);
+        return 'blob:report-card';
+      });
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    renderFootprint();
+    await waitFor(() => expect(screen.getByText('Export profile')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Export profile'));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    // The mutation wraps the fetched blob in a fresh Blob (to set the download's
+    // content type), so it is not the SAME object as the mocked response —
+    // assert on the bytes it carries instead.
+    await expect(blobs[0]!.text()).resolves.toBe('fake-docx-bytes');
+
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
+    clickSpy.mockRestore();
   });
 });
 
@@ -810,6 +751,44 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     expect(screen.queryByText('AI Assurance for Defense Systems')).not.toBeInTheDocument();
   });
 
+  it('"Open matter" links to the real Federal Register document when the rail carries an htmlUrl, and renders nothing when it does not', async () => {
+    mockAggregate({
+      ...AGGREGATE_WITH_DEADLINES,
+      sections: {
+        legislativeRegulatory: {
+          regulatoryLifecycle: {
+            ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle,
+            rails: [
+              {
+                ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle.rails[0],
+                htmlUrl: 'https://www.federalregister.gov/documents/2026/08/16/2026-17422',
+              },
+              AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle.rails[1],
+            ],
+          },
+        },
+      },
+    });
+    renderWithRoutes();
+
+    const activeMatters = await screen.findByTestId('capiro-intel-active-matters');
+    const link = await within(activeMatters).findByRole('link', { name: 'Open matter →' });
+    expect(link).toHaveAttribute('href', 'https://www.federalregister.gov/documents/2026/08/16/2026-17422');
+    expect(link).toHaveAttribute('target', '_blank');
+    // Only ONE link: the second rail has no htmlUrl and must render no
+    // control at all rather than a button with nowhere to go.
+    expect(within(activeMatters).getAllByRole('link', { name: 'Open matter →' })).toHaveLength(1);
+  });
+
+  it('does not render a dead "View all" control on Active matters', async () => {
+    mockAggregate(AGGREGATE_WITH_DEADLINES);
+    renderWithRoutes();
+
+    const activeMattersCard = (await screen.findByTestId('capiro-intel-active-matters')).closest('section');
+    expect(activeMattersCard).not.toBeNull();
+    expect(within(activeMattersCard as HTMLElement).queryByText('View all')).not.toBeInTheDocument();
+  });
+
   it('downloads an .ics built from the real deadlines', async () => {
     mockAggregate(AGGREGATE_WITH_DEADLINES);
     const blobs: Blob[] = [];
@@ -961,32 +940,6 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
     expect(screen.queryByText('Submit or approve comment strategy')).not.toBeInTheDocument();
     // Calendar can't export a fixture, and there is nothing real to export either.
     expect(screen.getByText('Calendar')).toBeDisabled();
-  });
-
-  it('shows an honest error, not the OPPS/PROGRAMS fixtures, when funding queries fail on an enabled tenant', async () => {
-    getMock.mockImplementation((url: string) => {
-      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: { funding_opportunities: true } });
-      if (url === '/api/intelligence/clients/client-1/opportunities/summary') {
-        return Promise.reject(new Error('opportunities service unavailable'));
-      }
-      if (url === '/api/intelligence/clients/client-1/pe-relevance') {
-        return Promise.reject(new Error('relevance service unavailable'));
-      }
-      return Promise.reject(new Error(`unexpected GET ${url}`));
-    });
-    renderFunding();
-
-    // `opportunitiesQ` sets an explicit retry: 1 on the query itself, which
-    // overrides this test's QueryClient-level retry:false default — same
-    // reasoning as the regulatory-aggregate test above.
-    await waitFor(
-      () => expect(screen.getByText(/Funding opportunities could not be loaded/)).toBeInTheDocument(),
-      { timeout: 5000 },
-    );
-    expect(screen.getByText(/Relevant budget programs could not be loaded/)).toBeInTheDocument();
-    expect(screen.queryByText('Autonomous Ground Vehicle Integration')).not.toBeInTheDocument();
-    expect(screen.queryByText('Ground Robotics')).not.toBeInTheDocument();
-    expect(screen.queryByText('View all 7')).not.toBeInTheDocument();
   });
 
   it('shows an honest error, not the $1.8M/Sparkline or LDA-rows fixtures, when the LDA request fails', async () => {

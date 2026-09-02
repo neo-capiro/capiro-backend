@@ -133,13 +133,22 @@ describe('Engagement UI closeout contract', () => {
     expect(send).toContain('The selected exact version goes only to your own connected mailbox.');
   });
 
-  it('acknowledging held recipients never claims to unblock them', () => {
+  it('tells the truth about held recipients without gating the send on a checkbox', () => {
     const send = source('src/vnext/pages/engagement/outreach-step-send.tsx');
-    expect(send).toContain('I understand those recipients will not be contacted');
-    expect(send).toContain('This does not resolve their blockers or send to them.');
+    // The disclosure is the part that matters, and it survives: the held list
+    // says what happens, and the confirm dialog restates it at the
+    // irreversible moment.
+    expect(send).toContain('They are held out of this send and receive nothing.');
+    expect(send).toContain('will remain held. They will not receive an email.');
     // A group is one shared email, so "they receive nothing" would be false —
     // the held-out recipient is on the address line of a message the rest get.
     expect(send).toContain('A group cannot hold one recipient out of a message the others receive.');
+    // The acknowledgement checkbox is deliberately gone. The server could only
+    // ever check that the client had sent `true`, never persisted it, and
+    // dropped held recipients from the envelope either way — so it withheld
+    // Send and forced a second preflight round-trip without protecting anyone.
+    expect(send).not.toContain('I understand those recipients will not be contacted');
+    expect(send).not.toContain('acknowledgeHeldOut');
   });
 
   it('has no dead post-send next actions', () => {

@@ -174,6 +174,35 @@ function gatewayRecipient(
   if (prepared.slot.audienceKind === 'group') {
     const members = prepared.currentTargets.map((target) => targetSnapshot(target, spec));
     const sourceTypes = [...new Set(members.map((member) => member.source))].sort();
+    // OutreachSendIntentService.buildEnvelope() reads cc/bcc off THIS top-level
+    // snapshot for a shared-thread send — it never walks `members[i].cc`. Union
+    // every member's own Cc/Bcc here (deduped, minus anyone already in To) so a
+    // group send honors the same Cc/Bcc an individual send does. Shipped gap
+    // from PR #1360: members[i].cc was populated but the top level never was,
+    // so every shared-thread send silently dropped all Cc/Bcc.
+    const toEmails = new Set(
+      members.map((member) => member.email?.trim().toLowerCase()).filter(Boolean),
+    );
+    const unionAddresses = (pick: (m: (typeof members)[number]) => string[]): string[] => {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const member of members) {
+        for (const address of pick(member)) {
+          const normalized = address.trim().toLowerCase();
+          if (!normalized || seen.has(normalized) || toEmails.has(normalized)) continue;
+          seen.add(normalized);
+          out.push(address.trim());
+        }
+      }
+      return out;
+    };
+    const groupCc = unionAddresses((member) => member.cc);
+    // An address one member Cc'd and another Bcc'd must not appear in BOTH
+    // headers — Cc (visible) wins, so the Bcc union also excludes groupCc.
+    const groupCcSet = new Set(groupCc.map((address) => address.toLowerCase()));
+    const groupBcc = unionAddresses((member) => member.bcc).filter(
+      (address) => !groupCcSet.has(address.toLowerCase()),
+    );
     return {
       generationKey: prepared.slot.generationKey,
       scopeKeys: prepared.slot.scopeKeys,
@@ -201,6 +230,10 @@ function gatewayRecipient(
           targetKey: member.targetKey,
         })),
         members,
+        // buildEnvelope() reads THESE for the shared thread's Cc/Bcc headers
+        // (see the union above). Also part of the delivery idempotency key.
+        cc: groupCc,
+        bcc: groupBcc,
       },
     };
   }
@@ -227,6 +260,11 @@ function gatewayRecipient(
     sourceTypes: [target.locator.source],
     governmentLevel: target.jurisdiction.governmentLevel,
     chamber: target.jurisdiction.chamber,
+    // Server-resolved committee names. For committee_staff this is the
+    // committee they serve; for directory_staff, the member's assignments.
+    // This is what gives a bioguide-less staffer a committee hook in the
+    // recipient brief (see GenerationGatewayService.recipientBrief).
+    committees: target.jurisdiction.committees,
     snapshot: targetSnapshot(target, spec),
   };
 }

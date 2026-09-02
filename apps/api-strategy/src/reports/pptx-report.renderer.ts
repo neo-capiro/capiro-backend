@@ -17,12 +17,25 @@ import {
   strategyTypeLabel,
 } from "./report-content.js";
 import { containBox, readRasterSize } from "./report-image.js";
+import {
+  narrativeSection,
+  type VerifiedNarrativeParagraph,
+  type VerifiedReportNarrative,
+} from "./report-narrative.types.js";
 import { ooxmlSafeValue } from "./report-text.js";
+import {
+  buildTimelineModel,
+  timelineHorizonLabel,
+  type TimelineModel,
+} from "./report-timeline.js";
 import type {
   ClientLogoAsset,
   ExecutiveReportSnapshot,
+  ReportMemberDetail,
   ReportNarrativeItem,
   ReportNode,
+  ReportRasterAsset,
+  ReportRenderExtras,
 } from "./report.types.js";
 
 type Slide = ReturnType<PptxGenJS["addSlide"]>;
@@ -54,14 +67,48 @@ const C = {
   green: "18794E",
 } as const;
 
+const TIMELINE_ROWS_PER_SLIDE = 7;
+const MEMBER_CARDS_PER_SLIDE = 3;
+const TIMELINE_TONES: Record<ReportNode["kind"], string> = {
+  action: C.teal,
+  decision: C.blue,
+  gate: C.gold,
+  milestone: C.gold,
+  risk: C.red,
+};
+
 @Injectable()
 export class PptxReportRenderer {
   async render(
     snapshot: ExecutiveReportSnapshot,
     logo: ClientLogoAsset | null,
+    extras: ReportRenderExtras = {},
   ): Promise<Buffer> {
     // Defense in depth for direct renderer callers outside snapshot loading.
     snapshot = ooxmlSafeValue(snapshot);
+    const narrative = extras.narrative
+      ? ooxmlSafeValue(extras.narrative)
+      : null;
+    const memberDetails = (extras.memberDetails ?? [])
+      .map((detail) => ooxmlSafeValue(detail))
+      .filter((detail) =>
+        snapshot.members.some((member) => member.memberId === detail.memberId),
+      );
+    const memberPhotos =
+      extras.memberPhotos ?? new Map<string, ReportRasterAsset>();
+    const prose = (id: Parameters<typeof narrativeSection>[1]) =>
+      narrativeSection(narrative, id);
+    const workingPlanNodes = internalWorkingPlanNodes(snapshot);
+    const deliverySnapshot: ExecutiveReportSnapshot =
+      workingPlanNodes.length > 0
+        ? {
+            ...snapshot,
+            nodes: snapshot.nodes.filter(
+              (node) =>
+                !workingPlanNodes.some((working) => working.id === node.id),
+            ),
+          }
+        : snapshot;
     const pptx = new PptxGenJS();
     pptx.layout = "LAYOUT_WIDE";
     pptx.author = "Capiro";
@@ -220,20 +267,23 @@ export class PptxReportRenderer {
     cover.addNotes(sourceNote(snapshot));
 
     // Leadership summary
+    const executiveProse = prose("executive_summary");
     {
       const slide = nextSlide("Leadership summary", "Current posture");
       const summary = executiveSummary(snapshot);
-      slide.addText(clip(summary[0] ?? "", 340), {
+      const lead = executiveProse[0]?.text ?? summary[0] ?? "";
+      slide.addText(clip(lead, executiveProse.length ? 520 : 340), {
         x: 0.72,
         y: 1.55,
         w: 7.3,
         h: 2.1,
-        fontSize: 18,
+        fontSize: executiveProse.length ? 15.5 : 18,
         color: C.ink,
         breakLine: false,
         valign: "top",
         margin: 0,
         paraSpaceAfter: 10,
+        fit: "shrink",
       });
       addHealthCard(pptx, slide, snapshot, 8.45, 1.5, 4.1, 2.15);
       slide.addShape(pptx.ShapeType.rect, {
@@ -280,10 +330,10 @@ export class PptxReportRenderer {
           fit: "shrink",
         },
       );
-      const focus = criticalNodes(snapshot, 2);
+      const focus = criticalNodes(deliverySnapshot, 2);
       slide.addText(
-        focus.length < snapshot.nodes.length
-          ? `IMMEDIATE FOCUS · ${focus.length} OF ${snapshot.nodes.length}`
+        focus.length < deliverySnapshot.nodes.length
+          ? `IMMEDIATE FOCUS · ${focus.length} OF ${deliverySnapshot.nodes.length}`
           : "IMMEDIATE FOCUS",
         {
           x: 0.72,
@@ -310,7 +360,7 @@ export class PptxReportRenderer {
           fontSize: 15.5,
         },
       );
-      if (focus.length < snapshot.nodes.length) {
+      if (focus.length < deliverySnapshot.nodes.length) {
         slide.addText("Complete action register in appendix", {
           x: 9.15,
           y: 5.18,
@@ -324,9 +374,7 @@ export class PptxReportRenderer {
         });
       }
       if (snapshot.options.audience === "internal") {
-        const workingPlanCount = snapshot.nodes.filter((node) =>
-          ["suggested", "draft", "internal_review"].includes(node.status),
-        ).length;
+        const workingPlanCount = workingPlanNodes.length;
         if (workingPlanCount > 0) {
           slide.addText(
             `WORKING PLAN · ${workingPlanCount} suggested, draft, or review item${workingPlanCount === 1 ? "" : "s"} included for internal review — not committed client delivery`,
@@ -346,9 +394,21 @@ export class PptxReportRenderer {
       }
     }
 
+    // Executive narrative (grounded prose beyond the lead paragraph)
+    if (executiveProse.length > 1) {
+      const slide = nextSlide("Executive narrative", "The story of the plan");
+      addProseColumns(pptx, slide, executiveProse.slice(1, 4), {
+        x: 0.72,
+        y: 1.52,
+        w: 11.85,
+        h: 4.95,
+        accent: C.teal,
+      });
+    }
+
     // Situation and stakes
     {
-      const narrative = contextItems(snapshot, [
+      const narrativeItems = contextItems(snapshot, [
         "situation",
         "intelligence",
         "timing",
@@ -365,31 +425,44 @@ export class PptxReportRenderer {
             .filter(Boolean)
             .join(" · "),
         })),
-        ...narrative.map(narrativeDisplayItem),
+        ...narrativeItems.map(narrativeDisplayItem),
       ];
+      const situationProse = prose("situation");
       const slide = nextSlide(
         "Situation and stakes",
-        situation.length > 4
-          ? `What shapes the strategy · Showing 4 of ${situation.length} context points`
-          : "What shapes the strategy",
+        situationProse.length
+          ? "What shapes the strategy"
+          : situation.length > 4
+            ? `What shapes the strategy · Showing 4 of ${situation.length} context points`
+            : "What shapes the strategy",
       );
-      addTextPanel(
-        pptx,
-        slide,
-        situation.length > 4
-          ? `STRATEGIC CONTEXT · 4 OF ${situation.length}`
-          : "STRATEGIC CONTEXT",
-        situation.slice(0, 4),
-        {
+      if (situationProse.length) {
+        addProsePanel(pptx, slide, "STRATEGIC CONTEXT", situationProse, {
           x: 0.72,
           y: 1.52,
           w: 7.35,
           h: 4.95,
           accent: C.teal,
-          empty:
-            "No audience-safe situation narrative is recorded; the operating signals at right reflect the stored plan only.",
-        },
-      );
+        });
+      } else {
+        addTextPanel(
+          pptx,
+          slide,
+          situation.length > 4
+            ? `STRATEGIC CONTEXT · 4 OF ${situation.length}`
+            : "STRATEGIC CONTEXT",
+          situation.slice(0, 4),
+          {
+            x: 0.72,
+            y: 1.52,
+            w: 7.35,
+            h: 4.95,
+            accent: C.teal,
+            empty:
+              "No audience-safe situation narrative is recorded; the operating signals at right reflect the stored plan only.",
+          },
+        );
+      }
       addSignalPanel(pptx, slide, snapshot, 8.32, 1.52, 4.25, 4.95);
     }
 
@@ -397,10 +470,11 @@ export class PptxReportRenderer {
     {
       const asks = contextItems(snapshot, ["ask", "decisions"]);
       const outcomes = contextItems(snapshot, ["outcomes"]);
-      const decisionFallback = decisionsAndRisks(snapshot)
+      const objectivesProse = prose("objectives_and_ask");
+      const decisionFallback = decisionsAndRisks(deliverySnapshot)
         .filter((node) => node.kind === "decision")
         .map(nodeDisplayItem);
-      const outcomeFallback = snapshot.nodes
+      const outcomeFallback = deliverySnapshot.nodes
         .filter((node) => node.kind === "gate" || node.kind === "milestone")
         .map(nodeDisplayItem);
       const askItems = asks.length
@@ -448,22 +522,32 @@ export class PptxReportRenderer {
           fit: "shrink",
         },
       );
-      addTextPanel(
-        pptx,
-        slide,
-        askItems.length > 3
-          ? `LEADERSHIP ASK · 3 OF ${askItems.length}`
-          : "LEADERSHIP ASK",
-        askItems.slice(0, 3),
-        {
+      if (objectivesProse.length) {
+        addProsePanel(pptx, slide, "OUTCOMES AND THE ASK", objectivesProse, {
           x: 0.72,
           y: 3.12,
           w: 5.78,
           h: 3.28,
           accent: C.gold,
-          empty: "No explicit leadership ask or decision is recorded.",
-        },
-      );
+        });
+      } else {
+        addTextPanel(
+          pptx,
+          slide,
+          askItems.length > 3
+            ? `LEADERSHIP ASK · 3 OF ${askItems.length}`
+            : "LEADERSHIP ASK",
+          askItems.slice(0, 3),
+          {
+            x: 0.72,
+            y: 3.12,
+            w: 5.78,
+            h: 3.28,
+            accent: C.gold,
+            empty: "No explicit leadership ask or decision is recorded.",
+          },
+        );
+      }
       addTextPanel(
         pptx,
         slide,
@@ -484,11 +568,13 @@ export class PptxReportRenderer {
 
     // Strategic focus areas
     {
-      const defined = focusAreas(snapshot);
+      const defined = focusAreas(deliverySnapshot);
       const covered = new Set(
         defined.flatMap((area) => area.nodes.map((node) => node.id)),
       );
-      const remaining = snapshot.nodes.filter((node) => !covered.has(node.id));
+      const remaining = deliverySnapshot.nodes.filter(
+        (node) => !covered.has(node.id),
+      );
       const areas = [
         ...defined,
         ...(remaining.length
@@ -525,7 +611,7 @@ export class PptxReportRenderer {
         });
       }
       slide.addText(
-        `${snapshot.nodes.length} included plan step${snapshot.nodes.length === 1 ? "" : "s"} · Complete action register in appendix`,
+        `${deliverySnapshot.nodes.length} included plan step${deliverySnapshot.nodes.length === 1 ? "" : "s"} · Complete action register in appendix`,
         {
           x: 0.75,
           y: 6.62,
@@ -652,17 +738,17 @@ export class PptxReportRenderer {
 
     // Critical moves
     {
-      const nodes = criticalNodes(snapshot, 6);
+      const nodes = criticalNodes(deliverySnapshot, 6);
       const slide = nextSlide(
         "Critical moves",
-        nodes.length < snapshot.nodes.length
-          ? `What leadership should track · Showing ${nodes.length} of ${snapshot.nodes.length}`
+        nodes.length < deliverySnapshot.nodes.length
+          ? `What leadership should track · Showing ${nodes.length} of ${deliverySnapshot.nodes.length}`
           : "What leadership should track",
       );
       nodes.forEach((node, index) =>
         addNodeCard(pptx, slide, snapshot, node, index),
       );
-      if (nodes.length < snapshot.nodes.length) {
+      if (nodes.length < deliverySnapshot.nodes.length) {
         slide.addText("Complete action register in appendix", {
           x: 8.7,
           y: 6.62,
@@ -678,7 +764,31 @@ export class PptxReportRenderer {
     }
 
     if (snapshot.options.includeRoadmap) {
-      const groups = roadmap(snapshot);
+      const roadmapProse = prose("roadmap_outlook");
+      const timeline = buildTimelineModel(
+        deliverySnapshot,
+        deliverySnapshot.nodes,
+      );
+      if (timeline) {
+        const pages = chunk(timeline.rows, TIMELINE_ROWS_PER_SLIDE);
+        pages.forEach((rows, pageIndex) => {
+          const slide = nextSlide(
+            "Delivery timeline",
+            pages.length > 1
+              ? `${timelineHorizonLabel(timeline)} · Steps ${pageIndex * TIMELINE_ROWS_PER_SLIDE + 1}–${pageIndex * TIMELINE_ROWS_PER_SLIDE + rows.length} of ${timeline.rows.length}`
+              : timelineHorizonLabel(timeline),
+          );
+          addTimelineSlide(
+            pptx,
+            slide,
+            snapshot,
+            timeline,
+            rows,
+            pageIndex === 0 ? (roadmapProse[0]?.text ?? null) : null,
+          );
+        });
+      }
+      const groups = roadmap(deliverySnapshot);
       addRoadmapSlide(
         pptx,
         nextSlide("Near-term roadmap", "Now through 60 days"),
@@ -691,13 +801,54 @@ export class PptxReportRenderer {
       );
     }
 
+    // Member offices in the plan
+    if (memberDetails.length > 0) {
+      const pages = chunk(memberDetails, MEMBER_CARDS_PER_SLIDE);
+      pages.forEach((details, pageIndex) => {
+        const slide = nextSlide(
+          "Member offices in the plan",
+          pages.length > 1
+            ? `Congressional offices targeted by plan steps · ${pageIndex * MEMBER_CARDS_PER_SLIDE + 1}–${pageIndex * MEMBER_CARDS_PER_SLIDE + details.length} of ${memberDetails.length}`
+            : "Congressional offices targeted by plan steps",
+        );
+        details.forEach((detail, index) =>
+          addMemberCard(
+            pptx,
+            slide,
+            snapshot,
+            detail,
+            memberPhotos.get(detail.memberId) ?? null,
+            index,
+          ),
+        );
+        slide.addText(
+          "Portraits and Washington office details are drawn from the public congressional directory at export time.",
+          {
+            x: 0.75,
+            y: 6.62,
+            w: 11.7,
+            h: 0.22,
+            fontSize: 9.5,
+            italic: true,
+            align: "right",
+            color: C.slate,
+            margin: 0,
+          },
+        );
+      });
+    }
+
     // Stakeholders and operating constraints
     {
+      const stakeholderProse = prose("stakeholders");
+      const constraintProse = prose("constraints_and_timing");
       const stakeholderNarrative = contextItems(snapshot, ["stakeholders"]);
       const stakeholderItems: DisplayItem[] = [
         ...stakeholderNarrative.map(narrativeDisplayItem),
         ...uniqueStrings(
-          snapshot.nodes.map((node) => node.targetLabel).filter(isString),
+          deliverySnapshot.nodes
+            .map((node) => node.targetLabel)
+            .filter(isString),
         ).map((target) => ({
           text: target,
           detail: "Named stakeholder or target in the current plan",
@@ -709,7 +860,7 @@ export class PptxReportRenderer {
       ]);
       const constraintItems: DisplayItem[] = [
         ...constraintNarrative.map(narrativeDisplayItem),
-        ...snapshot.nodes
+        ...deliverySnapshot.nodes
           .filter((node) => node.kind === "risk")
           .map((node) => ({
             text: node.title,
@@ -720,38 +871,58 @@ export class PptxReportRenderer {
         "Stakeholders and operating constraints",
         "Who matters and what can shape delivery",
       );
-      addTextPanel(
-        pptx,
-        slide,
-        stakeholderItems.length > 5
-          ? `STAKEHOLDER FOCUS · 5 OF ${stakeholderItems.length}`
-          : "STAKEHOLDER FOCUS",
-        stakeholderItems.slice(0, 5),
-        {
+      if (stakeholderProse.length) {
+        addProsePanel(pptx, slide, "STAKEHOLDER FOCUS", stakeholderProse, {
           x: 0.72,
           y: 1.52,
           w: 5.78,
           h: 4.95,
           accent: C.blue,
-          empty: "No stakeholder narrative or named targets are recorded.",
-        },
-      );
-      addTextPanel(
-        pptx,
-        slide,
-        constraintItems.length > 5
-          ? `CONSTRAINTS & RISKS · 5 OF ${constraintItems.length}`
-          : "CONSTRAINTS & RISKS",
-        constraintItems.slice(0, 5),
-        {
+        });
+      } else {
+        addTextPanel(
+          pptx,
+          slide,
+          stakeholderItems.length > 5
+            ? `STAKEHOLDER FOCUS · 5 OF ${stakeholderItems.length}`
+            : "STAKEHOLDER FOCUS",
+          stakeholderItems.slice(0, 5),
+          {
+            x: 0.72,
+            y: 1.52,
+            w: 5.78,
+            h: 4.95,
+            accent: C.blue,
+            empty: "No stakeholder narrative or named targets are recorded.",
+          },
+        );
+      }
+      if (constraintProse.length) {
+        addProsePanel(pptx, slide, "CONSTRAINTS & TIMING", constraintProse, {
           x: 6.78,
           y: 1.52,
           w: 5.79,
           h: 4.95,
           accent: C.red,
-          empty: "No explicit constraint, timing issue, or risk is recorded.",
-        },
-      );
+        });
+      } else {
+        addTextPanel(
+          pptx,
+          slide,
+          constraintItems.length > 5
+            ? `CONSTRAINTS & RISKS · 5 OF ${constraintItems.length}`
+            : "CONSTRAINTS & RISKS",
+          constraintItems.slice(0, 5),
+          {
+            x: 6.78,
+            y: 1.52,
+            w: 5.79,
+            h: 4.95,
+            accent: C.red,
+            empty: "No explicit constraint, timing issue, or risk is recorded.",
+          },
+        );
+      }
     }
 
     // Decisions and risks
@@ -760,7 +931,15 @@ export class PptxReportRenderer {
         "Decision agenda and risk posture",
         "Leadership attention",
       );
-      const items = decisionsAndRisks(snapshot);
+      const decisionProse = prose("decisions_and_risks");
+      if (decisionProse.length) {
+        // Slide real estate belongs to the register; the grounded framing goes
+        // into presenter notes so the speaker has it verbatim.
+        slide.addNotes(
+          `${decisionProse.map((paragraph) => paragraph.text).join("\n\n")}\n\n${sourceNote(snapshot, "Decision agenda and risk posture")}`,
+        );
+      }
+      const items = decisionsAndRisks(deliverySnapshot);
       const panelLimit = snapshot.options.includeInternalNotes ? 3 : 5;
       const allDecisions = items.filter((node) => node.kind === "decision");
       const allRisks = items.filter((node) => node.kind === "risk");
@@ -796,7 +975,7 @@ export class PptxReportRenderer {
 
     // Accountability
     {
-      const allRows = snapshot.nodes.filter(
+      const allRows = deliverySnapshot.nodes.filter(
         (node) => node.ownerName !== "Unassigned" || node.targetLabel,
       );
       const rows = allRows.slice(0, 7);
@@ -861,7 +1040,7 @@ export class PptxReportRenderer {
         );
       }
       slide.addText(
-        `${allRows.length} of ${snapshot.nodes.length} included steps have an owner or stakeholder target · Complete action register in appendix`,
+        `${allRows.length} of ${deliverySnapshot.nodes.length} included steps have an owner or stakeholder target · Complete action register in appendix`,
         {
           x: 0.75,
           y: 6.58,
@@ -879,8 +1058,8 @@ export class PptxReportRenderer {
     // Leadership agenda and next steps
     {
       const fullAgenda = leadershipAgenda(
-        snapshot,
-        Math.max(24, snapshot.nodes.length * 5),
+        deliverySnapshot,
+        Math.max(24, deliverySnapshot.nodes.length * 5),
       );
       const agenda = fullAgenda.slice(0, 6);
       const slide = nextSlide(
@@ -919,7 +1098,7 @@ export class PptxReportRenderer {
     }
 
     const contextEvidence = evidenceItems(snapshot);
-    const groundedNodes = snapshot.nodes.filter(
+    const groundedNodes = deliverySnapshot.nodes.filter(
       (node) => node.sources.length > 0,
     );
     const evidenceDisplay = evidenceDisplayItems(
@@ -1016,13 +1195,15 @@ export class PptxReportRenderer {
 
     // The appendix is intentionally paginated rather than capped. Every
     // included plan step appears exactly once even when main slides summarize.
-    const actionPages = chunk(snapshot.nodes, 5);
+    // Working-plan items are committed-delivery-excluded here — they get
+    // their own paginated appendix below instead, so no step is emitted twice.
+    const actionPages = chunk(deliverySnapshot.nodes, 5);
     actionPages.forEach((nodes, pageIndex) => {
       const first = pageIndex * 5 + 1;
       const last = first + nodes.length - 1;
       const slide = nextSlide(
         "Action register",
-        `Appendix · Steps ${first}–${last} of ${snapshot.nodes.length}`,
+        `Appendix · Steps ${first}–${last} of ${deliverySnapshot.nodes.length}`,
       );
       addActionRegisterPage(pptx, slide, nodes);
     });
@@ -1041,56 +1222,67 @@ export class PptxReportRenderer {
     }
 
     if (snapshot.options.audience === "internal") {
-      const workingNodes = snapshot.nodes.filter((node) =>
-        ["suggested", "draft", "internal_review"].includes(node.status),
-      );
-      if (workingNodes.length > 0) {
-        const shown = workingNodes.slice(0, 5);
-        const slide = nextSlide(
-          "Working plan and review queue",
-          shown.length < workingNodes.length
-            ? `Internal appendix · Showing ${shown.length} of ${workingNodes.length} uncommitted items`
-            : "Internal appendix · Uncommitted items",
-        );
-        slide.addShape(pptx.ShapeType.rect, {
-          x: 0.72,
-          y: 1.5,
-          w: 11.85,
-          h: 0.78,
-          fill: { color: "FFF6E5" },
-          line: { color: C.gold, width: 1 },
-        });
-        slide.addText(
-          "Suggested, draft, and internal-review items are working-plan material. They are included for internal review and are not committed client delivery.",
-          {
-            x: 1.0,
-            y: 1.72,
-            w: 11.25,
-            h: 0.34,
-            fontSize: 13,
-            bold: true,
-            color: C.ink,
-            margin: 0,
-            fit: "shrink",
-          },
-        );
-        addTextPanel(
-          pptx,
-          slide,
-          shown.length < workingNodes.length
-            ? `REVIEW QUEUE · ${shown.length} OF ${workingNodes.length}`
-            : "REVIEW QUEUE",
-          shown.map(nodeDisplayItem),
-          {
+      if (workingPlanNodes.length > 0) {
+        // Paginated like the action register above: every working-plan item
+        // appears exactly once across these pages, never just the first 5.
+        const workingPages = chunk(workingPlanNodes, 5);
+        workingPages.forEach((nodes, pageIndex) => {
+          const first = pageIndex * 5 + 1;
+          const last = first + nodes.length - 1;
+          const slide = nextSlide(
+            "Working plan and review queue",
+            workingPlanNodes.length > 5
+              ? `Internal appendix · Steps ${first}–${last} of ${workingPlanNodes.length} uncommitted items`
+              : "Internal appendix · Uncommitted items",
+          );
+          slide.addShape(pptx.ShapeType.rect, {
             x: 0.72,
-            y: 2.55,
-            w: 8.0,
-            h: 3.9,
-            accent: C.gold,
-            empty: "No working-plan items are included.",
-          },
-        );
-        addWorkingStatusPanel(pptx, slide, workingNodes, 8.98, 2.55, 3.59, 3.9);
+            y: 1.5,
+            w: 11.85,
+            h: 0.78,
+            fill: { color: "FFF6E5" },
+            line: { color: C.gold, width: 1 },
+          });
+          slide.addText(
+            "Suggested, draft, and internal-review items are working-plan material. They are included for internal review and are not committed client delivery.",
+            {
+              x: 1.0,
+              y: 1.72,
+              w: 11.25,
+              h: 0.34,
+              fontSize: 13,
+              bold: true,
+              color: C.ink,
+              margin: 0,
+              fit: "shrink",
+            },
+          );
+          addTextPanel(
+            pptx,
+            slide,
+            workingPlanNodes.length > 5
+              ? `REVIEW QUEUE · ${first}–${last} OF ${workingPlanNodes.length}`
+              : "REVIEW QUEUE",
+            nodes.map(nodeDisplayItem),
+            {
+              x: 0.72,
+              y: 2.55,
+              w: 8.0,
+              h: 3.9,
+              accent: C.gold,
+              empty: "No working-plan items are included.",
+            },
+          );
+          addWorkingStatusPanel(
+            pptx,
+            slide,
+            workingPlanNodes,
+            8.98,
+            2.55,
+            3.59,
+            3.9,
+          );
+        });
       }
 
       const slide = nextSlide(
@@ -1103,6 +1295,13 @@ export class PptxReportRenderer {
         `${snapshot.context.activeDocuments} active context documents`,
         `${snapshot.context.staleDocuments} context documents past review`,
         `${snapshot.context.openMaterialConflicts} open material conflicts`,
+        ...(snapshot.options.includeNarrative
+          ? [
+              narrative
+                ? `Narrative: ${narrative.acceptedParagraphs} paragraphs accepted, ${narrative.rejectedParagraphs} rejected by verification, ${narrative.orchestratorDroppedParagraphs} dropped upstream (${narrative.model})`
+                : "Narrative: requested but unavailable; deterministic content rendered",
+            ]
+          : []),
       ];
       addBullets(slide, governance, {
         x: 0.8,
@@ -1217,6 +1416,14 @@ function narrativeDisplayItem(item: ReportNarrativeItem): DisplayItem {
       .filter(isString)
       .join(" · "),
   };
+}
+
+function internalWorkingPlanNodes(
+  snapshot: ExecutiveReportSnapshot,
+): ReportNode[] {
+  if (snapshot.options.audience !== "internal") return [];
+  const workingStatuses = new Set(["suggested", "draft", "internal_review"]);
+  return snapshot.nodes.filter((node) => workingStatuses.has(node.status));
 }
 
 function nodeDisplayItem(node: ReportNode): DisplayItem {
@@ -2235,6 +2442,609 @@ function addNodeCard(
       fit: "shrink",
     },
   );
+}
+
+/** Flowing verified prose inside a standard panel, with a compact sources line. */
+function addProsePanel(
+  pptx: PptxGenJS,
+  slide: Slide,
+  heading: string,
+  paragraphs: readonly VerifiedNarrativeParagraph[],
+  options: { x: number; y: number; w: number; h: number; accent: string },
+): void {
+  slide.addShape(pptx.ShapeType.rect, {
+    x: options.x,
+    y: options.y,
+    w: options.w,
+    h: options.h,
+    fill: { color: C.pale },
+    line: { color: C.line, width: 1 },
+  });
+  slide.addShape(pptx.ShapeType.rect, {
+    x: options.x,
+    y: options.y,
+    w: options.w,
+    h: 0.08,
+    fill: { color: options.accent },
+    line: { color: options.accent },
+  });
+  slide.addText(heading, {
+    x: options.x + 0.28,
+    y: options.y + 0.3,
+    w: options.w - 0.56,
+    h: 0.24,
+    fontSize: 9,
+    bold: true,
+    charSpacing: 1.25,
+    color: options.accent,
+    margin: 0,
+    fit: "shrink",
+  });
+  const shown = paragraphs.slice(0, 3);
+  const totalChars = shown.reduce((sum, paragraph) => sum + paragraph.text.length, 0);
+  const fontSize =
+    totalChars > 1_100 ? 11 : totalChars > 750 ? 12 : totalChars > 450 ? 13 : 14;
+  slide.addText(
+    shown.map((paragraph) => ({
+      text: paragraph.text,
+      options: { breakLine: true, paraSpaceAfter: 8 },
+    })),
+    {
+      x: options.x + 0.3,
+      y: options.y + 0.72,
+      w: options.w - 0.6,
+      h: options.h - 1.28,
+      fontSize,
+      color: C.ink,
+      valign: "top",
+      margin: 0,
+      fit: "shrink",
+    },
+  );
+  const sources = uniqueStrings(
+    shown.flatMap((paragraph) => paragraph.sourceTitles),
+  );
+  if (sources.length > 0) {
+    slide.addText(
+      `Sources: ${sources.slice(0, 5).join(" · ")}${
+        sources.length > 5 ? ` · +${sources.length - 5}` : ""
+      }`,
+      {
+        x: options.x + 0.3,
+        y: options.y + options.h - 0.46,
+        w: options.w - 0.6,
+        h: 0.3,
+        fontSize: 8.5,
+        italic: true,
+        color: C.slate,
+        margin: 0,
+        fit: "shrink",
+        valign: "bottom",
+      },
+    );
+  }
+}
+
+/** Two-column prose spread for the executive narrative slide. */
+function addProseColumns(
+  pptx: PptxGenJS,
+  slide: Slide,
+  paragraphs: readonly VerifiedNarrativeParagraph[],
+  options: { x: number; y: number; w: number; h: number; accent: string },
+): void {
+  const gap = 0.4;
+  const columnWidth = (options.w - gap) / 2;
+  const left = paragraphs.slice(0, Math.ceil(paragraphs.length / 2));
+  const right = paragraphs.slice(left.length);
+  [left, right].forEach((column, index) => {
+    if (column.length === 0) return;
+    addProsePanel(
+      pptx,
+      slide,
+      index === 0 ? "EXECUTIVE NARRATIVE" : "CONTINUED",
+      column,
+      {
+        x: options.x + index * (columnWidth + gap),
+        y: options.y,
+        w: columnWidth,
+        h: options.h,
+        accent: options.accent,
+      },
+    );
+  });
+}
+
+const TIMELINE_LABEL_X = 0.7;
+const TIMELINE_LABEL_W = 3.15;
+const TIMELINE_CHART_X = 3.95;
+const TIMELINE_CHART_W = 8.65;
+
+/** Native-shape Gantt: month/quarter header, one bar or diamond per step, today + target markers. */
+function addTimelineSlide(
+  pptx: PptxGenJS,
+  slide: Slide,
+  snapshot: ExecutiveReportSnapshot,
+  model: TimelineModel,
+  rows: TimelineModel["rows"],
+  caption: string | null,
+): void {
+  const headerY = 1.5;
+  const headerH = 0.42;
+  const chartTop = headerY + headerH + 0.08;
+  const captionH = caption ? 0.78 : 0;
+  const legendH = 0.32;
+  const chartBottom = 6.95 - legendH - captionH;
+  const rowH = Math.min(0.56, (chartBottom - chartTop) / Math.max(1, rows.length));
+  const fractionX = (fraction: number) =>
+    TIMELINE_CHART_X + TIMELINE_CHART_W * fraction;
+
+  // Header band with period columns.
+  slide.addShape(pptx.ShapeType.rect, {
+    x: TIMELINE_LABEL_X,
+    y: headerY,
+    w: TIMELINE_LABEL_W + 0.1 + TIMELINE_CHART_W,
+    h: headerH,
+    fill: { color: C.navy },
+    line: { color: C.navy },
+  });
+  slide.addText("PLAN STEP", {
+    x: TIMELINE_LABEL_X + 0.16,
+    y: headerY,
+    w: TIMELINE_LABEL_W - 0.2,
+    h: headerH,
+    fontSize: 9,
+    bold: true,
+    charSpacing: 1.3,
+    color: C.white,
+    valign: "middle",
+    margin: 0,
+  });
+  const columnW = TIMELINE_CHART_W / Math.max(1, model.columns.length);
+  model.columns.forEach((column, index) => {
+    const x = TIMELINE_CHART_X + index * columnW;
+    if (column.isCurrent) {
+      slide.addShape(pptx.ShapeType.rect, {
+        x,
+        y: headerY,
+        w: columnW,
+        h: headerH,
+        fill: { color: C.teal },
+        line: { color: C.teal },
+      });
+    }
+    slide.addText(column.label, {
+      x,
+      y: headerY,
+      w: columnW,
+      h: headerH,
+      fontSize: model.columns.length > 12 ? 8 : 9.5,
+      bold: true,
+      align: "center",
+      valign: "middle",
+      color: C.white,
+      margin: 0,
+      fit: "shrink",
+    });
+    // Column gridline.
+    slide.addShape(pptx.ShapeType.line, {
+      x,
+      y: chartTop,
+      w: 0,
+      h: rowH * rows.length,
+      line: { color: C.line, width: 0.5 },
+    });
+  });
+
+  rows.forEach((row, index) => {
+    const y = chartTop + index * rowH;
+    if (index % 2 === 1) {
+      slide.addShape(pptx.ShapeType.rect, {
+        x: TIMELINE_LABEL_X,
+        y,
+        w: TIMELINE_LABEL_W + 0.1 + TIMELINE_CHART_W,
+        h: rowH,
+        fill: { color: C.pale },
+        line: { color: C.pale },
+      });
+    }
+    const tone = row.overdue ? C.red : TIMELINE_TONES[row.node.kind];
+    // One line each: a wrapped title would collide with its detail line in
+    // renderers that ignore shrink-to-fit, so clip to what fits the column.
+    slide.addText(clip(row.node.title, 40), {
+      x: TIMELINE_LABEL_X + 0.16,
+      y: y + 0.05,
+      w: TIMELINE_LABEL_W - 0.2,
+      h: rowH * 0.5,
+      fontSize: 9.5,
+      bold: true,
+      color: C.ink,
+      valign: "top",
+      margin: 0,
+      fit: "shrink",
+    });
+    slide.addText(
+      `${kindLabel(row.node.kind)} · ${clip(row.node.ownerName, 22)} · ${dateRange(row.node)}${
+        row.overdue ? " · Overdue" : ""
+      }`,
+      {
+        x: TIMELINE_LABEL_X + 0.16,
+        y: y + rowH * 0.52,
+        w: TIMELINE_LABEL_W - 0.2,
+        h: rowH * 0.42,
+        fontSize: 8,
+        color: row.overdue ? C.red : C.slate,
+        valign: "top",
+        margin: 0,
+        fit: "shrink",
+      },
+    );
+    const barH = Math.min(0.24, rowH * 0.46);
+    const barY = y + (rowH - barH) / 2;
+    if (row.marker) {
+      const size = Math.min(0.3, rowH * 0.6);
+      slide.addShape(pptx.ShapeType.diamond, {
+        x: fractionX(row.startFraction) - size / 2,
+        y: y + (rowH - size) / 2,
+        w: size,
+        h: size,
+        fill: { color: tone },
+        line: { color: C.white, width: 0.75 },
+      });
+    } else {
+      const startX = fractionX(row.startFraction);
+      const endX = fractionX(row.endFraction);
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: startX,
+        y: barY,
+        w: Math.max(0.12, endX - startX),
+        h: barH,
+        fill: { color: tone },
+        line: { color: tone },
+        rectRadius: 0.06,
+      });
+      if (row.clippedEnd) {
+        slide.addText("►", {
+          x: TIMELINE_CHART_X + TIMELINE_CHART_W - 0.22,
+          y: barY - 0.03,
+          w: 0.24,
+          h: barH + 0.06,
+          fontSize: 9,
+          color: tone,
+          margin: 0,
+          valign: "middle",
+        });
+      }
+    }
+  });
+
+  // Today and target markers: the lines run through the rows; their labels sit
+  // in the gap above the header band so they never collide with the legend or
+  // the caption below the chart.
+  const chartRight = TIMELINE_CHART_X + TIMELINE_CHART_W;
+  const markerLabel = (
+    text: string,
+    lineX: number,
+    color: string,
+    preferLeft: boolean,
+  ): void => {
+    const w = 1.7;
+    const fitsLeft = lineX - w - 0.04 >= TIMELINE_CHART_X;
+    const fitsRight = lineX + w + 0.04 <= chartRight;
+    const left = preferLeft ? fitsLeft || !fitsRight : !fitsRight;
+    slide.addText(text, {
+      x: left ? lineX - w - 0.04 : lineX + 0.04,
+      y: headerY - 0.24,
+      w,
+      h: 0.2,
+      fontSize: 8,
+      bold: true,
+      align: left ? "right" : "left",
+      color,
+      margin: 0,
+    });
+  };
+  if (model.asOfFraction !== null) {
+    const x = fractionX(model.asOfFraction);
+    slide.addShape(pptx.ShapeType.line, {
+      x,
+      y: headerY - 0.04,
+      w: 0,
+      h: headerH + 0.12 + rowH * rows.length,
+      line: { color: C.teal, width: 1.5, dashType: "dash" },
+    });
+    markerLabel(`Today · ${formatDate(snapshot.asOf)}`, x, C.teal, true);
+  }
+  if (model.targetFraction !== null && snapshot.strategy.targetDate) {
+    const x = fractionX(model.targetFraction);
+    slide.addShape(pptx.ShapeType.line, {
+      x,
+      y: headerY - 0.04,
+      w: 0,
+      h: headerH + 0.12 + rowH * rows.length,
+      line: { color: C.gold, width: 1.5, dashType: "sysDot" },
+    });
+    markerLabel(
+      `Target · ${formatDate(snapshot.strategy.targetDate)}`,
+      x,
+      C.gold,
+      false,
+    );
+  }
+
+  const legendY = 6.95 - legendH - captionH + 0.02;
+  const legend: Array<[string, string]> = [
+    ["Actions", C.teal],
+    ["Decisions", C.blue],
+    ["Gates & milestones", C.gold],
+    ["Risks / overdue", C.red],
+  ];
+  legend.forEach(([label, color], index) => {
+    const x = TIMELINE_LABEL_X + index * 2.15;
+    slide.addShape(pptx.ShapeType.rect, {
+      x,
+      y: legendY + 0.08,
+      w: 0.22,
+      h: 0.14,
+      fill: { color },
+      line: { color },
+    });
+    slide.addText(label, {
+      x: x + 0.3,
+      y: legendY,
+      w: 1.8,
+      h: 0.3,
+      fontSize: 9,
+      color: C.slate,
+      valign: "middle",
+      margin: 0,
+    });
+  });
+  const notes: string[] = [];
+  if (model.omittedRows > 0)
+    notes.push(`${model.omittedRows} later steps in the action register`);
+  if (model.truncatedHorizon) notes.push("► continues past the drawn horizon");
+  if (notes.length > 0) {
+    slide.addText(notes.join(" · "), {
+      x: 9.2,
+      y: legendY,
+      w: 3.4,
+      h: 0.3,
+      fontSize: 8.5,
+      italic: true,
+      align: "right",
+      color: C.slate,
+      valign: "middle",
+      margin: 0,
+      fit: "shrink",
+    });
+  }
+  if (caption) {
+    slide.addShape(pptx.ShapeType.rect, {
+      x: TIMELINE_LABEL_X,
+      y: 6.95 - captionH + 0.04,
+      w: TIMELINE_LABEL_W + 0.1 + TIMELINE_CHART_W,
+      h: captionH - 0.1,
+      fill: { color: C.pale },
+      line: { color: C.line, width: 1 },
+    });
+    slide.addText(clip(caption, 420), {
+      x: TIMELINE_LABEL_X + 0.2,
+      y: 6.95 - captionH + 0.1,
+      w: TIMELINE_LABEL_W + TIMELINE_CHART_W - 0.3,
+      h: captionH - 0.22,
+      fontSize: 10.5,
+      color: C.ink,
+      valign: "middle",
+      margin: 0,
+      fit: "shrink",
+    });
+  }
+}
+
+/** Portrait card for one congressional office (three per slide). */
+function addMemberCard(
+  pptx: PptxGenJS,
+  slide: Slide,
+  snapshot: ExecutiveReportSnapshot,
+  detail: ReportMemberDetail,
+  photo: ReportRasterAsset | null,
+  index: number,
+): void {
+  const gap = 0.3;
+  const cardW = (11.9 - gap * (MEMBER_CARDS_PER_SLIDE - 1)) / MEMBER_CARDS_PER_SLIDE;
+  const x = 0.7 + index * (cardW + gap);
+  const y = 1.52;
+  const h = 4.95;
+  slide.addShape(pptx.ShapeType.rect, {
+    x,
+    y,
+    w: cardW,
+    h,
+    fill: { color: C.pale },
+    line: { color: C.line, width: 1 },
+  });
+  slide.addShape(pptx.ShapeType.rect, {
+    x,
+    y,
+    w: cardW,
+    h: 0.08,
+    fill: { color: C.blue },
+    line: { color: C.blue },
+  });
+
+  const portraitBox = { x: x + 0.3, y: y + 0.36, w: 1.35, h: 1.7 };
+  const size = photo ? photo.dimensions ?? readRasterSize(photo) : null;
+  if (photo && size) {
+    slide.addImage({
+      data: `${photo.contentType};base64,${photo.bytes.toString("base64")}`,
+      ...containBox(size, portraitBox),
+      altText: `${detail.name} portrait`,
+    });
+  } else {
+    slide.addShape(pptx.ShapeType.ellipse, {
+      x: portraitBox.x + 0.08,
+      y: portraitBox.y + 0.22,
+      w: 1.2,
+      h: 1.2,
+      fill: { color: C.mist },
+      line: { color: C.line, width: 1 },
+    });
+    slide.addText(memberInitials(detail.name), {
+      x: portraitBox.x + 0.08,
+      y: portraitBox.y + 0.22,
+      w: 1.2,
+      h: 1.2,
+      fontSize: 26,
+      bold: true,
+      align: "center",
+      valign: "middle",
+      color: C.blue,
+      margin: 0,
+    });
+  }
+
+  const textX = x + 1.85;
+  const textW = cardW - 2.1;
+  slide.addText(clip(detail.name, 40), {
+    x: textX,
+    y: y + 0.36,
+    w: textW,
+    h: 0.62,
+    fontSize: 15,
+    bold: true,
+    color: C.navy,
+    valign: "top",
+    margin: 0,
+    fit: "shrink",
+  });
+  const descriptor = [
+    detail.party ? partyLabel(detail.party) : null,
+    detail.state,
+    detail.chamber,
+    detail.district ? `District ${detail.district}` : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" · ");
+  slide.addText(descriptor || "Member office", {
+    x: textX,
+    y: y + 1.0,
+    w: textW,
+    h: 0.5,
+    fontSize: 10,
+    color: C.slate,
+    valign: "top",
+    margin: 0,
+    fit: "shrink",
+  });
+  if (detail.committees.length > 0) {
+    slide.addText(clip(detail.committees.join("; "), 90), {
+      x: textX,
+      y: y + 1.5,
+      w: textW,
+      h: 0.56,
+      fontSize: 9.5,
+      italic: true,
+      color: C.ink,
+      valign: "top",
+      margin: 0,
+      fit: "shrink",
+    });
+  }
+
+  const officeY = y + 2.3;
+  slide.addText("WASHINGTON OFFICE", {
+    x: x + 0.3,
+    y: officeY,
+    w: cardW - 0.6,
+    h: 0.22,
+    fontSize: 8.5,
+    bold: true,
+    charSpacing: 1.2,
+    color: C.teal,
+    margin: 0,
+  });
+  const office = detail.washingtonOffice;
+  const officeLines = office
+    ? [
+        office.address1,
+        office.address2,
+        [office.city, office.state].filter(Boolean).join(", ") +
+          (office.zip ? ` ${office.zip}` : ""),
+        office.phone ? `Phone ${office.phone}` : null,
+      ].filter((line): line is string => Boolean(line && line.trim()))
+    : [
+        detail.resolved
+          ? "No Washington office address is listed in the directory."
+          : "Directory detail was not available at export time.",
+      ];
+  slide.addText(
+    officeLines.map((line) => ({ text: line, options: { breakLine: true } })),
+    {
+      x: x + 0.3,
+      y: officeY + 0.26,
+      w: cardW - 0.6,
+      h: 1.15,
+      fontSize: office ? 11 : 10,
+      italic: !office,
+      color: office ? C.ink : C.slate,
+      valign: "top",
+      margin: 0,
+      fit: "shrink",
+    },
+  );
+
+  const steps =
+    snapshot.members
+      .find((member) => member.memberId === detail.memberId)
+      ?.nodeIds.map((id) => snapshot.nodes.find((node) => node.id === id)?.title)
+      .filter((title): title is string => Boolean(title)) ?? [];
+  if (steps.length > 0) {
+    slide.addText(steps.length === 1 ? "PLAN STEP" : "PLAN STEPS", {
+      x: x + 0.3,
+      y: y + 3.78,
+      w: cardW - 0.6,
+      h: 0.22,
+      fontSize: 8.5,
+      bold: true,
+      charSpacing: 1.2,
+      color: C.blue,
+      margin: 0,
+    });
+    slide.addText(
+      steps.slice(0, 3).map((title) => ({
+        text: `• ${clip(title, 60)}`,
+        options: { breakLine: true },
+      })),
+      {
+        x: x + 0.3,
+        y: y + 4.02,
+        w: cardW - 0.6,
+        h: 0.84,
+        fontSize: 9.5,
+        color: C.ink,
+        valign: "top",
+        margin: 0,
+        fit: "shrink",
+      },
+    );
+  }
+}
+
+function memberInitials(name: string): string {
+  const letters = name
+    .replace(/^(sen|rep|hon|dr|mr|ms|mrs)\.?\s+/i, "")
+    .split(/[\s,]+/)
+    .filter((part) => /^[a-z]/i.test(part))
+    .map((part) => part[0]!.toUpperCase());
+  return (letters.slice(0, 1).join("") + (letters.at(-1) ?? "")).slice(0, 2) || "—";
+}
+
+function partyLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "d" || normalized.startsWith("dem")) return "Democratic";
+  if (normalized === "r" || normalized.startsWith("rep")) return "Republican";
+  if (normalized === "i" || normalized.startsWith("ind")) return "Independent";
+  return value.trim();
 }
 
 function addRoadmapSlide(

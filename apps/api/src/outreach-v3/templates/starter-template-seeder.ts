@@ -62,7 +62,7 @@ import {
  */
 
 /** Bump to roll a revised starter set out to every tenant. */
-export const STARTER_TEMPLATE_SEED_VERSION = 1;
+export const STARTER_TEMPLATE_SEED_VERSION = 2;
 
 /**
  * Fixed namespace so ids are reproducible across processes and deploys. Not the
@@ -242,15 +242,25 @@ export class StarterTemplateSeeder {
     }
 
     let created = 0;
+    let revised = 0;
     await this.prisma.withTenantUser(tenantId, admin.userId, async (tx) => {
       for (const starter of STARTER_CONTENT_TEMPLATES) {
-        created += await this.insertStarter(tx, tenantId, admin.userId, starter);
+        const inserted = await this.insertStarter(tx, tenantId, admin.userId, starter);
+        if (inserted > 0) {
+          created += inserted;
+          continue;
+        }
+        // The row already exists: either the tenant is at the current seed
+        // version (handled above — we never get here), or the set was revised
+        // and this run is the rollout. Give the existing row the revised spec.
+        revised += await this.reviseStarter(tx, tenantId, admin.userId, starter);
       }
       await this.writeSeedMarker(tx, tenantId, created);
     });
 
     this.logger.log(
-      `Seeded ${created} starter outreach template(s) for tenant ${tenantId} (seed version ${STARTER_TEMPLATE_SEED_VERSION}).`,
+      `Seeded ${created} starter outreach template(s) for tenant ${tenantId} (seed version ${STARTER_TEMPLATE_SEED_VERSION})` +
+        (revised > 0 ? `; revised ${revised} existing starter(s) to the current spec.` : '.'),
     );
     return { outcome: 'seeded', created };
   }
@@ -391,5 +401,159 @@ export class StarterTemplateSeeder {
             created_count = EXCLUDED.created_count,
             seeded_at = now()
     `;
+  }
+
+  /**
+   * Points an ALREADY-SEEDED starter at the current spec, as a NEW published
+   * version — the revision half of a seed-version bump.
+   *
+   * Why this exists: before it did, bumping `STARTER_TEMPLATE_SEED_VERSION`
+   * re-ran the loop but `insertStarter` returned 0 for every existing row
+   * (deterministic id → ON CONFLICT DO NOTHING) and the marker was rewritten
+   * at the new version, so a "revised starter set" changed nothing for any
+   * tenant that had already been seeded. The bump was a silent no-op —
+   * exactly the failure class this seeder's own header warns about.
+   *
+   * The guard rails, each deliberate:
+   *
+   *  - **Only what the seeder last wrote.** The revision fires only when the
+   *    row's CURRENT published version carries the seeder's own audit marker
+   *    (`safe_metadata.starterKey`, written by both the original seed and
+   *    every revision) and its hash differs from the new spec. A member's
+   *    published version has no such marker — theirs is left alone, whether
+   *    it differs from the seed or byte-matches it. Provenance-by-audit (not
+   *    hash-of-stored-text) is what makes seed-version N→N+1 bumps keep
+   *    working: a starter revised at v2 still counts as seeder-authored at
+   *    the v3 rollout, where an "earliest seed hash" comparison would
+   *    misread it as tenant-edited and permanently strand it.
+   *  - **Already current is a no-op.** If the published hash equals the new
+   *    spec's hash — a fresh tenant, or a prior run that already revised —
+   *    nothing is written.
+   *  - **Archived (deleted) rows stay deleted.** Status 'archived' is the
+   *    tenant's deliberate removal; revising it would resurrect it in every
+   *    list view. This is the same permanence rule as the no-resurrection
+   *    test below, honoured on the revision path too.
+   *  - **An unpublished draft is left dangling, deliberately.** A member who
+   *    started editing the starter has a draft; the revision re-points only
+   *    `published_version_id`. Draft content rows are append-only and the
+   *    draft is the editor's work — superseding or deleting it from a seed
+   *    run would destroy work. The editor decides: publish over the revision
+   *    or discard it.
+   *  - **Versions are append-only.** A new row with the next `version_number`,
+   *    published, and the template's `published_version_id` re-pointed.
+   *    Published versions are immutable by DB trigger, so the old spec stays
+   *    readable in history — nothing is mutated in place.
+   *  - **Audited.** One 'publish' action row per revision, `safeMetadata`
+   *    carrying `starterKey` + `seedRevisionOf` so these are distinguishable
+   *    from the original seeding in the audit trail.
+   *
+   * Concurrent double-runs stay safe the same way `insertStarter` is: the
+   * deterministic version id (`key:v<SEED_VERSION>`) makes the INSERT itself
+   * idempotent (ON CONFLICT (id) DO NOTHING), and the template row is locked
+   * FOR UPDATE across the read-decide-write, so a second run serialises,
+   * finds the published hash already current, and no-ops.
+   */
+  private async reviseStarter(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    ownerUserId: string,
+    starter: StarterContentTemplate,
+  ): Promise<number> {
+    const templateId = starterTemplateId(tenantId, starter.key);
+    const spec = starterTemplateSpec(starter);
+    const specJson = JSON.stringify(spec);
+    const contentHash = hashOutreachTemplateSpecV1(spec);
+
+    // Lock the row so the read-decide-write below is atomic against another
+    // seeding run or a concurrent member edit.
+    const locked = await tx.$queryRaw<Array<{
+      id: string;
+      status: string;
+      publishedVersionId: string | null;
+      publishedHash: string | null;
+      seederAuthored: boolean;
+    }>>`
+      SELECT
+        t.id,
+        t.status,
+        t.published_version_id AS "publishedVersionId",
+        pub.content_hash AS "publishedHash",
+        EXISTS (
+          SELECT 1
+          FROM outreach_v3_template_audit_log a
+          WHERE a.template_version_id = pub.id
+            AND a.tenant_id = t.tenant_id
+            AND a.safe_metadata->>'starterKey' = ${starter.key}
+        ) AS "seederAuthored"
+      FROM outreach_v3_templates t
+      LEFT JOIN outreach_v3_template_versions pub
+        ON pub.id = t.published_version_id
+       AND pub.tenant_id = t.tenant_id
+      WHERE t.id = CAST(${templateId} AS uuid)
+        AND t.tenant_id = CAST(${tenantId} AS uuid)
+      FOR UPDATE OF t
+    `;
+    const row = locked[0];
+    if (!row) return 0; // deleted outright (no tenant has a hard delete today, but absent = absent)
+    if (row.status !== 'active') return 0; // archived = the tenant's deliberate removal
+    if (!row.publishedVersionId || !row.publishedHash) return 0; // nothing published to revise from
+    if (row.publishedHash === contentHash) return 0; // already carries exactly this spec
+    if (!row.seederAuthored) return 0; // the tenant published this version — it is theirs
+
+    const numbers = await tx.$queryRaw<Array<{ nextVersion: number }>>`
+      SELECT COALESCE(MAX(version_number), 0)::integer + 1 AS "nextVersion"
+      FROM outreach_v3_template_versions
+      WHERE template_id = CAST(${templateId} AS uuid)
+        AND tenant_id = CAST(${tenantId} AS uuid)
+    `;
+    const versionNumber = numbers[0]?.nextVersion ?? 1;
+    const versionId = starterTemplateVersionId(tenantId, `${starter.key}:v${STARTER_TEMPLATE_SEED_VERSION}`);
+
+    await tx.$executeRaw`
+      INSERT INTO outreach_v3_template_versions (
+        id, tenant_id, template_id, version_number, lifecycle,
+        template_spec_jsonb, content_hash, source_session_id,
+        source_state_version, created_by_user_id, published_at
+      ) VALUES (
+        CAST(${versionId} AS uuid), CAST(${tenantId} AS uuid),
+        CAST(${templateId} AS uuid), ${versionNumber}, 'published',
+        CAST(${specJson} AS jsonb), ${contentHash}, NULL, NULL,
+        CAST(${ownerUserId} AS uuid), now()
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+
+    await tx.$executeRaw`
+      UPDATE outreach_v3_templates
+      SET published_version_id = CAST(${versionId} AS uuid),
+          updated_at = NOW()
+      WHERE id = CAST(${templateId} AS uuid)
+        AND tenant_id = CAST(${tenantId} AS uuid)
+    `;
+
+    // 'publish' rather than a 'seed' action: the audit table's action CHECK
+    // constraint does not include 'seed' (same constraint the original
+    // seeding worked around with 'create' + 'publish'). This row is what
+    // marks the new version as seeder-authored for FUTURE revision runs,
+    // and `seedRevisionOf` records the hash it replaces.
+    await tx.$executeRaw`
+      INSERT INTO outreach_v3_template_audit_log (
+        id, tenant_id, actor_user_id, action, template_id, template_version_id,
+        scope, outcome, reason_code, safe_metadata
+      ) VALUES (
+        CAST(${deterministicUuid(`audit:revise:${tenantId}:${starter.key}:${STARTER_TEMPLATE_SEED_VERSION}`)} AS uuid),
+        CAST(${tenantId} AS uuid), CAST(${ownerUserId} AS uuid),
+        'publish', CAST(${templateId} AS uuid), CAST(${versionId} AS uuid),
+        'firm', 'allowed', NULL,
+        CAST(${JSON.stringify({
+          starterKey: starter.key,
+          seedVersion: STARTER_TEMPLATE_SEED_VERSION,
+          seedRevisionOf: row.publishedHash.slice(0, 12),
+        })} AS jsonb)
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+
+    return 1;
   }
 }

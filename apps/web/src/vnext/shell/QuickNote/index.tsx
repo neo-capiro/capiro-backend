@@ -7,14 +7,31 @@ import { Combobox, SegmentedControl, type ComboboxOption } from '../../component
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 
-// Same behavior as the legacy apps/web/src/components/QuickLog.tsx, verbatim
-// — the two POST targets, the >= 2 character member gate, the 4000-character
-// cap, the five invalidated query keys, the "Note logged" success message and
-// the destination copy. Only the chrome is new (vnext modal/combobox/segmented
-// control instead of antd Modal/Select/Segmented).
+// Same behavior as the legacy apps/web/src/components/QuickLog.tsx — the two
+// targets, the >= 2 character member gate, the 4000-character cap, and the
+// "Note logged" success message — with one deliberate divergence: the Client
+// target posts to the Timeline's real activity feed (`/api/clients/:id/activity`,
+// kind: 'note') instead of QuickLog's legacy `/api/clients/:id/notes`, which
+// writes into a text blob no vNext screen ever reads back. The Member target,
+// destination copy for it, and chrome (vnext modal/combobox/segmented control
+// instead of antd Modal/Select/Segmented) are otherwise unchanged.
 
 type Target = 'client' | 'member';
 const NOTE_MAX = 4000;
+/** `POST /api/clients/:id/activity`'s `title` cap (client-activity.controller.ts). */
+const ACTIVITY_TITLE_MAX = 300;
+
+/**
+ * Quick Note's client textarea is one field; the Timeline's activity model
+ * (the same one `LogActivityModal`'s "Add a note" quick-add writes to) wants a
+ * short `title` plus an optional longer `body`. Most quick notes fit in the
+ * title outright and render exactly like a hand-logged one; only a note past
+ * the title cap spills into `body` too, so nothing the user typed is lost.
+ */
+function noteToActivityFields(note: string): { title: string; body?: string } {
+  if (note.length <= ACTIVITY_TITLE_MAX) return { title: note };
+  return { title: `${note.slice(0, ACTIVITY_TITLE_MAX - 1)}…`, body: note };
+}
 
 interface ClientOption {
   id: string;
@@ -104,7 +121,17 @@ export function QuickNote() {
       const body = note.trim();
       if (target === 'client') {
         if (!clientId) throw new Error('Select a client');
-        return (await api.post(`/api/clients/${clientId}/notes`, { body })).data;
+        // The client's Timeline (Portfolio → Timeline → Notes) reads
+        // `/api/clients/:id/activity` — the same endpoint the Timeline's own
+        // "Add a note" quick-add posts to (ClientCrmHistory.tsx). Posting a
+        // `kind: 'note'` activity here is how the note actually lands there,
+        // rather than a legacy per-client text blob no vNext screen renders.
+        return (
+          await api.post(`/api/clients/${clientId}/activity`, {
+            kind: 'note',
+            ...noteToActivityFields(body),
+          })
+        ).data;
       }
       if (!memberId) throw new Error('Select a member');
       return (
@@ -116,6 +143,11 @@ export function QuickNote() {
     },
     onSuccess: () => {
       toast.success('Note logged');
+      if (target === 'client' && clientId) {
+        // Same query key ClientCrmHistory.tsx's Timeline reads, so a note
+        // logged from here shows up there without a manual refresh.
+        qc.invalidateQueries({ queryKey: ['client-activity', clientId] });
+      }
       qc.invalidateQueries({ queryKey: ['clients'] });
       qc.invalidateQueries({ queryKey: ['client'] });
       qc.invalidateQueries({ queryKey: ['client-attachments'] });
@@ -220,7 +252,7 @@ export function QuickNote() {
             <div className="capiro-vnext-quicknote__field-foot">
               <span id="quicknote-note-desc" className="capiro-field__help">
                 {target === 'client'
-                  ? 'Saved to the client profile → Documents → Notes.'
+                  ? 'Saved to the client profile → Timeline → Notes.'
                   : 'Saved to the member directory profile → Overview → Notes.'}
               </span>
               <span className="capiro-vnext-quicknote__charcount" data-near-limit={note.length > NOTE_MAX - 200 || undefined}>

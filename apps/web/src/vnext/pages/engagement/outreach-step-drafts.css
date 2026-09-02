@@ -101,6 +101,12 @@
   font-weight: 600;
 }
 
+/* Connection-coverage badge: warn tint, same geometry as the note pill. */
+.capiro-vnext-root .ocb-drafts__coverage-pill {
+  background: var(--eng-warn-soft, #fef3c7);
+  color: var(--eng-warn-deep, #92400e);
+}
+
 /* ── Reader card ────────────────────────────────────────────────────────── */
 
 .capiro-vnext-root .ocb-drafts__reader {
@@ -303,4 +309,15 @@
   color: var(--eng-muted);
   background: var(--eng-recessed);
   box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+
+/* A secondary, quieter line under the main status banner — a live snippet,
+   not a status of its own, so no background box or border. */
+.capiro-vnext-root .ocb-drafts__generation--preview {
+  margin: -2px 4px 4px;
+  padding: 0 10px;
+  color: var(--eng-muted);
+  font-style: italic;
+  box-shadow: none;
+  background: none;
 }

@@ -62,6 +62,7 @@ import { GenerationGatewayService } from './generation/generation-gateway.servic
 import { OutreachEvaluationRunner } from './generation/outreach-evaluation.runner.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { OutreachContextPlaneService } from './generation/outreach-context-plane.service.js';
+import { OutreachV3LivePreviewService } from './generation/outreach-v3-live-preview.service.js';
 import { EngagementRuntimeModule } from './runtime/engagement-runtime.module.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
@@ -239,6 +240,7 @@ import {
     GenerationGatewayService,
     AlertPacketClientService,
     OutreachContextPlaneService,
+    OutreachV3LivePreviewService,
   ],
   exports: [
     EngagementRuntimeModule,
@@ -257,6 +259,7 @@ import {
     OutreachSendIntentService,
     GenerationGatewayService,
     EvidencePacketService,
+    OutreachV3LivePreviewService,
   ],
 })
 export class EngagementModule {}

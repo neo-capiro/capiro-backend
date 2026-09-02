@@ -16,6 +16,7 @@ import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
 import { StrategyController } from './strategy/strategy.controller.js';
 import { StrategyAssistantService } from './strategy/strategy-assistant.service.js';
 import { StrategyContextPackService } from './strategy/strategy-context-pack.service.js';
+import { StrategyReportNarrativeService } from './strategy/strategy-report-narrative.service.js';
 import { StewardController } from './steward/steward.controller.js';
 import { StewardExtractService } from './steward/steward-extract.service.js';
 import { MeriRetrievalCoordinator } from './retrieval/meri-retrieval-coordinator.js';
@@ -68,6 +69,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     WorkspaceGenClient,
     StrategyAssistantService,
     StrategyContextPackService,
+    StrategyReportNarrativeService,
     StewardExtractService,
   ],
 })

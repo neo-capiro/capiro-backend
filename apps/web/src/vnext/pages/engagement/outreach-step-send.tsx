@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, CheckSquare, CircleAlert, Loader2, RefreshCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, CheckSquare, CircleAlert, Loader2, RefreshCcw } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import {
@@ -30,6 +31,16 @@ import { ResultsScreen, SendingScreen } from './outreach-send-record.js';
 import { isSendTerminal } from './outreach-send-record-model.js';
 import { getOutreachTemplateProvenance } from './outreach-v3-template-api.js';
 import {
+  applyOutreachV3Commands,
+  createOutreachV3Session,
+} from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
+import {
+  acceptContextCommand,
+  addTargetCommand,
+  deliveryCommands,
+  sponsorCommand,
+} from '../../../pages/engagement/outreach/v3/commands.js';
+import {
   outreachBuilderPrimaryLabel,
   outreachReadyRecipientCount,
   outreachSendGate,
@@ -37,7 +48,11 @@ import {
 import {
   type OutreachBuilderStepCommon,
   outreachBlockedTargets,
+  outreachCampaignNameFromSpec,
+  outreachCampaignTypeFromSpec,
   outreachEffectiveEmailFormat,
+  outreachGoalCommandsFor,
+  outreachGuidanceSelection,
   outreachSelectedTargets,
   outreachSponsorFromSpec,
 } from './outreach-builder-model.js';
@@ -207,7 +222,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
   const [timing, setTiming] = useState<SendTiming>('now');
   const [pacing, setPacing] = useState<SendPacing>('steady');
   const [partialChoice, setPartialChoice] = useState<PartialChoice>('ready');
-  const [acknowledged, setAcknowledged] = useState(false);
   const [testGenerationKey, setTestGenerationKey] = useState('');
   const [tested, setTested] = useState(false);
   const [preflightState, setPreflightState] = useState<{
@@ -304,6 +318,79 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     onError: (cause) => setError(errorText(cause, 'The proposal could not be submitted.')),
   });
 
+  const navigate = useNavigate();
+  /**
+   * The recipients a follow-up would target: everyone this send actually
+   * REACHED (sent/accepted/delivered) who has no synced reply. Failed/held
+   * recipients are excluded — following up on an email that never arrived
+   * compounds the failure — and so is anyone who answered.
+   */
+  const noReplyTargets = useMemo(() => {
+    if (!intent || !sendComplete) return [];
+    const replies = replyQuery.data ?? [];
+    const repliedEmails = new Set(
+      replies.map((reply) => reply.fromEmail?.trim().toLowerCase()).filter(Boolean),
+    );
+    const reachedEmails = new Set<string>();
+    for (const delivery of intent.deliveries) {
+      const status = delivery.status.toLowerCase();
+      if (!['sent', 'accepted', 'delivered'].some((value) => status.includes(value))) continue;
+      for (const to of delivery.to) {
+        const email = to.email?.trim().toLowerCase();
+        if (email && !repliedEmails.has(email)) reachedEmails.add(email);
+      }
+    }
+    return outreachSelectedTargets(session).filter((target) => {
+      const email = target.email?.trim().toLowerCase();
+      return Boolean(email && reachedEmails.has(email));
+    });
+  }, [intent, sendComplete, replyQuery.data, session]);
+
+  /**
+   * Seed a REAL follow-up campaign: a fresh session carrying this campaign's
+   * sponsor and the no-reply targets, its goal derived from the same campaign
+   * type, plus one campaign-scoped writing-guidance ref telling the writer
+   * this is a follow-up to a dated, unanswered send (reference it, do not
+   * repeat it — the priorOutreach enrichment channel independently reinforces
+   * this per recipient at generation time). The user lands on the new
+   * campaign's builder to review targets/context before anything generates —
+   * seeding writes spec state only; no draft or send happens here.
+   */
+  const followUpMutation = useMutation({
+    mutationFn: async () => {
+      const campaignType = outreachCampaignTypeFromSpec(session) ?? 'request_meeting';
+      const baseName = outreachCampaignNameFromSpec(session) || 'Outreach campaign';
+      const created = await createOutreachV3Session(api, `Follow-up: ${baseName}`);
+      const newSessionId = created.session.id;
+      const sponsor = outreachSponsorFromSpec(session);
+      const sentDate = (intent?.finishedAt ?? intent?.startedAt ?? intent?.createdAt ?? '').slice(0, 10);
+      const commands = [
+        ...outreachGoalCommandsFor(campaignType, `Follow-up: ${baseName}`),
+        ...(sponsor.kind === 'client' && sponsor.clientId
+          ? [sponsorCommand({ kind: 'client', clientIds: [sponsor.clientId] })]
+          : []),
+        ...noReplyTargets.map((target) => addTargetCommand(target.locator)),
+        ...deliveryCommands('personalized_separate', 'high'),
+        acceptContextCommand([
+          outreachGuidanceSelection({
+            title: 'Follow-up framing',
+            text:
+              `This campaign follows up on "${baseName}"${sentDate ? `, sent ${sentDate}` : ''}, which received no reply from these recipients. ` +
+              'Acknowledge the earlier note briefly and without reproach, add one new reason to engage now, and keep the same ask. Do not repeat the original email.',
+          }),
+        ]),
+      ];
+      await applyOutreachV3Commands(api, newSessionId, created.currentStateVersion, commands);
+      return newSessionId;
+    },
+    onSuccess: (newSessionId) => {
+      void qc.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
+      props.toast(`Follow-up campaign created · ${noReplyTargets.length} recipients carried over`);
+      navigate(`/engagement/outreach/${encodeURIComponent(newSessionId)}`);
+    },
+    onError: (cause) => setError(errorText(cause, 'The follow-up campaign could not be created.')),
+  });
+
   // Until the drafts, plan and settings are in, a preflight would be run
   // against data the step cannot yet show — and the verdict would be discarded
   // the moment they arrive, because they are part of its fingerprint.
@@ -320,16 +407,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
   const selectedCount = selectedTargets.length;
   const blockedCount = blockedTargets.length;
   const readyCount = outreachReadyRecipientCount(selectedCount, blockedCount, partialChoice);
-
-  // `needsAcknowledgment` and `holdsAll` do not depend on whether preflight has
-  // run, and preflight's own input depends on them — so the gate is asked those
-  // two questions first, and asked again below once the verdict is known.
-  const choiceGate = outreachSendGate({
-    preflightRan: false,
-    blockedCount,
-    partialChoice,
-    acknowledged,
-  });
 
   /**
    * The generation keys a held-out target owns. A slot is excluded only when
@@ -349,10 +426,8 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
       .sort();
   }, [blockedTargets, plan]);
 
-  const needsAcknowledgment = choiceGate.needsAcknowledgment;
   const preflightInput: OutreachV3PreflightInput = {
     excludedGenerationKeys: partialChoice === 'ready' ? blockedGenerationKeys : [],
-    acknowledgeHeldOut: !needsAcknowledgment || acknowledged,
   };
 
   /*
@@ -399,7 +474,15 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
         (draft) => `${draft.generationKey}:${draft.current?.id ?? ''}:${draft.currentVersion}`,
       ),
       preflightInput.excludedGenerationKeys,
-      preflightInput.acknowledgeHeldOut,
+      /*
+       * The partial-send choice is named directly rather than relied on to
+       * show through `excludedGenerationKeys`. Those keys only differ between
+       * the two choices when the blocked targets happen to own whole slots, so
+       * a plan where they do not would otherwise leave a verdict computed
+       * under "send the ready recipients" on screen after the user switched to
+       * "wait for everyone".
+       */
+      partialChoice,
     ]);
   const preflightFingerprint = fingerprintFor(settings);
   const preflight =
@@ -413,7 +496,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
     preflightRan: Boolean(preflight),
     blockedCount,
     partialChoice,
-    acknowledged,
   });
   const serverEligible = preflight?.result.eligible ?? false;
   const canSend = sendGate.canSend && serverEligible && timing === 'now';
@@ -586,6 +668,11 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
             onRefresh={() => refreshIntent.mutate()}
             onOpenDraft={() => props.onOpenDrafts()}
             onProposeLearning={(replyId, text) => learning.mutate({ replyId, text })}
+            followUp={{
+              count: noReplyTargets.length,
+              busy: followUpMutation.isPending,
+              run: () => followUpMutation.mutate(),
+            }}
           />
         ) : (
           <SendingScreen
@@ -678,12 +765,7 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
               aria-checked={partialChoice === option.id}
               className="ocb-option ocb-option--compact"
               data-selected={partialChoice === option.id ? 'true' : undefined}
-              onClick={() => {
-                setPartialChoice(option.id);
-                // The acknowledgment is about one specific choice; changing the
-                // choice must not carry a consent granted under the other one.
-                setAcknowledged(false);
-              }}
+              onClick={() => setPartialChoice(option.id)}
             >
               <span className="ocb-radio" data-on={partialChoice === option.id ? 'true' : 'false'} />
               <span className="ocb-option__body">
@@ -824,27 +906,6 @@ export function OutreachSendStep(props: OutreachSendStepProps): JSX.Element {
                 : 'no verified email address'}
             </span>
           ))}
-          {needsAcknowledgment ? (
-            <label className="osend-ack">
-              <input
-                type="checkbox"
-                className="osend-ack__input"
-                checked={acknowledged}
-                onChange={(event) => setAcknowledged(event.target.checked)}
-              />
-              <span className="ocb-check" data-on={acknowledged ? 'true' : 'false'} aria-hidden="true">
-                <Check size={12} />
-              </span>
-              <span className="osend-ack__body">
-                <span className="osend-ack__label">
-                  I understand those recipients will not be contacted
-                </span>
-                <span className="osend-ack__sub">
-                  This does not resolve their blockers or send to them.
-                </span>
-              </span>
-            </label>
-          ) : null}
         </section>
       ) : null}
 

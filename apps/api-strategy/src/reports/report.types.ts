@@ -16,6 +16,10 @@ export interface NormalizedReportOptions {
   includeChangeLog: boolean;
   includeInternalNotes: boolean;
   includeAgentHistory: boolean;
+  /** Ask the orchestrator for grounded executive prose (falls back to facts). */
+  includeNarrative: boolean;
+  /** Profile congressional member offices referenced by included plan steps. */
+  includeMemberProfiles: boolean;
 }
 
 export interface ReportIssue {
@@ -160,6 +164,8 @@ export interface ReportPreflight {
   };
   sections: ReportSectionReadiness[];
   logo: Omit<ReportLogoDescriptor, "objectKey">;
+  memberOffices: ReportMemberOfficeSummary;
+  narrative: ReportNarrativeSummary;
   warnings: ReportIssue[];
   errors: ReportIssue[];
 }
@@ -167,6 +173,21 @@ export interface ReportPreflight {
 export interface ReportProvenanceSource {
   section: string;
   ref: string | null;
+}
+
+/**
+ * The stored `targetRef` snapshot on a plan step, reduced to the fields a
+ * report may use. `memberId` is a directory contact id and is never rendered;
+ * it keys the member-office lookup and the embedded photo.
+ */
+export interface ReportMemberRef {
+  memberId: string;
+  memberName: string | null;
+  party: string | null;
+  state: string | null;
+  chamber: string | null;
+  committee: string | null;
+  sourceDirectory: "congress" | "state" | "staff" | null;
 }
 
 export interface ReportNode {
@@ -186,6 +207,46 @@ export interface ReportNode {
   /** Source count before the bounded renderer sample is applied. */
   sourceCount?: number;
   targetLabel: string | null;
+  memberRef?: ReportMemberRef | null;
+}
+
+/** One congressional office referenced by included plan steps (from stored targetRefs). */
+export interface ReportMemberProfile extends ReportMemberRef {
+  /** Display name, falling back to the stored target label. */
+  name: string;
+  /** Included plan steps that target this office, in plan order. */
+  nodeIds: string[];
+}
+
+export interface ReportMemberOfficeAddress {
+  label: string | null;
+  address1: string | null;
+  address2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone: string | null;
+  fax: string | null;
+}
+
+/**
+ * Directory-resolved detail for a member office. Fetched at export time from
+ * the Directory service (not part of the snapshot hash: it is public-record
+ * reference data, not strategy content the user edits).
+ */
+export interface ReportMemberDetail {
+  memberId: string;
+  name: string;
+  party: string | null;
+  state: string | null;
+  chamber: string | null;
+  district: string | null;
+  committees: string[];
+  washingtonOffice: ReportMemberOfficeAddress | null;
+  photoUrl: string | null;
+  photoSource: string | null;
+  /** True when the Directory returned a record; false when only targetRef data is known. */
+  resolved: boolean;
 }
 
 export interface ReportArtifact {
@@ -249,6 +310,8 @@ export interface ExecutiveReportSnapshot {
   counts: ReportCounts;
   inclusion: ReportInclusion;
   nodes: ReportNode[];
+  /** Member offices referenced by included nodes; empty when profiles are off. */
+  members: ReportMemberProfile[];
   artifacts: ReportArtifact[];
   firmPhases: Array<{
     label: string;
@@ -289,6 +352,38 @@ export interface ClientLogoAsset {
   bytes: Buffer;
   contentType: "image/png" | "image/jpeg";
   dimensions?: { width: number; height: number };
+}
+
+/** A sanitized raster asset; the same contract the client logo uses. */
+export type ReportRasterAsset = ClientLogoAsset;
+
+/**
+ * Export-time material that is NOT part of the hashed snapshot: generated
+ * prose (already verified), Directory member detail, and fetched photo bytes.
+ * Renderers must degrade gracefully when any of it is absent.
+ */
+export interface ReportRenderExtras {
+  narrative?: import("./report-narrative.types.js").VerifiedReportNarrative | null;
+  memberDetails?: ReportMemberDetail[];
+  memberPhotos?: ReadonlyMap<string, ReportRasterAsset>;
+}
+
+export interface ReportMemberOfficeSummary {
+  /** Distinct member offices referenced by included plan steps. */
+  referenced: number;
+  /** Offices the Directory resolved (name, party, Washington office). */
+  resolved: number;
+  /** Resolved offices with an embeddable portrait. */
+  withPhoto: number;
+}
+
+export interface ReportNarrativeSummary {
+  /** Whether the server can generate grounded prose for this request. */
+  available: boolean;
+  /** Why it is unavailable (feature disabled, orchestrator unconfigured...). */
+  reason: string | null;
+  /** Whether the caller asked for prose. */
+  requested: boolean;
 }
 
 export interface RenderedExecutiveReport {

@@ -93,6 +93,49 @@ const targets = [
     height: 1000,
     expect: '.capiro-directory-results',
   },
+  // Hill Day workspace v2 — library, wizard, editor at the acceptance widths.
+  {
+    name: 'hillday-library-1440',
+    path: '/vnext-shell.html?screen=hillday-library',
+    width: 1440,
+    height: 1000,
+    expect: '.hd-library',
+  },
+  {
+    name: 'hillday-wizard-1440',
+    path: '/vnext-shell.html?screen=hillday-wizard',
+    width: 1440,
+    height: 1000,
+    expect: '.hd-flow',
+  },
+  {
+    name: 'hillday-editor-1440',
+    path: '/vnext-shell.html?screen=hillday-editor',
+    width: 1440,
+    height: 1000,
+    expect: '.hd-editor',
+  },
+  {
+    name: 'hillday-editor-1180',
+    path: '/vnext-shell.html?screen=hillday-editor',
+    width: 1180,
+    height: 1000,
+    expect: '.hd-editor',
+  },
+  {
+    name: 'hillday-editor-900',
+    path: '/vnext-shell.html?screen=hillday-editor',
+    width: 900,
+    height: 1000,
+    expect: '.hd-editor',
+  },
+  {
+    name: 'hillday-editor-760',
+    path: '/vnext-shell.html?screen=hillday-editor',
+    width: 760,
+    height: 900,
+    expect: '.hd-editor',
+  },
 ];
 
 const NAV_TIMEOUT_MS = 30_000;
@@ -110,6 +153,11 @@ const chrome = await chromeLauncher.launch({
     '--disable-backgrounding-occluded-windows',
     '--force-device-scale-factor=1',
     '--hide-scrollbars',
+    // A system proxy can intercept the loopback URL and land the tab on
+    // chrome-error://chromewebdata (observed 2026-09-01) — force a direct
+    // connection so the harness never routes through one.
+    '--proxy-server=direct://',
+    '--proxy-bypass-list=*',
   ],
 });
 
@@ -117,6 +165,7 @@ const manifest = { generatedAt: new Date().toISOString(), baseUrl, captures: [] 
 
 try {
   const wsUrl = await pageWebSocketUrl(chrome.port);
+  console.log(`[capture] ws target: ${wsUrl.slice(0, 80)}`);
   const cdp = await connect(wsUrl);
   try {
     await cdp.send('Page.enable');
@@ -141,8 +190,32 @@ try {
       });
 
       const loaded = cdp.once('Page.loadEventFired', NAV_TIMEOUT_MS);
-      await cdp.send('Page.navigate', { url });
+      // Chrome occasionally refuses the first navigation on a freshly launched
+      // headless instance (ERR_CONNECTION_REFUSED while the network stack warms
+      // up); retry until the tab actually lands on the URL.
+      for (let navAttempt = 0; ; navAttempt++) {
+        await cdp.send('Page.navigate', { url });
+        await new Promise((r) => setTimeout(r, navAttempt === 0 ? 1500 : 750));
+        const landed = await evaluate(cdp, `location.href.startsWith(${JSON.stringify(url.slice(0, 40))})`);
+        if (landed === true || navAttempt >= 8) break;
+      }
       await loaded;
+
+      // Dev-server settle wait: on vite dev the module graph can finish executing
+      // AFTER the load event (on-demand transform), so poll for the expect selector
+      // for up to 45s before declaring the page unrendered.
+      {
+        const settleDeadline = Date.now() + 45_000;
+        for (;;) {
+          const present = await evaluate(
+            cdp,
+            `Boolean(document.querySelector(${JSON.stringify(target.expect)}))`,
+          );
+          if (present === true) break;
+          if (Date.now() > settleDeadline) break;
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
 
       // Webfonts, then two animation frames: text metrics must be final before
       // the pixels are taken or every overlay against Figma is off by a hair.
@@ -157,9 +230,13 @@ try {
         `Boolean(document.querySelector(${JSON.stringify(target.expect)}))`,
       );
       if (rendered !== true) {
+        const probe = await evaluate(
+          cdp,
+          'JSON.stringify({ url: location.href, readyState: document.readyState, title: document.title.slice(0,80), bodyText: document.body?.innerText?.slice(0,200) ?? "" })',
+        );
         throw new Error(
           `${target.name}: expected selector "${target.expect}" was absent after load — ` +
-            `the page did not render${pageErrors.length ? `; page errors: ${pageErrors.join(' | ')}` : ''}`,
+            `the page did not render${pageErrors.length ? `; page errors: ${pageErrors.join(' | ')}` : ''}; probe: ${probe}`,
         );
       }
       if (pageErrors.length) {
@@ -193,7 +270,15 @@ try {
     cdp.close();
   }
 } finally {
-  await chrome.kill();
+  // Windows: chrome-launcher's kill() rmSync's its profile tmpdir while the
+  // OS still holds handles, and the EPERM crashed the whole run after (or
+  // before) captures landed. Cleanup is best-effort here — the captures and
+  // the manifest matter, the tempdir does not.
+  try {
+    await chrome.kill();
+  } catch (cleanupError) {
+    console.warn(`chrome cleanup skipped: ${cleanupError?.message ?? cleanupError}`);
+  }
 }
 
 await writeFile(path.join(outputDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
@@ -201,7 +286,7 @@ console.log(`Wrote ${manifest.captures.length} vNext visual captures to ${output
 
 /** Resolve the debugger websocket for the launched browser's first page target. */
 async function pageWebSocketUrl(port) {
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + 45_000;
   for (;;) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json/list`);

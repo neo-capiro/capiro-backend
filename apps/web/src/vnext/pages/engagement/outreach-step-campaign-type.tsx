@@ -103,7 +103,16 @@ export function OutreachCampaignTypeStep(
     // step keeps resolving — rendering that old template's options and
     // hiding the Sources panel a Custom campaign should show instead.
     const commands = [
-      ...outreachGoalCommandsFor(selected, outreachCampaignNameFromSpec(props.session)),
+      // The saved why-now is passed back through so switching type re-derives
+      // objective/angle from the new type but does NOT clobber a scheduling
+      // window the user already wrote on the Name step. A saved null passes
+      // straight back (the spec already reads as cleared); an absent session
+      // leaves the override undefined, which re-derives the default.
+      ...outreachGoalCommandsFor(
+        selected,
+        outreachCampaignNameFromSpec(props.session),
+        props.session?.spec.goal.whyNow,
+      ),
       ...outreachTypeChangeInvalidationCommands(props.session),
     ];
 

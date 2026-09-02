@@ -37,6 +37,7 @@ import {
 } from '../src/government-data/community-funding/community-funding.parser.js';
 import { readHouseCpfWorkbook } from '../src/government-data/community-funding/community-funding.xlsx.js';
 import type { Chamber, ExtractedFundingRow } from '../src/government-data/community-funding/community-funding.types.js';
+import { communityFundingCampaignSourceKey } from '../src/government-data/community-funding/community-funding.source-key.js';
 import { upsertSourceDocument, sha256OfFile } from '../src/program-element/source-document/source-document-registry.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 
@@ -99,13 +100,34 @@ function extractPdf(sourceFile: string, artifactPath: string, chamber: Chamber):
   profile: string;
 } {
   const profile = 'auto';
-  const result = spawnSync(
+  // Windows-only flake: freshly-downloaded files spawned into python.exe (pymupdf's native
+  // DLL) intermittently fail with exit code 3221225794 (0xC0000142 STATUS_DLL_INIT_FAILED),
+  // almost certainly Windows Defender real-time-scanning the just-written file while the
+  // native DLL is loading. Does not reproduce for files that already existed before this
+  // process started. Retry with a short backoff before failing the whole document closed.
+  let result = spawnSync(
     process.env.PYTHON ?? 'python',
     [EXTRACTOR, '--profile', profile, sourceFile, artifactPath],
     { encoding: 'utf8' },
   );
+  for (let attempt = 0; result.status !== 0 && attempt < 5; attempt++) {
+    const delayMs = 1000 * Math.pow(2, attempt); // 1s,2s,4s,8s,16s
+    const until = Date.now() + delayMs;
+    while (Date.now() < until) {
+      /* deliberate synchronous busy-wait: spawnSync already blocks the loop here */
+    }
+    result = spawnSync(
+      process.env.PYTHON ?? 'python',
+      [EXTRACTOR, '--profile', profile, sourceFile, artifactPath],
+      { encoding: 'utf8' },
+    );
+  }
   if (result.status !== 0) {
-    throw new Error(`extractor failed: ${result.stderr || result.stdout}`);
+    throw new Error(
+      `extractor failed after retries: status=${result.status} signal=${result.signal} ` +
+        `spawnError=${result.error ? `${result.error.name}: ${result.error.message}` : 'none'} ` +
+        `stderr=${result.stderr || '(empty)'} stdout=${result.stdout || '(empty)'}`,
+    );
   }
   const line = (result.stdout || '').trim().split(/\r?\n/).filter(Boolean).at(-1) ?? '{}';
   const summary = JSON.parse(line) as {
@@ -166,12 +188,12 @@ function extractPdf(sourceFile: string, artifactPath: string, chamber: Chamber):
 }
 
 function sourceKeyFor(chamber: Chamber, fy: number, candidate: DiscoveredSource): string {
-  const slug = (candidate.title || path.basename(new URL(candidate.url).pathname))
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '')
-    .slice(0, 48);
-  return `${chamber}_fy${fy}_${slug || 'table'}`;
+  return communityFundingCampaignSourceKey({
+    chamber,
+    fiscalYear: fy,
+    title: candidate.title,
+    url: candidate.url,
+  });
 }
 
 function guessSubcommittee(title: string | null, url: string): string | null {
@@ -220,8 +242,10 @@ async function processCandidate(opts: {
   workDir: string;
   dryRun: boolean;
   force: boolean;
+  /** Prefer on-disk source + rows.json; skip network download and PDF spawn when present. */
+  fromCache: boolean;
 }): Promise<DocResult> {
-  const { prisma, chamber, fy, candidate, workDir, dryRun, force } = opts;
+  const { prisma, chamber, fy, candidate, workDir, dryRun, force, fromCache } = opts;
   const base: DocResult = {
     chamber,
     fy,
@@ -247,24 +271,46 @@ async function processCandidate(opts: {
   const artifactPath = path.join(docDir, 'rows.json');
 
   try {
-    const dl = await downloadBinary(candidate.url, sourceFile);
-    // finalize extension from magic
     let finalSource = sourceFile;
-    if (fs.readFileSync(sourceFile).slice(0, 4).toString() === '%PDF' && !sourceFile.endsWith('.pdf')) {
-      finalSource = sourceFile.replace(/\.bin$/, '.pdf');
-      fs.renameSync(sourceFile, finalSource);
-    } else if (
-      fs.readFileSync(sourceFile).slice(0, 2).toString('binary') === 'PK' &&
-      !sourceFile.endsWith('.xlsx')
-    ) {
-      finalSource = sourceFile.replace(/\.bin$/, '.xlsx');
-      fs.renameSync(sourceFile, finalSource);
+    let finalUrl = candidate.url;
+    let sha256: string;
+
+    const cachedPdf = path.join(docDir, 'source.pdf');
+    const cachedXlsx = path.join(docDir, 'source.xlsx');
+    const cachedBin = sourceFile;
+    const existing =
+      (fs.existsSync(cachedPdf) && cachedPdf) ||
+      (fs.existsSync(cachedXlsx) && cachedXlsx) ||
+      (fs.existsSync(cachedBin) && cachedBin) ||
+      null;
+
+    if (fromCache && existing) {
+      finalSource = existing;
+      sha256 = sha256OfFile(finalSource);
+      base.sha256 = sha256;
+      base.status = 'downloaded';
+    } else {
+      const dl = await downloadBinary(candidate.url, sourceFile);
+      // finalize extension from magic
+      finalSource = sourceFile;
+      if (fs.readFileSync(sourceFile).slice(0, 4).toString() === '%PDF' && !sourceFile.endsWith('.pdf')) {
+        finalSource = sourceFile.replace(/\.bin$/, '.pdf');
+        fs.renameSync(sourceFile, finalSource);
+      } else if (
+        fs.readFileSync(sourceFile).slice(0, 2).toString('binary') === 'PK' &&
+        !sourceFile.endsWith('.xlsx')
+      ) {
+        finalSource = sourceFile.replace(/\.bin$/, '.xlsx');
+        fs.renameSync(sourceFile, finalSource);
+      }
+      sha256 = dl.sha256;
+      finalUrl = dl.finalUrl || candidate.url;
+      base.sha256 = sha256;
+      base.status = 'downloaded';
     }
-    base.sha256 = dl.sha256;
-    base.status = 'downloaded';
 
     const prior = await prisma.communityFundingIngestRun.findFirst({
-      where: { source: key, artifactSha256: dl.sha256, status: { in: ['ok', 'warn'] } },
+      where: { source: key, artifactSha256: sha256, status: { in: ['ok', 'warn'] } },
     });
     if (prior && !force) {
       return { ...base, status: 'skipped_unchanged', runId: prior.id };
@@ -284,14 +330,25 @@ async function processCandidate(opts: {
       parserProfile = 'house_xlsx';
       base.sourceRows = parsed.sourceRows;
     } else {
-      const extractSummary = extractPdf(finalSource, artifactPath, chamber);
-      parserProfile = extractSummary.profile;
-      pageCount = extractSummary.pages;
+      // Prefer precomputed rows.json (offline bulk extract) to avoid Windows
+      // pymupdf STATUS_DLL_INIT_FAILED under rapid spawnSync.
+      const canUseCachedRows =
+        fromCache && fs.existsSync(artifactPath) && fs.statSync(artifactPath).size > 50;
+      if (!canUseCachedRows) {
+        const extractSummary = extractPdf(finalSource, artifactPath, chamber);
+        parserProfile = extractSummary.profile;
+        pageCount = extractSummary.pages;
+      }
       const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8')) as {
         profile: Chamber;
         pageCount: number;
         rows: ExtractedFundingRow[];
+        profileSelected?: string;
       };
+      if (canUseCachedRows) {
+        parserProfile = artifact.profileSelected ?? artifact.profile ?? 'auto';
+        pageCount = artifact.pageCount ?? null;
+      }
       // Nest parser profile is house|senate; extractor may report house_location normalized to house.
       const nestProfile = chamber;
       parsed =
@@ -319,7 +376,7 @@ async function processCandidate(opts: {
 
     const registry = await upsertSourceDocument(prisma as never, {
       sourceKey: key,
-      sha256: dl.sha256,
+      sha256,
       fiscalYear: fy,
       budgetCycle: chamber === 'house' ? 'cpf_request' : 'cds_request',
       component: null,
@@ -329,7 +386,7 @@ async function processCandidate(opts: {
           ? ` ${guessSubcommittee(candidate.title, candidate.url)}`
           : ''
       }`,
-      sourceUrl: dl.finalUrl || candidate.url,
+      sourceUrl: finalUrl,
       byteSize: fs.statSync(finalSource).size,
       pageCount,
       downloadedAt: new Date(),
@@ -343,6 +400,7 @@ async function processCandidate(opts: {
         subcommittee: guessSubcommittee(candidate.title, candidate.url),
         parserProfile,
         discoveryTitle: candidate.title,
+        fromCache: fromCache || undefined,
       },
     });
 
@@ -357,7 +415,7 @@ async function processCandidate(opts: {
         fiscalYear: fy,
         subcommittee: guessSubcommittee(candidate.title, candidate.url),
         artifactPath: finalSource,
-        artifactSha256: dl.sha256,
+        artifactSha256: sha256,
         rowsEmitted: parsed.candidates.length,
         upserted: outcome.upserted,
         changed: outcome.changed,
@@ -393,6 +451,7 @@ async function main() {
   const reportPath = arg('report');
   const dryRun = has('dry-run');
   const force = has('force');
+  const fromCache = has('from-cache');
   const allYears = has('all-years');
   const chamberArg = arg('chamber') as Chamber | undefined;
   const fyArg = arg('fy') ? Number(arg('fy')) : undefined;
@@ -456,6 +515,7 @@ async function main() {
             workDir,
             dryRun,
             force,
+            fromCache,
           });
           results.push(doc);
           console.log(

@@ -556,6 +556,16 @@ function requestUrl(input: RequestInfo | URL): URL | null {
   }
 }
 
+/**
+ * The un-patched `fetch` for callers that must NOT go through the JSON bridge:
+ * streaming (SSE) or binary `/workspace-api/*` responses, which the bridge
+ * would otherwise buffer and re-wrap as an `application/json` string. Falls
+ * back to the live `window.fetch` when the bridge is not installed.
+ */
+export function unbridgedFetch(): typeof window.fetch {
+  return originalFetch ?? window.fetch.bind(window);
+}
+
 export function installWorkspaceTransportBridge(
   client: AxiosInstance,
 ): () => void {

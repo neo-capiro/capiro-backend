@@ -51,6 +51,24 @@ const WorkspaceStudioVNext = lazy(() =>
     default: module.WorkspaceStudioVNext,
   })),
 );
+// Hill Day workspace v2 (2026-09-01): the six-step wizard, its library and the
+// document editor. New build per the Hill Day requirements; nothing in the
+// legacy workspace module is reused.
+const HillDayLibrary = lazy(() =>
+  import('./hillday/HillDayLibrary.js').then((module) => ({
+    default: module.HillDayLibrary,
+  })),
+);
+const HillDayWizard = lazy(() =>
+  import('./hillday/HillDayWizard.js').then((module) => ({
+    default: module.HillDayWizard,
+  })),
+);
+const HillDayEditor = lazy(() =>
+  import('./hillday/HillDayEditor.js').then((module) => ({
+    default: module.HillDayEditor,
+  })),
+);
 
 const UUID_SOURCE =
   '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}';
@@ -59,12 +77,20 @@ const RUN_ROUTE = new RegExp(`^/workspace/(${UUID_SOURCE})/run/?$`);
 const STUDIO_EDITOR_ROUTE = new RegExp(
   `^/workspace/studio/(${UUID_SOURCE})/(${UUID_SOURCE})/?$`,
 );
+// Hill Day editor route — document ids are the workspace engine's
+// ws_hillday_document UUIDs (backend shipped 2026-09); the pattern stays
+// permissive so a mistyped id lands on the editor's own "unavailable" state.
+const HILLDAY_DOC_ROUTE = /^\/workspace\/documents\/([A-Za-z0-9-]+)\/?$/;
 
 const STATIC_VNEXT_ROUTES = new Set([
   '/workspace',
   '/workspace/',
   '/workspace/new',
   '/workspace/new/',
+  '/workspace/documents',
+  '/workspace/documents/',
+  '/workspace/documents/new',
+  '/workspace/documents/new/',
   '/workspace/shares',
   '/workspace/shares/',
   '/workspace/studio',
@@ -82,7 +108,8 @@ export function isWorkspaceVNextRoute(pathname: string): boolean {
     STATIC_VNEXT_ROUTES.has(path) ||
     DRAFT_ROUTE.test(path) ||
     RUN_ROUTE.test(path) ||
-    STUDIO_EDITOR_ROUTE.test(path)
+    STUDIO_EDITOR_ROUTE.test(path) ||
+    HILLDAY_DOC_ROUTE.test(path)
   );
 }
 
@@ -203,6 +230,18 @@ function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
   }
   if (path === '/workspace/new' || path === '/workspace/new/') {
     return <CreationRoute />;
+  }
+  if (path === '/workspace/documents' || path === '/workspace/documents/') {
+    return <HillDayLibrary />;
+  }
+  if (path === '/workspace/documents/new' || path === '/workspace/documents/new/') {
+    return <HillDayWizard />;
+  }
+  const hillDayMatch = HILLDAY_DOC_ROUTE.exec(path);
+  if (hillDayMatch?.[1]) {
+    // This dispatcher matches the path itself (no `:id` router param exists
+    // here), so the document id must travel as a prop.
+    return <HillDayEditor documentId={hillDayMatch[1]} />;
   }
   if (path === '/workspace/shares' || path === '/workspace/shares/') {
     return <SharesIndex />;

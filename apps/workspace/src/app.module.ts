@@ -22,6 +22,7 @@ import { WorkspaceReasoningModule } from './workspace-reasoning/workspace-reason
 import { DocumentAgentModule } from './document-agent/document-agent.module.js';
 import { DeliveryModule } from './delivery/delivery.module.js';
 import { QuickDraftModule } from './quick-draft/quick-draft.module.js';
+import { HillDayModule } from './hillday/hillday.module.js';
 
 @Module({
   imports: [
@@ -56,6 +57,9 @@ import { QuickDraftModule } from './quick-draft/quick-draft.module.js';
     QuickDraftModule,
     TemplateStudioModule,
     DeliveryModule,
+    // ── Hill Day workflow (Workspace vNext, 2026-09) ──────────────────────
+    // /workspace-api/hillday/*: six-step wizard backend + document editor API.
+    HillDayModule,
   ],
 })
 export class AppModule {}

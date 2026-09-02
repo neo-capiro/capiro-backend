@@ -144,6 +144,14 @@ export interface OutreachV3GenerationJobItem {
   result?: Record<string, unknown> | null;
   error?: { code?: string; message?: string } | null;
   attempt: number;
+  /**
+   * The draft body as it's being written, while still in flight — server-side
+   * only, from an in-memory per-process store, so this can be absent even for
+   * a genuinely in-flight item (streaming off, or not yet caught up to the
+   * throttle window). Always null once the item is terminal — the real draft
+   * is the answer by then, not this.
+   */
+  livePreview?: string | null;
 }
 
 export interface OutreachV3GenerationJob {
@@ -194,7 +202,6 @@ export interface OutreachV3ServerPreflight {
   checks: OutreachV3NamedPreflightCheck[];
   draftVersionIds: string[];
   excludedGenerationKeys: string[];
-  heldOutAcknowledged: boolean;
   plan: OutreachV3GenerationPlan;
   settings: OutreachV3SendSettings | null;
   draftResults: OutreachV3PreflightDraftResult[];
@@ -516,7 +523,6 @@ export async function saveOutreachV3SendSettings(
 export interface OutreachV3PreflightInput {
   excludedGenerationKeys?: string[];
   testGenerationKey?: string | null;
-  acknowledgeHeldOut?: boolean;
 }
 
 export async function runOutreachV3Preflight(

@@ -3,8 +3,14 @@ import { XMLValidator } from "fast-xml-parser";
 import JSZip from "jszip";
 import { DocxReportRenderer } from "./docx-report.renderer.js";
 import { PptxReportRenderer } from "./pptx-report.renderer.js";
+import type { VerifiedReportNarrative } from "./report-narrative.types.js";
 import { ooxmlSafeText } from "./report-text.js";
-import type { ExecutiveReportSnapshot, ReportNode } from "./report.types.js";
+import type {
+  ExecutiveReportSnapshot,
+  ReportMemberDetail,
+  ReportNode,
+  ReportRenderExtras,
+} from "./report.types.js";
 
 jest.setTimeout(20_000);
 
@@ -42,6 +48,30 @@ describe("executive report renderers", () => {
   );
 
   it.each([
+    ["DOCX", () => new DocxReportRenderer().render(workingPlanSnapshot(), null)],
+    ["PPTX", () => new PptxReportRenderer().render(workingPlanSnapshot(), null)],
+  ])(
+    "emits each internal-audience working-plan item exactly once in %s",
+    async (_label, render) => {
+      const snap = workingPlanSnapshot();
+      const workingTitles = snap.nodes
+        .filter((node) =>
+          ["suggested", "draft", "internal_review"].includes(node.status),
+        )
+        .map((node) => node.title);
+      // More than 5 so PPTX's paginated working-plan appendix (5 items per
+      // slide) is actually exercised, not just its single-page case.
+      expect(workingTitles.length).toBeGreaterThan(5);
+
+      const text = await packageText(await render());
+      for (const title of workingTitles) {
+        const occurrences = text.split(title).length - 1;
+        expect(occurrences).toBe(1);
+      }
+    },
+  );
+
+  it.each([
     ["DOCX", () => new DocxReportRenderer().render(unsafeSnapshot(), null)],
     ["PPTX", () => new PptxReportRenderer().render(unsafeSnapshot(), null)],
   ])("normalizes stored text into valid %s XML", async (_label, render) => {
@@ -68,7 +98,173 @@ describe("executive report renderers", () => {
       "A B\ud83d\ude80C\ufffdD\ufffdE",
     );
   });
+
+  it.each([
+    ["DOCX", (extras: ReportRenderExtras) => new DocxReportRenderer().render(snapshot(), null, extras)],
+    ["PPTX", (extras: ReportRenderExtras) => new PptxReportRenderer().render(snapshot(), null, extras)],
+  ])(
+    "renders verified narrative prose with its sources in %s and drops the bullet fallback",
+    async (_label, render) => {
+      const text = await packageText(await render({ narrative: narrative() }));
+
+      expect(text).toContain(
+        "Northstar Systems is pursuing durable authorization language while the committee calendar compresses.",
+      );
+      expect(text).toContain(
+        "Early alignment with committee staff is essential because the calendar is compressed.",
+      );
+      expect(text).toContain("Sources: Approved strategy brief");
+      // The deterministic situation bullet is replaced by the prose: the item
+      // may still be listed once in an appendix/source register, never twice.
+      expect(
+        text.split("A compressed committee calendar makes early alignment essential.").length - 1,
+      ).toBeLessThanOrEqual(1);
+      expect(text).not.toContain("Timing pressure:");
+    },
+  );
+
+  it.each([
+    ["DOCX", () => new DocxReportRenderer().render(snapshot(), null)],
+    ["PPTX", () => new PptxReportRenderer().render(snapshot(), null)],
+  ])("draws a delivery timeline with period columns in %s", async (_label, render) => {
+    const text = await packageText(await render());
+    expect(text).toContain("Delivery timeline");
+    expect(text).toContain("Sep ’26");
+    expect(text).toContain("Dec ’26");
+    expect(text).toContain("Confirm leadership message");
+  });
+
+  it.each([
+    ["DOCX", (extras: ReportRenderExtras) => new DocxReportRenderer().render(memberSnapshot(), null, extras)],
+    ["PPTX", (extras: ReportRenderExtras) => new PptxReportRenderer().render(memberSnapshot(), null, extras)],
+  ])(
+    "renders member office cards with the Washington office and portrait in %s",
+    async (_label, render) => {
+      const png = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+        "base64",
+      );
+      const bytes = await render({
+        memberDetails: [memberDetail()],
+        memberPhotos: new Map([["member-52480", { bytes: png, contentType: "image/png" }]]),
+      });
+      const text = await packageText(bytes);
+      expect(text).toContain("Member offices in the plan");
+      expect(text).toContain("Maria Cantwell");
+      expect(text).toContain("511 Hart Senate Office Building");
+      expect(text).toContain("Democratic");
+      expect(text).toContain("(202) 224-3441");
+
+      const archive = await JSZip.loadAsync(bytes);
+      const media = Object.keys(archive.files).filter((name) =>
+        /(word|ppt)\/media\//.test(name),
+      );
+      expect(media.length).toBeGreaterThan(0);
+    },
+  );
+
+  it.each([
+    ["DOCX", (extras: ReportRenderExtras) => new DocxReportRenderer().render(memberSnapshot(), null, extras)],
+    ["PPTX", (extras: ReportRenderExtras) => new PptxReportRenderer().render(memberSnapshot(), null, extras)],
+  ])("falls back to initials and a directory note when no detail resolved in %s", async (_label, render) => {
+    const text = await packageText(
+      await render({
+        memberDetails: [
+          { ...memberDetail(), washingtonOffice: null, photoUrl: null, resolved: false },
+        ],
+      }),
+    );
+    expect(text).toContain("Maria Cantwell");
+    expect(text).toMatch(/Directory detail was not available/);
+    expect(text).not.toContain("511 Hart");
+  });
 });
+
+function narrative(): VerifiedReportNarrative {
+  return {
+    model: "claude-test",
+    generatedAt: "2026-08-30T12:00:00.000Z",
+    usage: { inputTokens: 10, outputTokens: 5 },
+    attempts: 1,
+    acceptedParagraphs: 2,
+    rejectedParagraphs: 0,
+    orchestratorDroppedParagraphs: 0,
+    rejections: [],
+    sections: [
+      {
+        id: "executive_summary",
+        paragraphs: [
+          {
+            text: "Northstar Systems is pursuing durable authorization language while the committee calendar compresses.",
+            evidenceIds: ["plan:strategy", "ctx:situation:1"],
+            sourceTitles: ["Strategy plan", "Approved strategy brief"],
+          },
+        ],
+      },
+      {
+        id: "situation",
+        paragraphs: [
+          {
+            text: "Early alignment with committee staff is essential because the calendar is compressed.",
+            evidenceIds: ["ctx:situation:1"],
+            sourceTitles: ["Approved strategy brief"],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function memberDetail(): ReportMemberDetail {
+  return {
+    memberId: "member-52480",
+    name: "Maria Cantwell",
+    party: "D",
+    state: "WA",
+    chamber: "Senate",
+    district: null,
+    committees: ["Senate Armed Services Committee"],
+    washingtonOffice: {
+      label: "Washington Office",
+      address1: "511 Hart Senate Office Building",
+      address2: null,
+      city: "Washington",
+      state: "DC",
+      zip: "20510",
+      phone: "(202) 224-3441",
+      fax: null,
+    },
+    photoUrl: "https://img.legistorm.com/people/480/52480.jpg",
+    photoSource: "legistorm",
+    resolved: true,
+  };
+}
+
+function memberSnapshot(): ExecutiveReportSnapshot {
+  const base = snapshot();
+  const gate = base.nodes.find((node) => node.id === "gate")!;
+  gate.subject = "member";
+  gate.targetLabel = "Maria Cantwell";
+  gate.memberRef = {
+    memberId: "member-52480",
+    memberName: "Maria Cantwell",
+    party: "D",
+    state: "WA",
+    chamber: "Senate",
+    committee: "Senate Armed Services Committee",
+    sourceDirectory: "congress",
+  };
+  return {
+    ...base,
+    members: [
+      {
+        ...gate.memberRef,
+        name: "Maria Cantwell",
+        nodeIds: ["gate"],
+      },
+    ],
+  };
+}
 
 function unsafeSnapshot(): ExecutiveReportSnapshot {
   const unsafe = snapshot();
@@ -196,6 +392,7 @@ function snapshot(): ExecutiveReportSnapshot {
       placeholderNodes: 0,
     },
     nodes,
+    members: [],
     artifacts: [
       {
         nodeId: "action",
@@ -281,9 +478,85 @@ function snapshot(): ExecutiveReportSnapshot {
       includeChangeLog: false,
       includeInternalNotes: false,
       includeAgentHistory: false,
+      includeNarrative: false,
+      includeMemberProfiles: true,
     },
     warnings: [],
     capacityErrors: [],
+  };
+}
+
+function workingPlanSnapshot(): ExecutiveReportSnapshot {
+  const base = snapshot();
+  const workingNodes: ReportNode[] = [
+    node({
+      id: "wp-decision",
+      kind: "decision",
+      subject: "ask",
+      title: "Suggested decision: adjust authorization ask",
+      status: "suggested",
+      startsOn: "2026-09-15",
+      endsOn: "2026-09-15",
+      ownerName: "Jordan Lee",
+    }),
+    node({
+      id: "wp-risk",
+      kind: "risk",
+      subject: "member",
+      title: "Draft risk: committee turnover",
+      status: "draft",
+      startsOn: "2026-08-01",
+      endsOn: null,
+      openEnded: true,
+      ownerName: "Avery Cole",
+    }),
+    node({
+      id: "wp-overdue",
+      kind: "action",
+      subject: "deliverable",
+      title: "Internal review: overdue evidence packet",
+      status: "internal_review",
+      startsOn: "2026-01-01",
+      endsOn: "2026-02-01",
+      ownerName: "Riley Chen",
+    }),
+    node({
+      id: "wp-unowned",
+      kind: "action",
+      subject: "optics",
+      title: "Suggested outreach: op-ed placement",
+      status: "suggested",
+      ownerAssigned: false,
+      ownerName: "",
+      startsOn: "2026-08-20",
+      endsOn: "2026-09-20",
+    }),
+    node({
+      id: "wp-5",
+      subject: "member",
+      title: "Draft step five",
+      status: "draft",
+      ownerName: "Sam Ito",
+    }),
+    node({
+      id: "wp-6",
+      subject: "agency",
+      title: "Suggested step six",
+      status: "suggested",
+      ownerName: "Sam Ito",
+    }),
+    node({
+      id: "wp-7",
+      subject: "committee",
+      title: "Internal review step seven",
+      status: "internal_review",
+      ownerName: "Sam Ito",
+    }),
+  ];
+  return {
+    ...base,
+    nodes: [...base.nodes, ...workingNodes],
+    options: { ...base.options, audience: "internal" },
   };
 }
 

@@ -7,6 +7,7 @@ import {
 } from "../strategy/live-node.js";
 import { computeReportHealth } from "./report-health.js";
 import {
+  extractMemberRef,
   includeNodeForAudience,
   isPlaceholderReportTitle,
   reportStatusForAudience,
@@ -20,6 +21,7 @@ import type {
   ReportCounts,
   ReportIssue,
   ReportLogoDescriptor,
+  ReportMemberProfile,
   ReportNode,
   ReportPreflight,
   ReportProvenanceSource,
@@ -53,6 +55,8 @@ export const REPORT_CAPACITY_LIMITS = {
   contextFactsPerDocument: 80,
   contextSourceBytes: 2 * 1024 * 1024,
   snapshotBytes: 8 * 1024 * 1024,
+  /** Member-office profiles drawn in one report; the rest stay as target labels. */
+  memberProfiles: 12,
 } as const;
 
 @Injectable()
@@ -65,6 +69,14 @@ export class ReportSnapshotService {
     options: NormalizedReportOptions,
   ): Promise<ReportPreflight> {
     const snapshot = await this.build(tenantId, strategyId, options);
+    return this.preflightFromSnapshot(snapshot, options);
+  }
+
+  /** Readiness view of an already-built snapshot (no second database read). */
+  preflightFromSnapshot(
+    snapshot: ExecutiveReportSnapshot,
+    options: NormalizedReportOptions,
+  ): ReportPreflight {
     const errors = reportReadinessErrors(snapshot);
     const { objectKey: _privateObjectKey, ...publicLogo } =
       snapshot.client.logo;
@@ -107,6 +119,18 @@ export class ReportSnapshotService {
       },
       sections: reportSectionReadiness(snapshot),
       logo: publicLogo,
+      // Directory resolution and narrative availability are filled in by
+      // StrategyReportService; the snapshot only knows what the plan references.
+      memberOffices: {
+        referenced: snapshot.members.length,
+        resolved: 0,
+        withPhoto: 0,
+      },
+      narrative: {
+        available: false,
+        reason: null,
+        requested: options.includeNarrative,
+      },
       warnings: snapshot.warnings,
       errors,
     };
@@ -421,6 +445,7 @@ export class ReportSnapshotService {
           sources: allSources.slice(0, REPORT_CAPACITY_LIMITS.sourcesPerNode),
           sourceCount: allSources.length,
           targetLabel: extractTargetLabel(node.targetRef),
+          memberRef: extractMemberRef(node.targetRef),
         };
       });
     let nodes = mappedNodes.filter((node) =>
@@ -491,6 +516,13 @@ export class ReportSnapshotService {
     });
     const health = computeReportHealth(nodes, asOfDate);
     const counts = countPlan(nodes, artifacts.length);
+    const memberProfiles = options.includeMemberProfiles
+      ? collectMemberProfiles(nodes)
+      : [];
+    const members = memberProfiles.slice(
+      0,
+      REPORT_CAPACITY_LIMITS.memberProfiles,
+    );
     const staleDocuments = contextDocuments.filter(
       (document) =>
         document.validUntil !== null &&
@@ -532,6 +564,7 @@ export class ReportSnapshotService {
       excludedContextDocuments: context.excludedDocuments,
       decisions: counts.decisions,
       risks: counts.risks,
+      memberProfilesOmitted: memberProfiles.length - members.length,
     });
 
     const latestVersion = loaded.versions[0];
@@ -577,6 +610,7 @@ export class ReportSnapshotService {
       counts,
       inclusion,
       nodes,
+      members,
       artifacts: artifacts.map((artifact) => ({
         nodeId: artifact.nodeId,
         artifactType: artifact.artifactType,
@@ -844,8 +878,15 @@ function buildWarnings(input: {
   excludedContextDocuments: number;
   decisions: number;
   risks: number;
+  memberProfilesOmitted: number;
 }): ReportIssue[] {
   const warnings: ReportIssue[] = [];
+  if (input.memberProfilesOmitted > 0) {
+    warnings.push({
+      code: "MEMBER_PROFILES_TRUNCATED",
+      message: `${input.memberProfilesOmitted} additional member office${input.memberProfilesOmitted === 1 ? "" : "s"} will appear as plain stakeholder targets; the report profiles the first ${REPORT_CAPACITY_LIMITS.memberProfiles}.`,
+    });
+  }
   if (!input.clientFound) {
     warnings.push({
       code: "CLIENT_RECORD_UNAVAILABLE",
@@ -971,6 +1012,44 @@ export function extractSources(value: unknown): ReportProvenanceSource[] {
       },
     ];
   });
+}
+
+/**
+ * Group included plan steps by the congressional or state member they target.
+ * Staff targets are not member offices. Order follows first plan appearance so
+ * the profile section reads in the same sequence as the plan itself.
+ */
+export function collectMemberProfiles(
+  nodes: readonly ReportNode[],
+): ReportMemberProfile[] {
+  const byId = new Map<string, ReportMemberProfile>();
+  for (const node of nodes) {
+    const ref = node.memberRef;
+    if (!ref || ref.sourceDirectory === "staff") continue;
+    const existing = byId.get(ref.memberId);
+    if (existing) {
+      existing.nodeIds.push(node.id);
+      // Prefer the most complete stored reference across the steps; a stored
+      // member name always beats a free-text target label.
+      existing.memberName ??= ref.memberName;
+      existing.party ??= ref.party;
+      existing.state ??= ref.state;
+      existing.chamber ??= ref.chamber;
+      existing.committee ??= ref.committee;
+      existing.name =
+        existing.memberName ??
+        (existing.name === "Member office"
+          ? (node.targetLabel ?? existing.name)
+          : existing.name);
+      continue;
+    }
+    byId.set(ref.memberId, {
+      ...ref,
+      name: ref.memberName ?? node.targetLabel ?? "Member office",
+      nodeIds: [node.id],
+    });
+  }
+  return [...byId.values()];
 }
 
 export function extractTargetLabel(value: unknown): string | null {
