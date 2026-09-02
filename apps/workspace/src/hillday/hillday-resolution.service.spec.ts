@@ -3,6 +3,7 @@ import type {
   BridgeMatchEmailsResponse,
   BridgeMemberContext,
   BridgeResult,
+  BridgeStaffer,
 } from './directory-bridge.client.js';
 import { HillDayResolutionService } from './hillday-resolution.service.js';
 import type { CalendarEvent, MeetingResolution } from './hillday.types.js';
@@ -121,7 +122,10 @@ function makeHarness(meetings: FakeMeeting[]) {
       ok: true,
       data: { context: id === 'member-3' ? courtney : null },
     })),
-    staffer: jest.fn(),
+    staffer: jest.fn(async (): Promise<BridgeResult<{ staffer: BridgeStaffer | null }>> => ({
+      ok: true,
+      data: { staffer: null },
+    })),
     searchStaffers: jest.fn(),
   };
   const service = new HillDayResolutionService(prisma as never, source as never, bridge as never);
@@ -395,5 +399,38 @@ describe('HillDayResolutionService.addManualMeeting', () => {
     const m = rerun.meetings[0]!;
     expect(m.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
     expect(m.office.derivedFrom).toBe('manual_selection');
+  });
+
+  it('an assign_staffer attendee added with no invite address survives a full resolveDocument re-run', async () => {
+    const { service, bridge } = makeHarness([]);
+    bridge.staffer.mockResolvedValue({
+      ok: true,
+      data: {
+        staffer: {
+          id: 'staff-9',
+          fullName: 'Jamie Rivera',
+          title: 'Legislative Assistant',
+          roles: ['Legislative Assistant'],
+          issueAreas: ['Defense'],
+          email: 'jamie.rivera@mail.house.gov',
+          officeLocation: '',
+          member: null,
+        },
+      },
+    });
+    const { resolution: created } = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+    const { resolution: withAttendee } = await service.correct('t', 'user-1', 'doc-1', created.meetingId, {
+      kind: 'assign_staffer',
+      stafferId: 'staff-9',
+    });
+    expect(withAttendee.attendees).toHaveLength(1);
+    expect(withAttendee.attendees[0]!.address).toBeNull();
+    expect(withAttendee.attendees[0]!.manual).toBe(false);
+
+    const rerun = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const m = rerun.meetings[0]!;
+    expect(m.attendees).toHaveLength(1);
+    expect(m.attendees[0]!.stafferId).toBe('staff-9');
+    expect(m.attendees[0]!.name).toBe('Jamie Rivera');
   });
 });

@@ -800,9 +800,13 @@ export class HillDayResolutionService {
       });
     }
 
-    // Manual attendees the user added earlier stay on the record.
+    // Attendees added without a real invite address stay on the record —
+    // `manual` alone isn't the right test: assign_staffer sets manual:false
+    // even when newAttendee(null) created the record from scratch (no
+    // attendeeId, no address), which is exactly the case a manual meeting's
+    // empty event.attendees[] can never rediscover on the next resolve pass.
     for (const prev of previous?.attendees ?? []) {
-      if (prev.manual && !attendees.some((a) => a.attendeeId === prev.attendeeId)) {
+      if ((prev.manual || prev.address === null) && !attendees.some((a) => a.attendeeId === prev.attendeeId)) {
         attendees.push({ ...prev });
       }
     }
