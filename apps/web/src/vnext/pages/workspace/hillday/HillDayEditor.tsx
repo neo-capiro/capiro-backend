@@ -10,7 +10,7 @@
  * the same rows. Column collapses are driven by a live container measure.
  */
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { config } from '../../../../env.js';
 import { useHillDayApi } from './api.js';
@@ -50,10 +50,19 @@ function humanReason(reason: string | null): string {
   }
 }
 
-export function HillDayEditor() {
+const DOC_PATH = /^\/workspace\/documents\/([A-Za-z0-9-]+)\/?$/;
+
+/**
+ * The document id comes from the route dispatcher as a prop
+ * (WorkspaceVNextRoutes matches the path itself), else from a router param,
+ * else from the pathname — the vNext workspace router does not mount this
+ * screen under a `:id` route, so `useParams()` alone is empty here.
+ */
+export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
   const navigate = useNavigate();
   const params = useParams();
-  const docId = params.id ?? '';
+  const location = useLocation();
+  const docId = documentId ?? params.id ?? DOC_PATH.exec(location.pathname)?.[1] ?? '';
   const api = useHillDayApi();
   const queryClient = useQueryClient();
 

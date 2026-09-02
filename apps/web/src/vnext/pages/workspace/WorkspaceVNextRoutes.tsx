@@ -239,7 +239,9 @@ function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
   }
   const hillDayMatch = HILLDAY_DOC_ROUTE.exec(path);
   if (hillDayMatch?.[1]) {
-    return <HillDayEditor />;
+    // This dispatcher matches the path itself (no `:id` router param exists
+    // here), so the document id must travel as a prop.
+    return <HillDayEditor documentId={hillDayMatch[1]} />;
   }
   if (path === '/workspace/shares' || path === '/workspace/shares/') {
     return <SharesIndex />;

@@ -62,6 +62,9 @@ describe('hillday route wiring', () => {
     expect(routes).toContain("'/workspace/documents'");
     expect(routes).toContain("'/workspace/documents/new'");
     expect(routes).toContain('HILLDAY_DOC_ROUTE');
+    // The dispatcher matches the path itself, so the editor must receive the
+    // id as a prop — a bare <HillDayEditor /> never loads a document.
+    expect(routes).toContain('<HillDayEditor documentId={hillDayMatch[1]} />');
   });
 });
 
