@@ -27,9 +27,13 @@ function initials(fullName: string): string {
   return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
 }
 
+/** `district` is sometimes just the number ("12"), sometimes already
+ *  state-prefixed ("NC-12") depending on which snapshot field populated it —
+ *  compose defensively rather than risk "NC-NC-12". */
 function districtLabel(c: Pick<DirectoryBrowseContact, 'state' | 'district'>): string {
-  if (!c.state) return c.district || '';
-  return c.district ? `${c.state}-${c.district}` : c.state;
+  if (!c.district) return c.state || '';
+  if (!c.state || c.district === c.state || c.district.startsWith(`${c.state}-`)) return c.district;
+  return `${c.state}-${c.district}`;
 }
 
 function memberOfficeLines(c: DirectoryBrowseContact): { primary: string; secondary: string } {
