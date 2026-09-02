@@ -1,5 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { sha256Hex } from '../../contracts/canonical-json.js';
+import { parseParserRuntimeResultV1 } from '../../parser-router/parser-runtime-contract-v1.js';
 import type { RdteCycleDocumentInputV1 } from './rdte-phase3-document-input-v1.js';
 import {
   buildRdteCycleArtifacts,
@@ -117,6 +120,53 @@ describe('Phase 4 exact RDT&E cycle pipeline', () => {
       ),
     ).toBe(true);
     expect(r2?.parserRuns[0]?.method).toBe('native_structured');
+  });
+
+  it('does not open a spurious R-2A funding group from the real FY2024 Army R-2 front-matter page that mentions "R-2A" in prose (Phase 10B-21 Area 8 real-document finding)', () => {
+    // The real document's own physical page 6 ("Introduction and
+    // Explanation of Contents") explains what an R-2A exhibit IS
+    // ("...comprised of R-2 ..., R-2A (Army RDT&E Budget Item
+    // Justification - project level)...", "...found in the narrative
+    // sections of the Program Element R-2A Exhibits.") without ever
+    // printing a labeled "PE NNNNNNNL" or "Project Code:" field --
+    // `groupR2aPages` (this file) used to key such a page as
+    // parentPeCode/projectCode `''`/`''` and open a real funding group for
+    // it, which downstream flagged a spurious blocking "R-2A unit
+    // resolution missing for /" warning and pushed the real production
+    // import to REJECT. Embedding the exact real page (not a hand-rolled
+    // approximation) also faithfully carries that page's restructuring
+    // table of ~14 distinct real PE codes, which independently triggers
+    // the R-2 segmenter's conflicting-PE-headers veto -- reproducing the
+    // full real shape, not a simplified one that could pass for reasons
+    // that do not hold in production.
+    const rawFixturePath = join(
+      __dirname,
+      '__fixtures__',
+      'production-fy2024-army-r2-raw-parser-output-170pages.json',
+    );
+    const rawResult = parseParserRuntimeResultV1(
+      JSON.parse(readFileSync(rawFixturePath, 'utf8')) as unknown,
+    );
+    const realFrontMatterPage = rawResult.pages.find((page) => page.page === 6);
+    if (!realFrontMatterPage) {
+      throw new Error('expected physical page 6 in the real raw-parser-output fixture');
+    }
+    const documents = tamperDocument('golden_r2', (document) => ({
+      ...document,
+      // Renumber to avoid colliding with the golden document's own page 1.
+      pages: [...document.pages, { ...realFrontMatterPage, page: 90 }],
+    }));
+    const result = buildGolden(documents);
+    const r2Artifact = result.artifacts.find((value) => value.documentKey === 'golden_r2')?.artifact;
+    expect(r2Artifact).toBeDefined();
+    expect(
+      r2Artifact?.warnings.some((warning) => warning.code === 'r2a_unit_unresolved'),
+    ).toBe(false);
+    expect(r2Artifact?.omissions.filter((omission) => omission.severity === 'blocking')).toHaveLength(
+      0,
+    );
+    expect(result.counts.r2aProjectCount).toBe(2);
+    expect(result.counts.blockingFindingCount).toBe(0);
   });
 
   it('retains evidence-linked unit-tolerant R-1/R-2 comparison records', () => {

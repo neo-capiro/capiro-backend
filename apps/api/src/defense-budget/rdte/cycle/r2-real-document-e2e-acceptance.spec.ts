@@ -37,12 +37,18 @@
  * cells are produced, matching the brief's stated facts precisely.
  */
 import { createHash } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   parseParserRuntimeResultV1,
   type ParserPageResultV1,
+  type ParserRuntimeResultV1,
 } from '../../parser-router/parser-runtime-contract-v1.js';
+import {
+  composePageResults,
+  type ParserRunResultEntry,
+} from '../../parser-router/page-result-compositor.js';
 import { segmentR2ExhibitPages } from '../r2/r2-exhibit-segmenter.js';
 import { resolveR2Contexts } from '../r2/r2-context-resolver.js';
 import { extractR2Identities } from '../r2/r2-identity-extractor-v1.js';
@@ -50,6 +56,7 @@ import { extractR2Narrative } from '../r2/r2-narrative-extractor-v1.js';
 import { extractR2PeFunding } from '../r2/r2-cost-table-extractor-v1.js';
 import { buildR2PeFundingArtifact } from '../r2/r2-pe-funding-builder.js';
 import { buildCompleteR2Artifact } from '../r2/r2-complete-artifact-builder-v1.js';
+import { createRdteSemanticArtifactFactory } from './rdte-phase3-semantic-artifact-factory-v1.js';
 import { BudgetVerificationV1Service } from '../../verification/services/budget-verification-v1.service.js';
 import type {
   TrustedProofResolutionV1,
@@ -61,6 +68,7 @@ import type {
   ExtractionSourceV1,
   ParserRunV1,
 } from '../../contracts/extraction-artifact-v1.js';
+import type { BudgetCycleManifestDocumentV1 } from '../../contracts/budget-cycle-manifest-v1.js';
 
 const SOURCE_SHA = '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6';
 const SOURCE_DOCUMENT_ID = '1d20fc43-b6c0-4212-b6fd-aa95cbc3c342';
@@ -76,7 +84,11 @@ const RAW_FIXTURE_PATH = join(
   'production-fy2024-army-r2-raw-parser-output-170pages.json',
 );
 
-function requireRawFixture(): { pages: ParserPageResultV1[]; contentSha256: string } {
+/** The complete parsed raw-parser-output, including the `failedPages`
+ * records (page + typed failure code) that `requireRawFixture` below
+ * discards -- needed to drive the REAL Phase 3 compositor/factory seam,
+ * not just the succeeded-pages array. */
+function requireFullRawParserResult(): ParserRuntimeResultV1 {
   if (!existsSync(RAW_FIXTURE_PATH)) {
     throw new Error(`missing real raw-parser-output fixture at ${RAW_FIXTURE_PATH}`);
   }
@@ -87,6 +99,11 @@ function requireRawFixture(): { pages: ParserPageResultV1[]; contentSha256: stri
       `raw fixture source SHA drifted: expected ${SOURCE_SHA}, got ${parsed.inputSourceSha256}`,
     );
   }
+  return parsed;
+}
+
+function requireRawFixture(): { pages: ParserPageResultV1[]; contentSha256: string } {
+  const parsed = requireFullRawParserResult();
   return { pages: parsed.pages as ParserPageResultV1[], contentSha256: parsed.contentSha256 };
 }
 
@@ -411,5 +428,159 @@ describe('Phase 10B-16 Part E -- real R-2 semantic pipeline acceptance (PE 06011
         2,
       ),
     );
+  });
+
+  it('does not REJECT through the REAL production Phase 3 seam (compositor + rdteDocumentInputFromPhase3 + appendUnresolvedPageOmissions), not only the bypassed direct-call helper above (Phase 10B-21, 3rd independent review, Area 8)', async () => {
+    // The two tests above call `resolveR2Contexts`/`extractR2Identities`/
+    // `buildCompleteR2Artifact` directly against ONLY the 164 succeeded
+    // pages, so they never exercise `rdteDocumentInputFromPhase3` or
+    // `appendUnresolvedPageOmissions` -- the actual functions
+    // `createRdteSemanticArtifactFactory` (the real Phase 3 seam every
+    // production import calls) uses to decide `unresolvedPages` and turn
+    // them into blocking omissions. Before the Area 8 fix, those two
+    // functions unconditionally treated every one of this document's 6
+    // genuinely blank separator pages (2, 4, 10, 38, 40, 42 -- every engine
+    // agreed `no_embedded_text`, confirmed by the raw fixture's own
+    // `failedPages`) as a blocking completeness gap, so the real production
+    // path still REJECTed even after the segmenter false-positive fix. This
+    // test drives the REAL compositor (`composePageResults`) and the REAL
+    // factory (`createRdteSemanticArtifactFactory`) end to end against the
+    // same raw fixture, so a regression in either fix shows up here even if
+    // the narrower tests above still pass.
+    const rawResult = requireFullRawParserResult();
+    const source = buildRealSource();
+    const parserRunEntry: ParserRunResultEntry = {
+      parserRunId: `pr1_real_r2_${SOURCE_SHA.slice(0, 16)}`,
+      result: rawResult,
+      method: 'deterministic_pdfplumber',
+      parserVersion: 'pdfplumber-0.11.0',
+      parserConfigSha256: PARSER_CONFIG_SHA,
+      sourceSha256: SOURCE_SHA,
+      outputArtifactSha256: rawResult.contentSha256,
+    };
+    const composedOutput = composePageResults({
+      executionId: 'phase10b21-area8-real-prod-path',
+      sourceSha256: SOURCE_SHA,
+      requestedPages: [...rawResult.requestedPages],
+      parserRunEntries: [parserRunEntry],
+    });
+
+    // The compositor itself, not this test, decides which pages have no
+    // selected result -- assert against what it actually produced rather
+    // than hardcoding page numbers, but confirm it is non-empty so the
+    // omission-skip path below is genuinely exercised.
+    const noResultPages = composedOutput.pages
+      .filter((page) => page.selectedResult == null)
+      .map((page) => page.page)
+      .sort((a, b) => a - b);
+    expect(noResultPages.length).toBeGreaterThan(0);
+    expect(
+      noResultPages.every((page) =>
+        (composedOutput.pages.find((p) => p.page === page)?.failures ?? []).every(
+          (failure) => failure.code === 'no_embedded_text',
+        ),
+      ),
+    ).toBe(true);
+
+    const manifestDocument: BudgetCycleManifestDocumentV1 = {
+      documentKey: SOURCE_DOCUMENT_ID,
+      required: true,
+      title: 'r2',
+      sourceLocator: SOURCE_URL,
+      family: 'rdte',
+      exhibit: 'R-2',
+      authority: 'dod-comptroller',
+      component: 'ARMY',
+      budgetCycle: 'pb',
+      documentType: 'r2',
+      parserPolicy: 'deterministic_table',
+      requiredDataCategories: ['identity'],
+      expectedLineKinds: ['RDTE_PE'],
+      allowEmpty: false,
+    };
+
+    const { capture, factory } = createRdteSemanticArtifactFactory({
+      document: manifestDocument,
+      source,
+      fiscalYear: CYCLE_FISCAL_YEAR,
+    });
+
+    const outputDir = mkdtempSync(join(tmpdir(), 'phase10b21-area8-real-prod-'));
+    try {
+      factory(
+        {
+          executionId: 'phase10b21-area8-real-prod-path',
+          cycleId: 'phase10b21-area8-real-prod-cycle',
+          manifestDocumentKey: SOURCE_DOCUMENT_ID,
+          sourceDocumentId: SOURCE_DOCUMENT_ID,
+          sourceSha256: SOURCE_SHA,
+          sourceLocator: SOURCE_URL,
+          sourceUrl: SOURCE_URL,
+          composedOutput,
+          exhibitType: 'R-2',
+          budgetFamily: 'rdte',
+          fiscalYear: CYCLE_FISCAL_YEAR,
+          authority: 'dod-comptroller',
+          component: 'ARMY',
+          budgetCycle: 'pb',
+          documentType: 'r2',
+        },
+        outputDir,
+      );
+    } finally {
+      rmSync(outputDir, { recursive: true, force: true });
+    }
+
+    expect(capture.documentInput).not.toBeNull();
+    expect(capture.artifact).not.toBeNull();
+    const documentInput = capture.documentInput!;
+    const artifact = capture.artifact!;
+
+    // Every unresolved page in this real document is provably blank -- the
+    // real production seam must classify all of them as such (not merely
+    // the segmenter's already-tested subset).
+    expect([...documentInput.unresolvedPages].sort((a, b) => a - b)).toEqual(noResultPages);
+    expect([...(documentInput.provablyBlankPages ?? [])].sort((a, b) => a - b)).toEqual(
+      noResultPages,
+    );
+
+    const unresolvedPageOmissions = artifact.omissions.filter(
+      (o) => o.reason === 'missing_evidence' && /did not select a parser result/.test(o.message),
+    );
+    expect(unresolvedPageOmissions).toHaveLength(0);
+
+    const verificationService = new BudgetVerificationV1Service(
+      new RealR2ArtifactVerificationResolver(artifact),
+      null as unknown as BudgetVerificationRepositoryV1,
+    );
+    const verification = await verificationService.verify({
+      manifestLocator: 'synthetic://manifest',
+      manifestDocumentKey: SOURCE_DOCUMENT_ID,
+      extractionArtifactLocator: 'synthetic://artifact',
+      sourceDocumentId: SOURCE_DOCUMENT_ID,
+      mode: 'inspect',
+    });
+    // eslint-disable-next-line no-console
+    console.log(
+      'Phase 10B-21 Area 8 -- real production-seam result:',
+      JSON.stringify(
+        {
+          unresolvedPages: documentInput.unresolvedPages,
+          provablyBlankPages: documentInput.provablyBlankPages,
+          omissionCount: artifact.omissions.length,
+          blockingOmissions: artifact.omissions.filter((o) => o.severity === 'blocking'),
+          warnings: artifact.warnings,
+          verifierChecks: verification.checks.map((c) => ({
+            code: c.code,
+            outcome: c.outcome,
+            message: c.message,
+          })),
+          verifierDecision: verification.decision,
+        },
+        null,
+        2,
+      ),
+    );
+    expect(verification.decision).not.toBe('REJECT');
   });
 });

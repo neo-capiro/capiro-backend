@@ -810,6 +810,13 @@ function groupR2aPages(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPage
     const parentPeCode = texts.map((text) => PE_RE.exec(text)?.[1]).find(Boolean) ?? '';
     const projectCode =
       texts.map((text) => PROJECT_CODE_RE.exec(text)?.[1]?.trim()).find(Boolean) ?? '';
+    /* Phase 10B-21 Area 8 real-document finding: a front-matter page that
+     * merely mentions "R-2A" / "RDT&E Project Justification" in prose
+     * matches `R2A_MARKER_RE` with neither a labeled parent-PE nor
+     * project-code field on the page -- never open a funding group keyed
+     * on two empty strings (same false positive fixed in
+     * `extractPageHeaderInfo` / `r2aGroups` above). */
+    if (!parentPeCode && !projectCode) continue;
     const key = `${parentPeCode}|${projectCode}`;
     if (key === currentKey) currentPages.push(page);
     else {

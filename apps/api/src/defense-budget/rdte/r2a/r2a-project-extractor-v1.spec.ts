@@ -223,6 +223,51 @@ describe('r2a-project-extractor-v1', () => {
     expect(result.blocked[0]?.reason).toBe('missing_or_invalid_parent_pe');
   });
 
+  it('does not treat a front-matter page that only mentions "R-2A" in prose as an R-2A project page (Phase 10B-21 Area 8 real-document finding)', () => {
+    // A genuine R-2A project header always carries its own labeled parent
+    // PE or project-code field alongside the marker text. A page that
+    // merely explains what an R-2A exhibit IS -- e.g. the real FY2024 Army
+    // R-2 Volume 1's own "Introduction and Explanation of Contents" page,
+    // which literally says "...found in the narrative sections of the
+    // Program Element R-2A Exhibits." -- must not become a blocked project
+    // with an empty project code (`extractPageHeaderInfo` used to key it
+    // as parentPeCode/projectCode `''`/`''`, spuriously blocking).
+    const page = makePage(1, [
+      {
+        blockIndex: 0,
+        blockType: 'text',
+        text:
+          'Explanations for these changes can be found in the narrative sections ' +
+          'of the Program Element R-2A Exhibits.',
+      },
+    ]);
+    const result = extractR2aProjectsFromPages({ pages: [page] });
+    expect(result.identities).toHaveLength(0);
+    expect(result.blocked).toHaveLength(0);
+    expect(result.omissions).toHaveLength(0);
+  });
+
+  it('still blocks a genuine R-2A project page missing its parent PE even though the page also carries an unrelated "R-2A" mention elsewhere', () => {
+    // Guards against an overcorrection: requiring SOME identity signal on
+    // the page must not be satisfied merely by ANOTHER marker mention --
+    // a real project-code label with no resolvable parent PE is still a
+    // genuine blocking defect.
+    const page = makePage(1, [
+      { blockIndex: 0, blockType: 'header', text: 'R-2A' },
+      { blockIndex: 1, blockType: 'text', text: 'Project Code: AB1' },
+      { blockIndex: 2, blockType: 'text', text: 'Project Title: No PE' },
+      {
+        blockIndex: 3,
+        blockType: 'text',
+        text: 'See also the Program Element R-2A Exhibits for background.',
+      },
+    ]);
+    const result = extractR2aProjectsFromPages({ pages: [page] });
+    expect(result.identities).toHaveLength(0);
+    expect(result.blocked).toHaveLength(1);
+    expect(result.blocked[0]?.reason).toBe('missing_or_invalid_parent_pe');
+  });
+
   it('handles invalid project code as omission', () => {
     const page = makePage(1, [
       { blockIndex: 0, blockType: 'header', text: 'R-2A' },

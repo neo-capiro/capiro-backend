@@ -46,8 +46,21 @@ export interface RdteSemanticArtifactCaptureV1 {
 function appendUnresolvedPageOmissions(input: {
   artifact: DefenseBudgetExtractionArtifactV1;
   unresolvedPages: readonly number[];
+  /** Phase 10B-21 (3rd independent review, Area 8): pages where every
+   * attempted parser engine agreed there was no content to extract at all
+   * (`no_embedded_text`, every engine, unanimously) -- provably blank
+   * separator pages, not a genuine extraction defect. These produce NO
+   * source fact and NO omission, the identical "no required R-2 identity
+   * source fact" treatment the segmenter already gives a blank page it CAN
+   * see; a page with even one differently-coded failure is never included
+   * here and keeps blocking below exactly as before. */
+  provablyBlankPages?: readonly number[];
 }): DefenseBudgetExtractionArtifactV1 {
-  if (input.unresolvedPages.length === 0) return input.artifact;
+  const blankPageSet = new Set(input.provablyBlankPages ?? []);
+  const blockingUnresolvedPages = [...new Set(input.unresolvedPages)]
+    .filter((page) => !blankPageSet.has(page))
+    .sort((a, b) => a - b);
+  if (blockingUnresolvedPages.length === 0) return input.artifact;
   const builder = new ArtifactBuilderV1(input.artifact.source);
   for (const value of input.artifact.parserRuns) builder.addParserRun(value);
   for (const value of input.artifact.evidence) builder.addEvidence(value);
@@ -55,7 +68,7 @@ function appendUnresolvedPageOmissions(input: {
   for (const value of input.artifact.assertions) builder.addAssertion(value);
   for (const value of input.artifact.warnings) builder.addWarning(value);
   for (const value of input.artifact.omissions) builder.addOmission(value);
-  for (const page of [...new Set(input.unresolvedPages)].sort((a, b) => a - b)) {
+  for (const page of blockingUnresolvedPages) {
     const factId = factIdV1({
       kind: 'rdte_unresolved_phase3_page',
       documentKey: input.artifact.source.manifestDocumentKey,
@@ -104,6 +117,14 @@ function r2aGroups(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPageGrou
     if (!texts.some((text) => marker.test(text))) continue;
     const peCode = texts.map((text) => pe.exec(text)?.[1]).find(Boolean) ?? '';
     const projectCode = texts.map((text) => project.exec(text)?.[1]?.trim()).find(Boolean) ?? '';
+    /* Phase 10B-21 Area 8 real-document finding: a front-matter page that
+     * merely mentions "R-2A" / "RDT&E Project Justification" in prose (e.g.
+     * explaining what those exhibits are) matches `marker` with neither a
+     * labeled parent-PE nor project-code field on the page -- that must
+     * never open a funding group keyed on two empty strings, the same
+     * false positive already fixed in `extractPageHeaderInfo`
+     * (r2a-project-extractor-v1.ts). */
+    if (!peCode && !projectCode) continue;
     const key = `${peCode}|${projectCode}`;
     if (key === activeKey) activePages.push(page);
     else {
@@ -307,6 +328,7 @@ export function createRdteSemanticArtifactFactory(input: {
       const artifact = appendUnresolvedPageOmissions({
         artifact: buildSemanticArtifact({ documentInput, fiscalYear: input.fiscalYear }),
         unresolvedPages: documentInput.unresolvedPages,
+        provablyBlankPages: documentInput.provablyBlankPages,
       });
       const serializedArtifact = `${JSON.stringify(artifact, null, 2)}\n`;
       const artifactDirectory = join(outputDir, 'artifacts');
