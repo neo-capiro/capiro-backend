@@ -11,8 +11,21 @@ export interface UpcomingHearing {
   title: string;
   committee: string;
   chamber: string;
+  /** Official Eastern calendar day `YYYY-MM-DD`. NEVER a time — parse its parts, not an instant. */
   scheduledAt: string;
+  /**
+   * The true UTC instant when the official time is known; null for a date-only
+   * record (LW-QA-001). Consumers must render date-only rows without
+   * converting through a timezone — `new Date(date-only)` parses as UTC
+   * midnight and displays as 8:00 PM the previous day in ET.
+   */
+  startsAt: string | null;
+  /** Official source wall-clock string, e.g. "1:00 PM" — verbatim display only. */
   time?: string | null;
+  /** IANA zone recorded for the event (defaults to the corpus Eastern zone). */
+  timezone?: string | null;
+  /** 'public' | 'private' — closed sessions must never be offered a capture path. */
+  visibility?: string | null;
   type?: string | null;
   location?: string | null;
   url?: string | null;
@@ -160,7 +173,12 @@ function toUpcoming(r: UpcomingCommitteeHearing): BaseHearing {
     committee: r.committeeName?.trim() || 'Committee',
     chamber: r.chamber?.trim() || '',
     scheduledAt: dateOnly(r.date),
+    // LW-QA-001: expose the TRUE instant (or null) — never fold it into the
+    // date string, and never let consumers parse the date string as a time.
+    startsAt: r.startsAt instanceof Date && !Number.isNaN(r.startsAt.getTime()) ? r.startsAt.toISOString() : null,
     time: r.time ?? null,
+    timezone: r.timezone ?? null,
+    visibility: r.visibility ?? null,
     type: r.type ?? null,
     location: r.location ?? null,
     url: r.url ?? null,

@@ -49,9 +49,11 @@ export function TranscriptionSetupModal({
   // The primary action follows the mode. Unattended has no backend queue
   // (LW-G2) → disabled with the reason. Attend live starts browser capture.
   const primaryLabel = mode === 'unattended' ? 'Schedule recording' : 'Start capture';
+  const closed = hearing.visibility === 'private';
   const primaryDisabled =
     !consent ||
     create.isPending ||
+    closed || // LW-QA-002 — closed sessions are never capturable
     (mode === 'unattended') || // LW-G2 — no capture-job queue
     (mode === 'attend' && capability === 'unavailable');
   const primaryTitle =
@@ -99,6 +101,19 @@ export function TranscriptionSetupModal({
         <div className="lw-block__when">{hearing.committee} · {when}</div>
       </div>
 
+      {/* LW-QA-002: closed sessions are never capturable. The banner is the
+          product-approved copy; every capture path is disabled and consent is
+          ignored. The backend independently refuses (NON_PUBLIC_PROCEEDING). */}
+      {hearing.visibility === 'private' ? (
+        <div className="lw-block lw-block--ink lw-on-ink" role="alert">
+          <div className="lw-block__label">Closed session</div>
+          <div className="lw-block__body">
+            Closed session — no public stream. This proceeding is not public: server capture is
+            refused and browser capture cannot access it. No recording path is offered.
+          </div>
+        </div>
+      ) : null}
+
       {/* 2. mode switch */}
       <LwSeg
         ariaLabel="Capture mode"
@@ -137,7 +152,8 @@ export function TranscriptionSetupModal({
           desc="Capiro connects to the official stream and records server-side."
           tag="DIRECT"
           selected={path === 'direct'}
-          disabled={capability !== 'direct'}
+          disabled={closed || capability !== 'direct'}
+          disabledReason={closed ? 'Closed session — no public stream.' : undefined}
           onSelect={() => setPath('direct')}
         />
         <CaptureOption
@@ -145,8 +161,14 @@ export function TranscriptionSetupModal({
           desc="Capture runs from an open browser tab playing the proceeding."
           tag="TAB REQUIRED"
           selected={path === 'browser'}
-          disabled={mode === 'unattended' || capability === 'unavailable'}
-          disabledReason={mode === 'unattended' ? 'Browser capture cannot run unattended — it needs an open tab.' : undefined}
+          disabled={closed || mode === 'unattended' || capability === 'unavailable'}
+          disabledReason={
+            closed
+              ? 'Closed session — you have no public access to capture.'
+              : mode === 'unattended'
+                ? 'Browser capture cannot run unattended — it needs an open tab.'
+                : undefined
+          }
           onSelect={() => setPath('browser')}
         />
         <CaptureOption

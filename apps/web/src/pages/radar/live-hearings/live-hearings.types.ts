@@ -190,6 +190,12 @@ export interface CanonicalHearingEvent {
   capture?: HearingCaptureView;
   subscription?: HearingSubscriptionView;
   intelligence?: HearingIntelligenceItem[];
+  /**
+   * Official Eastern calendar day `YYYY-MM-DD` from the canonical `date`
+   * column (LW-QA-001). Display/bucketing ONLY — never parse it as an instant.
+   * For date-only hearings (no scheduledStart) this is the authoritative day.
+   */
+  calendarDate?: string;
 }
 
 export interface LiveHearingCalendarPage {

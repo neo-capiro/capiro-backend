@@ -68,8 +68,16 @@ export interface UpcomingHearing {
   title: string;
   committee: string;
   chamber: string;
+  /** Official calendar day YYYY-MM-DD. NEVER parse as an instant (LW-QA-001). */
   scheduledAt: string;
+  /** True UTC instant when the official time is known; null for date-only. */
+  startsAt?: string | null;
+  /** Official wall-clock string (verbatim display only). */
   time?: string | null;
+  /** IANA zone recorded for the event. */
+  timezone?: string | null;
+  /** 'public' | 'private' — closed sessions never get capture affordances. */
+  visibility?: string | null;
   type?: string | null;
   url?: string | null;
   location?: string | null;
