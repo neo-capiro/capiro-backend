@@ -302,32 +302,3 @@ export class HillDayController {
     return this.exports.get(ctx.tenantId, id, exportId);
   }
 }
-
-/**
- * Signed-URL file route. No session guard on purpose: the HMAC signature (bound
- * to document + export + expiry) is the grant, so the PDF can be opened in a
- * new tab or fetched by a print pipeline without a bearer token.
- */
-@Controller('hillday/files')
-export class HillDayFileController {
-  constructor(private readonly exports: HillDayExportService) {}
-
-  @Get(':documentId/:exportId')
-  async file(
-    @Param('documentId') documentId: string,
-    @Param('exportId') exportId: string,
-    @Query('exp') exp: string | undefined,
-    @Query('sig') sig: string | undefined,
-    @Query('download') download: string | undefined,
-    @Res() res: Response,
-  ): Promise<void> {
-    const { buffer, filename } = await this.exports.file(documentId, exportId, exp ?? '', sig ?? '');
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader(
-      'Content-Disposition',
-      `${download ? 'attachment' : 'inline'}; filename="${filename.replace(/"/g, '')}"`,
-    );
-    res.send(buffer);
-  }
-}

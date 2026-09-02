@@ -7,7 +7,8 @@ import { HillDayExportService } from './hillday-export.service.js';
 import { HillDayGenerationService } from './hillday-generation.service.js';
 import { HillDayResolutionService } from './hillday-resolution.service.js';
 import { HillDaySourceService } from './hillday-source.service.js';
-import { HillDayController, HillDayFileController } from './hillday.controller.js';
+import { HillDayController } from './hillday.controller.js';
+import { HillDayFileController } from './hillday-file.controller.js';
 
 /**
  * Hill Day workflow (Workspace vNext, 2026-09): six-step wizard backend +
