@@ -206,6 +206,31 @@ describe('resolution rules — office derivation', () => {
     expect(office.room).toBe('Dirksen 413');
   });
 
+  it('keeps a Directory-picked office verbatim, same as a user correction', () => {
+    // A meeting added from step 3's Directory tab has no invite at all — 0
+    // attendees, so there is nothing for the majority-vote/invite-domain/
+    // committee branches to re-derive an office FROM. Without this guard,
+    // the very next resolveDocument() re-run (which always fires right after
+    // a manual meeting is added) would silently wipe the picked office.
+    const previous: ResolvedOffice = {
+      ...collins,
+      room: null,
+      derivedFrom: 'manual_selection',
+      correctedBy: 'user_1',
+      alternatives: [],
+    };
+    const office = deriveOffice({
+      attendees: [],
+      inviteDomainOffice: null,
+      committee: null,
+      room: null,
+      previous,
+    });
+    expect(office.memberId).toBe(collins.memberId);
+    expect(office.derivedFrom).toBe('manual_selection');
+    expect(office.correctedBy).toBe('user_1');
+  });
+
   it('falls back to the invite domain for a scheduler-only invite', () => {
     const office = deriveOffice({
       attendees: [attendee({ state: 'scheduler', stafferId: null, address: 'scheduling@collins.senate.gov' })],

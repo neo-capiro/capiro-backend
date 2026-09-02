@@ -20,7 +20,7 @@ export interface SourceStatusBlock {
 // ── Calendar ────────────────────────────────────────────────────────────────
 
 export type EventKind = 'hill' | 'internal';
-export type EventReasonKind = 'tagged' | 'matched' | 'tagged_and_matched' | 'internal';
+export type EventReasonKind = 'tagged' | 'matched' | 'tagged_and_matched' | 'internal' | 'manual';
 
 export interface CalendarAttendee {
   address: string;
@@ -85,7 +85,10 @@ export type OfficeDerivation =
   | 'member_on_invite'
   | 'invite_domain'
   | 'committee_staff_association'
-  | 'user_correction';
+  | 'user_correction'
+  /** Picked directly from the Directory (step 3's Directory tab) — an
+   *  initial selection, not a correction of a wrong inference. */
+  | 'manual_selection';
 
 export interface ResolvedOffice extends OfficeRef {
   room: string | null;
@@ -101,7 +104,10 @@ export type CorrectionKind =
   | 'manual_attendee'
   | 'accept_stale'
   | 'create_directory_record'
-  | 'change_office';
+  | 'change_office'
+  /** Edits the meeting's own facts (subject/time/location) — the general
+   *  "every resolved field is editable" mechanism, valid on any meeting. */
+  | 'edit_meeting_facts';
 
 export interface AttendeeCorrection {
   kind: CorrectionKind;

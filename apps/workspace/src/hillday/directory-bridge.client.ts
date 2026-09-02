@@ -91,6 +91,49 @@ export interface BridgeStaffer {
   member: BridgeMemberContext | null;
 }
 
+/** Mirrors apps/api's `DirectoryBrowseContact` (directory.service.ts). */
+export interface BridgeDirectoryContact {
+  id: string;
+  fullName: string;
+  honorific: string;
+  title: string;
+  office: string;
+  chamber: string;
+  state: string;
+  district: string;
+  party: string;
+  partyName: string;
+  committees: string[];
+  leadershipPositions: string[];
+  staff: Array<{
+    id: string;
+    fullName: string;
+    title: string;
+    roles: string[];
+    issueAreas: string[];
+    email: string;
+    officeLocation: string;
+    isCurrent: boolean;
+  }>;
+}
+
+export interface BridgeDirectoryBrowsePayload {
+  contacts: BridgeDirectoryContact[];
+  total: number;
+  page: number;
+  pageSize: number;
+  availableStates: string[];
+  availableChambers: string[];
+}
+
+export interface DirectoryBrowseQuery {
+  q?: string;
+  state?: string;
+  chamber?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 const TIMEOUT_MS = 15_000;
 
 @Injectable()
@@ -124,6 +167,20 @@ export class DirectoryBridgeClient {
     return this.request<{ contacts: BridgeMemberContext[] }>(
       'GET',
       `/api/internal/directory/contacts?${params.toString()}`,
+    );
+  }
+
+  /** Full A–Z browse (Hill Day's "select a member directly" picker). Never gates on query length — an empty `q` browses everything, same as `contacts` search does not. */
+  browseContacts(query: DirectoryBrowseQuery): Promise<BridgeResult<BridgeDirectoryBrowsePayload>> {
+    const params = new URLSearchParams();
+    if (query.q) params.set('q', query.q);
+    if (query.state) params.set('state', query.state);
+    if (query.chamber) params.set('chamber', query.chamber);
+    params.set('page', String(query.page ?? 1));
+    params.set('pageSize', String(query.pageSize ?? 50));
+    return this.request<BridgeDirectoryBrowsePayload>(
+      'GET',
+      `/api/internal/directory/browse?${params.toString()}`,
     );
   }
 

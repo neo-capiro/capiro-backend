@@ -90,6 +90,35 @@ export class InternalDirectoryController {
     };
   }
 
+  /**
+   * Full A–Z browse (Hill Day's "select a member directly from the
+   * Directory" picker, matching Outreach's Directory tab). Deliberately a
+   * SEPARATE route from `contacts` above: that one backs `searchMembers`/
+   * `resolveDomainOffices`, which need `DirectoryMemberContext`'s shape
+   * (`committeesWithRole`, `bioNarrative`, ...) and a query — this one needs
+   * `getContacts`'s paginated/filterable payload and must also work with NO
+   * query (browse everything). Redirecting `contacts` to `getContacts` would
+   * silently change the other callers' shape; a new route avoids that.
+   */
+  @Get('browse')
+  async browse(
+    @Query('q') q?: string,
+    @Query('state') state?: string,
+    @Query('chamber') chamber?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const size = Number.parseInt(pageSize ?? '50', 10);
+    return this.directory.getContactsForBridge({
+      q,
+      state,
+      chamber,
+      sort: 'name-asc',
+      page,
+      pageSize: Number.isFinite(size) ? Math.min(size, 50) : 50,
+    });
+  }
+
   @Get('members/:memberId')
   async member(@Param('memberId') memberId: string) {
     return { context: await this.directory.getMemberContextById(memberId) };

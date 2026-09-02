@@ -16,6 +16,7 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import {
+  AddManualMeetingDto,
   CreateExportDto,
   CreateHillDayDocumentDto,
   PatchHillDayDocumentDto,
@@ -136,6 +137,17 @@ export class HillDayController {
     return this.resolution.correct(ctx.tenantId, ctx.clerkUserId, id, meetingId, dto);
   }
 
+  /** Add a meeting by picking the member directly from the Directory (no
+   *  calendar event backs it) — step 3's Directory tab. */
+  @Post('documents/:id/meetings/manual')
+  addManualMeeting(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Body() dto: AddManualMeetingDto,
+  ) {
+    return this.resolution.addManualMeeting(ctx.tenantId, ctx.clerkUserId, id, dto.memberId);
+  }
+
   @Get('directory/members/:memberId')
   member(@Param('memberId') memberId: string) {
     return this.resolution.memberProfile(memberId);
@@ -149,6 +161,25 @@ export class HillDayController {
   @Get('directory/staffers')
   staffers(@Query('q') q?: string, @Query('address') address?: string) {
     return this.resolution.searchStaffers((q ?? address ?? '').trim());
+  }
+
+  /** Full A–Z Directory browse for step 3's Directory tab — same data/UX as
+   *  Outreach's Directory tab. No minimum query length: empty `q` browses. */
+  @Get('directory/browse')
+  browseDirectory(
+    @Query('q') q?: string,
+    @Query('state') state?: string,
+    @Query('chamber') chamber?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.resolution.browseDirectory({
+      q,
+      state,
+      chamber,
+      page: intOrNull(page) ?? undefined,
+      pageSize: intOrNull(pageSize) ?? undefined,
+    });
   }
 
   // ── Context ───────────────────────────────────────────────────────────────

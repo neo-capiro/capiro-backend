@@ -235,9 +235,20 @@ export interface OfficeDerivationInput {
   previous: ResolvedOffice | null;
 }
 
+/** Prior offices that are authoritative and must survive a re-derivation
+ *  untouched: an explicit "change office" correction, and a member picked
+ *  directly from the Directory (step 3's Directory tab — there is no invite
+ *  to derive an office FROM, so the pick itself is the whole signal). Without
+ *  this, `resolveDocument()`'s next run — which fires automatically right
+ *  after a manual meeting is added — would fall through every other branch
+ *  (0 attendees means no votes, no invite domain, no committee) and land on
+ *  `emptyOffice()`, silently wiping the office the user just chose. */
+const AUTHORITATIVE_DERIVATIONS: readonly OfficeDerivation[] = ['user_correction', 'manual_selection'];
+
 /**
  * Derive the meeting's office. Order of authority:
- *   1. a user correction (kept verbatim, room refreshed);
+ *   1. an authoritative prior office — a user correction or a Directory pick
+ *      (kept verbatim, room refreshed);
  *   2. a member who is on the invite themself;
  *   3. majority of the resolved staffers' office associations
  *      (an accepted stale association votes for the office the user chose);
@@ -247,7 +258,7 @@ export interface OfficeDerivationInput {
  */
 export function deriveOffice(input: OfficeDerivationInput): ResolvedOffice {
   const { attendees, previous } = input;
-  if (previous?.derivedFrom === 'user_correction') {
+  if (previous?.derivedFrom && AUTHORITATIVE_DERIVATIONS.includes(previous.derivedFrom)) {
     return { ...previous, room: input.room ?? previous.room };
   }
   const finish = (ref: OfficeRef, derivedFrom: OfficeDerivation, alternatives: OfficeRef[]): ResolvedOffice => ({
@@ -308,6 +319,20 @@ export function deriveOffice(input: OfficeDerivationInput): ResolvedOffice {
   }
 
   return { ...emptyOffice(), room: input.room };
+}
+
+/**
+ * Why a meeting needs confirmation before delivery — a manually-added
+ * meeting has no invite at all to read attendees from, distinct from a real
+ * invite that only carried a scheduling address. `rollUpMeeting` sets
+ * `needsConfirmation` for both (zero substantive attendees either way); this
+ * tells the two apart so the surfaced text doesn't claim an invite exists
+ * when one doesn't.
+ */
+export function confirmationReason(resolution: {
+  attendees: ReadonlyArray<{ state: AttendeeState }>;
+}): 'no_invite' | 'scheduler_only' {
+  return resolution.attendees.length === 0 ? 'no_invite' : 'scheduler_only';
 }
 
 export function rollUpMeeting(attendees: ResolvedAttendee[], office: ResolvedOffice): {

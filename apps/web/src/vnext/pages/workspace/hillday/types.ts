@@ -88,7 +88,7 @@ export interface CalendarEvent {
   clientId: string | null;
   organizer: CalendarAttendee | null;
   attendees: CalendarAttendee[];
-  reason: { kind: 'tagged' | 'matched' | 'tagged_and_matched' | 'internal'; detail: string; matchedAddresses: string[] };
+  reason: { kind: 'tagged' | 'matched' | 'tagged_and_matched' | 'internal' | 'manual'; detail: string; matchedAddresses: string[] };
   source: string;
   connectionId: string | null;
 }
@@ -101,6 +101,52 @@ export interface CalendarResponse {
   events: CalendarEvent[];
   upcomingEventAt: string | null;
   sources: SourceStatusBlock[];
+}
+
+// ── Directory browse (step 3's Directory tab — a meeting not yet on the
+// calendar) ──────────────────────────────────────────────────────────────
+
+export interface DirectoryBrowseContact {
+  id: string;
+  fullName: string;
+  honorific: string;
+  title: string;
+  office: string;
+  chamber: string;
+  state: string;
+  district: string;
+  party: string;
+  partyName: string;
+  committees: string[];
+  leadershipPositions: string[];
+  staff: Array<{
+    id: string;
+    fullName: string;
+    title: string;
+    roles: string[];
+    issueAreas: string[];
+    email: string;
+    officeLocation: string;
+    isCurrent: boolean;
+  }>;
+}
+
+export interface DirectoryBrowsePayload {
+  contacts: DirectoryBrowseContact[];
+  total: number;
+  page: number;
+  pageSize: number;
+  availableStates: string[];
+  availableChambers: string[];
+  sources: SourceStatusBlock[];
+}
+
+export interface DirectoryBrowseQuery {
+  q?: string;
+  state?: string;
+  chamber?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 // ── Resolution ──────────────────────────────────────────────────────────────
@@ -130,6 +176,8 @@ export interface ResolvedOffice extends OfficeRef {
     | 'invite_domain'
     | 'committee_staff_association'
     | 'user_correction'
+    /** Picked directly from the Directory (step 3's Directory tab). */
+    | 'manual_selection'
     | null;
   correctedBy: string | null;
   alternatives: OfficeRef[];
@@ -178,7 +226,9 @@ export type CorrectionKind =
   | 'manual_attendee'
   | 'accept_stale'
   | 'create_directory_record'
-  | 'change_office';
+  | 'change_office'
+  /** Edits the meeting's own facts (subject/time/location) — valid on any meeting. */
+  | 'edit_meeting_facts';
 
 export interface CorrectionBody {
   kind: CorrectionKind;
@@ -189,6 +239,18 @@ export interface CorrectionBody {
   address?: string;
   memberId?: string;
   useOffice?: 'directory' | 'invite';
+  // edit_meeting_facts
+  subject?: string;
+  startsAt?: string;
+  endsAt?: string;
+  location?: string;
+}
+
+/** A correction response now echoes the meeting's event snapshot too, so the
+ *  caller can refresh its local time/subject/location display cache. */
+export interface CorrectionResult {
+  resolution: MeetingResolution;
+  event: CalendarEvent;
 }
 
 export interface StafferHit {

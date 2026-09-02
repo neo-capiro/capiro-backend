@@ -16,7 +16,10 @@ import type {
   CalendarResponse,
   ClientsResponse,
   CorrectionBody,
+  CorrectionResult,
   CreatedDocument,
+  DirectoryBrowsePayload,
+  DirectoryBrowseQuery,
   DocumentResolution,
   ExportView,
   HillDayDocumentView,
@@ -24,7 +27,6 @@ import type {
   JobStatus,
   LibraryRow,
   MeetingContextCandidates,
-  MeetingResolution,
   Page,
   PutContextBody,
   QualityResponse,
@@ -46,7 +48,13 @@ export interface HillDayClient {
   setMeetings(docId: string, body: { eventIds: string[]; weekStart?: string; timeZone?: string }): Promise<SetMeetingsResponse>;
   runResolution(docId: string): Promise<DocumentResolution>;
   getResolution(docId: string): Promise<DocumentResolution>;
-  correct(docId: string, meetingId: string, body: CorrectionBody): Promise<MeetingResolution>;
+  correct(docId: string, meetingId: string, body: CorrectionBody): Promise<CorrectionResult>;
+  /** Add a meeting by picking the member directly from the Directory — step
+   *  3's Directory tab, for a meeting not (yet) on the calendar. */
+  addManualMeeting(docId: string, memberId: string): Promise<CorrectionResult>;
+  /** Full A–Z Directory browse (search + state/chamber filters, paginated) —
+   *  same data/behaviour as Outreach's Directory tab. */
+  browseDirectory(query: DirectoryBrowseQuery): Promise<DirectoryBrowsePayload>;
   searchStaffers(q: string): Promise<{ staffers: StafferHit[]; sources: SourceStatusBlock[] }>;
   searchMembers(q: string): Promise<{ members: OfficeRef[]; sources: SourceStatusBlock[] }>;
   getContext(docId: string, meetingId: string, lookbackDays?: number): Promise<MeetingContextCandidates>;
@@ -82,7 +90,11 @@ export function createHillDayClient(api: AxiosInstance): HillDayClient {
     runResolution: async (docId) => (await api.post<DocumentResolution>(`${d(docId)}/resolution`, {})).data,
     getResolution: async (docId) => (await api.get<DocumentResolution>(`${d(docId)}/resolution`)).data,
     correct: async (docId, meetingId, body) =>
-      (await api.patch<MeetingResolution>(`${d(docId)}/resolution/${encodeURIComponent(meetingId)}`, body)).data,
+      (await api.patch<CorrectionResult>(`${d(docId)}/resolution/${encodeURIComponent(meetingId)}`, body)).data,
+    addManualMeeting: async (docId, memberId) =>
+      (await api.post<CorrectionResult>(`${d(docId)}/meetings/manual`, { memberId })).data,
+    browseDirectory: async (query) =>
+      (await api.get<DirectoryBrowsePayload>(`${HILLDAY_BASE}/directory/browse`, { params: query })).data,
     searchStaffers: async (q) =>
       (await api.get<{ staffers: StafferHit[]; sources: SourceStatusBlock[] }>(`${HILLDAY_BASE}/directory/staffers`, { params: { q } })).data,
     searchMembers: async (q) =>

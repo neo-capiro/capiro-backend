@@ -34,6 +34,13 @@ export function localDateKey(iso: string | Date, timeZone: string): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/** 24h `HH:mm` of the instant in the zone — for pre-filling `<input type="time">`,
+ *  which `fmtTime`'s 12h display string ("8:45 AM") can't feed directly. */
+export function localTimeKey(iso: string | Date, timeZone: string): string {
+  const p = parts(typeof iso === 'string' ? new Date(iso) : iso, timeZone);
+  return `${p.hour}:${p.minute}`;
+}
+
 /** Monday (`YYYY-MM-DD`) of the week containing the instant, in the zone. */
 export function mondayOf(iso: string | Date, timeZone: string): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso;
@@ -60,6 +67,33 @@ export function zonedMidnightUtc(dateKey: string, timeZone: string): string {
   // offset(instant) = wall(instant) − instant, so instant = target − offset;
   // two passes converge across a DST boundary.
   const target = Date.UTC(Number(dateKey.slice(0, 4)), Number(dateKey.slice(5, 7)) - 1, Number(dateKey.slice(8, 10)));
+  const offsetAt = (instant: Date): number => {
+    const p = parts(instant, timeZone);
+    const wall = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+    return wall - instant.getTime();
+  };
+  let instant = new Date(target);
+  instant = new Date(target - offsetAt(instant));
+  instant = new Date(target - offsetAt(instant));
+  return instant.toISOString();
+}
+
+/**
+ * The UTC instant whose wall clock in `timeZone` reads `dateKey` at `timeKey`
+ * (`HH:mm`) — same two-pass DST-correction technique as {@link zonedMidnightUtc},
+ * with the time folded into the target instead of always using midnight. Used
+ * to compose a date input + a time input back into the ISO instant the API
+ * expects (`edit_meeting_facts`'s `startsAt`/`endsAt`).
+ */
+export function zonedInstantUtc(dateKey: string, timeKey: string, timeZone: string): string {
+  const [hour, minute] = timeKey.split(':').map(Number);
+  const target = Date.UTC(
+    Number(dateKey.slice(0, 4)),
+    Number(dateKey.slice(5, 7)) - 1,
+    Number(dateKey.slice(8, 10)),
+    hour ?? 0,
+    minute ?? 0,
+  );
   const offsetAt = (instant: Date): number => {
     const p = parts(instant, timeZone);
     const wall = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));

@@ -1,4 +1,5 @@
 import type { MessageRow, PriorMeetingRow, StrategyRow } from './hillday-source.service.js';
+import { confirmationReason } from './resolution.rules.js';
 import type {
   CalendarEvent,
   CarrySelection,
@@ -123,7 +124,11 @@ export function assembleUnitPrompt(input: UnitPromptInput): {
       `When: ${when.date}, ${when.time} (${durationLabel(event.startsAt, event.endsAt)})`,
       `Where: ${office.room ?? event.location ?? 'not stated'}`,
       `Office: ${office.member ?? 'not resolved — confirm before the meeting'}`,
-      `Resolution: ${resolution.state}${resolution.needsConfirmation ? ' (scheduler-only invite; attendees unconfirmed)' : ''}`,
+      `Resolution: ${resolution.state}${
+        resolution.needsConfirmation
+          ? ` (${confirmationReason(resolution) === 'no_invite' ? 'added manually, no invite' : 'scheduler-only invite'}; attendees unconfirmed)`
+          : ''
+      }`,
       `Attendees on the invite: ${
         resolution.attendees.length
           ? resolution.attendees

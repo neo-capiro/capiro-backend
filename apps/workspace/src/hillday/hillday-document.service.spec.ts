@@ -8,7 +8,7 @@ import {
   mondayOf,
 } from './hillday-document.service.js';
 import type { RawEventRow } from './hillday-source.service.js';
-import type { MeetingResolution, MeetingSection, SourceSet } from './hillday.types.js';
+import type { CalendarEvent, MeetingResolution, MeetingSection, SourceSet } from './hillday.types.js';
 
 function row(over: Partial<RawEventRow>): RawEventRow {
   return {
@@ -91,6 +91,152 @@ describe('cursors and helpers', () => {
   it('finds the Monday of a week in the given time zone', () => {
     expect(mondayOf('2026-09-16T12:45:00Z', 'America/New_York')).toBe('2026-09-14');
     expect(mondayOf('2026-09-14T03:00:00Z', 'America/New_York')).toBe('2026-09-07'); // Sunday evening ET
+  });
+});
+
+interface FakeMeetingRow {
+  id: string;
+  tenantId: string;
+  documentId: string;
+  eventId: string;
+  ordinal: number;
+  event: CalendarEvent;
+  resolution: MeetingResolution | null;
+}
+
+function manualEvent(eventId: string, subject: string): CalendarEvent {
+  return {
+    eventId,
+    subject,
+    startsAt: '2026-09-17T17:00:00.000Z',
+    endsAt: '2026-09-17T17:30:00.000Z',
+    timeZone: 'America/New_York',
+    location: 'Dirksen 555',
+    isVirtual: false,
+    joinLink: null,
+    kind: 'hill',
+    clientId: 'client-1',
+    organizer: null,
+    attendees: [],
+    reason: { kind: 'manual', detail: 'Added manually from the Directory.', matchedAddresses: [] },
+    source: 'manual',
+    connectionId: null,
+  };
+}
+
+/** Harness for `setMeetings()` — a stateful in-memory `meetings` array that
+ *  `prisma.$transaction`'s mocked `tx` mutates directly, so both the
+ *  pre-transaction `existing` read and the post-transaction re-read see the
+ *  same evolving rows (mirroring what a real transaction commits). */
+function makeSetMeetingsHarness(initial: FakeMeetingRow[]) {
+  const meetings = [...initial];
+  const doc = {
+    id: 'doc-1',
+    tenantId: 't',
+    ownerId: 'user-1',
+    clientId: 'client-1',
+    clientName: 'Kela Systems',
+    timeZone: 'America/New_York',
+    resolutionStatus: 'clean' as string | null,
+  };
+  const prisma = {
+    wsHillDayDocument: {
+      findFirst: jest.fn(async () => doc),
+      update: jest.fn(async () => doc),
+    },
+    wsHillDayMeeting: {
+      findMany: jest.fn(async () => meetings),
+    },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<void>) => {
+      const tx = {
+        wsHillDayMeeting: {
+          deleteMany: jest.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
+            const remove = new Set(where.id.in);
+            for (let i = meetings.length - 1; i >= 0; i -= 1) {
+              if (remove.has(meetings[i]!.id)) meetings.splice(i, 1);
+            }
+          }),
+          update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<FakeMeetingRow> }) => {
+            const row = meetings.find((m) => m.id === where.id)!;
+            Object.assign(row, data);
+          }),
+          create: jest.fn(async ({ data }: { data: Omit<FakeMeetingRow, 'id' | 'resolution'> }) => {
+            meetings.push({ ...data, id: `new-${meetings.length}`, resolution: null });
+          }),
+        },
+        wsHillDayDocument: { update: jest.fn(async () => doc) },
+      };
+      await fn(tx);
+    }),
+  };
+  const source = {
+    resolveUserId: jest.fn(async () => 'user-1'),
+    tenantMemberEmails: jest.fn(async () => new Set<string>()),
+    clientPeopleEmails: jest.fn(async () => new Set<string>()),
+    eventsByIds: jest.fn(async (_tenantId: string, _userId: string | null, ids: string[]): Promise<RawEventRow[]> =>
+      ids.map((id) =>
+        row({
+          id,
+          clientId: 'client-1',
+          subject: `Calendar meeting ${id}`,
+          attendees: [],
+        }),
+      ),
+    ),
+  };
+  const bridge = {
+    matchEmails: jest.fn(async () => ({ ok: true as const, data: { matches: [], committeeStaff: [] } })),
+  };
+  const service = new HillDayDocumentService(prisma as never, source as never, bridge as never);
+  return { service, meetings, doc };
+}
+
+describe('HillDayDocumentService.setMeetings', () => {
+  it('excludes manually-added meetings from replace-by-eventIds deletion', async () => {
+    const { service, meetings } = makeSetMeetingsHarness([
+      {
+        id: 'row-calendar-old',
+        tenantId: 't',
+        documentId: 'doc-1',
+        eventId: 'evt-old',
+        ordinal: 0,
+        event: row({ id: 'evt-old' }) as never,
+        resolution: null,
+      },
+      {
+        id: 'row-manual',
+        tenantId: 't',
+        documentId: 'doc-1',
+        eventId: 'manual-abc',
+        ordinal: 1000,
+        event: manualEvent('manual-abc', 'Meeting with Sen. Susan Collins (R-ME)'),
+        resolution: null,
+      },
+    ]);
+
+    const result = await service.setMeetings('t', 'user-1', 'doc-1', { eventIds: ['evt-new'] });
+
+    const eventIds = meetings.map((m) => m.eventId);
+    expect(eventIds).toContain('manual-abc'); // survived, even though it was never in the new selection
+    expect(eventIds).not.toContain('evt-old'); // real calendar removal still works
+    expect(eventIds).toContain('evt-new');
+    expect(result.meetings.map((m) => m.eventId)).toEqual(expect.arrayContaining(['manual-abc', 'evt-new']));
+  });
+
+  it('leaves a manual meeting untouched when the calendar selection is set to empty', async () => {
+    const { service, meetings } = makeSetMeetingsHarness([
+      {
+        id: 'row-manual',
+        tenantId: 't',
+        documentId: 'doc-1',
+        eventId: 'manual-abc',
+        ordinal: 1000,
+        event: manualEvent('manual-abc', 'Meeting with Sen. Susan Collins (R-ME)'),
+        resolution: null,
+      },
+    ]);
+    await service.setMeetings('t', 'user-1', 'doc-1', { eventIds: [] });
+    expect(meetings.map((m) => m.eventId)).toEqual(['manual-abc']);
   });
 });
 

@@ -27,7 +27,7 @@ describe('hillday foundation contract', () => {
     expect(tokens).toContain('--hd-brand-600: #294e68');
     expect(tokens).toContain('--hd-gray-900: #101828');
     // …and ui.tsx / the surfaces never inline a hex.
-    for (const name of ['ui.tsx', 'HillDayLibrary.tsx', 'HillDayWizard.tsx', 'HillDayEditor.tsx']) {
+    for (const name of ['ui.tsx', 'HillDayLibrary.tsx', 'HillDayWizard.tsx', 'HillDayEditor.tsx', 'DirectoryBrowser.tsx']) {
       const src = read(name).replace(/\/\*[\s\S]*?\*\//g, ' ');
       expect(src).not.toMatch(/#[0-9a-f]{6}\b/i);
     }

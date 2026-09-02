@@ -459,6 +459,47 @@ export interface DirectoryCommitteeStaffEmailMatch {
   committee: { id: string; name: string; chamber: CommitteeChamber; kind: CommitteeKind };
 }
 
+/**
+ * Trimmed contact row for the internal-bridge Directory browse route (Hill
+ * Day's "select a member directly" flow, mirroring Outreach's Directory tab).
+ * Drops the CRM/relationship fields (`bio`, `lastTouchpoint`, `owner`,
+ * `relationshipTier`, `notes`, `recentInteractions`, `matchedStaff`) that a
+ * browse row never shows.
+ */
+export interface DirectoryBrowseContact {
+  id: string;
+  fullName: string;
+  honorific: string;
+  title: string;
+  office: string;
+  chamber: Chamber;
+  state: string;
+  district: string;
+  party: Party;
+  partyName: string;
+  committees: string[];
+  leadershipPositions: string[];
+  staff: Array<{
+    id: string;
+    fullName: string;
+    title: string;
+    roles: string[];
+    issueAreas: string[];
+    email: string;
+    officeLocation: string;
+    isCurrent: boolean;
+  }>;
+}
+
+export interface DirectoryBrowsePayload {
+  contacts: DirectoryBrowseContact[];
+  total: number;
+  page: number;
+  pageSize: number;
+  availableStates: string[];
+  availableChambers: Chamber[];
+}
+
 export interface CreateDirectoryContactNoteInput {
   body: string;
   directoryContactName?: string;
@@ -718,6 +759,49 @@ export class DirectoryService implements OnModuleInit {
     );
     const base = await this.getDirectoryData();
     return this.toPagedPayload(base, query, page, pageSize);
+  }
+
+  /**
+   * Trimmed, bridge-safe version of {@link getContacts} for the internal
+   * Directory browse route (Hill Day's "select a member directly" picker —
+   * same browsing behaviour as Outreach's Directory tab: A–Z by default,
+   * search/state/chamber filters, paginated). Delegates to the SAME
+   * `getContacts` every authenticated user hits at `/directory/contacts`, so
+   * results are identical; this only reshapes the response.
+   */
+  async getContactsForBridge(query: DirectoryQuery): Promise<DirectoryBrowsePayload> {
+    const payload = await this.getContacts(query);
+    return {
+      contacts: payload.contacts.map((c) => ({
+        id: c.id,
+        fullName: c.fullName,
+        honorific: c.honorific,
+        title: c.title,
+        office: c.office,
+        chamber: c.chamber,
+        state: c.state,
+        district: c.district,
+        party: c.party,
+        partyName: c.partyName,
+        committees: c.committees,
+        leadershipPositions: c.leadershipPositions,
+        staff: c.staff.map((s) => ({
+          id: s.id,
+          fullName: s.fullName,
+          title: s.title,
+          roles: s.roles,
+          issueAreas: s.issueAreas,
+          email: s.email,
+          officeLocation: s.officeLocation,
+          isCurrent: s.isCurrent,
+        })),
+      })),
+      total: payload.total,
+      page: payload.page,
+      pageSize: payload.pageSize,
+      availableStates: payload.availableStates,
+      availableChambers: payload.availableFilters.chambers,
+    };
   }
 
   /**

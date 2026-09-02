@@ -57,10 +57,24 @@ function makeHarness(meetings: FakeMeeting[]) {
     wsHillDayMeeting: {
       findMany: jest.fn(async () => meetings),
       findFirst: jest.fn(async ({ where }: { where: { id: string } }) => meetings.find((m) => m.id === where.id) ?? null),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: { resolution: MeetingResolution } }) => {
-        const m = meetings.find((x) => x.id === where.id)!;
-        m.resolution = data.resolution;
-        return m;
+      update: jest.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: { resolution?: MeetingResolution; event?: CalendarEvent };
+        }) => {
+          const m = meetings.find((x) => x.id === where.id)!;
+          if (data.resolution !== undefined) m.resolution = data.resolution;
+          if (data.event !== undefined) m.event = data.event;
+          return m;
+        },
+      ),
+      create: jest.fn(async ({ data }: { data: Omit<FakeMeeting, 'context' | 'section'> }) => {
+        const row: FakeMeeting = { ...data, context: null, section: null };
+        meetings.push(row);
+        return row;
       }),
     },
   };
@@ -228,7 +242,7 @@ describe('HillDayResolutionService.correct', () => {
   it('applies a manual attendee (name + role) and marks it confirmed', async () => {
     const { service, meetings } = await resolved();
     const attendeeId = meetings[0]!.resolution!.attendees[0]!.attendeeId;
-    const next = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
+    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
       kind: 'manual_attendee',
       attendeeId,
       name: 'Tunde Okonjo',
@@ -246,7 +260,7 @@ describe('HillDayResolutionService.correct', () => {
   it('creates the tenant Directory record for an unresolved address', async () => {
     const { service, source, meetings } = await resolved();
     const attendeeId = meetings[0]!.resolution!.attendees[0]!.attendeeId;
-    const next = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
+    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
       kind: 'create_directory_record',
       attendeeId,
       name: 'Tunde Okonjo',
@@ -259,7 +273,7 @@ describe('HillDayResolutionService.correct', () => {
   it('accepts a stale association and lets the chosen office govern the meeting', async () => {
     const { service, meetings } = await resolved();
     const attendeeId = meetings[1]!.resolution!.attendees[0]!.attendeeId;
-    const next = await service.correct('t', 'user-1', 'doc-1', 'm-4', {
+    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-4', {
       kind: 'accept_stale',
       attendeeId,
       useOffice: 'directory',
@@ -271,7 +285,7 @@ describe('HillDayResolutionService.correct', () => {
 
   it('changes the office on request and keeps the correction across a re-run', async () => {
     const { service, meetings } = await resolved();
-    const next = await service.correct('t', 'user-1', 'doc-1', 'm-4', { kind: 'change_office', memberId: 'member-3' });
+    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-4', { kind: 'change_office', memberId: 'member-3' });
     expect(next.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
     expect(next.office.derivedFrom).toBe('user_correction');
     expect(next.office.correctedBy).toBe('user-1');
@@ -282,5 +296,104 @@ describe('HillDayResolutionService.correct', () => {
     expect(m4.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
     expect(m4.office.derivedFrom).toBe('user_correction');
     void meetings;
+  });
+
+  it('applies edit_meeting_facts and updates both the event snapshot and the office room', async () => {
+    const h = await resolved();
+    const { service, meetings } = h;
+    const before = (await service.getResolution('t', 'doc-1')).meetings.find((m) => m.meetingId === 'm-4')!;
+
+    const { resolution: next, event: nextEvent } = await service.correct('t', 'user-1', 'doc-1', 'm-4', {
+      kind: 'edit_meeting_facts',
+      subject: 'Rescheduled — Courtney industrial base follow-up',
+      startsAt: '2026-09-17T14:00:00.000Z',
+      endsAt: '2026-09-17T14:30:00.000Z',
+      location: 'Rayburn 2110',
+    });
+    expect(nextEvent.subject).toBe('Rescheduled — Courtney industrial base follow-up');
+    expect(nextEvent.startsAt).toBe('2026-09-17T14:00:00.000Z');
+    expect(nextEvent.endsAt).toBe('2026-09-17T14:30:00.000Z');
+    expect(nextEvent.location).toBe('Rayburn 2110');
+    expect(next.office.room).toBe('Rayburn 2110');
+    // Persisted, not just returned — the DB row's event snapshot is what the
+    // wizard's next read (and generation, and the PDF) will actually see.
+    expect(meetings.find((m) => m.id === 'm-4')!.event.subject).toBe(
+      'Rescheduled — Courtney industrial base follow-up',
+    );
+    // The office was NOT re-derived from the (stale, closed-over) original
+    // event — everything about who resolved it, other than the room, must
+    // survive exactly as it was before the edit.
+    expect(next.office.derivedFrom).toBe(before.office.derivedFrom);
+    expect(next.office.memberId).toBe(before.office.memberId);
+    expect(next.office.member).toBe(before.office.member);
+  });
+
+  it('edits meeting facts on a meeting with no office correction yet, without disturbing derivedFrom', async () => {
+    const { service } = await resolved();
+    const { resolution: next } = await service.correct('t', 'user-1', 'doc-1', 'm-2', {
+      kind: 'edit_meeting_facts',
+      location: 'Rayburn 2454, 3rd floor',
+    });
+    expect(next.office.room).toBe('Rayburn 2454, 3rd floor');
+  });
+
+  it('rejects edit_meeting_facts when endsAt is not after startsAt', async () => {
+    const { service } = await resolved();
+    await expect(
+      service.correct('t', 'user-1', 'doc-1', 'm-4', {
+        kind: 'edit_meeting_facts',
+        startsAt: '2026-09-17T14:30:00.000Z',
+        endsAt: '2026-09-17T14:00:00.000Z',
+      }),
+    ).rejects.toThrow('endsAt must be after startsAt');
+  });
+});
+
+describe('HillDayResolutionService.addManualMeeting', () => {
+  it('creates a meeting with a placeholder event and an office derived from the picked member', async () => {
+    const { service, meetings } = makeHarness([]);
+    const { resolution, event: created } = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+
+    expect(created.source).toBe('manual');
+    expect(created.eventId).toMatch(/^manual-/);
+    expect(created.attendees).toEqual([]);
+    expect(created.reason.kind).toBe('manual');
+    expect(new Date(created.endsAt).getTime()).toBeGreaterThan(new Date(created.startsAt).getTime());
+
+    expect(resolution.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
+    expect(resolution.office.derivedFrom).toBe('manual_selection');
+    expect(resolution.office.correctedBy).toBe('user-1');
+    expect(resolution.attendees).toEqual([]);
+    expect(resolution.needsConfirmation).toBe(true);
+    expect(resolution.state).toBe('partial');
+
+    // Actually persisted, not just returned.
+    expect(meetings).toHaveLength(1);
+    expect(meetings[0]!.event.source).toBe('manual');
+    expect(meetings[0]!.resolution?.office.memberId).toBe('member-3');
+  });
+
+  it('rejects when the caller is not the document owner', async () => {
+    const { service } = makeHarness([]);
+    await expect(service.addManualMeeting('t', 'intruder', 'doc-1', 'member-3')).rejects.toThrow(
+      'Only the document owner',
+    );
+  });
+
+  it('is idempotent by member — a retried add does not create a duplicate', async () => {
+    const { service, meetings } = makeHarness([]);
+    const first = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+    const second = await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+    expect(meetings).toHaveLength(1);
+    expect(second.event.eventId).toBe(first.event.eventId);
+  });
+
+  it('survives a full resolveDocument re-run without losing the picked office', async () => {
+    const { service } = makeHarness([]);
+    await service.addManualMeeting('t', 'user-1', 'doc-1', 'member-3');
+    const rerun = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const m = rerun.meetings[0]!;
+    expect(m.office.member).toBe('Rep. Joe Courtney (D-CT-02)');
+    expect(m.office.derivedFrom).toBe('manual_selection');
   });
 });

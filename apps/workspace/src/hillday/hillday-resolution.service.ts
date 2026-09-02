@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,6 +13,7 @@ import {
   type BridgeCommitteeStaffMatch,
   type BridgeMemberContext,
   type BridgeStaffMatch,
+  type DirectoryBrowseQuery,
 } from './directory-bridge.client.js';
 import type { ResolutionCorrectionDto } from './dto/hillday.dto.js';
 import { HillDaySourceService } from './hillday-source.service.js';
@@ -45,6 +47,13 @@ interface MeetingRow {
   event: unknown;
   resolution: unknown;
 }
+
+/** ~1pm US Eastern — an arbitrary but reasonable placeholder for a meeting
+ *  added from the Directory with no invite to read a real time from. The
+ *  whole point of the placeholder is that the user replaces it via
+ *  `edit_meeting_facts`, so precision doesn't matter, only validity. */
+const PLACEHOLDER_START_HOUR_UTC = 17;
+const PLACEHOLDER_DURATION_MS = 30 * 60_000;
 
 /**
  * Resolution over the selected meetings (requirements §4): runs the chain,
@@ -182,6 +191,115 @@ export class HillDayResolutionService {
     };
   }
 
+  /**
+   * Add a meeting by picking the member directly from the Directory (step 3's
+   * Directory tab) rather than from the calendar — for a Hill Day meeting
+   * booked after the packet was started, or on a calendar the sync doesn't
+   * reach. There is no invite, so the office is the pick itself (not derived
+   * from an attendee chain) and the date/time is a placeholder the user is
+   * expected to set via `correct(..., 'edit_meeting_facts')`.
+   *
+   * Idempotent by member: a retried batch (the wizard commits every pending
+   * pick in parallel; a partial failure resends the whole batch) must not
+   * create duplicates.
+   */
+  async addManualMeeting(
+    tenantId: string,
+    actorId: string,
+    documentId: string,
+    memberId: string,
+  ): Promise<{ resolution: MeetingResolution; event: CalendarEvent }> {
+    const doc = await this.assertDocument(tenantId, documentId);
+    if (doc.ownerId !== actorId) {
+      throw new ForbiddenException('Only the document owner can add a meeting');
+    }
+
+    const existing = (await this.prisma.wsHillDayMeeting.findMany({
+      where: { tenantId, documentId },
+    })) as MeetingRow[];
+    const already = existing.find((m) => {
+      const ev = m.event as unknown as CalendarEvent;
+      const res = m.resolution as unknown as MeetingResolution | null;
+      return ev.source === 'manual' && res?.office.memberId === memberId;
+    });
+    if (already) {
+      return {
+        resolution: already.resolution as unknown as MeetingResolution,
+        event: already.event as unknown as CalendarEvent,
+      };
+    }
+
+    const res = await this.bridge.memberContext(memberId);
+    if (!res.ok) throw new ServiceUnavailableException(`Directory unavailable: ${res.detail}`);
+    if (!res.data.context) throw new NotFoundException('Directory member not found');
+    const officeRef = officeRefFromContext(res.data.context);
+
+    const startsAt = this.placeholderStart(doc.weekStart);
+    const endsAt = new Date(startsAt.getTime() + PLACEHOLDER_DURATION_MS);
+    const event: CalendarEvent = {
+      eventId: `manual-${randomUUID()}`,
+      subject: `Meeting with ${officeRef.member ?? officeRef.memberName ?? 'the office'}`,
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      timeZone: doc.timeZone,
+      location: officeRef.officeLocation,
+      isVirtual: false,
+      joinLink: null,
+      kind: 'hill',
+      clientId: doc.clientId,
+      organizer: null,
+      attendees: [],
+      reason: { kind: 'manual', detail: 'Added manually from the Directory.', matchedAddresses: [] },
+      source: 'manual',
+      connectionId: null,
+    };
+
+    const office: ResolvedOffice = {
+      ...officeRef,
+      room: officeRef.officeLocation,
+      derivedFrom: 'manual_selection',
+      correctedBy: actorId,
+      alternatives: [],
+    };
+    const roll = rollUpMeeting([], office);
+    const id = randomUUID();
+    const resolution: MeetingResolution = {
+      meetingId: id,
+      eventId: event.eventId,
+      state: roll.state,
+      office,
+      attendees: [],
+      internalParticipants: [],
+      needsConfirmation: roll.needsConfirmation,
+      resolvedAt: new Date().toISOString(),
+      sources: [{ source: 'directory', status: 'ok', detail: null }],
+    };
+
+    // Ordinal starts well past any calendar-derived range so a later
+    // setMeetings() ordinal reassignment (which only touches calendar rows)
+    // can never collide with a manual row.
+    const manualCount = existing.filter((m) => (m.event as unknown as CalendarEvent).source === 'manual').length;
+    await this.prisma.wsHillDayMeeting.create({
+      data: {
+        id,
+        tenantId,
+        documentId,
+        eventId: event.eventId,
+        ordinal: 1000 + manualCount,
+        event: event as never,
+        resolution: resolution as never,
+      },
+    });
+    await this.refreshDocumentStatus(tenantId, documentId);
+    return { resolution, event };
+  }
+
+  private placeholderStart(weekStart: Date | null): Date {
+    const base = weekStart ? new Date(weekStart) : new Date(Date.now() + 86_400_000);
+    base.setUTCHours(PLACEHOLDER_START_HOUR_UTC, 0, 0, 0);
+    return base;
+  }
+
   /** Apply one correction. The correction is authoritative for this document. */
   async correct(
     tenantId: string,
@@ -189,7 +307,7 @@ export class HillDayResolutionService {
     documentId: string,
     meetingId: string,
     dto: ResolutionCorrectionDto,
-  ): Promise<MeetingResolution> {
+  ): Promise<{ resolution: MeetingResolution; event: CalendarEvent }> {
     const doc = await this.assertDocument(tenantId, documentId);
     const row = await this.prisma.wsHillDayMeeting.findFirst({
       where: { id: meetingId, tenantId, documentId },
@@ -197,7 +315,7 @@ export class HillDayResolutionService {
     if (!row) throw new NotFoundException('Meeting not found on this document');
     const resolution = row.resolution as unknown as MeetingResolution | null;
     if (!resolution) throw new BadRequestException('Run resolution before correcting it');
-    const event = row.event as unknown as CalendarEvent;
+    let event = row.event as unknown as CalendarEvent;
     const at = new Date().toISOString();
     const attendees = resolution.attendees.map((a) => ({ ...a }));
     let office: ResolvedOffice = { ...resolution.office };
@@ -311,11 +429,35 @@ export class HillDayResolutionService {
         };
         break;
       }
+      case 'edit_meeting_facts': {
+        // Every field optional, so a form only sends what changed; unset
+        // fields fall back to the current value for the endsAt>startsAt check.
+        const nextStartsAt = dto.startsAt ?? event.startsAt;
+        const nextEndsAt = dto.endsAt ?? event.endsAt;
+        if (new Date(nextEndsAt).getTime() <= new Date(nextStartsAt).getTime()) {
+          throw new BadRequestException('endsAt must be after startsAt');
+        }
+        const nextLocation = dto.location !== undefined ? dto.location.trim() || null : event.location;
+        event = {
+          ...event,
+          subject: dto.subject?.trim() || event.subject,
+          startsAt: nextStartsAt,
+          endsAt: nextEndsAt,
+          location: nextLocation,
+        };
+        // Meeting-level facts, not an office change — no re-derivation, and
+        // this must not touch `derivedFrom`/`alternatives`/who resolved it.
+        if (dto.location !== undefined) office = { ...office, room: nextLocation };
+        break;
+      }
       default:
         throw new BadRequestException('Unsupported correction');
     }
 
-    if (dto.kind !== 'change_office') {
+    // edit_meeting_facts is excluded too: it may have just set `office.room`
+    // above, and this block closes over the ORIGINAL `event`, so running it
+    // would silently overwrite that room back to the pre-edit location.
+    if (dto.kind !== 'change_office' && dto.kind !== 'edit_meeting_facts') {
       office = deriveOffice({
         attendees,
         inviteDomainOffice: office.derivedFrom === 'invite_domain' ? office : null,
@@ -336,10 +478,10 @@ export class HillDayResolutionService {
     };
     await this.prisma.wsHillDayMeeting.update({
       where: { id: row.id },
-      data: { resolution: next as never },
+      data: { event: event as never, resolution: next as never },
     });
     await this.refreshDocumentStatus(tenantId, documentId);
-    return next;
+    return { resolution: next, event };
   }
 
   /** Directory lookups the correction affordances need (search + member profile). */
@@ -392,6 +534,28 @@ export class HillDayResolutionService {
       })),
       sources: [ok('directory')],
     };
+  }
+
+  /**
+   * Full A–Z Directory browse for step 3's Directory tab — same data and
+   * behaviour as Outreach's Directory tab (search + state/chamber filters,
+   * paginated, no minimum query length so an empty query browses everything).
+   * Thin passthrough to the bridge; no reshaping beyond the status envelope.
+   */
+  async browseDirectory(query: DirectoryBrowseQuery) {
+    const res = await this.bridge.browseContacts(query);
+    if (!res.ok) {
+      return {
+        contacts: [],
+        total: 0,
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? 50,
+        availableStates: [],
+        availableChambers: [],
+        sources: [unavailable('directory', res.detail)],
+      };
+    }
+    return { ...res.data, sources: [ok('directory')] };
   }
 
   // ── internals ─────────────────────────────────────────────────────────────

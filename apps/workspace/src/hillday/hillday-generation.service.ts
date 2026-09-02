@@ -28,7 +28,7 @@ import type {
   SourceSet,
   SourceStatus,
 } from './hillday.types.js';
-import { emptyOffice, normalizeAddress, rollUpMeeting } from './resolution.rules.js';
+import { confirmationReason, emptyOffice, normalizeAddress, rollUpMeeting } from './resolution.rules.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const UNIT_TIMEOUT_MS = 90_000;
@@ -457,7 +457,14 @@ export class HillDayGenerationService {
       });
     }
     if (resolution.needsConfirmation) {
-      flags.push({ kind: 'needs_confirmation', detail: 'Scheduler-only invite — confirm attendees before delivery.' });
+      const reason = confirmationReason(resolution);
+      flags.push({
+        kind: 'needs_confirmation',
+        detail:
+          reason === 'no_invite'
+            ? 'Added manually from the Directory — confirm attendees before delivery.'
+            : 'Scheduler-only invite — confirm attendees before delivery.',
+      });
     }
 
     const generatedAt = new Date().toISOString();

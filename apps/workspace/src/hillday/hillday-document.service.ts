@@ -618,7 +618,14 @@ export class HillDayDocumentService {
     const existing = await this.prisma.wsHillDayMeeting.findMany({ where: { tenantId, documentId } });
     const keep = new Set(selected.map((e) => e.eventId));
     await this.prisma.$transaction(async (tx) => {
-      const remove = existing.filter((m) => !keep.has(m.eventId)).map((m) => m.id);
+      // Meetings added directly from the Directory (step 3's Directory tab)
+      // have a synthetic eventId that is never in `keep` — this replace-by-
+      // eventIds logic only governs calendar-backed rows, so manual rows are
+      // excluded from deletion here and are not touched by the ordinal
+      // reassignment below either (only `selected`, the calendar rows, are).
+      const remove = existing
+        .filter((m) => !keep.has(m.eventId) && (m.event as unknown as CalendarEvent).source !== 'manual')
+        .map((m) => m.id);
       if (remove.length) await tx.wsHillDayMeeting.deleteMany({ where: { id: { in: remove } } });
       for (const [ordinal, ev] of selected.entries()) {
         const current = existing.find((m) => m.eventId === ev.eventId);
@@ -845,8 +852,12 @@ export class HillDayDocumentService {
       id: 'attendees_confirmed',
       label: 'Attendees confirmed',
       state: unconfirmed.length === 0 ? 'pass' : 'warn',
+      // No single parenthetical cause fits here — the meetings behind
+      // `unconfirmed` can be a mix of scheduler-only invites and meetings
+      // added manually with no invite at all, so the reason is left to each
+      // meeting's own card rather than asserted for all of them at once.
       detail: unconfirmed.length
-        ? `Confirm who attends for ${unconfirmed.join(', ')} before delivery (scheduler-only invite).`
+        ? `Confirm who attends for ${unconfirmed.join(', ')} before delivery.`
         : 'Every meeting has at least one substantive attendee.',
     });
 

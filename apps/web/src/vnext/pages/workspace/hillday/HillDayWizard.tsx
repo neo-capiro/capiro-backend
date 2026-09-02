@@ -14,6 +14,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { config } from '../../../../env.js';
 import { HILL_DAY_BLUEPRINT_ID, streamJobEvents, useHillDayApi, type HillDayClient } from './api.js';
+import { DirectoryBrowser } from './DirectoryBrowser.js';
 import { DAY_LABELS, DOW_LABELS, LOOKBACK_OPTIONS, SPONSOR_SUPPLIES } from './fixtures.js';
 import {
   DEFAULT_TIME_ZONE,
@@ -23,7 +24,9 @@ import {
   fmtTime,
   fmtWeekRange,
   localDateKey,
+  localTimeKey,
   mondayOf,
+  zonedInstantUtc,
   zonedMidnightUtc,
 } from './hillday-time.js';
 import type {
@@ -32,6 +35,7 @@ import type {
   CarrySelection,
   CarryUnit,
   CorrectionBody,
+  DirectoryBrowseContact,
   DocumentResolution,
   JobEvent,
   JobUnit,
@@ -93,7 +97,7 @@ export function HillDayWizard() {
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
   const [narrow, setNarrow] = useState(false);
-  const [view, setView] = useState<'cal' | 'list'>('cal');
+  const [view, setView] = useState<'cal' | 'list' | 'directory'>('cal');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -113,6 +117,12 @@ export function HillDayWizard() {
   const [decided, setDecided] = useState<Set<string>>(() => new Set());
   const [seenWeeks, setSeenWeeks] = useState<Set<string>>(() => new Set());
   const [eventIndex, setEventIndex] = useState<Record<string, CalendarEvent>>({});
+  // Meetings picked from step 3's Directory tab — no calendar event backs
+  // them. Client-side only until commit, same as `selected` for calendar
+  // events; committed via a separate addManualMeeting() call per pick.
+  const [manualMeetings, setManualMeetings] = useState<
+    Array<{ tempId: string; memberId: string; label: string; subline: string }>
+  >([]);
 
   // Context
   const [ctxId, setCtxId] = useState<string | null>(null);
@@ -260,6 +270,7 @@ export function HillDayWizard() {
       setSeenWeeks(new Set());
       setDecided(new Set());
       setSelected([]);
+      setManualMeetings([]);
       setWeekStart(mondayOf(new Date(), TZ));
     }
   };
@@ -294,6 +305,19 @@ export function HillDayWizard() {
   async function commitMeetingsAndResolve(): Promise<void> {
     const id = await ensureDocument();
     await api.setMeetings(id, { eventIds: selected, weekStart, timeZone: TZ });
+    // One addManualMeeting() call per Directory pick, in parallel — mirrors
+    // flushContext()'s pattern. Each call is idempotent by member on the
+    // server, so a retry after a partial failure here can't create
+    // duplicates; manualMeetings is only cleared once every call succeeds.
+    if (manualMeetings.length) {
+      await Promise.all(
+        manualMeetings.map(async (mm) => {
+          const { event: created } = await api.addManualMeeting(id, mm.memberId);
+          setEventIndex((prev) => ({ ...prev, [created.eventId]: created }));
+        }),
+      );
+      setManualMeetings([]);
+    }
     const result = await api.runResolution(id);
     queryClient.setQueryData(resolutionKey, result);
     await queryClient.invalidateQueries({ queryKey: ['hd', 'context', id] });
@@ -399,7 +423,7 @@ export function HillDayWizard() {
         await ensureDocument();
         goTo(2);
       } else if (step === 2) {
-        if (!selected.length) {
+        if (!selected.length && !manualMeetings.length) {
           setError('Select at least one meeting — the packet needs something to write about.');
           return;
         }
@@ -429,7 +453,7 @@ export function HillDayWizard() {
     if (!docId) return;
     setError(null);
     try {
-      const updated = await api.correct(docId, meetingId, body);
+      const { resolution: updated, event: updatedEvent } = await api.correct(docId, meetingId, body);
       queryClient.setQueryData<DocumentResolution>(resolutionKey, (prev) => {
         if (!prev) return prev;
         const nextMeetings = prev.meetings.map((m) => (m.meetingId === meetingId ? updated : m));
@@ -439,6 +463,9 @@ export function HillDayWizard() {
           status: nextMeetings.every((m) => m.state === 'clean') ? 'clean' : 'partial',
         };
       });
+      // Refresh the local event cache too — required for edit_meeting_facts
+      // (time/subject/location just changed) and harmless for the other kinds.
+      setEventIndex((prev) => ({ ...prev, [updatedEvent.eventId]: updatedEvent }));
       await queryClient.invalidateQueries({ queryKey: ['hd', 'context', docId, meetingId] });
       setCtxLocal((prev) => {
         if (!prev[meetingId]) return prev;
@@ -479,6 +506,39 @@ export function HillDayWizard() {
   const tz = calendarQuery.data?.timeZone ?? TZ;
   const selectedInWeek = weekEvents.filter((e) => selected.includes(e.eventId)).length;
   const selectedElsewhere = selected.length - selectedInWeek;
+  const totalSelected = selected.length + manualMeetings.length;
+
+  // Members already on the document (committed manual meetings) or queued to
+  // be added on the next commit — the Directory tab marks both as "Added".
+  const committedMemberIds = useMemo(
+    () =>
+      new Set(
+        meetings
+          .filter((m) => m.office.derivedFrom === 'manual_selection' && m.office.memberId)
+          .map((m) => m.office.memberId!),
+      ),
+    [meetings],
+  );
+  const pickedMemberIds = useMemo(
+    () => new Set([...committedMemberIds, ...manualMeetings.map((mm) => mm.memberId)]),
+    [committedMemberIds, manualMeetings],
+  );
+
+  const pickFromDirectory = (contact: DirectoryBrowseContact) => {
+    if (pickedMemberIds.has(contact.id)) return;
+    const stateChamber = [contact.chamber, contact.state].filter(Boolean).join(' · ');
+    setManualMeetings((prev) => [
+      ...prev,
+      {
+        tempId: `pending-${contact.id}`,
+        memberId: contact.id,
+        label: `${contact.honorific ? `${contact.honorific} ` : ''}${contact.fullName}`.trim(),
+        subline: [stateChamber, contact.committees[0]].filter(Boolean).join(' · '),
+      },
+    ]);
+  };
+  const removePendingPick = (memberId: string) =>
+    setManualMeetings((prev) => prev.filter((mm) => mm.memberId !== memberId));
 
   const toggle = (id: string) => {
     setDecided((prev) => new Set(prev).add(id));
@@ -530,7 +590,9 @@ export function HillDayWizard() {
   const footers = [
     'Blueprint decides the questions and the sections.',
     'Calendar and objectives come from the sponsor.',
-    `${selected.length} of ${weekEvents.length + selectedElsewhere} meetings selected · ${selected.length} prep sections will be written.`,
+    `${totalSelected} meeting${totalSelected === 1 ? '' : 's'} selected${
+      manualMeetings.length ? ` (${manualMeetings.length} from the Directory)` : ''
+    } · ${totalSelected} prep section${totalSelected === 1 ? '' : 's'} will be written.`,
     gaps
       ? `${gaps} of ${totalAtt} attendees still need input. You can generate anyway.`
       : `${totalAtt} attendees resolved.`,
@@ -813,10 +875,25 @@ export function HillDayWizard() {
                     <HdIcon name="List" size={16} />
                     List
                   </button>
+                  <button
+                    type="button"
+                    className={`hd-segmented__item${view === 'directory' ? ' hd-segmented__item--on' : ''}`}
+                    onClick={() => setView('directory')}
+                  >
+                    <HdIcon name="Users01" size={16} />
+                    Directory
+                  </button>
                 </div>
                 <span className="hd-sel-count">
-                  {selectedInWeek} of {weekEvents.length} selected
-                  {selectedElsewhere > 0 ? ` (+${selectedElsewhere} other weeks)` : ''}
+                  {view === 'directory'
+                    ? `${manualMeetings.length} picked from the Directory`
+                    : (
+                      <>
+                        {selectedInWeek} of {weekEvents.length} selected
+                        {selectedElsewhere > 0 ? ` (+${selectedElsewhere} other weeks)` : ''}
+                        {manualMeetings.length > 0 ? ` · ${manualMeetings.length} from the Directory` : ''}
+                      </>
+                    )}
                 </span>
               </div>
             </div>
@@ -922,6 +999,31 @@ export function HillDayWizard() {
                 {!calendarQuery.isPending && weekEvents.length === 0 && (
                   <div className="hd-list__group">No meetings for {clientName ?? 'this client'} this week. Use Prev / Next to find the Hill Day week.</div>
                 )}
+              </div>
+            )}
+
+            {view === 'directory' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {manualMeetings.length > 0 && (
+                  <div className="hd-client-list">
+                    <div className="hd-client-list__search">
+                      <HdIcon name="UserCheck01" size={18} />
+                      <span className="hd-eyebrow" style={{ flex: 1 }}>
+                        {manualMeetings.length} picked from the Directory — date and time are set on the next step
+                      </span>
+                    </div>
+                    {manualMeetings.map((mm) => (
+                      <div key={mm.tempId} className="hd-client-row" style={{ cursor: 'default' }}>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span className="hd-client-row__name">{mm.label}</span>
+                          <span className="hd-client-row__meta">{mm.subline}</span>
+                        </span>
+                        <HdSecondary onClick={() => removePendingPick(mm.memberId)}>Remove</HdSecondary>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <DirectoryBrowser api={api} pickedMemberIds={pickedMemberIds} onPick={pickFromDirectory} />
               </div>
             )}
           </div>
@@ -1319,6 +1421,7 @@ function ResolutionCard({
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [officeOpen, setOfficeOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(() => event?.source === 'manual');
   const bad = meeting.attendees.filter((a) => a.state !== 'resolved').length;
   const m = meeting;
   const duration = event ? fmtDuration(event.startsAt, event.endsAt) : '';
@@ -1349,15 +1452,17 @@ function ResolutionCard({
                 v:
                   m.office.derivedFrom === 'user_correction'
                     ? 'Your correction'
-                    : m.office.derivedFrom === 'staffer_office_association'
-                      ? "Staffer's office association"
-                      : m.office.derivedFrom === 'invite_domain'
-                        ? 'Invite address domain'
-                        : m.office.derivedFrom === 'member_on_invite'
-                          ? 'Member on the invite'
-                          : m.office.derivedFrom === 'committee_staff_association'
-                            ? 'Committee staff (no member office)'
-                            : 'Nothing yet',
+                    : m.office.derivedFrom === 'manual_selection'
+                      ? 'Picked from the Directory'
+                      : m.office.derivedFrom === 'staffer_office_association'
+                        ? "Staffer's office association"
+                        : m.office.derivedFrom === 'invite_domain'
+                          ? 'Invite address domain'
+                          : m.office.derivedFrom === 'member_on_invite'
+                            ? 'Member on the invite'
+                            : m.office.derivedFrom === 'committee_staff_association'
+                              ? 'Committee staff (no member office)'
+                              : 'Nothing yet',
                 w: 500,
               },
             ].map((f) => (
@@ -1380,6 +1485,20 @@ function ResolutionCard({
               onPick={async (memberId) => {
                 await onCorrect({ kind: 'change_office', memberId });
                 setOfficeOpen(false);
+              }}
+            />
+          )}
+          <button type="button" className="hd-resolve-card__change-office" onClick={() => setEditOpen((o) => !o)}>
+            <HdIcon name="ClipboardCheck" size={15} />
+            Edit details
+          </button>
+          {editOpen && (
+            <EditMeetingFactsForm
+              event={event}
+              tz={tz}
+              onSubmit={async (body) => {
+                await onCorrect(body);
+                setEditOpen(false);
               }}
             />
           )}
@@ -1600,6 +1719,72 @@ function MemberSearch({
           {mem.member}
         </button>
       ))}
+    </span>
+  );
+}
+
+function EditMeetingFactsForm({
+  event,
+  tz,
+  onSubmit,
+}: {
+  event: CalendarEvent | undefined;
+  tz: string;
+  onSubmit: (body: CorrectionBody) => Promise<void>;
+}) {
+  const [subject, setSubject] = useState(event?.subject ?? '');
+  const [dateKey, setDateKey] = useState(event ? localDateKey(event.startsAt, tz) : '');
+  const [startTime, setStartTime] = useState(event ? localTimeKey(event.startsAt, tz) : '');
+  const [endTime, setEndTime] = useState(event ? localTimeKey(event.endsAt, tz) : '');
+  const [location, setLocation] = useState(event?.location ?? '');
+  const timesInvalid = startTime.length > 0 && endTime.length > 0 && endTime <= startTime;
+  const canConfirm = subject.trim().length > 0 && dateKey.length > 0 && startTime.length > 0 && endTime.length > 0 && !timesInvalid;
+  return (
+    <span className="hd-att__fix" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="Subject"
+          aria-label="Meeting subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          style={{ flex: '1 1 200px' }}
+        />
+        <input
+          type="text"
+          placeholder="Location"
+          aria-label="Location"
+          value={location ?? ''}
+          onChange={(e) => setLocation(e.target.value)}
+          style={{ flex: '1 1 160px' }}
+        />
+      </span>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input type="date" aria-label="Date" value={dateKey} onChange={(e) => setDateKey(e.target.value)} />
+        <input type="time" aria-label="Start time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+        <span className="hd-att__detail">to</span>
+        <input type="time" aria-label="End time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+        {timesInvalid && <span className="hd-att__detail">End must be after start.</span>}
+      </span>
+      <span>
+        <button
+          type="button"
+          className="hd-att__fix-btn"
+          disabled={!canConfirm}
+          onClick={() =>
+            void onSubmit({
+              kind: 'edit_meeting_facts',
+              subject: subject.trim(),
+              startsAt: zonedInstantUtc(dateKey, startTime, tz),
+              endsAt: zonedInstantUtc(dateKey, endTime, tz),
+              location: location?.trim() || undefined,
+            })
+          }
+        >
+          <HdIcon name="Check" size={15} />
+          Save details
+        </button>
+      </span>
     </span>
   );
 }

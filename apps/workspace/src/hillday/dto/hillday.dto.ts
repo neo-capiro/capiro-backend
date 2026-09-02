@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsISO8601,
   IsInt,
   IsOptional,
   IsString,
@@ -36,6 +37,7 @@ export const CORRECTION_KINDS = [
   'accept_stale',
   'create_directory_record',
   'change_office',
+  'edit_meeting_facts',
 ] as const;
 
 export class ResolutionCorrectionDto {
@@ -47,6 +49,15 @@ export class ResolutionCorrectionDto {
   @IsOptional() @IsString() @Length(3, 320) address?: string;
   @IsOptional() @IsString() @Length(1, 64) memberId?: string;
   @IsOptional() @IsIn(['directory', 'invite']) useOffice?: 'directory' | 'invite';
+  // edit_meeting_facts — every field optional so a form can submit only what changed.
+  @IsOptional() @IsString() @Length(1, 240) subject?: string;
+  @IsOptional() @IsISO8601() startsAt?: string;
+  @IsOptional() @IsISO8601() endsAt?: string;
+  @IsOptional() @IsString() @Length(1, 240) location?: string;
+}
+
+export class AddManualMeetingDto {
+  @IsString() @Length(1, 64) memberId!: string;
 }
 
 export class CarrySelectionDto {
