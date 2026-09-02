@@ -23,15 +23,14 @@ const STALE_HASH = "a".repeat(64);
 
 describe("strategy report snapshot contract", () => {
   it("keeps partial preflight callers on the established defaults", async () => {
-    const preflight = jest.fn(async () => ({ report: { ready: true } }));
-    const service = reportService({ preflight });
+    const { service, build, preflightFromSnapshot } = preflightService();
 
-    await service.preflight("tenant-1", "strategy-1", {
+    const result = await service.preflight("tenant-1", "strategy-1", {
       format: "docx",
       audience: "internal",
     });
 
-    expect(preflight).toHaveBeenCalledWith("tenant-1", "strategy-1", {
+    const expectedOptions = {
       format: "docx",
       audience: "internal",
       useClientLogo: true,
@@ -40,12 +39,24 @@ describe("strategy report snapshot contract", () => {
       includeChangeLog: false,
       includeInternalNotes: false,
       includeAgentHistory: false,
+      includeNarrative: true,
+      includeMemberProfiles: true,
+    };
+    expect(build).toHaveBeenCalledWith("tenant-1", "strategy-1", expectedOptions);
+    expect(preflightFromSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ snapshotHash: CURRENT_HASH }),
+      expectedOptions,
+    );
+    expect(result.memberOffices).toEqual({ referenced: 0, resolved: 0, withPhoto: 0 });
+    expect(result.narrative).toEqual({
+      available: false,
+      reason: "disabled in test",
+      requested: true,
     });
   });
 
   it("normalizes the complete preflight option set with client redaction", async () => {
-    const preflight = jest.fn(async () => ({ report: { ready: true } }));
-    const service = reportService({ preflight });
+    const { service, build } = preflightService();
 
     await service.preflight("tenant-1", "strategy-1", {
       format: "pptx",
@@ -56,9 +67,11 @@ describe("strategy report snapshot contract", () => {
       includeChangeLog: true,
       includeInternalNotes: true,
       includeAgentHistory: true,
+      includeNarrative: false,
+      includeMemberProfiles: false,
     });
 
-    expect(preflight).toHaveBeenCalledWith("tenant-1", "strategy-1", {
+    expect(build).toHaveBeenCalledWith("tenant-1", "strategy-1", {
       format: "pptx",
       audience: "client",
       useClientLogo: false,
@@ -67,6 +80,8 @@ describe("strategy report snapshot contract", () => {
       includeChangeLog: false,
       includeInternalNotes: false,
       includeAgentHistory: false,
+      includeNarrative: false,
+      includeMemberProfiles: false,
     });
   });
 
@@ -104,6 +119,8 @@ describe("strategy report snapshot contract", () => {
     const pptxRender = jest.fn();
     const withTenantUser = jest.fn();
     const logActivity = jest.fn();
+    const memberResolve = jest.fn();
+    const narrativeGenerate = jest.fn();
     const service = new StrategyReportService(
       { build } as never,
       { read: logoRead } as never,
@@ -111,6 +128,8 @@ describe("strategy report snapshot contract", () => {
       { render: pptxRender } as never,
       { withTenantUser } as never,
       { logActivity } as never,
+      { resolve: memberResolve, photo: jest.fn() } as never,
+      { availability: () => ({ available: true, reason: null }), generate: narrativeGenerate } as never,
     );
 
     await expect(
@@ -124,20 +143,34 @@ describe("strategy report snapshot contract", () => {
     expect(logoRead).not.toHaveBeenCalled();
     expect(docxRender).not.toHaveBeenCalled();
     expect(pptxRender).not.toHaveBeenCalled();
+    expect(memberResolve).not.toHaveBeenCalled();
+    expect(narrativeGenerate).not.toHaveBeenCalled();
     expect(withTenantUser).not.toHaveBeenCalled();
     expect(logActivity).not.toHaveBeenCalled();
   });
 });
 
-function reportService(snapshots: { preflight: jest.Mock }) {
-  return new StrategyReportService(
-    snapshots as never,
+function preflightService() {
+  const build = jest.fn(async () => ({
+    snapshotHash: CURRENT_HASH,
+    members: [],
+    options: { includeMemberProfiles: true, includeNarrative: true },
+  }));
+  const preflightFromSnapshot = jest.fn(() => ({ report: { ready: true } }));
+  const service = new StrategyReportService(
+    { build, preflightFromSnapshot } as never,
     { read: jest.fn() } as never,
     { render: jest.fn() } as never,
     { render: jest.fn() } as never,
     { withTenantUser: jest.fn() } as never,
     { logActivity: jest.fn() } as never,
+    { resolve: jest.fn(async () => []), photo: jest.fn(async () => null) } as never,
+    {
+      availability: () => ({ available: false, reason: "disabled in test" }),
+      generate: jest.fn(async () => null),
+    } as never,
   );
+  return { service, build, preflightFromSnapshot };
 }
 
 /*
@@ -175,7 +208,11 @@ interface LogActivityAudit {
     changeLog: boolean;
     internalNotes: boolean;
     agentHistory: boolean;
+    narrative: boolean;
+    memberProfiles: boolean;
   };
+  memberOffices: { referenced: number; resolved: number; withPhoto: number };
+  narrative: Record<string, unknown>;
 }
 
 interface LogActivityOpts {
@@ -265,6 +302,7 @@ function baseSnapshot(
       placeholderNodes: 0,
     },
     nodes: [],
+    members: [],
     artifacts: [],
     firmPhases: [],
     referenceWindows: [],
@@ -288,6 +326,8 @@ function baseSnapshot(
       includeChangeLog: false,
       includeInternalNotes: false,
       includeAgentHistory: false,
+      includeNarrative: false,
+      includeMemberProfiles: true,
     },
     warnings: [],
     capacityErrors: [],
@@ -326,6 +366,15 @@ function makeService(
     ),
   };
 
+  const memberOffices = {
+    resolve: jest.fn(async () => []),
+    photo: jest.fn(async () => null),
+  };
+  const narrative = {
+    availability: () => ({ available: false, reason: "disabled in test" }),
+    generate: jest.fn(async () => null),
+  };
+
   const service = new StrategyReportService(
     snapshots as never,
     logos as never,
@@ -333,9 +382,23 @@ function makeService(
     pptx as never,
     prisma as never,
     versioning as never,
+    memberOffices as never,
+    narrative as never,
   );
 
-  return { service, snapshot, snapshots, logos, docx, pptx, versioning, prisma, tx };
+  return {
+    service,
+    snapshot,
+    snapshots,
+    logos,
+    docx,
+    pptx,
+    versioning,
+    prisma,
+    tx,
+    memberOffices,
+    narrative,
+  };
 }
 
 describe("StrategyReportService — MAX_RENDERED_REPORT_BYTES enforcement", () => {
@@ -553,7 +616,13 @@ describe("StrategyReportService — activity-log audit shape", () => {
         changeLog: true,
         internalNotes: true,
         agentHistory: true,
+        narrative: true,
+        memberProfiles: true,
       },
+      memberOffices: { referenced: 0, resolved: 0, withPhoto: 0 },
+      // Narrative defaults on; the stubbed generator returns null, so the
+      // audit records the deterministic fallback — never prose or a model id.
+      narrative: { requested: true, status: "fallback" },
     });
     // Locks the key set closed: a future field added to `after` (report
     // prose, rendered bytes, an S3 object key) fails this test immediately.
@@ -567,13 +636,23 @@ describe("StrategyReportService — activity-log audit shape", () => {
         "filename",
         "format",
         "inclusion",
+        "memberOffices",
+        "narrative",
         "sections",
         "snapshotHash",
         "versionId",
       ].sort(),
     );
     expect(Object.keys(after.sections).sort()).toEqual(
-      ["agentHistory", "changeLog", "evidenceAppendix", "internalNotes", "roadmap"].sort(),
+      [
+        "agentHistory",
+        "changeLog",
+        "evidenceAppendix",
+        "internalNotes",
+        "memberProfiles",
+        "narrative",
+        "roadmap",
+      ].sort(),
     );
     expect(Object.keys(after.content).sort()).toEqual(
       ["contextDocuments", "contextFacts", "narrativeSections"].sort(),

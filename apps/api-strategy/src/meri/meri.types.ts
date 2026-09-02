@@ -241,3 +241,22 @@ export interface NodeDocumentDraftResponse {
    *  path, so it MUST come back from the orchestrator response). */
   model: string | null;
 }
+
+/**
+ * Executive-report narrative returned by `POST /meri-api/strategy-report-narrative`.
+ * Untrusted wire data: api-strategy's report-narrative-verifier re-checks every
+ * paragraph (citations, numbers, dates, names) before a renderer sees it.
+ */
+export interface StrategyReportNarrativeResponse {
+  sections: Array<{
+    id: string;
+    paragraphs: Array<{ text: string; evidenceIds: string[] }>;
+  }>;
+  model: string | null;
+  generatedAt: string;
+  usage: { inputTokens: number; outputTokens: number };
+  attempts: number;
+  /** Paragraphs the orchestrator's own citation gate removed before returning. */
+  droppedParagraphs: number;
+  usedFallback: boolean;
+}

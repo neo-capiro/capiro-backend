@@ -7,6 +7,7 @@ import { assuranceReleaseArmedFor } from '@capiro/meriv2-core';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import type { MeriContextResolver } from '../meri-context.resolver.js';
 import type { StrategyAssistantService } from './strategy-assistant.service.js';
+import type { StrategyReportNarrativeService } from './strategy-report-narrative.service.js';
 import { StrategyController } from './strategy.controller.js';
 import type { StrategyDocumentDraftInput } from './strategy-prompt.js';
 
@@ -134,6 +135,7 @@ describe('StrategyController governed document assurance scope', () => {
     const controller = new StrategyController(
       { resolveIdentity } as unknown as MeriContextResolver,
       { draftDocument } as unknown as StrategyAssistantService,
+      { generate: jest.fn() } as unknown as StrategyReportNarrativeService,
     );
     return { controller, resolveIdentity, draftDocument };
   }

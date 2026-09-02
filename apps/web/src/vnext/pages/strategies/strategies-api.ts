@@ -1115,6 +1115,10 @@ export interface StrategyExportOptions {
   includeChangeLog: boolean;
   includeInternalNotes: boolean;
   includeAgentHistory: boolean;
+  /** Grounded executive prose (server falls back to fact listings when unavailable). */
+  includeNarrative: boolean;
+  /** Portrait + Washington office cards for targeted congressional offices. */
+  includeMemberProfiles: boolean;
 }
 
 export interface StrategyExportInput extends StrategyExportOptions {
@@ -1199,9 +1203,13 @@ export interface StrategyExportPreflight {
     evidenceLinkedNodes: number;
   };
   sections: StrategyReportSectionReadiness[];
+  memberOffices: { referenced: number; resolved: number; withPhoto: number };
+  narrative: { available: boolean; reason: string | null; requested: boolean };
   warnings: Array<{ code: string; message: string }>;
   errors: Array<{ code: string; message: string }>;
 }
+
+export type StrategyExportNarrativeStatus = 'generated' | 'fallback' | 'off';
 
 export interface StrategyExportFile {
   blob: Blob;
@@ -1210,6 +1218,9 @@ export interface StrategyExportFile {
   snapshotHash: string | null;
   audience: StrategyExportAudience;
   logoIncluded: boolean;
+  narrativeStatus: StrategyExportNarrativeStatus;
+  /** "resolved/referenced" member offices, as reported by the server. */
+  memberOffices: { resolved: number; referenced: number } | null;
 }
 
 function exportFallbackFilename(
@@ -1263,6 +1274,8 @@ export function useStrategyExportPreflight(
         includeChangeLog: String(options.includeChangeLog),
         includeInternalNotes: String(options.includeInternalNotes),
         includeAgentHistory: String(options.includeAgentHistory),
+        includeNarrative: String(options.includeNarrative),
+        includeMemberProfiles: String(options.includeMemberProfiles),
       });
       return (
         await api.get<StrategyExportPreflight>(
@@ -1291,6 +1304,12 @@ export function useGenerateStrategyExport(strategyId: string | null) {
         (response.headers['content-type'] as string | undefined) ??
         'application/octet-stream';
       const responseAudience = response.headers['x-report-audience'];
+      const narrativeHeader = response.headers['x-report-narrative'];
+      const memberHeader = response.headers['x-report-member-offices'];
+      const memberMatch =
+        typeof memberHeader === 'string'
+          ? /^(\d+)\/(\d+)$/.exec(memberHeader)
+          : null;
       return {
         blob: response.data,
         filename: exportFilenameFromDisposition(
@@ -1303,6 +1322,16 @@ export function useGenerateStrategyExport(strategyId: string | null) {
           null,
         audience: responseAudience === 'internal' ? 'internal' : 'client',
         logoIncluded: response.headers['x-report-logo-included'] === 'true',
+        narrativeStatus:
+          narrativeHeader === 'generated' || narrativeHeader === 'fallback'
+            ? narrativeHeader
+            : 'off',
+        memberOffices: memberMatch
+          ? {
+              resolved: Number(memberMatch[1]),
+              referenced: Number(memberMatch[2]),
+            }
+          : null,
       };
     },
   });

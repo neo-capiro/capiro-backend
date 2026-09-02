@@ -34,7 +34,10 @@
         { "name": "STRATEGY_AGENTS_ENABLED", "value": "true" },
         { "name": "MERIV2_ORCHESTRATOR_URL", "value": "https://app.capiro.ai" },
         { "name": "API_INTERNAL_URL", "value": "https://app.capiro.ai" },
-        { "name": "STRATEGY_MERI_TIMEOUT_MS", "value": "80000" }
+        { "name": "STRATEGY_MERI_TIMEOUT_MS", "value": "80000" },
+        { "name": "STRATEGY_REPORT_NARRATIVE_ENABLED", "value": "true" },
+        { "name": "STRATEGY_REPORT_NARRATIVE_TIMEOUT_MS", "value": "45000" },
+        { "name": "REPORT_MEMBER_PHOTO_HOSTS", "value": "img.legistorm.com" }
       ],
       "secrets": [
         {

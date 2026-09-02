@@ -8,6 +8,7 @@ import type {
   StrategyAssistantResponse,
   StrategyDraftResponse,
   StrategyReferenceAssistResponse,
+  StrategyReportNarrativeResponse,
 } from './meri.types.js';
 import { currentStrategyGovernedContext } from './strategy-governed-context.runtime.js';
 
@@ -119,6 +120,31 @@ export class StrategyOrchestratorClient {
     );
   }
 
+  /**
+   * Executive-report narrative. Not a governed Context Plane operation: the
+   * body IS the complete, already audience-filtered evidence packet built by
+   * api-strategy's report snapshot, so there is no second pack to compile. The
+   * hop is still internal-secret + delegated identity like the governed ones,
+   * and api-strategy re-verifies every returned paragraph before rendering.
+   */
+  async reportNarrative(
+    body: unknown,
+    bearerToken: string | undefined,
+    aiProvider?: ResolvedAiProvider,
+    delegation?: ServiceDelegation,
+    timeoutMs?: number,
+  ): Promise<StrategyReportNarrativeResponse> {
+    return this.post<StrategyReportNarrativeResponse>(
+      'strategy-report-narrative',
+      body,
+      bearerToken,
+      aiProvider,
+      true,
+      delegation,
+      timeoutMs,
+    );
+  }
+
   /** Stage E fact extraction is not Strategy plan generation. */
   stewardExtract(
     body: unknown,
@@ -156,6 +182,7 @@ export class StrategyOrchestratorClient {
     aiProvider?: ResolvedAiProvider,
     requireInternalContext = false,
     delegation?: ServiceDelegation,
+    timeoutMs = this.timeoutMs,
   ): Promise<T> {
     if (!this.baseUrl) {
       throw new ServiceUnavailableException('Meri orchestrator is not configured');
@@ -196,7 +223,7 @@ export class StrategyOrchestratorClient {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(`${this.baseUrl}/meri-api/${path}`, {
         method: 'POST',

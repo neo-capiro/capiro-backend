@@ -19,6 +19,47 @@ export function normalizeReportOptions(
       ? false
       : (dto.includeInternalNotes ?? false),
     includeAgentHistory: isClient ? false : (dto.includeAgentHistory ?? false),
+    // Both default on for every audience: the narrative is generated only from
+    // the already audience-filtered snapshot, and member-office profiles are
+    // public-record reference data.
+    includeNarrative: dto.includeNarrative ?? true,
+    includeMemberProfiles: dto.includeMemberProfiles ?? true,
+  };
+}
+
+const MEMBER_DIRECTORIES = new Set(["congress", "state", "staff"]);
+
+/**
+ * Reduce a stored node `targetRef` to the report-safe member reference. Only
+ * congressional and state members are profiled; staff targets are not
+ * "member offices" and are left as plain target labels.
+ */
+export function extractMemberRef(
+  value: unknown,
+): import("./report.types.js").ReportMemberRef | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const memberId =
+    typeof record.memberId === "string" ? record.memberId.trim() : "";
+  if (!memberId) return null;
+  const text = (key: string): string | null => {
+    const candidate = record[key];
+    return typeof candidate === "string" && candidate.trim()
+      ? candidate.trim()
+      : null;
+  };
+  const sourceDirectory = text("sourceDirectory");
+  return {
+    memberId,
+    memberName: text("memberName"),
+    party: text("party"),
+    state: text("state"),
+    chamber: text("chamber"),
+    committee: text("committee"),
+    sourceDirectory:
+      sourceDirectory && MEMBER_DIRECTORIES.has(sourceDirectory)
+        ? (sourceDirectory as "congress" | "state" | "staff")
+        : null,
   };
 }
 

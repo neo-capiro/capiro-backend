@@ -7,11 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
@@ -63,8 +64,11 @@ export class StrategyController {
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,
     @Query() query: ReportPreflightDto,
+    @Req() req: Request,
   ) {
-    return this.reports.preflight(ctx.tenantId, id, query);
+    // The caller's bearer is forwarded (never stored) so member-office detail
+    // can be read from the Directory under the same user's authorization.
+    return this.reports.preflight(ctx.tenantId, id, query, bearerFrom(req));
   }
 
   /** Generate and stream a version-pinned executive Word or PowerPoint report. */
@@ -73,6 +77,7 @@ export class StrategyController {
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,
     @Body() dto: ReportExportDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     let responseEnded = false;
@@ -90,6 +95,7 @@ export class StrategyController {
         ctx.clerkUserId,
         id,
         dto,
+        bearerFrom(req),
       );
       releaseReport = report.release;
       if (responseEnded) report.release();
@@ -99,6 +105,11 @@ export class StrategyController {
       response.setHeader('X-Report-Snapshot-Hash', report.snapshotHash);
       response.setHeader('X-Report-Audience', report.audience);
       response.setHeader('X-Report-Logo-Included', String(report.logoIncluded));
+      response.setHeader('X-Report-Narrative', report.narrativeStatus);
+      response.setHeader(
+        'X-Report-Member-Offices',
+        `${report.memberOffices.resolved}/${report.memberOffices.referenced}`,
+      );
       return new StreamableFile(report.bytes, {
         type: report.contentType,
         disposition: `attachment; filename="${report.filename}"`,
@@ -238,4 +249,11 @@ export class StrategyController {
   ) {
     return this.versions.restore(ctx.tenantId, ctx.clerkUserId, id, versionId);
   }
+}
+
+/** Bearer token TenantGuard verified but did not stash — forwarded to the Directory and orchestrator hops. */
+function bearerFrom(req: Request): string | undefined {
+  const header = req.headers?.authorization;
+  const match = typeof header === 'string' ? /^Bearer\s+(.+)$/i.exec(header) : null;
+  return match?.[1]?.trim() || undefined;
 }

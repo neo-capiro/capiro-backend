@@ -21,6 +21,8 @@ import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js'
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { StrategyAssistantService } from './strategy-assistant.service.js';
+import { StrategyReportNarrativeService } from './strategy-report-narrative.service.js';
+import { parseReportNarrativeInput } from './strategy-report-narrative.prompt.js';
 import type {
   StrategyAssistantInput,
   StrategyDocumentDraftInput,
@@ -42,7 +44,29 @@ export class StrategyController {
   constructor(
     private readonly resolver: MeriContextResolver,
     private readonly assistant: StrategyAssistantService,
+    private readonly reportNarrative: StrategyReportNarrativeService,
   ) {}
+
+  /**
+   * Executive-report narrative. Not a governed Context Plane operation: the
+   * body is the complete evidence packet api-strategy assembled from its
+   * audience-filtered report snapshot, so no pack is compiled here. Internal
+   * secret + delegated identity are still required.
+   */
+  @Post('strategy-report-narrative')
+  async reportNarrativeDraft(
+    @Body() dto: unknown,
+    @CurrentTenant() tc: OrchestratorTenantContext,
+    @Req() req: Request,
+  ) {
+    requireInternalContextProxy(req);
+    const input = parseReportNarrativeInput(dto);
+    if (!input) {
+      throw new BadRequestException('Report narrative requires an audience, strategy and evidence packet');
+    }
+    const ctx = await this.resolver.resolveIdentity(tc);
+    return this.scoped(req, () => this.reportNarrative.generate(ctx, input));
+  }
 
   @Post('strategy-draft')
   async draft(

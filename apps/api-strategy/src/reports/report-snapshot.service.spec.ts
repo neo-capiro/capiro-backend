@@ -67,6 +67,8 @@ describe("report snapshot transaction", () => {
       includeChangeLog: false,
       includeInternalNotes: false,
       includeAgentHistory: false,
+      includeNarrative: true,
+      includeMemberProfiles: true,
     });
 
     expect(withTenant).toHaveBeenCalledWith("tenant-1", expect.any(Function), {
@@ -83,6 +85,8 @@ describe("report snapshot transaction", () => {
       includeChangeLog: false,
       includeInternalNotes: false,
       includeAgentHistory: false,
+      includeNarrative: true,
+      includeMemberProfiles: true,
     });
     expect(internal.strategy.summary).toBe(
       "Internal summary of unaccepted working material.",
@@ -403,6 +407,8 @@ function reportOptions(audience: "client" | "internal") {
     includeChangeLog: false,
     includeInternalNotes: false,
     includeAgentHistory: false,
+    includeNarrative: true,
+    includeMemberProfiles: true,
   };
 }
 

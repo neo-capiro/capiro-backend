@@ -225,6 +225,8 @@ export function ExportOverlay() {
   const [includeChangeLog, setIncludeChangeLog] = useState(false);
   const [includeInternalNotes, setIncludeInternalNotes] = useState(false);
   const [includeAgentHistory, setIncludeAgentHistory] = useState(false);
+  const [includeNarrative, setIncludeNarrative] = useState(true);
+  const [includeMemberProfiles, setIncludeMemberProfiles] = useState(true);
   const [customName, setCustomName] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -246,6 +248,8 @@ export function ExportOverlay() {
       includeChangeLog: audience === 'internal' && includeChangeLog,
       includeInternalNotes: audience === 'internal' && includeInternalNotes,
       includeAgentHistory: audience === 'internal' && includeAgentHistory,
+      includeNarrative,
+      includeMemberProfiles,
     }),
     [
       audience,
@@ -253,6 +257,8 @@ export function ExportOverlay() {
       includeChangeLog,
       includeEvidenceAppendix,
       includeInternalNotes,
+      includeMemberProfiles,
+      includeNarrative,
       includeRoadmap,
       reportFormat,
       useClientLogo,
@@ -312,6 +318,10 @@ export function ExportOverlay() {
   const evidenceUnavailable = evidenceSection?.state === 'empty';
   const effectiveIncludeEvidenceAppendix =
     includeEvidenceAppendix && !evidenceUnavailable;
+  // Until preflight answers, assume the server can narrate so the toggle is
+  // not flashed disabled; the server ignores the flag when it cannot.
+  const narrativeAvailable = preflight.data?.narrative.available ?? true;
+  const memberOffices = preflight.data?.memberOffices ?? null;
 
   const defaultStem = useMemo(() => {
     if (choice === 'markdown') return `${slugify(reportTitle)}-current-plan`;
@@ -445,8 +455,18 @@ export function ExportOverlay() {
         effectiveUseClientLogo && !result.logoIncluded
           ? ' The saved logo could not be embedded, so client-name branding was used.'
           : '';
+      const narrativeNote =
+        result.narrativeStatus === 'generated'
+          ? ' Grounded narrative included.'
+          : result.narrativeStatus === 'fallback'
+            ? ' Narrative was unavailable, so sections render as fact listings.'
+            : '';
+      const memberNote =
+        result.memberOffices && result.memberOffices.referenced > 0
+          ? ` Member offices: ${result.memberOffices.resolved} of ${result.memberOffices.referenced} resolved from the directory.`
+          : '';
       setLiveStatus(
-        `Downloaded ${downloadFilename}.${snapshot}${brandingFallback}`,
+        `Downloaded ${downloadFilename}.${snapshot}${brandingFallback}${narrativeNote}${memberNote}`,
       );
     } catch (error) {
       if ((await errorCodeFromResponse(error)) === 'REPORT_SNAPSHOT_CHANGED') {
@@ -770,9 +790,33 @@ export function ExportOverlay() {
               </p>
               <div className="st-field-stack">
                 <ToggleRow
+                  id="include-narrative"
+                  title="Grounded executive narrative"
+                  description={
+                    narrativeAvailable
+                      ? 'Meri writes the brief and context sections as flowing prose, citing only facts in this snapshot. Anything it cannot ground is dropped and the fact listing is used instead.'
+                      : preflight.data?.narrative.reason ||
+                        'Narrative generation is not available here; sections render as fact listings.'
+                  }
+                  checked={includeNarrative && narrativeAvailable}
+                  disabled={!narrativeAvailable}
+                  onChange={setIncludeNarrative}
+                />
+                <ToggleRow
+                  id="include-member-profiles"
+                  title="Member office profiles"
+                  description={
+                    memberOffices && memberOffices.referenced > 0
+                      ? `${pluralize(memberOffices.referenced, 'congressional office')} targeted by included steps · portrait and Washington office from the public directory (${memberOffices.resolved} resolved).`
+                      : 'Portrait and Washington office cards appear when included steps target a congressional office.'
+                  }
+                  checked={includeMemberProfiles}
+                  onChange={setIncludeMemberProfiles}
+                />
+                <ToggleRow
                   id="include-roadmap"
-                  title="Roadmap & milestones"
-                  description="Show the phased plan, dates, owners and milestone callouts."
+                  title="Roadmap & visual timeline"
+                  description="Show the delivery timeline chart, phased plan, dates, owners and milestone callouts."
                   checked={includeRoadmap}
                   onChange={setIncludeRoadmap}
                 />
