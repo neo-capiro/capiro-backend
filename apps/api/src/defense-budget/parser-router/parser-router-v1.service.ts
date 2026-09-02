@@ -48,6 +48,7 @@ import {
 import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 import { FilesystemExtractionArtifactStore } from './extraction-artifact-store.js';
 import type { LocalParserRuntimeClient } from './local-parser-runtime-client.js';
+import { PARSER_ENGINE_UNAVAILABLE_SENTINEL } from './local-parser-runtime-client.js';
 import {
   executeLlamaParsePages,
   selectParseMode,
@@ -367,6 +368,22 @@ export class ParserRouterV1Service {
     if (!parserVersion) {
       throw new Error(
         `missing exact runtime version for ${engine}; call parser runtime version --json first`,
+      );
+    }
+    /* Phase 10B-21A: explicit, typed routing defense -- matches the Python
+     * runtime's `ENGINE_UNAVAILABLE` sentinel (`engine_versions.py`,
+     * `docling_engine.py`) exactly, rather than relying only on the falsy
+     * check above. A version string that merely LOOKS real (the pre-fix
+     * "docling-unavailable-cpu" shape) would have passed that check and
+     * still been dispatched to an engine that cannot run -- the Phase
+     * 10B-20 production finding. This check is independent of whatever the
+     * Python side currently does: even if a future engine reintroduces a
+     * version-shaped placeholder instead of using the sentinel, refusing on
+     * this exact, greppable value is the second half of the defense. */
+    if (parserVersion === PARSER_ENGINE_UNAVAILABLE_SENTINEL) {
+      throw new Error(
+        `parser engine ${engine} is not available in this runtime image (reported ${PARSER_ENGINE_UNAVAILABLE_SENTINEL}); ` +
+          'this image cannot gracefully escalate to it -- repair the specialized image rather than routing a step to it',
       );
     }
     const parserConfig = getDefaultParserConfig(engine);

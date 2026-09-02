@@ -420,10 +420,19 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
    * than being silently classified away. */
   const trimmedAllText = allText.trim();
   const isBlankPage = trimmedAllText.length <= BLANK_TEXT_MAX_LENGTH;
-  const isCoverPage = COVER_PAGE_RE.test(allText);
-  const isDocLevelToc = DOC_TOC_RE.test(allText);
-  const isAppropriationLanguage = APPROPRIATION_LANGUAGE_RE.test(allText);
-  const isRomanNumeralFrontMatter = ROMAN_NUMERAL_FOOTER_RE.test(allText);
+  /* Guard every content-based front-matter signal on the ABSENCE of a real
+   * structural R-2/R-2A/R-3/R-4 exhibit header: a genuine PE page whose
+   * narrative body incidentally mentions "the Table of Contents" or a
+   * volume/roman-numeral cross-reference must never be reclassified away
+   * from its real exhibit type merely because that phrase appears somewhere
+   * on the page. Only a page with NO competing structural exhibit signal at
+   * all can be proven non-semantic this way. */
+  const isCoverPage = !hasStructuredExhibitSignal && COVER_PAGE_RE.test(allText);
+  const isDocLevelToc = !hasStructuredExhibitSignal && DOC_TOC_RE.test(allText);
+  const isAppropriationLanguage =
+    !hasStructuredExhibitSignal && APPROPRIATION_LANGUAGE_RE.test(allText);
+  const isRomanNumeralFrontMatter =
+    !hasStructuredExhibitSignal && ROMAN_NUMERAL_FOOTER_RE.test(allText);
 
   if (isBlankPage) {
     kind = 'non_semantic';

@@ -23,8 +23,11 @@ from capiro_defense_budget_parser.contracts import (
     ParserRuntimeResultV1,
 )
 from capiro_defense_budget_parser.docling_engine import (
+    DOCLING_PACKAGE_VERSION,
+    ENGINE_UNAVAILABLE,
     ENGINE_VERSION,
     _collect_model_versions,
+    _create_docling_converter,
     _create_page_subset_pdf,
     compute_config_sha256,
     get_default_config,
@@ -400,14 +403,40 @@ class TestOutputMapping:
 
 class TestModelConfigIdentity:
     def test_engine_version_includes_package(self) -> None:
-        assert 'docling' in ENGINE_VERSION
-        assert 'cpu' in ENGINE_VERSION
+        if DOCLING_PACKAGE_VERSION is not None:
+            assert 'docling' in ENGINE_VERSION
+            assert 'cpu' in ENGINE_VERSION
+        else:
+            # Phase 10B-21A: when docling genuinely is not installed (as in
+            # this specialized-image-equivalent test environment),
+            # ENGINE_VERSION must be the typed unavailable sentinel, never a
+            # version-shaped placeholder string -- a placeholder like
+            # "docling-unavailable-cpu" is truthy and was exactly how a
+            # runtime lacking this optional dependency got dispatched to an
+            # engine that cannot run (Phase 10B-20 production finding).
+            assert ENGINE_VERSION == ENGINE_UNAVAILABLE
 
     def test_model_versions_collected(self) -> None:
         cfg = get_default_config()
         versions = _collect_model_versions(cfg)
         assert len(versions) >= 1
-        assert any('docling' in v for v in versions)
+        if DOCLING_PACKAGE_VERSION is not None:
+            assert any('docling' in v for v in versions)
+        else:
+            assert versions[0] == ENGINE_UNAVAILABLE
+
+    def test_unavailable_engine_refuses_with_runtime_error_not_name_error(self) -> None:
+        """Phase 10B-21A regression: `docling` must be a bound name (None)
+        in every import-failure branch. The Phase 10B-20 production bug was
+        exactly this: `except ImportError: DOCLING_PACKAGE_VERSION = None`
+        never bound `docling` itself, so `_create_docling_converter`'s own
+        `if docling is None:` guard raised a bare NameError instead of the
+        RuntimeError it was written to raise -- an unguarded crash instead
+        of a clean, catchable refusal."""
+        if DOCLING_PACKAGE_VERSION is not None:
+            pytest.skip('docling is installed in this environment; NameError regression not reproducible here')
+        with pytest.raises(RuntimeError, match='Docling is not installed'):
+            _create_docling_converter(get_default_config())
 
     def test_config_sha_deterministic(self) -> None:
         cfg1 = get_default_config()

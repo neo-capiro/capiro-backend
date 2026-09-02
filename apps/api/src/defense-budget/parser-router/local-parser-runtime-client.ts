@@ -30,6 +30,14 @@ export interface ParserRuntimeVersionInfoV1 {
   engines: Partial<Record<ExtractionMethodV1, string>>;
 }
 
+/** Phase 10B-21A: mirrors the Python runtime's `ENGINE_UNAVAILABLE` sentinel
+ * exactly (`engine_versions.py`, `docling_engine.py`) -- an engine this
+ * runtime image genuinely does not have installed reports this exact value
+ * rather than a version-shaped placeholder string, so callers can refuse
+ * to dispatch to it with an explicit equality check instead of relying only
+ * on truthiness. */
+export const PARSER_ENGINE_UNAVAILABLE_SENTINEL = 'ENGINE_UNAVAILABLE';
+
 export class LocalParserRuntimeClient {
   private readonly command: string;
   private readonly commandArgs: string[];

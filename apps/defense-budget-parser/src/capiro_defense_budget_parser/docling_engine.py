@@ -52,15 +52,30 @@ from .pdf_profile import compute_file_sha256, verify_source_sha256
 
 ENGINE_NAME = 'docling'
 
-# Lazy import so the module loads without Docling installed.
+# Phase 10B-21A: typed, explicit "engine unavailable" sentinel. Never a
+# version-shaped string like "docling-unavailable-cpu" -- those pass a plain
+# truthiness check in the TypeScript router and were exactly how a specialized
+# image that deliberately omits this optional dependency ended up dispatched
+# to an engine that cannot run, crashing with a raw NameError instead of
+# refusing cleanly (Phase 10B-20 finding).
+ENGINE_UNAVAILABLE = 'ENGINE_UNAVAILABLE'
+
+# Lazy import so the module loads without Docling installed. `docling` MUST be
+# bound to a concrete value (None on failure) in every branch: leaving the
+# name unbound on ImportError is what turned `_create_docling_converter`'s own
+# `if docling is None:` guard into a NameError instead of the RuntimeError it
+# was written to raise.
 try:
     import docling  # type: ignore[import-not-found]
 
     DOCLING_PACKAGE_VERSION: str | None = getattr(docling, '__version__', 'unknown')
 except ImportError:
+    docling = None  # type: ignore[assignment]
     DOCLING_PACKAGE_VERSION = None
 
-ENGINE_VERSION = f'docling-{DOCLING_PACKAGE_VERSION or "unavailable"}-cpu'
+ENGINE_VERSION = (
+    f'docling-{DOCLING_PACKAGE_VERSION}-cpu' if DOCLING_PACKAGE_VERSION is not None else ENGINE_UNAVAILABLE
+)
 
 # ------------------------------------------------------------------ #
 # Default configuration (H1, H4)
