@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
+import { Paperclip } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { CapiroModal } from '../../components/overlays/index.js';
 import { CapiroButton } from '../../components/actions/index.js';
@@ -67,6 +68,8 @@ export function EmailComposeModal({
   const [bodyHtml, setBodyHtml] = useState('');
   const [preRewriteBodyHtml, setPreRewriteBodyHtml] = useState<string | null>(null);
   const [rewriteNote, setRewriteNote] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Array<{ id: string; fileName: string }>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -78,9 +81,45 @@ export function EmailComposeModal({
       setBodyHtml('');
       setPreRewriteBodyHtml(null);
       setRewriteNote(null);
+      setAttachments([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, to.email, threadId]);
+
+  // Same upload-url -> S3 -> confirm flow CapabilityDrawerVNext.tsx already
+  // uses for document attachments — no new upload plumbing. A freshly
+  // uploaded file can still be mid-scan when the user hits Send; that's
+  // surfaced honestly as a real send error (loadGraphAttachments'
+  // ATTACHMENT_NOT_READY) rather than pretended away, since there's no
+  // reliable point at which "scan finished" is guaranteed within a compose
+  // window's lifetime.
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const contentType = file.type || 'application/octet-stream';
+      const presigned = (
+        await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+          '/api/engagement/attachments/upload-url',
+          { clientId, fileName: file.name, contentType, contentLength: file.size },
+        )
+      ).data;
+      const form = new FormData();
+      Object.entries(presigned.fields).forEach(([key, value]) => form.append(key, value));
+      form.append('file', file);
+      const s3Res = await fetch(presigned.url, { method: 'POST', body: form });
+      if (!s3Res.ok) throw new Error('Upload to storage failed');
+      return (
+        await api.post<{ id: string; fileName: string }>('/api/engagement/attachments/confirm', {
+          clientId,
+          fileName: file.name,
+          contentType,
+          s3Key: presigned.s3Key,
+          source: 'email-compose',
+        })
+      ).data;
+    },
+    onSuccess: (attachment) => setAttachments((current) => [...current, attachment]),
+    onError: (error) => toast.error(mailErrorMessage(error, 'Could not attach that file')),
+  });
 
   const signatureQ = useQuery({
     enabled: open,
@@ -120,6 +159,7 @@ export function EmailComposeModal({
         subject: subject.trim(),
         bodyHtml,
         threadId,
+        attachmentIds: attachments.length ? attachments.map((a) => a.id) : undefined,
       }),
     onSuccess: () => {
       toast.success('Email sent');
@@ -196,7 +236,52 @@ export function EmailComposeModal({
           onChange={setBodyHtml}
           placeholder="Write your notes, or a full message — then Rewrite with Meri to polish rough notes into a coherent email."
           variant="email"
+          extraToolbarActions={
+            <>
+              <button
+                type="button"
+                className="stv-rte-btn"
+                title="Attach a file"
+                aria-label="Attach a file"
+                disabled={upload.isPending}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip size={15} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (file) upload.mutate(file);
+                }}
+              />
+            </>
+          }
         />
+
+        {attachments.length > 0 ? (
+          <div className="stv-rte-attachments">
+            {attachments.map((attachment) => (
+              <span key={attachment.id} className="stv-rte-attachment">
+                <span className="stv-rte-attachment-name">{attachment.fileName}</span>
+                <button
+                  type="button"
+                  className="stv-rte-attachment-remove"
+                  aria-label={`Remove ${attachment.fileName}`}
+                  onClick={() =>
+                    setAttachments((current) => current.filter((a) => a.id !== attachment.id))
+                  }
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         {rewriteNote ? <p className="capiro-email-compose__rewrite-note">{rewriteNote}</p> : null}
 
@@ -245,7 +330,7 @@ export function EmailComposeModal({
           variant="primary"
           size="standard"
           loading={send.isPending}
-          disabled={!canSend || rewrite.isPending}
+          disabled={!canSend || rewrite.isPending || upload.isPending}
           onClick={() => send.mutate()}
         >
           Send
