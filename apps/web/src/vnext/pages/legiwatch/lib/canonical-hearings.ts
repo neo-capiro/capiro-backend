@@ -49,9 +49,14 @@ import { normalizeCalendarPage, liveHearingApiError } from '../../../../pages/ra
 import type { LiveHearingCalendarPage } from '../../../../pages/radar/live-hearings/live-hearings.types.js';
 
 export interface WeekRangeParams {
-  /** Inclusive Eastern calendar day `YYYY-MM-DD`. */
+  /** Inclusive Eastern calendar day `YYYY-MM-DD` (the week's Monday). */
   from: string;
-  /** Exclusive Eastern calendar day `YYYY-MM-DD` (the Monday after the week). */
+  /**
+   * Inclusive Eastern calendar day `YYYY-MM-DD` (the week's Sunday). The API
+   * filters `date.lte`, so both ends are INCLUSIVE — a Sunday hearing is inside
+   * the range. Never send the following Monday here: it would pull next week's
+   * rows into this week's query.
+   */
   to: string;
   eventStatus?: string;
   chamber?: string;

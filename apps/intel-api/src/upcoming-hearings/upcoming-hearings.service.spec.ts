@@ -79,8 +79,13 @@ describe('upcoming-hearings date/time + visibility contract (LW-QA-001/002)', ()
         id: 'cm-119-119533',
         title: 'Industrial Base and Workforce Development for Skilled Trades',
         date: new Date('2026-09-04T00:00:00.000Z'),
-        startsAt: new Date('2026-09-04T17:00:00.000Z'),
+        // 2026-09-04 CORRECTION: the official committee announcement states the
+        // Santa Clarita field hearing starts 1:00 PM PT — 20:00Z, displayed as
+        // 1:00 PM PT / 4:00 PM ET. The earlier 17:00Z fixture canonized the
+        // central calendar's mis-zoned encoding and is forbidden as a regression.
+        startsAt: new Date('2026-09-04T20:00:00.000Z'),
         time: '1:00 PM',
+        timezone: 'America/Los_Angeles',
         location: 'College of the Canyons Performing Arts Center, Santa Clarita, CA',
         url: 'https://www.congress.gov/event/119th-Congress/house-event/119533',
       }),
@@ -88,8 +93,23 @@ describe('upcoming-hearings date/time + visibility contract (LW-QA-001/002)', ()
     // 13:00Z is 9:00 AM ET — not 8:00 PM the day before.
     expect(new Date(items[0]!.startsAt!).toISOString()).toBe('2026-09-03T13:00:00.000Z');
     expect(items[0]!.scheduledAt).toBe('2026-09-03');
-    // 17:00Z is 1:00 PM ET on Sep 4 — the day never shifts backward.
-    expect(new Date(items[1]!.startsAt!).getUTCDate()).toBe(4);
+    // The field hearing is the CORRECTED 20:00Z instant in the source zone.
+    expect(new Date(items[1]!.startsAt!).toISOString()).toBe('2026-09-04T20:00:00.000Z');
     expect(items[1]!.scheduledAt).toBe('2026-09-04');
+    expect(items[1]!.timezone).toBe('America/Los_Angeles');
+  });
+
+  it('REGRESSION: the mis-zoned 17:00Z encoding of cm-119-119533 never returns', async () => {
+    const items = await listRows([
+      row({
+        id: 'cm-119-119533',
+        date: new Date('2026-09-04T00:00:00.000Z'),
+        startsAt: new Date('2026-09-04T20:00:00.000Z'),
+        timezone: 'America/Los_Angeles',
+      }),
+    ]);
+    const iso = new Date(items[0]!.startsAt!).toISOString();
+    expect(iso).toBe('2026-09-04T20:00:00.000Z'); // 1:00 PM PT
+    expect(iso).not.toBe('2026-09-04T17:00:00.000Z'); // the 1:00 PM-as-ET mis-encoding
   });
 });

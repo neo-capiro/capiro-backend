@@ -32,6 +32,7 @@ import {
   type ExistingHearing,
   type ProjectedHearing,
 } from './canonical-diff.js';
+import { ET_ZONE } from './hearing-time.js';
 import type { CommitteeUpdateObservation, SourceEvent } from './hearing-discovery.types.js';
 
 /**
@@ -68,6 +69,7 @@ const EXISTING_SELECT = {
   date: true,
   startsAt: true,
   time: true,
+  timezone: true,
   location: true,
   url: true,
   witnesses: true,
@@ -178,6 +180,7 @@ export class CanonicalHearingRepository {
             date: projected.calendarDate as Date,
             time: projected.displayTime,
             startsAt: projected.startsAt,
+            timezone: projected.timeZone ?? ET_ZONE,
             location: projected.location,
             type: normalizeEventType(projected.eventType),
             witnesses: projected.witnesses,

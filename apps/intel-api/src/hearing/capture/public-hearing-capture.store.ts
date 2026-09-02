@@ -151,6 +151,26 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
       input.now,
     );
     if (inserted[0]) return mapCapture(inserted[0]);
+    // RESCHEDULE PROPAGATION (2026-09-04): the official start can change after
+    // the capture row was created (field-hearing time correction). Propagate the
+    // corrected instant into the EXISTING capture row — idempotently, and only
+    // while the capture is still waiting on an allowlist of pre-start states:
+    // never rewrite a terminal row, never rewrite one that is capturing or
+    // already started (actual_start is history, not schedule). No second capture
+    // row is created; the dedupe key (hearing_id) is untouched.
+    const rescheduled = await this.prisma.$queryRawUnsafe<CaptureRow[]>(
+      `UPDATE public_hearing_capture
+          SET scheduled_start = $2, updated_at = $3
+        WHERE hearing_id = $1
+          AND status IN ('SCHEDULED','PREPARING','WAITING_FOR_STREAM','READY')
+          AND actual_start IS NULL
+          AND (scheduled_start IS NULL OR scheduled_start <> $2)
+        RETURNING ${CAPTURE_COLUMNS}`,
+      input.hearingId,
+      input.scheduledStart ?? null,
+      input.now,
+    );
+    if (rescheduled[0]) return mapCapture(rescheduled[0]);
     const rows = await this.prisma.$queryRawUnsafe<CaptureRow[]>(
       `SELECT ${CAPTURE_COLUMNS} FROM public_hearing_capture WHERE hearing_id = $1`,
       input.hearingId,

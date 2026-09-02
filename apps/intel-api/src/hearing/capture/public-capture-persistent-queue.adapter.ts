@@ -126,7 +126,13 @@ export class PublicCapturePersistentQueueAdapter
          (job_type, dedupe_key, hearing_id, capture_id, status, due_at, payload, created_at, updated_at)
        VALUES ('preflight', $1, $2, NULL, 'pending', $3, '{}'::jsonb, now(), now())
        ON CONFLICT (dedupe_key) DO UPDATE SET
-         due_at = LEAST(public_hearing_capture_job.due_at, EXCLUDED.due_at),
+         -- Last-write-wins, not LEAST(): the orchestrator recomputes due_at from
+         -- the preflight policy on every pass, so the freshest computation is
+         -- always the correct one. LEAST() made a checkpoint move EARLIER but
+         -- never LATER, which permanently pinned stale-early checkpoints after
+         -- an official start moved later (2026-09-04 reschedule defect class)
+         -- and burned attempts against the old time until the job died.
+         due_at = EXCLUDED.due_at,
          status = CASE
            WHEN public_hearing_capture_job.status IN ('completed','failed') THEN 'pending'
            ELSE public_hearing_capture_job.status

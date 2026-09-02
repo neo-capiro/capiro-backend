@@ -136,6 +136,7 @@ export class DiscoveryJobsService {
         title: row.title,
         calendarDate: row.date,
         startsAt: row.startsAt,
+        timeZone: null,
         officialPageUrl: row.url,
       };
       await sleep(ctx.delayMs);

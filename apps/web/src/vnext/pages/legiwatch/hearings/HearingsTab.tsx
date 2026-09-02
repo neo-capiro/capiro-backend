@@ -88,20 +88,30 @@ function toLegacyHearing(e: CanonicalHearingEvent): UpcomingHearing {
 }
 
 /** vNext capability for a canonical row (LW-QA-002): visibility FIRST. */
-function canonicalCapability(e: CanonicalHearingEvent): {
+export function canonicalCapability(e: CanonicalHearingEvent): {
   capability: HearingCapability;
   closed: boolean;
   reason: string;
 } {
   const access = (e.publicAccessStatus ?? 'UNKNOWN').toUpperCase();
-  if (access === 'CLOSED' || access === 'PRIVATE' || access === 'UNKNOWN') {
+  // LW-QA-002 review item A: UNKNOWN is NOT CLOSED. A closed session is a
+  // verified negative ("closed session — no public stream"); an unverified one
+  // simply has not had its public access confirmed from official metadata.
+  // Closed/PRIVATE → labeled CLOSED SESSION, no capture action. UNKNOWN →
+  // labeled "Public access unverified", fail-closed for capture (no affordance,
+  // consent inert), but never labeled as a closed session.
+  if (access === 'CLOSED' || access === 'PRIVATE') {
     return {
       capability: 'unavailable',
       closed: true,
-      reason:
-        access === 'UNKNOWN'
-          ? 'Public access could not be verified from official source metadata.'
-          : 'Closed session — no public stream.',
+      reason: 'Closed session — no public stream.',
+    };
+  }
+  if (access === 'UNKNOWN') {
+    return {
+      capability: 'unavailable',
+      closed: false,
+      reason: 'Public access unverified — official source metadata does not confirm public access yet.',
     };
   }
   const server = serverCaptureCapability(e);
@@ -297,7 +307,14 @@ export function HearingsTab({ scope }: { scope: string }) {
                   {formatHearingDay(parseHearingMoment({ date: weekDays[6] ?? '' }))}
                 </span>
                 <span className="lw-card__meta">
-                  {visibleCount} proceedings · {serverTotal > rows.length ? 'showing first 200' : `${totalMatches0(rows)} client matches`}
+                  {/* Honest header (LW-QA-005 review item E): the count is the
+                      server total for the visible range (bounded by the first
+                      page), and the secondary count is subscriptions scheduled
+                      by the user — never implied to be "matches". */}
+                  {visibleCount} proceedings ·{' '}
+                  {serverTotal > rows.length
+                    ? `showing first ${rows.length}`
+                    : `${totalMatches0(rows)} scheduled by you`}
                 </span>
                 <LwButton
                   onClick={() => {

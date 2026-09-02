@@ -47,6 +47,7 @@ function obs(overrides: Partial<ProjectableObservation> = {}): ProjectableObserv
     startsAt: new Date('2026-09-17T14:00:00.000Z'),
     calendarDate: day('2026-09-17'),
     displayTime: '10:00 AM',
+    timeZone: null,
     location: 'Rayburn House Office Building, Room 2123',
     officialPageUrl: 'https://www.congress.gov/event/119th-Congress/house-event/119504',
     witnesses: ['Jane Doe, Chair, NRC'],
@@ -70,6 +71,7 @@ function existing(overrides: Partial<ExistingHearing> = {}): ExistingHearing {
     date: day('2026-09-17'),
     startsAt: new Date('2026-09-17T14:00:00.000Z'),
     time: '10:00 AM',
+    timezone: 'America/New_York',
     location: 'Rayburn House Office Building, Room 2123',
     url: 'https://www.congress.gov/event/119th-Congress/house-event/119504',
     witnesses: ['Jane Doe, Chair, NRC'],
@@ -340,5 +342,97 @@ describe('planCanonicalWrite — idempotence and noise suppression', () => {
       now: new Date('2026-08-21T12:00:00.000Z'),
     });
     expect(first.updates[0]?.contentHash).toBe(second.updates[0]?.contentHash);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Field-hearing timezone authority (2026-09-04 correction, QA brief §2–§5).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('field-hearing timezone authority in planCanonicalWrite', () => {
+  it('REGRESSION: an explicit local-zone observation overwrites a legacy-owned cm-* start time', () => {
+    // cm-119-119533: legacy row says 17:00Z (the mis-zoned central-calendar
+    // encoding); the reconciled observation carries the official 1:00 PM PT
+    // (20:00Z) with an explicit zone. The projection MUST win despite legacy
+    // ownership — otherwise the correction can never reach the row.
+    const existingRow = existing({
+      id: 'cm-119-119533',
+      startsAt: new Date('2026-09-04T17:00:00.000Z'),
+      time: '1:00 PM',
+    });
+    const projectedWithZone = {
+      ...projectCanonical([
+        obs({
+          startsAt: new Date('2026-09-04T20:00:00.000Z'),
+          calendarDate: day('2026-09-04'),
+          displayTime: '1:00 PM',
+          timeZone: 'America/Los_Angeles',
+        }),
+      ]),
+    };
+    const plan = planCanonicalWrite(existingRow, projectedWithZone, WRITE_OPTS);
+    expect(plan.patch.startsAt).toEqual(new Date('2026-09-04T20:00:00.000Z'));
+    expect(plan.patch.timezone).toBe('America/Los_Angeles');
+    expect(plan.changedFields).toContain('startsAt');
+    expect(plan.changedFields).toContain('timezone');
+  });
+
+  it('an observation WITHOUT an explicit zone keeps the legacy fill-only contract', () => {
+    const existingRow = existing({
+      id: 'cm-119-119533',
+      startsAt: new Date('2026-09-04T17:00:00.000Z'),
+      time: '1:00 PM',
+    });
+    const plan = planCanonicalWrite(
+      existingRow,
+      projectCanonical([obs({ startsAt: new Date('2026-09-04T20:00:00.000Z'), timeZone: null })]),
+      WRITE_OPTS,
+    );
+    expect(plan.patch.startsAt).toBeUndefined(); // signal only, no write
+    expect(plan.patch.timezone).toBeUndefined();
+    expect(plan.changedFields).toContain('startsAt'); // divergence still reported
+  });
+
+  it('the time quartet is projected atomically — no 17:00Z/PT chimera', () => {
+    // Source A (higher priority): corrected PT observation. Source B (lower):
+    // stale 17:00Z ET encoding. The quartet must come from ONE observation.
+    const projected = projectCanonical([
+      obs({
+        startsAt: new Date('2026-09-04T20:00:00.000Z'),
+        calendarDate: day('2026-09-04'),
+        displayTime: '1:00 PM',
+        timeZone: 'America/Los_Angeles',
+      }),
+      obs({
+        sourceId: 'src-legacy',
+        adapterKey: 'congress-gov-legacy',
+        sourcePriority: 50,
+        startsAt: new Date('2026-09-04T17:00:00.000Z'),
+        calendarDate: day('2026-09-04'),
+        displayTime: '1:00 PM',
+        timeZone: null,
+      }),
+    ]);
+    expect(projected.startsAt).toEqual(new Date('2026-09-04T20:00:00.000Z'));
+    expect(projected.timeZone).toBe('America/Los_Angeles');
+    expect(projected.displayTime).toBe('1:00 PM');
+  });
+
+  it('legacy ET rows stay untouched: same instant + ET zone → no patch, no revision bump', () => {
+    const existingRow = existing({ id: 'cm-119-119528' });
+    const plan = planCanonicalWrite(
+      existingRow,
+      projectCanonical([
+        obs({
+          startsAt: new Date('2026-09-17T14:00:00.000Z'),
+          calendarDate: day('2026-09-17'),
+          displayTime: '10:00 AM',
+          timeZone: 'America/New_York',
+        }),
+      ]),
+      WRITE_OPTS,
+    );
+    expect(plan.patch.startsAt).toBeUndefined();
+    expect(plan.patch.timezone).toBeUndefined();
+    expect(plan.patch.sourceRevision).toBeUndefined();
   });
 });

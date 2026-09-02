@@ -9,6 +9,7 @@ import {
   calendarBucketIndex,
   calendarDayParts,
   easternDayOf,
+  easternWeekDaysFor,
   formatHearingDay,
   formatHearingMoment,
   formatHearingTime,
@@ -30,6 +31,17 @@ describe('calendarDayParts', () => {
     expect(calendarDayParts('2026-13-01')).toBeNull();
     expect(calendarDayParts('2026-09-32')).toBeNull();
     expect(calendarDayParts(null)).toBeNull();
+  });
+
+  it('rejects structurally valid but impossible dates by calendar round-trip (QA review C)', () => {
+    expect(calendarDayParts('2026-02-31')).toBeNull(); // Feb 31 does not exist
+    expect(calendarDayParts('2026-04-31')).toBeNull(); // April has 30 days
+    expect(calendarDayParts('2026-02-30')).toBeNull();
+    expect(calendarDayParts('2026-06-31')).toBeNull();
+    // …while every real day still parses, including leap days.
+    expect(calendarDayParts('2026-02-28')).toEqual({ y: 2026, m: 2, d: 28 });
+    expect(calendarDayParts('2028-02-29')).toEqual({ y: 2028, m: 2, d: 29 }); // leap year
+    expect(calendarDayParts('2026-12-31')).toEqual({ y: 2026, m: 12, d: 31 });
   });
 });
 
@@ -80,14 +92,37 @@ describe('formatHearingTime — official QA samples', () => {
   });
 
   it('Renders a non-Eastern instant with the ET equivalent (dual time)', () => {
-    // 17:00Z is 10:00 AM PT and 1:00 PM ET — dual label required by the contract.
+    // The Santa Clarita field hearing: 20:00Z is 1:00 PM PT and 4:00 PM ET.
     const m = parseHearingMoment({
+      date: '2026-09-04',
+      startsAt: '2026-09-04T20:00:00.000Z',
+      timeZone: 'America/Los_Angeles',
+    });
+    const label = formatHearingTime(m);
+    expect(label).toMatch(/^1:00 PM PT \(4:00 PM ET\)$/);
+  });
+
+  it('REGRESSION (2026-09-04): cm-119-119533 renders 1:00 PM PT / 4:00 PM ET — never 17:00Z-as-ET', () => {
+    // The official announcement: September 4, 2026, 1:00 PM PT, College of the
+    // Canyons, Santa Clarita. The corrected instant is 20:00Z; the prior
+    // fixture (17:00Z → "10:00 AM PT (1:00 PM ET)") canonized the central
+    // calendar's mis-zoned encoding.
+    const corrected = parseHearingMoment({
+      date: '2026-09-04',
+      startsAt: '2026-09-04T20:00:00.000Z',
+      time: '1:00 PM',
+      timeZone: 'America/Los_Angeles',
+    });
+    expect(formatHearingTime(corrected)).toBe('1:00 PM PT (4:00 PM ET)');
+    expect(formatHearingMoment(corrected)).toBe('Fri, Sep 4 · 1:00 PM PT (4:00 PM ET)');
+    // The forbidden encoding: 17:00Z would read 10:00 AM PT / 1:00 PM ET.
+    const forbidden = parseHearingMoment({
       date: '2026-09-04',
       startsAt: '2026-09-04T17:00:00.000Z',
       timeZone: 'America/Los_Angeles',
     });
-    const label = formatHearingTime(m);
-    expect(label).toMatch(/^10:00 AM PT \(1:00 PM ET\)$/);
+    expect(formatHearingTime(forbidden)).toBe('10:00 AM PT (1:00 PM ET)');
+    expect(formatHearingTime(forbidden)).not.toBe(formatHearingTime(corrected));
   });
 
   it('Midnight-UTC regression: a date-only 2026-09-03 record is never "8:00 PM" anything', () => {
@@ -151,5 +186,56 @@ describe('formatHearingMoment — full label shape', () => {
   it('date-only keeps the day and refuses a time', () => {
     const m = parseHearingMoment({ date: '2026-09-04', startsAt: null });
     expect(formatHearingMoment(m)).toBe('Fri, Sep 4 · Time not announced');
+  });
+});
+
+describe('easternWeekDaysFor — pure Eastern week anchor + inclusive Sunday (QA review B/D)', () => {
+  it('anchors the week by Eastern calendar day, not the browser local zone', () => {
+    // 2026-09-02 20:00Z is Wed Sep 2 in ET but Wed Sep 2 1 PM PT / still Sep 2
+    // in UTC — pick an instant whose EASTERN and UTC days disagree with a
+    // Pacific reading to prove the anchor is Eastern-only.
+    // 2026-08-31T03:30Z is Sun Aug 30 11:30 PM ET — the Eastern day is Aug 30,
+    // so the week must anchor on Mon Aug 24, NOT Mon Aug 31 (what a UTC/PT
+    // reading of the instant would give).
+    const anchor = new Date('2026-08-31T03:30:00.000Z');
+    expect(easternDayOf(anchor.toISOString())).toBe('2026-08-30');
+    const week = easternWeekDaysFor(anchor);
+    expect(week[0]).toBe('2026-08-24'); // Monday of the EASTERN week
+    expect(week[6]).toBe('2026-08-30'); // Sunday
+  });
+
+  it('the same instant selects the same week under ET, PT and UTC browser zones', () => {
+    // Pure functions take an instant; the old implementation leaked the host
+    // zone through new Date() getters. Assert the contract directly: one
+    // instant, one week, regardless of where the operator sits. (The hook wraps
+    // this function in useMemo with no additional zone input.)
+    const anchor = new Date('2026-09-02T12:00:00.000Z');
+    const expected = ['2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06'];
+    expect(easternWeekDaysFor(anchor)).toEqual(expected);
+    // And a late-evening ET instant that is already "tomorrow" in UTC must
+    // still anchor on the Eastern day.
+    const lateEt = new Date('2026-09-02T03:30:00.000Z'); // Tue Sep 1 11:30 PM ET, Wed Sep 2 UTC
+    expect(easternWeekDaysFor(lateEt)[0]).toBe('2026-08-31');
+  });
+
+  it('Sunday is INCLUSIVE at the range end so the final day cannot disappear', () => {
+    // 2026-09-06 is a Sunday. The week bucket containing it ends on that day.
+    const anchor = new Date('2026-09-06T18:00:00.000Z'); // Sunday Sep 6 2:00 PM ET
+    const week = easternWeekDaysFor(anchor);
+    expect(week[6]).toBe('2026-09-06');
+    expect(new Date(Date.UTC(2026, 8, 6)).getUTCDay()).toBe(0); // sanity: 2026-09-06 IS a Sunday (UTC)
+    // A Sunday hearing buckets INTO the week (not shifted out).
+    const sundayHearing = parseHearingMoment({ date: '2026-09-06', startsAt: null });
+    expect(calendarBucketIndex(sundayHearing, week)).toBe(6);
+  });
+
+  it('a Pacific field hearing lands in the calendar by its source zone day (no bucket shift)', () => {
+    const week = ['2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06'];
+    const m = parseHearingMoment({
+      date: '2026-09-04',
+      startsAt: '2026-09-04T20:00:00.000Z', // 1:00 PM PT Sep 4
+      timeZone: 'America/Los_Angeles',
+    });
+    expect(calendarBucketIndex(m, week)).toBe(4); // Friday, same day in ET too (4:00 PM ET)
   });
 });

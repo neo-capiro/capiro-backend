@@ -59,7 +59,12 @@ export interface HearingMoment extends HearingMomentInput {
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})/;
 
-/** `YYYY-MM-DD` (or ISO prefix) → validated parts, or null. Never parses to a Date. */
+/**
+ * `YYYY-MM-DD` (or ISO prefix) → validated parts, or null. Never parses to a
+ * Date. Validation is a CALENDAR ROUND-TRIP (LW-QA-005 review item C): a
+ * structurally valid but impossible day like 2026-02-31 or 2026-04-31 is
+ * rejected because Date.UTC normalizes it into the next month.
+ */
 export function calendarDayParts(value: string | null | undefined): { y: number; m: number; d: number } | null {
   const m = value ? DAY_RE.exec(value.trim()) : null;
   if (!m || !m[1] || !m[2] || !m[3]) return null;
@@ -67,6 +72,14 @@ export function calendarDayParts(value: string | null | undefined): { y: number;
   const mo = Number(m[2]);
   const d = Number(m[3]);
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const roundTrip = new Date(Date.UTC(y, mo - 1, d));
+  if (
+    roundTrip.getUTCFullYear() !== y ||
+    roundTrip.getUTCMonth() !== mo - 1 ||
+    roundTrip.getUTCDate() !== d
+  ) {
+    return null;
+  }
   return { y, m: mo, d };
 }
 
@@ -181,26 +194,35 @@ export function calendarBucketIndex(m: HearingMoment, weekDays: string[]): numbe
 }
 
 /**
- * Hook: Eastern-calendar day strings for the week grid. The whole module
- * buckets and labels days in ONE zone so counts and chips always agree.
+ * Pure Eastern-calendar week days (Monday..Sunday, INCLUSIVE both ends) for an
+ * anchor instant. See the hook below for the contract.
  */
+export function easternWeekDaysFor(anchor: Date): string[] {
+  // Anchor in pure Eastern civil days: project the anchor instant onto the
+  // Eastern calendar, then walk seven civil days. No local-time arithmetic, so
+  // the same instant selects the same week in any browser timezone.
+  const anchorDay = easternDayOf(anchor.toISOString()) ?? anchor.toISOString().slice(0, 10);
+  const [yStr, mStr, dStr] = anchorDay.split('-');
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return [];
+  const anchorUtc = new Date(Date.UTC(y, m - 1, d));
+  const day = (anchorUtc.getUTCDay() + 6) % 7; // Monday-start, computed in UTC on the Eastern civil day
+  const weekStart = anchorUtc.getTime() - day * 86_400_000; // back to the week's Monday
+  const out: string[] = [];
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'UTC', // civil-day arithmetic already anchored; format from parts
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  for (let i = 0; i < 7; i++) {
+    out.push(fmt.format(new Date(weekStart + i * 86_400_000))); // en-CA → YYYY-MM-DD
+  }
+  return out;
+}
+
 export function useEasternWeekDays(anchor: Date): string[] {
-  return useMemo(() => {
-    const d = new Date(anchor);
-    const day = (d.getDay() + 6) % 7; // Monday-start
-    d.setDate(d.getDate() - day);
-    const out: string[] = [];
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: LW_PRIMARY_TIME_ZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    for (let i = 0; i < 7; i++) {
-      const x = new Date(d);
-      x.setDate(d.getDate() + i);
-      out.push(fmt.format(x)); // en-CA → YYYY-MM-DD
-    }
-    return out;
-  }, [anchor]);
+  return useMemo(() => easternWeekDaysFor(anchor), [anchor]);
 }

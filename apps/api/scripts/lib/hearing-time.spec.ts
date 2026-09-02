@@ -202,3 +202,152 @@ describe('hearing-time: Eastern derivation', () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Zone-aware layer (2026-09-04 field-hearing correction, QA brief §2–§4).
+// ─────────────────────────────────────────────────────────────────────────────
+import {
+  normalizeSourceZone,
+  resolveSourceTime,
+  zoneWallClockToInstant,
+  isValidIanaZone,
+} from '../../src/hearing-discovery/hearing-time.js';
+
+describe('hearing-time: zone-aware layer (field hearings)', () => {
+  it('resolveSourceTime corrects the Santa Clarita field hearing to 20:00Z (1:00 PM PT)', () => {
+    // What the central calendar publishes: "1:00 PM" encoded as an Eastern
+    // instant (17:00Z). What the official announcement says: 1:00 PM PT.
+    const resolved = resolveSourceTime({
+      instant: new Date('2026-09-04T17:00:00.000Z'),
+      calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+      displayClock: '1:00 PM',
+      zoneToken: 'PT',
+    });
+    expect(resolved.authority).toBe('explicit_local');
+    expect(resolved.startsAt!.toISOString()).toBe('2026-09-04T20:00:00.000Z');
+    expect(resolved.displayTime).toBe('1:00 PM');
+    expect(resolved.timeZone).toBe('America/Los_Angeles');
+  });
+
+  it('REGRESSION: the mis-zoned 17:00Z encoding never survives an explicit PT observation', () => {
+    const resolved = resolveSourceTime({
+      instant: new Date('2026-09-04T17:00:00.000Z'),
+      calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+      displayClock: '1:00 PM',
+      zoneToken: 'America/Los_Angeles',
+    });
+    expect(resolved.startsAt!.toISOString()).not.toBe('2026-09-04T17:00:00.000Z');
+    expect(resolved.startsAt!.toISOString()).toBe('2026-09-04T20:00:00.000Z');
+  });
+
+  it('keeps normal Washington hearings on the Eastern instant verbatim (no zone statement)', () => {
+    const resolved = resolveSourceTime({
+      instant: new Date('2026-09-03T13:00:00.000Z'),
+      calendarDay: new Date('2026-09-03T00:00:00.000Z'),
+      displayClock: '9:00 AM',
+      zoneToken: null,
+    });
+    expect(resolved.authority).toBe('instant');
+    expect(resolved.startsAt!.toISOString()).toBe('2026-09-03T13:00:00.000Z'); // 9:00 AM ET
+    expect(resolved.timeZone).toBe('America/New_York');
+  });
+
+  it('an explicit ET statement re-derives to the SAME instant (no drift for Washington hearings)', () => {
+    const resolved = resolveSourceTime({
+      instant: new Date('2026-09-03T13:00:00.000Z'),
+      calendarDay: new Date('2026-09-03T00:00:00.000Z'),
+      displayClock: '9:00 AM',
+      zoneToken: 'ET',
+    });
+    // Explicit ET derivation lands on exactly the published instant.
+    expect(resolved.authority).toBe('explicit_local');
+    expect(resolved.startsAt!.toISOString()).toBe('2026-09-03T13:00:00.000Z');
+    expect(resolved.timeZone).toBe('America/New_York');
+  });
+
+  it('date-only sentinel stays date-only in any zone (no fabricated midnight)', () => {
+    const resolved = resolveSourceTime({
+      instant: new Date('2026-09-04T00:00:00.000Z'),
+      calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+      displayClock: null,
+      zoneToken: 'PT',
+    });
+    expect(resolved.authority).toBe('date_only');
+    expect(resolved.startsAt).toBeNull();
+    expect(resolved.calendarDate.toISOString().slice(0, 10)).toBe('2026-09-04');
+  });
+
+  it('derives an instant from clock + zone even with no instant input (enrichment path)', () => {
+    const resolved = resolveSourceTime({
+      instant: null,
+      calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+      displayClock: '1:00 PM',
+      zoneToken: 'PDT',
+    });
+    expect(resolved.authority).toBe('explicit_local');
+    expect(resolved.startsAt!.toISOString()).toBe('2026-09-04T20:00:00.000Z');
+  });
+
+  it('Central and Mountain zones resolve for field hearings in those zones', () => {
+    expect(
+      resolveSourceTime({
+        instant: null,
+        calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+        displayClock: '2:00 PM',
+        zoneToken: 'CT',
+      }).startsAt!.toISOString(),
+    ).toBe('2026-09-04T19:00:00.000Z'); // 2:00 PM CT = 19:00Z (CDT)
+    expect(
+      resolveSourceTime({
+        instant: null,
+        calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+        displayClock: '1:00 PM',
+        zoneToken: 'MT',
+      }).startsAt!.toISOString(),
+    ).toBe('2026-09-04T19:00:00.000Z'); // 1:00 PM MT = 19:00Z (MDT)
+  });
+
+  it('DST: a Pacific wall clock resolves correctly across the DST boundary', () => {
+    // PDT (-7) in September vs PST (-8) in December.
+    expect(zoneWallClockToInstant(2026, 9, 4, 13, 0, 'America/Los_Angeles').toISOString()).toBe(
+      '2026-09-04T20:00:00.000Z',
+    );
+    expect(zoneWallClockToInstant(2026, 12, 4, 13, 0, 'America/Los_Angeles').toISOString()).toBe(
+      '2026-12-04T21:00:00.000Z',
+    );
+  });
+
+  it('never infers a zone from a location string — only explicit zone evidence', () => {
+    // "Santa Clarita, California" must NOT flip the zone on its own.
+    const resolved = resolveSourceTime({
+      instant: new Date('2026-09-04T17:00:00.000Z'),
+      calendarDay: new Date('2026-09-04T00:00:00.000Z'),
+      displayClock: '1:00 PM',
+      zoneToken: null,
+      zoneText: 'College of the Canyons, Santa Clarita, California',
+    });
+    expect(resolved.authority).toBe('instant'); // no explicit zone → instant used as-is
+    expect(resolved.timeZone).toBe('America/New_York');
+  });
+
+  it('normalizeSourceZone maps printed tokens, abbreviations and words; unknown → ET', () => {
+    expect(normalizeSourceZone('America/Los_Angeles')).toBe('America/Los_Angeles');
+    expect(normalizeSourceZone('PT')).toBe('America/Los_Angeles');
+    expect(normalizeSourceZone('PDT')).toBe('America/Los_Angeles');
+    expect(normalizeSourceZone('ET')).toBe('America/New_York');
+    expect(normalizeSourceZone('CT')).toBe('America/Chicago');
+    expect(normalizeSourceZone('MT')).toBe('America/Denver');
+    expect(normalizeSourceZone(null, '1:00 PM Pacific Time')).toBe('America/Los_Angeles');
+    expect(normalizeSourceZone(null, 'hearing in Eastern Time')).toBe('America/New_York');
+    expect(normalizeSourceZone('Mars/Olympus_Mons')).toBe('America/New_York');
+    expect(normalizeSourceZone(null)).toBe('America/New_York');
+  });
+
+  it('isValidIanaZone accepts real zones and rejects garbage', () => {
+    expect(isValidIanaZone('America/New_York')).toBe(true);
+    expect(isValidIanaZone('Pacific/Honolulu')).toBe(true);
+    expect(isValidIanaZone('Not/AZone')).toBe(false);
+    expect(isValidIanaZone('')).toBe(false);
+    expect(isValidIanaZone(null)).toBe(false);
+  });
+});

@@ -112,6 +112,15 @@ export interface SourceEvent {
   calendarDate?: Date | null;
   /** Eastern wall-clock display time as published, e.g. 10:00 AM. */
   displayTime?: string | null;
+  /**
+   * IANA zone the source's time is stated in. Eastern for normal Washington
+   * business; a field hearing's official announcement can state its own local
+   * zone (e.g. America/Los_Angeles), and that explicit statement outranks an
+   * ambiguous central-calendar instant (hearing-time.resolveSourceTime).
+   * Serialized with the observation so the projection stays reproducible from
+   * the ledger alone.
+   */
+  timeZone?: string | null;
   location?: string | null;
   /** Public, key-free official event page. Never an api.congress.gov URL. */
   officialPageUrl?: string | null;
@@ -235,6 +244,8 @@ export interface CanonicalHearingRef {
   title: string;
   calendarDate: Date;
   startsAt: Date | null;
+  /** IANA zone the canonical row records for this event's time. */
+  timeZone: string | null;
   officialPageUrl: string | null;
 }
 
