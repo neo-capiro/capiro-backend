@@ -477,6 +477,8 @@ export interface DirectoryBrowseContact {
   district: string;
   party: Party;
   partyName: string;
+  email: string;
+  phone: string;
   committees: string[];
   leadershipPositions: string[];
   staff: Array<{
@@ -486,6 +488,7 @@ export interface DirectoryBrowseContact {
     roles: string[];
     issueAreas: string[];
     email: string;
+    phone: string;
     officeLocation: string;
     isCurrent: boolean;
   }>;
@@ -783,6 +786,8 @@ export class DirectoryService implements OnModuleInit {
         district: c.district,
         party: c.party,
         partyName: c.partyName,
+        email: c.email,
+        phone: c.phone,
         committees: c.committees,
         leadershipPositions: c.leadershipPositions,
         staff: c.staff.map((s) => ({
@@ -792,6 +797,7 @@ export class DirectoryService implements OnModuleInit {
           roles: s.roles,
           issueAreas: s.issueAreas,
           email: s.email,
+          phone: s.phone,
           officeLocation: s.officeLocation,
           isCurrent: s.isCurrent,
         })),

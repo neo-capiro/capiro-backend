@@ -103,6 +103,8 @@ export interface BridgeDirectoryContact {
   district: string;
   party: string;
   partyName: string;
+  email: string;
+  phone: string;
   committees: string[];
   leadershipPositions: string[];
   staff: Array<{
@@ -112,6 +114,7 @@ export interface BridgeDirectoryContact {
     roles: string[];
     issueAreas: string[];
     email: string;
+    phone: string;
     officeLocation: string;
     isCurrent: boolean;
   }>;

@@ -117,6 +117,8 @@ export interface DirectoryBrowseContact {
   district: string;
   party: string;
   partyName: string;
+  email: string;
+  phone: string;
   committees: string[];
   leadershipPositions: string[];
   staff: Array<{
@@ -126,6 +128,7 @@ export interface DirectoryBrowseContact {
     roles: string[];
     issueAreas: string[];
     email: string;
+    phone: string;
     officeLocation: string;
     isCurrent: boolean;
   }>;

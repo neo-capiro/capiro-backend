@@ -769,6 +769,183 @@
     font-size: 13px;
     color: var(--hd-gray-500);
   }
+
+  /* Directory browse — expandable member/staff rows (step 3's Directory tab).
+     Ported from the Directory page's own hierarchy grid: a slim caret/branch
+     lane plus a five-column content grid, reused unchanged by both the member
+     row and its indented staff rows so the columns stay in register. */
+  .hd-dir-hgrid {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .hd-dir-rowgrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 1.4fr) 60px;
+    gap: 10px;
+    align-items: center;
+  }
+  .hd-dir-row {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--hd-gray-100);
+    background: var(--hd-surface);
+  }
+  .hd-dir-row--member.hd-dir-row--on {
+    background: var(--hd-brand-50);
+  }
+  .hd-dir-row--staff {
+    background: var(--hd-gray-50);
+  }
+  .hd-dir-row--staff .hd-dir-cell--person {
+    padding-left: 12px;
+  }
+  .hd-dir-caret {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--hd-gray-200);
+    border-radius: 6px;
+    background: var(--hd-gray-50);
+    color: var(--hd-gray-600);
+    cursor: pointer;
+  }
+  .hd-dir-caret:hover {
+    border-color: var(--hd-gray-300);
+    color: var(--hd-brand-600);
+  }
+  .hd-dir-caret[aria-expanded='true'] {
+    border-color: var(--hd-gray-300);
+    color: var(--hd-brand-600);
+  }
+  .hd-dir-select {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  .hd-dir-select:disabled {
+    cursor: default;
+  }
+  div.hd-dir-select {
+    cursor: default;
+  }
+  /* Guide rail + elbow tying each staffer to their office's caret — occupies
+     the caret lane so it lines up underneath it by construction. */
+  .hd-dir-branch {
+    position: relative;
+    align-self: stretch;
+    min-height: 26px;
+  }
+  .hd-dir-branch::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: -11px;
+    bottom: -11px;
+    width: 2px;
+    background: var(--hd-brand-400);
+    opacity: 0.35;
+  }
+  .hd-dir-branch::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 20px;
+    width: 14px;
+    height: 2px;
+    background: var(--hd-brand-400);
+    opacity: 0.35;
+  }
+  .hd-dir-roster {
+    display: flex;
+    flex-direction: column;
+  }
+  .hd-dir-roster[hidden] {
+    display: none;
+  }
+  .hd-dir-roster__empty {
+    margin: 0;
+    padding: 10px 16px 10px 52px;
+    font-family: var(--hd-mono);
+    font-size: 11px;
+    color: var(--hd-gray-500);
+  }
+  .hd-dir-avatar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: var(--hd-shell);
+    color: var(--hd-surface);
+    font-family: var(--hd-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .hd-dir-row--staff .hd-dir-avatar {
+    width: 28px;
+    height: 28px;
+    background: var(--hd-gray-700);
+  }
+  .hd-dir-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .hd-dir-cell--person {
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+  }
+  .hd-dir-cell--trailing {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .hd-dir-cell__primary {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    line-height: 18px;
+    color: var(--hd-gray-900);
+  }
+  .hd-dir-cell__secondary {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--hd-gray-500);
+  }
+  .hd-dir-cell--mono .hd-dir-cell__primary {
+    font-family: var(--hd-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+  .hd-dir-cell--mono .hd-dir-cell__secondary {
+    font-family: var(--hd-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
   .hd-name-field {
     margin-top: 24px;
   }

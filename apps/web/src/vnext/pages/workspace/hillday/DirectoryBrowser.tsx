@@ -14,12 +14,54 @@ import type { HillDayClient } from './api.js';
 import type { DirectoryBrowseContact } from './types.js';
 import { HdIcon, HdPill, HdSecondary } from './ui.js';
 
-const PAGE_SIZE = 50;
+type StaffMember = DirectoryBrowseContact['staff'][number];
 
-function contactSubline(c: DirectoryBrowseContact): string {
-  return [[c.chamber, c.state && c.district ? `${c.state}-${c.district}` : c.state].filter(Boolean).join(' · '), c.partyName, c.committees[0]]
-    .filter(Boolean)
-    .join(' · ');
+const PAGE_SIZE = 50;
+const HONORIFIC_RE = /^(Rep\.|Del\.|Sen\.|Dr\.|Mr\.|Mrs\.|Ms\.)\s+/;
+
+/** "Rep. Alma Adams" → "AA"; a single-word name falls back to its first two letters. */
+function initials(fullName: string): string {
+  const parts = fullName.replace(HONORIFIC_RE, '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
+}
+
+function districtLabel(c: Pick<DirectoryBrowseContact, 'state' | 'district'>): string {
+  if (!c.state) return c.district || '';
+  return c.district ? `${c.state}-${c.district}` : c.state;
+}
+
+function memberOfficeLines(c: DirectoryBrowseContact): { primary: string; secondary: string } {
+  return {
+    primary: c.office || `${c.fullName} office`,
+    secondary: [c.chamber, districtLabel(c), c.partyName || c.party].filter(Boolean).join(' · '),
+  };
+}
+
+function memberCommitteeLines(c: DirectoryBrowseContact): { primary: string; secondary: string } {
+  return {
+    primary: c.committees.length ? c.committees.slice(0, 2).join(' · ') : '—',
+    secondary: `${c.staff.length} staff`,
+  };
+}
+
+function staffOfficeLines(s: StaffMember, c: DirectoryBrowseContact): { primary: string; secondary: string } {
+  return {
+    primary: s.officeLocation || '—',
+    secondary: `Staff to ${c.fullName} · ${districtLabel(c)}`,
+  };
+}
+
+/** Mirrors the Directory page's own coverageLines(): issue areas headline, roles as the
+ *  detail line, falling back to the same "No coverage recorded" copy when both are empty. */
+function coverageLines(s: StaffMember): { primary: string; secondary: string } {
+  const issues = s.issueAreas.filter(Boolean);
+  const roles = s.roles.filter(Boolean);
+  return {
+    primary: issues.length ? issues.slice(0, 2).join(' · ') : '—',
+    secondary: roles.length ? roles.slice(0, 2).join(' · ') : 'No coverage recorded',
+  };
 }
 
 export function DirectoryBrowser({
@@ -36,6 +78,15 @@ export function DirectoryBrowser({
   const [state, setState] = useState('');
   const [chamber, setChamber] = useState('');
   const [page, setPage] = useState(1);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+
+  const toggleExpand = (memberId: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(memberId)) next.delete(memberId);
+      else next.add(memberId);
+      return next;
+    });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(q.trim()), 300);
@@ -122,27 +173,99 @@ export function DirectoryBrowser({
       )}
       {contacts.map((c) => {
         const picked = pickedMemberIds.has(c.id);
+        const isExpanded = expanded.has(c.id);
+        const rosterId = `hd-dir-roster-${c.id}`;
+        const officeLines = memberOfficeLines(c);
+        const committeeLines = memberCommitteeLines(c);
         return (
-          <button
-            key={c.id}
-            type="button"
-            className={`hd-client-row${picked ? ' hd-client-row--on' : ''}`}
-            disabled={picked}
-            onClick={() => onPick(c)}
-          >
-            <span className="hd-client-row__mono">{c.state || '—'}</span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span className="hd-client-row__name">{c.fullName}</span>
-              <span className="hd-client-row__meta">{contactSubline(c)}</span>
-            </span>
-            {picked ? (
-              <HdPill tone="navy">Added</HdPill>
-            ) : (
-              <span style={{ color: 'var(--hd-gray-400)', display: 'flex' }}>
-                <HdIcon name="Plus" size={18} />
-              </span>
-            )}
-          </button>
+          <div key={c.id}>
+            <div className={`hd-dir-row hd-dir-row--member hd-dir-hgrid${picked ? ' hd-dir-row--on' : ''}`}>
+              <button
+                type="button"
+                className="hd-dir-caret"
+                aria-expanded={isExpanded}
+                aria-controls={rosterId}
+                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} staff for ${c.fullName}`}
+                onClick={() => toggleExpand(c.id)}
+              >
+                <HdIcon name="ChevronDown" size={13} className={isExpanded ? '' : 'hd-rotate-270'} />
+              </button>
+              <button type="button" className="hd-dir-select hd-dir-rowgrid" disabled={picked} onClick={() => onPick(c)}>
+                <span className="hd-dir-cell hd-dir-cell--person">
+                  <span className="hd-dir-avatar" aria-hidden="true">
+                    {initials(c.fullName)}
+                  </span>
+                  <span className="hd-dir-cell" style={{ gap: 2 }}>
+                    <span className="hd-dir-cell__primary">{c.fullName}</span>
+                    <span className="hd-dir-cell__secondary">Member of Congress</span>
+                  </span>
+                </span>
+                <span className="hd-dir-cell hd-dir-cell--mono">
+                  <span className="hd-dir-cell__primary">{officeLines.primary}</span>
+                  <span className="hd-dir-cell__secondary">{officeLines.secondary}</span>
+                </span>
+                <span className="hd-dir-cell hd-dir-cell--mono">
+                  <span className="hd-dir-cell__primary">{committeeLines.primary}</span>
+                  <span className="hd-dir-cell__secondary">{committeeLines.secondary}</span>
+                </span>
+                <span className="hd-dir-cell hd-dir-cell--mono">
+                  <span className="hd-dir-cell__primary">{c.email || 'No email'}</span>
+                  <span className="hd-dir-cell__secondary">{c.phone || 'No phone'}</span>
+                </span>
+                <span className="hd-dir-cell hd-dir-cell--trailing">
+                  {picked ? (
+                    <HdPill tone="navy">Added</HdPill>
+                  ) : (
+                    <span style={{ color: 'var(--hd-gray-400)', display: 'flex' }}>
+                      <HdIcon name="Plus" size={18} />
+                    </span>
+                  )}
+                </span>
+              </button>
+            </div>
+            <div id={rosterId} className="hd-dir-roster" hidden={!isExpanded}>
+              {c.staff.length === 0 ? (
+                <p className="hd-dir-roster__empty">No staffer contacts synced for this office.</p>
+              ) : (
+                c.staff.map((s) => {
+                  const coverage = coverageLines(s);
+                  const staffOffice = staffOfficeLines(s, c);
+                  return (
+                    <div key={s.id} className="hd-dir-row hd-dir-row--staff hd-dir-hgrid">
+                      <span className="hd-dir-branch" aria-hidden="true" />
+                      <div className="hd-dir-select hd-dir-rowgrid">
+                        <span className="hd-dir-cell hd-dir-cell--person">
+                          <span className="hd-dir-avatar" aria-hidden="true">
+                            {initials(s.fullName)}
+                          </span>
+                          <span className="hd-dir-cell" style={{ gap: 2 }}>
+                            <span className="hd-dir-cell__primary">
+                              {s.fullName}
+                              {s.isCurrent ? '' : ' · Former'}
+                            </span>
+                            <span className="hd-dir-cell__secondary">{s.title || 'Staffer'}</span>
+                          </span>
+                        </span>
+                        <span className="hd-dir-cell hd-dir-cell--mono">
+                          <span className="hd-dir-cell__primary">{staffOffice.primary}</span>
+                          <span className="hd-dir-cell__secondary">{staffOffice.secondary}</span>
+                        </span>
+                        <span className="hd-dir-cell hd-dir-cell--mono">
+                          <span className="hd-dir-cell__primary">{coverage.primary}</span>
+                          <span className="hd-dir-cell__secondary">{coverage.secondary}</span>
+                        </span>
+                        <span className="hd-dir-cell hd-dir-cell--mono">
+                          <span className="hd-dir-cell__primary">{s.email || 'No email'}</span>
+                          <span className="hd-dir-cell__secondary">{s.phone || 'No phone'}</span>
+                        </span>
+                        <span className="hd-dir-cell hd-dir-cell--trailing" />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         );
       })}
       {!query.isPending && contacts.length === 0 && (
