@@ -288,6 +288,82 @@ class DispatchNotetakerDto {
   joinAt?: string;
 }
 
+class SingleMailRecipientDto {
+  @IsEmail()
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 160)
+  name?: string;
+}
+
+class SendSingleMailDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  personId?: string;
+
+  @ValidateNested()
+  @Type(() => SingleMailRecipientDto)
+  to!: SingleMailRecipientDto;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => SingleMailRecipientDto)
+  cc?: SingleMailRecipientDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => SingleMailRecipientDto)
+  bcc?: SingleMailRecipientDto[];
+
+  @IsString()
+  @Length(1, 300)
+  subject!: string;
+
+  @IsString()
+  @Length(1, 40_000)
+  bodyHtml!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  appendSignature?: boolean;
+
+  /** Reply within an existing thread instead of starting a new one. */
+  @IsOptional()
+  @IsUUID()
+  threadId?: string;
+}
+
+class RewriteEmailDto {
+  @IsString()
+  @Length(1, 8000)
+  rawText!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 160)
+  recipientName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 160)
+  recipientTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 160)
+  clientName?: string;
+}
+
 class GenerateMeetingPrepDto {
   @IsOptional()
   @IsString()
@@ -1956,6 +2032,37 @@ export class EngagementController {
             .filter(Boolean)
         : undefined,
     });
+  }
+
+  /** Full message history for one thread — the list route caps each thread at 3. */
+  @Get('mail-threads/:id')
+  mailThreadDetail(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.getMailThread(ctx, id);
+  }
+
+  /**
+   * Send a single email as the caller's own connected mailbox (Outlook or
+   * Gmail) — the compose window on a client's Timeline / person drawer, not a
+   * batch campaign. Classified under `outreach_send` (not a new action):
+   * same real side effect — dispatching outbound email through a connected
+   * mailbox — the existing action already governs.
+   */
+  @Post('mail/send')
+  @EngagementRuntimeAction('outreach_send')
+  sendSingleMail(@CurrentTenant() ctx: TenantContext, @Body() body: SendSingleMailDto) {
+    return this.service.sendSingleMail(ctx, body);
+  }
+
+  /**
+   * "Rewrite with Meri" — turns the user's own rough notes into a coherent
+   * email. Classified under `outreach_generate` (not a new action): same
+   * real side effect — an LLM call drafting outbound-email prose — the
+   * existing action already governs.
+   */
+  @Post('mail/rewrite')
+  @EngagementRuntimeAction('outreach_generate')
+  rewriteEmail(@CurrentTenant() ctx: TenantContext, @Body() body: RewriteEmailDto) {
+    return this.service.rewriteEmailDraft(ctx, body);
   }
 
   @Get('debriefs')

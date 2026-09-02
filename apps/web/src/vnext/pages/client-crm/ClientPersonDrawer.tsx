@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroDrawer, CapiroModal } from '../../components/overlays/index.js';
+import { useApi } from '../../../lib/use-api.js';
+import { useCapiroToast } from '../../components/feedback/toast.js';
 import {
   HIERARCHY_LEVELS,
   LEVEL_META,
@@ -8,18 +11,24 @@ import {
   type ClientPerson,
   type HierarchyLevel,
 } from '../../adapters/legacy/useClientOrganizationModel.js';
+import { LogActivityModal } from './ClientCrmHistory.js';
+import { EmailComposeModal } from './EmailComposeModal.js';
+import { listMailThreads, mailThreadsKey } from './mail-api.js';
 
 /**
  * Person profile drawer — Figma `907:2919`.
  *
- * Contract §7 is explicit about what this is NOT: "Person drawer must NOT
- * become a mini CRM activity profile… Do not re-add redundant fields such as
- * activity history, last meeting, relationship owner, relationship strength,
- * related activities." So this carries contact details, hierarchy placement,
- * notes and identity — and deliberately nothing else. Relationship history
- * lives on its own tab.
+ * Contract §7 previously said this must NOT become a mini CRM activity
+ * profile ("do not re-add redundant fields such as activity history…").
+ * Reversed at Jordan's explicit request: a Mail action (opens
+ * `EmailComposeModal`, pre-filled to this person), a Note action (opens the
+ * Timeline's own `LogActivityModal` pre-set to this person), and a compact
+ * message-history panel — the same `MailThread` data the client's Timeline
+ * tab reads, filtered to this one person's address via the `recipientEmails`
+ * param `listMailThreads` already accepts.
  */
 export function ClientPersonDrawer({
+  clientId,
   person,
   people,
   onClose,
@@ -39,6 +48,11 @@ export function ClientPersonDrawer({
   }) => Promise<unknown>;
   onDelete?: () => Promise<unknown>;
 }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const toast = useCapiroToast();
+  const [mailOpen, setMailOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [form, setForm] = useState({
     name: person?.name ?? '',
     title: person?.title ?? '',
@@ -59,6 +73,23 @@ export function ClientPersonDrawer({
     setForm((previous) => ({ ...previous, [key]: value }));
     setDirty(true);
   };
+
+  const history = useQuery({
+    enabled: Boolean(person?.email),
+    queryKey: mailThreadsKey(clientId, person?.email ?? undefined),
+    queryFn: () => listMailThreads(api, clientId, person!.email!),
+    staleTime: 30_000,
+  });
+
+  const logNote = useMutation({
+    mutationFn: (values: Record<string, unknown>) =>
+      api.post(`/api/clients/${clientId}/activity`, { ...values, personId: person?.id }),
+    onSuccess: () => {
+      setNoteOpen(false);
+      toast.success('Note logged');
+      void qc.invalidateQueries({ queryKey: ['client-activity', clientId] });
+    },
+  });
 
   // A person cannot manage themselves, so they are not offered as an option.
   const managerOptions = useMemo(
@@ -110,6 +141,7 @@ export function ClientPersonDrawer({
         open
         title={person ? person.name : 'Add contact'}
         onClose={close}
+        width={640}
       >
         <div className="capiro-crm-form">
           <Field label="Name" required>
@@ -154,6 +186,54 @@ export function ClientPersonDrawer({
 
           {person ? (
             <>
+              <div className="capiro-crm-person__quick-actions">
+                <CapiroButton
+                  variant="secondary"
+                  size="compact"
+                  disabled={!person.email}
+                  onClick={() => setMailOpen(true)}
+                >
+                  Mail
+                </CapiroButton>
+                <CapiroButton variant="secondary" size="compact" onClick={() => setNoteOpen(true)}>
+                  Note
+                </CapiroButton>
+              </div>
+              {!person.email ? (
+                <p className="capiro-crm__foot capiro-crm-person__no-email-note">
+                  Add an email above to send mail to this person.
+                </p>
+              ) : null}
+
+              <div className="capiro-crm-person__history">
+                <p className="capiro-crm__meta capiro-crm__setting-head">Message history</p>
+                {!person.email ? (
+                  <p className="capiro-crm__foot">No email on file for this person yet.</p>
+                ) : history.isLoading ? (
+                  <p className="capiro-crm__foot">Loading…</p>
+                ) : history.isError ? (
+                  <p className="capiro-crm__foot capiro-crm__state--error">Could not load message history.</p>
+                ) : !history.data?.length ? (
+                  <p className="capiro-crm__foot">No emails on file with this person yet.</p>
+                ) : (
+                  <ul className="capiro-crm-person__history-list">
+                    {history.data.map((thread) => (
+                      <li key={thread.id} className="capiro-crm-person__history-row">
+                        <span className="capiro-crm-person__history-subject">{thread.subject}</span>
+                        {thread.snippet ? (
+                          <span className="capiro-crm-person__history-snippet">{thread.snippet}</span>
+                        ) : null}
+                        {thread.lastMessageAt ? (
+                          <span className="capiro-crm-person__history-date">
+                            {new Date(thread.lastMessageAt).toLocaleDateString()}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
               <p className="capiro-crm__meta capiro-crm__setting-head">Hierarchy placement</p>
               <p className="capiro-crm__foot">{placementLabel(person)}</p>
 
@@ -276,6 +356,28 @@ export function ClientPersonDrawer({
           </CapiroButton>
         </div>
       </CapiroModal>
+
+      {person?.email ? (
+        <EmailComposeModal
+          open={mailOpen}
+          onClose={() => setMailOpen(false)}
+          to={{ email: person.email, name: person.name }}
+          recipientTitle={person.title ?? undefined}
+          clientId={clientId}
+          personId={person.id}
+          onSent={() => void history.refetch()}
+        />
+      ) : null}
+
+      {noteOpen ? (
+        <LogActivityModal
+          initialKind="note"
+          pending={logNote.isPending}
+          error={logNote.error}
+          onClose={() => setNoteOpen(false)}
+          onSubmit={(values) => logNote.mutate(values)}
+        />
+      ) : null}
     </>
   );
 }

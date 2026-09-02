@@ -17,6 +17,9 @@ import {
   type ActivityItem,
   type Kind as ActivityKind,
 } from '../ClientCrmHistory.js';
+import { EmailComposeModal } from '../EmailComposeModal.js';
+import { getMailThread, type MailRecipient } from '../mail-api.js';
+import { useCapiroToast } from '../../../components/feedback/toast.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './relationships-history-tab.css';
 
@@ -46,7 +49,7 @@ type ActivityGroup = GroupFilter | 'Calls' | 'Documents';
 /** Activity kind → design mark, eyebrow label and filter group (§8.3). */
 const KIND_VIEW: Record<ActivityKind, { mark: string; label: string; group: Exclude<ActivityGroup, 'All'>; action: string }> = {
   note: { mark: 'N', label: 'Client note', group: 'Notes', action: 'Pin' },
-  email: { mark: 'E', label: 'Email thread', group: 'Email', action: 'Open thread' },
+  email: { mark: 'E', label: 'Email thread', group: 'Email', action: 'Email' },
   call: { mark: 'C', label: 'Client call', group: 'Calls', action: 'Open log' },
   meeting: { mark: 'M', label: 'Client meeting', group: 'Meetings', action: 'Open meeting' },
   outreach: { mark: 'O', label: 'Outreach', group: 'Outreach', action: 'Open outreach' },
@@ -82,9 +85,15 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const toast = useCapiroToast();
   const [filter, setFilter] = useState<GroupFilter>('All');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<ActivityKind | null>(null);
+  const [replyTarget, setReplyTarget] = useState<{
+    to: MailRecipient;
+    threadId: string;
+    subject: string;
+  } | null>(null);
 
   const activity = useQuery<ActivityItem[]>({
     queryKey: ['client-activity', client.id],
@@ -116,11 +125,31 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     if (item.sourceType === 'meeting') navigate(`/engagement/meetings/${item.sourceId}`);
     else if (item.sourceType === 'attachment') navigate(`/clients?clientId=${client.id}&tab=files`);
     else if (item.sourceType === 'outreach') navigate(`/outreach/${item.sourceId}`);
-    // Synced mail threads have no standalone detail route yet — Engagement's
-    // Meetings surface is the closest live destination for this client's
-    // correspondence, scoped by clientId.
-    else if (item.sourceType === 'mail_thread')
-      navigate(`/engagement/meetings?clientId=${encodeURIComponent(client.id)}`);
+    else if (item.sourceType === 'mail_thread' && item.sourceId) void openEmailThread(item.sourceId);
+  };
+
+  // Opens the compose window pre-filled to reply on this thread, rather than
+  // the old redirect to a generic Meetings list scoped by clientId — this
+  // component's activity mapping doesn't carry a participant address, so the
+  // real one comes from the thread's own detail (GET mail-threads/:id).
+  // Replies to whoever sent the most recent message; for a >2-party thread
+  // that's a simplification, not full "reply-all".
+  const openEmailThread = async (threadId: string) => {
+    try {
+      const thread = await getMailThread(api, threadId);
+      const last = thread.messages[thread.messages.length - 1];
+      if (!last?.fromEmail) {
+        toast.error('Could not find who to reply to on this thread.');
+        return;
+      }
+      setReplyTarget({
+        to: { email: last.fromEmail, name: last.fromName ?? undefined },
+        threadId,
+        subject: thread.subject ? `Re: ${thread.subject}` : 'Re:',
+      });
+    } catch {
+      toast.error('Could not open this email thread.');
+    }
   };
 
   // Real activity mapped to the design's entry shape. Loading, error and empty
@@ -202,6 +231,19 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           onSubmit={(values) => create.mutate(values)}
           pending={create.isPending}
           error={create.error}
+        />
+      ) : null}
+
+      {replyTarget ? (
+        <EmailComposeModal
+          open
+          onClose={() => setReplyTarget(null)}
+          to={replyTarget.to}
+          threadId={replyTarget.threadId}
+          defaultSubject={replyTarget.subject}
+          clientId={client.id}
+          clientName={client.name}
+          onSent={() => void qc.invalidateQueries({ queryKey: ['client-activity', client.id] })}
         />
       ) : null}
     </div>

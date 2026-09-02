@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { parseProviderUsage, type ProviderUsage, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -15,6 +15,7 @@ import {
   type OutreachPromptV2,
 } from './outreach-prompt/prompt-spec-v2.js';
 import { LlmCompletionService } from './llm-completion.service.js';
+import { verifyMailRewrite } from './mail-rewrite-verifier.js';
 
 /** Legacy v1 outreach system line (Anthropic only; v1 OpenAI had none). */
 const LEGACY_OUTREACH_SYSTEM =
@@ -208,6 +209,22 @@ export interface CampaignEmailResult {
   raw: unknown;
 }
 
+export interface RewriteEmailInput {
+  rawText: string;
+  recipientName?: string;
+  recipientTitle?: string;
+  clientName?: string;
+}
+
+export interface RewriteEmailResult {
+  bodyHtml: string;
+  /** False only after a retry also failed verification — `bodyHtml` is then the user's own text, unrewritten. */
+  verified: boolean;
+  unsupportedNumbers: string[];
+  unsupportedNames: string[];
+  provider: 'openai' | 'anthropic';
+}
+
 export interface TalkingPointsInput {
   client: Record<string, unknown> | null;
   selectedInsights: string[];
@@ -246,6 +263,29 @@ const outreachDraftJsonSchema = {
     contextNote: { type: 'string' },
   },
 };
+
+const emailRewriteJsonSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['bodyHtml'],
+  properties: {
+    bodyHtml: { type: 'string' },
+  },
+};
+
+/**
+ * "Rewrite with Meri" — turning a lobbyist's own rough notes into a coherent
+ * email. Unlike outreach drafting, there is no campaign evidence packet here;
+ * the user's notes ARE the evidence, enforced by `verifyMailRewrite` after
+ * generation, not by anything in this prompt.
+ */
+const EMAIL_REWRITE_SYSTEM_PROMPT = `You help a government-affairs professional turn their own rough notes into a coherent, professional email.
+
+Rules:
+- Use ONLY facts, figures, names, dates, and commitments that appear in the user's notes. Never invent a dollar amount, date, name, title, or promise that is not there.
+- Keep the tone warm but professional, matching a lobbyist writing to a client contact or government office.
+- Return the body as simple HTML (paragraphs via <p> tags only — no inline styles, no <html>/<body> wrapper, no markdown).
+- Do not add a greeting salutation or a signature block — the app adds those separately.`;
 
 const meetingDebriefJsonSchema = {
   type: 'object',
@@ -1310,6 +1350,86 @@ export class EngagementAiService {
     };
   }
 
+  /**
+   * "Rewrite with Meri" on the email compose window: the user's rough notes
+   * in, a coherent HTML body out. Reuses `withCredentialFallback` (the same
+   * per-tenant-key-then-env-key, provider-fallback resolution every other AI
+   * surface in this service uses) and the LlmCompletionService transport —
+   * there is no session/plan/evidence-packet context here, unlike outreach
+   * drafting, because a one-off note has none of those.
+   *
+   * "Same rigor as outreach" is honored via `verifyMailRewrite`, not by the
+   * campaign pipeline's literal machinery: every number and capitalized name
+   * in the rewrite must trace back to the user's own notes (the notes ARE
+   * the evidence). One retry on a failed verification, then an honest
+   * fallback to the user's own text — never a silently-shipped fabrication.
+   */
+  async rewriteEmailDraft(
+    ctx: TenantContext,
+    input: RewriteEmailInput,
+  ): Promise<RewriteEmailResult> {
+    const rawText = input.rawText.trim();
+    if (!rawText) {
+      throw new BadRequestException('Nothing to rewrite yet — write a few notes first.');
+    }
+
+    const attempt = () =>
+      this.withCredentialFallback('Email rewrite', ctx, (cred) =>
+        this.rewriteEmailViaClient(input, cred),
+      );
+
+    let drafted = await attempt();
+    let verification = verifyMailRewrite(rawText, drafted.bodyHtml);
+    if (!verification.verified) {
+      this.logger.warn(
+        `Email rewrite verification failed on first attempt (unsupported numbers: ${verification.unsupportedNumbers.join(', ') || 'none'}; unsupported names: ${verification.unsupportedNames.join(', ') || 'none'}); retrying once.`,
+      );
+      drafted = await attempt();
+      verification = verifyMailRewrite(rawText, drafted.bodyHtml);
+    }
+
+    return {
+      bodyHtml: verification.verified ? drafted.bodyHtml : plainTextToParagraphs(rawText),
+      verified: verification.verified,
+      unsupportedNumbers: verification.unsupportedNumbers,
+      unsupportedNames: verification.unsupportedNames,
+      provider: drafted.provider,
+    };
+  }
+
+  private async rewriteEmailViaClient(
+    input: RewriteEmailInput,
+    cred: ResolvedAiCredential,
+  ): Promise<{ bodyHtml: string; provider: 'openai' | 'anthropic' }> {
+    const context = [
+      input.recipientName
+        ? `Recipient: ${input.recipientName}${input.recipientTitle ? `, ${input.recipientTitle}` : ''}`
+        : null,
+      input.clientName ? `Client: ${input.clientName}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const result = await this.llm.complete({
+      provider: cred.provider,
+      apiKey: cred.apiKey,
+      model: cred.model,
+      system: EMAIL_REWRITE_SYSTEM_PROMPT,
+      userStatic: '',
+      userVolatile: `${context ? `${context}\n\n` : ''}Rough notes to turn into an email:\n${input.rawText.trim()}`,
+      jsonSchema: emailRewriteJsonSchema,
+      jsonSchemaName: 'email_rewrite',
+      maxTokens: 900,
+      temperature: 0.3,
+      timeoutMs: AI_TIMEOUT_MS,
+    });
+    const parsed = parseJsonObject(result.text);
+    return {
+      bodyHtml: typeof parsed.bodyHtml === 'string' ? parsed.bodyHtml.trim() : '',
+      provider: cred.provider,
+    };
+  }
+
   private async generateDebriefWithOpenAi(
     input: MeetingDebriefDraftInput,
     cred: ResolvedAiCredential,
@@ -1856,6 +1976,19 @@ function parseJsonObject(text: string): Record<string, unknown> {
     if (!match) throw new ServiceUnavailableException('AI provider returned non-JSON output');
     return JSON.parse(match[0]) as Record<string, unknown>;
   }
+}
+
+/**
+ * The honest fallback when a rewrite fails verification twice: the user's own
+ * text, as simple HTML paragraphs, never a fabricated rewrite shipped anyway.
+ */
+function plainTextToParagraphs(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `<p>${block.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
 function readProviderError(json: Record<string, unknown>, status: number): string {

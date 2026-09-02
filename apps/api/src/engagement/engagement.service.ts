@@ -97,7 +97,7 @@ import type { OfficeRecommendation } from '../intelligence/office-recommender.se
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ClientAssociationService } from './client-association.service.js';
-import { EngagementAiService } from './engagement-ai.service.js';
+import { EngagementAiService, type RewriteEmailInput } from './engagement-ai.service.js';
 // #403 outreach gap-closure: credential-resolver type. recordAiUsageEvent +
 // AiGenerationUsageLike are imported from @capiro/shared above (Phase-1 M5.0
 // lift out of the now-deleted ./ai-usage-record.js), so #403's local import of
@@ -110,6 +110,7 @@ import {
 } from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
+import { AmbiguousMailSendError, type EngagementMailSendResult } from './mail-send-result.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { editRatio } from '../common/text-distance.js';
 import {
@@ -212,6 +213,23 @@ export interface AssociationOverrideInput {
   /** Meetings only: mark internal (no client) and stop the sync from re-linking. */
   internal?: boolean;
   reason?: string;
+}
+
+export interface SingleMailRecipientInput {
+  email: string;
+  name?: string | null;
+}
+
+export interface SendSingleMailInput {
+  clientId?: string;
+  personId?: string;
+  to: SingleMailRecipientInput;
+  cc?: SingleMailRecipientInput[];
+  bcc?: SingleMailRecipientInput[];
+  subject: string;
+  bodyHtml: string;
+  appendSignature?: boolean;
+  threadId?: string;
 }
 
 export interface AttachmentUploadInput {
@@ -2183,6 +2201,30 @@ export class EngagementService {
           : null,
       };
     });
+  }
+
+  /**
+   * One thread's full message history — `listMailThreads` intentionally caps
+   * each thread at its 3 most recent messages for the list view, which isn't
+   * enough for a real thread/reply view (Timeline's email action, the person
+   * drawer's message history). Same ownership + active-message filtering as
+   * the list.
+   */
+  async getMailThread(ctx: TenantContext, threadId: string) {
+    const thread = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.mailThread.findFirst({
+        where: { id: threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+        include: {
+          client: clientSummarySelect(),
+          messages: {
+            where: activeMailMessageWhere(),
+            orderBy: [{ sentAt: 'asc' }, { receivedAt: 'asc' }, { createdAt: 'asc' }],
+          },
+        },
+      }),
+    );
+    if (!thread) throw new NotFoundException('Mail thread not found');
+    return thread;
   }
 
   listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {
@@ -7354,6 +7396,140 @@ export class EngagementService {
     return connection;
   }
 
+  /**
+   * Send one email as the caller's own connected mailbox — the compose window
+   * on a client's Timeline / person drawer, not a batch campaign. Reuses the
+   * exact same building blocks the campaign send path does:
+   * `findCampaignSendConnection` for the sending inbox, `resolveSenderSignatureHtml`
+   * + `appendOutreachSignature` for the signature, and `mailSender.sendMail`
+   * for the actual dispatch — this is the first non-batch caller of that
+   * chain, not a new send mechanism.
+   *
+   * On success, writes a `MailThread`/`MailMessage` row with `source: manual`
+   * (an `EngagementSource` value the schema already carries but nothing wrote
+   * until now) so the sent message shows up in Timeline immediately, rather
+   * than waiting for the next inbound-sync poll to reconcile it from the
+   * mailbox's own Sent folder.
+   */
+  async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
+    const connection = await this.findCampaignSendConnection(ctx).catch((error) => {
+      if (error instanceof BadRequestException) {
+        throw new BadRequestException('Connect your email in Settings before sending from Capiro');
+      }
+      throw error;
+    });
+    const signature = await this.resolveSenderSignatureHtml(ctx, input.appendSignature);
+    // Same render pipeline every campaign send uses: sanitize the editor HTML
+    // against the outbound allowlist (renderOutreachBody), then append the
+    // (already-sanitized) signature — the result always sends as HTML.
+    const body = appendOutreachSignature(
+      renderOutreachBody(input.bodyHtml),
+      signature.signatureHtml,
+    );
+
+    let sendResult: EngagementMailSendResult;
+    try {
+      sendResult = await this.mailSender.sendMail(ctx, connection, {
+        subject: input.subject,
+        body: body.content,
+        bodyContentType: 'HTML',
+        toRecipients: [{ email: input.to.email, name: input.to.name ?? null }],
+        ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+        bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+      });
+    } catch (error) {
+      if (error instanceof AmbiguousMailSendError) {
+        // At-most-once send: the outcome is genuinely undetermined (timeout /
+        // socket failure after the request left this process). The message
+        // may already be in the recipient's inbox — never silently retry.
+        throw new ServiceUnavailableException(
+          "Could not confirm this email sent. Check your Sent Items before trying again — don't resend blindly.",
+        );
+      }
+      throw new BadRequestException(emailSendErrorMessage(error));
+    }
+
+    const providerSlug = sendProviderSlug(connection.provider);
+    const now = new Date();
+    const participants = [
+      signature.senderEmail ? { email: signature.senderEmail, name: signature.senderFirstName, role: 'from' } : null,
+      { email: input.to.email, name: input.to.name ?? null, role: 'to' },
+      ...(input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'cc' })),
+      ...(input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'bcc' })),
+    ].filter((p): p is { email: string; name: string | null; role: string } => p != null);
+
+    const externalId =
+      sendResult.providerMessageId ||
+      sendResult.providerInternetMessageId ||
+      `manual:${randomUUID()}`;
+
+    const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Reply path: verify the thread is this caller's own (same-tenant AND
+      // same-connection-owner, the exact gate `listMailThreads`/`getMailThread`
+      // read through) before touching it — a bare `update({ where: { id } })`
+      // would let a same-tenant user append to a colleague's thread, and a
+      // wrong id would surface as a raw Prisma P2025 instead of a 404.
+      const thread = input.threadId
+        ? await (async () => {
+            const existing = await tx.mailThread.findFirst({
+              where: { id: input.threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+              select: { id: true },
+            });
+            if (!existing) throw new NotFoundException('Mail thread not found');
+            return tx.mailThread.update({
+              where: { id: existing.id },
+              data: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
+            });
+          })()
+        : await tx.mailThread.create({
+            data: {
+              tenantId: ctx.tenantId,
+              clientId: input.clientId ?? null,
+              connectionId: connection.id,
+              source: EngagementSource.manual,
+              externalId: `manual:${randomUUID()}`,
+              subject: input.subject,
+              snippet: snippetFromHtml(body.content),
+              participants: participants as unknown as Prisma.InputJsonValue,
+              lastMessageAt: now,
+              status: 'open',
+            },
+          });
+      const message = await tx.mailMessage.create({
+        data: {
+          tenantId: ctx.tenantId,
+          threadId: thread.id,
+          connectionId: connection.id,
+          source: EngagementSource.manual,
+          externalId,
+          subject: input.subject,
+          fromEmail: signature.senderEmail,
+          fromName: signature.senderFirstName,
+          toRecipients: [{ email: input.to.email, name: input.to.name ?? null }] as unknown as Prisma.InputJsonValue,
+          ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
+          bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
+          sentAt: now,
+          bodyText: snippetFromHtml(body.content, 20_000),
+          metadata: { personId: input.personId ?? null } as Prisma.InputJsonValue,
+        },
+      });
+      return { thread, message };
+    });
+
+    return {
+      ok: true as const,
+      threadId: thread.id,
+      messageId: message.id,
+      provider: providerSlug,
+      senderEmail: signature.senderEmail,
+    };
+  }
+
+  /** "Rewrite with Meri" — thin delegate; EngagementAiService owns LLM credentialing. */
+  rewriteEmailDraft(ctx: TenantContext, input: RewriteEmailInput) {
+    return this.ai.rewriteEmailDraft(ctx, input);
+  }
+
   private async outreachContext(
     ctx: TenantContext,
     record: {
@@ -9921,6 +10097,26 @@ function formatCurrentDateTime(value: string): string {
     minute: '2-digit',
     timeZoneName: 'short',
   }).format(date);
+}
+
+/**
+ * A crude but adequate plain-text snippet for a manually-sent message's
+ * `MailThread.snippet`/`MailMessage.bodyText` — the same fields the sync
+ * services populate from the provider's own plain-text extraction, which
+ * this compose path has no equivalent of (the body only ever exists as the
+ * HTML the rich-text editor produced). Not meant to preserve formatting.
+ */
+function snippetFromHtml(html: string, maxLength = 240): string {
+  const text = html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
 function emailSendErrorMessage(error: unknown): string {

@@ -1501,3 +1501,59 @@
      not enough to read as separate controls. */
   .capiro-vnext-root .capiro-crm__filters { row-gap: var(--capiro-space-03); }
 }
+
+/* ── Person drawer: Mail/Note quick actions + message history ────────────── */
+
+.capiro-vnext-root .capiro-crm-person__quick-actions {
+  display: flex;
+  gap: var(--capiro-space-02);
+  margin-bottom: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm-person__no-email-note {
+  margin-bottom: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm-person__history {
+  margin-bottom: var(--capiro-space-04);
+}
+
+.capiro-vnext-root .capiro-crm-person__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm-person__history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--capiro-space-02);
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-crm-person__history-subject {
+  font-size: var(--crm-body-sm-size);
+  font-weight: 600;
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm-person__history-snippet {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-size: var(--crm-body-sm-size);
+  color: var(--crm-ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm-person__history-date {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--crm-ink-secondary);
+}

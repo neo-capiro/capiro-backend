@@ -6,6 +6,12 @@ interface OverlayProps {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  /**
+   * Override the shell's default width (560px modal / 480px drawer,
+   * `primitives.css`). Additive — omit for the existing default; every
+   * current caller does and is unaffected.
+   */
+  width?: number | string;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -17,7 +23,13 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-function OverlayBody({ kind, title, children, onClose }: Omit<OverlayProps, 'open'> & { kind: 'modal' | 'drawer' }) {
+function OverlayBody({
+  kind,
+  title,
+  children,
+  onClose,
+  width,
+}: Omit<OverlayProps, 'open'> & { kind: 'modal' | 'drawer' }) {
   const dialogRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -77,6 +89,7 @@ function OverlayBody({ kind, title, children, onClose }: Omit<OverlayProps, 'ope
         ref={dialogRef}
         tabIndex={-1}
         className={`${kind === 'modal' ? 'capiro-modal' : 'capiro-drawer'} capiro-elevation-widget`}
+        style={width != null ? { width: typeof width === 'number' ? `${width}px` : width } : undefined}
         role="dialog"
         aria-modal="true"
         aria-label={title}

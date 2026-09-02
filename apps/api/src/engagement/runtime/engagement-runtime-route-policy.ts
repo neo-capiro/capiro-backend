@@ -44,6 +44,8 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     generateCampaignEmail: { action: 'outreach_generate' },
     sendCampaignEmails: { action: 'outreach_send' },
     sendCampaignTest: { action: 'outreach_test_send', testMode: true },
+    sendSingleMail: { action: 'outreach_send' },
+    rewriteEmail: { action: 'outreach_generate' },
   },
   OutreachV3GenerationController: {
     generateSamples: { action: 'outreach_v3_generate' },
