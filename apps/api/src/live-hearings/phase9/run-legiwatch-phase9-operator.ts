@@ -2,6 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { hostname } from 'node:os';
 import { AppModule } from '../../app.module.js';
 import { LegiWatchPhase9CutoverService } from './legiwatch-phase9-cutover.service.js';
+import {
+  LegiWatchPhase9ProvenanceDispositionService,
+  type ProvenanceDispositionInput,
+} from './legiwatch-phase9-provenance-disposition.service.js';
 import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.service.js';
 import { LegiWatchPhase9RuntimeService, type LegiWatchRuntimeRegistration } from './legiwatch-phase9-runtime.service.js';
 import type {
@@ -17,6 +21,7 @@ const COMMANDS = [
   'transition',
   'capture-all',
   'record-evidence',
+  'provenance-disposition',
 ] as const;
 type Command = (typeof COMMANDS)[number];
 
@@ -35,6 +40,7 @@ async function main(): Promise<void> {
     const runtime = app.get(LegiWatchPhase9RuntimeService);
     const readiness = app.get(LegiWatchPhase9ReadinessService);
     const cutover = app.get(LegiWatchPhase9CutoverService);
+    const provenanceDisposition = app.get(LegiWatchPhase9ProvenanceDispositionService);
     let result: unknown;
     if (command === 'state') {
       result = {
@@ -71,6 +77,27 @@ async function main(): Promise<void> {
         actor,
         confirmation: requiredEnv('LEGIWATCH_CONFIRMATION'),
       });
+    } else if (command === 'provenance-disposition') {
+      const action = process.argv[3]?.trim() || 'preview';
+      const payload = jsonEnv<Record<string, unknown>>('LEGIWATCH_DISPOSITION_JSON');
+      if (action === 'preview') {
+        result = await provenanceDisposition.preview(dispositionInput(payload));
+      } else if (action === 'apply') {
+        result = await provenanceDisposition.apply({
+          ...dispositionInput(payload),
+          confirmation: requiredEnv('LEGIWATCH_CONFIRMATION'),
+        });
+      } else if (action === 'revoke') {
+        result = await provenanceDisposition.revoke({
+          hearingId: String(payload.hearingId ?? ''),
+          actor,
+          confirmation: requiredEnv('LEGIWATCH_CONFIRMATION'),
+        });
+      } else if (action === 'list') {
+        result = await provenanceDisposition.listActive();
+      } else {
+        throw new Error(`usage: provenance-disposition <preview|apply|revoke|list>`);
+      }
     } else {
       const evidence = jsonEnv<Record<string, unknown>>('LEGIWATCH_EVIDENCE_JSON');
       result = await cutover.recordEvidence({
@@ -135,6 +162,22 @@ function optionalDate(value: unknown): Date | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function dispositionInput(payload: Record<string, unknown>): ProvenanceDispositionInput {
+  const reviewedAt = optionalDate(payload.reviewedAt ?? new Date().toISOString());
+  const expiresAt = optionalDate(payload.expiresAt);
+  const details = isRecord(payload.details) ? payload.details : {};
+  return {
+    hearingId: String(payload.hearingId ?? ''),
+    dispositionType: String(payload.dispositionType ?? ''),
+    reasonCode: String(payload.reasonCode ?? ''),
+    artifactUri: String(payload.artifactUri ?? ''),
+    details,
+    reviewedBy: String(payload.reviewedBy ?? ''),
+    reviewedAt: reviewedAt ?? new Date(NaN),
+    expiresAt: expiresAt ?? null,
+  };
 }
 
 void main().catch((error: unknown) => {

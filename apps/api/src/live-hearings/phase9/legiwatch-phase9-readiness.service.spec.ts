@@ -112,6 +112,7 @@ function snapshot(): any {
       hearingId: evidenceType === 'RECOVERY_GAP' ? 'hearing-1' : null,
       captureId: evidenceType === 'RECOVERY_GAP' ? 'capture-1' : null,
     })),
+    dispositions: [],
     captureAllPublicEvents: false,
   };
 }

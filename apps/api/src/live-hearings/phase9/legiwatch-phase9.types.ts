@@ -103,6 +103,9 @@ export interface LegiWatchPhase9Counts {
   ignoredInvalidObservations: number;
   pendingObservations: number;
   canonicalEvents: number;
+  canonicalEventsWithObservation: number;
+  canonicalEventsWithAcceptedDisposition: number;
+  unresolvedCanonicalProvenance: number;
   canonicalEventsWithProvenance: number;
   legacyOnlyCanonicalEvents: number;
   duePublicEvents: number;

@@ -28,6 +28,7 @@ import { LegiWatchPhase9JobsService } from './phase9/legiwatch-phase9-jobs.servi
 import { LegiWatchPhase9MetricsService } from './phase9/legiwatch-phase9-metrics.service.js';
 import { LegiWatchPhase9PreflightService } from './phase9/legiwatch-phase9-preflight.service.js';
 import { LegiWatchPhase9ProvenanceBackfillService } from './phase9/legiwatch-phase9-provenance-backfill.service.js';
+import { LegiWatchPhase9ProvenanceDispositionService } from './phase9/legiwatch-phase9-provenance-disposition.service.js';
 import { LegiWatchPhase9ReadinessService } from './phase9/legiwatch-phase9-readiness.service.js';
 import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime.service.js';
 
@@ -53,6 +54,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchPhase9CentralDiscoveryService,
     LegiWatchPhase9PreflightService,
     LegiWatchPhase9ProvenanceBackfillService,
+    LegiWatchPhase9ProvenanceDispositionService,
     LegiWatchPhase9MetricsService,
     LegiWatchPhase9JobsService,
   ],
