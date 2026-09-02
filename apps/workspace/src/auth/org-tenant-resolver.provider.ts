@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OrgTenantResolver, ResolvedTenant } from '@capiro/auth';
+import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Revocation-latency budget for hasActiveMembership: a user removed in Capiro
@@ -55,7 +56,7 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
     const hit = read(this.byOrg, clerkOrgId, TENANT_TTL_MS);
     if (hit !== undefined) return hit;
 
-    let rows: TenantRow[] = [];
+    let rows: TenantRow[];
     try {
       rows = await this.prisma.withSystem(
         (tx) =>
@@ -67,8 +68,14 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
         `,
       );
     } catch (err) {
+      // clerk_org_id is a plain text compare — there is no expected-input
+      // error case here (unlike resolveByTenantId's ::uuid cast below). Any
+      // failure is a genuine infrastructure problem (e.g. a saturated
+      // connection pool) and must surface as a 500, never be reported as
+      // "tenant not found": silently returning null here previously let a
+      // transient DB outage masquerade as every tenant being unresolvable.
       this.logger.error(`resolveByClerkOrgId failed: ${(err as Error).message}`);
-      return null;
+      throw err;
     }
 
     const row = rows[0];
@@ -81,7 +88,7 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
     const hit = read(this.byId, tenantId, TENANT_TTL_MS);
     if (hit !== undefined) return hit;
 
-    let rows: TenantRow[] = [];
+    let rows: TenantRow[];
     try {
       rows = await this.prisma.withSystem(
         (tx) =>
@@ -93,10 +100,20 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
         `,
       );
     } catch (err) {
-      // A non-UUID claim makes Postgres raise 22P02 rather than return no rows.
-      // That is "no such tenant", not a 500.
-      this.logger.debug(`resolveByTenantId(${tenantId}) failed: ${(err as Error).message}`);
-      return null;
+      // A non-UUID claim makes Postgres raise 22P02 (invalid_text_representation)
+      // on the ::uuid cast rather than return no rows — that specific case
+      // really is "no such tenant". Everything else (a connection-pool timeout
+      // under load, most notably) is an infrastructure failure, not a
+      // resolution result, and must be rethrown rather than reported as a
+      // false 403: a saturated Aurora Serverless connection pool once made
+      // this look like a permanently broken tenant mapping when it was
+      // actually transient load.
+      if (isInvalidUuidLiteral(err)) {
+        this.logger.debug(`resolveByTenantId(${tenantId}): not a valid tenant id`);
+        return null;
+      }
+      this.logger.error(`resolveByTenantId(${tenantId}) failed: ${(err as Error).message}`);
+      throw err;
     }
 
     const row = rows[0];
@@ -147,4 +164,23 @@ function read<T>(map: Map<string, Entry<T>>, key: string, ttlMs: number): T | un
 function write<T>(map: Map<string, Entry<T>>, key: string, value: T): void {
   if (map.size >= MAX_ENTRIES) map.clear();
   map.set(key, { value, at: Date.now() });
+}
+
+/**
+ * True only for the specific, expected "not a UUID" failure of the
+ * `id = $1::uuid` cast (Postgres SQLSTATE 22P02). Prisma wraps a raw-query DB
+ * error as PrismaClientKnownRequestError code 'P2010' with the underlying
+ * Postgres SQLSTATE at `.meta.code` (same convention documented in
+ * apps/intel-api's source-data.repository.ts) — check both the code and the
+ * message, since a driver/version difference could put the SQLSTATE in only
+ * one place.
+ */
+function isInvalidUuidLiteral(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2010') {
+    return false;
+  }
+  const meta = err.meta as { code?: unknown; message?: unknown } | undefined;
+  if (meta?.code === '22P02') return true;
+  const message = typeof meta?.message === 'string' ? meta.message : err.message;
+  return /invalid input syntax for type uuid/i.test(message);
 }
