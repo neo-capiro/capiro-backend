@@ -74,6 +74,7 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [showContext, setShowContext] = useState(false);
   const [exporting, setExporting] = useState<'preview' | 'deliver' | null>(null);
+  const [exportLink, setExportLink] = useState<{ url: string; label: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -167,9 +168,15 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
   const exportPdf = async (mode: 'preview' | 'deliver') => {
     setExporting(mode);
     setError(null);
+    setExportLink(null);
+    // Open the tab synchronously, inside the click's user gesture: a
+    // window.open issued after the export request resolves is blocked by
+    // the browser's popup blocker. If it is blocked anyway, we show a link.
+    const popup = mode === 'preview' ? window.open('', '_blank') : null;
     try {
       const exp = await api.createExport(docId, 'letter');
       if (exp.status !== 'ready' || !exp.url) {
+        popup?.close();
         setError(`PDF export failed${exp.error ? `: ${exp.error}` : ''}.`);
         return;
       }
@@ -178,9 +185,18 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
         const updated = await api.patchDocument(docId, { status: 'delivered' });
         queryClient.setQueryData<HillDayDocumentView>(docKey, updated);
         await queryClient.invalidateQueries({ queryKey: ['hd', 'documents'] });
+        // A download navigation on the current tab never unloads the page.
+        window.location.assign(url);
+        setExportLink({ url, label: 'Download the delivered PDF again' });
+        return;
       }
-      window.open(url, '_blank', 'noopener');
+      if (popup) {
+        popup.location.replace(url);
+      } else {
+        setExportLink({ url, label: 'Open the client preview (popup was blocked)' });
+      }
     } catch (err) {
+      popup?.close();
       setError(errorMessage(err));
     } finally {
       setExporting(null);
@@ -322,6 +338,15 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
         <div className="hd-editor__prov" role="alert" style={{ color: 'var(--hd-amber-600)' }}>
           <HdIcon name="AlertTriangle" size={16} />
           <span className="hd-editor__prov-label">{error}</span>
+        </div>
+      )}
+      {exportLink && (
+        <div className="hd-editor__prov" role="status">
+          <HdIcon name="File04" size={16} />
+          <a className="hd-editor__prov-link" href={exportLink.url} target="_blank" rel="noopener noreferrer">
+            {exportLink.label}
+            <HdIcon name="ChevronRight" size={15} />
+          </a>
         </div>
       )}
 
