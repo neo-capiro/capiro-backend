@@ -11,7 +11,15 @@
  *   - R-2A project pages start a new project segment under the current PE;
  *   - R-3/R-4 pages are their own segments and never consumed as R-2 narrative;
  *   - Pages with conflicting headers or no resolvable context become
- *     unresolved segments for review.
+ *     unresolved segments for review;
+ *   - Document-level front matter (cover, blanks, tables of contents,
+ *     appropriation-language boilerplate, roman-numeral-paginated index
+ *     sections) becomes `non_semantic` segments and is silently excluded
+ *     from R-2 identity completeness (Phase 10B-21) -- but ONLY when the
+ *     page has no resolved R-2/R-2A/R-3/R-4 exhibit signal at all
+ *     (structured OR body-text fallback); a page that resolves to a real
+ *     exhibit is never reclassified merely because it also happens to
+ *     mention a front-matter-shaped phrase.
  */
 import type {
   LayoutBlockV1,
@@ -124,9 +132,15 @@ const CONTINUATION_RE = /\bcontinued\b|\bcontinuation\b|\bcont\.?\b/i;
 const COVER_PAGE_RE = /\bJustification Book\b/i;
 const DOC_TOC_RE = /\bTable of Contents\b/i;
 const APPROPRIATION_LANGUAGE_RE = /\bAPPROPRIATION LANGUAGE\b/i;
-const ROMAN_NUMERAL_FOOTER_RE = /\bVolume\s+\S+\s*[-–]\s*[ivxlcdm]+\b\.?/i;
-/** Effectively no extractable content at all. */
-const BLANK_TEXT_MAX_LENGTH = 2;
+/* A well-formed roman numeral (1-3999), not merely a run of letters drawn
+ * from {i,v,x,l,c,d,m} -- the looser form also matches ordinary English
+ * words spelled entirely from that letter set ("civil", "mix", "dim").
+ * Anchored to the end of the (trimmed) text, optionally followed only by a
+ * trailing period/whitespace: this is a pagination footer convention, not a
+ * volume cross-reference that can appear mid-sentence anywhere on a real
+ * content page. */
+const ROMAN_NUMERAL_FOOTER_RE =
+  /\bVolume\s+\S+\s*[-–]\s*(?=[ivxlcdm])M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\s*\.?\s*$/i;
 
 /* ------------------------------------------------------------------ */
 /* Segmenter                                                           */
@@ -419,20 +433,43 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
    * genuinely ambiguous pages still surface as 'unresolved' (Class 5) rather
    * than being silently classified away. */
   const trimmedAllText = allText.trim();
-  const isBlankPage = trimmedAllText.length <= BLANK_TEXT_MAX_LENGTH;
-  /* Guard every content-based front-matter signal on the ABSENCE of a real
-   * structural R-2/R-2A/R-3/R-4 exhibit header: a genuine PE page whose
-   * narrative body incidentally mentions "the Table of Contents" or a
-   * volume/roman-numeral cross-reference must never be reclassified away
-   * from its real exhibit type merely because that phrase appears somewhere
-   * on the page. Only a page with NO competing structural exhibit signal at
-   * all can be proven non-semantic this way. */
-  const isCoverPage = !hasStructuredExhibitSignal && COVER_PAGE_RE.test(allText);
-  const isDocLevelToc = !hasStructuredExhibitSignal && DOC_TOC_RE.test(allText);
-  const isAppropriationLanguage =
-    !hasStructuredExhibitSignal && APPROPRIATION_LANGUAGE_RE.test(allText);
+  /* Independent review finding (Phase 10B-21A): gating on
+   * `hasStructuredExhibitSignal` alone is NOT sufficient. `isR2`/`isR2A`/
+   * `isR3`/`isR4` above already have their own body-text fallback for
+   * exactly the case where nothing on the page is structurally header/
+   * footer/heading-shaped (Phase 10B-16 Part D) -- a real R-2 page resolved
+   * ONLY through that fallback has `hasStructuredExhibitSignal === false`
+   * but `isR2 === true`, and would have been wrongly available for
+   * front-matter reclassification. The correct guard is the FULLY resolved
+   * exhibit signal (structured OR body-fallback), not just the structured
+   * half of it. */
+  /* A page whose ONLY route to isR2/isR2A/isR3/isR4 is a body-text mention
+   * of exhibit terminology while ALSO carrying multiple conflicting PE
+   * codes (e.g. an introduction section explaining "R-2 (Army RDT&E Budget
+   * Item Justification...), R-2A (...)" ahead of a PE-restructuring index
+   * table) is not a real single-PE exhibit page -- the switch statement
+   * below would itself route it to 'unresolved' via `hasConflict` regardless
+   * of isR2/isR2A/isR3/isR4, so it must not count as a competing exhibit
+   * signal here either. */
+  const hasAnyExhibitSignal = !hasConflict && (isR2 || isR2A || isR3 || isR4);
+  /* Guard every front-matter signal, including blank-page detection, on the
+   * ABSENCE of any resolved R-2/R-2A/R-3/R-4 exhibit signal: a genuine PE
+   * page whose narrative body incidentally mentions "the Table of Contents"
+   * or a volume/roman-numeral cross-reference must never be reclassified
+   * away from its real exhibit type merely because that phrase appears
+   * somewhere on the page. Only a page with NO exhibit signal at all --
+   * structured or body-fallback -- can be proven non-semantic this way.
+   * Blank-page detection is gated too and kept to EXACT emptiness (not a
+   * small-but-nonzero threshold): a page with a tiny residual text fragment
+   * is evidence of an extraction FAILURE on real content, not proof the
+   * page is genuinely blank, and must still surface as `unresolved`
+   * (blocking, for review) rather than being silently skipped. */
+  const isBlankPage = !hasAnyExhibitSignal && trimmedAllText.length === 0;
+  const isCoverPage = !hasAnyExhibitSignal && COVER_PAGE_RE.test(allText);
+  const isDocLevelToc = !hasAnyExhibitSignal && DOC_TOC_RE.test(allText);
+  const isAppropriationLanguage = !hasAnyExhibitSignal && APPROPRIATION_LANGUAGE_RE.test(allText);
   const isRomanNumeralFrontMatter =
-    !hasStructuredExhibitSignal && ROMAN_NUMERAL_FOOTER_RE.test(allText);
+    !hasAnyExhibitSignal && ROMAN_NUMERAL_FOOTER_RE.test(allText);
 
   if (isBlankPage) {
     kind = 'non_semantic';

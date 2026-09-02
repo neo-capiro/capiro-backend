@@ -738,6 +738,37 @@ describe('Phase 10B-16 Part D -- structured-evidence-first, body-text fallback',
       expect(classification.kind).toBe('r2a_project');
     });
 
+    it('does NOT reclassify a BODY-TEXT-ONLY (no structured header/heading block at all) genuine R-2 PE page as non_semantic merely because it mentions "Table of Contents" or a roman-numeral cross-reference (independent-review Finding 1 regression)', () => {
+      // Real DoD budget PDFs sometimes carry the exhibit header/PE code
+      // entirely inside plain 'text' blocks (Phase 10B-16 Part D,
+      // `bodyOnlyR2Page` above) -- `hasStructuredExhibitSignal` is FALSE for
+      // these pages even though `isR2` still resolves TRUE via the body-text
+      // fallback. Gating the front-matter signals on
+      // `!hasStructuredExhibitSignal` alone (rather than the fully-resolved
+      // `!hasAnyExhibitSignal`) would have let this exact page be
+      // reclassified away with zero omission recorded -- a silent loss of a
+      // real program element, not merely a missed positive.
+      const page = bodyOnlyR2Page('0601102A', 'Defense Research Sciences', 43);
+      page.blocks.push(
+        makeBlock(
+          4,
+          'text',
+          'Cross-referenced in the Program Element Table of Contents; see also Volume 1a - iv ' +
+            'for the full list of program element restructures affecting this line.',
+        ),
+      );
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2_pe_summary');
+      expect(classification.headerPeCodes).toContain('0601102A');
+
+      const resolution = resolveR2Contexts(result);
+      const identities = extractR2Identities({ pages: [page], contextResolution: resolution });
+      expect(identities.identities).toHaveLength(1);
+      expect(identities.identities[0]!.peCode).toBe('0601102A');
+      expect(identities.omissions).toHaveLength(0);
+    });
+
     it('DOES classify an ordinary body paragraph mentioning "Table of Contents" as non_semantic when there is no exhibit header at all (contrasting positive case)', () => {
       const page = makePage({
         page: 3,

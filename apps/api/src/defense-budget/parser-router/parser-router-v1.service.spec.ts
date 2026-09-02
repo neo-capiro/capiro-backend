@@ -261,4 +261,30 @@ describe('ParserRouterV1Service executable workflow', () => {
       /^[a-f0-9]{64}$/,
     );
   });
+
+  it('refuses to dispatch to an engine reported ENGINE_UNAVAILABLE instead of crashing inside the runtime (Phase 10B-21A regression, independent-review Finding 3)', async () => {
+    // `mixed_layout` policy selects docling as the FIRST engine for the
+    // page (route-planner.ts `initialEngineForPolicy`), so this exercises
+    // the TypeScript routing defense directly rather than via an
+    // escalation round. Matches the real Phase 10B-20 production shape: a
+    // specialized image that deliberately omits the docling extra reports
+    // it as unavailable via `parserVersions`, and the router must refuse
+    // BEFORE ever invoking the runtime client for that engine -- never a
+    // raw crash surfaced from inside the Python process.
+    const parserRuntime = runtime();
+    const verifier = verification(async (request) => result(request, 'PASS'));
+    const service = new ParserRouterV1Service(
+      { ...config(), parserPolicy: 'mixed_layout', parserVersions: { ...versions, docling: 'ENGINE_UNAVAILABLE' } },
+      {
+        artifactStore: new FilesystemParserArtifactStore(join(workDir, 'cache')),
+        runtimeClient: parserRuntime,
+        verificationService: verifier,
+      },
+    );
+
+    await expect(service.execute([profile], [1])).rejects.toThrow(
+      /docling is not available in this runtime image.*ENGINE_UNAVAILABLE/s,
+    );
+    expect((parserRuntime.executeJob as jest.Mock).mock.calls).toHaveLength(0);
+  });
 });
