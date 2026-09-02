@@ -10,6 +10,9 @@ import { StrategyEditorVNext } from '../../pages/strategies/StrategyEditorVNext.
 // the view directly and skips that router.
 import '../../pages/strategies/strategies-tokens.css';
 import { CongressionalStaffVNextView } from '../../pages/directory/CongressionalStaffVNext.js';
+import { HillDayLibrary } from '../../pages/workspace/hillday/HillDayLibrary.js';
+import { HillDayWizard } from '../../pages/workspace/hillday/HillDayWizard.js';
+import { HillDayEditor } from '../../pages/workspace/hillday/HillDayEditor.js';
 import { FOUNDATION_MAILBOX_STATES } from '../fixtures/foundation.js';
 import { DASHBOARD_VISUAL_FIXTURE, DASHBOARD_STATE_FIXTURES } from '../fixtures/dashboard.js';
 import {
@@ -168,7 +171,10 @@ export type VNextVisualScreen =
   | 'congressional-staff-empty'
   | 'strategies'
   | 'strategies-empty'
-  | 'strategy-editor';
+  | 'strategy-editor'
+  | 'hillday-library'
+  | 'hillday-wizard'
+  | 'hillday-editor';
 
 /**
  * Each screen renders at the route it actually ships on, so the sidebar's
@@ -187,6 +193,9 @@ const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
   strategies: '/strategies',
   'strategies-empty': '/strategies',
   'strategy-editor': '/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34',
+  'hillday-library': '/workspace/documents',
+  'hillday-wizard': '/workspace/documents/new',
+  'hillday-editor': '/workspace/documents/hillday-demo',
 };
 
 export function VNextShellVisual({
@@ -289,6 +298,12 @@ export function VNextShellVisual({
                 <Route path="/strategies/:strategyId" element={<StrategyEditorVNext />} />
               </Routes>
             </div>
+          ) : screen === 'hillday-library' ? (
+            <HillDayLibrary />
+          ) : screen === 'hillday-wizard' ? (
+            <HillDayWizard />
+          ) : screen === 'hillday-editor' ? (
+            <HillDayEditor />
           ) : (
             <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>
               shell baseline · product screens intentionally absent

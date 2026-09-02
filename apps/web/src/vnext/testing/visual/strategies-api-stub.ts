@@ -183,3 +183,190 @@ export function useRecordArtifact(_strategyId: string) {
 export function useStrategyConversation(_strategyId: string, _nodeId: string | null, _enabled?: boolean) {
   return { data: [], isLoading: false, isError: false };
 }
+
+/* -----------------------------------------------------------------------
+ * GENERIC COVERAGE (2026-09-01): the strategies data layer grew well past
+ * the library/editor hooks this stub originally mirrored, which broke the
+ * whole harness page at import time. These are permissive no-ops — the
+ * harness never renders a strategies screen that needs live data, and each
+ * hook keeps the react-query result shape ({ data, isLoading, isError }).
+ * ----------------------------------------------------------------------- */
+
+const NOOP_RESULT = { data: undefined, isLoading: false, isError: false } as const;
+
+export function useAcceptAllWatchProposals(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useAcceptWatchProposal(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useApplyChangeSet(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useApproveChangeSet(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useArchiveContextDocument(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useCancelRun(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useChangeSets(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextConflicts(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextDocument(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextDocuments(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextFacts(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextHealth(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextLocate(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useContextSections(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useCreateMission(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useCreateStrategy(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useCurrentPlanExport(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useDeleteNode(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useDismissContextConflict(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useDismissWatchProposal(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useDraftStrategy(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useExecuteRun(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useExecutionRuns(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useExtractContextFacts(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useFirmReviewRuns(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useGenerateStrategyExport(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useRejectChangeSet(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useRejectContextFact(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useResolveContextConflict(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useRestoreImpact(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useRestoreVersion(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useResumeRun(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useRunCheck(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useStrategyDetailWrite(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useStrategyExportPreflight(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useUndoChangeSet(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useUpdateMission(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useUpdateNode(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useUploadClientLogo(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useUploadContextDocument(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useVersions(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useVersionsInfinite(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function conversationKey(..._args: unknown[]): string {
+  return '';
+}
+
+export function exportFilenameFromDisposition(..._args: unknown[]): string {
+  return '';
+}
+

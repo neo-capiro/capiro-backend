@@ -17,6 +17,9 @@ const SCREENS: readonly VNextVisualScreen[] = [
   'strategies',
   'strategies-empty',
   'strategy-editor',
+  'hillday-library',
+  'hillday-wizard',
+  'hillday-editor',
 ];
 
 const requested = params.get('screen');
