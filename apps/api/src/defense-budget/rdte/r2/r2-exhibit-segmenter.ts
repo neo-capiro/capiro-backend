@@ -449,9 +449,22 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
    * Item Justification...), R-2A (...)" ahead of a PE-restructuring index
    * table) is not a real single-PE exhibit page -- the switch statement
    * below would itself route it to 'unresolved' via `hasConflict` regardless
-   * of isR2/isR2A/isR3/isR4, so it must not count as a competing exhibit
-   * signal here either. */
-  const hasAnyExhibitSignal = !hasConflict && (isR2 || isR2A || isR3 || isR4);
+   * of isR2/isR2A/isR3/isR4, so the BODY-FALLBACK half of the signal must
+   * not count as a competing exhibit signal in that case.
+   *
+   * That conflict veto must NOT apply to a genuinely STRUCTURED header,
+   * though: a page with a real header/heading block that happens to also
+   * carry a second PE code (e.g. a cross-reference or restructuring note on
+   * an otherwise real exhibit page) is exactly the ambiguous, structured
+   * case the module's own `hasConflict` -> 'unresolved' branch exists to
+   * surface for human review -- it must stay visible/blocking, never be
+   * silently swept into non_semantic just because its body text also
+   * happens to match a front-matter phrase. `hasStructuredExhibitSignal`
+   * therefore protects unconditionally, matching the pre-Phase-10B-21
+   * behavior for structured pages exactly; only the body-fallback path is
+   * conflict-gated. */
+  const hasAnyExhibitSignal =
+    hasStructuredExhibitSignal || (!hasConflict && (isR2 || isR2A || isR3 || isR4));
   /* Guard every front-matter signal, including blank-page detection, on the
    * ABSENCE of any resolved R-2/R-2A/R-3/R-4 exhibit signal: a genuine PE
    * page whose narrative body incidentally mentions "the Table of Contents"

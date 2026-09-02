@@ -721,6 +721,35 @@ describe('Phase 10B-16 Part D -- structured-evidence-first, body-text fallback',
       expect(classification.headerPeCodes).toContain('0601102A');
     });
 
+    it('keeps a STRUCTURED-header page with a genuine PE-code conflict as unresolved (for human review), even when its body text also matches a front-matter phrase (2nd-round independent-review regression: the !hasConflict veto must not override an unconditionally-protected structured header)', () => {
+      const page = makePage({
+        page: 44,
+        blocks: [
+          ...r2PeHeader('0601102A', 'Defense Research Sciences'),
+          // A second, distinct PE code inside a structured header/footer
+          // block -- e.g. a cross-reference or restructuring note on an
+          // otherwise real exhibit page -- makes this page genuinely
+          // ambiguous (Class 5), not provably non-semantic. It must stay
+          // 'unresolved' and blocking, never be silently absorbed into
+          // non_semantic just because the SAME page's body text also
+          // happens to mention "Table of Contents".
+          makeBlock(3, 'footer', 'formerly PE 0601103A'),
+          makeBlock(
+            4,
+            'text',
+            'Cross-referenced in the Program Element Table of Contents at the front of this volume.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('unresolved');
+      expect(classification.reason).toMatch(/conflicting PE headers/);
+      expect(classification.headerPeCodes).toEqual(
+        expect.arrayContaining(['0601102A', '0601103A']),
+      );
+    });
+
     it('does NOT reclassify a genuine R-2A project page as non_semantic merely because its narrative body mentions "Table of Contents" (false-positive negative control)', () => {
       const page = makePage({
         page: 51,
