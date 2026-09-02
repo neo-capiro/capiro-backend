@@ -504,14 +504,31 @@ export class HillDayDocumentService {
           detail: 'No calendar connection is configured for this firm; only manually recorded events can surface.',
         });
       }
+      // One block per provider (a firm can hold several mailboxes of the same
+      // provider): connected count vs. total, worst status wins.
+      const byProvider = new Map<string, typeof connections>();
       for (const c of connections) {
+        const list = byProvider.get(c.provider) ?? [];
+        list.push(c);
+        byProvider.set(c.provider, list);
+      }
+      for (const [provider, list] of byProvider) {
+        const connected = list.filter((c) => c.status === 'connected');
+        const errored = list.filter((c) => c.status === 'error');
+        const status: SourceStatusBlock['status'] =
+          connected.length === list.length ? 'ok' : connected.length > 0 || errored.length > 0 ? 'partial' : 'unavailable';
+        const lastSync = connected
+          .map((c) => c.lastSyncAt?.getTime() ?? 0)
+          .reduce((a, b) => Math.max(a, b), 0);
         sources.push({
-          source: `calendar:${c.provider}`,
-          status: c.status === 'connected' ? 'ok' : c.status === 'error' ? 'partial' : 'unavailable',
+          source: `calendar:${provider}`,
+          status,
           detail:
-            c.status === 'connected'
-              ? `${c.accountEmail ?? 'connected'} · last sync ${c.lastSyncAt ? c.lastSyncAt.toISOString() : 'never'}`
-              : c.lastError ?? `Connection ${c.status.replace(/_/g, ' ')}`,
+            status === 'ok'
+              ? `${connected.length} mailbox${connected.length === 1 ? '' : 'es'} · last sync ${lastSync ? new Date(lastSync).toISOString() : 'never'}`
+              : `${connected.length} of ${list.length} mailboxes connected${
+                  errored[0]?.lastError ? ` · ${errored[0].lastError}` : ''
+                }`,
         });
       }
     } catch (err) {

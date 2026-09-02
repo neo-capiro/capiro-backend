@@ -496,33 +496,41 @@ export class HillDayResolutionService {
       }
 
       const sub = senateSubdomain(address);
-      const inviteOffice = sub ? input.domainOffices.get(sub) ?? null : null;
-      if (inviteOffice && !inviteDomainOffice) inviteDomainOffice = inviteOffice;
+      let inviteOffice = sub ? input.domainOffices.get(sub) ?? null : null;
 
       const staff = input.staffByEmail.get(address);
       const cstaff = input.committeeByEmail.get(address);
 
+      // An address that matches a MEMBER's Directory contact is the office's
+      // general or scheduling mailbox (members do not publish personal
+      // addresses), so it names the office but carries no substantive
+      // attendee: scheduler-only, office derived from the invite. Verified live
+      // 2026-09-02: `scheduling@collins.senate.gov` is Sen. Collins' contact
+      // email and must not read as the senator attending.
       if (staff && staff.matchKind === 'member') {
         const office = officeRefFromContext(staff.member);
+        inviteOffice = inviteOffice ?? office;
+        if (!inviteDomainOffice) inviteDomainOffice = inviteOffice;
         attendees.push({
           attendeeId,
           address,
-          state: 'resolved',
+          state: 'scheduler',
           stafferId: null,
-          name: staff.member.fullName,
-          role: 'Member of Congress',
+          name: address,
+          role: null,
           issueAreas: [],
           topics: [],
-          directoryOffice: office,
+          directoryOffice: null,
           inviteOffice,
           committee: null,
-          detail: 'The member is on the invite.',
+          detail: `Office address for ${office.member ?? 'this member'}. No substantive attendees on the invite yet.`,
           manual: false,
           correction: null,
           directoryRecord: null,
         });
         continue;
       }
+      if (inviteOffice && !inviteDomainOffice) inviteDomainOffice = inviteOffice;
 
       if (staff?.staff) {
         const directoryOffice = officeRefFromContext(staff.member);

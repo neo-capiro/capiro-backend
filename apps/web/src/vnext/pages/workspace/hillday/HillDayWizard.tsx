@@ -693,7 +693,9 @@ export function HillDayWizard() {
                       <span className="hd-client-row__name">{c.name}</span>
                       <span className="hd-client-row__meta">
                         {[
-                          c.description,
+                          c.description && c.description.length > 96
+                            ? `${c.description.slice(0, 93).trimEnd()}…`
+                            : c.description,
                           c.objectiveCount === null
                             ? 'objectives unavailable'
                             : `${c.objectiveCount} objective${c.objectiveCount === 1 ? '' : 's'}`,

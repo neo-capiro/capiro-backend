@@ -111,15 +111,25 @@ export class HillDaySourceService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Run `fn` with the tenant GUC set so RLS admits this tenant's rows. */
+  /**
+   * Run `fn` with the tenant GUC set so RLS admits this tenant's rows.
+   *
+   * Prisma's interactive-transaction defaults (2s to acquire a connection, 5s
+   * to finish) are too tight for this service's small pool: a slow read here
+   * used to expire mid-flight AND starve the TenantGuard's own lookup, which
+   * then failed closed with a 403 for the next request (seen live 2026-09-02).
+   */
   private withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
-      return fn(tx);
-    });
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        return fn(tx);
+      },
+      { maxWait: 8_000, timeout: 30_000 },
+    );
   }
 
   // ── Identity ──────────────────────────────────────────────────────────────

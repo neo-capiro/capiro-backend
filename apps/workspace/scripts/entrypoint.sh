@@ -21,7 +21,12 @@ if [ -z "$DATABASE_URL" ]; then
   fi
   # URL-encode the password using node (always present in this image).
   ENCODED_PASSWORD=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$DB_PASSWORD")
-  export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require"
+  # connection_limit/pool_timeout: Prisma's default pool on a 0.25-vCPU task is
+  # a handful of connections with a 10s wait. The TenantGuard's tenant lookup
+  # shares that pool with every request's own transaction, so under modest
+  # concurrency it timed out and failed closed (403 "No tenant for the supplied
+  # identifiers", 2026-09-02). Ten connections + a 20s wait keeps the guard fed.
+  export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10&pool_timeout=20"
 fi
 
 # tsx writes its compile cache under TMPDIR; default to tmpfs if unset.

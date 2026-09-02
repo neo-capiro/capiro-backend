@@ -163,6 +163,40 @@ describe('HillDayResolutionService.resolveDocument', () => {
     expect(m4!.attendees[0]!.directoryOffice?.member).toBe('Rep. Jared Golden (D-ME-02)');
   });
 
+  it('treats an address that matches a MEMBER contact as the office mailbox, not the member attending', async () => {
+    const meetings: FakeMeeting[] = [
+      { id: 'm-1', eventId: 'e-1', ordinal: 0, context: null, section: null, resolution: null,
+        event: event('e-1', ['scheduling@collins.senate.gov'], { location: 'Dirksen 413' }) },
+    ];
+    const { service, bridge } = makeHarness(meetings);
+    bridge.matchEmails.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        snapshotId: 's',
+        committeeStaff: [],
+        matches: [
+          {
+            attendeeEmail: 'scheduling@collins.senate.gov',
+            matchKind: 'member',
+            directoryContactId: 'member-2',
+            directoryContactName: 'Sen. Susan Collins',
+            member: collins,
+            staff: null,
+          },
+        ],
+      },
+    });
+    const result = await service.resolveDocument('t', 'user-1', 'doc-1');
+    const m = result.meetings[0]!;
+    expect(m.attendees[0]!.state).toBe('scheduler');
+    expect(m.attendees[0]!.role).toBeNull();
+    expect(m.attendees[0]!.detail).toContain('Office address for Sen. Susan Collins (R-ME)');
+    expect(m.office.member).toBe('Sen. Susan Collins (R-ME)');
+    expect(m.office.derivedFrom).toBe('invite_domain');
+    expect(m.needsConfirmation).toBe(true);
+    expect(m.state).toBe('partial');
+  });
+
   it('degrades to unavailable when the Directory bridge is down, never fabricating a match', async () => {
     const meetings: FakeMeeting[] = [
       { id: 'm-1', eventId: 'e-1', ordinal: 0, context: null, section: null, resolution: null,
