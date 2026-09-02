@@ -74,6 +74,15 @@ export function extractR2Identities(input: {
   for (const resolvedPage of contextResolution.pages) {
     const parserPage = pageMap.get(resolvedPage.page);
 
+    /* Phase 10B-21 Part D: a page proven non-semantic (cover, blank, table
+     * of contents, appropriation language, roman-numeral front matter) has
+     * no required R-2 identity source fact at all -- it is not an omission,
+     * correctable or otherwise, same posture as the R-2A extractor silently
+     * skipping a page with no R-2A marker. */
+    if (resolvedPage.contextSource === 'non_semantic') {
+      continue;
+    }
+
     if (resolvedPage.contextSource === 'unresolved') {
       omissions.push({
         page: resolvedPage.page,

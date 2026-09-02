@@ -29,6 +29,7 @@ export type R2PageKind =
   | 'r2a_project'
   | 'r3_page'
   | 'r4_page'
+  | 'non_semantic'
   | 'unresolved';
 
 export interface R2PageClassification {
@@ -104,6 +105,28 @@ const R4_HEADER_RE = /\bR-4\b|\bR-4A\b|\bRDT&E\s+Schedule\s+Profile\b/i;
 const APPROPRIATION_RE = /\b(?:appropriation|appn)\s*[:\-]?\s*([A-Z0-9\s&]+?)(?:\s{2,}|$)/i;
 const BA_RE = /\b(?:budget\s*activity|ba)\s*[:\-]?\s*([A-Z0-9\s]+?)(?:\s{2,}|$)/i;
 const CONTINUATION_RE = /\bcontinued\b|\bcontinuation\b|\bcont\.?\b/i;
+
+/* Phase 10B-21 Part C: deterministic front-matter signals. These identify
+ * document-level (not PE-level) pages by standardized DoD budget-exhibit
+ * structural conventions -- never by fiscal year or physical page number:
+ *   - a volume cover page names the "Justification Book" itself;
+ *   - "Table of Contents" (bare, or the "Program Element Table of Contents"
+ *     variant) is standard front-matter boilerplate in every R-2 volume;
+ *   - "APPROPRIATION LANGUAGE" is the standardized legally-mandated section
+ *     heading that opens every R-2 volume, verbatim, every fiscal year;
+ *   - front-matter pages in this document family are paginated with lower-
+ *     case roman numerals ("Volume 1a - vii"); PE content pages are always
+ *     paginated with Arabic numerals ("Volume 1a - 43"). This is a generic
+ *     print convention, not specific to any one volume or year, and is the
+ *     strongest signal here because it still holds even when a front-matter
+ *     page's OWN body text also happens to mention PE codes (e.g. a
+ *     "Program Element/Project Restructures" administrative table). */
+const COVER_PAGE_RE = /\bJustification Book\b/i;
+const DOC_TOC_RE = /\bTable of Contents\b/i;
+const APPROPRIATION_LANGUAGE_RE = /\bAPPROPRIATION LANGUAGE\b/i;
+const ROMAN_NUMERAL_FOOTER_RE = /\bVolume\s+\S+\s*[-–]\s*[ivxlcdm]+\b\.?/i;
+/** Effectively no extractable content at all. */
+const BLANK_TEXT_MAX_LENGTH = 2;
 
 /* ------------------------------------------------------------------ */
 /* Segmenter                                                           */
@@ -234,6 +257,16 @@ export function segmentR2ExhibitPages(pages: readonly ParserPageResultV1[]): R2S
         /* R-3/R-4 pages are never consumed as R-2 narrative. */
         startSegment(cls.kind, cls, {
           contextEvidence: [`exhibit header: ${cls.headerTexts.join(' | ')}`],
+        });
+        break;
+      }
+
+      case 'non_semantic': {
+        /* Phase 10B-21 Part E: front matter still gets its own segment so
+         * every physical page is accounted for in pageCoverage -- it is
+         * simply never treated as R-2 identity/funding evidence. */
+        startSegment('non_semantic', cls, {
+          contextEvidence: [`non-semantic page: ${cls.reason}`],
         });
         break;
       }
@@ -376,7 +409,38 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
   let kind: R2PageKind;
   let reason: string;
 
-  if (hasConflict) {
+  /* Phase 10B-21 Part B/C: document-level front matter (cover, blank
+   * separators, tables of contents, appropriation-language boilerplate, and
+   * roman-numeral-paginated index sections) is classified BEFORE the R-2
+   * exhibit-type checks below, using only deterministic structural/textual
+   * evidence -- never a page number or fiscal year. A page must be PROVEN
+   * non-semantic by one of these signals; anything that doesn't match falls
+   * through to the existing R-2/R-2A/R-3/R-4/unresolved logic unchanged, so
+   * genuinely ambiguous pages still surface as 'unresolved' (Class 5) rather
+   * than being silently classified away. */
+  const trimmedAllText = allText.trim();
+  const isBlankPage = trimmedAllText.length <= BLANK_TEXT_MAX_LENGTH;
+  const isCoverPage = COVER_PAGE_RE.test(allText);
+  const isDocLevelToc = DOC_TOC_RE.test(allText);
+  const isAppropriationLanguage = APPROPRIATION_LANGUAGE_RE.test(allText);
+  const isRomanNumeralFrontMatter = ROMAN_NUMERAL_FOOTER_RE.test(allText);
+
+  if (isBlankPage) {
+    kind = 'non_semantic';
+    reason = 'blank page, no extractable content';
+  } else if (isCoverPage) {
+    kind = 'non_semantic';
+    reason = 'volume cover/title page';
+  } else if (isDocLevelToc) {
+    kind = 'non_semantic';
+    reason = 'document- or program-element-level table of contents';
+  } else if (isAppropriationLanguage) {
+    kind = 'non_semantic';
+    reason = 'appropriation language boilerplate section';
+  } else if (isRomanNumeralFrontMatter) {
+    kind = 'non_semantic';
+    reason = 'roman-numeral-paginated front matter (introduction/restructures/index)';
+  } else if (hasConflict) {
     kind = 'unresolved';
     reason = `conflicting PE headers: ${uniquePeCodes.join(', ')}`;
   } else if (isR3) {

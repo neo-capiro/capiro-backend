@@ -378,21 +378,25 @@ describe('Phase 10B-16 Part E -- real R-2 semantic pipeline acceptance (PE 06011
     });
     const byCode = new Map(verification.checks.map((c) => [c.code, c]));
 
-    // Deliberately NOT asserting overall verifier PASS or even that
-    // `completeness` passes, per the brief (Part H): this one Army BA1
-    // R-2 volume also contains 117 real R-2A project-detail pages (not
-    // extracted by this test, which drives only the R-2 branch) and 36
-    // genuinely ambiguous/unattributable pages (narrative/TOC/index
-    // sections) that `segmentR2ExhibitPages` correctly and conservatively
-    // classifies as `unresolved` rather than guessing a PE for them --
-    // `extractR2Identities` then correctly raises a blocking
-    // `missing_evidence` omission for each (36 of the 39 total omissions;
-    // confirmed by direct count, not assumed). This is real, honest,
-    // fail-closed behavior reflecting this volume's actual mixed content,
-    // not a defect introduced by the Part B/C/D fixes -- forcing those 36
-    // pages into a PE bucket to make `completeness` pass would be exactly
-    // the kind of invented semantic value this phase must not produce.
+    // Phase 10B-21 Part H: the 36 pages this volume's front matter spans
+    // (cover, blanks, tables of contents, appropriation-language boilerplate,
+    // and roman-numeral-paginated introduction/index sections) are proven
+    // non-semantic by `segmentR2ExhibitPages` using deterministic structural
+    // evidence (heading text, blank content, roman-vs-arabic pagination --
+    // never a page number or fiscal year), so `extractR2Identities` no
+    // longer raises a required-identity omission for any of them. This is
+    // the fix for the Phase 10B-16 finding this test used to document as
+    // intentional fail-closed behavior: those 36 pages were never actually a
+    // completeness gap, they simply never contained a PE to begin with.
+    // Still NOT asserting overall PASS (Part H: "Do not require PASS. A
+    // truthful REVIEW is acceptable.") -- only that fixing real front-matter
+    // false positives does not leave the verifier at REJECT.
     expect(byCode.get('completeness')).toBeDefined();
+    expect(verification.decision).not.toBe('REJECT');
+    const blockingIdentityOmissions = artifact.omissions.filter(
+      (o) => o.severity === 'blocking' && o.message.includes('R-2 identity omission'),
+    );
+    expect(blockingIdentityOmissions).toHaveLength(0);
 
     // eslint-disable-next-line no-console
     console.log(
