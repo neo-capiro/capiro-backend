@@ -39,7 +39,7 @@ USER root
 # `ImportError: libgomp.so.1: cannot open shared object file`, confirmed
 # empirically against this exact ARM64 image before this fix.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 libgomp1 \
+ && apt-get install -y --no-install-recommends python3 libgomp1 curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -68,6 +68,64 @@ RUN chown capiro:capiro \
   /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
   /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+
+# Phase 10B-23A Part B: PPStructure (the real class this image uses --
+# paddleocr 2.10.0 does not export PPStructureV3 at all, confirmed by the
+# ImportError fallback in paddleocr_engine.py) unconditionally downloads 5
+# sub-models (det/rec/table/layout/formula) from a single fixed third-party
+# CDN (paddleocr.bj.bcebos.com) the FIRST time it constructs, with NO
+# integrity check of any kind -- confirmed by reading
+# ppocr/utils/network.py's maybe_download(), which only checks whether
+# inference.pdiparams/inference.pdmodel already exist at the target path,
+# never a checksum, on either a fresh download or a pre-existing file. A
+# production task must not have its first real run depend on an
+# unauthenticated, unverified, uncontrolled runtime fetch from a third-party
+# host with no offline fallback. Bake all five here, individually
+# SHA-256-verified against the exact bytes this qualification captured
+# (2026-09-02) from paddleocr==2.10.0's own hardcoded URLs -- once these
+# files exist at maybe_download's expected path, it skips its download step
+# entirely, so the running container needs no outbound network access to
+# fetch them. All five models are Apache-2.0, matching paddleocr/paddlepaddle
+# themselves (see docs/runbooks/defense-budget-parser-router.md for the full
+# license/checksum table this qualification produced).
+RUN set -eux; \
+  bake_model() { \
+    url="$1"; dest="$2"; params_sha="$3"; model_sha="$4"; \
+    tmp_dir="$(mktemp -d)"; \
+    curl -fsSL "$url" -o "$tmp_dir/model.tar"; \
+    mkdir -p "$dest"; \
+    tar -xf "$tmp_dir/model.tar" -C "$tmp_dir"; \
+    src_dir="$(dirname "$(find "$tmp_dir" -name inference.pdmodel | head -1)")"; \
+    cp "$src_dir/inference.pdiparams" "$dest/inference.pdiparams"; \
+    cp "$src_dir/inference.pdmodel" "$dest/inference.pdmodel"; \
+    if [ -f "$src_dir/inference.pdiparams.info" ]; then \
+      cp "$src_dir/inference.pdiparams.info" "$dest/inference.pdiparams.info"; \
+    fi; \
+    echo "$params_sha  $dest/inference.pdiparams" | sha256sum -c -; \
+    echo "$model_sha  $dest/inference.pdmodel" | sha256sum -c -; \
+    rm -rf "$tmp_dir"; \
+  }; \
+  bake_model https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_infer.tar \
+    /home/capiro/.paddleocr/whl/det/ch/ch_PP-OCRv4_det_infer \
+    49ee815e30cff43cb1057d33bf0d94193e4d4f1ae28451cad15b40be830df915 \
+    2ad68ed2768fe6c41166a5bc64680cc9f445390acb6528da449a4db2f7b90e14; \
+  bake_model https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar \
+    /home/capiro/.paddleocr/whl/rec/ch/ch_PP-OCRv4_rec_infer \
+    a6dbfa63e7ee161688523c954e9e293f77dc24044db81e836ff9c7f103fd191a \
+    bf78f3898a004615e69c676259d8171bd7ae99000653b41fd72aaa36ae8bd304; \
+  bake_model https://paddleocr.bj.bcebos.com/ppstructure/models/slanet/paddle3.0b2/ch_ppstructure_mobile_v2.0_SLANet_infer.tar \
+    /home/capiro/.paddleocr/whl/table/ch_ppstructure_mobile_v2.0_SLANet_infer \
+    9d33d47b174bcb9fb63f94dac54a4d01a974da6d0c56ddb51cf0e38ed43f7a60 \
+    5ed9d29433666828d2a3d6a6bc55ef2a55734091955c53eb20a098a19da6d9fd; \
+  bake_model https://paddleocr.bj.bcebos.com/ppstructure/models/layout/picodet_lcnet_x1_0_fgd_layout_cdla_infer.tar \
+    /home/capiro/.paddleocr/whl/layout/picodet_lcnet_x1_0_fgd_layout_cdla_infer \
+    f8b201421e2d1b990570366fcad2fc08c336e8ab297558e683b695da7c5aa709 \
+    9f542db747466ee2e1767384285cea4e068b777e8b63651805e543285c125ef7; \
+  bake_model https://paddleocr.bj.bcebos.com/contribution/rec_latex_ocr_infer.tar \
+    /home/capiro/.paddleocr/whl/formula/rec_latex_ocr_infer \
+    c2c7eaf7519c2e2a3bb759b468dc2dba08f85a8a86bc4b01b4a1d17274f7d215 \
+    e53f264d07badb8a8a1657e7869e7bf845af2c49df73413847c2ba03577cb1db; \
+  chown -R capiro:capiro /home/capiro/.paddleocr
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
 # (Fargate task user cannot create /home/capiro/.cache/uv).
