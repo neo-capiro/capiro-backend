@@ -768,7 +768,7 @@ function TodayAndComingUp({
       <header className="home-panel-head">
         <span className="home-panel-title">Today &amp; Coming Up</span>
         <span className="open">
-          <Link to="/engagement">Open Engagement Manager →</Link>
+          <Link to="/engagement">Open Engagement →</Link>
         </span>
       </header>
 

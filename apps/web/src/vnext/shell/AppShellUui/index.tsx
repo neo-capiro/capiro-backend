@@ -196,7 +196,7 @@ export function topbarSectionLabel(
     );
   });
   if (!current) return 'Dashboard';
-  return current.id === 'engagement-manager' ? 'Engagement' : current.label;
+  return current.label;
 }
 
 export interface AppShellUuiViewProps {

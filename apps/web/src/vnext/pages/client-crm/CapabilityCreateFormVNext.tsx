@@ -117,7 +117,7 @@ export function CapabilityCreateFormVNext({
         <div className="capiro-capc__span2">
           <CapiroInput
             label="Name"
-            placeholder="e.g. JaiaBot Hydro"
+            placeholder="Specific capability name"
             required
             autoFocus
             value={name}
