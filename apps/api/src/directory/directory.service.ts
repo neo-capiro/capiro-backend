@@ -408,6 +408,57 @@ export interface DirectoryEmailMatch {
   };
 }
 
+/** Internal-bridge shapes (apps/workspace Hill Day); mirrored in that service. */
+export interface DirectoryMemberContext {
+  id: string;
+  bioguideId: string;
+  fullName: string;
+  memberName: string;
+  honorific: string;
+  title: string;
+  chamber: Chamber;
+  state: string;
+  district: string;
+  party: Party;
+  partyName: string;
+  officeLocation: string;
+  phone: string;
+  email: string;
+  bioNarrative: string;
+  committees: string[];
+  committeesWithRole: Array<{ name: string; role: string | null }>;
+  committeeLeadership: string[];
+  leadershipPositions: string[];
+  focusAreas: string[];
+  topIssues: Array<{ issue: string; stafferCount: number }>;
+  staff: Array<{
+    id: string;
+    fullName: string;
+    title: string;
+    roles: string[];
+    issueAreas: string[];
+    email: string;
+    isCurrent: boolean;
+  }>;
+}
+
+export interface DirectoryStafferContext {
+  id: string;
+  fullName: string;
+  title: string;
+  roles: string[];
+  issueAreas: string[];
+  email: string;
+  officeLocation: string;
+  member: DirectoryMemberContext | null;
+}
+
+export interface DirectoryCommitteeStaffEmailMatch {
+  attendeeEmail: string;
+  staff: { id: string; fullName: string; title: string; email: string; isCurrent: boolean };
+  committee: { id: string; name: string; chamber: CommitteeChamber; kind: CommitteeKind };
+}
+
 export interface CreateDirectoryContactNoteInput {
   body: string;
   directoryContactName?: string;
@@ -1850,6 +1901,166 @@ export class DirectoryService implements OnModuleInit {
       leadershipPositions: contact.leadershipPositions,
       focusAreas: contact.focusAreas,
       addresses: contact.addresses,
+    };
+  }
+
+  // ── Internal bridge (apps/workspace Hill Day workflow) ────────────────────
+  // The workspace service cannot read the LegiStorm snapshot (S3 + this
+  // in-memory cache), so it resolves attendee addresses through these
+  // backend-only reads. All of them are pure lookups over the cached data.
+
+  /**
+   * Committee staff by email. Committee staffers live on committee rosters,
+   * not on any member's staff list, so findContactsByEmails never sees them —
+   * a SASC professional staff member on an invite would otherwise resolve to
+   * "no Directory record".
+   */
+  async findCommitteeStaffByEmails(
+    emails: string[],
+    limit = 200,
+  ): Promise<DirectoryCommitteeStaffEmailMatch[]> {
+    const wanted = new Set(
+      emails.map((e) => normalizeEmailAddress(e)).filter((e): e is string => Boolean(e)),
+    );
+    if (!wanted.size) return [];
+    const base = await this.getDirectoryData();
+    const names = new Map(base.committees.map((c) => [c.id, c.name]));
+    const out: DirectoryCommitteeStaffEmailMatch[] = [];
+    const seen = new Set<string>();
+    for (const [committeeId, roster] of base.committeeStaff) {
+      for (const staffer of roster) {
+        const email = normalizeEmailAddress(staffer.email);
+        if (!email || !wanted.has(email)) continue;
+        const key = `${email}:${staffer.id}:${committeeId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          attendeeEmail: email,
+          staff: {
+            id: staffer.id,
+            fullName: staffer.fullName,
+            title: staffer.title,
+            email: staffer.email,
+            isCurrent: staffer.isCurrent,
+          },
+          committee: {
+            id: committeeId,
+            name: names.get(committeeId) ?? staffer.committee.name,
+            chamber: staffer.committee.chamber,
+            kind: staffer.committee.kind,
+          },
+        });
+        if (out.length >= limit) return out;
+      }
+    }
+    return out;
+  }
+
+  /** One member (contact id `member-123`, or the bare number) in the bridge shape. */
+  async getMemberContextById(contactId: string): Promise<DirectoryMemberContext | null> {
+    const id = normalizeContactId(contactId);
+    const key = /^member-/.test(id) ? id : `member-${id}`;
+    const base = await this.getDirectoryData();
+    const contact = base.contacts.find((c) => c.id === key);
+    return contact ? this.toMemberContext(base, contact) : null;
+  }
+
+  /** Member search for the "change office" / invite-domain flows. */
+  async searchMemberContexts(
+    q: string,
+    chamber: string | undefined,
+    limit = 10,
+  ): Promise<DirectoryMemberContext[]> {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return [];
+    const base = await this.getDirectoryData();
+    const chamberFilter = chamber?.trim().toLowerCase() || null;
+    const hits = base.contacts.filter((c) => {
+      if (chamberFilter && c.chamber.toLowerCase() !== chamberFilter) return false;
+      const blob = [c.fullName, c.memberName, c.state, c.district, c.office]
+        .join(' ')
+        .toLowerCase();
+      return blob.includes(needle);
+    });
+    return hits.slice(0, Math.max(1, Math.min(limit, 50))).map((c) => this.toMemberContext(base, c));
+  }
+
+  /** One staffer (`staff-123`) with their member's context, for the assign flow. */
+  async getStafferContextById(staffId: string): Promise<DirectoryStafferContext | null> {
+    const id = normalizeContactId(staffId);
+    const key = /^staff-/.test(id) ? id : `staff-${id}`;
+    const base = await this.getDirectoryData();
+    const staffer = base.staffers.find((s) => s.id === key);
+    if (!staffer) return null;
+    return this.toStafferContext(base, staffer);
+  }
+
+  async searchStafferContexts(q: string, limit = 12): Promise<DirectoryStafferContext[]> {
+    const payload = await this.getStaffers({ q, pageSize: Math.max(1, Math.min(limit, 50)) });
+    const base = await this.getDirectoryData();
+    return payload.staffers.map((s) => this.toStafferContext(base, s));
+  }
+
+  private toStafferContext(
+    base: CachedContacts['data'],
+    staffer: DirectoryStaffer,
+  ): DirectoryStafferContext {
+    const contact = base.contacts.find((c) => c.id === staffer.member.id) ?? null;
+    return {
+      id: staffer.id,
+      fullName: staffer.fullName,
+      title: staffer.title,
+      roles: staffer.roles,
+      issueAreas: staffer.issueAreas,
+      email: staffer.email,
+      officeLocation: staffer.officeLocation,
+      member: contact ? this.toMemberContext(base, contact) : null,
+    };
+  }
+
+  private toMemberContext(
+    base: CachedContacts['data'],
+    contact: DirectoryContact,
+  ): DirectoryMemberContext {
+    const memberships = this.membershipsForPerson(base.indexes, contact.id).filter(
+      (m) => m.endedAt === null,
+    );
+    const committeeNames = new Map(base.committees.map((c) => [c.id, c.name]));
+    const committeesWithRole = memberships.map((m) => ({
+      name: committeeNames.get(m.committeeId) ?? m.committeeId,
+      role: m.position && !/^member$/i.test(m.position) ? m.position : null,
+    }));
+    return {
+      id: contact.id,
+      bioguideId: contact.bioguideId,
+      fullName: contact.fullName,
+      memberName: contact.memberName,
+      honorific: contact.honorific,
+      title: contact.title,
+      chamber: contact.chamber,
+      state: contact.state,
+      district: contact.district,
+      party: contact.party,
+      partyName: contact.partyName,
+      officeLocation: contact.officeLocation,
+      phone: contact.phone,
+      email: contact.email,
+      bioNarrative: contact.bio?.narrative ?? '',
+      committees: contact.committees,
+      committeesWithRole,
+      committeeLeadership: contact.committeeLeadership,
+      leadershipPositions: contact.leadershipPositions,
+      focusAreas: contact.focusAreas,
+      topIssues: contact.topIssues,
+      staff: contact.staff.map((s) => ({
+        id: s.id,
+        fullName: s.fullName,
+        title: s.title,
+        roles: s.roles,
+        issueAreas: s.issueAreas,
+        email: s.email,
+        isCurrent: s.isCurrent,
+      })),
     };
   }
 

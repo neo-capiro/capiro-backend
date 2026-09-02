@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DirectoryController } from './directory.controller.js';
+import { InternalDirectoryController } from './internal-directory.controller.js';
 import { DirectoryService } from './directory.service.js';
 import { RepresentationModule } from '../clients/representation.module.js';
 
@@ -8,7 +9,9 @@ import { RepresentationModule } from '../clients/representation.module.js';
   // facilities" pill needs RepresentationResolverService's tenant-wide
   // facility scan.
   imports: [RepresentationModule],
-  controllers: [DirectoryController],
+  // InternalDirectoryController: backend-only bridge for apps/workspace's
+  // Hill Day attendee resolution (InternalServiceGuard, read-only).
+  controllers: [DirectoryController, InternalDirectoryController],
   providers: [DirectoryService],
   exports: [DirectoryService],
 })

@@ -2485,3 +2485,7 @@
     opacity: 1;
   }
 }
+
+/* ── Utility rotations (week nav chevrons, context toggle) ─────────────── */
+.capiro-vnext-root .hd-rotate-90 { transform: rotate(90deg); }
+.capiro-vnext-root .hd-rotate-270 { transform: rotate(-90deg); }

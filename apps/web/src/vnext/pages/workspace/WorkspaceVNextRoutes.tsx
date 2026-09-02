@@ -77,8 +77,9 @@ const RUN_ROUTE = new RegExp(`^/workspace/(${UUID_SOURCE})/run/?$`);
 const STUDIO_EDITOR_ROUTE = new RegExp(
   `^/workspace/studio/(${UUID_SOURCE})/(${UUID_SOURCE})/?$`,
 );
-// Hill Day editor route — ids are non-UUID until the backend module issues
-// real document ids; `hillday-demo` is the fixture document.
+// Hill Day editor route — document ids are the workspace engine's
+// ws_hillday_document UUIDs (backend shipped 2026-09); the pattern stays
+// permissive so a mistyped id lands on the editor's own "unavailable" state.
 const HILLDAY_DOC_ROUTE = /^\/workspace\/documents\/([A-Za-z0-9-]+)\/?$/;
 
 const STATIC_VNEXT_ROUTES = new Set([

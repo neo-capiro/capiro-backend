@@ -1894,6 +1894,46 @@ export class ClientsService {
     return this.withLogoUrl(updated);
   }
 
+  /**
+   * Internal bridge (apps/workspace Hill Day): the sponsor mark and the firm
+   * mark for co-branding the packet, as short-lived signed GET URLs. Read-only;
+   * reached only through InternalServiceGuard.
+   */
+  async internalBranding(
+    tenantId: string,
+    clientId: string,
+  ): Promise<{
+    clientLogoUrl: string | null;
+    clientLogoContentType: string | null;
+    firmLogoUrl: string | null;
+    firmLogoContentType: string | null;
+  }> {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuid.test(tenantId) || !uuid.test(clientId)) {
+      throw new NotFoundException('Client not found');
+    }
+    const rows = await this.prisma.withSystem(async (tx) => {
+      const [client, tenant] = await Promise.all([
+        tx.client.findFirst({
+          where: { id: clientId, tenantId },
+          select: { logoS3Key: true, logoContentType: true },
+        }),
+        tx.tenant.findUnique({
+          where: { id: tenantId },
+          select: { logoS3Key: true, logoContentType: true },
+        }),
+      ]);
+      return { client, tenant };
+    });
+    if (!rows.client) throw new NotFoundException('Client not found');
+    return {
+      clientLogoUrl: rows.client.logoS3Key ? await this.signedGetUrl(rows.client.logoS3Key) : null,
+      clientLogoContentType: rows.client.logoContentType ?? null,
+      firmLogoUrl: rows.tenant?.logoS3Key ? await this.signedGetUrl(rows.tenant.logoS3Key) : null,
+      firmLogoContentType: rows.tenant?.logoContentType ?? null,
+    };
+  }
+
   private async withLogoUrls<T extends { logoS3Key: string | null }>(
     clients: T[],
   ): Promise<Array<T & { logoUrl: string | null }>> {

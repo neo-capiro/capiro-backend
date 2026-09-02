@@ -80,3 +80,22 @@ prototype (library/flow/editor sections), inside the existing shell, exactly
 as the workspace module already does. The prototype's in-page "Workspace /
 Documents / Template Studio / Client shares" sub-nav maps to the shell's
 existing Workspace nav family.
+
+## Backend (shipped 2026-09-01)
+
+The engine half lives in `apps/workspace/src/hillday/` and is mounted at
+`/workspace-api/hillday/*` (the requirements' `/api/v1/...` families map 1:1):
+
+| Concern | Where |
+|---|---|
+| Source layers (clients, meetings + attendees, mail threads, strategies, users, tenants) | `hillday-source.service.ts` — raw SQL under the tenant GUC, no fabricated fallbacks |
+| Directory bridge (address → staffer → office → member) | `directory-bridge.client.ts` → apps/api `/api/internal/directory/*` (InternalServiceGuard) |
+| Resolution chain + user corrections (authoritative per document) | `resolution.rules.ts` (pure) + `hillday-resolution.service.ts` |
+| Carry-over defaults (server-supplied `defaultSelected`) + notes + correspondence window | `hillday-context.service.ts` |
+| Generation job, SSE event log, prompt assembly honouring the carry selection, logged source set | `hillday-generation.service.ts` + `generation-prompt.ts` |
+| Assembled document model, library, quality checks | `hillday-document.service.ts` |
+| Server-rendered PDF (Letter/A4, facts grid never split) behind an HMAC-signed URL | `hillday-export.service.ts` |
+
+`api.ts` on this side is now the real client (`useHillDayApi()`); `fixtures.ts`
+holds static UI copy only. SSE progress is consumed with `fetch` (EventSource
+cannot carry the Clerk bearer) and falls back to polling the sibling route.

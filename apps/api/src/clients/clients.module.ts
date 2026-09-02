@@ -35,6 +35,7 @@ import { ClientAccountOwnerController } from './client-account-owner.controller.
 import { ClientAccountOwnerService } from './client-account-owner.service.js';
 import { ClientTeamController } from './client-team.controller.js';
 import { ClientTeamService } from './client-team.service.js';
+import { InternalClientBrandingController } from './internal-client-branding.controller.js';
 import { RepresentationModule } from './representation.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
@@ -85,6 +86,8 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ClientFilesController,
     ClientAccountOwnerController,
     ClientTeamController,
+    // Backend-only Hill Day co-branding bridge (InternalServiceGuard).
+    InternalClientBrandingController,
   ],
   providers: [
     ClientsService,

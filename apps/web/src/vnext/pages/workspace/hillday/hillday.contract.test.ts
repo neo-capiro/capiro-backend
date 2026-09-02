@@ -34,6 +34,22 @@ describe('hillday foundation contract', () => {
   });
 });
 
+describe('hillday backend wiring', () => {
+  it('reads every surface from the workspace engine, never from fixtures', () => {
+    const api = read('api.ts');
+    expect(api).toContain("'/workspace-api/hillday'");
+    expect(api).toContain('useApi()');
+    expect(api).not.toContain('./fixtures');
+    const fixtures = read('fixtures.ts');
+    for (const gone of ['MEETINGS', 'DIRECTORY', 'THREADS', 'LIBRARY_DOCS', 'CLIENTS: ClientOption']) {
+      expect(fixtures).not.toContain(`export const ${gone}`);
+    }
+    for (const name of ['HillDayLibrary.tsx', 'HillDayWizard.tsx', 'HillDayEditor.tsx']) {
+      expect(read(name)).toContain('useHillDayApi()');
+    }
+  });
+});
+
 describe('hillday route wiring', () => {
   it('registers the three surfaces in WorkspaceVNextRoutes', () => {
     const routes = readFileSync(
@@ -82,7 +98,8 @@ describe('hillday prototype parity anchors', () => {
     expect(ed).toContain('Focus');
     expect(ed).toContain('Background');
     expect(ed).toContain('Regenerate');
-    expect(ed).toContain('As generated · 6 meetings · 14 sources · Quality 86%');
+    expect(ed).toContain('As generated ·');
+    expect(ed).toContain('Context used');
     expect(ed).toContain('Sources used');
     expect(ed).toContain('Preview as client');
   });
