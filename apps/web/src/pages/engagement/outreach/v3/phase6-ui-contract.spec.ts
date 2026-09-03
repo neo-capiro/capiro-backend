@@ -27,11 +27,14 @@ describe('Outreach V3 Phase 6 UI contract', () => {
     expect(engagementEntry).not.toContain('NewOutreachWizard as OutreachWizard');
   });
 
-  it('requires both explicit preview modes and preserves Classic drafts', () => {
+  it('requires both explicit preview modes on EVERY surface and preserves Classic drafts', () => {
     const router = source('OutreachWizardRouter.tsx');
     expect(router).toContain('!forceClassic');
     expect(router).toContain('!hasClassicDraft');
-    expect(router).toContain('isVNextSurface ||');
+    // Owner decision 2026-09-03: Classic Outreach is the default on os.capiro.ai
+    // as well. The vNext surface must never be an automatic V3 trigger again.
+    expect(router).not.toContain('isVNextSurface ||');
+    expect(router).not.toMatch(/import\s*\{[^}]*isVNextSurface[^}]*\}\s*from/);
     expect(router).toContain("previewMode === 'v3' && isEngagementPreviewActive()");
     expect(router).toContain('<OutreachV3CompleteRoute');
     expect(router).toContain('initialRecord || props.initialDraftId');

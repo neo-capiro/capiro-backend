@@ -27,12 +27,28 @@ import { describe, expect, it } from 'vitest';
 /**
  * vnext file -> legacy modules it may reach at runtime (Phase 3 backlog).
  *
- * EMPTY as of the PE-FALLBACK swap: the last two sanctioned antd edges (the
- * non-internal tenants' canonical finder/watch mounts) were replaced by the
- * native fallback module (vnext/pages/program-elements/fallback). Never grow
- * this list without an owner decision.
+ * Was EMPTY as of the PE-FALLBACK swap (the last two sanctioned antd edges,
+ * the non-internal tenants' canonical finder/watch mounts, were replaced by
+ * the native fallback module in vnext/pages/program-elements/fallback).
+ *
+ * ONE deliberate edge re-opened 2026-09-03, owner decision: os.capiro.ai
+ * renders Classic Outreach (the V2 wizard, `pages/engagement/OutreachView`)
+ * in place of the V3 campaign builder, because V2 is the flow the firm
+ * actually uses. Classic is antd-built end to end, so this edge is inherent
+ * to the decision, not an accident: `VNextOutreachClassic` mounts its own
+ * antd `ConfigProvider`/`App` (themed onto the Engagement module's Untitled
+ * UI tokens) and the extracted `outreach-classic.css` + bridge stylesheet
+ * replace theme.css for the subtree. Removal plan: either a native vNext
+ * port of the V2 steps, or a V3 that the firm accepts — until then this is
+ * the one sanctioned exception. Never grow this list without an owner
+ * decision.
  */
-const ALLOWED_LEGACY_EDGES: Record<string, string[]> = {};
+const ALLOWED_LEGACY_EDGES: Record<string, string[]> = {
+  'vnext/pages/engagement/VNextOutreachClassic.tsx': [
+    '(direct antd import)',
+    'pages/engagement/OutreachView.tsx',
+  ],
+};
 
 const SRC_ROOT = resolve(process.cwd(), 'src');
 const VNEXT_ROOT = join(SRC_ROOT, 'vnext');
