@@ -86,8 +86,8 @@ RUN chown capiro:capiro \
 # files exist at maybe_download's expected path, it skips its download step
 # entirely, so the running container needs no outbound network access to
 # fetch them. All five models are Apache-2.0, matching paddleocr/paddlepaddle
-# themselves (see docs/runbooks/defense-budget-parser-router.md for the full
-# license/checksum table this qualification produced).
+# themselves (see PR description for the full license/checksum table this
+# qualification produced).
 RUN set -eux; \
   bake_model() { \
     url="$1"; dest="$2"; params_sha="$3"; model_sha="$4"; \
