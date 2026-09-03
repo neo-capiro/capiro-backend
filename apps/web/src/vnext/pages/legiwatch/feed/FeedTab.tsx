@@ -35,6 +35,7 @@ import {
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateEmpty, LwStateUnavailable, LwStateAllClear } from '../states/SystemStates.js';
 import { PacketDrawer } from './PacketDrawer.js';
+import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
 import { useSearchParams } from 'react-router-dom';
 
 type Arrange = 'stream' | 'byClient';
@@ -158,12 +159,11 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
     const { band, tone } = packetBand(it);
     const ws = (it.workState?.state ?? 'new') as WorkState;
     const src = it.evidence?.bill?.displayNum ?? it.sourceType.toUpperCase();
-    // LW-QA-003: a hearing event carries its canonical hearing id — the row's
-    // main surface deep-links the canonical hearing detail route instead of
-    // dead-ending in the packet drawer. Nested interactive check stays out of
-    // the way (stopPropagation), work-state control unchanged.
-    const hearingHref = it.sourceType === 'hearing' ? it.evidence?.hearing?.hearingId ?? null : null;
-    const openRow = () => (hearingHref ? navigate(`/legiwatch/hearings/${encodeURIComponent(hearingHref)}`) : openDrawer(it));
+    // LW-QA-003/§12: bounded deep-link (hearingId → official event id →
+    // congress.gov URL). NEVER title fuzzy-match. Legacy rows without any of
+    // those anchors stay on the packet drawer (honest non-linkable).
+    const hearingHref = feedHearingDetailHref(it);
+    const openRow = () => (hearingHref ? navigate(hearingHref) : openDrawer(it));
     return (
       <div
         key={it.id}

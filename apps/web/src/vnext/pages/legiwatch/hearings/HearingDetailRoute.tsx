@@ -32,6 +32,11 @@ import {
   formatHearingTime,
   parseHearingMoment,
 } from '../lib/hearing-datetime.js';
+import {
+  accessPillLabel,
+  isClosedSession,
+  transcriptAvailability,
+} from '../lib/hearing-detail-states.js';
 import { LwPill, LwButton, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
 
@@ -52,32 +57,6 @@ function msToClock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(s / 60);
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-}
-
-/** Honest transcript/intelligence availability copy per event + capture state. */
-function transcriptAvailability(e: CanonicalHearingEvent): { available: boolean; note: string } {
-  const status = (e.eventStatus ?? '').toUpperCase();
-  if (status === 'SCHEDULED' || status === 'POSTPONED') {
-    return { available: false, note: 'This proceeding has not occurred yet. The transcript appears here once the gavel sounds and processing completes.' };
-  }
-  if (status === 'CANCELED') {
-    return { available: false, note: 'This proceeding was canceled — no transcript exists.' };
-  }
-  const access = (e.publicAccessStatus ?? 'UNKNOWN').toUpperCase();
-  if (access === 'CLOSED' || access === 'PRIVATE' || access === 'UNKNOWN') {
-    return { available: false, note: 'Closed session — no public stream, therefore no public transcript.' };
-  }
-  const captureStatus = (e.capture?.status ?? '').toUpperCase();
-  if (captureStatus === 'FAILED' || e.capture?.failureReason) {
-    return { available: false, note: `Capture failed${e.capture?.failureReason ? `: ${e.capture.failureReason}` : ''} — no transcript was produced.` };
-  }
-  if (captureStatus === 'CAPTURING' || captureStatus === 'READY' || captureStatus === 'PREPARING') {
-    return { available: false, note: 'Capture is in progress. Transcript segments appear as processing completes.' };
-  }
-  if (status === 'COMPLETED' && captureStatus === 'NOT_SCHEDULED') {
-    return { available: false, note: 'Completed, but no capture was requested — Capiro has no transcript for this proceeding.' };
-  }
-  return { available: true, note: 'Transcript from the canonical capture record.' };
 }
 
 export function HearingDetailRoute() {
@@ -137,8 +116,10 @@ export function HearingDetailRoute() {
     startsAt: e.scheduledStart ?? null,
     timeZone: e.timeZone ?? null,
   });
-  const access = (e.publicAccessStatus ?? 'UNKNOWN').toUpperCase();
-  const closed = access === 'CLOSED' || access === 'PRIVATE' || access === 'UNKNOWN';
+  // LW-QA-002: only VERIFIED closed/private is a closed session. UNKNOWN is
+  // unverified — capture fails closed, but the product never claims closed.
+  const closed = isClosedSession(e.publicAccessStatus);
+  const accessLabel = accessPillLabel(e.publicAccessStatus);
   const availability = transcriptAvailability(e);
   const intel = intelligence.data ?? [];
   const committeeCode = e.subcommittee?.systemCode ?? e.committee?.systemCode ?? null;
@@ -153,7 +134,7 @@ export function HearingDetailRoute() {
       {/* 1. Overview */}
       <section className="lw-card" style={{ padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <LwPill tone={closed ? 'gray' : 'brand'} size="22">{closed ? 'CLOSED SESSION' : 'PUBLIC'}</LwPill>
+          <LwPill tone={closed ? 'gray' : accessLabel === 'PUBLIC' ? 'brand' : 'gray'} size="22">{accessLabel}</LwPill>
           <LwPill tone="gray" size="22">{(e.eventStatus ?? '').toUpperCase()}</LwPill>
           {e.capture ? <LwPill tone="gray" size="22">CAPTURE {e.capture.status.toUpperCase()}</LwPill> : null}
         </div>
@@ -197,6 +178,8 @@ export function HearingDetailRoute() {
           <h2 className="lw-card__title">Session & capture</h2>
           {closed ? (
             <span className="lw-card__meta">Closed session — no public stream</span>
+          ) : accessLabel === 'ACCESS UNVERIFIED' ? (
+            <span className="lw-card__meta">Public access unverified — capture unavailable until confirmed.</span>
           ) : e.capture ? (
             <span className="lw-card__meta">
               {e.capture.status}
@@ -207,7 +190,7 @@ export function HearingDetailRoute() {
             <span className="lw-card__meta">No capture requested</span>
           )}
         </div>
-        {!closed && (e.eventStatus ?? '').toUpperCase() === 'SCHEDULED' ? (
+        {accessLabel === 'PUBLIC' && (e.eventStatus ?? '').toUpperCase() === 'SCHEDULED' ? (
           <LwButton variant="primary" onClick={() => navigate('/legiwatch?tab=hearings')}>
             Schedule / follow from the calendar
           </LwButton>
