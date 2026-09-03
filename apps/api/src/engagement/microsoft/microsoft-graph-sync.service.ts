@@ -533,7 +533,11 @@ export class MicrosoftGraphSyncService {
 
     // 1. Create the draft. A clear failure here is an ORDINARY provider failure:
     //    nothing has been delivered, so the caller may fix and retry.
-    const draft = await this.graphPost<{ id?: unknown; internetMessageId?: unknown }>(
+    const draft = await this.graphPost<{
+      id?: unknown;
+      internetMessageId?: unknown;
+      conversationId?: unknown;
+    }>(
       '/me/messages',
       accessToken,
       {
@@ -577,6 +581,13 @@ export class MicrosoftGraphSyncService {
     }
     const internetMessageId =
       typeof draft?.internetMessageId === 'string' ? draft.internetMessageId.trim() : '';
+    // Graph assigns `conversationId` when the draft is CREATED and keeps it
+    // across the send, so it is readable here and still correct afterwards —
+    // which the draft's own `id` is not (the item moves to Sent Items and is
+    // re-issued). Absent or non-string leaves it unset and the caller falls
+    // back to its old behaviour; it is never guessed.
+    const conversationId =
+      typeof draft?.conversationId === 'string' ? draft.conversationId.trim() : '';
 
     // 2. Send the draft. From here the outcome may be genuinely undetermined.
     try {
@@ -601,6 +612,7 @@ export class MicrosoftGraphSyncService {
       provider: 'microsoft_graph',
       providerDraftId: draftId,
       ...(internetMessageId ? { providerInternetMessageId: internetMessageId } : {}),
+      ...(conversationId ? { providerConversationId: conversationId } : {}),
       correlationId,
     };
   }

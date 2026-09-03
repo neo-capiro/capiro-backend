@@ -24,6 +24,16 @@ export interface EngagementMailSendResult {
   providerThreadId?: string;
   /** Microsoft Graph draft message id, created before the send. */
   providerDraftId?: string;
+  /**
+   * Microsoft Graph `conversationId`, read off the created draft.
+   *
+   * This is the value `microsoft-graph-sync` keys a MailThread on
+   * (`threadExternalId = conversationId || internetMessageId || id`), and unlike
+   * the draft's own `id` it survives the send moving the item into Sent Items.
+   * Reporting it lets the send write its thread under the SAME key the inbound
+   * sync will use, instead of a `manual:<uuid>` the sync can never match.
+   */
+  providerConversationId?: string;
   /** RFC 5322 Message-ID, when the provider returns one. */
   providerInternetMessageId?: string;
   correlationId: string;

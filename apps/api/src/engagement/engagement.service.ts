@@ -7528,6 +7528,41 @@ export class EngagementService {
           : EngagementSource.outlook;
     const externalId = realExternalId ?? `manual:${randomUUID()}`;
 
+    // THREAD-level dedup, the companion to the message-level key above.
+    //
+    // Both sync jobs key a MailThread on the provider's own CONVERSATION id, not
+    // on a message id: microsoft-graph-sync uses
+    // `conversationId || internetMessageId || id` and google-sync uses
+    // `threadId || internetMessageId || id`. A send that wrote its thread as
+    // `(manual, manual:<uuid>)` could therefore never match, so the next sync
+    // cycle opened a SECOND thread for the same conversation — one extra
+    // Timeline row per send on Outlook, and a conversation that split on the
+    // first reply on Gmail.
+    //
+    // Both providers hand us that conversation key at send time: Gmail returns
+    // `threadId` (providerThreadId) from its own send response, and Graph
+    // assigns `conversationId` when the draft is created and keeps it across the
+    // send. Writing the thread under that key means sync's own
+    // `findUnique({ tenantId_source_externalId })` finds THIS thread and updates
+    // it in place.
+    //
+    // Note this deliberately keys the thread WITHOUT touching the inbound sync:
+    // no row is re-parented and no thread id already returned to a client stops
+    // resolving. When neither provider supplies a key the behaviour is exactly
+    // what it was before — `manual` plus a synthetic id, and the duplicate — so
+    // this is a strict improvement rather than a new dependency.
+    const providerThreadKey =
+      connection.provider === EngagementProvider.google_workspace
+        ? sendResult.providerThreadId || null
+        : sendResult.providerConversationId || null;
+    const threadSource =
+      providerThreadKey == null
+        ? EngagementSource.manual
+        : connection.provider === EngagementProvider.google_workspace
+          ? EngagementSource.google
+          : EngagementSource.outlook;
+    const threadExternalId = providerThreadKey ?? `manual:${randomUUID()}`;
+
     const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       // Reply path: verify the thread is this caller's own (same-tenant AND
       // same-connection-owner, the exact gate `listMailThreads`/`getMailThread`
@@ -7546,32 +7581,36 @@ export class EngagementService {
               data: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
             });
           })()
-        : await tx.mailThread.create({
-            data: {
+        : await tx.mailThread.upsert({
+            // Upsert, not create: keyed on the provider's conversation id, a
+            // thread can already exist locally — sync may have seen an earlier
+            // message in this same conversation. A `create` would then trip
+            // `mail_messages_tenant_source_external_key`'s thread equivalent;
+            // appending to the existing thread is also the correct outcome.
+            where: {
+              tenantId_source_externalId: {
+                tenantId: ctx.tenantId,
+                source: threadSource,
+                externalId: threadExternalId,
+              },
+            },
+            create: {
               tenantId: ctx.tenantId,
               clientId: input.clientId ?? null,
               connectionId: connection.id,
-              // KNOWN OPEN ISSUE, deliberately NOT addressed here: this thread
-              // stays keyed `(manual, manual:<uuid>)`, and neither sync job keys
-              // a MailThread on a message id — the Graph path threads on
-              // `conversationId || internetMessageId || id` and the Gmail path on
-              // `threadId || internetMessageId || id`. This key can therefore
-              // never match, so the next sync cycle opens a SECOND thread for the
-              // same conversation: one extra Timeline row per send on Outlook,
-              // and on Gmail a conversation that splits once the first reply
-              // arrives. Closing it means persisting the provider's own
-              // conversation key at send time, which needs the Graph adapter to
-              // surface `conversationId` plus a matching change in the inbound
-              // sync — a separate change, not a line edit here. Do not read the
-              // message-level dedup above as having covered this.
-              source: EngagementSource.manual,
-              externalId: `manual:${randomUUID()}`,
+              source: threadSource,
+              externalId: threadExternalId,
               subject: input.subject,
               snippet: snippetFromHtml(body.content),
               participants: participants as unknown as Prisma.InputJsonValue,
               lastMessageAt: now,
               status: 'open',
             },
+            // Touch only what this send genuinely knows. `clientId`,
+            // `participants` and `subject` stay as they are on an existing
+            // thread: sync owns the conversation's own metadata, and a manual
+            // client association must not be silently overwritten by a send.
+            update: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
           });
       const messageData = {
         threadId: thread.id,
