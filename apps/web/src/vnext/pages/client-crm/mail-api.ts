@@ -44,6 +44,9 @@ export interface MailThread {
   participants: MailParticipant[];
   lastMessageAt: string | null;
   messages: MailMessage[];
+  /** The caller's own connected-mailbox address for this thread, so a reply
+   *  can be built from the real to/cc/from participants minus "myself". */
+  connectionEmail: string | null;
 }
 
 export interface EmailSignature {

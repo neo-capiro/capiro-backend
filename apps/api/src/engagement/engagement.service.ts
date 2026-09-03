@@ -2218,6 +2218,12 @@ export class EngagementService {
         where: { id: threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
         include: {
           client: clientSummarySelect(),
+          // The caller's own connected mailbox address for this thread — the
+          // frontend needs this to exclude "myself" when it works out who to
+          // reply to (see EngagementService.getMailThread callers), since a
+          // thread's own participants/messages carry no notion of "which one
+          // of these is me".
+          connection: { select: { accountEmail: true } },
           messages: {
             where: activeMailMessageWhere(),
             orderBy: [{ sentAt: 'asc' }, { receivedAt: 'asc' }, { createdAt: 'asc' }],
@@ -2226,7 +2232,8 @@ export class EngagementService {
       }),
     );
     if (!thread) throw new NotFoundException('Mail thread not found');
-    return thread;
+    const { connection, ...rest } = thread;
+    return { ...rest, connectionEmail: connection?.accountEmail ?? null };
   }
 
   listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {

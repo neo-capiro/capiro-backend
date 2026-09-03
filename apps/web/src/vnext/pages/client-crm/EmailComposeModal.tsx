@@ -56,6 +56,8 @@ export interface EmailComposeModalProps {
   /** Reply within an existing thread instead of starting a new one. */
   threadId?: string;
   defaultSubject?: string;
+  /** Pre-filled Cc — e.g. everyone else who was on the message being replied to. */
+  defaultCc?: MailRecipient[];
   /** Fires after a confirmed send so callers can invalidate their own queries. */
   onSent?: () => void;
 }
@@ -70,6 +72,7 @@ export function EmailComposeModal({
   orgContacts,
   threadId,
   defaultSubject,
+  defaultCc,
   onSent,
 }: EmailComposeModalProps) {
   const api = useApi();
@@ -90,14 +93,16 @@ export function EmailComposeModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toKey = to.map((r) => r.email).join(',');
+  const defaultCcKey = (defaultCc ?? []).map((r) => r.email).join(',');
   useEffect(() => {
     if (open) {
+      const ccEmails = (defaultCc ?? []).map((r) => r.email).join(', ');
       setSelectedTo(to);
       setAddRecipientOpen(false);
       setRecipientSearch('');
-      setCcOpen(false);
+      setCcOpen(ccEmails.length > 0);
       setBccOpen(false);
-      setCc('');
+      setCc(ccEmails);
       setBcc('');
       setSubject(defaultSubject ?? '');
       setBodyHtml('');
@@ -106,7 +111,7 @@ export function EmailComposeModal({
       setAttachments([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, toKey, threadId]);
+  }, [open, toKey, threadId, defaultCcKey]);
 
   // Contacts not already selected — and searchable, since an org roster on a
   // large client account can run long.
