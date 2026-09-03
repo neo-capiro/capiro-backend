@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
@@ -10,20 +10,14 @@ import {
   canonicalEngagementLocation,
   engagementDestination,
   isVNextEngagementPath,
-  outreachCampaignIdFromPath,
   type EngagementDestination,
 } from './engagement-route-state.js';
-import {
-  VNextOutreachCampaignBuilder,
-  type OutreachBuilderStep,
-} from './VNextOutreachCampaignBuilder.js';
-import { VNextOutreachHome } from './VNextOutreachHome.js';
+import { VNextOutreachClassic } from './VNextOutreachClassic.js';
 import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
 import { VNextReportsTracker } from './VNextReportsTracker.js';
 import { EngagementToastProvider } from './engagement-toast.js';
 import { useRovingFocus } from './use-roving-focus.js';
-import { readOutreachBuilderProgress, writeOutreachBuilderProgress } from './outreach-builder-progress.js';
 // The module's single z-index ladder. Imported FIRST so the four
 // --eng-layer-* aliases are defined before any rule consumes them.
 import './engagement-layers.css';
@@ -32,14 +26,6 @@ import './engagement-ui-closeout.css';
 import './engagement-tones.css';
 
 export { isVNextEngagementPath };
-
-interface IntegrationConnection {
-  id: string;
-  provider: string;
-  status: string;
-  accountEmail?: string | null;
-  displayName?: string | null;
-}
 
 function subline(destination: EngagementDestination): string {
   if (destination === 'reports') return 'Auto-populated activity with explicit manual status overrides and CSV export.';
@@ -62,9 +48,10 @@ function subline(destination: EngagementDestination): string {
   if (destination === 'library') return 'Your meetings with at least one approved prep, note or debrief. Search by subject or client; filter by client, date, artifact type and visibility.';
   if (destination === 'meetings') return 'Calendar-synced meetings with prep, notes, Meri join, and client context.';
   /*
-   * One subline for the whole Outreach destination, list and builder alike.
-   * The builder used to get its own ("Governed outreach: goal, targets,
-   * delivery, ...") which named a step order the builder no longer has.
+   * One subline for the whole Outreach destination, list and wizard alike.
+   * Outreach on this surface is Classic Outreach (the V2 wizard) as of
+   * 2026-09-03 — see VNextOutreachClassic.tsx. The copy names what the
+   * landing actually shows: the draft and sent record list.
    */
   return 'Your draft and sent campaigns. Open one to continue, or start a new campaign.';
 }
@@ -75,23 +62,9 @@ export function VNextEngagementRoutes() {
   const navigate = useNavigate();
   const clientFilter = useClientFilter();
   const destination = engagementDestination(location.pathname);
-  const outreachCampaignId = outreachCampaignIdFromPath(location.pathname);
-  const [step, setStep] = useState<OutreachBuilderStep>('workflow');
   /* Arrow / Home / End across Meetings | Outreach | Reports. */
   const onTabsKeyDown = useRovingFocus();
 
-  /*
-   * Resume where you left off: opening a campaign restores whichever step
-   * this browser last saw the user standing on, instead of always
-   * restarting at Campaign type. `writeOutreachBuilderProgress` (below, on
-   * every step change) is what keeps this current. See
-   * `outreach-builder-progress.ts` for why this is a UI navigation cursor,
-   * not a second copy of campaign data — every field the user actually
-   * types is already durably saved server-side on confirm.
-   */
-  useEffect(() => {
-    setStep(outreachCampaignId ? readOutreachBuilderProgress(outreachCampaignId) ?? 'workflow' : 'workflow');
-  }, [outreachCampaignId]);
   useEffect(() => {
     const canonical = canonicalEngagementLocation(location.pathname, location.search);
     if (canonical) navigate(canonical, { replace: true });
@@ -102,29 +75,11 @@ export function VNextEngagementRoutes() {
     queryFn: async () => (await api.get<Client[]>('/api/clients')).data,
     staleTime: 60_000,
   });
-  const integrations = useQuery<IntegrationConnection[]>({
-    queryKey: ['engagement-integrations'],
-    queryFn: async () => (await api.get<IntegrationConnection[]>('/api/engagement/integrations')).data,
-    staleTime: 30_000,
-  });
   const activeClients = useMemo(
     () => (clients.data ?? []).filter((client) => client.status !== 'archived').sort((a, b) => a.name.localeCompare(b.name)),
     [clients.data],
   );
   const scopeLabel = activeClients.find((client) => client.id === clientFilter.selectedClientId)?.name ?? 'All clients';
-  /*
-   * The mailbox the Send step names in its "From" row. A campaign sends from a
-   * connected, owned mailbox or not at all, so an unconnected provider must
-   * read as absent here rather than as a plausible-looking default.
-   */
-  const senderConnection =
-    (integrations.data ?? []).find((row) => row.status === 'connected' && row.accountEmail) ?? null;
-  const senderLabel = senderConnection?.accountEmail ?? null;
-  /*
-   * Which entry the home screen's chooser used, carried on the URL so a
-   * refresh keeps it and a deep link honestly has none.
-   */
-  const startedFrom = new URLSearchParams(location.search).get('from') ?? undefined;
   const navigateTab = (tab: 'meetings' | 'outreach' | 'reports') => {
     if (tab === 'meetings') navigate('/engagement/meetings');
     else if (tab === 'reports') navigate('/engagement/reports?period=current');
@@ -134,32 +89,18 @@ export function VNextEngagementRoutes() {
   let body: ReactNode = null;
   switch (destination) {
     case 'outreach':
-      body = outreachCampaignId ? (
-        <VNextOutreachCampaignBuilder
-          sessionId={outreachCampaignId}
+      /*
+       * Classic Outreach (V2) — owner decision 2026-09-03. The whole
+       * `/engagement/outreach/*` subtree (landing list, `/new/wizard`,
+       * `/draft/:id`, `/draft-v3/:id`) is one component that reads and
+       * writes its own mode from the URL, exactly as on app.capiro.ai. The
+       * V3 builder (`VNextOutreachCampaignBuilder` / `VNextOutreachHome`)
+       * stays in the tree but is no longer mounted here.
+       */
+      body = (
+        <VNextOutreachClassic
           clients={activeClients}
           selectedClientId={clientFilter.selectedClientId}
-          senderLabel={senderLabel}
-          senderConnectionId={senderConnection?.id ?? null}
-          step={step}
-          onStepChange={(next) => {
-            setStep(next);
-            writeOutreachBuilderProgress(outreachCampaignId, next);
-          }}
-          onExit={() => navigate('/engagement/outreach')}
-          startedFrom={startedFrom}
-        />
-      ) : (
-        <VNextOutreachHome
-          selectedClientId={clientFilter.selectedClientId}
-          onOpenCampaign={(sessionId, startedFromChoice) => {
-            // The chooser's "Firm Template" / "Capiro Template" label rides the
-            // URL rather than component state so a refresh keeps it and a deep
-            // link honestly has none — the Name step's summary then reads
-            // "Not set" instead of guessing.
-            const query = startedFromChoice ? `?from=${encodeURIComponent(startedFromChoice)}` : '';
-            navigate(`/engagement/outreach/${encodeURIComponent(sessionId)}${query}`);
-          }}
         />
       );
       break;

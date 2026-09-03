@@ -8,6 +8,7 @@ import {
   buildGenerateTasks,
   buildGenerationModel,
   computeAffectedGenerationKeys,
+  describeGenerationFailure,
   listAidFromKey,
   partitionGenerationResults,
   projectDraftsForSend,
@@ -226,10 +227,94 @@ describe('partitionGenerationResults (W0.2 same-batch failure routing)', () => {
       { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
       // no entry for 'b'
     ];
-    const { drafts, failedGenKeys } = partitionGenerationResults(slots, results);
+    const { drafts, failedGenKeys, failures } = partitionGenerationResults(slots, results);
     expect(drafts.map((d) => d.genKey)).toEqual(['individual:a']);
     expect(failedGenKeys).toEqual(['individual:b']);
+    expect(failures).toEqual([
+      {
+        genKey: 'individual:b',
+        reason: 'The server returned no result for this recipient. Regenerate to try again.',
+      },
+    ]);
   });
+
+  it('carries WHY each slot failed — the gateway code and the plan-validator message (live 2026-09-03)', () => {
+    // 4 of 5 congressional recipients came back exactly like this; the wizard
+    // showed only "couldn't be generated" because the reason was dropped here.
+    const results: BatchDraftResult[] = [
+      { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
+      {
+        recipientId: 'b',
+        subject: '',
+        body: '',
+        status: 'error',
+        error: 'MULTIPLE_ASKS',
+        planIssues: [
+          {
+            code: 'MULTIPLE_ASKS',
+            message: 'Federal congressional office messages carry one ask; the plan has 3.',
+          },
+        ],
+      },
+    ];
+    const { failedGenKeys, failures } = partitionGenerationResults(slots, results);
+    expect(failedGenKeys).toEqual(['individual:b']);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]!.genKey).toBe('individual:b');
+    expect(failures[0]!.reason).toContain('carry one ask; the plan has 3');
+    expect(failures[0]!.reason).toContain('Narrow the objective or context to a single request');
+    // `failures` and `failedGenKeys` describe the SAME slots in the same order.
+    expect(failures.map((f) => f.genKey)).toEqual(failedGenKeys);
+  });
+});
+
+describe('describeGenerationFailure', () => {
+  it('prefers the validator message for a plan rejection and appends the fix', () => {
+    const s = describeGenerationFailure({
+      error: 'MULTIPLE_ASKS',
+      planIssues: [{ code: 'MULTIPLE_ASKS', message: 'X messages carry one ask; the plan has 2.' }],
+    });
+    expect(s).toBe(
+      'X messages carry one ask; the plan has 2. Narrow the objective or context to a single request and regenerate.',
+    );
+  });
+
+  it('has a sentence for every gateway outcome code the server can emit', () => {
+    for (const code of [
+      'MULTIPLE_ASKS',
+      'CRITICAL_SOURCE_FAILURE',
+      'PLAN_GENERATION_FAILED',
+      'DRAFT_OUTPUT_INVALID',
+      'DRAFT_SECTIONS_INCOMPLETE',
+      'DRAFT_PERSIST_FAILED',
+      'GENERATION_FAILED',
+    ]) {
+      const s = describeGenerationFailure({ error: code });
+      expect(s.length).toBeGreaterThan(20);
+      // Never the raw code alone, and never blank.
+      expect(s).not.toBe(code);
+    }
+  });
+
+  it('never renders blank for an unknown code or a bare error — the code stays visible', () => {
+    expect(describeGenerationFailure({ error: 'SOME_NEW_CODE' })).toBe(
+      'Generation failed for this recipient (SOME_NEW_CODE).',
+    );
+    expect(
+      describeGenerationFailure({
+        error: 'SOME_NEW_CODE',
+        planIssues: [{ code: 'SOME_NEW_CODE', message: 'Validator said so.' }],
+      }),
+    ).toBe('Validator said so. (SOME_NEW_CODE)');
+    expect(describeGenerationFailure({})).toBe('Generation failed for this recipient.');
+  });
+});
+
+describe('partitionGenerationResults — held routing', () => {
+  const slots = [
+    { genKey: 'individual:a', resultId: 'a' },
+    { genKey: 'individual:b', resultId: 'b' },
+  ];
 
   it('all ready → no failures; all error → no drafts', () => {
     const allReady: BatchDraftResult[] = [

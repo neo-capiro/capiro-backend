@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isVNextSurface } from '../../../../env.js';
 import { isEngagementPreviewActive } from '../../../../lib/engagement-api-preview.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachRecord } from '../../OutreachView.js';
@@ -38,10 +37,15 @@ export interface OutreachWizardRouterProps {
 }
 
 /**
- * Classic Outreach remains the semantic owner of every v2 draft. New
- * campaigns use V3 automatically on the vNext presentation; the canonical app
- * still requires both explicit preview switches. A user can deliberately fall
- * back to Classic without changing any existing draft ownership.
+ * Classic Outreach remains the semantic owner of every v2 draft, and — as of
+ * 2026-09-03 (owner decision) — is the DEFAULT on every surface, including
+ * the vNext presentation. V3 renders only when both explicit preview
+ * switches are active (`?outreach-v3-preview=v3`, which also couples on
+ * `engagement-api-preview`), on either host. `isVNextSurface` used to be an
+ * automatic V3 trigger here; it is deliberately no longer consulted so
+ * os.capiro.ai and app.capiro.ai route identically. A user can still
+ * deliberately fall back to Classic from V3 without changing any existing
+ * draft ownership.
  */
 export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
   const location = useLocation();
@@ -56,7 +60,9 @@ export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
 
     // Couple: activating outreach-v3-preview also activates engagement-api-preview,
     // so V3 outreach requests route through the dark engagement-api. Deactivating
-    // also clears it. On vNext both are auto-on — this only affects canonical.
+    // also clears it. (On os.capiro.ai the engagement-api header is attached
+    // regardless via ENGAGEMENT_API_FULL_OWNERSHIP — see engagement-api-preview.ts —
+    // so this coupling is observable only on the canonical host.)
     if (result.changed) {
       if (result.mode === 'v3') activateEngagementPreview();
       else if (result.mode === 'off') clearEngagementPreview();
@@ -75,9 +81,7 @@ export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
 
   const hasClassicDraft = Boolean(props.initialRecord || props.initialDraftId);
   const v3Enabled =
-    !forceClassic &&
-    !hasClassicDraft &&
-    (isVNextSurface || (previewMode === 'v3' && isEngagementPreviewActive()));
+    !forceClassic && !hasClassicDraft && previewMode === 'v3' && isEngagementPreviewActive();
 
   if (!v3Enabled) {
     return <ClassicOutreachWizard {...props} />;

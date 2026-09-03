@@ -64,14 +64,27 @@ describe('OutreachWizardRouter', () => {
     expect(screen.getByText('Classic Outreach test surface')).toBeInTheDocument();
   });
 
-  it('renders native V3 automatically for a new campaign on vNext', async () => {
+  it('renders Classic Outreach for a new campaign on vNext too (owner decision 2026-09-03)', () => {
+    // `isVNextSurface` used to auto-select V3 here. It is no longer a trigger:
+    // os.capiro.ai and app.capiro.ai route identically, Classic by default.
     preview.vnext = true;
+    renderRouter('/engagement/outreach');
+    expect(screen.getByText('Classic Outreach test surface')).toBeInTheDocument();
+    expect(screen.queryByText('Outreach V3 test surface')).not.toBeInTheDocument();
+  });
+
+  it('still renders V3 on vNext when BOTH explicit preview switches are active', async () => {
+    preview.vnext = true;
+    preview.engagement = true;
+    window.sessionStorage.setItem('capiro.outreach-v3-preview', 'v3');
     renderRouter('/engagement/outreach');
     expect(await screen.findByText('Outreach V3 test surface')).toBeInTheDocument();
   });
 
-  it('lets a vNext user deliberately fall back to Classic', async () => {
+  it('lets a V3 preview user deliberately fall back to Classic', async () => {
     preview.vnext = true;
+    preview.engagement = true;
+    window.sessionStorage.setItem('capiro.outreach-v3-preview', 'v3');
     renderRouter('/engagement/outreach');
     fireEvent.click(await screen.findByRole('button', { name: 'open-classic' }));
     expect(await screen.findByText('Classic Outreach test surface')).toBeInTheDocument();

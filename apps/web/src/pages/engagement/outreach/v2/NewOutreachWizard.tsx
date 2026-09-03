@@ -64,6 +64,7 @@ import {
   projectDraftsForSend,
   revertDraftHistory,
   type BatchDraftResult,
+  type GenerationSlotFailure,
   type GenerationSnapshot,
   type GenSlot,
 } from './generation.js';
@@ -262,6 +263,13 @@ interface GenerateResult {
    */
   manifests: Map<string, GenerationSourceManifest>;
   failed: string[];
+  /**
+   * genKey → WHY that slot failed, for same-batch (per-recipient) failures.
+   * Derived server-side from the gateway's outcome code + plan-validator
+   * issues (see `describeGenerationFailure`). Whole-POST failures have no
+   * per-slot entry and fall back to `errorMessage`.
+   */
+  failureReasons: Map<string, string>;
   errorMessage?: string;
   /**
    * Phase 2 §3.f2 — regenerations the server refused to apply directly (the
@@ -1094,6 +1102,7 @@ export function NewOutreachWizard({
           manifests: new Map(),
           candidates: [],
           failed: [],
+          failureReasons: new Map(),
         };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
@@ -1204,6 +1213,7 @@ export function NewOutreachWizard({
             drafts: GenDraft[];
             heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
             failedGenKeys: string[];
+            failures: GenerationSlotFailure[];
             refs: Map<string, DraftVersionRef>;
             manifests: Map<string, GenerationSourceManifest>;
             candidates: DraftCandidate[];
@@ -1220,10 +1230,11 @@ export function NewOutreachWizard({
                 : undefined,
             )
               .then((results): TaskOut => {
-                const { drafts, heldDrafts, failedGenKeys, manifests } = partitionGenerationResults(
-                  t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
-                  results,
-                );
+                const { drafts, heldDrafts, failedGenKeys, failures, manifests } =
+                  partitionGenerationResults(
+                    t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
+                    results,
+                  );
                 // Phase 0 (g2): held drafts are REAL content pending review. They
                 // travel separately from failures so onSuccess can keep the text
                 // and attach the version lifecycle, rather than overwriting it.
@@ -1274,6 +1285,7 @@ export function NewOutreachWizard({
                   drafts: drafts.filter((d) => !candidateKeys.has(d.genKey)),
                   heldDrafts: heldDrafts.filter((d) => !candidateKeys.has(d.genKey)),
                   failedGenKeys,
+                  failures,
                   refs,
                   manifests,
                   candidates,
@@ -1295,6 +1307,9 @@ export function NewOutreachWizard({
       const manifests = new Map<string, GenerationSourceManifest>();
       for (const o of outs) if (o.ok) for (const [k, v] of o.manifests) manifests.set(k, v);
       const candidates = outs.flatMap((o) => (o.ok ? o.candidates : []));
+      const failureReasons = new Map(
+        outs.flatMap((o) => (o.ok ? o.failures : [])).map((f) => [f.genKey, f.reason]),
+      );
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.
@@ -1307,6 +1322,7 @@ export function NewOutreachWizard({
         manifests,
         candidates,
         failed,
+        failureReasons,
         errorMessage: firstFailure?.message,
       };
     },
@@ -1406,10 +1422,15 @@ export function NewOutreachWizard({
           // attempt failed: overwriting real copy because a retry failed is how a
           // user loses work they never asked to regenerate. See
           // applyGenerationFailure. Succeeded slots above are untouched.
+          //
+          // The reason is per-slot when the server reported one (a same-batch
+          // plan rejection such as MULTIPLE_ASKS), else the whole-POST message.
+          // Before 2026-09-03 only the whole-POST message reached here, so a
+          // per-recipient rejection rendered as a reasonless placeholder.
           generatedEmails[genKey] = applyGenerationFailure(
             generatedEmails[genKey],
             failedPlaceholder(),
-            res.errorMessage,
+            res.failureReasons.get(genKey) ?? res.errorMessage,
           );
         }
         return {

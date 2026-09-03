@@ -420,3 +420,79 @@ describe('plan pass token ceiling', () => {
     expect(arg.maxTokens).toBeGreaterThan(2000);
   });
 });
+
+describe('the planner is told the clientAsk field contract, not just the prose rule', () => {
+  // Live 2026-09-03: 4 of 5 congressional drafts in one campaign came back
+  // MULTIPLE_ASKS. The validator (check #7) demands `clientAsk.length === 1`
+  // for single-ask policies, but the prompt only carried the prose askRule
+  // while the JSON schema advertises an array of up to 6 — so models filled
+  // the array. The rendered policy block must now state the field contract in
+  // the same terms the validator enforces.
+  async function promptFor(audience: Parameters<typeof policyForAudience>[0]) {
+    const llm = {
+      complete: jest.fn(async () => ({
+        text: JSON.stringify(
+          plan({
+            audienceType: audience,
+            jurisdiction: policyForAudience(audience).jurisdiction,
+            intent: policyForAudience(audience).allowedIntents[0]!,
+          }),
+        ),
+        usage: { inputTokens: 1, outputTokens: 1 },
+      })),
+    };
+    const svc = new MessagePlanService({ get: () => '' } as never, llm as never);
+    const cred = {
+      provider: 'anthropic',
+      apiKey: 'k',
+      model: 'claude-sonnet-4-6',
+      modelOverridden: false,
+    } as never;
+    await svc
+      .buildPlan(CTX, {
+        packet: packet(),
+        policy: policyForAudience(audience),
+        creds: [cred],
+        recipientBrief: 'Name: Dana Reed',
+        audienceKind: 'individual',
+        clientName: null,
+        tone: 'professional',
+        recipientScopeKeys: [],
+      })
+      // Validation of the canned plan may fail for non-congressional policies
+      // (claim types, required evidence); we only care about the prompt sent.
+      .catch(() => undefined);
+    const arg = (llm.complete as jest.Mock).mock.calls[0]![0] as {
+      system: string;
+      userStatic: string;
+    };
+    return arg;
+  }
+
+  test('a single-ask policy (congressional office) gets an explicit clientAsk contract in the AUDIENCE RULES block', async () => {
+    const { userStatic } = await promptFor('congressional_office');
+    expect(userStatic).toContain('AUDIENCE RULES (federal.congressional_office');
+    expect(userStatic).toMatch(/FIELD CONTRACT: `clientAsk` MUST contain exactly ONE string/);
+    // The contract sits WITH the rules the validator enforces, in the cached
+    // static prefix — not in the per-recipient volatile tail.
+    const rulesStart = userStatic.indexOf('AUDIENCE RULES');
+    const contractAt = userStatic.indexOf('FIELD CONTRACT');
+    expect(rulesStart).toBeGreaterThanOrEqual(0);
+    expect(contractAt).toBeGreaterThan(rulesStart);
+  });
+
+  test('a policy that permits multiple asks (internal colleague) does NOT get the single-ask contract', async () => {
+    const { userStatic } = await promptFor('internal_colleague');
+    expect(userStatic).toContain('AUDIENCE RULES (internal.internal_colleague');
+    expect(userStatic).toContain('Multiple asks are permitted');
+    expect(userStatic).not.toMatch(/FIELD CONTRACT: `clientAsk`/);
+  });
+
+  test('the contract and the validator agree: one ask passes, two are still rejected', () => {
+    expect(() => validate(plan({ clientAsk: ['A 20-minute meeting.'] }))).not.toThrow();
+    const codes = issueCodes(() =>
+      validate(plan({ clientAsk: ['A 20-minute meeting.', 'And cosponsor HR 1234.'] })),
+    );
+    expect(codes).toContain('MULTIPLE_ASKS');
+  });
+});
