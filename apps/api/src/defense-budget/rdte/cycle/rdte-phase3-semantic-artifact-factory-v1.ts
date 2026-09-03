@@ -97,6 +97,59 @@ function appendUnresolvedPageOmissions(input: {
   return builder.finalize();
 }
 
+/**
+ * Phase 10B-23A Part E: preserve an Exhibit R-1 (document-wide summary,
+ * "Total Obligational Authority") page's OCR text and page-level provenance
+ * as an explicit, non-blocking, informational source fact -- distinct from
+ * both a genuine R-2/R-2A/R-3/R-4 exhibit (which produces real assertions)
+ * and a genuinely blank/front-matter page (which is silently dropped as
+ * `non_semantic`, correctly, since it carries no content at all). This page
+ * DOES carry real government budget data; it is simply not the single-PE
+ * exhibit this pipeline projects R-2 funding assertions from.
+ * `requiredForCompleteness: false` is the one field that matters most here --
+ * it is what keeps this fact from ever being treated as an omission, unlike
+ * the blocking `rdte_unresolved_phase3_page` fact `appendUnresolvedPageOmissions`
+ * emits for a page that never got a selected parser result at all.
+ */
+function buildR1SummaryAcknowledgmentArtifact(input: {
+  source: ExtractionSourceV1;
+  parserRuns: RdteCycleDocumentInputV1['parserRuns'];
+  pages: RdteCycleDocumentInputV1['pages'];
+  resolvedR1SummaryPages: readonly { page: number; printedPage?: string; segmentId: string }[];
+}): DefenseBudgetExtractionArtifactV1 | null {
+  if (input.resolvedR1SummaryPages.length === 0) return null;
+  const pageMap = new Map(input.pages.map((p) => [p.page, p]));
+  const builder = new ArtifactBuilderV1(input.source);
+  for (const run of input.parserRuns) builder.addParserRun(run);
+  for (const resolved of input.resolvedR1SummaryPages) {
+    const parserPage = pageMap.get(resolved.page);
+    const factId = factIdV1({
+      kind: 'rdte_r1_summary_page',
+      documentKey: input.source.manifestDocumentKey,
+      page: resolved.page,
+    });
+    builder.addSourceFact({
+      factId,
+      sourcePath: `phase3/r1_summary/page:${resolved.page}`,
+      category: 'metadata',
+      requiredForCompleteness: false,
+      rawValue: {
+        page: resolved.page,
+        ...(resolved.printedPage != null ? { printedPage: resolved.printedPage } : {}),
+        segmentId: resolved.segmentId,
+        state: 'r1_summary_embedded',
+        note:
+          'Exhibit R-1 (Total Obligational Authority) document-wide summary table -- ' +
+          'real government budget data, preserved for provenance, not projected as R-2 ' +
+          'PE-attributed funding by this pipeline.',
+        text: parserPage?.text ?? null,
+      },
+      evidenceIds: [],
+    });
+  }
+  return builder.finalize();
+}
+
 function r2aGroups(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPageGroup[] {
   const marker = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
   const pe = /\bPE\s+([0-9]{7}[A-Z][A-Z0-9]*)\b/i;
@@ -208,6 +261,20 @@ function buildSemanticArtifact(input: {
         narrative,
       }),
     );
+
+    const r1SummaryAcknowledgment = buildR1SummaryAcknowledgmentArtifact({
+      source: value.source,
+      parserRuns: value.parserRuns,
+      pages: value.pages,
+      resolvedR1SummaryPages: resolution.pages
+        .filter((p) => p.kind === 'r1_summary')
+        .map((p) => ({
+          page: p.page,
+          ...(p.printedPage != null ? { printedPage: p.printedPage } : {}),
+          segmentId: p.segmentId,
+        })),
+    });
+    if (r1SummaryAcknowledgment != null) parts.push(r1SummaryAcknowledgment);
 
     const projects = extractR2aProjectsFromPages({ pages: value.pages });
     const projectFunding = r2aGroups(value.pages).map((group) =>

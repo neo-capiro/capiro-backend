@@ -78,8 +78,17 @@ export function extractR2Identities(input: {
      * of contents, appropriation language, roman-numeral front matter) has
      * no required R-2 identity source fact at all -- it is not an omission,
      * correctable or otherwise, same posture as the R-2A extractor silently
-     * skipping a page with no R-2A marker. */
-    if (resolvedPage.contextSource === 'non_semantic') {
+     * skipping a page with no R-2A marker.
+     *
+     * Phase 10B-23A Part E: an Exhibit R-1 summary page shares that same
+     * completeness posture (no R-2 PE identity to resolve here) but is NOT
+     * "non-semantic" -- the semantic artifact factory preserves it
+     * separately as an explicit, non-blocking acknowledgment (see
+     * appendR1SummaryPageAcknowledgments in
+     * rdte-phase3-semantic-artifact-factory-v1.ts) rather than silently
+     * dropping it the way a genuinely blank/front-matter page is dropped
+     * here. */
+    if (resolvedPage.contextSource === 'non_semantic' || resolvedPage.contextSource === 'r1_summary') {
       continue;
     }
 
