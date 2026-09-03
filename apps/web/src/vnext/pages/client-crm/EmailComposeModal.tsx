@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Paperclip } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { CapiroModal } from '../../components/overlays/index.js';
 import { CapiroButton } from '../../components/actions/index.js';
+import { Combobox, type ComboboxOption } from '../../components/fields/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
+import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { SettingsRichTextEditor } from '../settings/SettingsRichTextEditor.js';
 import {
   getEmailSignature,
@@ -14,6 +16,13 @@ import {
   type MailRecipient,
 } from './mail-api.js';
 import './email-compose-modal.css';
+
+/** A person this compose window could add as a "To" recipient. */
+export interface EmailComposeContact {
+  id: string;
+  name: string;
+  email: string;
+}
 
 /**
  * The compose window Jordan asked for — reachable from a Timeline email row
@@ -32,12 +41,18 @@ import './email-compose-modal.css';
 export interface EmailComposeModalProps {
   open: boolean;
   onClose: () => void;
-  /** Pre-filled recipient — the person or correspondent this compose was opened for. */
-  to: MailRecipient;
+  /** Pre-filled recipient(s) — who this compose was opened for. */
+  to: MailRecipient[];
   recipientTitle?: string;
   clientId?: string;
   clientName?: string;
-  personId?: string;
+  /**
+   * Everyone else this compose can add to "To" — e.g. the client's org
+   * roster, so a lobbyist can send to more than one person on the team
+   * without leaving the compose window. Omit to hide the add-recipient
+   * affordance entirely (the Timeline reply flow has no such roster handy).
+   */
+  orgContacts?: EmailComposeContact[];
   /** Reply within an existing thread instead of starting a new one. */
   threadId?: string;
   defaultSubject?: string;
@@ -52,7 +67,7 @@ export function EmailComposeModal({
   recipientTitle,
   clientId,
   clientName,
-  personId,
+  orgContacts,
   threadId,
   defaultSubject,
   onSent,
@@ -60,6 +75,9 @@ export function EmailComposeModal({
   const api = useApi();
   const toast = useCapiroToast();
 
+  const [selectedTo, setSelectedTo] = useState<MailRecipient[]>(to);
+  const [addRecipientOpen, setAddRecipientOpen] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState('');
   const [ccOpen, setCcOpen] = useState(false);
   const [bccOpen, setBccOpen] = useState(false);
   const [cc, setCc] = useState('');
@@ -71,8 +89,12 @@ export function EmailComposeModal({
   const [attachments, setAttachments] = useState<Array<{ id: string; fileName: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const toKey = to.map((r) => r.email).join(',');
   useEffect(() => {
     if (open) {
+      setSelectedTo(to);
+      setAddRecipientOpen(false);
+      setRecipientSearch('');
       setCcOpen(false);
       setBccOpen(false);
       setCc('');
@@ -84,7 +106,18 @@ export function EmailComposeModal({
       setAttachments([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, to.email, threadId]);
+  }, [open, toKey, threadId]);
+
+  // Contacts not already selected — and searchable, since an org roster on a
+  // large client account can run long.
+  const addableContacts = useMemo<ComboboxOption[]>(() => {
+    const selectedEmails = new Set(selectedTo.map((r) => r.email.toLowerCase()));
+    const q = recipientSearch.trim().toLowerCase();
+    return (orgContacts ?? [])
+      .filter((c) => !selectedEmails.has(c.email.toLowerCase()))
+      .filter((c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
+      .map((c) => ({ value: c.id, label: c.name, meta: c.email }));
+  }, [orgContacts, selectedTo, recipientSearch]);
 
   // Same upload-url -> S3 -> confirm flow CapabilityDrawerVNext.tsx already
   // uses for document attachments — no new upload plumbing. A freshly
@@ -132,7 +165,9 @@ export function EmailComposeModal({
     mutationFn: () =>
       rewriteEmail(api, {
         rawText: bodyHtml,
-        recipientName: to.name ?? undefined,
+        // The AI rewrite just needs a sense of tone/audience — the first
+        // recipient is a reasonable stand-in even when there are several.
+        recipientName: selectedTo[0]?.name ?? undefined,
         recipientTitle,
         clientName,
       }),
@@ -149,18 +184,22 @@ export function EmailComposeModal({
   });
 
   const send = useMutation({
-    mutationFn: () =>
-      sendSingleMail(api, {
+    mutationFn: () => {
+      const personIds = selectedTo
+        .map((r) => orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id)
+        .filter((id): id is string => Boolean(id));
+      return sendSingleMail(api, {
         clientId,
-        personId,
-        to,
+        personIds: personIds.length ? personIds : undefined,
+        to: selectedTo,
         cc: parseRecipients(cc),
         bcc: parseRecipients(bcc),
         subject: subject.trim(),
         bodyHtml,
         threadId,
         attachmentIds: attachments.length ? attachments.map((a) => a.id) : undefined,
-      }),
+      });
+    },
     onSuccess: () => {
       toast.success('Email sent');
       onSent?.();
@@ -169,15 +208,42 @@ export function EmailComposeModal({
     onError: (error) => toast.error(mailErrorMessage(error, 'Could not send this email')),
   });
 
-  const canSend = Boolean(to.email) && subject.trim().length > 0 && stripHtml(bodyHtml).length > 0;
+  const canSend = selectedTo.length > 0 && subject.trim().length > 0 && stripHtml(bodyHtml).length > 0;
 
   return (
     <CapiroModal open={open} title={threadId ? 'Reply' : 'New email'} onClose={onClose} width={640}>
       <div className="capiro-email-compose">
-        <label className="capiro-email-compose__field">
+        <label className="capiro-email-compose__field capiro-email-compose__field--to">
           <span className="capiro-email-compose__label">To</span>
-          <span className="capiro-email-compose__static">
-            {to.name ? `${to.name} <${to.email}>` : to.email}
+          <span className="capiro-email-compose__to-chips">
+            {selectedTo.map((recipient) => (
+              <span key={recipient.email} className="capiro-email-compose__chip">
+                <span className="capiro-email-compose__chip-name">
+                  {recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email}
+                </span>
+                {selectedTo.length > 1 ? (
+                  <button
+                    type="button"
+                    className="capiro-email-compose__chip-remove"
+                    aria-label={`Remove ${recipient.name ?? recipient.email}`}
+                    onClick={() =>
+                      setSelectedTo((current) => current.filter((r) => r.email !== recipient.email))
+                    }
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </span>
+            ))}
+            {orgContacts && orgContacts.length > 0 ? (
+              <button
+                type="button"
+                className="capiro-email-compose__add-recipient"
+                onClick={() => setAddRecipientOpen((current) => !current)}
+              >
+                + Add recipient
+              </button>
+            ) : null}
           </span>
           <span className="capiro-email-compose__ccbcc-links">
             {!ccOpen ? (
@@ -188,6 +254,38 @@ export function EmailComposeModal({
             ) : null}
           </span>
         </label>
+
+        {addRecipientOpen ? (
+          <div className="capiro-email-compose__field capiro-email-compose__add-recipient-row">
+            {/* Everyone on this client's org tree (Relationships → Organization)
+                not already in "To" — so a lobbyist can loop in more than one
+                person on the team without leaving this window. This row
+                itself stays open after a pick (Combobox closes its own
+                dropdown on select, same as everywhere else it's used) — one
+                more click on it reopens the list, already missing whoever
+                was just added, ready for the next. */}
+            <Combobox
+              value={undefined}
+              onChange={(option) => {
+                const contact = orgContacts?.find((c) => c.id === option.value);
+                if (!contact) return;
+                setSelectedTo((current) => [...current, { email: contact.email, name: contact.name }]);
+                setRecipientSearch('');
+              }}
+              options={addableContacts}
+              placeholder="Search this client's contacts…"
+              searchValue={recipientSearch}
+              onSearchChange={setRecipientSearch}
+              searchPlaceholder="Search by name or email…"
+              emptyMessage={
+                (orgContacts?.length ?? 0) === 0
+                  ? 'No other contacts on file for this client'
+                  : 'Everyone on file is already added'
+              }
+              leadingIcon={<DashboardIcon name="Users01" size={16} />}
+            />
+          </div>
+        ) : null}
 
         {ccOpen ? (
           <label className="capiro-email-compose__field">

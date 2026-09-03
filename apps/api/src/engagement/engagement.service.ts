@@ -222,8 +222,9 @@ export interface SingleMailRecipientInput {
 
 export interface SendSingleMailInput {
   clientId?: string;
-  personId?: string;
-  to: SingleMailRecipientInput;
+  /** Every selected "To" recipient — one or more, e.g. picked from the client's org roster. */
+  personIds?: string[];
+  to: SingleMailRecipientInput[];
   cc?: SingleMailRecipientInput[];
   bcc?: SingleMailRecipientInput[];
   subject: string;
@@ -7443,7 +7444,7 @@ export class EngagementService {
         subject: input.subject,
         body: body.content,
         bodyContentType: 'HTML',
-        toRecipients: [{ email: input.to.email, name: input.to.name ?? null }],
+        toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })),
         ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
         bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
         attachments,
@@ -7464,7 +7465,7 @@ export class EngagementService {
     const now = new Date();
     const participants = [
       signature.senderEmail ? { email: signature.senderEmail, name: signature.senderFirstName, role: 'from' } : null,
-      { email: input.to.email, name: input.to.name ?? null, role: 'to' },
+      ...input.to.map((r) => ({ email: r.email, name: r.name ?? null, role: 'to' })),
       ...(input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'cc' })),
       ...(input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'bcc' })),
     ].filter((p): p is { email: string; name: string | null; role: string } => p != null);
@@ -7527,12 +7528,12 @@ export class EngagementService {
         subject: input.subject,
         fromEmail: signature.senderEmail,
         fromName: signature.senderFirstName,
-        toRecipients: [{ email: input.to.email, name: input.to.name ?? null }] as unknown as Prisma.InputJsonValue,
+        toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
         ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
         bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
         sentAt: now,
         bodyText: snippetFromHtml(body.content, 20_000),
-        metadata: { personId: input.personId ?? null } as Prisma.InputJsonValue,
+        metadata: { personIds: input.personIds ?? [] } as Prisma.InputJsonValue,
       };
       // Upsert, not create: when `externalId` is a real provider id, a fast
       // sync cycle may already have written this exact row (same unique key)

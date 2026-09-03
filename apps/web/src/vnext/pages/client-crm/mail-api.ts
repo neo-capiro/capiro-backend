@@ -53,8 +53,8 @@ export interface EmailSignature {
 
 export interface SendSingleMailInput {
   clientId?: string;
-  personId?: string;
-  to: MailRecipient;
+  personIds?: string[];
+  to: MailRecipient[];
   cc?: MailRecipient[];
   bcc?: MailRecipient[];
   subject: string;

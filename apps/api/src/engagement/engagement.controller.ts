@@ -303,13 +303,19 @@ class SendSingleMailDto {
   @IsUUID()
   clientId?: string;
 
+  /** Every selected "To" recipient's ClientPerson id — one or more, e.g. picked from the client's org roster. */
   @IsOptional()
-  @IsUUID()
-  personId?: string;
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID(undefined, { each: true })
+  personIds?: string[];
 
-  @ValidateNested()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
   @Type(() => SingleMailRecipientDto)
-  to!: SingleMailRecipientDto;
+  to!: SingleMailRecipientDto[];
 
   @IsOptional()
   @IsArray()

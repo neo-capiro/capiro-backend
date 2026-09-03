@@ -97,6 +97,17 @@ export function ClientPersonDrawer({
     [people, person],
   );
 
+  // Everyone else on this client's org tree the Mail compose window can add
+  // to "To" — every associated contact, minus whoever it's already
+  // addressed to and anyone with no email on file to send to.
+  const orgContacts = useMemo(
+    () =>
+      people
+        .filter((entry) => entry.id !== person?.id && entry.email)
+        .map((entry) => ({ id: entry.id, name: entry.name, email: entry.email! })),
+    [people, person],
+  );
+
   const placementChanged =
     (person?.hierarchyLevel ?? '') !== level || (person?.reportsToPersonId ?? '') !== manager;
 
@@ -361,10 +372,10 @@ export function ClientPersonDrawer({
         <EmailComposeModal
           open={mailOpen}
           onClose={() => setMailOpen(false)}
-          to={{ email: person.email, name: person.name }}
+          to={[{ email: person.email, name: person.name }]}
           recipientTitle={person.title ?? undefined}
           clientId={clientId}
-          personId={person.id}
+          orgContacts={orgContacts}
           onSent={() => void history.refetch()}
         />
       ) : null}

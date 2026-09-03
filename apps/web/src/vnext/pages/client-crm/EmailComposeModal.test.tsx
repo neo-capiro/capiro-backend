@@ -27,7 +27,7 @@ function renderModal(overrides: Partial<Parameters<typeof EmailComposeModal>[0]>
       <EmailComposeModal
         open
         onClose={onClose}
-        to={{ email: 'patrick@example.com', name: 'Patrick Driscoll' }}
+        to={[{ email: 'patrick@example.com', name: 'Patrick Driscoll' }]}
         clientId="client-1"
         clientName="Overland AI"
         {...overrides}
@@ -70,9 +70,69 @@ describe('EmailComposeModal', () => {
     await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
     const [url, body] = postMock.mock.calls[0]!;
     expect(url).toBe('/api/engagement/mail/send');
-    expect(body.to).toEqual({ email: 'patrick@example.com', name: 'Patrick Driscoll' });
+    expect(body.to).toEqual([{ email: 'patrick@example.com', name: 'Patrick Driscoll' }]);
     expect(body.subject).toBe('Following up');
     expect(body.clientId).toBe('client-1');
+  });
+
+  it('adds a second recipient from the client org roster and includes both on send', async () => {
+    postMock.mockResolvedValue({
+      data: { ok: true, threadId: 't1', messageId: 'm1', provider: 'microsoft_graph', senderEmail: 'jordan@capiro.ai' },
+    });
+    renderModal({
+      orgContacts: [
+        { id: 'person-2', name: 'Adam Matherly', email: 'adam@example.com' },
+        { id: 'person-3', name: 'Sam Rivera', email: 'sam@example.com' },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Search this client's contacts…' }));
+    fireEvent.click(await screen.findByText('Adam Matherly'));
+
+    expect(screen.getByText('Adam Matherly <adam@example.com>')).toBeInTheDocument();
+    // Already-added contacts drop out of the picker so they can't be added twice.
+    fireEvent.click(screen.getByRole('button', { name: 'Search this client's contacts…' }));
+    expect(screen.queryByText('Adam Matherly')).not.toBeInTheDocument();
+    expect(screen.getByText('Sam Rivera')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Team update' } });
+    const editor = screen.getAllByRole('textbox')[1]!;
+    fireEvent.input(editor, { target: { innerHTML: '<p>Sharing an update.</p>' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+    const [, body] = postMock.mock.calls[0]!;
+    expect(body.to).toEqual([
+      { email: 'patrick@example.com', name: 'Patrick Driscoll' },
+      { email: 'adam@example.com', name: 'Adam Matherly' },
+    ]);
+    expect(body.personIds).toEqual(['person-2']);
+  });
+
+  it('lets removing an added recipient, but not the last one left', async () => {
+    renderModal({
+      orgContacts: [{ id: 'person-2', name: 'Adam Matherly', email: 'adam@example.com' }],
+    });
+
+    // The pre-filled recipient has no remove button while alone.
+    expect(
+      screen.queryByRole('button', { name: 'Remove Patrick Driscoll' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Search this client's contacts…' }));
+    fireEvent.click(await screen.findByText('Adam Matherly'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Adam Matherly' }));
+    expect(screen.queryByText('Adam Matherly <adam@example.com>')).not.toBeInTheDocument();
+    expect(screen.getByText('Patrick Driscoll <patrick@example.com>')).toBeInTheDocument();
+  });
+
+  it('does not offer "+ Add recipient" when no org roster was passed in (the Timeline reply flow)', async () => {
+    renderModal({ orgContacts: undefined });
+    expect(screen.queryByRole('button', { name: '+ Add recipient' })).not.toBeInTheDocument();
   });
 
   it('replaces the body with a verified rewrite and offers Undo', async () => {
