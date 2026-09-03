@@ -87,6 +87,15 @@ describe('EmailComposeModal', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('pre-fills and reveals Cc when a caller passes defaultCc (a thread reply)', async () => {
+    renderModal({
+      defaultCc: [{ email: 'colleague@example.com', name: 'Alex Colleague' }],
+    });
+    expect(await screen.findByPlaceholderText('name@example.com, another@example.com')).toHaveValue(
+      'colleague@example.com',
+    );
+  });
+
   it('shows the honest fallback note when a rewrite fails verification', async () => {
     postMock.mockResolvedValue({
       data: { bodyHtml: '<p>rough notes here</p>', verified: false, unsupportedNumbers: ['2000000'], unsupportedNames: [], provider: 'anthropic' },

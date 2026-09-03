@@ -18,7 +18,7 @@ import {
   type Kind as ActivityKind,
 } from '../ClientCrmHistory.js';
 import { EmailComposeModal } from '../EmailComposeModal.js';
-import { getMailThread, type MailRecipient } from '../mail-api.js';
+import { getMailThread, type MailMessage, type MailRecipient } from '../mail-api.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './relationships-history-tab.css';
@@ -91,9 +91,13 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   const [adding, setAdding] = useState<ActivityKind | null>(null);
   const [replyTarget, setReplyTarget] = useState<{
     to: MailRecipient;
+    cc: MailRecipient[];
     threadId: string;
     subject: string;
   } | null>(null);
+  // Which timeline row (if any) is expanded to show its full message — a
+  // single id, so opening one always closes whichever was open before.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const activity = useQuery<ActivityItem[]>({
     queryKey: ['client-activity', client.id],
@@ -132,18 +136,29 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   // the old redirect to a generic Meetings list scoped by clientId — this
   // component's activity mapping doesn't carry a participant address, so the
   // real one comes from the thread's own detail (GET mail-threads/:id).
-  // Replies to whoever sent the most recent message; for a >2-party thread
-  // that's a simplification, not full "reply-all".
+  // Reply-all off the most recent message: whoever sent it (or, if that was
+  // you, the first other recipient) becomes "To", everyone else on that
+  // message's to/cc lands in "Cc" — and the thread's own connected-mailbox
+  // address is excluded throughout, which is the actual fix here. The old
+  // version always replied to the last message's sender with no such
+  // exclusion, so whenever the most recent message in a thread was one you'd
+  // sent yourself, "reply" addressed the email back to you.
   const openEmailThread = async (threadId: string) => {
     try {
       const thread = await getMailThread(api, threadId);
       const last = thread.messages[thread.messages.length - 1];
-      if (!last?.fromEmail) {
+      if (!last) {
+        toast.error('Could not find who to reply to on this thread.');
+        return;
+      }
+      const { to, cc } = buildReplyRecipients(last, thread.connectionEmail);
+      if (!to) {
         toast.error('Could not find who to reply to on this thread.');
         return;
       }
       setReplyTarget({
-        to: { email: last.fromEmail, name: last.fromName ?? undefined },
+        to,
+        cc,
         threadId,
         subject: thread.subject ? `Re: ${thread.subject}` : 'Re:',
       });
@@ -222,6 +237,8 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         onQuickAdd={(kind) => setAdding(kind)}
         onSettle={(id) => mutate.mutate({ id, settled: true })}
         settlingId={mutate.isPending ? (mutate.variables?.id ?? null) : null}
+        expandedId={expandedId}
+        onToggleExpand={(id) => setExpandedId((current) => (current === id ? null : id))}
       />
 
       {adding ? (
@@ -241,6 +258,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           to={replyTarget.to}
           threadId={replyTarget.threadId}
           defaultSubject={replyTarget.subject}
+          defaultCc={replyTarget.cc}
           clientId={client.id}
           clientName={client.name}
           onSent={() => void qc.invalidateQueries({ queryKey: ['client-activity', client.id] })}
@@ -284,6 +302,8 @@ function TimelineAndControlsCard({
   onQuickAdd,
   onSettle,
   settlingId,
+  expandedId,
+  onToggleExpand,
 }: {
   entries: HistEntry[];
   noActivityYet: boolean;
@@ -299,6 +319,8 @@ function TimelineAndControlsCard({
   onQuickAdd: (kind: ActivityKind) => void;
   onSettle: (id: string) => void;
   settlingId: string | null;
+  expandedId: string | null;
+  onToggleExpand: (id: string) => void;
 }) {
   const rows: CommitmentRow[] = commitments.map((item) => ({
     id: item.id,
@@ -346,7 +368,13 @@ function TimelineAndControlsCard({
             </p>
           ) : (
             entries.map((entry, index) => (
-              <TimelineEntry key={entry.id} entry={entry} last={index === entries.length - 1} />
+              <TimelineEntry
+                key={entry.id}
+                entry={entry}
+                last={index === entries.length - 1}
+                expanded={expandedId === entry.id}
+                onToggleExpand={() => onToggleExpand(entry.id)}
+              />
             ))
           )}
         </div>
@@ -404,7 +432,20 @@ function TimelineAndControlsCard({
   );
 }
 
-function TimelineEntry({ entry, last }: { entry: HistEntry; last: boolean }) {
+function TimelineEntry({
+  entry,
+  last,
+  expanded,
+  onToggleExpand,
+}: {
+  entry: HistEntry;
+  last: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  // Only an email thread has a full message worth expanding to read — every
+  // other kind already shows its complete title/body inline.
+  const threadId = entry.source?.sourceType === 'mail_thread' ? entry.source.sourceId : null;
   return (
     <article className="rel-hist-row">
       <span className="rel-hist-node-rail" aria-hidden>
@@ -418,6 +459,16 @@ function TimelineEntry({ entry, last }: { entry: HistEntry; last: boolean }) {
           <span className="rel-hist-row-kind">{entry.kind}</span>
           <span className="rel-hist-row-date">{entry.date}</span>
           <span className="rel-hist-spacer" />
+          {threadId ? (
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              aria-expanded={expanded}
+              className="rel-hist-row-action"
+            >
+              {expanded ? 'Show less' : 'Read more'}
+            </button>
+          ) : null}
           {entry.onAction ? (
             <button type="button" onClick={entry.onAction} className="rel-hist-row-action">
               {entry.action}
@@ -426,12 +477,50 @@ function TimelineEntry({ entry, last }: { entry: HistEntry; last: boolean }) {
         </span>
         <span className="rel-hist-row-title">{entry.title}</span>
         {entry.body ? <span className="rel-hist-row-body">{entry.body}</span> : null}
+        {expanded && threadId ? <EmailThreadPreview threadId={threadId} /> : null}
         <span className="rel-hist-row-meta">
           <span className="rel-hist-row-avatar" aria-hidden>{entry.mark}</span>
           {entry.meta}
         </span>
       </span>
     </article>
+  );
+}
+
+/**
+ * The full message history for one email thread, fetched only while its row
+ * is expanded (unmounting on collapse, so a thread never loads before someone
+ * actually asks to read it). The timeline row itself only ever shows the
+ * thread's short snippet — this is the "read the message more" view.
+ */
+function EmailThreadPreview({ threadId }: { threadId: string }) {
+  const api = useApi();
+  const threadQ = useQuery({
+    queryKey: ['mail-thread-detail', threadId],
+    queryFn: () => getMailThread(api, threadId),
+  });
+
+  if (threadQ.isLoading) return <p className="rel-hist-thread-status">Loading messages…</p>;
+  if (threadQ.isError || !threadQ.data) {
+    return <p className="rel-hist-thread-status">Could not load this thread.</p>;
+  }
+
+  return (
+    <div className="rel-hist-thread-preview">
+      {threadQ.data.messages.map((message) => (
+        <div key={message.id} className="rel-hist-thread-message">
+          <div className="rel-hist-thread-message-head">
+            <span className="rel-hist-thread-message-from">
+              {message.fromName ? `${message.fromName} <${message.fromEmail}>` : (message.fromEmail ?? 'Unknown sender')}
+            </span>
+            <span className="rel-hist-thread-message-date">
+              {formatDay(message.sentAt ?? message.receivedAt ?? message.createdAt)}
+            </span>
+          </div>
+          <p className="rel-hist-thread-message-body">{message.bodyText || '(no message text)'}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -540,6 +629,36 @@ function maskJoinUrls(text: string | null): string | null {
       return 'Teams meeting';
     return 'Meeting link';
   });
+}
+
+/**
+ * Reply-all off one message: the sender plus its other "to" recipients
+ * become the primary "to" (the first of them), the rest go to "cc" — with
+ * `myEmail` (the thread's own connected-mailbox address) excluded from both,
+ * since replying should never address the message back to yourself. If the
+ * message's most recent sender was you, the first remaining recipient steps
+ * up to be "to" instead.
+ */
+function buildReplyRecipients(
+  message: MailMessage,
+  myEmail: string | null,
+): { to: MailRecipient | null; cc: MailRecipient[] } {
+  const isMe = (email?: string | null) =>
+    Boolean(email) && Boolean(myEmail) && email!.toLowerCase() === myEmail!.toLowerCase();
+  const seen = new Set<string>();
+  const pool: MailRecipient[] = [];
+  const add = (email?: string | null, name?: string | null) => {
+    if (!email || isMe(email)) return;
+    const key = email.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    pool.push({ email, name: name ?? undefined });
+  };
+  add(message.fromEmail, message.fromName);
+  for (const r of message.toRecipients) add(r.email, r.name);
+  for (const r of message.ccRecipients) add(r.email, r.name);
+  const [to, ...cc] = pool;
+  return { to: to ?? null, cc };
 }
 
 function provenance(item: ActivityItem): string {

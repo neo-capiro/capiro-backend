@@ -40,6 +40,8 @@ export interface EmailComposeModalProps {
   /** Reply within an existing thread instead of starting a new one. */
   threadId?: string;
   defaultSubject?: string;
+  /** Pre-filled Cc — e.g. everyone else who was on the message being replied to. */
+  defaultCc?: MailRecipient[];
   /** Fires after a confirmed send so callers can invalidate their own queries. */
   onSent?: () => void;
 }
@@ -54,6 +56,7 @@ export function EmailComposeModal({
   personId,
   threadId,
   defaultSubject,
+  defaultCc,
   onSent,
 }: EmailComposeModalProps) {
   const api = useApi();
@@ -68,11 +71,13 @@ export function EmailComposeModal({
   const [preRewriteBodyHtml, setPreRewriteBodyHtml] = useState<string | null>(null);
   const [rewriteNote, setRewriteNote] = useState<string | null>(null);
 
+  const defaultCcKey = (defaultCc ?? []).map((r) => r.email).join(',');
   useEffect(() => {
     if (open) {
-      setCcOpen(false);
+      const ccEmails = (defaultCc ?? []).map((r) => r.email).join(', ');
+      setCcOpen(ccEmails.length > 0);
       setBccOpen(false);
-      setCc('');
+      setCc(ccEmails);
       setBcc('');
       setSubject(defaultSubject ?? '');
       setBodyHtml('');
@@ -80,7 +85,7 @@ export function EmailComposeModal({
       setRewriteNote(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, to.email, threadId]);
+  }, [open, to.email, threadId, defaultCcKey]);
 
   const signatureQ = useQuery({
     enabled: open,
