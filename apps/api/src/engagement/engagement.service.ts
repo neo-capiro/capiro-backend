@@ -7017,13 +7017,24 @@ export class EngagementService {
     contentType: string,
   ): Promise<string | null> {
     if (!this.bucket) return null;
-    if (!EngagementService.INLINE_PREVIEWABLE_CONTENT_TYPES.has(contentType.toLowerCase())) return null;
+    const allowed = contentType.toLowerCase();
+    if (!EngagementService.INLINE_PREVIEWABLE_CONTENT_TYPES.has(allowed)) return null;
     return getSignedUrl(
       this.s3,
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: s3Key,
         ResponseContentDisposition: 'inline',
+        // Serve the ALLOWLISTED type, not whatever Content-Type happens to be
+        // stored on the object. The allowlist above is checked against the
+        // `content_type` column, so pinning the response header keeps the two
+        // from diverging — this is the one code path that opts out of the
+        // `attachment` disposition, so it should not also inherit a stored
+        // header it never validated. `confirmAttachment` does sniff the real
+        // bytes and reject a declared/actual mismatch
+        // (attachmentContent.contentTypeConflicts), so this is defence in
+        // depth rather than the only check.
+        ResponseContentType: allowed,
       }),
       { expiresIn: 300 },
     );
