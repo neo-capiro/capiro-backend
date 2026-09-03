@@ -13,6 +13,12 @@
   gap: 10px;
   padding: 6px 20px;
   flex-shrink: 0;
+  /* Anchors the hourglass icon's em-based sizing (CapiroHourglassIcon
+     `size={1}` = 1em of this) to a fixed, self-contained value rather than
+     whatever font-size happens to be inherited from the shell — the icon
+     was previously ballooning to ~13x the ambient font-size instead of 13px
+     (see VNextTrialBanner.tsx). */
+  font-size: 13px;
   background: var(--capiro-color-warning-soft, #fff4e6);
   border-bottom: 1px solid var(--capiro-color-warning-rail, #c67a2e);
   color: var(--capiro-color-warning, #9b5b17);
