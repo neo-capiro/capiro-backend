@@ -8,10 +8,27 @@
  * classes carried no styling at all: the logo rendered at its raw intrinsic
  * size and the page had no centering. AuthPage now renders this `vnext-auth-*`
  * set instead when `isVNextSurface` is true. Same layout as the legacy
- * version below, ported 1:1; vNext scoping/tokens only.
+ * version, ported 1:1; vNext scoping/tokens only — every selector below is
+ * under `.capiro-vnext-root` (the page element carries both classes), which
+ * the first version of this file claimed but only did for the page rule.
  */
 
+/* The other half of theme.css's reset that the 1:1 port dropped —
+   `body { margin: 0 }` — is NOT here: it is inline on <body> in
+   apps/web/index.html, so it applies before first paint rather than arriving
+   with this dynamically-imported stylesheet. A document-level rule also
+   cannot be root-scoped, and vnext/foundations forbids body/html selectors
+   (vnext/foundation-contract.test.ts). */
+
 .capiro-vnext-root.vnext-auth-page {
+  /* This page renders BEFORE VNextApp mounts (App.tsx routes /sign-in straight
+     to AuthPage), and `foundations/index.css` — the only thing that pulls in
+     reset.css's `.capiro-vnext-root *, … { box-sizing: border-box }` — is
+     imported by VNextApp.tsx. So this element cannot rely on inheriting
+     border-box and has to declare it: as content-box, `min-height: 100dvh` is
+     the CONTENT box and the 48px vertical padding adds 96px on top of it,
+     overflowing the viewport on every cold sign-in load. */
+  box-sizing: border-box;
   display: grid;
   min-height: 100vh;
   min-height: 100dvh;
@@ -20,7 +37,7 @@
   background: var(--capiro-color-bg-canvas, #f0f1f4);
 }
 
-.vnext-auth-shell {
+.capiro-vnext-root .vnext-auth-shell {
   display: flex;
   width: min(100%, 470px);
   flex-direction: column;
@@ -28,25 +45,25 @@
   gap: 24px;
 }
 
-.vnext-auth-logo {
+.capiro-vnext-root .vnext-auth-logo {
   display: block;
   width: min(220px, 68vw);
   height: 64px;
   object-fit: contain;
 }
 
-.vnext-auth-clerk-frame {
+.capiro-vnext-root .vnext-auth-clerk-frame {
   display: flex;
   width: 100%;
   justify-content: center;
 }
 
-.vnext-auth-clerk-frame .cl-rootBox {
+.capiro-vnext-root .vnext-auth-clerk-frame .cl-rootBox {
   width: 100%;
 }
 
-.vnext-auth-clerk-frame .cl-cardBox,
-.vnext-auth-clerk-frame .cl-card {
+.capiro-vnext-root .vnext-auth-clerk-frame .cl-cardBox,
+.capiro-vnext-root .vnext-auth-clerk-frame .cl-card {
   width: 100%;
   max-width: 470px;
   margin: 0 auto;
@@ -61,18 +78,18 @@
     padding: max(22px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
   }
 
-  .vnext-auth-shell {
+  .capiro-vnext-root .vnext-auth-shell {
     width: 100%;
     gap: 16px;
   }
 
-  .vnext-auth-logo {
+  .capiro-vnext-root .vnext-auth-logo {
     width: min(190px, 62vw);
     height: 54px;
   }
 
-  .vnext-auth-clerk-frame .cl-cardBox,
-  .vnext-auth-clerk-frame .cl-card {
+  .capiro-vnext-root .vnext-auth-clerk-frame .cl-cardBox,
+  .capiro-vnext-root .vnext-auth-clerk-frame .cl-card {
     max-width: 100%;
   }
 }

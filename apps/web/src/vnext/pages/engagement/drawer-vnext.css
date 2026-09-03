@@ -91,33 +91,133 @@
 }
 
 /*
- * Button shape/color consistency (QA pass, 2026-09-02): "Send Meri" (the
- * EngagementDialog-based modal), "Generate with Meri" (PrepTab.tsx) and other
- * `.btn-accent`/`.ant-btn-primary` actions in this drawer were not a broken
- * retheme — `.btn.btn-accent`'s `background: var(--accent)` correctly picks
- * up this file's navy `--accent` override above. The navy accent itself was
- * a deliberate choice when this file was written ("Source of truth for the
- * navy ramp", header comment), but the rest of vNext has since standardized
- * on the dark "metal face" treatment (CapiroButton--primary,
- * primitives.css) for every other primary action on the platform, which
- * reads as flat navy + a smaller, sharper corner radius (`--r-sm`, 6px, vs
- * this token's 8px) next to it — hence "the old blue color" / "square".
- * Scoped override using the SAME tokens CapiroButton--primary uses, so this
- * one button role matches the rest of the platform exactly, without
- * changing `--accent` itself (still used by non-button navy elements this
- * file's header describes — tab pills, "approved" states, etc.).
+ * The prototype `.btn` family, ported onto this surface.
+ *
+ * WHAT THESE ARE: the drawer reuses the Meetings prototype's `.btn` /
+ * `.btn.sm` / `.btn-ghost` / `.btn-accent` classes across 31 call sites under
+ * `.engagement-vnext` — MeetingDetailPanel, PrepTab, NotesTab, DebriefTab,
+ * tab-kit and ShareConfirmation (the reused canonical tree), plus
+ * VNextSendMeriModal and VNextMeetingPanelChrome. 12 of the 31 carry
+ * `.btn-accent`.
+ *
+ * WHY THEY NEED A BASE HERE (the 2026-09-02 QA pass got this backwards): that
+ * pass restyled `.btn-accent` on the premise that `.btn.btn-accent`'s
+ * `background: var(--accent)` was picking up this file's navy `--accent`
+ * override above, and that the only mismatch left was a 6px-vs-8px radius.
+ * Both readings came off theme.css without checking whether theme.css loads
+ * here. It does not: theme.css is the LEGACY surface's stylesheet, main.tsx
+ * loads it only when `!isVNextSurface` (main.legacy-chrome.contract.test.ts
+ * enforces that gate), and its unscoped `.btn` block is the ONLY unscoped
+ * `.btn` definition in the repo — every other one is ancestor-scoped
+ * (`.trk-overlay`, `.lw-root`, `.ws-root`, `.engagement-page.redesign`). So on
+ * os.capiro.ai all 31 of these were UNSTYLED native buttons: `font: inherit`
+ * and `box-sizing` from engagement.css, and nothing else — no padding, border,
+ * radius or fill. Porting the base here fixes all 31 rather than repainting
+ * 12 of them on top of UA chrome, needs no edits to the shared component
+ * files (6 of the 8 are also rendered on app.capiro.ai, where theme.css still
+ * supplies the base), and cannot reach the legacy surface: this file is
+ * imported only by VNextMeetingsWorkspace.tsx and every selector is under
+ * `.capiro-vnext-root`.
+ *
+ * Declarations mirror theme.css's `.btn` family one for one, re-expressed in
+ * the module's own `--eng-*` tokens, with three deliberate substitutions:
+ *  - `--r-sm` (6px, a theme.css :root token, undefined here) becomes
+ *    `--uui-radius-control` (8px), the radius the rest of vNext uses for
+ *    controls and the one the legacy Engagement closeout also standardized on.
+ *  - `--bg-surface-2` (the base hover, also theme.css-only and NOT remapped in
+ *    this file's variable table above) becomes `--eng-bg`, which is what
+ *    `.uui-button:hover` uses.
+ *  - `.btn-ghost`'s `rgba(0, 0, 0, 0.04)` hover becomes `--eng-muted`.
+ * NOT taken from the legacy surface's own `.btn` uplift (the redesign block in
+ * pages/engagement/engagement-ui-closeout.css): its `min-height: 38px` and
+ * `font-weight: 600` flatten `.btn.sm`, a variant this tree really does use
+ * (tab-kit, MeetingDetailPanel). The prototype's padding-driven heights stay.
+ *
+ * WHY --eng-primary-* AND NOT --uui-btn-metal-*: UI-parity §1.5
+ * (engagement-ui-closeout.css) makes Engagement's primary fill the module's
+ * own `--eng-primary-fill` (engagement.css), deliberately not the shell's
+ * two-stop metal face, so Engagement's primary reads identically wherever it
+ * appears. The QA pass wired this button to the shell's set instead. The two
+ * are byte-identical today, so there was no visual diff — but it gave one
+ * button role two token sources, and the next time either ramp moves they
+ * diverge silently. One role, one source.
+ *
+ * WHY THE ACCENT KEEPS A 1px BORDER, unlike `.uui-button--primary`
+ * (engagement.css) and `.capiro-button--primary` (primitives.css), which both
+ * declare `border: 0`: neither of those is ever adjacent to one of these. The
+ * accent button's real neighbours are the non-accent `.btn`s in the same
+ * footers — VNextSendMeriModal, VNextMeetingPanelChrome, MeetingDetailPanel,
+ * PrepTab, DebriefTab and NotesTab each render a Cancel/primary pair — so both
+ * halves of every pair have to agree on border width or the primary sits
+ * visibly shorter than its Cancel. `1px solid transparent` on the accent and
+ * `1px solid var(--eng-border)` on the base keeps the border boxes identical
+ * (and drops the UA's `outset` style and its cross-browser width variance,
+ * which is what the pairs were actually inheriting before this block existed).
+ *
+ * No `:active` fill on purpose: Engagement's primary role has no pressed
+ * treatment anywhere in the module — there is no `--eng-primary-fill-active`
+ * token and `.uui-button--primary` declares none. Borrowing the shell's
+ * `--uui-btn-metal-face-active` would give this one button a pressed state the
+ * module's canonical primary does not have. That is a module-wide design gap,
+ * not something to close on a single button.
  */
-.capiro-vnext-root .engagement-vnext :is(.btn, .ant-btn) {
+.capiro-vnext-root .engagement-vnext .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid var(--eng-border);
   border-radius: var(--uui-radius-control, 8px);
+  background: var(--eng-surface);
+  color: var(--eng-ink);
+  /* No font-family: engagement.css already gives every button in the module
+     `font: inherit`, which is the module family. `font: inherit` also drops
+     the UA's font-size, so the prototype's 13px does have to be restated. */
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
 }
-.capiro-vnext-root .engagement-vnext :is(.btn.btn-accent, .ant-btn-primary) {
-  background: transparent;
-  background-image: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f, #0e141c));
-  box-shadow: var(--uui-btn-metal-shadow, none);
-  color: var(--uui-btn-metal-fg, #fff);
+.capiro-vnext-root .engagement-vnext .btn:hover:not(:disabled) {
+  background: var(--eng-bg);
+}
+/* No call site in this tree uses `.btn-primary` today (the ink-filled variant
+   is a Library/MeetingsV2 idiom on the legacy surface). Ported anyway so the
+   reused prototype markup keeps one complete class contract on both surfaces
+   rather than half of one. */
+.capiro-vnext-root .engagement-vnext .btn.btn-primary {
+  border-color: var(--eng-ink);
+  background: var(--eng-ink);
+  color: #fff;
+}
+.capiro-vnext-root .engagement-vnext .btn.btn-primary:hover:not(:disabled) {
+  background: #000;
+}
+.capiro-vnext-root .engagement-vnext .btn.btn-ghost {
   border-color: transparent;
+  background: transparent;
 }
-.capiro-vnext-root .engagement-vnext :is(.btn.btn-accent, .ant-btn-primary):hover:not(:disabled) {
-  background-image: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26));
-  background-color: transparent;
+.capiro-vnext-root .engagement-vnext .btn.btn-ghost:hover:not(:disabled) {
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .engagement-vnext .btn.sm {
+  padding: 4px 9px;
+  font-size: 11.5px;
+}
+.capiro-vnext-root .engagement-vnext .btn.btn-accent {
+  border: 1px solid transparent;
+  background: var(--eng-primary-fill);
+  box-shadow: var(--eng-primary-shadow);
+  color: #fff;
+}
+.capiro-vnext-root .engagement-vnext .btn.btn-accent:hover:not(:disabled) {
+  background: var(--eng-primary-fill-hover);
+}
+/* Matches `.uui-button:disabled` (engagement.css), the module's own disabled
+   treatment. The QA pass shipped no disabled state at all, so a pending "Send
+   Meri" / "Generate with Meri" stayed at full contrast. */
+.capiro-vnext-root .engagement-vnext .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }

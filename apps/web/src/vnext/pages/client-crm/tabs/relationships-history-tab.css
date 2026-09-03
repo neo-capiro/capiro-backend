@@ -169,6 +169,14 @@
 }
 .cap-pf .rel-hist-row-action:hover { color: #293056; }
 
+/* Reply all sits beside Reply as the deliberate, wider choice — muted so the
+   narrow reply is the one the eye lands on first. */
+.cap-pf .rel-hist-row-action--secondary {
+  color: #667085;
+  font-weight: 500;
+}
+.cap-pf .rel-hist-row-action--secondary:hover { color: #475467; }
+
 .cap-pf .rel-hist-row-title {
   display: block;
   margin-top: 7px;

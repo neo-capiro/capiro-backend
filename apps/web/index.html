@@ -20,7 +20,14 @@
     -->
     <script src="/runtime-config.js"></script>
   </head>
-  <body>
+  <!-- margin:0 lives here, not in a stylesheet, so it applies before first
+       paint. theme.css declares the same value for the legacy surface, but
+       main.tsx never loads theme.css on vNext (os.capiro.ai), so without
+       this the UA's 8px body margin made every `min-height: 100dvh` vNext
+       layout 16px taller than the viewport: a permanent scrollbar, and
+       anything "centred" sitting 8px off. vnext-shell.html and
+       vnext-dash.html hardcode it the same way. -->
+  <body style="margin: 0">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- Start of HubSpot Embed Code -->

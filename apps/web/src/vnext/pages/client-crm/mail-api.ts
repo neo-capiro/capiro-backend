@@ -26,6 +26,16 @@ export interface MailMessage {
   threadId: string;
   fromEmail: string | null;
   fromName: string | null;
+  /**
+   * NOTE: `to_recipients_jsonb` / `cc_recipients_jsonb` / `bcc_recipients_jsonb`
+   * are Prisma `Json` columns (apps/api/prisma/schema.prisma, model
+   * MailMessage) served straight through with no validation. This declared
+   * shape is what the syncs WRITE, not what the column can HOLD — a reader
+   * that walks these must guard with `Array.isArray` and a per-entry
+   * `typeof entry === 'object'`, exactly as the API's own recipient reader in
+   * engagement.service.ts does. An unguarded `for…of` over one of these
+   * throws "is not iterable" on any row a provider wrote differently.
+   */
   toRecipients: MailRecipient[];
   ccRecipients: MailRecipient[];
   bccRecipients: MailRecipient[];
@@ -44,8 +54,25 @@ export interface MailThread {
   participants: MailParticipant[];
   lastMessageAt: string | null;
   messages: MailMessage[];
-  /** The caller's own connected-mailbox address for this thread, so a reply
-   *  can be built from the real to/cc/from participants minus "myself". */
+  /**
+   * The caller's own connected-mailbox address for this thread, so a reply can
+   * be built from the real to/cc/from participants minus "myself".
+   *
+   * Genuinely `null` in production, though not for the reason the schema's
+   * `MailThread.connectionId String?` suggests: `getMailThread` filters on
+   * `ownMailThreadWhere(ctx.userId)`, whose `connection: { createdByUserId }`
+   * relation filter excludes rows with a NULL FK — a connection-less thread
+   * 404s rather than arriving here with a null. The real null case is
+   * `IntegrationConnection.accountEmail String?`, which is created null and
+   * only conditionally backfilled: both OAuth callbacks write
+   * `accountEmail: accountEmail ?? undefined` and Prisma skips an `undefined`
+   * field, so a connection whose provider profile yielded no address stays
+   * null for good.
+   *
+   * Consumers must therefore treat `null` as "identity unknown" and say so,
+   * NOT as "nothing to exclude" — an is-me test that silently matches nobody
+   * is how a reply ends up addressed back to the sender.
+   */
   connectionEmail: string | null;
 }
 

@@ -10,12 +10,7 @@ import {
   useUnshareArtifacts,
   type ShareArtifactRef,
 } from './meetings-api.js';
-import {
-  formatDayTitle,
-  formatTimeRange,
-  formatTimeRange24,
-  isAllDayMeeting,
-} from './meetings-format.js';
+import { formatDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
 import {
   Ava,
   JoinButton,
@@ -405,13 +400,17 @@ export function MeetingDetailPanel({
                   flexWrap: 'wrap',
                 }}
               >
+                {/* One clock in both layouts. The `inline` (vNext) branch
+                    used to render a 24-hour range while the row 12px to its
+                    left renders a 12-hour clock, so a 14:00 meeting read
+                    "2:00 PM" in the row and "14:00–14:30" here. `overlay`
+                    (app.capiro.ai) already called formatTimeRange, so this
+                    only changes the vNext surface. */}
                 <span>
                   {formatDayTitle(new Date(m.startsAt))} ·{' '}
                   {isAllDayMeeting(m.startsAt, m.endsAt)
                     ? 'All day'
-                    : inline
-                      ? formatTimeRange24(m.startsAt, m.endsAt)
-                      : formatTimeRange(m.startsAt, m.endsAt)}
+                    : formatTimeRange(m.startsAt, m.endsAt)}
                 </span>
                 {inline ? (
                   <span aria-hidden="true">·</span>

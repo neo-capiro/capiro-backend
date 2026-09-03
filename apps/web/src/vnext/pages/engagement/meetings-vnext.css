@@ -363,11 +363,18 @@
   box-shadow: 0 0 0 1px var(--eng-accent-border);
 }
 .capiro-vnext-root .vmtg-row__time {
-  /* Was 58px for the meridiem-free "8:30"/"11:00" 24h format (see
-     formatTime's own call site below) — the widest 12-hour string
-     ("12:30 PM") needs more room at this same 13px mono size, so this
-     widened alongside switching this row back to a real 12-hour clock. */
+  /* 76px, not the design's original 58px: 58px sized the meridiem-free
+     "8:30"/"11:00" 24-hour format this cell used to render. The widest string
+     it renders now ("12:30 PM") measures ~62px at this 13px mono size, so the
+     column has to clear that. The cell is rendered by MeetingRowCard in
+     VNextMeetingsWorkspace.tsx, via formatTime in meetings-format.ts.
+     nowrap because this cell renders a string with an internal space in both
+     of its branches ("12:30 PM" as well as the long-standing "All day") — if
+     an ancestor squeezes it, it has to overflow this basis on one line rather
+     than wrap to a second and push the row's baseline down. The mobile branch
+     below re-bases it to the full row width, where there is room either way. */
   flex: 0 0 76px;
+  white-space: nowrap;
   font-family: var(--eng-font-mono);
   font-size: 13px;
   font-weight: 500;

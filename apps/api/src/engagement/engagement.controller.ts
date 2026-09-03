@@ -103,6 +103,35 @@ function ClampArrayTo(max: number) {
   return Transform(({ value }) => (Array.isArray(value) ? value.slice(0, max) : value));
 }
 
+/**
+ * Accept a single object where an array is now expected — wire back-compat only.
+ *
+ * `SendSingleMailDto.to` was one `{ email, name }` object until PR #1444 made it
+ * an array. The web bundle and this API deploy independently (and a browser keeps
+ * serving its cached bundle for minutes after an API rollout), so the
+ * previously-shipped single-object shape has to keep validating. Running as a
+ * `@Transform` puts the normalization BEFORE validation, so `@IsArray`,
+ * `@ArrayMinSize`, `@ArrayMaxSize` and `@ValidateNested({ each: true })` all see
+ * an array whichever shape actually arrived.
+ *
+ * Ordering against `@Type` is guaranteed, not luck: for plain-to-class,
+ * class-transformer applies `@Type` metadata first and custom `@Transform`s
+ * second (0.5.1 `TransformOperationExecutor` — `finalValue = this.transform(...)`
+ * then `applyCustomTransformations(...)`). A lone object therefore reaches this
+ * transform ALREADY constructed as its `@Type` class and stays that instance once
+ * wrapped, so `@ValidateNested` still finds its metadata. Do not "simplify" this
+ * to normalize off the raw payload — returning bare plain objects makes
+ * class-validator report `unknownValue` and 400.
+ *
+ * Non-objects and `null` pass through untouched so `@IsArray` still produces the
+ * honest 400 rather than this wrapping garbage into a one-element array.
+ */
+function WrapSingleInArray() {
+  return Transform(({ value }) =>
+    Array.isArray(value) || value == null || typeof value !== 'object' ? value : [value],
+  );
+}
+
 class CreateIntegrationDto {
   @IsEnum(EngagementProvider)
   provider!: EngagementProvider;
@@ -310,6 +339,30 @@ class SendSingleMailDto {
   @IsUUID(undefined, { each: true })
   personIds?: string[];
 
+  /**
+   * DEPRECATED pre-#1444 wire field, declared only so a browser still running
+   * the old bundle does not 400: the global ValidationPipe runs
+   * `forbidNonWhitelisted` (see `configure-api-http-app.ts`), so an UNDECLARED
+   * `personId` rejects the whole send rather than being ignored.
+   *
+   * Folded into `personIds` by the handler, NOT by a `@Transform` on
+   * `personIds`: class-transformer only visits keys present on the incoming
+   * payload, and an old client sends `personId` with no `personIds` key at all,
+   * so a transform declared there would simply never run.
+   *
+   * Delete this field, `@WrapSingleInArray()` on `to`, and the fold in
+   * `sendSingleMail` below once no deployed web bundle can still send the old
+   * shape.
+   */
+  @IsOptional()
+  @IsUUID()
+  personId?: string;
+
+  // Accepts both the pre-#1444 single `{ email, name }` object and the current
+  // array — see `WrapSingleInArray`. Every constraint below applies unchanged to
+  // the normalized array, so a legacy send gets the same nested email/name
+  // validation it always got.
+  @WrapSingleInArray()
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(50)
@@ -2063,7 +2116,19 @@ export class EngagementController {
   @Post('mail/send')
   @EngagementRuntimeAction('outreach_send')
   sendSingleMail(@CurrentTenant() ctx: TenantContext, @Body() body: SendSingleMailDto) {
-    return this.service.sendSingleMail(ctx, body);
+    // Wire back-compat lives here, at the edge, so `SendSingleMailInput` and the
+    // whole service body stay single-shape: fold the deprecated pre-#1444
+    // `personId` into `personIds`. This cannot be a DTO `@Transform` —
+    // class-transformer only runs a property's transform when that key is on the
+    // payload, and an old client sends `personId` with no `personIds` key. `to`
+    // needs nothing here; `@WrapSingleInArray()` already normalized it. The
+    // destructure also strips `personId` so the dead field never reaches the
+    // service's input contract.
+    const { personId, ...rest } = body;
+    return this.service.sendSingleMail(ctx, {
+      ...rest,
+      personIds: rest.personIds?.length ? rest.personIds : personId ? [personId] : undefined,
+    });
   }
 
   /**

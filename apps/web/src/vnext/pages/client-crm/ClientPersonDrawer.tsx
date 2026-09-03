@@ -97,15 +97,24 @@ export function ClientPersonDrawer({
     [people, person],
   );
 
-  // Everyone else on this client's org tree the Mail compose window can add
-  // to "To" — every associated contact, minus whoever it's already
-  // addressed to and anyone with no email on file to send to.
+  // Everyone on this client's org tree the Mail compose window may need an id
+  // for — the whole roster, minus anyone with no email on file to send to.
+  //
+  // The addressee this drawer was opened for is deliberately INCLUDED. The
+  // compose window derives `personIds` by matching each selected "To" address
+  // against this list, so excluding the primary addressee meant an ordinary
+  // single-recipient send persisted `metadata: { personIds: [] }` — dropping
+  // the person association the old single-`personId` payload carried.
+  //
+  // This does not put them in the picker: `addableContacts` already drops
+  // every contact whose email is in `selectedTo`, and `selectedTo` starts as
+  // exactly the `to` prop passed below.
   const orgContacts = useMemo(
     () =>
       people
-        .filter((entry) => entry.id !== person?.id && entry.email)
+        .filter((entry) => entry.email)
         .map((entry) => ({ id: entry.id, name: entry.name, email: entry.email! })),
-    [people, person],
+    [people],
   );
 
   const placementChanged =

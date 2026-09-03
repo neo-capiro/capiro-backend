@@ -18,8 +18,9 @@ import {
   type Kind as ActivityKind,
 } from '../ClientCrmHistory.js';
 import { EmailComposeModal } from '../EmailComposeModal.js';
-import { getMailThread, type MailMessage, type MailRecipient } from '../mail-api.js';
+import { getMailThread, type MailRecipient, type MailThread } from '../mail-api.js';
 import { dayKey } from '../../../../pages/engagement/meetings/meetings-format.js';
+import { useMe } from '../../../../lib/me.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './relationships-history-tab.css';
@@ -50,7 +51,10 @@ type ActivityGroup = GroupFilter | 'Calls' | 'Documents';
 /** Activity kind → design mark, eyebrow label and filter group (§8.3). */
 const KIND_VIEW: Record<ActivityKind, { mark: string; label: string; group: Exclude<ActivityGroup, 'All'>; action: string }> = {
   note: { mark: 'N', label: 'Client note', group: 'Notes', action: 'Pin' },
-  email: { mark: 'E', label: 'Email thread', group: 'Email', action: 'Email' },
+  // "Reply", not "Email": the row's primary action addresses ONE person and
+  // copies nobody. Reply all is a second, separate control (see HistEntry's
+  // `onActionAll`) rather than what this button quietly does.
+  email: { mark: 'E', label: 'Email thread', group: 'Email', action: 'Reply' },
   call: { mark: 'C', label: 'Client call', group: 'Calls', action: 'Open log' },
   meeting: { mark: 'M', label: 'Client meeting', group: 'Meetings', action: 'Open meeting' },
   outreach: { mark: 'O', label: 'Outreach', group: 'Outreach', action: 'Open outreach' },
@@ -71,6 +75,14 @@ interface HistEntry {
   meta: string;
   action: string;
   onAction?: () => void;
+  /**
+   * Reply-all, offered ONLY on an email-thread row and ONLY as a second
+   * control. #1445 made the single email action a silent reply-all, which
+   * widens the audience of any thread that cc'd opposing counsel or Hill
+   * staff — unrecoverable the instant Send is pressed. The narrow reply stays
+   * primary; this is the deliberate opt-in.
+   */
+  onActionAll?: () => void;
   /** Present only on real activity — the export writes from these, not the row copy. */
   source?: ActivityItem;
 }
@@ -87,6 +99,16 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const toast = useCapiroToast();
+  // Second identity signal for the is-me test in `openEmailThread`. A thread's
+  // `connectionEmail` is nullable on its own (see mail-api.ts), and when it is
+  // null a single-equality test excludes nobody at all. `/api/me` is already
+  // fetched app-wide with staleTime 30s, so this is a cache read, not a
+  // request.
+  const me = useMe();
+  // Optional at `user` as well as at `data`: this is read during render, and a
+  // stale or partially-shaped cached /me payload is a real case in this app
+  // (MeResponse's own notes call out older cached shapes).
+  const myAccountEmail = me.data?.user?.email ?? null;
   const [filter, setFilter] = useState<GroupFilter>('All');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<ActivityKind | null>(null);
@@ -95,6 +117,13 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     cc: MailRecipient[];
     threadId: string;
     subject: string;
+    /**
+     * True when neither identity signal resolved, so NOTHING was excluded as
+     * "me" and the recipients below may include the sender (or miss the person
+     * they meant to reach). Surfaced as an inline notice in the compose window
+     * — see EmailComposeModal's `identityUnconfirmed`.
+     */
+    identityUnconfirmed: boolean;
   } | null>(null);
   // Which timeline row (if any) is expanded to show its full message — a
   // single id, so opening one always closes whichever was open before.
@@ -139,29 +168,29 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       navigate(`/engagement/meetings/${item.sourceId}?date=${dayKey(new Date(item.occurredAt))}`);
     } else if (item.sourceType === 'attachment') navigate(`/clients?clientId=${client.id}&tab=files`);
     else if (item.sourceType === 'outreach') navigate(`/outreach/${item.sourceId}`);
-    else if (item.sourceType === 'mail_thread' && item.sourceId) void openEmailThread(item.sourceId);
+    else if (item.sourceType === 'mail_thread' && item.sourceId)
+      void openEmailThread(item.sourceId, 'reply');
   };
 
   // Opens the compose window pre-filled to reply on this thread, rather than
   // the old redirect to a generic Meetings list scoped by clientId — this
   // component's activity mapping doesn't carry a participant address, so the
   // real one comes from the thread's own detail (GET mail-threads/:id).
-  // Reply-all off the most recent message: whoever sent it (or, if that was
-  // you, the first other recipient) becomes "To", everyone else on that
-  // message's to/cc lands in "Cc" — and the thread's own connected-mailbox
-  // address is excluded throughout, which is the actual fix here. The old
-  // version always replied to the last message's sender with no such
-  // exclusion, so whenever the most recent message in a thread was one you'd
-  // sent yourself, "reply" addressed the email back to you.
-  const openEmailThread = async (threadId: string) => {
+  //
+  // `mode` is the user's stated intent, never inferred: 'reply' addresses one
+  // person and copies nobody; 'replyAll' additionally cc's everyone else who
+  // was on that message. #1445 offered one control and always built the
+  // reply-all, so a private reply silently widened to the whole thread.
+  //
+  // Either way the caller's own addresses are excluded, which is the fix
+  // #1445 was actually for: the old code replied to the last message's sender
+  // unconditionally, so a thread whose newest message you had sent yourself
+  // addressed the "reply" back to you.
+  const openEmailThread = async (threadId: string, mode: ReplyMode) => {
     try {
       const thread = await getMailThread(api, threadId);
-      const last = thread.messages[thread.messages.length - 1];
-      if (!last) {
-        toast.error('Could not find who to reply to on this thread.');
-        return;
-      }
-      const { to, cc } = buildReplyRecipients(last, thread.connectionEmail);
+      const mySelf = selfAddresses(thread.connectionEmail, myAccountEmail);
+      const { to, cc } = buildReplyRecipients(thread, mySelf, mode);
       if (!to) {
         toast.error('Could not find who to reply to on this thread.');
         return;
@@ -171,6 +200,11 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         cc,
         threadId,
         subject: thread.subject ? `Re: ${thread.subject}` : 'Re:',
+        // Neither signal resolved — the connection recorded no account email
+        // and /api/me has none either. The window still opens (a working
+        // action beats a blocked one), but the compose window says so, since
+        // silently excluding nobody is how the reply-to-yourself bug returns.
+        identityUnconfirmed: mySelf.size === 0,
       });
     } catch {
       toast.error('Could not open this email thread.');
@@ -183,6 +217,9 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     return all.map((item) => {
       const view = KIND_VIEW[item.kind];
       const recorded = item.origin === 'recorded';
+      // Narrowed out here rather than inside the closure below, so the handler
+      // captures a `string` instead of re-widening to `string | null`.
+      const threadId = item.sourceType === 'mail_thread' ? item.sourceId : null;
       return {
         id: item.id,
         date: formatDay(item.occurredAt),
@@ -200,11 +237,21 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           : item.sourceId
             ? () => open(item)
             : undefined,
+        // Reply-all is a separate, secondary control on email rows only —
+        // never the meaning of the primary action.
+        onActionAll:
+          !recorded && threadId ? () => void openEmailThread(threadId, 'replyAll') : undefined,
         source: item,
       };
     });
+    // `myAccountEmail` is load-bearing, not cosmetic: the handlers above
+    // capture `openEmailThread`, which closes over it. `all` is a stable React
+    // Query reference once the activity query settles, so without this dep the
+    // memo freezes at that moment and a later /api/me resolution never reaches
+    // the click handler — dropping the second identity signal in exactly the
+    // case it exists for (a thread whose connectionEmail is null).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, genuinelyEmpty, client.id]);
+  }, [all, genuinelyEmpty, client.id, myAccountEmail]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -269,6 +316,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           threadId={replyTarget.threadId}
           defaultSubject={replyTarget.subject}
           defaultCc={replyTarget.cc}
+          identityUnconfirmed={replyTarget.identityUnconfirmed}
           clientId={client.id}
           clientName={client.name}
           onSent={() => void qc.invalidateQueries({ queryKey: ['client-activity', client.id] })}
@@ -484,6 +532,20 @@ function TimelineEntry({
               {entry.action}
             </button>
           ) : null}
+          {/* Two controls, not one: #1445 collapsed Reply and Reply all into a
+              single "Email" action that always did the reply-all, so a user
+              intending a private reply copied everyone on the last message
+              unless they spotted the pre-filled Cc. Reply stays primary;
+              Reply all is visibly secondary and opt-in. */}
+          {entry.onActionAll ? (
+            <button
+              type="button"
+              onClick={entry.onActionAll}
+              className="rel-hist-row-action rel-hist-row-action--secondary"
+            >
+              Reply all
+            </button>
+          ) : null}
         </span>
         <span className="rel-hist-row-title">{entry.title}</span>
         {entry.body ? <span className="rel-hist-row-body">{entry.body}</span> : null}
@@ -641,34 +703,135 @@ function maskJoinUrls(text: string | null): string | null {
   });
 }
 
+/** Reply width, as stated by the user's click — never inferred. */
+type ReplyMode = 'reply' | 'replyAll';
+
 /**
- * Reply-all off one message: the sender plus its other "to" recipients
- * become the primary "to" (the first of them), the rest go to "cc" — with
- * `myEmail` (the thread's own connected-mailbox address) excluded from both,
- * since replying should never address the message back to yourself. If the
- * message's most recent sender was you, the first remaining recipient steps
- * up to be "to" instead.
+ * One comparable form of an address: trimmed and lower-cased. Returns '' for
+ * anything that is not a usable address, so a non-string Json entry or a bare
+ * display name can never match anything.
+ *
+ * Deliberately does NOT strip a `+tag` from the local part. Nothing in this
+ * codebase establishes that every tenant's provider routes plus-addressed mail
+ * to the base mailbox, and treating them as equal can only DROP a recipient
+ * from a reply — silently, and possibly a legitimate one.
+ */
+function normalizeAddress(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim().toLowerCase();
+  const at = trimmed.lastIndexOf('@');
+  if (at <= 0 || at === trimmed.length - 1) return '';
+  return trimmed;
+}
+
+/**
+ * Every address that counts as "me", from both identity signals this client
+ * has: the thread's own connected-mailbox address (`connection.accountEmail`)
+ * and the signed-in user's account email from `/api/me`.
+ *
+ * There are two because `connectionEmail` is independently nullable (see
+ * mail-api.ts's MailThread), and the single-signal test this replaces excluded
+ * NOBODY whenever it was null — silently restoring the reply-to-yourself bug
+ * it was written to fix.
+ *
+ * An EMPTY set means the caller's identity is unknown. Callers must surface
+ * that rather than treat it as "nothing to exclude" (see openEmailThread).
+ *
+ * Honestly NOT covered, and not coverable with the data we store: mailbox
+ * ALIASES (Exchange proxyAddresses, Graph `mail` vs `userPrincipalName`, Gmail
+ * sendAs) and DELEGATED/SHARED mailboxes, whose own address is neither signal.
+ * Both need an address list persisted per connection and exposed on the thread
+ * detail — its own ticket. Firm-domain identity ("anyone @capiro.ai is us") is
+ * deliberately not inferred: a colleague is a legitimate reply recipient.
+ */
+function selfAddresses(...candidates: Array<string | null | undefined>): Set<string> {
+  const out = new Set<string>();
+  for (const candidate of candidates) {
+    const normalized = normalizeAddress(candidate);
+    if (normalized) out.add(normalized);
+  }
+  return out;
+}
+
+/** Accumulates usable, de-duplicated, non-self addresses in the order added. */
+function recipientPool(mySelf: Set<string>) {
+  const seen = new Set<string>();
+  const list: MailRecipient[] = [];
+  const add = (rawEmail: unknown, rawName?: unknown) => {
+    const key = normalizeAddress(rawEmail);
+    if (!key || mySelf.has(key) || seen.has(key)) return;
+    seen.add(key);
+    // The normalized form is for comparison only — the address handed to
+    // compose stays as the provider wrote it, since lower-casing someone
+    // else's local part is not ours to do.
+    const email = typeof rawEmail === 'string' ? rawEmail.trim() : key;
+    const name = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : undefined;
+    list.push({ email, name });
+  };
+  return { add, list };
+}
+
+/**
+ * Reply recipients for a thread, `mode` deciding how wide:
+ *   'reply'    → one address and no Cc at all;
+ *   'replyAll' → that address as To, everyone else on the same message's
+ *                from/to/cc as Cc.
+ * `mySelf` is excluded from both, so a reply is never addressed back to the
+ * caller's own mailbox.
+ *
+ * `toRecipients`/`ccRecipients` are Prisma `Json` columns served through
+ * unvalidated, so they can be a non-array or hold non-objects (see
+ * mail-api.ts). Guarded the way the API's own recipient reader guards them; an
+ * unreadable entry is skipped rather than thrown over. The unguarded `for…of`
+ * this replaces threw "is not iterable" and surfaced as the misleading
+ * "Could not open this email thread."
+ *
+ * The scan walks from the END of the message list, which `getMailThread`
+ * orders ascending by `sentAt` — NOT reliably chronological, since Postgres
+ * sorts NULLs last in ASC and a received-only message has no `sentAt`. So this
+ * is "the last message with a usable other party", not "the newest". Reading
+ * only the final message (the #1445 behaviour) meant a thread whose last
+ * message had no other party — a note mailed to yourself, a bounce, a calendar
+ * reply — opened no compose window at all on a thread that plainly had someone
+ * to reply to further up. The thread's own `participants` roster is the last
+ * resort for the same reason.
  */
 function buildReplyRecipients(
-  message: MailMessage,
-  myEmail: string | null,
+  thread: MailThread,
+  mySelf: Set<string>,
+  mode: ReplyMode,
 ): { to: MailRecipient | null; cc: MailRecipient[] } {
-  const isMe = (email?: string | null) =>
-    Boolean(email) && Boolean(myEmail) && email!.toLowerCase() === myEmail!.toLowerCase();
-  const seen = new Set<string>();
-  const pool: MailRecipient[] = [];
-  const add = (email?: string | null, name?: string | null) => {
-    if (!email || isMe(email)) return;
-    const key = email.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    pool.push({ email, name: name ?? undefined });
+  const split = (pool: MailRecipient[]) => {
+    const [to, ...rest] = pool;
+    return to ? { to, cc: mode === 'replyAll' ? rest : [] } : null;
   };
-  add(message.fromEmail, message.fromName);
-  for (const r of message.toRecipients) add(r.email, r.name);
-  for (const r of message.ccRecipients) add(r.email, r.name);
-  const [to, ...cc] = pool;
-  return { to: to ?? null, cc };
+
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message || typeof message !== 'object') continue;
+    const pool = recipientPool(mySelf);
+    pool.add(message.fromEmail, message.fromName);
+    for (const key of ['toRecipients', 'ccRecipients'] as const) {
+      const list: unknown = message[key];
+      if (!Array.isArray(list)) continue;
+      for (const entry of list) {
+        if (!entry || typeof entry !== 'object') continue;
+        const record = entry as { email?: unknown; name?: unknown };
+        pool.add(record.email, record.name);
+      }
+    }
+    const picked = split(pool.list);
+    if (picked) return picked;
+  }
+
+  const participants = Array.isArray(thread.participants) ? thread.participants : [];
+  const roster = recipientPool(mySelf);
+  for (const participant of participants) {
+    if (!participant || typeof participant !== 'object') continue;
+    roster.add(participant.email, participant.name);
+  }
+  return split(roster.list) ?? { to: null, cc: [] };
 }
 
 function provenance(item: ActivityItem): string {

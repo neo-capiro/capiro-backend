@@ -424,6 +424,39 @@ describe('VNextMeetingsWorkspace', () => {
       expect(screen.getByText('2:00 PM')).toBeInTheDocument();
       expect(screen.queryByText('14:00')).not.toBeInTheDocument();
     });
+
+    test('the drawer beside the row shows the SAME clock, not military time', () => {
+      // The half-conversion this covers: PR #1443 converted the row but left
+      // MeetingDetailPanel's layout="inline" branch on formatTimeRange24, so
+      // a 14:00 meeting read "2:00 PM" in the row and "14:00–14:30" in the
+      // drawer 12px to its right.
+      const meeting = makeMeeting({
+        id: 'pm-drawer',
+        subject: 'Afternoon review',
+        startsAt: new Date(2026, 7, 19, 14, 0).toISOString(),
+        endsAt: new Date(2026, 7, 19, 14, 30).toISOString(),
+      });
+      useMeetingsMock.mockReturnValue({
+        data: [meeting],
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      renderWorkspace('/engagement/meetings?date=2026-08-19&meeting=pm-drawer');
+
+      // The when-line is a leaf <span> holding "<day title> · <range>".
+      // Matching on the span keeps this pinned to that node; `content`
+      // arrives whitespace-normalized, which is what lets a plain space match
+      // modern ICU's U+202F before the meridiem. – is the en dash
+      // formatTimeRange joins with.
+      expect(
+        screen.getByText(
+          (content, el) => el?.tagName === 'SPAN' && content.includes('2:00 PM–2:30 PM'),
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('14:00–14:30')).not.toBeInTheDocument();
+    });
   });
 
   describe('month view chip cap', () => {

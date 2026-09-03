@@ -127,13 +127,33 @@
   display: grid;
   place-items: center;
   margin: 0 auto 16px;
+  /* Anchors the puck glyph's em-based sizing (CapiroMailPlusIcon /
+     CapiroCheckIcon `size={1}` = 1em of this) to a fixed, self-contained
+     value — same mechanism, and the same class of bug, as the trial banner's
+     hourglass above. These two were ported from the legacy modal's pixel-based
+     lucide-react props (`size={22}` / `size={24}`), which the vNext icon set
+     reads as an em MULTIPLIER: with the shell's ambient 16px
+     (`.capiro-vnext-uui`'s `font-size: var(--uui-text-body)`, shell-uui.css —
+     this modal renders inside the shell's `.uui-content`) they were 352px and
+     384px glyphs inside this 50px puck. 22px is the legacy MailPlus size. */
+  font-size: 22px;
   background: var(--capiro-color-bg-accent-soft, #eaf0f4);
   color: var(--capiro-color-action-accent-default, #294e68);
 }
 
 .capiro-vnext-root .vnext-ob-puck.is-success {
+  /* 24px — the legacy modal's Check size, 2px larger than its MailPlus. */
+  font-size: 24px;
   background: var(--capiro-color-success-soft, #eaf6ef);
   color: var(--capiro-color-success, #2f7655);
+}
+
+/* The "Continue to Capiro" trailing arrow. It has no wrapper of its own — it
+   is a direct child of CapiroButton, whose 13px
+   (--capiro-type-size-body-sm) it would otherwise multiply — so the 15px
+   anchor (the legacy ObBtn's icon size) rides on the glyph's own class. */
+.capiro-vnext-root .vnext-ob-cta-arrow {
+  font-size: 15px;
 }
 
 .capiro-vnext-root .vnext-ob-spinner {

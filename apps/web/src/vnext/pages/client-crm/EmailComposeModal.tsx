@@ -17,6 +17,48 @@ import {
 } from './mail-api.js';
 import './email-compose-modal.css';
 
+/**
+ * The ceiling an email attachment must clear to be SENDABLE, mirroring
+ * `GRAPH_INLINE_ATTACHMENT_MAX` in apps/api/src/engagement/engagement.service.ts
+ * (`loadGraphAttachments`).
+ *
+ * The upload endpoint itself accepts up to `MAX_ATTACHMENT_BYTES` (25MB) —
+ * correctly, because the client/capability Documents flow shares that route.
+ * But an email send inlines the bytes into the Graph/Gmail payload, and
+ * `loadGraphAttachments` hard-fails ATTACHMENT_TOO_LARGE above this. Without a
+ * pre-flight a 10MB PDF uploads, chips in fine, and then the draft simply
+ * cannot be sent — the refusal has to land where the user can still act on it.
+ *
+ * The same 3MB literal also appears in `sendCampaign`, on a deliberately
+ * DIVERGENT path that skips an oversized file and reports it via
+ * `skippedAttachments` instead of throwing. Reconciling those two behaviours is
+ * its own ticket.
+ */
+const MAX_EMAIL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+
+/**
+ * Content types for the extensions the picker advertises, keyed to the exact
+ * strings the server's `ALLOWED_ATTACHMENT_MIME` holds.
+ *
+ * The browser reports `file.type` as `''` for several of these — .csv, .txt
+ * and .docx most often, varying by OS picker — and the old
+ * `file.type || 'application/octet-stream'` fallback picked the one value
+ * `isAllowedAttachmentContentType` explicitly rejects, so the upload 400'd on a
+ * file the server would happily have taken. An `accept` list alone does not fix
+ * that; this does.
+ */
+const EXTENSION_CONTENT_TYPE: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv',
+  txt: 'text/plain',
+};
+
 /** A person this compose window could add as a "To" recipient. */
 export interface EmailComposeContact {
   id: string;
@@ -56,8 +98,25 @@ export interface EmailComposeModalProps {
   /** Reply within an existing thread instead of starting a new one. */
   threadId?: string;
   defaultSubject?: string;
-  /** Pre-filled Cc — e.g. everyone else who was on the message being replied to. */
+  /**
+   * Pre-filled Cc — e.g. everyone else who was on the message being replied
+   * to. A pre-filled Cc is stated out loud in the window (see the reply-all
+   * notice below) rather than left as a text box the user has to notice: this
+   * is a widened audience, and on these threads the extra parties are
+   * routinely opposing counsel or Hill staff.
+   */
   defaultCc?: MailRecipient[];
+  /**
+   * The caller could not work out which address belongs to the user, so it
+   * could not exclude them from the recipients it pre-filled. Renders a short
+   * inline notice asking the user to check the recipients.
+   *
+   * Inline, deliberately, and NOT a toast: this component is rendered by
+   * callers that do not necessarily sit under a `CapiroToastProvider`, where
+   * `useCapiroToast()` falls back to a no-op and the warning would render
+   * nothing at all.
+   */
+  identityUnconfirmed?: boolean;
   /** Fires after a confirmed send so callers can invalidate their own queries. */
   onSent?: () => void;
 }
@@ -73,6 +132,7 @@ export function EmailComposeModal({
   threadId,
   defaultSubject,
   defaultCc,
+  identityUnconfirmed = false,
   onSent,
 }: EmailComposeModalProps) {
   const api = useApi();
@@ -90,6 +150,11 @@ export function EmailComposeModal({
   const [preRewriteBodyHtml, setPreRewriteBodyHtml] = useState<string | null>(null);
   const [rewriteNote, setRewriteNote] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Array<{ id: string; fileName: string }>>([]);
+  // Why the last picked file was refused before it was ever uploaded. Inline
+  // rather than a toast so it stays next to the attach control the user just
+  // used — and so it is visible at all in the callers that render this modal
+  // without a CapiroToastProvider above it.
+  const [attachRefusal, setAttachRefusal] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toKey = to.map((r) => r.email).join(',');
@@ -109,6 +174,7 @@ export function EmailComposeModal({
       setPreRewriteBodyHtml(null);
       setRewriteNote(null);
       setAttachments([]);
+      setAttachRefusal(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, toKey, threadId, defaultCcKey]);
@@ -124,6 +190,18 @@ export function EmailComposeModal({
       .map((c) => ({ value: c.id, label: c.name, meta: c.email }));
   }, [orgContacts, selectedTo, recipientSearch]);
 
+  // The roster minus the addressee(s) this compose was opened for.
+  // `orgContacts` deliberately INCLUDES them — their ids are what `personIds`
+  // records on send — so the affordance gates below key off this list rather
+  // than the raw roster. Otherwise a person whose client has no other contact
+  // on file would grow a "+ Add recipient" button that could only ever say
+  // "everyone is already added".
+  const otherContacts = useMemo(() => {
+    const primary = new Set(to.map((recipient) => recipient.email.toLowerCase()));
+    return (orgContacts ?? []).filter((contact) => !primary.has(contact.email.toLowerCase()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgContacts, toKey]);
+
   // Same upload-url -> S3 -> confirm flow CapabilityDrawerVNext.tsx already
   // uses for document attachments — no new upload plumbing. A freshly
   // uploaded file can still be mid-scan when the user hits Send; that's
@@ -133,7 +211,7 @@ export function EmailComposeModal({
   // window's lifetime.
   const upload = useMutation({
     mutationFn: async (file: File) => {
-      const contentType = file.type || 'application/octet-stream';
+      const contentType = attachmentContentType(file);
       const presigned = (
         await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
           '/api/engagement/attachments/upload-url',
@@ -215,9 +293,33 @@ export function EmailComposeModal({
 
   const canSend = selectedTo.length > 0 && subject.trim().length > 0 && stripHtml(bodyHtml).length > 0;
 
+  // A pre-filled Cc means this compose was opened as a reply-all. Who is being
+  // copied gets said in words above the field: a widened audience must be
+  // something the user is TOLD, not something they have to notice in a
+  // populated text box. Read off the live field so the notice stays true after
+  // the user edits it.
+  const ccPrefilled = (defaultCc ?? []).length > 0;
+  const ccAddresses = cc
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const ccNotice =
+    ccAddresses.length === 0
+      ? 'Nobody is copied on this reply.'
+      : `Reply all — ${
+          ccAddresses.length === 1 ? '1 person is' : `${ccAddresses.length} people are`
+        } copied on this reply: ${ccAddresses.join(', ')}`;
+
   return (
     <CapiroModal open={open} title={threadId ? 'Reply' : 'New email'} onClose={onClose} width={640}>
       <div className="capiro-email-compose">
+        {identityUnconfirmed ? (
+          <p className="capiro-email-compose__notice capiro-email-compose__notice--warn">
+            We could not confirm which address is yours, so nobody was excluded from these
+            recipients — check them before sending.
+          </p>
+        ) : null}
+
         {/* A <div>, not a <label>: this row holds recipient chips and the
             add-recipient button rather than one form control, and a label
             hands its whole text content to the first button inside it as that
@@ -245,7 +347,7 @@ export function EmailComposeModal({
                 ) : null}
               </span>
             ))}
-            {orgContacts && orgContacts.length > 0 ? (
+            {otherContacts.length > 0 ? (
               <button
                 type="button"
                 className="capiro-email-compose__add-recipient"
@@ -288,13 +390,19 @@ export function EmailComposeModal({
               onSearchChange={setRecipientSearch}
               searchPlaceholder="Search by name or email…"
               emptyMessage={
-                (orgContacts?.length ?? 0) === 0
+                otherContacts.length === 0
                   ? 'No other contacts on file for this client'
                   : 'Everyone on file is already added'
               }
               leadingIcon={<DashboardIcon name="Users01" size={16} />}
             />
           </div>
+        ) : null}
+
+        {ccPrefilled ? (
+          <p className="capiro-email-compose__notice capiro-email-compose__notice--cc">
+            {ccNotice}
+          </p>
         ) : null}
 
         {ccOpen ? (
@@ -361,15 +469,41 @@ export function EmailComposeModal({
                 ref={fileInputRef}
                 type="file"
                 hidden
+                // The same list CapabilityDrawerVNext's file-upload button
+                // uses, which is the flow this upload reuses — without it the
+                // picker offers types the server's allowlist rejects. It is a
+                // hint, not enforcement: `accept` cannot express the
+                // allowlist's SVG exclusion, and a user can still pick "All
+                // files" in some OS dialogs. Those cases still fail loudly
+                // server-side, which keeps the allowlist single-sourced there.
+                accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,.csv,image/*"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   event.target.value = '';
-                  if (file) upload.mutate(file);
+                  if (!file) return;
+                  setAttachRefusal(null);
+                  // Both this gate and the server's are `size > limit`, so
+                  // exactly 3MB is fine — hence "3MB or smaller", not
+                  // "under 3MB".
+                  if (file.size > MAX_EMAIL_ATTACHMENT_BYTES) {
+                    setAttachRefusal(
+                      `"${file.name}" is ${megabytes(file.size)}MB. Email attachments must be ` +
+                        `${megabytes(MAX_EMAIL_ATTACHMENT_BYTES)}MB or smaller — share a link instead.`,
+                    );
+                    return;
+                  }
+                  upload.mutate(file);
                 }}
               />
             </>
           }
         />
+
+        {attachRefusal ? (
+          <p className="capiro-email-compose__notice capiro-email-compose__notice--warn">
+            {attachRefusal}
+          </p>
+        ) : null}
 
         {attachments.length > 0 ? (
           <div className="stv-rte-attachments">
@@ -458,6 +592,26 @@ function parseRecipients(value: string): MailRecipient[] | undefined {
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, '').trim();
+}
+
+/** Whole MB where it divides evenly, one decimal otherwise — for size copy. */
+function megabytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return Number.isInteger(mb) ? String(mb) : mb.toFixed(1);
+}
+
+/**
+ * The content type to presign an attachment with. `file.type` when the browser
+ * reported one; otherwise inferred from the extension, because
+ * 'application/octet-stream' is the one value the server's allowlist
+ * explicitly rejects (see EXTENSION_CONTENT_TYPE). An unrecognized extension
+ * still falls back to it and still fails loudly server-side, which keeps the
+ * allowlist itself single-sourced on the API.
+ */
+function attachmentContentType(file: File): string {
+  if (file.type) return file.type;
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+  return EXTENSION_CONTENT_TYPE[extension] ?? 'application/octet-stream';
 }
 
 function mailErrorMessage(error: unknown, fallback: string): string {

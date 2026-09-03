@@ -88,7 +88,10 @@ export function VNextPersonalSetupGateModal({
         {phase === 'gate' || phase === 'connecting' ? (
           <>
             <div className="vnext-ob-puck">
-              <CapiroMailPlusIcon size={22} aria-hidden="true" />
+              {/* `size` is an em multiplier (components/icons/index.tsx), so the
+                  ported-from-lucide `size={22}` rendered a 352px glyph inside this
+                  50px puck. The 22px now comes from .vnext-ob-puck's font-size. */}
+              <CapiroMailPlusIcon size={1} />
             </div>
             <h2>One last step before you can get started</h2>
             <p
@@ -158,7 +161,9 @@ export function VNextPersonalSetupGateModal({
         ) : phase === 'connected' ? (
           <>
             <div className="vnext-ob-puck is-success">
-              <CapiroCheckIcon size={24} style={{ strokeWidth: 2.6 }} aria-hidden="true" />
+              {/* Same em-vs-px correction as the gate puck above; the 24px comes
+                  from .vnext-ob-puck.is-success's font-size. */}
+              <CapiroCheckIcon size={1} style={{ strokeWidth: 2.6 }} />
             </div>
             <h2>You're connected.</h2>
             <p
@@ -183,7 +188,9 @@ export function VNextPersonalSetupGateModal({
             </p>
             <CapiroButton variant="primary" onClick={onContinue} style={{ width: '100%' }}>
               Continue to Capiro
-              <CapiroArrowRightIcon size={15} aria-hidden="true" />
+              {/* Same em-vs-px correction; this glyph has no wrapper of its own, so
+                  the 15px anchor rides on the icon's own class. */}
+              <CapiroArrowRightIcon size={1} className="vnext-ob-cta-arrow" />
             </CapiroButton>
             <div style={{ marginTop: 14 }}>
               <a

@@ -76,33 +76,52 @@ export function isToday(d: Date): boolean {
   return isSameDay(d, new Date());
 }
 
-const TIME_FMT = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-
-export function formatTime(iso: string): string {
-  return TIME_FMT.format(new Date(iso));
-}
-
-/** "2:00 PM–2:45 PM" */
-export function formatTimeRange(startIso: string, endIso: string): string {
-  return `${formatTime(startIso)}–${formatTime(endIso)}`;
-}
+/**
+ * Clock format for the whole Meetings module (both surfaces).
+ *
+ * The locale is PINNED to en-US rather than left as `undefined`. With
+ * `undefined` this follows the machine's default, so an en-GB/de/fr default —
+ * or a CI runner whose ICU default is a 24-hour locale — renders "14:00" with
+ * no meridiem: the "show a real 12-hour clock, not military time" decision
+ * silently does not apply, and the test that asserts "2:00 PM" fails on that
+ * machine only. This product is US-only (congressional offices, districts,
+ * Hill Day) and every string beside this one is en-US copy, so a pinned en-US
+ * clock is what the design specifies rather than whatever the viewer's OS
+ * happens to prefer. Same pattern as zonedShortTime in
+ * pages/radar/live-hearings/LiveHearingsPage.tsx, which pins en-US and guards
+ * the instant too (it degrades to an empty string where this module uses an
+ * em dash — a Meetings row has a visible cell to fill).
+ *
+ * Only the CLOCK is pinned. The weekday/month formatters below deliberately
+ * keep following the viewer's locale: a localized month NAME is cosmetic,
+ * whereas a localized hour cycle changes what the number means.
+ *
+ * Note for tests: modern ICU separates the meridiem with U+202F NARROW NO-BREAK
+ * SPACE, not a plain space. Testing Library's default text normalizer collapses
+ * it to " " (U+202F is in `\s`), so getByText('2:00 PM') matches; a raw string
+ * comparison has to normalize the whitespace itself.
+ */
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
 
 /**
- * "8:30" / "14:00" — no meridiem. Additive: `formatTime` above is unchanged,
- * so app.capiro.ai's canonical Meetings page keeps its 12-hour clock. The
- * vNext Engagement surfaces use this one because the meridiem does not fit
- * the design's 58px row time column or its mono drawer when-line (UI-parity
- * §4.4/§5.2). Dropping the meridiem necessarily makes it a 24-hour clock —
- * otherwise 1:00 and 13:00 would be indistinguishable.
+ * "2:00 PM". An unparseable instant renders an em dash instead of throwing:
+ * `Intl.DateTimeFormat.format(new Date('bad'))` raises RangeError, and this
+ * runs inside the render of every meeting row and of the drawer's when-line,
+ * so one bad `startsAt` off the wire would take out the whole day/week list
+ * body rather than degrade a single cell.
  */
-export function formatTime24(iso: string): string {
+export function formatTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (!Number.isFinite(d.getTime())) return '—';
+  return TIME_FMT.format(d);
 }
 
-/** "11:00–12:00" */
-export function formatTimeRange24(startIso: string, endIso: string): string {
-  return `${formatTime24(startIso)}–${formatTime24(endIso)}`;
+/** "2:00 PM–2:45 PM", or a single em dash when either end is unparseable. */
+export function formatTimeRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return '—';
+  return `${TIME_FMT.format(start)}–${TIME_FMT.format(end)}`;
 }
 
 const WEEKDAY_LONG = new Intl.DateTimeFormat(undefined, {

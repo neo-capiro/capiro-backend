@@ -2256,10 +2256,15 @@ export class EngagementService {
           }
         : baseWhere;
 
-      return tx.mailThread.findMany({
+      const rows = await tx.mailThread.findMany({
         where,
         include: {
           client: clientSummarySelect(),
+          // Same reason `getMailThread` selects it: the caller's own connected
+          // mailbox address, which the reply-recipient logic needs to exclude
+          // "myself" — a thread's participants/messages carry no notion of which
+          // address is the reader's.
+          connection: { select: { accountEmail: true } },
           messages: {
             where: activeMailMessageWhere(),
             orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
@@ -2269,6 +2274,15 @@ export class EngagementService {
         orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
         take: 50,
       });
+      // Flatten to exactly the shape `getMailThread` returns. The web's
+      // `MailThread` type declares `connectionEmail: string | null` as REQUIRED,
+      // but only the detail route populated it — so every list row arrived with
+      // the field `undefined` while TypeScript asserted otherwise, and any
+      // consumer reading it off a list row silently got the pre-fix behaviour.
+      return rows.map(({ connection, ...rest }) => ({
+        ...rest,
+        connectionEmail: connection?.accountEmail ?? null,
+      }));
     });
   }
 
@@ -7444,6 +7458,11 @@ export class EngagementService {
     // still scanning / removed) rather than silently sending without it or
     // pretending a not-yet-cleared file is safe to attach.
     const attachments = await this.loadGraphAttachments(ctx, input.attachmentIds);
+    // Derived from what actually got attached, not from the request's id list:
+    // `loadGraphAttachments` throws rather than silently dropping a file, so
+    // these agree — but the resolved list is the one that describes the email
+    // that was really sent.
+    const sentWithAttachments = (attachments?.length ?? 0) > 0;
 
     let sendResult: EngagementMailSendResult;
     try {
@@ -7479,16 +7498,28 @@ export class EngagementService {
 
     // Message-level dedup with the inbound sync pipeline: sync's own upsert
     // keys on (tenantId, source, externalId) — microsoft-graph-sync.service.ts
-    // upserts by `message.id` under EngagementSource.outlook; google-sync.service.ts
-    // upserts Gmail's own message id under EngagementSource.google. If the send
-    // result gave us that SAME real id, write this row under the SAME
-    // (source, externalId) the sync job will use, so the next sync cycle
-    // recognizes and UPDATES this row instead of creating a second one for
-    // the same email — which is what previously produced a duplicate entry
-    // in Timeline/the person drawer's message history once sync caught up.
-    // Only fall back to a synthetic `manual` id when the provider genuinely
-    // returned none (rare, and reconciliation isn't possible either way then).
-    const realExternalId = sendResult.providerMessageId || sendResult.providerInternetMessageId || null;
+    // upserts by the Graph ITEM id (`message.id`) under EngagementSource.outlook;
+    // google-sync.service.ts upserts Gmail's own message id under
+    // EngagementSource.google. If the send result gave us that SAME real id,
+    // write this row under the SAME (source, externalId) the sync job will use,
+    // so the next sync cycle recognizes and UPDATES this row instead of creating
+    // a second one for the same email — which is what previously produced a
+    // duplicate entry in Timeline/the person drawer's message history once sync
+    // caught up. That works on Gmail: `gmail-send.service.ts` returns the sent
+    // message's real id as `providerMessageId`, the exact id `google-sync` keys on.
+    //
+    // ONLY `providerMessageId` counts here. Graph never sets it — its `sendMail`
+    // returns nothing addressable (`POST /me/sendMail` has an empty body, and a
+    // draft's item id changes when the send moves it out of Drafts), so all it
+    // can offer is `providerInternetMessageId`, the RFC 5322 Message-ID. That is
+    // NOT a Graph item id, and keying an `outlook` row on it is strictly worse
+    // than falling back to `manual`: the inbound sync keys on the item id and
+    // stores the internetMessageId only inside `metadata_jsonb`, so the two keys
+    // can never coincide (no dedup is gained) while the row becomes
+    // unreconcilable — no Graph call resolves that externalId, and
+    // `markMailMessageRemovedInTx` can therefore never clean it up. The honest
+    // degradation is the pre-#1439 behaviour: `manual` plus a synthetic id.
+    const realExternalId = sendResult.providerMessageId || null;
     const messageSource =
       realExternalId == null
         ? EngagementSource.manual
@@ -7520,6 +7551,19 @@ export class EngagementService {
               tenantId: ctx.tenantId,
               clientId: input.clientId ?? null,
               connectionId: connection.id,
+              // KNOWN OPEN ISSUE, deliberately NOT addressed here: this thread
+              // stays keyed `(manual, manual:<uuid>)`, and neither sync job keys
+              // a MailThread on a message id — the Graph path threads on
+              // `conversationId || internetMessageId || id` and the Gmail path on
+              // `threadId || internetMessageId || id`. This key can therefore
+              // never match, so the next sync cycle opens a SECOND thread for the
+              // same conversation: one extra Timeline row per send on Outlook,
+              // and on Gmail a conversation that splits once the first reply
+              // arrives. Closing it means persisting the provider's own
+              // conversation key at send time, which needs the Graph adapter to
+              // surface `conversationId` plus a matching change in the inbound
+              // sync — a separate change, not a line edit here. Do not read the
+              // message-level dedup above as having covered this.
               source: EngagementSource.manual,
               externalId: `manual:${randomUUID()}`,
               subject: input.subject,
@@ -7540,17 +7584,58 @@ export class EngagementService {
         bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
         sentAt: now,
         bodyText: snippetFromHtml(body.content, 20_000),
+        // The one fact about this message the mailbox cannot tell us any better
+        // than we already know it: it went out with files on it. Without this the
+        // Files/attachment affordances treated every sent-with-attachment email
+        // as having none until (on Gmail) the next sync cycle corrected it, and
+        // on Outlook forever, since the outbound row is `manual`-keyed and sync
+        // never reaches it.
+        hasAttachments: sentWithAttachments,
         metadata: { personIds: input.personIds ?? [] } as Prisma.InputJsonValue,
       };
       // Upsert, not create: when `externalId` is a real provider id, a fast
       // sync cycle may already have written this exact row (same unique key)
       // before this transaction commits — update in place rather than 500 on
       // the unique constraint.
+      //
+      // The `update` branch is deliberately NARROW. It used to pass the whole
+      // `messageData`, so a send that lost that race overwrote the sync job's
+      // columns with this call's weaker view of the same email: `threadId`
+      // (re-parenting the message off the conversation-keyed thread sync had
+      // resolved, onto the placeholder thread created above), `bodyText` (a
+      // 20k snippet vs. sync's authoritative body), `subject`, the recipient
+      // arrays, and — worst — `metadata`, wholesale, destroying sync's
+      // provenance markers (`folder`, `internetMessageId`, `labelIds`,
+      // `bodyCompleteness`, `mailboxSyncMode`). That last one is load-bearing:
+      // the `mail_messages_enqueue_knowledge` trigger fails closed unless
+      // `metadata_jsonb->>'mailboxSyncMode' = 'incremental'`, so clobbering it
+      // silently drops the message out of the knowledge outbox. Every other
+      // field in `messageData` is a column the provider sync owns, so
+      // `hasAttachments` is the only thing left worth asserting here.
       const message = await tx.mailMessage.upsert({
         where: { tenantId_source_externalId: { tenantId: ctx.tenantId, source: messageSource, externalId } },
         create: { tenantId: ctx.tenantId, source: messageSource, externalId, ...messageData },
-        update: messageData,
+        update: sentWithAttachments ? { hasAttachments: true } : {},
       });
+      // Back-link the attachments to the message they were sent on, inside the
+      // same transaction — the compose flow confirms them (source
+      // 'email-compose') before any message row exists, so `mailMessageId` is
+      // null until now and the Files tab could not tell which email carried
+      // them. Scoped to `mailMessageId: null` so re-sending an already-linked
+      // file (a forward reusing the same attachment row) never steals it from
+      // the earlier message. Tenant scoping is belt-and-braces: every id here
+      // already resolved inside this tenant in `loadGraphAttachments`, which
+      // throws on any id it cannot account for.
+      if (sentWithAttachments) {
+        await tx.engagementAttachment.updateMany({
+          where: {
+            tenantId: ctx.tenantId,
+            id: { in: input.attachmentIds ?? [] },
+            mailMessageId: null,
+          },
+          data: { mailMessageId: message.id },
+        });
+      }
       return { thread, message };
     });
 

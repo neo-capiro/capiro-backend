@@ -384,33 +384,169 @@ function mockGetByUrl(routes: Record<string, unknown>) {
 }
 
 describe('ClientCrmHistoryProto — email reply pre-fill', () => {
-  it('replies to the real other participants, never to your own connected mailbox', async () => {
+  /**
+   * Row actions have to be scoped to `.rel-hist-row-action`: the filter chips
+   * render synchronously with their own accessible names, so a bare role query
+   * can resolve against a chip before the activity query settles. Waiting for
+   * the row's own title first is the other half of that.
+   */
+  async function clickRowAction(name: string) {
+    await screen.findByText('Follow-up scheduling');
+    const action = screen
+      .getAllByRole('button', { name })
+      .find((element) => element.classList.contains('rel-hist-row-action'))!;
+    fireEvent.click(action);
+  }
+
+  const CC_PLACEHOLDER = 'name@example.com, another@example.com';
+
+  beforeEach(() => {
     mockGetByUrl({
       '/api/clients/client-1/activity': EMAIL_ACTIVITY,
       '/api/engagement/mail-threads/thread-1': THREAD_1,
       '/api/me/email-signature': { html: null, enabled: false },
     });
-    renderHistory();
+  });
 
-    // Wait for the row itself: 'Email' is also a group FilterChip, which
-    // renders synchronously, so findAllByRole would resolve against the chip
-    // alone before the activity query settled. Then scope to the row action.
-    await screen.findByText('Follow-up scheduling');
-    const emailAction = screen
-      .getAllByRole('button', { name: 'Email' })
-      .find((el) => el.classList.contains('rel-hist-row-action'))!;
-    fireEvent.click(emailAction);
+  it('replies to the real other participants, never to your own connected mailbox', async () => {
+    renderHistory();
+    await clickRowAction('Reply');
 
     // "To" is the client contact who was actually on the message — not
     // jordan@capiro.ai, which is what the old "reply to the last sender"
     // logic would have produced here since jordan sent the last message.
     expect(await screen.findByText('Pat Client <client@example.com>')).toBeInTheDocument();
     expect(screen.queryByText(/jordan@capiro\.ai/)).not.toBeInTheDocument();
+  });
 
-    // Everyone else on that message (here, the cc'd colleague) is pulled in
-    // automatically rather than being dropped.
-    const ccInput = await screen.findByPlaceholderText('name@example.com, another@example.com');
-    expect(ccInput).toHaveValue('colleague@example.com');
+  it('Reply copies nobody — that is what Reply all is for', async () => {
+    renderHistory();
+    await clickRowAction('Reply');
+    await screen.findByText('Pat Client <client@example.com>');
+
+    // The Cc row is not even opened, so the cc'd colleague on that message
+    // cannot be mailed by accident. #1445 pre-filled this field on every
+    // reply, with one control and no way to choose.
+    expect(screen.queryByPlaceholderText(CC_PLACEHOLDER)).toBeNull();
+    expect(screen.queryByText(/colleague@example\.com/)).not.toBeInTheDocument();
+  });
+
+  it("Reply all copies everyone else on the message, on an explicit second click", async () => {
+    renderHistory();
+    await clickRowAction('Reply all');
+
+    expect(await screen.findByText('Pat Client <client@example.com>')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText(CC_PLACEHOLDER)).toHaveValue('colleague@example.com');
+    // And the widened audience is stated in words, not left as a populated
+    // text box the user has to notice.
+    expect(
+      screen.getByText(/Reply all — 1 person is copied on this reply: colleague@example\.com/),
+    ).toBeInTheDocument();
+  });
+
+  it('still excludes your own mailbox when the thread carries no connectionEmail', async () => {
+    mockGetByUrl({
+      '/api/clients/client-1/activity': EMAIL_ACTIVITY,
+      '/api/engagement/mail-threads/thread-1': { ...THREAD_1, connectionEmail: null },
+      // Longer key first: mockGetByUrl matches by prefix in insertion order,
+      // so a '/api/me' entry placed above would swallow the signature request.
+      '/api/me/email-signature': { html: null, enabled: false },
+      // Mixed case and a trailing space, which the old single `.toLowerCase()`
+      // equality would not have normalized away.
+      '/api/me': { user: { email: 'Jordan@Capiro.ai ' } },
+    });
+    renderHistory();
+    await clickRowAction('Reply');
+
+    expect(await screen.findByText('Pat Client <client@example.com>')).toBeInTheDocument();
+    expect(screen.queryByText(/jordan@capiro\.ai/i)).not.toBeInTheDocument();
+  });
+
+  it('says so inline when it cannot identify your own address, and still opens the window', async () => {
+    mockGetByUrl({
+      '/api/clients/client-1/activity': EMAIL_ACTIVITY,
+      '/api/engagement/mail-threads/thread-1': { ...THREAD_1, connectionEmail: null },
+      '/api/me/email-signature': { html: null, enabled: false },
+      '/api/me': { user: { email: null } },
+    });
+    renderHistory();
+    await clickRowAction('Reply');
+
+    // Inline, not a toast: renderHistory mounts no CapiroToastProvider, so
+    // useCapiroToast() falls back to a no-op and a toast would render nothing.
+    expect(await screen.findByText(/check them before sending/i)).toBeInTheDocument();
+    // The action still works — a warning, not a block.
+    expect(screen.getByPlaceholderText('Subject')).toHaveValue('Re: Follow-up scheduling');
+  });
+
+  it('does not crash when a message\'s recipient Json is not an array', async () => {
+    mockGetByUrl({
+      '/api/clients/client-1/activity': EMAIL_ACTIVITY,
+      '/api/engagement/mail-threads/thread-1': {
+        ...THREAD_1,
+        messages: [
+          THREAD_1.messages[0]!,
+          // Prisma `Json` columns: neither shape is an array, and an
+          // unguarded for-of over them threw "is not iterable", which the
+          // catch turned into "Could not open this email thread."
+          { ...THREAD_1.messages[1]!, toRecipients: null, ccRecipients: { email: 'x@y.com' } },
+        ],
+      },
+      '/api/me/email-signature': { html: null, enabled: false },
+    });
+    renderHistory();
+    await clickRowAction('Reply');
+
+    // The last message yields nothing usable (its sender is you, its recipient
+    // Json is unreadable), so the scan falls back to the older message.
+    expect(await screen.findByText('Pat Client <client@example.com>')).toBeInTheDocument();
+  });
+
+  it('finds someone to reply to when the last message has no other party', async () => {
+    mockGetByUrl({
+      '/api/clients/client-1/activity': EMAIL_ACTIVITY,
+      '/api/engagement/mail-threads/thread-1': {
+        ...THREAD_1,
+        messages: [
+          THREAD_1.messages[0]!,
+          // A note you mailed to yourself: every address on it is yours.
+          {
+            ...THREAD_1.messages[1]!,
+            toRecipients: [{ email: 'jordan@capiro.ai', name: 'Jordan Clayton' }],
+            ccRecipients: [],
+          },
+        ],
+      },
+      '/api/me/email-signature': { html: null, enabled: false },
+    });
+    renderHistory();
+    await clickRowAction('Reply');
+
+    // #1445 read only the final message, emptied the pool, and opened no
+    // compose window at all on a thread that plainly had someone to reply to.
+    expect(await screen.findByText('Pat Client <client@example.com>')).toBeInTheDocument();
+  });
+
+  it("falls back to the thread's participants when no message yields another party", async () => {
+    mockGetByUrl({
+      '/api/clients/client-1/activity': EMAIL_ACTIVITY,
+      '/api/engagement/mail-threads/thread-1': {
+        ...THREAD_1,
+        participants: [{ email: 'client@example.com', name: 'Pat Client', role: 'to' }],
+        messages: [
+          {
+            ...THREAD_1.messages[1]!,
+            toRecipients: [{ email: 'jordan@capiro.ai', name: 'Jordan Clayton' }],
+            ccRecipients: [],
+          },
+        ],
+      },
+      '/api/me/email-signature': { html: null, enabled: false },
+    });
+    renderHistory();
+    await clickRowAction('Reply');
+
+    expect(await screen.findByText('Pat Client <client@example.com>')).toBeInTheDocument();
   });
 });
 

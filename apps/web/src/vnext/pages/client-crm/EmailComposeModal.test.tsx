@@ -237,6 +237,136 @@ describe('EmailComposeModal', () => {
     expect(await screen.findByPlaceholderText('name@example.com, another@example.com')).toHaveValue(
       'colleague@example.com',
     );
+    // A widened audience is stated in words, not left as a populated text box
+    // the user has to notice on their own.
+    expect(
+      screen.getByText('Reply all — 1 person is copied on this reply: colleague@example.com'),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing about copies when the caller passed no defaultCc', async () => {
+    renderModal();
+    expect(screen.queryByText(/copied on this reply/)).not.toBeInTheDocument();
+  });
+
+  it('warns inline when the caller could not confirm the sender\'s own address', async () => {
+    renderModal({ identityUnconfirmed: true });
+    // Inline, not a toast: renderModal mounts no CapiroToastProvider, and
+    // neither do all of this modal's real callers, so useCapiroToast() falls
+    // back to a no-op and a toast would show the user nothing at all.
+    expect(screen.getByText(/nobody was excluded from these recipients/i)).toBeInTheDocument();
+    // A warning, not a block — the compose window still works.
+    expect(screen.getByPlaceholderText('Subject')).toBeInTheDocument();
+  });
+
+  it('records the primary addressee in personIds, not just the ones added from the picker', async () => {
+    postMock.mockResolvedValue({
+      data: { ok: true, threadId: 't1', messageId: 'm1', provider: 'microsoft_graph', senderEmail: 'jordan@capiro.ai' },
+    });
+    // The roster shape ClientPersonDrawer now passes: the whole org tree,
+    // INCLUDING whoever the drawer was opened for.
+    renderModal({
+      orgContacts: [
+        { id: 'p-1', name: 'Patrick Driscoll', email: 'patrick@example.com' },
+        { id: 'p-2', name: 'Adam Matherly', email: 'adam@example.com' },
+      ],
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Following up' } });
+    fireEvent.input(bodyEditor(), { target: { innerHTML: '<p>Great meeting you.</p>' } });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+    const [, body] = postMock.mock.calls[0]!;
+    // The drawer used to self-exclude the addressee from the roster, so an
+    // ordinary single-recipient send persisted `personIds: []`.
+    expect(body.personIds).toEqual(['p-1']);
+  });
+
+  it('keeps the primary addressee out of the picker even though the roster now holds them', async () => {
+    renderModal({
+      orgContacts: [
+        { id: 'p-1', name: 'Patrick Driscoll', email: 'patrick@example.com' },
+        { id: 'p-2', name: 'Adam Matherly', email: 'adam@example.com' },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
+    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
+
+    // The To chip reads "Patrick Driscoll <patrick@example.com>", so an exact
+    // match on the bare name can only come from the dropdown.
+    expect(await screen.findByText('Adam Matherly')).toBeInTheDocument();
+    expect(screen.queryByText('Patrick Driscoll')).not.toBeInTheDocument();
+  });
+
+  it('offers no "+ Add recipient" when the addressee is the only contact on the roster', async () => {
+    renderModal({
+      orgContacts: [{ id: 'p-1', name: 'Patrick Driscoll', email: 'patrick@example.com' }],
+    });
+    // Otherwise the button appears and can only ever say "everyone is already
+    // added" — the roster is no longer the right thing to gate on.
+    expect(screen.queryByRole('button', { name: '+ Add recipient' })).not.toBeInTheDocument();
+  });
+
+  it('offers only the attachment types the server allowlist accepts', async () => {
+    const { container } = renderModal();
+    expect(container.querySelector('input[type="file"]')).toHaveAttribute(
+      'accept',
+      '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx,.csv,image/*',
+    );
+  });
+
+  it('refuses an over-3MB attachment before uploading it, and says why', async () => {
+    const { container } = renderModal();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['%PDF-1.4'], 'huge.pdf', { type: 'application/pdf' });
+    // File.size is read-only, so the real byte length has to be overridden.
+    Object.defineProperty(file, 'size', { value: 4 * 1024 * 1024 });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // The server's send-time gate (loadGraphAttachments) would have let this
+    // upload and chip fine, then made the draft unsendable with no way back
+    // except removing the chip.
+    expect(await screen.findByText(/must be 3MB or smaller/)).toBeInTheDocument();
+    expect(screen.queryByText('huge.pdf')).not.toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('uploads a file the browser reported no type for under its real content type', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
+    postMock.mockImplementation((url: string) => {
+      if (url === '/api/engagement/attachments/upload-url') {
+        return Promise.resolve({
+          data: { url: 'https://s3.example.com/upload', fields: { key: 'tenants/x' }, s3Key: 'tenants/x/roster.csv' },
+        });
+      }
+      if (url === '/api/engagement/attachments/confirm') {
+        return Promise.resolve({ data: { id: 'att-2', fileName: 'roster.csv' } });
+      }
+      return Promise.reject(new Error(`unexpected POST ${url}`));
+    });
+
+    const { container } = renderModal();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      // Chrome and Safari both report '' for .csv on some platforms, and the
+      // old 'application/octet-stream' fallback is the one content type
+      // isAllowedAttachmentContentType explicitly rejects — so this 400'd.
+      target: { files: [new File(['a,b\n1,2'], 'roster.csv', { type: '' })] },
+    });
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/engagement/attachments/upload-url',
+        expect.objectContaining({ contentType: 'text/csv' }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByText('roster.csv')).toBeInTheDocument());
+
+    vi.unstubAllGlobals();
   });
 
   it('shows the honest fallback note when a rewrite fails verification', async () => {

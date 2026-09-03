@@ -96,6 +96,12 @@
 }
 .capiro-vnext-root .stv-rte-attachment-remove {
   flex: 0 0 auto;
+  /* Same bare-<button> reset as .stv-rte-btn above: vnext/foundations/reset.css
+     normalizes only `font` and `outline` on buttons, so without these three the
+     '×' renders as a grey bordered native UA button inside the pill. */
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   color: var(--capiro-color-text-muted);
   font-weight: 700;
   line-height: 1;
