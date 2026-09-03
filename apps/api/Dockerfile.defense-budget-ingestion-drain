@@ -95,11 +95,14 @@ RUN set -eux; \
     curl -fsSL "$url" -o "$tmp_dir/model.tar"; \
     mkdir -p "$dest"; \
     tar -xf "$tmp_dir/model.tar" -C "$tmp_dir"; \
-    src_dir="$(dirname "$(find "$tmp_dir" -name inference.pdmodel | head -1)")"; \
-    cp "$src_dir/inference.pdiparams" "$dest/inference.pdiparams"; \
-    cp "$src_dir/inference.pdmodel" "$dest/inference.pdmodel"; \
-    if [ -f "$src_dir/inference.pdiparams.info" ]; then \
-      cp "$src_dir/inference.pdiparams.info" "$dest/inference.pdiparams.info"; \
+    params_src="$(find "$tmp_dir" -name '*.pdiparams' ! -name '*.pdiparams.info' | head -1)"; \
+    model_src="$(find "$tmp_dir" -name '*.pdmodel' | head -1)"; \
+    info_src="$(find "$tmp_dir" -name '*.pdiparams.info' | head -1)"; \
+    test -n "$params_src" -a -n "$model_src"; \
+    cp "$params_src" "$dest/inference.pdiparams"; \
+    cp "$model_src" "$dest/inference.pdmodel"; \
+    if [ -n "$info_src" ]; then \
+      cp "$info_src" "$dest/inference.pdiparams.info"; \
     fi; \
     echo "$params_sha  $dest/inference.pdiparams" | sha256sum -c -; \
     echo "$model_sha  $dest/inference.pdmodel" | sha256sum -c -; \
