@@ -64,6 +64,23 @@ export function isGenerationUrl(url: string | undefined): boolean {
 }
 
 /**
+ * A full mail thread (GET .../engagement/mail-threads[/:id]) returns every
+ * message's body, not just a snippet — a long-running client relationship can
+ * have dozens of messages, and the read has been observed timing out on the
+ * 30s default (Relationships tab, "load the email thread") well before the
+ * server finished. This isn't AI generation, so it gets its own, shorter
+ * escalation rather than sharing GENERATION_TIMEOUT_MS.
+ */
+export const MAIL_TIMEOUT_MS = 60_000;
+
+const MAIL_URL_PATTERNS: RegExp[] = [/\/engagement\/mail-threads/i];
+
+export function isMailThreadUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return MAIL_URL_PATTERNS.some((pattern) => pattern.test(url));
+}
+
+/**
  * Build an axios instance bound to the Clerk getToken() callback. The token
  * uses the `capiro` JWT template so requests carry capiro_tenant_id /
  * capiro_tenant_slug claims. Pass an optional `actAsTenantSlug` to attach
@@ -78,10 +95,12 @@ export function buildApiClient(
     timeout: DEFAULT_TIMEOUT_MS,
   });
   instance.interceptors.request.use(async (req) => {
-    // Give AI generation endpoints a long timeout, but never override an
-    // explicit per-request timeout (anything that isn't the instance default).
-    if (req.timeout === DEFAULT_TIMEOUT_MS && isGenerationUrl(req.url)) {
-      req.timeout = GENERATION_TIMEOUT_MS;
+    // Give AI generation and full-mail-thread endpoints a longer timeout, but
+    // never override an explicit per-request timeout (anything that isn't the
+    // instance default).
+    if (req.timeout === DEFAULT_TIMEOUT_MS) {
+      if (isGenerationUrl(req.url)) req.timeout = GENERATION_TIMEOUT_MS;
+      else if (isMailThreadUrl(req.url)) req.timeout = MAIL_TIMEOUT_MS;
     }
 
     const token = await getToken();

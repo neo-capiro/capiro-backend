@@ -133,6 +133,15 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     queryKey: ['client-activity', client.id],
     queryFn: async () =>
       (await api.get<ActivityItem[]>(`/api/clients/${client.id}/activity`, { params: { limit: 200 } })).data,
+    // The first load persists for a while instead of re-fetching this whole
+    // client's activity/email history every time the tab is revisited —
+    // every action that actually changes it (pin/settle/log activity, send
+    // mail) already invalidates this exact query key below, so this only
+    // trades off catching an externally-synced email a few minutes late.
+    // gcTime outlasts staleTime so the cache survives switching to another
+    // tab and back, not just staying idle on this one.
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
 
   const mutate = useMutation({
@@ -570,6 +579,13 @@ function EmailThreadPreview({ threadId }: { threadId: string }) {
   const threadQ = useQuery({
     queryKey: ['mail-thread-detail', threadId],
     queryFn: () => getMailThread(api, threadId),
+    // Persist the first load — collapsing and re-expanding the same thread
+    // (or reopening it after browsing elsewhere) reuses the cached messages
+    // instead of re-fetching the whole thread again. gcTime outlasts
+    // staleTime so the cache survives the row being collapsed (this
+    // component unmounts on collapse) for longer than just staleTime.
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
 
   if (threadQ.isLoading) return <p className="rel-hist-thread-status">Loading messages…</p>;

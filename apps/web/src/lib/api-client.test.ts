@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import type { AxiosRequestConfig } from 'axios';
-import { DEFAULT_TIMEOUT_MS, GENERATION_TIMEOUT_MS, buildApiClient, isGenerationUrl } from './api-client.js';
+import {
+  DEFAULT_TIMEOUT_MS,
+  GENERATION_TIMEOUT_MS,
+  MAIL_TIMEOUT_MS,
+  buildApiClient,
+  isGenerationUrl,
+  isMailThreadUrl,
+} from './api-client.js';
 import {
   activateEngagementPreview,
   clearEngagementPreview,
@@ -89,6 +96,52 @@ describe('isGenerationUrl', () => {
     for (const url of ordinaryUrls) {
       expect(isGenerationUrl(url), String(url)).toBe(false);
     }
+  });
+});
+
+describe('isMailThreadUrl', () => {
+  test('matches full mail-thread reads (get the longer timeout)', () => {
+    const mailUrls = [
+      '/api/engagement/mail-threads',
+      '/api/engagement/mail-threads/thread-1',
+    ];
+    for (const url of mailUrls) {
+      expect(isMailThreadUrl(url), url).toBe(true);
+    }
+  });
+
+  test('does not match ordinary endpoints (keep the tight default)', () => {
+    const ordinaryUrls = ['/api/clients', '/api/engagement/meetings', undefined];
+    for (const url of ordinaryUrls) {
+      expect(isMailThreadUrl(url), String(url)).toBe(false);
+    }
+  });
+
+  test('escalates a mail-thread request timeout, without touching the generation escalation', async () => {
+    const client = buildApiClient(async () => 'test-token');
+    let captured: AxiosRequestConfig | undefined;
+    client.defaults.adapter = async (config) => {
+      captured = config;
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
+
+    await client.get('/api/engagement/mail-threads/thread-1');
+    expect(captured?.timeout).toBe(MAIL_TIMEOUT_MS);
+
+    await client.get('/api/engagement/meetings');
+    expect(captured?.timeout).toBe(DEFAULT_TIMEOUT_MS);
+  });
+
+  test('still honors an explicit per-request timeout on a mail-thread request', async () => {
+    const client = buildApiClient(async () => 'test-token');
+    let captured: AxiosRequestConfig | undefined;
+    client.defaults.adapter = async (config) => {
+      captured = config;
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
+
+    await client.get('/api/engagement/mail-threads/thread-1', { timeout: 5_000 });
+    expect(captured?.timeout).toBe(5_000);
   });
 });
 

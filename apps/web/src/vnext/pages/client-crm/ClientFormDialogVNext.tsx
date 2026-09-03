@@ -103,6 +103,17 @@ export function ClientFormDialogVNext({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  // The footer's LAST button changes identity across the one transition where
+  // isLastStep flips (Gov't Registration -> Sector & Tracks): "Next" (type
+  // button) is replaced by "Save changes"/"Add client" (type submit) in the
+  // exact same flex-end footer slot, and the submit label is wider than
+  // "Next" — so a fast double-click that lands on "Next" can have its SECOND
+  // click land on the now-wider submit button at the same position, silently
+  // submitting the form (with steps the user never saw) and closing the
+  // dialog on success. Briefly disabling the footer after any step change
+  // closes that window without adding any perceptible delay to a normal
+  // single click.
+  const [stepTransitioning, setStepTransitioning] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -148,6 +159,14 @@ export function ClientFormDialogVNext({
     }, 0);
   }
 
+  // See the `stepTransitioning` comment above — 300ms comfortably outlasts a
+  // real accidental double-click (typically well under that) without being
+  // perceptible as a delay for a single deliberate click.
+  function lockFooterBriefly() {
+    setStepTransitioning(true);
+    setTimeout(() => setStepTransitioning(false), 300);
+  }
+
   function handleNext() {
     const invalid = validateStep(currentStep);
     if (invalid) {
@@ -155,10 +174,12 @@ export function ClientFormDialogVNext({
       return;
     }
     setCurrentStep((s) => Math.min(s + 1, CLIENT_FORM_STEP_TITLES.length - 1));
+    lockFooterBriefly();
   }
 
   function handleBack() {
     setCurrentStep((s) => Math.max(s - 1, 0));
+    lockFooterBriefly();
   }
 
   // The final submit validates ALL steps; a failed field on a hidden
@@ -243,20 +264,36 @@ export function ClientFormDialogVNext({
           />
 
           <div className="capiro-cform__footer">
-            <CapiroButton variant="secondary" size="standard" onClick={onCancel}>
+            <CapiroButton variant="secondary" size="standard" onClick={onCancel} disabled={stepTransitioning}>
               Cancel
             </CapiroButton>
             {currentStep > 0 ? (
-              <CapiroButton variant="secondary" size="standard" onClick={handleBack}>
+              <CapiroButton
+                variant="secondary"
+                size="standard"
+                onClick={handleBack}
+                disabled={stepTransitioning}
+              >
                 Back
               </CapiroButton>
             ) : null}
             {!isLastStep ? (
-              <CapiroButton variant="primary" size="standard" onClick={handleNext}>
+              <CapiroButton
+                variant="primary"
+                size="standard"
+                onClick={handleNext}
+                disabled={stepTransitioning}
+              >
                 Next
               </CapiroButton>
             ) : (
-              <CapiroButton variant="primary" size="standard" type="submit" loading={submitting}>
+              <CapiroButton
+                variant="primary"
+                size="standard"
+                type="submit"
+                loading={submitting}
+                disabled={stepTransitioning}
+              >
                 {mode === 'create' ? 'Add client' : 'Save changes'}
               </CapiroButton>
             )}

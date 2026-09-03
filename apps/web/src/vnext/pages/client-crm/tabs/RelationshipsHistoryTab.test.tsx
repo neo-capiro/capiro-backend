@@ -625,3 +625,62 @@ describe('ClientCrmHistoryProto — expand to read the full message', () => {
     expect(screen.queryByText('Hi Jordan, thanks for the call today.')).not.toBeInTheDocument();
   });
 });
+
+/* ── Persistent first load — don't re-fetch on every tab revisit ─────────── */
+
+describe('ClientCrmHistoryProto — persistent first load', () => {
+  it('reuses the cached activity/email history on remount instead of re-fetching it', async () => {
+    mockGetByUrl({ '/api/clients/client-1/activity': EMAIL_ACTIVITY });
+    // One shared QueryClient across both mounts — matching the real app,
+    // which has a single app-wide QueryClient, not a fresh one per tab visit.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const renderOnce = () =>
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/clients']}>
+            <ClientCrmHistoryProto client={client} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+    const { unmount } = renderOnce();
+    await screen.findByText('Follow-up scheduling');
+    // Scoped to the activity endpoint specifically — the component also
+    // fires its own /api/me lookup on every render (see useMe() above),
+    // so a bare getMock.toHaveBeenCalledTimes count would include that
+    // unrelated call and isn't what this test is about.
+    const activityCalls = () =>
+      getMock.mock.calls.filter(([url]) => url === '/api/clients/client-1/activity').length;
+    expect(activityCalls()).toBe(1);
+
+    // Leaving the Relationships tab and coming back unmounts and remounts
+    // this component; the query cache must survive that.
+    unmount();
+    renderOnce();
+
+    await screen.findByText('Follow-up scheduling');
+    // Still just the one network call — no fresh fetch on revisit.
+    expect(activityCalls()).toBe(1);
+  });
+
+  it('fetches a mail thread again after it is genuinely evicted, not merely re-expanded', async () => {
+    mockGetByUrl({
+      '/api/clients/client-1/activity': EMAIL_ACTIVITY,
+      '/api/engagement/mail-threads/thread-1': THREAD_1,
+    });
+    renderHistory();
+
+    await screen.findByText('Follow-up scheduling');
+    fireEvent.click(screen.getByRole('button', { name: 'Read more' }));
+    await screen.findByText('Hi Jordan, thanks for the call today.');
+    expect(getMock).toHaveBeenCalledWith('/api/engagement/mail-threads/thread-1');
+    const callsAfterFirstExpand = getMock.mock.calls.length;
+
+    // Collapse, then immediately re-expand — the thread's own query is still
+    // fresh, so this must not issue a second network call for it.
+    fireEvent.click(screen.getByRole('button', { name: 'Show less' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Read more' }));
+    await screen.findByText('Hi Jordan, thanks for the call today.');
+    expect(getMock.mock.calls.length).toBe(callsAfterFirstExpand);
+  });
+});

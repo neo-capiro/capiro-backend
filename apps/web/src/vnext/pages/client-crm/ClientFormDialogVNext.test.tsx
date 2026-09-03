@@ -114,6 +114,10 @@ describe('ClientFormDialogVNext', () => {
     const naics = screen.getByLabelText(/^NAICS codes/);
     fireEvent.change(naics, { target: { value: '336414' } });
     fireEvent.keyDown(naics, { key: 'Enter' });
+    // The footer briefly disables after a step change (guards against a fast
+    // double-click landing on the next step's now-differently-sized last
+    // button — see the `stepTransitioning` comment in the component).
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     // Step 3 (Sector & Tracks): sector checkboxes come from the controlled
@@ -122,6 +126,7 @@ describe('ClientFormDialogVNext', () => {
     fireEvent.click(await screen.findByLabelText('Energy'));
     fireEvent.click(await screen.findByLabelText('DEF — Defense'));
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add client' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -176,7 +181,14 @@ describe('ClientFormDialogVNext', () => {
     expect(screen.queryByLabelText('DBA / trade name')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // The footer briefly disables after a step change (guards against a fast
+    // double-click landing on the next step's now-differently-sized last
+    // button — see the `stepTransitioning` comment in the component).
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled(),
+    );
     fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -189,6 +201,51 @@ describe('ClientFormDialogVNext', () => {
       peNumber: '0604215N',
       governmentHistory: { note: 'kept' },
     });
+  });
+
+  /**
+   * Regression for the reported bug: clicking Next from Gov't Registration to
+   * advance to Sector & Tracks (the one transition where the footer's LAST
+   * button swaps from "Next" to "Save changes"/"Add client" in the same
+   * flex-end slot) could have a fast second click land on the new, wider
+   * submit button at the same position — silently submitting the form with
+   * Sector & Tracks never seen, and closing the dialog on success. The footer
+   * must ignore input for a brief window right after any step change.
+   */
+  it('ignores an immediate second click on the swapped footer button after Next reaches the last step', async () => {
+    const client = {
+      id: 'client-77',
+      name: 'Harborline Analytics',
+      website: 'harborline.example',
+      description: 'Port logistics analytics.',
+      productDescription: null,
+      primaryContactName: null,
+      primaryContactEmail: null,
+      primaryContactPhone: null,
+      logoS3Key: null,
+      logoContentType: null,
+      logoUploadedAt: null,
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      intakeData: {},
+    } as unknown as Client;
+    const { onSubmit } = renderDialog({ mode: 'edit', client });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // Company Info -> Gov't Registration
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // Gov't Registration -> Sector & Tracks
+    // Immediately, before the footer's brief lock clears: a stray click on
+    // the button now occupying the same footer slot must be a no-op.
+    fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Still on Sector & Tracks — the click didn't even change the step.
+    expect(screen.getByLabelText('Energy')).toBeInTheDocument();
+
+    // Once the lock clears, a deliberate click submits normally.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
   });
 
   it('collects the logo File and hands it to the caller unsent; documents always empty', async () => {
@@ -204,7 +261,11 @@ describe('ClientFormDialogVNext', () => {
     expect(screen.queryByLabelText('Documents', { selector: 'input[type="file"]' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add client' })).not.toBeDisabled(),
+    );
     fireEvent.click(await screen.findByRole('button', { name: 'Add client' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
