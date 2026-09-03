@@ -394,6 +394,38 @@ describe('VNextMeetingsWorkspace', () => {
     });
   });
 
+  describe('row time format', () => {
+    test('shows a regular 12-hour clock with AM/PM, not military time', () => {
+      const meetings = [
+        makeMeeting({
+          id: 'am',
+          subject: 'Morning check-in',
+          startsAt: new Date(2026, 7, 19, 10, 30).toISOString(),
+          endsAt: new Date(2026, 7, 19, 11, 0).toISOString(),
+        }),
+        makeMeeting({
+          id: 'pm',
+          subject: 'Afternoon review',
+          startsAt: new Date(2026, 7, 19, 14, 0).toISOString(),
+          endsAt: new Date(2026, 7, 19, 14, 30).toISOString(),
+        }),
+      ];
+      useMeetingsMock.mockReturnValue({
+        data: meetings,
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      renderWorkspace();
+
+      expect(screen.getByText('10:30 AM')).toBeInTheDocument();
+      // 14:00 in a real 12-hour clock is 2:00 PM, not the old military "14:00".
+      expect(screen.getByText('2:00 PM')).toBeInTheDocument();
+      expect(screen.queryByText('14:00')).not.toBeInTheDocument();
+    });
+  });
+
   describe('month view chip cap', () => {
     test('a day with several meetings shows exactly one chip plus a +N more affordance', () => {
       const sameDay = [
