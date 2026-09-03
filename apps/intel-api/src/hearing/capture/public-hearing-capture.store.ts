@@ -154,7 +154,9 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     // RESCHEDULE PROPAGATION (2026-09-04): the official start can change after
     // the capture row was created (field-hearing time correction). Propagate the
     // corrected instant into the EXISTING capture row — idempotently, and only
-    // while the capture is still waiting on an allowlist of pre-start states:
+    // while the capture is still waiting on an allowlist of pre-start states
+    // (domain_status: the physical status column stores LEGACY lowercase values
+    // — an uppercase allowlist against `status` can never match a real row):
     // never rewrite a terminal row, never rewrite one that is capturing or
     // already started (actual_start is history, not schedule). No second capture
     // row is created; the dedupe key (hearing_id) is untouched.
@@ -162,7 +164,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
       `UPDATE public_hearing_capture
           SET scheduled_start = $2, updated_at = $3
         WHERE hearing_id = $1
-          AND status IN ('SCHEDULED','PREPARING','WAITING_FOR_STREAM','READY')
+          AND domain_status IN ('SCHEDULED','PREPARING','WAITING_FOR_STREAM','READY')
           AND actual_start IS NULL
           AND (scheduled_start IS NULL OR scheduled_start <> $2)
         RETURNING ${CAPTURE_COLUMNS}`,

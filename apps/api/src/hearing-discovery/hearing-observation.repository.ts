@@ -185,6 +185,7 @@ export class HearingObservationRepository {
         calendarDate: event.calendarDate ?? row.observedDate,
         displayTime: event.displayTime,
         timeZone: event.timeZone ?? null,
+        timeAuthority: event.timeAuthority ?? null,
         location: event.location ?? row.observedLocation,
         officialPageUrl: event.officialPageUrl,
         witnesses: event.witnesses,
@@ -217,6 +218,8 @@ interface SerializedEvent {
   displayTime?: string | null;
   /** IANA zone the source's time is stated in (field-hearing contract). */
   timeZone?: string | null;
+  /** WHEN authority of the observation (explicit_local | instant | date_only). */
+  timeAuthority?: string | null;
   location?: string | null;
   officialPageUrl?: string | null;
   witnesses?: string[];
@@ -242,6 +245,7 @@ export function serializeEvent(event: SourceEvent): SerializedEvent {
     calendarDate: event.calendarDate ? event.calendarDate.toISOString() : null,
     displayTime: event.displayTime ?? null,
     timeZone: event.timeZone ?? null,
+    timeAuthority: event.timeAuthority ?? null,
     location: event.location ?? null,
     officialPageUrl: event.officialPageUrl ?? null,
     witnesses: event.witnesses ?? [],
@@ -272,6 +276,7 @@ export function deserializeEvent(serialized: SerializedEvent | undefined): {
   calendarDate: Date | null;
   displayTime: string | null;
   timeZone: string | null;
+  timeAuthority: string | null;
   location: string | null;
   officialPageUrl: string | null;
   witnesses: string[];
@@ -293,6 +298,7 @@ export function deserializeEvent(serialized: SerializedEvent | undefined): {
     calendarDate: reviveDate(e.calendarDate),
     displayTime: e.displayTime ?? null,
     timeZone: e.timeZone ?? null,
+    timeAuthority: e.timeAuthority ?? null,
     location: e.location ?? null,
     officialPageUrl: e.officialPageUrl ?? null,
     witnesses: Array.isArray(e.witnesses) ? e.witnesses : [],

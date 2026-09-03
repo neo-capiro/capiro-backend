@@ -121,6 +121,15 @@ export interface SourceEvent {
    * the ledger alone.
    */
   timeZone?: string | null;
+  /**
+   * How `startsAt`/`displayTime` were derived (hearing-time.resolveSourceTime).
+   * `explicit_local` — the source published an explicit local clock + zone and
+   * the instant was derived from them: the highest WHEN authority, able to
+   * correct a mis-zoned central-calendar instant. `instant` — the source's UTC
+   * instant was taken verbatim (Eastern assumption). `date_only` — no time.
+   * Serialized with the observation.
+   */
+  timeAuthority?: string | null;
   location?: string | null;
   /** Public, key-free official event page. Never an api.congress.gov URL. */
   officialPageUrl?: string | null;

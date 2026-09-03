@@ -14,7 +14,12 @@ describe('PublicHearingCaptureStore.ensureCapture reschedule propagation (2026-0
     const store=new PublicHearingCaptureStore({$queryRawUnsafe:raw} as never);
     const out=await store.ensureCapture({hearingId:'h',idempotencyKey:'k',scheduledStart:new Date('2026-09-04T20:00:00Z'),now:new Date()});
     const updateSql=raw.mock.calls[1][0] as string;
-    expect(updateSql).toContain("status IN ('SCHEDULED','PREPARING','WAITING_FOR_STREAM','READY')");
+    expect(updateSql).toContain("domain_status IN ('SCHEDULED','PREPARING','WAITING_FOR_STREAM','READY')");
+    // REGRESSION (disposable-PG proof 2026-09-03): the physical status column is
+    // legacy-lowercase ('scheduled','leased',...) — an uppercase allowlist on
+    // bare `status` matched ZERO real rows, so propagation silently no-oped.
+    // The allowlist MUST target domain_status (word-boundary before status).
+    expect(updateSql).not.toMatch(/(^|[^_])status IN \('SCHEDULED'/);
     expect(updateSql).toContain('actual_start IS NULL');
     expect(out.hearingId).toBe('h'); // the SAME capture row (idempotent upsert), propagation asserted via the SQL allowlist above
   });

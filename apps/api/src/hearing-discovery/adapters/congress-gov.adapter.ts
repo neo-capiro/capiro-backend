@@ -219,6 +219,7 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
       calendarDate: resolved.calendarDate,
       displayTime: resolved.displayTime,
       timeZone: resolved.timeZone,
+      timeAuthority: resolved.authority,
       location: formatLocation(d.location),
       officialPageUrl,
       witnesses: formatWitnesses(d.witnesses),

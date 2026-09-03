@@ -63,6 +63,8 @@ export interface ProjectableObservation {
   displayTime: string | null;
   /** IANA zone the observation's time is stated in (null = source didn't say). */
   timeZone: string | null;
+  /** WHEN authority of the observation (see SourceEvent.timeAuthority). */
+  timeAuthority: string | null;
   location: string | null;
   officialPageUrl: string | null;
   witnesses: string[];
@@ -86,6 +88,8 @@ export interface ProjectedHearing {
   displayTime: string | null;
   /** IANA zone the projected official time is stated in. */
   timeZone: string | null;
+  /** WHEN authority of the projected time (explicit_local beats instant). */
+  timeAuthority: string | null;
   location: string | null;
   officialPageUrl: string | null;
   witnesses: string[];
@@ -212,14 +216,23 @@ export function projectCanonical(observations: ProjectableObservation[]): Projec
     calendarDate: Date | null;
     displayTime: string | null;
     timeZone: string | null;
+    timeAuthority: string | null;
   } {
-    const donor = ordered.find((o) => o.startsAt != null || (o.displayTime ?? '').trim().length > 0);
+    // An explicit-local observation is the highest WHEN authority: it beats
+    // every zone-less instant even from a lower-priority source. Otherwise the
+    // best-authority observation that states a time wins.
+    const donor =
+      ordered.find(
+        (o) => o.timeAuthority === 'explicit_local' && (o.startsAt != null || (o.displayTime ?? '').trim().length > 0),
+      ) ??
+      ordered.find((o) => o.startsAt != null || (o.displayTime ?? '').trim().length > 0);
     if (donor) {
       return {
         startsAt: donor.startsAt ?? null,
         calendarDate: donor.calendarDate ?? null,
         displayTime: donor.displayTime ?? null,
         timeZone: donor.timeZone ?? null,
+        timeAuthority: donor.timeAuthority ?? null,
       };
     }
     // No observation states any time: fall back to the best calendar day only.
@@ -228,6 +241,7 @@ export function projectCanonical(observations: ProjectableObservation[]): Projec
       calendarDate: pick('calendarDate'),
       displayTime: null,
       timeZone: null,
+      timeAuthority: null,
     };
   }
   const time = pickTimeQuartet();
@@ -246,6 +260,7 @@ export function projectCanonical(observations: ProjectableObservation[]): Projec
     calendarDate: time.calendarDate,
     displayTime: time.displayTime,
     timeZone: time.timeZone,
+    timeAuthority: time.timeAuthority,
     location: pick('location') ?? null,
     officialPageUrl: pick('officialPageUrl') ?? null,
     witnesses: pick('witnesses') ?? [],
@@ -417,19 +432,18 @@ export function planCanonicalWrite(
    * correction observed through the canonical pipeline could never reach the
    * row, and the daily sync re-asserted a mis-zoned instant forever.
    *
-   * New rule: when the projection carries an EXPLICIT official time with an
-   * EXPLICIT source timezone (`projected.timeZone` set — resolveSourceTime only
-   * emits it from an explicit local-clock+zone derivation), that observation is
+   * New rule (authority: explicit official local time + zone > ambiguous
+   * central-calendar instant): when the projected time was derived from an
+   * EXPLICIT local clock + zone (`timeAuthority === 'explicit_local'`), it is
    * the higher authority for the row's time columns regardless of legacy
-   * ownership. The canonical projection wins because it is backed by the
-   * first-party announcement, and the legacy sync is taught (separately) never
-   * to overwrite a verified local-zone value.
+   * ownership. The legacy sync is taught (separately) never to overwrite a
+   * verified local-zone row.
    *
-   * An observation WITHOUT an explicit zone never gains write authority here —
-   * normal ET rows keep the legacy fill-only contract, so a lower-priority
-   * central-calendar re-encode still cannot rewrite a legacy row's time.
+   * An `instant`-authority projection never gains write authority here —
+   * normal ET rows keep the legacy fill-only contract, so a central-calendar
+   * re-encode still cannot rewrite a legacy row's time.
    */
-  const zoneIsExplicit = isValidIanaZone(projected.timeZone ?? undefined);
+  const zoneIsExplicit = projected.timeAuthority === 'explicit_local' && isValidIanaZone(projected.timeZone ?? undefined);
   const timeWriteOpts = zoneIsExplicit ? {} : { legacy: true };
 
   const timeOutcome = assign('startsAt', projected.startsAt, existing.startsAt, {

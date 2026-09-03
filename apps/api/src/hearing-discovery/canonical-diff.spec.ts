@@ -48,6 +48,7 @@ function obs(overrides: Partial<ProjectableObservation> = {}): ProjectableObserv
     calendarDate: day('2026-09-17'),
     displayTime: '10:00 AM',
     timeZone: null,
+    timeAuthority: 'instant',
     location: 'Rayburn House Office Building, Room 2123',
     officialPageUrl: 'https://www.congress.gov/event/119th-Congress/house-event/119504',
     witnesses: ['Jane Doe, Chair, NRC'],
@@ -366,6 +367,7 @@ describe('field-hearing timezone authority in planCanonicalWrite', () => {
           calendarDate: day('2026-09-04'),
           displayTime: '1:00 PM',
           timeZone: 'America/Los_Angeles',
+          timeAuthority: 'explicit_local',
         }),
       ]),
     };
@@ -384,7 +386,7 @@ describe('field-hearing timezone authority in planCanonicalWrite', () => {
     });
     const plan = planCanonicalWrite(
       existingRow,
-      projectCanonical([obs({ startsAt: new Date('2026-09-04T20:00:00.000Z'), timeZone: null })]),
+      projectCanonical([obs({ startsAt: new Date('2026-09-04T20:00:00.000Z'), timeZone: null, timeAuthority: 'instant' })]),
       WRITE_OPTS,
     );
     expect(plan.patch.startsAt).toBeUndefined(); // signal only, no write
@@ -401,6 +403,7 @@ describe('field-hearing timezone authority in planCanonicalWrite', () => {
         calendarDate: day('2026-09-04'),
         displayTime: '1:00 PM',
         timeZone: 'America/Los_Angeles',
+        timeAuthority: 'explicit_local',
       }),
       obs({
         sourceId: 'src-legacy',
@@ -427,6 +430,7 @@ describe('field-hearing timezone authority in planCanonicalWrite', () => {
           calendarDate: day('2026-09-17'),
           displayTime: '10:00 AM',
           timeZone: 'America/New_York',
+          timeAuthority: 'instant',
         }),
       ]),
       WRITE_OPTS,

@@ -11,6 +11,7 @@ import { LegiWatchPhase9CentralDiscoveryService } from './legiwatch-phase9-centr
 import { LegiWatchPhase9MetricsService } from './legiwatch-phase9-metrics.service.js';
 import { LegiWatchPhase9PreflightService } from './legiwatch-phase9-preflight.service.js';
 import { LegiWatchPhase9ProvenanceBackfillService } from './legiwatch-phase9-provenance-backfill.service.js';
+import { LegiWatchPhase9OfficialTimeObservationService } from './legiwatch-phase9-official-time-observation.service.js';
 import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.service.js';
 import { LegiWatchPhase9RuntimeService } from './legiwatch-phase9-runtime.service.js';
 import type {
@@ -29,6 +30,7 @@ export const LEGIWATCH_PHASE9_API_JOBS = [
   'parallel-comparison',
   'metrics',
   'provenance-backfill',
+  'official-time-observation',
 ] as const;
 
 export type LegiWatchPhase9ApiJob = (typeof LEGIWATCH_PHASE9_API_JOBS)[number];
@@ -42,6 +44,7 @@ export class LegiWatchPhase9JobsService {
     private readonly readiness: LegiWatchPhase9ReadinessService,
     private readonly preflight: LegiWatchPhase9PreflightService,
     private readonly provenanceBackfill: LegiWatchPhase9ProvenanceBackfillService,
+    private readonly officialTimeObservation: LegiWatchPhase9OfficialTimeObservationService,
     private readonly metrics: LegiWatchPhase9MetricsService,
   ) {}
 
@@ -136,6 +139,18 @@ export class LegiWatchPhase9JobsService {
             limit: input.limit ?? integerEnv('LEGIWATCH_PROVENANCE_BACKFILL_LIMIT', 25),
             cursor: stringEnv('LEGIWATCH_PROVENANCE_BACKFILL_CURSOR'),
             reportOnly: booleanEnv('LEGIWATCH_PROVENANCE_BACKFILL_REPORT_ONLY', false),
+          });
+        }
+        if (input.job === 'official-time-observation') {
+          // MANUAL-ONLY. Re-observes window hearings through their committee's
+          // official site and reconciles explicit local-time+zone statements
+          // (field-hearing corrections). Never scheduled.
+          return this.officialTimeObservation.run({
+            manual: input.manual === true,
+            lookbackDays: integerEnv('LEGIWATCH_OFFICIAL_TIME_LOOKBACK_DAYS', 7),
+            lookaheadDays: integerEnv('LEGIWATCH_OFFICIAL_TIME_LOOKAHEAD_DAYS', 30),
+            limit: input.limit ?? integerEnv('LEGIWATCH_OFFICIAL_TIME_LIMIT', 25),
+            reportOnly: booleanEnv('LEGIWATCH_OFFICIAL_TIME_REPORT_ONLY', false),
           });
         }
         return assertNever(input.job);
