@@ -79,19 +79,19 @@ function view(sections: number): HillDayDocumentView {
 }
 
 describe('HillDayExportService.renderPdf', () => {
-  it('renders a paginated PDF: cover, one page per meeting, provenance', async () => {
+  it('renders a paginated PDF: cover, one page per meeting', async () => {
     const service = new HillDayExportService({} as never, {} as never, {} as never);
-    const pdf = await service.renderPdf(view(3), { pageSize: 'letter', logo: null, firmLogo: null });
+    const pdf = await service.renderPdf(view(3), { pageSize: 'letter', logo: null });
     expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
     const pages = pdf.toString('latin1').match(/\/Type \/Page\b(?!s)/g) ?? [];
-    // cover + 3 sections + provenance
-    expect(pages.length).toBe(5);
+    // cover + 3 sections — no provenance page in the client-facing PDF
+    expect(pages.length).toBe(4);
     expect(pdf.length).toBeGreaterThan(4_000);
   });
 
   it('renders A4 when asked', async () => {
     const service = new HillDayExportService({} as never, {} as never, {} as never);
-    const pdf = await service.renderPdf(view(1), { pageSize: 'a4', logo: null, firmLogo: null });
+    const pdf = await service.renderPdf(view(1), { pageSize: 'a4', logo: null });
     expect(pdf.toString('latin1')).toContain('595.28 841.89');
   });
 });

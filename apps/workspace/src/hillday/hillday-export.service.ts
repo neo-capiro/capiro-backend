@@ -70,7 +70,7 @@ export class HillDayExportService {
     });
     try {
       const branding = await this.fetchBranding(tenantId, view.client.id);
-      const buffer = await this.renderPdf(view, { pageSize, logo: branding.clientLogo, firmLogo: branding.firmLogo });
+      const buffer = await this.renderPdf(view, { pageSize, logo: branding.clientLogo });
       const filename = `${safeFilename(view.name)}.pdf`;
       const ready = await this.prisma.wsHillDayExport.update({
         where: { id: row.id },
@@ -153,16 +153,13 @@ export class HillDayExportService {
     };
   }
 
-  /** Both marks the cover header needs — the sponsor's (left) and the firm's
-   *  own (right) — in the one bridge round-trip that already returns both. */
-  private async fetchBranding(tenantId: string, clientId: string): Promise<{ clientLogo: Buffer | null; firmLogo: Buffer | null }> {
+  /** The sponsor's own mark for the cover header — the only branding the
+   *  client-facing packet carries. */
+  private async fetchBranding(tenantId: string, clientId: string): Promise<{ clientLogo: Buffer | null }> {
     const branding = await this.bridge.branding(tenantId, clientId);
-    if (!branding.ok) return { clientLogo: null, firmLogo: null };
-    const [clientLogo, firmLogo] = await Promise.all([
-      this.downloadLogo(branding.data.clientLogoUrl, branding.data.clientLogoContentType),
-      this.downloadLogo(branding.data.firmLogoUrl, branding.data.firmLogoContentType),
-    ]);
-    return { clientLogo, firmLogo };
+    if (!branding.ok) return { clientLogo: null };
+    const clientLogo = await this.downloadLogo(branding.data.clientLogoUrl, branding.data.clientLogoContentType);
+    return { clientLogo };
   }
 
   private async downloadLogo(url: string | null, contentType: string | null): Promise<Buffer | null> {
@@ -188,7 +185,7 @@ export class HillDayExportService {
 
   async renderPdf(
     view: HillDayDocumentView,
-    opts: { pageSize: 'letter' | 'a4'; logo: Buffer | null; firmLogo: Buffer | null },
+    opts: { pageSize: 'letter' | 'a4'; logo: Buffer | null },
   ): Promise<Buffer> {
     const doc = new PDFDocument({
       size: opts.pageSize === 'a4' ? 'A4' : 'LETTER',
@@ -211,30 +208,25 @@ export class HillDayExportService {
     };
 
     // ── Cover ──
+    // Header carries only the sponsor's own mark — no Capiro branding here;
+    // the firm is already named in the "prepared by" fact below.
     const ruleY = doc.y;
+    const LOGO_W = 116;
+    const LOGO_H = 36;
     if (opts.logo) {
       try {
-        doc.image(opts.logo, left, ruleY, { fit: [96, 22] });
+        doc.image(opts.logo, left, ruleY, { fit: [LOGO_W, LOGO_H] });
       } catch {
         this.monogram(doc, left, ruleY, view.client.mono);
       }
     } else {
       this.monogram(doc, left, ruleY, view.client.mono);
     }
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(INK).text(view.client.name, left + 108, ruleY + 5, {
-      width: width / 2,
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(INK).text(view.client.name, left + LOGO_W + 20, ruleY + LOGO_H / 2 - 7, {
+      width: width - LOGO_W - 20,
       lineBreak: false,
     });
-    if (opts.firmLogo) {
-      try {
-        doc.image(opts.firmLogo, left + width - 96, ruleY, { fit: [96, 22], align: 'right' });
-      } catch {
-        this.firmName(doc, view.firm.name, left, width, ruleY);
-      }
-    } else {
-      this.firmName(doc, view.firm.name, left, width, ruleY);
-    }
-    doc.y = ruleY + 30;
+    doc.y = ruleY + LOGO_H + 8;
     doc.moveTo(left, doc.y).lineTo(left + width, doc.y).strokeColor(RULE).lineWidth(1).stroke();
     doc.y += 26;
 
@@ -267,16 +259,29 @@ export class HillDayExportService {
       { k: 'minutes', label: 'Min', w: 30 },
       { k: 'staffLead', label: 'Staff lead', w: width - 428 },
     ] as const;
-    const ROW_H = 24;
+    const HEADER_H = 22;
+    const ROW_PAD = 16;
     const tableTop = doc.y;
     const pagesBefore = doc.bufferedPageRange().count;
+    // Row height is measured from the tallest wrapped column, not a fixed
+    // constant — a long room address wraps to several lines, and a fixed
+    // row height let that wrapped text bleed into the row drawn after it.
+    const rowHeight = (values: Record<string, string>): number => {
+      let maxH = 0;
+      for (const c of cols) {
+        doc.font(c.k === 'member' ? 'Helvetica-Bold' : 'Helvetica').fontSize(9);
+        maxH = Math.max(maxH, doc.heightOfString(values[c.k] ?? '', { width: c.w - 14 }));
+      }
+      return Math.max(24, maxH + ROW_PAD);
+    };
     const drawRow = (values: Record<string, string>, opts: { header?: boolean; zebra?: boolean }) => {
-      ensure(ROW_H);
+      const h = opts.header ? HEADER_H : rowHeight(values);
+      ensure(h);
       const y = doc.y;
       if (opts.header) {
-        doc.rect(left, y, width, ROW_H).fillColor(NAVY_BG).fill();
+        doc.rect(left, y, width, h).fillColor(NAVY_BG).fill();
       } else if (opts.zebra) {
-        doc.rect(left, y, width, ROW_H).fillColor(ZEBRA).fill();
+        doc.rect(left, y, width, h).fillColor(ZEBRA).fill();
       }
       let x = left;
       for (const c of cols) {
@@ -284,15 +289,13 @@ export class HillDayExportService {
           .font(opts.header ? 'Helvetica-Bold' : c.k === 'member' ? 'Helvetica-Bold' : 'Helvetica')
           .fontSize(opts.header ? 7 : 9)
           .fillColor(opts.header ? NAVY : c.k === 'time' ? NAVY : INK)
-          .text(opts.header ? c.label.toUpperCase() : values[c.k] ?? '', x + 10, y + (opts.header ? 9 : 7), {
+          .text(opts.header ? c.label.toUpperCase() : values[c.k] ?? '', x + 10, y + (opts.header ? 8 : 7), {
             width: c.w - 14,
-            lineBreak: false,
-            ellipsis: true,
             characterSpacing: opts.header ? 0.6 : 0,
           });
         x += c.w;
       }
-      doc.y = y + ROW_H;
+      doc.y = y + h;
       doc.moveTo(left, doc.y).lineTo(left + width, doc.y).strokeColor(RULE).lineWidth(0.5).stroke();
     };
     drawRow({}, { header: true });
@@ -363,32 +366,9 @@ export class HillDayExportService {
       // client-facing packet should surface.
     }
 
-    // ── Provenance ──
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(7).fillColor(NAVY).text('PROVENANCE', left, doc.y, { characterSpacing: 0.6 });
-    doc.y += 12;
-    doc.font('Helvetica-Bold').fontSize(16).fillColor(INK).text('Sources used', { width });
-    doc.moveDown(0.6);
-    for (const sc of view.provenance.sourceCounts) {
-      doc.font('Helvetica').fontSize(10).fillColor(INK).text(`${sc.label}: ${sc.detail ?? sc.count}`, { width });
-    }
-    doc.moveDown(0.8);
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(INK).text('Manual corrections that govern', { width });
-    doc.moveDown(0.2);
-    if (view.provenance.corrections.length) {
-      for (const c of view.provenance.corrections) {
-        doc.font('Helvetica').fontSize(10).fillColor(INK).text(`• ${c}`, { width });
-      }
-    } else {
-      doc.font('Helvetica').fontSize(10).fillColor(GRAY).text('None. Every office and attendee is as the Directory resolved it.', { width });
-    }
-    doc.moveDown(0.8);
-    doc.font('Helvetica').fontSize(9).fillColor(GRAY).text(
-      `Generated ${view.provenance.generatedAt ?? 'not yet'}${view.provenance.model ? ` · model ${view.provenance.model}` : ''}${
-        view.provenance.failedUnits ? ` · ${view.provenance.failedUnits} section(s) unavailable` : ''
-      } · revision ${view.cover.facts.find((f) => f.k === 'Revision')?.v ?? '1'}`,
-      { width },
-    );
+    // Provenance (sources used, manual corrections, model/revision) is
+    // internal working detail for the preparer — it stays in the editor's
+    // "Sources used" panel and is not rendered into the client-facing PDF.
 
     // ── Running footer with page numbers ──
     // The footer sits inside the bottom margin. pdfkit auto-adds a page when
@@ -410,18 +390,8 @@ export class HillDayExportService {
   }
 
   private monogram(doc: PdfDoc, x: number, y: number, mono: string): void {
-    doc.roundedRect(x, y, 24, 24, 5).fillColor(NAVY).fill();
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF').text(mono.slice(0, 2), x, y + 7, { width: 24, align: 'center', lineBreak: false });
-  }
-
-  /** No-logo (or embed-failed) fallback for the firm mark: its name as text,
-   *  right-aligned to match where the logo image would otherwise sit. */
-  private firmName(doc: PdfDoc, name: string, left: number, width: number, ruleY: number): void {
-    doc.font('Helvetica').fontSize(9).fillColor(GRAY).text(name, left + width / 2, ruleY + 6, {
-      width: width / 2,
-      align: 'right',
-      lineBreak: false,
-    });
+    doc.roundedRect(x, y, 36, 36, 6).fillColor(NAVY).fill();
+    doc.font('Helvetica-Bold').fontSize(13).fillColor('#FFFFFF').text(mono.slice(0, 2), x, y + 11, { width: 36, align: 'center', lineBreak: false });
   }
 
   private heading(doc: PdfDoc, text: string, left: number, width: number): void {
