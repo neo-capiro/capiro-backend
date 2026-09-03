@@ -103,7 +103,33 @@ beforeEach(() => {
   postMock.mockReset();
 });
 
+function capabilityNamed(id: string, name: string): Capability {
+  return { ...CAPABILITY, id, name };
+}
+
 describe('ClientCrmCapabilitiesProto (drawer — the branch a real client profile actually renders)', () => {
+  it('renders every capability area at once — no more "3 at a time, click through pages"', async () => {
+    const many = [
+      capabilityNamed('cap-1', 'Autonomous ground maneuver'),
+      capabilityNamed('cap-2', 'GPS-denied navigation'),
+      capabilityNamed('cap-3', 'Tactical mesh networking'),
+      capabilityNamed('cap-4', 'Contested-logistics resupply'),
+      capabilityNamed('cap-5', 'Directed-energy countermeasures'),
+    ];
+    mockApis(many);
+    renderDrawer();
+
+    for (const cap of many) {
+      await waitFor(() => expect(screen.getByText(cap.name)).toBeInTheDocument());
+    }
+    expect(screen.getByText('5 areas')).toBeInTheDocument();
+    // The old carousel's prev/next arrows and page dots are gone entirely.
+    expect(screen.queryByRole('button', { name: 'Next capability' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Previous capability' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Capability page 2' })).not.toBeInTheDocument();
+  });
+
+
   it('renders the toolbar\'s "Add capability" as a real, clickable button and opens the create form', async () => {
     mockApis([CAPABILITY]);
     renderDrawer();

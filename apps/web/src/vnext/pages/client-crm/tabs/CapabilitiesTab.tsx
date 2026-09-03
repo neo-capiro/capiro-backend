@@ -68,7 +68,6 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
   const [editing, setEditing] = useState<Capability | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Capability | null>(null);
-  const [drawerPage, setDrawerPage] = useState(0);
   const [registrationsOpen, setRegistrationsOpen] = useState(false);
 
   const capabilities = useQuery<Capability[]>({
@@ -90,9 +89,6 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
 
   const live = capabilities.data ?? [];
   const areas: CapabilityAreaView[] = live.map((cap) => toLiveAreaView(cap));
-  const drawerPageCount = Math.max(1, Math.ceil(areas.length / 3));
-  const safeDrawerPage = Math.min(drawerPage, drawerPageCount - 1);
-  const drawerAreas = areas.slice(safeDrawerPage * 3, safeDrawerPage * 3 + 3);
 
   return (
     <div className={`cap-pf-anim-rise cap-pf-caps${drawer ? ' cap-pf-caps--drawer' : ''}`}>
@@ -103,27 +99,9 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
             <SecondaryBtn onClick={() => setCreating(true)}>Add capability</SecondaryBtn>
             {areas.length > 0 ? (
               <span className="cap-pf-caps-drawer__range">
-                {safeDrawerPage * 3 + 1}–{Math.min(areas.length, safeDrawerPage * 3 + 3)} of {areas.length}
+                {areas.length} area{areas.length === 1 ? '' : 's'}
               </span>
             ) : null}
-            <button
-              type="button"
-              className="cap-pf-caps-drawer__arrow"
-              aria-label="Previous capability"
-              disabled={safeDrawerPage === 0}
-              onClick={() => setDrawerPage((page) => Math.max(0, page - 1))}
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              className="cap-pf-caps-drawer__arrow"
-              aria-label="Next capability"
-              disabled={safeDrawerPage >= drawerPageCount - 1}
-              onClick={() => setDrawerPage((page) => Math.min(drawerPageCount - 1, page + 1))}
-            >
-              ›
-            </button>
           </div>
           {capabilities.isLoading ? (
             <div className="cap-pf-caps-drawer__state" aria-busy="true">Loading capability areas…</div>
@@ -132,14 +110,18 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
               Capability areas could not be loaded.
               <button type="button" onClick={() => void capabilities.refetch()}>Retry</button>
             </div>
-          ) : drawerAreas.length === 0 ? (
+          ) : areas.length === 0 ? (
             <div className="cap-pf-caps-drawer__state">
               <span>No capability areas recorded yet.</span>
               <SecondaryBtn onClick={() => setCreating(true)}>Add capability</SecondaryBtn>
             </div>
           ) : (
+            // Every area renders — no more "3 at a time, click through pages".
+            // The grid is still 3 columns wide (capabilities-tab.css); with
+            // more than 3 areas it simply wraps onto additional rows, so the
+            // whole roster is one scroll down the page instead of a carousel.
             <div className="cap-pf-caps-drawer__cards">
-              {drawerAreas.map((area) => (
+              {areas.map((area) => (
                 <button
                   key={area.key}
                   type="button"
@@ -161,17 +143,6 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
             </div>
           )}
           <div className="cap-pf-caps-drawer__card-footer">
-            <span className="cap-pf-caps-drawer__pages" aria-label={`Capability page ${safeDrawerPage + 1} of ${drawerPageCount}`}>
-              {Array.from({ length: drawerPageCount }, (_, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  aria-label={`Capability page ${index + 1}`}
-                  aria-current={index === safeDrawerPage ? 'page' : undefined}
-                  onClick={() => setDrawerPage(index)}
-                />
-              ))}
-            </span>
             <button type="button" className="cap-pf-caps-drawer__registrations" onClick={() => setRegistrationsOpen(true)}>
               Registrations &amp; codes
             </button>

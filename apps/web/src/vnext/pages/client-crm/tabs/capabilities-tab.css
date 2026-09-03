@@ -56,19 +56,6 @@
   font-size: 12.5px;
 }
 .cap-pf-caps-drawer__range { color: #98a2b3; font-size: 11.5px; white-space: nowrap; }
-.cap-pf-caps-drawer__arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  color: #475467;
-  background: #fff;
-  box-shadow: inset 0 0 0 1px #d0d5dd, 0 1px 2px rgba(16,24,40,.05);
-  font-size: 22px;
-}
-.cap-pf-caps-drawer__arrow:disabled { opacity: .42; cursor: not-allowed; }
 .cap-pf-caps-drawer__cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -107,9 +94,6 @@
 .cap-pf-caps-drawer__meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cap-pf-caps-drawer__meta small { color: #98a2b3; font-size: 11px; }
 .cap-pf-caps-drawer__card-footer { display: flex; align-items: center; gap: 12px; padding: 12px 20px 16px; }
-.cap-pf-caps-drawer__pages { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.cap-pf-caps-drawer__pages button { width: 6px; height: 6px; border-radius: 999px; background: #d0d5dd; transition: height .22s ease; }
-.cap-pf-caps-drawer__pages button[aria-current='page'] { height: 18px; background: #363f72; }
 .cap-pf-caps-drawer__registrations {
   margin-left: auto;
   height: 36px;
