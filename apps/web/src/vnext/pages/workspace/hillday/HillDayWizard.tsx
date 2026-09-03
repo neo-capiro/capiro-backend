@@ -1136,6 +1136,7 @@ export function HillDayWizard() {
                   tz={tz}
                   lookback={lookback}
                   api={api}
+                  docId={docId}
                   onCorrect={(body) => applyCorrection(m.meetingId, body)}
                 />
               ))}
@@ -1467,6 +1468,7 @@ function ResolutionCard({
   tz,
   lookback,
   api,
+  docId,
   onCorrect,
 }: {
   meeting: MeetingResolution;
@@ -1474,6 +1476,7 @@ function ResolutionCard({
   tz: string;
   lookback: number;
   api: HillDayClient;
+  docId: string | null;
   onCorrect: (body: CorrectionBody) => Promise<void>;
 }) {
   const [addOpen, setAddOpen] = useState(false);
@@ -1570,7 +1573,7 @@ function ResolutionCard({
           </span>
           <div className="hd-att-list">
             {m.attendees.map((a) => (
-              <AttendeeRow key={a.attendeeId} attendee={a} api={api} onCorrect={onCorrect} />
+              <AttendeeRow key={a.attendeeId} attendee={a} api={api} docId={docId} onCorrect={onCorrect} />
             ))}
             {m.attendees.length === 0 && (
               <div className="hd-att">
@@ -1585,6 +1588,7 @@ function ResolutionCard({
           {addOpen && (
             <ManualAttendeeForm
               api={api}
+              docId={docId}
               onSubmit={async (body) => {
                 await onCorrect(body);
                 setAddOpen(false);
@@ -1600,10 +1604,12 @@ function ResolutionCard({
 function AttendeeRow({
   attendee: a,
   api,
+  docId,
   onCorrect,
 }: {
   attendee: ResolvedAttendee;
   api: HillDayClient;
+  docId: string | null;
   onCorrect: (body: CorrectionBody) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -1654,6 +1660,7 @@ function AttendeeRow({
       {(a.state === 'unresolved' || a.state === 'scheduler') && open && (
         <ManualAttendeeForm
           api={api}
+          docId={docId}
           initialName={a.state === 'unresolved' && a.name && a.name !== a.address ? a.name : ''}
           attendeeId={a.state === 'unresolved' ? a.attendeeId : undefined}
           address={a.state === 'unresolved' ? a.address ?? undefined : undefined}
@@ -1670,6 +1677,7 @@ function AttendeeRow({
 
 function ManualAttendeeForm({
   api,
+  docId,
   initialName = '',
   attendeeId,
   address,
@@ -1677,6 +1685,7 @@ function ManualAttendeeForm({
   onSubmit,
 }: {
   api: HillDayClient;
+  docId: string | null;
   initialName?: string;
   attendeeId?: string;
   address?: string;
@@ -1690,6 +1699,14 @@ function ManualAttendeeForm({
     queryKey: ['hd', 'staffers', q],
     queryFn: () => api.searchStaffers(q),
     enabled: q.trim().length >= 2,
+    staleTime: 60_000,
+  });
+  // Same query key regardless of which meeting's form is open — one fetch
+  // per document, cached across every ManualAttendeeForm instance on it.
+  const relationships = useQuery({
+    queryKey: ['hd', 'relationships', docId],
+    queryFn: () => api.clientRelationships(docId!),
+    enabled: Boolean(docId),
     staleTime: 60_000,
   });
   const canConfirm = name.trim().length > 0;
@@ -1739,6 +1756,47 @@ function ManualAttendeeForm({
           {s.member?.memberName ? ` · ${s.member.memberName}` : ''}
         </button>
       ))}
+      {(relationships.data?.targets.length || relationships.data?.contacts.length) ? (
+        <>
+          <span className="hd-att__detail">Or pick from the sponsor's relationship list:</span>
+          {relationships.data.targets.map((t) => (
+            <button
+              key={`target-${t.id}`}
+              type="button"
+              className="hd-att__fix-btn"
+              style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+              onClick={() => void onSubmit({ kind: 'assign_staffer', attendeeId, stafferId: t.stafferId, address })}
+            >
+              <HdIcon name="UserCheck01" size={15} />
+              {t.memberName ?? 'Staffer'}
+              {t.tier ? ` · Tier ${t.tier}` : ''}
+              {t.committee ? ` · ${t.committee}` : ''}
+            </button>
+          ))}
+          {relationships.data.contacts.map((c) => (
+            <button
+              key={`contact-${c.id}`}
+              type="button"
+              className="hd-att__fix-btn"
+              style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+              onClick={() =>
+                void onSubmit({
+                  kind: 'manual_attendee',
+                  attendeeId,
+                  name: c.fullName ?? 'Contact',
+                  role: c.title ?? undefined,
+                  address: c.email ?? address,
+                })
+              }
+            >
+              <HdIcon name="UserCheck01" size={15} />
+              {c.fullName ?? 'Contact'}
+              {c.title ? ` — ${c.title}` : ''}
+              {c.organization ? ` · ${c.organization}` : ''}
+            </button>
+          ))}
+        </>
+      ) : null}
     </span>
   );
 }

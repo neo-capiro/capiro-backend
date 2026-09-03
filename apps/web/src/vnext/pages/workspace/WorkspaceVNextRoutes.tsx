@@ -13,7 +13,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api/client.js';
@@ -24,11 +24,6 @@ import './styles/workspace-parity.css';
 import './styles/workspace-audit.css';
 import './styles/workspace-editor-audit.css';
 
-const WorkspaceLibraryVNext = lazy(() =>
-  import('./library/WorkspaceLibraryVNext.js').then((module) => ({
-    default: module.WorkspaceLibraryVNext,
-  })),
-);
 // The new two-step Max draft intake — only shown when the tenant capability is ON.
 const WorkspaceQuickDraftIntake = lazy(() =>
   import('./creation/WorkspaceQuickDraftCreation.js').then((module) => ({
@@ -225,8 +220,10 @@ function CreationRoute() {
 function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
   const path = normalizePath(pathname);
 
+  // Hill Day's document library is Workspace's home page — the legacy Max
+  // draft library it used to render here has no route of its own anymore.
   if (path === '/workspace' || path === '/workspace/') {
-    return <WorkspaceLibraryVNext />;
+    return <Navigate to="/workspace/documents" replace />;
   }
   if (path === '/workspace/new' || path === '/workspace/new/') {
     return <CreationRoute />;

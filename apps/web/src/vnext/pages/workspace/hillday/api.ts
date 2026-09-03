@@ -14,6 +14,7 @@ import { unbridgedFetch } from '../api/transport-bridge.js';
 import type {
   Blueprint,
   CalendarResponse,
+  ClientRelationships,
   ClientsResponse,
   CorrectionBody,
   CorrectionResult,
@@ -57,11 +58,17 @@ export interface HillDayClient {
   browseDirectory(query: DirectoryBrowseQuery): Promise<DirectoryBrowsePayload>;
   searchStaffers(q: string): Promise<{ staffers: StafferHit[]; sources: SourceStatusBlock[] }>;
   searchMembers(q: string): Promise<{ members: OfficeRef[]; sources: SourceStatusBlock[] }>;
+  /** A third attendee source: the sponsor's own Portfolio relationship
+   *  history for this document's client — staffer targets + engagement contacts. */
+  clientRelationships(docId: string): Promise<ClientRelationships>;
   getContext(docId: string, meetingId: string, lookbackDays?: number): Promise<MeetingContextCandidates>;
   putContext(docId: string, meetingId: string, body: PutContextBody): Promise<{ record: MeetingContextCandidates['record']; sourceCount: number }>;
   generate(docId: string): Promise<{ jobId: string; status: string }>;
   jobStatus(docId: string, jobId: string): Promise<JobStatus>;
   regenerate(docId: string, sectionId: string): Promise<unknown>;
+  /** "Refine with Meri" — polishes one field's current draft text in place;
+   *  the caller still owns saving the result via patchDocument. */
+  refineSectionText(docId: string, sectionId: string, field: 'focus' | 'background', text: string): Promise<{ text: string }>;
   getDocument(docId: string): Promise<HillDayDocumentView>;
   patchDocument(
     docId: string,
@@ -99,6 +106,7 @@ export function createHillDayClient(api: AxiosInstance): HillDayClient {
       (await api.get<{ staffers: StafferHit[]; sources: SourceStatusBlock[] }>(`${HILLDAY_BASE}/directory/staffers`, { params: { q } })).data,
     searchMembers: async (q) =>
       (await api.get<{ members: OfficeRef[]; sources: SourceStatusBlock[] }>(`${HILLDAY_BASE}/directory/members`, { params: { q } })).data,
+    clientRelationships: async (docId) => (await api.get<ClientRelationships>(`${d(docId)}/relationships`)).data,
     getContext: async (docId, meetingId, lookbackDays) =>
       (
         await api.get<MeetingContextCandidates>(`${d(docId)}/meetings/${encodeURIComponent(meetingId)}/context`, {
@@ -110,6 +118,8 @@ export function createHillDayClient(api: AxiosInstance): HillDayClient {
     generate: async (docId) => (await api.post<{ jobId: string; status: string }>(`${d(docId)}/generate`, {})).data,
     jobStatus: async (docId, jobId) => (await api.get<JobStatus>(`${d(docId)}/generate/${encodeURIComponent(jobId)}`)).data,
     regenerate: async (docId, sectionId) => (await api.post(`${d(docId)}/sections/${encodeURIComponent(sectionId)}/regenerate`, {})).data,
+    refineSectionText: async (docId, sectionId, field, text) =>
+      (await api.post<{ text: string }>(`${d(docId)}/sections/${encodeURIComponent(sectionId)}/refine`, { field, text })).data,
     getDocument: async (docId) => (await api.get<HillDayDocumentView>(d(docId))).data,
     patchDocument: async (docId, body) => (await api.patch<HillDayDocumentView>(d(docId), body)).data,
     quality: async (docId) => (await api.get<QualityResponse>(`${d(docId)}/quality`)).data,

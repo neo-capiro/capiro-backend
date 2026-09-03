@@ -83,6 +83,8 @@ function makeHarness(meetings: FakeMeeting[]) {
     tenantMemberEmails: jest.fn(async () => new Set(['neo@maven.example'])),
     clientPeopleEmails: jest.fn(async () => new Set(['ceo@kela.example'])),
     upsertEngagementContact: jest.fn(async () => 'contact-1'),
+    listClientTargetStaffers: jest.fn(async () => []),
+    listClientEngagementContacts: jest.fn(async () => []),
   };
   const matchResponse: BridgeMatchEmailsResponse = {
     snapshotId: 's',
@@ -432,5 +434,46 @@ describe('HillDayResolutionService.addManualMeeting', () => {
     expect(m.attendees).toHaveLength(1);
     expect(m.attendees[0]!.stafferId).toBe('staff-9');
     expect(m.attendees[0]!.name).toBe('Jamie Rivera');
+  });
+});
+
+describe('HillDayResolutionService.clientRelationships', () => {
+  it('reads the sponsor client from the document and returns staffer targets + engagement contacts', async () => {
+    const { service, source } = makeHarness([]);
+    source.listClientTargetStaffers.mockResolvedValueOnce([
+      { id: 'target-1', stafferId: 'staff-9', memberName: 'Sen. Roger Wicker (R-MS)', party: 'Republican', state: 'MS', chamber: 'Senate', committee: 'Armed Services', tier: 1 },
+    ] as never);
+    source.listClientEngagementContacts.mockResolvedValueOnce([
+      { id: 'contact-1', fullName: 'Jordan Reyes', email: 'jordan@kela.example', phone: null, organization: 'Kela Systems', title: 'VP Government Affairs' },
+    ] as never);
+
+    const result = await service.clientRelationships('t', 'doc-1');
+
+    expect(source.listClientTargetStaffers).toHaveBeenCalledWith('t', 'client-1');
+    expect(source.listClientEngagementContacts).toHaveBeenCalledWith('t', 'client-1');
+    expect(result.targets).toEqual([
+      { id: 'target-1', stafferId: 'staff-9', memberName: 'Sen. Roger Wicker (R-MS)', party: 'Republican', state: 'MS', chamber: 'Senate', committee: 'Armed Services', tier: 1 },
+    ]);
+    expect(result.contacts).toEqual([
+      { id: 'contact-1', fullName: 'Jordan Reyes', email: 'jordan@kela.example', phone: null, organization: 'Kela Systems', title: 'VP Government Affairs' },
+    ]);
+    expect(result.sources).toEqual([{ source: 'portfolio', status: 'ok', detail: null }]);
+  });
+
+  it('degrades to an unavailable status block rather than throwing when the read fails', async () => {
+    const { service, source } = makeHarness([]);
+    source.listClientTargetStaffers.mockRejectedValueOnce(new Error('db down') as never);
+
+    const result = await service.clientRelationships('t', 'doc-1');
+
+    expect(result.targets).toEqual([]);
+    expect(result.contacts).toEqual([]);
+    expect(result.sources[0]!.status).toBe('unavailable');
+  });
+
+  it('rejects an unknown document', async () => {
+    const { service, prisma } = makeHarness([]);
+    prisma.wsHillDayDocument.findFirst.mockResolvedValueOnce(null as never);
+    await expect(service.clientRelationships('t', 'missing-doc')).rejects.toThrow();
   });
 });

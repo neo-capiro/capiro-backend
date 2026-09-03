@@ -152,6 +152,35 @@ export interface DirectoryBrowseQuery {
   pageSize?: number;
 }
 
+// ── Sponsor relationship list (a third attendee source, alongside typing a
+// name and searching the Directory) ─────────────────────────────────────────
+
+export interface ClientTargetStaffer {
+  id: string;
+  stafferId: string;
+  memberName: string | null;
+  party: string | null;
+  state: string | null;
+  chamber: string | null;
+  committee: string | null;
+  tier: number | null;
+}
+
+export interface ClientEngagementContact {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  organization: string | null;
+  title: string | null;
+}
+
+export interface ClientRelationships {
+  targets: ClientTargetStaffer[];
+  contacts: ClientEngagementContact[];
+  sources: SourceStatusBlock[];
+}
+
 // ── Resolution ──────────────────────────────────────────────────────────────
 
 export type AttendeeState = 'resolved' | 'unresolved' | 'stale' | 'scheduler';

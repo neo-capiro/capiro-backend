@@ -80,6 +80,11 @@ export class SectionEditDto {
   @IsOptional() @IsString() @MaxLength(20000) background?: string;
 }
 
+export class RefineSectionTextDto {
+  @IsIn(['focus', 'background']) field!: 'focus' | 'background';
+  @IsString() @Length(1, 20000) text!: string;
+}
+
 export class PatchHillDayDocumentDto {
   @IsOptional() @IsString() @Length(1, 200) name?: string;
   @IsOptional() @ValidateNested() @Type(() => SectionEditDto) section?: SectionEditDto;

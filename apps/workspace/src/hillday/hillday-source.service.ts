@@ -61,6 +61,26 @@ export interface StrategyRow {
   goal: string | null;
 }
 
+export interface ClientTargetStafferRow {
+  id: string;
+  stafferId: string;
+  memberName: string | null;
+  party: string | null;
+  state: string | null;
+  chamber: string | null;
+  committee: string | null;
+  tier: number | null;
+}
+
+export interface ClientEngagementContactRow {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  organization: string | null;
+  title: string | null;
+}
+
 export interface ThreadRow {
   id: string;
   subject: string;
@@ -283,6 +303,46 @@ export class HillDaySourceService {
         WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND archived_at IS NULL
         ORDER BY updated_at DESC
         LIMIT 25
+      `,
+    );
+  }
+
+  /**
+   * The sponsor's own Portfolio-curated relationship list (Targets tab) —
+   * only the staffer-scoped rows, since those alone carry a Directory id an
+   * attendee correction can resolve against (assign_staffer takes memberId
+   * here directly as stafferId, per source_directory:'staff' rows already
+   * being staff-xxx Directory ids — see client-targets.service.ts). Member-
+   * and state-legislator-scoped targets are offices, not people, and don't
+   * map onto an attendee pick.
+   */
+  async listClientTargetStaffers(tenantId: string, clientId: string): Promise<ClientTargetStafferRow[]> {
+    if (!isUuid(clientId)) return [];
+    return this.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<ClientTargetStafferRow[]>`
+        SELECT id::text AS id, member_id AS "stafferId", member_name AS "memberName",
+               party, state, chamber, committee, tier
+        FROM client_targets
+        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid AND source_directory = 'staff'
+        ORDER BY tier ASC NULLS LAST, added_at DESC
+        LIMIT 100
+      `,
+    );
+  }
+
+  /** The sponsor's own accumulated manual-attendee history (people this
+   *  tenant has previously typed in or created a Directory record for while
+   *  resolving THIS client's meetings) — a quick-pick list for attendees
+   *  known to recur without a fresh Directory search. */
+  async listClientEngagementContacts(tenantId: string, clientId: string): Promise<ClientEngagementContactRow[]> {
+    if (!isUuid(clientId)) return [];
+    return this.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<ClientEngagementContactRow[]>`
+        SELECT id::text AS id, full_name AS "fullName", email, phone, organization, title
+        FROM engagement_contacts
+        WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+        ORDER BY created_at DESC
+        LIMIT 100
       `,
     );
   }

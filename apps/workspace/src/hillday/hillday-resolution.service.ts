@@ -514,6 +514,50 @@ export class HillDayResolutionService {
     };
   }
 
+  /**
+   * A third way to pick an attendee (alongside typing a name and searching
+   * the Directory): the sponsor's own relationship history — Portfolio's
+   * Targets tab (staffer-scoped rows only; a Directory-linked memberId a
+   * correction can resolve against directly) and this tenant's accumulated
+   * engagement contacts for this same client. Read-only, client-scoped by
+   * the document's own sponsor — no new correction kind, the picker just
+   * feeds one of these into the existing assign_staffer / manual_attendee.
+   */
+  async clientRelationships(tenantId: string, documentId: string) {
+    const doc = await this.assertDocument(tenantId, documentId);
+    const [targets, contacts] = await Promise.all([
+      this.source.listClientTargetStaffers(tenantId, doc.clientId).catch((err) => {
+        this.logger.warn(`client targets read failed: ${(err as Error).message}`);
+        return null;
+      }),
+      this.source.listClientEngagementContacts(tenantId, doc.clientId).catch((err) => {
+        this.logger.warn(`engagement contacts read failed: ${(err as Error).message}`);
+        return null;
+      }),
+    ]);
+    return {
+      targets: (targets ?? []).map((t) => ({
+        id: t.id,
+        stafferId: t.stafferId,
+        memberName: t.memberName,
+        party: t.party,
+        state: t.state,
+        chamber: t.chamber,
+        committee: t.committee,
+        tier: t.tier,
+      })),
+      contacts: (contacts ?? []).map((c) => ({
+        id: c.id,
+        fullName: c.fullName,
+        email: c.email,
+        phone: c.phone,
+        organization: c.organization,
+        title: c.title,
+      })),
+      sources: [targets === null || contacts === null ? unavailable('portfolio', 'The relationship list could not be read.') : ok('portfolio')],
+    };
+  }
+
   async memberProfile(memberId: string) {
     const res = await this.bridge.memberContext(memberId);
     if (!res.ok) {

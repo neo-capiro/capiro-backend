@@ -21,6 +21,7 @@ import {
   CreateHillDayDocumentDto,
   PatchHillDayDocumentDto,
   PutMeetingContextDto,
+  RefineSectionTextDto,
   ResolutionCorrectionDto,
   SetMeetingsDto,
 } from './dto/hillday.dto.js';
@@ -182,6 +183,13 @@ export class HillDayController {
     });
   }
 
+  /** A third attendee source alongside typing a name and Directory search:
+   *  the sponsor's own Portfolio relationship history for this document's client. */
+  @Get('documents/:id/relationships')
+  clientRelationships(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+    return this.resolution.clientRelationships(ctx.tenantId, id);
+  }
+
   // ── Context ───────────────────────────────────────────────────────────────
 
   @Get('documents/:id/meetings/:meetingId/context')
@@ -290,6 +298,16 @@ export class HillDayController {
     @Param('sectionId') sectionId: string,
   ) {
     return this.generation.regenerateSection(ctx.tenantId, ctx.clerkUserId, id, sectionId);
+  }
+
+  @Post('documents/:id/sections/:sectionId/refine')
+  refine(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Body() dto: RefineSectionTextDto,
+  ) {
+    return this.generation.refineText(ctx.tenantId, ctx.clerkUserId, id, sectionId, dto.field, dto.text);
   }
 
   // ── Document ──────────────────────────────────────────────────────────────

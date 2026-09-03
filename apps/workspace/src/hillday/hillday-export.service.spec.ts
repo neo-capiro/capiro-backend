@@ -81,7 +81,7 @@ function view(sections: number): HillDayDocumentView {
 describe('HillDayExportService.renderPdf', () => {
   it('renders a paginated PDF: cover, one page per meeting, provenance', async () => {
     const service = new HillDayExportService({} as never, {} as never, {} as never);
-    const pdf = await service.renderPdf(view(3), { pageSize: 'letter', logo: null });
+    const pdf = await service.renderPdf(view(3), { pageSize: 'letter', logo: null, firmLogo: null });
     expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
     const pages = pdf.toString('latin1').match(/\/Type \/Page\b(?!s)/g) ?? [];
     // cover + 3 sections + provenance
@@ -91,7 +91,7 @@ describe('HillDayExportService.renderPdf', () => {
 
   it('renders A4 when asked', async () => {
     const service = new HillDayExportService({} as never, {} as never, {} as never);
-    const pdf = await service.renderPdf(view(1), { pageSize: 'a4', logo: null });
+    const pdf = await service.renderPdf(view(1), { pageSize: 'a4', logo: null, firmLogo: null });
     expect(pdf.toString('latin1')).toContain('595.28 841.89');
   });
 });

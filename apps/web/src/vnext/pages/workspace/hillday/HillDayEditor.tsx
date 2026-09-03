@@ -71,6 +71,7 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [regen, setRegen] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ sectionId: string; focus: string; background: string } | null>(null);
+  const [refining, setRefining] = useState<'focus' | 'background' | null>(null);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [showContext, setShowContext] = useState(false);
   const [exporting, setExporting] = useState<'preview' | 'deliver' | null>(null);
@@ -145,6 +146,22 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
       setError(errorMessage(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const refineField = async (field: 'focus' | 'background') => {
+    if (!editing) return;
+    const text = editing[field];
+    if (!text.trim()) return;
+    setRefining(field);
+    setError(null);
+    try {
+      const result = await api.refineSectionText(docId, editing.sectionId, field, text);
+      setEditing((e) => (e && e.sectionId === editing.sectionId ? { ...e, [field]: result.text } : e));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setRefining(null);
     }
   };
 
@@ -456,6 +473,8 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
                 onChange={(patch) => setEditing((e) => (e && e.sectionId === m.sectionId ? { ...e, ...patch } : e))}
                 onCancel={() => setEditing(null)}
                 onSave={() => void saveSection()}
+                refining={editing?.sectionId === m.sectionId ? refining : null}
+                onRefine={(field) => void refineField(field)}
               />
             ))}
           </div>
@@ -510,6 +529,8 @@ function SectionBlock({
   onChange,
   onCancel,
   onSave,
+  refining,
+  onRefine,
 }: {
   section: DocumentSectionView;
   regenerating: boolean;
@@ -520,6 +541,8 @@ function SectionBlock({
   onChange: (patch: Partial<{ focus: string; background: string }>) => void;
   onCancel: () => void;
   onSave: () => void;
+  refining: 'focus' | 'background' | null;
+  onRefine: (field: 'focus' | 'background') => void;
 }) {
   const flagged = m.flags.filter((f) => f.kind === 'unsupported_claim' || f.kind === 'needs_confirmation' || f.kind === 'partial_resolution');
   return (
@@ -580,7 +603,18 @@ function SectionBlock({
 
       {editing ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-          <label className="hd-section__h3" htmlFor={`hd-focus-${m.sectionId}`}>Focus</label>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label className="hd-section__h3" htmlFor={`hd-focus-${m.sectionId}`}>Focus</label>
+            <button
+              type="button"
+              className="hd-section__regen"
+              onClick={() => onRefine('focus')}
+              disabled={refining !== null || !editing.focus.trim()}
+            >
+              <HdIcon name={refining === 'focus' ? 'Loading01' : 'Stars02'} size={14} className={refining === 'focus' ? 'hd-spin' : undefined} />
+              {refining === 'focus' ? 'Refining…' : 'Refine with Meri'}
+            </button>
+          </span>
           <textarea
             id={`hd-focus-${m.sectionId}`}
             className="hd-section__body"
@@ -589,7 +623,18 @@ function SectionBlock({
             onChange={(e) => onChange({ focus: e.target.value })}
             style={{ width: '100%', font: 'inherit', resize: 'vertical' }}
           />
-          <label className="hd-section__h3 hd-section__h3--tight" htmlFor={`hd-background-${m.sectionId}`}>Background</label>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+            <label className="hd-section__h3 hd-section__h3--tight" htmlFor={`hd-background-${m.sectionId}`}>Background</label>
+            <button
+              type="button"
+              className="hd-section__regen"
+              onClick={() => onRefine('background')}
+              disabled={refining !== null || !editing.background.trim()}
+            >
+              <HdIcon name={refining === 'background' ? 'Loading01' : 'Stars02'} size={14} className={refining === 'background' ? 'hd-spin' : undefined} />
+              {refining === 'background' ? 'Refining…' : 'Refine with Meri'}
+            </button>
+          </span>
           <textarea
             id={`hd-background-${m.sectionId}`}
             className="hd-section__body"

@@ -1,35 +1,32 @@
 /**
  * Hill Day Library — /workspace/documents.
  *
- * Markup mirrors the prototype's LIBRARY section: title + actions, "Start a
- * workflow" template grid, the Template Studio banner, and the "Recent
- * documents" table. Blueprints and document rows come from the workspace
- * engine's Hill Day API (api.ts); the table lists Hill Day packets alongside
- * the firm's other workspace documents.
+ * Title + actions, the Template Studio banner, and the "Recent documents"
+ * table. No template picker here — that's the wizard's own step 1
+ * (/workspace/documents/new), which reads the same blueprint catalog and
+ * already handles both the implemented and not-yet-implemented cases;
+ * showing the same grid on both pages just made "New document" a two-click
+ * detour through an identical choice. Document rows come from the workspace
+ * engine's Hill Day API (api.ts) and list Hill Day packets alongside the
+ * firm's other workspace documents.
  */
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useHillDayApi } from './api.js';
 import { HdIcon, HdPill, HdPrimary, HdSecondary } from './ui.js';
-import { blueprintIcon, relativeTime, statusPill } from './types.js';
+import { relativeTime, statusPill } from './types.js';
 
 const RECENT_LIMIT = 8;
 
 export function HillDayLibrary() {
   const navigate = useNavigate();
   const api = useHillDayApi();
-  const templatesQuery = useQuery({
-    queryKey: ['hd', 'blueprints'],
-    queryFn: () => api.listBlueprints(),
-    staleTime: 60_000,
-  });
   const docsQuery = useQuery({
     queryKey: ['hd', 'documents', RECENT_LIMIT],
     queryFn: () => api.listDocuments({ limit: RECENT_LIMIT }),
     staleTime: 15_000,
   });
 
-  const templates = templatesQuery.data ?? [];
   const docs = docsQuery.data?.items ?? [];
 
   return (
@@ -61,62 +58,6 @@ export function HillDayLibrary() {
             New document
           </HdPrimary>
         </div>
-      </div>
-
-      <div className="hd-library__section-head">
-        <h2 className="hd-library__h2">Start a workflow</h2>
-        <span className="hd-eyebrow">
-          {templatesQuery.isPending
-            ? 'Loading templates…'
-            : templatesQuery.isError
-              ? 'Templates unavailable'
-              : `${templates.length} templates published`}
-        </span>
-      </div>
-
-      <div className="hd-template-grid">
-        {templates.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`hd-template-card${t.isNew ? ' hd-template-card--new' : ''}`}
-            onClick={() => navigate(t.implemented ? '/workspace/documents/new' : '/workspace/new')}
-            title={t.implemented ? undefined : 'Not implemented yet — opens the existing workspace flow'}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-                gap: 12,
-              }}
-            >
-              <span className={`hd-template-card__icon${t.isNew ? '' : ' hd-template-card__icon--plain'}`}>
-                <HdIcon name={blueprintIcon(t.icon)} size={20} />
-              </span>
-              {t.isNew ? (
-                <span className="hd-badge-new">New</span>
-              ) : (
-                <span style={{ flex: '0 0 auto' }} />
-              )}
-            </div>
-            <span style={{ display: 'block' }}>
-              <span className="hd-template-card__name">{t.name}</span>
-              <span className="hd-template-card__desc">{t.description}</span>
-            </span>
-            <span className="hd-template-card__meta">
-              {t.scope === 'firm' ? `${t.meta}` : t.meta}
-            </span>
-          </button>
-        ))}
-        {templatesQuery.isError && (
-          <div className="hd-studio-banner" role="status">
-            <HdIcon name="AlertTriangle" size={20} />
-            <span style={{ flex: 1, minWidth: 0 }}>
-              The blueprint catalog could not be loaded from the workspace engine. Retry in a moment.
-            </span>
-          </div>
-        )}
       </div>
 
       <div className="hd-studio-banner">
@@ -198,7 +139,7 @@ export function HillDayLibrary() {
               </span>
               <span style={{ minWidth: 0 }}>
                 <span className="hd-doc-table__name">No documents yet</span>
-                <span className="hd-doc-table__type">Start with a Hill Day Schedule above.</span>
+                <span className="hd-doc-table__type">Start with "New document" above.</span>
               </span>
             </span>
             <span className="hd-doc-table__client">—</span>

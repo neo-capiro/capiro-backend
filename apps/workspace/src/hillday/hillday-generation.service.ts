@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiCredentialService, type ResolvedAiCredential } from '../generation/ai-credential.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -207,6 +208,59 @@ export class HillDayGenerationService {
     const shared = await this.sharedContext(tenantId, actorId, doc);
     const result = await this.generateUnit(tenantId, meeting, shared);
     return { section: result.section, sourceSet: result.sourceSet };
+  }
+
+  /**
+   * "Refine with Meri" — a lightweight, stateless polish pass on one field of
+   * one section's already-drafted (or user-edited) text, distinct from
+   * regenerateSection: no source assembly, no persistence, just the model
+   * tightening prose the user is actively editing. The editor holds the
+   * result in its own local draft state; nothing is written here until the
+   * user's own "Save section" persists it via the existing patchDocument path.
+   */
+  async refineText(
+    tenantId: string,
+    actorId: string,
+    documentId: string,
+    sectionId: string,
+    field: 'focus' | 'background',
+    text: string,
+  ): Promise<{ text: string }> {
+    const doc = await this.assertDoc(tenantId, documentId);
+    if (doc.ownerId !== actorId) throw new ForbiddenException('Only the document owner can refine it');
+    const meeting = (await this.prisma.wsHillDayMeeting.findFirst({
+      where: { id: sectionId, tenantId, documentId },
+    })) as MeetingRow | null;
+    if (!meeting) throw new NotFoundException('Section not found');
+    if (!text.trim()) throw new BadRequestException('Nothing to refine — the field is empty');
+
+    let credential: ResolvedAiCredential | null = null;
+    try {
+      credential = await this.credentials.resolveAnthropic(tenantId);
+    } catch (err) {
+      throw new ServiceUnavailableException(`No model credential is configured for this firm: ${(err as Error).message}`);
+    }
+    if (!credential) throw new ServiceUnavailableException('No model credential is configured for this firm');
+
+    const event = meeting.event as CalendarEvent;
+    const resolution = meeting.resolution as MeetingResolution | null;
+    const member = resolution?.office.member ?? event.subject;
+    const fieldLabel = field === 'focus' ? 'Focus' : 'Background';
+    const system =
+      'You refine one paragraph of a congressional Hill Day meeting-prep document that a government relations ' +
+      'team will hand to a client. Tighten the prose, fix grammar, and keep the tone clear and professional. ' +
+      'Keep every fact, name, number, and claim already in the draft — never invent, add, or drop one. ' +
+      'Return ONLY the refined paragraph text: no preamble, no markdown, no quotes around it.';
+    const user = `Meeting: ${member}\nSection: ${fieldLabel}\n\nCurrent draft:\n${text.trim()}`;
+
+    const result = await this.callModel(credential, system, user);
+    if (!result.ok) {
+      throw new ServiceUnavailableException(`Meri could not refine this text right now (${result.detail})`);
+    }
+    if (!result.text.trim()) {
+      throw new ServiceUnavailableException('Meri returned an empty refinement — the original text is unchanged');
+    }
+    return { text: result.text };
   }
 
   // ── run loop ──────────────────────────────────────────────────────────────

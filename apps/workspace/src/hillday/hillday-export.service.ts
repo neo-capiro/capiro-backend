@@ -23,6 +23,7 @@ const RULE = '#E4E7EC';
 const WARN = '#B54708';
 const WARN_BG = '#FFFCF5';
 const NAVY_BG = '#EDF3F7';
+const ZEBRA = '#F9FAFB';
 
 const SIGNED_URL_TTL_MS = 60 * 60 * 1000;
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
@@ -68,8 +69,8 @@ export class HillDayExportService {
       data: { tenantId, documentId, actorId, format: 'pdf', pageSize, status: 'queued' },
     });
     try {
-      const logo = view.client.hasLogo ? await this.fetchLogo(tenantId, view.client.id) : null;
-      const buffer = await this.renderPdf(view, { pageSize, logo });
+      const branding = await this.fetchBranding(tenantId, view.client.id);
+      const buffer = await this.renderPdf(view, { pageSize, logo: branding.clientLogo, firmLogo: branding.firmLogo });
       const filename = `${safeFilename(view.name)}.pdf`;
       const ready = await this.prisma.wsHillDayExport.update({
         where: { id: row.id },
@@ -152,22 +153,33 @@ export class HillDayExportService {
     };
   }
 
-  private async fetchLogo(tenantId: string, clientId: string): Promise<Buffer | null> {
+  /** Both marks the cover header needs — the sponsor's (left) and the firm's
+   *  own (right) — in the one bridge round-trip that already returns both. */
+  private async fetchBranding(tenantId: string, clientId: string): Promise<{ clientLogo: Buffer | null; firmLogo: Buffer | null }> {
     const branding = await this.bridge.branding(tenantId, clientId);
-    if (!branding.ok || !branding.data.clientLogoUrl) return null;
-    const type = (branding.data.clientLogoContentType ?? '').toLowerCase();
-    // pdfkit embeds PNG and JPEG only; SVG/WEBP marks fall back to the monogram.
+    if (!branding.ok) return { clientLogo: null, firmLogo: null };
+    const [clientLogo, firmLogo] = await Promise.all([
+      this.downloadLogo(branding.data.clientLogoUrl, branding.data.clientLogoContentType),
+      this.downloadLogo(branding.data.firmLogoUrl, branding.data.firmLogoContentType),
+    ]);
+    return { clientLogo, firmLogo };
+  }
+
+  private async downloadLogo(url: string | null, contentType: string | null): Promise<Buffer | null> {
+    if (!url) return null;
+    const type = (contentType ?? '').toLowerCase();
+    // pdfkit embeds PNG and JPEG only; SVG/WEBP marks fall back to the monogram/text.
     if (!/image\/(png|jpe?g)/.test(type)) return null;
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10_000);
-      const res = await fetch(branding.data.clientLogoUrl, { signal: controller.signal });
+      const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
       if (!res.ok) return null;
       const bytes = Buffer.from(await res.arrayBuffer());
       return bytes.length <= MAX_LOGO_BYTES ? bytes : null;
     } catch (err) {
-      this.logger.warn(`sponsor logo fetch failed: ${(err as Error).message}`);
+      this.logger.warn(`logo fetch failed: ${(err as Error).message}`);
       return null;
     }
   }
@@ -176,7 +188,7 @@ export class HillDayExportService {
 
   async renderPdf(
     view: HillDayDocumentView,
-    opts: { pageSize: 'letter' | 'a4'; logo: Buffer | null },
+    opts: { pageSize: 'letter' | 'a4'; logo: Buffer | null; firmLogo: Buffer | null },
   ): Promise<Buffer> {
     const doc = new PDFDocument({
       size: opts.pageSize === 'a4' ? 'A4' : 'LETTER',
@@ -213,11 +225,15 @@ export class HillDayExportService {
       width: width / 2,
       lineBreak: false,
     });
-    doc.font('Helvetica').fontSize(9).fillColor(GRAY).text(view.firm.name, left + width / 2, ruleY + 6, {
-      width: width / 2,
-      align: 'right',
-      lineBreak: false,
-    });
+    if (opts.firmLogo) {
+      try {
+        doc.image(opts.firmLogo, left + width - 96, ruleY, { fit: [96, 22], align: 'right' });
+      } catch {
+        this.firmName(doc, view.firm.name, left, width, ruleY);
+      }
+    } else {
+      this.firmName(doc, view.firm.name, left, width, ruleY);
+    }
     doc.y = ruleY + 30;
     doc.moveTo(left, doc.y).lineTo(left + width, doc.y).strokeColor(RULE).lineWidth(1).stroke();
     doc.y += 26;
@@ -251,35 +267,50 @@ export class HillDayExportService {
       { k: 'minutes', label: 'Min', w: 30 },
       { k: 'staffLead', label: 'Staff lead', w: width - 428 },
     ] as const;
-    const drawRow = (values: Record<string, string>, header: boolean) => {
-      ensure(20);
+    const ROW_H = 24;
+    const tableTop = doc.y;
+    const pagesBefore = doc.bufferedPageRange().count;
+    const drawRow = (values: Record<string, string>, opts: { header?: boolean; zebra?: boolean }) => {
+      ensure(ROW_H);
       const y = doc.y;
+      if (opts.header) {
+        doc.rect(left, y, width, ROW_H).fillColor(NAVY_BG).fill();
+      } else if (opts.zebra) {
+        doc.rect(left, y, width, ROW_H).fillColor(ZEBRA).fill();
+      }
       let x = left;
       for (const c of cols) {
         doc
-          .font(header ? 'Helvetica-Bold' : c.k === 'member' ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(header ? 7 : 9)
-          .fillColor(header ? LIGHT : c.k === 'time' ? NAVY : INK)
-          .text(header ? c.label.toUpperCase() : values[c.k] ?? '', x, y + 4, {
-            width: c.w - 6,
+          .font(opts.header ? 'Helvetica-Bold' : c.k === 'member' ? 'Helvetica-Bold' : 'Helvetica')
+          .fontSize(opts.header ? 7 : 9)
+          .fillColor(opts.header ? NAVY : c.k === 'time' ? NAVY : INK)
+          .text(opts.header ? c.label.toUpperCase() : values[c.k] ?? '', x + 10, y + (opts.header ? 9 : 7), {
+            width: c.w - 14,
             lineBreak: false,
             ellipsis: true,
-            characterSpacing: header ? 0.6 : 0,
+            characterSpacing: opts.header ? 0.6 : 0,
           });
         x += c.w;
       }
-      doc.y = y + 20;
+      doc.y = y + ROW_H;
       doc.moveTo(left, doc.y).lineTo(left + width, doc.y).strokeColor(RULE).lineWidth(0.5).stroke();
     };
-    drawRow({}, true);
-    for (const r of view.summary) {
+    drawRow({}, { header: true });
+    view.summary.forEach((r, i) => {
       drawRow(
         { time: r.time, member: r.member, office: r.office, room: r.room, minutes: r.minutes, staffLead: r.staffLead },
-        false,
+        { zebra: i % 2 === 1 },
       );
-    }
+    });
     if (!view.summary.length) {
-      doc.font('Helvetica').fontSize(9).fillColor(GRAY).text('No meetings selected.', left, doc.y + 6);
+      doc.font('Helvetica').fontSize(9).fillColor(GRAY).text('No meetings selected.', left + 10, doc.y + 6);
+      doc.y += 24;
+    }
+    // Outer rule around the whole table — only when it stayed on one page;
+    // a table long enough to paginate would otherwise draw a border
+    // referencing a y-coordinate from the page it started on.
+    if (doc.bufferedPageRange().count === pagesBefore) {
+      doc.roundedRect(left, tableTop, width, doc.y - tableTop, 4).strokeColor(RULE).lineWidth(1).stroke();
     }
 
     // ── Sections ──
@@ -313,9 +344,9 @@ export class HillDayExportService {
       doc.y = top + gridH + 14;
 
       if (s.status === 'done') {
-        this.heading(doc, 'Focus');
+        this.heading(doc, 'Focus', left, width);
         this.body(doc, s.focus ?? 'Focus not available.', width, left);
-        this.heading(doc, 'Background');
+        this.heading(doc, 'Background', left, width);
         this.body(doc, s.background ?? 'Background not available.', width, left);
       } else {
         ensure(64);
@@ -327,15 +358,9 @@ export class HillDayExportService {
         doc.fillColor(WARN).text(text, left + 12, y + 10, { width: width - 24 });
         doc.y = y + h + 12;
       }
-
-      const flagged = s.flags.filter((f) => f.kind !== 'user_edited' && f.kind !== 'generation_failed');
-      if (flagged.length) {
-        doc.moveDown(0.4);
-        for (const f of flagged) {
-          ensure(16);
-          doc.font('Helvetica-Oblique').fontSize(8.5).fillColor(WARN).text(`Flag · ${flagLabel(f.kind)}: ${f.detail}`, left, doc.y, { width });
-        }
-      }
+      // Internal QA flags (partial resolution, needs confirmation, etc.) stay
+      // in the editor for the preparer to see — they're not something a
+      // client-facing packet should surface.
     }
 
     // ── Provenance ──
@@ -389,9 +414,23 @@ export class HillDayExportService {
     doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF').text(mono.slice(0, 2), x, y + 7, { width: 24, align: 'center', lineBreak: false });
   }
 
-  private heading(doc: PdfDoc, text: string): void {
+  /** No-logo (or embed-failed) fallback for the firm mark: its name as text,
+   *  right-aligned to match where the logo image would otherwise sit. */
+  private firmName(doc: PdfDoc, name: string, left: number, width: number, ruleY: number): void {
+    doc.font('Helvetica').fontSize(9).fillColor(GRAY).text(name, left + width / 2, ruleY + 6, {
+      width: width / 2,
+      align: 'right',
+      lineBreak: false,
+    });
+  }
+
+  private heading(doc: PdfDoc, text: string, left: number, width: number): void {
     if (doc.y + 40 > doc.page.height - doc.page.margins.bottom) doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(11.5).fillColor(INK).text(text);
+    // Explicit x — without it this inherits doc.x from whatever the last
+    // absolutely-positioned call left it at (the facts grid's right column),
+    // so "Focus" rendered shifted into the middle of the page while
+    // "Background" (coming after body()'s own explicit left) looked fine.
+    doc.font('Helvetica-Bold').fontSize(11.5).fillColor(INK).text(text, left, doc.y, { width });
     doc.moveDown(0.25);
   }
 
@@ -415,19 +454,6 @@ function humanReason(reason: string | null): string {
       return 'not generated yet';
     default:
       return reason.replace(/_/g, ' ');
-  }
-}
-
-function flagLabel(kind: string): string {
-  switch (kind) {
-    case 'unsupported_claim':
-      return 'Unsupported claim';
-    case 'needs_confirmation':
-      return 'Needs confirmation';
-    case 'partial_resolution':
-      return 'Partial resolution';
-    default:
-      return kind.replace(/_/g, ' ');
   }
 }
 

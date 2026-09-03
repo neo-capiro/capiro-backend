@@ -69,12 +69,14 @@ describe('hillday route wiring', () => {
 });
 
 describe('hillday prototype parity anchors', () => {
-  it('library: template grid, studio banner, recent documents table', () => {
+  it('library: studio banner, recent documents table — no duplicate template picker', () => {
     const lib = read('HillDayLibrary.tsx');
-    expect(lib).toContain('Start a workflow');
     expect(lib).toContain('Template Studio');
     expect(lib).toContain('Recent documents');
     expect(lib).toContain('Client-ready documents drafted from platform evidence');
+    // Template selection is the wizard's own step 1 (/workspace/documents/new)
+    // — the library must not re-render the same blueprint grid.
+    expect(lib).not.toContain('Start a workflow');
   });
 
   it('wizard: all six steps and the forward contract', () => {
