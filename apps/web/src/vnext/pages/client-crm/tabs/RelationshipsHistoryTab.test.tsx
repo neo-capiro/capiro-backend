@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ClientCrmHistoryProto } from './RelationshipsHistoryTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
@@ -29,12 +29,33 @@ const client: Client = {
   updatedAt: '2026-01-15T00:00:00.000Z',
 };
 
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div data-testid="location">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
+}
+
 function renderHistory() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <ClientCrmHistoryProto client={client} />
+      <MemoryRouter initialEntries={['/clients']}>
+        <Routes>
+          <Route
+            path="/clients"
+            element={
+              <>
+                <ClientCrmHistoryProto client={client} />
+                <LocationProbe />
+              </>
+            }
+          />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -55,6 +76,38 @@ describe('ClientCrmHistoryProto', () => {
     );
     // A TIMELINE fixture title must not leak through as if real.
     expect(screen.queryByText('Overland AI Strategy Review')).not.toBeInTheDocument();
+  });
+
+  it('opens "Open meeting" on the meeting\'s own date, not today\'s — the calendar used to ignore it entirely', async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          id: 'act-1',
+          kind: 'meeting',
+          // Noon UTC — stays the same local calendar day across every
+          // realistic CI/test-runner timezone, so this assertion isn't
+          // flaky next to the UTC-midnight boundary.
+          occurredAt: '2026-08-13T12:00:00.000Z',
+          title: 'Quarterly check-in',
+          body: null,
+          personId: null,
+          sourceType: 'meeting',
+          sourceId: 'meeting-42',
+          pinned: false,
+          dueAt: null,
+          settledAt: null,
+          origin: 'derived',
+        },
+      ],
+    });
+    renderHistory();
+
+    const openButton = await screen.findByRole('button', { name: 'Open meeting' });
+    fireEvent.click(openButton);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/engagement/meetings/meeting-42?date=2026-08-13'),
+    );
   });
 });
 

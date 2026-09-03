@@ -19,6 +19,7 @@ import {
 } from '../ClientCrmHistory.js';
 import { EmailComposeModal } from '../EmailComposeModal.js';
 import { getMailThread, type MailRecipient } from '../mail-api.js';
+import { dayKey } from '../../../../pages/engagement/meetings/meetings-format.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './relationships-history-tab.css';
@@ -122,8 +123,17 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
 
   const open = (item: ActivityItem) => {
     // Every derived row can reach its source record.
-    if (item.sourceType === 'meeting') navigate(`/engagement/meetings/${item.sourceId}`);
-    else if (item.sourceType === 'attachment') navigate(`/clients?clientId=${client.id}&tab=files`);
+    if (item.sourceType === 'meeting') {
+      // `/engagement/meetings/:id` canonicalizes to `?meeting=<id>` with no
+      // `date` param (engagement-route-state.ts's canonicalEngagementLocation),
+      // so the calendar's cursor kept its own default (today) regardless of
+      // which day the meeting actually fell on — landing on "today" for a
+      // meeting from 10 days ago instead of that meeting's own date. The
+      // Timeline row already knows the real date (occurredAt); pass it
+      // through explicitly rather than relying on the meeting resolving
+      // client-side after navigation and jumping the calendar retroactively.
+      navigate(`/engagement/meetings/${item.sourceId}?date=${dayKey(new Date(item.occurredAt))}`);
+    } else if (item.sourceType === 'attachment') navigate(`/clients?clientId=${client.id}&tab=files`);
     else if (item.sourceType === 'outreach') navigate(`/outreach/${item.sourceId}`);
     else if (item.sourceType === 'mail_thread' && item.sourceId) void openEmailThread(item.sourceId);
   };
