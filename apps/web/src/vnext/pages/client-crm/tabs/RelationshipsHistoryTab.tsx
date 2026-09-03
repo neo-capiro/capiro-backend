@@ -238,7 +238,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         <EmailComposeModal
           open
           onClose={() => setReplyTarget(null)}
-          to={replyTarget.to}
+          to={[replyTarget.to]}
           threadId={replyTarget.threadId}
           defaultSubject={replyTarget.subject}
           clientId={client.id}
