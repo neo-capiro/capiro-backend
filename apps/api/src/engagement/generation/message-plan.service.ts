@@ -597,11 +597,26 @@ export class MessagePlanService {
 }
 
 function renderPolicyForPlanner(policy: GaPolicy): string {
+  // Check #7 in validatePlan rejects a multi-element `clientAsk` for any
+  // policy whose askRules demand exactly one ask. Until 2026-09-03 the
+  // planner was only shown the prose rule; the JSON field itself is an
+  // array (max 6) with no description, so models routinely returned two
+  // or three asks and the plan was rejected before any drafting spend —
+  // live: 4 of 5 congressional recipients in one campaign failed with
+  // MULTIPLE_ASKS while the wizard showed only "couldn't be generated".
+  // State the field contract explicitly where the rule is stated, so the
+  // schema and the validator agree in the model's eyes.
+  const singleAsk = policy.askRules.some((r) => /exactly ONE clear ask/i.test(r));
   return [
     `AUDIENCE RULES (${policy.policyId} ${policy.version}):`,
     `- Allowed intents: ${policy.allowedIntents.join(', ')}`,
     ...policy.terminologyRules.map((r) => `- ${r}`),
     ...policy.askRules.map((r) => `- ${r}`),
+    ...(singleAsk
+      ? [
+          '- FIELD CONTRACT: `clientAsk` MUST contain exactly ONE string for this audience. If the directives or evidence suggest several asks, choose the single most important one and fold the rest into `desiredOutcome` or leave them out. A plan with more than one `clientAsk` entry is rejected and no email is written.',
+        ]
+      : []),
     ...policy.prohibitedAssumptions.map((r) => `- ${r}`),
   ].join('\n');
 }

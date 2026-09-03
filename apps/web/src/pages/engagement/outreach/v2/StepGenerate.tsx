@@ -159,8 +159,14 @@ function draftBanner(draft: GeneratedDraft | undefined): {
       return {
         type: 'warning',
         message: "This draft couldn't be generated",
-        description:
-          'It will not be sent as-is. Edit the text below, or click "Regenerate this" to try again.',
+        // The server's reason (e.g. a plan-validator rejection such as "…messages
+        // carry one ask; the plan has 3") is the actionable part. Before
+        // 2026-09-03 the placeholder banner never showed it, so a campaign where
+        // 4 of 5 drafts were rejected for the same reason gave the user nothing
+        // to fix. Falls back to the generic line when no reason was recorded.
+        description: draft?.failureReason
+          ? `${draft.failureReason} It will not be sent as-is — edit the text below or click "Regenerate this".`
+          : 'It will not be sent as-is. Edit the text below, or click "Regenerate this" to try again.',
       };
     case 'missing':
     default:

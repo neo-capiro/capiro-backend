@@ -400,7 +400,19 @@ export interface BatchDraftResult {
    * never be auto-sent while a grounding finding is unresolved.
    */
   status: 'ready' | 'error' | 'held';
+  /**
+   * Machine code for a same-batch failure — the gateway's outcome code
+   * (`MULTIPLE_ASKS`, `CRITICAL_SOURCE_FAILURE`, `PLAN_GENERATION_FAILED`,
+   * `DRAFT_OUTPUT_INVALID`, …). Rendered to the user via
+   * `describeGenerationFailure`; never shown raw.
+   */
   error?: string;
+  /**
+   * The deterministic pre-draft validator's findings when `error` is a plan
+   * rejection. Each carries the validator's own message and, optionally, the
+   * plan fragment it objected to. Present only when the plan was rejected.
+   */
+  planIssues?: Array<{ code: string; message: string; subject?: string }>;
   /** Internal note for the lobbyist only — never sent to the recipient. */
   contextNote?: string;
   /**
@@ -408,6 +420,59 @@ export interface BatchDraftResult {
    * the generation gateway; absent on the flag-off path.
    */
   manifest?: GenerationSourceManifest;
+}
+
+/**
+ * One same-batch failure, with WHY. `partitionGenerationResults` used to
+ * return failed slots as bare genKeys, which threw away the server's
+ * `error`/`planIssues` — so a campaign where every plan was rejected for the
+ * same validator code showed nothing but "couldn't be generated" (live
+ * 2026-09-03: 4 of 5 congressional drafts, all MULTIPLE_ASKS, undiagnosable
+ * from the wizard). The reason now travels with the key.
+ */
+export interface GenerationSlotFailure {
+  genKey: string;
+  /** Human-readable reason, already derived from `error` + `planIssues`. */
+  reason: string;
+}
+
+/**
+ * Turn a gateway outcome code (+ plan issues) into one sentence a lobbyist
+ * can act on. Codes are the gateway's own; anything unrecognized falls back
+ * to the code so a new failure class is still visible rather than blank.
+ */
+export function describeGenerationFailure(r: Pick<BatchDraftResult, 'error' | 'planIssues'>): string {
+  const issues = r.planIssues ?? [];
+  const issueText = issues
+    .map((i) => i.message?.trim())
+    .filter((m): m is string => Boolean(m))
+    .slice(0, 3)
+    .join(' ');
+  switch (r.error) {
+    case 'MULTIPLE_ASKS':
+      return (
+        (issueText || 'This audience allows one ask per message and the draft plan carried several.') +
+        ' Narrow the objective or context to a single request and regenerate.'
+      );
+    case 'CRITICAL_SOURCE_FAILURE':
+      return 'A required context source could not be loaded, so nothing was drafted. See "Context used" below for which source failed, then regenerate.';
+    case 'PLAN_GENERATION_FAILED':
+      return 'The planning step could not produce a valid plan for this recipient. Regenerate to try again.';
+    case 'DRAFT_OUTPUT_INVALID':
+    case 'DRAFT_SECTIONS_INCOMPLETE':
+      return 'The model returned an incomplete draft. Regenerate to try again.';
+    case 'DRAFT_PERSIST_FAILED':
+      return 'The draft was generated but could not be saved as a version. Regenerate to try again.';
+    case 'GENERATION_FAILED':
+      return 'The drafting call failed. Regenerate to try again.';
+    case undefined:
+    case '':
+      return issueText || 'Generation failed for this recipient.';
+    default:
+      // A plan rejection with a code this build does not know: the validator's
+      // own messages are the most useful thing we have.
+      return issueText ? `${issueText} (${r.error})` : `Generation failed for this recipient (${r.error}).`;
+  }
 }
 
 /**
@@ -433,6 +498,11 @@ export function partitionGenerationResults(
     manifest?: GenerationSourceManifest;
   }>;
   failedGenKeys: string[];
+  /**
+   * The same failed slots WITH their reasons, in the same order as
+   * `failedGenKeys`. `failedGenKeys` is kept for existing callers.
+   */
+  failures: GenerationSlotFailure[];
   /** Convenience: the genKeys in `heldDrafts`. */
   heldGenKeys: string[];
   /**
@@ -458,12 +528,17 @@ export function partitionGenerationResults(
     manifest?: GenerationSourceManifest;
   }> = [];
   const failedGenKeys: string[] = [];
+  const failures: GenerationSlotFailure[] = [];
   const manifests = new Map<string, GenerationSourceManifest>();
   for (const s of slots) {
     const r = byId.get(s.resultId);
     if (!r) {
       // The backend dropped this slot: a genuine failure, no content exists.
       failedGenKeys.push(s.genKey);
+      failures.push({
+        genKey: s.genKey,
+        reason: 'The server returned no result for this recipient. Regenerate to try again.',
+      });
       continue;
     }
     if (r.manifest) manifests.set(s.genKey, r.manifest);
@@ -484,12 +559,14 @@ export function partitionGenerationResults(
       });
     } else {
       failedGenKeys.push(s.genKey);
+      failures.push({ genKey: s.genKey, reason: describeGenerationFailure(r) });
     }
   }
   return {
     drafts,
     heldDrafts,
     failedGenKeys,
+    failures,
     heldGenKeys: heldDrafts.map((d) => d.genKey),
     manifests,
   };
