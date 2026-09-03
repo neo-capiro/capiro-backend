@@ -174,6 +174,15 @@ export interface ClientAttachment {
   source: string;
   createdAt: string;
   downloadUrl: string | null;
+  /**
+   * A second, `inline`-disposition presigned URL for the Files tab's preview
+   * modal — null unless the file is one of a narrow, server-allowlisted set
+   * of safe-to-render-inline content types (PDF, PNG, JPEG, GIF, WEBP).
+   * Everything else (docx, xlsx, msg, svg, …) is null here on purpose; the
+   * preview modal falls back to "no preview — download to view" and still
+   * uses the unchanged, always-`attachment` downloadUrl above for that.
+   */
+  previewUrl?: string | null;
   // Meetings v2: stamped when client-KB indexing completes (drives the per-file
   // "Indexed" badge); uploader for attribution. All nullable / additive.
   indexedAt: string | null;

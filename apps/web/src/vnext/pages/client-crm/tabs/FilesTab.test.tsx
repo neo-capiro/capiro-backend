@@ -112,7 +112,7 @@ describe('ClientCrmFilesProto', () => {
     expect(screen.queryByText('FY27 Congressional Strategy Memo')).not.toBeInTheDocument();
   });
 
-  it('opens the attachment download URL when a real row is clicked', async () => {
+  it('opens the preview modal instead of downloading when a real row is clicked', async () => {
     mockApi({ attachments: [attachment()] });
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     renderFiles();
@@ -120,7 +120,52 @@ describe('ClientCrmFilesProto', () => {
     const nameButton = await screen.findByText('Budget Memo');
     fireEvent.click(nameButton);
 
+    // Clicking the row no longer downloads by itself.
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(await screen.findByRole('dialog', { name: 'Budget Memo' })).toBeInTheDocument();
+    openSpy.mockRestore();
+  });
+
+  it('shows an inline preview for a previewable content type', async () => {
+    mockApi({
+      attachments: [attachment({ previewUrl: 'https://files.example.com/att-1?inline' })],
+    });
+    renderFiles();
+
+    fireEvent.click(await screen.findByText('Budget Memo'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Budget Memo' });
+    const iframe = dialog.querySelector('iframe');
+    expect(iframe).toHaveAttribute('src', 'https://files.example.com/att-1?inline');
+    expect(screen.queryByText(/No preview available/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to a download-only state when the file has no previewUrl', async () => {
+    mockApi({ attachments: [attachment({ previewUrl: null })] });
+    renderFiles();
+
+    fireEvent.click(await screen.findByText('Budget Memo'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Budget Memo' });
+    await screen.findByText(/No preview available for this file type/);
+    expect(dialog.querySelector('iframe')).not.toBeInTheDocument();
+  });
+
+  it('downloads via the modal Download button, closes via the X button', async () => {
+    mockApi({ attachments: [attachment({ previewUrl: null })] });
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    renderFiles();
+
+    fireEvent.click(await screen.findByText('Budget Memo'));
+    await screen.findByRole('dialog', { name: 'Budget Memo' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
     expect(openSpy).toHaveBeenCalledWith('https://files.example.com/att-1', '_blank', 'noopener,noreferrer');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Budget Memo' })).not.toBeInTheDocument(),
+    );
     openSpy.mockRestore();
   });
 

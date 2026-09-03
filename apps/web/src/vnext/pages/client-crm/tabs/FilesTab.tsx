@@ -90,6 +90,12 @@ interface FileRowModel {
   folder: string | null;
   /** Present only for real attachments — lets the row open/download the file. */
   downloadUrl: string | null;
+  /** Inline-disposition URL for the preview modal; null when this file's
+   *  content type isn't in the server's safe-to-render-inline allowlist
+   *  (see createAttachmentPreviewUrl) — the modal falls back to a
+   *  download-only state in that case. */
+  previewUrl: string | null;
+  contentType: string | null;
   /** View ACL. Default 'all' = every team member. */
   viewerMode: 'all' | 'restricted';
   viewerUserIds: string[];
@@ -199,6 +205,8 @@ function fixtureRow(f: (typeof FILES)[number] & { smart?: boolean }): FileRowMod
     tone: toneOf(f.ui),
     folder: f.folder,
     downloadUrl: null,
+    previewUrl: null,
+    contentType: null,
     viewerMode: 'all',
     viewerUserIds: [],
   };
@@ -269,6 +277,8 @@ function attachmentRow(file: ClientAttachment): FileRowModel {
     tone: file.indexedAt ? 'success' : 'gray',
     folder,
     downloadUrl: file.downloadUrl,
+    previewUrl: file.previewUrl ?? null,
+    contentType: file.contentType ?? null,
     viewerMode: file.viewerMode === 'restricted' ? 'restricted' : 'all',
     viewerUserIds: Array.isArray(file.viewerUserIds) ? file.viewerUserIds : [],
   };
@@ -306,6 +316,8 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
   const [moving, setMoving] = useState<{ ids: string[]; count: number } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
+  /** The row currently open in the preview modal, if any. */
+  const [previewRow, setPreviewRow] = useState<FileRowModel | null>(null);
   const [drawerView, setDrawerView] = useState<'folders' | 'files'>('folders');
   const [drawerGroup, setDrawerGroup] = useState<string | null>(null);
   /** Open with the ids to file into the new folder; `[]` creates a draft. */
@@ -771,6 +783,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                     onToggle={() => toggleRow(row.id)}
                     onToggleMenu={() => setMenuRowId((previous) => previous === row.id ? null : row.id)}
                     onCloseMenu={() => setMenuRowId(null)}
+                    onPreview={() => setPreviewRow(row)}
                     onRequestMove={() => { setMenuRowId(null); requestMove([row.id]); }}
                     onRequestAccess={() => {
                       setMenuRowId(null);
@@ -1042,6 +1055,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                     onToggle={() => toggleRow(row.id)}
                     onToggleMenu={() => setMenuRowId((prev) => (prev === row.id ? null : row.id))}
                     onCloseMenu={() => setMenuRowId(null)}
+                    onPreview={() => setPreviewRow(row)}
                     onRequestMove={() => {
                       setMenuRowId(null);
                       requestMove([row.id]);
@@ -1178,6 +1192,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
         }}
       />
 
+      <FilePreviewModal row={previewRow} onClose={() => setPreviewRow(null)} />
     </div>
   );
 }
@@ -1364,6 +1379,7 @@ function FileRow({
   onRequestMove,
   onRequestAccess,
   onRequestDelete,
+  onPreview,
 }: {
   row: FileRowModel;
   real: boolean;
@@ -1376,6 +1392,7 @@ function FileRow({
   onRequestMove: () => void;
   onRequestAccess: () => void;
   onRequestDelete: () => void;
+  onPreview: () => void;
 }) {
   const [hover, setHover] = useState(false);
   const [menuHover, setMenuHover] = useState(false);
@@ -1390,9 +1407,11 @@ function FileRow({
       <button
         type="button"
         disabled={!row.downloadUrl}
-        onClick={() => {
-          if (row.downloadUrl) window.open(row.downloadUrl, '_blank', 'noopener,noreferrer');
-        }}
+        // Opens the preview modal instead of downloading — clicking a file
+        // used to hand you a file-save prompt with no chance to look at it
+        // first. The modal itself decides inline preview vs. download-only,
+        // based on row.previewUrl (see FilePreviewModal).
+        onClick={onPreview}
         className="cap-pf-files__row-name-btn"
       >
         <span aria-hidden className="cap-pf-files__ext-badge">
@@ -1592,6 +1611,58 @@ function ManageAccessModal({
         </CapiroButton>
         <CapiroButton variant="secondary" size="compact" onClick={onClose}>
           Cancel
+        </CapiroButton>
+      </div>
+    </CapiroModal>
+  );
+}
+
+/**
+ * Clicking a file used to hand you a browser file-save prompt with no chance
+ * to look at it first (`ResponseContentDisposition: 'attachment'` on the
+ * download URL — a deliberate anti-XSS control, see createAttachmentDownloadUrl
+ * in engagement.service.ts). This modal previews instead: an <iframe>/<img>
+ * against `row.previewUrl` when the file's content type is on the server's
+ * narrow inline-render allowlist (PDF/PNG/JPEG/GIF/WEBP), a plain "no preview"
+ * fallback otherwise — Download always uses the unchanged, always-`attachment`
+ * downloadUrl, so nothing about the existing security posture changes.
+ */
+function FilePreviewModal({ row, onClose }: { row: FileRowModel | null; onClose: () => void }) {
+  if (!row) return null;
+  const isImage = (row.contentType ?? '').toLowerCase().startsWith('image/');
+  return (
+    <CapiroModal open title={row.name} onClose={onClose} width={860}>
+      {row.previewUrl ? (
+        <div className="cap-pf-files__preview-frame">
+          {isImage ? (
+            <img src={row.previewUrl} alt={row.name} className="cap-pf-files__preview-image" />
+          ) : (
+            <iframe
+              src={row.previewUrl}
+              title={row.name}
+              className="cap-pf-files__preview-iframe"
+              sandbox="allow-same-origin"
+            />
+          )}
+        </div>
+      ) : (
+        <div className="cap-pf-files__preview-empty">
+          <UIcon name="File04" size={28} />
+          <p className="cap-pf-files__modal-text">
+            No preview available for this file type. Download it to view the full contents.
+          </p>
+        </div>
+      )}
+      <div className="cap-pf-files__modal-actions">
+        <CapiroButton
+          variant="primary"
+          size="compact"
+          disabled={!row.downloadUrl}
+          onClick={() => {
+            if (row.downloadUrl) window.open(row.downloadUrl, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          Download
         </CapiroButton>
       </div>
     </CapiroModal>
