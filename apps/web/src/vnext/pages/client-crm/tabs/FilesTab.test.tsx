@@ -68,6 +68,24 @@ function renderFiles() {
 }
 
 /**
+ * `drawer` is the ONLY way this component is ever mounted in the real app
+ * (ClientCrmPage.tsx's Files tab, VNextShellVisual's Files tab) — every test
+ * above renders the non-drawer "Client files" page, which no production route
+ * reaches. That gap is exactly how the drawer's "New folder" button shipped
+ * silently broken: verified against a surface nothing actually renders.
+ */
+function renderFilesDrawer() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <ClientCrmFilesProto client={client} drawer />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+/**
  * The tab now issues two GETs — attachments and the real folder tree
  * (`/files/folders`). Route by URL so a folders response is never mistaken for
  * an attachments response (a single mockResolvedValue would answer both).
@@ -403,5 +421,56 @@ describe('ClientCrmFilesProto — client storage', () => {
     // happened to be loading. The meter now says it is measuring instead.
     expect(screen.queryByText('1.8 GB of 10 GB')).not.toBeInTheDocument();
     expect(screen.getByText('Measuring…')).toBeInTheDocument();
+  });
+});
+
+/* ── drawer surface: "New folder" ("nothing happens" bug report) ─────────── */
+
+describe('ClientCrmFilesProto — drawer, New folder', () => {
+  it('shows a new draft folder in the Folders tab and opens it, instead of no visible change', async () => {
+    mockApi({ attachments: [attachment({ folder: 'Award Docs' })] });
+    renderFilesDrawer();
+
+    // Land on the Folders tab (its default) with the one real group visible.
+    await screen.findByRole('button', { name: /Award Docs/ });
+
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'Hill Submissions' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create folder' }));
+
+    // No move was issued — there is no create endpoint, so a folder with no
+    // files becomes a client-side draft, not a request that would 404.
+    expect(patchMock).not.toHaveBeenCalled();
+    // Before this fix, `drawerGroups` was derived only from real attachments,
+    // so this draft rendered nowhere and the modal closing was the only
+    // visible effect — indistinguishable from the button doing nothing.
+    expect(await screen.findByText('Draft folder · upload or move a file here to create it')).toBeInTheDocument();
+
+    // The Folders tab, if the user goes back to it, shows the draft too.
+    fireEvent.click(screen.getByRole('tab', { name: 'Folders' }));
+    expect(screen.getByRole('button', { name: /Hill Submissions\s*Draft/ })).toBeInTheDocument();
+  });
+
+  it('files the current selection into the new folder — the drawer button used to ignore it', async () => {
+    mockApi({ attachments: [attachment({ id: 'att-1', folder: 'Award Docs' })] });
+    patchMock.mockResolvedValue({ data: { id: 'att-1' } });
+    renderFilesDrawer();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'All files' }));
+    await screen.findByText('Budget Memo');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Budget Memo' }));
+
+    // Before this fix, this button hardcoded `ids: []` regardless of what was
+    // selected, so a user who selected files first and clicked "New folder"
+    // silently got an empty draft instead of their files actually moving.
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+    expect(screen.getByText('The 1 selected file will be filed here.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'Hill Submissions' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create and file 1' }));
+
+    await waitFor(() => expect(patchMock).toHaveBeenCalledTimes(1));
+    expect(patchMock.mock.calls[0]?.[0]).toBe('/api/clients/client-1/files/att-1/folder');
+    expect(patchMock.mock.calls[0]?.[1]).toEqual({ folder: 'Hill Submissions' });
   });
 });

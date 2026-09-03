@@ -538,15 +538,29 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
       const key = row.linked.split(/ · | \/ /)[0]?.trim() || 'Unfiled';
       grouped.set(key, [...(grouped.get(key) ?? []), row]);
     }
-    return [...grouped.entries()]
-      .map(([name, groupRows]) => ({
-        name,
-        rows: groupRows,
-        exts: [...new Set(groupRows.map((row) => row.ext))],
-        modified: [...groupRows].sort((a, b) => b.modifiedTs - a.modifiedTs)[0]?.modified ?? '—',
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allRows]);
+    const real = [...grouped.entries()].map(([name, groupRows]) => ({
+      name,
+      rows: groupRows,
+      exts: [...new Set(groupRows.map((row) => row.ext))],
+      modified: [...groupRows].sort((a, b) => b.modifiedTs - a.modifiedTs)[0]?.modified ?? '—',
+      draft: false,
+    }));
+    // Same client-only concept the full "Client files" tree (`folders` below)
+    // already has: "New folder" cannot create an empty folder server-side, so
+    // an empty selection opens one here instead, until a file is filed into
+    // it. Without this the drawer's "Folders" tab derived groups from real
+    // attachments alone, so a freshly created draft never appeared anywhere —
+    // "New folder" looked like a no-op.
+    const drafts = draftFolders
+      .filter((name) => !real.some((entry) => sameFolder(entry.name, name)))
+      .map((name) => ({ name, rows: [] as FileRowModel[], exts: [] as string[], modified: '—', draft: true }));
+    return [...real, ...drafts].sort((a, b) => a.name.localeCompare(b.name));
+  }, [allRows, draftFolders]);
+
+  /** The drawer's "All files" list, scoped to `drawerGroup` when set. */
+  const drawerShownRows = drawerGroup
+    ? allRows.filter((row) => (row.linked.split(/ · | \/ /)[0]?.trim() || 'Unfiled') === drawerGroup)
+    : allRows;
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -697,7 +711,11 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
               </button>
             </div>
             <span className="cap-pf-files-drawer__count">{allRows.length} document{allRows.length === 1 ? '' : 's'}</span>
-            <button type="button" className="cap-pf-files-drawer__link" onClick={() => setCreatingFolder({ ids: [] })}>
+            {/* Files a real selection into the new folder, same as the full
+                "Client files" page's button below — this was hardcoded to
+                `ids: []` before, so selecting files and clicking "New folder"
+                silently discarded the selection and only ever opened a draft. */}
+            <button type="button" className="cap-pf-files-drawer__link" onClick={() => setCreatingFolder({ ids: [...selected] })}>
               New folder
             </button>
             <button type="button" className="cap-pf-files-drawer__upload" onClick={() => triggerUpload(null)}>
@@ -741,7 +759,10 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                         <span className="cap-pf-files-drawer__folder-icon" aria-hidden><UIcon name="File04" size={20} /></span>
                         <span>
                           <strong>{group.name}</strong>
-                          <small>{group.rows.length} file{group.rows.length === 1 ? '' : 's'}</small>
+                          {/* A draft folder holds nothing yet — say so rather
+                              than show a 0 that reads as "empty and broken",
+                              matching the full page's tree (folder.draft). */}
+                          <small>{group.draft ? 'Draft' : `${group.rows.length} file${group.rows.length === 1 ? '' : 's'}`}</small>
                         </span>
                       </span>
                       <span className="cap-pf-files-drawer__folder-foot">
@@ -769,10 +790,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                     <span>{drawerGroup}</span>
                   </div>
                 ) : null}
-                {(drawerGroup
-                  ? allRows.filter((row) => (row.linked.split(/ · | \/ /)[0]?.trim() || 'Unfiled') === drawerGroup)
-                  : allRows
-                ).map((row, index) => (
+                {drawerShownRows.map((row, index) => (
                   <FileRow
                     key={row.id}
                     row={row}
@@ -795,7 +813,17 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                     onRequestDelete={() => { setMenuRowId(null); setDeletingId(row.id); }}
                   />
                 ))}
-                {!filesQuery.isPending && allRows.length === 0 ? <div className="cap-pf-files-drawer__state">No files uploaded yet.</div> : null}
+                {/* Scoped to what's actually shown, not the whole client's
+                    row count — filtering into an empty real folder or a fresh
+                    draft used to render a blank list with no explanation
+                    (allRows.length only reflects the unfiltered total). */}
+                {!filesQuery.isPending && drawerShownRows.length === 0 ? (
+                  <div className="cap-pf-files-drawer__state">
+                    {drawerGroup && draftFolders.some((name) => sameFolder(name, drawerGroup))
+                      ? 'Draft folder · upload or move a file here to create it'
+                      : 'No files uploaded yet.'}
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
@@ -1128,6 +1156,16 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
           if (ids.length > 0) await move.mutateAsync({ ids, folder: name });
           else setDraftFolders((previous) => [...previous, name]);
           setFolderId(name);
+          // The full page's file list is already scoped by `folderId`/`current`
+          // (set above), so it shows the new folder immediately. The drawer's
+          // "All files" list is scoped by `drawerGroup`/`drawerView` instead —
+          // without setting those too, the drawer just closed the modal and
+          // sat on whatever it was showing before, with the new folder visible
+          // only if the user happened to go find it in the Folders tab.
+          if (drawer) {
+            setDrawerGroup(name);
+            setDrawerView('files');
+          }
           setCreatingFolder(null);
         }}
       />
