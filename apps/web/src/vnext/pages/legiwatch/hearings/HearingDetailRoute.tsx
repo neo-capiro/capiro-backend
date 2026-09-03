@@ -122,8 +122,28 @@ export function HearingDetailRoute() {
   const accessLabel = accessPillLabel(e.publicAccessStatus);
   const availability = transcriptAvailability(e);
   const intel = intelligence.data ?? [];
+  // §8: extraction pending must never render as "no intelligence extracted".
+  // The route's status arrives on the envelope (useHearingIntelligence).
+  const intelProcessing =
+    intelligence.data?.status === 'PROCESSING' ||
+    intelligence.data?.status === 'DEGRADED' ||
+    ((intelligence.data?.jobs?.public?.pending ?? 0) + (intelligence.data?.jobs?.tenant?.pending ?? 0) > 0);
   const committeeCode = e.subcommittee?.systemCode ?? e.committee?.systemCode ?? null;
   const officialUrl = e.officialPageUrl ?? null;
+
+  // §9 click-to-jump: an intelligence item with evidence.segmentId scrolls to
+  // and highlights the supporting transcript segment.
+  const jumpToSegment = (segmentId: string | undefined) => {
+    if (!segmentId) return;
+    const el = document.getElementById(`lw-seg-${CSS.escape(segmentId)}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.background = 'color-mix(in srgb, var(--lw-brand-dot) 12%, transparent)';
+      window.setTimeout(() => {
+        el.style.background = '';
+      }, 2200);
+    }
+  };
 
   return (
     <div className="lw-body lw-detail" aria-label={`Hearing detail: ${e.title}`}>
@@ -230,7 +250,11 @@ export function HearingDetailRoute() {
             ) : (
               <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {visibleSegments.map((s: PublicTranscriptSegment) => (
-                  <li key={s.id} style={{ borderLeft: s.gapBefore ? '2px solid var(--lw-faint)' : undefined, paddingLeft: 10 }}>
+                  <li
+                    key={s.id}
+                    id={`lw-seg-${CSS.escape(s.id)}`}
+                    style={{ borderLeft: s.gapBefore ? '2px solid var(--lw-faint)' : undefined, paddingLeft: 10, transition: 'background 0.4s' }}
+                  >
                     <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
                       <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{msToClock(s.startMs)}</span>
                       {s.speakerName ? <strong style={{ fontSize: 13 }}>{s.speakerName}</strong> : null}
@@ -253,9 +277,11 @@ export function HearingDetailRoute() {
         </div>
         {intel.length === 0 ? (
           <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
-            {availability.available
-              ? 'No intelligence was extracted for this proceeding.'
-              : 'Intelligence requires a transcript — none is available for this proceeding.'}
+            {intelProcessing
+              ? 'Intelligence extraction is in progress — findings appear here as segments are processed.'
+              : availability.available
+                ? 'No intelligence was extracted for this proceeding.'
+                : 'Intelligence requires a transcript — none is available for this proceeding.'}
           </p>
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -268,11 +294,29 @@ export function HearingDetailRoute() {
                 </div>
                 <p style={{ margin: '4px 0 0', fontSize: 13 }}>{item.summary}</p>
                 {item.evidenceText ? (
-                  <p className="lw-mono" style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--lw-meta)' }}>
-                    Evidence: “{item.evidenceText.slice(0, 200)}”
-                    {item.startMs != null ? ` @ ${msToClock(item.startMs)}` : ''}
-                    {item.speakerName ? ` — ${item.speakerName}` : ''}
-                  </p>
+                  item.segmentId ? (
+                    // §9: the evidence quote is a control — clicking jumps to and
+                    // highlights the supporting transcript segment.
+                    <button
+                      type="button"
+                      className="lw-backlink"
+                      style={{ display: 'block', padding: 0, textAlign: 'left', margin: '6px 0 0' }}
+                      onClick={() => jumpToSegment(item.segmentId)}
+                      aria-label={`Jump to transcript evidence at ${item.startMs != null ? msToClock(item.startMs) : 'recorded position'}`}
+                    >
+                      <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                        Evidence: “{item.evidenceText.slice(0, 200)}”
+                        {item.startMs != null ? ` @ ${msToClock(item.startMs)}` : ''}
+                        {item.speakerName ? ` — ${item.speakerName}` : ''}
+                      </span>
+                    </button>
+                  ) : (
+                    <p className="lw-mono" style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--lw-meta)' }}>
+                      Evidence: “{item.evidenceText.slice(0, 200)}”
+                      {item.startMs != null ? ` @ ${msToClock(item.startMs)}` : ''}
+                      {item.speakerName ? ` — ${item.speakerName}` : ''}
+                    </p>
+                  )
                 ) : null}
               </li>
             ))}

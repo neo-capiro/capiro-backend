@@ -12,6 +12,7 @@ import type {
   HearingCommitteeRef,
   HearingCommitteeRoom,
   HearingDocument,
+  HearingIntelligenceEnvelope,
   HearingIntelligenceItem,
   HearingMember,
   HearingSiteUpdate,
@@ -512,18 +513,34 @@ export function usePublicHearingTranscript(id: string) {
 
 export function useHearingIntelligence(id: string) {
   const api = useApi();
-  return useQuery<HearingIntelligenceItem[]>({
+  return useQuery<HearingIntelligenceEnvelope>({
     queryKey: keys.intelligence(id),
     queryFn: async () => {
       const response = await api.get<unknown>(
         `/api/legiwatch/live-hearings/events/${encodeURIComponent(id)}/intelligence`,
       );
       const envelope = record(response.data);
-      return array(
+      const items = array(
         Array.isArray(response.data) ? response.data : envelope.items ?? envelope.insights,
       )
         .map(normalizeIntelligence)
         .filter((item): item is HearingIntelligenceItem => Boolean(item));
+      // PR B §8/§9: the route's status (READY | PROCESSING | DEGRADED | FAILED |
+      // EMPTY) and queue counts must reach the UI — an empty item list with
+      // pending jobs is "extraction in progress", never "none was extracted".
+      const result = items as HearingIntelligenceEnvelope;
+      if (!Array.isArray(response.data)) {
+        result.status = stringValue(envelope.status);
+        result.total = numberValue(envelope.total);
+        const jobs = record(envelope.jobs);
+        if (Object.keys(jobs).length > 0) {
+          result.jobs = {
+            public: record(jobs.public) as Record<string, number>,
+            tenant: record(jobs.tenant) as Record<string, number>,
+          };
+        }
+      }
+      return result;
     },
     enabled: Boolean(id),
     retry: false,
