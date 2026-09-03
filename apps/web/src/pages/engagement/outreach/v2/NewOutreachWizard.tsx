@@ -64,6 +64,7 @@ import {
   projectDraftsForSend,
   revertDraftHistory,
   type BatchDraftResult,
+  type GenerationSlotFailure,
   type GenerationSnapshot,
   type GenSlot,
 } from './generation.js';
@@ -1212,7 +1213,7 @@ export function NewOutreachWizard({
             drafts: GenDraft[];
             heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
             failedGenKeys: string[];
-            failureReasons: Map<string, string>;
+            failures: GenerationSlotFailure[];
             refs: Map<string, DraftVersionRef>;
             manifests: Map<string, GenerationSourceManifest>;
             candidates: DraftCandidate[];
@@ -1229,10 +1230,11 @@ export function NewOutreachWizard({
                 : undefined,
             )
               .then((results): TaskOut => {
-                const { drafts, heldDrafts, failedGenKeys, failures, manifests } = partitionGenerationResults(
-                  t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
-                  results,
-                );
+                const { drafts, heldDrafts, failedGenKeys, failures, manifests } =
+                  partitionGenerationResults(
+                    t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
+                    results,
+                  );
                 // Phase 0 (g2): held drafts are REAL content pending review. They
                 // travel separately from failures so onSuccess can keep the text
                 // and attach the version lifecycle, rather than overwriting it.
@@ -1283,7 +1285,7 @@ export function NewOutreachWizard({
                   drafts: drafts.filter((d) => !candidateKeys.has(d.genKey)),
                   heldDrafts: heldDrafts.filter((d) => !candidateKeys.has(d.genKey)),
                   failedGenKeys,
-                  failureReasons: new Map(failures.map((f) => [f.genKey, f.reason])),
+                  failures,
                   refs,
                   manifests,
                   candidates,
@@ -1305,8 +1307,9 @@ export function NewOutreachWizard({
       const manifests = new Map<string, GenerationSourceManifest>();
       for (const o of outs) if (o.ok) for (const [k, v] of o.manifests) manifests.set(k, v);
       const candidates = outs.flatMap((o) => (o.ok ? o.candidates : []));
-      const failureReasons = new Map<string, string>();
-      for (const o of outs) if (o.ok) for (const [k, v] of o.failureReasons) failureReasons.set(k, v);
+      const failureReasons = new Map(
+        outs.flatMap((o) => (o.ok ? o.failures : [])).map((f) => [f.genKey, f.reason]),
+      );
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.

@@ -436,43 +436,39 @@ export interface GenerationSlotFailure {
   reason: string;
 }
 
+const RETRY = 'Regenerate to try again.';
+/** Gateway outcome code → what happened + what to do. */
+const FAILURE_COPY: Record<string, string> = {
+  CRITICAL_SOURCE_FAILURE:
+    'A required context source could not be loaded, so nothing was drafted. See "Context used" below for which source failed, then regenerate.',
+  PLAN_GENERATION_FAILED: `The planning step could not produce a valid plan for this recipient. ${RETRY}`,
+  DRAFT_OUTPUT_INVALID: `The model returned an incomplete draft. ${RETRY}`,
+  DRAFT_SECTIONS_INCOMPLETE: `The model returned an incomplete draft. ${RETRY}`,
+  DRAFT_PERSIST_FAILED: `The draft was generated but could not be saved as a version. ${RETRY}`,
+  GENERATION_FAILED: `The drafting call failed. ${RETRY}`,
+};
+
 /**
  * Turn a gateway outcome code (+ plan issues) into one sentence a lobbyist
- * can act on. Codes are the gateway's own; anything unrecognized falls back
- * to the code so a new failure class is still visible rather than blank.
+ * can act on. Plan rejections lead with the validator's own message; an
+ * unknown code stays visible so a new failure class is never rendered blank.
  */
-export function describeGenerationFailure(r: Pick<BatchDraftResult, 'error' | 'planIssues'>): string {
-  const issues = r.planIssues ?? [];
-  const issueText = issues
+export function describeGenerationFailure({
+  error,
+  planIssues = [],
+}: Pick<BatchDraftResult, 'error' | 'planIssues'>): string {
+  const issues = planIssues
     .map((i) => i.message?.trim())
-    .filter((m): m is string => Boolean(m))
+    .filter(Boolean)
     .slice(0, 3)
     .join(' ');
-  switch (r.error) {
-    case 'MULTIPLE_ASKS':
-      return (
-        (issueText || 'This audience allows one ask per message and the draft plan carried several.') +
-        ' Narrow the objective or context to a single request and regenerate.'
-      );
-    case 'CRITICAL_SOURCE_FAILURE':
-      return 'A required context source could not be loaded, so nothing was drafted. See "Context used" below for which source failed, then regenerate.';
-    case 'PLAN_GENERATION_FAILED':
-      return 'The planning step could not produce a valid plan for this recipient. Regenerate to try again.';
-    case 'DRAFT_OUTPUT_INVALID':
-    case 'DRAFT_SECTIONS_INCOMPLETE':
-      return 'The model returned an incomplete draft. Regenerate to try again.';
-    case 'DRAFT_PERSIST_FAILED':
-      return 'The draft was generated but could not be saved as a version. Regenerate to try again.';
-    case 'GENERATION_FAILED':
-      return 'The drafting call failed. Regenerate to try again.';
-    case undefined:
-    case '':
-      return issueText || 'Generation failed for this recipient.';
-    default:
-      // A plan rejection with a code this build does not know: the validator's
-      // own messages are the most useful thing we have.
-      return issueText ? `${issueText} (${r.error})` : `Generation failed for this recipient (${r.error}).`;
-  }
+  if (error === 'MULTIPLE_ASKS')
+    return `${issues || 'This audience allows one ask per message and the draft plan carried several.'} Narrow the objective or context to a single request and regenerate.`;
+  if (!error) return issues || 'Generation failed for this recipient.';
+  return (
+    FAILURE_COPY[error] ??
+    (issues ? `${issues} (${error})` : `Generation failed for this recipient (${error}).`)
+  );
 }
 
 /**
