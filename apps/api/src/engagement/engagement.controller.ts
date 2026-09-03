@@ -341,6 +341,13 @@ class SendSingleMailDto {
   @IsOptional()
   @IsUUID()
   threadId?: string;
+
+  /** Ids from the existing attachments upload-url + confirm flow. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsUUID(undefined, { each: true })
+  attachmentIds?: string[];
 }
 
 class RewriteEmailDto {

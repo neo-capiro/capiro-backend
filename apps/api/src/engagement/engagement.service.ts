@@ -230,6 +230,7 @@ export interface SendSingleMailInput {
   bodyHtml: string;
   appendSignature?: boolean;
   threadId?: string;
+  attachmentIds?: string[];
 }
 
 export interface AttachmentUploadInput {
@@ -7405,11 +7406,15 @@ export class EngagementService {
    * for the actual dispatch — this is the first non-batch caller of that
    * chain, not a new send mechanism.
    *
-   * On success, writes a `MailThread`/`MailMessage` row with `source: manual`
-   * (an `EngagementSource` value the schema already carries but nothing wrote
-   * until now) so the sent message shows up in Timeline immediately, rather
-   * than waiting for the next inbound-sync poll to reconcile it from the
-   * mailbox's own Sent folder.
+   * On success, writes a `MailThread`/`MailMessage` row so the sent message
+   * shows up in Timeline immediately, rather than waiting for the next
+   * inbound-sync poll to reconcile it from the mailbox's own Sent folder. The
+   * message row uses the SAME (source, externalId) sync will later use when
+   * the send result carries a real provider message id, so sync updates this
+   * row in place instead of creating a visible duplicate — falling back to
+   * `EngagementSource.manual` + a synthetic id only when no real id came
+   * back. Attachments reuse `loadGraphAttachments`, the same resolver the
+   * campaign send path uses.
    */
   async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
     const connection = await this.findCampaignSendConnection(ctx).catch((error) => {
@@ -7423,9 +7428,14 @@ export class EngagementService {
     // against the outbound allowlist (renderOutreachBody), then append the
     // (already-sanitized) signature — the result always sends as HTML.
     const body = appendOutreachSignature(
-      renderOutreachBody(input.bodyHtml),
+      renderOutreachBody(trimTrailingEmptyHtml(input.bodyHtml)),
       signature.signatureHtml,
     );
+    // Same resolver the campaign path uses (loadGraphAttachments): loads each
+    // attachment's real bytes, and throws a clear, real reason (quarantined /
+    // still scanning / removed) rather than silently sending without it or
+    // pretending a not-yet-cleared file is safe to attach.
+    const attachments = await this.loadGraphAttachments(ctx, input.attachmentIds);
 
     let sendResult: EngagementMailSendResult;
     try {
@@ -7436,6 +7446,7 @@ export class EngagementService {
         toRecipients: [{ email: input.to.email, name: input.to.name ?? null }],
         ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
         bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })),
+        attachments,
       });
     } catch (error) {
       if (error instanceof AmbiguousMailSendError) {
@@ -7458,10 +7469,25 @@ export class EngagementService {
       ...(input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'bcc' })),
     ].filter((p): p is { email: string; name: string | null; role: string } => p != null);
 
-    const externalId =
-      sendResult.providerMessageId ||
-      sendResult.providerInternetMessageId ||
-      `manual:${randomUUID()}`;
+    // Message-level dedup with the inbound sync pipeline: sync's own upsert
+    // keys on (tenantId, source, externalId) — microsoft-graph-sync.service.ts
+    // upserts by `message.id` under EngagementSource.outlook; google-sync.service.ts
+    // upserts Gmail's own message id under EngagementSource.google. If the send
+    // result gave us that SAME real id, write this row under the SAME
+    // (source, externalId) the sync job will use, so the next sync cycle
+    // recognizes and UPDATES this row instead of creating a second one for
+    // the same email — which is what previously produced a duplicate entry
+    // in Timeline/the person drawer's message history once sync caught up.
+    // Only fall back to a synthetic `manual` id when the provider genuinely
+    // returned none (rare, and reconciliation isn't possible either way then).
+    const realExternalId = sendResult.providerMessageId || sendResult.providerInternetMessageId || null;
+    const messageSource =
+      realExternalId == null
+        ? EngagementSource.manual
+        : connection.provider === EngagementProvider.google_workspace
+          ? EngagementSource.google
+          : EngagementSource.outlook;
+    const externalId = realExternalId ?? `manual:${randomUUID()}`;
 
     const { thread, message } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       // Reply path: verify the thread is this caller's own (same-tenant AND
@@ -7495,23 +7521,27 @@ export class EngagementService {
               status: 'open',
             },
           });
-      const message = await tx.mailMessage.create({
-        data: {
-          tenantId: ctx.tenantId,
-          threadId: thread.id,
-          connectionId: connection.id,
-          source: EngagementSource.manual,
-          externalId,
-          subject: input.subject,
-          fromEmail: signature.senderEmail,
-          fromName: signature.senderFirstName,
-          toRecipients: [{ email: input.to.email, name: input.to.name ?? null }] as unknown as Prisma.InputJsonValue,
-          ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
-          bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
-          sentAt: now,
-          bodyText: snippetFromHtml(body.content, 20_000),
-          metadata: { personId: input.personId ?? null } as Prisma.InputJsonValue,
-        },
+      const messageData = {
+        threadId: thread.id,
+        connectionId: connection.id,
+        subject: input.subject,
+        fromEmail: signature.senderEmail,
+        fromName: signature.senderFirstName,
+        toRecipients: [{ email: input.to.email, name: input.to.name ?? null }] as unknown as Prisma.InputJsonValue,
+        ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
+        bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
+        sentAt: now,
+        bodyText: snippetFromHtml(body.content, 20_000),
+        metadata: { personId: input.personId ?? null } as Prisma.InputJsonValue,
+      };
+      // Upsert, not create: when `externalId` is a real provider id, a fast
+      // sync cycle may already have written this exact row (same unique key)
+      // before this transaction commits — update in place rather than 500 on
+      // the unique constraint.
+      const message = await tx.mailMessage.upsert({
+        where: { tenantId_source_externalId: { tenantId: ctx.tenantId, source: messageSource, externalId } },
+        create: { tenantId: ctx.tenantId, source: messageSource, externalId, ...messageData },
+        update: messageData,
       });
       return { thread, message };
     });
@@ -10097,6 +10127,22 @@ function formatCurrentDateTime(value: string): string {
     minute: '2-digit',
     timeZoneName: 'short',
   }).format(date);
+}
+
+/**
+ * Strips a trailing run of empty block elements/line breaks — the browser
+ * contentEditable behind the compose window routinely leaves a trailing
+ * `<div><br></div>` (or similar) after the cursor's last empty line. Left in
+ * place, `appendOutreachSignature`'s own `<br><br>` join stacks on top of
+ * that empty block's rendered height, which is what produced the reported
+ * "too much space between the message and the signature" — not the join
+ * itself, which is a fixed two-line-break gap already used by every other
+ * outreach send.
+ */
+export function trimTrailingEmptyHtml(html: string): string {
+  return html
+    .replace(/(?:\s|&nbsp;|<br\s*\/?>|<(?:p|div)>(?:\s|&nbsp;|<br\s*\/?>)*<\/(?:p|div)>)+$/gi, '')
+    .trimEnd();
 }
 
 /**

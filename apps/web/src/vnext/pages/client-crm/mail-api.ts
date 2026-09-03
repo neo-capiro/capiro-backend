@@ -61,6 +61,8 @@ export interface SendSingleMailInput {
   bodyHtml: string;
   appendSignature?: boolean;
   threadId?: string;
+  /** Ids from the existing attachments/upload-url + /confirm flow (CapabilityDrawerVNext's own pattern). */
+  attachmentIds?: string[];
 }
 
 export interface SendSingleMailResult {

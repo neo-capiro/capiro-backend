@@ -17,6 +17,7 @@ import {
   Underline,
 } from 'lucide-react';
 import { sanitizeHtml, sanitizeSignatureHtml } from '../../../pages/engagement/outreach/v2/richtext.js';
+import './settings-rich-text-editor.css';
 
 function escapeText(t: string): string {
   return t
@@ -31,6 +32,7 @@ export function SettingsRichTextEditor({
   onChange,
   placeholder,
   variant = 'email',
+  extraToolbarActions,
 }: {
   value: string;
   onChange: (html: string) => void;
@@ -39,6 +41,8 @@ export function SettingsRichTextEditor({
   // signatures) and adds image + H1/H2 toolbar tools; 'email' keeps the strict
   // body allowlist. The server re-sanitizes either way.
   variant?: 'email' | 'signature';
+  /** Appended after the built-in toolbar buttons (e.g. EmailComposeModal's attach button). */
+  extraToolbarActions?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const sanitize = variant === 'signature' ? sanitizeSignatureHtml : sanitizeHtml;
@@ -139,6 +143,12 @@ export function SettingsRichTextEditor({
         <ToolBtn label="Clear formatting" onClick={() => exec('removeFormat')}>
           <Eraser size={15} />
         </ToolBtn>
+        {extraToolbarActions ? (
+          <>
+            <span className="stv-rte-sep" />
+            {extraToolbarActions}
+          </>
+        ) : null}
       </div>
       <div
         ref={ref}

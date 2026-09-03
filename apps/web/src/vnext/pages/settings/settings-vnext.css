@@ -631,60 +631,10 @@
   border-top: 1px solid var(--stv-border);
 }
 
-/* ── Rich text editor (vNext port of .ov2-rte) ──────────────────────────── */
-
-.capiro-vnext-root .settings-vnext .stv-rte {
-  border: 1px solid var(--capiro-color-border-control);
-  border-radius: var(--capiro-radius-control);
-  background: var(--stv-surface);
-  overflow: hidden;
-}
-.capiro-vnext-root .settings-vnext .stv-rte-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px;
-  border-bottom: 1px solid var(--stv-border);
-  background: var(--stv-inset);
-}
-.capiro-vnext-root .settings-vnext .stv-rte-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--stv-ink-2);
-  cursor: pointer;
-}
-.capiro-vnext-root .settings-vnext .stv-rte-btn:hover {
-  background: var(--stv-muted);
-  color: var(--stv-ink);
-}
-.capiro-vnext-root .settings-vnext .stv-rte-sep {
-  width: 1px;
-  height: 18px;
-  margin: 0 4px;
-  background: var(--stv-border);
-}
-.capiro-vnext-root .settings-vnext .stv-rte-area {
-  min-height: 120px;
-  max-height: 360px;
-  overflow: auto;
-  padding: var(--capiro-space-03) var(--capiro-space-04);
-  outline: none;
-  font-size: var(--uui-text-sm);
-  line-height: var(--uui-line-sm);
-}
-.capiro-vnext-root .settings-vnext .stv-rte-area:empty::before {
-  content: attr(data-placeholder);
-  color: var(--stv-ink-4);
-}
-.capiro-vnext-root .settings-vnext .stv-rte-area img {
-  max-width: 100%;
-}
+/* ── Rich text editor ─────────────────────────────────────────────────────
+   Moved to settings-rich-text-editor.css, imported by SettingsRichTextEditor
+   itself — de-scoped from `.settings-vnext` so it renders correctly wherever
+   the component is used (also EmailComposeModal.tsx, outside this page). */
 
 /* ── Logo preview (Branding) ────────────────────────────────────────────── */
 
