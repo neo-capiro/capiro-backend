@@ -557,11 +557,19 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   // preserving the invitation-only posture on this surface.
   const [params] = useSearchParams();
   const ticket = params.get('__clerk_ticket');
+  // theme.css (the legacy `.auth-*` classes below) never loads on os.capiro.ai
+  // (main.tsx) — this shared page renders the vnext-auth.css set there
+  // instead, since otherwise these classes carry no styling at all on that
+  // surface (unconstrained logo, no centering).
+  const pageClass = isVNextSurface ? 'capiro-vnext-root vnext-auth-page' : 'auth-page';
+  const shellClass = isVNextSurface ? 'vnext-auth-shell' : 'auth-shell';
+  const logoClass = isVNextSurface ? 'vnext-auth-logo' : 'auth-logo';
+  const clerkFrameClass = isVNextSurface ? 'vnext-auth-clerk-frame' : 'auth-clerk-frame';
   return (
-    <main className="auth-page">
-      <section className="auth-shell" aria-label={mode === 'sign-in' ? 'Sign in' : 'Sign up'}>
-        <img src="/logo.png" alt="Capiro" className="auth-logo" />
-        <div className="auth-clerk-frame">
+    <main className={pageClass}>
+      <section className={shellClass} aria-label={mode === 'sign-in' ? 'Sign in' : 'Sign up'}>
+        <img src="/logo.png" alt="Capiro" className={logoClass} />
+        <div className={clerkFrameClass}>
           {mode === 'sign-in' ? (
             <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
           ) : ticket ? (

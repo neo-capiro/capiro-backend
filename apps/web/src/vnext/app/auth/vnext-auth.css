@@ -1,0 +1,78 @@
+/* vNext sign-in / sign-up page (os.capiro.ai).
+ *
+ * AuthPage (apps/web/src/App.tsx) is shared by both surfaces and used to
+ * render unconditionally with the legacy `.auth-*` classes (theme.css). But
+ * theme.css is the LEGACY surface's stylesheet and is never loaded on
+ * os.capiro.ai (see main.tsx's `if (!isVNextSurface) import('./theme.css')`
+ * guard, kept there for the no-legacy-ui contract) — so on os.capiro.ai those
+ * classes carried no styling at all: the logo rendered at its raw intrinsic
+ * size and the page had no centering. AuthPage now renders this `vnext-auth-*`
+ * set instead when `isVNextSurface` is true. Same layout as the legacy
+ * version below, ported 1:1; vNext scoping/tokens only.
+ */
+
+.capiro-vnext-root.vnext-auth-page {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 48px 24px;
+  background: var(--capiro-color-bg-canvas, #f0f1f4);
+}
+
+.vnext-auth-shell {
+  display: flex;
+  width: min(100%, 470px);
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.vnext-auth-logo {
+  display: block;
+  width: min(220px, 68vw);
+  height: 64px;
+  object-fit: contain;
+}
+
+.vnext-auth-clerk-frame {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.vnext-auth-clerk-frame .cl-rootBox {
+  width: 100%;
+}
+
+.vnext-auth-clerk-frame .cl-cardBox,
+.vnext-auth-clerk-frame .cl-card {
+  width: 100%;
+  max-width: 470px;
+  margin: 0 auto;
+}
+
+/* Matches the legacy auth page's own mobile breakpoint (theme.css) — this is
+   a standalone centered page with no app shell/rail, so the shell's own
+   779px/1179px breakpoints don't apply here. */
+@media (max-width: 640px) {
+  .capiro-vnext-root.vnext-auth-page {
+    align-items: start;
+    padding: max(22px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
+  }
+
+  .vnext-auth-shell {
+    width: 100%;
+    gap: 16px;
+  }
+
+  .vnext-auth-logo {
+    width: min(190px, 62vw);
+    height: 54px;
+  }
+
+  .vnext-auth-clerk-frame .cl-cardBox,
+  .vnext-auth-clerk-frame .cl-card {
+    max-width: 100%;
+  }
+}

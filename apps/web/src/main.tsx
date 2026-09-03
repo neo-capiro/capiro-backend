@@ -15,6 +15,11 @@ import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
 // Loaded dynamically so the vNext surface never fetches or applies it.
 if (!isVNextSurface) {
   void import('./theme.css');
+} else {
+  // AuthPage (App.tsx) is shared by both surfaces and renders before either
+  // ClerkAuth or BillingGate mounts VNextApp — its vNext styling has to load
+  // here rather than being carried in by any lazy vNext route.
+  void import('./vnext/app/auth/vnext-auth.css');
 }
 
 const queryClient = new QueryClient({
