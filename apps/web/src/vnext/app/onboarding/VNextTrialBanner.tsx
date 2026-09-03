@@ -27,7 +27,12 @@ export function VNextTrialBanner() {
 
   return (
     <div className="vnext-ob-trial">
-      <CapiroHourglassIcon size={13} aria-hidden="true" />
+      {/* CapiroHourglassIcon's `size` is an em multiplier (1 = 1em), not a
+          pixel value — unlike the legacy TrialBanner's lucide-react
+          `Hourglass size={13}` this was ported from. `size={1}` renders at
+          the container's own 13px (set in vnext-onboarding.css), matching
+          the original 13px icon. */}
+      <CapiroHourglassIcon size={1} aria-hidden="true" />
       <span className="vnext-ob-trial-copy">
         Free trial ·{' '}
         {daysRemaining !== null
