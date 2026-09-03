@@ -392,7 +392,14 @@ describe('ClientCrmHistoryProto — email reply pre-fill', () => {
     });
     renderHistory();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Email' }));
+    // Wait for the row itself: 'Email' is also a group FilterChip, which
+    // renders synchronously, so findAllByRole would resolve against the chip
+    // alone before the activity query settled. Then scope to the row action.
+    await screen.findByText('Follow-up scheduling');
+    const emailAction = screen
+      .getAllByRole('button', { name: 'Email' })
+      .find((el) => el.classList.contains('rel-hist-row-action'))!;
+    fireEvent.click(emailAction);
 
     // "To" is the client contact who was actually on the message — not
     // jordan@capiro.ai, which is what the old "reply to the last sender"
@@ -469,7 +476,9 @@ describe('ClientCrmHistoryProto — expand to read the full message', () => {
     renderHistory();
 
     await screen.findByText('Follow-up scheduling');
-    const [firstToggle, secondToggle] = screen.getAllByRole('button', { name: 'Read more' });
+    const toggles = screen.getAllByRole('button', { name: 'Read more' });
+    const firstToggle = toggles[0]!;
+    const secondToggle = toggles[1]!;
 
     fireEvent.click(firstToggle);
     expect(await screen.findByText('Hi Jordan, thanks for the call today.')).toBeInTheDocument();

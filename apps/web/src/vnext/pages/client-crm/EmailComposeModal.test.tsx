@@ -48,6 +48,13 @@ afterEach(() => {
 });
 
 describe('EmailComposeModal', () => {
+  // The body editor is a contentEditable[role=textbox]; the Subject field and
+  // the roster Combobox's search field are also role=textbox, so index-based
+  // lookup shifts depending on whether the picker is open. Match on the
+  // attribute only the body editor has.
+  const bodyEditor = () =>
+    screen.getAllByRole('textbox').find((el) => el.hasAttribute('data-placeholder'))!;
+
   it('shows the pre-filled recipient and disables Send until subject and body are present', async () => {
     renderModal();
     expect(screen.getByText('Patrick Driscoll <patrick@example.com>')).toBeInTheDocument();
@@ -61,7 +68,7 @@ describe('EmailComposeModal', () => {
     renderModal();
 
     fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Following up' } });
-    const editor = screen.getAllByRole('textbox')[1]!; // [0] = Subject input, [1] = rich-text body editor
+    const editor = bodyEditor();
     fireEvent.input(editor, { target: { innerHTML: '<p>Great meeting you.</p>' } });
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled());
@@ -87,17 +94,17 @@ describe('EmailComposeModal', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Search this client's contacts…' }));
+    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
     fireEvent.click(await screen.findByText('Adam Matherly'));
 
     expect(screen.getByText('Adam Matherly <adam@example.com>')).toBeInTheDocument();
     // Already-added contacts drop out of the picker so they can't be added twice.
-    fireEvent.click(screen.getByRole('button', { name: 'Search this client's contacts…' }));
+    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
     expect(screen.queryByText('Adam Matherly')).not.toBeInTheDocument();
     expect(screen.getByText('Sam Rivera')).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Team update' } });
-    const editor = screen.getAllByRole('textbox')[1]!;
+    const editor = bodyEditor();
     fireEvent.input(editor, { target: { innerHTML: '<p>Sharing an update.</p>' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
@@ -122,7 +129,7 @@ describe('EmailComposeModal', () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Search this client's contacts…' }));
+    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
     fireEvent.click(await screen.findByText('Adam Matherly'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Adam Matherly' }));
@@ -141,7 +148,7 @@ describe('EmailComposeModal', () => {
     });
     renderModal();
 
-    const editor = screen.getAllByRole('textbox')[1]!; // [0] = Subject input, [1] = rich-text body editor
+    const editor = bodyEditor();
     fireEvent.input(editor, { target: { innerHTML: 'rough notes here' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rewrite with Meri' }));
 
@@ -180,7 +187,7 @@ describe('EmailComposeModal', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://s3.example.com/upload', expect.objectContaining({ method: 'POST' }));
 
     fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Following up' } });
-    const editor = screen.getAllByRole('textbox')[1]!;
+    const editor = bodyEditor();
     fireEvent.input(editor, { target: { innerHTML: '<p>Please see attached.</p>' } });
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled());
@@ -198,6 +205,11 @@ describe('EmailComposeModal', () => {
 
   it('removes an attached file when its remove button is clicked', async () => {
     postMock.mockImplementation((url: string) => {
+      if (url === '/api/engagement/attachments/upload-url') {
+        return Promise.resolve({
+          data: { url: 'https://s3.example.com/upload', fields: { key: 'tenants/x' }, s3Key: 'tenants/x/file.pdf' },
+        });
+      }
       if (url === '/api/engagement/attachments/confirm') {
         return Promise.resolve({ data: { id: 'att-1', fileName: 'brief.pdf' } });
       }
@@ -233,7 +245,7 @@ describe('EmailComposeModal', () => {
     });
     renderModal();
 
-    const editor = screen.getAllByRole('textbox')[1]!; // [0] = Subject input, [1] = rich-text body editor
+    const editor = bodyEditor();
     fireEvent.input(editor, { target: { innerHTML: 'rough notes here' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rewrite with Meri' }));
 

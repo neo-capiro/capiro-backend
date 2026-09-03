@@ -218,7 +218,12 @@ export function EmailComposeModal({
   return (
     <CapiroModal open={open} title={threadId ? 'Reply' : 'New email'} onClose={onClose} width={640}>
       <div className="capiro-email-compose">
-        <label className="capiro-email-compose__field capiro-email-compose__field--to">
+        {/* A <div>, not a <label>: this row holds recipient chips and the
+            add-recipient button rather than one form control, and a label
+            hands its whole text content to the first button inside it as that
+            button's accessible name — and forwards clicks on the row's plain
+            text to that button. */}
+        <div className="capiro-email-compose__field capiro-email-compose__field--to">
           <span className="capiro-email-compose__label">To</span>
           <span className="capiro-email-compose__to-chips">
             {selectedTo.map((recipient) => (
@@ -258,7 +263,7 @@ export function EmailComposeModal({
               <button type="button" onClick={() => setBccOpen(true)}>Bcc</button>
             ) : null}
           </span>
-        </label>
+        </div>
 
         {addRecipientOpen ? (
           <div className="capiro-email-compose__field capiro-email-compose__add-recipient-row">
