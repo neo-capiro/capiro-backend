@@ -445,9 +445,7 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
                       <span className="hd-paper__td-time">{r.time}</span>
                       <span className="hd-paper__td-member">{r.member}</span>
                       <span className="hd-paper__td">{r.office}</span>
-                      <span className="hd-paper__td" style={{ whiteSpace: 'nowrap' }}>
-                        {r.room}
-                      </span>
+                      <span className="hd-paper__td">{r.room}</span>
                       <span className="hd-paper__td-mono">{r.minutes}</span>
                       <span className="hd-paper__td">{r.staffLead}</span>
                     </div>
@@ -610,6 +608,7 @@ function SectionBlock({
               className="hd-section__regen"
               onClick={() => onRefine('focus')}
               disabled={refining !== null || !editing.focus.trim()}
+              title={!editing.focus.trim() ? 'Write something in Focus first, then refine it with Meri' : undefined}
             >
               <HdIcon name={refining === 'focus' ? 'Loading01' : 'Stars02'} size={14} className={refining === 'focus' ? 'hd-spin' : undefined} />
               {refining === 'focus' ? 'Refining…' : 'Refine with Meri'}
@@ -630,6 +629,7 @@ function SectionBlock({
               className="hd-section__regen"
               onClick={() => onRefine('background')}
               disabled={refining !== null || !editing.background.trim()}
+              title={!editing.background.trim() ? 'Write something in Background first, then refine it with Meri' : undefined}
             >
               <HdIcon name={refining === 'background' ? 'Loading01' : 'Stars02'} size={14} className={refining === 'background' ? 'hd-spin' : undefined} />
               {refining === 'background' ? 'Refining…' : 'Refine with Meri'}
