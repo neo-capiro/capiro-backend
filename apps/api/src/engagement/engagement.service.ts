@@ -6599,6 +6599,9 @@ export class EngagementService {
             ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
             : null,
           downloadUrl: verdict.usable ? await this.createAttachmentDownloadUrl(row.s3Key) : null,
+          previewUrl: verdict.usable
+            ? await this.createAttachmentPreviewUrl(row.s3Key, row.contentType)
+            : null,
           usable: verdict.usable,
           ...(verdict.code ? { blockedReason: verdict.code } : {}),
           ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
@@ -6979,6 +6982,48 @@ export class EngagementService {
         // not affect <img> previews (they ignore Content-Disposition); the
         // download filename falls back to the key's trailing safe file name.
         ResponseContentDisposition: 'attachment',
+      }),
+      { expiresIn: 300 },
+    );
+  }
+
+  /**
+   * Content types the Files tab's preview modal is allowed to render inline
+   * (an <iframe>/<img>, not a top-level navigation). Deliberately narrow and
+   * NOT "whatever the browser can display" — the same stored-XSS concern
+   * documented on createAttachmentDownloadUrl applies here too, so this stays
+   * an explicit allowlist rather than a denylist. SVG is the textbook case
+   * this excludes: browsers execute embedded <script> in an inline-rendered
+   * SVG, so it never gets an inline URL regardless of upload validation.
+   */
+  private static readonly INLINE_PREVIEWABLE_CONTENT_TYPES = new Set([
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+    'image/webp',
+  ]);
+
+  /**
+   * A second, narrower presigned URL for the Files tab's preview modal —
+   * `inline` disposition so a PDF/image actually renders instead of
+   * downloading, but ONLY for the content types above. Every other type
+   * (docx, xlsx, pptx, msg, csv, svg, …) gets null here and the modal falls
+   * back to "no preview — download to view", still through the unchanged,
+   * always-`attachment` createAttachmentDownloadUrl.
+   */
+  private async createAttachmentPreviewUrl(
+    s3Key: string,
+    contentType: string,
+  ): Promise<string | null> {
+    if (!this.bucket) return null;
+    if (!EngagementService.INLINE_PREVIEWABLE_CONTENT_TYPES.has(contentType.toLowerCase())) return null;
+    return getSignedUrl(
+      this.s3,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: s3Key,
+        ResponseContentDisposition: 'inline',
       }),
       { expiresIn: 300 },
     );
