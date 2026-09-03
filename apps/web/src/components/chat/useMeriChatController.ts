@@ -283,7 +283,7 @@ function contextLabelFor(pathname: string): string {
     const name = draft.subject ? `"${draft.subject}"` : 'outreach draft';
     return `Editing: ${name}`;
   }
-  if (pathname.startsWith('/engagement')) return 'Engagement Manager';
+  if (pathname.startsWith('/engagement')) return 'Engagement';
   if (pathname.startsWith('/intelligence')) return 'Intelligence Center';
   if (pathname.startsWith('/workspace')) return 'Workspace';
   if (pathname.startsWith('/directory')) return 'Directory';

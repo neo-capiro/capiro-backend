@@ -59,7 +59,7 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
   },
   {
     id: 'engagement-manager',
-    label: 'Engagement Manager',
+    label: 'Engagement',
     path: '/engagement',
     availability: 'existing',
     children: [

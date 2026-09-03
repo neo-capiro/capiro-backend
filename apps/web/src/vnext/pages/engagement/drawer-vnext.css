@@ -89,3 +89,35 @@
   --font-sans: var(--capiro-type-family-sans);
   --font-mono: var(--eng-font-mono);
 }
+
+/*
+ * Button shape/color consistency (QA pass, 2026-09-02): "Send Meri" (the
+ * EngagementDialog-based modal), "Generate with Meri" (PrepTab.tsx) and other
+ * `.btn-accent`/`.ant-btn-primary` actions in this drawer were not a broken
+ * retheme — `.btn.btn-accent`'s `background: var(--accent)` correctly picks
+ * up this file's navy `--accent` override above. The navy accent itself was
+ * a deliberate choice when this file was written ("Source of truth for the
+ * navy ramp", header comment), but the rest of vNext has since standardized
+ * on the dark "metal face" treatment (CapiroButton--primary,
+ * primitives.css) for every other primary action on the platform, which
+ * reads as flat navy + a smaller, sharper corner radius (`--r-sm`, 6px, vs
+ * this token's 8px) next to it — hence "the old blue color" / "square".
+ * Scoped override using the SAME tokens CapiroButton--primary uses, so this
+ * one button role matches the rest of the platform exactly, without
+ * changing `--accent` itself (still used by non-button navy elements this
+ * file's header describes — tab pills, "approved" states, etc.).
+ */
+.capiro-vnext-root .engagement-vnext :is(.btn, .ant-btn) {
+  border-radius: var(--uui-radius-control, 8px);
+}
+.capiro-vnext-root .engagement-vnext :is(.btn.btn-accent, .ant-btn-primary) {
+  background: transparent;
+  background-image: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f, #0e141c));
+  box-shadow: var(--uui-btn-metal-shadow, none);
+  color: var(--uui-btn-metal-fg, #fff);
+  border-color: transparent;
+}
+.capiro-vnext-root .engagement-vnext :is(.btn.btn-accent, .ant-btn-primary):hover:not(:disabled) {
+  background-image: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26));
+  background-color: transparent;
+}

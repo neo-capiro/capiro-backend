@@ -1730,7 +1730,7 @@ function AddCapabilityModal({
         }}
       >
         <Form.Item name="name" label="Name" rules={[{ required: true, min: 1 }]}>
-          <Input placeholder="e.g. JaiaBot Hydro" />
+          <Input placeholder="Specific capability name" />
         </Form.Item>
         <Form.Item name="type" label="Type" initialValue="product">
           <Select
