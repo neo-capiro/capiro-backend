@@ -160,5 +160,9 @@ export function ageLabel(iso: string | null | undefined, now = Date.now()): stri
 export function clientAttribution(item: FeedItem): string {
   // The feed row carries one owning client; combined/client-count display comes
   // from the server when a packet spans clients (a count, never a truncated list).
-  return item.clientName ?? 'Client';
+  // PR C §16: a null clientName means the row's clientId is not in the CURRENT
+  // tenant directory (archived-then-excluded, renamed-away, or deleted client —
+  // historical feed rows legitimately outlive the client). Label it honestly as
+  // a historical reference; never fabricate a name.
+  return item.clientName ?? 'Historical client';
 }

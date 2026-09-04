@@ -109,6 +109,10 @@ interface IntelBoardCard {
   jurisdiction?: string;
   /** MP-15 / Gate H phase d: the Clerk user id that tracked this bill, or null. */
   trackedBy?: string | null;
+  /** PR C §15: the `_all` tenant roll-up attaches the OWNING client to every
+   *  card (clientId + name). Absent/null on a per-client board. */
+  clientId?: string | null;
+  clientName?: string | null;
 }
 interface IntelBoard {
   columns: Array<{ id: BillStage; label: string; cards: IntelBoardCard[] }>;
@@ -251,6 +255,10 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       latestActionDate: c.latestActionDate ? String(c.latestActionDate).slice(0, 10) : null,
       note: c.note ?? null,
       trackedBy: c.trackedBy ?? null,
+      // PR C §15: client attribution from the `_all` tenant roll-up (absent on
+      // a per-client board — the whole board is that client's).
+      clientId: c.clientId ?? null,
+      clientName: c.clientName ?? null,
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });

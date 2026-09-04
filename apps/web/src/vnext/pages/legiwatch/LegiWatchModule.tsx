@@ -30,7 +30,7 @@ import { FeedTab } from './feed/FeedTab.js';
 import { BillsTab } from './bills/BillsTab.js';
 import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
-import { ColdStart } from './coldstart/ColdStart.js';
+import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
 import { SavedViewsOverlay } from './overlays/SavedViewsOverlay.js';
 import { CreateWatchOverlay } from './overlays/CreateWatchOverlay.js';
 import { SystemStatesOverlay } from './overlays/SystemStatesOverlay.js';
@@ -146,6 +146,10 @@ export function LegiWatchModule() {
   }, [rawTab]);
 
   const scope = searchParams.get('client') ?? '';
+  // PR C §14 — browse mode: stay inside /legiwatch with watchlist-dependent
+  // surfaces limited inline. URL-persisted (survives refresh, back/forward,
+  // deep links) and explicitly cleared the moment a watchlist exists.
+  const browse = searchParams.get('browse') === '1';
   const tracker = useIntelFeature('tracker_v2');
 
   const clients = useQuery<Client[]>({
@@ -168,10 +172,9 @@ export function LegiWatchModule() {
   const { items: moduleItems } = useLwFeedItems(moduleFeed);
   const activeCount = moduleItems.length; // default bucket excludes dismissed/snoozed server-side
 
-  // Cold start (§7.12): a client with no approved targeting replaces the module
-  // body. Detection: a scoped client whose watchlist read returns the server's
-  // "never configured" shape (suggestedIssueAreas present, no topics). The
-  // watchlist read is the canonical relevance source (§6.5).
+  // Cold start detection (§7.12): a scoped client whose watchlist read returns
+  // the server's "never configured" shape (suggestedIssueAreas present, no
+  // topics). The watchlist read is the canonical relevance source (§6.5).
   const watchlist = useQuery<{ topics?: unknown[]; suggestedIssueAreas?: string[] } | null>({
     queryKey: ['lw-vnext', 'watchlist-peek', scope],
     queryFn: async () => {
@@ -190,12 +193,19 @@ export function LegiWatchModule() {
     retry: false,
     staleTime: 60_000,
   });
-  const coldStart =
+  const watchlistMissing =
     Boolean(scope) &&
     tracker.ready &&
     tracker.enabled &&
     watchlist.data != null &&
     (watchlist.data.topics == null || watchlist.data.topics.length === 0);
+  // PR C §13: the watchlist gate no longer replaces the WHOLE module. It only
+  // limits the watchlist-dependent surfaces (feed/digest/analytics — the tabs
+  // whose content is client-relevance-ranked). Hearings, Bills, Committees,
+  // Settings, archive/search stay public for every client; a no-watchlist
+  // client gets inline setup guidance on the dependent tabs instead.
+  const watchlistLimitedTab = tab === 'feed' || tab === 'digest' || tab === 'analytics';
+  const coldStart = watchlistMissing && watchlistLimitedTab && !browse;
 
   const setParam = (key: string, value: string | null) => {
     setSearchParams(
@@ -260,6 +270,13 @@ export function LegiWatchModule() {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+          {/* PR C §16: a scoped client the directory no longer lists is an
+              ARCHIVED/DELETED reference. The scope keeps working (historical
+              data stays reachable) but the selector must not silently pretend
+              the client is active. */}
+          {scope && !selectedClient ? (
+            <LwPill tone="warning">ARCHIVED CLIENT SCOPE</LwPill>
+          ) : null}
           <LwButton size="42" onClick={() => setOverlay('views')}>Saved views</LwButton>
           <LwButton size="42" variant="primary" onClick={() => setOverlay('watch')}>Create watch</LwButton>
           <LwButton size="42" onClick={() => setOverlay('how')}>How it works</LwButton>
@@ -288,7 +305,35 @@ export function LegiWatchModule() {
       </div>
 
       {coldStart ? (
-        <ColdStart clientId={scope} onConfigure={() => navigate('/clients?clientId=' + scope)} />
+        // §13: scoped + no approved watchlist + a watchlist-dependent tab.
+        // Inline guidance — the module (tabs, client selector, public surfaces)
+        // stays mounted; the dependent tab's body is what's replaced.
+        <WatchlistGatePanel
+          clientName={selectedClient?.name ?? ''}
+          onConfigure={() => navigate(`/clients?clientId=${encodeURIComponent(scope)}`)}
+          onExplore={() => {
+            // §14: browse mode stays INSIDE /legiwatch — URL-persisted so it
+            // survives refresh, back/forward, and deep links. Never exits to CRM.
+            setParam('browse', '1');
+          }}
+        />
+      ) : watchlistMissing && browse && watchlistLimitedTab ? (
+        // §14 browse mode on a dependent tab: the tab renders its real data path
+        // (tenant-wide or all-clients) with an honest, dismissible notice.
+        <>
+          <div className="lw-card" style={{ padding: '10px 18px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }} aria-label="Browse mode notice">
+            <LwPill tone="warning" size="22">BROWSE MODE</LwPill>
+            <span style={{ fontSize: 13, color: 'var(--lw-body)' }}>
+              Public LegiWatch data remains available. Client-specific alerts and relevance require a monitoring model.
+            </span>
+            <LwButton size="36" onClick={() => navigate(`/clients?clientId=${encodeURIComponent(scope)}`)}>
+              Set up the watchlist
+            </LwButton>
+          </div>
+          {tab === 'feed' ? <FeedTab scope={scope} clients={visibleClients} />
+          : tab === 'digest' ? <DigestTab scope={scope} />
+          : <AnalyticsTab scope={scope} />}
+        </>
       ) : tab === 'hearings' ? (
         <HearingsTab scope={scope} />
       ) : tab === 'feed' ? (

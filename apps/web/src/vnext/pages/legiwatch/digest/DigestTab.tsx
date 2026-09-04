@@ -78,7 +78,7 @@ export function DigestTab({ scope }: { scope: string }) {
                               <span style={{ fontSize: 14, fontWeight: 600 }}>{i + 1}. {it.title}</span>
                             </div>
                             <div className="lw-mono" style={{ marginTop: 3, fontSize: 11, color: 'var(--lw-meta)' }}>
-                              {b.band} · {it.evidence?.bill?.displayNum ?? it.sourceType.toUpperCase()} · {ageLabel(it.createdAt)} · {it.clientName ?? 'Client'}
+                              {b.band} · {it.evidence?.bill?.displayNum ?? it.sourceType.toUpperCase()} · {ageLabel(it.createdAt)} · {it.clientName ?? 'Historical client'}
                             </div>
                           </li>
                         );
