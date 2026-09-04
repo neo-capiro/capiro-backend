@@ -1,0 +1,1252 @@
+{
+  "page": 37,
+  "model_identity": {
+    "det_model_dir": "/home/capiro/.paddleocr/whl/det/ch/ch_PP-OCRv4_det_infer",
+    "det_pdiparams_sha256": "49ee815e30cff43cb1057d33bf0d94193e4d4f1ae28451cad15b40be830df915",
+    "rec_model_dir": "/home/capiro/.paddleocr/whl/rec/ch/ch_PP-OCRv4_rec_infer",
+    "rec_pdiparams_sha256": "a6dbfa63e7ee161688523c954e9e293f77dc24044db81e836ff9c7f103fd191a",
+    "paddle_version": "2.6.2",
+    "paddleocr_version": "2.10.0",
+    "dpi": 200,
+    "engine": "paddleocr.PaddleOCR (plain det+rec, no PPStructure)"
+  },
+  "construct_seconds": 39.09355954199418,
+  "infer_seconds": 496.87133250199986,
+  "tokens": [
+    {
+      "text": "UNCLASSIFIED",
+      "confidence": 0.9979225993156433,
+      "bbox": [
+        1027.0,
+        97.0,
+        1187.0,
+        122.0
+      ],
+      "center_x": 1107.0,
+      "center_y": 109.5,
+      "height": 25.0
+    },
+    {
+      "text": " Department of the Army",
+      "confidence": 0.9791544079780579,
+      "bbox": [
+        956.0,
+        150.0,
+        1254.0,
+        185.0
+      ],
+      "center_x": 1105.0,
+      "center_y": 167.5,
+      "height": 35.0
+    },
+    {
+      "text": "FY 2024 President's Budget",
+      "confidence": 0.9975862503051758,
+      "bbox": [
+        933.0,
+        175.0,
+        1279.0,
+        213.0
+      ],
+      "center_x": 1106.0,
+      "center_y": 194.0,
+      "height": 38.0
+    },
+    {
+      "text": "Exhibit R-1 FY 2024 President's Budget",
+      "confidence": 0.9941503405570984,
+      "bbox": [
+        855.0,
+        203.0,
+        1355.0,
+        243.0
+      ],
+      "center_x": 1105.0,
+      "center_y": 223.0,
+      "height": 40.0
+    },
+    {
+      "text": "Total Obligational Authority",
+      "confidence": 0.9976016283035278,
+      "bbox": [
+        923.0,
+        233.0,
+        1297.0,
+        273.0
+      ],
+      "center_x": 1110.0,
+      "center_y": 253.0,
+      "height": 40.0
+    },
+    {
+      "text": "(Dollars in Thousands)",
+      "confidence": 0.9890363216400146,
+      "bbox": [
+        960.0,
+        268.0,
+        1247.0,
+        303.0
+      ],
+      "center_x": 1103.5,
+      "center_y": 285.5,
+      "height": 35.0
+    },
+    {
+      "text": "Mar 2023",
+      "confidence": 0.9540293216705322,
+      "bbox": [
+        2051.0,
+        273.0,
+        2117.0,
+        298.0
+      ],
+      "center_x": 2084.0,
+      "center_y": 285.5,
+      "height": 25.0
+    },
+    {
+      "text": "2040A",
+      "confidence": 0.9959651231765747,
+      "bbox": [
+        291.0,
+        333.0,
+        367.0,
+        349.0
+      ],
+      "center_x": 329.0,
+      "center_y": 341.0,
+      "height": 16.0
+    },
+    {
+      "text": "Program",
+      "confidence": 0.9910575151443481,
+      "bbox": [
+        212.0,
+        445.0,
+        317.0,
+        484.0
+      ],
+      "center_x": 264.5,
+      "center_y": 464.5,
+      "height": 39.0
+    },
+    {
+      "text": "Line",
+      "confidence": 0.9998440742492676,
+      "bbox": [
+        108.0,
+        476.0,
+        165.0,
+        504.0
+      ],
+      "center_x": 136.5,
+      "center_y": 490.0,
+      "height": 28.0
+    },
+    {
+      "text": "Element",
+      "confidence": 0.9986147880554199,
+      "bbox": [
+        213.0,
+        473.0,
+        317.0,
+        511.0
+      ],
+      "center_x": 265.0,
+      "center_y": 492.0,
+      "height": 38.0
+    },
+    {
+      "text": "se",
+      "confidence": 0.7656304836273193,
+      "bbox": [
+        1242.0,
+        487.0,
+        1276.0,
+        520.0
+      ],
+      "center_x": 1259.0,
+      "center_y": 503.5,
+      "height": 33.0
+    },
+    {
+      "text": "FY 2024",
+      "confidence": 0.9621497392654419,
+      "bbox": [
+        1327.0,
+        487.0,
+        1421.0,
+        513.0
+      ],
+      "center_x": 1374.0,
+      "center_y": 500.0,
+      "height": 26.0
+    },
+    {
+      "text": "N",
+      "confidence": 0.67399001121521,
+      "bbox": [
+        117.0,
+        508.0,
+        154.0,
+        538.0
+      ],
+      "center_x": 135.5,
+      "center_y": 523.0,
+      "height": 30.0
+    },
+    {
+      "text": "Number",
+      "confidence": 0.9994639754295349,
+      "bbox": [
+        217.0,
+        501.0,
+        312.0,
+        541.0
+      ],
+      "center_x": 264.5,
+      "center_y": 521.0,
+      "height": 40.0
+    },
+    {
+      "text": "Item",
+      "confidence": 0.9982563257217407,
+      "bbox": [
+        726.0,
+        513.0,
+        784.0,
+        540.0
+      ],
+      "center_x": 755.0,
+      "center_y": 526.5,
+      "height": 27.0
+    },
+    {
+      "text": "Act",
+      "confidence": 0.993652880191803,
+      "bbox": [
+        1176.0,
+        517.0,
+        1224.0,
+        545.0
+      ],
+      "center_x": 1200.0,
+      "center_y": 531.0,
+      "height": 28.0
+    },
+    {
+      "text": "=",
+      "confidence": 0.5067423582077026,
+      "bbox": [
+        1247.0,
+        522.0,
+        1270.0,
+        545.0
+      ],
+      "center_x": 1258.5,
+      "center_y": 533.5,
+      "height": 23.0
+    },
+    {
+      "text": "216",
+      "confidence": 0.9998030662536621,
+      "bbox": [
+        94.0,
+        545.0,
+        142.0,
+        573.0
+      ],
+      "center_x": 118.0,
+      "center_y": 559.0,
+      "height": 28.0
+    },
+    {
+      "text": "0303028A",
+      "confidence": 0.999721109867096,
+      "bbox": [
+        183.0,
+        543.0,
+        293.0,
+        575.0
+      ],
+      "center_x": 238.0,
+      "center_y": 559.0,
+      "height": 32.0
+    },
+    {
+      "text": "Security and Intelligence Activities",
+      "confidence": 0.9956570863723755,
+      "bbox": [
+        351.0,
+        545.0,
+        825.0,
+        580.0
+      ],
+      "center_x": 588.0,
+      "center_y": 562.5,
+      "height": 35.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9994332790374756,
+      "bbox": [
+        1162.0,
+        552.0,
+        1196.0,
+        582.0
+      ],
+      "center_x": 1179.0,
+      "center_y": 567.0,
+      "height": 30.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9907724857330322,
+      "bbox": [
+        1242.0,
+        554.0,
+        1263.0,
+        580.0
+      ],
+      "center_x": 1252.5,
+      "center_y": 567.0,
+      "height": 26.0
+    },
+    {
+      "text": "301",
+      "confidence": 0.9997941851615906,
+      "bbox": [
+        1423.0,
+        557.0,
+        1469.0,
+        582.0
+      ],
+      "center_x": 1446.0,
+      "center_y": 569.5,
+      "height": 25.0
+    },
+    {
+      "text": "217",
+      "confidence": 0.9998552799224854,
+      "bbox": [
+        94.0,
+        582.0,
+        140.0,
+        610.0
+      ],
+      "center_x": 117.0,
+      "center_y": 596.0,
+      "height": 28.0
+    },
+    {
+      "text": "0303140A",
+      "confidence": 0.9996175169944763,
+      "bbox": [
+        180.0,
+        579.0,
+        294.0,
+        617.0
+      ],
+      "center_x": 237.0,
+      "center_y": 598.0,
+      "height": 38.0
+    },
+    {
+      "text": "Information Systems Security Program",
+      "confidence": 0.9995179772377014,
+      "bbox": [
+        351.0,
+        582.0,
+        825.0,
+        619.0
+      ],
+      "center_x": 588.0,
+      "center_y": 600.5,
+      "height": 37.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.999073326587677,
+      "bbox": [
+        1162.0,
+        591.0,
+        1196.0,
+        621.0
+      ],
+      "center_x": 1179.0,
+      "center_y": 606.0,
+      "height": 30.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9890613555908203,
+      "bbox": [
+        1242.0,
+        594.0,
+        1263.0,
+        619.0
+      ],
+      "center_x": 1252.5,
+      "center_y": 606.5,
+      "height": 25.0
+    },
+    {
+      "text": "15,323",
+      "confidence": 0.9985544085502625,
+      "bbox": [
+        1382.0,
+        591.0,
+        1471.0,
+        624.0
+      ],
+      "center_x": 1426.5,
+      "center_y": 607.5,
+      "height": 33.0
+    },
+    {
+      "text": "218",
+      "confidence": 0.9998887181282043,
+      "bbox": [
+        94.0,
+        621.0,
+        140.0,
+        649.0
+      ],
+      "center_x": 117.0,
+      "center_y": 635.0,
+      "height": 28.0
+    },
+    {
+      "text": "0303141A",
+      "confidence": 0.999477207660675,
+      "bbox": [
+        186.0,
+        624.0,
+        293.0,
+        649.0
+      ],
+      "center_x": 239.5,
+      "center_y": 636.5,
+      "height": 25.0
+    },
+    {
+      "text": "Global Combat Support System",
+      "confidence": 0.9898926615715027,
+      "bbox": [
+        348.0,
+        621.0,
+        722.0,
+        661.0
+      ],
+      "center_x": 535.0,
+      "center_y": 641.0,
+      "height": 40.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9989430904388428,
+      "bbox": [
+        1160.0,
+        631.0,
+        1196.0,
+        658.0
+      ],
+      "center_x": 1178.0,
+      "center_y": 644.5,
+      "height": 27.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9897129535675049,
+      "bbox": [
+        1242.0,
+        633.0,
+        1263.0,
+        658.0
+      ],
+      "center_x": 1252.5,
+      "center_y": 645.5,
+      "height": 25.0
+    },
+    {
+      "text": "13,082",
+      "confidence": 0.9965856671333313,
+      "bbox": [
+        1384.0,
+        633.0,
+        1467.0,
+        658.0
+      ],
+      "center_x": 1425.5,
+      "center_y": 645.5,
+      "height": 25.0
+    },
+    {
+      "text": "219",
+      "confidence": 0.9998195171356201,
+      "bbox": [
+        94.0,
+        663.0,
+        140.0,
+        688.0
+      ],
+      "center_x": 117.0,
+      "center_y": 675.5,
+      "height": 25.0
+    },
+    {
+      "text": "0303142A",
+      "confidence": 0.9989720582962036,
+      "bbox": [
+        186.0,
+        663.0,
+        291.0,
+        688.0
+      ],
+      "center_x": 238.5,
+      "center_y": 675.5,
+      "height": 25.0
+    },
+    {
+      "text": "SATCOM Ground Environment (SPACE)",
+      "confidence": 0.9859599471092224,
+      "bbox": [
+        351.0,
+        661.0,
+        782.0,
+        695.0
+      ],
+      "center_x": 566.5,
+      "center_y": 678.0,
+      "height": 34.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9992623925209045,
+      "bbox": [
+        1162.0,
+        668.0,
+        1196.0,
+        698.0
+      ],
+      "center_x": 1179.0,
+      "center_y": 683.0,
+      "height": 30.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9932541251182556,
+      "bbox": [
+        1242.0,
+        672.0,
+        1263.0,
+        695.0
+      ],
+      "center_x": 1252.5,
+      "center_y": 683.5,
+      "height": 23.0
+    },
+    {
+      "text": "26,838",
+      "confidence": 0.9969363808631897,
+      "bbox": [
+        1382.0,
+        672.0,
+        1469.0,
+        698.0
+      ],
+      "center_x": 1425.5,
+      "center_y": 685.0,
+      "height": 26.0
+    },
+    {
+      "text": "222",
+      "confidence": 0.9997356534004211,
+      "bbox": [
+        92.0,
+        700.0,
+        138.0,
+        728.0
+      ],
+      "center_x": 115.0,
+      "center_y": 714.0,
+      "height": 28.0
+    },
+    {
+      "text": "0305179A",
+      "confidence": 0.9997493624687195,
+      "bbox": [
+        183.0,
+        702.0,
+        291.0,
+        728.0
+      ],
+      "center_x": 237.0,
+      "center_y": 715.0,
+      "height": 26.0
+    },
+    {
+      "text": "Integrated Broadcast Service (IBS)",
+      "confidence": 0.990552544593811,
+      "bbox": [
+        351.0,
+        700.0,
+        795.0,
+        735.0
+      ],
+      "center_x": 573.0,
+      "center_y": 717.5,
+      "height": 35.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9990952610969543,
+      "bbox": [
+        1160.0,
+        707.0,
+        1194.0,
+        735.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 721.0,
+      "height": 28.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.5139645934104919,
+      "bbox": [
+        1234.0,
+        704.0,
+        1265.0,
+        737.0
+      ],
+      "center_x": 1249.5,
+      "center_y": 720.5,
+      "height": 33.0
+    },
+    {
+      "text": "9,456",
+      "confidence": 0.9899187088012695,
+      "bbox": [
+        1396.0,
+        711.0,
+        1469.0,
+        737.0
+      ],
+      "center_x": 1432.5,
+      "center_y": 724.0,
+      "height": 26.0
+    },
+    {
+      "text": "223",
+      "confidence": 0.999812662601471,
+      "bbox": [
+        92.0,
+        739.0,
+        138.0,
+        767.0
+      ],
+      "center_x": 115.0,
+      "center_y": 753.0,
+      "height": 28.0
+    },
+    {
+      "text": "0305204A",
+      "confidence": 0.999524712562561,
+      "bbox": [
+        183.0,
+        741.0,
+        291.0,
+        767.0
+      ],
+      "center_x": 237.0,
+      "center_y": 754.0,
+      "height": 26.0
+    },
+    {
+      "text": "Tactical Unmanned Aerial Vehicles",
+      "confidence": 0.9723554849624634,
+      "bbox": [
+        348.0,
+        737.0,
+        786.0,
+        774.0
+      ],
+      "center_x": 567.0,
+      "center_y": 755.5,
+      "height": 37.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9993479251861572,
+      "bbox": [
+        1160.0,
+        746.0,
+        1194.0,
+        774.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 760.0,
+      "height": 28.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9820119142532349,
+      "bbox": [
+        1240.0,
+        748.0,
+        1260.0,
+        771.0
+      ],
+      "center_x": 1250.0,
+      "center_y": 759.5,
+      "height": 23.0
+    },
+    {
+      "text": "224",
+      "confidence": 0.9997428059577942,
+      "bbox": [
+        92.0,
+        776.0,
+        138.0,
+        804.0
+      ],
+      "center_x": 115.0,
+      "center_y": 790.0,
+      "height": 28.0
+    },
+    {
+      "text": "0305206A",
+      "confidence": 0.999755859375,
+      "bbox": [
+        179.0,
+        776.0,
+        293.0,
+        808.0
+      ],
+      "center_x": 236.0,
+      "center_y": 792.0,
+      "height": 32.0
+    },
+    {
+      "text": " Airborne Reconnaissance Systems",
+      "confidence": 0.9821763038635254,
+      "bbox": [
+        346.0,
+        776.0,
+        759.0,
+        811.0
+      ],
+      "center_x": 552.5,
+      "center_y": 793.5,
+      "height": 35.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9993207454681396,
+      "bbox": [
+        1160.0,
+        785.0,
+        1194.0,
+        813.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 799.0,
+      "height": 28.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9864364266395569,
+      "bbox": [
+        1240.0,
+        788.0,
+        1258.0,
+        811.0
+      ],
+      "center_x": 1249.0,
+      "center_y": 799.5,
+      "height": 23.0
+    },
+    {
+      "text": "225",
+      "confidence": 0.9996652007102966,
+      "bbox": [
+        92.0,
+        815.0,
+        140.0,
+        848.0
+      ],
+      "center_x": 116.0,
+      "center_y": 831.5,
+      "height": 33.0
+    },
+    {
+      "text": "0305219A",
+      "confidence": 0.9997256994247437,
+      "bbox": [
+        179.0,
+        815.0,
+        293.0,
+        848.0
+      ],
+      "center_x": 236.0,
+      "center_y": 831.5,
+      "height": 33.0
+    },
+    {
+      "text": "MQ-1C Gray Eagle UAS",
+      "confidence": 0.9833129048347473,
+      "bbox": [
+        344.0,
+        815.0,
+        616.0,
+        845.0
+      ],
+      "center_x": 480.0,
+      "center_y": 830.0,
+      "height": 30.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9990305304527283,
+      "bbox": [
+        1160.0,
+        822.0,
+        1194.0,
+        850.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 836.0,
+      "height": 28.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9879450798034668,
+      "bbox": [
+        1240.0,
+        827.0,
+        1258.0,
+        850.0
+      ],
+      "center_x": 1249.0,
+      "center_y": 838.5,
+      "height": 23.0
+    },
+    {
+      "text": "6,629",
+      "confidence": 0.9944450259208679,
+      "bbox": [
+        1396.0,
+        827.0,
+        1467.0,
+        852.0
+      ],
+      "center_x": 1431.5,
+      "center_y": 839.5,
+      "height": 25.0
+    },
+    {
+      "text": "226",
+      "confidence": 0.9996063113212585,
+      "bbox": [
+        89.0,
+        855.0,
+        138.0,
+        882.0
+      ],
+      "center_x": 113.5,
+      "center_y": 868.5,
+      "height": 27.0
+    },
+    {
+      "text": "0307665A",
+      "confidence": 0.9997321367263794,
+      "bbox": [
+        181.0,
+        857.0,
+        291.0,
+        882.0
+      ],
+      "center_x": 236.0,
+      "center_y": 869.5,
+      "height": 25.0
+    },
+    {
+      "text": "Biometrics Enabled Intelligence",
+      "confidence": 0.9957877993583679,
+      "bbox": [
+        346.0,
+        852.0,
+        759.0,
+        889.0
+      ],
+      "center_x": 552.5,
+      "center_y": 870.5,
+      "height": 37.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9992856979370117,
+      "bbox": [
+        1160.0,
+        862.0,
+        1194.0,
+        889.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 875.5,
+      "height": 27.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9896119236946106,
+      "bbox": [
+        1240.0,
+        866.0,
+        1258.0,
+        887.0
+      ],
+      "center_x": 1249.0,
+      "center_y": 876.5,
+      "height": 21.0
+    },
+    {
+      "text": "227",
+      "confidence": 0.9992514252662659,
+      "bbox": [
+        89.0,
+        894.0,
+        135.0,
+        919.0
+      ],
+      "center_x": 112.0,
+      "center_y": 906.5,
+      "height": 25.0
+    },
+    {
+      "text": "0708045A",
+      "confidence": 0.999645471572876,
+      "bbox": [
+        176.0,
+        889.0,
+        292.0,
+        927.0
+      ],
+      "center_x": 234.0,
+      "center_y": 908.0,
+      "height": 38.0
+    },
+    {
+      "text": "End Item Industrial Preparedness Activities",
+      "confidence": 0.9897912740707397,
+      "bbox": [
+        346.0,
+        891.0,
+        912.0,
+        929.0
+      ],
+      "center_x": 629.0,
+      "center_y": 910.0,
+      "height": 38.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9992731809616089,
+      "bbox": [
+        1160.0,
+        901.0,
+        1194.0,
+        929.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 915.0,
+      "height": 28.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9801440834999084,
+      "bbox": [
+        1238.0,
+        903.0,
+        1258.0,
+        926.0
+      ],
+      "center_x": 1248.0,
+      "center_y": 914.5,
+      "height": 23.0
+    },
+    {
+      "text": "75,317",
+      "confidence": 0.99495929479599,
+      "bbox": [
+        1382.0,
+        903.0,
+        1464.0,
+        929.0
+      ],
+      "center_x": 1423.0,
+      "center_y": 916.0,
+      "height": 26.0
+    },
+    {
+      "text": "999",
+      "confidence": 0.9991579651832581,
+      "bbox": [
+        89.0,
+        933.0,
+        135.0,
+        961.0
+      ],
+      "center_x": 112.0,
+      "center_y": 947.0,
+      "height": 28.0
+    },
+    {
+      "text": "999999999",
+      "confidence": 0.9970547556877136,
+      "bbox": [
+        181.0,
+        933.0,
+        300.0,
+        959.0
+      ],
+      "center_x": 240.5,
+      "center_y": 946.0,
+      "height": 26.0
+    },
+    {
+      "text": "Classified Programs",
+      "confidence": 0.9960594177246094,
+      "bbox": [
+        346.0,
+        931.0,
+        603.0,
+        966.0
+      ],
+      "center_x": 474.5,
+      "center_y": 948.5,
+      "height": 35.0
+    },
+    {
+      "text": "07",
+      "confidence": 0.9991768598556519,
+      "bbox": [
+        1160.0,
+        938.0,
+        1194.0,
+        965.0
+      ],
+      "center_x": 1177.0,
+      "center_y": 951.5,
+      "height": 27.0
+    },
+    {
+      "text": "U",
+      "confidence": 0.9796039462089539,
+      "bbox": [
+        1238.0,
+        942.0,
+        1258.0,
+        963.0
+      ],
+      "center_x": 1248.0,
+      "center_y": 952.5,
+      "height": 21.0
+    },
+    {
+      "text": "8,786",
+      "confidence": 0.9876576662063599,
+      "bbox": [
+        1396.0,
+        942.0,
+        1469.0,
+        968.0
+      ],
+      "center_x": 1432.5,
+      "center_y": 955.0,
+      "height": 26.0
+    },
+    {
+      "text": "Operational Systems Development",
+      "confidence": 0.9931298494338989,
+      "bbox": [
+        174.0,
+        970.0,
+        587.0,
+        1005.0
+      ],
+      "center_x": 380.5,
+      "center_y": 987.5,
+      "height": 35.0
+    },
+    {
+      "text": "1,105,748",
+      "confidence": 0.9814717173576355,
+      "bbox": [
+        1343.0,
+        982.0,
+        1464.0,
+        1007.0
+      ],
+      "center_x": 1403.5,
+      "center_y": 994.5,
+      "height": 25.0
+    },
+    {
+      "text": "228",
+      "confidence": 0.999822199344635,
+      "bbox": [
+        92.0,
+        1009.0,
+        133.0,
+        1037.0
+      ],
+      "center_x": 112.5,
+      "center_y": 1023.0,
+      "height": 28.0
+    },
+    {
+      "text": "0608041A",
+      "confidence": 0.9996329545974731,
+      "bbox": [
+        179.0,
+        1012.0,
+        289.0,
+        1037.0
+      ],
+      "center_x": 234.0,
+      "center_y": 1024.5,
+      "height": 25.0
+    },
+    {
+      "text": "Defensive CYBER - Software Prototype Development",
+      "confidence": 0.9838593602180481,
+      "bbox": [
+        346.0,
+        1007.0,
+        974.0,
+        1049.0
+      ],
+      "center_x": 660.0,
+      "center_y": 1028.0,
+      "height": 42.0
+    },
+    {
+      "text": "08",
+      "confidence": 0.9992085695266724,
+      "bbox": [
+        1160.0,
+        1021.0,
+        1187.0,
+        1042.0
+      ],
+      "center_x": 1173.5,
+      "center_y": 1031.5,
+      "height": 21.0
+    },
+    {
+      "text": "83,570",
+      "confidence": 0.9991886019706726,
+      "bbox": [
+        1374.0,
+        1013.0,
+        1470.0,
+        1052.0
+      ],
+      "center_x": 1422.0,
+      "center_y": 1032.5,
+      "height": 39.0
+    },
+    {
+      "text": "Software And Digital Technology Pilot Programs",
+      "confidence": 0.9820953011512756,
+      "bbox": [
+        174.0,
+        1046.0,
+        777.0,
+        1086.0
+      ],
+      "center_x": 475.5,
+      "center_y": 1066.0,
+      "height": 40.0
+    },
+    {
+      "text": "83,570",
+      "confidence": 0.9973523616790771,
+      "bbox": [
+        1377.0,
+        1056.0,
+        1467.0,
+        1088.0
+      ],
+      "center_x": 1422.0,
+      "center_y": 1072.0,
+      "height": 32.0
+    },
+    {
+      "text": "Total Research, Development, Test and Evaluation, Army",
+      "confidence": 0.9905258417129517,
+      "bbox": [
+        85.0,
+        1118.0,
+        793.0,
+        1155.0
+      ],
+      "center_x": 439.0,
+      "center_y": 1136.5,
+      "height": 37.0
+    },
+    {
+      "text": "15,775,381",
+      "confidence": 0.9790555834770203,
+      "bbox": [
+        1327.0,
+        1129.0,
+        1460.0,
+        1155.0
+      ],
+      "center_x": 1393.5,
+      "center_y": 1142.0,
+      "height": 26.0
+    },
+    {
+      "text": "Page 27",
+      "confidence": 0.9628199338912964,
+      "bbox": [
+        2010.0,
+        1541.0,
+        2104.0,
+        1566.0
+      ],
+      "center_x": 2057.0,
+      "center_y": 1553.5,
+      "height": 25.0
+    },
+    {
+      "text": "UNCLASSIFIED",
+      "confidence": 0.9982785582542419,
+      "bbox": [
+        1011.0,
+        1578.0,
+        1173.0,
+        1603.0
+      ],
+      "center_x": 1092.0,
+      "center_y": 1590.5,
+      "height": 25.0
+    },
+    {
+      "text": "Volume 1a -xxxii",
+      "confidence": 0.9814519882202148,
+      "bbox": [
+        1916.0,
+        1594.0,
+        2154.0,
+        1624.0
+      ],
+      "center_x": 2035.0,
+      "center_y": 1609.0,
+      "height": 30.0
+    }
+  ]
+}

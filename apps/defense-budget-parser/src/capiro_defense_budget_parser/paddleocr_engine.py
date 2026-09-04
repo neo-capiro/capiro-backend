@@ -1,7 +1,27 @@
-"""capiro_defense_budget_parser.paddleocr_engine — PaddleOCR PP-StructureV3 targeted OCR engine.
+"""capiro_defense_budget_parser.paddleocr_engine — plain PaddleOCR (detection +
+recognition) targeted OCR engine, with deterministic geometric row/column
+reconstruction.
 
-Parse only pages that require OCR/layout recovery. Uses PaddleOCR PP-StructureV3
-in CPU mode with expensive features disabled by default.
+Parse only pages that require OCR/layout recovery. Uses PaddleOCR's ordinary
+text-detection-and-recognition pipeline in CPU mode -- NOT PP-Structure.
+
+Phase 10B-23B: PP-Structure's bundled SLANet table-structure model was proven,
+across both linux/arm64 and linux/amd64 and across paddlepaddle 2.6.2-3.3.1,
+to misassign real dollar values to the wrong Program Element row whenever it
+processes genuine multi-row table content (row 5's cell showed PE 0601121A's
+value under PE 0601601A's row -- a deterministic, architecture-independent
+model defect, not a crash). Bumping paddlepaddle to 3.1.x/3.2.x separately
+fixes an unrelated construction-time crash in that same model, but does not
+fix the misalignment. Neither combination is safe to ship. This engine
+therefore never constructs PP-Structure, SLANet, or the layout/formula
+sub-models at all: it runs plain detection+recognition against a
+`pypdfium2`-rendered page image, then reconstructs rows and columns
+deterministically from token bounding boxes -- geometry, not a heuristic
+correction of uncertain OCR text. Token-level text accuracy was independently
+verified exact against five known Program Element dollar values before this
+reconstruction step was trusted. See the Phase 10B-23B PR description for the
+full bake-off (accuracy matrix, model checksums, timings, both
+architectures).
 
 This engine must never:
 - connect to Postgres
@@ -46,7 +66,7 @@ from .pdf_profile import (
 # ------------------------------------------------------------------ #
 
 ENGINE_NAME = 'paddleocr'
-ENGINE_VERSION = 'paddleocr-pp-structure-v3-cpu'
+ENGINE_VERSION = 'paddleocr-det-rec-row-reconstruction-v1'
 
 # ------------------------------------------------------------------ #
 # Default configuration
@@ -55,17 +75,27 @@ ENGINE_VERSION = 'paddleocr-pp-structure-v3-cpu'
 DEFAULT_PADDLEOCR_CONFIG: dict[str, Any] = {
     'dpi': 200,
     'cpuMode': True,
-    'formulaRecognition': False,
-    'chartRecognition': False,
-    'documentUnwarping': False,
-    'orientationClassification': False,
-    'textLineOrientation': False,
     'maxPagesPerJob': 50,
     'perPageTimeoutSeconds': 120,
-    'modelCachePath': None,
     'parallelProcessing': False,
     'use_gpu': False,
-    'enable_mkldnn': True,
+    # Phase 10B-23A/B: MKLDNN is unavailable in the tested ARM64 paddlepaddine
+    # build -- `config.set_mkldnn_cache_capacity` does not exist on that
+    # build's `AnalysisConfig`, raising an uncaught AttributeError during
+    # predictor construction (confirmed empirically, not architecture-neutral
+    # theorizing). MKLDNN is an x86-oriented acceleration backend with no
+    # ARM64 upside even when present, so the safe default is off everywhere
+    # rather than branching by architecture.
+    'enable_mkldnn': False,
+    # Row/column reconstruction thresholds (Phase 10B-23B). A new row starts
+    # when a token's vertical center is more than `rowGapRatio` times the
+    # running median token height away from the previous token's center.
+    # Column bands are formed the same way along the horizontal axis, but
+    # only over tokens that belong to a row with 2+ tokens -- single-token
+    # rows are prose (titles, footnotes), not table data, and must not
+    # contribute to column-band geometry.
+    'rowGapRatio': 0.6,
+    'columnGapRatio': 1.5,
 }
 
 
@@ -104,6 +134,14 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     if config.get('use_gpu', False):
         warnings.append('GPU mode is not supported in Phase 3; forcing CPU')
 
+    row_gap_ratio = config.get('rowGapRatio', 0.6)
+    if not isinstance(row_gap_ratio, (int, float)) or row_gap_ratio <= 0:
+        warnings.append('rowGapRatio must be a positive number')
+
+    column_gap_ratio = config.get('columnGapRatio', 1.5)
+    if not isinstance(column_gap_ratio, (int, float)) or column_gap_ratio <= 0:
+        warnings.append('columnGapRatio must be a positive number')
+
     return warnings
 
 
@@ -119,344 +157,305 @@ def render_page_to_image(
 ) -> Any:
     """Render a single PDF page to a PIL Image at the specified DPI.
 
-    Uses pdf2image (which wraps poppler) or PyMuPDF as available.
-    Returns a PIL Image or equivalent.
+    Uses `pypdfium2` (Google's PDFium, Apache-2.0/BSD-3-Clause) exclusively.
+    PyMuPDF was deliberately not used here: it is AGPL-3.0/commercial
+    dual-licensed, an unfavorable fit alongside PaddleOCR/PaddlePaddle's own
+    Apache-2.0 posture. `pypdfium2` needs no external system binary (unlike
+    `pdf2image`, which shells out to poppler-utils).
+    """
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(str(pdf_path))
+    try:
+        if page_number < 1 or page_number > len(pdf):
+            raise ValueError(f'page {page_number} out of range (1-{len(pdf)})')
+        page = pdf[page_number - 1]
+        try:
+            bitmap = page.render(scale=dpi / 72.0)
+            pil_image = bitmap.to_pil().convert('RGB')
+        finally:
+            page.close()
+        return pil_image
+    finally:
+        pdf.close()
+
+
+# ------------------------------------------------------------------ #
+# PaddleOCR (plain detection + recognition) invocation
+# ------------------------------------------------------------------ #
+
+
+def _create_paddle_ocr(config: dict[str, Any]) -> Any:
+    """Create a plain `PaddleOCR` (detection + recognition) instance.
+
+    Deliberately never constructs `PPStructure`/`PPStructureV3` -- see the
+    module docstring for why. Lazily imported so this module can be loaded
+    without PaddleOCR installed (e.g. for config/validation tests).
     """
     try:
-        import fitz  # type: ignore[import-not-found]  # PyMuPDF
-
-        doc = fitz.open(str(pdf_path))
-        if page_number < 1 or page_number > len(doc):
-            raise ValueError(f'page {page_number} out of range (1-{len(doc)})')
-        page = doc[page_number - 1]  # 0-based index
-        zoom = dpi / 72.0
-        mat = fitz.Matrix(zoom, zoom)
-        pix = page.get_pixmap(matrix=mat)
-        doc.close()
-
-        try:
-            from PIL import Image
-
-            img = Image.frombytes('RGB', (pix.width, pix.height), pix.samples)
-            return img
-        except ImportError:
-            return pix
-    except ImportError:
-        pass
-
-    try:
-        from pdf2image import convert_from_path  # type: ignore[import-not-found]
-
-        images = convert_from_path(
-            str(pdf_path),
-            dpi=dpi,
-            first_page=page_number,
-            last_page=page_number,
-        )
-        if not images:
-            raise RuntimeError(f'pdf2image returned no images for page {page_number}')
-        return images[0]
+        from paddleocr import PaddleOCR
     except ImportError as e:
         raise RuntimeError(
-            'Neither PyMuPDF nor pdf2image is available for page rendering. '
-            'Install one of: pymupdf, pdf2image[pillow]'
+            'PaddleOCR is not installed. Install with: pip install paddleocr paddlepaddle'
         ) from e
-
-
-# ------------------------------------------------------------------ #
-# PaddleOCR PP-StructureV3 invocation
-# ------------------------------------------------------------------ #
-
-
-def _create_paddle_structure(config: dict[str, Any]) -> Any:
-    """Create a PP-StructureV3 instance with the given config.
-
-    This is lazily imported so the engine module can be loaded without
-    PaddleOCR installed (e.g. for config/validation tests).
-    """
-    is_real_v3 = True
-    try:
-        from paddleocr import PPStructureV3  # PyMuPDF
-    except ImportError:
-        is_real_v3 = False
-        try:
-            from paddleocr import PPStructure as PPStructureV3  # type: ignore[import-not-found]
-        except ImportError as e:
-            raise RuntimeError(
-                'PaddleOCR is not installed. Install with: pip install paddleocr paddlepaddle'
-            ) from e
 
     engine_kwargs: dict[str, Any] = {
         'use_gpu': False,
+        'use_angle_cls': False,
         'show_log': False,
+        # 'ch' (not 'en'): this is the model set actually baked into the
+        # image (see the Dockerfile's bake_model calls). PP-OCRv4's 'ch'
+        # detection/recognition models handle English + digits correctly --
+        # confirmed exact against known dollar-value ground truth -- so
+        # there is no reason to add a second, separately-baked 'en' model
+        # set.
+        'lang': 'ch',
     }
-
-    if config.get('enable_mkldnn', True):
+    if config.get('enable_mkldnn', False):
         engine_kwargs['enable_mkldnn'] = True
 
-    cache_path = config.get('modelCachePath')
-    if cache_path:
-        engine_kwargs['lang'] = 'en'
-        engine_kwargs['table_model_dir'] = str(cache_path)
-
-    # Phase 10B-17 Blocker 1: `structure_version='PP-StructureV3'` is only a
-    # valid constructor argument for the real PPStructureV3 class. Older
-    # installed paddleocr releases (confirmed: 2.10.0) do not export that
-    # class at all -- the ImportError above already detects this and falls
-    # back to the older `PPStructure` class, but this kwarg was previously
-    # set unconditionally regardless of which class was actually imported,
-    # so the fallback class's own constructor validation rejected it
-    # ("structure_version must in ['PP-Structure', 'PP-StructureV2'], but
-    # get PP-StructureV3") and raised before processing a single page --
-    # an uncaught exception the CLI could only report as a bare, per-job
-    # exit 6 with no structured per-page result at all. Only request the V3
-    # behavior when the real V3 class was actually found; let the fallback
-    # class use its own default otherwise rather than guessing between its
-    # two valid values.
-    if is_real_v3:
-        engine_kwargs['structure_version'] = 'PP-StructureV3'
-
-    return PPStructureV3(**engine_kwargs)
+    return PaddleOCR(**engine_kwargs)
 
 
-def _classify_structure_result(result: Any) -> dict[str, Any]:
-    """Parse a PP-StructureV3 result into regions.
+def _looks_like_ocr_line(entry: Any) -> bool:
+    """True for a single `[bbox_4_points, (text, confidence)]` OCR line.
 
-    PP-Structure returns a list of regions, each with:
-    - type: 'text', 'title', 'figure', 'figure_caption', 'table',
-      'table_caption', 'header', 'footer'
-    - bbox: [x0, y0, x1, y1]
-    - res: text content or table data
+    Deliberately strict (a 4-point bbox, a str text candidate) rather than
+    just "a 2-element list": a nested `[[line, line]]` wrapper with exactly
+    two lines would otherwise itself structurally resemble one line (its
+    outer list has length 2, and each inner line is itself a list),
+    misdetecting the wrapping shape for exactly-two-line pages.
     """
-    regions: list[dict[str, Any]] = []
+    if not (isinstance(entry, (list, tuple)) and len(entry) == 2):
+        return False
+    bbox_candidate, text_candidate = entry
+    if not (isinstance(bbox_candidate, list) and len(bbox_candidate) == 4):
+        return False
+    if not all(isinstance(point, (list, tuple)) and len(point) == 2 for point in bbox_candidate):
+        return False
+    return (
+        isinstance(text_candidate, (list, tuple))
+        and len(text_candidate) == 2
+        and isinstance(text_candidate[0], str)
+    )
 
-    if result is None:
-        return {'regions': regions}
 
-    for region in result:
-        region_type = region.get('type', 'unknown')
-        bbox = region.get('bbox', [0, 0, 0, 0])
-        res = region.get('res', {})
+def _extract_tokens(raw_result: Any) -> list[dict[str, Any]]:
+    """Normalize `PaddleOCR.ocr()` output into a flat token list.
 
-        regions.append(
+    The exact return shape has varied across paddleocr releases (a bare list
+    of lines, vs. a list of one list-of-lines per input image). Handle both
+    rather than assuming one.
+    """
+    if not raw_result:
+        return []
+
+    if raw_result and _looks_like_ocr_line(raw_result[0]):
+        lines = raw_result
+    elif (
+        raw_result
+        and isinstance(raw_result[0], list)
+        and raw_result[0]
+        and _looks_like_ocr_line(raw_result[0][0])
+    ):
+        lines = raw_result[0]
+    else:
+        lines = raw_result[0] if raw_result and raw_result[0] else []
+
+    tokens: list[dict[str, Any]] = []
+    for entry in lines:
+        if not entry:
+            continue
+        bbox_pts, (text, confidence) = entry
+        xs = [p[0] for p in bbox_pts]
+        ys = [p[1] for p in bbox_pts]
+        x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+        tokens.append(
             {
-                'type': region_type,
-                'bbox': bbox,
-                'res': res,
+                'text': text,
+                'confidence': float(confidence),
+                'x0': x0,
+                'y0': y0,
+                'x1': x1,
+                'y1': y1,
+                'center_x': (x0 + x1) / 2.0,
+                'center_y': (y0 + y1) / 2.0,
+                'height': y1 - y0,
             }
         )
+    return tokens
 
-    return {'regions': regions}
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
 
 
-def _extract_table_from_region(
-    region: dict[str, Any],
-    page_number: int,
-    table_index: int,
-) -> ParsedTableV1 | None:
-    """Extract a ParsedTableV1 from a PP-Structure table region."""
-    res = region.get('res')
-    if not res:
-        return None
+def _cluster_rows(
+    tokens: list[dict[str, Any]],
+    row_gap_ratio: float,
+) -> list[list[dict[str, Any]]]:
+    """Group tokens into rows by vertical proximity, left-to-right within a row."""
+    if not tokens:
+        return []
+    median_height = _median([t['height'] for t in tokens if t['height'] > 0]) or 15.0
+    gap_threshold = row_gap_ratio * median_height
 
-    # PP-Structure table res can be:
-    # - dict with 'html' (HTML string) and 'cell_bbox'
-    # - dict with 'cells' (list of [row, col] positions and text)
-    html_str = None
-    if isinstance(res, dict):
-        html_str = res.get('html')
-    elif isinstance(res, str):
-        html_str = res
+    ordered = sorted(tokens, key=lambda t: t['center_y'])
+    rows: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    last_y: float | None = None
+    for token in ordered:
+        if last_y is None or (token['center_y'] - last_y) <= gap_threshold:
+            current.append(token)
+        else:
+            rows.append(current)
+            current = [token]
+        last_y = token['center_y']
+    if current:
+        rows.append(current)
 
-    cells: list[ParsedTableCellV1] = []
-    row_count = 0
-    col_count = 0
+    for row in rows:
+        row.sort(key=lambda t: t['center_x'])
+    return rows
 
-    if html_str:
-        # Parse HTML table to extract cells
-        try:
-            from html.parser import HTMLParser
 
-            class _TableParser(HTMLParser):
-                def __init__(self) -> None:
-                    super().__init__()
-                    self.in_cell = False
-                    self.current_row = -1
-                    self.current_col = -1
-                    self.cell_text = ''
-                    self.cells: list[dict[str, Any]] = []
-                    self.max_row = -1
-                    self.max_col = -1
+def _cluster_columns(
+    rows: list[list[dict[str, Any]]],
+    column_gap_ratio: float,
+) -> tuple[list[float], int]:
+    """Build stable, page-wide column bands from multi-token (tabular) rows only.
 
-                def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-                    if tag == 'tr':
-                        self.current_row += 1
-                        self.current_col = -1
-                    elif tag in ('td', 'th'):
-                        self.in_cell = True
-                        self.current_col += 1
-                        self.cell_text = ''
+    Single-token rows are prose (titles, headers, footnotes) and must not
+    widen or shift the column geometry. Returns (sorted column boundary
+    centers, column count) -- each table token is later assigned to the
+    nearest boundary, so a row that omits one column (a real, valid pattern
+    in these documents -- some PEs have no FY2022 Actuals figure at all)
+    keeps its remaining values under their correct columns instead of
+    shifting left.
+    """
+    tabular_tokens = [t for row in rows if len(row) >= 2 for t in row]
+    if not tabular_tokens:
+        return [], 0
 
-                def handle_endtag(self, tag: str) -> None:
-                    if tag in ('td', 'th') and self.in_cell:
-                        self.cells.append(
-                            {
-                                'rowIndex': max(self.current_row, 0),
-                                'columnIndex': max(self.current_col, 0),
-                                'text': self.cell_text.strip(),
-                            }
-                        )
-                        self.max_row = max(self.max_row, self.current_row)
-                        self.max_col = max(self.max_col, self.current_col)
-                        self.in_cell = False
+    median_width = _median([t['x1'] - t['x0'] for t in tabular_tokens]) or 40.0
+    gap_threshold = column_gap_ratio * median_width
 
-                def handle_data(self, data: str) -> None:
-                    if self.in_cell:
-                        self.cell_text += data
+    ordered = sorted(t['center_x'] for t in tabular_tokens)
+    bands: list[list[float]] = [[ordered[0]]]
+    for x in ordered[1:]:
+        if (x - bands[-1][-1]) <= gap_threshold:
+            bands[-1].append(x)
+        else:
+            bands.append([x])
 
-            parser = _TableParser()
-            parser.feed(html_str)
-            row_count = parser.max_row + 1
-            col_count = parser.max_col + 1
-            for c in parser.cells:
-                cells.append(
-                    ParsedTableCellV1(
-                        rowIndex=c['rowIndex'],
-                        columnIndex=c['columnIndex'],
-                        text=c['text'],
-                        confidence=None,
+    centers = [sum(band) / len(band) for band in bands]
+    return centers, len(centers)
+
+
+def _nearest_column_index(center_x: float, column_centers: list[float]) -> int:
+    best_index = 0
+    best_distance = float('inf')
+    for index, column_center in enumerate(column_centers):
+        distance = abs(center_x - column_center)
+        if distance < best_distance:
+            best_distance = distance
+            best_index = index
+    return best_index
+
+
+def _bbox_to_v1(x0: float, y0: float, x1: float, y1: float) -> BoundingBoxV1:
+    return BoundingBoxV1(x0=str(x0), y0=str(y0), x1=str(x1), y1=str(y1))
+
+
+def reconstruct_page_structure(
+    tokens: list[dict[str, Any]],
+    row_gap_ratio: float,
+    column_gap_ratio: float,
+) -> tuple[list[LayoutBlockV1], list[ParsedTableV1], str | None]:
+    """Deterministically reconstruct blocks + at most one table from tokens.
+
+    A row with a single token is prose (kept as a `LayoutBlockV1` paragraph,
+    in reading order). A row with 2+ tokens is a table row; all such rows on
+    the page are collected into one `ParsedTableV1` with a page-wide,
+    gap-clustered column geometry (see `_cluster_columns`) so column
+    identity stays stable across rows that omit a cell.
+    """
+    rows = _cluster_rows(tokens, row_gap_ratio)
+    column_centers, _column_count = _cluster_columns(rows, column_gap_ratio)
+
+    blocks: list[LayoutBlockV1] = []
+    table_cells: list[ParsedTableCellV1] = []
+    text_parts: list[str] = []
+    block_index = 0
+    table_row_index = 0
+    max_column_index = -1
+    table_x0 = table_y0 = float('inf')
+    table_x1 = table_y1 = float('-inf')
+
+    for row in rows:
+        row_text = ' '.join(t['text'] for t in row if t['text'])
+        if row_text:
+            text_parts.append(row_text)
+
+        if len(row) < 2:
+            if row:
+                token = row[0]
+                blocks.append(
+                    LayoutBlockV1(
+                        blockIndex=block_index,
+                        blockType='paragraph',
+                        text=token['text'],
+                        readingOrder=block_index,
+                        boundingBox=_bbox_to_v1(token['x0'], token['y0'], token['x1'], token['y1']),
                     )
                 )
-        except Exception:
-            # If HTML parsing fails, return None
-            return None
+                block_index += 1
+            continue
 
-    if not cells and isinstance(res, dict) and 'cell_bbox' in res:
-        cell_bboxes = res.get('cell_bbox', [])
-        cell_texts = res.get('res', [])
-        if isinstance(cell_texts, list):
-            for _i, text in enumerate(cell_texts):
-                if isinstance(text, list) and len(text) >= 2:
-                    row_idx, col_idx = int(text[0]), int(text[1])
-                    cell_text = str(text[2]) if len(text) > 2 else ''
-                    row_count = max(row_count, row_idx + 1)
-                    col_count = max(col_count, col_idx + 1)
-                    cells.append(
-                        ParsedTableCellV1(
-                            rowIndex=row_idx,
-                            columnIndex=col_idx,
-                            text=cell_text,
-                        )
-                    )
-            if isinstance(cell_bboxes, list) and len(cell_bboxes) == len(cells):
-                for i, bbox in enumerate(cell_bboxes):
-                    if isinstance(bbox, (list, tuple)) and len(bbox) == 4:
-                        cells[i] = cells[i].model_copy(
-                            update={
-                                'boundingBox': BoundingBoxV1(
-                                    x0=str(bbox[0]),
-                                    y0=str(bbox[1]),
-                                    x1=str(bbox[2]),
-                                    y1=str(bbox[3]),
-                                )
-                            }
-                        )
+        for token in row:
+            column_index = _nearest_column_index(token['center_x'], column_centers)
+            max_column_index = max(max_column_index, column_index)
+            table_cells.append(
+                ParsedTableCellV1(
+                    rowIndex=table_row_index,
+                    columnIndex=column_index,
+                    text=token['text'],
+                    boundingBox=_bbox_to_v1(token['x0'], token['y0'], token['x1'], token['y1']),
+                    confidence=str(token['confidence']),
+                )
+            )
+            table_x0 = min(table_x0, token['x0'])
+            table_y0 = min(table_y0, token['y0'])
+            table_x1 = max(table_x1, token['x1'])
+            table_y1 = max(table_y1, token['y1'])
+        table_row_index += 1
 
-    if not cells:
-        return None
+    # Table-level boundingBox (the union of every cell's box) is REQUIRED,
+    # not optional, by the TS-side Zod contract (parser-runtime-contract-v1.ts:
+    # `.optional()`, not `.nullish()` -- an explicit JSON `null` fails
+    # validation where an omitted key would not). This was a pre-existing gap
+    # in the PP-Structure-based engine this replaces; it was never caught
+    # because that engine's own SLANet table crash meant no paddleocr table
+    # ever reached this validation in the real 170-page production path.
+    tables: list[ParsedTableV1] = []
+    if table_cells:
+        tables.append(
+            ParsedTableV1(
+                tableIndex=0,
+                label=None,
+                rowCount=table_row_index,
+                columnCount=max_column_index + 1,
+                cells=table_cells,
+                boundingBox=_bbox_to_v1(table_x0, table_y0, table_x1, table_y1),
+                warnings=[],
+            )
+        )
 
-    return ParsedTableV1(
-        tableIndex=table_index,
-        label=None,
-        rowCount=row_count,
-        columnCount=col_count,
-        cells=cells,
-        warnings=[],
-    )
-
-
-def _bbox_to_v1(bbox: list[float] | None) -> BoundingBoxV1 | None:
-    """Convert a [x0, y0, x1, y1] list to BoundingBoxV1, or None."""
-    if not bbox or len(bbox) != 4:
-        return None
-    return BoundingBoxV1(
-        x0=str(bbox[0]),
-        y0=str(bbox[1]),
-        x1=str(bbox[2]),
-        y1=str(bbox[3]),
-    )
-
-
-def _map_region_to_block(
-    region: dict[str, Any],
-    block_index: int,
-) -> LayoutBlockV1 | None:
-    """Map a PP-Structure region to a LayoutBlockV1."""
-    region_type = region.get('type', 'unknown')
-    bbox = region.get('bbox')
-
-    # Map PP-Structure types to our block types
-    block_type_map: dict[str, str] = {
-        'text': 'paragraph',
-        'title': 'heading',
-        'figure': 'image',
-        'figure_caption': 'caption',
-        'table': 'table',
-        'table_caption': 'caption',
-        'header': 'header',
-        'footer': 'footer',
-    }
-    block_type = cast(
-        Literal[
-            'text',
-            'heading',
-            'paragraph',
-            'list_item',
-            'table',
-            'image',
-            'header',
-            'footer',
-            'caption',
-            'unknown',
-        ],
-        block_type_map.get(region_type, 'unknown'),
-    )
-
-    # Extract text from res
-    res = region.get('res', {})
-    text = ''
-    if isinstance(res, str):
-        text = res
-    elif isinstance(res, dict):
-        text = res.get('text', '') or res.get('res', '')
-        if isinstance(text, list):
-            text = ' '.join(str(t) for t in text)
-
-    # Skip figure regions (they have no text)
-    if block_type == 'image' and not text:
-        return None
-
-    return LayoutBlockV1(
-        blockIndex=block_index,
-        blockType=block_type,
-        text=str(text),
-        readingOrder=block_index,
-        boundingBox=_bbox_to_v1(bbox),
-    )
-
-
-def _map_region_to_image(
-    region: dict[str, Any],
-    image_index: int,
-) -> ParsedImageRegionV1 | None:
-    """Map a PP-Structure figure region to ParsedImageRegionV1."""
-    if region.get('type') != 'figure':
-        return None
-    bbox = region.get('bbox')
-    return ParsedImageRegionV1(
-        imageIndex=image_index,
-        boundingBox=_bbox_to_v1(bbox),
-    )
+    full_text = '\n'.join(text_parts) if text_parts else None
+    return blocks, tables, full_text
 
 
 def process_page_with_paddleocr(
@@ -468,78 +467,30 @@ def process_page_with_paddleocr(
     page_height: float | None = None,
     rotation: int = 0,
 ) -> ParserPageResultV1:
-    """Process a single rendered page image with PP-StructureV3.
-
-    Returns a ParserPageResultV1 with extracted blocks, tables, images.
+    """Process a single rendered page image with plain PaddleOCR det+rec,
+    then reconstruct rows/columns deterministically from token geometry.
     """
     warnings: list[str] = []
 
-    # Run PP-StructureV3
     try:
-        result = engine(img, return_ocr_result_in_table=True)
+        import numpy as np
+
+        np_bgr = np.array(img)[:, :, ::-1].copy()
+        raw_result = engine.ocr(np_bgr, cls=False)
     except Exception as e:
-        warnings.append(f'PP-StructureV3 processing error: {e}')
-        result = None
+        warnings.append(f'PaddleOCR processing error: {e}')
+        raw_result = None
 
-    parsed = _classify_structure_result(result)
-    regions = parsed['regions']
+    tokens = _extract_tokens(raw_result)
+    blocks, tables, full_text = reconstruct_page_structure(
+        tokens,
+        row_gap_ratio=config.get('rowGapRatio', 0.6),
+        column_gap_ratio=config.get('columnGapRatio', 1.5),
+    )
 
-    blocks: list[LayoutBlockV1] = []
-    tables: list[ParsedTableV1] = []
-    images: list[ParsedImageRegionV1] = []
-    all_text_parts: list[str] = []
-    block_index = 0
-    table_index = 0
-    image_index = 0
-
-    for region in regions:
-        # Map to block
-        block = _map_region_to_block(region, block_index)
-        if block:
-            blocks.append(block)
-            block_index += 1
-            if block.text:
-                all_text_parts.append(block.text)
-
-        # Map to table
-        if region.get('type') in ('table',):
-            table = _extract_table_from_region(region, page_number, table_index)
-            if table:
-                tables.append(table)
-                table_index += 1
-
-        # Map to image
-        img_region = _map_region_to_image(region, image_index)
-        if img_region:
-            images.append(img_region)
-            image_index += 1
-
-    # Extract full text
-    full_text = '\n'.join(all_text_parts) if all_text_parts else None
-
-    # Determine evidence precision
-    # PP-Structure provides bounding boxes, so we can claim cell_bbox for tables
     evidence_precision: Literal['page_only', 'text_span', 'cell_bbox'] = (
         'cell_bbox' if tables else 'page_only'
     )
-
-    # Confidence — PP-Structure doesn't always provide overall confidence
-    confidence = None
-
-    # Model identifiers
-    model_versions: list[str] = [ENGINE_VERSION]
-    if config.get('orientationClassification', False):
-        model_versions.append('paddleocr-orientation-cls-v1')
-    if config.get('textLineOrientation', False):
-        model_versions.append('paddleocr-text-line-orientation-v1')
-
-    # Add model version warnings
-    if config.get('formulaRecognition', False):
-        warnings.append('formula recognition was enabled (non-default)')
-    if config.get('chartRecognition', False):
-        warnings.append('chart recognition was enabled (non-default)')
-    if config.get('documentUnwarping', False):
-        warnings.append('document unwarping was enabled (non-default)')
 
     return ParserPageResultV1(
         page=page_number,
@@ -551,8 +502,8 @@ def process_page_with_paddleocr(
         printedPage=None,
         blocks=blocks,
         tables=tables,
-        images=images,
-        confidence=confidence,
+        images=cast(list[ParsedImageRegionV1], []),
+        confidence=None,
         evidencePrecision=evidence_precision,
         warnings=warnings,
     )
@@ -653,20 +604,13 @@ def run_paddleocr_engine(
         )
 
     # Initialize PaddleOCR engine (lazy). Any failure to construct the
-    # engine -- not installed (RuntimeError, the original case), or an
-    # incompatible installed version rejecting our constructor arguments
-    # (the fallback-class case fixed above; still guarded here defensively
-    # in case a future paddleocr release changes its own validation again)
-    # -- means this job cannot run, not that the whole process should
+    # engine means this job cannot run, not that the whole process should
     # crash: fail every requested page with a real reason code and return a
-    # valid result, exactly like the already-established "not installed"
-    # path, so the router can compose whatever DID succeed in earlier
-    # steps instead of aborting the entire multi-page parse plan.
+    # valid result, so the router can compose whatever DID succeed in
+    # earlier steps instead of aborting the entire multi-page parse plan.
     try:
-        engine = _create_paddle_structure(cfg)
+        engine = _create_paddle_ocr(cfg)
     except (RuntimeError, ValueError, TypeError) as e:
-        # PaddleOCR not installed, or installed but unusable for this job —
-        # fail all pages
         for pn in requested_pages:
             failed_pages.append(
                 ParserPageFailureV1(
@@ -720,13 +664,9 @@ def run_paddleocr_engine(
 
     for pn in requested_pages:
         try:
-            # Render page to image
             img = render_page_to_image(source_path, pn, dpi=dpi)
-
-            # Get dimensions
             w, h, rot = page_dims.get(pn, (None, None, 0))
 
-            # Process with timeout (simple — no threading in Phase 3)
             page_start = time.monotonic()
             page_result = process_page_with_paddleocr(
                 engine=engine,
@@ -776,12 +716,7 @@ def run_paddleocr_engine(
         pagesSucceeded=len(succeeded_pages),
         pagesFailed=len(failed_pages),
         engineVersion=ENGINE_VERSION,
-        modelVersions=[ENGINE_VERSION]
-        if not cfg.get('orientationClassification')
-        else [
-            ENGINE_VERSION,
-            'paddleocr-orientation-cls-v1',
-        ],
+        modelVersions=[ENGINE_VERSION],
     )
 
     result_dict = {
@@ -827,7 +762,7 @@ def run_from_job_file(job_path: str | Path, output_path: str | Path) -> None:
     with open(job_path, encoding='utf-8') as f:
         job_data = json.load(f)
 
-    config = job_data.get('parserConfig', get_default_config())
+    config = job_data.get('parserConfig') or get_default_config()
     result = run_paddleocr_engine(
         source_path=job_data['sourcePath'],
         expected_sha256=job_data['sourceSha256'],

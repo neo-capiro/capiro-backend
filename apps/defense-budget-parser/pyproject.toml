@@ -26,6 +26,14 @@ ocr = [
     # does not declare it as a dependency; Python no longer bundles
     # setuptools by default, so the ocr extra must pull it in explicitly.
     "setuptools",
+    # Phase 10B-23B: page rasterization for paddleocr_engine.py. Declared
+    # explicitly rather than relying on it arriving transitively (it
+    # previously did, incidentally, through paddleocr/paddlepaddle's own
+    # dependency tree, with no guarantee that would continue). Chosen over
+    # PyMuPDF (AGPL-3.0/commercial dual license) and over pdf2image (needs
+    # the poppler-utils system binary): pypdfium2 is BSD-3-Clause/Apache-2.0
+    # and self-contained.
+    "pypdfium2>=4.30,<6",
 ]
 dev = [
     "pytest>=8.0,<9",

@@ -9,7 +9,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 PDFPLUMBER_ENGINE_VERSION = 'pdfplumber-0.11.0'
 CAMELOT_ENGINE_VERSION = 'camelot-0.11.0'
-PADDLEOCR_ENGINE_VERSION = 'paddleocr-pp-structure-v3-cpu'
+PADDLEOCR_ENGINE_VERSION = 'paddleocr-det-rec-row-reconstruction-v1'
 
 # Phase 10B-21A: same typed sentinel `docling_engine.py` uses for "genuinely
 # not installed". Duplicated as a literal (not imported) deliberately -- this

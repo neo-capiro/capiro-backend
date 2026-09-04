@@ -38,8 +38,17 @@ USER root
 # it); without it, `import paddle` fails
 # `ImportError: libgomp.so.1: cannot open shared object file`, confirmed
 # empirically against this exact ARM64 image before this fix.
+#
+# Phase 10B-23B: `libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1`
+# are required by `cv2` (opencv-python, a paddleocr dependency); without
+# them `import paddleocr` fails `ImportError: libxcb.so.1: cannot open
+# shared object file`, which paddleocr_engine.py's own exception handling
+# had previously misreported as "PaddleOCR is not installed" -- confirmed
+# empirically against this exact ARM64 image before this fix.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 libgomp1 curl ca-certificates \
+ && apt-get install -y --no-install-recommends \
+      python3 libgomp1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1 \
+      curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -69,23 +78,31 @@ RUN chown capiro:capiro \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
   /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
 
-# Phase 10B-23A Part B: PPStructure (the real class this image uses --
-# paddleocr 2.10.0 does not export PPStructureV3 at all, confirmed by the
-# ImportError fallback in paddleocr_engine.py) unconditionally downloads 5
-# sub-models (det/rec/table/layout/formula) from a single fixed third-party
-# CDN (paddleocr.bj.bcebos.com) the FIRST time it constructs, with NO
-# integrity check of any kind -- confirmed by reading
+# Phase 10B-23B: this image now bakes ONLY the detection + recognition
+# models. The other three PP-Structure sub-models formerly baked here
+# (table/layout/formula) are deliberately no longer used at all --
+# PP-Structure's bundled SLANet table-structure model was proven, across
+# both linux/arm64 and linux/amd64 and across paddlepaddle 2.6.2 through
+# 3.3.1, to misassign real dollar values to the wrong Program Element row
+# whenever it processes genuine multi-row table content (a deterministic,
+# architecture-independent model defect, not a crash -- see the PR
+# description for the full bake-off). `paddleocr_engine.py` now runs plain
+# detection+recognition and reconstructs rows/columns deterministically
+# from token bounding-box geometry instead. `ch_PP-OCRv4_det_infer` and
+# `ch_PP-OCRv4_rec_infer` unconditionally download from a single fixed
+# third-party CDN (paddleocr.bj.bcebos.com) the FIRST time they construct,
+# with NO integrity check of any kind -- confirmed by reading
 # ppocr/utils/network.py's maybe_download(), which only checks whether
 # inference.pdiparams/inference.pdmodel already exist at the target path,
 # never a checksum, on either a fresh download or a pre-existing file. A
 # production task must not have its first real run depend on an
 # unauthenticated, unverified, uncontrolled runtime fetch from a third-party
-# host with no offline fallback. Bake all five here, individually
+# host with no offline fallback. Bake both here, individually
 # SHA-256-verified against the exact bytes this qualification captured
 # (2026-09-02) from paddleocr==2.10.0's own hardcoded URLs -- once these
 # files exist at maybe_download's expected path, it skips its download step
 # entirely, so the running container needs no outbound network access to
-# fetch them. All five models are Apache-2.0, matching paddleocr/paddlepaddle
+# fetch them. Both models are Apache-2.0, matching paddleocr/paddlepaddle
 # themselves (see PR description for the full license/checksum table this
 # qualification produced).
 RUN set -eux; \
@@ -116,18 +133,6 @@ RUN set -eux; \
     /home/capiro/.paddleocr/whl/rec/ch/ch_PP-OCRv4_rec_infer \
     a6dbfa63e7ee161688523c954e9e293f77dc24044db81e836ff9c7f103fd191a \
     bf78f3898a004615e69c676259d8171bd7ae99000653b41fd72aaa36ae8bd304; \
-  bake_model https://paddleocr.bj.bcebos.com/ppstructure/models/slanet/paddle3.0b2/ch_ppstructure_mobile_v2.0_SLANet_infer.tar \
-    /home/capiro/.paddleocr/whl/table/ch_ppstructure_mobile_v2.0_SLANet_infer \
-    9d33d47b174bcb9fb63f94dac54a4d01a974da6d0c56ddb51cf0e38ed43f7a60 \
-    5ed9d29433666828d2a3d6a6bc55ef2a55734091955c53eb20a098a19da6d9fd; \
-  bake_model https://paddleocr.bj.bcebos.com/ppstructure/models/layout/picodet_lcnet_x1_0_fgd_layout_cdla_infer.tar \
-    /home/capiro/.paddleocr/whl/layout/picodet_lcnet_x1_0_fgd_layout_cdla_infer \
-    f8b201421e2d1b990570366fcad2fc08c336e8ab297558e683b695da7c5aa709 \
-    9f542db747466ee2e1767384285cea4e068b777e8b63651805e543285c125ef7; \
-  bake_model https://paddleocr.bj.bcebos.com/contribution/rec_latex_ocr_infer.tar \
-    /home/capiro/.paddleocr/whl/formula/rec_latex_ocr_infer \
-    c2c7eaf7519c2e2a3bb759b468dc2dba08f85a8a86bc4b01b4a1d17274f7d215 \
-    e53f264d07badb8a8a1657e7869e7bf845af2c49df73413847c2ba03577cb1db; \
   chown -R capiro:capiro /home/capiro/.paddleocr
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
