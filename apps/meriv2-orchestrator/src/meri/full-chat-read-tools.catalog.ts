@@ -36,6 +36,18 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: true,
   },
   {
+    name: 'list_global_datasets',
+    description:
+      'List the global (public-domain, non-tenant) reference datasets query_global_data can aggregate over — LDA lobbying registrations, SEC filings, FARA registrations, congressional and state bills, federal grants and contract opportunities, federal awards, GAO/CRS reports, FEC committees, and news. For each dataset: its queryable fields, their types, and whether they can be filtered/grouped/aggregated. Call this BEFORE query_global_data if you are not already certain of a dataset\'s exact field names — do not guess them.',
+    readOnly: true,
+  },
+  {
+    name: 'query_global_data',
+    description:
+      "Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like \"how many active LDA registrations do we have\" or \"which agency posted the most grants this year\" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset's field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.",
+    readOnly: true,
+  },
+  {
     name: 'search_sec_filings',
     description:
       'Search SEC EDGAR filings (10-K, 10-Q, 8-K, DEF14A, S-1, etc.) in the Capiro database. Filter by company name, form type, CIK, or date range. Returns company, form type, filing date, and description.',

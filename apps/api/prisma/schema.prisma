@@ -3641,6 +3641,34 @@ model LdaGovernmentEntity {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Meri global-data analytics audit log
+//
+// GLOBAL table, no tenant_id, no RLS — but every row still records which
+// tenant/user asked, for audit purposes (query_global_data only ever reads
+// global reference tables, so there is nothing tenant-private to protect
+// here; the tenant/user columns exist so a wrong or expensive answer can be
+// traced back to who asked and what SQL actually ran). Written by
+// MeriToolsService via the normal `capiro_app` connection, never by
+// `capiro_analytics_ro` (that role is SELECT-only by design).
+// ─────────────────────────────────────────────────────────────────────────
+model MeriAnalyticsQueryLog {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String?   @map("tenant_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  datasetKey String    @map("dataset_key")
+  sql        String    @db.Text
+  params     Json      @default("[]")
+  rowCount   Int?      @map("row_count")
+  durationMs Int?      @map("duration_ms")
+  error      String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt], map: "meri_analytics_query_log_created_at_idx")
+  @@index([tenantId], map: "meri_analytics_query_log_tenant_id_idx")
+  @@map("meri_analytics_query_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // FEC Campaign Finance Data
 //
 // GLOBAL tables, shared across all tenants. No tenant_id, no RLS.

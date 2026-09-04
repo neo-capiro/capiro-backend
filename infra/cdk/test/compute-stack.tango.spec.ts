@@ -154,6 +154,8 @@ function synthComputeStack(cfg: EnvConfig): Template {
     dbSecret: secretsStack.clerkSecretKey, // stand-in ISecret; only .secretArn/grantRead are used pre-synth
     appDbSecret: secretsStack.clerkWebhookSigningSecret,
     promoterDbSecret: secretsStack.clerkPublishableKey, // stand-in ISecret, same reasoning
+    analyticsDbSecret: secretsStack.clioApiServerKey, // stand-in ISecret, same reasoning
+    readerEndpoint: dbCluster.clusterReadEndpoint.hostname,
     databaseName: 'capiro_test',
     dataKey: secretsStack.secretsKey,
     secretsStack,

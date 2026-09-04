@@ -329,6 +329,8 @@ export function humanToolLabel(tool: string): string {
     query_intelligence: 'Pulled federal lobbying intelligence',
     search_congress_bills: 'Searched congressional bills',
     search_lda_filings: 'Searched LDA lobbying filings',
+    list_global_datasets: 'Listed queryable reference datasets',
+    query_global_data: 'Ran an aggregate query over reference data',
     search_sec_filings: 'Searched SEC filings',
     search_fara_registrations: 'Searched FARA registrations',
     search_federal_grants: 'Searched federal grants',

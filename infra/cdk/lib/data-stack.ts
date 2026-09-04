@@ -48,6 +48,23 @@ export class DataStack extends cdk.Stack {
    * reason.
    */
   public readonly promoterSecret: secretsmanager.ISecret;
+  /**
+   * `capiro_analytics_ro` credential — the SELECT-only role behind Meri's
+   * `query_global_data` tool. Same pattern as `promoterSecret`: this Secret
+   * holds the source-of-truth value, `bootstrap-roles` rotates the actual DB
+   * role's password to match (supports `ANALYTICS_USER`/`ANALYTICS_PASSWORD`
+   * as of the same change that added this Secret).
+   */
+  public readonly analyticsSecret: secretsmanager.ISecret;
+  /**
+   * The cluster's reader endpoint. Provisioned since day one (`readers:
+   * [reader1]` below) but unused by any application until this — every other
+   * service's `DB_HOST` resolves to the writer via its Secrets Manager
+   * secret. `query_global_data` is exploratory aggregate SQL over
+   * 500K+-row tables; it has no business competing with live product
+   * traffic on the writer, so it is the first and only consumer of this.
+   */
+  public readonly readerEndpoint: string;
   public readonly key: kms.Key;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
@@ -186,9 +203,31 @@ export class DataStack extends cdk.Stack {
     });
     this.promoterSecret = promoterSecret;
 
+    // Meri query_global_data's own secret. Deliberately separate from master
+    // (DDL), app (general serve), and promoter (canonical write) — no
+    // capability beyond SELECT on the global-dataset-registry allowlist ever
+    // attaches to this credential.
+    const analyticsSecret = new secretsmanager.Secret(this, 'AnalyticsSecret', {
+      secretName: `/capiro/${cfg.envName}/aurora/analytics-ro`,
+      description:
+        'Capiro Aurora capiro_analytics_ro runtime credentials (Meri query_global_data, SELECT-only)',
+      encryptionKey: this.key,
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({ username: 'capiro_analytics_ro' }),
+        generateStringKey: 'password',
+        excludePunctuation: true,
+        passwordLength: 32,
+      },
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+    });
+    this.analyticsSecret = analyticsSecret;
+    this.readerEndpoint = this.cluster.clusterReadEndpoint.hostname;
+
     new cdk.CfnOutput(this, 'AuroraEndpoint', { value: this.cluster.clusterEndpoint.hostname });
+    new cdk.CfnOutput(this, 'AuroraReaderEndpoint', { value: this.readerEndpoint });
     new cdk.CfnOutput(this, 'AuroraSecretArn', { value: masterSecret.secretArn });
     new cdk.CfnOutput(this, 'AuroraAppSecretArn', { value: appSecret.secretArn });
     new cdk.CfnOutput(this, 'AuroraPromoterSecretArn', { value: promoterSecret.secretArn });
+    new cdk.CfnOutput(this, 'AuroraAnalyticsSecretArn', { value: analyticsSecret.secretArn });
   }
 }

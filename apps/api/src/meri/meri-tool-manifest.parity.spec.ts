@@ -21,8 +21,9 @@ describe('TOOL_DEFINITIONS ↔ MERI_TOOL_MANIFEST parity (W4.6 / D-13)', () => {
   });
 
   // 73 -> 79 at P37: six read-only Funding Opportunities tools.
-  it('the tool count is stable at 79 (manifest and TOOL_DEFINITIONS agree)', () => {
-    expect(Object.keys(actual)).toHaveLength(79);
-    expect(Object.keys(MERI_TOOL_MANIFEST)).toHaveLength(79);
+  // 79 -> 81: list_global_datasets + query_global_data (global-data analytics).
+  it('the tool count is stable at 81 (manifest and TOOL_DEFINITIONS agree)', () => {
+    expect(Object.keys(actual)).toHaveLength(81);
+    expect(Object.keys(MERI_TOOL_MANIFEST)).toHaveLength(81);
   });
 });
