@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-process-tango-events",
+  "ScheduleExpression": "cron(20 13 * * ? *)",
+  "State": "DISABLED",
+  "Description": "[daily] Funding Opportunities: drain verified Tango webhook deliveries into deduped client alerts (daily 13:20 UTC). Created DISABLED 2026-08-14. Out-of-band; not a CDK resource. Upstream notice sync has no live rule as of draft date.",
+  "EventBusName": "default"
+}

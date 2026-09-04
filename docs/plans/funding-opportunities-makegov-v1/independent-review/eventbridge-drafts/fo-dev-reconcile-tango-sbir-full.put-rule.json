@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-reconcile-tango-sbir-full",
+  "ScheduleExpression": "cron(30 13 ? * SUN *)",
+  "State": "DISABLED",
+  "Description": "[weekly] Funding Opportunities: SBIR/STTR full reconciliation (Sun 13:30 UTC) \u2014 catches topic amendments the publication-date window cannot. Created DISABLED 2026-08-14. Out-of-band; not a CDK resource.",
+  "EventBusName": "default"
+}

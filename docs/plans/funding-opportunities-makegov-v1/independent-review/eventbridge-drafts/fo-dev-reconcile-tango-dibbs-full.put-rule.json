@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-reconcile-tango-dibbs-full",
+  "ScheduleExpression": "cron(10 13 ? * SUN *)",
+  "State": "DISABLED",
+  "Description": "[weekly] Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) \u2014 catches amendments the issue-date window cannot. Created DISABLED 2026-08-14. Out-of-band; not a CDK resource.",
+  "EventBusName": "default"
+}

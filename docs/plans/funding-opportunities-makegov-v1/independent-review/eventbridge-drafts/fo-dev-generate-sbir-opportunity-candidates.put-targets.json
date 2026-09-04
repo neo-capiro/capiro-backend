@@ -1,0 +1,33 @@
+{
+  "Rule": "fo-dev-generate-sbir-opportunity-candidates",
+  "EventBusName": "default",
+  "Targets": [
+    {
+      "Id": "fo-dev-generate-sbir-opportunity-candidates-fargate",
+      "Arn": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev",
+      "RoleArn": "arn:aws:iam::967807252336:role/capiro-dev-eventbridge-sync-invoker",
+      "Input": "{\"containerOverrides\":[{\"name\":\"api-sync-jobs\",\"command\":[\"generate-sbir-opportunity-candidates\",\"--commit\"]}]}",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-sync-jobs:13",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "PlatformVersion": "LATEST",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0e38bd390f8961fef",
+              "subnet-0920665f91c905f01",
+              "subnet-06db79cd21239de19"
+            ],
+            "SecurityGroups": [
+              "sg-01def4e5c0fe44d4a"
+            ],
+            "AssignPublicIp": "DISABLED"
+          }
+        },
+        "EnableECSManagedTags": false,
+        "EnableExecuteCommand": false
+      }
+    }
+  ]
+}

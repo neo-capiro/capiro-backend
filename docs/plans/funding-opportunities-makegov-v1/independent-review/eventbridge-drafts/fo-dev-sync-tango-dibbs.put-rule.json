@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-sync-tango-dibbs",
+  "ScheduleExpression": "cron(10 13 * * ? *)",
+  "State": "DISABLED",
+  "Description": "[daily] Funding Opportunities: DIBBS bid-board incremental sync (daily 13:10 UTC, issue-date window + 7d overlap). Created DISABLED 2026-08-14. Out-of-band; not a CDK resource.",
+  "EventBusName": "default"
+}

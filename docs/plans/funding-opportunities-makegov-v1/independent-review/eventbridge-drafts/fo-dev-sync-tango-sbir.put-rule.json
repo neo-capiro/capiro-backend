@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-sync-tango-sbir",
+  "ScheduleExpression": "cron(30 13 * * ? *)",
+  "State": "DISABLED",
+  "Description": "[daily] Funding Opportunities: SBIR/STTR incremental sync (daily 13:30 UTC, publication-date window + 7d overlap). Created DISABLED 2026-08-14. Out-of-band; not a CDK resource.",
+  "EventBusName": "default"
+}

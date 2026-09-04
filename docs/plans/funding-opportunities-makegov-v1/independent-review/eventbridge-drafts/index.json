@@ -1,0 +1,81 @@
+[
+  {
+    "cdkId": "SyncTangoDibbs",
+    "ruleName": "fo-dev-sync-tango-dibbs",
+    "schedule": "cron(10 13 * * ? *)",
+    "command": [
+      "sync-tango-dibbs",
+      "--commit"
+    ],
+    "putRule": "fo-dev-sync-tango-dibbs.put-rule.json",
+    "putTargets": "fo-dev-sync-tango-dibbs.put-targets.json"
+  },
+  {
+    "cdkId": "ReconcileTangoDibbsFull",
+    "ruleName": "fo-dev-reconcile-tango-dibbs-full",
+    "schedule": "cron(10 13 ? * SUN *)",
+    "command": [
+      "sync-tango-dibbs",
+      "--commit",
+      "--full"
+    ],
+    "putRule": "fo-dev-reconcile-tango-dibbs-full.put-rule.json",
+    "putTargets": "fo-dev-reconcile-tango-dibbs-full.put-targets.json"
+  },
+  {
+    "cdkId": "SyncTangoSbir",
+    "ruleName": "fo-dev-sync-tango-sbir",
+    "schedule": "cron(30 13 * * ? *)",
+    "command": [
+      "sync-tango-sbir",
+      "--commit"
+    ],
+    "putRule": "fo-dev-sync-tango-sbir.put-rule.json",
+    "putTargets": "fo-dev-sync-tango-sbir.put-targets.json"
+  },
+  {
+    "cdkId": "ReconcileTangoSbirFull",
+    "ruleName": "fo-dev-reconcile-tango-sbir-full",
+    "schedule": "cron(30 13 ? * SUN *)",
+    "command": [
+      "sync-tango-sbir",
+      "--commit",
+      "--full"
+    ],
+    "putRule": "fo-dev-reconcile-tango-sbir-full.put-rule.json",
+    "putTargets": "fo-dev-reconcile-tango-sbir-full.put-targets.json"
+  },
+  {
+    "cdkId": "ProcessTangoEvents",
+    "ruleName": "fo-dev-process-tango-events",
+    "schedule": "cron(20 13 * * ? *)",
+    "command": [
+      "process-tango-events",
+      "--commit"
+    ],
+    "putRule": "fo-dev-process-tango-events.put-rule.json",
+    "putTargets": "fo-dev-process-tango-events.put-targets.json"
+  },
+  {
+    "cdkId": "GenerateDibbsOpportunityCandidates",
+    "ruleName": "fo-dev-generate-dibbs-opportunity-candidates",
+    "schedule": "cron(15 13 * * ? *)",
+    "command": [
+      "generate-dibbs-opportunity-candidates",
+      "--commit"
+    ],
+    "putRule": "fo-dev-generate-dibbs-opportunity-candidates.put-rule.json",
+    "putTargets": "fo-dev-generate-dibbs-opportunity-candidates.put-targets.json"
+  },
+  {
+    "cdkId": "GenerateSbirOpportunityCandidates",
+    "ruleName": "fo-dev-generate-sbir-opportunity-candidates",
+    "schedule": "cron(35 13 * * ? *)",
+    "command": [
+      "generate-sbir-opportunity-candidates",
+      "--commit"
+    ],
+    "putRule": "fo-dev-generate-sbir-opportunity-candidates.put-rule.json",
+    "putTargets": "fo-dev-generate-sbir-opportunity-candidates.put-targets.json"
+  }
+]
