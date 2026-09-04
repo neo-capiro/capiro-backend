@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs|test-funding-opportunity-action-concurrency)|apps/api/package\.json|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -197,7 +197,8 @@ jobs:
             20260906010000_tango_event_outbox \
             20260907010000_tango_event_outbox_per_event \
             20260908010000_tango_dibbs \
-            20260909010000_tango_sbir_sttr
+            20260909010000_tango_sbir_sttr \
+            20280211010000_engagement_task_action_source_uniq
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
@@ -336,6 +337,19 @@ jobs:
           check "generic identity unique index is PARTIAL"             "SELECT CASE WHEN indexdef LIKE '%WHERE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='client_funding_opportunity_generic_uniq'"             "yes"
           check "generic identity unique index includes source"             "SELECT CASE WHEN indexdef LIKE '%source,%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='client_funding_opportunity_generic_uniq'"             "yes"
           check "generic identity lookup index exists"             "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_source_record_idx'"             "1"
+
+          # P08 action idempotency: the task identity is a PARTIAL unique index
+          # because generic engagement tasks legitimately leave source_type and
+          # source_id NULL.
+          check "engagement task action-source unique index exists" \
+            "SELECT count(*) FROM pg_indexes WHERE indexname='engagement_tasks_tenant_source_uniq'" \
+            "1"
+          check "engagement task action-source unique index is UNIQUE" \
+            "SELECT CASE WHEN indexdef LIKE 'CREATE UNIQUE INDEX%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='engagement_tasks_tenant_source_uniq'" \
+            "yes"
+          check "engagement task action-source unique index is PARTIAL" \
+            "SELECT CASE WHEN indexdef LIKE '%WHERE%' THEN 'yes' ELSE 'no' END FROM pg_indexes WHERE indexname='engagement_tasks_tenant_source_uniq'" \
+            "yes"
 
           # The vocabulary CHECK is WIDENED, never narrowed: the three planned
           # sources must be admissible so the generic branch of the exclusivity
@@ -810,9 +824,13 @@ jobs:
           # Tango migrations — caught this time before merging rather than after,
           # by asking "does the new migration's directory name actually match one
           # of these globs" instead of assuming a prior fix generalizes.
-          names=$(grep -ho 'CREATE INDEX IF NOT EXISTS "[a-z_]*"' \
+          # UNIQUE indexes use `CREATE UNIQUE INDEX`, not bare `CREATE INDEX`.
+          # Without the optional UNIQUE token this gate silently stops covering
+          # partial unique indexes such as engagement_tasks_tenant_source_uniq.
+          names=$(grep -Eho 'CREATE (UNIQUE )?INDEX IF NOT EXISTS "[a-z_]*"' \
                     apps/api/prisma/migrations/*_funding_opportunit*/migration.sql \
                     apps/api/prisma/migrations/*_tango_*/migration.sql \
+                    apps/api/prisma/migrations/*_engagement_task*/migration.sql \
                   | sed 's/.*"\(.*\)"/\1/' | sort -u)
           if [ -z "$names" ]; then
             echo "::error::found no CREATE INDEX statements in the funding migrations — the glob is wrong."
@@ -834,6 +852,13 @@ jobs:
       - name: Typecheck — Funding Opportunities scripts
         if: steps.scope.outputs.in_scope == 'true'
         run: pnpm --filter @capiro/api exec tsc -p tsconfig.funding-opportunities.json --noEmit
+
+      - name: P08 concurrency proof — N parallel Pursue actions create exactly one task
+        if: steps.scope.outputs.in_scope == 'true'
+        env:
+          # Explicit opt-in for the disposable proof script (CI host is local service).
+          ALLOW_P08_CONCURRENCY_DB: '1'
+        run: pnpm --filter @capiro/api run test:funding-opportunity-action-concurrency
 
       - name: Typecheck — apps/api and apps/web
         if: steps.scope.outputs.in_scope == 'true'
