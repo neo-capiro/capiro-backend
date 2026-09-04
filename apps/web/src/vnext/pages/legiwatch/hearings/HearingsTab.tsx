@@ -121,17 +121,56 @@ export function canonicalCapability(e: CanonicalHearingEvent): {
   return { capability: 'unavailable', closed: false, reason: browser.reason ?? server.reason ?? '' };
 }
 
+/**
+ * PR D / LW-QA-011 — true below 900px CSS width. matchMedia is the same
+ * mechanism the stylesheet media queries use, so JS and CSS agree at the
+ * boundary; a resize listener covers browsers without addListener callbacks
+ * (jsdom's matchMedia is stubbed to a non-live object, so a fallback resize
+ * check keeps tests deterministic).
+ */
+function useMediaBelow900(): boolean {
+  const [below, setBelow] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    if (typeof window.matchMedia === 'function') {
+      return window.matchMedia('(max-width: 899px)').matches;
+    }
+    return window.innerWidth < 900;
+  });
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      const onResize = () => setBelow(window.innerWidth < 900);
+      window.addEventListener('resize', onResize);
+      return () => window.removeEventListener('resize', onResize);
+    }
+    const mq = window.matchMedia('(max-width: 899px)');
+    const onChange = (ev: MediaQueryListEvent) => setBelow(ev.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return below;
+}
+
 export function HearingsTab({ scope }: { scope: string }) {
   const navigate = useNavigate();
   const history = useHearingSessionHistory();
   const resolveStream = useResolveStream();
 
+  // The user's saved desktop preference (LegiWatch Settings → default view).
   const [view, setView] = useState<ViewMode>('calendar');
   const [weekAnchor, setWeekAnchor] = useState<Date>(() => new Date());
   const [committee, setCommittee] = useState<string>('');
   const [kind, setKind] = useState<string>('');
   const [search, setSearch] = useState('');
   const [setupHearing, setSetupHearing] = useState<CanonicalHearingEvent | null>(null);
+
+  // PR D / LW-QA-011: below 900px the seven-day grid compresses to ~90px
+  // columns — unreadable. The schedule TEMPORARILY renders agenda/list layout
+  // (the LwSeg control is disabled with the reason so the state is honest).
+  // The override is NEVER written back to the user's preference: returning to
+  // a full-size display restores exactly what they saved. CSS already drops
+  // the grid to one day per row below 780 as belt-and-braces.
+  const narrow = useMediaBelow900();
+  const effectiveView: ViewMode = narrow ? 'list' : view;
 
   const weekDays = useEasternWeekDays(weekAnchor);
   const rangeFrom = weekDays[0] ?? '';
@@ -242,9 +281,15 @@ export function HearingsTab({ scope }: { scope: string }) {
                 { id: 'calendar' as ViewMode, label: 'Calendar' },
                 { id: 'list' as ViewMode, label: 'List' },
               ]}
-              value={view}
+              value={effectiveView}
               onChange={setView}
+              disabled={narrow}
             />
+            {narrow ? (
+              <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                Agenda layout at this width — Calendar returns on a wider display
+              </span>
+            ) : null}
             <select
               aria-label="Committee"
               className="lw-btn"
@@ -277,7 +322,7 @@ export function HearingsTab({ scope }: { scope: string }) {
             </div>
           </div>
 
-          {view === 'calendar' ? (
+          {effectiveView === 'calendar' ? (
             <section className="lw-card lw-cal" aria-label="Week calendar">
               <div className="lw-card__head">
                 <button

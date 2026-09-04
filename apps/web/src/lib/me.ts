@@ -14,6 +14,8 @@ export interface MeResponse {
     hasEmailSignature: boolean;
     tourCompleted: boolean;
     legiwatchIntroSeen: boolean;
+    /** PR D / LW-QA-013 — per-user LegiWatch display preferences (JSON doc). */
+    legiwatchPrefs?: Record<string, unknown> | null;
   };
   tenant: { id: string; slug: string; name: string };
   role: TenantRole;

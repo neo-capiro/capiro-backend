@@ -513,6 +513,11 @@ model User {
   // LegiWatch orientation is a per-user preference that follows the analyst
   // across browsers and devices instead of a shared localStorage flag.
   legiwatchIntroSeenAt  DateTime? @map("legiwatch_intro_seen_at") @db.Timestamptz(6)
+  // LegiWatch display preferences (PR D / LW-QA-013): one JSON doc per user —
+  // preferred timezone, default hearings view, default chamber filter.
+  // SECONDARY display only; never touches canonical hearing truth. Round-trips
+  // unknown keys so the web can extend the shape without a migration each time.
+  legiwatchPrefs        Json?     @map("legiwatch_prefs")
   lastSeenAt            DateTime? @map("last_seen_at") @db.Timestamptz(6)
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)

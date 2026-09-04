@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { LazyRouteErrorBoundary } from '../../lib/LazyRouteErrorBoundary.js';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
 import { VNextStrategiesRoutes } from '../pages/strategies/VNextStrategiesRoutes.js';
 import {
@@ -99,6 +100,20 @@ const VNextAdminMiscRoutes = lazy(async () => ({
  */
 export function VNextRouter() {
   const location = useLocation();
+
+  // PR D / LW-QA-010: one boundary wraps EVERY vNext route branch. A chunk-
+  // class failure in any lazy() loader (hard nav to /settings after a deploy,
+  // stale index → missing chunk) recovers here: mark + reload once per build
+  // ID, else a visible Retry/Home surface. Ordinary render errors still
+  // propagate to the app's normal error boundary — this class is narrow.
+  return (
+    <LazyRouteErrorBoundary routePath={location.pathname}>
+      <VNextRouterBranches location={location} />
+    </LazyRouteErrorBoundary>
+  );
+}
+
+function VNextRouterBranches({ location }: { location: ReturnType<typeof useLocation> }) {
 
   // Portfolio: the client CRM profile at /clients?clientId=<id> and, with no
   // clientId, the Portfolio index (PORTFOLIO-HANDOFF §7.1). vNext owns /clients
