@@ -10,13 +10,16 @@
  * Roles handled:
  *   * `capiro_app`            — APP_USER / APP_PASSWORD. Required.
  *   * `capiro_pe_promoter`    — PROMOTER_USER / PROMOTER_PASSWORD. Optional.
+ *   * `capiro_analytics_ro`   — ANALYTICS_USER / ANALYTICS_PASSWORD. Optional.
  *
- * The promoter role is optional so this task keeps working in environments
- * where the Phase 7 promoter secret has not been provisioned yet. Creating that
- * secret and passing it to this task is Workstream N; migration
- * 20260822010000 creates the role itself with an unusable placeholder password,
- * exactly as migration 20260502020000 did for capiro_app, so until the secret
- * exists the promoter simply cannot authenticate.
+ * The promoter and analytics roles are optional so this task keeps working in
+ * environments where their secrets have not been provisioned yet. Creating
+ * the promoter secret and passing it to this task is Workstream N; migration
+ * 20260822010000 creates that role itself with an unusable placeholder
+ * password, exactly as migration 20260502020000 did for capiro_app, so until
+ * the secret exists the promoter simply cannot authenticate. Migration
+ * 20280210010000 does the same for capiro_analytics_ro (Meri's
+ * query_global_data tool).
  *
  * Identifier and password are quoted via pg-format-style escaping. The
  * password contains only generated characters from the secret's
@@ -65,6 +68,14 @@ function plannedRotations(): RoleRotation[] {
     // Half-supplied credentials are a misconfiguration, not an opt-out: failing
     // here is better than silently leaving the promoter unable to log in.
     throw new Error('PROMOTER_USER and PROMOTER_PASSWORD must be supplied together');
+  }
+
+  const analyticsUser = process.env.ANALYTICS_USER;
+  const analyticsPassword = process.env.ANALYTICS_PASSWORD;
+  if (analyticsUser && analyticsPassword) {
+    rotations.push({ label: 'analytics-ro', user: analyticsUser, password: analyticsPassword });
+  } else if (analyticsUser || analyticsPassword) {
+    throw new Error('ANALYTICS_USER and ANALYTICS_PASSWORD must be supplied together');
   }
 
   return rotations;

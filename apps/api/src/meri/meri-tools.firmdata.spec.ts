@@ -92,6 +92,7 @@ function makeMocks() {
     engagement as never,
     {} as never, // mailSender
     {} as never, // ldaIntel
+    {} as never, // analyticsDb
     {} as never, // lobbyIntel
     {} as never, // federalSpending
     programElement as never,

@@ -32,6 +32,10 @@ export interface ComputeStackProps extends cdk.StackProps {
   appDbSecret: secretsmanager.ISecret;
   /** Phase 7 Workstream N — `capiro_pe_promoter`'s credential (`DataStack.promoterSecret`). */
   promoterDbSecret: secretsmanager.ISecret;
+  /** Meri query_global_data — `capiro_analytics_ro`'s credential (`DataStack.analyticsSecret`). */
+  analyticsDbSecret: secretsmanager.ISecret;
+  /** The cluster's reader endpoint (`DataStack.readerEndpoint`) — query_global_data's only consumer. */
+  readerEndpoint: string;
   databaseName: string;
   dataKey: kms.IKey;
   secretsStack: SecretsStack;
@@ -96,6 +100,8 @@ export class ComputeStack extends cdk.Stack {
       dbSecret,
       appDbSecret,
       promoterDbSecret,
+      analyticsDbSecret,
+      readerEndpoint,
       databaseName,
       dataKey,
       secretsStack,
@@ -130,6 +136,12 @@ export class ComputeStack extends cdk.Stack {
         this,
         'ImportedPromoterDbSecret',
         promoterDbSecret.secretArn,
+      );
+    const analyticsDbSecretImported =
+      secretsmanager.Secret.fromSecretCompleteArn(
+        this,
+        'ImportedAnalyticsDbSecret',
+        analyticsDbSecret.secretArn,
       );
     const clerkSecretKeyImported = secretsmanager.Secret.fromSecretCompleteArn(
       this,
@@ -543,6 +555,20 @@ export class ComputeStack extends cdk.Stack {
         appDbSecretImported,
         'password',
       ),
+      // Meri query_global_data — a wholly separate, SELECT-only connection
+      // (capiro_analytics_ro against the reader endpoint), never DB_*/capiro_app.
+      // ANALYTICS_DB_PORT reuses the writer secret's port field: Aurora's
+      // reader and writer endpoints listen on the same port, and there is no
+      // separate "port" field on the reader endpoint to read instead.
+      ANALYTICS_DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
+      ANALYTICS_DB_USER: ecs.Secret.fromSecretsManager(
+        analyticsDbSecretImported,
+        'username',
+      ),
+      ANALYTICS_DB_PASSWORD: ecs.Secret.fromSecretsManager(
+        analyticsDbSecretImported,
+        'password',
+      ),
       MICROSOFT_CLIENT_ID: ecs.Secret.fromSecretsManager(
         microsoftClientIdSecret,
       ),
@@ -626,6 +652,11 @@ export class ComputeStack extends cdk.Stack {
       API_PORT: '4000',
       API_BIND_HOST: '0.0.0.0',
       DB_NAME: databaseName,
+      // Meri query_global_data connects to the READER endpoint, not the
+      // writer DB_HOST above — see the ANALYTICS_DB_PORT/USER/PASSWORD
+      // secrets for why this is a wholly separate credential.
+      ANALYTICS_DB_HOST: readerEndpoint,
+      ANALYTICS_DB_NAME: databaseName,
       // CLERK_JWT_ISSUER is set per-env from config; absent during dev
       // bootstrap (before Clerk instance is created) so the API skips issuer
       // validation, acceptable until clerkJwtIssuer is filled in config.ts.
@@ -814,6 +845,7 @@ export class ComputeStack extends cdk.Stack {
         dbSecretImported.secretArn,
         clerkSecretKeyImported.secretArn,
         clerkWebhookImported.secretArn,
+        analyticsDbSecretImported.secretArn,
         ...externalRuntimeSecretArnPatterns,
       ],
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
@@ -1789,6 +1821,7 @@ export class ComputeStack extends cdk.Stack {
         dbSecretImported.secretArn,
         appDbSecretImported.secretArn,
         promoterDbSecretImported.secretArn,
+        analyticsDbSecretImported.secretArn,
       ],
       [dataKey.keyArn],
     );
@@ -1840,6 +1873,14 @@ export class ComputeStack extends cdk.Stack {
         ),
         PROMOTER_PASSWORD: ecs.Secret.fromSecretsManager(
           promoterDbSecretImported,
+          'password',
+        ),
+        ANALYTICS_USER: ecs.Secret.fromSecretsManager(
+          analyticsDbSecretImported,
+          'username',
+        ),
+        ANALYTICS_PASSWORD: ecs.Secret.fromSecretsManager(
+          analyticsDbSecretImported,
           'password',
         ),
       },

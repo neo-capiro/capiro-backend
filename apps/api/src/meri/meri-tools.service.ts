@@ -57,6 +57,9 @@ import { RepresentationResolverService } from '../clients/representation-resolve
 import { RegulatoryDocketService } from '../regulatory-docket/regulatory-docket.service.js';
 import { EngagementMailSender } from '../engagement/mail-sender.service.js';
 import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
+import { AnalyticsDbService } from './analytics/analytics-db.service.js';
+import { listDatasetSummaries } from './analytics/global-dataset-registry.js';
+import { compileQuerySpec, parseQuerySpecInput, QuerySpecError } from './analytics/query-spec-compiler.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
@@ -552,6 +555,16 @@ export const TOOL_DEFINITIONS = [
     description:
       'Get the deterministic, stage-aware action plan for an opportunity — what a capture team should do next given where the acquisition actually is (forecast, sources sought, presolicitation, solicitation, amendment, grant, or closed). Returns PROPOSALS ONLY: nothing is committed, no task is created, no workflow moves. A person accepts an action in Capiro, which then creates the task and records the decision in one transaction. A closed or informational notice never proposes a pursuit.',
   },
+  {
+    name: 'list_global_datasets',
+    description:
+      'List the global (public-domain, non-tenant) reference datasets query_global_data can aggregate over — LDA lobbying registrations, SEC filings, FARA registrations, congressional and state bills, federal grants and contract opportunities, federal awards, GAO/CRS reports, FEC committees, and news. For each dataset: its queryable fields, their types, and whether they can be filtered/grouped/aggregated. Call this BEFORE query_global_data if you are not already certain of a dataset\'s exact field names — do not guess them.',
+  },
+  {
+    name: 'query_global_data',
+    description:
+      "Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like \"how many active LDA registrations do we have\" or \"which agency posted the most grants this year\" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset's field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.",
+  },
 ] as const;
 
 type MeriToolName = (typeof TOOL_DEFINITIONS)[number]['name'];
@@ -619,6 +632,7 @@ export class MeriToolsService {
     private readonly engagement: EngagementService,
     private readonly mailSender: EngagementMailSender,
     private readonly ldaIntel: LdaIntelService,
+    private readonly analyticsDb: AnalyticsDbService,
     private readonly lobbyIntel: LobbyIntelService,
     private readonly federalSpending: FederalSpendingService,
     private readonly programElement: ProgramElementReadService,
@@ -809,6 +823,54 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
         page: int('Page number'),
       }),
+      list_global_datasets: obj({}),
+      query_global_data: obj(
+        {
+          dataset: str('Dataset key from list_global_datasets, e.g. "lda_registrations"'),
+          select: {
+            type: 'array',
+            description:
+              'What to return: 1-12 entries, each either {field} for a raw column or {field?, agg} for an aggregate (agg one of count, count_distinct, sum, avg, min, max — field omitted only for a bare count(*)).',
+            items: obj({
+              field: str('Field name from the dataset (omit only when agg is "count" for COUNT(*))'),
+              agg: str('One of: count, count_distinct, sum, avg, min, max'),
+            }),
+          },
+          filters: {
+            type: 'array',
+            description: 'Optional WHERE conditions, ANDed together.',
+            items: obj(
+              {
+                field: str('Field name from the dataset'),
+                op: str(
+                  'One of: eq, ne, in, not_in, gte, lte, gt, lt, between, contains, is_null, is_not_null',
+                ),
+                value: {
+                  description:
+                    'Required for every op except is_null/is_not_null. Array of 2 for between; array for in/not_in.',
+                },
+              },
+              ['field', 'op'],
+            ),
+          },
+          groupBy: {
+            type: 'array',
+            description: 'Field names to group by. Every non-aggregated select field must appear here.',
+            items: { type: 'string' },
+          },
+          orderBy: {
+            type: 'array',
+            description: 'At most 3. Each field must be one of the select aliases (the field name, or agg_field for an aggregate, or count_all for a bare count).',
+            items: obj({
+              field: str('A select alias'),
+              direction: str('asc or desc'),
+            }),
+          },
+          limit: int('Max rows (capped per-dataset regardless of what you ask for)'),
+          asOfDate: str('ISO date/timestamp. Only honored by datasets that declare asOf support (see list_global_datasets) — currently lda_registrations, to ask "what did status look like as of this date" instead of right now.'),
+        },
+        ['dataset', 'select'],
+      ),
       search_sec_filings: obj({
         query: str('Company name search'),
         formType: str('Form type, e.g. 10-K, 10-Q, 8-K, DEF 14A, S-1'),
@@ -1537,6 +1599,8 @@ export class MeriToolsService {
   /** Per-tenant sliding-window rate limit for sandbox runs. */
   private readonly analysisRuns = new Map<string, number[]>();
   private static readonly ANALYSIS_RUNS_PER_HOUR = 20;
+  /** query_global_data: cap on the serialized `rows` handed back into a chat turn. */
+  private static readonly GLOBAL_DATA_MAX_RESULT_BYTES = 256 * 1024;
 
   /** Whether run_analysis is live for this tenant (env kill-switch AND
    *  tenant flag; GA default ON — a tenant can opt OUT with
@@ -1733,6 +1797,10 @@ export class MeriToolsService {
         return this.resolveEntity(input);
       case 'search_lda_filings':
         return this.searchLdaFilings(input);
+      case 'list_global_datasets':
+        return this.listGlobalDatasets();
+      case 'query_global_data':
+        return this.queryGlobalData(ctx, input);
       case 'search_sec_filings':
         return this.searchSecFilings(input);
       case 'search_fara_registrations':
@@ -3348,6 +3416,103 @@ export class MeriToolsService {
       generatedAt: new Date().toISOString(),
       ...filings,
     };
+  }
+
+  // ── Global-data analytics (query_global_data / list_global_datasets) ───
+  // See apps/api/src/meri/analytics/ for the registry + compiler this wraps.
+  // Deliberately thin: this method's only jobs are (1) parse the raw tool
+  // input into a QuerySpec, (2) compile + execute it, (3) write the audit
+  // log row. All actual safety validation lives in query-spec-compiler.ts.
+
+  private listGlobalDatasets() {
+    return {
+      tool: 'list_global_datasets',
+      generatedAt: new Date().toISOString(),
+      datasets: listDatasetSummaries(),
+    };
+  }
+
+  private async queryGlobalData(ctx: TenantContext, input: Record<string, unknown>) {
+    const generatedAt = new Date().toISOString();
+
+    let compiled;
+    try {
+      compiled = compileQuerySpec(parseQuerySpecInput(input));
+    } catch (err) {
+      if (err instanceof QuerySpecError) {
+        return { tool: 'query_global_data', generatedAt, ok: false, error: err.message };
+      }
+      throw err;
+    }
+
+    const startedAt = Date.now();
+    try {
+      const rows = await this.analyticsDb.run(compiled);
+      const durationMs = Date.now() - startedAt;
+      await this.recordAnalyticsQuery(ctx, compiled, rows.length, durationMs, null);
+      // Bound the payload handed back into the chat turn. LIMIT already caps
+      // rows, but 2000 wide rows can still be several MB of JSON; keep it in
+      // the same order of magnitude as other tools' results and say so.
+      const { rows: boundedRows, truncated } = truncateRowsToBytes(
+        rows,
+        MeriToolsService.GLOBAL_DATA_MAX_RESULT_BYTES,
+      );
+      return {
+        tool: 'query_global_data',
+        generatedAt,
+        dataset: compiled.datasetKey,
+        sql: compiled.sql,
+        rowCount: rows.length,
+        rows: boundedRows,
+        ...(truncated
+          ? {
+              truncated: true,
+              note: `Only the first ${boundedRows.length} of ${rows.length} rows are shown; add filters, group, or lower limit to see the rest.`,
+            }
+          : {}),
+      };
+    } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      const message = err instanceof Error ? err.message : String(err);
+      await this.recordAnalyticsQuery(ctx, compiled, null, durationMs, message);
+      this.logger.warn(`query_global_data failed: ${message}`);
+      return {
+        tool: 'query_global_data',
+        generatedAt,
+        ok: false,
+        error: 'The query could not be run (likely a timeout on an expensive query — try narrowing filters or lowering limit).',
+      };
+    }
+  }
+
+  private async recordAnalyticsQuery(
+    ctx: TenantContext,
+    compiled: { sql: string; params: unknown[]; datasetKey: string },
+    rowCount: number | null,
+    durationMs: number,
+    error: string | null,
+  ): Promise<void> {
+    try {
+      await this.prisma.withSystem((tx) =>
+        tx.meriAnalyticsQueryLog.create({
+          data: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            datasetKey: compiled.datasetKey,
+            sql: compiled.sql,
+            params: compiled.params as Prisma.InputJsonValue,
+            rowCount: rowCount ?? undefined,
+            durationMs,
+            error: error ?? undefined,
+          },
+        }),
+      );
+    } catch (err) {
+      // Audit logging must never break the tool call itself.
+      this.logger.error(
+        `Failed to record analytics query audit log: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // ── New intelligence data source tools ──────────────────────────────
@@ -7418,6 +7583,25 @@ export function websiteDomain(website: string | null | undefined): string | null
   if (!host || !host.includes('.') || host.endsWith('.')) return null;
   if (GENERIC_MAIL_DOMAINS.has(host)) return null;
   return host;
+}
+
+/**
+ * Keep the leading rows whose JSON fits in `maxBytes`. Rows are already
+ * JSON-safe (see analytics-db.service.ts normalizeRow), so a per-row
+ * stringify is an honest size measure.
+ */
+function truncateRowsToBytes(
+  rows: Record<string, unknown>[],
+  maxBytes: number,
+): { rows: Record<string, unknown>[]; truncated: boolean } {
+  let used = 2; // the surrounding [ ]
+  const kept: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    used += JSON.stringify(row).length + 1;
+    if (used > maxBytes) return { rows: kept, truncated: true };
+    kept.push(row);
+  }
+  return { rows: kept, truncated: false };
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {

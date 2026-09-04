@@ -62,6 +62,8 @@ const compute = new ComputeStack(app, stackName(cfg.envName, 'Compute'), {
   dbSecret: data.secret,
   appDbSecret: data.appSecret,
   promoterDbSecret: data.promoterSecret,
+  analyticsDbSecret: data.analyticsSecret,
+  readerEndpoint: data.readerEndpoint,
   databaseName: data.databaseName,
   dataKey: data.key,
   secretsStack: secrets,

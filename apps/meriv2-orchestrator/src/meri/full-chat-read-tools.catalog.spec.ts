@@ -17,6 +17,11 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
     const expected = [
       'run_analysis',
       'search_memory',
+      // Global-data analytics (structured aggregate queries over the
+      // ingested reference datasets — LDA, grants, SAM/USAspending, SEC,
+      // FARA, bills, GAO/CRS, FEC, news).
+      'list_global_datasets',
+      'query_global_data',
       'search_sec_filings',
       'search_fara_registrations',
       'search_federal_grants',
@@ -54,7 +59,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'build_opportunity_action_plan',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(35);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(37);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -74,7 +79,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(79); // +6 Funding Opportunities read tools (P37)
+    expect(combined).toHaveLength(81); // +2 global-data analytics tools
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

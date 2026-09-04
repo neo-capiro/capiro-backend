@@ -30,6 +30,11 @@ const EXPECTED_TOOLS = [
   // Canonical entity resolution (Bucket-#3 C6.P6.2, SC2.2)
   'resolve_entity',
   'search_lda_filings',
+  // Global-data analytics (structured aggregate queries over the ingested
+  // reference datasets — LDA, grants, SAM/USAspending, SEC, FARA, bills,
+  // GAO/CRS, FEC, news — never tenant-private data).
+  'list_global_datasets',
+  'query_global_data',
   'search_sec_filings',
   'search_fara_registrations',
   'search_federal_grants',
@@ -135,6 +140,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   get_acquisition_person: ['id'],
   find_path_to: ['to'],
   search_memory: ['query'],
+  query_global_data: ['dataset', 'select'],
   resolve_entity: ['query'],
   get_bill_status: ['billId'],
   get_state_bill_status: ['billId'],
