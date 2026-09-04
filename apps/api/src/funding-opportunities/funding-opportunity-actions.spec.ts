@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   FUNDING_OPPORTUNITY_TASK_SOURCE,
   FundingOpportunityActionsService,
@@ -32,6 +33,8 @@ interface FakeOpts {
   existingTask?: { id: string; title: string; ownerUserId: string | null; dueDate: Date | null } | null;
   failDecision?: boolean;
   failTaskInsert?: boolean;
+  /** When set, the first `engagementTask.create` throws a P2002-shaped error, and a second `findFirst` returns this row (simulating the race winner). */
+  raceWinner?: { id: string; title: string; ownerUserId: string | null; dueDate: Date | null };
   ownerInTenant?: boolean;
   deadline?: string | null;
 }
@@ -41,11 +44,29 @@ function makeFake(opts: FakeOpts = {}) {
   const decisions: any[] = [];
   let rolledBack = false;
 
+  let findFirstCallCount = 0;
+  const raceWinner = opts.raceWinner;
+
   const tx = {
     engagementTask: {
-      findFirst: jest.fn(async () => opts.existingTask ?? null),
+      findFirst: jest.fn(async () => {
+        findFirstCallCount += 1;
+        // First call (inside write()): no existing task — the race starts.
+        // Second call (inside catch recovery): the winner has committed.
+        if (findFirstCallCount === 1) return opts.existingTask ?? null;
+        return raceWinner ?? opts.existingTask ?? null;
+      }),
       create: jest.fn(async (args: any) => {
         if (opts.failTaskInsert) throw new Error('task insert failed');
+        if (raceWinner && findFirstCallCount === 1) {
+          // Simulate the unique index catching a concurrent insert:
+          // must be a real PrismaClientKnownRequestError so the service's
+          // `instanceof` check matches.
+          throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+            code: 'P2002',
+            clientVersion: '5.22.0',
+          });
+        }
         created.push(args.data);
         return {
           id: 'task-1',
@@ -294,6 +315,33 @@ describe('a retry returns the same task, never a second one', () => {
     const a = FundingOpportunityActionsService.taskSourceId('sam_gov', SAM_ID, 'pursuit');
     const b = FundingOpportunityActionsService.taskSourceId('grants_gov', SAM_ID, 'pursuit');
     expect(a).not.toBe(b);
+  });
+});
+
+// ── P2002 race recovery (F-1 fix) ──────────────────────────────────────────
+
+describe('a concurrent race returns the winner as reused, not a 500', () => {
+  test('a P2002 on task create re-reads the winner and returns reused:true', async () => {
+    const winner = { id: 'task-winner', title: 'Pursue: Turbofan Engine Sustainment', ownerUserId: null, dueDate: null };
+    const { service, created } = makeFake({ raceWinner: winner });
+
+    const result = await service.act(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      intent: 'pursuit',
+      actorUserId: USER,
+    });
+
+    expect(result.task.id).toBe('task-winner');
+    expect(result.task.reused).toBe(true);
+    // The loser's transaction rolled back — no task row was created by it.
+    expect(created).toHaveLength(0);
+  });
+
+  test('a non-P2002 error is re-thrown, not swallowed', async () => {
+    const { service } = makeFake({ failTaskInsert: true });
+
+    await expect(
+      service.act(TENANT, CLIENT, 'sam_gov', SAM_ID, { intent: 'pursuit', actorUserId: USER }),
+    ).rejects.toThrow('task insert failed');
   });
 });
 

@@ -1462,6 +1462,12 @@ model EngagementTask {
 
   @@index([tenantId, clientId, status], map: "engagement_tasks_tenant_client_status_idx")
   @@index([tenantId, dueDate], map: "engagement_tasks_tenant_due_idx")
+  // P08 idempotency guard (independent-review finding F-1). A PARTIAL unique
+  // index — created only in the migration, since Prisma cannot express
+  // `WHERE source_type IS NOT NULL AND source_id IS NOT NULL`:
+  //   engagement_tasks_tenant_source_uniq
+  //     UNIQUE (tenant_id, source_type, source_id)
+  //     WHERE source_type IS NOT NULL AND source_id IS NOT NULL
   @@map("engagement_tasks")
 }
 
