@@ -18,7 +18,7 @@ SOURCE_DOCUMENT = 'source-sasc-fy2027'
 
 
 def load_pages(name: str) -> list[ParserPageResultV1]:
-    values = json.loads((FIXTURES / name).read_text())
+    values = json.loads((FIXTURES / name).read_text(encoding='utf-8'))
     return [ParserPageResultV1.model_validate(value) for value in values]
 
 
