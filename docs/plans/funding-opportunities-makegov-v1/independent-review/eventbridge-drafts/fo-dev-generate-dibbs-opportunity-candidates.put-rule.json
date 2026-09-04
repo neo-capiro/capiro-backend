@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-generate-dibbs-opportunity-candidates",
+  "ScheduleExpression": "cron(15 13 * * ? *)",
+  "State": "DISABLED",
+  "Description": "[daily] Funding Opportunities: persist DIBBS client suggestions after the DIBBS bid-board sync (daily 13:15 UTC). Created DISABLED 2026-08-14. Out-of-band; not a CDK resource.",
+  "EventBusName": "default"
+}

@@ -1,0 +1,7 @@
+{
+  "Name": "fo-dev-generate-sbir-opportunity-candidates",
+  "ScheduleExpression": "cron(35 13 * * ? *)",
+  "State": "DISABLED",
+  "Description": "[daily] Funding Opportunities: persist SBIR/STTR client suggestions after the SBIR/STTR sync (daily 13:35 UTC). Created DISABLED 2026-08-14. Out-of-band; not a CDK resource.",
+  "EventBusName": "default"
+}
