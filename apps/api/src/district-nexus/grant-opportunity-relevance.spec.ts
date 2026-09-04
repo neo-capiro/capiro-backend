@@ -119,6 +119,82 @@ describe('relevance signals', () => {
     expect(result.matchedSignals).toHaveLength(1);
   });
 
+  /**
+   * G2. `normalizeListing` used to be `replace(/[^0-9.]/g, '')`, which DELETED
+   * the letter suffix instead of keeping it, so `93.00R`, `93.00E`, `93.00F`,
+   * `93.00G`, `93.00J` and `93.00K` — six genuinely different federal listings —
+   * all collapsed to `93.00` and matched each other. That manufactured the
+   * highest-weighted signal in the table, which clears the suggestion floor on
+   * its own. Proven against production data: `93.00R` alone has 75 real award
+   * rows behind it.
+   */
+  describe('Assistance Listing identity (regression: suffix collapse)', () => {
+    const listingSignals = (clientListing: string, opportunityListing: string): string[] =>
+      scoreOpportunityRelevance(
+        client({ priorAssistanceListings: [clientListing] }),
+        opportunity({ assistanceListingNumber: opportunityListing }),
+      ).matchedSignals.map((s) => s.signal);
+
+    test('two listings differing ONLY in their letter suffix are different programs', () => {
+      expect(listingSignals('93.00E', '93.00R')).not.toContain('assistanceListing');
+      expect(listingSignals('93.00F', '93.00R')).not.toContain('assistanceListing');
+      expect(listingSignals('93.00J', '93.00K')).not.toContain('assistanceListing');
+    });
+
+    test('a suffixed listing is not the same program as the unsuffixed stem', () => {
+      expect(listingSignals('93.00', '93.00R')).not.toContain('assistanceListing');
+      expect(listingSignals('93.00R', '93.00')).not.toContain('assistanceListing');
+    });
+
+    test('a suffixed listing still matches ITSELF — the fix keeps the true positive', () => {
+      // Deleting the suffix was one wrong answer; refusing to parse it at all
+      // would be the other. `93.00R` is a real listing and two of them are the
+      // same program.
+      expect(listingSignals('93.00R', '93.00R')).toContain('assistanceListing');
+      expect(listingSignals('cfda 93.00r', '93.00R')).toContain('assistanceListing');
+    });
+
+    test("'CFDA 93.778', '93.778 ' and '93.778' are all one listing", () => {
+      for (const stored of ['CFDA 93.778', '93.778 ', '93.778']) {
+        for (const notice of ['CFDA 93.778', '93.778 ', '93.778']) {
+          expect(listingSignals(stored, notice)).toContain('assistanceListing');
+        }
+      }
+    });
+
+    test('two unparseable values are NOT a match — an empty normalization is not a value', () => {
+      // The whole class of bug: any normalizer that can map junk to a shared
+      // token turns "we know nothing about either side" into the strongest
+      // signal we have.
+      for (const junk of ['', '   ', 'n/a', 'unknown', 'CFDA', '--']) {
+        expect(listingSignals(junk, junk)).toEqual([]);
+      }
+    });
+
+    test('a listing embedded in a longer number cannot be truncated into a match', () => {
+      // Truncating `93.7789` to `93.778` would invent an equality, which is the
+      // same failure in a different disguise.
+      expect(listingSignals('93.778', '93.7789')).not.toContain('assistanceListing');
+      expect(listingSignals('93.778', '1293.778')).not.toContain('assistanceListing');
+    });
+
+    test('a client holding ONLY 93.00E earns no strong signal against a 93.00R notice', () => {
+      // The end-to-end statement of G2: not merely "the signal is absent" but
+      // "the pair does not reach the suggestion floor on the strength of a
+      // listing it does not actually share".
+      const result = scoreOpportunityRelevance(
+        client({ priorAssistanceListings: ['93.00E'] }),
+        opportunity({
+          assistanceListingNumber: '93.00R',
+          title: 'A notice under a different listing',
+        }),
+      );
+      expect(result.matchedSignals.filter((s) => s.strength === 'strong')).toEqual([]);
+      expect(result.relevanceScore).toBe(0);
+      expect(result.meetsSuggestionFloor).toBe(false);
+    });
+  });
+
   test('capability keywords match against title and description', () => {
     const result = scoreOpportunityRelevance(
       client({ capabilityKeywords: ['hypersonics'] }),

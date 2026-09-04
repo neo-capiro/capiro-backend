@@ -14,7 +14,6 @@ import { sourceRecordIdentityColumns } from '../src/funding-opportunities/fundin
 import {
   computeEligibility,
   scoreOpportunityRelevance,
-  MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
   type ClientRelevanceProfile,
 } from '../src/district-nexus/grant-opportunity-relevance.js';
 import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
@@ -43,7 +42,23 @@ dotenvConfig();
 
 const SOURCE = 'generate-funding-grant-candidates';
 const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
-export const DEFAULT_MIN_RELEVANCE = MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR;
+/**
+ * Numeric backstop only. Evidence quality is owned by
+ * `scoreOpportunityRelevance(...).meetsSuggestionFloor` (1 strong, 2 moderate,
+ * or capability-keyword + distinctive weak topical signal).
+ *
+ * This used to equal MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR (~29) so that
+ * "listing alone qualifies" was expressed as a score threshold. That rule now
+ * lives on the floor's strong-signal arm. Keeping the numeric default at the
+ * listing floor would silently drop every keyword+sector grant (~18) that the
+ * read path surfaces — the exact miss this change closes. 15 matches the SAM
+ * producer's DEFAULT_MIN_RELEVANCE and the sibling District Nexus producer
+ * (PR #1146), and sits just under keyword+sector.
+ *
+ * Measured live on 2026-09-03, before this change: 164,428 real (client, grant)
+ * pairs across 101 clients produced 4 candidates.
+ */
+export const DEFAULT_MIN_RELEVANCE = 15;
 /**
  * Page size for BOTH keyset walks. Not a coverage boundary — see
  * producer-pagination.ts. Replaces OPPORTUNITY_SCAN_CAP (4000) and CLIENT_CAP
@@ -292,10 +307,14 @@ export async function generateFundingGrantCandidates(
                   };
                   const scored = scoreOpportunityRelevance(profile, opportunityProfile);
                   const eligibility = computeEligibility(profile, opportunityProfile);
-                  const meetsSuggestionFloor =
-                    scored.matchedSignals.some((signal) => signal.strength === 'strong') ||
-                    scored.matchedSignals.filter((signal) => signal.strength === 'moderate')
-                      .length >= 2;
+                  // The floor is the scorer's verdict, never re-derived here.
+                  // This used to inline `strong >= 1 || moderate >= 2` — the SAM
+                  // rail's floor — and so dropped the grant-specific third arm
+                  // (capabilityKeyword + a distinctive weak topical signal), the
+                  // only way a client with capabilities but no applicant-type or
+                  // award-history data can ever qualify on this rail. PR #1146
+                  // fixed that class everywhere else and missed this file.
+                  const meetsSuggestionFloor = scored.meetsSuggestionFloor;
                   const existing =
                     existingByKey.get(`${client.clientId}:${grant.id}`) ?? null;
                   const decision = decideProducerAction({
