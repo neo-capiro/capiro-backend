@@ -78,7 +78,7 @@ const INTELLIGENCE: V2NavLeaf[] = [
     featureFlag: 'funding_opportunities',
   },
   { key: 'knowledge-graph', label: 'Knowledge Graph', path: '/intelligence/graph' },
-  { key: 'program-elements', label: 'Program Elements', path: '/program-elements' },
+  { key: 'program-elements', label: 'Defense Budget', path: '/program-elements' },
 ];
 
 const MORE: V2NavLeaf[] = [
@@ -470,7 +470,7 @@ export function AppShellV2({ me }: { me: MeResponse }) {
                 v={peSummary.data ? String(peSummary.data.watched) : '—'}
               />
               <button type="button" className="v2-data-link" onClick={() => go('/program-elements')}>
-                Open Program Elements →
+                Open Defense Budget →
               </button>
             </div>
           ) : null}

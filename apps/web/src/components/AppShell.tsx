@@ -230,6 +230,9 @@ const NAV: NavItem[] = [
       },
       {
         key: 'program-elements',
+        // LW-QA-009: product name resolved per-tenant in the items builder —
+        // Defense Budget inside capiro-internal, Program Elements elsewhere.
+        // (NAV is a module constant; the tenant label cannot live here.)
         label: 'Program Elements',
         path: '/program-elements',
         icon: <FundOutlined />,
@@ -254,6 +257,13 @@ export function AppShell() {
   const [workflowLocked, setWorkflowLocked] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
 
+  // LW-QA-009 (PR D): ONE product name per route. `/program-elements` renders
+  // the Defense Budget vNext workspace for capiro-internal (AppShellV2 branch
+  // and PeWorkspacePage already say "Defense Budget"); the legacy shell label
+  // must agree instead of shipping a second name for the same surface.
+  const isInternalTenant = me.data?.tenant.slug === 'capiro-internal';
+  const peNavLabel = isInternalTenant ? 'Defense Budget' : 'Program Elements';
+
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ locked?: boolean }>).detail;
@@ -271,7 +281,7 @@ export function AppShell() {
     'Account';
   const displayTitle = me.data?.user.title ?? null;
 
-  const page = useMemo(() => pageConfigFor(location.pathname), [location.pathname]);
+  const page = useMemo(() => pageConfigFor(location.pathname, isInternalTenant), [location.pathname, isInternalTenant]);
   const strategyMeriSuppressed = useMemo(
     () => isStrategyMeriSuppressed(location.pathname),
     [location.pathname],
@@ -416,9 +426,13 @@ export function AppShell() {
 
     const buildLeaf = (n: NavItem) => {
       const count = navCounts[n.key];
+      // LW-QA-009: the /program-elements nav leaf uses the tenant-aware product
+      // name (Defense Budget inside capiro-internal); every other leaf keeps
+      // its static label.
+      const leafLabel = n.key === 'program-elements' ? peNavLabel : n.label;
       const labelInner = (
         <span className="app-nav-label-row" data-tour={n.tourId}>
-          <span className="app-nav-label-text">{n.label}</span>
+          <span className="app-nav-label-text">{leafLabel}</span>
           {count != null && count > 0 ? (
             <span className="app-nav-count num" aria-label={`${count} items`}>
               {count > 99 ? '99+' : count}
@@ -429,7 +443,7 @@ export function AppShell() {
       return {
         key: n.key,
         icon: n.icon,
-        title: n.label,
+        title: leafLabel,
         disabled: n.disabled,
         className:
           [n.nested ? 'app-nav-item--nested' : '', n.disabled ? 'app-nav-item--disabled' : '']
@@ -479,7 +493,7 @@ export function AppShell() {
       }
     }
     return result;
-  }, [message, navCounts, role, workflowLocked, intelFlags.data, me.data]);
+  }, [message, navCounts, role, workflowLocked, intelFlags.data, me.data, peNavLabel]);
 
   const selectedKey = page.key === 'not-found' ? 'home' : page.key;
 
@@ -1211,7 +1225,7 @@ function pageKeyFor(pathname: string): AppSection {
   return 'not-found';
 }
 
-function pageConfigFor(pathname: string): PageConfig {
+function pageConfigFor(pathname: string, isInternalTenant = false): PageConfig {
   const key = pageKeyFor(pathname);
   const titleByKey: Record<AppSection, string> = {
     home: 'Dashboard',
@@ -1226,8 +1240,8 @@ function pageConfigFor(pathname: string): PageConfig {
     'funding-opportunities': 'Funding Opportunities',
     actions: 'Action Board',
     reviews: 'Review Queue',
-    'pe-group': 'Program Elements',
-    'program-elements': 'Program Elements',
+    'pe-group': 'Intelligence',
+    'program-elements': isInternalTenant ? 'Defense Budget' : 'Program Elements',
     radar: 'LegiWatch',
     'hearing-watch': 'Hearing Watch',
     'analyst-console': 'Analyst Console',

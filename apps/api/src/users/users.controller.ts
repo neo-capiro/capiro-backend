@@ -1,7 +1,8 @@
 import { BadRequestException, Body, Controller, Get, Patch, Put } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MAX_SIGNATURE_HTML_LENGTH, sanitizeSignatureHtml } from '../common/sanitize-signature.js';
@@ -35,6 +36,31 @@ class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   legiwatchIntroSeen?: boolean;
+
+  /**
+   * PR D / LW-QA-013 — LegiWatch display preferences (one JSON doc per user:
+   * preferred timezone / default hearings view / default chamber filter).
+   * SECONDARY display only; the hearing record's official time+zone is never
+   * modified. Stored verbatim as JSON (unknown keys round-trip); the WEB owns
+   * normalization so an old/corrupt shape can never break rendering. Bounded
+   * to 2 KB — this is a handful of scalars, not a document store.
+   */
+  @IsOptional()
+  @IsObject()
+  @MaxJSONDepth1()
+  legiwatchPrefs?: Record<string, unknown>;
+}
+
+/** Guard: every value must be a JSON scalar (string|number|boolean|null) —
+ *  no nested objects/arrays inside the prefs doc. Keeps the column a
+ *  bounded scalar map, not an arbitrary nested blob. */
+function MaxJSONDepth1() {
+  return ValidateIf((_, value) => {
+    if (value == null) return false;
+    return Object.values(value as Record<string, unknown>).some(
+      (v) => v !== null && typeof v === 'object',
+    );
+  }, { message: 'legiwatchPrefs must be a flat JSON object of scalar values' });
 }
 
 class UpdateEmailSignatureDto {
@@ -75,6 +101,7 @@ export class UsersController {
             emailSignatureEnabled: true,
             tourCompletedAt: true,
             legiwatchIntroSeenAt: true,
+            legiwatchPrefs: true,
           },
         }),
         tx.tenant.findUnique({
@@ -102,6 +129,7 @@ export class UsersController {
         hasEmailSignature: Boolean(profile.user?.emailSignatureHtml),
         tourCompleted: Boolean(profile.user?.tourCompletedAt),
         legiwatchIntroSeen: Boolean(profile.user?.legiwatchIntroSeenAt),
+        legiwatchPrefs: (profile.user?.legiwatchPrefs ?? null) as Record<string, unknown> | null,
       },
       tenant: {
         id: ctx.tenantId,
@@ -145,16 +173,27 @@ export class UsersController {
     if (
       body.title === undefined &&
       body.tourCompleted === undefined &&
-      body.legiwatchIntroSeen === undefined
+      body.legiwatchIntroSeen === undefined &&
+      body.legiwatchPrefs === undefined
     ) {
       throw new BadRequestException('No editable fields provided');
     }
     const normalized = body.title?.trim() ?? '';
     const next = normalized.length ? normalized : null;
+    // PR D / LW-QA-013: prefs are bounded (≤2 KB, flat scalars — validator
+    // enforces depth-1) before they touch the row. Stored verbatim; the web
+    // normalizes on read.
+    if (body.legiwatchPrefs !== undefined) {
+      const serialized = JSON.stringify(body.legiwatchPrefs);
+      if (serialized.length > 2048) {
+        throw new BadRequestException('legiwatchPrefs too large (max 2 KB)');
+      }
+    }
     const data: {
       title?: string | null;
       tourCompletedAt?: Date | null;
       legiwatchIntroSeenAt?: Date | null;
+      legiwatchPrefs?: Prisma.InputJsonValue;
     } = {};
     if (body.title !== undefined) data.title = next;
     if (body.tourCompleted !== undefined) {
@@ -162,6 +201,9 @@ export class UsersController {
     }
     if (body.legiwatchIntroSeen !== undefined) {
       data.legiwatchIntroSeenAt = body.legiwatchIntroSeen ? new Date() : null;
+    }
+    if (body.legiwatchPrefs !== undefined) {
+      data.legiwatchPrefs = body.legiwatchPrefs as Prisma.InputJsonValue;
     }
     const profile = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const user = await tx.user.update({
@@ -176,6 +218,7 @@ export class UsersController {
           emailSignatureEnabled: true,
           tourCompletedAt: true,
           legiwatchIntroSeenAt: true,
+          legiwatchPrefs: true,
         },
       });
       const tenant = await tx.tenant.findUnique({
@@ -201,6 +244,7 @@ export class UsersController {
         hasEmailSignature: Boolean(profile.user.emailSignatureHtml),
         tourCompleted: Boolean(profile.user.tourCompletedAt),
         legiwatchIntroSeen: Boolean(profile.user.legiwatchIntroSeenAt),
+        legiwatchPrefs: (profile.user.legiwatchPrefs ?? null) as Record<string, unknown> | null,
       },
       tenant: {
         id: ctx.tenantId,

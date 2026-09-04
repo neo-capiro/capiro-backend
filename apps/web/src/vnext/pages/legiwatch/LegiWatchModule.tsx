@@ -31,6 +31,7 @@ import { BillsTab } from './bills/BillsTab.js';
 import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
 import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
+import { LegiWatchSettingsTab } from './settings/LegiWatchSettingsTab.js';
 import { SavedViewsOverlay } from './overlays/SavedViewsOverlay.js';
 import { CreateWatchOverlay } from './overlays/CreateWatchOverlay.js';
 import { SystemStatesOverlay } from './overlays/SystemStatesOverlay.js';
@@ -70,6 +71,12 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
     description:
       'See where alert volume, severity, and source movement are concentrating across the current scope.',
   },
+  settings: {
+    eyebrow: 'Preferences',
+    title: 'Settings',
+    description:
+      'Personal LegiWatch display preferences — how hearings are shown, never the canonical data itself.',
+  },
 };
 
 /** Intelligence sub-nav (§7.1 row 1) — static destinations; the source-health
@@ -86,7 +93,7 @@ function IntelligenceSubNav({
   const items: Array<{ id: string; label: string; path: string }> = [
     { id: 'explorer', label: 'Data Explorer', path: '/explorer' },
     { id: 'legiwatch', label: 'LegiWatch', path: '/legiwatch' },
-    { id: 'pe', label: 'Program Elements', path: '/program-elements' },
+    { id: 'pe', label: 'Defense Budget', path: '/program-elements' },
     { id: 'fo', label: 'Funding Opportunities', path: '/intelligence/opportunities' },
     { id: 'nexus', label: 'District Nexus', path: '/intelligence/district-nexus' },
   ];
@@ -344,6 +351,8 @@ export function LegiWatchModule() {
         <DigestTab scope={scope} />
       ) : tab === 'analytics' ? (
         <AnalyticsTab scope={scope} />
+      ) : tab === 'settings' ? (
+        <LegiWatchSettingsTab />
       ) : null}
 
       {overlay === 'views' ? (

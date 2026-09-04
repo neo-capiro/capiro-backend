@@ -96,7 +96,7 @@ export const CAPABILITY_LABEL: Record<HearingCapability, string> = {
 };
 
 /** Tab ids — Hearings first, it is the module's landing tab (§7.1 row 3). */
-export type LegiWatchTab = 'hearings' | 'feed' | 'bills' | 'digest' | 'analytics';
+export type LegiWatchTab = 'hearings' | 'feed' | 'bills' | 'digest' | 'analytics' | 'settings';
 
 export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
   'hearings',
@@ -104,6 +104,7 @@ export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
   'bills',
   'digest',
   'analytics',
+  'settings',
 ];
 
 /** §7.2 / §7.9 — removed tabs redirect to hearings. */
