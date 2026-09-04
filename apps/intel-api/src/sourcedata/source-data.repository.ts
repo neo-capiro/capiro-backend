@@ -132,10 +132,14 @@ export interface UpcomingCommitteeHearing {
   committeeName: string;
   chamber: string;
   date: Date;
+  /** True UTC instant when the official time is known; null for date-only. */
+  startsAt: Date | null;
   time: string | null;
   location: string | null;
   type: string | null;
   url: string | null;
+  timezone?: string | null;
+  visibility?: string | null;
 }
 
 export interface SemanticScore {
@@ -1014,10 +1018,13 @@ export class SourceDataRepository {
               committee_name AS "committeeName",
               chamber,
               date,
+              starts_at AS "startsAt",
               time,
               location,
               type,
-              url
+              url,
+              "timezone",
+              visibility::text AS visibility
          FROM committee_hearing
         WHERE date >= ${ET_TODAY_SQL}
         ORDER BY date ASC, committee_name ASC
@@ -1074,10 +1081,13 @@ export class SourceDataRepository {
               committee_name AS "committeeName",
               chamber,
               date,
+              starts_at AS "startsAt",
               time,
               location,
               type,
-              url
+              url,
+              "timezone",
+              visibility::text AS visibility
          FROM committee_hearing
          ${where}
         ORDER BY ${order}
@@ -1102,10 +1112,13 @@ export class SourceDataRepository {
               committee_name AS "committeeName",
               chamber,
               date,
+              starts_at AS "startsAt",
               time,
               location,
               type,
-              url
+              url,
+              "timezone",
+              visibility::text AS visibility
          FROM committee_hearing
         WHERE id = $1
         LIMIT 1`,

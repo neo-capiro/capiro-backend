@@ -66,6 +66,25 @@ function record(value: unknown): UnknownRecord {
     : {};
 }
 
+/**
+ * Extract the official calendar day `YYYY-MM-DD` from a raw row (LW-QA-001).
+ * Accepts a Date (Prisma `@db.Date` arrives as UTC-midnight Date), a date
+ * string, or the day prefix of an ISO instant. Returns undefined when none is
+ * usable — callers must NOT fall back to parsing an instant as the day.
+ */
+function calendarDayString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (value == null) continue;
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) continue;
+      return value.toISOString().slice(0, 10);
+    }
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(value).trim());
+    if (m && m[1]) return m[1];
+  }
+  return undefined;
+}
+
 function array(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -223,13 +242,28 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
     id:
       stringValue(row.id, row.hearingId, row.canonicalEventId, row.externalEventId) ??
       `unidentified-${stringValue(row.title) ?? 'hearing'}`,
+    // LW-QA-001: keep the official calendar day alongside the instant. For a
+    // date-only hearing (no startsAt) this is the authoritative day; for an
+    // instant it lets bucketing use the same official day the source assigned.
+    calendarDate: calendarDayString(row.date, row.scheduledAt, row.scheduledStart),
     canonicalEventId: stringValue(row.canonicalEventId),
     congress: numberValue(row.congress),
     title: stringValue(row.title, row.name) ?? 'Untitled committee proceeding',
     chamber: stringValue(row.chamber) ?? committee.chamber ?? 'NO_CHAMBER',
     eventType: stringValue(row.eventType, row.type) ?? 'HEARING',
     eventStatus: stringValue(row.eventStatus, row.status) ?? 'UNKNOWN',
-    publicAccessStatus: stringValue(row.publicAccessStatus, row.publicAccess) ?? 'UNKNOWN',
+    // LW-QA-002: the canonical row carries `visibility` ('public' | 'private').
+    // Map it into publicAccessStatus so closed sessions are classified BEFORE
+    // any capture affordance is offered — a closed briefing must never render
+    // as "Stream available / Attend live". Official visibility metadata is the
+    // primary evidence; 'UNKNOWN' only when the source sent neither field.
+    publicAccessStatus:
+      stringValue(row.publicAccessStatus, row.publicAccess) ??
+      (stringValue(row.visibility) === 'private'
+        ? 'CLOSED'
+        : stringValue(row.visibility) === 'public'
+          ? 'PUBLIC'
+          : 'UNKNOWN'),
     // The real LiveHearingsService response names the hearing's own start
     // time `startsAt` (see live-hearings.service.ts CalendarEvent) — it never
     // sends a top-level `scheduledStart`/`scheduledAt`/`dateTime`, and

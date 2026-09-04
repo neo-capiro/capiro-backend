@@ -1,3 +1,4 @@
+import { nextStreamPreflightAt } from './stream-preflight-policy.js';
 import {
   PublicCaptureOrchestrator,
   PublicCaptureWorkerCoordinator,
@@ -291,5 +292,67 @@ describe('public capture orchestration', () => {
     expect(outcome.action).toBe('FAILED');
     expect(scheduleRetry).not.toHaveBeenCalled();
     expect(h.getRow().status).toBe('FAILED');
+  });
+});
+
+describe('capture/preflight reschedule propagation (2026-09-04 field-hearing correction)', () => {
+  function correctedHearing(hearingStart: Date) {
+    return {
+      id: 'hearing-1',
+      eventStatus: 'SCHEDULED',
+      publicAccess: 'PUBLIC',
+      scheduledStart: hearingStart,
+      officialPageUrl: 'https://www.congress.gov/event/119th-Congress/house-event/119533',
+    };
+  }
+
+  it('REGRESSION: reconcile() pushes the CORRECTED official start into the capture row via ensureCapture', async () => {
+    // The capture was created while the canonical row said 17:00Z; the official
+    // correction moved the hearing to 20:00Z. The orchestrator must hand the
+    // CORRECTED hearing.scheduledStart to ensureCapture — the store then
+    // propagates it into the existing row (allowlisted states only).
+    const h = storeHarness();
+    const ensureCapture = h.store.ensureCapture as jest.Mock;
+    ensureCapture.mockClear();
+    h.store.getHearing = jest.fn(async () => correctedHearing(new Date('2026-09-04T20:00:00Z')));
+    const schedulePreflight = jest.fn();
+    const orchestrator = new PublicCaptureOrchestrator(
+      h.store,
+      { resolve: jest.fn(async () => ({ status: 'unresolvable' as const, note: 'not advertised yet' })) },
+      { enqueue: jest.fn(), schedulePreflight },
+      { now: () => new Date('2026-09-03T15:00:00Z') }, // ~29h before the corrected start
+    );
+    const outcome = await orchestrator.reconcile('hearing-1');
+    expect(ensureCapture).toHaveBeenCalledWith(
+      expect.objectContaining({ hearingId: 'hearing-1', scheduledStart: new Date('2026-09-04T20:00:00Z') }),
+    );
+    expect(outcome.action).toBe('PREFLIGHT_SCHEDULED');
+    // The queued preflight job is the SAME dedupe-keyed job — no duplicate rows.
+    expect(schedulePreflight).toHaveBeenCalledWith(
+      expect.objectContaining({ dedupeKey: 'hearing-stream-preflight:v1:hearing-1' }),
+    );
+    // The next checkpoint is computed from the CORRECTED start: 24h lead = Sep 3 20:00Z.
+    const due = (outcome as { dueAt?: Date }).dueAt;
+    expect(due).toBeDefined();
+    expect(due!.toISOString()).toBe('2026-09-03T20:00:00.000Z');
+  });
+
+  it('preflight policy: a checkpoint moves to the corrected start, not the stale one', async () => {
+    // Prove the scheduling math directly: next checkpoint from the corrected
+    // 20:00Z start (24h lead) vs the stale 17:00Z start.
+    const now = new Date('2026-09-03T15:00:00Z');
+    const corrected = nextStreamPreflightAt({
+      now,
+      scheduledStart: new Date('2026-09-04T20:00:00Z'),
+      resolutionState: 'NOT_CHECKED',
+    });
+    const stale = nextStreamPreflightAt({
+      now,
+      scheduledStart: new Date('2026-09-04T17:00:00Z'),
+      resolutionState: 'NOT_CHECKED',
+    });
+    expect(corrected!.toISOString()).toBe('2026-09-03T20:00:00.000Z'); // 24h before corrected start
+    expect(stale!.toISOString()).toBe('2026-09-03T17:00:00.000Z'); // 24h before stale start
+    expect(corrected!.getTime()).not.toBe(stale!.getTime());
   });
 });

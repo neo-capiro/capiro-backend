@@ -18,6 +18,7 @@ import {
   type useResolveStream,
 } from '../../../../lib/hearing-watch-api.js';
 import type { HearingCapability } from '../lib/types.js';
+import { formatHearingDay, formatHearingTime, parseHearingMoment } from '../lib/hearing-datetime.js';
 import { LwModal } from './LwModal.js';
 import { LwPill, LwSeg } from '../lib/primitives.js';
 
@@ -42,26 +43,46 @@ export function TranscriptionSetupModal({
   const [consent, setConsent] = useState(false);
 
   const when = useMemo(() => {
-    const d = new Date(hearing.scheduledAt);
-    return `${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} ET`;
-  }, [hearing.scheduledAt]);
+    // LW-QA-001 contract: `scheduledAt` is a calendar day, NEVER an instant —
+    // parsing it as one renders 8:00 PM the previous day in a west-of-UTC
+    // browser. Format from its parts; the time comes from the shared formatter
+    // when the row carries a real instant.
+    const m = parseHearingMoment({
+      date: hearing.scheduledAt,
+      startsAt: hearing.startsAt ?? null,
+      timeZone: hearing.timezone ?? null,
+    });
+    const day = formatHearingDay(m);
+    const time = formatHearingTime(m);
+    return `${day} at ${time}`;
+  }, [hearing.scheduledAt, hearing.startsAt, hearing.timezone]);
 
   // The primary action follows the mode. Unattended has no backend queue
   // (LW-G2) → disabled with the reason. Attend live starts browser capture.
   const primaryLabel = mode === 'unattended' ? 'Schedule recording' : 'Start capture';
+  // LW-QA-002 review item A: only a VERIFIED closed session gets the closed
+  // banner/refusal. UNKNOWN public access fails closed for capture (below) but
+  // is never labeled closed.
+  const closed = hearing.visibility === 'private';
+  const unverifiedAccess =
+    (hearing as { publicAccessStatus?: string | null }).publicAccessStatus?.toUpperCase() === 'UNKNOWN';
   const primaryDisabled =
     !consent ||
     create.isPending ||
+    closed || // LW-QA-002 — closed sessions are never capturable
+    unverifiedAccess || // unverified access fails closed until official metadata confirms it
     (mode === 'unattended') || // LW-G2 — no capture-job queue
     (mode === 'attend' && capability === 'unavailable');
   const primaryTitle =
     mode === 'unattended'
       ? 'Unattended recording is not available on this backend yet (no capture-job queue).'
-      : capability === 'unavailable'
-        ? 'No recordable source is available for this proceeding.'
-        : !consent
-          ? 'Confirm consent to record and transcribe.'
-          : undefined;
+      : unverifiedAccess
+        ? 'Public access has not been verified from official source metadata yet.'
+        : capability === 'unavailable'
+          ? 'No recordable source is available for this proceeding.'
+          : !consent
+            ? 'Confirm consent to record and transcribe.'
+            : undefined;
 
   const start = async () => {
     if (mode !== 'attend') return;
@@ -98,6 +119,19 @@ export function TranscriptionSetupModal({
         <div className="lw-block__title">{hearing.title}</div>
         <div className="lw-block__when">{hearing.committee} · {when}</div>
       </div>
+
+      {/* LW-QA-002: closed sessions are never capturable. The banner is the
+          product-approved copy; every capture path is disabled and consent is
+          ignored. The backend independently refuses (NON_PUBLIC_PROCEEDING). */}
+      {hearing.visibility === 'private' ? (
+        <div className="lw-block lw-block--ink lw-on-ink" role="alert">
+          <div className="lw-block__label">Closed session</div>
+          <div className="lw-block__body">
+            Closed session — no public stream. This proceeding is not public: server capture is
+            refused and browser capture cannot access it. No recording path is offered.
+          </div>
+        </div>
+      ) : null}
 
       {/* 2. mode switch */}
       <LwSeg
@@ -137,7 +171,8 @@ export function TranscriptionSetupModal({
           desc="Capiro connects to the official stream and records server-side."
           tag="DIRECT"
           selected={path === 'direct'}
-          disabled={capability !== 'direct'}
+          disabled={closed || capability !== 'direct'}
+          disabledReason={closed ? 'Closed session — no public stream.' : undefined}
           onSelect={() => setPath('direct')}
         />
         <CaptureOption
@@ -145,8 +180,14 @@ export function TranscriptionSetupModal({
           desc="Capture runs from an open browser tab playing the proceeding."
           tag="TAB REQUIRED"
           selected={path === 'browser'}
-          disabled={mode === 'unattended' || capability === 'unavailable'}
-          disabledReason={mode === 'unattended' ? 'Browser capture cannot run unattended — it needs an open tab.' : undefined}
+          disabled={closed || mode === 'unattended' || capability === 'unavailable'}
+          disabledReason={
+            closed
+              ? 'Closed session — you have no public access to capture.'
+              : mode === 'unattended'
+                ? 'Browser capture cannot run unattended — it needs an open tab.'
+                : undefined
+          }
           onSelect={() => setPath('browser')}
         />
         <CaptureOption

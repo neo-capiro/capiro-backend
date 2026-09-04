@@ -23,7 +23,7 @@
  * Together those make an incremental run cheap, and the page bound keeps a
  * cold-start run finite.
  */
-import { formatTime, hearingCalendarDate, isDateOnlySentinel, safeDate } from '../hearing-time.js';
+import { formatTime, hearingCalendarDate, resolveSourceTime, safeDate } from '../hearing-time.js';
 import { inferVisibility, normalizeChamber, normalizeEventStatus } from '../hearing-identity.js';
 import {
   advertisedVideoCandidates,
@@ -182,6 +182,26 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
     const officialPageUrl = meetingPublicUrl(d, congress, chamber, eventId);
     const status = normalizeEventStatus(d.meetingStatus);
 
+    // Zone-aware WHEN resolution (2026-09-04 field-hearing defect class). The
+    // Congress.gov detail payload gives the instant + its own wall clock; a
+    // field hearing's zone comes only from an EXPLICIT source statement, so
+    // `resolveSourceTime` keeps normal Washington hearings on the Eastern
+    // instant verbatim and only overrides when a first-party page states an
+    // explicit local clock + zone (carried via the payload's optional
+    // `timezone` field when present).
+    const resolved = resolveSourceTime({
+      instant,
+      calendarDay: hearingCalendarDate(instant),
+      displayClock: formatTime(d.date),
+      zoneToken: (d as { timezone?: string | null }).timezone ?? null,
+    });
+    if (resolved.authority === 'explicit_local') {
+      ctx.log(
+        `[congress-gov] event ${eventId}: explicit local time ${resolved.displayTime} ` +
+          `${resolved.timeZone} overrides the central-calendar instant`,
+      );
+    }
+
     return {
       externalEventId: eventId,
       congress: d.congress ?? item.congress ?? congress,
@@ -195,9 +215,11 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
       eventType: d.type?.trim() || null,
       eventStatus: status,
       visibility: inferVisibility(d.title, d.type),
-      startsAt: isDateOnlySentinel(instant) ? null : instant,
-      calendarDate: hearingCalendarDate(instant),
-      displayTime: formatTime(d.date),
+      startsAt: resolved.startsAt,
+      calendarDate: resolved.calendarDate,
+      displayTime: resolved.displayTime,
+      timeZone: resolved.timeZone,
+      timeAuthority: resolved.authority,
       location: formatLocation(d.location),
       officialPageUrl,
       witnesses: formatWitnesses(d.witnesses),

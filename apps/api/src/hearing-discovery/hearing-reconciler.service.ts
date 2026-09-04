@@ -116,6 +116,8 @@ export class HearingReconcilerService {
               startsAt: event.startsAt ?? null,
               calendarDate: event.calendarDate ?? null,
               displayTime: event.displayTime ?? null,
+              timeZone: event.timeZone ?? null,
+              timeAuthority: event.timeAuthority ?? null,
               location: event.location ?? null,
               officialPageUrl: event.officialPageUrl ?? null,
               witnesses: event.witnesses ?? [],

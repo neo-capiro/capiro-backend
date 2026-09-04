@@ -2,78 +2,127 @@
  * Hearings tab (§7.7) — the module's landing tab. Two columns: the schedule
  * (left) and sessions + scheduled recordings (right).
  *
- * Honest capability (§1.10, §6.4): direct / browser / pending / unavailable are
- * four different outcomes resolved BEFORE setup. The schedule row shows the
- * resolved capability; the setup modal offers only paths that can succeed.
- * There is no manual hearing entry anywhere (§4.1 #19) — proceedings come from
- * the source.
+ * PR A remediation (2026-09-02, LW-QA-001/002/005):
+ *  - The schedule now reads the CANONICAL Phase 3 master calendar
+ *    (`/api/legiwatch/live-hearings/calendar`) scoped to the SELECTED WEEK
+ *    (from/to), instead of one forward-only upcoming fetch paged locally.
+ *    Historical weeks therefore fetch their real completed rows, and the
+ *    header count is the server's count for exactly the visible range.
+ *  - Date/time rendering goes through the shared contract
+ *    (`lib/hearing-datetime.ts`): the true instant when the official time is
+ *    known, "Time not announced" otherwise — never the 8:00 PM previous-day
+ *    artifact of parsing a calendar date as UTC midnight.
+ *  - Closed sessions (publicAccessStatus CLOSED / UNKNOWN-private) are
+ *    classified from canonical visibility BEFORE any capture affordance:
+ *    they render "Closed session — no public stream", never "Attend live".
  *
  * Scheduled (unattended) recordings: there is no server capture-job queue
  * (GAPS LW-G2). The queue panel renders its UNAVAILABLE state honestly rather
  * than fabricating a queue — the setup modal's Unattended mode is disabled
  * with the reason named, and Attend live (browser capture) is the honest path.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  useUpcomingHearings,
   useHearingSessionHistory,
   useResolveStream,
-  isMediaUrl,
   type UpcomingHearing,
 } from '../../../../lib/hearing-watch-api.js';
+import {
+  useLwWeekCalendar,
+  browserCaptureCapability,
+  serverCaptureCapability,
+  type CanonicalHearingEvent,
+} from '../lib/canonical-hearings.js';
 import { LwPill, LwSeg, LwButton, LwSkeleton } from '../lib/primitives.js';
 import {
   LwStateEmpty,
   LwStateUnavailable,
   LwStateAllClear,
 } from '../states/SystemStates.js';
+import { LwModal } from '../overlays/LwModal.js';
 import type { HearingCapability, Tone } from '../lib/types.js';
 import { TranscriptionSetupModal } from '../overlays/TranscriptionSetupModal.js';
+import {
+  calendarBucketIndex,
+  easternDayOf,
+  formatHearingDay,
+  formatHearingTime,
+  parseHearingMoment,
+  useEasternWeekDays,
+  type HearingMoment,
+} from '../lib/hearing-datetime.js';
 
 type ViewMode = 'calendar' | 'list';
 
-/** §6.4 capability resolution. A hearing with a directly-embeddable media URL
- *  is `direct`; a page URL (or none yet resolved) is `browser`; a hearing whose
- *  session is already pending resolution is `pending`; one with no resolvable
- *  source is `unavailable`. Resolved lazily per row — capability is not a
- *  stored field (GAPS LW-G10). */
-function capabilityOf(h: UpcomingHearing): HearingCapability {
-  if (h.url && isMediaUrl(h.url)) return 'direct';
-  if (h.url) return 'browser';
-  if (h.sessionStatus === 'pending') return 'pending';
-  return 'unavailable';
-}
-
 const KIND_TONE: Record<string, Tone> = { HEARING: 'brand', MARKUP: 'gray' };
-
-/** The Monday-start week containing `anchor`. */
-export function weekOf(anchor: Date): Date[] {
-  const d = new Date(anchor);
-  const day = (d.getDay() + 6) % 7; // Mon=0
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
-    const x = new Date(d);
-    x.setDate(d.getDate() + i);
-    return x;
-  });
-}
-
-const WEEKDAY = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function timeLabel(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+/**
+ * Canonical → legacy-modal adapter. The setup modal still speaks the legacy
+ * UpcomingHearing shape; the canonical row carries strictly more truth.
+ */
+function toLegacyHearing(e: CanonicalHearingEvent): UpcomingHearing {
+  return {
+    id: e.id,
+    title: e.title,
+    committee: e.committee?.name ?? 'Committee',
+    chamber: e.chamber ?? '',
+    // NEVER parse this string as a time — modal consumers use startsAt.
+    scheduledAt: e.calendarDate ?? (e.scheduledStart ? e.scheduledStart.slice(0, 10) : ''),
+    startsAt: e.scheduledStart ?? null,
+    time: e.scheduledStart ? formatHearingTime(parseHearingMoment({ date: e.calendarDate ?? '', startsAt: e.scheduledStart, timeZone: e.timeZone })) : null,
+    timezone: e.timeZone ?? null,
+    visibility: e.publicAccessStatus === 'CLOSED' ? 'private' : 'public',
+    type: e.eventType ?? null,
+    location: e.location ?? null,
+    url: e.officialPageUrl ?? null,
+    sessionId: null,
+    sessionStatus: null,
+    watchlistMatchCount: 0,
+    recapSaved: false,
+  };
+}
+
+/** vNext capability for a canonical row (LW-QA-002): visibility FIRST. */
+export function canonicalCapability(e: CanonicalHearingEvent): {
+  capability: HearingCapability;
+  closed: boolean;
+  reason: string;
+} {
+  const access = (e.publicAccessStatus ?? 'UNKNOWN').toUpperCase();
+  // LW-QA-002 review item A: UNKNOWN is NOT CLOSED. A closed session is a
+  // verified negative ("closed session — no public stream"); an unverified one
+  // simply has not had its public access confirmed from official metadata.
+  // Closed/PRIVATE → labeled CLOSED SESSION, no capture action. UNKNOWN →
+  // labeled "Public access unverified", fail-closed for capture (no affordance,
+  // consent inert), but never labeled as a closed session.
+  if (access === 'CLOSED' || access === 'PRIVATE') {
+    return {
+      capability: 'unavailable',
+      closed: true,
+      reason: 'Closed session — no public stream.',
+    };
+  }
+  if (access === 'UNKNOWN') {
+    return {
+      capability: 'unavailable',
+      closed: false,
+      reason: 'Public access unverified — official source metadata does not confirm public access yet.',
+    };
+  }
+  const server = serverCaptureCapability(e);
+  if (server.allowed) return { capability: 'direct', closed: false, reason: server.reason ?? '' };
+  const browser = browserCaptureCapability(e);
+  if (browser.allowed) return { capability: 'browser', closed: false, reason: browser.reason ?? '' };
+  return { capability: 'unavailable', closed: false, reason: browser.reason ?? server.reason ?? '' };
 }
 
 export function HearingsTab({ scope }: { scope: string }) {
   const navigate = useNavigate();
-  const upcoming = useUpcomingHearings();
   const history = useHearingSessionHistory();
   const resolveStream = useResolveStream();
 
@@ -82,64 +131,77 @@ export function HearingsTab({ scope }: { scope: string }) {
   const [committee, setCommittee] = useState<string>('');
   const [kind, setKind] = useState<string>('');
   const [search, setSearch] = useState('');
-  const [setupHearing, setSetupHearing] = useState<UpcomingHearing | null>(null);
+  const [setupHearing, setSetupHearing] = useState<CanonicalHearingEvent | null>(null);
 
-  const hearings = useMemo(() => upcoming.data ?? [], [upcoming.data]);
+  const weekDays = useEasternWeekDays(weekAnchor);
+  const rangeFrom = weekDays[0] ?? '';
+  const rangeTo = weekDays[6] ?? '';
+
+  // LW-QA-005: server-side range query. The query key includes the week, so a
+  // prior week's response can never overwrite a newer navigation request.
+  const calendar = useLwWeekCalendar({
+    from: rangeFrom,
+    to: rangeTo,
+    committee: committee || undefined,
+    q: search.trim() || undefined,
+  });
+
+  const rows = useMemo(() => calendar.data?.items ?? [], [calendar.data]);
+  const serverTotal = calendar.data?.total ?? 0;
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return hearings.filter((h) => {
-      if (committee && !(h.committee ?? '').toLowerCase().includes(committee.toLowerCase())) return false;
-      if (kind && (h.type ?? 'HEARING').toUpperCase() !== kind) return false;
-      if (q && !(`${h.title} ${h.committee}`.toLowerCase().includes(q))) return false;
-      return true;
-    });
-  }, [hearings, committee, kind, search]);
-
-  const week = useMemo(() => weekOf(weekAnchor), [weekAnchor]);
-  const today = useMemo(() => new Date(), []);
-  const byDay = useMemo(() => {
-    const map = new Map<number, UpcomingHearing[]>();
-    week.forEach((d, i) => map.set(i, []));
-    for (const h of filtered) {
-      const d = new Date(h.scheduledAt);
-      const idx = week.findIndex((wd) => sameDay(wd, d));
-      if (idx >= 0) map.get(idx)!.push(h);
-    }
-    for (const list of map.values()) list.sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
-    return map;
-  }, [filtered, week]);
-
-  const live = useMemo(() => hearings.find((h) => h.sessionStatus === 'live') ?? null, [hearings]);
-  const nextUpcoming = useMemo(() => {
-    const now = Date.now();
-    return (
-      [...hearings]
-        .filter((h) => (h.watchlistMatchCount ?? 0) > 0 && new Date(h.scheduledAt).getTime() > now)
-        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0] ?? null
-    );
-  }, [hearings]);
-
-  const weekStart = week[0] ?? new Date();
-  const weekEnd = week[6] ?? new Date();
-  const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { day: 'numeric', year: 'numeric' })}`;
-  const totalMatches = filtered.reduce((n, h) => n + (h.watchlistMatchCount ?? 0), 0);
+    const k = kind.toUpperCase();
+    return rows.filter((e) => (k ? (e.eventType ?? 'HEARING').toUpperCase() === k : true));
+  }, [rows, kind]);
 
   const committees = useMemo(
-    () => Array.from(new Set(hearings.map((h) => h.committee).filter(Boolean))) as string[],
-    [hearings],
+    () => Array.from(new Set(rows.map((e) => e.committee?.name ?? '').filter(Boolean))).sort(),
+    [rows],
   );
 
-  const openHearing = (h: UpcomingHearing) => {
-    const cap = capabilityOf(h);
-    if (cap === 'unavailable') return; // muted, non-routing (§7.7)
-    if (h.sessionStatus === 'live' && h.sessionId) {
-      navigate(`/intelligence/hearing-watch/${h.sessionId}`);
+  // The visible filtered count IS the header count (server total for the range,
+  // adjusted by the kind facet which the server does not see).
+  const visibleCount = kind ? filtered.length : Math.min(serverTotal, rows.length);
+
+  // Live rows come from the canonical live endpoint's shape via the calendar
+  // rows themselves; the room route is handled in the live tab.
+  const live = useMemo(() => rows.find((e) => e.eventStatus === 'in_progress') ?? null, [rows]);
+
+  const momentOf = (e: CanonicalHearingEvent): HearingMoment =>
+    parseHearingMoment({
+      date: e.calendarDate ?? (e.scheduledStart ? easternDayOf(e.scheduledStart) ?? '' : ''),
+      startsAt: e.scheduledStart ?? null,
+      time: null,
+      timeZone: e.timeZone ?? null,
+    });
+
+  const byDay = useMemo(() => {
+    const map = new Map<number, CanonicalHearingEvent[]>();
+    weekDays.forEach((_, i) => map.set(i, []));
+    for (const e of filtered) {
+      const idx = calendarBucketIndex(momentOf(e), weekDays);
+      if (idx >= 0) map.get(idx)!.push(e);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) =>
+        (a.scheduledStart ?? a.calendarDate ?? '').localeCompare(b.scheduledStart ?? b.calendarDate ?? ''),
+      );
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, weekDays]);
+
+  const openHearing = (e: CanonicalHearingEvent) => {
+    // Every row routes to the canonical detail (PR B); the setup modal is
+    // reachable from detail. Live hearings keep the room route.
+    if (e.eventStatus === 'in_progress') {
+      navigate(`/legiwatch/live`);
       return;
     }
-    setSetupHearing(h);
+    navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`);
   };
 
-  if (upcoming.isLoading) {
+  if (calendar.isLoading) {
     return (
       <div className="lw-body">
         <div className="lw-hearings-cols">
@@ -156,13 +218,13 @@ export function HearingsTab({ scope }: { scope: string }) {
     );
   }
 
-  if (upcoming.isError) {
+  if (calendar.isError) {
     return (
       <div className="lw-body">
         <LwStateUnavailable
           source="Hearing schedule"
-          reason="The committee schedule source could not be loaded. Sessions and recordings below are unaffected."
-          onRetry={() => void upcoming.refetch()}
+          reason="The canonical committee calendar could not be loaded for this week. Sessions and recordings below are unaffected."
+          onRetry={() => void calendar.refetch()}
         />
       </div>
     );
@@ -240,16 +302,25 @@ export function HearingsTab({ scope }: { scope: string }) {
                 >
                   ›
                 </button>
-                <span className="lw-weeklabel">{weekLabel}</span>
+                <span className="lw-weeklabel">
+                  {formatHearingDay(parseHearingMoment({ date: weekDays[0] ?? '' }))} –{' '}
+                  {formatHearingDay(parseHearingMoment({ date: weekDays[6] ?? '' }))}
+                </span>
                 <span className="lw-card__meta">
-                  {filtered.length} proceedings · {totalMatches} client matches
+                  {/* Honest header (LW-QA-005 review item E): the count is the
+                      server total for the visible range (bounded by the first
+                      page), and the secondary count is subscriptions scheduled
+                      by the user — never implied to be "matches". */}
+                  {visibleCount} proceedings ·{' '}
+                  {serverTotal > rows.length
+                    ? `showing first ${rows.length}`
+                    : `${totalMatches0(rows)} scheduled by you`}
                 </span>
                 <LwButton
                   onClick={() => {
-                    /* §7.7: export only watchlist-matched proceedings */
-                    const matched = filtered.filter((h) => (h.watchlistMatchCount ?? 0) > 0);
+                    const matched = filtered.filter((e) => (e.subscription?.scheduled ?? false));
                     const ics = matched
-                      .map((h) => `${new Date(h.scheduledAt).toISOString()} — ${h.title} (${h.committee})`)
+                      .map((e) => `${e.calendarDate ?? e.scheduledStart ?? ''} — ${e.title} (${e.committee?.name ?? ''})`)
                       .join('\n');
                     const blob = new Blob([`LegiWatch watchlist-matched proceedings\n\n${ics}`], {
                       type: 'text/plain',
@@ -266,41 +337,41 @@ export function HearingsTab({ scope }: { scope: string }) {
               </div>
 
               <div className="lw-cal__grid">
-                {week.map((day, i) => {
+                {weekDays.map((day, i) => {
                   const list = byDay.get(i) ?? [];
-                  const isToday = sameDay(day, today);
+                  const isToday = sameDay(new Date(), parseEasternUTC(day));
                   return (
-                    <div key={day.toISOString()} className={`lw-cal__day${isToday ? ' is-today' : ''}`}>
+                    <div key={day} className={`lw-cal__day${isToday ? ' is-today' : ''}`}>
                       <div className="lw-cal__dayhead">
                         <span className="lw-cal__weekday">{WEEKDAY[i]}</span>
-                        <span className="lw-cal__date">{day.getDate()}</span>
+                        <span className="lw-cal__date">{Number(day.slice(8, 10))}</span>
                       </div>
                       {list.length === 0 ? (
                         <span className="lw-cal__empty">No proceedings</span>
                       ) : (
-                        list.map((h) => {
-                          const isLive = h.sessionStatus === 'live';
-                          const cap = capabilityOf(h);
-                          const queued = Boolean(h.sessionId) && h.sessionStatus === 'scheduled';
+                        list.map((e) => {
+                          const isLive = e.eventStatus === 'in_progress';
+                          const { capability: cap, closed } = canonicalCapability(e);
+                          const queued = e.capture?.status === 'scheduled';
                           const kindCls =
-                            cap === 'unavailable'
+                            closed
                               ? 'lw-chip--unavailable'
                               : isLive
                                 ? 'lw-chip--live'
-                                : (h.type ?? 'HEARING').toUpperCase() === 'MARKUP'
+                                : (e.eventType ?? 'HEARING').toUpperCase() === 'MARKUP'
                                   ? 'lw-chip--markup'
                                   : 'lw-chip--hearing';
+                          const m = momentOf(e);
                           return (
                             <button
-                              key={h.id}
+                              key={e.id}
                               type="button"
                               className={`lw-chip ${kindCls}`}
-                              onClick={() => openHearing(h)}
-                              disabled={cap === 'unavailable'}
-                              aria-label={`${h.title}, ${h.committee}, ${timeLabel(h.scheduledAt)}`}
+                              onClick={() => openHearing(e)}
+                              aria-label={`${e.title}, ${e.committee?.name ?? ''}, ${formatHearingTime(m)}`}
                             >
                               <span className="lw-chip__row">
-                                <span className="lw-chip__time">{timeLabel(h.scheduledAt)}</span>
+                                <span className="lw-chip__time">{formatHearingTime(m)}</span>
                                 {isLive || queued ? (
                                   <span
                                     className="lw-chip__marker"
@@ -309,10 +380,10 @@ export function HearingsTab({ scope }: { scope: string }) {
                                   />
                                 ) : null}
                               </span>
-                              <span className="lw-chip__title">{h.title}</span>
+                              <span className="lw-chip__title">{e.title}</span>
                               <span className="lw-chip__meta">
-                                {h.committee}
-                                {(h.watchlistMatchCount ?? 0) > 0 ? ` · ${h.watchlistMatchCount} MATCHES` : ''}
+                                {e.committee?.name ?? ''}
+                                {closed ? ' · CLOSED SESSION' : ''}
                               </span>
                             </button>
                           );
@@ -333,53 +404,60 @@ export function HearingsTab({ scope }: { scope: string }) {
           ) : (
             <section className="lw-card" aria-label="Schedule list">
               <div className="lw-card__head">
-                <h2 className="lw-card__title">Upcoming schedule</h2>
-                <span className="lw-card__meta">{filtered.length} proceedings</span>
+                <h2 className="lw-card__title">Schedule — this week</h2>
+                <span className="lw-card__meta">{visibleCount} proceedings</span>
               </div>
               {filtered.length === 0 ? (
                 <div style={{ padding: 18 }}>
                   <LwStateEmpty onReset={() => { setCommittee(''); setKind(''); setSearch(''); }} />
                 </div>
               ) : (
-                filtered.map((h) => {
-                  const isLive = h.sessionStatus === 'live';
-                  const cap = capabilityOf(h);
-                  const queued = Boolean(h.sessionId) && h.sessionStatus === 'scheduled';
+                filtered.map((e) => {
+                  const isLive = e.eventStatus === 'in_progress';
+                  const { capability: cap, closed, reason } = canonicalCapability(e);
+                  const queued = e.capture?.status === 'scheduled';
                   const verb = isLive
                     ? 'OPEN LIVE ROOM'
                     : queued
                       ? 'RECORDING SCHEDULED'
-                      : cap === 'unavailable'
-                        ? 'RECORDING UNAVAILABLE'
-                        : 'SCHEDULE RECORDING';
+                      : closed
+                        ? 'CLOSED SESSION'
+                        : cap === 'unavailable'
+                          ? 'RECORDING UNAVAILABLE'
+                          : 'VIEW DETAIL';
                   return (
-                    <div key={h.id} className={`lw-lrow${isLive ? ' is-live' : ''}`}>
-                      <div className="lw-lrow__main">
+                    <div key={e.id} className={`lw-lrow${isLive ? ' is-live' : ''}`}>
+                      <button
+                        type="button"
+                        className="lw-lrow__main"
+                        style={{ textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%' }}
+                        onClick={() => openHearing(e)}
+                        aria-label={`Open ${e.title}`}
+                      >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span className="lw-lrow__when">
-                            {new Date(h.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()} · {timeLabel(h.scheduledAt)}
+                            {formatHearingDay(momentOf(e)).toUpperCase()} · {formatHearingTime(momentOf(e))}
                           </span>
-                          <LwPill tone={KIND_TONE[(h.type ?? 'HEARING').toUpperCase()] ?? 'brand'} size="22">
-                            {(h.type ?? 'HEARING').toUpperCase()}
+                          <LwPill tone={KIND_TONE[(e.eventType ?? 'HEARING').toUpperCase()] ?? 'brand'} size="22">
+                            {(e.eventType ?? 'HEARING').toUpperCase()}
                           </LwPill>
-                          <span className="lw-lrow__cm">{h.committee}</span>
+                          <span className="lw-lrow__cm">{e.committee?.name ?? ''}</span>
                         </div>
-                        <div className="lw-lrow__title">{h.title}</div>
+                        <div className="lw-lrow__title">{e.title}</div>
                         <div className="lw-lrow__match">
-                          {(h.watchlistMatchCount ?? 0) > 0 ? `${h.watchlistMatchCount} CLIENT MATCHES` : 'NO CLIENT MATCHES'}
+                          {closed ? reason : (e.capture?.status ? `CAPTURE ${e.capture.status.toUpperCase()}` : 'NO CAPTURE REQUESTED')}
                         </div>
-                      </div>
+                      </button>
                       <div className="lw-lrow__side">
-                        <LwPill tone={cap === 'unavailable' ? 'gray' : cap === 'pending' ? 'warning' : 'success'} size="26">
-                          {cap === 'direct' || cap === 'browser' ? 'AVAILABLE' : cap.toUpperCase()}
+                        <LwPill tone={closed ? 'gray' : cap === 'unavailable' ? 'gray' : cap === 'pending' ? 'warning' : 'success'} size="26">
+                          {closed ? 'CLOSED' : cap === 'direct' || cap === 'browser' ? 'AVAILABLE' : cap.toUpperCase()}
                         </LwPill>
                         <button
                           type="button"
                           className="lw-lrow__verb"
-                          disabled={cap === 'unavailable'}
-                          onClick={() => openHearing(h)}
+                          onClick={() => openHearing(e)}
                         >
-                          {verb} →
+                          {closed ? 'DETAILS →' : `${verb} →`}
                         </button>
                       </div>
                     </div>
@@ -396,7 +474,7 @@ export function HearingsTab({ scope }: { scope: string }) {
             <div className="lw-card__head">
               <h2 className="lw-card__title">My Sessions</h2>
               <span className="lw-card__meta">
-                {live ? '1 live' : 'None live'} · {history.data?.pages?.[0]?.total ?? hearings.length} total
+                {live ? '1 live' : 'None live'} · {history.data?.pages?.[0]?.total ?? 0} total
               </span>
             </div>
 
@@ -404,45 +482,17 @@ export function HearingsTab({ scope }: { scope: string }) {
               <div className="lw-session lw-on-ink">
                 <span className="lw-session__badge">
                   <span className="lw-session__dot is-live" aria-hidden="true" />
-                  LIVE · {liveClock(live)}
+                  LIVE
                 </span>
                 <div className="lw-session__title">{live.title}</div>
-                <div className="lw-session__sub">
-                  {live.committee} · {live.watchlistMatchCount ?? 0} clients
-                </div>
+                <div className="lw-session__sub">{live.committee?.name ?? ''}</div>
                 <div className="lw-session__actions">
-                  <LwButton
-                    variant="primary"
-                    size="40"
-                    onClick={() => live.sessionId && navigate(`/intelligence/hearing-watch/${live.sessionId}`)}
-                  >
+                  <LwButton variant="primary" size="40" onClick={() => navigate('/legiwatch/live')}>
                     Open live room →
                   </LwButton>
-                  <LwButton size="40" onClick={() => setSetupHearing(live)}>
-                    End session
+                  <LwButton size="40" onClick={() => openHearing(live)}>
+                    Details
                   </LwButton>
-                </div>
-              </div>
-            ) : nextUpcoming ? (
-              <div className="lw-session lw-on-ink">
-                <span className="lw-session__badge">
-                  <span className="lw-session__dot is-next" aria-hidden="true" />
-                  NEXT SESSION · {startsIn(nextUpcoming.scheduledAt)}
-                </span>
-                <div className="lw-session__title">{nextUpcoming.title}</div>
-                <div className="lw-session__sub">
-                  {nextUpcoming.committee} · {timeLabel(nextUpcoming.scheduledAt)}
-                </div>
-                <div className="lw-session__body">
-                  Nothing is live right now. This is the next proceeding on your watchlist.
-                </div>
-                <div className="lw-session__actions">
-                  <LwButton variant="primary" size="40" onClick={() => setSetupHearing(nextUpcoming)}>
-                    {nextUpcoming.sessionId && nextUpcoming.sessionStatus === 'scheduled'
-                      ? 'Recording scheduled'
-                      : 'Schedule recording'}
-                  </LwButton>
-                  <LwButton size="40" onClick={() => setView('calendar')}>View schedule</LwButton>
                 </div>
               </div>
             ) : (
@@ -507,8 +557,8 @@ export function HearingsTab({ scope }: { scope: string }) {
 
       {setupHearing ? (
         <TranscriptionSetupModal
-          hearing={setupHearing}
-          capability={capabilityOf(setupHearing)}
+          hearing={toLegacyHearing(setupHearing)}
+          capability={canonicalCapability(setupHearing).capability}
           resolveStream={resolveStream}
           onClose={() => setSetupHearing(null)}
         />
@@ -517,18 +567,16 @@ export function HearingsTab({ scope }: { scope: string }) {
   );
 }
 
-function liveClock(h: UpcomingHearing): string {
-  if (!h.scheduledAt) return '00:00:00';
-  const ms = Date.now() - new Date(h.scheduledAt).getTime();
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+/** `YYYY-MM-DD` → local Date at midnight (parts-parsed, no UTC shift). */
+function parseEasternUTC(day: string): Date {
+  const y = Number(day.slice(0, 4));
+  const m = Number(day.slice(5, 7));
+  const d = Number(day.slice(8, 10));
+  return new Date(y, m - 1, d);
 }
 
-function startsIn(iso: string): string {
-  const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return 'NOW';
-  const min = Math.floor(ms / 60000);
-  const h = Math.floor(min / 60);
-  return h > 0 ? `STARTS IN ${h}H ${min % 60}M` : `STARTS IN ${min}M`;
+const WEEKDAY = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+function totalMatches0(rows: CanonicalHearingEvent[]): number {
+  return rows.filter((e) => e.subscription?.scheduled ?? false).length;
 }

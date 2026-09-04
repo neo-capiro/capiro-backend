@@ -227,6 +227,56 @@ async function fetchWitnesses(
   return formatWitnesses(resp?.committeeMeeting?.witnesses);
 }
 
+/**
+ * A row the canonical pipeline has corrected to an explicit local-zone time
+ * (committee_hearing.timezone ≠ Eastern) is HIGHER AUTHORITY than this script's
+ * central-calendar re-derivation: the official announcement's "1:00 PM PT"
+ * outranks the calendar's ambiguous instant encoding. Overwriting it would
+ * revert the correction on the next daily run (the 2026-09-04 cm-119-119533
+ * regression class), so such rows are skipped for time fields entirely.
+ *
+ * Pure and exported so the regression test can prove the guard without a DB.
+ */
+export function isVerifiedLocalZoneRow(tz: string | null | undefined): boolean {
+  const t = (tz ?? '').trim();
+  return t.length > 0 && t !== 'America/New_York';
+}
+
+/**
+ * Drop the time fields (date/startsAt/time) from a sync upsert row when the
+ * existing canonical row carries a verified explicit local zone. Display fields
+ * (title/location/type/url/witnesses/committeeCode) still refresh — only the
+ * WHEN is protected. Generic so the call site keeps the literal row type (the
+ * Prisma `create` branch type-checks); in the stripped branch the row already
+ * exists, so `create` is unreachable. Pure and exported for the regression test.
+ */
+export function stripProtectedTimeFields<T extends object>(
+  row: T,
+  existingTimezone: string | null | undefined,
+): T {
+  if (!isVerifiedLocalZoneRow(existingTimezone)) return row;
+  const copy = { ...row } as Record<string, unknown>;
+  delete copy.date;
+  delete copy.startsAt;
+  delete copy.time;
+  return copy as T;
+}
+
+/**
+ * Read the current timezone of a canonical row BEFORE an upsert so Source 1 can
+ * protect corrected rows. Null/absent → not protected.
+ */
+async function existingTimezone(
+  prisma: PrismaClient,
+  id: string,
+): Promise<string | null> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ timezone: string | null }>>(
+    `SELECT timezone FROM committee_hearing WHERE id = $1 LIMIT 1`,
+    id,
+  );
+  return rows[0]?.timezone ?? null;
+}
+
 /* ── docs.house.gov helpers ─────────────────────────────────────────────── */
 
 /** Fetch a docs.house.gov page (UTF-8; smart quotes/dashes are normalized to ASCII
@@ -274,21 +324,28 @@ async function syncHouseDocsMeetings(
     for (const mtg of meetings) {
       const id = `cm-${CURRENT_CONGRESS}-${mtg.eventId}`;
       const title = mtg.title || '(untitled)';
-      const row = {
-        title,
-        chamber: 'House',
-        committeeName: mtg.committee,
-        date: day,
-        // Already an Eastern wall-clock string scraped off the page, so it is
-        // converted FORWARD to an instant rather than re-derived from one. Since
-        // Source 1 now also emits Eastern, both writers finally agree on the
-        // convention for this shared column and last-writer-wins is harmless.
-        startsAt: houseStartsAt(day, mtg.time),
-        time: mtg.time,
-        location: mtg.location,
-        type: inferHouseType(title, mtg.committee),
-        url: `https://www.congress.gov/event/${CURRENT_CONGRESS}th-Congress/house-event/${mtg.eventId}`,
-      };
+      // Same zone-protection guard as Source 1: never let the House docs
+      // re-derivation overwrite a canonical row that carries an explicit
+      // local-zone correction.
+      const protectedTz = await existingTimezone(prisma, id);
+      const row = stripProtectedTimeFields(
+        {
+          title,
+          chamber: 'House',
+          committeeName: mtg.committee,
+          date: day,
+          // Already an Eastern wall-clock string scraped off the page, so it is
+          // converted FORWARD to an instant rather than re-derived from one. Since
+          // Source 1 now also emits Eastern, both writers finally agree on the
+          // convention for this shared column and last-writer-wins is harmless.
+          startsAt: houseStartsAt(day, mtg.time),
+          time: mtg.time,
+          location: mtg.location,
+          type: inferHouseType(title, mtg.committee),
+          url: `https://www.congress.gov/event/${CURRENT_CONGRESS}th-Congress/house-event/${mtg.eventId}`,
+        },
+        protectedTz,
+      );
       await prisma.committeeHearing.upsert({
         where: { id },
         // Preserve committeeCode + witnesses (Source 1 owns them); refresh display fields.
@@ -377,19 +434,28 @@ async function main() {
             // idempotent; Source 3 (docs.house) preserves this on its later merge.
             const witnesses = formatWitnesses(d.witnesses);
             const id = `cm-${congress}-${item.eventId}`;
-            const row = {
-              title,
-              chamber,
-              committeeName,
-              committeeCode: sysCode,
-              date,
-              startsAt,
-              time: formatTime(d.date),
-              location: formatLocation(d.location),
-              type: d.type?.trim() || 'Meeting',
-              witnesses,
-              url: meetingPublicUrl(d, congress, chamber, item.eventId),
-            };
+            // Durable zone-protection guard (2026-09-04): a canonical row the
+            // pipeline corrected to an explicit local zone is higher authority
+            // than this script's central-calendar re-derivation. Time fields
+            // (date/startsAt/time) are dropped so tomorrow's run cannot revert
+            // the official correction; display fields still refresh.
+            const protectedTz = await existingTimezone(prisma, id);
+            const row = stripProtectedTimeFields(
+              {
+                title,
+                chamber,
+                committeeName,
+                committeeCode: sysCode,
+                date,
+                startsAt,
+                time: formatTime(d.date),
+                location: formatLocation(d.location),
+                type: d.type?.trim() || 'Meeting',
+                witnesses,
+                url: meetingPublicUrl(d, congress, chamber, item.eventId),
+              },
+              protectedTz,
+            );
             await prisma.committeeHearing.upsert({
               where: { id },
               update: { ...row, syncedAt: new Date() },

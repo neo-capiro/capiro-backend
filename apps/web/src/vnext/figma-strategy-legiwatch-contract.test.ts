@@ -84,15 +84,25 @@ describe('os.capiro.ai Figma Strategies + LegiWatch contract', () => {
 
   it('grounds the LegiWatch vNext module in existing intel APIs', () => {
     // The native module (LEGIWATCH-HANDOFF §7) replaces the prior Figma bridge
-    // page. It reads the canonical intel feed, upcoming-hearings and tracker
-    // endpoints through the module's own hooks — never a mock, never a new
-    // backend (§1.2), and never the old Radar page (§11.2 is read, not copied).
+    // page. It reads the canonical intel feed through the module's own hooks,
+    // and (PR A, LW-QA-001/002/005) the hearings tab reads the CANONICAL
+    // Phase 3 master calendar with range-aware fetches — never a mock, never a
+    // new backend (§1.2), and never the old Radar page (§11.2 is read, not
+    // copied). The forward-only upcoming-hearings feed is no longer the
+    // schedule source: it cannot serve historical weeks and it dropped
+    // startsAt/visibility.
     const mod = source('./pages/legiwatch/LegiWatchModule.tsx');
     const api = source('./pages/legiwatch/lib/api.ts');
     const hearings = source('./pages/legiwatch/hearings/HearingsTab.tsx');
     expect(api).toContain('intelFeedPaths.tenantFeed');
     expect(api).toContain('intelFeedPaths.feed');
-    expect(hearings).toContain('useUpcomingHearings');
+    expect(hearings).toContain('useLwWeekCalendar');
+    expect(hearings).not.toContain('useUpcomingHearings');
+    // Shared date/time contract is the single formatting path (LW-QA-001).
+    expect(hearings).toContain('formatHearingTime');
+    expect(hearings).toContain('Time not announced');
+    // Closed sessions are classified before capture affordances (LW-QA-002).
+    expect(hearings).toContain('Closed session — no public stream');
     expect(mod).not.toContain('<RadarPage />');
     // Hearings is the landing tab; removed surfaces redirect to it (§7.2/§7.9).
     expect(mod).toContain("REMOVED_TABS");

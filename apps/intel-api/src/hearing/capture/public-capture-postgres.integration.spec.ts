@@ -43,4 +43,43 @@ describe('public capture adapters (Postgres)',()=>{
     const rows=await prisma.$queryRawUnsafe<Array<{sequence:number;hasGapBefore:boolean}>>(`SELECT sequence,has_gap_before AS "hasGapBefore" FROM public_hearing_transcript_segment ORDER BY sequence`);
     expect(rows).toEqual([{sequence:1,hasGapBefore:false},{sequence:2,hasGapBefore:true}]);
   });
+
+  // ==========================================================================
+  // §10 — capture RESCHEDULE PROPAGATION against REAL Postgres (2026-09-04
+  // field-hearing correction). Port-level mocks proved the SQL strings; this
+  // proves the SQL against a real engine (disposable PG, api-migrated schema).
+  // This test caught a REAL defect the mocks could not: the reschedule UPDATE
+  // filtered `status` (legacy lowercase column) with an UPPERCASE allowlist —
+  // it matched ZERO rows on real Postgres, so propagation silently no-oped.
+  // ==========================================================================
+  it('propagates a corrected scheduled_start into the EXISTING capture row (no second row)',async()=>{
+    // 1. Capture created while the canonical row said 17:00Z (the tz-encoded
+    //    Eastern instant the central calendar published for the PT field hearing).
+    const first=await store.ensureCapture({hearingId:'phase4-hearing',idempotencyKey:'k',scheduledStart:new Date('2026-09-04T17:00:00.000Z'),now:new Date('2026-09-03T12:00:00.000Z')});
+    // 2. The official correction moves the hearing to 20:00Z (1:00 PM PT); the
+    //    reconciler pushes the corrected start through ensureCapture again.
+    const second=await store.ensureCapture({hearingId:'phase4-hearing',idempotencyKey:'k',scheduledStart:new Date('2026-09-04T20:00:00.000Z'),now:new Date('2026-09-03T15:00:00.000Z')});
+    expect(second.id).toBe(first.id); // SAME row — dedupe key (hearing_id) untouched
+    const rows=await prisma.$queryRawUnsafe<Array<{id:string;scheduledStart:Date;status:string;domainStatus:string;updatedAt:Date}>>(`SELECT id, scheduled_start AS "scheduledStart", status, domain_status AS "domainStatus", updated_at AS "updatedAt" FROM public_hearing_capture WHERE hearing_id='phase4-hearing'`);
+    expect(rows).toHaveLength(1); // exactly one capture row
+    expect(rows[0]!.scheduledStart.toISOString()).toBe('2026-09-04T20:00:00.000Z'); // propagated
+    expect(rows[0]!.domainStatus).toBe('SCHEDULED'); // still pre-start, capture untouched otherwise
+    // Idempotent: re-asserting the same corrected start is a no-op.
+    const third=await store.ensureCapture({hearingId:'phase4-hearing',idempotencyKey:'k',scheduledStart:new Date('2026-09-04T20:00:00.000Z'),now:new Date('2026-09-03T16:00:00.000Z')});
+    expect(third.id).toBe(first.id);
+    const after=await prisma.$queryRawUnsafe<Array<{updatedAt:Date}>>(`SELECT updated_at AS "updatedAt" FROM public_hearing_capture WHERE hearing_id='phase4-hearing'`);
+    expect(after[0]!.updatedAt.toISOString()).toBe(rows[0]!.updatedAt.toISOString()); // untouched by the same-value rewrite
+  });
+
+  it('never rewrites a TERMINAL capture row when the start moves',async()=>{
+    // A capture that already reached a terminal outcome (BLOCKED = legacy
+    // storage 'no_stream') must keep its original scheduled_start and state.
+    await store.ensureCapture({hearingId:'phase4-hearing',idempotencyKey:'k',scheduledStart:new Date('2026-09-04T17:00:00.000Z'),now:new Date('2026-09-03T12:00:00.000Z')});
+    await store.saveState({captureId:(await prisma.$queryRawUnsafe<Array<{id:string}>>(`SELECT id FROM public_hearing_capture WHERE hearing_id='phase4-hearing'`))[0]!.id,expectedVersion:1,next:{status:'BLOCKED',version:2,updatedAt:new Date('2026-09-03T13:00:00.000Z')}});
+    await store.ensureCapture({hearingId:'phase4-hearing',idempotencyKey:'k',scheduledStart:new Date('2026-09-04T20:00:00.000Z'),now:new Date('2026-09-03T15:00:00.000Z')});
+    const rows=await prisma.$queryRawUnsafe<Array<{scheduledStart:Date;status:string;domainStatus:string}>>(`SELECT scheduled_start AS "scheduledStart", status, domain_status AS "domainStatus" FROM public_hearing_capture WHERE hearing_id='phase4-hearing'`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.scheduledStart.toISOString()).toBe('2026-09-04T17:00:00.000Z'); // STALE start preserved — terminal rows are history
+    expect(rows[0]!.domainStatus).toBe('BLOCKED');
+  });
 });
