@@ -29,6 +29,7 @@ require the actual PaddleOCR engine use mock objects.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -827,3 +828,56 @@ class TestEngineIdentity:
         """Phase 10B-23B: this engine must never construct PP-Structure."""
         assert 'pp-structure' not in ENGINE_VERSION.lower()
         assert 'structure' not in ENGINE_VERSION.lower()
+
+    def test_drain_dockerfile_bakes_every_model_paddleocr_downloads_at_construction(self):
+        """Phase 10B-23C offline-runtime regression.
+
+        PaddleOCR 2.x's `PaddleOCR.__init__` calls `maybe_download()` for the
+        det, rec AND cls model dirs UNCONDITIONALLY (regardless of
+        `use_angle_cls=False`) -- `ppocr/utils/network.py::maybe_download`
+        only skips the download when `inference.pdiparams` +
+        `inference.pdmodel` already exist at the target path. The
+        ingestion-drain image therefore must bake all three model sets, or
+        the first real run in a network-isolated task fails
+        `model_unavailable` on the unused cls model (reproduced 2026-09-04
+        with `docker run --network none`).
+
+        This test pins the CONTRACT (every model URL paddleocr can fetch at
+        construction has a matching `bake_model` line with a 64-hex sha256
+        for both .pdiparams and .pdmodel); the checksums themselves are
+        verified at docker build time by `sha256sum -c` inside the RUN, and
+        the full offline proof is the `--network none` container run.
+        """
+        dockerfile = (
+            Path(__file__).resolve().parents[2]
+            / 'api'
+            / 'Dockerfile.defense-budget-ingestion-drain'
+        )
+        if not dockerfile.exists():
+            pytest.skip('Dockerfile.defense-budget-ingestion-drain not present in this checkout')
+        content = dockerfile.read_text(encoding='utf-8')
+
+        # Every paddleocr CDN model URL the image references must be baked
+        # (the bake_model helper's URL argument), and each bake must carry
+        # two 64-hex checksums (pdiparams + pdmodel).
+        bake_urls = re.findall(r'bake_model\s+(\S+\.tar)', content)
+        assert bake_urls, 'no bake_model lines found in ingestion-drain Dockerfile'
+
+        expected_urls = {
+            # det + rec (used by the engine) and cls (unused but still
+            # downloaded by PaddleOCR's constructor unconditionally).
+            'https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_infer.tar',
+            'https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar',
+            'https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar',
+        }
+        assert expected_urls.issubset(set(bake_urls)), (
+            f'missing bakes for: {sorted(expected_urls - set(bake_urls))}'
+        )
+
+        # Each bake_model call must be followed by two 64-hex digests (the
+        # URL + dest-dir lines can consume ~200 chars before the digests).
+        for url in expected_urls:
+            idx = content.index(url)
+            tail = content[idx : idx + 600]
+            digests = re.findall(r'\b[0-9a-f]{64}\b', tail[:400])
+            assert len(digests) >= 2, f'bake for {url} lacks pdiparams/pdmodel sha256 pair'

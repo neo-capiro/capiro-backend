@@ -112,9 +112,9 @@ RUN set -eux; \
     curl -fsSL "$url" -o "$tmp_dir/model.tar"; \
     mkdir -p "$dest"; \
     tar -xf "$tmp_dir/model.tar" -C "$tmp_dir"; \
-    params_src="$(find "$tmp_dir" -name '*.pdiparams' ! -name '*.pdiparams.info' | head -1)"; \
-    model_src="$(find "$tmp_dir" -name '*.pdmodel' | head -1)"; \
-    info_src="$(find "$tmp_dir" -name '*.pdiparams.info' | head -1)"; \
+    params_src="$(find "$tmp_dir" -name '*.pdiparams' ! -name '*.pdiparams.info' ! -name '._*' | head -1)"; \
+    model_src="$(find "$tmp_dir" -name '*.pdmodel' ! -name '._*' | head -1)"; \
+    info_src="$(find "$tmp_dir" -name '*.pdiparams.info' ! -name '._*' | head -1)"; \
     test -n "$params_src" -a -n "$model_src"; \
     cp "$params_src" "$dest/inference.pdiparams"; \
     cp "$model_src" "$dest/inference.pdmodel"; \
@@ -133,6 +133,10 @@ RUN set -eux; \
     /home/capiro/.paddleocr/whl/rec/ch/ch_PP-OCRv4_rec_infer \
     a6dbfa63e7ee161688523c954e9e293f77dc24044db81e836ff9c7f103fd191a \
     bf78f3898a004615e69c676259d8171bd7ae99000653b41fd72aaa36ae8bd304; \
+  bake_model https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar \
+    /home/capiro/.paddleocr/whl/cls/ch_ppocr_mobile_v2.0_cls_infer \
+    d1efda1b80e174b4fcb168a035ac96c1af4938892bd86a55f300a6027105d08c \
+    3c4337ec61722a20b1dca2e5bfaffc313c0592bc89ad6e0d45168224186f6683; \
   chown -R capiro:capiro /home/capiro/.paddleocr
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
