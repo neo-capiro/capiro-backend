@@ -944,6 +944,8 @@ flex: 0 0 auto;
   z-index: 20;
 }
 
+/* v6 prototype: the header icon sits in a 32px square tile, not a circle —
+   radius 8, gray fill, graphite glyph. */
 .capiro-vnext-root .vnext-meri__thread-icon {
   flex: 0 0 auto;
   display: flex;
@@ -951,9 +953,65 @@ flex: 0 0 auto;
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--capiro-radius-circular);
-  background: var(--meri-accent-soft);
-  color: var(--meri-accent);
+  border-radius: 8px;
+  background: #F2F4F7;
+  color: #475467;
+}
+
+/* v6 rename mode: the inline input + Save/Cancel pair replaces the prompt()
+   dialog. Values from the prototype's thread header markup. */
+.capiro-vnext-meri-rename {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 460px;
+  min-width: 0;
+}
+
+.capiro-vnext-meri-rename input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
+  outline: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-meri-rename-save {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.capiro-vnext-meri-rename-cancel {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475467;
+  cursor: pointer;
+}
+
+.capiro-vnext-meri-rename-cancel:hover {
+  background: #F2F4F7;
 }
 
 .capiro-vnext-root .vnext-meri__thread-title-block {
@@ -965,8 +1023,9 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__thread-title {
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 600;
+  letter-spacing: -0.005em;
   line-height: 22px;
   color: var(--meri-ink);
   overflow: hidden;
@@ -975,9 +1034,9 @@ flex: 0 0 auto;
 }
 
 .capiro-vnext-root .vnext-meri__thread-sub {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 18px;
-  color: var(--meri-text-muted);
+  color: #98A2B3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1082,7 +1141,7 @@ position: absolute;
 }
 
 .capiro-vnext-root .vnext-meri__landing-mode-row {
-display: flex;
+  display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
@@ -1102,16 +1161,18 @@ display: flex;
 }
 
 .capiro-vnext-root .vnext-meri__landing-mode-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 19px;
-  color: var(--meri-ink, #101828);
+  color: #101828;
 }
 
 .capiro-vnext-root .vnext-meri__landing-mode-hint {
-  font-size: 12.5px;
-  line-height: 18px;
-  color: var(--meri-text-muted, #667085);
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 19px;
+  color: #667085;
+  text-wrap: pretty;
 }
 
 .capiro-vnext-root .vnext-meri__action-item.is-rich {
@@ -1247,33 +1308,30 @@ max-width: 720px;
 /* ── Landing / new thread ────────────────────────────────────────────── */
 
 .capiro-vnext-root .vnext-meri__landing {
-display: flex;
+  display: flex;
   flex-direction: column;
   padding: 48px 0 8px;
+  animation: vnext-meri-rise 220ms ease;
+}
+
+/* v6 stars badge: 30×30 radius 8 metal tile with the sheen inset, Stars02
+   glyph 16px white. Replaces the round logo disk + SESSION LIVE row. */
+.capiro-vnext-root .vnext-meri__landing-badge {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen);
 }
 
 .capiro-vnext-root .vnext-meri__landing-greeting-row {
   display: flex;
   align-items: center;
   gap: 11px;
-}
-
-.capiro-vnext-root .vnext-meri__landing-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: var(--meri-text-muted);
-}
-
-.capiro-vnext-root .vnext-meri__landing-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--capiro-radius-circular);
-  background: #12b76a;
 }
 
 .capiro-vnext-root .vnext-meri__landing-greeting {
@@ -1295,11 +1353,11 @@ margin-top: 12px;
 
 .capiro-vnext-root .vnext-meri__landing-sub {
   margin-top: 14px;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: var(--meri-text-muted);
+  font-family: var(--meri-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #98A2B3;
 }
 
 .capiro-vnext-root .vnext-meri__landing-composer {
@@ -1425,43 +1483,42 @@ margin-top: 12px;
 }
 
 .capiro-vnext-root .vnext-meri__user-bubble {
-  max-width: 76%;
+  max-width: 78%;
   min-width: 0;
   /* A pasted URL, file path or bill identifier is one unbreakable token: the
      box is capped but the glyphs are not, and the scroller's overflow-x:hidden
      chops the tail with no affordance. */
   overflow-wrap: anywhere;
-  padding: 13px 16px;
+  padding: 11px 14px;
   border-radius: 12px 12px 4px 12px;
-  background: var(--meri-accent-soft);
-  border: 1px solid var(--meri-border-control);
-  font-size: 14px;
-  line-height: 21px;
-  color: var(--meri-ink);
+  background: #F2F4F7;
+  border: 0;
+  font-size: 14.5px;
+  line-height: 22px;
+  color: #101828;
+  text-wrap: pretty;
 }
 
 .capiro-vnext-root .vnext-meri__user-meta {
   margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-align: right;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  color: var(--meri-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #98A2B3;
 }
 
 /* Assistant message */
 .capiro-vnext-root .vnext-meri__assistant-message {
   display: flex;
-  flex-direction: column;
-  gap: 9px;
+  gap: 12px;
+  animation: vnext-meri-rise 180ms ease;
 }
 
-.capiro-vnext-root .vnext-meri__assistant-heading {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
+/* v6 avatar: 26×26 radius 7 metal tile with the sheen inset and a white
+   Stars02 glyph — replaces the round dark disk + logo image. */
 .capiro-vnext-root .vnext-meri__assistant-mark {
   flex: 0 0 auto;
   display: flex;
@@ -1469,47 +1526,52 @@ margin-top: 12px;
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: var(--capiro-radius-circular);
-  background: var(--meri-dark-ink);
-  color: var(--capiro-color-text-inverse-primary);
+  margin-top: 2px;
+  border-radius: 7px;
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen);
+  color: #ffffff;
   font-size: 11px;
   font-weight: 600;
 }
 
-.capiro-vnext-root .vnext-meri__assistant-time {
-  font-family: var(--meri-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--meri-text-muted);
+.capiro-vnext-root .vnext-meri__assistant-mark img {
+  width: 13px;
+  height: auto;
+  filter: invert(1);
 }
 
+/* v6 assistant column: no card — the answer sits directly in the log column
+   with the avatar beside it, content stacked on a 14px gap. */
 .capiro-vnext-root .vnext-meri__assistant-card {
-  border-radius: var(--meri-radius);
-  background: var(--meri-surface);
-  box-shadow: var(--meri-shadow-card);
-  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .capiro-vnext-root .vnext-meri__assistant-body {
-  padding: 16px 18px;
+  padding: 0;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 14px;
-  line-height: 22px;
-  color: var(--meri-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 23px;
+  color: #1D2939;
 }
 
 .capiro-vnext-root .vnext-meri__assistant-body p {
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .capiro-vnext-root .vnext-meri__assistant-body p:last-child {
   margin-bottom: 0;
 }
 
-/* Streaming cursor — handoff §4g. An 8×16px block cursor pulsing at 1s beside
-   a mono status label; replaces the three-dot ellipsis so a streaming answer
-   can never be mistaken for a finished one. */
+/* Streaming cursor — v6: an 8×17px radius-2 block cursor pulsing at 1s. */
 .capiro-vnext-root .vnext-meri__composing {
   display: inline-flex;
   align-items: center;
@@ -1519,44 +1581,62 @@ margin-top: 12px;
 
 .capiro-vnext-root .vnext-meri__composing-cursor {
   width: 8px;
-  height: 16px;
-  background: var(--meri-ink);
+  height: 17px;
+  border-radius: 2px;
+  background: #101828;
   animation: vnext-meri-pulse 1s ease-in-out infinite;
 }
 
-.capiro-vnext-root .vnext-meri__composing-label {
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: var(--meri-text-muted);
+/* v6 trace lines — the quiet per-step feed under an answer. Icon 12px +
+   11.5px/18px muted text; done steps are the faintest gray, the running one
+   pulses between muted and faint via the icon swap in TSX. */
+.capiro-vnext-root .vnext-meri__trace {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-/* Skill tag — handoff §4d, on the assistant meta row beside the timestamp. */
-.capiro-vnext-root .vnext-meri__skill-tag {
-  display: inline-flex;
+.capiro-vnext-root .vnext-meri__trace-line {
+  display: flex;
   align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 5px;
-  background: var(--meri-surface-2);
-  font-family: var(--meri-font-mono);
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-secondary);
-  white-space: nowrap;
+  gap: 7px;
+  min-width: 0;
 }
 
-/* Source strip */
+.capiro-vnext-root .vnext-meri__trace-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 18px;
+  color: #98A2B3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* v6 streaming indicator: avatar + "Meri is responding" 12.5px/500. */
+.capiro-vnext-root .vnext-meri__responding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__responding-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #667085;
+}
+
+/* Source strip — v6: cardless, so the trust row is a plain wrapping row in
+   the answer column (no hairline, no padding — the column gap owns spacing). */
 .capiro-vnext-root .vnext-meri__source-strip {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 12px 18px;
-  border-top: 1px solid var(--meri-border-soft);
-  background: var(--meri-surface);
+  padding: 0;
+  border-top: 0;
+  background: transparent;
 }
 
 .capiro-vnext-root .vnext-meri__source-chip {
@@ -1684,72 +1764,97 @@ margin-top: 12px;
   background: var(--meri-surface-2);
 }
 
-/* Message actions row — handoff §11a: `padding:11px 18px`, top hairline, on
-   the card surface. The 18px gutter is what keeps COPY and the audit stamp on
-   the same optical margin as the answer body above. */
+/* v6 feedback row: 26×26 radius-7 icon buttons (hover green/red/graphite),
+   plus the quiet "Show work" text button. */
 .capiro-vnext-root .vnext-meri__message-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 11px 18px;
-  border-top: 1px solid var(--meri-border-soft);
-  background: var(--meri-surface);
+  gap: 4px;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
 }
 
-.capiro-vnext-root .vnext-meri__audit-stamp {
-  margin-left: auto;
-  font-family: var(--meri-font-mono);
-  font-size: 9px;
+.capiro-vnext-root .vnext-meri__message-actions .vnext-meri__inline-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #98A2B3;
+  font-family: var(--meri-font-sans);
+  font-size: 11px;
+}
+
+.capiro-vnext-root .vnext-meri__message-actions .vnext-meri__inline-action-btn:hover {
+  background: #F2F4F7;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__show-work {
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 11.5px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-faint);
-  white-space: nowrap;
+  color: #667085;
+  cursor: pointer;
 }
 
-/* Follow-ups — handoff §11c: `padding:12px 18px 14px`, top hairline. Clicking
-   a chip fills the composer; it never sends, so the eyebrow reads as a
-   suggestion list rather than an action bar. */
+.capiro-vnext-root .vnext-meri__show-work:hover {
+  background: #F2F4F7;
+  color: #344054;
+}
+
+/* Follow-ups — v6 suggestion chips: h30 white pills, corner-arrow glyph. */
 .capiro-vnext-root .vnext-meri__followups {
-  padding: 12px 18px 14px;
-  border-top: 1px solid var(--meri-border-soft);
+  padding: 0;
+  border-top: 0;
 }
 
 .capiro-vnext-root .vnext-meri__followups-eyebrow {
-  font-family: var(--meri-font-mono);
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: var(--meri-text-faint);
+  display: none;
 }
 
 .capiro-vnext-root .vnext-meri__followups-chips {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 7px;
+  margin-top: 0;
 }
 
 .capiro-vnext-root .vnext-meri__followup-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   height: 30px;
   padding: 0 11px;
-  border-radius: var(--meri-radius-sm);
-  border: 1px solid var(--meri-border);
+  border-radius: 8px;
+  border: 0;
   background: var(--meri-surface);
+  box-shadow: inset 0 0 0 1px #E4E7EC;
   font-size: 12.5px;
-  color: var(--meri-text-secondary);
+  color: #344054;
   cursor: pointer;
   transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
-    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+    box-shadow var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
 .capiro-vnext-root .vnext-meri__followup-chip:hover:not(:disabled) {
-  background: var(--meri-surface-2);
-  border-color: var(--meri-border-control);
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
 }
 
 .capiro-vnext-root .vnext-meri__followup-chip:disabled {
@@ -1764,14 +1869,15 @@ margin-top: 12px;
   background: var(--meri-success);
 }
 
-/* Research offer inline */
+/* Research offer inline — v6: plain text + metal primary inside the cardless
+   answer column. */
 .capiro-vnext-root .vnext-meri__research-offer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--meri-border-soft);
+  padding: 0;
+  border-top: 0;
 }
 
 .capiro-vnext-root .vnext-meri__research-offer-text {
@@ -1788,22 +1894,22 @@ margin-top: 12px;
   justify-content: center;
   gap: 7px;
   height: 32px;
-  padding: 0 13px;
-  border-radius: var(--meri-radius-sm);
-  background: var(--meri-surface);
-  border: 1px solid var(--meri-border);
-  box-shadow: var(--meri-shadow-button);
+  padding: 0 12px;
+  border-radius: 8px;
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen);
+  border: 0;
   white-space: nowrap;
   cursor: pointer;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-secondary);
+  font-family: var(--meri-font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .capiro-vnext-root .vnext-meri__research-offer-btn:hover:not(:disabled) {
-  background: var(--meri-surface-2);
+  background: none;
+  filter: brightness(1.15);
 }
 
 .capiro-vnext-root .vnext-meri__research-offer-btn:disabled {
@@ -2005,15 +2111,24 @@ margin-top: 12px;
 }
 
 .capiro-vnext-root .vnext-meri__composer {
-border-radius: 12px;
+  border-radius: 12px;
   background: #EAF0F4;
-  box-shadow: 0 0 0 1px #D0D5DD, 0 2px 8px -2px rgba(16,24,40,.08);
+  box-shadow: 0 0 0 1px rgba(41, 78, 104, 0.16), 0 2px 8px -2px rgba(16, 24, 40, 0.08);
   padding: 0;
   transition: box-shadow 140ms ease, background 140ms ease;
 }
 
+/* v6: once the draft is non-empty the ring deepens to the #294E68 ink. */
+.capiro-vnext-root .vnext-meri__composer.has-draft {
+  box-shadow: 0 0 0 1px #294E68, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+}
+
 .capiro-vnext-root .vnext-meri__composer.is-focused {
-box-shadow: 0 0 0 1px #98A2B3, 0 2px 8px -2px rgba(16,24,40,.08);
+  box-shadow: 0 0 0 1px #98A2B3, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+}
+
+.capiro-vnext-root .vnext-meri__composer.has-draft.is-focused {
+  box-shadow: 0 0 0 1px #294E68, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
 }
 
 .capiro-vnext-root .vnext-meri__composer-row {
@@ -2220,11 +2335,11 @@ display: flex;
 
 .capiro-vnext-root .vnext-meri__composer-send-hint {
   margin-left: auto;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-faint);
+  font-family: var(--meri-font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #98A2B3;
   white-space: nowrap;
 }
 
@@ -2267,66 +2382,99 @@ display: flex;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--meri-radius-sm);
+  height: 36px;
+  padding: 0 13px;
+  border-radius: 8px;
   background: var(--meri-surface);
-  border: 1px solid var(--meri-border);
-  box-shadow: var(--meri-shadow-button);
+  border: 0;
+  box-shadow: inset 0 0 0 1px #D0D5DD;
   font-size: 13px;
   font-weight: 600;
-  color: var(--meri-text-secondary);
+  color: #344054;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__composer-stop-btn:hover {
-  background: var(--meri-surface-2);
-  color: var(--meri-ink);
+  background: #F9FAFB;
 }
 
-/* Composer attachments */
+/* Attachment chip rows — shared by the composer (inside the #EAF0F4 card)
+   and the user turn (below the bubble). v6 chip tones: READY white /
+   TRUNCATED warning tint / UNAVAILABLE danger tint / UPLOADING gray. */
 .capiro-vnext-root .vnext-meri__attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 7px;
+  margin-bottom: 0;
+}
+
+/* Composer context: chips sit on the card's top padding row. */
+.capiro-vnext-root .vnext-meri__composer .vnext-meri__attachments {
+  padding: 11px 12px 0;
+}
+
+/* User-turn context: right-aligned under the bubble, 6px gap per the spec. */
+.capiro-vnext-root .vnext-meri__user-message .vnext-meri__attachments {
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 
 .capiro-vnext-root .vnext-meri__attachment {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 10px;
-  border-radius: 7px;
-  background: var(--meri-surface-2);
-  border: 1px solid var(--meri-border);
+  gap: 8px;
+  height: 30px;
+  padding: 0 6px 0 9px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #E4E7EC;
   font-size: 12px;
 }
 
+.capiro-vnext-root .vnext-meri__attachment.is-ready {
+  color: #067647;
+}
+
+.capiro-vnext-root .vnext-meri__attachment.is-truncated {
+  background: #FFFAEB;
+  box-shadow: inset 0 0 0 1px #FEDF89;
+  color: #B54708;
+}
+
 .capiro-vnext-root .vnext-meri__attachment.is-error {
-  border-color: var(--meri-danger);
+  background: #FEF3F2;
+  box-shadow: inset 0 0 0 1px #FECDCA;
+  color: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__attachment-name {
+  color: #344054;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-state {
-  font-family: var(--meri-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  color: var(--meri-text-muted);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: inherit;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-remove {
   display: flex;
   align-items: center;
-  color: var(--meri-text-faint);
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: #98A2B3;
   border: 0;
   background: transparent;
   cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-remove:hover {
-  color: var(--meri-danger);
+  background: #EAECF0;
+  color: #344054;
 }
 
 .capiro-vnext-root .vnext-meri__attachment-notice {
@@ -3770,42 +3918,99 @@ border-bottom: 1px solid var(--meri-border);
   overflow-y: auto;
 }
 
-/* Transcript replacement notice (MeriApprovalNotice.tsx) — one sentence plus
-   a "Review it" link, standing in for the full approval card in the log. */
+/* v6 memory callout: the indigo info-tint card — Save01 icon, indigo eyebrow,
+   ink value, muted-indigo scope line. These classes previously had no rules
+   anywhere (the button rendered unstyled); v6 gives them the prototype's
+   #F0F1F7 treatment. */
+.capiro-vnext-root .vnext-meri__memory-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #F0F1F7;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  animation: vnext-meri-rise 200ms ease;
+}
+
+.capiro-vnext-root .vnext-meri__memory-callout-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #363F72;
+}
+
+.capiro-vnext-root .vnext-meri__memory-callout-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .vnext-meri__memory-callout-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #4E5BA6;
+}
+
+.capiro-vnext-root .vnext-meri__memory-callout-value {
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 21px;
+  color: #101828;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__memory-callout-scope {
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: #5D6B98;
+}
+
+/* v6 approval row: quiet indented line under the turn — chat line + "Review"
+   link, no banner chrome. */
 .capiro-vnext-root .vnext-meri__approval-notice {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 0 18px 16px;
-  padding: 11px 13px;
-  border-radius: var(--m-radius-lg);
-  background: var(--m-surface);
-  border: 1px solid var(--m-border);
-  color: var(--m-gray-500);
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 38px;
+  border: 0;
+  background: transparent;
 }
 
 .capiro-vnext-root .vnext-meri__approval-notice-text {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  line-height: 19px;
-  color: var(--m-gray-700);
+  line-height: 20px;
+  color: #667085;
+  text-wrap: pretty;
 }
 
 .capiro-vnext-root .vnext-meri__approval-notice-link {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
   border: 0;
+  border-radius: 7px;
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--m-gray-900);
+  color: #363F72;
+  cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__approval-notice-link:hover {
-  color: var(--meri-accent-hover);
+  background: #F2F4F7;
 }
 
 /* The Approve action inside the turn inspector's Approvals tab sits in a
@@ -3851,6 +4056,43 @@ border-bottom: 1px solid var(--meri-border);
 /* ---- Mobile: <= 779 -------------------------------------------------- */
 
 
+
+/* v6 Start Work states: loading/empty on the #FCFCFD panel, error on the
+   #FFFBFA/#FECDCA danger tint. */
+.capiro-vnext-root .vnext-meri__startwork-state {
+  margin-top: 14px;
+  padding: 22px;
+  border-radius: 12px;
+  background: #FCFCFD;
+  box-shadow: 0 0 0 1px #EAECF0;
+  font-size: 13px;
+  color: #667085;
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .vnext-meri__startwork-state.is-error {
+  padding: 16px;
+  background: #FFFBFA;
+  box-shadow: 0 0 0 1px #FECDCA;
+  font-size: 13px;
+  font-weight: 500;
+  color: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__startwork-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__startwork-empty-text {
+  margin-top: 5px;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: #667085;
+  text-wrap: pretty;
+}
 
 /* Work-performed / research-progress hero card chrome (was ad hoc inline
    styles). MeriWorkPerformed and MeriResearchProgress are a deliberate
@@ -4857,9 +5099,12 @@ width: 30px;
   color: var(--meri-accent-hover);
 }
 
+/* v6 thread-action buttons: 30×30 radius 8, graphite glyph, gray hover fill.
+   Hover recolors the glyph via currentColor — hardcode the icon prop only
+   where a hover must NOT recolor (skill pitfall #39). */
 .capiro-vnext-root .vnext-meri__thread-action {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -4867,11 +5112,44 @@ width: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .capiro-vnext-root .vnext-meri__thread-action:hover:not(:disabled) {
-  background: #F9FAFB;
+  background: #F2F4F7;
   color: #101828;
+}
+
+/* v6 thread-actions dropdown — 214px, radius 10, ring + shadow, 13px items. */
+.capiro-vnext-root .vnext-meri__thread-menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  z-index: 40;
+  width: 214px;
+  padding: 5px;
+  border-radius: 10px;
+  background: var(--meri-surface);
+  box-shadow: 0 0 0 1px #E4E7EC, 0 12px 16px -4px rgba(16, 24, 40, 0.1);
+}
+
+.capiro-vnext-root .vnext-meri__thread-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  color: #344054;
+  cursor: pointer;
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri__thread-menu-item:hover {
+  background: #F9FAFB;
 }
 
 .capiro-vnext-root .vnext-meri__mode-pill.is-standard,
@@ -4898,16 +5176,6 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-busy {
   background: var(--m-canvas-busy);
-}
-
-.capiro-vnext-root .vnext-meri__user-bubble {
-  background: #F2F4F7;
-  border-color: #D0D5DD;
-  text-wrap: pretty;
-}
-
-.capiro-vnext-root .vnext-meri__assistant-mark {
-  background: #101828;
 }
 
 .capiro-vnext-root .vnext-meri__assistant-mark img {
@@ -4972,8 +5240,13 @@ width: 30px;
   box-shadow: var(--m-metal-sheen), var(--m-metal-shadow);
 }
 
+/* v6: an empty draft sends nothing — the button drops to the #F2F4F7 gray
+   fill with the #98A2B3 glyph (Send01 color comes from the TSX prop). */
 .capiro-vnext-root .vnext-meri__composer-send-btn.is-empty {
-  opacity: 0.55;
+  background-image: none;
+  background: #F2F4F7;
+  box-shadow: none;
+  opacity: 1;
 }
 
 .capiro-vnext-root .vnext-meri__composer-send-btn:disabled {

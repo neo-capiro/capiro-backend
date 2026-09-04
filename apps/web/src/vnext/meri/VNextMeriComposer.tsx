@@ -155,10 +155,12 @@ export function VNextMeriComposer({
   // durable-transition gate (scope persistence). Both the Send button and
   // the keyboard path (Enter / Cmd+Enter) use this same predicate.
   const canSend = maySend(busy, scopePersistStatus) && !uploadsInFlight;
-  const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
-  const contextLabel = selectedClient
-    ? `${selectedClient.name.toUpperCase()} · CAPIRO CONTEXT`
-    : 'CAPIRO SOURCES IN CONTEXT';
+  // v6: the quiet "Context" label (with attachment count when files are
+  // staged). Client scope is carried by the top-bar scope chip, not repeated
+  // here per the prototype.
+  const contextLabel = stagedAttachments.length
+    ? `Context · ${stagedAttachments.length} attached`
+    : 'Context';
 
   useEffect(() => {
     if (!hasThread) textareaRef.current?.focus();
@@ -470,7 +472,9 @@ export function VNextMeriComposer({
         }}
       />
 
-      <div className={`vnext-meri__composer${focused ? ' is-focused' : ''}`}>
+      <div
+        className={`vnext-meri__composer${focused ? ' is-focused' : ''}${draft.trim() ? ' has-draft' : ''}`}
+      >
         {/*
           v5 workspace mockup: the textarea spans the full composer width on
           its own row; the "Add to conversation" trigger lives in the toolbar
@@ -482,15 +486,16 @@ export function VNextMeriComposer({
           <div className="vnext-meri__attachments" aria-label="Attached files">
             {stagedAttachments.map((attachment) => {
               const failed = stagedAttachmentFailed(attachment);
+              const truncated = attachment.status === 'truncated';
               return (
                 <span
                   key={attachment.localId}
-                  className={`vnext-meri__attachment${failed ? ' is-error' : ''}`}
+                  className={`vnext-meri__attachment${failed ? ' is-error' : truncated ? ' is-truncated' : ' is-ready'}`}
                 >
-                  <span aria-hidden="true" style={{ display: 'flex' }}>
-                    <MeriIcon name={stagedAttachmentIconName(attachment.kind)} size={12} />
+                  <span aria-hidden="true" style={{ display: 'flex', color: failed ? '#B42318' : '#98A2B3' }}>
+                    <MeriIcon name={stagedAttachmentIconName(attachment.kind)} size={14} />
                   </span>
-                  <span title={attachment.filename}>
+                  <span title={attachment.filename} className="vnext-meri__attachment-name">
                     {truncateFilenameMiddle(attachment.filename, 28)}
                   </span>
                   <span className="vnext-meri__attachment-state">
@@ -498,7 +503,7 @@ export function VNextMeriComposer({
                       ? 'UPLOADING'
                       : failed
                         ? 'UNAVAILABLE'
-                        : attachment.status === 'truncated'
+                        : truncated
                           ? 'TRUNCATED'
                           : 'READY'}
                   </span>
@@ -508,7 +513,7 @@ export function VNextMeriComposer({
                     onClick={() => removeStagedAttachment(attachment.localId)}
                     aria-label={`Remove ${attachment.filename}`}
                   >
-                    <MeriIcon name="XClose" size={12} color="#98A2B3" />
+                    <MeriIcon name="XClose" size={12} />
                   </button>
                 </span>
               );
@@ -613,7 +618,20 @@ export function VNextMeriComposer({
             <span className="vnext-meri__composer-context-text">{contextLabel}</span>
           </button>
 
-          <span className="vnext-meri__composer-send-hint">
+          <span
+            className="vnext-meri__composer-send-hint"
+            style={{
+              color: isStreaming
+                ? '#B42318'
+                : scopePersistStatus === 'saving'
+                  ? '#B54708'
+                  : scopePersistStatus === 'error'
+                    ? '#B42318'
+                    : submitting
+                      ? '#667085'
+                      : '#98A2B3',
+            }}
+          >
             {isStreaming
               ? 'STOP'
               : scopePersistStatus === 'saving'
@@ -632,8 +650,7 @@ export function VNextMeriComposer({
               onClick={() => handleStop()}
               aria-label="Stop research"
             >
-              <MeriIcon name="StopCircle" size={15} color="var(--meri-danger)" />
-              Stop
+              <MeriIcon name="StopCircle" size={16} color="#B42318" />
             </button>
           ) : (
             <button
@@ -643,7 +660,7 @@ export function VNextMeriComposer({
               onClick={() => void submit()}
               aria-label="Send"
             >
-              <MeriIcon name="ArrowNarrowUp" size={17} color="#ffffff" />
+              <MeriIcon name="Send01" size={17} color={draft.trim() ? '#FFFFFF' : '#98A2B3'} />
             </button>
           )}
         </div>

@@ -138,20 +138,34 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
         }}
       >
         {loading ? (
-          <div className="vnext-meri__ctx-empty" style={{ gridColumn: '1 / -1' }}>
+          <div
+            className="vnext-meri__startwork-state"
+            style={{ gridColumn: '1 / -1' }}
+          >
             {tab === 'SKILLS' ? 'Loading available skills…' : 'Loading saved prompts…'}
           </div>
         ) : null}
         {errored ? (
-          <div className="vnext-meri__ctx-empty" style={{ gridColumn: '1 / -1' }}>
+          <div
+            className="vnext-meri__startwork-state is-error"
+            style={{ gridColumn: '1 / -1' }}
+          >
             {tab === 'SKILLS' ? 'Skills could not be loaded.' : 'Saved prompts could not be loaded.'}
           </div>
         ) : null}
         {!loading && !errored && cards.length === 0 ? (
-          <div className="vnext-meri__ctx-empty" style={{ gridColumn: '1 / -1' }}>
-            {tab === 'SKILLS'
-              ? 'No skills are available.'
-              : 'No saved prompts yet. Save one from the thread rail.'}
+          <div
+            className="vnext-meri__startwork-state"
+            style={{ gridColumn: '1 / -1' }}
+          >
+            <span className="vnext-meri__startwork-empty-title">
+              {tab === 'SKILLS' ? 'No skills yet' : 'No saved prompts yet'}
+            </span>
+            <span className="vnext-meri__startwork-empty-text">
+              {tab === 'SKILLS'
+                ? 'Skills are created conversationally — ask Meri to turn a routine into one. There is no configuration screen.'
+                : 'Save a prompt from a message you liked and it shows up here.'}
+            </span>
           </div>
         ) : null}
         {cards.map((card) => (

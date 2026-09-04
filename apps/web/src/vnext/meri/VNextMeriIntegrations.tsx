@@ -4,6 +4,7 @@ import {
   type ManagedApp,
 } from '../../components/chat/managed-mcp-apps.js';
 import { ConnectorMark } from './meri-connector-logos.js';
+import { MeriIcon } from './meri-icons.js';
 import './vnext-meri-integrations.css';
 
 export function VNextMeriIntegrations({ onBack }: { onBack: () => void }) {
@@ -20,22 +21,18 @@ function VNextMeriIntegrationsContent({ onBack }: { onBack: () => void }) {
 
   return (
     <main className="vnext-meri-integrations" aria-label="Meri integrations">
-      <header className="vnext-meri-integrations__header">
-        <div className="vnext-meri-integrations__brand">
-          <span className="vnext-meri-integrations__ring" aria-hidden="true" />
-          <span>Meri</span>
-        </div>
-        <button type="button" className="vnext-meri-integrations__back" onClick={onBack}>
-          ← Back to Meri
-        </button>
-      </header>
-
       <section className="vnext-meri-integrations__content">
+        <div className="vnext-meri-integrations__header">
+          <button type="button" className="vnext-meri-integrations__back" onClick={onBack}>
+            <MeriIcon name="ArrowLeft" size={15} />
+            Back to Meri
+          </button>
+        </div>
+
         <div className="vnext-meri-integrations__eyebrow">CONNECTED CONTEXT</div>
-        <h1>Apps Meri can use</h1>
+        <h1>Meri integrations</h1>
         <p className="vnext-meri-integrations__lede">
-          Connect an approved account once. Meri can use its read-only context when it is relevant to
-          your request; connection credentials and server configuration stay outside this workspace.
+          Apps Meri can use. Your draft and any staged attachments are held while you are here.
         </p>
 
         {managed.error ? (
@@ -65,8 +62,12 @@ function VNextMeriIntegrationsContent({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="vnext-meri-integrations__notice">
-          Only apps returned by the MeriV3 capabilities service are shown here. Capiro does not expose
-          server URLs, client secrets, or token configuration in this end-user flow.
+          <MeriIcon name="InfoCircle" size={16} color="#98A2B3" />
+          <span>
+            HubSpot and Airtable are the only managed apps. Only apps returned by the MeriV3
+            capabilities service are shown here — connection credentials and server configuration
+            stay outside this workspace.
+          </span>
         </div>
       </section>
     </main>
@@ -86,38 +87,36 @@ function IntegrationCard({
 }) {
   const reconnect = app.status === 'needs_reauth' || app.status === 'error';
   const status = app.connected
-    ? 'Connected'
+    ? 'CONNECTED'
     : reconnect
-      ? 'Reconnect required'
+      ? 'NEEDS REAUTH'
       : app.available
-        ? 'Ready to connect'
-        : 'Not configured';
+        ? 'READY'
+        : 'NOT CONNECTED';
+  const statusTone = app.connected ? 'is-connected' : reconnect ? 'is-warning' : '';
 
   return (
     <article className={`vnext-meri-integration-card vnext-meri-integration-card--${app.id}`}>
-      <div className="vnext-meri-integration-card__topline">
-        <span className="vnext-meri-integration-card__logo" aria-hidden="true">
-          <ConnectorMark id={app.id} size={22} />
-        </span>
-        <span
-          className={`vnext-meri-integration-card__status${app.connected ? ' is-connected' : ''}`}
-        >
-          {status}
-        </span>
+      <span className="vnext-meri-integration-card__logo" aria-hidden="true">
+        <ConnectorMark id={app.id} size={20} />
+      </span>
+      <div className="vnext-meri-integration-card__body">
+        <div className="vnext-meri-integration-card__topline">
+          <h2>{app.name}</h2>
+          <span className={`vnext-meri-integration-card__status ${statusTone}`}>
+            {status}
+          </span>
+        </div>
+        <p>{app.description}</p>
+        {app.lastError && reconnect ? (
+          <div className="vnext-meri-integration-card__warning">{app.lastError}</div>
+        ) : null}
       </div>
-      <h2>{app.name}</h2>
-      <p>{app.description}</p>
-      {app.lastError && reconnect ? (
-        <div className="vnext-meri-integration-card__warning">{app.lastError}</div>
-      ) : null}
       <div className="vnext-meri-integration-card__actions">
         {app.connected ? (
-          <>
-            <span className="vnext-meri-integration-card__connected">✓ Active</span>
-            <button type="button" onClick={onDisconnect} disabled={busy}>
-              {busy ? 'Disconnecting…' : 'Disconnect'}
-            </button>
-          </>
+          <button type="button" onClick={onDisconnect} disabled={busy}>
+            {busy ? 'Disconnecting…' : 'Disconnect'}
+          </button>
         ) : (
           <button
             type="button"

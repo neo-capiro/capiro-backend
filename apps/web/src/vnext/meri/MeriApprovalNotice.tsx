@@ -58,11 +58,10 @@ export function MeriApprovalNotice({ approvals, onReview }: MeriApprovalNoticePr
 
   return (
     <div className="vnext-meri__approval-notice" role="status">
-      <MeriIcon name="Lock01" size={13} />
       <span className="vnext-meri__approval-notice-text">{noticeSentence(approvals)}</span>
       <button type="button" className="vnext-meri__approval-notice-link" onClick={onReview}>
         Review it
-        <MeriIcon name="ChevronRight" size={12} />
+        <MeriIcon name="ArrowNarrowRight" size={14} color="#363F72" />
       </button>
     </div>
   );

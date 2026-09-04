@@ -13,7 +13,7 @@ import type { MeriChatController } from '../../components/chat/useMeriChatContro
 import { MeriAnalysisChartCard } from './MeriAnalysisChartCard.js';
 import { MeriMessageFeedback } from './MeriMessageFeedback.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
-import { formatRecordTime, MERI_LOGO_SRC, visibleMarkdown } from './meri-presentation.js';
+import { visibleMarkdown } from './meri-presentation.js';
 import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
 import type { MeriEvidenceClaim, MeriEvidenceSource, MeriEvidenceStat } from './MeriEvidenceTray.js';
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
@@ -132,9 +132,9 @@ export function VNextMeriMessage({
     return (
       <div className="vnext-meri__user-message">
         <div className="vnext-meri__user-bubble" data-meri-user-bubble>
-          <AttachmentList attachments={message.attachments} />
           {message.content}
         </div>
+        <AttachmentList attachments={message.attachments} />
         <div className="vnext-meri__user-meta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {canEdit ? (
             <button
@@ -150,28 +150,18 @@ export function VNextMeriMessage({
                 gap: 6,
                 border: 0,
                 background: 'transparent',
-                fontFamily: "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
-                fontSize: 9,
+                padding: 0,
+                fontFamily: "var(--meri-font-sans, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
+                fontSize: 11.5,
                 fontWeight: 500,
-                letterSpacing: '.08em',
-                color: '#667085',
+                color: '#98A2B3',
                 cursor: 'pointer',
               }}
             >
-              <MeriIcon name="Edit01" size={12} color="#667085" />
-              EDIT
+              <MeriIcon name="Edit01" size={13} />
+              Edit and resend
             </button>
           ) : null}
-          <span
-            style={{
-              fontFamily: "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
-              fontSize: 9,
-              letterSpacing: '.07em',
-              color: '#98A2B3',
-            }}
-          >
-            {formatRecordTime(message.createdAt)}
-          </span>
         </div>
       </div>
     );
@@ -288,31 +278,6 @@ function VNextMeriAssistantMessage({
     return null;
   }, [citations.length, message.groundingCaveat, message.verification]);
 
-  /**
-   * Audit stamp (handoff §11a, right-aligned in the message-actions row).
-   *
-   * Composed only from facts the server actually attached to THIS turn:
-   * resolved citations and the verification claim counts. The handoff's
-   * fixture reads `AUDIT TRAIL ON · 7 OF 9 SOURCES CHECKED`, but inventing a
-   * "sources attempted" figure the orchestrator does not send would be a
-   * fabricated provenance claim — so the checked-count variant only renders
-   * when verification really carries an unsupported count, and a turn with no
-   * citations and no verification gets no stamp at all rather than "0 SOURCES".
-   */
-  const auditStamp = useMemo(() => {
-    const parts: string[] = [];
-    if (citations.length > 0) {
-      parts.push(`${citations.length} SOURCE${citations.length === 1 ? '' : 'S'}`);
-    }
-    const verification = message.verification;
-    if (verification?.totalCount) {
-      const checked = verification.totalCount - verification.unsupportedCount;
-      parts.push(`${checked} OF ${verification.totalCount} CLAIMS VERIFIED`);
-    }
-    if (parts.length === 0) return null;
-    return `AUDIT TRAIL ON · ${parts.join(' · ')}`;
-  }, [citations.length, message.verification]);
-
   const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
     icon: 'File05',
     provider: citation.tool.replace(/_/g, ' ').toUpperCase(),
@@ -365,23 +330,6 @@ function VNextMeriAssistantMessage({
     );
 
   /**
-   * Skill tag (handoff §4d, e.g. `SKILL · CLIENT CHANGES`, `DEEP RESEARCH ·
-   * COMPLETE`). Derived only from server facts about this turn: a finished
-   * research report for this message id, or the router's own intent code via
-   * the shared INTENT_LABELS map. A turn the router did not classify gets no
-   * tag rather than a guessed one.
-   */
-  const skillTag = useMemo(() => {
-    if (researchReport && !messageIsStreaming) return 'DEEP RESEARCH · COMPLETE';
-    if (!isLastAssistant) return null;
-    const intent = controller.orchestratorIntent;
-    if (!intent) return null;
-    const label = INTENT_LABELS[intent];
-    if (!label) return null;
-    return `SKILL · ${label.toUpperCase()}`;
-  }, [controller.orchestratorIntent, isLastAssistant, messageIsStreaming, researchReport]);
-
-  /**
    * Evidence toggle (handoff §10a) — the last control in the trust row. Shared
    * by the grounded and ungrounded strips below, which are mutually exclusive
    * branches of the same row, so this exists once rather than twice.
@@ -404,16 +352,9 @@ function VNextMeriAssistantMessage({
 
   return (
     <div className="vnext-meri__assistant-message">
-      <div className="vnext-meri__assistant-heading">
-        <span className="vnext-meri__assistant-mark">
-          <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
-        </span>
-        <span className="vnext-meri__assistant-time">{formatRecordTime(message.createdAt)}</span>
-        {/* Skill tag — handoff §4d. Only rendered from what the server told us
-            about THIS turn: a completed deep-research report, or the router's
-            own intent label. Never inferred from the answer text. */}
-        {skillTag ? <span className="vnext-meri__skill-tag">{skillTag}</span> : null}
-      </div>
+      <span className="vnext-meri__assistant-mark">
+        <MeriIcon name="Stars02" size={14} color="#FFFFFF" />
+      </span>
       <div className="vnext-meri__assistant-card">
         <div className="vnext-meri__assistant-body" data-meri-answer-body>
           <AttachmentList attachments={message.attachments} />
@@ -438,7 +379,35 @@ function VNextMeriAssistantMessage({
           />
         ) : null}
 
-        {showExecutionEvidence ? (
+        {/*
+          v6: the ordinary tool loop renders as quiet trace lines under the
+          answer (12px icon + 11.5px muted text per line) instead of the dark
+          metal work-performed hero — the transcript keeps the prototype's
+          calm surface and the full plan/step detail stays one "Show work"
+          click away in the turn inspector. MeriWorkPerformed remains the
+          renderer for the pinned contract test; the hero only mounts when
+          nothing else can express the run (never in the v6 transcript).
+        */}
+        {showExecutionEvidence && controller.trustSteps.length > 0 ? (
+          <div className="vnext-meri__trace" aria-label="Work performed">
+            {controller.trustSteps.map((step, index) => {
+              const running = messageIsStreaming && index === controller.trustSteps.length - 1;
+              return (
+                <div key={`${step.tool}-${index}`} className="vnext-meri__trace-line">
+                  <MeriIcon
+                    name={running ? 'Loading01' : 'CheckCircle'}
+                    size={12}
+                    color={running ? '#98A2B3' : '#D0D5DD'}
+                  />
+                  <span className="vnext-meri__trace-text">{step.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : showExecutionEvidence && controller.planSteps.length > 0 ? (
+          /* A turn that announced a plan but has no tool steps yet still owes
+             the user its run state — the hero renders the plan honestly here,
+             and the trace lines take over as soon as the first step lands. */
           <MeriWorkPerformed
             intent={controller.orchestratorIntent}
             tier={controller.orchestratorTier}
@@ -630,14 +599,16 @@ function VNextMeriAssistantMessage({
 
         {!messageIsStreaming && message.content ? (
           <div className="vnext-meri__message-actions" data-meri-message-actions>
-            {/* handoff §11a — COPY / REGENERATE / thumbs, then the right-aligned
-                audit stamp. The stamp is built only from facts this turn
-                actually carries (resolved citations, server verification
-                counts); when the server sent neither, it is omitted rather
-                than asserting a source count of 0. */}
+            {/* v6 feedback row — 26×26 icon buttons: copy, thumbs (MeriMessageFeedback
+                keeps the down-click reasons form), regenerate, then the quiet
+                "Show work" text button opening the turn inspector. The audit
+                stamp moves with the trust signals into the inspector's Evidence
+                tab, so the row stays the prototype's four quiet controls. */}
             <button
               type="button"
               className="vnext-meri__inline-action-btn"
+              aria-label="Copy answer"
+              title="Copy answer"
               onClick={() => {
                 const copy = async () => {
                   if (navigator.clipboard?.writeText) {
@@ -660,8 +631,7 @@ function VNextMeriAssistantMessage({
                   .catch(() => toast.error('The answer could not be copied.'));
               }}
             >
-              <MeriIcon name="Copy01" size={13} color="#344054" />
-              COPY
+              <MeriIcon name="Copy01" size={14} />
             </button>
             <MeriMessageFeedback
               currentRating={message.feedback}
@@ -671,32 +641,23 @@ function VNextMeriAssistantMessage({
               <button
                 type="button"
                 className="vnext-meri__inline-action-btn"
+                aria-label="Regenerate"
+                title="Regenerate"
                 disabled={isStreaming}
                 onClick={() => controller.handleRegenerate()}
               >
-                <MeriIcon name="RefreshCcw02" size={13} color="#344054" />
-                REGENERATE
+                <MeriIcon name="RefreshCcw02" size={14} />
               </button>
             ) : null}
-            {/*
-              v6: opens the turn inspector's Thinking tab — the full plan/
-              step list this turn's subtle work-performed feed only shows a
-              trace of. Hidden when there's genuinely nothing recorded (e.g.
-              a plain answer with no tool use) rather than opening to an
-              empty tab.
-            */}
             {hasThinkingData ? (
               <button
                 type="button"
-                className="vnext-meri__inline-action-btn"
+                className="vnext-meri__show-work"
                 onClick={() => openThisTurnInspector('thinking')}
               >
-                <MeriIcon name="CpuChip01" size={13} color="#344054" />
-                SHOW WORK
+                Show work
+                <MeriIcon name="LayersThree01" size={13} />
               </button>
-            ) : null}
-            {auditStamp ? (
-              <span className="vnext-meri__audit-stamp">{auditStamp}</span>
             ) : null}
           </div>
         ) : null}
@@ -757,13 +718,11 @@ function CoveragePill({ coverage }: { coverage: ChatMessageRetrieval['coverage']
 }
 
 function ComposingCursor() {
-  // handoff §4g — an 8×16px block cursor pulsing beside a mono status label,
-  // not a three-dot ellipsis. The label is what tells the user the answer is
-  // still being composed rather than finished-and-short.
+  // v6 — the block cursor alone (the streaming indicator row below the log
+  // carries the "Meri is responding" wording; the transcript stays clean).
   return (
     <span className="vnext-meri__composing" aria-label="Meri is composing an answer">
       <span className="vnext-meri__composing-cursor" aria-hidden="true" />
-      <span className="vnext-meri__composing-label">COMPOSING ANSWER…</span>
     </span>
   );
 }

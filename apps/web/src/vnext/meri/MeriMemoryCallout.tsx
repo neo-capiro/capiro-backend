@@ -28,7 +28,7 @@ export function MeriMemoryCallout({ onOpenMemory }: MeriMemoryCalloutProps) {
       aria-label="Open institutional memory"
     >
       <span className="vnext-meri__memory-callout-icon">
-        <MeriIcon name="ShieldTick" size={14} />
+        <MeriIcon name="Save01" size={17} color="#363F72" />
       </span>
       <span className="vnext-meri__memory-callout-copy">
         <span className="vnext-meri__memory-callout-label">INSTITUTIONAL MEMORY</span>

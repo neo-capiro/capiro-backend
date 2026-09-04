@@ -30,4 +30,12 @@ export default mergeConfig(base, {
       ),
     },
   },
+  // The Meri surfaces import the CJS subpath @capiro/shared/meri-skills. The
+  // base config pre-bundles only the package root ('@capiro/shared'), and the
+  // optimizer does not discover the subpath before the harness page requests
+  // it — vite then serves dist/meri-skills.js raw over /@fs/ and the browser
+  // dies on `exports.X = ...` (no named ESM exports). Include it explicitly.
+  optimizeDeps: {
+    include: ['@capiro/shared', '@capiro/shared/meri-skills'],
+  },
 });

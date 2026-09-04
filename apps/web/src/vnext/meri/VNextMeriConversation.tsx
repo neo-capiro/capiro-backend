@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import { useCapiroToast } from '../components/feedback/toast.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon } from './meri-icons.js';
-import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
+import { dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { MeriApprovalNotice } from './MeriApprovalNotice.js';
@@ -48,10 +48,33 @@ export function VNextMeriConversation({
   onOpenApprovals,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const toast = useCapiroToast();
   const { messages, isStreaming, clients } = controller;
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // v6 inline rename: focus the input as soon as rename mode opens.
+  useEffect(() => {
+    if (renaming) renameInputRef.current?.focus();
+  }, [renaming]);
+
+  const beginRename = () => {
+    setRenameValue(threadTitle === 'Untitled thread' ? '' : threadTitle);
+    setThreadMenuOpen(false);
+    setRenaming(true);
+  };
+
+  const commitRename = () => {
+    const title = renameValue.trim();
+    setRenaming(false);
+    if (!title || title === threadTitle) return;
+    setPendingTitle(title);
+    controller.setSessionTitle(title);
+    void controller.saveConversationMeta();
+  };
 
   // Focus scope on the turn list (handoff: one focusable region, arrow-key
   // traversal between turns, not one tab stop per turn — a long thread makes
@@ -195,8 +218,39 @@ export function VNextMeriConversation({
               <MeriIcon name={kindIcon} size={15} color="#101828" />
             </span>
             <div className="vnext-meri__thread-title-block">
-              <span className="vnext-meri__thread-title">{threadTitle}</span>
-              <span className="vnext-meri__thread-sub">{threadSub}</span>
+              {renaming ? (
+                <div className="capiro-vnext-meri-rename">
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    aria-label="Rename thread"
+                    onChange={(event) => setRenameValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') commitRename();
+                      if (event.key === 'Escape') setRenaming(false);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="capiro-vnext-meri-rename-save"
+                    onClick={commitRename}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="capiro-vnext-meri-rename-cancel"
+                    onClick={() => setRenaming(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span className="vnext-meri__thread-title">{threadTitle}</span>
+                  <span className="vnext-meri__thread-sub">{threadSub}</span>
+                </>
+              )}
             </div>
             <span className={`vnext-meri__mode-pill is-${modeLabel.toLowerCase()}`}>
               <span
@@ -249,28 +303,25 @@ export function VNextMeriConversation({
                 <MeriIcon name="DotsHorizontal" size={16} color="#667085" />
               </button>
               {threadMenuOpen ? (
-                <div className="vnext-meri__row-menu" role="menu" aria-label="Thread actions">
+                <div
+                  className="vnext-meri__thread-menu"
+                  role="menu"
+                  aria-label="Thread actions"
+                >
                   <button
                     type="button"
                     role="menuitem"
-                    className="vnext-meri__row-menu-item"
-                    onClick={() => {
-                      const title = window.prompt('Thread title', threadTitle)?.trim();
-                      if (!title) return;
-                      setPendingTitle(title);
-                      controller.setSessionTitle(title);
-                      void controller.saveConversationMeta();
-                      setThreadMenuOpen(false);
-                    }}
+                    className="vnext-meri__thread-menu-item"
+                    onClick={beginRename}
                   >
-                    <MeriIcon name="Edit01" size={14} color="#344054" />
-                    Rename thread
+                    <MeriIcon name="Edit01" size={15} color="#667085" />
+                    Rename
                   </button>
                   {selectedClient ? (
                     <button
                       type="button"
                       role="menuitem"
-                      className="vnext-meri__row-menu-item"
+                      className="vnext-meri__thread-menu-item"
                       onClick={() => {
                         void controller.changeSessionClient('')
                           .then(() => {
@@ -280,21 +331,21 @@ export function VNextMeriConversation({
                           .catch(() => toast.error('The thread scope could not be updated.'));
                       }}
                     >
-                      <MeriIcon name="Building01" size={14} color="#344054" />
+                      <MeriIcon name="Grid01" size={15} color="#667085" />
                       Move to all clients
                     </button>
                   ) : null}
                   <button
                     type="button"
                     role="menuitem"
-                    className="vnext-meri__row-menu-item"
+                    className="vnext-meri__thread-menu-item"
                     onClick={() => {
                       controller.handleNewSession();
                       setThreadMenuOpen(false);
                       toast.success('Started a new draft. Context was not copied.');
                     }}
                   >
-                    <MeriIcon name="Copy01" size={14} color="#344054" />
+                    <MeriIcon name="FilePlus02" size={15} color="#667085" />
                     Start new draft
                   </button>
                 </div>
@@ -341,12 +392,8 @@ export function VNextMeriConversation({
                       <MeriIcon name="Menu02" size={16} color="#344054" />
                     </button>
                   ) : null}
-                  <span className="vnext-meri__assistant-mark">
-                    <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
-                  </span>
-                  <span className="vnext-meri__landing-live">
-                    <span className="vnext-meri__landing-live-dot" />
-                    SESSION LIVE
+                  <span className="vnext-meri__landing-badge">
+                    <MeriIcon name="Stars02" size={16} color="#FFFFFF" />
                   </span>
                 </div>
                 <h2 className="vnext-meri__landing-greeting">{greetingFor(greetingName)}</h2>
@@ -417,6 +464,17 @@ export function VNextMeriConversation({
 
                 {controller.researchAwaitingAnswers && controller.researchQuestions.length > 0 ? (
                   <ResearchClarifyInline controller={controller} />
+                ) : null}
+
+                {/* v6 streaming indicator: the avatar + "Meri is responding" row
+                    at the foot of the log while a turn streams. */}
+                {isStreaming ? (
+                  <div className="vnext-meri__responding" aria-live="polite">
+                    <span className="vnext-meri__assistant-mark">
+                      <MeriIcon name="Stars02" size={14} color="#FFFFFF" />
+                    </span>
+                    <span className="vnext-meri__responding-label">Meri is responding</span>
+                  </div>
                 ) : null}
 
                 {/*
