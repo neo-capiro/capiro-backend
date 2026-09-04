@@ -813,4 +813,91 @@ describe('Phase 10B-16 Part D -- structured-evidence-first, body-text fallback',
       expect(result.classifications[0]!.kind).toBe('non_semantic');
     });
   });
+
+  /* Phase 10B-23A Part E: Exhibit R-1 (Total Obligational Authority) is
+   * real, substantive government budget data embedded in the same PDF as
+   * this R-2 volume, but it is document-wide (not single-PE) and this
+   * pipeline never projects R-2 funding from it -- it must be its own
+   * distinct kind, never conflated with a genuinely blank/front-matter
+   * `non_semantic` page, and never mistaken for a real R-2/R-2A/R-3/R-4
+   * exhibit either. */
+  describe('r1_summary classification: distinct from non_semantic and from real R-2/R-2A exhibits', () => {
+    it('classifies a real scanned Exhibit R-1 summary page (roman-numeral footer + "Exhibit R-1" text) as r1_summary, not non_semantic', () => {
+      const page = makePage({
+        page: 20,
+        text: 'Volume 1a - xvi',
+        blocks: [
+          makeBlock(
+            0,
+            'text',
+            'Department of the Army\nFY 2024 President\'s Budget\nExhibit R-1 FY 2024 President\'s Budget\nTotal Obligational Authority',
+          ),
+          makeBlock(1, 'footer', 'Volume 1a - xvi'),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      expect(result.classifications[0]!.kind).toBe('r1_summary');
+      expect(result.segments[0]!.kind).toBe('r1_summary');
+      // Still accounted for in the coverage ledger, same as non_semantic.
+      expect(result.pageCoverage.get(20)).toBeDefined();
+    });
+
+    it('classifies a real roman-numeral-paginated page with NO "Exhibit R-1" signal as non_semantic, not r1_summary (regression: existing front-matter behavior unchanged)', () => {
+      const page = makePage({
+        page: 15,
+        text: 'Volume 1a - xi',
+        blocks: [makeBlock(0, 'footer', 'Volume 1a - xi')],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      expect(result.classifications[0]!.kind).toBe('non_semantic');
+    });
+
+    it('does NOT reclassify a genuine R-2 PE page as r1_summary merely because its narrative body cross-references "Exhibit R-1" (false-positive negative control)', () => {
+      const page = makePage({
+        page: 43,
+        blocks: [
+          ...r2PeHeader('0601102A', 'Defense Research Sciences'),
+          makeBlock(
+            3,
+            'text',
+            'This program element also appears on the Exhibit R-1 summary table at the front of this volume.',
+          ),
+        ],
+      });
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2_pe_summary');
+      expect(classification.headerPeCodes).toContain('0601102A');
+    });
+
+    it('r1_summary pages resolve with contextSource "r1_summary", no PE code, and are NOT added to unresolvedPages (not a completeness gap)', () => {
+      const page = makePage({
+        page: 20,
+        text: 'Volume 1a - xvi',
+        blocks: [
+          makeBlock(0, 'text', 'Exhibit R-1 FY 2024 President\'s Budget Total Obligational Authority'),
+          makeBlock(1, 'footer', 'Volume 1a - xvi'),
+        ],
+      });
+      const resolution = resolveR2Contexts(segmentR2ExhibitPages([page]));
+      expect(resolution.pages[0]!.contextSource).toBe('r1_summary');
+      expect(resolution.pages[0]!.peCode).toBeUndefined();
+      expect(resolution.unresolvedPages).toHaveLength(0);
+    });
+
+    it('r1_summary pages produce no R-2 PE identity and no omission from extractR2Identities (same posture as non_semantic)', () => {
+      const page = makePage({
+        page: 20,
+        text: 'Volume 1a - xvi',
+        blocks: [
+          makeBlock(0, 'text', 'Exhibit R-1 FY 2024 President\'s Budget Total Obligational Authority'),
+          makeBlock(1, 'footer', 'Volume 1a - xvi'),
+        ],
+      });
+      const resolution = resolveR2Contexts(segmentR2ExhibitPages([page]));
+      const identities = extractR2Identities({ pages: [page], contextResolution: resolution });
+      expect(identities.identities).toHaveLength(0);
+      expect(identities.omissions).toHaveLength(0);
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import {
   integerToCanonicalString,
   isCanonicalDecimalString,
+  isPlausibleSourceFundingValue,
   moneyToMillionsString,
   parseCanonicalDecimalString,
   scaleDecimalString,
@@ -108,5 +109,33 @@ describe('integerToCanonicalString', () => {
   it('rejects fractional values', () => {
     expect(() => integerToCanonicalString('4.2')).toThrow();
     expect(() => integerToCanonicalString(4.2)).toThrow();
+  });
+});
+
+describe('isPlausibleSourceFundingValue (Phase 10B-23C2)', () => {
+  it('accepts comma-grouped dollar amounts', () => {
+    expect(isPlausibleSourceFundingValue('296,670')).toBe(true);
+    expect(isPlausibleSourceFundingValue('15,775,381')).toBe(true);
+    expect(isPlausibleSourceFundingValue('8,786')).toBe(true);
+  });
+
+  it('accepts parenthesized negatives, signed values, decimals, and $-prefixed cells', () => {
+    expect(isPlausibleSourceFundingValue('(1,234)')).toBe(true);
+    expect(isPlausibleSourceFundingValue('-1,234')).toBe(true);
+    expect(isPlausibleSourceFundingValue('1,234.5')).toBe(true);
+    expect(isPlausibleSourceFundingValue('$1,000')).toBe(true);
+  });
+
+  it('REJECTS budget-activity codes and short line numbers (regression: page-37 BA "07" must never satisfy a funding association)', () => {
+    expect(isPlausibleSourceFundingValue('07')).toBe(false);
+    expect(isPlausibleSourceFundingValue('7')).toBe(false);
+    expect(isPlausibleSourceFundingValue('301')).toBe(false);
+    expect(isPlausibleSourceFundingValue('223')).toBe(false);
+  });
+
+  it('rejects non-numeric layout tokens', () => {
+    expect(isPlausibleSourceFundingValue('U')).toBe(false);
+    expect(isPlausibleSourceFundingValue('')).toBe(false);
+    expect(isPlausibleSourceFundingValue('Mar 2023')).toBe(false);
   });
 });

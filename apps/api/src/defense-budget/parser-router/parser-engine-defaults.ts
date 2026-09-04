@@ -35,17 +35,20 @@ const DEFAULTS: Partial<Record<ExtractionMethodV1, JsonValue>> = {
   paddleocr: {
     dpi: 200,
     cpuMode: true,
-    formulaRecognition: false,
-    chartRecognition: false,
-    documentUnwarping: false,
-    orientationClassification: false,
-    textLineOrientation: false,
     maxPagesPerJob: 50,
     perPageTimeoutSeconds: 120,
-    modelCachePath: null,
     parallelProcessing: false,
     use_gpu: false,
-    enable_mkldnn: true,
+    // Phase 10B-23A/B: MKLDNN is unavailable in the tested ARM64
+    // paddlepaddle build (AnalysisConfig.set_mkldnn_cache_capacity does not
+    // exist there), confirmed empirically. No ARM64 upside even where
+    // present, so this stays off everywhere rather than branching by
+    // architecture.
+    enable_mkldnn: false,
+    // Row/column reconstruction thresholds -- see paddleocr_engine.py's
+    // reconstruct_page_structure for the geometry these drive.
+    rowGapRatio: 0.6,
+    columnGapRatio: 1.5,
   },
 };
 

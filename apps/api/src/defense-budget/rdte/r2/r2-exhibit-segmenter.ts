@@ -37,6 +37,7 @@ export type R2PageKind =
   | 'r2a_project'
   | 'r3_page'
   | 'r4_page'
+  | 'r1_summary'
   | 'non_semantic'
   | 'unresolved';
 
@@ -132,6 +133,19 @@ const CONTINUATION_RE = /\bcontinued\b|\bcontinuation\b|\bcont\.?\b/i;
 const COVER_PAGE_RE = /\bJustification Book\b/i;
 const DOC_TOC_RE = /\bTable of Contents\b/i;
 const APPROPRIATION_LANGUAGE_RE = /\bAPPROPRIATION LANGUAGE\b/i;
+/* Phase 10B-23A Part E: Exhibit R-1 ("Total Obligational Authority") is DoD's
+ * standardized document-wide appropriations-summary table -- distinct from
+ * R-2/R-2A/R-3/R-4 (all PE-scoped) and from the generic front-matter caught
+ * by the roman-numeral-footer rule below (blank separators, tables of
+ * contents, restructure indexes). It is real, substantive government budget
+ * data (line numbers, PE numbers, dollar figures for the WHOLE portfolio),
+ * not "non-semantic" -- but it is also not a single-PE R-2 exhibit this
+ * pipeline projects funding from. Detected the same way every other exhibit
+ * type is: a durable, standardized exhibit title, never a fiscal year or
+ * physical page number. Confirmed against the real FY2024 Army R-2 Volume 1
+ * BA1 document (physical pages 11-37, scanned, "Exhibit R-1 FY 2024
+ * President's Budget / Total Obligational Authority" on every page). */
+const R1_SUMMARY_HEADER_RE = /\bExhibit R-1\b/i;
 /* A well-formed roman numeral (1-3999), not merely a run of letters drawn
  * from {i,v,x,l,c,d,m} -- the looser form also matches ordinary English
  * words spelled entirely from that letter set ("civil", "mix", "dim").
@@ -281,6 +295,19 @@ export function segmentR2ExhibitPages(pages: readonly ParserPageResultV1[]): R2S
          * simply never treated as R-2 identity/funding evidence. */
         startSegment('non_semantic', cls, {
           contextEvidence: [`non-semantic page: ${cls.reason}`],
+        });
+        break;
+      }
+
+      case 'r1_summary': {
+        /* Phase 10B-23A Part E: distinct from 'non_semantic' -- this page
+         * carries real government budget data (Exhibit R-1 document-wide
+         * summary), just not data this R-2 pipeline projects. Gets its own
+         * segment so pageCoverage still accounts for it and the semantic
+         * artifact factory can preserve it as an explicit, non-blocking,
+         * non-R-2-identity acknowledgment rather than silently dropping it. */
+        startSegment('r1_summary', cls, {
+          contextEvidence: [`R-1 summary page: ${cls.reason}`],
         });
         break;
       }
@@ -481,6 +508,12 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
   const isCoverPage = !hasAnyExhibitSignal && COVER_PAGE_RE.test(allText);
   const isDocLevelToc = !hasAnyExhibitSignal && DOC_TOC_RE.test(allText);
   const isAppropriationLanguage = !hasAnyExhibitSignal && APPROPRIATION_LANGUAGE_RE.test(allText);
+  /* Checked BEFORE the generic roman-numeral-front-matter rule: real Exhibit
+   * R-1 summary pages are ALSO roman-numeral-paginated (they are document-
+   * wide front matter, same print convention), so without this ordering they
+   * would be swallowed by the generic rule and lose the distinction Part E
+   * requires -- substantive government budget data, not "non-semantic". */
+  const isR1Summary = !hasAnyExhibitSignal && R1_SUMMARY_HEADER_RE.test(allText);
   const isRomanNumeralFrontMatter =
     !hasAnyExhibitSignal && ROMAN_NUMERAL_FOOTER_RE.test(allText);
 
@@ -496,6 +529,9 @@ function classifyPage(page: ParserPageResultV1): R2PageClassification {
   } else if (isAppropriationLanguage) {
     kind = 'non_semantic';
     reason = 'appropriation language boilerplate section';
+  } else if (isR1Summary) {
+    kind = 'r1_summary';
+    reason = 'Exhibit R-1 (Total Obligational Authority) document-wide summary table';
   } else if (isRomanNumeralFrontMatter) {
     kind = 'non_semantic';
     reason = 'roman-numeral-paginated front matter (introduction/restructures/index)';

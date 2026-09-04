@@ -18,6 +18,7 @@ from capiro_defense_budget_parser.contracts import (
     ParserPageFailureV1,
     ParserRuntimeJobV1,
     ParserRuntimeResultV1,
+    ParserRuntimeWarningV1,
     compute_parser_config_sha256,
     compute_parser_run_cache_key,
     compute_parser_run_id,
@@ -291,3 +292,32 @@ class TestCanonicalJsonParity:
         canonical_str = '{"a":1,"b":2}'
         expected = hashlib.sha256(canonical_str.encode('utf-8')).hexdigest()
         assert sha256_canonical_json({'b': 2, 'a': 1}) == expected
+
+
+class TestParserRuntimeWarningV1Pages:
+    """Phase 10B-23B regression: `Field(ge=1)` on a bare `list[int]` applies
+    the constraint to the LIST itself, not element-wise, raising a
+    nonsensical pydantic-core error ("Unable to apply constraint 'ge' to
+    supplied value [11]") the first time a real, non-empty `pages` list was
+    ever constructed -- confirmed in the real ARM64 qualification container
+    once paddleocr's real per-page inference time (under QEMU emulation)
+    exceeded the 120s default timeout and tried to build this exact warning.
+    """
+
+    def test_single_page_warning_is_valid(self):
+        warning = ParserRuntimeWarningV1(
+            code='page_timeout_exceeded', message='page 11 took 470.0s (limit 120.0s)', pages=[11]
+        )
+        assert warning.pages == [11]
+
+    def test_multi_page_warning_is_valid(self):
+        warning = ParserRuntimeWarningV1(code='config_warning', message='...', pages=[1, 2, 3])
+        assert warning.pages == [1, 2, 3]
+
+    def test_empty_pages_rejected(self):
+        with pytest.raises(ValidationError, match='nonempty'):
+            ParserRuntimeWarningV1(code='x', message='y', pages=[])
+
+    def test_non_positive_page_rejected(self):
+        with pytest.raises(ValidationError, match='positive'):
+            ParserRuntimeWarningV1(code='x', message='y', pages=[0])

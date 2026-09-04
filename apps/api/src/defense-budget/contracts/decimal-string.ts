@@ -20,6 +20,36 @@ export type MoneyUnitV1 = 'dollars' | 'thousands' | 'millions';
 const CANONICAL_DECIMAL_RE = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
 
 /** True when the string is already in canonical decimal form. */
+/**
+ * Phase 10B-23C2: guard against budget-activity codes masquerading as
+ * funding values at the exact-money contract boundary.
+ *
+ * On the scanned Exhibit R-1 pages the budget-activity column ("07")
+ * sits immediately left of the FY value column; bare short integers
+ * ("07", "301") and line numbers ("223") are layout codes, not
+ * thousands-of-dollars amounts. Comma-grouped amounts ("296,670"),
+ * values with an explicit decimal, or bare integers of 4+ digits are
+ * accepted. Comma separators are normalized here because the parser
+ * runtime emits real-world cell text; downstream stays canonical.
+ *
+ * This does NOT loosen `isCanonicalDecimalString` (the canonical-form
+ * gate applied after scaling) -- it is a stricter SOURCE-VALUE gate for
+ * a raw OCR cell before it can become `money.originalValue`. A bare
+ * "07" must fail this gate and produce an omission/review finding,
+ * never a funding assertion.
+ */
+export function isPlausibleSourceFundingValue(input: string): boolean {
+  const unwrapped = input.trim().replace(/^\$/, '');
+  // Parenthesized negatives are legitimate funding cells on these exhibits.
+  const withoutCommas = unwrapped.replace(/^\((.*)\)$/, '-$1').replace(/,/g, '');
+  if (!/^-?[0-9]+(\.[0-9]+)?$/.test(withoutCommas)) return false;
+  const digitsOnly = withoutCommas.replace('.', '').replace('-', '');
+  // Bare integers of <=3 digits are BA codes/line numbers in these
+  // exhibits, never thousands-of-dollars amounts.
+  if (!withoutCommas.includes('.') && digitsOnly.length <= 3) return false;
+  return true;
+}
+
 export function isCanonicalDecimalString(input: string): boolean {
   if (!CANONICAL_DECIMAL_RE.test(input)) return false;
   // Reject "-0" and "-0.x" style negative zero / unnecessary leading zeros are

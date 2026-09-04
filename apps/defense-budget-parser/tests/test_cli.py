@@ -220,7 +220,7 @@ class TestRunCommand:
                 'deterministic_pdfplumber': 'pdfplumber-0.11.0',
                 'camelot': 'camelot-0.11.0',
                 'docling': 'docling-2-test-cpu',
-                'paddleocr': 'paddleocr-pp-structure-v3-cpu',
+                'paddleocr': 'paddleocr-det-rec-row-reconstruction-v1',
             },
         )
         assert main(['run', '--job', str(job_path), '--out', str(result_path)]) == 0

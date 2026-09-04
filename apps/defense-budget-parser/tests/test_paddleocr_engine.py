@@ -1,14 +1,25 @@
-"""Tests for the PaddleOCR PP-StructureV3 targeted OCR engine.
+"""Tests for the plain PaddleOCR (detection + recognition) targeted OCR
+engine with deterministic geometric row/column reconstruction.
 
 These tests validate:
-- Default config has formula/chart/unwarping disabled
+- Default config never enables MKLDNN (Phase 10B-23A/B: broken on the
+  tested ARM64 build) and carries sane row/column clustering defaults
 - Config SHA is deterministic
 - Resource guardrails enforce page limits
-- Page rendering produces images at the correct DPI
+- Raw `PaddleOCR.ocr()` output (in either observed return shape) normalizes
+  to a flat token list
+- Row clustering separates prose (title/header/footnote) from table rows
+  by vertical gap, tolerant of the exact fixture used
+- Column clustering keeps column identity stable across rows that omit a
+  cell, using only tabular (2+ token) rows to build column geometry
+- Reconstruction against four REAL captured OCR token sets (Army FY2024
+  R-1, pages 11/15/20/37 -- a sparse 2-row summary, a dense PE list with
+  known ground-truth dollar values, a 20-line table with missing/merged
+  cells, and a single-column boundary page with a cross-page total) never
+  attaches a correct number to the wrong Program Element -- the Phase
+  10B-23B correctness bar
 - Output mapping produces valid ParserPageResultV1
-- Confidence is preserved
-- Money values remain strings
-- OCR is not selected for clean digital pages (route planner concern)
+- Confidence is preserved as a string
 - Result passes schema and replay checks
 
 PaddleOCR itself is not installed in the test environment — tests that
@@ -17,14 +28,15 @@ require the actual PaddleOCR engine use mock objects.
 
 from __future__ import annotations
 
-import hashlib
+import json
+import re
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from capiro_defense_budget_parser.contracts import (
-    ParserPageResultV1,
     ParserRuntimeResultV1,
     compute_result_content_sha256,
 )
@@ -33,16 +45,21 @@ from capiro_defense_budget_parser.paddleocr_engine import (
     ENGINE_NAME,
     ENGINE_VERSION,
     ResourceGuardrails,
-    _classify_structure_result,
-    _extract_table_from_region,
-    _map_region_to_block,
-    _map_region_to_image,
+    _cluster_columns,
+    _cluster_rows,
+    _extract_tokens,
+    _nearest_column_index,
     compute_config_sha256,
     get_default_config,
     process_page_with_paddleocr,
+    reconstruct_page_structure,
+    find_pe_funding_association,
+    is_funding_value_text,
     run_paddleocr_engine,
     validate_config,
 )
+
+FIXTURES_DIR = Path(__file__).parent / 'fixtures'
 
 # ------------------------------------------------------------------ #
 # Config tests
@@ -50,27 +67,20 @@ from capiro_defense_budget_parser.paddleocr_engine import (
 
 
 class TestPaddleOCRConfig:
-    def test_default_config_disables_formula_recognition(self):
-        assert DEFAULT_PADDLEOCR_CONFIG['formulaRecognition'] is False
-
-    def test_default_config_disables_chart_recognition(self):
-        assert DEFAULT_PADDLEOCR_CONFIG['chartRecognition'] is False
-
-    def test_default_config_disables_document_unwarping(self):
-        assert DEFAULT_PADDLEOCR_CONFIG['documentUnwarping'] is False
-
-    def test_default_config_orientation_classification_off_by_default(self):
-        assert DEFAULT_PADDLEOCR_CONFIG['orientationClassification'] is False
-
-    def test_default_config_text_line_orientation_off_by_default(self):
-        assert DEFAULT_PADDLEOCR_CONFIG['textLineOrientation'] is False
-
     def test_default_dpi_is_200(self):
         assert DEFAULT_PADDLEOCR_CONFIG['dpi'] == 200
 
     def test_default_cpu_mode(self):
         assert DEFAULT_PADDLEOCR_CONFIG['cpuMode'] is True
         assert DEFAULT_PADDLEOCR_CONFIG['use_gpu'] is False
+
+    def test_default_mkldnn_disabled(self):
+        """Phase 10B-23A/B: MKLDNN is broken on the tested ARM64 paddlepaddle
+        build (AnalysisConfig.set_mkldnn_cache_capacity does not exist there),
+        confirmed empirically, not architecture-neutral theorizing. There is
+        no ARM64 upside to MKLDNN even where present, so it stays off
+        everywhere rather than branching by architecture."""
+        assert DEFAULT_PADDLEOCR_CONFIG['enable_mkldnn'] is False
 
     def test_default_no_parallel_processing(self):
         assert DEFAULT_PADDLEOCR_CONFIG['parallelProcessing'] is False
@@ -80,6 +90,12 @@ class TestPaddleOCRConfig:
 
     def test_default_per_page_timeout(self):
         assert DEFAULT_PADDLEOCR_CONFIG['perPageTimeoutSeconds'] == 120
+
+    def test_default_row_gap_ratio(self):
+        assert DEFAULT_PADDLEOCR_CONFIG['rowGapRatio'] == 0.6
+
+    def test_default_column_gap_ratio(self):
+        assert DEFAULT_PADDLEOCR_CONFIG['columnGapRatio'] == 1.5
 
     def test_get_default_config_returns_copy(self):
         cfg = get_default_config()
@@ -120,7 +136,7 @@ class TestConfigValidation:
         cfg = get_default_config()
         cfg['use_gpu'] = True
         warnings = validate_config(cfg)
-        assert any('GPU' in w for w in warnings)
+        assert any('GPU mode' in w for w in warnings)
 
     def test_invalid_max_pages_warning(self):
         cfg = get_default_config()
@@ -134,10 +150,17 @@ class TestConfigValidation:
         warnings = validate_config(cfg)
         assert any('perPageTimeoutSeconds' in w for w in warnings)
 
+    def test_invalid_row_gap_ratio_warning(self):
+        cfg = get_default_config()
+        cfg['rowGapRatio'] = -1
+        warnings = validate_config(cfg)
+        assert any('rowGapRatio' in w for w in warnings)
 
-# ------------------------------------------------------------------ #
-# Resource guardrails tests
-# ------------------------------------------------------------------ #
+    def test_invalid_column_gap_ratio_warning(self):
+        cfg = get_default_config()
+        cfg['columnGapRatio'] = 0
+        warnings = validate_config(cfg)
+        assert any('columnGapRatio' in w for w in warnings)
 
 
 class TestResourceGuardrails:
@@ -170,406 +193,410 @@ class TestResourceGuardrails:
 
 
 # ------------------------------------------------------------------ #
-# PP-Structure result mapping tests
+# Token extraction: normalize raw PaddleOCR.ocr() output
 # ------------------------------------------------------------------ #
 
 
-class TestClassifyStructureResult:
+def _line(text: str, x0: float, y0: float, x1: float, y1: float, confidence: float = 0.99):
+    return [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]], (text, confidence)]
+
+
+class TestExtractTokens:
     def test_empty_result(self):
-        result = _classify_structure_result(None)
-        assert result['regions'] == []
+        assert _extract_tokens(None) == []
+        assert _extract_tokens([]) == []
 
-    def test_text_region(self):
-        pp_result = [
-            {
-                'type': 'text',
-                'bbox': [10, 20, 100, 50],
-                'res': 'Some extracted text',
-            }
-        ]
-        parsed = _classify_structure_result(pp_result)
-        assert len(parsed['regions']) == 1
-        assert parsed['regions'][0]['type'] == 'text'
+    def test_bare_list_of_lines_shape(self):
+        raw = [_line('Hello', 0, 0, 50, 20)]
+        tokens = _extract_tokens(raw)
+        assert len(tokens) == 1
+        assert tokens[0]['text'] == 'Hello'
+        assert tokens[0]['confidence'] == pytest.approx(0.99)
+        assert tokens[0]['center_x'] == 25
+        assert tokens[0]['center_y'] == 10
+        assert tokens[0]['height'] == 20
 
-    def test_table_region(self):
-        pp_result = [
-            {
-                'type': 'table',
-                'bbox': [10, 20, 300, 200],
-                'res': {'html': '<table><tr><td>R1C1</td><td>R1C2</td></tr></table>'},
-            }
-        ]
-        parsed = _classify_structure_result(pp_result)
-        assert len(parsed['regions']) == 1
-        assert parsed['regions'][0]['type'] == 'table'
+    def test_nested_per_image_shape(self):
+        raw = [[_line('Hello', 0, 0, 50, 20), _line('World', 0, 30, 50, 50)]]
+        tokens = _extract_tokens(raw)
+        assert len(tokens) == 2
+        assert [t['text'] for t in tokens] == ['Hello', 'World']
 
-
-class TestMapRegionToBlock:
-    def test_text_region_to_block(self):
-        region = {
-            'type': 'text',
-            'bbox': [10, 20, 100, 50],
-            'res': 'Hello world',
-        }
-        block = _map_region_to_block(region, 0)
-        assert block is not None
-        assert block.blockType == 'paragraph'
-        assert block.text == 'Hello world'
-        assert block.blockIndex == 0
-
-    def test_title_region_to_heading(self):
-        region = {
-            'type': 'title',
-            'bbox': [10, 20, 100, 50],
-            'res': 'Budget Title',
-        }
-        block = _map_region_to_block(region, 0)
-        assert block is not None
-        assert block.blockType == 'heading'
-
-    def test_header_region(self):
-        region = {
-            'type': 'header',
-            'bbox': [10, 5, 200, 15],
-            'res': 'Page Header',
-        }
-        block = _map_region_to_block(region, 0)
-        assert block is not None
-        assert block.blockType == 'header'
-
-    def test_footer_region(self):
-        region = {
-            'type': 'footer',
-            'bbox': [10, 500, 200, 510],
-            'res': 'Page Footer',
-        }
-        block = _map_region_to_block(region, 0)
-        assert block is not None
-        assert block.blockType == 'footer'
-
-    def test_figure_region_without_text_returns_none(self):
-        region = {
-            'type': 'figure',
-            'bbox': [10, 20, 100, 50],
-            'res': {},
-        }
-        block = _map_region_to_block(region, 0)
-        assert block is None
-
-    def test_unknown_type_maps_to_unknown(self):
-        region = {
-            'type': 'something_else',
-            'bbox': [10, 20, 100, 50],
-            'res': 'text',
-        }
-        block = _map_region_to_block(region, 0)
-        assert block is not None
-        assert block.blockType == 'unknown'
-
-
-class TestMapRegionToImage:
-    def test_figure_region_to_image(self):
-        region = {
-            'type': 'figure',
-            'bbox': [10, 20, 100, 50],
-            'res': {},
-        }
-        img = _map_region_to_image(region, 0)
-        assert img is not None
-        assert img.imageIndex == 0
-
-    def test_non_figure_returns_none(self):
-        region = {
-            'type': 'text',
-            'bbox': [10, 20, 100, 50],
-            'res': 'text',
-        }
-        assert _map_region_to_image(region, 0) is None
-
-
-class TestExtractTableFromRegion:
-    def test_html_table_extraction(self):
-        region = {
-            'type': 'table',
-            'bbox': [10, 20, 300, 200],
-            'res': {
-                'html': (
-                    '<table>'
-                    '<tr><td>Program</td><td>Amount</td></tr>'
-                    '<tr><td>PE 0601102A</td><td>$1,234,567</td></tr>'
-                    '</table>'
-                ),
-            },
-        }
-        table = _extract_table_from_region(region, 1, 0)
-        assert table is not None
-        assert table.rowCount == 2
-        assert table.columnCount == 2
-        assert len(table.cells) == 4
-        assert table.cells[0].text == 'Program'
-        assert table.cells[1].text == 'Amount'
-        assert table.cells[2].text == 'PE 0601102A'
-        assert table.cells[3].text == '$1,234,567'
-
-    def test_money_values_remain_strings(self):
-        region = {
-            'type': 'table',
-            'bbox': [10, 20, 300, 200],
-            'res': {'html': '<table><tr><td>$1,234,567.89</td></tr></table>'},
-        }
-        table = _extract_table_from_region(region, 1, 0)
-        assert table is not None
-        assert table.cells[0].text == '$1,234,567.89'
-        # Must be a string, not a float
-        assert isinstance(table.cells[0].text, str)
-
-    def test_empty_res_returns_none(self):
-        region = {
-            'type': 'table',
-            'bbox': [10, 20, 300, 200],
-            'res': {},
-        }
-        table = _extract_table_from_region(region, 1, 0)
-        assert table is None
-
-    def test_no_cells_returns_none(self):
-        region = {
-            'type': 'table',
-            'bbox': [10, 20, 300, 200],
-            'res': {'html': '<table></table>'},
-        }
-        table = _extract_table_from_region(region, 1, 0)
-        assert table is None
+    def test_nested_shape_with_none_page(self):
+        raw = [None]
+        assert _extract_tokens(raw) == []
 
 
 # ------------------------------------------------------------------ #
-# process_page_with_paddleocr tests (with mock engine)
+# Row clustering
 # ------------------------------------------------------------------ #
+
+
+class TestClusterRows:
+    def test_empty_tokens(self):
+        assert _cluster_rows([], row_gap_ratio=0.6) == []
+
+    def test_single_row_single_token(self):
+        tokens = _extract_tokens([_line('Title', 0, 0, 100, 20)])
+        rows = _cluster_rows(tokens, row_gap_ratio=0.6)
+        assert len(rows) == 1
+        assert len(rows[0]) == 1
+
+    def test_two_far_apart_lines_are_separate_rows(self):
+        tokens = _extract_tokens(
+            [_line('Row one', 0, 0, 100, 20), _line('Row two', 0, 200, 100, 220)]
+        )
+        rows = _cluster_rows(tokens, row_gap_ratio=0.6)
+        assert len(rows) == 2
+
+    def test_same_row_tokens_ordered_left_to_right(self):
+        tokens = _extract_tokens(
+            [_line('Second', 60, 0, 100, 20), _line('First', 0, 0, 50, 20)]
+        )
+        rows = _cluster_rows(tokens, row_gap_ratio=0.6)
+        assert len(rows) == 1
+        assert [t['text'] for t in rows[0]] == ['First', 'Second']
+
+    def test_missing_cell_does_not_create_extra_row(self):
+        """A row that skips a column must still be ONE row, not split."""
+        tokens = _extract_tokens(
+            [
+                _line('PE0601121A', 0, 500, 100, 520),
+                _line('Title text', 110, 500, 300, 520),
+                # no FY2022 cell for this row
+                _line('77,000', 400, 500, 460, 520),
+            ]
+        )
+        rows = _cluster_rows(tokens, row_gap_ratio=0.6)
+        assert len(rows) == 1
+        assert len(rows[0]) == 3
+
+
+# ------------------------------------------------------------------ #
+# Column clustering
+# ------------------------------------------------------------------ #
+
+
+class TestClusterColumns:
+    def test_no_tabular_rows_yields_no_columns(self):
+        rows = _cluster_rows(_extract_tokens([_line('Solo', 0, 0, 100, 20)]), row_gap_ratio=0.6)
+        centers, count = _cluster_columns(rows, column_gap_ratio=1.5)
+        assert centers == []
+        assert count == 0
+
+    def test_prose_rows_do_not_widen_column_geometry(self):
+        tokens = _extract_tokens(
+            [
+                _line('A very long title line that spans most of the page width', 0, 0, 900, 20),
+                _line('PE001', 0, 100, 80, 120),
+                _line('12,345', 300, 100, 380, 120),
+            ]
+        )
+        rows = _cluster_rows(tokens, row_gap_ratio=0.6)
+        centers, count = _cluster_columns(rows, column_gap_ratio=1.5)
+        assert count == 2  # only the tabular row's two cells define columns
+
+    def test_missing_cell_keeps_remaining_values_in_correct_columns(self):
+        """Regression for the exact real-world pattern seen on page 20, line
+        68 ('Cross Functional Team'): a row missing its FY2022 Actuals cell
+        must not shift its FY2023 values into the FY2022 column."""
+        tokens = _extract_tokens(
+            [
+                _line('PE_A', 0, 0, 80, 20),
+                _line('10,000', 200, 0, 280, 20),
+                _line('20,000', 400, 0, 480, 20),
+                _line('30,000', 600, 0, 680, 20),
+                # second row omits the middle (FY2022) column entirely
+                _line('PE_B', 0, 40, 80, 60),
+                _line('77,000', 400, 40, 480, 60),
+                _line('77,000', 600, 40, 680, 60),
+            ]
+        )
+        rows = _cluster_rows(tokens, row_gap_ratio=0.6)
+        assert len(rows) == 2
+        centers, count = _cluster_columns(rows, column_gap_ratio=1.5)
+        assert count == 4
+
+        row_b = rows[1]
+        row_b_columns = [_nearest_column_index(t['center_x'], centers) for t in row_b]
+        # PE_B's two dollar values must land in columns 2 and 3 (matching
+        # PE_A's own FY2023-column positions), not 1 and 2.
+        assert row_b_columns == [0, 2, 3]
+
+
+# ------------------------------------------------------------------ #
+# Full reconstruction: synthetic + real captured fixtures
+# ------------------------------------------------------------------ #
+
+
+def _load_fixture_tokens(name: str) -> list[dict]:
+    with open(FIXTURES_DIR / name, encoding='utf-8') as f:
+        data = json.load(f)
+    raw = [
+        _line(t['text'], t['bbox'][0], t['bbox'][1], t['bbox'][2], t['bbox'][3], t['confidence'])
+        for t in data['tokens']
+    ]
+    return _extract_tokens(raw)
+
+
+def _table_row_texts(tables) -> list[list[str]]:
+    if not tables:
+        return []
+    table = tables[0]
+    by_row: dict[int, list] = {}
+    for cell in table.cells:
+        by_row.setdefault(cell.rowIndex, []).append(cell)
+    rows = []
+    for row_index in sorted(by_row):
+        cells = sorted(by_row[row_index], key=lambda c: c.columnIndex)
+        rows.append([c.text for c in cells])
+    return rows
+
+
+class TestReconstructPageStructure:
+    def test_single_cell_rows_become_paragraph_blocks(self):
+        tokens = _extract_tokens(
+            [_line('UNCLASSIFIED', 0, 0, 100, 20), _line('Page 1', 0, 40, 100, 60)]
+        )
+        blocks, tables, full_text = reconstruct_page_structure(
+            tokens, row_gap_ratio=0.6, column_gap_ratio=1.5
+        )
+        assert len(blocks) == 2
+        assert [b.blockType for b in blocks] == ['paragraph', 'paragraph']
+        assert tables == []
+        assert full_text == 'UNCLASSIFIED\nPage 1'
+
+    def test_multi_cell_rows_become_one_table(self):
+        tokens = _extract_tokens(
+            [
+                _line('PE001', 0, 0, 80, 20),
+                _line('12,345', 200, 0, 280, 20),
+                _line('PE002', 0, 40, 80, 60),
+                _line('67,890', 200, 40, 280, 60),
+            ]
+        )
+        blocks, tables, _ = reconstruct_page_structure(
+            tokens, row_gap_ratio=0.6, column_gap_ratio=1.5
+        )
+        assert blocks == []
+        assert len(tables) == 1
+        assert tables[0].rowCount == 2
+        assert tables[0].columnCount == 2
+        assert _table_row_texts(tables) == [['PE001', '12,345'], ['PE002', '67,890']]
+
+    def test_confidence_preserved_as_string(self):
+        tokens = _extract_tokens(
+            [_line('A', 0, 0, 40, 20, 0.87), _line('B', 100, 0, 140, 20, 0.92)]
+        )
+        _, tables, _ = reconstruct_page_structure(tokens, row_gap_ratio=0.6, column_gap_ratio=1.5)
+        confidences = {c.text: c.confidence for c in tables[0].cells}
+        assert confidences['A'] == str(0.87)
+        assert confidences['B'] == str(0.92)
+
+    def test_table_bounding_box_is_populated_not_null(self):
+        """Regression: the TS-side Zod contract requires `boundingBox` to be
+        either present or omitted, never an explicit `null` (`.optional()`,
+        not `.nullish()`) -- a real production failure this exact gap caused
+        the first time paddleocr actually reached a real table (Phase
+        10B-23B, r2-production-path-no-override.spec.ts)."""
+        tokens = _extract_tokens(
+            [
+                _line('PE001', 0, 100, 80, 120),
+                _line('12,345', 300, 100, 380, 120),
+                _line('PE002', 0, 140, 80, 160),
+                _line('67,890', 300, 140, 380, 160),
+            ]
+        )
+        _, tables, _ = reconstruct_page_structure(tokens, row_gap_ratio=0.6, column_gap_ratio=1.5)
+        assert tables[0].boundingBox is not None
+        box = tables[0].boundingBox
+        assert float(box.x0) == 0
+        assert float(box.y0) == 100
+        assert float(box.x1) == 380
+        assert float(box.y1) == 160
+
+    # -- real captured OCR token sets --------------------------------- #
+
+    def test_page11_sparse_summary_recovers_dropped_dollar_rows(self):
+        """This is the exact page PP-Structure's layout model silently
+        dropped (zero regions covered the numeric rows at all, Phase
+        10B-23A). Plain det+rec must recover both data rows in full."""
+        tokens = _load_fixture_tokens('army-fy2024-r1-page11-ocr-tokens.json')
+        _, tables, full_text = reconstruct_page_structure(
+            tokens, row_gap_ratio=0.6, column_gap_ratio=1.5
+        )
+        rows = _table_row_texts(tables)
+        army_row = next(r for r in rows if 'Research, Development, Test and Evaluation, Army' in r)
+        assert army_row == [
+            'Research, Development, Test and Evaluation, Army',
+            '14,660,654', '17,142,121', '9,100', '17,151,221', '15,775,381',
+        ]
+        assert 'Volume 1a -vii' in full_text
+
+    def test_page15_matches_known_pe_ground_truth_exactly(self):
+        """Five Program Elements with known-correct FY2024 Request dollar
+        values (verified against the source document). This is the same
+        page PP-Structure's SLANet table model -- even after the paddle
+        3.1.x/3.2.x crash fix -- misattributed 0601121A's value to
+        0601601A's row (Phase 10B-23B bake-off). Deterministic geometric
+        reconstruction over plain det+rec tokens must not repeat that."""
+        tokens = _load_fixture_tokens('army-fy2024-r1-page15-ocr-tokens.json')
+        _, tables, _ = reconstruct_page_structure(tokens, row_gap_ratio=0.6, column_gap_ratio=1.5)
+        rows = _table_row_texts(tables)
+
+        ground_truth = {
+            '0601102A': '296,670',
+            '0601103A': '75,672',
+            '0601104A': '108,946',
+            '0601121A': '5,459',
+            '0601601A': '10,708',
+        }
+        for pe_code, expected_value in ground_truth.items():
+            row = next((r for r in rows if pe_code in r), None)
+            assert row is not None, f'{pe_code} not found in any reconstructed row'
+            assert expected_value in row, (
+                f'{pe_code} row {row} does not contain its correct value {expected_value} -- '
+                'a value attached to the wrong PE is the exact failure this engine exists to avoid'
+            )
+
+    def test_page20_dense_table_with_missing_and_merged_cells(self):
+        """20 line items including a row with no FY2022 value at all (line
+        68) and a row with zero dollar values (line 74, classified/no
+        data) -- both must reconstruct without misattributing a
+        neighboring row's number."""
+        tokens = _load_fixture_tokens('army-fy2024-r1-page20-ocr-tokens.json')
+        _, tables, _ = reconstruct_page_structure(tokens, row_gap_ratio=0.6, column_gap_ratio=1.5)
+        rows = _table_row_texts(tables)
+
+        line62 = next(r for r in rows if '0603801A' in r)
+        assert '1,138,457' in line62
+        assert '1,157,472' in line62
+
+        line76 = next(r for r in rows if '0604114A' in r)
+        assert '408,766' in line76
+        assert '380,147' in line76
+
+    def test_page37_boundary_page_cross_checks_grand_total(self):
+        """The Army-wide grand total on the LAST detail page must equal the
+        FY2024 Request total shown on the FIRST summary page (page 11) --
+        an independent, cross-page correctness check."""
+        tokens = _load_fixture_tokens('army-fy2024-r1-page37-ocr-tokens.json')
+        _, tables, full_text = reconstruct_page_structure(
+            tokens, row_gap_ratio=0.6, column_gap_ratio=1.5
+        )
+        rows = _table_row_texts(tables)
+        total_row = next(
+            r for r in rows if 'Total Research, Development, Test and Evaluation, Army' in r
+        )
+        assert '15,775,381' in total_row
+
+
+# ------------------------------------------------------------------ #
+# process_page_with_paddleocr
+# ------------------------------------------------------------------ #
+
+
+def _fake_page_image():
+    """A minimal real (numpy-convertible) stand-in for a rendered PIL page
+    image -- a MagicMock fails `np.array(img)` unpredictably rather than
+    raising cleanly, which the engine's own error handling would then (with
+    some list shapes) mask as a processing error instead of exercising the
+    code path a test intends to cover."""
+    import numpy as np
+    from PIL import Image
+
+    return Image.fromarray(np.zeros((10, 10, 3), dtype=np.uint8), mode='RGB')
 
 
 class TestProcessPageWithPaddleOCR:
-    def test_image_only_table_fixture(self):
-        """Simulate PP-StructureV3 output for an image-only table page."""
-        mock_engine = MagicMock(
-            return_value=[
-                {
-                    'type': 'table',
-                    'bbox': [10, 20, 300, 200],
-                    'res': {
-                        'html': (
-                            '<table>'
-                            '<tr><td>Program Element</td><td>FY 2027</td></tr>'
-                            '<tr><td>PE 0601102A</td><td>$45,678,000</td></tr>'
-                            '</table>'
-                        ),
-                    },
-                }
-            ]
-        )
-
+    def test_empty_result_has_page_only_precision(self):
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
         result = process_page_with_paddleocr(
             engine=mock_engine,
-            img=MagicMock(),
+            img=_fake_page_image(),
             page_number=1,
             config=get_default_config(),
-            page_width=612.0,
-            page_height=792.0,
-            rotation=0,
         )
+        assert result.evidencePrecision == 'page_only'
+        assert result.tables == []
 
-        assert isinstance(result, ParserPageResultV1)
-        assert result.page == 1
-        assert len(result.tables) == 1
-        assert result.tables[0].rowCount == 2
-        assert result.tables[0].columnCount == 2
-        # Money stays as string
-        cell_texts = [c.text for c in result.tables[0].cells]
-        assert '$45,678,000' in cell_texts
-        assert result.evidencePrecision == 'cell_bbox'
-
-    def test_rotated_scan_fixture(self):
-        """Simulate PP-StructureV3 output for a rotated scan page."""
-        mock_engine = MagicMock(
-            return_value=[
-                {
-                    'type': 'title',
-                    'bbox': [10, 20, 200, 50],
-                    'res': 'Research & Development',
-                },
-                {
-                    'type': 'text',
-                    'bbox': [10, 60, 200, 200],
-                    'res': 'Budget Activities Description',
-                },
-            ]
+    def test_table_result_has_cell_bbox_precision(self):
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(
+            return_value=[[_line('PE1', 0, 0, 60, 20), _line('123', 200, 0, 260, 20)]]
         )
-
         result = process_page_with_paddleocr(
             engine=mock_engine,
-            img=MagicMock(),
-            page_number=5,
+            img=_fake_page_image(),
+            page_number=1,
+            config=get_default_config(),
+        )
+        assert result.evidencePrecision == 'cell_bbox'
+        assert len(result.tables) == 1
+
+    def test_processing_error_produces_warning_not_crash(self):
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(side_effect=RuntimeError('model crashed'))
+        result = process_page_with_paddleocr(
+            engine=mock_engine,
+            img=_fake_page_image(),
+            page_number=1,
+            config=get_default_config(),
+        )
+        assert any('PaddleOCR processing error' in w for w in result.warnings)
+        assert result.tables == []
+        assert result.blocks == []
+
+    def test_page_number_and_dimensions_preserved(self):
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
+        result = process_page_with_paddleocr(
+            engine=mock_engine,
+            img=_fake_page_image(),
+            page_number=7,
             config=get_default_config(),
             page_width=612.0,
             page_height=792.0,
             rotation=90,
         )
-
-        assert result.page == 5
+        assert result.page == 7
+        assert result.width == '612.0'
+        assert result.height == '792.0'
         assert result.rotation == 90
-        assert len(result.blocks) == 2
-        assert result.blocks[0].blockType == 'heading'
-        assert result.blocks[1].blockType == 'paragraph'
-        assert result.text is not None
-        assert 'Research & Development' in result.text
-
-    def test_page_mapping_preserved(self):
-        """Verify the page number in the result matches the requested page."""
-        mock_engine = MagicMock(return_value=[])
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=42,
-            config=get_default_config(),
-        )
-        assert result.page == 42
-
-    def test_confidence_retained_when_provided(self):
-        """Confidence from OCR should be retained if available."""
-        # PP-Structure doesn't directly provide confidence in the same way
-        # but the contract supports it. Test that it's None by default
-        # and could be set.
-        mock_engine = MagicMock(return_value=[])
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=get_default_config(),
-        )
-        # No confidence from PP-Structure by default
-        assert result.confidence is None
-
-    def test_formula_chart_disabled_warnings_not_present(self):
-        """Default config should not add formula/chart/unwarping warnings."""
-        mock_engine = MagicMock(return_value=[])
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=get_default_config(),
-        )
-        # No warnings about enabled features with default config
-        assert not any('formula' in w for w in result.warnings)
-        assert not any('chart' in w for w in result.warnings)
-        assert not any('unwarping' in w for w in result.warnings)
-
-    def test_formula_enabled_adds_warning(self):
-        """When formula recognition is enabled, a warning should be present."""
-        mock_engine = MagicMock(return_value=[])
-        cfg = get_default_config()
-        cfg['formulaRecognition'] = True
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=cfg,
-        )
-        assert any('formula recognition was enabled' in w for w in result.warnings)
-
-    def test_chart_enabled_adds_warning(self):
-        """When chart recognition is enabled, a warning should be present."""
-        mock_engine = MagicMock(return_value=[])
-        cfg = get_default_config()
-        cfg['chartRecognition'] = True
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=cfg,
-        )
-        assert any('chart recognition was enabled' in w for w in result.warnings)
-
-    def test_processing_error_produces_warning(self):
-        """When the engine raises an error, the page should have a warning."""
-        mock_engine = MagicMock(side_effect=RuntimeError('model crashed'))
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=get_default_config(),
-        )
-        assert any('PP-StructureV3 processing error' in w for w in result.warnings)
-
-    def test_empty_result_has_page_only_precision(self):
-        """When no tables are found, evidence precision should be page_only."""
-        mock_engine = MagicMock(return_value=[])
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=get_default_config(),
-        )
-        assert result.evidencePrecision == 'page_only'
-
-    def test_clean_digital_page_not_forced_through_ocr(self):
-        """OCR should not be the selected engine for clean digital pages.
-
-        This test validates that the paddleocr engine does not claim to handle
-        pages that don't need OCR. The route planner makes the selection, but
-        the engine itself should not produce false positives for digital text.
-        """
-        # A clean digital page would have embedded text. The engine doesn't
-        # decide routing, but if it processes a page and finds nothing, it
-        # should report honestly.
-        mock_engine = MagicMock(return_value=[])
-        result = process_page_with_paddleocr(
-            engine=mock_engine,
-            img=MagicMock(),
-            page_number=1,
-            config=get_default_config(),
-        )
-        # No blocks, no tables, no text — honest empty result
-        assert len(result.blocks) == 0
-        assert len(result.tables) == 0
-        assert result.text is None
 
 
 # ------------------------------------------------------------------ #
-# run_paddleocr_engine integration tests (with mocked PaddleOCR)
+# run_paddleocr_engine (integration)
 # ------------------------------------------------------------------ #
 
 
 def _make_test_pdf(path: Path, num_pages: int = 2) -> str:
-    """Create a minimal test PDF and return its SHA-256."""
-    try:
-        import fitz
+    """Create a minimal, valid, multi-page PDF and return its SHA-256."""
+    import hashlib
 
-        doc = fitz.open()
-        for i in range(num_pages):
-            page = doc.new_page(width=612, height=792)
-            page.insert_text((72, 72), f'Page {i + 1} text content')
-        doc.save(str(path))
-        doc.close()
-    except ImportError:
-        # Fallback: create a minimal valid PDF manually
-        # This is a minimal 1-page PDF
-        content = (
-            b'%PDF-1.0\n'
-            b'1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n'
-            b'2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n'
-            b'3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\n'
-            b'xref\n0 4\n'
-            b'0000000000 65535 f \n'
-            b'0000000009 00000 n \n'
-            b'0000000058 00000 n \n'
-            b'0000000115 00000 n \n'
-            b'trailer<</Size 4/Root 1 0 R>>\n'
-            b'startxref\n190\n%%EOF\n'
-        )
-        path.write_bytes(content)
+    objects = []
+    kids = ' '.join(f'{3 + i} 0 R' for i in range(num_pages))
+    objects.append(b'<</Type/Catalog/Pages 2 0 R>>')
+    objects.append(f'<</Type/Pages/Kids[{kids}]/Count {num_pages}>>'.encode())
+    for _ in range(num_pages):
+        objects.append(b'<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>')
 
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return h.hexdigest()
+    body = b'%PDF-1.4\n'
+    offsets = [0]
+    for i, obj in enumerate(objects, start=1):
+        offsets.append(len(body))
+        body += f'{i} 0 obj'.encode() + obj + b'endobj\n'
+    xref_offset = len(body)
+    body += f'xref\n0 {len(objects) + 1}\n'.encode()
+    body += b'0000000000 65535 f \n'
+    for off in offsets[1:]:
+        body += f'{off:010d} 00000 n \n'.encode()
+    body += f'trailer<</Size {len(objects) + 1}/Root 1 0 R>>\n'.encode()
+    body += f'startxref\n{xref_offset}\n%%EOF'.encode()
+
+    path.write_bytes(body)
+    return hashlib.sha256(body).hexdigest()
 
 
 class TestRunPaddleOCREngine:
@@ -600,12 +627,11 @@ class TestRunPaddleOCREngine:
             )
 
     def test_paddleocr_not_installed_fails_all_pages(self, tmp_path: Path):
-        """When PaddleOCR is not installed, all pages should fail with model_unavailable."""
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
         with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
+            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
             side_effect=RuntimeError('PaddleOCR is not installed'),
         ):
             result = run_paddleocr_engine(
@@ -622,101 +648,98 @@ class TestRunPaddleOCREngine:
         assert result.parserVersion == ENGINE_VERSION
 
     def test_result_content_sha_is_deterministic(self, tmp_path: Path):
-        """Same input should produce the same content SHA."""
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        mock_pp_result = [
-            {
-                'type': 'text',
-                'bbox': [10, 20, 100, 50],
-                'res': 'Test text',
-            }
-        ]
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
 
-        with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-            return_value=MagicMock(return_value=mock_pp_result),
+        with (
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
+                return_value=mock_engine,
+            ),
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
+                return_value=MagicMock(),
+            ),
         ):
             result1 = run_paddleocr_engine(
-                source_path=pdf_path,
-                expected_sha256=actual_sha,
-                requested_pages=[1],
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
             )
             result2 = run_paddleocr_engine(
-                source_path=pdf_path,
-                expected_sha256=actual_sha,
-                requested_pages=[1],
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
             )
 
         assert result1.contentSha256 == result2.contentSha256
         assert len(result1.contentSha256) == 64
 
     def test_result_passes_schema_validation(self, tmp_path: Path):
-        """Result must be valid ParserRuntimeResultV1."""
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        mock_pp_result = [
-            {
-                'type': 'text',
-                'bbox': [10, 20, 100, 50],
-                'res': 'Test text',
-            }
-        ]
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
 
-        with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-            return_value=MagicMock(return_value=mock_pp_result),
+        with (
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
+                return_value=mock_engine,
+            ),
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
+                return_value=MagicMock(),
+            ),
         ):
             result = run_paddleocr_engine(
-                source_path=pdf_path,
-                expected_sha256=actual_sha,
-                requested_pages=[1],
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
             )
 
-        # Re-validate by serializing and deserializing
-        result_dict = result.model_dump()
-        re_parsed = ParserRuntimeResultV1.model_validate(result_dict)
+        re_parsed = ParserRuntimeResultV1.model_validate(result.model_dump())
         assert re_parsed.schemaVersion == 'defense_budget_parser_result_v1'
         assert re_parsed.engine == 'paddleocr'
 
     def test_result_replay_check(self, tmp_path: Path):
-        """Content SHA must recompute correctly from the result dict."""
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        mock_pp_result = [
-            {
-                'type': 'text',
-                'bbox': [10, 20, 100, 50],
-                'res': 'Test text',
-            }
-        ]
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
 
-        with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-            return_value=MagicMock(return_value=mock_pp_result),
+        with (
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
+                return_value=mock_engine,
+            ),
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
+                return_value=MagicMock(),
+            ),
         ):
             result = run_paddleocr_engine(
-                source_path=pdf_path,
-                expected_sha256=actual_sha,
-                requested_pages=[1],
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
             )
 
-        result_dict = result.model_dump()
-        recomputed = compute_result_content_sha256(result_dict)
+        recomputed = compute_result_content_sha256(result.model_dump())
         assert recomputed == result.contentSha256
 
     def test_config_sha_in_result_matches_config(self, tmp_path: Path):
-        """The config SHA in the result must match the config used."""
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
         cfg = get_default_config()
 
-        with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-            return_value=MagicMock(return_value=[]),
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
+
+        with (
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
+                return_value=mock_engine,
+            ),
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
+                return_value=MagicMock(),
+            ),
         ):
             result = run_paddleocr_engine(
                 source_path=pdf_path,
@@ -728,37 +751,16 @@ class TestRunPaddleOCREngine:
         assert result.parserConfigSha256 == compute_config_sha256(cfg)
 
     def test_no_paid_network_parser(self, tmp_path: Path):
-        """The PaddleOCR engine must not make any network calls.
-
-        This is verified by ensuring the engine doesn't reference
-        llamaparse or any remote URL.
-        """
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-            return_value=MagicMock(return_value=[]),
-        ):
-            result = run_paddleocr_engine(
-                source_path=pdf_path,
-                expected_sha256=actual_sha,
-                requested_pages=[1],
-            )
-
-        # Engine name must not be llamaparse
-        assert result.engine == 'paddleocr'
-        assert result.engine != 'llamaparse'
-
-    def test_multiple_pages_processed(self, tmp_path: Path):
-        """Multiple requested pages should all appear in the result."""
-        pdf_path = tmp_path / 'test.pdf'
-        actual_sha = _make_test_pdf(pdf_path, num_pages=3)
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
 
         with (
             patch(
-                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-                return_value=MagicMock(return_value=[]),
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
+                return_value=mock_engine,
             ),
             patch(
                 'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
@@ -766,19 +768,40 @@ class TestRunPaddleOCREngine:
             ),
         ):
             result = run_paddleocr_engine(
-                source_path=pdf_path,
-                expected_sha256=actual_sha,
-                requested_pages=[1, 2, 3],
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1]
+            )
+
+        assert result.engine == 'paddleocr'
+        assert result.engine != 'llamaparse'
+
+    def test_multiple_pages_processed(self, tmp_path: Path):
+        pdf_path = tmp_path / 'test.pdf'
+        actual_sha = _make_test_pdf(pdf_path, num_pages=3)
+
+        mock_engine = MagicMock()
+        mock_engine.ocr = MagicMock(return_value=[])
+
+        with (
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_ocr',
+                return_value=mock_engine,
+            ),
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
+                return_value=MagicMock(),
+            ),
+        ):
+            result = run_paddleocr_engine(
+                source_path=pdf_path, expected_sha256=actual_sha, requested_pages=[1, 2, 3]
             )
 
         assert result.metrics.pagesProcessed == 3
         assert len(result.pages) == 3
-        page_nums = [p.page for p in result.pages]
-        assert page_nums == [1, 2, 3]
+        assert [p.page for p in result.pages] == [1, 2, 3]
 
 
 # ------------------------------------------------------------------ #
-# Page rendering tests
+# Page rendering
 # ------------------------------------------------------------------ #
 
 
@@ -789,21 +812,14 @@ class TestPageRendering:
         pdf_path = tmp_path / 'test.pdf'
         _make_test_pdf(pdf_path, num_pages=1)
 
-        # Only test this if a renderer is available; otherwise skip
-        try:
-            import fitz  # noqa: F401
-        except ImportError:
-            try:
-                import pdf2image  # noqa: F401
-            except ImportError:
-                pytest.skip('Neither PyMuPDF nor pdf2image available')
+        pytest.importorskip('pypdfium2')
 
         with pytest.raises(ValueError, match='out of range'):
             render_page_to_image(pdf_path, 99, dpi=200)
 
 
 # ------------------------------------------------------------------ #
-# Engine identity tests
+# Engine identity
 # ------------------------------------------------------------------ #
 
 
@@ -811,8 +827,191 @@ class TestEngineIdentity:
     def test_engine_name_is_paddleocr(self):
         assert ENGINE_NAME == 'paddleocr'
 
-    def test_engine_version_includes_cpu(self):
-        assert 'cpu' in ENGINE_VERSION.lower()
+    def test_engine_version_does_not_reference_pp_structure(self):
+        """Phase 10B-23B: this engine must never construct PP-Structure."""
+        assert 'pp-structure' not in ENGINE_VERSION.lower()
+        assert 'structure' not in ENGINE_VERSION.lower()
 
-    def test_engine_version_includes_pp_structure(self):
-        assert 'pp-structure' in ENGINE_VERSION.lower()
+    def test_drain_dockerfile_bakes_every_model_paddleocr_downloads_at_construction(self):
+        """Phase 10B-23C offline-runtime regression.
+
+        PaddleOCR 2.x's `PaddleOCR.__init__` calls `maybe_download()` for the
+        det, rec AND cls model dirs UNCONDITIONALLY (regardless of
+        `use_angle_cls=False`) -- `ppocr/utils/network.py::maybe_download`
+        only skips the download when `inference.pdiparams` +
+        `inference.pdmodel` already exist at the target path. The
+        ingestion-drain image therefore must bake all three model sets, or
+        the first real run in a network-isolated task fails
+        `model_unavailable` on the unused cls model (reproduced 2026-09-04
+        with `docker run --network none`).
+
+        This test pins the CONTRACT (every model URL paddleocr can fetch at
+        construction has a matching `bake_model` line with a 64-hex sha256
+        for both .pdiparams and .pdmodel); the checksums themselves are
+        verified at docker build time by `sha256sum -c` inside the RUN, and
+        the full offline proof is the `--network none` container run.
+        """
+        dockerfile = (
+            Path(__file__).resolve().parents[2]
+            / 'api'
+            / 'Dockerfile.defense-budget-ingestion-drain'
+        )
+        if not dockerfile.exists():
+            pytest.skip('Dockerfile.defense-budget-ingestion-drain not present in this checkout')
+        content = dockerfile.read_text(encoding='utf-8')
+
+        # Every paddleocr CDN model URL the image references must be baked
+        # (the bake_model helper's URL argument), and each bake must carry
+        # two 64-hex checksums (pdiparams + pdmodel).
+        bake_urls = re.findall(r'bake_model(?:\.sh)?\s+(\S+\.tar)', content)
+        assert bake_urls, 'no bake_model lines found in ingestion-drain Dockerfile'
+
+        expected_urls = {
+            # det + rec (used by the engine) and cls (unused but still
+            # downloaded by PaddleOCR's constructor unconditionally).
+            'https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_infer.tar',
+            'https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar',
+            'https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar',
+        }
+        assert expected_urls.issubset(set(bake_urls)), (
+            f'missing bakes for: {sorted(expected_urls - set(bake_urls))}'
+        )
+
+        # Phase 10B-23C2: each bake_model.sh call must carry THREE 64-hex
+        # digests -- archive, pdiparams, pdmodel -- pinned at build time.
+        for url in expected_urls:
+            idx = content.index(url)
+            tail = content[idx : idx + 600]
+            digests = re.findall(r'\b[0-9a-f]{64}\b', tail[:400])
+            assert len(digests) >= 3, (
+                f'bake for {url} lacks archive/pdiparams/pdmodel sha256 triple'
+            )
+
+    def test_bake_model_script_failures_are_fail_closed(self):
+        """Phase 10B-23C2: the extracted bake_model.sh must refuse ambiguous
+        archives, traverse-safe extraction, and select models by EXACT
+        filename only (never `find -name '*.pdmodel' | head -1`, which
+        previously selected an AppleDouble `._inference.pdmodel`)."""
+        script = (
+            Path(__file__).resolve().parents[2]
+            / 'api'
+            / 'scripts'
+            / 'bake_model.sh'
+        )
+        if not script.exists():
+            pytest.skip('bake_model.sh not present in this checkout')
+        body = script.read_text(encoding='utf-8')
+        # Archive digest verified BEFORE extraction
+        assert 'archive_sha' in body and 'sha256sum -c -' in body
+        assert body.index('archive_sha') < body.index('tar -xf')
+        # Exact-filename discovery + AppleDouble exclusion + exactly-one
+        assert "-name 'inference.pdiparams'" in body
+        assert "-name '._*'" in body
+        assert '-ne 1' in body  # candidate-count gate
+        # Traversal / absolute-path rejection
+        assert '\.\.' in body
+
+    def test_bake_model_script_rejects_traversal_archive(self, tmp_path: Path):
+        """Live negative control: an archive containing a `../` member must
+        make bake_model.sh exit non-zero without writing model files."""
+        import tarfile
+        import subprocess
+
+        script = (
+            Path(__file__).resolve().parents[2]
+            / 'api'
+            / 'scripts'
+            / 'bake_model.sh'
+        )
+        if not script.exists():
+            pytest.skip('bake_model.sh not present in this checkout')
+        if not shutil.which('sh') and not shutil.which('bash'):
+            pytest.skip('no POSIX shell available')
+
+        evil = tmp_path / 'evil.tar'
+        with tarfile.open(evil, 'w') as tf:
+            import io
+
+            data = b'x' * 32
+            info = tarfile.TarInfo(name='../escaped.pdmodel')
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+
+        dest = tmp_path / 'dest'
+        result = subprocess.run(
+            ['sh', str(script), 'file://' + str(evil), str(dest),
+             '0' * 64, '0' * 64, '0' * 64],
+            capture_output=True, text=True, timeout=60,
+        )
+        assert result.returncode != 0, 'traversal archive must be rejected'
+        assert not (dest / 'inference.pdmodel').exists()
+
+# ------------------------------------------------------------------ #
+# Funding-value semantics (Phase 10B-23C2)
+# ------------------------------------------------------------------ #
+
+
+class TestFundingValueSemantics:
+    """Phase 10B-23C2: a budget-activity code ("07") or line number ("223")
+    must never satisfy the funding-value association. On the scanned
+    Exhibit R-1 pages the BA column sits immediately left of the value
+    column; counting it as money silently reported "every PE row has a
+    numeric value" for rows whose real FY2024 cell is blank (page 37:
+    0305204A / 0305206A / 0307665A -- source-verified blank by pixel scan
+    + visual inspection of the 300dpi render, 2026-09-04).
+    """
+
+    def test_comma_grouped_amounts_are_funding_values(self):
+        assert is_funding_value_text('296,670')
+        assert is_funding_value_text('15,775,381')
+        assert is_funding_value_text('8,786')
+        assert is_funding_value_text('(1,234)')  # negative
+        assert is_funding_value_text('1,234.5')  # decimal
+
+    def test_ba_codes_and_line_numbers_are_not_funding_values(self):
+        assert not is_funding_value_text('07')
+        assert not is_funding_value_text('223')
+        assert not is_funding_value_text('301')
+        assert not is_funding_value_text('2024')
+        assert not is_funding_value_text('U')
+        assert not is_funding_value_text('')
+        assert not is_funding_value_text('999999999')
+
+    def test_ba_code_cannot_satisfy_pe_funding_association(self):
+        # Regression: the exact page-37 row shape that the prior sweep
+        # counter mis-scored. The row's trailing "07" must NOT count as
+        # the PE's funding value.
+        row = [
+            {'text': '223', 'confidence': 0.99},
+            {'text': '0305204A', 'confidence': 0.99},
+            {'text': 'Tactical Unmanned Aerial Vehicles', 'confidence': 0.99},
+            {'text': '07', 'confidence': 0.99},
+            {'text': 'U', 'confidence': 0.99},
+        ]
+        assert find_pe_funding_association(row) is None
+
+    def test_control_row_with_real_value_satisfies_association(self):
+        # Page-37 row 225 (0305219A) does carry 6,629 -- must still pass.
+        row = [
+            {'text': '225', 'confidence': 0.99},
+            {'text': '0305219A', 'confidence': 0.99},
+            {'text': 'MQ-1C Gray Eagle UAS', 'confidence': 0.99},
+            {'text': '07', 'confidence': 0.99},
+            {'text': 'U', 'confidence': 0.99},
+            {'text': '6,629', 'confidence': 0.99},
+        ]
+        assert find_pe_funding_association(row) == '6,629'
+
+    def test_association_returns_rightmost_funding_cell(self):
+        # Multi-column row: FY2023 total then FY2024 request -- the rightmost
+        # funding cell is the one the funding column would carry.
+        row = [
+            {'text': '1', 'confidence': 0.99},
+            {'text': '0601102A', 'confidence': 0.99},
+            {'text': 'Defense Research Sciences', 'confidence': 0.99},
+            {'text': '01', 'confidence': 0.99},
+            {'text': 'U', 'confidence': 0.99},
+            {'text': '283,521', 'confidence': 0.99},
+            {'text': '296,670', 'confidence': 0.99},
+        ]
+        assert find_pe_funding_association(row) == '296,670'

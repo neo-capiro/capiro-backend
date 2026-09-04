@@ -28,13 +28,27 @@ FROM ${API_IMAGE} AS api
 
 USER root
 
-# Base pdfplumber path only for the first PE canary (pb_r1). Camelot's
-# transitive pdftopng has no manylinux aarch64 wheel, and this worker runs
-# ARM64 Fargate matching the API image -- so we deliberately omit the
-# camelot/docling/ocr extras here. Escalation to those engines is a later
-# image/target decision (see apps/defense-budget-parser/Dockerfile targets).
+# Phase 10B-23A: table-target (pdfplumber) PLUS the `ocr` extra (PaddleOCR +
+# PaddlePaddle CPU). Camelot's transitive pdftopng still has no manylinux
+# aarch64 wheel and stays deliberately omitted here, same as before; Docling
+# is a separate, still-undecided escalation target (see
+# apps/defense-budget-parser/Dockerfile targets) -- this image intentionally
+# does not add it. `libgomp1` (GNU OpenMP runtime) is required by
+# paddlepaddle's compiled core (`paddle/base/libpaddle.so` dynamically links
+# it); without it, `import paddle` fails
+# `ImportError: libgomp.so.1: cannot open shared object file`, confirmed
+# empirically against this exact ARM64 image before this fix.
+#
+# Phase 10B-23B: `libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1`
+# are required by `cv2` (opencv-python, a paddleocr dependency); without
+# them `import paddleocr` fails `ImportError: libxcb.so.1: cannot open
+# shared object file`, which paddleocr_engine.py's own exception handling
+# had previously misreported as "PaddleOCR is not installed" -- confirmed
+# empirically against this exact ARM64 image before this fix.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 \
+ && apt-get install -y --no-install-recommends \
+      python3 libgomp1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxcb1 \
+      curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -43,8 +57,9 @@ WORKDIR /defense-budget-parser
 COPY apps/defense-budget-parser/pyproject.toml apps/defense-budget-parser/uv.lock ./
 COPY apps/defense-budget-parser/src ./src/
 
-# Base deps only (pydantic + pdfplumber + pypdf). No camelot extra on arm64.
-RUN uv sync --locked --no-dev \
+# pydantic + pdfplumber + pypdf (base) + paddleocr/paddlepaddle (ocr extra).
+# No camelot/docling extras on arm64 -- see comment above.
+RUN uv sync --locked --no-dev --extra ocr \
  && chown -R capiro:capiro /defense-budget-parser
 
 # Overlay the TS contract + lifecycle-bridge handoff fixes onto the proven
@@ -62,6 +77,61 @@ RUN chown capiro:capiro \
   /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
   /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+
+# Phase 10B-23B: this image now bakes ONLY the detection + recognition
+# models. The other three PP-Structure sub-models formerly baked here
+# (table/layout/formula) are deliberately no longer used at all --
+# PP-Structure's bundled SLANet table-structure model was proven, across
+# both linux/arm64 and linux/amd64 and across paddlepaddle 2.6.2 through
+# 3.3.1, to misassign real dollar values to the wrong Program Element row
+# whenever it processes genuine multi-row table content (a deterministic,
+# architecture-independent model defect, not a crash -- see the PR
+# description for the full bake-off). `paddleocr_engine.py` now runs plain
+# detection+recognition and reconstructs rows/columns deterministically
+# from token bounding-box geometry instead. `ch_PP-OCRv4_det_infer` and
+# `ch_PP-OCRv4_rec_infer` unconditionally download from a single fixed
+# third-party CDN (paddleocr.bj.bcebos.com) the FIRST time they construct,
+# with NO integrity check of any kind -- confirmed by reading
+# ppocr/utils/network.py's maybe_download(), which only checks whether
+# inference.pdiparams/inference.pdmodel already exist at the target path,
+# never a checksum, on either a fresh download or a pre-existing file. A
+# production task must not have its first real run depend on an
+# unauthenticated, unverified, uncontrolled runtime fetch from a third-party
+# host with no offline fallback. Bake both here, individually
+# SHA-256-verified against the exact bytes this qualification captured
+# (2026-09-02) from paddleocr==2.10.0's own hardcoded URLs -- once these
+# files exist at maybe_download's expected path, it skips its download step
+# entirely, so the running container needs no outbound network access to
+# fetch them. Both models are Apache-2.0, matching paddleocr/paddlepaddle
+# themselves (see PR description for the full license/checksum table this
+# qualification produced).
+# Phase 10B-23C2: model baking moved to scripts/bake_model.sh (fail-closed:
+# archive digest verified before extraction, EXACT-filename model discovery --
+# never `find -name | head -1`, which previously selected an AppleDouble
+# `._inference.pdmodel` -- exactly-one-or-fail candidate counts, and
+# parent-traversal/absolute-path rejection). Arguments per call:
+#   <url> <dest_dir> <archive_sha256> <pdiparams_sha256> <pdmodel_sha256>
+# The archive digests pin the exact bytes downloaded at build time; the
+# pdiparams/pdmodel digests pin what actually lands at maybe_download()'s
+# expected path, so the running container needs no outbound network access.
+COPY apps/api/scripts/bake_model.sh /usr/local/bin/bake_model.sh
+RUN chmod +x /usr/local/bin/bake_model.sh && \
+  bake_model.sh https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_infer.tar \
+    /home/capiro/.paddleocr/whl/det/ch/ch_PP-OCRv4_det_infer \
+    5f7217e0a89612e2f80d62f3c99a8bf5f7ae9cdc1ffd706be7dde07765627edf \
+    49ee815e30cff43cb1057d33bf0d94193e4d4f1ae28451cad15b40be830df915 \
+    2ad68ed2768fe6c41166a5bc64680cc9f445390acb6528da449a4db2f7b90e14 && \
+  bake_model.sh https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar \
+    /home/capiro/.paddleocr/whl/rec/ch/ch_PP-OCRv4_rec_infer \
+    830ea228e20c2b30c4db9666066c48512f67a63f5b1a32d0d33dc9170040ce7d \
+    a6dbfa63e7ee161688523c954e9e293f77dc24044db81e836ff9c7f103fd191a \
+    bf78f3898a004615e69c676259d8171bd7ae99000653b41fd72aaa36ae8bd304 && \
+  bake_model.sh https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar \
+    /home/capiro/.paddleocr/whl/cls/ch_ppocr_mobile_v2.0_cls_infer \
+    507352585040d035da3b1e6374694ad679a850acb0a36a8d0d47984176357717 \
+    d1efda1b80e174b4fcb168a035ac96c1af4938892bd86a55f300a6027105d08c \
+    3c4337ec61722a20b1dca2e5bfaffc313c0592bc89ad6e0d45168224186f6683 && \
+  chown -R capiro:capiro /home/capiro/.paddleocr
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
 # (Fargate task user cannot create /home/capiro/.cache/uv).

@@ -198,7 +198,32 @@ class ParserRuntimeWarningV1(BaseModel):
 
     code: str = Field(min_length=1)
     message: str
-    pages: list[int] = Field(ge=1)  # non-empty list of positive ints
+    pages: list[int]  # non-empty list of positive ints -- see _validate_warning_pages
+
+    @field_validator('pages')
+    @classmethod
+    def _validate_warning_pages(cls, v: list[int]) -> list[int]:
+        # Phase 10B-23B: `Field(ge=1)` on a bare `list[int]` applies the
+        # constraint to the LIST value itself, not element-wise (that needs
+        # `list[Annotated[int, Field(ge=1)]]`) -- pydantic-core then raises a
+        # nonsensical "Unable to apply constraint 'ge' to supplied value
+        # [11]" the first time this warning is ever actually constructed
+        # with a real, non-empty pages list. Confirmed dormant since this
+        # model's introduction: every prior real invocation either built an
+        # empty warnings list or one whose `pages` field this exact bug
+        # would equally have broken, just never actually exercised until a
+        # real per-page timeout warning fired (paddleocr's neural inference
+        # genuinely exceeds the 120s default under ARM64 QEMU emulation).
+        # The TS mirror (parser-runtime-contract-v1.ts's
+        # `parserRuntimeWarningV1Schema`) already validates element-wise
+        # correctly via `z.array(z.number().int().positive())`; this matches
+        # that behavior exactly.
+        if not v:
+            raise ValueError('pages must be nonempty')
+        for page in v:
+            if page < 1:
+                raise ValueError('pages must be positive')
+        return v
 
 
 # ------------------------------------------------------------------ #
