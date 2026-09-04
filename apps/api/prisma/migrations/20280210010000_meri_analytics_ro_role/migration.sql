@@ -18,20 +18,27 @@
 -- 2026-07-19 capiro_app RLS-bypass remediation doc) explicitly out of scope
 -- for this migration.
 
-CREATE TABLE IF NOT EXISTS "meri_analytics_query_log" (
-  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "tenant_id" uuid,
-  "user_id" uuid,
-  "dataset_key" text NOT NULL,
-  "sql" text NOT NULL,
-  "params" jsonb NOT NULL DEFAULT '[]',
-  "row_count" integer,
-  "duration_ms" integer,
-  "error" text,
-  "created_at" timestamptz(6) NOT NULL DEFAULT now()
+-- Shape matches what `prisma migrate dev` would emit for the MeriAnalyticsQueryLog
+-- model (id is client-generated, as with every other @default(uuid()) model
+-- here) so a future `prisma migrate diff` sees no drift.
+CREATE TABLE "meri_analytics_query_log" (
+    "id" UUID NOT NULL,
+    "tenant_id" UUID,
+    "user_id" UUID,
+    "dataset_key" TEXT NOT NULL,
+    "sql" TEXT NOT NULL,
+    "params" JSONB NOT NULL DEFAULT '[]',
+    "row_count" INTEGER,
+    "duration_ms" INTEGER,
+    "error" TEXT,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "meri_analytics_query_log_pkey" PRIMARY KEY ("id")
 );
-CREATE INDEX IF NOT EXISTS "meri_analytics_query_log_created_at_idx" ON "meri_analytics_query_log" ("created_at");
-CREATE INDEX IF NOT EXISTS "meri_analytics_query_log_tenant_id_idx" ON "meri_analytics_query_log" ("tenant_id");
+
+CREATE INDEX "meri_analytics_query_log_created_at_idx" ON "meri_analytics_query_log"("created_at");
+
+CREATE INDEX "meri_analytics_query_log_tenant_id_idx" ON "meri_analytics_query_log"("tenant_id");
 
 DO $$
 BEGIN

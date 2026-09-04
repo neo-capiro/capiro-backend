@@ -1,4 +1,32 @@
-import { AnalyticsDbService } from './analytics-db.service.js';
+import { Prisma } from '@prisma/client';
+import { AnalyticsDbService, normalizeRow } from './analytics-db.service.js';
+
+describe('normalizeRow', () => {
+  it('flattens BigInt COUNT(*), Decimal SUM/AVG, and Date values to JSON-safe primitives', () => {
+    const row = normalizeRow({
+      count_all: BigInt(24682),
+      sum_amount: new Prisma.Decimal('1234567.89'),
+      dt_posted: new Date('2026-08-23T02:34:52.000Z'),
+      registrant_name: 'BGR GOVERNMENT AFFAIRS',
+      issue_codes: ['DEF', 'BUD'],
+      nothing: null,
+    });
+    expect(row).toEqual({
+      count_all: 24682,
+      sum_amount: 1234567.89,
+      dt_posted: '2026-08-23T02:34:52.000Z',
+      registrant_name: 'BGR GOVERNMENT AFFAIRS',
+      issue_codes: ['DEF', 'BUD'],
+      nothing: null,
+    });
+    expect(() => JSON.stringify(row)).not.toThrow();
+  });
+
+  it('keeps an unsafe-integer BigInt as a string rather than silently losing precision', () => {
+    const row = normalizeRow({ big: BigInt('9007199254740993') });
+    expect(row.big).toBe('9007199254740993');
+  });
+});
 
 describe('AnalyticsDbService', () => {
   const REQUIRED_VARS = [

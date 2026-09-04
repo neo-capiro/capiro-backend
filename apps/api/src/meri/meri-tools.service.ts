@@ -1599,6 +1599,8 @@ export class MeriToolsService {
   /** Per-tenant sliding-window rate limit for sandbox runs. */
   private readonly analysisRuns = new Map<string, number[]>();
   private static readonly ANALYSIS_RUNS_PER_HOUR = 20;
+  /** query_global_data: cap on the serialized `rows` handed back into a chat turn. */
+  private static readonly GLOBAL_DATA_MAX_RESULT_BYTES = 256 * 1024;
 
   /** Whether run_analysis is live for this tenant (env kill-switch AND
    *  tenant flag; GA default ON — a tenant can opt OUT with
@@ -3432,11 +3434,10 @@ export class MeriToolsService {
 
   private async queryGlobalData(ctx: TenantContext, input: Record<string, unknown>) {
     const generatedAt = new Date().toISOString();
-    const spec = parseQuerySpecInput(input);
 
     let compiled;
     try {
-      compiled = compileQuerySpec(spec);
+      compiled = compileQuerySpec(parseQuerySpecInput(input));
     } catch (err) {
       if (err instanceof QuerySpecError) {
         return { tool: 'query_global_data', generatedAt, ok: false, error: err.message };
@@ -3449,13 +3450,26 @@ export class MeriToolsService {
       const rows = await this.analyticsDb.run(compiled);
       const durationMs = Date.now() - startedAt;
       await this.recordAnalyticsQuery(ctx, compiled, rows.length, durationMs, null);
+      // Bound the payload handed back into the chat turn. LIMIT already caps
+      // rows, but 2000 wide rows can still be several MB of JSON; keep it in
+      // the same order of magnitude as other tools' results and say so.
+      const { rows: boundedRows, truncated } = truncateRowsToBytes(
+        rows,
+        MeriToolsService.GLOBAL_DATA_MAX_RESULT_BYTES,
+      );
       return {
         tool: 'query_global_data',
         generatedAt,
         dataset: compiled.datasetKey,
         sql: compiled.sql,
         rowCount: rows.length,
-        rows,
+        rows: boundedRows,
+        ...(truncated
+          ? {
+              truncated: true,
+              note: `Only the first ${boundedRows.length} of ${rows.length} rows are shown; add filters, group, or lower limit to see the rest.`,
+            }
+          : {}),
       };
     } catch (err) {
       const durationMs = Date.now() - startedAt;
@@ -7569,6 +7583,25 @@ export function websiteDomain(website: string | null | undefined): string | null
   if (!host || !host.includes('.') || host.endsWith('.')) return null;
   if (GENERIC_MAIL_DOMAINS.has(host)) return null;
   return host;
+}
+
+/**
+ * Keep the leading rows whose JSON fits in `maxBytes`. Rows are already
+ * JSON-safe (see analytics-db.service.ts normalizeRow), so a per-row
+ * stringify is an honest size measure.
+ */
+function truncateRowsToBytes(
+  rows: Record<string, unknown>[],
+  maxBytes: number,
+): { rows: Record<string, unknown>[]; truncated: boolean } {
+  let used = 2; // the surrounding [ ]
+  const kept: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    used += JSON.stringify(row).length + 1;
+    if (used > maxBytes) return { rows: kept, truncated: true };
+    kept.push(row);
+  }
+  return { rows: kept, truncated: false };
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {

@@ -1,6 +1,35 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import type { CompiledQuery } from './query-spec-compiler.js';
+
+/**
+ * Raw `$queryRawUnsafe` rows carry driver types the rest of the tool
+ * pipeline cannot serialize: COUNT(*) is a BigInt (JSON.stringify throws on
+ * it), SUM/AVG and Decimal(18,2) columns are Prisma.Decimal, timestamps are
+ * Date. Flatten all three to JSON-safe primitives once, here, so the model
+ * and the audit log both see plain numbers/strings.
+ */
+export function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    out[key] = normalizeValue(value);
+  }
+  return out;
+}
+
+function normalizeValue(value: unknown): unknown {
+  if (typeof value === 'bigint') {
+    const asNumber = Number(value);
+    return Number.isSafeInteger(asNumber) ? asNumber : value.toString();
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (Prisma.Decimal.isDecimal(value)) {
+    const asNumber = (value as Prisma.Decimal).toNumber();
+    return Number.isFinite(asNumber) ? asNumber : (value as Prisma.Decimal).toString();
+  }
+  if (Array.isArray(value)) return value.map(normalizeValue);
+  return value;
+}
 
 /**
  * Executes compiled analytics queries as `capiro_analytics_ro` — a
@@ -51,7 +80,14 @@ export class AnalyticsDbService {
     if (password === '***') {
       throw new Error('Refusing to build ANALYTICS_DB_PASSWORD from a masked placeholder.');
     }
-    return `postgresql://${user}:${encodeURIComponent(password as string)}@${host}:${port}/${name}?schema=public&sslmode=require&connection_limit=3`;
+    // Aurora forces TLS (rds.force_ssl=1), so `require` is the only sane
+    // production value; the override exists solely so an integration test can
+    // point this at a plain local Postgres container.
+    const sslmode = process.env.ANALYTICS_DB_SSLMODE ?? 'require';
+    if (!/^[a-z-]+$/.test(sslmode)) {
+      throw new Error(`Refusing unusual ANALYTICS_DB_SSLMODE value: ${sslmode}`);
+    }
+    return `postgresql://${user}:${encodeURIComponent(password as string)}@${host}:${port}/${name}?schema=public&sslmode=${sslmode}&connection_limit=3`;
   }
 
   private getClient(): PrismaClient {
@@ -70,17 +106,14 @@ export class AnalyticsDbService {
     const client = this.getClient();
     const statementTimeoutSql = `SET LOCAL statement_timeout = '${Math.max(1, Math.floor(timeoutMs))}ms'`;
 
-    return client.$transaction(
+    const rows = await client.$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe(statementTimeoutSql);
-        const rows = await tx.$queryRawUnsafe<Record<string, unknown>[]>(
-          compiled.sql,
-          ...compiled.params,
-        );
-        return rows;
+        return tx.$queryRawUnsafe<Record<string, unknown>[]>(compiled.sql, ...compiled.params);
       },
       { timeout: timeoutMs + 2_000 },
     );
+    return rows.map(normalizeRow);
   }
 
   async onModuleDestroy(): Promise<void> {
