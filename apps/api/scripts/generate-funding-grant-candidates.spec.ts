@@ -9,6 +9,18 @@ import {
   parseArgs,
   resolveTenantIds,
 } from './generate-funding-grant-candidates.js';
+import { scoreOpportunityRelevance } from '../src/district-nexus/grant-opportunity-relevance.js';
+import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
+import {
+  buildAwardHistoryIdentity,
+  contractorIdsToResolve,
+} from '../src/funding-opportunities/award-history-identity.js';
+import {
+  asProfileReadClient,
+  readAwardHistoryByBasis,
+  readClientProfileFactsMany,
+  resolveContractorUeis,
+} from '../src/funding-opportunities/client-opportunity-profile.repository.js';
 
 const TENANT = '00000000-0000-0000-0000-000000000001';
 const CLIENT = '00000000-0000-0000-0000-000000000010';
@@ -550,6 +562,276 @@ describe('coverage is complete, not capped', () => {
     expect(source).not.toMatch(/raise the (audited )?caps?/i);
     expect(source).not.toMatch(/\bCAPPED\b/);
     expect(source).not.toMatch(/OPPORTUNITY_SCAN_CAP|CLIENT_CAP/);
+  });
+});
+
+// ── G1: the producer must not own a floor of its own ────────────────────────
+
+/**
+ * The producer used to inline `strong >= 1 || moderate >= 2`, which is the SAM
+ * rail's floor. The grant rail's floor has a third arm — one moderate
+ * `capabilityKeyword` together with a distinctive weak topical signal — because
+ * this rail has only ONE moderate signal, so keyword-driven fits were invisible.
+ * Compounded by a numeric default of ~29 (the assistance-listing floor) against
+ * a keyword+sector pair that scores ~18.
+ *
+ * Live consequence, measured the day this was fixed: 164,428 real (client,
+ * grant) pairs across 101 clients produced FOUR candidates. 65 of those clients
+ * have a sector and 60 have capabilities; only 2 have applicant-type data —
+ * exactly the profile shape the re-derived floor discarded.
+ */
+
+/** The producer's own mapping from a grant row to an OpportunityProfile. */
+function opportunityProfileOf(grant: Record<string, unknown>) {
+  return {
+    assistanceListingNumber: (grant.cfdaNumbers as string[])[0] ?? null,
+    agency: grant.agency as string | null,
+    fundingCategory: grant.category as string | null,
+    title: grant.title as string | null,
+    description: grant.description as string | null,
+    eligibleApplicantTypes: grant.eligibility as string[],
+    geographicRestrictions: [] as string[],
+  };
+}
+
+/**
+ * The scorer's verdict for one (client, grant) pair, reached through the SAME
+ * profile pipeline the producer uses — the repository read, the identity rails,
+ * and the shared builder — so this is the scorer's answer, not a second
+ * implementation of the producer's.
+ */
+async function scorerFloor(
+  clientPartial: Record<string, unknown>,
+  grantPartial: Record<string, unknown>,
+): Promise<{ meetsSuggestionFloor: boolean; relevanceScore: number }> {
+  const { prisma } = makeFake({
+    clients: [clientRow(clientPartial)],
+    grants: [grantRow(grantPartial)],
+    mappings: [],
+  });
+  const facts = await readClientProfileFactsMany(asProfileReadClient(prisma), {
+    tenantId: TENANT,
+  });
+  const contractorUeis = await resolveContractorUeis(prisma, contractorIdsToResolve(facts));
+  const history = await readAwardHistoryByBasis(
+    prisma,
+    buildAwardHistoryIdentity(facts[0]!, contractorUeis),
+  );
+  const profile = buildClientOpportunityProfile(facts[0]!, history).grant;
+  const scored = scoreOpportunityRelevance(profile, opportunityProfileOf(grantRow(grantPartial)));
+  return {
+    meetsSuggestionFloor: scored.meetsSuggestionFloor,
+    relevanceScore: scored.relevanceScore,
+  };
+}
+
+/**
+ * What the producer decided, isolated to its floor. `minRelevance: 0` removes
+ * the numeric backstop, so `created === 1` is true exactly when the producer's
+ * floor said yes.
+ */
+async function producerAcceptedOnFloorAlone(
+  clientPartial: Record<string, unknown>,
+  grantPartial: Record<string, unknown>,
+): Promise<boolean> {
+  const { prisma } = makeFake({
+    clients: [clientRow(clientPartial)],
+    grants: [grantRow(grantPartial)],
+    mappings: [],
+  });
+  const result = await generateFundingGrantCandidates(prisma, {
+    tenantIds: [TENANT],
+    clientId: null,
+    minRelevance: 0,
+    commit: false,
+  });
+  expect(result.evaluated).toBe(1);
+  expect(result.errors).toBe(0);
+  return result.created === 1;
+}
+
+/** A client with nothing in it, so each case below states its own signals. */
+const BARE_CLIENT = {
+  uei: null,
+  applicantTypes: [] as string[],
+  sectorTag: null,
+  capabilities: [] as unknown[],
+  facilities: [] as unknown[],
+};
+
+/** A grant with nothing in it, for the same reason. */
+const BARE_GRANT = {
+  title: 'A notice with no particular subject',
+  agency: null,
+  category: null,
+  eligibility: [] as string[],
+  cfdaNumbers: [] as string[],
+  description: null,
+};
+
+/**
+ * The live case, reproduced: a real DOE grant against a real client whose
+ * capability is literally "grid resilience". Sector overlap, keyword match, no
+ * applicant types, no UEI award history — the commonest real profile shape.
+ */
+const GRID_CLIENT = {
+  ...BARE_CLIENT,
+  sectorTag: 'ENERGY',
+  capabilities: [{ name: 'grid resilience', tags: [], keywords: [], peNumbers: [] }],
+};
+const GRID_GRANT = {
+  ...BARE_GRANT,
+  title: 'Grid Resilience and Innovation Partnerships',
+  agency: 'Department of Energy',
+  description: 'Strengthening the electric energy grid against extreme weather.',
+};
+
+describe('the producer uses the shared suggestion floor (G1)', () => {
+  test('the numeric default is the read path\'s, not the assistance-listing floor', () => {
+    // 29 (the listing floor) sits ABOVE a keyword+sector pair at ~18, so the
+    // numeric backstop refused everything the floor's third arm admitted. 15
+    // matches the SAM producer and the sibling District Nexus producer.
+    expect(DEFAULT_MIN_RELEVANCE).toBe(15);
+  });
+
+  test('the proven live case: a "grid resilience" client gets the DOE grid grant', async () => {
+    const { prisma } = makeFake({
+      clients: [clientRow(GRID_CLIENT)],
+      grants: [grantRow(GRID_GRANT)],
+      mappings: [],
+    });
+    const result = await generateFundingGrantCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: DEFAULT_MIN_RELEVANCE,
+      commit: false,
+    });
+    // `create`, not `skip_below_floor`. Before this fix the producer refused
+    // this pair while the on-demand read path surfaced it.
+    expect(result.created).toBe(1);
+    expect(result.evaluated).toBe(1);
+    expect(result.errors).toBe(0);
+  });
+
+  test('the pair really is keyword+sector, and really does score ~18', async () => {
+    // Pins WHY the case is the one that matters: it clears the floor's third arm
+    // and lands between the new numeric default (15) and the old one (~29).
+    const { prisma } = makeFake({
+      clients: [clientRow(GRID_CLIENT)],
+      grants: [grantRow(GRID_GRANT)],
+      mappings: [],
+    });
+    const facts = await readClientProfileFactsMany(asProfileReadClient(prisma), {
+      tenantId: TENANT,
+    });
+    const history = await readAwardHistoryByBasis(
+      prisma,
+      buildAwardHistoryIdentity(facts[0]!, new Map()),
+    );
+    const scored = scoreOpportunityRelevance(
+      buildClientOpportunityProfile(facts[0]!, history).grant,
+      opportunityProfileOf(grantRow(GRID_GRANT)),
+    );
+    expect(scored.matchedSignals.map((s) => s.signal)).toEqual(['capabilityKeyword', 'sector']);
+    expect(scored.meetsSuggestionFloor).toBe(true);
+    expect(scored.relevanceScore).toBe(18);
+  });
+
+  test('BOTH halves of the fix are load-bearing: the old numeric default alone still refuses it', async () => {
+    // Proven, and the reason this shipped as one change: routing the producer
+    // through the shared floor changes nothing while decideProducerAction is
+    // still comparing 18 against 29.
+    const { prisma } = makeFake({
+      clients: [clientRow(GRID_CLIENT)],
+      grants: [grantRow(GRID_GRANT)],
+      mappings: [],
+    });
+    const result = await generateFundingGrantCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 29,
+      commit: false,
+    });
+    expect(result.created).toBe(0);
+  });
+
+  /**
+   * THE INVARIANT, which is the actual bug class. A test on the specific DOE
+   * grant would not have caught the next producer that re-derives a floor.
+   */
+  describe('the producer floor and scoreOpportunityRelevance never disagree', () => {
+    const cases: Array<{
+      name: string;
+      client: Record<string, unknown>;
+      grant: Record<string, unknown>;
+      expected: boolean;
+    }> = [
+      {
+        name: 'capabilityKeyword + sector (the third arm this rail exists for)',
+        client: GRID_CLIENT,
+        grant: GRID_GRANT,
+        expected: true,
+      },
+      {
+        name: 'capabilityKeyword + fundingCategory (the third arm, other weak signal)',
+        client: {
+          ...BARE_CLIENT,
+          sectorTag: 'Health',
+          capabilities: [{ name: 'medicaid analytics', tags: [], keywords: [], peNumbers: [] }],
+        },
+        grant: {
+          ...BARE_GRANT,
+          title: 'Medicaid analytics modernization',
+          category: 'Health',
+          description: 'A program.',
+        },
+        expected: true,
+      },
+      {
+        name: 'capabilityKeyword alone (moderate, unaccompanied)',
+        client: {
+          ...BARE_CLIENT,
+          capabilities: [{ name: 'grid resilience', tags: [], keywords: [], peNumbers: [] }],
+        },
+        grant: { ...BARE_GRANT, title: 'Grid Resilience and Innovation Partnerships' },
+        expected: false,
+      },
+      {
+        name: 'sector alone (weak, unaccompanied)',
+        client: { ...BARE_CLIENT, sectorTag: 'ENERGY' },
+        grant: { ...BARE_GRANT, description: 'Energy programs for rural utilities.' },
+        expected: false,
+      },
+      {
+        name: 'applicantType alone (strong)',
+        client: { ...BARE_CLIENT, applicantTypes: ['Small businesses'] },
+        grant: { ...BARE_GRANT, eligibility: ['Small businesses'] },
+        expected: true,
+      },
+      {
+        name: 'assistanceListing from real award history (strong)',
+        client: { ...BARE_CLIENT, uei: 'ABC123456789' },
+        grant: { ...BARE_GRANT, cfdaNumbers: ['93.778'] },
+        expected: true,
+      },
+      {
+        name: 'no signal at all',
+        client: BARE_CLIENT,
+        grant: BARE_GRANT,
+        expected: false,
+      },
+    ];
+
+    test.each(cases)('$name', async ({ client, grant, expected }) => {
+      const scorer = await scorerFloor(client, grant);
+      const producer = await producerAcceptedOnFloorAlone(client, grant);
+      // Stated three ways on purpose: the two must agree, AND they must both
+      // agree with the value this case was written to exercise — otherwise a
+      // symmetric mistake would pass.
+      expect(scorer.meetsSuggestionFloor).toBe(expected);
+      expect(producer).toBe(expected);
+      expect(producer).toBe(scorer.meetsSuggestionFloor);
+    });
   });
 });
 

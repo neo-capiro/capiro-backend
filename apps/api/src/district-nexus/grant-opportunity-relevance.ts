@@ -190,10 +190,29 @@ function norm(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
 }
 
+/**
+ * Assistance Listing identity.
+ *
+ * Most listings are "NN.NNN", but a real minority carry a trailing letter —
+ * 93.00R, 93.00E, 93.00F, 93.00G, 93.00J and 93.00K are six DIFFERENT federal
+ * listings (93.00R alone has 75 award rows behind it in production), not six
+ * spellings of 93.00. The suffix is part of the identity and must survive.
+ *
+ * The previous implementation deleted every non-digit, so all six collapsed to
+ * "93.00" and registered as an exact-match `assistanceListing` strong signal —
+ * the highest-weighted signal in the table, enough to clear the suggestion
+ * floor on its own. This extracts the listing with an anchored pattern instead
+ * of deleting characters: an optional "CFDA" prefix and surrounding whitespace
+ * are still tolerated ("CFDA 93.778", "93.778 " and "93.778" compare equal),
+ * the suffix is kept and upper-cased, and anything that is not a listing
+ * normalizes to '' — which callers must treat as "no value", never as a value
+ * that can equal another ''.
+ */
+const ASSISTANCE_LISTING_RE = /^\s*(?:CFDA\s*)?(\d{2}\.\d{2,3}[A-Z]{0,2})\s*$/i;
+
 function normalizeListing(value: string | null | undefined): string {
-  // Assistance Listings are "NN.NNN"; strip anything that isn't part of that
-  // so "93.778 " and "CFDA 93.778" compare equal.
-  return (value ?? '').replace(/[^0-9.]/g, '');
+  const match = ASSISTANCE_LISTING_RE.exec(value ?? '');
+  return match ? match[1]!.toUpperCase() : '';
 }
 
 // Sector-taxonomy / domain-universal words that carry no topical signal on
