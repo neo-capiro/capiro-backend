@@ -1,19 +1,161 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { parseArgs, runVehicleSync, type KnownClientRef, type VehicleSyncDeps } from './sync-tango-vehicles.js';
+import type { PrismaClient } from '@prisma/client';
+import {
+  SyncUsageError,
+  loadKnownUeisReal,
+  parseArgs,
+  resolveTenantId,
+  runVehicleSync,
+  type ClientScope,
+  type KnownClientRef,
+  type VehicleSyncDeps,
+} from './sync-tango-vehicles.js';
 import { TangoRequestCeilingExceededError } from '../src/external/tango/tango-resilience.service.js';
 import { computeFilterFingerprint } from '../src/external/tango/tango-store.service.js';
 import type { TangoEntity, TangoVehicle, TangoVehicleAwardee } from '../src/external/tango/tango.types.js';
 
 describe('CLI parsing', () => {
-  test('dry run is the default, with a 500-vehicle limit', () => {
-    expect(parseArgs([])).toEqual({ commit: false, limit: 500 });
+  test('dry run is the default, with a 500-vehicle limit and no scope', () => {
+    expect(parseArgs([])).toEqual({ commit: false, limit: 500, tenant: null, client: null });
   });
 
   test('--commit and --limit, clamped at 5000', () => {
-    expect(parseArgs(['--commit'])).toEqual({ commit: true, limit: 500 });
-    expect(parseArgs(['--limit=10'])).toEqual({ commit: false, limit: 10 });
+    expect(parseArgs(['--commit'])).toEqual({ commit: true, limit: 500, tenant: null, client: null });
+    expect(parseArgs(['--limit=10'])).toEqual({ commit: false, limit: 10, tenant: null, client: null });
     expect(parseArgs(['--limit=999999']).limit).toBe(5000);
     expect(parseArgs(['--limit=0']).limit).toBe(500);
+  });
+});
+
+describe('CLI parsing — the scoping flags the P49 canary runbook always assumed existed', () => {
+  test('--client is recognized, in both the = and the space spelling', () => {
+    expect(parseArgs(['--client=c-1']).client).toBe('c-1');
+    expect(parseArgs(['--client', 'c-1']).client).toBe('c-1');
+  });
+
+  test('--tenant is recognized, and carries a slug or a uuid verbatim', () => {
+    expect(parseArgs(['--tenant=capiro-internal']).tenant).toBe('capiro-internal');
+    expect(parseArgs(['--tenant', '11111111-2222-3333-4444-555555555555']).tenant).toBe(
+      '11111111-2222-3333-4444-555555555555',
+    );
+  });
+
+  test('the scoping flags compose with --commit and --limit', () => {
+    expect(parseArgs(['--commit', '--limit=50', '--tenant=capiro-internal', '--client=c-1'])).toEqual({
+      commit: true,
+      limit: 50,
+      tenant: 'capiro-internal',
+      client: 'c-1',
+    });
+  });
+
+  /**
+   * The actual P49 defect. `--client=<id>` was the runbook's only stated
+   * containment for step 6, and this parser dropped it without a word — the
+   * run then wrote for every matching client in every tenant and printed a
+   * normal-looking summary.
+   */
+  test('an unknown flag is a hard error, not a silent drop', () => {
+    expect(() => parseArgs(['--clientid=c-1'])).toThrow(SyncUsageError);
+    expect(() => parseArgs(['--client-id=c-1'])).toThrow(/unknown flag: --client-id/);
+    expect(() => parseArgs(['--commit', '--nope'])).toThrow(SyncUsageError);
+    expect(() => parseArgs(['-client=c-1'])).toThrow(SyncUsageError);
+  });
+
+  test('a value flag with no value is an error rather than swallowing the next flag', () => {
+    expect(() => parseArgs(['--client'])).toThrow(/missing value for --client/);
+    expect(() => parseArgs(['--tenant', '--commit'])).toThrow(/missing value for --tenant/);
+    expect(() => parseArgs(['--client='])).toThrow(/missing value for --client/);
+  });
+
+  test('a boolean flag handed a value is an error rather than a silent dry run', () => {
+    // `--commit=true` used to pass as "known" and then be ignored by hasFlag,
+    // which reads only the bare form — the summary would have said commit: false.
+    expect(() => parseArgs(['--commit=true'])).toThrow(/--commit takes no value/);
+    expect(() => parseArgs(['--commit=false'])).toThrow(SyncUsageError);
+  });
+});
+
+/** A Prisma stand-in that records the `where` it was asked for. */
+function fakePrisma(
+  clientRows: Array<{ id: string; tenantId: string; uei: string | null }> = [],
+  tenantRow: { id: string } | null = { id: 'tenant-uuid' },
+) {
+  const findMany = jest.fn(async (_args: unknown) => clientRows as unknown[]);
+  const findFirst = jest.fn(async (_args: unknown) => tenantRow);
+  const tx = {
+    $executeRaw: jest.fn(async () => 1),
+    client: { findMany },
+    tenant: { findFirst },
+  };
+  const prisma = {
+    $transaction: jest.fn(async (fn: (t: unknown) => Promise<unknown>) => fn(tx)),
+  };
+  return { prisma: prisma as unknown as PrismaClient, findMany, findFirst };
+}
+
+function whereOf(findMany: ReturnType<typeof fakePrisma>['findMany']): Record<string, unknown> {
+  return ((findMany.mock.calls[0]![0] as { where: Record<string, unknown> }).where);
+}
+
+describe('loadKnownUeisReal — the scope narrows what this sync can WRITE', () => {
+  const scope = (over: Partial<ClientScope> = {}): ClientScope => ({
+    tenantId: null,
+    clientId: null,
+    ...over,
+  });
+
+  test('no scope reads exactly what it always read: every UEI-having client, every tenant', async () => {
+    const { prisma, findMany } = fakePrisma();
+    await loadKnownUeisReal(prisma, scope());
+    expect(whereOf(findMany)).toEqual({ uei: { not: null } });
+  });
+
+  test('--tenant constrains the known-UEI map to that tenant', async () => {
+    const { prisma, findMany } = fakePrisma();
+    await loadKnownUeisReal(prisma, scope({ tenantId: 'tenant-1' }));
+    expect(whereOf(findMany)).toEqual({ uei: { not: null }, tenantId: 'tenant-1' });
+    expect(whereOf(findMany)).not.toHaveProperty('id');
+  });
+
+  test('--client constrains it to that one client', async () => {
+    const { prisma, findMany } = fakePrisma();
+    await loadKnownUeisReal(prisma, scope({ clientId: 'client-1' }));
+    expect(whereOf(findMany)).toEqual({ uei: { not: null }, id: 'client-1' });
+  });
+
+  test('both together intersect rather than replacing each other', async () => {
+    const { prisma, findMany } = fakePrisma();
+    await loadKnownUeisReal(prisma, scope({ tenantId: 'tenant-1', clientId: 'client-1' }));
+    expect(whereOf(findMany)).toEqual({ uei: { not: null }, tenantId: 'tenant-1', id: 'client-1' });
+  });
+
+  test('a scoped read still builds the UEI -> (tenant, client) map the walk matches against', async () => {
+    const { prisma } = fakePrisma([{ id: 'client-1', tenantId: 'tenant-1', uei: 'UEI001' }]);
+    const map = await loadKnownUeisReal(prisma, scope({ tenantId: 'tenant-1' }));
+    expect(map.get('UEI001')).toEqual([{ tenantId: 'tenant-1', clientId: 'client-1' }]);
+  });
+});
+
+describe('resolveTenantId — a slug or a uuid, and a miss is an error not an empty walk', () => {
+  test('a uuid resolves by id', async () => {
+    const { prisma, findFirst } = fakePrisma();
+    await resolveTenantId(prisma, '11111111-2222-3333-4444-555555555555');
+    expect(findFirst.mock.calls[0]![0]).toMatchObject({
+      where: { id: '11111111-2222-3333-4444-555555555555' },
+    });
+  });
+
+  test('anything else resolves by slug', async () => {
+    const { prisma, findFirst } = fakePrisma();
+    const id = await resolveTenantId(prisma, 'capiro-internal');
+    expect(findFirst.mock.calls[0]![0]).toMatchObject({ where: { slug: 'capiro-internal' } });
+    expect(id).toBe('tenant-uuid');
+  });
+
+  test('an unknown tenant throws rather than silently scoping to nothing', async () => {
+    const { prisma } = fakePrisma([], null);
+    await expect(resolveTenantId(prisma, 'no-such-tenant')).rejects.toThrow(SyncUsageError);
   });
 });
 

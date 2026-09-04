@@ -4,10 +4,13 @@
  *   tsx scripts/sync-tango-entities.ts               # dry run
  *   tsx scripts/sync-tango-entities.ts --commit
  *   tsx scripts/sync-tango-entities.ts --commit --limit=50
+ *   tsx scripts/sync-tango-entities.ts --tenant=capiro-internal --limit=50
+ *   tsx scripts/sync-tango-entities.ts --client=<uuid> --limit=50
  *
  * DRY-RUN BY DEFAULT.
  *
- * For every client with a UEI — across ALL tenants — fetches the Tango
+ * For every client with a UEI — across ALL tenants unless `--tenant` or
+ * `--client` narrows the selection — fetches the Tango
  * Entity and writes it to the GLOBAL `tango_resource_snapshot` table (P15),
  * keyed by that same UEI. Stamps the client's own
  * `tango_entity_last_synced_at` / `_last_attempt_at` / `_last_error` (P19's
@@ -44,13 +47,25 @@
  * ── Tenant bypass ──────────────────────────────────────────────────────────
  *
  * `clients` is tenant-scoped with RLS ENABLED + FORCED. This sync walks
- * every tenant by design (a UEI is a fact about the client's OWN legal
+ * every tenant by default (a UEI is a fact about the client's OWN legal
  * identity, not a per-tenant concern), so every read and write goes through
  * a short-lived `set_config('app.bypass_rls', 'on', true)` transaction — the
  * same idiom `diag-tenant-config.ts` uses. Each is scoped to ONE database
  * operation, never wrapped around a slow Tango network call: holding a
  * transaction open across dozens of HTTP round trips would risk exactly the
  * lock contention and connection-pool exhaustion this idiom exists to avoid.
+ *
+ * ── Scoping the walk (P49 canary) ──────────────────────────────────────────
+ *
+ * `--tenant=<slug-or-uuid>` and `--client=<uuid>` narrow WHICH clients the
+ * walk selects. They constrain the live `where` clause only — `runEntitySync`
+ * itself stays scope-agnostic, because it has never known anything about the
+ * rows beyond what `readClientBatch` hands it.
+ *
+ * `--limit` is still separately required to bound a canary run: scoping says
+ * which clients may be written, not how many provider requests this run is
+ * allowed to spend. The two controls are independent and the runbook asks for
+ * both.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
@@ -66,8 +81,36 @@ dotenvConfig();
 const DEFAULT_LIMIT = 500;
 const DEFAULT_BATCH_SIZE = 25;
 const SYNC_VERB = 'sync-tango-entities';
+/** Bad arguments; nothing attempted. Same code the P47 reconciler uses. */
+const EXIT_BAD_ARGS = 2;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
+
+const BOOLEAN_FLAGS = new Set(['commit']);
+const VALUE_FLAGS = new Set(['limit', 'tenant', 'client']);
+
+export const USAGE = [
+  'usage: sync-tango-entities [--commit] [--limit=<n>] [--tenant=<slug-or-uuid>] [--client=<uuid>]',
+  '',
+  'DRY RUN by default. --tenant/--client narrow WHICH clients are walked;',
+  '--limit is separate and still bounds how many are fetched on this run.',
+].join('\n');
+
+/**
+ * A flag this script does not implement.
+ *
+ * Until P49's canary review, both this script and sync-tango-vehicles.ts
+ * silently DISCARDED an unrecognized flag. The canary runbook told the
+ * operator to run `sync-tango-entities --client=<id>` for one reviewed
+ * client; no such flag existed, it was dropped without a word, and the run
+ * walked every client in every tenant while printing a normal-looking
+ * summary. A CLI that ignores what it does not understand cannot be used to
+ * contain a blast radius, so an unknown flag is now a hard stop (exit 2)
+ * rather than a silent full-catalog run.
+ */
+export class SyncUsageError extends Error {}
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -80,18 +123,71 @@ function flagValue(argv: string[], name: string): string | undefined {
   return i >= 0 && i + 1 < argv.length ? argv[i + 1] : undefined;
 }
 
+/**
+ * Rejects anything dash-prefixed this script does not implement, any value
+ * flag left without a value, and a boolean flag handed a value. Bare
+ * positional words are tolerated:
+ * they are how the space form (`--limit 50`) supplies its value, and a
+ * stray one cannot be mistaken for a control the operator believed in.
+ */
+function assertKnownFlags(argv: string[]): void {
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i]!;
+    if (!token.startsWith('-')) continue;
+    const name = token.startsWith('--') ? token.slice(2).split('=')[0]! : '';
+    if (BOOLEAN_FLAGS.has(name)) {
+      // `--commit=true` would pass as "known" and then be ignored by hasFlag,
+      // which reads only the bare form — a silent dry run when a commit was
+      // meant. Same rule as an unknown flag: say so and stop.
+      if (token.includes('=')) throw new SyncUsageError(`--${name} takes no value`);
+      continue;
+    }
+    if (VALUE_FLAGS.has(name)) {
+      if (token.includes('=')) {
+        if (token.slice(token.indexOf('=') + 1) === '') {
+          throw new SyncUsageError(`missing value for --${name}`);
+        }
+        continue;
+      }
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('-')) {
+        throw new SyncUsageError(`missing value for --${name}`);
+      }
+      i += 1;
+      continue;
+    }
+    throw new SyncUsageError(`unknown flag: ${token}`);
+  }
+}
+
 export interface ParsedArgs {
   commit: boolean;
   limit: number;
+  /** Tenant slug OR uuid, exactly as typed. Resolved to an id in main(). */
+  tenant: string | null;
+  /** Client uuid. Null means every client the tenant filter leaves. */
+  client: string | null;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
+  assertKnownFlags(argv);
   const limitRaw = flagValue(argv, 'limit');
   const parsed = limitRaw != null ? Number(limitRaw) : NaN;
   return {
     commit: hasFlag(argv, 'commit'),
     limit: Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 5000) : DEFAULT_LIMIT,
+    tenant: flagValue(argv, 'tenant') ?? null,
+    client: flagValue(argv, 'client') ?? null,
   };
+}
+
+/**
+ * Which clients this run is allowed to touch. Both null is the historical
+ * behaviour: every UEI-having client in every tenant.
+ */
+export interface ClientScope {
+  tenantId: string | null;
+  clientId: string | null;
 }
 
 // ── Injectable dependencies (the testable surface) ──────────────────────────
@@ -247,11 +343,40 @@ async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Pro
   });
 }
 
-function realReadClientBatch(prisma: PrismaClient): SyncDeps['readClientBatch'] {
+/**
+ * Resolves `--tenant` to a tenant id, accepting either spelling the runbook
+ * might use: a uuid, or the slug an operator actually knows
+ * (`capiro-internal`). A tenant that does not exist is a usage error, not an
+ * empty walk — "0 clients processed" and "you typed the slug wrong" must not
+ * look the same in the summary.
+ */
+export async function resolveTenantId(prisma: PrismaClient, tenant: string): Promise<string> {
+  const row = await withBypass(prisma, (tx) =>
+    tx.tenant.findFirst({
+      where: UUID_RE.test(tenant) ? { id: tenant } : { slug: tenant },
+      select: { id: true },
+    }),
+  );
+  if (!row) throw new SyncUsageError(`tenant not found: ${tenant}`);
+  return row.id;
+}
+
+/**
+ * Exported for the scoping test: the `where` clause is the whole behaviour,
+ * and a fake Prisma proves it without a database.
+ */
+export function realReadClientBatch(prisma: PrismaClient, scope: ClientScope): SyncDeps['readClientBatch'] {
   return async (cursor, take) =>
     withBypass(prisma, (tx) =>
       tx.client.findMany({
-        where: { uei: { not: null } },
+        where: {
+          uei: { not: null },
+          // The canary's containment, in the query rather than in a runbook
+          // sentence. Absent both, this is byte-for-byte the historical
+          // all-tenant read.
+          ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
+          ...(scope.clientId ? { id: scope.clientId } : {}),
+        },
         orderBy: { id: 'asc' },
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         take,
@@ -276,7 +401,18 @@ function realUpdateClientStatus(prisma: PrismaClient): SyncDeps['updateClientSta
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+  let args: ParsedArgs;
+  try {
+    args = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    if (error instanceof SyncUsageError) {
+      console.error(`TANGO_SYNC_ERR ${error.message}\n${USAGE}`);
+      process.exitCode = EXIT_BAD_ARGS;
+      return;
+    }
+    throw error;
+  }
+
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
   if (!apiKey) {
     console.error(
@@ -290,6 +426,21 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
+    let scope: ClientScope;
+    try {
+      scope = {
+        tenantId: args.tenant ? await resolveTenantId(prisma, args.tenant) : null,
+        clientId: args.client,
+      };
+    } catch (error) {
+      if (error instanceof SyncUsageError) {
+        console.error(`TANGO_SYNC_ERR ${error.message}\n${USAGE}`);
+        process.exitCode = EXIT_BAD_ARGS;
+        return;
+      }
+      throw error;
+    }
+
     const rawGateway = new TangoGatewayService({
       apiKey,
       baseUrl: process.env.TANGO_API_BASE_URL,
@@ -312,14 +463,17 @@ async function main(): Promise<void> {
       {
         gateway,
         store,
-        readClientBatch: realReadClientBatch(prisma),
+        readClientBatch: realReadClientBatch(prisma, scope),
         updateClientStatus: realUpdateClientStatus(prisma),
       },
       { commit: args.commit, limit: args.limit },
     );
 
+    // `scope` is echoed deliberately: the defect this closes was an operator
+    // believing a run was contained when it was not, and a summary that says
+    // nothing about scope cannot correct that belief.
     console.log(
-      `TANGO_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit, health: gateway.getHealth() })}`,
+      `TANGO_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit, scope, health: gateway.getHealth() })}`,
     );
   } finally {
     await prisma.$disconnect();
