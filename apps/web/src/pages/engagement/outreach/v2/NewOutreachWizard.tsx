@@ -321,6 +321,12 @@ export function NewOutreachWizard({
   // Guards the one-time hydration from a reopened draft (see effect below) so
   // it never clobbers in-progress edits on a re-render or refetch.
   const hydratedRef = useRef(false);
+  // Guards the one-time server-artifacts resume backfill (see effect below).
+  // Starts true (nothing to backfill) whenever there is no draft to resume;
+  // the resume-hydrate effect flips it to false the instant it discovers a
+  // versioned draft to reconcile, and the auto-generate effect below waits
+  // for it so it can never fire against a still-stale local snapshot.
+  const [artifactsBackfillPending, setArtifactsBackfillPending] = useState(false);
   // Confirmation shown after a real send completes.
   const [sentResult, setSentResult] = useState<{ sent: number; failed: number } | null>(null);
   // Recipient key currently being (re)generated individually, if any.
@@ -589,6 +595,91 @@ export function NewOutreachWizard({
         setStepIdx(Math.min(resumeStep - 1, WIZARD_STEPS.length - 1));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRecord]);
+
+  // ---- Resume: backfill from the SERVER-AUTHORITATIVE draft-artifacts table ----
+  // Bug fix (2026-09-03): metadata.generatedByKey above is a CLIENT-WRITTEN
+  // cache of the last save — and the wizard's only write path for it is an
+  // explicit "Save as draft" click or ensureDraftRecord() (which itself saves
+  // an EMPTY map at generation-START, before any drafts exist, so the AI is
+  // never billed for text the server couldn't persist yet). If the user never
+  // explicitly saved again after generation completed, generatedByKey stays
+  // permanently stuck at the pre-generation snapshot even though the server's
+  // outreach_draft_artifacts/versions tables hold the real generated content.
+  // The resume-hydrate effect above then seeds an empty/stale
+  // `generatedEmails`, every slot reads as "missing", and the auto-generate
+  // effect below silently regenerates the whole campaign on every resume —
+  // proven live against production CloudWatch logs + DB rows (2026-09-03):
+  // three separate resume->regenerate incidents in 24h, each traced to a
+  // record whose last save's generatedByKey was `{}` despite real
+  // server-side drafts existing from seconds before that save.
+  //
+  // Fix: after the synchronous hydrate above seeds its (possibly stale)
+  // snapshot, fetch the real GET .../draft-artifacts list — the same
+  // endpoint loadLatestVersion already trusts after a 409 — and let it win
+  // for every genKey the server actually has a current version for. This is
+  // always safe to prefer: draft-artifacts is the version of record;
+  // metadata.generatedByKey is only ever a lagging cache of it, never newer.
+  // A record that was never versioned (feature was off, or predates
+  // versioning) simply gets back an empty array, making this a no-op.
+  const artifactsBackfillRef = useRef(false);
+  useEffect(() => {
+    if (artifactsBackfillRef.current) return;
+    const resumeId = initialDraftId ?? initialRecord?.id ?? null;
+    if (!resumeId) return;
+    artifactsBackfillRef.current = true;
+    setArtifactsBackfillPending(true);
+    void (async () => {
+      try {
+        const { data: artifacts } = await api.get<
+          Array<{
+            generationKey: string;
+            current: {
+              id: string;
+              artifactId: string;
+              version: number;
+              subject: string;
+              body: string;
+              generationStatus: GeneratedDraft['generationStatus'];
+              auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+              approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+              reviewRequestId?: string | null;
+              sendable: boolean;
+              contextNote?: string;
+            } | null;
+          }>
+        >(`/api/engagement/outreach/${resumeId}/draft-artifacts`);
+        const withCurrent = artifacts.filter(
+          (a): a is typeof a & { current: NonNullable<(typeof a)['current']> } =>
+            a.current != null,
+        );
+        if (withCurrent.length === 0) return;
+        setState((prev) => {
+          const generatedEmails = { ...prev.generatedEmails };
+          for (const a of withCurrent) {
+            const priorDraft = generatedEmails[a.generationKey];
+            // The server is authoritative; only skip a genKey whose local copy
+            // already points at this EXACT version (nothing changed — avoid a
+            // pointless re-render), and never clobber unsaved keystrokes typed
+            // in the brief window between mount and this fetch resolving.
+            if (priorDraft?.versionId === a.current.id) continue;
+            if (priorDraft?.dirty) continue;
+            generatedEmails[a.generationKey] = applyNewVersion(priorDraft, {
+              ...a.current,
+              body: sanitizeHtml(markdownishToHtml(a.current.body)),
+            });
+          }
+          return { ...prev, generatedEmails };
+        });
+      } catch {
+        // Read-only backfill: a failure here just leaves the (possibly stale)
+        // hydrate-effect result standing, i.e. no worse than before this fix.
+        // Never blocks the wizard on it.
+      } finally {
+        setArtifactsBackfillPending(false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRecord]);
 
@@ -1962,8 +2053,19 @@ export function NewOutreachWizard({
   // Generate step. Generating only the MISSING slots (not gating on the whole
   // map being empty) also covers resuming a partially-generated draft and
   // adding recipients then returning to this step.
+  //
+  // Waits on artifactsBackfillPending (2026-09-03 fix) so a resumed draft's
+  // real server-side content — fetched by the effect above — has a chance to
+  // land in generatedEmails BEFORE this effect asks "what's missing". Without
+  // this wait, a resume that lands directly on this step (the common case:
+  // lastStepId === 'generate') would evaluate `missing` against the
+  // synchronous hydrate effect's snapshot alone and could regenerate slots
+  // the server already has real drafts for. For a brand-new campaign (no
+  // resume) artifactsBackfillPending never leaves its initial `false`, so
+  // this is a pure no-op there.
   useEffect(() => {
     if (step.id !== 'generate' || generateMutation.isPending || activeJobIds.length > 0) return;
+    if (artifactsBackfillPending) return;
     const missing = genModel.slots.filter((s) => !state.generatedEmails[s.genKey]);
     if (missing.length === 0) return;
     // First entry generates every slot → stamp the signature so the banner doesn't
@@ -1972,7 +2074,7 @@ export function NewOutreachWizard({
     if (asyncGen) void submitGenerateJobs(missing, markFresh, genSig);
     else generateMutation.mutate({ slots: missing, markFresh, sig: genSig });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step.id]);
+  }, [step.id, artifactsBackfillPending]);
 
   // ---- Attachments: pick stored client docs or upload a file to send with the emails ----
   const toggleAttachment = (id: string) =>

@@ -297,6 +297,33 @@ describe('applyNewVersion — only a server version restores sendability', () =>
     expect(isDraftSendable(saved)).toBe(false);
     expect(saved.reviewRequestId).toBe('rr-2');
   });
+
+  // 2026-09-03 draft-resume fix: on resume, a genKey may have no prior entry
+  // in generatedEmails AT ALL — the resumed record's cached
+  // metadata.generatedByKey was empty/stale even though the server already
+  // has a real current version for it. seeding from `undefined` must work
+  // exactly like seeding a brand-new slot from scratch (no ghost fields
+  // survive from "prior" because there IS no prior).
+  it('seeds a brand-new slot when there is no prior draft at all (resume backfill)', () => {
+    const seeded = applyNewVersion(undefined, {
+      id: 'v-1',
+      artifactId: 'art-1',
+      version: 1,
+      subject: 'Resumed subject',
+      body: 'Resumed body',
+      generationStatus: 'generated',
+      auditStatus: 'passed',
+      approvalStatus: 'not_required',
+      sendable: true,
+    });
+    expect(seeded.subject).toBe('Resumed subject');
+    expect(seeded.body).toBe('Resumed body');
+    expect(seeded.versionId).toBe('v-1');
+    expect(seeded.artifactId).toBe('art-1');
+    expect(seeded.dirty).toBe(false);
+    expect(seeded.localStatus).toBeUndefined();
+    expect(isDraftSendable(seeded)).toBe(true);
+  });
 });
 
 describe('applyVersionConflict — a 409 never overwrites the latest content', () => {

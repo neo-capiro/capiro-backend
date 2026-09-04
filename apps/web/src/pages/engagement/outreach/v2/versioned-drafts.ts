@@ -317,9 +317,17 @@ export function markDirty(
   };
 }
 
-/** Fold a POST .../versions response back into the slot. */
+/**
+ * Fold a POST .../versions response back into the slot — OR seed a brand new
+ * slot from a GET .../draft-artifacts entry on resume (Phase 2 draft-resume
+ * fix, 2026-09-03): `draft` may be `undefined` when the slot was never in
+ * local `generatedEmails` yet (the resumed record's cached
+ * `metadata.generatedByKey` snapshot was stale/empty even though the server
+ * already held real generated content) — spreading `undefined` in an object
+ * literal is a no-op, so this seeds every field from `version` alone.
+ */
 export function applyNewVersion(
-  draft: GeneratedDraft,
+  draft: GeneratedDraft | undefined,
   version: {
     id: string;
     artifactId: string;
