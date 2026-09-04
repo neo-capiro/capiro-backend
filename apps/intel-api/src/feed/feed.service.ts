@@ -6,6 +6,10 @@ import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 import { normalizeEvidence } from './normalize-evidence.js';
 import {
+  applyResolvedHearingIds,
+  sessionIdsNeedingHearingId,
+} from './resolve-feed-hearing-id.js';
+import {
   AlertWorkStateService,
   type WorkState,
   type WorkStateValue,
@@ -208,10 +212,38 @@ export class FeedService {
             authTag: c.authTag,
           });
         } catch {
-          /* fail closed: leave quote null, never leak ciphertext */
+          // fail-closed: leave quote null
         }
       }
     }
+  }
+
+  /**
+   * PR B / §12 — bounded legacy hearingId backfill.
+   * sessionId → live_hearing_session.hearing_id (tenant-scoped, ID only).
+   * Rows whose session has no hearing_id stay honestly non-linkable.
+   */
+  private async resolveLegacyHearingIds(
+    tenantId: string,
+    items: Array<{ evidence: unknown }>,
+  ): Promise<void> {
+    const sessionIds = sessionIdsNeedingHearingId(items);
+    if (!sessionIds.length) return;
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.findMany({
+        where: {
+          tenantId,
+          id: { in: sessionIds },
+          hearingId: { not: null },
+        },
+        select: { id: true, hearingId: true },
+      }),
+    );
+    const map = new Map<string, string>();
+    for (const r of rows) {
+      if (r.hearingId) map.set(r.id, r.hearingId);
+    }
+    applyResolvedHearingIds(items, map);
   }
 
   /**
@@ -382,6 +414,13 @@ export class FeedService {
     for (const g of groupedSev) severityCounts[g.severity] = g._count;
 
     await this.decryptQuotes(tenantId, items); // fill encrypted hearing quotes (fail-closed)
+
+    // PR B / §12: backfill evidence.hearing.hearingId for legacy feed rows that
+    // only carry sessionId. ID-based lookup against live_hearing_session
+    // (tenant-scoped); NEVER title fuzzy-match. Runs AFTER decryptQuotes so we
+    // mutate the same evidence object normalizeEvidence will pass through, and
+    // BEFORE normalize so the stamped id lands on the wire.
+    await this.resolveLegacyHearingIds(tenantId, items);
 
     // Decorate each alert with its intelligent next-actions + current action state
     // (memo drafted? in weekly report? talking points?) — batch-loaded, no N+1.

@@ -95,7 +95,7 @@ export class WatchlistMatchPromoterService {
 
       const session = await tx.liveHearingSession.findUnique({
         where: { id: sessionId },
-        select: { title: true, committeeId: true, startedAt: true, endedAt: true },
+        select: { title: true, committeeId: true, hearingId: true, startedAt: true, endedAt: true },
       });
 
       // Resolve segments once for the whole session (for speaker/quote/tags).
@@ -127,6 +127,8 @@ export class WatchlistMatchPromoterService {
         const evidence = {
           hearing: {
             sessionId,
+            // LW-QA-003: canonical hearing id on the wire for detail deep-links.
+            hearingId: session?.hearingId ?? null,
             title: session?.title ?? null,
             committeeId: session?.committeeId ?? null,
             occurredAt: occurredAt ? occurredAt.toISOString() : null,

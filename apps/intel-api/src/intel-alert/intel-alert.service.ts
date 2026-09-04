@@ -459,6 +459,7 @@ export class IntelAlertService {
       const evHearing = (ev.hearing ?? undefined) as
         | {
             sessionId?: string;
+            hearingId?: string | null;
             title?: string | null;
             committeeId?: string | null;
             occurredAt?: string | null;
@@ -513,6 +514,7 @@ export class IntelAlertService {
           ? {
               hearing: {
                 sessionId: evHearing.sessionId ?? a.sourceRef,
+                hearingId: evHearing.hearingId ?? null,
                 title: evHearing.title ?? null,
                 committeeId: evHearing.committeeId ?? null,
                 occurredAt: evHearing.occurredAt ?? null,

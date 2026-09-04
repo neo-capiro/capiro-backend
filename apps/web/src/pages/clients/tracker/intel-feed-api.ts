@@ -41,6 +41,8 @@ export interface FeedHearingMention {
 }
 export interface FeedHearingEvidence {
   sessionId: string;
+  /** Canonical committee_hearing id (LW-QA-003) — deep-links the detail route. */
+  hearingId?: string | null;
   title: string | null;
   committeeId: string | null;
   occurredAt: string | null;

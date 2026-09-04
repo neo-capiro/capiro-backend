@@ -147,6 +147,16 @@ export interface HearingIntelligenceItem {
   createdAt?: string;
 }
 
+/** Envelope from the phase8 intelligence route — status/jobs MUST reach the UI
+ *  so it never claims "no intelligence was extracted" while extraction is
+ *  pending (PR B §8/§9). Legacy consumers that destructure only the array keep
+ *  working: HearingIntelligenceEnvelope extends Array. */
+export interface HearingIntelligenceEnvelope extends Array<HearingIntelligenceItem> {
+  status?: 'READY' | 'PROCESSING' | 'DEGRADED' | 'FAILED' | 'EMPTY' | string;
+  jobs?: { public?: Record<string, number>; tenant?: Record<string, number> };
+  total?: number;
+}
+
 export interface PublicTranscriptSegment {
   id: string;
   sequence: number;

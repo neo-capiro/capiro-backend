@@ -12,6 +12,7 @@
  * feed keys so the old app reflects the change (§16).
  */
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { FeedItem, FeedOrder, FeedFilter } from '../../../../pages/clients/tracker/intel-feed-api.js';
@@ -34,11 +35,13 @@ import {
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateEmpty, LwStateUnavailable, LwStateAllClear } from '../states/SystemStates.js';
 import { PacketDrawer } from './PacketDrawer.js';
+import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
 import { useSearchParams } from 'react-router-dom';
 
 type Arrange = 'stream' | 'byClient';
 
 export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [order, setOrder] = useState<FeedOrder>('date');
   const [bucket, setBucket] = useState('default');
@@ -156,14 +159,20 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
     const { band, tone } = packetBand(it);
     const ws = (it.workState?.state ?? 'new') as WorkState;
     const src = it.evidence?.bill?.displayNum ?? it.sourceType.toUpperCase();
+    // LW-QA-003/§12: bounded deep-link (hearingId → official event id →
+    // congress.gov URL). NEVER title fuzzy-match. Legacy rows without any of
+    // those anchors stay on the packet drawer (honest non-linkable).
+    const hearingHref = feedHearingDetailHref(it);
+    const openRow = () => (hearingHref ? navigate(hearingHref) : openDrawer(it));
     return (
       <div
         key={it.id}
         className={`lw-prow${selected.has(it.id) ? ' is-selected' : ''}`}
-        onClick={() => openDrawer(it)}
+        onClick={() => openRow()}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && openDrawer(it)}
+        onKeyDown={(e) => e.key === 'Enter' && openRow()}
+        style={hearingHref ? { cursor: 'pointer' } : undefined}
       >
         <button
           type="button"

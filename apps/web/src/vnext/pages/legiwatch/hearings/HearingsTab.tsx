@@ -441,7 +441,18 @@ export function HearingsTab({ scope }: { scope: string }) {
                           <LwPill tone={KIND_TONE[(e.eventType ?? 'HEARING').toUpperCase()] ?? 'brand'} size="22">
                             {(e.eventType ?? 'HEARING').toUpperCase()}
                           </LwPill>
-                          <span className="lw-lrow__cm">{e.committee?.name ?? ''}</span>
+                          {e.committee?.systemCode ? (
+                            <button
+                              type="button"
+                              className="lw-lrow__cm"
+                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}
+                              onClick={(ev) => { ev.stopPropagation(); navigate(`/legiwatch/committees/${encodeURIComponent(e.committee!.systemCode!)}`); }}
+                            >
+                              {e.committee.name}
+                            </button>
+                          ) : (
+                            <span className="lw-lrow__cm">{e.committee?.name ?? ''}</span>
+                          )}
                         </div>
                         <div className="lw-lrow__title">{e.title}</div>
                         <div className="lw-lrow__match">
@@ -507,7 +518,20 @@ export function HearingsTab({ scope }: { scope: string }) {
                 const rec = s.status === 'failed-recoverable';
                 const done = s.status === 'completed';
                 return (
-                  <div key={s.id} className="lw-hrow">
+                  <div
+                    key={s.id}
+                    className="lw-hrow"
+                    role="button"
+                    tabIndex={0}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => s.hearingId
+                      ? navigate(`/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`)
+                      : navigate(`/intelligence/hearing-watch/${encodeURIComponent(s.id)}`)}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter') { s.hearingId
+                      ? navigate(`/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`)
+                      : navigate(`/intelligence/hearing-watch/${encodeURIComponent(s.id)}`); } }}
+                    aria-label={`Open ${s.title}`}
+                  >
                     <div>
                       <div className="lw-hrow__title">{s.title}</div>
                       <div className="lw-hrow__sub">

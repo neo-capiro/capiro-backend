@@ -138,6 +138,7 @@ export class BillHearingLinkerService {
           billIds: true,
           title: true,
           committeeId: true,
+          hearingId: true,
           startedAt: true,
           endedAt: true,
         },
@@ -246,6 +247,9 @@ export class BillHearingLinkerService {
             },
             hearing: {
               sessionId,
+              // LW-QA-003: canonical hearing id on the wire so feed/detail can
+              // deep-link the canonical hearing route from a combined alert.
+              hearingId: session.hearingId ?? null,
               title: session.title,
               committeeId: session.committeeId,
               occurredAt: occurredAt ? occurredAt.toISOString() : null,
