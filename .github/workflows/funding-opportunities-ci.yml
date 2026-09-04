@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs|test-funding-opportunity-action-concurrency)|apps/api/package\.json|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|diag-tango-dibbs-sbir-ingestion|sync-tango-dibbs|sync-tango-entities|sync-tango-vehicles|test-funding-opportunity-action-concurrency)|apps/api/package\.json|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -2246,9 +2246,33 @@ jobs:
       # introduced here: this diff touches none of intelligence/ or its
       # subject file. Flagged, not fixed — diagnosing why the constant
       # disappeared needs someone who owns that area's recent changes.
+      #
+      # 92/2826 -> 92/2854 for the P49 canary-runbook fix: NO new suite, +28
+      # tests split evenly between sync-tango-entities.spec.ts and
+      # sync-tango-vehicles.spec.ts (14 each). Both scripts gained real
+      # `--tenant`/`--client` scoping, and the tests are weighted at the two
+      # places the defect actually lived:
+      #
+      #  - parseArgs. `--client=<id>` was the P49 runbook's ONLY stated
+      #    containment for steps 5 and 6, and both parsers DISCARDED it without
+      #    a word — the run then walked every tenant and printed a normal-
+      #    looking summary. An unknown flag now throws (exit 2 with usage), and
+      #    that is asserted directly, including the single-dash near-miss and a
+      #    value flag left dangling in front of another flag (`--tenant
+      #    --commit`), which the old `flagValue` would have read as the value,
+      #    and a boolean flag handed a value (`--commit=true`), which the old
+      #    `hasFlag` would have read as a dry run.
+      #  - the `where` clause, through a fake Prisma. The scope IS the where
+      #    clause, so the tests pin all four combinations, and specifically pin
+      #    that an UNSCOPED read is still byte-for-byte the historical
+      #    all-tenant query — a scoping change that quietly narrowed the
+      #    default would be a worse regression than the defect it fixes.
+      #
+      # The two script paths were also missing from the in-scope path filter
+      # above, so a PR touching only them ran none of this. Added there.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 92 2826
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 92 2854
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises

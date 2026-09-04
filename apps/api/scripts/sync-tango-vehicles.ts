@@ -5,6 +5,8 @@
  *   tsx scripts/sync-tango-vehicles.ts               # dry run
  *   tsx scripts/sync-tango-vehicles.ts --commit
  *   tsx scripts/sync-tango-vehicles.ts --commit --limit=20
+ *   tsx scripts/sync-tango-vehicles.ts --tenant=capiro-internal --limit=50
+ *   tsx scripts/sync-tango-vehicles.ts --client=<uuid> --limit=50
  *
  * DRY-RUN BY DEFAULT.
  *
@@ -51,6 +53,19 @@
  * mid-vehicle. Idempotent: re-running never duplicates a snapshot (P15's
  * versioned-head policy) or a relevant-vehicle row (this table's own unique
  * index; the upsert is keyed on it).
+ *
+ * ── Scoping the walk, and what it does NOT bound (P49 canary) ──────────────
+ *
+ * `--tenant=<slug-or-uuid>` and `--client=<uuid>` narrow the known-UEI map
+ * this sync matches against, which narrows what gets WRITTEN — the
+ * `client_relevant_vehicle` rows, and the snapshots taken for a vehicle that
+ * matched.
+ *
+ * It does NOT narrow what gets FETCHED. Per this file's own header, the
+ * provider's vehicle list has no awardee-UEI filter, so the outer walk still
+ * pages the global catalog whatever the scope is. `--limit` is what bounds
+ * the provider-request cost of a run, and it is required separately from
+ * scoping rather than implied by it.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
@@ -66,8 +81,37 @@ dotenvConfig();
 const DEFAULT_LIMIT = 500;
 const AWARDEE_PAGE_SIZE = 100;
 const SYNC_VERB = 'sync-tango-vehicles';
+/** Bad arguments; nothing attempted. Same code the P47 reconciler uses. */
+const EXIT_BAD_ARGS = 2;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
+
+const BOOLEAN_FLAGS = new Set(['commit']);
+const VALUE_FLAGS = new Set(['limit', 'tenant', 'client']);
+
+export const USAGE = [
+  'usage: sync-tango-vehicles [--commit] [--limit=<n>] [--tenant=<slug-or-uuid>] [--client=<uuid>]',
+  '',
+  'DRY RUN by default. --tenant/--client narrow what is WRITTEN; the provider',
+  'catalog is walked globally regardless, so --limit is still required to bound',
+  'the provider-request cost of a run.',
+].join('\n');
+
+/**
+ * A flag this script does not implement.
+ *
+ * Until P49's canary review, both this script and sync-tango-entities.ts
+ * silently DISCARDED an unrecognized flag. The canary runbook told the
+ * operator to run `sync-tango-vehicles --client=<id>` for one reviewed
+ * client; no such flag existed, it was dropped without a word, and the run
+ * wrote for every matching client in every tenant while printing a
+ * normal-looking summary. A CLI that ignores what it does not understand
+ * cannot be used to contain a blast radius, so an unknown flag is now a hard
+ * stop (exit 2) rather than a silent full-catalog run.
+ */
+export class SyncUsageError extends Error {}
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -79,18 +123,71 @@ function flagValue(argv: string[], name: string): string | undefined {
   return i >= 0 && i + 1 < argv.length ? argv[i + 1] : undefined;
 }
 
+/**
+ * Rejects anything dash-prefixed this script does not implement, any value
+ * flag left without a value, and a boolean flag handed a value. Bare
+ * positional words are tolerated:
+ * they are how the space form (`--limit 50`) supplies its value, and a
+ * stray one cannot be mistaken for a control the operator believed in.
+ */
+function assertKnownFlags(argv: string[]): void {
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i]!;
+    if (!token.startsWith('-')) continue;
+    const name = token.startsWith('--') ? token.slice(2).split('=')[0]! : '';
+    if (BOOLEAN_FLAGS.has(name)) {
+      // `--commit=true` would pass as "known" and then be ignored by hasFlag,
+      // which reads only the bare form — a silent dry run when a commit was
+      // meant. Same rule as an unknown flag: say so and stop.
+      if (token.includes('=')) throw new SyncUsageError(`--${name} takes no value`);
+      continue;
+    }
+    if (VALUE_FLAGS.has(name)) {
+      if (token.includes('=')) {
+        if (token.slice(token.indexOf('=') + 1) === '') {
+          throw new SyncUsageError(`missing value for --${name}`);
+        }
+        continue;
+      }
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('-')) {
+        throw new SyncUsageError(`missing value for --${name}`);
+      }
+      i += 1;
+      continue;
+    }
+    throw new SyncUsageError(`unknown flag: ${token}`);
+  }
+}
+
 export interface ParsedArgs {
   commit: boolean;
   limit: number;
+  /** Tenant slug OR uuid, exactly as typed. Resolved to an id in main(). */
+  tenant: string | null;
+  /** Client uuid. Null means every client the tenant filter leaves. */
+  client: string | null;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
+  assertKnownFlags(argv);
   const limitRaw = flagValue(argv, 'limit');
   const parsed = limitRaw != null ? Number(limitRaw) : NaN;
   return {
     commit: hasFlag(argv, 'commit'),
     limit: Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 5000) : DEFAULT_LIMIT,
+    tenant: flagValue(argv, 'tenant') ?? null,
+    client: flagValue(argv, 'client') ?? null,
   };
+}
+
+/**
+ * Which clients this run may write for. Both null is the historical
+ * behaviour: every UEI-having client in every tenant.
+ */
+export interface ClientScope {
+  tenantId: string | null;
+  clientId: string | null;
 }
 
 // ── Injectable dependencies (the testable surface) ──────────────────────────
@@ -268,11 +365,51 @@ function prismaServiceFromClient(client: PrismaClient): PrismaService {
   return client as unknown as PrismaService;
 }
 
-async function loadKnownUeisReal(prisma: PrismaClient): Promise<Map<string, KnownClientRef[]>> {
-  const rows = await prisma.$transaction(async (tx) => {
+async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+  return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-    return tx.client.findMany({ where: { uei: { not: null } }, select: { id: true, tenantId: true, uei: true } });
+    return fn(tx as unknown as PrismaClient);
   });
+}
+
+/**
+ * Resolves `--tenant` to a tenant id, accepting either spelling the runbook
+ * might use: a uuid, or the slug an operator actually knows
+ * (`capiro-internal`). A tenant that does not exist is a usage error, not an
+ * empty walk — "0 rows written" and "you typed the slug wrong" must not look
+ * the same in the summary.
+ */
+export async function resolveTenantId(prisma: PrismaClient, tenant: string): Promise<string> {
+  const row = await withBypass(prisma, (tx) =>
+    tx.tenant.findFirst({
+      where: UUID_RE.test(tenant) ? { id: tenant } : { slug: tenant },
+      select: { id: true },
+    }),
+  );
+  if (!row) throw new SyncUsageError(`tenant not found: ${tenant}`);
+  return row.id;
+}
+
+/**
+ * Exported for the scoping test: the `where` clause is the whole behaviour,
+ * and a fake Prisma proves it without a database.
+ */
+export async function loadKnownUeisReal(
+  prisma: PrismaClient,
+  scope: ClientScope,
+): Promise<Map<string, KnownClientRef[]>> {
+  const rows = await withBypass(prisma, (tx) =>
+    tx.client.findMany({
+      where: {
+        uei: { not: null },
+        // Narrows what this run can WRITE. The provider catalog is still
+        // walked globally — see this file's header.
+        ...(scope.tenantId ? { tenantId: scope.tenantId } : {}),
+        ...(scope.clientId ? { id: scope.clientId } : {}),
+      },
+      select: { id: true, tenantId: true, uei: true },
+    }),
+  );
   const map = new Map<string, KnownClientRef[]>();
   for (const row of rows) {
     const uei = row.uei!;
@@ -322,7 +459,18 @@ function realUpsertRelevantVehicle(prisma: PrismaClient): VehicleSyncDeps['upser
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+  let args: ParsedArgs;
+  try {
+    args = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    if (error instanceof SyncUsageError) {
+      console.error(`TANGO_VEHICLE_SYNC_ERR ${error.message}\n${USAGE}`);
+      process.exitCode = EXIT_BAD_ARGS;
+      return;
+    }
+    throw error;
+  }
+
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
   if (!apiKey) {
     console.error('TANGO_VEHICLE_SYNC_ERR No TANGO_API_KEY configured.');
@@ -333,6 +481,21 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
+    let scope: ClientScope;
+    try {
+      scope = {
+        tenantId: args.tenant ? await resolveTenantId(prisma, args.tenant) : null,
+        clientId: args.client,
+      };
+    } catch (error) {
+      if (error instanceof SyncUsageError) {
+        console.error(`TANGO_VEHICLE_SYNC_ERR ${error.message}\n${USAGE}`);
+        process.exitCode = EXIT_BAD_ARGS;
+        return;
+      }
+      throw error;
+    }
+
     const rawGateway = new TangoGatewayService({
       apiKey,
       baseUrl: process.env.TANGO_API_BASE_URL,
@@ -355,13 +518,18 @@ async function main(): Promise<void> {
       {
         gateway,
         store,
-        loadKnownUeis: () => loadKnownUeisReal(prisma),
+        loadKnownUeis: () => loadKnownUeisReal(prisma, scope),
         upsertRelevantVehicle: realUpsertRelevantVehicle(prisma),
       },
       { commit: args.commit, limit: args.limit },
     );
 
-    console.log(`TANGO_VEHICLE_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit, health: gateway.getHealth() })}`);
+    // `scope` is echoed deliberately: the defect this closes was an operator
+    // believing a run was contained when it was not, and a summary that says
+    // nothing about scope cannot correct that belief.
+    console.log(
+      `TANGO_VEHICLE_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit, scope, health: gateway.getHealth() })}`,
+    );
   } finally {
     await prisma.$disconnect();
   }
