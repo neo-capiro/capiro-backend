@@ -37,6 +37,7 @@ This engine must never:
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -364,6 +365,59 @@ def _nearest_column_index(center_x: float, column_centers: list[float]) -> int:
             best_distance = distance
             best_index = index
     return best_index
+
+
+# ------------------------------------------------------------------ #
+# Funding-column semantics (Phase 10B-23C2)
+# ------------------------------------------------------------------ #
+
+# A funding cell is a token whose text is a dollar figure: digits with
+# thousands separators, an optional decimal, optional surrounding
+# parentheses (negative), or a bare integer amount. Deliberately NOT
+# matched: bare 1-2 digit codes like "07" (budget-activity numbers),
+# "U"/"C" (classification letters), "999999999" style line-number runs
+# without a comma-grouped form, years ("2024"), and "Mar 2023" fragments.
+_FUNDING_VALUE_RE = re.compile(
+    r'^\(?\$?\d{1,3}(,\d{3})+(\.\d+)?\)?$|^\(?\$?\d+\.\d+\)?$'
+)
+
+
+def is_funding_value_text(text: str) -> bool:
+    """True when a token's text can be a dollar amount in these exhibits.
+
+    Groups of 2+ comma-separated digits, or a decimal amount. A bare
+    short integer (the budget-activity "07", a line number "223") does
+    NOT qualify: on the scanned Exhibit R-1 pages the budget-activity
+    column sits immediately left of the value column, and treating it
+    as money silently satisfies "every PE row has a value" when the
+    real FY2024 cell is blank.
+    """
+    if not text:
+        return False
+    stripped = text.strip().replace('$', '')
+    if not _FUNDING_VALUE_RE.fullmatch(stripped):
+        return False
+    digits = stripped.replace(',', '').replace('.', '').strip('()')
+    # Bare integers of 1-3 digits are codes/line numbers here, not
+    # thousands-of-dollars amounts; comma-grouped or decimal amounts
+    # always qualify regardless of magnitude.
+    if ',' not in stripped and '.' not in stripped and len(digits) <= 3:
+        return False
+    return True
+
+
+def find_pe_funding_association(
+    cells: list[dict[str, Any]],
+) -> str | None:
+    """Return the text of the rightmost funding-value cell in a row, or None.
+
+    A row qualifies as a Program-Element funding row only when it carries
+    BOTH a PE code and an actual funding value under this definition.
+    Budget-activity codes and line numbers never satisfy the funding
+    association.
+    """
+    funding = [c['text'] for c in cells if is_funding_value_text(c['text'])]
+    return funding[-1] if funding else None
 
 
 def _bbox_to_v1(x0: float, y0: float, x1: float, y1: float) -> BoundingBoxV1:

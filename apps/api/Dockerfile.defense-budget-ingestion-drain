@@ -105,38 +105,32 @@ RUN chown capiro:capiro \
 # fetch them. Both models are Apache-2.0, matching paddleocr/paddlepaddle
 # themselves (see PR description for the full license/checksum table this
 # qualification produced).
-RUN set -eux; \
-  bake_model() { \
-    url="$1"; dest="$2"; params_sha="$3"; model_sha="$4"; \
-    tmp_dir="$(mktemp -d)"; \
-    curl -fsSL "$url" -o "$tmp_dir/model.tar"; \
-    mkdir -p "$dest"; \
-    tar -xf "$tmp_dir/model.tar" -C "$tmp_dir"; \
-    params_src="$(find "$tmp_dir" -name '*.pdiparams' ! -name '*.pdiparams.info' ! -name '._*' | head -1)"; \
-    model_src="$(find "$tmp_dir" -name '*.pdmodel' ! -name '._*' | head -1)"; \
-    info_src="$(find "$tmp_dir" -name '*.pdiparams.info' ! -name '._*' | head -1)"; \
-    test -n "$params_src" -a -n "$model_src"; \
-    cp "$params_src" "$dest/inference.pdiparams"; \
-    cp "$model_src" "$dest/inference.pdmodel"; \
-    if [ -n "$info_src" ]; then \
-      cp "$info_src" "$dest/inference.pdiparams.info"; \
-    fi; \
-    echo "$params_sha  $dest/inference.pdiparams" | sha256sum -c -; \
-    echo "$model_sha  $dest/inference.pdmodel" | sha256sum -c -; \
-    rm -rf "$tmp_dir"; \
-  }; \
-  bake_model https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_infer.tar \
+# Phase 10B-23C2: model baking moved to scripts/bake_model.sh (fail-closed:
+# archive digest verified before extraction, EXACT-filename model discovery --
+# never `find -name | head -1`, which previously selected an AppleDouble
+# `._inference.pdmodel` -- exactly-one-or-fail candidate counts, and
+# parent-traversal/absolute-path rejection). Arguments per call:
+#   <url> <dest_dir> <archive_sha256> <pdiparams_sha256> <pdmodel_sha256>
+# The archive digests pin the exact bytes downloaded at build time; the
+# pdiparams/pdmodel digests pin what actually lands at maybe_download()'s
+# expected path, so the running container needs no outbound network access.
+COPY apps/api/scripts/bake_model.sh /usr/local/bin/bake_model.sh
+RUN chmod +x /usr/local/bin/bake_model.sh && \
+  bake_model.sh https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_infer.tar \
     /home/capiro/.paddleocr/whl/det/ch/ch_PP-OCRv4_det_infer \
+    5f7217e0a89612e2f80d62f3c99a8bf5f7ae9cdc1ffd706be7dde07765627edf \
     49ee815e30cff43cb1057d33bf0d94193e4d4f1ae28451cad15b40be830df915 \
-    2ad68ed2768fe6c41166a5bc64680cc9f445390acb6528da449a4db2f7b90e14; \
-  bake_model https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar \
+    2ad68ed2768fe6c41166a5bc64680cc9f445390acb6528da449a4db2f7b90e14 && \
+  bake_model.sh https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar \
     /home/capiro/.paddleocr/whl/rec/ch/ch_PP-OCRv4_rec_infer \
+    830ea228e20c2b30c4db9666066c48512f67a63f5b1a32d0d33dc9170040ce7d \
     a6dbfa63e7ee161688523c954e9e293f77dc24044db81e836ff9c7f103fd191a \
-    bf78f3898a004615e69c676259d8171bd7ae99000653b41fd72aaa36ae8bd304; \
-  bake_model https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar \
+    bf78f3898a004615e69c676259d8171bd7ae99000653b41fd72aaa36ae8bd304 && \
+  bake_model.sh https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar \
     /home/capiro/.paddleocr/whl/cls/ch_ppocr_mobile_v2.0_cls_infer \
+    507352585040d035da3b1e6374694ad679a850acb0a36a8d0d47984176357717 \
     d1efda1b80e174b4fcb168a035ac96c1af4938892bd86a55f300a6027105d08c \
-    3c4337ec61722a20b1dca2e5bfaffc313c0592bc89ad6e0d45168224186f6683; \
+    3c4337ec61722a20b1dca2e5bfaffc313c0592bc89ad6e0d45168224186f6683 && \
   chown -R capiro:capiro /home/capiro/.paddleocr
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user

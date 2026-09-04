@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -52,6 +53,8 @@ from capiro_defense_budget_parser.paddleocr_engine import (
     get_default_config,
     process_page_with_paddleocr,
     reconstruct_page_structure,
+    find_pe_funding_association,
+    is_funding_value_text,
     run_paddleocr_engine,
     validate_config,
 )
@@ -860,7 +863,7 @@ class TestEngineIdentity:
         # Every paddleocr CDN model URL the image references must be baked
         # (the bake_model helper's URL argument), and each bake must carry
         # two 64-hex checksums (pdiparams + pdmodel).
-        bake_urls = re.findall(r'bake_model\s+(\S+\.tar)', content)
+        bake_urls = re.findall(r'bake_model(?:\.sh)?\s+(\S+\.tar)', content)
         assert bake_urls, 'no bake_model lines found in ingestion-drain Dockerfile'
 
         expected_urls = {
@@ -874,10 +877,141 @@ class TestEngineIdentity:
             f'missing bakes for: {sorted(expected_urls - set(bake_urls))}'
         )
 
-        # Each bake_model call must be followed by two 64-hex digests (the
-        # URL + dest-dir lines can consume ~200 chars before the digests).
+        # Phase 10B-23C2: each bake_model.sh call must carry THREE 64-hex
+        # digests -- archive, pdiparams, pdmodel -- pinned at build time.
         for url in expected_urls:
             idx = content.index(url)
             tail = content[idx : idx + 600]
             digests = re.findall(r'\b[0-9a-f]{64}\b', tail[:400])
-            assert len(digests) >= 2, f'bake for {url} lacks pdiparams/pdmodel sha256 pair'
+            assert len(digests) >= 3, (
+                f'bake for {url} lacks archive/pdiparams/pdmodel sha256 triple'
+            )
+
+    def test_bake_model_script_failures_are_fail_closed(self):
+        """Phase 10B-23C2: the extracted bake_model.sh must refuse ambiguous
+        archives, traverse-safe extraction, and select models by EXACT
+        filename only (never `find -name '*.pdmodel' | head -1`, which
+        previously selected an AppleDouble `._inference.pdmodel`)."""
+        script = (
+            Path(__file__).resolve().parents[2]
+            / 'api'
+            / 'scripts'
+            / 'bake_model.sh'
+        )
+        if not script.exists():
+            pytest.skip('bake_model.sh not present in this checkout')
+        body = script.read_text(encoding='utf-8')
+        # Archive digest verified BEFORE extraction
+        assert 'archive_sha' in body and 'sha256sum -c -' in body
+        assert body.index('archive_sha') < body.index('tar -xf')
+        # Exact-filename discovery + AppleDouble exclusion + exactly-one
+        assert "-name 'inference.pdiparams'" in body
+        assert "-name '._*'" in body
+        assert '-ne 1' in body  # candidate-count gate
+        # Traversal / absolute-path rejection
+        assert '\.\.' in body
+
+    def test_bake_model_script_rejects_traversal_archive(self, tmp_path: Path):
+        """Live negative control: an archive containing a `../` member must
+        make bake_model.sh exit non-zero without writing model files."""
+        import tarfile
+        import subprocess
+
+        script = (
+            Path(__file__).resolve().parents[2]
+            / 'api'
+            / 'scripts'
+            / 'bake_model.sh'
+        )
+        if not script.exists():
+            pytest.skip('bake_model.sh not present in this checkout')
+        if not shutil.which('sh') and not shutil.which('bash'):
+            pytest.skip('no POSIX shell available')
+
+        evil = tmp_path / 'evil.tar'
+        with tarfile.open(evil, 'w') as tf:
+            import io
+
+            data = b'x' * 32
+            info = tarfile.TarInfo(name='../escaped.pdmodel')
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+
+        dest = tmp_path / 'dest'
+        result = subprocess.run(
+            ['sh', str(script), 'file://' + str(evil), str(dest),
+             '0' * 64, '0' * 64, '0' * 64],
+            capture_output=True, text=True, timeout=60,
+        )
+        assert result.returncode != 0, 'traversal archive must be rejected'
+        assert not (dest / 'inference.pdmodel').exists()
+
+# ------------------------------------------------------------------ #
+# Funding-value semantics (Phase 10B-23C2)
+# ------------------------------------------------------------------ #
+
+
+class TestFundingValueSemantics:
+    """Phase 10B-23C2: a budget-activity code ("07") or line number ("223")
+    must never satisfy the funding-value association. On the scanned
+    Exhibit R-1 pages the BA column sits immediately left of the value
+    column; counting it as money silently reported "every PE row has a
+    numeric value" for rows whose real FY2024 cell is blank (page 37:
+    0305204A / 0305206A / 0307665A -- source-verified blank by pixel scan
+    + visual inspection of the 300dpi render, 2026-09-04).
+    """
+
+    def test_comma_grouped_amounts_are_funding_values(self):
+        assert is_funding_value_text('296,670')
+        assert is_funding_value_text('15,775,381')
+        assert is_funding_value_text('8,786')
+        assert is_funding_value_text('(1,234)')  # negative
+        assert is_funding_value_text('1,234.5')  # decimal
+
+    def test_ba_codes_and_line_numbers_are_not_funding_values(self):
+        assert not is_funding_value_text('07')
+        assert not is_funding_value_text('223')
+        assert not is_funding_value_text('301')
+        assert not is_funding_value_text('2024')
+        assert not is_funding_value_text('U')
+        assert not is_funding_value_text('')
+        assert not is_funding_value_text('999999999')
+
+    def test_ba_code_cannot_satisfy_pe_funding_association(self):
+        # Regression: the exact page-37 row shape that the prior sweep
+        # counter mis-scored. The row's trailing "07" must NOT count as
+        # the PE's funding value.
+        row = [
+            {'text': '223', 'confidence': 0.99},
+            {'text': '0305204A', 'confidence': 0.99},
+            {'text': 'Tactical Unmanned Aerial Vehicles', 'confidence': 0.99},
+            {'text': '07', 'confidence': 0.99},
+            {'text': 'U', 'confidence': 0.99},
+        ]
+        assert find_pe_funding_association(row) is None
+
+    def test_control_row_with_real_value_satisfies_association(self):
+        # Page-37 row 225 (0305219A) does carry 6,629 -- must still pass.
+        row = [
+            {'text': '225', 'confidence': 0.99},
+            {'text': '0305219A', 'confidence': 0.99},
+            {'text': 'MQ-1C Gray Eagle UAS', 'confidence': 0.99},
+            {'text': '07', 'confidence': 0.99},
+            {'text': 'U', 'confidence': 0.99},
+            {'text': '6,629', 'confidence': 0.99},
+        ]
+        assert find_pe_funding_association(row) == '6,629'
+
+    def test_association_returns_rightmost_funding_cell(self):
+        # Multi-column row: FY2023 total then FY2024 request -- the rightmost
+        # funding cell is the one the funding column would carry.
+        row = [
+            {'text': '1', 'confidence': 0.99},
+            {'text': '0601102A', 'confidence': 0.99},
+            {'text': 'Defense Research Sciences', 'confidence': 0.99},
+            {'text': '01', 'confidence': 0.99},
+            {'text': 'U', 'confidence': 0.99},
+            {'text': '283,521', 'confidence': 0.99},
+            {'text': '296,670', 'confidence': 0.99},
+        ]
+        assert find_pe_funding_association(row) == '296,670'
