@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import type { OpportunitySource } from './funding-opportunities.types.js';
@@ -142,58 +143,100 @@ export class FundingOpportunityActionsService {
     // task says one thing and the inbox says another.
     const dueDate = target.responseDeadline ? new Date(target.responseDeadline) : null;
 
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const existingTask = await tx.engagementTask.findFirst({
-        where: { tenantId, sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE, sourceId },
-        select: { id: true, title: true, ownerUserId: true, dueDate: true },
-      });
-
-      const task =
-        existingTask ??
-        (await tx.engagementTask.create({
-          data: {
-            tenantId,
-            clientId,
-            title,
-            description: description || null,
-            ownerUserId: input.ownerUserId ?? null,
-            dueDate,
-            sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE,
-            sourceId,
-            createdByUserId: input.actorUserId,
-          },
+    const write = async (): Promise<OpportunityActionResult> =>
+      this.prisma.withTenant(tenantId, async (tx) => {
+        const existingTask = await tx.engagementTask.findFirst({
+          where: { tenantId, sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE, sourceId },
           select: { id: true, title: true, ownerUserId: true, dueDate: true },
-        }));
+        });
 
-      // Same transaction. If this throws, the task insert above rolls back with
-      // it — which is the entire point of the phase.
-      const saved = await this.opportunities.applyActionDecision(tx, {
-        tenantId,
-        clientId,
-        source,
-        sourceRecordId,
-        actorUserId: input.actorUserId,
-        decision,
-        workflowStatus,
-        ownerUserId: input.ownerUserId,
-        notes: input.notes,
-        nextAction: input.nextAction ?? (input.intent === 'pursuit' ? title : null),
-        nextActionDueAt: dueDate,
-        taskId: task.id,
+        const task =
+          existingTask ??
+          (await tx.engagementTask.create({
+            data: {
+              tenantId,
+              clientId,
+              title,
+              description: description || null,
+              ownerUserId: input.ownerUserId ?? null,
+              dueDate,
+              sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE,
+              sourceId,
+              createdByUserId: input.actorUserId,
+            },
+            select: { id: true, title: true, ownerUserId: true, dueDate: true },
+          }));
+
+        // Same transaction. If this throws, the task insert above rolls back with
+        // it — which is the entire point of the phase.
+        const saved = await this.opportunities.applyActionDecision(tx, {
+          tenantId,
+          clientId,
+          source,
+          sourceRecordId,
+          actorUserId: input.actorUserId,
+          decision,
+          workflowStatus,
+          ownerUserId: input.ownerUserId,
+          notes: input.notes,
+          nextAction: input.nextAction ?? (input.intent === 'pursuit' ? title : null),
+          nextActionDueAt: dueDate,
+          taskId: task.id,
+        });
+
+        return {
+          task: {
+            id: task.id,
+            title: task.title,
+            ownerUserId: task.ownerUserId ?? null,
+            dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+            reused: existingTask != null,
+          },
+          decision,
+          workflowStatus: saved.workflowStatus,
+        };
       });
 
-      return {
-        task: {
-          id: task.id,
-          title: task.title,
-          ownerUserId: task.ownerUserId ?? null,
-          dueDate: task.dueDate ? task.dueDate.toISOString() : null,
-          reused: existingTask != null,
-        },
-        decision,
-        workflowStatus: saved.workflowStatus,
-      };
-    });
+    try {
+      return await write();
+    } catch (error) {
+      // engagement_tasks_tenant_source_uniq is the concurrency backstop — the
+      // SAME pattern client_funding_opportunity's writers already use (see
+      // decide() in funding-opportunities.service.ts): two simultaneous
+      // identical actions can both observe no existing task, and the loser
+      // must return the WINNER's row as `reused: true` rather than leaking a
+      // P2002. PrismaClientExceptionFilter does not special-case P2002 (only
+      // P2023/P2000/P2025/P2024/P2028 are mapped), so an uncaught one would
+      // reach the caller as a raw 500 — precisely the regression this catch
+      // exists to prevent now that the unique index can produce one.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      return this.prisma.withTenant(tenantId, async (tx) => {
+        const winner = await tx.engagementTask.findFirst({
+          where: { tenantId, sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE, sourceId },
+          select: { id: true, title: true, ownerUserId: true, dueDate: true },
+        });
+        // The row that caused the P2002 must exist by now — Postgres blocks a
+        // conflicting INSERT until the winning transaction ends, so by the time
+        // this catch runs the winner has either committed (this find succeeds)
+        // or rolled back (in which case the constraint could not have fired).
+        // Re-throwing the ORIGINAL error on the impossible case, rather than a
+        // new one, matches decide()'s own defensive fallback exactly.
+        if (!winner) throw error;
+        return {
+          task: {
+            id: winner.id,
+            title: winner.title,
+            ownerUserId: winner.ownerUserId ?? null,
+            dueDate: winner.dueDate ? winner.dueDate.toISOString() : null,
+            reused: true,
+          },
+          decision,
+          workflowStatus,
+        };
+      });
+    }
   }
 }
 
