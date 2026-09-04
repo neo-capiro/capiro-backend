@@ -56,6 +56,10 @@ export interface BoardBill {
   /** MP-15 / Gate H phase d: the Clerk user id that tracked this bill. Absent on
    *  the legacy board; null on an intel board row tracked before this shipped. */
   trackedBy?: string | null;
+  /** PR C §15: owning-client attribution from the `_all` tenant roll-up.
+   *  Absent/null on a per-client board. */
+  clientId?: string | null;
+  clientName?: string | null;
 }
 export interface BoardColumn {
   id: BillStage;

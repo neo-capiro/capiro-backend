@@ -46,10 +46,16 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
   const [activeOnly, setActiveOnly] = useState(false);
   const [openBill, setOpenBill] = useState<string | null>(null);
 
-  // Bills board + recommendations are per-client surfaces. With no scope we use
-  // the first visible client — the board has no tenant roll-up (§7.5 the
-  // page-level client selector is the module's single scope control).
-  const clientId = scope || clients[0]?.id || '';
+  // Bills board + recommendations are client-scoped surfaces. PR C / LW-QA-012:
+  // "All clients" (empty scope) must NOT silently read the first client. The
+  // board has a real tenant roll-up contract — the literal `_all` clientId
+  // routes to TrackerBoardService.getTenantBoard (tenant-wide, (clientId,billId)
+  // cursor dedupe, client names attached). Recommendations are compiled FROM a
+  // client's approved watchlist, so there is no tenant-wide recommendation
+  // contract: in `_all` the strip is hidden with an honest notice, and Bill 360
+  // never receives `_all` as if it were a UUID client.
+  const isAllScope = !scope;
+  const clientId = isAllScope ? '_all' : scope;
 
   const boardFilters = useMemo(
     () => ({
@@ -80,7 +86,10 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
     queryKey: trackerKeys.recommendations(clientId),
     queryFn: async () =>
       adaptRecs((await api.get<IntelRec[]>(intelTrackerPaths.recommendations(clientId))).data),
-    enabled: Boolean(clientId),
+    // PR C §15: recommendations compile from ONE client's approved watchlist —
+    // there is no tenant-wide recommendation contract, so `_all` must not call
+    // a per-client recommendations endpoint with the literal `_all`.
+    enabled: Boolean(clientId) && !isAllScope,
     retry: false,
     staleTime: 30_000,
   });
@@ -157,8 +166,16 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
 
   return (
     <div className="lw-body">
-      {/* Recommended for your portfolio — up to three untracked matches */}
-      {topRecs.length > 0 ? (
+      {/* Recommended for your portfolio — up to three untracked matches.
+          PR C §15: hidden in the All-clients scope (no tenant-wide
+          recommendation contract) with an honest pointer to a client scope. */}
+      {isAllScope ? (
+        <div className="lw-card" style={{ padding: '10px 18px' }} aria-label="Recommendations unavailable in all-clients scope">
+          <span style={{ fontSize: 13, color: 'var(--lw-meta)' }}>
+            Recommendations are tailored per client. Select a client to see tailored recommendations.
+          </span>
+        </div>
+      ) : topRecs.length > 0 ? (
         <section className="lw-card" aria-label="Recommended bills">
           <div className="lw-card__head">
             <h2 className="lw-card__title">Recommended for your portfolio</h2>
@@ -273,11 +290,12 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
                     bills.map((b) => {
                       const terminal = b.canonicalStatus === 'enacted' || b.canonicalStatus === 'failed' || b.terminalRisk;
                       return (
-                        <button key={b.billId} type="button" className="lw-bcard" onClick={() => setOpenBill(b.billId)}>
+                        <button key={`${b.clientId ?? 'own'}-${b.billId}`} type="button" className="lw-bcard" onClick={() => setOpenBill(b.billId)}>
                           <div className="lw-bcard__id">{b.displayNum}</div>
                           <div className="lw-bcard__title">{b.title}</div>
                           <div className="lw-bcard__meta">
                             <span>{b.jurisdiction && b.jurisdiction !== 'US' ? b.jurisdiction : 'Federal'}</span>
+                            {isAllScope && b.clientName ? <span>{b.clientName}</span> : null}
                             {terminal ? (
                               <LwPill tone={b.canonicalStatus === 'enacted' ? 'success' : 'error'} size="22">
                                 {(b.canonicalStatus ?? 'TERMINAL').toUpperCase()}
@@ -316,11 +334,11 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
                   sortBills(col.bills).map((b) => {
                     const terminal = b.canonicalStatus === 'enacted' || b.canonicalStatus === 'failed' || b.terminalRisk;
                     return (
-                      <tr key={b.billId} style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }} onClick={() => setOpenBill(b.billId)}>
+                      <tr key={`${b.clientId ?? 'own'}-${b.billId}`} style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }} onClick={() => setOpenBill(b.billId)}>
                         <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12, fontWeight: 600 }}>{b.displayNum}</td>
                         <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>{b.title}</td>
                         <td style={{ padding: '12px 18px' }}><LwPill tone="brand" size="22">{col.label}</LwPill></td>
-                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{b.jurisdiction ?? 'US'}</td>
+                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{isAllScope && b.clientName ? b.clientName : b.jurisdiction ?? 'US'}</td>
                         <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
                           {terminal ? (b.canonicalStatus ?? 'TERMINAL').toUpperCase() : `${Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%`}
                         </td>
@@ -337,7 +355,11 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
       {openBill ? (
         <Bill360Drawer
           billId={openBill}
-          clientId={clientId}
+          // PR C §15: `_all` is NOT a client — the global Bill 360 dossier route
+          // is the general view (clientId=null → /intel-api/bills/:id/dossier),
+          // and the per-client hearings interlink stays off (it would silently
+          // return zero rows). A specific client still gets the client overlay.
+          clientId={isAllScope ? '' : clientId}
           onClose={() => setOpenBill(null)}
           onOpenFull={() => navigate(`/bills/${encodeURIComponent(openBill)}`)}
         />
