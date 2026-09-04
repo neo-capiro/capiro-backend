@@ -2862,3 +2862,312 @@ separate product decision.
 `client-opportunity-profile.builder.ts`/`.types.ts`, or to the DIBBS/SBIR ingestion scripts themselves.
 No schedule enabled, no flag flipped, no deploy to `capiro-dev` — this entry covers the code only; the
 operator steps (enabling the SBIR flag, and later the schedule chain) are separate, tracked actions.
+
+---
+
+## D-80 · 2026-09-03 · No DIBBS tenant flag — master-flag-only gating is a deliberate, recorded exception to D-07
+
+**Decided by Neo on 2026-08-14. Recorded here 2026-09-03**, three weeks late, because nothing between
+`aebec3b32` and today touched this directory and the decision existed only in conversation.
+
+`independent-review/band-a-flag-guard.md` F-1/F-2 (HIGH) found that the DIBBS inbox rail introduced by
+P41 part 2 has **no capability flag at any layer** — `funding_opportunities_dibbs` returns zero matches
+repo-wide, in `apps/api` and `apps/web` alike. The review reads this as a literal violation of **D-07**,
+which requires every tenant-visible capability to carry its own flag, and it is right that it is one.
+
+**Decision: do not add the flag. DIBBS is gated by the master `funding_opportunities` flag only, on
+`os.capiro.ai`, and that is accepted.** The rationale is that DIBBS is not a separable product surface
+in the way D-07 was written to protect — it is one more rail inside a feature that is already gated as
+a whole, and a per-rail flag would imply a per-rail rollout that nobody intends to run. Adding a flag
+whose only value is ever "the same as the master flag" is a second thing to keep in sync and a second
+thing to get wrong.
+
+**This is an exception, not a repeal.** D-07 stands for every other capability in this program. The
+point of writing it down is that the *next* reader — human or agent — will otherwise find F-1/F-2 in
+the findings queue, see an unflagged tenant-visible rail, and either "fix" it unasked or cite it as
+precedent for shipping the next rail unflagged. Neither is wanted.
+
+**What this decision does NOT cover, stated so it is not read as wider than it is:**
+
+- **SBIR's flag is a different problem and is not resolved by this entry.** `funding_opportunities_sbir`
+  exists in `apps/web` only and is, per flag-guard **F-4**, the sole tenant-visible capability flag in
+  the entire repository enforced only by JavaScript in the reader's browser. That is a flag that exists
+  and is enforced in the wrong place — not a flag deliberately omitted. It remains open.
+- **The forecast rail's ungated inbox (flag-guard F-5) is also untouched by this.**
+  `funding_opportunities_forecasts` guards the forecast *detail* route but does not filter forecast rows
+  out of the inbox JSON. See **D-83**.
+
+**Consequence, accepted:** any tenant holding the master `funding_opportunities` flag can see the DIBBS
+rail, and there is no per-tenant off switch short of turning the whole feature off for them. P41's
+`FAIL` verdict in `completion-matrix.md` is annotated with this decision rather than overwritten, per
+that file's own rule that a `FAIL` is never overwritten.
+
+---
+
+## D-81 · 2026-09-03 · Design-partner acceptance is explicitly DEFERRED — not met, not dropped; P51 cannot close on it
+
+**Decided by Neo on 2026-08-14. Recorded here 2026-09-03.**
+
+`independent-review/band-a-p51-ga-closeout.md` **F-08** found that the string "design partner" /
+"design-partner" appears in this program's **entire document corpus exactly once** — in P51's own Deploy
+cell, as one of three GA conditions. No named client, no acceptance artifact, no named authority.
+`docs/product/funding-opportunities.md`, which is P51's own deliverable, contains zero occurrences of
+"GA", "general availability", "acceptance" or "criteri*". As written, the criterion was **unfalsifiable
+in both directions** — nobody could pass it and nobody could fail it. Worse, the two summary tables in
+`completion-matrix.md` each named only *two* of P51's three conditions, silently dropping this one, so
+it had **no owner** because it appeared in neither table that assigns owners.
+
+**Decision: the criterion stays, and it is explicitly DEFERRED.** Not met, not waived, not deleted.
+
+The two alternatives were both rejected on the same ground. **Dropping it** would let P51 close on
+P49 + P50 alone, which quietly lowers the GA bar by removing the only criterion that asks whether a
+real customer found the thing usable — the program would declare GA having never put the feature in
+front of anyone outside Capiro. **Defining it now** — naming a client, an artifact and an authority
+today — would manufacture a gate to satisfy a document rather than because a design partner engagement
+actually exists. It does not. Inventing one and then passing it is the same failure mode as a canary
+that prints PASS.
+
+**Definition of done, for whenever it is picked up:** a **named client tenant** signs off on a **named
+artifact** — the obvious candidate is a completed copy of the canary runbook's Acceptance checklist run
+against their own tenant — granted by a **named person**, recorded as a committed handoff in this
+directory. Owner: **Neo**. Until all four of those exist, this is deferred, and deferred is a state, not
+a pass.
+
+**Consequence: P51 cannot close.** GA remains blocked on (a) P49's canary actually running — it never
+has, and its four P0 runbook defects are unchanged since 2026-08-08 — and (b) this. The GA gate is now
+stated identically in all three places it appears (P51's Deploy cell and both summary tables), which
+closes F-12 as well. Note that applying the documentation fixes does **not** lift
+`P51_GA_CLOSEOUT_REJECTED`; only a re-review does.
+
+---
+
+## D-82 · 2026-09-03 · P44/P45 budget and risk context are code-complete, tested, wired — and permanently data-blocked. The flags stay OFF.
+
+**Recorded 2026-09-03.** This has been true since the phases merged and has never been written down,
+which is exactly how a permanently empty panel gets switched on by someone reading the matrix and
+seeing two `merged` rows with tests behind them.
+
+**P44 (budget context) and P45 (protest / exclusion risk context) are genuinely finished as code.** They
+have tests, the UI is wired, and `independent-review/band-a-flag-guard.md` reviewed the guard file P45
+last touched and found it **well built and fail-closed on all three paths**. Nothing about the
+implementation is wrong.
+
+**They have no data, and no path to any.** All four backing tables are at **0 rows**:
+
+- `tango_budget_account`
+- `tango_budget_vendor_flow`
+- `tango_procurement_protest`
+- `tango_entity_exclusion`
+
+And the reason is not "the sync has not been scheduled yet" — **there is no ingestion path for these
+four tables anywhere in the codebase.** No sync script, no producer, no CDK job definition, not even one
+shipped `enabled: false`. Nothing was ever built to populate them. This is a different and more final
+state than the forecast rail's (D-83), where the sync exists and simply has never been run.
+
+**Decision: the P44 and P45 flags stay OFF, indefinitely, and turning them on requires building
+ingestion first — not a flag flip.**
+
+**Rationale, and it is the same one this program has now applied three times:** *a permanently empty
+panel in front of an analyst is worse than not shipping.* An empty panel does not read as "Capiro holds
+no data here" — it reads as "Capiro looked and this client has no protests, no exclusions and no budget
+exposure," which is a **false substantive claim** about the client, made silently, by a surface the
+analyst has been told is wired. The same reasoning drives P30's explicit `not_entitled`/`pending`
+statuses and P33's separation of `not_wired` from `empty`.
+
+**Honest caveat about the evidence for these two phases:** P44 and P45 are also two of the **nine phases
+that no band review covered**, and their only recorded check is the informal, chat-style pass in
+`HANDOFF-2026-08-19-closeout.md` §2, which that document itself flags as not meeting the verdict
+convention. A formal review wave is running now. **This entry is a decision about the flags, not a
+verdict about the code** — do not read it as either.
+
+---
+
+## D-83 · 2026-09-03 · The agency-forecast capability was flag-on for seven tenants against a table that has never held a row
+
+**The most uncomfortable finding of this round, because everything that was built works and none of it
+can do anything.** The capability was rigorously audited for the first time on 2026-09-03.
+
+**What was true before this entry:**
+
+- **The flag was genuinely ON.** `funding_opportunities_forecasts` was `enabled=true` for
+  **capiro-internal** (since 2026-08-07) and **six real client tenants** — c2-strategies, dualsight,
+  maven, prospering-solutions, revere, victory-six-advisors (since 2026-08-24). Verified directly
+  against `intel_feature_flag`.
+- **The table has never held a row.** `tango_procurement_forecast` = **0 rows**.
+  `tango_sync_checkpoint` for forecast = **0 rows** — no checkpoint at all, which means the sync has
+  never even been *attempted*, let alone failed. `client_funding_opportunity` WHERE
+  `source='agency_forecast'` = **0 rows**.
+- **The sync ships disabled by design and there is no drift.** `infra/cdk/lib/ingestion-schedule.ts`
+  declares `SyncTangoForecasts` with `enabled: false` and the comment "this job populates the table, it
+  surfaces nothing." `aws events list-rules` on `capiro-dev`/`us-east-1` returns **zero** forecast
+  rules. P24's dev-time proof run committed 10 rows with `errored: 0`, so the script demonstrably
+  works; that data is gone and it has never been scheduled since.
+- **No producer was ever built.** This is the substantive gap. **D-47** and **D-79** both cite forecast
+  as the architectural *precedent* that DIBBS and SBIR followed for the producer-only pattern — but
+  forecast itself never received even the producer half those two later got. There is no
+  `generate-forecast-opportunity-candidates` equivalent, so the Triage Inbox filter could not populate
+  even if the sync ran tomorrow.
+- **Net effect on real users:** seven tenants saw a "Forecasts" filter that was guaranteed empty, plus
+  two market-wide surfaces (Federal Spending and District Nexus "Forecasts" tabs) correctly wired to a
+  table with nothing in it.
+
+**What is NOT broken, proven by execution rather than by reading** — this matters because it changes the
+cost of the decision: 79 existing tests plus 7 new ad hoc tests were run against a worktree confirmed
+byte-identical to `origin/main`. The historical normalization bug was real and **is fixed** — the
+pre-fix duplicate normalizer provably never matched `'DEFENSE HEALTH AGENCY (DHA)'` to
+`'Defense Health Agency'`; `d78df4f9e` deleted the duplicate, imported the canonical `normAgency` and
+added a `DOD → 'department of defense'` entry, and both cases now resolve end to end. All 1,536 input
+combinations were swept and `machineRecommendation` never leaks `'pursue'`. **The G1 floor-function bug
+class cannot occur here** — `forecast-relevance.ts` has no numeric score and no floor at all, it is a
+purely categorical rule table; do not go looking for the shared-floor bug on this rail.
+
+**Honest caveat, stated because this program's convention demands it: none of that has ever run against
+a real forecast record, because none exist. It is verified-correct logic, not verified-correct
+behaviour.**
+
+**Decision: Option A — turn the flag off for the six client tenants, keep it on for capiro-internal.**
+Option B (enable the sync, then build the producer, then revisit the P27 lifecycle crosswalk) is
+**deferred, not rejected** — the work is real and specified in
+`MASTER-REMEDIATION-PLAN-2026-09-03.md` §4.4, and it is simply not funded now. Rationale matches the
+D-82 precedent exactly: a permanently empty panel in front of an analyst is worse than not shipping,
+and it is worse *specifically* because an empty forecast filter reads as "no agency has forecast
+anything relevant to you" rather than "Capiro has never ingested this dataset."
+
+**Two verification gotchas worth recording, because both produce a confidently wrong answer:**
+
+1. **A naive read of `intel_feature_flag` comes back empty and looks exactly like "the flag is off."**
+   RLS must be bypassed correctly inside a single transaction to see the real rows. Anyone re-checking
+   this and concluding "flag is off" has probably hit that trap rather than observed the fix.
+2. **Do not accept an exit-0 sync run as proof of anything**, per this program's most-repeated finding.
+   If Option B is ever taken up, the proof is a non-zero row count in `tango_procurement_forecast`
+   **and** a non-zero count in `client_funding_opportunity` WHERE `source='agency_forecast'` **and** a
+   real forecast record visible in the Triage Inbox.
+
+**What proves Option A worked:** sign in to `os.capiro.ai` as one of the six affected tenants and
+confirm the Forecasts filter is **gone, not empty**.
+
+**Execution status: the flag was turned OFF for the six client tenants on 2026-09-03 and deliberately
+left ON for capiro-internal, so development retains the surface.** *(If that flip did not in fact
+execute, amend this one sentence — the decision above stands either way, and the flip becomes an open
+action rather than a completed one. Re-check with an RLS-bypassing read per gotcha 1 before amending in
+either direction.)*
+
+---
+
+## D-84 · 2026-09-03 · District Nexus and Funding Opportunities resolve client↔UEI identity two different ways — accepted as a documented divergence
+
+**Recorded 2026-09-03. No code change is being made now.**
+
+Two producers in this repository answer "which federal award history belongs to this client?" by two
+entirely separate mechanisms, and they can legitimately disagree about the same (client, grant) pair.
+
+**Funding Opportunities** — `generate-funding-grant-candidates.ts` and its `-dibbs-`, `-sam-` and
+`-sbir-` siblings — all share `readClientProfileFactsMany` → `ClientProfileFacts.uei`, reading the
+client's own `Client.uei` column (`apps/api/prisma/schema.prisma`, `Client.uei String? @db.VarChar(12)`).
+That is the shared **P02** identity path, via `award-history-identity.ts` and
+`client-opportunity-profile.builder.ts`.
+
+**District Nexus** — `generate-grant-opportunity-candidates.ts` — never touches `Client.uei` at all. It
+pulls UEI-shaped strings out of `clientIntelMapping` rows (`source = 'assistance_recipient'`, field
+`externalId`), validates them with its own local `isUeiShaped()` regex, then joins
+`federal_assistance_award.recipient_uei` with a **name-match fallback**.
+
+**This is not a duplicate-write conflict.** Separate tables, separate feature flags (`district_nexus_v2`
+vs `funding_opportunities`). Nothing corrupts anything. It is an **accuracy inconsistency**: the two
+features can show different scores, and different award histories, for the same client and the same
+grant — and a user who looks at both will be right to think one of them is wrong.
+
+**Decision: accept it as a documented divergence rather than fix it now, and migrate District Nexus onto
+the shared path opportunistically.** The shared module already exists, so the migration is mechanical;
+the reason not to do it today is that it changes District Nexus's scoring output for real tenants, which
+makes it a change needing its own review and its own before/after measurement — not a drive-by edit
+inside a Funding Opportunities task. **If and when someone touches
+`generate-grant-opportunity-candidates.ts` for any other reason, move it onto
+`Client.uei` / `award-history-identity.ts` at the same time.**
+
+**Note the direction of the inconsistency, because it is not symmetric.** District Nexus's name-match
+fallback is the same OR'd UEI/name predicate that **P02 deliberately removed** from Funding
+Opportunities, on the ground that a reviewed name acts as an equal-strength identifier when it is not
+one. `completion-matrix.md`'s "Out-of-scope observations" section already lists four other files
+carrying that predicate. So this is not two equally-defensible designs — it is one rail that was fixed
+and one that was not yet.
+
+---
+
+## D-85 · 2026-09-03 · Findings from this round that are NOT decisions, recorded so they are not re-derived
+
+**This entry deliberately decides nothing.** It exists because three findings from 2026-09-03 cost real
+effort to establish, are not obvious from any dashboard, and would otherwise have to be rediscovered.
+The full treatment of each is in `MASTER-REMEDIATION-PLAN-2026-09-03.md`; this is the index.
+
+**1. All grants ingestion was silently dead for 5–6 days, and every dashboard read healthy.**
+`capiro-dev-api-sync-jobs:20`'s image had been garbage-collected from ECR, so every scheduled run failed
+with `CannotPullContainerError` before the application started. Throughout the outage (2026-08-28/29 to
+2026-09-03) **CloudWatch reported `Invocations=1/day, FailedInvocations=0`** — because a container that
+cannot pull its image never runs far enough to emit a failure signal. Repaired on 2026-09-03: `:21`
+registered against a confirmed-good digest, 11 EventBridge rules retargeted, each proven by a real smoke
+run with real row counts (`sync-grants` 1,598 upserted / 87 expired / 0 errors; `enrich-grant-details`
+300 enriched; `generate-funding-grant-candidates` 164,428 pairs evaluated).
+
+- **This is the fifth recurrence of ECR pruning breaking live task definitions in this program**, and the
+  **sixth** independent confirmation of its single most-repeated finding: *a no-op run reads identical to
+  a healthy one.* The root cause is unchanged — a `keep last 5 images, any tag` lifecycle policy on a
+  `capiro/dev/api` repository shared by many unrelated teams.
+- **The observability gap this proves is the cheapest high-value fix available**: nothing alarms on
+  `CannotPullContainerError`, which lives only in the ECS task's `stoppedReason`. **0 of the 8 alarms
+  rollout §33 requires exist.**
+- **`capiro-dev-api-migrate:95` is still broken the same way** (tag `45a8c6db78…`, pruned) and was
+  deliberately left alone: **23 of 27 EventBridge rules across unrelated programs target that family.**
+  Do not repair it as a side effect of Funding Opportunities work.
+- **Do not fix any of this with a plain `docker build`** — it produces amd64 on this machine and ECS
+  refuses it. ARM64 `buildx` is mandatory.
+
+**2. Two opposite-direction grant-matching defects, both proven live, both unfixed and both awaiting
+Neo's explicit go-ahead.** They are covered in full in the master plan's §2.3 / STEP 2 and are to ship
+**together as one PR** — they touch the same scoring path and the same clients, and shipping one
+direction without its counterweight is worse than shipping neither.
+
+- **G1 — the producer structurally refuses good matches.**
+  `apps/api/scripts/generate-funding-grant-candidates.ts:295-298` inlines an incomplete relevance floor,
+  dropping the grant-specific third arm of the shared `meetsGrantSuggestionFloor`
+  (`capabilityKeyword` plus one distinctive weak topical signal), and line 46 pins
+  `DEFAULT_MIN_RELEVANCE` to the ~29 assistance-listing floor where the sibling District Nexus producer
+  was moved to 15 by PR #1146. **Proven live: 164,428 real (client, grant) pairs across 101 real clients
+  evaluated → 4 candidates created.** A real DOE grant ("Grid Resilience and Innovation Partnerships")
+  against a real client whose stated capability is literally "grid resilience" scores 25 with
+  `meetsSuggestionFloor: true` through the on-demand scorer and is refused by the producer.
+  **Neither of the two edits alone changes the outcome** — this was measured, not assumed. This bug
+  class was already found and fixed everywhere else by PR #1146 across 14 files, and missed in this one.
+- **G2 — the scorer manufactures bad matches.**
+  `apps/api/src/district-nexus/grant-opportunity-relevance.ts:193-197`'s `normalizeListing` does
+  `(value ?? '').replace(/[^0-9.]/g, '')`, stripping letter suffixes, so `93.00R`, `93.00E`, `93.00F`,
+  `93.00G`, `93.00J` and `93.00K` — genuinely different federal assistance listings — all normalize to
+  `93.00` and register as an **exact-match `assistanceListing` strong signal**, the highest-weight
+  signal in `RELEVANCE_WEIGHTS`. `93.00R` has 75 real award rows behind it; a false hit there scores 29
+  with `meetsSuggestionFloor: true`, clearing the floor on its own. The docblock's premise that
+  "Assistance Listings are `NN.NNN`" is the false claim the bug rests on.
+
+**Why these need a human decision rather than an agent's judgement:** they change what recommendations
+real clients see, in both directions at once. G1's fix makes the system **much louder**; G2's fix makes
+some currently-confident matches **correctly disappear**, which reads as a regression without this
+context.
+
+**3. The SAM.gov API key has returned HTTP 401 since 2026-07-30 — 36+ consecutive days.** Last real
+success: `sync-sam-opportunities-all-federal` 2026-07-29 12:53:27 (192 rows), DoD variant 2026-07-29
+07:51:07 (59 rows). Every run since fails in ~1s with
+`SAM.gov 401: unauthorized (non-JSON body). Check SAM_GOV_API_KEY is present, active, and entitled for
+opportunities/v2/search.` The secret `capiro/dev/sam-gov-api-key` has `LastChangedDate` 2026-04-29 and
+has never been rotated; SAM.gov invalidated it externally at roughly 90 days, so **assume that cadence
+recurs and set a rotation reminder.**
+
+- **This is the highest real-world-impact open item in this program**, and it is not a Funding
+  Opportunities-rail issue at all — it freezes the already-GA'd SAM.gov rail that every client uses, and
+  it is why the live banner reads "current to Jul 29."
+- **It cannot be fixed from AWS**, and generating a new key is a credential-issuing action that must be
+  performed by the SAM.gov portal account owner, **not by an agent**.
+- A related but separate defect *was* fixed on 2026-09-03: both SAM.gov sync rules had been pointed at a
+  pruned `capiro-dev-api-migrate:68` image and were failing to start silently. They now run and log the
+  real 401 instead of failing invisibly — which is why this finding is legible at all.
+- **When a new key is installed, prove it with a real run showing non-zero `rows_inserted` and a live
+  banner that advances past Jul 29. Do not accept "the task exited 0"** — per finding 1, a no-op exits 0
+  too.
