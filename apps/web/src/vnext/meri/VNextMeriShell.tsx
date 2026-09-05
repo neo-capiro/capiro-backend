@@ -289,7 +289,6 @@ export function VNextMeriShell({
                 controller={controller}
                 historyError={historyError}
                 onRetryHistory={onRetryHistory}
-                onNewChat={handleNewChat}
                 onArchiveThread={onArchiveThread}
                 onRenameThread={onRenameThread}
                 onRestoreThread={onRestoreThread}

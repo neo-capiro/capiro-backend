@@ -612,12 +612,15 @@ flex: 0 0 auto;
   overflow: hidden;
 }
 
+/* v6 prototype: no in-rail New thread button (top bar's + owns it), so the
+   top row only carries the collapse toggle, pushed right. */
 .capiro-vnext-root .vnext-meri__rail-left-top {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  padding: 18px 20px 14px;
+  padding: 12px 14px 6px;
 }
 
 /* Thread-rail collapse / expand — handoff §"Three-column collapse rules" #2
@@ -687,18 +690,18 @@ flex: 1;
 }
 
 .capiro-vnext-root .vnext-meri__section-label {
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  color: var(--meri-text-muted);
+  font-family: var(--meri-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #667085;
 }
 
 .capiro-vnext-root .vnext-meri__section-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0 10px;
+  padding: 0 6px 8px;
 }
 
 .capiro-vnext-root .vnext-meri__section-label-link {
@@ -814,7 +817,6 @@ flex: 1;
 }
 
 .capiro-vnext-root .vnext-meri__saved-prompt-row:hover .vnext-meri__saved-prompt-delete,
-.capiro-vnext-root .vnext-meri__workspace-row:hover .vnext-meri__saved-prompt-delete,
 .capiro-vnext-root .vnext-meri__saved-prompt-delete:focus-visible {
   opacity: 1;
 }
@@ -872,19 +874,22 @@ flex: 1;
 
 .capiro-vnext-root .vnext-meri__workspace-item {
   display: flex;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  width: auto;
   align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: 9px;
+  gap: 9px;
+  padding: 7px 6px 7px 8px;
+  border-radius: 8px;
   border: 0;
   background: transparent;
   cursor: pointer;
   transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
+.capiro-vnext-root .vnext-meri__workspace-row:hover .vnext-meri__workspace-item,
 .capiro-vnext-root .vnext-meri__workspace-item:hover {
-  background: var(--meri-surface-2);
+  background: transparent;
 }
 
 .capiro-vnext-root .vnext-meri__workspace-tile {
@@ -892,11 +897,11 @@ flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: var(--meri-accent-soft);
-  color: var(--meri-accent);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  color: #98a2b3;
   font-size: 13px;
 }
 
@@ -905,24 +910,52 @@ flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
 }
 
 .capiro-vnext-root .vnext-meri__workspace-name {
   font-size: 13px;
   font-weight: 500;
   line-height: 18px;
-  color: var(--meri-ink);
+  color: #344054;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .capiro-vnext-root .vnext-meri__workspace-kind {
-  font-family: var(--meri-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-muted);
+  font-family: var(--meri-font-sans);
+  font-size: 11.5px;
+  letter-spacing: 0;
+  color: #98a2b3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* v6 prototype: the workspace delete affordance is a Trash01 icon button on
+   the row's right edge (was an XClose shared with the removed saved-prompts
+   section). */
+.capiro-vnext-root .vnext-meri__workspace-delete {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #98a2b3;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-delete:hover {
+  background: #fef3f2;
+  color: #b42318;
 }
 
 /* ── Main conversation column ────────────────────────────────────────── */
@@ -4695,9 +4728,9 @@ width: 30px;
   display: flex;
   width: 100%;
   align-items: flex-start;
-  gap: 10px;
-  padding: 11px 12px;
-  border-radius: 9px;
+  gap: 0;
+  padding: 0;
+  border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
@@ -4716,35 +4749,24 @@ width: 30px;
   min-width: 0;
   display: flex;
   gap: 10px;
+  padding: 9px 4px 9px 9px;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
 }
 
-.capiro-vnext-root .vnext-meri__thread-item-icon {
+.capiro-vnext-root .vnext-meri__row-menu-btn {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  border: 1px solid #D0D5DD;
-  background: transparent;
-  color: var(--meri-text-muted);
-  margin-top: 1px;
-  font-size: 11px;
-}
-
-.capiro-vnext-root .vnext-meri__row-menu-btn {
-  flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
+  margin: 7px 5px 0 0;
   border: 0;
   border-radius: 6px;
   background: transparent;
-  opacity: 0;
   cursor: pointer;
 }
 
@@ -4754,15 +4776,19 @@ width: 30px;
   opacity: 1;
 }
 
+.capiro-vnext-root .vnext-meri__row-menu-btn:hover {
+  background: #eaecf0;
+}
+
 .capiro-vnext-root .vnext-meri__row-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 8px;
-  width: 200px;
-  padding: 6px;
+  width: 168px;
+  padding: 5px;
   border-radius: 10px;
   background: #ffffff;
-  box-shadow: 0 0 0 1px #EAECF0, 0px 12px 16px -4px rgba(16, 24, 40, 0.1);
+  box-shadow: 0 0 0 1px #e4e7ec, 0px 12px 16px -4px rgba(16, 24, 40, 0.1);
   z-index: 45;
 }
 
