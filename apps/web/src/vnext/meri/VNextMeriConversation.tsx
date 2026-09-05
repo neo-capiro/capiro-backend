@@ -157,15 +157,6 @@ export function VNextMeriConversation({
     ) ?? '';
   const researching = Boolean(controller.isStreaming || controller.researchAwaitingAnswers);
   const approval = controller.pendingApprovals.length > 0 && !controller.isStreaming;
-  const modeLabel = approval
-    ? 'APPROVAL'
-    : researching
-      ? controller.researchAwaitingAnswers
-        ? 'CLARIFYING'
-        : 'RESEARCHING'
-      : hasThread
-        ? 'STANDARD'
-        : 'NEW';
   const canvasMode = researching || approval ? 'busy' : hasThread ? 'standard' : 'empty';
   const kindIcon = threadKindIcon({
     isNew: !hasThread,
@@ -252,17 +243,6 @@ export function VNextMeriConversation({
                 </>
               )}
             </div>
-            <span className={`vnext-meri__mode-pill is-${modeLabel.toLowerCase()}`}>
-              <span
-                className={`vnext-meri__mode-pill-dot${
-                  modeLabel === 'RESEARCHING' ? ' is-researching' : modeLabel === 'APPROVAL' ? ' is-approval' : ''
-                }`}
-              />
-              <span className="vnext-meri__mode-pill-label">{modeLabel}</span>
-            </span>
-            {activeConversationId ? (
-              <VNextMeriReasoningControl conversationId={activeConversationId} />
-            ) : null}
             <button
               type="button"
               className="vnext-meri__thread-action"

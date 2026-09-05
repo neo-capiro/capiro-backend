@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { MeriIcon } from './meri-icons.js';
-import type { MeriContextPacket } from './meri-vnext-api.js';
+import { MeriIcon, type MeriIconName } from './meri-icons.js';
+import type { MeriContextPacket, MeriContextPacketItem } from './meri-vnext-api.js';
 
 interface MeriContextSheetProps {
   open: boolean;
@@ -53,10 +53,34 @@ export function readableDegradedReasons(raw: string): string[] {
   return codeListItems(raw) ?? [raw];
 }
 
+const CONTEXT_ITEM_ICONS: Record<string, MeriIconName> = {
+  client_record: 'Building01',
+  program_element: 'Coins01',
+  public_document: 'File04',
+  memory: 'Scales02',
+  matter: 'ClockRewind',
+};
+
+function contextItemIcon(item: MeriContextPacketItem): MeriIconName {
+  const key = item.type.toLowerCase().replace(/\s+/g, '_');
+  return CONTEXT_ITEM_ICONS[key] ?? 'File04';
+}
+
+function exclusionIcon(reason: string): MeriIconName {
+  const lower = reason.toLowerCase();
+  if (lower.includes('permission') || lower.includes('denied')) return 'Lock01';
+  if (lower.includes('scope')) return 'SlashCircle01';
+  return 'AlertCircle';
+}
+
 /**
- * Read-only context inspector for a durable conversation packet. Context is
- * compiled server-side; this sheet never pretends a browser toggle can change
- * what the next model turn receives.
+ * "Behind the answer" · CONTEXT — a right-side sliding Sheet (v6 prototype's
+ * `sheetOpen` shadcn `Sheet`), pixel-parity port of `state-context-sheet.html`:
+ * a header (eyebrow + packet title + close), a compiled-projection note, an
+ * INCLUDED item grid (2-column key/value rows + rationale), an EXCLUDED list,
+ * and a read-only footer note. Context is compiled server-side; this sheet
+ * never pretends a browser toggle can change what the next model turn
+ * receives — there is no add, remove, or apply here.
  */
 export function MeriContextSheet({
   open,
@@ -76,75 +100,161 @@ export function MeriContextSheet({
 
   if (!open) return null;
 
+  const unavailable = !loading && !error && !packet;
+  const sheetTitle = packet?.packetId ? `Context packet · ${packet.packetId}` : 'Context packet';
+  const sheetMeta = packet
+    ? `Compiled server-side for this turn. ${packet.items.length} item${
+        packet.items.length === 1 ? '' : 's'
+      } included, ${packet.exclusions.length} excluded, ${packet.unauthorizedCount} unauthorized. ` +
+      `Resolved from the packet id persisted with this message — never from the conversation's latest.`
+    : '';
+
   return (
-    <div className="vnext-meri__confirm-scrim" role="presentation">
-      <section
-        className="vnext-meri__confirm-dialog vnext-meri__context-sheet"
+    <div
+      className="vnext-meri__sheet-overlay"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="vnext-meri__sheet-content"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="meri-context-sheet-title"
+        aria-labelledby="meri-sheet-title"
+        aria-describedby="meri-sheet-desc"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="vnext-meri__context-sheet-head">
-          <div>
-            <div className="vnext-meri__section-label">CONTEXT PACKET</div>
-            <h2 id="meri-context-sheet-title">Manage context</h2>
-          </div>
-          <button type="button" className="vnext-meri__icon-btn" aria-label="Close context sheet" onClick={onClose}>
-            <MeriIcon name="XClose" size={15} color="#667085" />
+        <div className="vnext-meri__sheet-header">
+          <span className="vnext-meri__sheet-header-copy">
+            <span id="meri-sheet-desc" className="vnext-meri__sheet-eyebrow">
+              CONTEXT USED FOR THIS TURN
+            </span>
+            <span id="meri-sheet-title" className="vnext-meri__sheet-title">
+              {sheetTitle}
+            </span>
+          </span>
+          <button
+            type="button"
+            className="vnext-meri__sheet-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <MeriIcon name="XClose" size={17} />
           </button>
         </div>
-        <p className="vnext-meri__context-sheet-note">
-          This is the latest server-compiled context for this thread. Context is applied by the
-          retrieval service; changes to source membership require an explicit server action and are
-          not fabricated in the browser.
-        </p>
-        {loading ? <div className="vnext-meri__ctx-empty">Loading context packet…</div> : null}
-        {error ? <div className="vnext-meri__ctx-empty">Context provenance could not be loaded.</div> : null}
-        {packet && !loading && !error ? (
-          <>
-            {packet.degraded ? (
-              <div className="vnext-meri__context-sheet-degraded" role="alert">
-                {readableDegradedReasons(packet.degradedReason ?? 'The context packet is degraded.').map(
-                  (reason) => (
-                    <div key={reason} className="vnext-meri__context-sheet-degraded-item">
-                      {reason}
-                    </div>
-                  ),
-                )}
-              </div>
-            ) : null}
-            <div className="vnext-meri__context-sheet-label">INCLUDED · {packet.items.length}</div>
-            <div className="vnext-meri__context-sheet-list">
-              {packet.items.map((item) => (
-                <article key={item.id} className="vnext-meri__context-sheet-item">
-                  <div className="vnext-meri__context-sheet-item-title">{item.label}</div>
-                  <div className="vnext-meri__context-sheet-item-meta">
-                    {item.type.replace(/_/g, ' ').toUpperCase()} · {item.scope.toUpperCase()} SCOPE ·{' '}
-                    {item.selection === 'explicit' ? 'YOU ADDED THIS' : 'AUTO-INCLUDED'}
-                  </div>
-                  {item.rationale ? (
-                    <div className="vnext-meri__context-sheet-item-body">{item.rationale}</div>
-                  ) : null}
-                </article>
-              ))}
+        <div className="vnext-meri__sheet-body">
+          {loading ? (
+            <div className="vnext-meri__ctx-empty">Loading the context packet…</div>
+          ) : null}
+          {error ? (
+            <div className="vnext-meri__sheet-error" role="alert">
+              The context packet could not be loaded.
             </div>
-            <div className="vnext-meri__context-sheet-label">EXCLUDED · {packet.exclusions.length}</div>
-            {packet.exclusions.length ? (
-              <div className="vnext-meri__context-sheet-list">
-                {packet.exclusions.map((item, index) => (
-                  <article key={`${item.id ?? item.label}-${index}`} className="vnext-meri__context-sheet-item is-excluded">
-                    <div className="vnext-meri__context-sheet-item-title">{item.label}</div>
-                    <div className="vnext-meri__context-sheet-item-meta">{item.reason.replace(/_/g, ' ').toUpperCase()}</div>
+          ) : null}
+          {unavailable ? (
+            <div className="vnext-meri__sheet-unavailable">
+              <div className="vnext-meri__sheet-unavailable-title">
+                Provenance unavailable for this turn
+              </div>
+              <div className="vnext-meri__sheet-unavailable-body">
+                No packet id was persisted with this message. The conversation's latest packet
+                belongs to a later turn, so showing it here would misattribute the answer.
+              </div>
+            </div>
+          ) : null}
+          {packet && !loading && !error ? (
+            <>
+              {packet.degraded ? (
+                <div className="vnext-meri__context-sheet-degraded" role="alert">
+                  {readableDegradedReasons(packet.degradedReason ?? 'The context packet is degraded.').map(
+                    (reason) => (
+                      <div key={reason} className="vnext-meri__context-sheet-degraded-item">
+                        {reason}
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : null}
+              <div className="vnext-meri__sheet-meta">{sheetMeta}</div>
+              <div className="vnext-meri__sheet-item-list">
+                {packet.items.map((item) => (
+                  <article key={item.id} className="vnext-meri__sheet-item">
+                    <div className="vnext-meri__sheet-item-head">
+                      <MeriIcon name={contextItemIcon(item)} size={15} color="#98A2B3" />
+                      <span className="vnext-meri__sheet-item-label">{item.label}</span>
+                      <span
+                        className="vnext-meri__sheet-item-selection"
+                        style={{ color: item.selection === 'explicit' ? '#363F72' : '#98A2B3' }}
+                      >
+                        {item.selection.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="vnext-meri__sheet-item-grid">
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>Type</span>
+                        <span>{item.type}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>Scope</span>
+                        <span>{item.scope.toLowerCase()}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>Authority</span>
+                        <span>{item.authority}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>Client</span>
+                        <span>{item.clientName ?? '—'}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>As of</span>
+                        <span>{item.asOf ?? '—'}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>Confirmed</span>
+                        <span>{item.lastConfirmedAt ?? '—'}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>User-scoped</span>
+                        <span>{item.userScoped ? 'yes' : 'no'}</span>
+                      </div>
+                      <div className="vnext-meri__sheet-item-row">
+                        <span>Selection</span>
+                        <span>{item.selection}</span>
+                      </div>
+                    </div>
+                    {item.rationale ? (
+                      <div className="vnext-meri__sheet-item-rationale">{item.rationale}</div>
+                    ) : null}
                   </article>
                 ))}
               </div>
-            ) : <div className="vnext-meri__ctx-empty">No context items were excluded.</div>}
-          </>
-        ) : null}
-        <div className="vnext-meri__confirm-actions">
-          <button type="button" className="vnext-meri__confirm-cancel" onClick={onClose}>Close</button>
+              <div className="vnext-meri__sheet-excluded-label">
+                EXCLUDED · {packet.exclusions.length}
+              </div>
+              <div className="vnext-meri__sheet-excluded-list">
+                {packet.exclusions.map((exclusion, index) => (
+                  <div
+                    key={`${exclusion.id ?? exclusion.label}-${index}`}
+                    className="vnext-meri__sheet-excluded-item"
+                  >
+                    <MeriIcon name={exclusionIcon(exclusion.reason)} size={14} color="#98A2B3" />
+                    <span className="vnext-meri__sheet-excluded-copy">
+                      <span className="vnext-meri__sheet-excluded-title">{exclusion.label}</span>
+                      <span className="vnext-meri__sheet-excluded-reason">{exclusion.reason}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="vnext-meri__sheet-footnote">
+                This is a server-compiled projection. There is no add, remove or apply — membership
+                is read-only.
+              </div>
+            </>
+          ) : null}
         </div>
-      </section>
+      </div>
     </div>
   );
 }

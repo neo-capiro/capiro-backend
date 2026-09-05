@@ -2,15 +2,18 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   truncateFilenameMiddle,
   type StagedAttachment,
 } from '../../components/chat/chat-attachments.js';
+import { useManagedMcpApps } from '../../components/chat/managed-mcp-apps.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { maySend, meriEffectiveIdentityKey } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
@@ -18,6 +21,19 @@ import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { ConnectorMark } from './meri-connector-logos.js';
+import {
+  MERI_REASONING_MODES,
+  applyReasoningModeToConversation,
+  readDraftReasoningMode,
+  writeDraftReasoningMode,
+  type MeriReasoningMode,
+} from './VNextMeriReasoningControl.js';
+import { meriStartWorkCards } from './meri-start-work.js';
+import {
+  deleteMeriSavedPrompt,
+  listMeriSavedPrompts,
+  type MeriSavedPrompt,
+} from './meri-vnext-api.js';
 import {
   mayApplyWorkspaceImportResponse,
   workspaceDocumentComposerText,
@@ -29,39 +45,29 @@ import {
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
 
 /**
- * Task Mode (handoff §12 row 2, §"Task Mode vs Reasoning Depth").
- *
- * "It describes what you are doing right now" — per message, in the composer.
- * Distinct from the conversation header's durable per-thread Reasoning Depth.
- * Descriptions are verbatim product copy from the handoff.
+ * LIBRARY sub-panes (v6 prototype `addPanes()`/`addPane()`): saved prompts,
+ * skills, connectors and reasoning depth moved out of the rails and into the
+ * add menu — "the add button is where a message gets its ingredients, so
+ * the library belongs behind it, not beside it." Every pane fills the
+ * composer or navigates; nothing here auto-sends or silently mutates state.
  */
-const MERI_TASK_MODES = [
-  {
-    key: 'standard',
-    label: 'STANDARD',
-    icon: 'MessageTextSquare01',
-    description: 'Normal conversation and analysis.',
-  },
-  {
-    key: 'research',
-    label: 'RESEARCH',
-    icon: 'SearchLg',
-    description: 'Cited deep research workflows.',
-  },
-  {
-    key: 'write',
-    label: 'WRITE',
-    icon: 'Edit01',
-    description: 'Draft or update the current page or document.',
-  },
-] as const satisfies ReadonlyArray<{
+type MeriLibraryPaneId = 'prompts' | 'skills' | 'connectors' | 'reasoning';
+
+interface MeriLibraryPaneItem {
   key: string;
   label: string;
+  desc: string;
+  descFg?: string;
   icon: MeriIconName;
-  description: string;
-}>;
-
-type MeriTaskMode = (typeof MERI_TASK_MODES)[number]['key'];
+  hasBadge: boolean;
+  badge?: string;
+  badgeBg?: string;
+  badgeFg?: string;
+  canDel: boolean;
+  delLabel?: string;
+  run: () => void;
+  del?: () => void;
+}
 
 interface VNextMeriComposerProps {
   controller: MeriChatController;
@@ -106,6 +112,7 @@ export function VNextMeriComposer({
   const [focused, setFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [addPane, setAddPane] = useState<MeriLibraryPaneId | null>(null);
   const [workspaceImportOpen, setWorkspaceImportOpen] = useState(false);
   const [workspaceDrafts, setWorkspaceDrafts] = useState<MeriWorkspaceImportDraft[]>([]);
   const [workspaceImportLoading, setWorkspaceImportLoading] = useState(false);
@@ -122,6 +129,7 @@ export function VNextMeriComposer({
     isStreaming,
     clients,
     selectedClientValue,
+    activeConversationId,
     stagedAttachments,
     attachmentNotice,
     handleAttachFiles,
@@ -129,24 +137,255 @@ export function VNextMeriComposer({
     sendMessage,
     handleStop,
     scopePersistStatus,
-    writeMode,
-    researchMode,
-    setWriteMode,
-    setResearchMode,
   } = controller;
 
-  // Task mode is derived from the controller's real flags rather than kept as a
-  // second source of truth, so a mode set elsewhere (or reset on a new session)
-  // stays reflected in the picker. WRITE wins if both were somehow set.
-  const taskMode: MeriTaskMode = writeMode ? 'write' : researchMode ? 'research' : 'standard';
-  const selectTaskMode = useCallback(
-    (next: MeriTaskMode) => {
-      setWriteMode(next === 'write');
-      setResearchMode(next === 'research');
-      textareaRef.current?.focus();
-    },
-    [setResearchMode, setWriteMode],
+  // v6: Task Mode has no dedicated toolbar control — RESEARCH stays reachable
+  // via the Landing "Deep research" skill card and inline research offers;
+  // WRITE is set by the page-write entry points that already call
+  // controller.setWriteMode directly (not from this composer).
+
+  const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
+  const queryClient = useQueryClient();
+  const managedApps = useManagedMcpApps();
+  const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
+
+  // LIBRARY: Saved prompts. Same query key convention as MeriStartWork, so a
+  // delete from the composer's pane invalidates the landing's cards too.
+  const promptsQuery = useQuery({
+    queryKey: ['meri-vnext', identityKey, 'saved-prompts'],
+    queryFn: () => listMeriSavedPrompts(api),
+    staleTime: 30_000,
+  });
+  const skillsQuery = useQuery({
+    queryKey: ['meri-vnext', identityKey, 'skills'],
+    queryFn: async () => (await api.get('/api/clio/v3/skills')).data as unknown,
+    staleTime: 30_000,
+  });
+  const startWorkCatalog = useMemo(
+    () =>
+      meriStartWorkCards({
+        skills: skillsQuery.data,
+        prompts: promptsQuery.data,
+        clientName: selectedClient?.name ?? null,
+      }),
+    [promptsQuery.data, selectedClient?.name, skillsQuery.data],
   );
+
+  // LIBRARY: Reasoning depth. Mirrors VNextMeriReasoningControl's own
+  // load/save so the two surfaces (thread-header chip, landing card, this
+  // pane) never drift — same draft-vs-persisted split, same endpoint.
+  const [reasoningMode, setReasoningModeState] = useState<MeriReasoningMode>(() =>
+    activeConversationId ? 'standard' : readDraftReasoningMode(),
+  );
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeConversationId) {
+      setReasoningModeState(readDraftReasoningMode());
+      return () => {
+        cancelled = true;
+      };
+    }
+    void api
+      .get<{ reasoningMode?: unknown }>(
+        `/api/clio/v3/conversations/${encodeURIComponent(activeConversationId)}/reasoning-mode`,
+      )
+      .then(({ data }) => {
+        if (cancelled) return;
+        const mode = MERI_REASONING_MODES.find((option) => option.mode === data.reasoningMode);
+        if (mode) setReasoningModeState(mode.mode);
+      })
+      .catch(() => {
+        // Standard remains the safe default when the saved preference cannot
+        // be read; a later choice from either surface stays persisted.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConversationId, api]);
+  const setReasoningMode = useCallback(
+    (mode: MeriReasoningMode) => {
+      setReasoningModeState(mode);
+      if (!activeConversationId) {
+        writeDraftReasoningMode(mode);
+        return;
+      }
+      void applyReasoningModeToConversation(api, activeConversationId, mode);
+    },
+    [activeConversationId, api],
+  );
+  const currentReasoning =
+    MERI_REASONING_MODES.find((option) => option.mode === reasoningMode) ?? MERI_REASONING_MODES[1];
+
+  const deletePrompt = useCallback(
+    async (promptId: string) => {
+      try {
+        await deleteMeriSavedPrompt(api, promptId);
+        await queryClient.invalidateQueries({ queryKey: ['meri-vnext', identityKey, 'saved-prompts'] });
+      } catch {
+        toast.error('The saved prompt could not be deleted.');
+      }
+    },
+    [api, identityKey, queryClient, toast],
+  );
+
+  const fillFromLibrary = useCallback(
+    (text: string, notice: string) => {
+      setDraft(text);
+      setAddOpen(false);
+      setAddPane(null);
+      window.setTimeout(() => textareaRef.current?.focus(), 0);
+      toast.success(notice);
+    },
+    [toast],
+  );
+
+  const libraryPromptItems = useMemo<MeriLibraryPaneItem[]>(
+    () =>
+      (promptsQuery.data ?? []).map((prompt: MeriSavedPrompt) => ({
+        key: prompt.id,
+        label: prompt.title,
+        desc: prompt.body,
+        icon: 'Bookmark',
+        hasBadge: false,
+        canDel: true,
+        delLabel: `Delete ${prompt.title}`,
+        run: () =>
+          fillFromLibrary(
+            prompt.body,
+            `"${prompt.title}" filled the composer. Saved prompts never auto-send.`,
+          ),
+        del: () => void deletePrompt(prompt.id),
+      })),
+    [deletePrompt, fillFromLibrary, promptsQuery.data],
+  );
+
+  const librarySkillItems = useMemo<MeriLibraryPaneItem[]>(
+    () =>
+      startWorkCatalog.skills.map((card) => ({
+        key: card.id,
+        label: card.title,
+        desc: card.desc,
+        icon: card.icon,
+        hasBadge: true,
+        badge: card.needsClient ? 'CLIENT' : 'PORTFOLIO',
+        badgeBg: card.needsClient ? '#FFFAEB' : '#F2F4F7',
+        badgeFg: card.needsClient ? '#B54708' : '#475467',
+        canDel: false,
+        run: () => {
+          if (card.needsClient && !selectedClient) {
+            toast.success(`${card.title} needs a client in scope. Pick one from the scope chip first.`);
+            return;
+          }
+          fillFromLibrary(card.fill, `${card.title} filled the composer. Skills never auto-send.`);
+        },
+      })),
+    [fillFromLibrary, selectedClient, startWorkCatalog.skills, toast],
+  );
+
+  const libraryConnectorItems = useMemo<MeriLibraryPaneItem[]>(
+    () =>
+      (managedApps?.apps ?? []).map((app) => {
+        const status = app.needsReauth ? 'NEEDS REAUTH' : app.connected ? 'CONNECTED' : 'NOT CONNECTED';
+        const tone = app.needsReauth
+          ? { bg: '#FFFAEB', fg: '#B54708' }
+          : app.connected
+            ? { bg: '#ECFDF3', fg: '#027A48' }
+            : { bg: '#F2F4F7', fg: '#475467' };
+        return {
+          key: app.id,
+          label: app.name,
+          desc: app.description || 'Manage on the integrations page.',
+          icon: app.id === 'hubspot' ? 'Database01' : 'Grid01',
+          hasBadge: true,
+          badge: status,
+          badgeBg: tone.bg,
+          badgeFg: tone.fg,
+          canDel: false,
+          run: () => {
+            setAddOpen(false);
+            setAddPane(null);
+            onOpenIntegrations();
+          },
+        };
+      }),
+    [managedApps?.apps, onOpenIntegrations],
+  );
+
+  const libraryReasoningItems = useMemo<MeriLibraryPaneItem[]>(
+    () =>
+      MERI_REASONING_MODES.map((mode) => ({
+        key: mode.mode,
+        label: mode.mode === 'standard' ? `${mode.label} (default)` : mode.label,
+        desc: mode.description,
+        icon: 'Speedometer03',
+        hasBadge: mode.mode === reasoningMode,
+        badge: 'CURRENT',
+        badgeBg: '#F2F4F7',
+        badgeFg: '#475467',
+        canDel: false,
+        run: () => {
+          setReasoningMode(mode.mode);
+          setAddOpen(false);
+          setAddPane(null);
+        },
+      })),
+    [reasoningMode, setReasoningMode],
+  );
+
+  const LIBRARY_PANES: Array<{
+    id: MeriLibraryPaneId;
+    label: string;
+    desc: string;
+    icon: MeriIconName;
+    count: string;
+    items: MeriLibraryPaneItem[];
+    emptyText: string;
+    foot: string;
+  }> = [
+    {
+      id: 'prompts',
+      label: 'Saved prompts',
+      desc: 'FILLS THE COMPOSER · NEVER SENDS',
+      icon: 'Bookmark',
+      count: String(promptsQuery.data?.length ?? 0),
+      items: libraryPromptItems,
+      emptyText: 'No saved prompts yet. Save one from a message you liked.',
+      foot: 'A SAVED PROMPT FILLS THE COMPOSER — IT NEVER AUTO-SENDS',
+    },
+    {
+      id: 'skills',
+      label: 'Skills',
+      desc: 'A ROUTINE MERI ALREADY KNOWS',
+      icon: 'MagicWand02',
+      count: String(startWorkCatalog.skills.length),
+      items: librarySkillItems,
+      emptyText: 'No skills yet. Ask Meri to turn a routine into one.',
+      foot: 'SKILLS FILL THE COMPOSER — THEY NEVER AUTO-SEND',
+    },
+    {
+      id: 'connectors',
+      label: 'Connectors',
+      desc: 'MANAGE CONNECTED SOURCES',
+      icon: 'Dataflow03',
+      count: String(managedApps?.apps.length ?? 0),
+      items: libraryConnectorItems,
+      emptyText: 'No connectors available.',
+      foot: 'HUBSPOT AND AIRTABLE ARE THE ONLY MANAGED APPS TODAY',
+    },
+    {
+      id: 'reasoning',
+      label: 'Reasoning',
+      desc: 'HOW DEEPLY MERI THINKS',
+      icon: 'Speedometer03',
+      count: currentReasoning.label.toUpperCase(),
+      items: libraryReasoningItems,
+      emptyText: '',
+      foot: activeConversationId
+        ? 'SAVED TO THIS CONVERSATION'
+        : 'HELD FOR THIS DRAFT AND APPLIED WHEN THE THREAD IS CREATED',
+    },
+  ];
+  const activePane = addPane ? LIBRARY_PANES.find((pane) => pane.id === addPane) ?? null : null;
 
   const uploadsInFlight = stagedAttachments.some((attachment) => attachment.status === 'uploading');
   const busy = isStreaming || submitting;
@@ -310,6 +549,13 @@ export function VNextMeriComposer({
     };
   }, [addOpen]);
 
+  // The pane view is transient to the open popover — reopening the add menu
+  // always starts at the LIBRARY root, matching the prototype's `addPane:
+  // null` reset on `toggleAdd`.
+  useEffect(() => {
+    if (!addOpen) setAddPane(null);
+  }, [addOpen]);
+
   const submit = useCallback(
     async (forced?: string) => {
       const content = (forced ?? draft).trim();
@@ -352,6 +598,8 @@ export function VNextMeriComposer({
     <div className="vnext-meri__composer-wrap" ref={addRef}>
       {addOpen ? (
         <div className="vnext-meri__add-popover" role="menu" aria-label="Add to conversation">
+          {!activePane ? (
+            <>
           <div className="vnext-meri__add-popover-eyebrow">ADD TO CONVERSATION</div>
           <button
             type="button"
@@ -454,9 +702,100 @@ export function VNextMeriComposer({
               <span className="vnext-meri__add-popover-item-desc">REVIEW A DOCUMENT BEFORE ADDING IT TO THE DRAFT</span>
             </span>
           </button>
+
+          <div className="vnext-meri__add-popover-separator" />
+          <div className="vnext-meri__add-popover-eyebrow">LIBRARY</div>
+          {LIBRARY_PANES.map((pane) => (
+            <button
+              key={pane.id}
+              type="button"
+              role="menuitem"
+              aria-haspopup="menu"
+              className="vnext-meri__add-popover-pane-trigger"
+              onClick={() => setAddPane(pane.id)}
+            >
+              <span className="vnext-meri__add-popover-tile">
+                <MeriIcon name={pane.icon} size={15} color="var(--m-gray-600)" />
+              </span>
+              <span className="vnext-meri__add-popover-item-body">
+                <span className="vnext-meri__add-popover-item-label">{pane.label}</span>
+                <span className="vnext-meri__add-popover-item-desc">{pane.desc}</span>
+              </span>
+              <span className="vnext-meri__add-popover-pane-meta">
+                <span className="vnext-meri__add-popover-pane-count">{pane.count}</span>
+                <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
+              </span>
+            </button>
+          ))}
+
+          <div className="vnext-meri__add-popover-separator" />
           <div className="vnext-meri__add-popover-footer">
             EVERYTHING ADDED HERE IS SCOPED TO THIS THREAD AND LOGGED
           </div>
+            </>
+          ) : (
+            <>
+              <div className="vnext-meri__add-popover-pane-head">
+                <button
+                  type="button"
+                  aria-label="Back to add menu"
+                  className="vnext-meri__add-popover-pane-back"
+                  onClick={() => setAddPane(null)}
+                >
+                  <MeriIcon name="ChevronLeft" size={15} color="#667085" />
+                </button>
+                <span className="vnext-meri__add-popover-eyebrow">{activePane.label.toUpperCase()}</span>
+              </div>
+              <div className="vnext-meri__add-popover-pane-body">
+                {activePane.items.map((item) => (
+                  <div key={item.key} className="vnext-meri__add-popover-pane-row">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vnext-meri__add-popover-pane-item"
+                      onClick={item.run}
+                    >
+                      <span className="vnext-meri__add-popover-tile">
+                        <MeriIcon name={item.icon} size={15} color="var(--m-gray-600)" />
+                      </span>
+                      <span className="vnext-meri__add-popover-item-body">
+                        <span className="vnext-meri__add-popover-item-label">{item.label}</span>
+                        <span
+                          className="vnext-meri__add-popover-item-desc"
+                          style={item.descFg ? { color: item.descFg } : undefined}
+                        >
+                          {item.desc}
+                        </span>
+                      </span>
+                      {item.hasBadge ? (
+                        <span
+                          className="vnext-meri__add-popover-pane-badge"
+                          style={{ background: item.badgeBg, color: item.badgeFg }}
+                        >
+                          {item.badge}
+                        </span>
+                      ) : null}
+                    </button>
+                    {item.canDel ? (
+                      <button
+                        type="button"
+                        aria-label={item.delLabel}
+                        className="vnext-meri__add-popover-pane-del"
+                        onClick={item.del}
+                      >
+                        <MeriIcon name="Trash01" size={14} />
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              {activePane.items.length === 0 ? (
+                <div className="vnext-meri__add-popover-pane-empty">{activePane.emptyText}</div>
+              ) : null}
+              <div className="vnext-meri__add-popover-separator" />
+              <div className="vnext-meri__add-popover-footer">{activePane.foot}</div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -572,40 +911,6 @@ export function VNextMeriComposer({
             <MeriIcon name="Plus" size={16} color="#475467" />
           </button>
 
-          {/*
-            MeriTaskModePicker (handoff §12 row 2). Task Mode describes what the
-            user is doing right now and is deliberately separate from the
-            header's durable Reasoning Depth (§"Task Mode vs Reasoning Depth").
-            Each segment maps onto the controller's real flags — RESEARCH is the
-            multi-phase deep-research flow, WRITE prefixes the page-write intent
-            — so this is a control, not a label.
-          */}
-          <div
-            className="vnext-meri__task-mode"
-            role="radiogroup"
-            aria-label="Task mode"
-            data-meri-task-mode
-          >
-            {MERI_TASK_MODES.map((option) => {
-              const active = taskMode === option.key;
-              return (
-                <button
-                  type="button"
-                  key={option.key}
-                  role="radio"
-                  aria-checked={active}
-                  title={option.description}
-                  disabled={busy}
-                  className={`vnext-meri__task-mode-segment${active ? ' is-active' : ''}`}
-                  onClick={() => selectTaskMode(option.key)}
-                >
-                  <MeriIcon name={option.icon} size={12} />
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-
           <button
             type="button"
             className="vnext-meri__composer-context-label"
@@ -664,10 +969,6 @@ export function VNextMeriComposer({
             </button>
           )}
         </div>
-      </div>
-
-      <div className="vnext-meri__composer-policy">
-        MERI CITES SOURCES · EXTERNAL SENDS AND NETWORK WRITES REQUIRE YOUR APPROVAL
       </div>
     </div>
   );

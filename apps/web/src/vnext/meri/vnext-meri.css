@@ -1042,41 +1042,6 @@ flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.capiro-vnext-root .vnext-meri__mode-pill {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 28px;
-  padding: 0 11px;
-  border-radius: var(--capiro-radius-circular);
-  border: 1px solid var(--meri-border);
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--capiro-radius-circular);
-  background: var(--meri-text-muted);
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching {
-  background: var(--meri-accent);
-  animation: vnext-meri-pulse 1.4s ease-in-out infinite;
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill-dot.is-approval {
-  background: var(--meri-warning);
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill-label {
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: var(--meri-text-secondary);
-}
-
 .capiro-vnext-root .vnext-meri__reasoning-chip {
   position: relative;
   flex: 0 0 auto;
@@ -2139,8 +2104,7 @@ margin-top: 12px;
 
 /* v5 workspace mockup: quiet at rest (no ring, transparent fill) — a fill
    only appears on hover or while the popover is open. Now lives in the
-   toolbar row alongside the task-mode picker and context chip rather than
-   beside the textarea. */
+   toolbar row beside the context chip rather than beside the textarea. */
 .capiro-vnext-root .vnext-meri__composer-add-btn {
   flex: 0 0 auto;
   display: flex;
@@ -2206,58 +2170,6 @@ display: flex;
   padding: 6px 10px 10px;
 }
 
-/* MeriTaskModePicker — handoff §12 row 2. Segmented group: 2px padding on a
-   quiet fill with a hairline ring; the active segment lifts onto the surface
-   with a control border and 1px shadow. Per-message task mode, deliberately
-   distinct from the header's durable Reasoning Depth. */
-.capiro-vnext-root .vnext-meri__task-mode {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
-  padding: 2px;
-  border-radius: 9px;
-  background: var(--meri-surface-2);
-  border: 1px solid var(--meri-border);
-}
-
-.capiro-vnext-root .vnext-meri__task-mode-segment {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 9px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  font-family: var(--meri-font-mono);
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-muted);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
-    border-color var(--capiro-motion-fast) var(--capiro-motion-ease),
-    color var(--capiro-motion-fast) var(--capiro-motion-ease);
-}
-
-.capiro-vnext-root .vnext-meri__task-mode-segment:hover:not(.is-active):not(:disabled) {
-  color: var(--meri-ink);
-}
-
-.capiro-vnext-root .vnext-meri__task-mode-segment.is-active {
-  background: var(--meri-surface);
-  border-color: var(--meri-border-control);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-  color: var(--meri-ink);
-}
-
-.capiro-vnext-root .vnext-meri__task-mode-segment:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 /* The composer's scope menu is absolutely positioned by an inline style in
    VNextMeriComposer. Without this the wrapper is static and the menu resolves
    against .vnext-meri__composer-wrap instead of its own trigger. */
@@ -2295,11 +2207,11 @@ display: flex;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  /* The task-mode picker (handoff §12 row 2) shares this row, so the context
-     pill — the only variable-width item, it carries the client name — must be
-     the thing that gives way. A flex container wraps items BEFORE shrinking
-     them, so `flex-shrink` alone is not enough: the max-width is what keeps
-     the pill from claiming the width Send needs and pushing it to a new line. */
+  /* The context pill is the only variable-width item in the toolbar row —
+     it carries the client name — so it must be the thing that gives way. A
+     flex container wraps items BEFORE shrinking them, so `flex-shrink` alone
+     is not enough: the max-width is what keeps the pill from claiming the
+     width Send needs and pushing it to a new line. */
   min-width: 0;
   flex: 0 1 auto;
   max-width: 38%;
@@ -2497,26 +2409,25 @@ flex: 0 0 auto;
   position: relative;
 }
 
-.capiro-vnext-root .vnext-meri__composer-policy {
-  padding-top: 10px;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-faint);
-}
-
 /* Add to conversation popover */
 .capiro-vnext-root .vnext-meri__add-popover {
   position: absolute;
   bottom: calc(100% + 10px);
   left: 0;
   width: min(330px, calc(100vw - 32px));
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   background: var(--meri-surface);
   border-radius: var(--meri-radius);
   box-shadow: var(--meri-shadow-popover);
   padding: 6px;
   z-index: var(--capiro-z-popover);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover::-webkit-scrollbar {
+  display: none;
 }
 
 .capiro-vnext-root .vnext-meri__add-popover-eyebrow {
@@ -2588,6 +2499,160 @@ flex: 0 0 auto;
   line-height: 15px;
   letter-spacing: 0.02em;
   color: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-separator {
+  height: 1px;
+  margin: 6px 4px 4px;
+  background: #F2F4F7;
+}
+
+/* LIBRARY sub-panes (v6 prototype addPanes()/addPane()): saved prompts,
+   skills, connectors, reasoning depth — moved out of the rails and into the
+   add menu's second level. Root triggers reuse .vnext-meri__add-popover-item
+   geometry with a trailing count + chevron; the open pane swaps the root
+   list for a back-header, a scrollable item list and its own footnote. */
+.capiro-vnext-root .vnext-meri__add-popover-pane-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border-radius: var(--meri-radius-sm);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-trigger:hover {
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: #98A2B3;
+  font-variant-numeric: tabular-nums;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 7px;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-back:hover {
+  background: #F2F4F7;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 294px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-body::-webkit-scrollbar {
+  display: none;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--meri-radius-sm);
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-row:hover {
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border-radius: var(--meri-radius-sm);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-item .vnext-meri__add-popover-item-label,
+.capiro-vnext-root .vnext-meri__add-popover-pane-item .vnext-meri__add-popover-item-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 5px;
+  font-family: var(--meri-font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-del {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 5px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: #98A2B3;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-del:hover {
+  background: #FEF3F2;
+  color: #B42318;
+}
+
+.capiro-vnext-root .vnext-meri__add-popover-pane-empty {
+  padding: 10px;
+  font-size: 12px;
+  line-height: 17px;
+  color: #98A2B3;
+  text-wrap: pretty;
 }
 
 /* ── Right context rail ──────────────────────────────────────────────── */
@@ -4258,6 +4323,24 @@ border-bottom: 1px solid var(--meri-border);
   }
 }
 
+@keyframes vnext-meri-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vnext-meri-slide-in {
+  from {
+    transform: translateX(24px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @keyframes vnext-meri-spin {
   to {
     transform: rotate(360deg);
@@ -4300,7 +4383,6 @@ border-bottom: 1px solid var(--meri-border);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching,
   .capiro-vnext-root .vnext-meri__composing-cursor,
   .capiro-vnext-root .vnext-meri__work-step-icon.is-running,
   .capiro-vnext-root .vnext-meri__work-source-dot,
@@ -4791,111 +4873,269 @@ width: 30px;
   overflow-y: auto;
 }
 
-/* ── Context sheet ("Manage context") — a richer, scrollable variant of the
-   confirm dialog. Was previously unstyled: relied on .vnext-meri__confirm-*
-   for the box but had no rules of its own, so every item rendered as bare
-   text with no size/weight/spacing hierarchy.
+/* "Behind the answer" · Context — a right-side sliding Sheet (v6 prototype's
+   shadcn `Sheet`), pixel-parity port of `state-context-sheet.html`. Literal
+   hex, not var(--m-*): MeriContextSheet mounts as a sibling of
+   .vnext-meri-page (directly under .capiro-vnext-root — see VNextMeriShell),
+   not a descendant of it, so var() references to --m-* custom properties
+   (declared only on .vnext-meri-page/.vnext-meri) are undefined here — for
+   non-inherited properties that computes to the initial value with no error,
+   silently dropping every card's fill and ring. Every rule below hardcodes
+   hex for that reason, matching .vnext-meri__confirm-* and
+   .vnext-meri__palette-* elsewhere in this file. */
+.capiro-vnext-root .vnext-meri__sheet-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(16, 24, 40, 0.28);
+  animation: vnext-meri-fade 0.11s ease;
+}
 
-   Literal hex, not var(--m-*): MeriContextSheet mounts as a sibling of
-   .vnext-meri-page (inside .vnext-meri__confirm-scrim, directly under
-   .capiro-vnext-root — see VNextMeriShell), not a descendant of it. The
-   --m-* custom properties are only declared on .vnext-meri-page/.vnext-meri,
-   so a var() reference here is undefined at this point in the tree — for
-   non-inherited properties (background, box-shadow) that makes the whole
-   declaration compute to its initial value (transparent / none) with no
-   error, silently dropping every card's fill and ring. Every other rule
-   under .vnext-meri__confirm-* already avoids this by hardcoding hex for
-   the same reason. */
-.capiro-vnext-root .vnext-meri__context-sheet {
+.capiro-vnext-root .vnext-meri__sheet-content {
   width: 520px;
-  max-width: calc(100vw - 40px);
-  max-height: 80vh;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
+  background: #FFFFFF;
+  box-shadow: -20px 0 40px -16px rgba(16, 24, 40, 0.28);
+  animation: vnext-meri-slide-in 0.16s ease;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-head {
+.capiro-vnext-root .vnext-meri__sheet-header {
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #EAECF0;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-head h2 {
-  margin: 3px 0 0;
-  font-size: 17px;
-  line-height: 24px;
+.capiro-vnext-root .vnext-meri__sheet-header-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-eyebrow {
+  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-title {
+  font-size: 15px;
   font-weight: 600;
   color: #101828;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-note {
+.capiro-vnext-root .vnext-meri__sheet-close {
   flex: 0 0 auto;
-  margin-top: 10px;
-  font-size: 13px;
-  line-height: 20px;
-  color: #475467;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-label {
-  flex: 0 0 auto;
-  margin-top: 18px;
-  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
+.capiro-vnext-root .vnext-meri__sheet-close:hover {
+  background: #F2F4F7;
+  color: #101828;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 24px;
+  scrollbar-width: none;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-body::-webkit-scrollbar {
+  display: none;
+}
+
+.capiro-vnext-root .vnext-meri__ctx-empty {
+  font-size: 13px;
   color: #667085;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-list {
-  flex: 1 1 120px;
-  min-height: 0;
-  margin-top: 10px;
-  padding-bottom: 2px;
+.capiro-vnext-root .vnext-meri__sheet-error {
+  padding: 13px 14px;
+  border-radius: 10px;
+  background: #FFFBFA;
+  box-shadow: inset 2px 0 0 #F04438;
+  font-size: 13px;
+  line-height: 20px;
+  color: #912018;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-unavailable {
+  padding: 14px 15px;
+  border-radius: 10px;
+  background: #F9FAFB;
+  box-shadow: inset 2px 0 0 #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-unavailable-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-unavailable-body {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: #667085;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-meta {
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: #F0F1F7;
+  font-size: 12px;
+  line-height: 18px;
+  color: #4E5BA6;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-item-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  margin-top: 14px;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-item {
-  flex: 0 0 auto;
-  padding: 12px 13px;
-  border-radius: 9px;
-  background: #F9FAFB;
-  border: 1px solid #EAECF0;
+.capiro-vnext-root .vnext-meri__sheet-item {
+  padding: 13px 14px;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 1px #EAECF0;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-item.is-excluded {
-  opacity: 0.85;
+.capiro-vnext-root .vnext-meri__sheet-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-item-title {
-  font-size: 13.5px;
-  line-height: 19px;
+.capiro-vnext-root .vnext-meri__sheet-item-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
   font-weight: 600;
   color: #101828;
+  text-wrap: pretty;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-item-meta {
-  margin-top: 4px;
+.capiro-vnext-root .vnext-meri__sheet-item-selection {
+  flex: 0 0 auto;
   font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   font-size: 9.5px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.06em;
-  color: #667085;
 }
 
-.capiro-vnext-root .vnext-meri__context-sheet-item-body {
-  margin-top: 6px;
-  font-size: 12.5px;
+.capiro-vnext-root .vnext-meri__sheet-item-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+  margin-top: 10px;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-item-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  font-size: 11px;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-item-row span:first-child {
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-item-row span:last-child {
+  font-weight: 500;
+  color: #475467;
+  text-align: right;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-item-rationale {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid #F2F4F7;
+  font-size: 12px;
   line-height: 18px;
   color: #475467;
 }
 
+.capiro-vnext-root .vnext-meri__sheet-excluded-label {
+  margin-top: 18px;
+  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-excluded-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-excluded-item {
+  display: flex;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-excluded-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-excluded-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475467;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-excluded-reason {
+  font-size: 11.5px;
+  line-height: 17px;
+  color: #98A2B3;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__sheet-footnote {
+  margin-top: 16px;
+  font-size: 11.5px;
+  line-height: 17px;
+  color: #98A2B3;
+  text-wrap: pretty;
+}
+
 .capiro-vnext-root .vnext-meri__context-sheet-degraded {
-  flex: 0 0 auto;
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 9px;
@@ -4960,21 +5200,21 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__palette-dialog {
-  width: 640px;
+  width: 560px;
   max-width: calc(100% - 48px);
-  border-radius: 14px;
+  border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0px 24px 48px -12px rgba(16, 24, 40, 0.3);
+  box-shadow: 0px 24px 48px -12px rgba(16, 24, 40, 0.32);
   overflow: hidden;
-  animation: vnext-meri-rise 0.16s ease;
+  animation: vnext-meri-rise 0.14s ease;
 }
 
 .capiro-vnext-root .vnext-meri__palette-header {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #EAECF0;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #F2F4F7;
 }
 
 .capiro-vnext-root .vnext-meri__palette-input {
@@ -4988,66 +5228,82 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__palette-esc {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px #E4E7EC;
+  background: transparent;
+  border: 0;
   font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: #667085;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #98A2B3;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__palette-esc:hover {
+  background: #F9FAFB;
+  color: #344054;
 }
 
 .capiro-vnext-root .vnext-meri__palette-body {
-  max-height: 400px;
+  max-height: 340px;
   overflow-y: auto;
-  padding: 8px;
+  padding: 6px;
+  scrollbar-width: none;
+}
+
+.capiro-vnext-root .vnext-meri__palette-body::-webkit-scrollbar {
+  display: none;
+}
+
+.capiro-vnext-root .vnext-meri__palette-group-heading {
+  padding: 8px 10px 5px;
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__palette-separator {
+  height: 1px;
+  margin: 6px 4px;
+  background: #F2F4F7;
 }
 
 .capiro-vnext-root .vnext-meri__palette-empty {
-  margin: 6px;
-  padding: 16px 14px;
-  border-radius: 10px;
-  background: #F9FAFB;
-  border: 1px solid #EAECF0;
+  padding: 22px 12px;
+  text-align: center;
   font-size: 13px;
-  line-height: 19px;
-  color: #475467;
+  color: #98A2B3;
 }
 
 .capiro-vnext-root .vnext-meri__palette-row {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 9px 10px;
   border-radius: 8px;
   background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
-.capiro-vnext-root .vnext-meri__palette-row:hover {
-  background: #F9FAFB;
-}
-
-.capiro-vnext-root .vnext-meri__palette-row-icon {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+.capiro-vnext-root .vnext-meri__palette-row:hover,
+.capiro-vnext-root .vnext-meri__palette-row.is-active {
   background: #F2F4F7;
 }
 
-.capiro-vnext-root .vnext-meri__palette-row-text {
+.capiro-vnext-root .vnext-meri__palette-row-title {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.capiro-vnext-root .vnext-meri__palette-row-title {
   font-size: 13.5px;
-  line-height: 19px;
   color: #101828;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5055,21 +5311,36 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__palette-row-sub {
-  font-size: 12px;
-  line-height: 17px;
-  color: #667085;
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #98A2B3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 160px;
 }
 
-.capiro-vnext-root .vnext-meri__palette-row-kind {
+.capiro-vnext-root .vnext-meri__palette-row-set-scope {
   flex: 0 0 auto;
   font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
-  font-size: 9px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__palette-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  border-top: 1px solid #F2F4F7;
+  background: #FCFCFD;
+  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
+  font-size: 10.5px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  color: #667085;
+  letter-spacing: 0.04em;
+  color: #98A2B3;
 }
 
 .capiro-vnext-root .vnext-meri__undo-bar {
@@ -5150,23 +5421,6 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri__thread-menu-item:hover {
   background: #F9FAFB;
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill.is-standard,
-.capiro-vnext-root .vnext-meri__mode-pill.is-new {
-  background: #F9FAFB;
-  border-color: #EAECF0;
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill.is-researching,
-.capiro-vnext-root .vnext-meri__mode-pill.is-clarifying {
-  background: #F2F4F7;
-  border-color: #D0D5DD;
-}
-
-.capiro-vnext-root .vnext-meri__mode-pill.is-approval {
-  background: #FFFAEB;
-  border-color: #FEDF89;
 }
 
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-standard,
@@ -5760,16 +6014,16 @@ width: 30px;
 
 /* Portal-mounted Meri overlays are siblings of the window. Pin their
    typography and focus treatment so the global vNext root cannot leak in. */
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim) {
+.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) {
   font-family: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   color: #101828;
 }
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim) *,
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim) *::before,
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim) *::after {
+.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) *,
+.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) *::before,
+.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) *::after {
   box-sizing: border-box;
 }
-.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim) :focus-visible {
+.capiro-vnext-root :is(.vnext-meri__palette-scrim, .vnext-meri__confirm-scrim, .vnext-meri__sheet-overlay) :focus-visible {
   outline: 2px solid #4E5BA6;
   outline-offset: 2px;
   border-radius: 8px;

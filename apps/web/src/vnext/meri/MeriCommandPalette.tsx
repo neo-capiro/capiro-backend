@@ -1,31 +1,36 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { useChatStore } from '../../components/chat/chat-store.js';
 import { useApi } from '../../lib/use-api.js';
-import { MeriIcon, type MeriIconName } from './meri-icons.js';
+import { MeriIcon } from './meri-icons.js';
 import { displayThreadTitle } from './meri-presentation.js';
 
 /**
  * MeriCommandPalette — full-surface ⌘K palette over the user's own threads and
- * clients. Pixel-parity port of the design prototype's `paletteOpen` overlay.
+ * clients. Pixel-parity port of the v6 prototype's `palOpen` shadcn `Command`
+ * overlay (`onPalKey`/`vOverlays` in the dc script): a THREADS group, an
+ * optional separator, a CLIENTS · CHANGE SCOPE group, an empty state and a
+ * footer hint row — one continuous highlighted index spans both groups.
  *
  * Threads come from the loaded conversation list, message hits from the same
- * `/api/clio/conversations/search` endpoint the thread rail uses, and clients
- * from the controller's client list. Nothing here is synthesised: an empty
- * result set renders the empty state rather than placeholder rows.
+ * `/api/clio/conversations/search` endpoint the thread rail uses (merged into
+ * the THREADS group — the prototype has no separate message tier), and
+ * clients from the controller's client list. Nothing here is synthesised: an
+ * empty result set renders the empty state rather than placeholder rows.
  */
 
-type PaletteResultKind = 'THREAD' | 'MESSAGE' | 'CLIENT';
-
-interface PaletteResult {
+interface PaletteThreadRow {
   key: string;
-  icon: MeriIconName;
   title: string;
   sub: string;
-  kind: PaletteResultKind;
-  conversationId?: string;
-  clientId?: string;
+  conversationId: string;
+}
+
+interface PaletteClientRow {
+  key: string;
+  name: string;
+  clientId: string;
 }
 
 interface HistorySearchResult {
@@ -57,12 +62,17 @@ export function MeriCommandPalette({
   const { conversations } = useChatStore();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handle = window.setTimeout(() => setDebouncedQuery(query.trim()), 200);
     return () => window.clearTimeout(handle);
   }, [query]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [debouncedQuery]);
 
   const searchActive = open && debouncedQuery.length >= 2;
   const messageSearch = useQuery<HistorySearchResult[]>({
@@ -99,12 +109,16 @@ export function MeriCommandPalette({
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setActiveIndex(0);
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
-  const results = useMemo<PaletteResult[]>(() => {
+  // THREADS group — up to 5, matching the prototype's `palT` slice. Message
+  // hits from conversations not already loaded are merged in by snippet, same
+  // as the thread rail's own search merge.
+  const threadRows = useMemo<PaletteThreadRow[]>(() => {
     const q = debouncedQuery.toLowerCase();
-    const threadRows: PaletteResult[] = [...conversations]
+    const known = [...conversations]
       .sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0))
       .filter((conversation) => {
         if (!q) return true;
@@ -114,54 +128,81 @@ export function MeriCommandPalette({
           conversation.latestMessage?.body ?? '',
         ].some((value) => value.toLowerCase().includes(q));
       })
-      .slice(0, 8)
       .map((conversation) => ({
         key: `thread:${conversation.id}`,
-        icon: 'MessageTextSquare01',
         title: displayThreadTitle(conversation.title, conversation.latestMessage?.body),
-        sub: conversation.client?.name ?? 'All clients · Portfolio',
-        kind: 'THREAD',
+        sub: conversation.client?.name ?? 'All clients',
         conversationId: conversation.id,
       }));
 
     const knownIds = new Set(conversations.map((conversation) => conversation.id));
-    const messageRows: PaletteResult[] = (searchActive ? (messageSearch.data ?? []) : [])
-      .filter((hit) => !knownIds.has(hit.conversationId) || hit.snippet)
-      .slice(0, 8)
+    const messageRows = (searchActive ? (messageSearch.data ?? []) : [])
+      .filter((hit) => !knownIds.has(hit.conversationId))
       .map((hit) => ({
         key: `message:${hit.messageId}`,
-        icon: 'SearchLg',
-        title: hit.snippet || displayThreadTitle(hit.title, hit.snippet),
-        sub: displayThreadTitle(hit.title, hit.snippet),
-        kind: 'MESSAGE',
+        title: displayThreadTitle(hit.title, hit.snippet),
+        sub: hit.snippet || 'All clients',
         conversationId: hit.conversationId,
       }));
 
-    const clientRows: PaletteResult[] = (q ? controller.clients : [])
-      .filter((client) => client.name.toLowerCase().includes(q))
-      .slice(0, 5)
-      .map((client) => ({
-        key: `client:${client.id}`,
-        icon: 'Building01',
-        title: client.name,
-        sub: 'Set conversation scope to this client',
-        kind: 'CLIENT',
-        clientId: client.id,
-      }));
+    return [...known, ...messageRows].slice(0, 5);
+  }, [conversations, debouncedQuery, messageSearch.data, searchActive]);
 
-    return [...threadRows, ...messageRows, ...clientRows];
-  }, [conversations, controller.clients, debouncedQuery, messageSearch.data, searchActive]);
+  // CLIENTS · CHANGE SCOPE group — up to 4, matching the prototype's `palC`.
+  const clientRows = useMemo<PaletteClientRow[]>(() => {
+    const q = debouncedQuery.toLowerCase();
+    return controller.clients
+      .filter((client) => !q || client.name.toLowerCase().includes(q))
+      .slice(0, 4)
+      .map((client) => ({ key: `client:${client.id}`, name: client.name, clientId: client.id }));
+  }, [controller.clients, debouncedQuery]);
+
+  const itemCount = threadRows.length + clientRows.length;
+  const clampedIndex = itemCount ? Math.min(activeIndex, itemCount - 1) : 0;
+
+  const runIndex = (index: number) => {
+    onOpenChange(false);
+    if (index < threadRows.length) {
+      const thread = threadRows[index];
+      if (thread) onOpenThread(thread.conversationId);
+      return;
+    }
+    const client = clientRows[index - threadRows.length];
+    if (client) onSelectClient(client.clientId);
+  };
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (!itemCount) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((current) => (Math.min(current, itemCount - 1) + 1) % itemCount);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((current) => (Math.min(current, itemCount - 1) - 1 + itemCount) % itemCount);
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(0);
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(itemCount - 1);
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runIndex(clampedIndex);
+    }
+  };
 
   if (!open) return null;
 
-  const pick = (result: PaletteResult) => {
-    onOpenChange(false);
-    if (result.conversationId) {
-      onOpenThread(result.conversationId);
-      return;
-    }
-    if (result.clientId) onSelectClient(result.clientId);
-  };
+  const activeDomId = `meri-cmd-${clampedIndex}`;
+  const isEmpty = itemCount === 0;
 
   return (
     <div
@@ -170,48 +211,104 @@ export function MeriCommandPalette({
         if (event.target === event.currentTarget) onOpenChange(false);
       }}
     >
-      <div role="dialog" aria-label="Command palette" className="vnext-meri__palette-dialog">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        className="vnext-meri__palette-dialog"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="vnext-meri__palette-header">
           <MeriIcon name="SearchLg" size={17} color="#98A2B3" />
           <input
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search threads, messages, context, sources and actions…"
-            aria-label="Search threads, messages, context, sources and actions"
+            onKeyDown={onKeyDown}
+            placeholder="Search threads and clients…"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="meri-command-list"
+            aria-activedescendant={activeDomId}
+            aria-label="Search threads and clients"
             className="vnext-meri__palette-input"
           />
           <button type="button" onClick={() => onOpenChange(false)} className="vnext-meri__palette-esc">
             ESC
           </button>
         </div>
-        <div className="vnext-meri__palette-body">
-          {results.length === 0 ? (
+        <div
+          id="meri-command-list"
+          role="listbox"
+          aria-label="Threads and clients"
+          className="vnext-meri__palette-body"
+        >
+          {isEmpty ? (
             <div role="status" className="vnext-meri__palette-empty">
               {messageSearch.isFetching
                 ? 'Searching…'
                 : debouncedQuery
-                  ? `Nothing matches “${debouncedQuery}”.`
+                  ? `Nothing matches "${debouncedQuery}".`
                   : 'No threads yet. Ask Meri something to start one.'}
             </div>
           ) : null}
-          {results.map((result) => (
-            <button
-              type="button"
-              key={result.key}
-              onClick={() => pick(result)}
-              className="vnext-meri__palette-row"
-            >
-              <span className="vnext-meri__palette-row-icon">
-                <MeriIcon name={result.icon} size={13} color="#101828" />
-              </span>
-              <span className="vnext-meri__palette-row-text">
-                <span className="vnext-meri__palette-row-title">{result.title}</span>
-                <span className="vnext-meri__palette-row-sub">{result.sub}</span>
-              </span>
-              <span className="vnext-meri__palette-row-kind">{result.kind}</span>
-            </button>
-          ))}
+          {threadRows.length > 0 ? (
+            <div role="group" aria-labelledby="meri-cmd-threads">
+              <div id="meri-cmd-threads" className="vnext-meri__palette-group-heading">
+                THREADS
+              </div>
+              {threadRows.map((row, index) => (
+                <button
+                  type="button"
+                  key={row.key}
+                  id={`meri-cmd-${index}`}
+                  role="option"
+                  aria-selected={index === clampedIndex}
+                  onClick={() => runIndex(index)}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={`vnext-meri__palette-row${index === clampedIndex ? ' is-active' : ''}`}
+                >
+                  <MeriIcon name="MessageTextSquare01" size={15} color="#98A2B3" />
+                  <span className="vnext-meri__palette-row-title">{row.title}</span>
+                  <span className="vnext-meri__palette-row-sub">{row.sub}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {threadRows.length > 0 && clientRows.length > 0 ? (
+            <div className="vnext-meri__palette-separator" />
+          ) : null}
+          {clientRows.length > 0 ? (
+            <div role="group" aria-labelledby="meri-cmd-clients">
+              <div id="meri-cmd-clients" className="vnext-meri__palette-group-heading">
+                CLIENTS · CHANGE SCOPE
+              </div>
+              {clientRows.map((row, offset) => {
+                const index = threadRows.length + offset;
+                return (
+                  <button
+                    type="button"
+                    key={row.key}
+                    id={`meri-cmd-${index}`}
+                    role="option"
+                    aria-selected={index === clampedIndex}
+                    onClick={() => runIndex(index)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={`vnext-meri__palette-row${index === clampedIndex ? ' is-active' : ''}`}
+                  >
+                    <MeriIcon name="Building01" size={15} color="#98A2B3" />
+                    <span className="vnext-meri__palette-row-title">{row.name}</span>
+                    <span className="vnext-meri__palette-row-set-scope">SET SCOPE</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+        <div className="vnext-meri__palette-footer">
+          <span>↑↓ NAVIGATE</span>
+          <span>↵ OPEN</span>
+          <span>ESC CLOSE</span>
         </div>
       </div>
     </div>
