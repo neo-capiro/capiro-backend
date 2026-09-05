@@ -183,6 +183,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
               gap: 7,
               padding: '14px 15px',
               borderRadius: 10,
+              border: 0,
               background: '#FFFFFF',
               boxShadow:
                 hoveredTitle === card.title

@@ -6,7 +6,6 @@ import type { Components } from 'react-markdown';
 import type {
   ChatMessage,
   ChatMessageAttachment,
-  ChatMessageRetrieval,
   MeriCitation,
 } from '../../components/chat/chat-store.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
@@ -14,7 +13,6 @@ import { MeriAnalysisChartCard } from './MeriAnalysisChartCard.js';
 import { MeriMessageFeedback } from './MeriMessageFeedback.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { visibleMarkdown } from './meri-presentation.js';
-import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
 import type { MeriEvidenceClaim, MeriEvidenceSource, MeriEvidenceStat } from './MeriEvidenceTray.js';
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
 import { MeriWorkPerformed } from './MeriWorkPerformed.js';
@@ -199,11 +197,10 @@ function VNextMeriAssistantMessage({
 }) {
   const api = useApi();
   const toast = useCapiroToast();
-  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [reasoningExpanded, setReasoningExpanded] = useState(false);
   const [deletedResearch, setDeletedResearch] = useState(false);
   const [activeCitation, setActiveCitation] = useState<MeriCitation | null>(null);
   const citations = message.citations ?? [];
-  const visibleCitations = sourcesExpanded ? citations : citations.slice(0, 3);
   const researchReport = controller.researchReports[message.id];
   const researchOffer = controller.researchOffers[message.id];
   const messageIsStreaming = isStreaming && isLastAssistant;
@@ -230,53 +227,6 @@ function VNextMeriAssistantMessage({
   );
 
   const markdownSource = visibleMarkdown(message.content, messageIsStreaming);
-  /**
-   * Verification chip (handoff §10a). The handoff's six verification states map
-   * onto what the orchestrator actually sends: a claim-level verification block
-   * with total/unsupported counts and an optional confidence level, plus the
-   * post-hoc grounding auditor's caveat. `NOT GROUNDED` is handled separately
-   * below (the ungrounded strip), so this only covers grounded turns.
-   *
-   * Sources, verification, coverage and context stay four distinct signals
-   * (§10a rule) — this chip never absorbs the coverage pill beside it.
-   */
-  const verificationChip = useMemo<{
-    label: string;
-    icon: MeriIconName;
-    tone: 'good' | 'warn' | 'neutral';
-  } | null>(() => {
-    if (message.groundingCaveat?.findings.length) {
-      return { label: 'REVIEW FLAGGED', icon: 'AlertTriangle', tone: 'warn' };
-    }
-    const verification = message.verification;
-    if (verification?.totalCount) {
-      if (verification.unsupportedCount > 0) {
-        return {
-          label: `${verification.unsupportedCount} CLAIM${
-            verification.unsupportedCount === 1 ? '' : 'S'
-          } UNSUPPORTED`,
-          icon: 'AlertTriangle',
-          tone: 'warn',
-        };
-      }
-      if (verification.lowConfidence || verification.confidence?.level === 'low') {
-        return { label: 'LOW CONFIDENCE', icon: 'AlertTriangle', tone: 'warn' };
-      }
-      if (verification.confidence?.level === 'medium') {
-        return { label: 'MEDIUM CONFIDENCE', icon: 'Shield01', tone: 'neutral' };
-      }
-      if (verification.confidence?.level === 'unknown') {
-        return { label: 'NOT VERIFIED', icon: 'HelpCircle', tone: 'neutral' };
-      }
-      return { label: 'ALL CLAIMS CHECKED', icon: 'ShieldTick', tone: 'good' };
-    }
-    // Citations resolved but the server ran no claim-level verification: say
-    // exactly that rather than claiming the claims were checked.
-    if (citations.length > 0) {
-      return { label: 'NOT VERIFIED', icon: 'HelpCircle', tone: 'neutral' };
-    }
-    return null;
-  }, [citations.length, message.groundingCaveat, message.verification]);
 
   const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
     icon: 'File05',
@@ -329,27 +279,6 @@ function VNextMeriAssistantMessage({
       tab,
     );
 
-  /**
-   * Evidence toggle (handoff §10a) — the last control in the trust row. Shared
-   * by the grounded and ungrounded strips below, which are mutually exclusive
-   * branches of the same row, so this exists once rather than twice.
-   *
-   * v6: opens the rail's turn-inspector Evidence tab (which folds in what
-   * used to be the inline tray plus the separate grounding/coverage warning
-   * cards) instead of expanding an inline tray in place — so this is a
-   * one-way "open" now, not a local expand/collapse toggle.
-   */
-  const evidenceToggle = (
-    <button
-      type="button"
-      className="vnext-meri__evidence-toggle"
-      onClick={() => openThisTurnInspector('evidence')}
-    >
-      EVIDENCE
-      <MeriIcon name="ChevronRight" size={12} color="#667085" />
-    </button>
-  );
-
   return (
     <div className="vnext-meri__assistant-message">
       <span className="vnext-meri__assistant-mark">
@@ -387,23 +316,48 @@ function VNextMeriAssistantMessage({
           click away in the turn inspector. MeriWorkPerformed remains the
           renderer for the pinned contract test; the hero only mounts when
           nothing else can express the run (never in the v6 transcript).
+
+          Below the trace lines, a SHOW/HIDE REASONING disclosure (prototype
+          pattern) reveals the same bounded plan text already surfaced in the
+          turn inspector's Thinking tab — never raw model chain-of-thought,
+          which this app deliberately never retains in browser state.
         */}
         {showExecutionEvidence && controller.trustSteps.length > 0 ? (
-          <div className="vnext-meri__trace" aria-label="Work performed">
-            {controller.trustSteps.map((step, index) => {
-              const running = messageIsStreaming && index === controller.trustSteps.length - 1;
-              return (
-                <div key={`${step.tool}-${index}`} className="vnext-meri__trace-line">
-                  <MeriIcon
-                    name={running ? 'Loading01' : 'CheckCircle'}
-                    size={12}
-                    color={running ? '#98A2B3' : '#D0D5DD'}
-                  />
-                  <span className="vnext-meri__trace-text">{step.label}</span>
-                </div>
-              );
-            })}
-          </div>
+          <>
+            <div className="vnext-meri__trace" aria-label="Work performed">
+              {controller.trustSteps.map((step, index) => {
+                const running = messageIsStreaming && index === controller.trustSteps.length - 1;
+                return (
+                  <div key={`${step.tool}-${index}`} className="vnext-meri__trace-line">
+                    <MeriIcon
+                      name={running ? 'Loading01' : 'CheckCircle'}
+                      size={12}
+                      color={running ? '#98A2B3' : '#D0D5DD'}
+                    />
+                    <span className="vnext-meri__trace-text">{step.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {!messageIsStreaming && controller.planSteps.length > 0 ? (
+              <>
+                <button
+                  type="button"
+                  className="vnext-meri__reasoning-disclosure-toggle"
+                  aria-expanded={reasoningExpanded}
+                  onClick={() => setReasoningExpanded((expanded) => !expanded)}
+                >
+                  <MeriIcon name="Beaker02" size={13} color="#475467" />
+                  {reasoningExpanded ? 'HIDE REASONING' : 'SHOW REASONING'}
+                </button>
+                {reasoningExpanded ? (
+                  <div className="vnext-meri__reasoning-disclosure-body">
+                    {controller.planSteps.join(' ')}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </>
         ) : showExecutionEvidence && controller.planSteps.length > 0 ? (
           /* A turn that announced a plan but has no tool steps yet still owes
              the user its run state — the hero renders the plan honestly here,
@@ -509,59 +463,14 @@ function VNextMeriAssistantMessage({
           tabs, expanded in place via evidenceOpen) is retired from this mount
           point — the EVIDENCE button below now opens the same content in the
           rail's turn inspector instead.
-        */}
 
-        {citations.length > 0 ? (
-          <div className="vnext-meri__source-strip">
-            {visibleCitations.map((citation) => (
-              <VNextMeriSourceChip
-                key={`${citation.n}-${citation.id}`}
-                citation={citation}
-                onOpen={setActiveCitation}
-              />
-            ))}
-            {citations.length > 3 ? (
-              <button
-                type="button"
-                className="vnext-meri__source-more"
-                onClick={() => setSourcesExpanded((expanded) => !expanded)}
-              >
-                {sourcesExpanded ? 'FEWER SOURCES' : `+${citations.length - 3} SOURCES`}
-                <MeriIcon
-                  name={sourcesExpanded ? 'ChevronUp' : 'ChevronDown'}
-                  size={12}
-                  color="#667085"
-                />
-              </button>
-            ) : null}
-            <span style={{ flex: 1 }} />
-            {message.retrieval ? <CoveragePill coverage={message.retrieval.coverage} /> : null}
-            {verificationChip ? (
-              <span
-                className={`vnext-meri__verification-chip is-${verificationChip.tone}`}
-                data-meri-verification-chip
-              >
-                <MeriIcon name={verificationChip.icon} size={12} />
-                {verificationChip.label}
-              </span>
-            ) : null}
-            {!messageIsStreaming && message.content ? evidenceToggle : null}
-          </div>
-        ) : !messageIsStreaming && message.content ? (
-          <div className="vnext-meri__source-strip">
-            <span className="vnext-meri__ungrounded-note">
-              {message.groundingStatement ??
-                'No retrieved sources were attached to this answer.'}
-            </span>
-            <span style={{ flex: 1 }} />
-            {message.retrieval ? <CoveragePill coverage={message.retrieval.coverage} /> : null}
-            <span className="vnext-meri__ungrounded-stamp">
-              <MeriIcon name="AlertCircle" size={13} color="#B54708" />
-              NOT GROUNDED
-            </span>
-            {evidenceToggle}
-          </div>
-        ) : null}
+          The inline source-strip (citation chips, coverage pill,
+          verification chip, NOT GROUNDED stamp) is likewise removed: all of
+          that data already renders in the right panel's Evidence tab (one
+          "Show work" click away, in the message-actions row below), so
+          keeping it here just duplicated the same information twice on
+          screen.
+        */}
 
         {activeCitation ? (
           <div className="vnext-meri__attachment-notice" role="status">
@@ -691,29 +600,6 @@ function AttachmentList({ attachments }: { attachments?: ChatMessageAttachment[]
         );
       })}
     </div>
-  );
-}
-
-/**
- * Coverage pill for the trust strip. The backend reports coverage as
- * `{ complete, stopReason }`, so only the complete/partial distinction is
- * real — the prototype's SOURCES DISAGREE and REQUIRED SOURCE MISSING states
- * have no backing field and are deliberately not synthesised here.
- */
-function CoveragePill({ coverage }: { coverage: ChatMessageRetrieval['coverage'] }) {
-  const reason = coverage.stopReason?.replace(/_/g, ' ').trim();
-  return (
-    <span
-      className={`vnext-meri__coverage-pill${coverage.complete ? ' is-complete' : ' is-partial'}`}
-      title={reason ? `Stop reason: ${reason}` : undefined}
-    >
-      <MeriIcon
-        name={coverage.complete ? 'CheckCircle' : 'AlertTriangle'}
-        size={12}
-        color={coverage.complete ? '#027A48' : '#B54708'}
-      />
-      {coverage.complete ? 'FULL COVERAGE' : 'PARTIAL COVERAGE'}
-    </span>
   );
 }
 

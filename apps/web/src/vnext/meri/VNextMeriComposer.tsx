@@ -42,7 +42,10 @@ import {
   type MeriWorkspaceImportDraft,
 } from './meri-workspace-import.js';
 
-const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
+// Any file type may be dropped or picked — the server's attachment pipeline
+// decides what it can extract text from and marks unsupported files with an
+// honest 'unsupported' status (never blocked client-side by extension).
+const ATTACH_ACCEPT = undefined;
 
 /**
  * LIBRARY sub-panes (v6 prototype `addPanes()`/`addPane()`): saved prompts,
@@ -113,6 +116,8 @@ export function VNextMeriComposer({
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addPane, setAddPane] = useState<MeriLibraryPaneId | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const dragCounterRef = useRef(0);
   const [workspaceImportOpen, setWorkspaceImportOpen] = useState(false);
   const [workspaceDrafts, setWorkspaceDrafts] = useState<MeriWorkspaceImportDraft[]>([]);
   const [workspaceImportLoading, setWorkspaceImportLoading] = useState(false);
@@ -595,7 +600,37 @@ export function VNextMeriComposer({
   };
 
   const composer = (
-    <div className="vnext-meri__composer-wrap" ref={addRef}>
+    <div
+      className={`vnext-meri__composer-wrap${dragActive ? ' is-drag-active' : ''}`}
+      ref={addRef}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        dragCounterRef.current += 1;
+        setDragActive(true);
+      }}
+      onDragOver={(event) => {
+        // Required for onDrop to fire — browsers cancel drop by default.
+        event.preventDefault();
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+        if (dragCounterRef.current === 0) setDragActive(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        dragCounterRef.current = 0;
+        setDragActive(false);
+        if (busy) return;
+        if (event.dataTransfer.files?.length) handleAttachFiles(event.dataTransfer.files);
+      }}
+    >
+      {dragActive ? (
+        <div className="vnext-meri__composer-dropzone" aria-hidden="true">
+          <MeriIcon name="UploadCloud02" size={20} color="#475467" />
+          <span>Drop files to attach — any file type</span>
+        </div>
+      ) : null}
       {addOpen ? (
         <div className="vnext-meri__add-popover" role="menu" aria-label="Add to conversation">
           {!activePane ? (

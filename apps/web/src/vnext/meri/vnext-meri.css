@@ -1336,24 +1336,24 @@ max-width: 720px;
 }
 
 .capiro-vnext-root .vnext-meri__landing-greeting {
-margin-top: 20px;
+margin-top: 14px;
   font-size: 31px;
   font-weight: 600;
-  line-height: 38px;
+  line-height: 34px;
   letter-spacing: -0.02em;
   color: var(--meri-ink);
 }
 
 .capiro-vnext-root .vnext-meri__landing-homesub {
-margin-top: 12px;
+margin-top: 8px;
   max-width: 600px;
   font-size: 15px;
-  line-height: 24px;
+  line-height: 22px;
   color: var(--meri-text-secondary);
 }
 
 .capiro-vnext-root .vnext-meri__landing-sub {
-  margin-top: 14px;
+  margin-top: 9px;
   font-family: var(--meri-font-sans);
   font-size: 11px;
   font-weight: 600;
@@ -1615,6 +1615,43 @@ margin-top: 12px;
   text-overflow: ellipsis;
 }
 
+/* v6 SHOW/HIDE REASONING disclosure — sits under the trace lines. Reveals
+   the same bounded plan text already in the turn inspector's Thinking tab;
+   this app never retains raw model chain-of-thought, so there is nothing
+   else this disclosure could show. */
+.capiro-vnext-root .vnext-meri__reasoning-disclosure-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: #F9FAFB;
+  font-family: var(--meri-font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #475467;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-disclosure-toggle:hover {
+  background: #F2F4F7;
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-disclosure-body {
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #FCFCFD;
+  box-shadow: inset 2px 0 0 #98A2B3;
+  font-size: 13px;
+  line-height: 20px;
+  color: #344054;
+}
+
 /* v6 streaming indicator: avatar + "Meri is responding" 12.5px/500. */
 .capiro-vnext-root .vnext-meri__responding {
   display: flex;
@@ -1626,55 +1663,6 @@ margin-top: 12px;
   font-size: 12.5px;
   font-weight: 500;
   color: #667085;
-}
-
-/* Source strip — v6: cardless, so the trust row is a plain wrapping row in
-   the answer column (no hairline, no padding — the column gap owns spacing). */
-.capiro-vnext-root .vnext-meri__source-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 0;
-  border-top: 0;
-  background: transparent;
-}
-
-.capiro-vnext-root .vnext-meri__source-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 26px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0 10px;
-  border-radius: 7px;
-  background: var(--meri-surface);
-  border: 1px solid var(--meri-border);
-  cursor: pointer;
-  transition: border-color var(--capiro-motion-fast) var(--capiro-motion-ease),
-    background var(--capiro-motion-fast) var(--capiro-motion-ease);
-}
-
-.capiro-vnext-root .vnext-meri__source-chip:hover {
-  border-color: var(--meri-border-control);
-  background: var(--meri-accent-soft);
-}
-
-.capiro-vnext-root .vnext-meri__source-chip-label {
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.07em;
-  color: var(--meri-text-secondary);
-  /* A long citation title is otherwise chopped without ellipsis by
-     .vnext-meri__assistant-card's overflow:hidden once the column narrows. The
-     full title stays available through the chip's title attribute. */
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .capiro-vnext-root .vnext-meri__source-more {
@@ -1693,76 +1681,6 @@ margin-top: 12px;
   letter-spacing: 0.07em;
   color: var(--meri-text-secondary);
   white-space: nowrap;
-}
-
-.capiro-vnext-root .vnext-meri__grounded-stamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: var(--meri-success);
-}
-
-/* Verification chip — handoff §10a. One of the four distinct trust signals
-   (sources / verification / coverage / context); never merged into a single
-   confidence badge. Tone carries the semantic ramp, and the label always
-   states the finding in words so the state is never colour-only. */
-.capiro-vnext-root .vnext-meri__verification-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 7px;
-  border: 1px solid var(--meri-border);
-  background: var(--meri-surface-2);
-  font-family: var(--meri-font-mono);
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-secondary);
-  white-space: nowrap;
-}
-
-.capiro-vnext-root .vnext-meri__verification-chip.is-good {
-  background: var(--m-success-bg);
-  border-color: var(--m-success-border);
-  color: var(--m-success-text);
-}
-
-.capiro-vnext-root .vnext-meri__verification-chip.is-warn {
-  background: var(--m-warning-bg);
-  border-color: var(--m-warning-border);
-  color: var(--m-warning-text);
-}
-
-/* Evidence toggle — handoff §10a, the last control in the trust row. Control
-   border rather than a hairline, because unlike the chips beside it this one
-   is interactive and opens the tray. */
-.capiro-vnext-root .vnext-meri__evidence-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--meri-border-control);
-  border-radius: 7px;
-  background: var(--meri-surface);
-  font-family: var(--meri-font-mono);
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-ink);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.capiro-vnext-root .vnext-meri__evidence-toggle.is-open,
-.capiro-vnext-root .vnext-meri__evidence-toggle:hover {
-  background: var(--meri-surface-2);
 }
 
 /* v6 feedback row: 26×26 radius-7 icon buttons (hover green/red/graphite),
@@ -2109,6 +2027,31 @@ margin-top: 12px;
 
 .capiro-vnext-root .vnext-meri__composer-wrap {
   position: relative;
+}
+
+/* Drag-and-drop: any file type may be dropped onto the composer. The
+   dropzone overlay covers the composer while a drag is active; the ring
+   below (on .vnext-meri__composer) gets a matching highlight. */
+.capiro-vnext-root .vnext-meri__composer-wrap.is-drag-active .vnext-meri__composer {
+  box-shadow: 0 0 0 2px #294E68, 0 2px 8px -2px rgba(16, 24, 40, 0.08);
+}
+
+.capiro-vnext-root .vnext-meri__composer-dropzone {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: rgba(240, 244, 247, 0.94);
+  box-shadow: inset 0 0 0 2px #294E68;
+  font-family: var(--meri-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #475467;
+  pointer-events: none;
 }
 
 .capiro-vnext-root .vnext-meri__composer {
@@ -5495,50 +5438,6 @@ width: 30px;
   width: 13px;
   height: auto;
   filter: invert(1);
-}
-
-.capiro-vnext-root .vnext-meri__ungrounded-note {
-  font-style: normal;
-  font-size: 13px;
-  line-height: 20px;
-  color: #667085;
-}
-
-.capiro-vnext-root .vnext-meri__ungrounded-stamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  color: #B54708;
-}
-
-.capiro-vnext-root .vnext-meri__coverage-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: 0 9px;
-  border-radius: 7px;
-  font-family: var(--meri-font-mono);
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-
-.capiro-vnext-root .vnext-meri__coverage-pill.is-complete {
-  background: #ECFDF3;
-  border: 1px solid #ABEFC6;
-  color: #027A48;
-}
-
-.capiro-vnext-root .vnext-meri__coverage-pill.is-partial {
-  background: #FFFAEB;
-  border: 1px solid #FEDF89;
-  color: #B54708;
 }
 
 .capiro-vnext-root .vnext-meri__analysis-slot {
