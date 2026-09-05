@@ -36,12 +36,14 @@ import type { OutreachTarget, TargetType } from './targets.js';
  */
 export function genInputSignature(input: {
   contextItems: SelectedContextItem[];
+  mainIdea: string;
   templateId: string | null;
   tone: string;
   direction: string | null;
 }): string {
   return JSON.stringify({
     ctx: input.contextItems.map((c) => [c.id, c.scope, c.note ?? '', (c.body ?? '').length]),
+    mainIdea: input.mainIdea,
     template: input.templateId,
     tone: input.tone,
     direction: input.direction,
@@ -53,6 +55,7 @@ export function genInputSignature(input: {
 /** The generation inputs captured at a point in time, for diffing against the current ones. */
 export interface GenerationSnapshot {
   contextItems: SelectedContextItem[];
+  mainIdea: string;
   templateId: string | null;
   tone: string;
   direction: string | null;
@@ -104,6 +107,7 @@ export function computeAffectedGenerationKeys(
   if (previous.templateId !== next.templateId) affectAll('Template changed');
   if (previous.tone !== next.tone) affectAll('Tone changed');
   if (previous.direction !== next.direction) affectAll('Direction changed');
+  if (previous.mainIdea !== next.mainIdea) affectAll('Main idea changed');
 
   /** genKeys a context item's scope maps onto — mirrors expandContextItemScopes'
    *  list/group semantics (a list/group scope reaches every current member). */

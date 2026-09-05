@@ -28,21 +28,10 @@ import {
   type RefObject,
 } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Badge, Button, Checkbox, Dropdown, Input, Modal, Select } from 'antd';
-import {
-  CheckOutlined,
-  CloseOutlined,
-  DownOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-  RightOutlined,
-  SearchOutlined,
-  StarFilled,
-  StarOutlined,
-  TeamOutlined,
-  UnorderedListOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+// antd is down to two things here: App (the message/notification context this
+// step already used) and Dropdown, kept purely as the positioning shell for
+// the Lists/Groups popovers — their contents are fully migrated below.
+import { App, Dropdown } from 'antd';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client, ClientPerson } from '../../../clients/clientTypes.js';
 import type { DirectoryApiResponse, DirectoryEntry } from '../../../directory/directoryData.js';
@@ -69,7 +58,20 @@ import {
 import { useGroups } from './groups.js';
 import { candidateEmails, formatLastContacted, usePriorContact } from './priorContact.js';
 import { RecipientCollisions, type CollisionResolution } from './RecipientCollisions.js';
+// Migration in progress (handover §0, §6.6): blocks already rebuilt use the
+// Tailwind + React Aria layer below; the rest still reads from
+// step-recipients-select.css until they're converted too.
 import './step-recipients-select.css';
+import './ui/tailwind.css';
+import { Icon } from './ui/icons.js';
+// Aliased: antd's Input/Button/Checkbox are still imported above for the
+// blocks that haven't been converted yet, so the new primitives need
+// distinct names until the migration of this file finishes.
+import { Input as UiInput } from './ui/Input.js';
+import { Button as UiButton } from './ui/Button.js';
+import { Checkbox as UiCheckbox } from './ui/Checkbox.js';
+import { ComboBox } from './ui/ComboBox.js';
+import { Dialog } from './ui/Dialog.js';
 
 /**
  * "Last contacted Nd ago" badge (W5.2). Provided once at the top of the Recipients
@@ -278,7 +280,10 @@ export function StepRecipientsSelect({
       const pc = email ? priorContact.get(email.trim().toLowerCase()) : undefined;
       if (!pc) return null;
       return (
-        <span className="ov2-rs-lastcontact" title={pc.subject ? `re: "${pc.subject}"` : undefined}>
+        <span
+          className="rounded-full bg-neutral-bg px-2 py-0.5 text-[10.5px] font-medium text-neutral-ink"
+          title={pc.subject ? `re: "${pc.subject}"` : undefined}
+        >
           {formatLastContacted(pc.sentAt)}
         </span>
       );
@@ -453,14 +458,14 @@ export function StepRecipientsSelect({
   // blue bar (board 5b); groups get the amber bar from useGroups (board 7b).
   const builderBanner: ReactNode =
     builder?.kind === 'list' ? (
-      <div className="ov2-rs-buildbar">
-        <span className="count">
+      <div className="mt-3 flex items-center gap-3 rounded-md border border-accent-border bg-accent-tint px-3 py-2.5">
+        <span className="text-[13px] font-semibold text-accent-ink">
           {builder.members.length} {builder.members.length === 1 ? 'member' : 'members'} selected
         </span>
-        <span className="spacer" />
+        <span className="flex-1" />
         <button
           type="button"
-          className="save"
+          className="rounded-sm bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           disabled={builder.members.length === 0}
           onClick={() => {
             setSaveListName('');
@@ -469,7 +474,11 @@ export function StepRecipientsSelect({
         >
           Save selection as list
         </button>
-        <button type="button" className="cancel" onClick={() => setBuilder(null)}>
+        <button
+          type="button"
+          className="rounded-sm px-3 py-1.5 text-xs font-semibold text-accent-ink hover:bg-surface"
+          onClick={() => setBuilder(null)}
+        >
           Cancel
         </button>
       </div>
@@ -480,43 +489,48 @@ export function StepRecipientsSelect({
   // Lists popover (board 6a): create-new entry point + the user's saved
   // lists from their contact library, each applyable to this campaign.
   const listsPopover: ReactNode = (
-    <div className="ov2-rs-lists-pop">
+    <div className="ov2-tw-root w-[320px] rounded-lg border border-line-hairline bg-surface p-2 shadow-card">
       <button
         type="button"
-        className="create"
+        className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-[13px] font-semibold text-accent-ink hover:bg-accent-tint"
         onClick={() => {
           setBuilder({ kind: 'list', name: '', members: [] });
           setListsOpen(false);
         }}
       >
-        <span className="plus">
-          <PlusOutlined />
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-tint">
+          <Icon.Plus size={12} />
         </span>
         Create new list
       </button>
-      <div className="sec">Saved lists</div>
+      <div className="mt-1.5 px-2.5 pb-1 font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
+        Saved lists
+      </div>
       {audiences.isLoading ? (
-        <div className="empty">Loading your lists…</div>
+        <div className="px-2.5 py-2 text-[12.5px] text-ink-tertiary italic">Loading your lists…</div>
       ) : (audiences.data ?? []).length === 0 ? (
-        <div className="empty">No saved lists yet</div>
+        <div className="px-2.5 py-2 text-[12.5px] text-ink-tertiary italic">No saved lists yet</div>
       ) : (
         (audiences.data ?? []).map((audience) => {
           const applied = targets.some((t) => t.audienceId === audience.id);
           return (
-            <div key={audience.id} className="row">
-              <div className="info">
-                <b>{audience.name}</b>
-                <small>
+            <div key={audience.id} className="flex items-center gap-2 rounded-sm px-2.5 py-1.5 hover:bg-surface-subtle">
+              <div className="min-w-0 flex-1">
+                <b className="block truncate text-[13px] font-semibold text-ink-primary">
+                  {audience.name}
+                </b>
+                <small className="text-[11.5px] text-ink-tertiary">
                   {audience.members.length} {audience.members.length === 1 ? 'contact' : 'contacts'}
                 </small>
               </div>
-              <Button
-                size="small"
+              <button
+                type="button"
                 disabled={applied}
                 onClick={() => applyAudience(audience, targets)}
+                className="flex-none rounded-sm border border-line-control bg-surface px-2.5 py-1 text-xs font-semibold text-ink-strong disabled:opacity-50"
               >
                 {applied ? 'Added' : '+ Add'}
-              </Button>
+              </button>
             </div>
           );
         })
@@ -526,37 +540,40 @@ export function StepRecipientsSelect({
 
   // Applied-list chips under the toolbar (board 5d).
   const appliedChips: ReactNode = listTargets.length ? (
-    <div className="ov2-rs-chips-row">
+    <div className="mt-3 flex flex-wrap items-center gap-2">
       {listTargets.map((t) => (
-        <span key={t.key} className="ov2-rs-applied-chip">
-          <UnorderedListOutlined /> {t.name} ({t.recipients.length})
+        <span
+          key={t.key}
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent-tint px-2.5 py-1 text-xs font-medium text-accent-ink"
+        >
+          <Icon.LayoutAlt01 size={12} /> {t.name} ({t.recipients.length})
           <button
             type="button"
             onClick={() => setTargets(targets.filter((x) => x.key !== t.key))}
             aria-label={`Remove ${t.name ?? 'list'} from this campaign`}
+            className="text-accent-muted hover:text-accent-ink"
           >
-            <CloseOutlined />
+            <Icon.XClose size={11} />
           </button>
         </span>
       ))}
-      <span className="meta">
+      <span className="text-xs text-ink-tertiary">
         {total} {total === 1 ? 'recipient' : 'recipients'} selected
       </span>
     </div>
   ) : null;
 
   return (
-    <div>
-      <h2>
+    <div className="ov2-tw-root">
+      <h2 className="flex items-center gap-2 text-[22px] leading-7 font-bold tracking-[-0.02em] text-ink-primary">
         Select recipients
         {total > 0 && (
-          <Badge
-            count={total}
-            style={{ backgroundColor: 'var(--ov2-accent-ink)', marginLeft: 8 }}
-          />
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">
+            {total}
+          </span>
         )}
       </h2>
-      <div className="ov2-pane-sub">
+      <div className="mt-1.5 mb-5 text-sm leading-5 text-ink-secondary">
         Choose congressional offices, staffers, committee contacts, or clients to receive this
         campaign.
       </div>
@@ -576,35 +593,30 @@ export function StepRecipientsSelect({
         />
       )}
 
-      <div className="ov2-rs-tabs">
-        <button
-          type="button"
-          className={'ov2-rs-tab' + (tab === 'congress' ? ' active' : '')}
-          onClick={() => setTab('congress')}
-        >
-          Congressional Directory
-        </button>
-        <button
-          type="button"
-          className={'ov2-rs-tab' + (tab === 'statelegislators' ? ' active' : '')}
-          onClick={() => setTab('statelegislators')}
-        >
-          State Legislators
-        </button>
-        <button
-          type="button"
-          className={'ov2-rs-tab' + (tab === 'clients' ? ' active' : '')}
-          onClick={() => setTab('clients')}
-        >
-          Client Contacts
-        </button>
-        <button
-          type="button"
-          className={'ov2-rs-tab' + (tab === 'manual' ? ' active' : '')}
-          onClick={() => setTab('manual')}
-        >
-          Manual Add
-        </button>
+      <div role="tablist" className="mt-5 flex gap-6 border-b border-line-hairline">
+        {(
+          [
+            ['congress', 'Congressional Directory'],
+            ['statelegislators', 'State Legislators'],
+            ['clients', 'Client Contacts'],
+            ['manual', 'Manual Add'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`-mb-px border-b-2 pb-2.5 text-[13.5px] whitespace-nowrap ${
+              tab === id
+                ? 'border-ink-primary font-semibold text-ink-primary'
+                : 'border-transparent font-medium text-ink-tertiary hover:text-ink-secondary'
+            }`}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === 'congress' && (
@@ -670,57 +682,69 @@ export function StepRecipientsSelect({
         />
       )}
 
-      <Modal
+      <Dialog
         title="Save as contact list"
         open={saveListOpen}
         // No dismissal while the POST is in flight: the mutation would still
         // complete and apply the list to the campaign after a "cancel".
-        closable={!saveList.isPending}
-        maskClosable={!saveList.isPending}
-        onCancel={() => !saveList.isPending && setSaveListOpen(false)}
-        footer={[
-          <Button key="cancel" disabled={saveList.isPending} onClick={() => setSaveListOpen(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            loading={saveList.isPending}
-            disabled={!saveListName.trim() || emailableCount === 0}
-            onClick={() =>
-              builder && saveList.mutate({ name: saveListName.trim(), members: builder.members })
-            }
-          >
-            Save list
-          </Button>,
-        ]}
+        onClose={() => !saveList.isPending && setSaveListOpen(false)}
+        width={520}
+        footer={
+          <>
+            <UiButton
+              variant="secondary"
+              isDisabled={saveList.isPending}
+              onPress={() => setSaveListOpen(false)}
+            >
+              Cancel
+            </UiButton>
+            <UiButton
+              variant="primary"
+              isDisabled={!saveListName.trim() || emailableCount === 0 || saveList.isPending}
+              onPress={() =>
+                builder && saveList.mutate({ name: saveListName.trim(), members: builder.members })
+              }
+            >
+              {saveList.isPending ? 'Saving…' : 'Save list'}
+            </UiButton>
+          </>
+        }
       >
-        <p style={{ marginTop: 8 }}>
-          This will save your {plural(builder?.members.length ?? 0, 'selected recipient')} as a
-          reusable list.
-        </p>
-        {unsavableCount > 0 && (
-          <p style={{ marginTop: 0, fontSize: 12, color: 'var(--ov2-notable)' }}>
-            {emailableCount === 0
-              ? 'None of the selected contacts have a usable email address — add at least one with an email before saving.'
-              : `${plural(unsavableCount, 'contact')} without a usable email address will be left out.`}
+        <div className="ov2-tw-root flex flex-col gap-3">
+          <p className="text-sm text-ink-secondary">
+            This will save your {plural(builder?.members.length ?? 0, 'selected recipient')} as a
+            reusable list.
           </p>
-        )}
-        <Input
-          autoFocus
-          placeholder="e.g. HASC staffers Q3"
-          value={saveListName}
-          onChange={(e) => setSaveListName(e.target.value)}
-          onPressEnter={() => {
-            if (saveListName.trim() && builder && emailableCount > 0 && !saveList.isPending) {
-              saveList.mutate({ name: saveListName.trim(), members: builder.members });
-            }
-          }}
-        />
-        <p style={{ marginTop: 8, marginBottom: 0, fontSize: 12, color: 'var(--ov2-ink-3)' }}>
-          Lists are saved to your individual contact library and can be reused across campaigns.
-        </p>
-      </Modal>
+          {unsavableCount > 0 && (
+            <p className="text-xs text-warning-heading">
+              {emailableCount === 0
+                ? 'None of the selected contacts have a usable email address — add at least one with an email before saving.'
+                : `${plural(unsavableCount, 'contact')} without a usable email address will be left out.`}
+            </p>
+          )}
+          <UiInput
+            autoFocus
+            placeholder="e.g. HASC staffers Q3"
+            value={saveListName}
+            onChange={setSaveListName}
+            height={40}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                saveListName.trim() &&
+                builder &&
+                emailableCount > 0 &&
+                !saveList.isPending
+              ) {
+                saveList.mutate({ name: saveListName.trim(), members: builder.members });
+              }
+            }}
+          />
+          <p className="text-xs text-ink-tertiary">
+            Lists are saved to your individual contact library and can be reused across campaigns.
+          </p>
+        </div>
+      </Dialog>
 
       {saveGroupModal}
     </div>
@@ -999,22 +1023,34 @@ function CcBccPopover({
     manual: 'Manual',
   };
 
+  const SOURCE_TAG_CLASS: Record<CcBccContact['source'], string> = {
+    congress: 'bg-accent-tint text-accent-ink',
+    client: 'bg-success-bg text-success',
+    team: 'bg-warning-bg text-warning-heading',
+    manual: 'bg-neutral-bg text-neutral-ink',
+  };
+
   const renderResult = (r: ContactResult) => (
     <button
       type="button"
       key={r.contact.id}
-      className={
-        'ov2-rs-ccbcc-result' +
-        (r.contact.source === 'client' ? ' client' : r.contact.source === 'team' ? ' team' : '')
-      }
+      className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left hover:bg-surface-subtle"
       onClick={() => addContact(r.contact)}
     >
-      <span className="ov2-rs-ccbcc-avatar">{contactInitials(r.contact.name)}</span>
-      <span className="meta">
-        <span className="nm">{r.contact.name}</span>
-        <span className="sub">{r.sub || r.contact.email}</span>
+      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-accent-tint text-[11px] font-semibold text-accent-ink">
+        {contactInitials(r.contact.name)}
       </span>
-      <span className={'ov2-rs-ccbcc-srctag ' + r.contact.source}>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold text-ink-primary">
+          {r.contact.name}
+        </span>
+        <span className="block truncate text-[11.5px] text-ink-tertiary">
+          {r.sub || r.contact.email}
+        </span>
+      </span>
+      <span
+        className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-medium ${SOURCE_TAG_CLASS[r.contact.source]}`}
+      >
         {SOURCE_TAG[r.contact.source]}
       </span>
     </button>
@@ -1022,25 +1058,31 @@ function CcBccPopover({
 
   return (
     <div
-      className="ov2-rs-ccbcc-pop"
+      className="ov2-tw-root absolute top-full right-0 z-30 mt-1.5 flex w-[360px] flex-col gap-2.5 rounded-lg border border-line-hairline bg-surface p-3 shadow-card"
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       role="dialog"
       aria-label="Add Cc or Bcc"
     >
-      <div className="ov2-rs-ccbcc-toggle">
-        <span className="lbl">Adding as</span>
-        <div className="ov2-rs-ccbcc-seg">
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
+          Adding as
+        </span>
+        <div className="flex overflow-hidden rounded-sm border border-line-control">
           <button
             type="button"
-            className={'cc' + (type === 'cc' ? ' active' : '')}
+            className={`px-2.5 py-1 text-xs font-semibold ${
+              type === 'cc' ? 'bg-accent text-white' : 'bg-surface text-ink-secondary'
+            }`}
             onClick={() => setType('cc')}
           >
             Cc
           </button>
           <button
             type="button"
-            className={'bcc' + (type === 'bcc' ? ' active' : '')}
+            className={`border-l border-line-control px-2.5 py-1 text-xs font-semibold ${
+              type === 'bcc' ? 'bg-accent text-white' : 'bg-surface text-ink-secondary'
+            }`}
             onClick={() => setType('bcc')}
           >
             Bcc
@@ -1048,20 +1090,28 @@ function CcBccPopover({
         </div>
       </div>
 
-      <div className="ov2-rs-ccbcc-tray">
+      <div className="flex min-h-[34px] flex-wrap items-center gap-1.5 rounded-md bg-surface-subtle p-2">
         {pending.length === 0 ? (
-          <span className="empty">No contacts added yet</span>
+          <span className="text-[11.5px] text-ink-tertiary italic">No contacts added yet</span>
         ) : (
           pending.map((p) => (
-            <span key={p.contact.email} className={'ov2-rs-ccpill ' + p.ccbcc}>
-              <span className="px">{p.ccbcc === 'cc' ? 'Cc' : 'Bcc'}</span>
-              <span className="nm">{p.contact.name}</span>
+            <span
+              key={p.contact.email}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                p.ccbcc === 'cc'
+                  ? 'bg-accent-tint text-accent-ink'
+                  : 'bg-warning-bg text-warning-heading'
+              }`}
+            >
+              <span className="font-mono uppercase">{p.ccbcc === 'cc' ? 'Cc' : 'Bcc'}</span>
+              <span>{p.contact.name}</span>
               <button
                 type="button"
                 onClick={() => removePending(p.contact.email)}
                 aria-label={`Remove ${p.contact.name}`}
+                className="opacity-60 hover:opacity-100"
               >
-                <CloseOutlined />
+                <Icon.XClose size={10} />
               </button>
             </span>
           ))
@@ -1069,102 +1119,89 @@ function CcBccPopover({
       </div>
 
       {manual ? (
-        <div className="ov2-rs-ccbcc-manual">
-          <div className="names">
-            <Input
-              size="small"
-              placeholder="First name"
-              value={mFirst}
-              onChange={(e) => setMFirst(e.target.value)}
-            />
-            <Input
-              size="small"
-              placeholder="Last name"
-              value={mLast}
-              onChange={(e) => setMLast(e.target.value)}
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <UiInput placeholder="First name" value={mFirst} onChange={setMFirst} height={36} />
+            <UiInput placeholder="Last name" value={mLast} onChange={setMLast} height={36} />
           </div>
-          <Input
-            size="small"
-            type="email"
+          <UiInput
             placeholder="Email address"
             value={mEmail}
-            onChange={(e) => setMEmail(e.target.value)}
-            onPressEnter={addManual}
+            onChange={setMEmail}
+            height={36}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addManual();
+            }}
           />
-          {mErr && <span className="err">{mErr}</span>}
-          <div className="manual-actions">
-            <Button size="small" type="primary" onClick={addManual}>
+          {mErr && <span className="text-[11.5px] text-danger">{mErr}</span>}
+          <div className="flex gap-2">
+            <UiButton variant="primary" size="sm" onPress={addManual}>
               Add
-            </Button>
-            <Button
-              size="small"
-              onClick={() => {
+            </UiButton>
+            <UiButton
+              variant="secondary"
+              size="sm"
+              onPress={() => {
                 setManual(false);
                 setMErr(null);
               }}
             >
               Cancel
-            </Button>
+            </UiButton>
           </div>
         </div>
       ) : (
         <>
-          <Input
-            size="small"
-            allowClear
+          <UiInput
             autoFocus
-            prefix={<SearchOutlined />}
+            leadingIcon={<Icon.SearchLg size={14} />}
             placeholder="Search your team, congressional & client contacts…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            height={36}
           />
           {ql ? (
             hasResults ? (
-              <div className="ov2-rs-ccbcc-results">
+              <div className="flex max-h-[260px] flex-col overflow-y-auto">
                 {/* Teammates first: copying a colleague is the most common Cc, and
                     burying them under a long directory match is what drove people
                     to retype the same address for every recipient. */}
-                {teamResults.length > 0 && <div className="ov2-rs-ccbcc-grouplabel">Your team</div>}
+                {teamResults.length > 0 && <GroupLabel>Your team</GroupLabel>}
                 {teamResults.map(renderResult)}
-                {congressResults.length > 0 && (
-                  <div className="ov2-rs-ccbcc-grouplabel">Congressional contacts</div>
-                )}
+                {congressResults.length > 0 && <GroupLabel>Congressional contacts</GroupLabel>}
                 {congressResults.map(renderResult)}
-                {clientResults.length > 0 && (
-                  <div className="ov2-rs-ccbcc-grouplabel">Client contacts</div>
-                )}
+                {clientResults.length > 0 && <GroupLabel>Client contacts</GroupLabel>}
                 {clientResults.map(renderResult)}
               </div>
             ) : (
-              <div className="ov2-rs-ccbcc-hintrow">
+              <div className="px-1 py-2 text-[12px] text-ink-tertiary italic">
                 {dir.isFetching || peopleLoading
                   ? 'Searching…'
                   : `No contacts match “${q.trim()}”.`}
               </div>
             )
           ) : (
-            <div className="ov2-rs-ccbcc-hintrow">
+            <div className="px-1 py-2 text-[12px] text-ink-tertiary italic">
               Type to search your team, congressional contacts, and client contacts.
             </div>
           )}
           <button
             type="button"
-            className="ov2-rs-ccbcc-manual-link"
+            className="flex w-fit items-center gap-1.5 text-xs font-semibold text-accent-ink hover:underline"
             onClick={() => {
               setManual(true);
               setMErr(null);
             }}
           >
-            <UserOutlined /> Add manually by email
+            <Icon.User01 size={13} /> Add manually by email
           </button>
         </>
       )}
 
-      <div className="ov2-rs-ccbcc-foot">
+      <div className="flex items-center gap-2 border-t border-line-hairline pt-2.5">
         <button
           type="button"
-          className="ov2-rs-ccbcc-apply"
+          className="btn-dark flex-1 rounded-sm px-3 py-2 text-[13px] font-semibold disabled:opacity-50"
           disabled={applyDisabled}
           onClick={apply}
         >
@@ -1173,10 +1210,97 @@ function CcBccPopover({
         {/* ✕ closes the popover. For bulk this returns to the banner (the
             "Add Cc/Bcc to selected" button reopens it); elsewhere it just
             dismisses. Outside-click / Escape do the same. */}
-        <button type="button" className="ov2-rs-ccbcc-close" onClick={onClose} aria-label="Close">
-          <CloseOutlined />
+        <button
+          type="button"
+          className="flex-none rounded-sm p-2 text-ink-tertiary hover:bg-surface-subtle"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <Icon.XClose size={14} />
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A toolbar control (Favorites / Lists / Groups). Forwards every prop it is
+ * given — antd's Dropdown injects its own onClick/aria wiring onto the child
+ * it wraps, so this must stay transparent or the popovers stop opening.
+ */
+function ToolbarButton({
+  active,
+  children,
+  ...rest
+}: {
+  active?: boolean;
+  children: ReactNode;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      {...rest}
+      className={`inline-flex h-9 items-center gap-1.5 rounded-sm border px-2.5 text-[13px] font-semibold whitespace-nowrap ${
+        active
+          ? 'border-accent-border bg-accent-tint text-accent-ink'
+          : 'border-line-control bg-surface text-ink-strong hover:border-accent-border'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** "In To" / "In Group" tag on a directory row that's already selected. */
+function MembershipTag({ tag }: { tag: { text: string; cls: string } }) {
+  return (
+    <span
+      className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-medium ${
+        tag.cls === 'group'
+          ? 'bg-warning-bg text-warning-heading'
+          : 'bg-accent-tint text-accent-ink'
+      }`}
+    >
+      {tag.text}
+    </span>
+  );
+}
+
+/** One applied Cc/Bcc contact chip, with its remove control. */
+function CcPill({
+  kind,
+  name,
+  onRemove,
+}: {
+  kind: 'cc' | 'bcc';
+  name: string;
+  onRemove: () => void;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+        kind === 'cc' ? 'bg-accent-tint text-accent-ink' : 'bg-warning-bg text-warning-heading'
+      }`}
+    >
+      <span className="font-mono uppercase">{kind === 'cc' ? 'Cc' : 'Bcc'}</span>
+      <span>{name}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${kind === 'cc' ? 'Cc' : 'Bcc'} ${name}`}
+        className="opacity-60 hover:opacity-100"
+      >
+        <Icon.XClose size={10} />
+      </button>
+    </span>
+  );
+}
+
+/** Section heading inside the Cc/Bcc result list. */
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="px-2 pt-2 pb-1 font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
+      {children}
     </div>
   );
 }
@@ -1276,18 +1400,18 @@ function SelectedPanel({
   const selectedCount = selected.size;
 
   return (
-    <div className="ov2-rs-panel">
+    <div className="ov2-tw-root mb-5 flex flex-col gap-3">
       {bulkMode &&
         (appliedCount != null && !bulkPopoverOpen ? (
-          <div className="ov2-rs-bulkbar2 green">
-            <span className="txt">
-              <CheckOutlined /> Applied to {appliedCount}{' '}
+          <div className="flex items-center gap-3 rounded-md border border-success-border bg-success-bg px-3 py-2.5">
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold text-success">
+              <Icon.Check size={14} /> Applied to {appliedCount}{' '}
               {appliedCount === 1 ? 'recipient' : 'recipients'}
             </span>
-            <span className="spacer" />
+            <span className="flex-1" />
             <button
               type="button"
-              className="act"
+              className="rounded-sm bg-success px-3 py-1.5 text-xs font-semibold text-white"
               onClick={() => {
                 setAppliedCount(null);
                 setBulkPopoverOpen(true);
@@ -1295,22 +1419,26 @@ function SelectedPanel({
             >
               Add more
             </button>
-            <button type="button" className="ghost" onClick={exitBulk}>
+            <button
+              type="button"
+              className="rounded-sm px-3 py-1.5 text-xs font-semibold text-success hover:bg-surface"
+              onClick={exitBulk}
+            >
               Done
             </button>
           </div>
         ) : (
-          <div className="ov2-rs-bulkbar2 blue">
-            <span className="txt">
+          <div className="flex items-center gap-3 rounded-md border border-accent-border bg-accent-tint px-3 py-2.5">
+            <span className="text-[13px] font-semibold text-accent-ink">
               {selectedCount > 0
                 ? `${selectedCount} ${selectedCount === 1 ? 'recipient' : 'recipients'} selected`
                 : 'Select recipients to add Cc/Bcc'}
             </span>
-            <span className="spacer" />
-            <div className="ov2-rs-ccbcc-anchor" ref={bulkAnchorRef}>
+            <span className="flex-1" />
+            <div className="relative" ref={bulkAnchorRef}>
               <button
                 type="button"
-                className={'act' + (bulkPopoverOpen ? ' is-open' : '')}
+                className="rounded-sm bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                 disabled={selectedCount === 0}
                 title={selectedCount === 0 ? 'Select at least one recipient first' : undefined}
                 onClick={() => setBulkPopoverOpen((o) => !o)}
@@ -1328,7 +1456,11 @@ function SelectedPanel({
                 />
               )}
             </div>
-            <button type="button" className="ghost" onClick={exitBulk}>
+            <button
+              type="button"
+              className="rounded-sm px-3 py-1.5 text-xs font-semibold text-accent-ink hover:bg-surface"
+              onClick={exitBulk}
+            >
               Cancel
             </button>
           </div>
@@ -1338,37 +1470,45 @@ function SelectedPanel({
           List/Group cards). The Bulk Cc/Bcc trigger lives in this card's
           header. */}
       {individuals.length > 0 && (
-        <div className="ov2-rs-entity individual">
-          <div className="ov2-rs-entity-head">
-            <span className="ov2-rs-type-badge individual">
-              <UserOutlined /> Individual
+        <div className="rounded-lg border border-line-hairline bg-surface">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line-hairline bg-surface-subtle px-3 py-2.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent-tint px-2 py-0.5 text-[11px] font-medium text-accent-ink">
+              <Icon.User01 size={11} /> Individual
             </span>
-            <span className="count">· {plural(individuals.length, 'recipient')}</span>
-            <span className="note blue">Each receives their own personalized email</span>
-            <span className="spacer" />
+            <span className="text-xs text-ink-tertiary">
+              · {plural(individuals.length, 'recipient')}
+            </span>
+            <span className="text-xs text-ink-tertiary">
+              Each receives their own personalized email
+            </span>
+            <span className="flex-1" />
             {!bulkMode && (
-              <button type="button" className="ov2-rs-bulk-btn" onClick={enterBulk}>
-                <UnorderedListOutlined /> Bulk Cc/Bcc
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-sm border border-line-control bg-surface px-2.5 py-1 text-xs font-semibold text-ink-strong hover:border-accent-border"
+                onClick={enterBulk}
+              >
+                <Icon.LayoutAlt01 size={12} /> Bulk Cc/Bcc
               </button>
             )}
           </div>
 
           {bulkMode && (
-            <div className="ov2-rs-selectall">
-              <Checkbox
-                checked={allSelected}
-                indeterminate={selectedCount > 0 && !allSelected}
+            <div className="flex items-center gap-3 border-b border-line-hairline px-3 py-2">
+              <UiCheckbox
+                isSelected={allSelected}
+                isIndeterminate={selectedCount > 0 && !allSelected}
                 onChange={toggleSelectAll}
               >
                 Select all
-              </Checkbox>
-              <span className="count">
+              </UiCheckbox>
+              <span className="text-xs text-ink-tertiary">
                 {selectedCount} of {individuals.length} selected
               </span>
             </div>
           )}
 
-          <div className="ov2-rs-indrows">
+          <div className="flex flex-col">
             {individuals.map((t) => (
               <IndividualRow
                 key={t.key}
@@ -1410,8 +1550,8 @@ function SelectedPanel({
       ))}
 
       {bulkMode && (
-        <div className="ov2-rs-bulk-hint">
-          <InfoCircleOutlined /> Click Done to exit bulk mode and re-enable individual Cc/Bcc.
+        <div className="flex items-center gap-1.5 text-xs text-ink-tertiary">
+          <Icon.Info size={13} /> Click Done to exit bulk mode and re-enable individual Cc/Bcc.
         </div>
       )}
     </div>
@@ -1459,49 +1599,62 @@ function IndividualRow({
   // and "receives their own personalized email" note live on the card header,
   // so they aren't repeated per row.
   return (
-    <div className={'ov2-rs-indrow' + (bulkMode && checked ? ' bulk-selected' : '')}>
+    <div
+      className={`flex flex-wrap items-center gap-2 border-t border-line-divider px-3 py-2.5 first:border-t-0 ${
+        bulkMode && checked ? 'bg-accent-tint' : ''
+      }`}
+    >
       {bulkMode && (
-        <Checkbox
-          className="ov2-rs-row-check"
-          checked={checked}
+        <UiCheckbox
+          isSelected={checked}
           onChange={onToggleChecked}
           aria-label={`Select ${r.name || r.email || 'recipient'}`}
         />
       )}
-      <span className="name">{r.name || r.email || 'Recipient'}</span>
-      {r.email && <span className="email">{r.email}</span>}
+      <span className="text-[13px] font-semibold text-ink-primary">
+        {r.name || r.email || 'Recipient'}
+      </span>
+      {r.email && <span className="text-xs text-ink-tertiary">{r.email}</span>}
       {renderLastContact(r.email)}
       {cc.map((c) => (
-        <span key={`cc-${c.email}`} className="ov2-rs-ccpill cc">
-          <span className="px">Cc</span>
-          <span className="nm">{c.name}</span>
+        <span
+          key={`cc-${c.email}`}
+          className="inline-flex items-center gap-1 rounded-full bg-accent-tint px-2 py-0.5 text-[11px] font-medium text-accent-ink"
+        >
+          <span className="font-mono uppercase">Cc</span>
+          <span>{c.name}</span>
           <button
             type="button"
             onClick={() => onUpdate({ ccContacts: cc.filter((x) => x.email !== c.email) })}
             aria-label={`Remove Cc ${c.name}`}
+            className="opacity-60 hover:opacity-100"
           >
-            <CloseOutlined />
+            <Icon.XClose size={10} />
           </button>
         </span>
       ))}
       {bcc.map((c) => (
-        <span key={`bcc-${c.email}`} className="ov2-rs-ccpill bcc">
-          <span className="px">Bcc</span>
-          <span className="nm">{c.name}</span>
+        <span
+          key={`bcc-${c.email}`}
+          className="inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-medium text-warning-heading"
+        >
+          <span className="font-mono uppercase">Bcc</span>
+          <span>{c.name}</span>
           <button
             type="button"
             onClick={() => onUpdate({ bccContacts: bcc.filter((x) => x.email !== c.email) })}
             aria-label={`Remove Bcc ${c.name}`}
+            className="opacity-60 hover:opacity-100"
           >
-            <CloseOutlined />
+            <Icon.XClose size={10} />
           </button>
         </span>
       ))}
-      <span className="spacer" />
-      <div className="ov2-rs-ccbcc-anchor" ref={anchorRef}>
+      <span className="flex-1" />
+      <div className="relative" ref={anchorRef}>
         <button
           type="button"
-          className={'ov2-rs-ccbcc-btn' + (popoverOpen ? ' open' : '')}
+          className="rounded-sm border border-line-control bg-surface px-2.5 py-1 text-xs font-semibold text-ink-strong hover:border-accent-border disabled:opacity-50"
           disabled={bulkMode}
           title={bulkMode ? 'Individual Cc/Bcc is disabled while bulk mode is active' : undefined}
           onClick={() => (popoverOpen ? onClosePopover() : onOpenPopover())}
@@ -1519,8 +1672,13 @@ function IndividualRow({
           />
         )}
       </div>
-      <button type="button" className="ov2-rs-remove" onClick={onRemove} aria-label="Remove">
-        <CloseOutlined />
+      <button
+        type="button"
+        className="flex-none rounded-sm p-1 text-ink-tertiary hover:bg-surface-subtle hover:text-danger"
+        onClick={onRemove}
+        aria-label="Remove"
+      >
+        <Icon.XClose size={13} />
       </button>
     </div>
   );
@@ -1596,29 +1754,33 @@ function ListEntity({
   };
 
   return (
-    <div className="ov2-rs-entity list">
-      <div className="ov2-rs-entity-head">
+    <div className="rounded-lg border border-line-hairline bg-surface">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line-hairline bg-surface-subtle px-3 py-2.5">
         <button
           type="button"
-          className="ov2-rs-caret"
+          className="flex-none text-ink-tertiary"
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? 'Collapse list' : 'Expand list'}
         >
-          {open ? <DownOutlined /> : <RightOutlined />}
+          {open ? <Icon.ChevronDown size={13} /> : <Icon.ChevronRight size={13} />}
         </button>
-        <span className="ov2-rs-type-badge list">
-          <UnorderedListOutlined /> List
+        <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-medium text-success">
+          <Icon.LayoutAlt01 size={11} /> List
         </span>
-        <span className="name">{target.name || 'Untitled list'}</span>
-        <span className="count">· {plural(target.recipients.length, 'contact')}</span>
-        <span className="note green">
-          <UserOutlined /> Each emailed individually
+        <span className="text-[13px] font-semibold text-ink-primary">
+          {target.name || 'Untitled list'}
         </span>
-        <span className="spacer" />
-        <div className="ov2-rs-ccbcc-anchor" ref={entireAnchorRef}>
+        <span className="text-xs text-ink-tertiary">
+          · {plural(target.recipients.length, 'contact')}
+        </span>
+        <span className="inline-flex items-center gap-1 text-xs text-success">
+          <Icon.User01 size={11} /> Each emailed individually
+        </span>
+        <span className="flex-1" />
+        <div className="relative" ref={entireAnchorRef}>
           <button
             type="button"
-            className={'ov2-rs-ccbcc-btn' + (entireOpen ? ' open' : '')}
+            className="rounded-sm border border-line-control bg-surface px-2.5 py-1 text-xs font-semibold text-ink-strong hover:border-accent-border"
             onClick={() => setOpenPopover(entireOpen ? null : 'entire')}
           >
             Cc/Bcc Entire List
@@ -1633,47 +1795,40 @@ function ListEntity({
             />
           )}
         </div>
-        <button type="button" className="ov2-rs-remove" onClick={onRemove} aria-label="Remove list">
-          <CloseOutlined />
+        <button
+          type="button"
+          className="flex-none rounded-sm p-1 text-ink-tertiary hover:bg-surface hover:text-danger"
+          onClick={onRemove}
+          aria-label="Remove list"
+        >
+          <Icon.XClose size={13} />
         </button>
       </div>
 
       {(listCc.length > 0 || listBcc.length > 0) && (
-        <div className="ov2-rs-list-everyone">
-          <span className="lbl">Everyone in this list:</span>
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-line-divider px-3 py-2">
+          <span className="text-[11.5px] text-ink-tertiary">Everyone in this list:</span>
           {listCc.map((c) => (
-            <span key={`cc-${c.email}`} className="ov2-rs-ccpill cc">
-              <span className="px">Cc</span>
-              <span className="nm">{c.name}</span>
-              <button
-                type="button"
-                onClick={() => onUpdate({ ccContacts: listCc.filter((x) => x.email !== c.email) })}
-                aria-label={`Remove Cc ${c.name}`}
-              >
-                <CloseOutlined />
-              </button>
-            </span>
+            <CcPill
+              key={`cc-${c.email}`}
+              kind="cc"
+              name={c.name}
+              onRemove={() => onUpdate({ ccContacts: listCc.filter((x) => x.email !== c.email) })}
+            />
           ))}
           {listBcc.map((c) => (
-            <span key={`bcc-${c.email}`} className="ov2-rs-ccpill bcc">
-              <span className="px">Bcc</span>
-              <span className="nm">{c.name}</span>
-              <button
-                type="button"
-                onClick={() =>
-                  onUpdate({ bccContacts: listBcc.filter((x) => x.email !== c.email) })
-                }
-                aria-label={`Remove Bcc ${c.name}`}
-              >
-                <CloseOutlined />
-              </button>
-            </span>
+            <CcPill
+              key={`bcc-${c.email}`}
+              kind="bcc"
+              name={c.name}
+              onRemove={() => onUpdate({ bccContacts: listBcc.filter((x) => x.email !== c.email) })}
+            />
           ))}
         </div>
       )}
 
       {open && (
-        <div className="ov2-rs-members">
+        <div className="flex flex-col">
           {target.recipients.map((r) => {
             const key = recipientKey(r);
             return (
@@ -1734,42 +1889,34 @@ function ListMemberRow({
     ...[...memberCc, ...memberBcc].map((c) => c.email.toLowerCase()),
   ]);
   return (
-    <div className="ov2-rs-member">
-      <span className="bullet">•</span>
-      <span className="name">{recipient.name || recipient.email}</span>
-      {recipient.email && <span className="email">{recipient.email}</span>}
+    <div className="flex flex-wrap items-center gap-2 border-t border-line-divider py-2 pr-3 pl-7 first:border-t-0">
+      <span className="text-ink-quaternary">•</span>
+      <span className="text-[13px] font-medium text-ink-primary">
+        {recipient.name || recipient.email}
+      </span>
+      {recipient.email && <span className="text-xs text-ink-tertiary">{recipient.email}</span>}
       {renderLastContact(recipient.email)}
       {memberCc.map((c) => (
-        <span key={`cc-${c.email}`} className="ov2-rs-ccpill cc">
-          <span className="px">Cc</span>
-          <span className="nm">{c.name}</span>
-          <button
-            type="button"
-            onClick={() => onRemoveContact('cc', c.email)}
-            aria-label={`Remove Cc ${c.name}`}
-          >
-            <CloseOutlined />
-          </button>
-        </span>
+        <CcPill
+          key={`cc-${c.email}`}
+          kind="cc"
+          name={c.name}
+          onRemove={() => onRemoveContact('cc', c.email)}
+        />
       ))}
       {memberBcc.map((c) => (
-        <span key={`bcc-${c.email}`} className="ov2-rs-ccpill bcc">
-          <span className="px">Bcc</span>
-          <span className="nm">{c.name}</span>
-          <button
-            type="button"
-            onClick={() => onRemoveContact('bcc', c.email)}
-            aria-label={`Remove Bcc ${c.name}`}
-          >
-            <CloseOutlined />
-          </button>
-        </span>
+        <CcPill
+          key={`bcc-${c.email}`}
+          kind="bcc"
+          name={c.name}
+          onRemove={() => onRemoveContact('bcc', c.email)}
+        />
       ))}
-      <span className="spacer" />
-      <div className="ov2-rs-ccbcc-anchor" ref={anchorRef}>
+      <span className="flex-1" />
+      <div className="relative" ref={anchorRef}>
         <button
           type="button"
-          className={'ov2-rs-ccbcc-btn' + (open ? ' open' : '')}
+          className="rounded-sm border border-line-control bg-surface px-2.5 py-1 text-xs font-semibold text-ink-strong hover:border-accent-border"
           onClick={() => (open ? onClose() : onOpen())}
         >
           Add Cc/Bcc
@@ -1787,11 +1934,11 @@ function ListMemberRow({
       </div>
       <button
         type="button"
-        className="ov2-rs-remove small"
+        className="flex-none rounded-sm p-1 text-ink-tertiary hover:bg-surface-subtle hover:text-danger"
         onClick={onDrop}
         aria-label="Drop from this campaign"
       >
-        <CloseOutlined />
+        <Icon.XClose size={12} />
       </button>
     </div>
   );
@@ -1836,53 +1983,47 @@ function GroupEntity({
   };
 
   return (
-    <div className="ov2-rs-entity group">
-      <div className="ov2-rs-entity-head">
+    <div className="rounded-lg border border-line-hairline bg-surface">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line-hairline bg-surface-subtle px-3 py-2.5">
         <button
           type="button"
-          className="ov2-rs-caret"
+          className="flex-none text-ink-tertiary"
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? 'Collapse group' : 'Expand group'}
         >
-          {open ? <DownOutlined /> : <RightOutlined />}
+          {open ? <Icon.ChevronDown size={13} /> : <Icon.ChevronRight size={13} />}
         </button>
-        <span className="ov2-rs-type-badge group">
-          <TeamOutlined /> Group
+        <span className="inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-medium text-warning-heading">
+          <Icon.Users01 size={11} /> Group
         </span>
-        <span className="name">{target.name || 'Untitled group'}</span>
-        <span className="count">· {plural(target.recipients.length, 'contact')}</span>
-        <span className="note amber">This group receives 1 email together</span>
+        <span className="text-[13px] font-semibold text-ink-primary">
+          {target.name || 'Untitled group'}
+        </span>
+        <span className="text-xs text-ink-tertiary">
+          · {plural(target.recipients.length, 'contact')}
+        </span>
+        <span className="text-xs text-warning-heading">This group receives 1 email together</span>
         {cc.map((c) => (
-          <span key={`cc-${c.email}`} className="ov2-rs-ccpill cc">
-            <span className="px">Cc</span>
-            <span className="nm">{c.name}</span>
-            <button
-              type="button"
-              onClick={() => onUpdate({ ccContacts: cc.filter((x) => x.email !== c.email) })}
-              aria-label={`Remove Cc ${c.name}`}
-            >
-              <CloseOutlined />
-            </button>
-          </span>
+          <CcPill
+            key={`cc-${c.email}`}
+            kind="cc"
+            name={c.name}
+            onRemove={() => onUpdate({ ccContacts: cc.filter((x) => x.email !== c.email) })}
+          />
         ))}
         {bcc.map((c) => (
-          <span key={`bcc-${c.email}`} className="ov2-rs-ccpill bcc">
-            <span className="px">Bcc</span>
-            <span className="nm">{c.name}</span>
-            <button
-              type="button"
-              onClick={() => onUpdate({ bccContacts: bcc.filter((x) => x.email !== c.email) })}
-              aria-label={`Remove Bcc ${c.name}`}
-            >
-              <CloseOutlined />
-            </button>
-          </span>
+          <CcPill
+            key={`bcc-${c.email}`}
+            kind="bcc"
+            name={c.name}
+            onRemove={() => onUpdate({ bccContacts: bcc.filter((x) => x.email !== c.email) })}
+          />
         ))}
-        <span className="spacer" />
-        <div className="ov2-rs-ccbcc-anchor" ref={anchorRef}>
+        <span className="flex-1" />
+        <div className="relative" ref={anchorRef}>
           <button
             type="button"
-            className={'ov2-rs-ccbcc-btn amber' + (popoverOpen ? ' open' : '')}
+            className="rounded-sm border border-warning-border bg-surface px-2.5 py-1 text-xs font-semibold text-warning-heading"
             onClick={() => setPopoverOpen((o) => !o)}
           >
             Add Cc/Bcc
@@ -1899,31 +2040,36 @@ function GroupEntity({
         </div>
         <button
           type="button"
-          className="ov2-rs-remove"
+          className="flex-none rounded-sm p-1 text-ink-tertiary hover:bg-surface hover:text-danger"
           onClick={onRemove}
           aria-label="Remove group"
         >
-          <CloseOutlined />
+          <Icon.XClose size={13} />
         </button>
       </div>
       {open && (
-        <div className="ov2-rs-members">
+        <div className="flex flex-col">
           {target.recipients.map((r) => {
             const key = recipientKey(r);
             return (
-              <div key={key} className="ov2-rs-member">
-                <span className="bullet">•</span>
-                <span className="name">{r.name || r.email}</span>
-                {r.email && <span className="email">{r.email}</span>}
+              <div
+                key={key}
+                className="flex flex-wrap items-center gap-2 border-t border-line-divider py-2 pr-3 pl-7 first:border-t-0"
+              >
+                <span className="text-ink-quaternary">•</span>
+                <span className="text-[13px] font-medium text-ink-primary">
+                  {r.name || r.email}
+                </span>
+                {r.email && <span className="text-xs text-ink-tertiary">{r.email}</span>}
                 {renderLastContact(r.email)}
-                <span className="spacer" />
+                <span className="flex-1" />
                 <button
                   type="button"
-                  className="ov2-rs-remove small"
+                  className="flex-none rounded-sm p-1 text-ink-tertiary hover:bg-surface-subtle hover:text-danger"
                   onClick={() => dropMember(key)}
                   aria-label="Drop from this group's send"
                 >
-                  <CloseOutlined />
+                  <Icon.XClose size={12} />
                 </button>
               </div>
             );
@@ -2043,48 +2189,44 @@ function CongressTab({
 
   return (
     <div>
-      <div className="ov2-rs-toolbar">
-        <Input
-          className="search"
-          allowClear
-          prefix={<SearchOutlined />}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <UiInput
+          leadingIcon={<Icon.SearchLg size={14} />}
           placeholder="Search members and staffers…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          height={36}
+          className="min-w-[240px]"
         />
-        <Select
-          allowClear
+        <ComboBox
+          aria-label="State"
           placeholder="State"
-          style={{ width: 100 }}
+          className="w-[120px]"
           value={stateFilter}
-          onChange={(v) => setStateFilter(v)}
+          onChange={setStateFilter}
           options={states.map((s) => ({ value: s, label: s }))}
-          showSearch
         />
-        <Select
-          allowClear
+        <ComboBox
+          aria-label="Chamber"
           placeholder="Chamber"
-          style={{ width: 120 }}
+          className="w-[140px]"
           value={chamberFilter}
-          onChange={(v) => setChamberFilter(v)}
+          onChange={setChamberFilter}
           options={chambers.map((c) => ({ value: c, label: c }))}
         />
-        <button
-          type="button"
-          className={'ov2-rs-toolbar-btn' + (favOnly ? ' fav-on' : '')}
-          onClick={() => setFavOnly((f) => !f)}
-        >
-          {favOnly ? <StarFilled /> : <StarOutlined />} Favorites ({favSet.size})
-        </button>
+        <ToolbarButton active={favOnly} onClick={() => setFavOnly((f) => !f)}>
+          <Icon.Star01 size={13} className={favOnly ? 'fill-current' : ''} /> Favorites (
+          {favSet.size})
+        </ToolbarButton>
         <Dropdown
           dropdownRender={() => <>{listsPopover}</>}
           trigger={['click']}
           open={listsOpen}
           onOpenChange={onListsOpenChange}
         >
-          <button type="button" className="ov2-rs-toolbar-btn lists">
-            <UnorderedListOutlined /> Lists <DownOutlined style={{ fontSize: 10 }} />
-          </button>
+          <ToolbarButton>
+            <Icon.LayoutAlt01 size={13} /> Lists <Icon.ChevronDown size={10} />
+          </ToolbarButton>
         </Dropdown>
         <Dropdown
           dropdownRender={() => <>{groupsPopover}</>}
@@ -2092,14 +2234,14 @@ function CongressTab({
           open={groupsOpen}
           onOpenChange={onGroupsOpenChange}
         >
-          <button type="button" className="ov2-rs-toolbar-btn groups">
-            <TeamOutlined /> Groups <DownOutlined style={{ fontSize: 10 }} />
-          </button>
+          <ToolbarButton>
+            <Icon.Users01 size={13} /> Groups <Icon.ChevronDown size={10} />
+          </ToolbarButton>
         </Dropdown>
       </div>
       {builderBanner}
       {appliedChips}
-      <div className="ov2-rs-hint">
+      <div className="mt-3 text-xs text-ink-tertiary">
         {builderKind === 'group'
           ? 'Check members to include in the group. All checked recipients will receive one email together.'
           : builderKind === 'list'
@@ -2107,8 +2249,8 @@ function CongressTab({
             : 'Showing the directory A–Z. Click + on any member or staffer to add them to To. Use the caret to expand staffers.'}
       </div>
 
-      <div className="ov2-rs-table">
-        <div className="ov2-rs-thead congress">
+      <div className="mt-3 overflow-hidden rounded-lg border border-line-hairline bg-surface">
+        <div className="ov2-rs-thead congress border-b border-line-hairline bg-surface-subtle font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
           <span />
           <span>Name</span>
           <span>Office</span>
@@ -2117,11 +2259,13 @@ function CongressTab({
           <span>Party</span>
           <span />
         </div>
-        <div className="ov2-rs-rows">
+        <div className="max-h-[460px] overflow-y-auto">
           {dir.isLoading ? (
-            <div className="ov2-rs-empty">Loading the directory…</div>
+            <div className="p-8 text-center text-[12.5px] text-ink-tertiary">
+              Loading the directory…
+            </div>
           ) : rows.length === 0 ? (
-            <div className="ov2-rs-empty">
+            <div className="p-8 text-center text-[12.5px] text-ink-tertiary italic">
               {favOnly
                 ? 'No favorites in the current results. Star members to find them faster.'
                 : 'No members match. Try a different search or filter.'}
@@ -2185,7 +2329,7 @@ function AddControl({
   const addButton = membership ? (
     <button
       type="button"
-      className="ov2-rs-add added"
+      className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full bg-accent text-white disabled:opacity-50"
       disabled={addDisabled}
       title={
         addDisabled
@@ -2197,18 +2341,18 @@ function AddControl({
       onClick={() => !addDisabled && membership === 'individual' && onRemoveIndividual(key)}
       aria-label="Added"
     >
-      <CheckOutlined />
+      <Icon.Check size={13} />
     </button>
   ) : (
     <button
       type="button"
-      className="ov2-rs-add"
+      className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full border border-line-control bg-surface text-ink-secondary hover:border-accent hover:text-accent-ink disabled:opacity-50"
       disabled={addDisabled}
       title={addDisabled ? 'Use the checkbox to add to the list' : undefined}
       onClick={() => !addDisabled && onAdd(recipient)}
       aria-label="Add to To"
     >
-      <PlusOutlined />
+      <Icon.Plus size={13} />
     </button>
   );
   if (builderKind) {
@@ -2219,9 +2363,9 @@ function AddControl({
     // because a group is built only from the checked set.
     return (
       <>
-        <Checkbox
-          className={'ov2-rs-checkbox' + (builderKind === 'group' ? ' amber' : '')}
-          checked={builderHas(key)}
+        <UiCheckbox
+          aria-label="Include in the selection"
+          isSelected={builderHas(key)}
           onChange={() => onBuilderToggle(recipient)}
         />
         {builderKind === 'group' ? null : addButton}
@@ -2275,11 +2419,11 @@ function MemberRows({
         <span className="controls">
           <button
             type="button"
-            className="ov2-rs-caret"
+            className="flex-none text-ink-tertiary"
             onClick={onToggleExpand}
             aria-label={expanded ? 'Collapse staffers' : 'Expand staffers'}
           >
-            {expanded ? <DownOutlined /> : <RightOutlined />}
+            {expanded ? <Icon.ChevronDown size={13} /> : <Icon.ChevronRight size={13} />}
           </button>
           <AddControl
             recipient={recipient}
@@ -2292,37 +2436,50 @@ function MemberRows({
           />
           <button
             type="button"
-            className={'ov2-rs-star' + (favorited ? ' on' : '')}
+            className={`flex-none ${favorited ? 'text-warning-heading' : 'text-ink-quaternary hover:text-ink-tertiary'}`}
             onClick={onToggleFavorite}
             aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
           >
-            {favorited ? <StarFilled /> : <StarOutlined />}
+            <Icon.Star01 size={14} className={favorited ? 'fill-current' : ''} />
           </button>
         </span>
         <span className="who">
-          <div className="nm">{entry.fullName}</div>
-          <div className="sub">{role}</div>
+          <div className="truncate text-[13px] font-semibold text-ink-primary">
+            {entry.fullName}
+          </div>
+          <div className="truncate text-[11.5px] text-ink-tertiary">{role}</div>
         </span>
-        <span className="ov2-rs-cell" title={entry.office}>
+        <span className="ov2-rs-cell truncate text-[12.5px] text-ink-secondary" title={entry.office}>
           {entry.office || '—'}
         </span>
-        <span className="ov2-rs-cell" title={entry.committees.join(', ')}>
+        <span
+          className="ov2-rs-cell truncate text-[12.5px] text-ink-secondary"
+          title={entry.committees.join(', ')}
+        >
           {entry.committees[0] || '—'}
         </span>
-        <span className="ov2-rs-cell">{entry.state}</span>
+        <span className="ov2-rs-cell text-[12.5px] text-ink-secondary">{entry.state}</span>
         <span>
-          <span className={'ov2-rs-pill' + (entry.partyName === 'Republican' ? ' republican' : '')}>
+          <span
+            className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+              entry.partyName === 'Republican'
+                ? 'bg-danger-bg text-danger'
+                : 'bg-accent-tint text-accent-ink'
+            }`}
+          >
             {entry.partyName}
           </span>
         </span>
-        {tag ? <span className={`ov2-rs-intag ${tag.cls}`}>{tag.text}</span> : <span />}
+        {tag ? <MembershipTag tag={tag} /> : <span />}
       </div>
       {expanded &&
         (entry.staff.length === 0 ? (
           <div className="ov2-rs-row congress sub">
             <span />
             <span className="who">
-              <div className="sub">No staffer contacts synced for this office.</div>
+              <div className="text-[11.5px] text-ink-tertiary italic">
+                No staffer contacts synced for this office.
+              </div>
             </span>
             <span />
             <span />
@@ -2357,14 +2514,22 @@ function MemberRows({
                   />
                 </span>
                 <span className="who">
-                  <div className="nm">{staffer.fullName}</div>
-                  <div className="sub">{staffer.title || 'Staffer'}</div>
+                  <div className="truncate text-[12.5px] font-medium text-ink-primary">
+                    {staffer.fullName}
+                  </div>
+                  <div className="truncate text-[11px] text-ink-tertiary">
+                    {staffer.title || 'Staffer'}
+                  </div>
                 </span>
-                <span className="ov2-rs-cell">{entry.office || '—'}</span>
-                <span className="ov2-rs-cell">{staffer.issueAreas[0] || '—'}</span>
-                <span className="ov2-rs-cell">{entry.state}</span>
+                <span className="ov2-rs-cell truncate text-[12px] text-ink-tertiary">
+                  {entry.office || '—'}
+                </span>
+                <span className="ov2-rs-cell truncate text-[12px] text-ink-tertiary">
+                  {staffer.issueAreas[0] || '—'}
+                </span>
+                <span className="ov2-rs-cell text-[12px] text-ink-tertiary">{entry.state}</span>
                 <span />
-                {sTag ? <span className={`ov2-rs-intag ${sTag.cls}`}>{sTag.text}</span> : <span />}
+                {sTag ? <MembershipTag tag={sTag} /> : <span />}
               </div>
             );
           })
@@ -2462,20 +2627,19 @@ function StateLegislatorsTab({
 
   return (
     <div>
-      <div className="ov2-rs-toolbar">
-        <Input
-          className="search"
-          allowClear
-          prefix={<SearchOutlined />}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <UiInput
+          leadingIcon={<Icon.SearchLg size={14} />}
           placeholder="Search state legislators…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          height={36}
+          className="min-w-[240px]"
         />
-        <Select
-          allowClear
-          showSearch
+        <ComboBox
+          aria-label="State"
           placeholder="State"
-          style={{ width: 100 }}
+          className="w-[120px]"
           value={stateFilter}
           // Committee names are state-specific, so a lingering committee filter
           // would be meaningless (and yield nothing) under a new state — clear
@@ -2486,16 +2650,15 @@ function StateLegislatorsTab({
           }}
           options={states.map((s) => ({ value: s, label: s }))}
         />
-        <Select
-          allowClear
-          showSearch
+        <ComboBox
+          aria-label="Committee"
           placeholder={stateFilter ? 'Committee' : 'Pick a state first'}
-          style={{ width: 240 }}
+          className="w-[240px]"
           disabled={!stateFilter}
           value={committeeFilter}
-          onChange={(v) => setCommitteeFilter(v)}
+          onChange={setCommitteeFilter}
           options={committees.map((c) => ({ value: c, label: c }))}
-          notFoundContent={
+          emptyMessage={
             facets.isFetching ? 'Loading committees…' : 'No committees for this state'
           }
         />
@@ -2505,9 +2668,9 @@ function StateLegislatorsTab({
           open={listsOpen}
           onOpenChange={onListsOpenChange}
         >
-          <button type="button" className="ov2-rs-toolbar-btn lists">
-            <UnorderedListOutlined /> Lists <DownOutlined style={{ fontSize: 10 }} />
-          </button>
+          <ToolbarButton>
+            <Icon.LayoutAlt01 size={13} /> Lists <Icon.ChevronDown size={10} />
+          </ToolbarButton>
         </Dropdown>
         <Dropdown
           dropdownRender={() => <>{groupsPopover}</>}
@@ -2515,14 +2678,14 @@ function StateLegislatorsTab({
           open={groupsOpen}
           onOpenChange={onGroupsOpenChange}
         >
-          <button type="button" className="ov2-rs-toolbar-btn groups">
-            <TeamOutlined /> Groups <DownOutlined style={{ fontSize: 10 }} />
-          </button>
+          <ToolbarButton>
+            <Icon.Users01 size={13} /> Groups <Icon.ChevronDown size={10} />
+          </ToolbarButton>
         </Dropdown>
       </div>
       {builderBanner}
       {appliedChips}
-      <div className="ov2-rs-hint">
+      <div className="mt-3 text-xs text-ink-tertiary">
         {builderKind === 'group'
           ? 'Check legislators to include in the group. All checked recipients will receive one email together.'
           : builderKind === 'list'
@@ -2530,8 +2693,8 @@ function StateLegislatorsTab({
             : 'State house & senate members. Filter by state, then narrow by committee. Click + to add someone to To.'}
       </div>
 
-      <div className="ov2-rs-table">
-        <div className="ov2-rs-thead statelegislators">
+      <div className="mt-3 overflow-hidden rounded-lg border border-line-hairline bg-surface">
+        <div className="ov2-rs-thead statelegislators border-b border-line-hairline bg-surface-subtle font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
           <span />
           <span>Name</span>
           <span>Committee</span>
@@ -2540,11 +2703,13 @@ function StateLegislatorsTab({
           <span>Party</span>
           <span />
         </div>
-        <div className="ov2-rs-rows">
+        <div className="max-h-[460px] overflow-y-auto">
           {dir.isLoading ? (
-            <div className="ov2-rs-empty">Loading state legislators…</div>
+            <div className="p-8 text-center text-[12.5px] text-ink-tertiary">
+              Loading state legislators…
+            </div>
           ) : rows.length === 0 ? (
-            <div className="ov2-rs-empty">
+            <div className="p-8 text-center text-[12.5px] text-ink-tertiary italic">
               No state legislators match. Try a different search or filter.
             </div>
           ) : (
@@ -2613,11 +2778,13 @@ function StateLegislatorTableRow({
         />
       </span>
       <span className="who">
-        <div className="nm">{row.name}</div>
-        <div className="sub">{stateLegislatorSubline(row)}</div>
+        <div className="truncate text-[13px] font-semibold text-ink-primary">{row.name}</div>
+        <div className="truncate text-[11.5px] text-ink-tertiary">
+          {stateLegislatorSubline(row)}
+        </div>
       </span>
       <span
-        className="ov2-rs-cell"
+        className="ov2-rs-cell truncate text-[12.5px] text-ink-secondary"
         title={committees.map((c) => c.name).join(', ') || undefined}
       >
         {firstCommittee
@@ -2626,18 +2793,22 @@ function StateLegislatorTableRow({
             : firstCommittee.name
           : '—'}
       </span>
-      <span className="ov2-rs-cell">{chamber || '—'}</span>
-      <span className="ov2-rs-cell">{row.state}</span>
+      <span className="ov2-rs-cell text-[12.5px] text-ink-secondary">{chamber || '—'}</span>
+      <span className="ov2-rs-cell text-[12.5px] text-ink-secondary">{row.state}</span>
       <span>
         {row.party ? (
-          <span className={'ov2-rs-pill' + (/^r/i.test(row.party) ? ' republican' : '')}>
+          <span
+            className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+              /^r/i.test(row.party) ? 'bg-danger-bg text-danger' : 'bg-accent-tint text-accent-ink'
+            }`}
+          >
             {row.party}
           </span>
         ) : (
-          <span className="ov2-rs-cell">—</span>
+          <span className="ov2-rs-cell text-[12.5px] text-ink-tertiary">—</span>
         )}
       </span>
-      {tag ? <span className={`ov2-rs-intag ${tag.cls}`}>{tag.text}</span> : <span />}
+      {tag ? <MembershipTag tag={tag} /> : <span />}
     </div>
   );
 }
@@ -2747,31 +2918,27 @@ function ClientsTab({
 
   return (
     <div>
-      <div className="ov2-rs-toolbar">
-        <Input
-          className="search"
-          allowClear
-          prefix={<SearchOutlined />}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <UiInput
+          leadingIcon={<Icon.SearchLg size={14} />}
           placeholder="Search clients and contacts…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          height={36}
+          className="min-w-[240px]"
         />
-        <button
-          type="button"
-          className={'ov2-rs-toolbar-btn' + (favOnly ? ' fav-on' : '')}
-          onClick={() => setFavOnly((f) => !f)}
-        >
-          {favOnly ? <StarFilled /> : <StarOutlined />} Favorites
-        </button>
+        <ToolbarButton active={favOnly} onClick={() => setFavOnly((f) => !f)}>
+          <Icon.Star01 size={13} className={favOnly ? 'fill-current' : ''} /> Favorites
+        </ToolbarButton>
         <Dropdown
           dropdownRender={() => <>{listsPopover}</>}
           trigger={['click']}
           open={listsOpen}
           onOpenChange={onListsOpenChange}
         >
-          <button type="button" className="ov2-rs-toolbar-btn lists">
-            <UnorderedListOutlined /> Lists <DownOutlined style={{ fontSize: 10 }} />
-          </button>
+          <ToolbarButton>
+            <Icon.LayoutAlt01 size={13} /> Lists <Icon.ChevronDown size={10} />
+          </ToolbarButton>
         </Dropdown>
         <Dropdown
           dropdownRender={() => <>{groupsPopover}</>}
@@ -2779,14 +2946,14 @@ function ClientsTab({
           open={groupsOpen}
           onOpenChange={onGroupsOpenChange}
         >
-          <button type="button" className="ov2-rs-toolbar-btn groups">
-            <TeamOutlined /> Groups <DownOutlined style={{ fontSize: 10 }} />
-          </button>
+          <ToolbarButton>
+            <Icon.Users01 size={13} /> Groups <Icon.ChevronDown size={10} />
+          </ToolbarButton>
         </Dropdown>
       </div>
       {builderBanner}
       {appliedChips}
-      <div className="ov2-rs-hint">
+      <div className="mt-3 text-xs text-ink-tertiary">
         {builderKind === 'group'
           ? 'Check contacts to include in the group. All checked recipients will receive one email together.'
           : builderKind === 'list'
@@ -2794,17 +2961,17 @@ function ClientsTab({
             : 'Showing all clients A–Z. Use the caret to expand contacts. Click + to add a contact to To.'}
       </div>
 
-      <div className="ov2-rs-table">
-        <div className="ov2-rs-thead clients">
+      <div className="mt-3 overflow-hidden rounded-lg border border-line-hairline bg-surface">
+        <div className="ov2-rs-thead clients border-b border-line-hairline bg-surface-subtle font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
           <span />
           <span>Client / Contact</span>
           <span>Title / Role</span>
           <span>Email</span>
           <span />
         </div>
-        <div className="ov2-rs-rows">
+        <div className="max-h-[460px] overflow-y-auto">
           {visible.length === 0 ? (
-            <div className="ov2-rs-empty">
+            <div className="p-8 text-center text-[12.5px] text-ink-tertiary italic">
               {peopleLoading
                 ? 'Loading client contacts…'
                 : favOnly
@@ -2891,30 +3058,32 @@ function ClientRows({
         <span className="controls">
           <button
             type="button"
-            className="ov2-rs-caret"
+            className="flex-none text-ink-tertiary"
             onClick={onToggleExpand}
             aria-label={open ? 'Collapse contacts' : 'Expand contacts'}
           >
-            {open ? <DownOutlined /> : <RightOutlined />}
+            {open ? <Icon.ChevronDown size={13} /> : <Icon.ChevronRight size={13} />}
           </button>
         </span>
         <span className="who">
-          <div className="nm">{client.name}</div>
-          <div className="sub">
+          <div className="truncate text-[13px] font-semibold text-ink-primary">{client.name}</div>
+          <div className="truncate text-[11.5px] text-ink-tertiary">
             {clientIndustry(client)} · {loading ? '…' : totalPeople}{' '}
             {totalPeople === 1 ? 'contact' : 'contacts'}
           </div>
         </span>
         <span />
         <span />
-        <span className="ov2-rs-client-badge">Client</span>
+        <span className="inline-flex w-fit rounded-full bg-neutral-bg px-2 py-0.5 text-[10px] font-medium text-neutral-ink">
+          Client
+        </span>
       </div>
       {open &&
         (people.length === 0 ? (
           <div className="ov2-rs-row clients sub">
             <span />
             <span className="who">
-              <div className="sub">
+              <div className="text-[11.5px] text-ink-tertiary italic">
                 {loading ? 'Loading contacts…' : 'No key persons on this client yet.'}
               </div>
             </span>
@@ -2950,22 +3119,38 @@ function ClientRows({
                   />
                   <button
                     type="button"
-                    className={'ov2-rs-star' + (favSet.has(favId) ? ' on' : '')}
+                    className={`flex-none ${
+                      favSet.has(favId)
+                        ? 'text-warning-heading'
+                        : 'text-ink-quaternary hover:text-ink-tertiary'
+                    }`}
                     onClick={() => onToggleFavorite(person)}
                     aria-label={favSet.has(favId) ? 'Remove from favorites' : 'Add to favorites'}
                   >
-                    {favSet.has(favId) ? <StarFilled /> : <StarOutlined />}
+                    <Icon.Star01
+                      size={14}
+                      className={favSet.has(favId) ? 'fill-current' : ''}
+                    />
                   </button>
                 </span>
                 <span className="who">
-                  <div className="nm">{person.name}</div>
-                  <div className="sub">{person.title || '—'}</div>
+                  <div className="truncate text-[12.5px] font-medium text-ink-primary">
+                    {person.name}
+                  </div>
+                  <div className="truncate text-[11px] text-ink-tertiary">
+                    {person.title || '—'}
+                  </div>
                 </span>
-                <span className="ov2-rs-cell">{person.role || '—'}</span>
-                <span className="ov2-rs-cell" title={person.email ?? undefined}>
+                <span className="ov2-rs-cell truncate text-[12px] text-ink-secondary">
+                  {person.role || '—'}
+                </span>
+                <span
+                  className="ov2-rs-cell truncate text-[12px] text-ink-secondary"
+                  title={person.email ?? undefined}
+                >
                   {person.email || '—'}
                 </span>
-                {tag ? <span className={`ov2-rs-intag ${tag.cls}`}>{tag.text}</span> : <span />}
+                {tag ? <MembershipTag tag={tag} /> : <span />}
               </div>
             );
           })
@@ -3008,38 +3193,43 @@ function ManualTab({
   return (
     <div>
       {builderBanner}
-      <div className="ov2-rs-hint">
+      <div className="mt-4 text-xs text-ink-tertiary">
         {builderKind
           ? `Add a recipient who isn't in the directory — they'll be picked into your new ${builderKind}. First name, last name, and email are all required.`
           : "Add a recipient who isn't in the directory. First name, last name, and email are all required."}
       </div>
-      <div className="ov2-rs-manual">
-        <Input
-          style={{ flex: '0 1 160px' }}
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <UiInput
+          className="w-[160px]"
           placeholder="First name"
           value={first}
-          onChange={(e) => setFirst(e.target.value)}
-          onPressEnter={add}
+          onChange={setFirst}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') add();
+          }}
         />
-        <Input
-          style={{ flex: '0 1 160px' }}
+        <UiInput
+          className="w-[160px]"
           placeholder="Last name"
           value={last}
-          onChange={(e) => setLast(e.target.value)}
-          onPressEnter={add}
+          onChange={setLast}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') add();
+          }}
         />
-        <Input
-          style={{ flex: '0 1 260px' }}
-          type="email"
-          prefix={<UserOutlined />}
+        <UiInput
+          className="w-[260px]"
+          leadingIcon={<Icon.User01 size={14} />}
           placeholder="Email address"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onPressEnter={add}
+          onChange={setEmail}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') add();
+          }}
         />
-        <Button disabled={!valid} onClick={add}>
+        <UiButton variant="secondary" isDisabled={!valid} onPress={add}>
           {builderKind ? `Add to ${builderKind}` : 'Add'}
-        </Button>
+        </UiButton>
       </div>
     </div>
   );

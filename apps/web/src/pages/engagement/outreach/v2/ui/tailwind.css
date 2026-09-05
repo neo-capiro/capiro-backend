@@ -1,0 +1,135 @@
+/* ============================================================
+ * Outreach v2 real-migration Tailwind entry point.
+ *
+ * SCOPED ON PURPOSE. This is the only Tailwind stylesheet in the whole
+ * app (confirmed via repo-wide grep before this file was created) — every
+ * other route is antd + hand-rolled CSS. Two things keep it from touching
+ * anything outside this folder + the campaign list screen:
+ *
+ * 1. No preflight. We import theme.css + utilities.css directly instead of
+ *    the umbrella `@import "tailwindcss"`, which would also pull in
+ *    preflight.css — a universal `*{box-sizing:border-box;margin:0}` reset
+ *    plus `body`/`h1..h6`/`button,input,select` resets. This app already
+ *    loads apps/web/src/theme.css (24k lines) on every legacy-surface route,
+ *    including this one, with its OWN global resets on the same elements.
+ *    A second reset fighting the first would be a real, silent regression
+ *    risk on every other legacy page, not just this one.
+ * 2. Explicit @source, auto-detection off. `source(none)` on the utilities
+ *    import disables Tailwind's automatic whole-repo class scanning; the
+ *    @source lines below are the ONLY files whose class names are ever
+ *    read, so no other component's className can accidentally generate
+ *    (or be affected by) a Tailwind utility.
+ *
+ * Only import this file from files under this folder or from
+ * OutreachView.tsx — never from main.tsx or anything app-shell-level.
+ * ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss/theme.css';
+@import 'tailwindcss/utilities.css' source(none);
+
+/* Relative to THIS file (outreach/v2/ui/): '..' is outreach/v2, so the
+   campaign list at pages/engagement/OutreachView.tsx is three levels up —
+   an off-by-one here fails silently (the classes simply never generate). */
+@source '../**/*.{ts,tsx}';
+@source '../../../OutreachView.tsx';
+
+@theme {
+  /* Fonts (handover §3). Scoped in effect: nothing outside this folder's
+     markup references font-sans/font-mono, so the rest of the app keeps
+     its existing fonts even though the @font-face itself is now
+     registered document-wide (unavoidable with any webfont import). */
+  --font-sans: 'Hanken Grotesk', 'Instrument Sans', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Surfaces — exactly three levels (handover §2) */
+  --color-canvas: #eff1f5;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f9fafb;
+
+  /* Ink (handover §2) */
+  --color-ink-primary: #101828;
+  --color-ink-strong: #344054;
+  --color-ink-secondary: #475467;
+  --color-ink-tertiary: #667085;
+  --color-ink-quaternary: #98a2b3;
+
+  /* Lines (handover §2) */
+  --color-line-hairline: #e4e7ec;
+  --color-line-control: #d0d5dd;
+  --color-line-divider: #f2f4f7;
+
+  /* Capiro navy — accent (handover §2) */
+  --color-accent: #294e68;
+  --color-accent-hover: #1f3d52;
+  --color-accent-ink: #1c3a4e;
+  --color-accent-tint: #edf3f7;
+  --color-accent-border: #c3d5e1;
+  --color-accent-muted: #5d7f97;
+
+  /* Semantic — one treatment per state (handover §2) */
+  --color-success: #067647;
+  --color-success-bg: #ecfdf3;
+  --color-success-border: #abefc6;
+  --color-warning: #93370d;
+  --color-warning-heading: #b54708;
+  --color-warning-bg: #fffaeb;
+  --color-warning-border: #fedf89;
+  --color-neutral-bg: #f2f4f7;
+  --color-neutral-ink: #475467;
+  /* Not in handover §2 (its color table has no error/danger row) — Generate
+     & Review's failed/rejected-draft banners need one regardless. Untitled
+     UI's standard error-700/50/200 ramp, same family the handover's own
+     success tokens (#067647/#ECFDF3/#ABEFC6 = success-700/50/200) draw from. */
+  --color-danger: #b42318;
+  --color-danger-bg: #fef3f2;
+  --color-danger-border: #fecdca;
+
+  /* The only container treatment (handover §2): surface + shadow-card */
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 8%);
+
+  /* Radii (handover §4): 8px controls, 10px inner cards/textareas,
+     12px major cards/panels/wizard shell. Overriding the default scale's
+     sm/md/lg directly (rather than adding new names) since this is the
+     only Tailwind config in the app — no other page's rounded-sm/md/lg
+     exists to collide with. 9999px pills use the untouched default
+     rounded-full; one-off 4-7px micro badges use an arbitrary rounded-[]. */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+}
+
+/* Dark button (handover §2) — a gradient + inset highlight, not a flat
+   color, so it's a custom utility rather than a @theme color token.
+   Reserved for: Meri, New Outreach, Continue/Finish, Create your outreach,
+   Save as new version, Rewrite this draft, Send N emails, active filter. */
+@utility btn-dark {
+  background: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 2px rgba(16, 24, 40, 0.12);
+  color: #ffffff;
+}
+
+/* Motion (handover §5.5) — Improve panel / Cc-Bcc expand, disclosure fade-in. */
+@keyframes ov-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility animate-ov-fade {
+  animation: ov-fade 0.18s ease;
+}
+
+/* Root wrapper — every migrated screen renders inside one of these so the
+   webfont actually applies without every element needing a font-sans
+   utility, and so Tailwind's border/ring defaults (currentColor-based)
+   don't inherit whatever antd/theme.css set on an ancestor. */
+.ov2-tw-root {
+  font-family: var(--font-sans);
+  color: var(--color-ink-primary);
+}

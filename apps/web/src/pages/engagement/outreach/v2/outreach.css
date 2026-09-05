@@ -10,27 +10,72 @@
  * ============================================================ */
 
 :root {
-  --ov2-accent: var(--accent, #2A57CE);
-  --ov2-accent-ink: var(--accent-ink, #1A3F9F);
-  --ov2-accent-soft: var(--accent-soft, rgba(42, 87, 206, 0.08));
-  --ov2-ink-1: var(--ink-1, #14171f);
-  --ov2-ink-2: var(--ink-2, #41464f);
-  --ov2-ink-3: var(--ink-3, #6d737d);
-  --ov2-bg-surface: var(--bg-surface, #ffffff);
-  --ov2-bg-surface-2: var(--bg-surface-2, #f7f8fa);
-  --ov2-bg-sunken: var(--bg-sunken, #eff1f4);
-  --ov2-border-1: var(--border-1, #e3e6ec);
-  --ov2-border-2: var(--border-2, #c9ced8);
-  --ov2-info: var(--info, #2A57CE);
-  --ov2-info-soft: var(--info-soft, rgba(42, 87, 206, 0.10));
-  --ov2-success: var(--success, #1f7a3c);
-  --ov2-success-soft: var(--success-soft, rgba(31, 122, 60, 0.10));
-  --ov2-notable: var(--notable, #D97757);
-  --ov2-notable-soft: var(--notable-soft, rgba(217, 119, 87, 0.10));
-  --ov2-critical: var(--critical, #c0392b);
-  --ov2-r-sm: 4px;
-  --ov2-r-md: 6px;
-  --ov2-r-lg: 10px;
+  /* Capiro navy — accent (handover §2). Was a bright blue (#2A57CE); the
+     prototype's accent is navy, used far more sparingly (step badges, checked
+     boxes, 2px rails, icon accents) than the old blue-everywhere treatment.
+     Hardcoded (not `var(--accent, ...)`) because theme.css — the legacy
+     surface's global stylesheet, loaded on this route via main.tsx — already
+     declares `--accent` and every other bare name below on a real, unscoped
+     :root. A var() fallback only applies when the property is unset, so
+     against theme.css's values every one of those fallbacks was dead: this
+     page was silently still rendering the old blue-gradient palette. */
+  --ov2-accent: #294E68;
+  --ov2-accent-hover: #1F3D52;
+  --ov2-accent-ink: #1C3A4E;
+  --ov2-accent-soft: #EDF3F7;
+  --ov2-accent-border: #C3D5E1;
+  --ov2-accent-muted: #5D7F97;
+
+  /* Ink levels (handover §2) */
+  --ov2-ink-1: #101828;
+  --ov2-ink-strong: #344054;
+  --ov2-ink-2: #475467;
+  --ov2-ink-3: #667085;
+  --ov2-ink-4: #98A2B3;
+
+  /* Surfaces — exactly three levels (handover §2) */
+  --ov2-bg-canvas: #EFF1F5;
+  --ov2-bg-surface: #ffffff;
+  --ov2-bg-surface-2: #F9FAFB;
+  --ov2-bg-sunken: #EFF1F5;
+
+  /* Lines (handover §2) */
+  --ov2-border-1: #E4E7EC;
+  --ov2-border-2: #D0D5DD;
+  --ov2-divider: #F2F4F7;
+
+  --ov2-info: #294E68;
+  --ov2-info-soft: #EDF3F7;
+
+  /* Semantic — one treatment per state (handover §2). "Notable" doubles as
+     this system's Warning (group pills, stale-context banners, etc. already
+     used it that way before this retune). */
+  --ov2-success: #067647;
+  --ov2-success-soft: #ECFDF3;
+  --ov2-success-border: #ABEFC6;
+  --ov2-notable: #93370D;
+  --ov2-notable-heading: #B54708;
+  --ov2-notable-soft: #FFFAEB;
+  --ov2-notable-border: #FEDF89;
+  --ov2-critical: #c0392b;
+
+  /* Aliases closing real gaps: several files already reference these names
+     with a hardcoded fallback because nothing declared them (StepGenerate's
+     stale-context icon, StepSend's delivery rows, ContextUsedPanel) — every
+     one silently used its literal fallback instead of a real token. Declaring
+     them here, as aliases onto the tokens above, makes that existing code
+     resolve to the real palette with no edit to those files. */
+  --ov2-warn: var(--ov2-notable);
+  --ov2-danger: var(--ov2-critical);
+  --ov2-line: var(--ov2-border-1);
+  --ov2-border: var(--ov2-border-1);
+  --ov2-surface-subtle: var(--ov2-bg-surface-2);
+
+  /* Radii (handover §4): 8px controls, 10px inner cards/textareas, 12px major
+     cards/panels/the wizard shell, 9999px pills. */
+  --ov2-r-sm: 8px;
+  --ov2-r-md: 10px;
+  --ov2-r-lg: 12px;
 }
 
 /* ---------- Wizard shell ---------- */
@@ -52,12 +97,13 @@
 .ov2-wiz-step {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13.5px;
   color: var(--ov2-ink-3);
   cursor: pointer;
   position: relative;
 }
+.ov2-wiz-step:hover { background: #F2F0EB; }
 .ov2-wiz-step .badge {
   width: 26px; height: 26px;
   border-radius: 50%;
@@ -80,7 +126,16 @@
 .ov2-wiz-step.done::after { background: var(--ov2-accent); }
 
 .ov2-wiz-body { display: flex; flex-direction: column; min-height: 100%; }
-.ov2-wiz-pane { flex: 1; padding: 26px 32px; overflow-y: auto; }
+.ov2-wiz-pane {
+  flex: 1; padding: 26px 32px; overflow-y: auto;
+  /* The wizard folds on the PANE's own width, not the viewport (handover
+     §4) — the 232px rail changes what the body actually has to work with.
+     Declaring the container here is what makes any `@container` query in
+     this stylesheet (e.g. .ov2-plan-grid's 800px fold) respond to the pane
+     instead of silently never matching. */
+  container-type: inline-size;
+  container-name: ov2-pane;
+}
 .ov2-wiz-pane h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .ov2-pane-sub { font-size: 13px; color: var(--ov2-ink-3); margin-bottom: 22px; }
 
@@ -150,18 +205,13 @@
 }
 .ov2-dir-card.selected .check { opacity: 1; }
 
-/* ---------- Context Builder ---------- */
-.ov2-ctx-builder {
-  display: grid;
-  grid-template-columns: 1fr 460px;
-  gap: 16px;
-  margin-top: 14px;
-}
-.ov2-ctx-left {
+/* ---------- Step 5, Context Builder (the pool browser, now full-width) ---- */
+.ov2-ctx-pool {
   border: 1px solid var(--ov2-border-1);
   border-radius: var(--ov2-r-lg);
   overflow: hidden;
   background: var(--ov2-bg-surface);
+  margin-top: 14px;
 }
 .ov2-ctx-tabs {
   display: flex;
@@ -312,12 +362,14 @@
   background: var(--ov2-bg-surface);
   border-radius: var(--ov2-r-lg) var(--ov2-r-lg) 0 0;
 }
-.ov2-ctx-right-head .meri {
-  width: 24px; height: 24px;
+.ov2-ctx-right-head .meri,
+.ov2-plan-summary .meri {
+  width: 26px; height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4E78D8, #1A3F9F);
+  background: linear-gradient(135deg, var(--ov2-accent-hover), var(--ov2-accent));
   display: grid; place-items: center;
   color: #fff;
+  flex: none;
 }
 .ov2-ctx-right-head .title { font-size: 13.5px; font-weight: 600; }
 .ov2-ctx-right-head .count {
@@ -600,4 +652,154 @@
   margin: 4px 0 0;
   padding-left: 16px;
   color: #6b7280;
+}
+
+/* ---------- Step 4, Context Plan ---------- */
+
+/* Summary bar above both panels (handover §6.7): Meri avatar, "Context plan"
+   title, a count pill, and right-aligned status chips. */
+.ov2-plan-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--ov2-border-1);
+  border-radius: var(--ov2-r-md);
+  background: var(--ov2-bg-surface);
+}
+.ov2-plan-summary .title { font-size: 13.5px; font-weight: 600; color: var(--ov2-ink-1); }
+.ov2-plan-summary .count {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--ov2-accent-soft); color: var(--ov2-accent-ink);
+}
+.ov2-plan-summary .stats {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 14px;
+  font-size: 12px; color: var(--ov2-ink-3);
+}
+.ov2-plan-summary .stats .ok { color: var(--ov2-success); font-weight: 600; }
+.ov2-plan-summary .stats .todo { color: var(--ov2-ink-3); font-style: italic; }
+
+.ov2-plan-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+/* Wizard pane width can fold below both panels' minimum (handover §4's pane
+   breakpoint), matching the Context Plan split's 800px fold rule. */
+@container (max-width: 800px) {
+  .ov2-plan-grid { grid-template-columns: 1fr; }
+}
+
+/* Left — main idea. A visibly plainer object than Personal Notes: no accent
+   tint, just the surface + a subtle body, so the two panels read as
+   different KINDS of thing (campaign-wide free text vs. per-recipient
+   notes), not as two halves of one form. */
+.ov2-plan-idea {
+  border: 1px solid var(--ov2-border-1);
+  border-radius: var(--ov2-r-lg);
+  background: var(--ov2-bg-surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+}
+.ov2-plan-idea-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ov2-border-1);
+}
+.ov2-plan-idea-head .ico {
+  width: 30px; height: 30px; flex: none;
+  border-radius: var(--ov2-r-sm);
+  display: grid; place-items: center;
+  background: var(--ov2-bg-sunken);
+  color: var(--ov2-ink-2);
+}
+.ov2-plan-idea-head .title {
+  font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--ov2-ink-1);
+}
+.ov2-plan-idea-head .sub {
+  font-size: 12.5px; color: var(--ov2-ink-3); margin-top: 3px;
+}
+.ov2-plan-idea-body {
+  flex: 1;
+  padding: 14px;
+  background: var(--ov2-bg-surface-2);
+}
+.ov2-plan-idea-input {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border: 1px solid var(--ov2-border-2);
+  border-radius: var(--ov2-r-md);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ov2-ink-1);
+  background: var(--ov2-bg-surface);
+  outline: none;
+}
+.ov2-plan-idea-input:focus { border-color: var(--ov2-accent); }
+.ov2-plan-idea-input::placeholder { color: var(--ov2-ink-3); }
+.ov2-plan-idea-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ov2-border-1);
+  background: var(--ov2-bg-surface);
+  border-radius: 0 0 var(--ov2-r-lg) var(--ov2-r-lg);
+}
+.ov2-plan-idea-foot .note {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--ov2-ink-3);
+  line-height: 1.5;
+}
+.ov2-plan-idea-foot .wc {
+  flex: none;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--ov2-ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Right — Personal Notes header. Visibly a different object from the old
+   generic "Context plan" header: tinted, with its own icon and sub-line
+   (handover §6.7). The stack/cards/footer below reuse .ov2-ctx-stack etc.
+   unchanged — only this header is new. */
+.ov2-plan-notes-head.ov2-ctx-right-head {
+  background: var(--ov2-accent-soft);
+  border-color: var(--ov2-accent-border);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.ov2-plan-notes-head .ico {
+  width: 30px; height: 30px; flex: none;
+  border-radius: var(--ov2-r-sm);
+  display: grid; place-items: center;
+  background: var(--ov2-bg-surface);
+  color: var(--ov2-accent-ink);
+}
+.ov2-plan-notes-head .title {
+  font-size: 15px; font-weight: 600; color: var(--ov2-ink-1); display: block;
+}
+.ov2-plan-notes-head .sub {
+  font-size: 12.5px; color: var(--ov2-accent-muted); display: block; margin-top: 2px;
+}
+.ov2-plan-notes-head .count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--ov2-bg-surface); color: var(--ov2-accent-ink);
+  align-self: flex-start;
 }

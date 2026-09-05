@@ -513,6 +513,7 @@ describe('computeAffectedGenerationKeys (Phase 2 §3.f1)', () => {
 
   const base: GenerationSnapshot = {
     contextItems: [ctxItem('bill-1', 'all')],
+    mainIdea: 'Section 218 adds an annual report.',
     templateId: 'tmpl-1',
     tone: 'professional',
     direction: 'to-clients',
@@ -548,6 +549,13 @@ describe('computeAffectedGenerationKeys (Phase 2 §3.f1)', () => {
     const next: GenerationSnapshot = { ...base, direction: 'on-behalf' };
     const result = computeAffectedGenerationKeys(base, next, { slots: model });
     expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
+  });
+
+  it('a main-idea change affects every slot — Context Plan (step 4) is campaign-wide', () => {
+    const next: GenerationSnapshot = { ...base, mainIdea: 'A different main idea entirely.' };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
+    expect(result.reasonsByKey['individual:a@x.com']).toEqual(['Main idea changed']);
   });
 
   it('a shared ("all") context item change affects every slot', () => {

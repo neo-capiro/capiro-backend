@@ -19,7 +19,8 @@ export {
   type OutreachTarget,
   type TargetType,
 } from './targets.js';
-export { StepContext } from './StepContext.js';
+export { StepContextPlan } from './StepContextPlan.js';
+export { StepContextBuilder } from './StepContextBuilder.js';
 export {
   WIZARD_STEPS,
   INITIAL_V2_STATE,

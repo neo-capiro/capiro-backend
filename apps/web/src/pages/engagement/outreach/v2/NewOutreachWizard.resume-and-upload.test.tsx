@@ -309,14 +309,15 @@ describe('Uploading an attachment in Generate & Review', () => {
   });
 
   test('a chosen file reaches the presigned-upload flow end to end (client side only; server-side root cause for bug 2 is still open)', async () => {
-    renderWizard(savedDraftRecordWithStaleCache());
+    const { container } = renderWizard(savedDraftRecordWithStaleCache());
     await waitFor(() => expect(screen.getByText('Generate & review')).toBeTruthy());
-
-    const uploadButton = screen.getByText('Upload a file');
-    // antd's Upload renders a real <input type="file"> as a sibling of the
-    // visible button trigger — locate it the way a user's file picker would
-    // ultimately populate it.
-    const fileInput = uploadButton.closest('.ant-upload')?.querySelector('input[type="file"]');
+    expect(screen.getByText('Upload a file')).toBeTruthy();
+    // The attachments picker renders a plain, visually-hidden
+    // <input type="file"> that the "Upload a file" button clicks
+    // programmatically (react-aria-components has no Upload primitive of its
+    // own) — locate it the way a user's file picker would ultimately
+    // populate it, without coupling to either implementation's DOM shape.
+    const fileInput = container.querySelector('input[type="file"]');
     expect(fileInput).toBeTruthy();
 
     const file = new File(['hello'], 'brief.pdf', { type: 'application/pdf' });

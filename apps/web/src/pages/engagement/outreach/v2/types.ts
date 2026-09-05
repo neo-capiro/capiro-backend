@@ -261,6 +261,16 @@ export interface WizardV2State {
    */
   recipients: OutreachRecipient[];
   contextItems: SelectedContextItem[];
+  /**
+   * Context Plan (step 4) — the one campaign-scoped main idea, free text.
+   * Everyone on this campaign gets it; it is never invented from — Meri
+   * builds every draft around it, and anything checkable still has to come
+   * from a source added in Context Builder (step 5). A recipient-scoped note
+   * is a DIFFERENT collection (`contextItems`, kind:'note') — moving a note
+   * between "the main idea" and a per-recipient note is a scope change, not
+   * a copy, so the two collections are never merged into one field.
+   */
+  mainIdea: string;
   templateId: string | null;
   // Canonical lowercase tone — matches the values the template-create modal and
   // the backend prompt use, so one value flows end-to-end (display labels are
@@ -304,6 +314,7 @@ export const INITIAL_V2_STATE: WizardV2State = {
   targets: [],
   recipients: [],
   contextItems: [],
+  mainIdea: '',
   templateId: null,
   tone: 'professional',
   generatedEmails: {},
@@ -319,7 +330,12 @@ export const WIZARD_STEPS = [
   // standalone Template step was folded into this one.
   { id: 'setup', label: 'Campaign Setup' },
   { id: 'recipients', label: 'Recipients' },
-  { id: 'context', label: 'Build Context' },
+  // "Build Context" split into two steps: 'plan' (the campaign-scoped main
+  // idea + per-recipient Personal Notes) and 'pool' (the source browser that
+  // was the old single step's left pane). Both operate on the SAME lifted
+  // `contextItems`/`onChange` pair — see useContextPlan.ts.
+  { id: 'plan', label: 'Context Plan' },
+  { id: 'pool', label: 'Context Builder' },
   { id: 'generate', label: 'Generate & Review' },
   { id: 'send', label: 'Send' },
 ] as const;

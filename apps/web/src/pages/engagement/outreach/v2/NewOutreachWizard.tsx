@@ -41,8 +41,15 @@ import { OUTREACH_SUMMARY_MAX } from '../../../clients/tracker/alert-packet.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachRecipient, OutreachRecord } from '../../OutreachView.js';
 import { StepCampaignSetup } from './StepCampaignSetup.js';
+import { StepTemplate } from './StepTemplate.js';
+import { StepSend } from './StepSend.js';
+import './ui/tailwind.css';
+import { Icon } from './ui/icons.js';
+// Aliased: antd's Button is still used by the modals further down this file.
+import { Button as UiButton } from './ui/Button.js';
 import { StepDirectionLanding } from './StepDirectionLanding.js';
-import { StepContext } from './StepContext.js';
+import { StepContextPlan } from './StepContextPlan.js';
+import { StepContextBuilder } from './StepContextBuilder.js';
 import { peToPoolItem } from './pe-context.js';
 import type { ProgramElementListItem } from '../../../program-element/types.js';
 import { StepRecipientsSelect } from './StepRecipientsSelect.js';
@@ -516,6 +523,11 @@ export function NewOutreachWizard({
       ? (metadata.contextItems as WizardV2State['contextItems'])
       : [];
 
+    // Context Plan's main idea — a plain string, defensive against any older
+    // draft that predates the field (falls back to whatever's already in
+    // state, matching the templateId pattern just below).
+    const mainIdea = typeof metadata.mainIdea === 'string' ? metadata.mainIdea : undefined;
+
     const attachmentIds = Array.isArray(metadata.attachmentIds)
       ? (metadata.attachmentIds as unknown[]).filter((a): a is string => typeof a === 'string')
       : [];
@@ -544,6 +556,7 @@ export function NewOutreachWizard({
           ? record.recipients
           : prev.recipients,
       contextItems,
+      mainIdea: mainIdea ?? prev.mainIdea,
       templateId: typeof metadata.templateId === 'string' ? metadata.templateId : prev.templateId,
       tone,
       generatedEmails:
@@ -566,6 +579,7 @@ export function NewOutreachWizard({
         Object.keys(generatedEmails).length > 0
           ? genInputSignature({
               contextItems,
+              mainIdea: mainIdea ?? prev.mainIdea,
               templateId:
                 typeof metadata.templateId === 'string' ? metadata.templateId : prev.templateId,
               tone,
@@ -690,7 +704,7 @@ export function NewOutreachWizard({
   // the wizard and bucket the results client-side. Each source is loaded
   // independently so a 404 on one doesn't blank the whole pool.
   const insightsQuery = useQuery<InsightsResponse>({
-    enabled: step.id === 'context',
+    enabled: step.id === 'pool',
     queryKey: ['outreach-insights', state.clientId],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -721,7 +735,7 @@ export function NewOutreachWizard({
   // client or recipients. (Previously these were client/recipient-gated, which
   // left the tabs empty for no-single-client or congressional campaigns.)
   const contextLibraryQuery = useQuery<ContextLibraryResponse>({
-    enabled: step.id === 'context',
+    enabled: step.id === 'pool',
     queryKey: ['outreach-context-library'],
     queryFn: async () =>
       (await api.get<ContextLibraryResponse>('/api/engagement/outreach/context-library')).data,
@@ -733,7 +747,7 @@ export function NewOutreachWizard({
   // (the `watched=true` filter resolves the caller's tenant/user automatically);
   // typing in the tab then searches the full catalog server-side.
   const peWatchlistQuery = useQuery<ProgramElementListItem[]>({
-    enabled: step.id === 'context',
+    enabled: step.id === 'pool',
     queryKey: ['outreach-pool-pe-watched'],
     queryFn: async () =>
       (
@@ -763,7 +777,7 @@ export function NewOutreachWizard({
   });
 
   const mailQuery = useQuery<MailThreadsResponse>({
-    enabled: step.id === 'context',
+    enabled: step.id === 'pool',
     queryKey: ['outreach-pool-mail', state.clientId, recipientEmailsParam],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -945,7 +959,16 @@ export function NewOutreachWizard({
         return state.campaignName.trim().length > 0 && !!state.templateId;
       case 'recipients':
         return state.recipients.length > 0;
-      case 'context':
+      case 'plan':
+        // The main idea is free text with no server-side validation of its
+        // own (Phase 1 §3.b1 style: it's the user's own words) — nothing to
+        // require here. Explicit rather than falling through to `default` so
+        // a future change to that fallback can't silently start gating this
+        // step without anyone noticing.
+        return true;
+      case 'pool':
+        // Same requirement the old single "Build Context" step enforced
+        // before the split — at least one context item selected.
         return state.contextItems.length > 0;
       default:
         return true;
@@ -965,11 +988,12 @@ export function NewOutreachWizard({
     () =>
       genInputSignature({
         contextItems: state.contextItems,
+        mainIdea: state.mainIdea,
         templateId: state.templateId,
         tone: state.tone,
         direction: state.direction,
       }),
-    [state.contextItems, state.templateId, state.tone, state.direction],
+    [state.contextItems, state.mainIdea, state.templateId, state.tone, state.direction],
   );
   const contextStale =
     Object.keys(state.generatedEmails).length > 0 &&
@@ -1541,6 +1565,7 @@ export function NewOutreachWizard({
       if (vars.markFresh && vars.sig != null && res.failed.length === 0 && res.held.length === 0) {
         setLastGenerationSnapshot({
           contextItems: state.contextItems,
+          mainIdea: state.mainIdea,
           templateId: state.templateId,
           tone: state.tone,
           direction: state.direction,
@@ -1912,6 +1937,7 @@ export function NewOutreachWizard({
         perRecipientEmails: drafts,
         generatedByKey: snapshot.generatedEmails,
         contextItems: snapshot.contextItems,
+        mainIdea: snapshot.mainIdea,
         attachmentIds: snapshot.attachmentIds,
         targets: snapshot.targets,
         // Phase 2 §3.g — "keep all" acknowledgement, tied to the collision-set
@@ -2016,6 +2042,7 @@ export function NewOutreachWizard({
           // Lossless copy of the rich v2 context items for wizard restore (the
           // top-level contextPool projection drops kind/body/sub/tag detail).
           contextItems: state.contextItems,
+          mainIdea: state.mainIdea,
           attachmentIds: state.attachmentIds,
           // Outreach 2.0 recipient model: source of truth for the mixed
           // Individual/List/Group targets (incl. their Cc/Bcc). The flat
@@ -2433,13 +2460,22 @@ export function NewOutreachWizard({
         lastGenerationSnapshot,
         {
           contextItems: state.contextItems,
+          mainIdea: state.mainIdea,
           templateId: state.templateId,
           tone: state.tone,
           direction: state.direction,
         },
         genModel,
       ),
-    [lastGenerationSnapshot, state.contextItems, state.templateId, state.tone, state.direction, genModel],
+    [
+      lastGenerationSnapshot,
+      state.contextItems,
+      state.mainIdea,
+      state.templateId,
+      state.tone,
+      state.direction,
+      genModel,
+    ],
   );
 
   /** Regenerate exactly the slots the current inputs affect (§3.f1) — same
@@ -2557,22 +2593,43 @@ export function NewOutreachWizard({
 
   // ---- Render ----
   return (
-    <div className="ov2-wiz">
-      <aside className="ov2-wiz-rail">
-        {WIZARD_STEPS.map((s, i) => (
-          <div
-            key={s.id}
-            className={
-              'ov2-wiz-step' + (i < stepIdx ? ' done' : '') + (i === stepIdx ? ' active' : '')
-            }
-            onClick={() => i <= stepIdx && setStepIdx(i)}
-          >
-            <span className="badge">
-              {i < stepIdx ? <CheckOutlined style={{ fontSize: 11 }} /> : i + 1}
-            </span>
-            {s.label}
-          </div>
-        ))}
+    // Shell per handover §6.3: 232px rail on bg-surface-subtle with a hairline
+    // right edge; step badge is a navy fill + white check when done, a white
+    // fill with a 2px navy ring when active, neutral when pending.
+    <div className="ov2-wiz ov2-tw-root grid min-h-[600px] grid-cols-[232px_minmax(0,1fr)] overflow-hidden rounded-lg border border-line-hairline bg-surface">
+      <aside className="flex flex-col gap-1 border-r border-line-hairline bg-surface-subtle px-[18px] py-[22px]">
+        {WIZARD_STEPS.map((s, i) => {
+          const done = i < stepIdx;
+          const active = i === stepIdx;
+          return (
+            <div
+              key={s.id}
+              className={`flex items-center gap-2.5 rounded-sm px-2 py-2.5 text-[13px] ${
+                i <= stepIdx ? 'cursor-pointer hover:bg-[#F2F0EB]' : 'cursor-default'
+              } ${
+                active
+                  ? 'font-semibold text-ink-primary'
+                  : done
+                    ? 'font-medium text-ink-primary'
+                    : 'text-ink-tertiary'
+              }`}
+              onClick={() => i <= stepIdx && setStepIdx(i)}
+            >
+              <span
+                className={`flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs ${
+                  done
+                    ? 'bg-accent text-white'
+                    : active
+                      ? 'border-2 border-accent bg-surface text-accent-ink'
+                      : 'border border-line-hairline bg-neutral-bg text-ink-tertiary'
+                }`}
+              >
+                {done ? <Icon.Check size={12} /> : i + 1}
+              </span>
+              {s.label}
+            </div>
+          );
+        })}
       </aside>
 
       <div className="ov2-wiz-body">
@@ -2621,8 +2678,19 @@ export function NewOutreachWizard({
             />
           )}
 
-          {step.id === 'context' && (
-            <StepContext
+          {step.id === 'plan' && (
+            <StepContextPlan
+              recipients={state.recipients}
+              targets={state.targets}
+              selected={state.contextItems}
+              onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
+              mainIdea={state.mainIdea}
+              onMainIdeaChange={(v) => setState((p) => ({ ...p, mainIdea: v }))}
+            />
+          )}
+
+          {step.id === 'pool' && (
+            <StepContextBuilder
               recipients={state.recipients}
               targets={state.targets}
               selected={state.contextItems}
@@ -2736,833 +2804,75 @@ export function NewOutreachWizard({
           )}
         </div>
 
-        <div className="ov2-wiz-foot">
+        {/* Footer per handover §6.3: Back secondary · 2px progress track with
+            an ink fill at (idx+1)/N · "Step N of N" · dark Continue/Finish. */}
+        <div className="flex flex-wrap items-center gap-3 border-t border-line-hairline bg-surface-subtle px-8 py-3.5">
           {/* Cancel discards the in-progress outreach (a confirmation dialog
               guards it). "Save as draft" is the explicit way to keep your
               work — available on every step. */}
-          <Button onClick={onCancel}>Cancel &amp; discard</Button>
-          {stepIdx > 0 && <Button onClick={back}>Back</Button>}
-          {!sentResult && (
-            <Button
-              icon={<SaveOutlined />}
-              onClick={() => saveDraftMutation.mutate()}
-              loading={saveDraftMutation.isPending}
-              disabled={!canSaveDraft}
-            >
-              Save as draft
-            </Button>
+          <UiButton variant="secondary" onPress={onCancel}>
+            Cancel &amp; discard
+          </UiButton>
+          {stepIdx > 0 && (
+            <UiButton variant="secondary" onPress={back}>
+              Back
+            </UiButton>
           )}
-          <span className="step-label">
+          {!sentResult && (
+            <UiButton
+              variant="secondary"
+              onPress={() => saveDraftMutation.mutate()}
+              isDisabled={!canSaveDraft || saveDraftMutation.isPending}
+            >
+              {saveDraftMutation.isPending ? 'Saving…' : 'Save as draft'}
+            </UiButton>
+          )}
+          <span className="text-[12.5px] whitespace-nowrap text-ink-tertiary">
             Step {stepIdx + 1} of {WIZARD_STEPS.length}
           </span>
-          <div className="progress">
-            <span style={{ width: `${((stepIdx + 1) / WIZARD_STEPS.length) * 100}%` }} />
+          <div className="h-0.5 min-w-[80px] flex-1 rounded-full bg-line-divider">
+            <span
+              className="block h-full rounded-full bg-ink-primary"
+              style={{ width: `${((stepIdx + 1) / WIZARD_STEPS.length) * 100}%` }}
+            />
           </div>
           {step.id === 'send' ? (
             sentResult ? (
-              <Button type="primary" icon={<CheckOutlined />} onClick={onComplete}>
-                Done
-              </Button>
+              <UiButton variant="primary" onPress={onComplete}>
+                <Icon.Check size={15} /> Done
+              </UiButton>
             ) : (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={() => submitSend(undefined)}
-                loading={realSending}
+              <UiButton
+                variant="primary"
+                onPress={() => submitSend(undefined)}
                 // Locked while an intent with the same request key is active, so a
                 // second click cannot start a second send.
-                disabled={!emailConnected || sendableDraftCount === 0 || sendLocked}
+                isDisabled={
+                  !emailConnected || sendableDraftCount === 0 || sendLocked || realSending
+                }
               >
-                Send all
-              </Button>
+                <Icon.Send01 size={15} /> {realSending ? 'Sending…' : 'Send all'}
+              </UiButton>
             )
           ) : (
-            <Button
-              type="primary"
-              icon={<ArrowRightOutlined />}
-              iconPosition="end"
-              onClick={step.id === 'direction' ? startOutreach : next}
-              disabled={!canAdvance()}
+            <UiButton
+              variant="primary"
+              onPress={step.id === 'direction' ? startOutreach : next}
+              isDisabled={!canAdvance()}
             >
               {step.id === 'generate' ? 'Review Emails' : 'Continue'}
-            </Button>
+              <Icon.ArrowRight size={15} />
+            </UiButton>
           )}
         </div>
       </div>
     </div>
   );
 }
-
-// =====================================================================
-// Lightweight in-file step components for the steps that don't have new
-// design innovations. They borrow antd for inputs and stay deliberately
-// simple, anything more complex should live in its own file.
-// =====================================================================
 
 // StepSetup (the direction-branched client picker) was removed with the
 // campaign-type fork; Campaign Setup now lives in ./StepCampaignSetup.tsx.
+// StepTemplate/PreviewTemplateModal/CreateTemplateModal moved to
+// ./StepTemplate.tsx and StepSend moved to ./StepSend.tsx, both as part of
+// the Tailwind + React Aria migration.
 
-// Shape returned by GET /api/engagement/outreach/ai-templates. The backend
-// merges system templates (hardcoded in engagement.service.ts) with any
-// user-created custom templates from outreach_ai_template. We render both
-// in the same grid; the only visible difference is a "Custom" tag on
-// user-owned ones so the user can find their own templates at a glance.
-interface AiTemplate {
-  id: string;
-  source: 'system' | 'user';
-  name: string;
-  category: string;
-  prompt: string;
-  description: string | null;
-  samplePreview: string | null;
-  tone: string;
-  usageCount: number;
-}
-
-function StepTemplate({
-  templateId,
-  onChange,
-}: {
-  templateId: string | null;
-  onChange: (id: string) => void;
-}) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const { message } = App.useApp();
-  const [previewing, setPreviewing] = useState<AiTemplate | null>(null);
-  const [creatingOpen, setCreatingOpen] = useState(false);
-
-  const templatesQuery = useQuery<AiTemplate[]>({
-    queryKey: ['outreach-ai-templates'],
-    queryFn: async () =>
-      (await api.get<AiTemplate[]>('/api/engagement/outreach/ai-templates')).data,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (input: {
-      name: string;
-      category: string;
-      prompt: string;
-      description?: string;
-      tone?: string;
-    }) => (await api.post<AiTemplate>('/api/engagement/outreach/ai-templates', input)).data,
-    onSuccess: (created) => {
-      message.success(`Created "${created.name}"`);
-      qc.invalidateQueries({ queryKey: ['outreach-ai-templates'] });
-      setCreatingOpen(false);
-      // Auto-select the newly created template so the user doesn't have
-      // to click it again before continuing.
-      onChange(created.id);
-    },
-    onError: () => message.error('Could not create template'),
-  });
-
-  const templates = templatesQuery.data ?? [];
-
-  if (templatesQuery.isLoading) {
-    return (
-      <div>
-        <h2>Choose a template</h2>
-        <Skeleton active paragraph={{ rows: 6 }} />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2>Choose a template</h2>
-      <div className="ov2-pane-sub">
-        Templates seed the structure. Meri fills it from your context. Preview to see a sample, or
-        create your own.
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        {templates.map((t) => (
-          <div
-            key={t.id}
-            onClick={() => onChange(t.id)}
-            style={{
-              background: 'var(--ov2-bg-surface)',
-              border:
-                '1.5px solid ' +
-                (templateId === t.id ? 'var(--ov2-accent)' : 'var(--ov2-border-1)'),
-              borderRadius: 8,
-              padding: '16px 18px',
-              cursor: 'pointer',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-            }}
-          >
-            {templateId === t.id && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 14,
-                  right: 14,
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  background: 'var(--ov2-accent)',
-                  color: '#fff',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 11,
-                }}
-              >
-                <CheckOutlined />
-              </span>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</div>
-              {t.source === 'user' && (
-                <Tag color="blue" style={{ fontSize: 10, lineHeight: 1.4, padding: '0 6px' }}>
-                  Custom
-                </Tag>
-              )}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--ov2-ink-2)',
-                lineHeight: 1.45,
-                flex: 1,
-              }}
-            >
-              {t.description ?? 'No description'}
-            </div>
-            <Button
-              size="small"
-              type="text"
-              icon={<EyeOutlined />}
-              // stopPropagation so clicking Preview doesn't also select the
-              // template, the user might want to compare a few before
-              // committing to one.
-              onClick={(e) => {
-                e.stopPropagation();
-                setPreviewing(t);
-              }}
-              style={{ alignSelf: 'flex-start', padding: 0, height: 22, fontSize: 12 }}
-            >
-              Preview
-            </Button>
-          </div>
-        ))}
-
-        {/* "Create custom" tile, same grid slot as a template card so the
-            shape stays predictable as the catalog grows. */}
-        <button
-          type="button"
-          onClick={() => setCreatingOpen(true)}
-          style={{
-            background: 'transparent',
-            border: '1.5px dashed var(--ov2-border-1)',
-            borderRadius: 8,
-            padding: '16px 18px',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            color: 'var(--ov2-ink-2)',
-            minHeight: 110,
-            font: 'inherit',
-          }}
-        >
-          <PlusOutlined style={{ fontSize: 18 }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Create custom template</span>
-          <span style={{ fontSize: 11 }}>Define your own prompt</span>
-        </button>
-      </div>
-
-      <PreviewTemplateModal
-        template={previewing}
-        onClose={() => setPreviewing(null)}
-        onSelect={(id) => {
-          onChange(id);
-          setPreviewing(null);
-        }}
-      />
-      <CreateTemplateModal
-        open={creatingOpen}
-        onCancel={() => setCreatingOpen(false)}
-        onSubmit={(input) => createMutation.mutate(input)}
-        submitting={createMutation.isPending}
-      />
-    </div>
-  );
-}
-
-function PreviewTemplateModal({
-  template,
-  onClose,
-  onSelect,
-}: {
-  template: AiTemplate | null;
-  onClose: () => void;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <Modal
-      open={!!template}
-      onCancel={onClose}
-      title={template ? `Preview · ${template.name}` : ''}
-      footer={
-        template
-          ? [
-              <Button key="close" onClick={onClose}>
-                Close
-              </Button>,
-              <Button key="use" type="primary" onClick={() => onSelect(template.id)}>
-                Use this template
-              </Button>,
-            ]
-          : null
-      }
-      width={640}
-      /* Cap the body and scroll inside it so a long sample output (or the full
-         prompt) is entirely reachable and the footer stays pinned — previously
-         a tall template pushed the bottom of the sample past the viewport with
-         no way to scroll to it. */
-      styles={{ body: { maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' } }}
-    >
-      {template && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: 'var(--ov2-ink-3)',
-                marginBottom: 4,
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
-              Description
-            </div>
-            <div style={{ fontSize: 13.5, color: 'var(--ov2-ink-1)' }}>
-              {template.description ?? 'No description provided.'}
-            </div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: 'var(--ov2-ink-3)',
-                marginBottom: 4,
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
-              Sample output
-            </div>
-            <pre
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.55,
-                background: 'var(--ov2-bg-surface)',
-                border: '1px solid var(--ov2-border-1)',
-                borderRadius: 6,
-                padding: 14,
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'inherit',
-                margin: 0,
-              }}
-            >
-              {template.samplePreview ?? '(no sample preview available)'}
-            </pre>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: 'var(--ov2-ink-3)',
-                marginBottom: 4,
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
-              Prompt sent to Meri
-            </div>
-            <div
-              style={{
-                fontSize: 12.5,
-                color: 'var(--ov2-ink-2)',
-                background: 'var(--ov2-bg-surface)',
-                border: '1px solid var(--ov2-border-1)',
-                borderRadius: 6,
-                padding: 14,
-                lineHeight: 1.55,
-              }}
-            >
-              {template.prompt}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--ov2-ink-3)' }}>
-            <span>
-              Tone: <b style={{ color: 'var(--ov2-ink-1)' }}>{template.tone}</b>
-            </span>
-            <span>
-              Category: <b style={{ color: 'var(--ov2-ink-1)' }}>{template.category}</b>
-            </span>
-            {template.source === 'user' && (
-              <span>
-                Used: <b style={{ color: 'var(--ov2-ink-1)' }}>{template.usageCount}×</b>
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-function CreateTemplateModal({
-  open,
-  onCancel,
-  onSubmit,
-  submitting,
-}: {
-  open: boolean;
-  onCancel: () => void;
-  onSubmit: (input: {
-    name: string;
-    category: string;
-    prompt: string;
-    description?: string;
-    tone?: string;
-  }) => void;
-  submitting: boolean;
-}) {
-  const [form] = Form.useForm();
-
-  useEffect(() => {
-    if (!open) form.resetFields();
-  }, [open, form]);
-
-  return (
-    <Modal
-      open={open}
-      onCancel={onCancel}
-      title="Create custom template"
-      okText="Create"
-      okButtonProps={{ loading: submitting }}
-      onOk={() => {
-        form
-          .validateFields()
-          .then((values) => {
-            onSubmit({
-              name: values.name,
-              category: values.category || 'general',
-              prompt: values.prompt,
-              description: values.description || undefined,
-              tone: values.tone || 'professional',
-            });
-          })
-          .catch(() => {
-            /* validation errors render inline */
-          });
-      }}
-      width={620}
-      destroyOnClose
-    >
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{ tone: 'professional', category: 'general' }}
-      >
-        <Form.Item
-          name="name"
-          label="Name"
-          rules={[{ required: true, message: 'Name is required' }]}
-        >
-          <Input placeholder="e.g. FY27 NDAA position memo" maxLength={120} />
-        </Form.Item>
-        <Form.Item name="description" label="Short description (optional)">
-          <Input placeholder="One-line summary shown on the template card" maxLength={500} />
-        </Form.Item>
-        <Form.Item
-          name="prompt"
-          label="Prompt"
-          tooltip="What Meri is told to produce. Be specific about structure, length, and tone."
-          rules={[
-            { required: true, message: 'Prompt is required' },
-            { min: 20, message: 'Prompt should be at least 20 characters' },
-          ]}
-        >
-          <Input.TextArea
-            rows={6}
-            placeholder="Write a concise email to a congressional office that... Include... Under 200 words."
-            maxLength={5000}
-            showCount
-          />
-        </Form.Item>
-        <Space size={12} style={{ display: 'flex' }}>
-          <Form.Item name="category" label="Category" style={{ flex: 1 }}>
-            <Select
-              options={[
-                { value: 'general', label: 'General' },
-                { value: 'meeting', label: 'Meeting' },
-                { value: 'follow_up', label: 'Follow-up' },
-                { value: 'policy', label: 'Policy' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="tone" label="Tone" style={{ flex: 1 }}>
-            <Select
-              options={[
-                { value: 'professional', label: 'Professional' },
-                { value: 'friendly', label: 'Friendly' },
-                { value: 'formal', label: 'Formal' },
-                { value: 'concise', label: 'Concise' },
-              ]}
-            />
-          </Form.Item>
-        </Space>
-      </Form>
-    </Modal>
-  );
-}
-
-function StepSend({
-  recipients,
-  sendableCount,
-  failedCount,
-  sendFrom,
-  sendableInboxes,
-  selectedInboxId,
-  onSelectInbox,
-  emailConnected,
-  hasSignature,
-  appendSignature,
-  onToggleSignature,
-  onSend,
-  onTest,
-  testPreviewOptions,
-  testPreviewGenerationKey,
-  onSelectTestPreview,
-  sending,
-  testing,
-  sentResult,
-  onDone,
-  versionedOutreach,
-  sendIntent,
-  intentPolling,
-  sendLocked,
-  onRetryFailed,
-  onCancelIntent,
-  preflight,
-}: {
-  recipients: OutreachRecipient[];
-  sendableCount: number;
-  failedCount: number;
-  sendFrom: string | null;
-  sendableInboxes: OutreachSenderInbox[];
-  selectedInboxId: string | undefined;
-  onSelectInbox: (id: string) => void;
-  emailConnected: boolean;
-  hasSignature: boolean;
-  appendSignature: boolean;
-  onToggleSignature: (next: boolean) => void;
-  onSend: () => void;
-  onTest: () => void;
-  /** §f2 — the currently-sendable slots a test preview may choose from. */
-  testPreviewOptions: Array<{ genKey: string; label: string }>;
-  testPreviewGenerationKey: string | null;
-  onSelectTestPreview: (genKey: string) => void;
-  sending: boolean;
-  testing: boolean;
-  sentResult: { sent: number; failed: number } | null;
-  onDone: () => void;
-  /** Phase 0: render the durable-intent result view instead of a count. */
-  versionedOutreach: boolean;
-  sendIntent: SendIntentView | undefined;
-  intentPolling: boolean;
-  sendLocked: boolean;
-  onRetryFailed: () => void;
-  onCancelIntent: () => void;
-  /** Phase 2 §3.h1 — full blockers/warnings + sendable count, computed fresh every render. */
-  preflight: SendPreflightResult;
-}) {
-  // Nothing sendable (every draft failed, or none generated) → block Send and
-  // say why, so the primary CTA is never a dead click into a backend 400.
-  const nothingToSend = sendableCount === 0;
-
-  /**
-   * Phase 0 (§3.g6) — one row per DELIVERY, with the real provider outcome.
-   *
-   * Deliberate omissions:
-   *   • an `unknown` row gets NO Retry button. The provider may already have
-   *     delivered it, so the only safe instruction is "verify Sent Items".
-   *   • nothing is reported as a blanket success while any outcome is undetermined.
-   */
-  if (versionedOutreach && sendIntent) {
-    const summary = summarizeIntent(sendIntent);
-    const retryable = sendIntent.deliveries.filter((d) => showRetryControl(d.status));
-    return (
-      <div style={{ padding: '28px 20px', textAlign: 'left' }}>
-        <h2 style={{ marginTop: 0, textAlign: 'center' }}>
-          {intentPolling
-            ? 'Sending…'
-            : summary.hasUnknown
-              ? `Sent ${summary.sent} · ${summary.unknown} unconfirmed`
-              : summary.failed > 0
-                ? `Sent ${summary.sent}, ${summary.failed} failed`
-                : `${summary.sent} ${summary.sent === 1 ? 'email' : 'emails'} sent`}
-        </h2>
-        <div className="ov2-pane-sub" style={{ fontSize: 13.5, textAlign: 'center' }}>
-          {sendIntent.testMode ? 'Test send — only you received a copy. ' : ''}
-          {summary.inFlight > 0 ? `${summary.inFlight} still in progress. ` : ''}
-          {summary.hasUnknown
-            ? 'Some outcomes could not be confirmed — check Sent Items before resending those.'
-            : ''}
-        </div>
-
-        {summary.hasUnknown && (
-          <Alert
-            type="warning"
-            showIcon
-            style={{ margin: '16px 0' }}
-            message={`${summary.unknown} delivery outcome(s) unknown`}
-            description={DELIVERY_STATUS_COPY.unknown}
-          />
-        )}
-
-        <div style={{ marginTop: 18 }}>
-          {sendIntent.deliveries.map((d) => (
-            <div
-              key={d.id}
-              style={{
-                display: 'flex',
-                gap: 12,
-                alignItems: 'flex-start',
-                padding: '10px 12px',
-                borderTop: '1px solid var(--ov2-line, #eee)',
-              }}
-            >
-              <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 13.5 }}>
-                  {d.to.map((t) => t.email).join(', ') || d.recipientKey}
-                </div>
-                <div style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)' }}>{d.subject}</div>
-                {d.cc.length > 0 && (
-                  <div style={{ fontSize: 12, color: 'var(--ov2-ink-2)' }}>Cc: {d.cc.join(', ')}</div>
-                )}
-                {/* Provider ids make a send reconcilable against the mailbox. */}
-                {(d.providerMessageId || d.providerDraftId) && (
-                  <div style={{ fontSize: 11.5, color: 'var(--ov2-ink-2)', marginTop: 2 }}>
-                    {d.provider === 'gmail' ? 'Gmail id' : 'Outlook draft'}:{' '}
-                    {d.providerMessageId ?? d.providerDraftId}
-                  </div>
-                )}
-                {d.errorMessage && (
-                  <div style={{ fontSize: 12, color: 'var(--ov2-danger, #dc2626)', marginTop: 2 }}>
-                    {d.errorCode ? `${d.errorCode}: ` : ''}
-                    {d.errorMessage}
-                  </div>
-                )}
-              </div>
-              <div style={{ flex: '0 0 auto', fontSize: 12.5, textAlign: 'right' }}>
-                {DELIVERY_STATUS_COPY[d.status]}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <Space style={{ marginTop: 22, justifyContent: 'center', width: '100%' }}>
-          {intentPolling && <Button onClick={onCancelIntent}>Cancel queued</Button>}
-          {/* Retry exists ONLY for explicit failures, and creates a NEW intent. */}
-          {!intentPolling && retryable.length > 0 && (
-            <Button onClick={onRetryFailed}>Create new send for {retryable.length} failed</Button>
-          )}
-          {!intentPolling && (
-            <Button type="primary" icon={<CheckOutlined />} onClick={onDone}>
-              Done
-            </Button>
-          )}
-        </Space>
-      </div>
-    );
-  }
-
-  // Post-send confirmation screen (pre-Phase-0 path).
-  if (sentResult) {
-    return (
-      <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-        <CheckCircleFilled style={{ fontSize: 52, color: 'var(--ov2-success, #22c55e)' }} />
-        <h2 style={{ marginTop: 18 }}>
-          {sentResult.failed > 0
-            ? `Sent ${sentResult.sent}, ${sentResult.failed} failed`
-            : `${sentResult.sent} ${sentResult.sent === 1 ? 'email' : 'emails'} sent`}
-        </h2>
-        <div className="ov2-pane-sub" style={{ fontSize: 13.5 }}>
-          {sentResult.failed > 0
-            ? 'Some emails could not be sent. Check the failed addresses and your email connection, then retry from Outreach.'
-            : `Your personalized emails went out from ${sendFrom || 'your connected inbox'}.`}
-        </div>
-        <Space style={{ marginTop: 22 }}>
-          <Button type="primary" icon={<CheckOutlined />} onClick={onDone}>
-            Done
-          </Button>
-        </Space>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-      <h2 style={{ marginTop: 14 }}>Ready to send</h2>
-      <div className="ov2-pane-sub" style={{ fontSize: 13.5 }}>
-        <b style={{ color: 'var(--ov2-ink-1)' }}>{preflight.sendableCount}</b> personalized{' '}
-        {preflight.sendableCount === 1 ? 'email is' : 'emails are'} ready. Capiro will send from{' '}
-        <b>{sendFrom || 'your connected inbox'}</b>.
-      </div>
-      {sendableInboxes.length > 1 && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', marginBottom: 6 }}>Send from</div>
-          <Select
-            value={selectedInboxId}
-            onChange={onSelectInbox}
-            style={{ minWidth: 280, maxWidth: 440, textAlign: 'left' }}
-            options={sendableInboxes.map((inbox) => ({
-              value: inbox.id,
-              label: `${inbox.accountEmail || inbox.displayName || 'Connected inbox'} · ${
-                inbox.provider === 'google_workspace' ? 'Gmail' : 'Outlook'
-              }`,
-            }))}
-          />
-        </div>
-      )}
-
-      {/* Phase 2 §3.h1 — itemized recipient/group rows with To/Cc/Bcc counts,
-          instead of only a flat total. */}
-      {recipients.length > 0 && (
-        <div
-          style={{
-            marginTop: 18,
-            maxHeight: 220,
-            overflowY: 'auto',
-            textAlign: 'left',
-            border: '1px solid var(--ov2-border-1)',
-            borderRadius: 8,
-          }}
-        >
-          {recipients.map((r, i) => {
-            const isGroup = (r.groupMembers?.length ?? 0) > 0;
-            const toCount = isGroup ? r.groupMembers!.length : 1;
-            return (
-              <div
-                key={r.id ?? r.email ?? i}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  padding: '8px 12px',
-                  borderTop: i > 0 ? '1px solid var(--ov2-border-1)' : 'none',
-                  fontSize: 12.5,
-                }}
-              >
-                <span style={{ color: 'var(--ov2-ink-1)', fontWeight: 600 }}>
-                  {r.name || r.email || 'Recipient'}
-                  {isGroup && (
-                    <span style={{ fontWeight: 500, color: 'var(--ov2-ink-3)' }}>
-                      {' '}
-                      ({toCount} {toCount === 1 ? 'member' : 'members'})
-                    </span>
-                  )}
-                </span>
-                <span style={{ color: 'var(--ov2-ink-3)', flexShrink: 0 }}>
-                  To {toCount}
-                  {(r.cc?.length ?? 0) > 0 ? ` · Cc ${r.cc!.length}` : ''}
-                  {(r.bcc?.length ?? 0) > 0 ? ` · Bcc ${r.bcc!.length}` : ''}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Preflight blockers/warnings — grouped, not a wall of per-slot text. */}
-      {preflight.issues.length > 0 && (
-        <div style={{ marginTop: 16, textAlign: 'left' }}>
-          {preflight.blockers.map((b, i) => (
-            <Typography.Paragraph key={`b-${i}`} type="danger" style={{ margin: '4px 0' }}>
-              {b.message}
-            </Typography.Paragraph>
-          ))}
-          {preflight.warnings.map((w, i) => (
-            <Typography.Paragraph key={`w-${i}`} type="warning" style={{ margin: '4px 0' }}>
-              {w.message}
-            </Typography.Paragraph>
-          ))}
-        </div>
-      )}
-
-      {hasSignature && (
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            marginTop: 16,
-            padding: '9px 14px',
-            border: '1px solid var(--ov2-border-1)',
-            borderRadius: 8,
-            background: 'var(--ov2-bg-surface-2)',
-          }}
-        >
-          <Switch checked={appendSignature} onChange={onToggleSignature} size="small" />
-          <span style={{ fontSize: 13, color: 'var(--ov2-ink-1)' }}>Append my email signature</span>
-        </div>
-      )}
-
-      {/* §f2 — a test send previews exactly ONE explicitly selected recipient's
-          draft (the server rejects a test intent carrying more than one). Only
-          meaningful under versioned outreach — the legacy path predates
-          per-version test sends and is unaffected. */}
-      {versionedOutreach && testPreviewOptions.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', marginBottom: 6 }}>
-            Preview recipient
-          </div>
-          <Select
-            value={testPreviewGenerationKey ?? undefined}
-            onChange={onSelectTestPreview}
-            style={{ minWidth: 280, maxWidth: 440, textAlign: 'left' }}
-            options={testPreviewOptions.map((o) => ({ value: o.genKey, label: o.label }))}
-          />
-        </div>
-      )}
-
-      <Space style={{ marginTop: 16 }}>
-        <Button
-          icon={<EyeOutlined />}
-          loading={testing && !sending}
-          onClick={onTest}
-          disabled={
-            !emailConnected ||
-            nothingToSend ||
-            sendLocked ||
-            (versionedOutreach && !testPreviewGenerationKey)
-          }
-        >
-          Send test email to myself
-        </Button>
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          loading={sending}
-          onClick={onSend}
-          disabled={!preflight.canSend || sendLocked}
-        >
-          Confirm Send
-        </Button>
-      </Space>
-      <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 14 }}>
-        “Send test email” delivers one copy to your own inbox, previewing the recipient selected
-        above, so you can check formatting before the real send.
-      </Typography.Paragraph>
-    </div>
-  );
-}

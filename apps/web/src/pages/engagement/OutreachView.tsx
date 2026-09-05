@@ -28,6 +28,11 @@ import {
   Upload,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
+// Campaign list only (handover §6.2). The legacy workflow screens further
+// down this file — outbound campaign, follow-up, prep distribution, small
+// group — are not part of the prototype and keep their existing antd markup.
+import './outreach/v2/ui/tailwind.css';
+import { Icon } from './outreach/v2/ui/icons.js';
 import type { Client } from '../clients/clientTypes.js';
 import type { DirectoryApiResponse, DirectoryEntry } from '../directory/directoryData.js';
 
@@ -1174,46 +1179,77 @@ export function OutreachView({
   const sent = rows.filter((record) => record.status !== 'draft');
 
   return (
-    <div className="outreach-page">
-      <div className="outreach-filter-bar">
-        <span>Date range</span>
-        <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-        <span>-</span>
-        <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        <div className="outreach-type-pills">
+    <div className="ov2-tw-root outreach-page">
+      {/* Filter card (handover §6.2): date range, Show deleted, right-aligned
+          All / Client / External segmented control and the dark New Outreach. */}
+      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-line-hairline bg-surface p-3">
+        <span className="font-mono text-[10px] tracking-[0.06em] text-ink-quaternary uppercase">
+          Date range
+        </span>
+        <input
+          type="date"
+          aria-label="From date"
+          value={from}
+          onChange={(event) => setFrom(event.target.value)}
+          className="h-9 rounded-sm border border-line-control bg-surface px-2.5 text-sm text-ink-primary focus:border-accent focus:outline-none"
+        />
+        <span className="text-ink-quaternary">–</span>
+        <input
+          type="date"
+          aria-label="To date"
+          value={to}
+          onChange={(event) => setTo(event.target.value)}
+          className="h-9 rounded-sm border border-line-control bg-surface px-2.5 text-sm text-ink-primary focus:border-accent focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => setShowDeleted((value) => !value)}
+          title="Show outreach that was deleted from Capiro, with the option to restore it."
+          className={`h-9 rounded-sm border px-3 text-[13px] font-semibold ${
+            showDeleted
+              ? 'border-danger-border bg-danger-bg text-danger'
+              : 'border-line-control bg-surface text-ink-strong hover:border-accent-border'
+          }`}
+        >
+          {showDeleted ? 'Viewing deleted' : 'Show deleted'}
+        </button>
+        <span className="flex-1" />
+        <div className="flex overflow-hidden rounded-sm border border-line-control">
           {DIRECTION_FILTERS.map((filter) => (
             <button
               key={filter.value}
               type="button"
-              className={directionFilter === filter.value ? 'active' : ''}
+              className={`h-9 px-3 text-[13px] font-semibold ${
+                directionFilter === filter.value
+                  ? 'btn-dark'
+                  : 'bg-surface text-ink-secondary hover:bg-surface-subtle'
+              }`}
               onClick={() => setDirectionFilter(filter.value)}
             >
               {filter.label}
             </button>
           ))}
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => startWorkflow('campaign')}>
-          New Outreach
-        </Button>
-        <Button
-          type={showDeleted ? 'primary' : 'default'}
-          danger={showDeleted}
-          onClick={() => setShowDeleted((value) => !value)}
-          title="Show outreach that was deleted from Capiro, with the option to restore it."
+        <button
+          type="button"
+          onClick={() => startWorkflow('campaign')}
+          className="btn-dark inline-flex h-9 items-center gap-1.5 rounded-sm px-3.5 text-[13px] font-semibold"
         >
-          {showDeleted ? 'Viewing deleted' : 'Show deleted'}
-        </Button>
+          <Icon.Plus size={14} /> New Outreach
+        </button>
       </div>
 
       {outreach.isLoading ? (
-        <div className="outreach-card-list">
-          <Empty description="Loading outreach..." />
+        <div className="rounded-lg border border-line-hairline bg-surface p-10 text-center text-[13px] text-ink-tertiary">
+          Loading outreach…
         </div>
       ) : rows.length ? (
         <>
           {drafts.length ? (
-            <section className="outreach-section">
-              <Typography.Title level={5}>Drafts in Progress</Typography.Title>
+            <section className="mb-6">
+              <h3 className="mb-2.5 text-lg font-semibold tracking-[-0.01em] text-ink-primary">
+                Drafts in Progress
+              </h3>
               <div className="outreach-card-list">
                 {drafts.map((record) => (
                   <OutreachRecordCard
@@ -1230,10 +1266,12 @@ export function OutreachView({
             </section>
           ) : null}
 
-          <div className="outreach-sent-divider">
-            <span />
-            <strong>Sent</strong>
-            <span />
+          <div className="mb-2.5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-line-hairline" />
+            <strong className="text-lg font-semibold tracking-[-0.01em] text-ink-primary">
+              Sent
+            </strong>
+            <span className="h-px flex-1 bg-line-hairline" />
           </div>
 
           {sent.length ? (
@@ -1251,25 +1289,28 @@ export function OutreachView({
               ))}
             </div>
           ) : (
-            <Empty description="No sent or opened outreach in this date range." />
+            <div className="rounded-lg border border-line-hairline bg-surface p-10 text-center text-[13px] text-ink-tertiary italic">
+              No sent or opened outreach in this date range.
+            </div>
           )}
           {rows.length >= outreachLimit ? (
-            <Button block onClick={() => setOutreachLimit((current) => current + 50)}>
+            <button
+              type="button"
+              onClick={() => setOutreachLimit((current) => current + 50)}
+              className="mt-4 w-full rounded-sm border border-line-control bg-surface py-2 text-[13px] font-semibold text-ink-strong hover:border-accent-border"
+            >
               Load more
-            </Button>
+            </button>
           ) : null}
         </>
       ) : (
-        <div className="outreach-empty">
-          <Empty
-            description={
-              <span>
-                <strong>No outreach yet</strong>
-                <br />
-                Use New Outreach above, Meri drafts from your context
-              </span>
-            }
-          />
+        <div className="rounded-lg border border-line-hairline bg-surface p-12 text-center">
+          <strong className="block text-[15px] font-semibold text-ink-primary">
+            No outreach yet
+          </strong>
+          <span className="mt-1 block text-[13px] text-ink-tertiary">
+            Use New Outreach above, Meri drafts from your context
+          </span>
         </div>
       )}
     </div>
@@ -2828,8 +2869,10 @@ function OutreachRecordCard({
 }) {
   const displayDate = outreachRecordDisplayDate(record);
   return (
+    // Row grid per handover §6.2: kind pill · title + two helper lines ·
+    // status/date/action, hairline bordered, accent-border on hover.
     <article
-      className="outreach-record-card"
+      className="outreach-record-card ov2-tw-root grid grid-cols-[110px_minmax(0,1fr)_150px] items-start gap-4 rounded-lg border border-line-hairline bg-surface p-4 hover:border-accent-border"
       role="button"
       tabIndex={0}
       onClick={() => onClick(record)}
@@ -2837,12 +2880,14 @@ function OutreachRecordCard({
         if (event.key === 'Enter' || event.key === ' ') onClick(record);
       }}
     >
-      <Tag className={`outreach-record-type outreach-record-type--${recordTypeClass(record.type)}`}>
+      <span className="inline-flex w-fit rounded-full bg-neutral-bg px-2 py-0.5 font-mono text-[10px] tracking-[0.06em] text-neutral-ink uppercase">
         {outreachRecordTypeLabel(record.type)}
-      </Tag>
-      <div>
-        <strong>{record.subject || record.title}</strong>
-        <span>
+      </span>
+      <div className="min-w-0">
+        <strong className="block truncate text-[15px] font-semibold text-ink-primary">
+          {record.subject || record.title}
+        </strong>
+        <span className="mt-0.5 block truncate text-[13px] text-ink-tertiary">
           {[
             record.client?.name,
             record.meeting?.subject,
@@ -2852,40 +2897,37 @@ function OutreachRecordCard({
             .filter(Boolean)
             .join(' · ')}
         </span>
-        <em>{recordStats(record)}</em>
+        <em className="mt-0.5 block truncate text-[13px] text-ink-tertiary not-italic">
+          {recordStats(record)}
+        </em>
       </div>
-      <aside>
-        <span>{statusLabel(record)}</span>
-        <time>{formatOptionalDate(displayDate)}</time>
+      <aside className="flex flex-col items-end gap-1">
+        <span className="text-sm font-semibold text-ink-primary">{statusLabel(record)}</span>
+        <time className="text-[13px] text-ink-tertiary">{formatOptionalDate(displayDate)}</time>
         {onRestore ? (
-          <Button
-            size="small"
-            type="text"
-            icon={<UndoOutlined />}
-            loading={restoring}
+          <button
+            type="button"
             aria-label={`Restore ${record.title}`}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink hover:underline"
             onClick={(event) => {
               event.stopPropagation();
               onRestore(record);
             }}
           >
-            Restore
-          </Button>
+            <Icon.FlipBackward size={12} /> {restoring ? 'Restoring…' : 'Restore'}
+          </button>
         ) : (
-          <Button
-            danger
-            size="small"
-            type="text"
-            icon={<DeleteOutlined />}
-            loading={deleting}
+          <button
+            type="button"
             aria-label={`Delete ${record.title} from Capiro`}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-ink-tertiary hover:text-danger"
             onClick={(event) => {
               event.stopPropagation();
               onDelete(record);
             }}
           >
-            Delete
-          </Button>
+            <Icon.Trash01 size={12} /> {deleting ? 'Deleting…' : 'Delete'}
+          </button>
         )}
       </aside>
     </article>

@@ -12,20 +12,21 @@
 // editor. The campaign-level Attachments picker (production feature) lives
 // below the editor. Generation/keying live in the shell + generation.ts; this
 // component is the presentation + interaction layer.
-
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Checkbox, Input, Select, Space, Typography, Upload } from 'antd';
-import {
-  CheckOutlined,
-  DownOutlined,
-  ExclamationCircleOutlined,
-  PaperClipOutlined,
-  RightOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  UnorderedListOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+//
+// Presentation rebuilt onto Tailwind + React Aria per the real migration
+// (handover §0, §6.9) — every handler, query, and piece of state below is
+// unchanged. Two things deliberately were NOT changed to match the handover
+// literally, because doing so would have changed behavior (out of scope —
+// "no functionality should change except the step split"):
+//   - The handover describes "Improve" as a collapsible disclosure with
+//     canned suggestion chips and separate Rewrite/Cancel actions. The real
+//     component has always been a single always-visible instruction field +
+//     "Improve" button wired straight to `onImprove` — that's what's kept.
+//   - ContextUsedPanel and DraftVersionCompare are separate, already-tested
+//     components rendered inside this step; they are NOT rebuilt here (out
+//     of this step's scope) and still render with their existing antd/--ov2-*
+//     styling.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GeneratedDraft, WizardV2State } from './types.js';
 import { ContextUsedPanel } from './ContextUsedPanel.js';
 import {
@@ -38,7 +39,18 @@ import {
 import { listAidFromKey, type GenSlot, type RailEntity, type RailSlot } from './generation.js';
 import { RichTextEditor } from './RichTextEditor.js';
 import { DraftVersionCompare } from './DraftVersionCompare.js';
+// RichTextEditor (unchanged, out of this step's scope) has no CSS import of
+// its own — it relies on whichever parent loads step-generate.css for its
+// `.ov2-rte-*` classes. This file used to be that parent; keep the import so
+// the editor doesn't silently render unstyled now that the rest of this
+// component no longer uses step-generate.css for anything else.
 import './step-generate.css';
+import './ui/tailwind.css';
+import { Icon } from './ui/icons.js';
+import { Button } from './ui/Button.js';
+import { Input } from './ui/Input.js';
+import { Select } from './ui/Select.js';
+import { Checkbox } from './ui/Checkbox.js';
 
 interface AttachmentDoc {
   id: string;
@@ -92,11 +104,18 @@ interface Props {
   onUploadAttachment: (file: File) => void;
 }
 
-const KIND_BADGE: Record<RailEntity['kind'], { label: string; cls: string; icon: JSX.Element }> = {
-  individual: { label: 'Individual', cls: 'individual', icon: <UserOutlined /> },
-  list: { label: 'List', cls: 'list', icon: <UnorderedListOutlined /> },
-  group: { label: 'Group', cls: 'group', icon: <TeamOutlined /> },
+const KIND_BADGE: Record<RailEntity['kind'], { label: string; icon: typeof Icon.User01 }> = {
+  individual: { label: 'Individual', icon: Icon.User01 },
+  list: { label: 'List', icon: Icon.LayoutAlt01 },
+  group: { label: 'Group', icon: Icon.Users01 },
 };
+
+const TONE_OPTIONS = [
+  { value: 'professional', label: 'Professional' },
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'concise', label: 'Concise' },
+];
 
 /**
  * Phase 0 (§3.g5) — readiness comes from the SERVER lifecycle, via the one shared
@@ -211,6 +230,7 @@ export function StepGenerate({
   const [bannerFor, setBannerFor] = useState<string | null>(null);
   // Freeform "Improve" instruction for the active draft (cleared on switch/submit).
   const [improveText, setImproveText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Flat lookup: genKey → { entity, slot }.
   const index = useMemo(() => {
@@ -268,9 +288,11 @@ export function StepGenerate({
 
   if (entities.length === 0) {
     return (
-      <div>
-        <h2>Generate &amp; review</h2>
-        <div className="ov2-pane-sub">
+      <div className="ov2-tw-root">
+        <h2 className="text-[22px] leading-7 font-bold tracking-[-0.02em] text-ink-primary">
+          Generate &amp; review
+        </h2>
+        <div className="mt-1.5 text-sm leading-5 text-ink-secondary">
           Add recipients first, then come back to draft their emails.
         </div>
       </div>
@@ -278,19 +300,24 @@ export function StepGenerate({
   }
 
   return (
-    <div>
-      <h2>Generate &amp; review</h2>
-      <div className="ov2-pane-sub">
+    <div className="ov2-tw-root">
+      <h2 className="text-[22px] leading-7 font-bold tracking-[-0.02em] text-ink-primary">
+        Generate &amp; review
+      </h2>
+      <div className="mt-1.5 mb-5 text-sm leading-5 text-ink-secondary">
         Meri drafts a unique email for each individual and list member, and one shared email per
         group. Edit any draft inline, regenerate, or save everything as a draft to finish later.
       </div>
 
       {contextStale && (
-        <div className="ov2-gen-stale" role="status">
-          <span className="ov2-gen-stale-ico">
-            <ThunderboltOutlined />
+        <div
+          role="status"
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-warning-border bg-warning-bg p-3"
+        >
+          <span className="flex-none text-warning-heading">
+            <Icon.Zap size={16} />
           </span>
-          <span className="ov2-gen-stale-msg">
+          <span className="flex-1 text-[13px] leading-5 text-warning">
             Your context changed since these drafts were generated
             {showAffectedButton ? (
               <>
@@ -300,28 +327,19 @@ export function StepGenerate({
               </>
             ) : (
               <>
+                {' '}
                 . Regenerate to apply it <em>(this replaces every draft, including any manual edits)</em>.
               </>
             )}
           </span>
           {showAffectedButton && (
-            <button
-              type="button"
-              className="ov2-gen-stale-btn"
-              onClick={onRegenerateAffected}
-              disabled={batchGenerating}
-            >
+            <Button variant="secondary" size="sm" onPress={onRegenerateAffected} isDisabled={batchGenerating}>
               {batchGenerating ? 'Regenerating…' : `Regenerate affected (${affectedCount})`}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            className="ov2-gen-stale-btn"
-            onClick={onRegenerateAll}
-            disabled={batchGenerating}
-          >
+          <Button variant="secondary" size="sm" onPress={onRegenerateAll} isDisabled={batchGenerating}>
             {batchGenerating ? 'Regenerating…' : 'Regenerate all'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -346,300 +364,345 @@ export function StepGenerate({
         </>
       )}
 
-      <div className="ov2-gen-grid">
-        {/* ---- Left rail ---- */}
-        <div className="ov2-gen-rail">
-          <div className="ov2-gen-pill">
-            <ThunderboltOutlined /> {batchGenerating ? 'Generating…' : `${ready} / ${total} ready`}
-          </div>
-          <div className="ov2-gen-rail-scroll">
-            {(['individual', 'list', 'group'] as const).map((kind) => {
-              const ents = entities.filter((e) => e.kind === kind);
-              if (ents.length === 0) return null;
-              return (
-                <div key={kind} className={`ov2-gen-section ${kind}`}>
-                  <div className="ov2-gen-section-head">
-                    {KIND_BADGE[kind].icon}
-                    <span className="lbl">{KIND_BADGE[kind].label}</span>
-                    <span className="cnt">{ents.length}</span>
+      <div className="@container">
+        <div className="grid grid-cols-1 gap-4 @[700px]:grid-cols-[300px_minmax(360px,1fr)]">
+          {/* ---- Left rail ---- */}
+          <div className="flex max-h-[640px] flex-col rounded-lg border border-line-hairline bg-surface">
+            <div className="flex items-center gap-1.5 rounded-t-lg border-b border-line-hairline bg-surface-subtle px-3 py-2.5 text-[13px] font-semibold text-ink-primary">
+              <Icon.Zap size={13} className="text-accent" />
+              {batchGenerating ? 'Generating…' : `${ready} / ${total} ready`}
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {(['individual', 'list', 'group'] as const).map((kind) => {
+                const ents = entities.filter((e) => e.kind === kind);
+                if (ents.length === 0) return null;
+                const KindIcon = KIND_BADGE[kind].icon;
+                return (
+                  <div key={kind} className="mb-3 last:mb-0">
+                    <div className="flex items-center gap-1.5 px-1.5 py-1 text-[11px] font-bold tracking-[0.02em] text-ink-tertiary uppercase">
+                      <KindIcon size={12} />
+                      <span>{KIND_BADGE[kind].label}</span>
+                      <span className="font-mono normal-case">{ents.length}</span>
+                    </div>
+                    {ents.map((entity) => (
+                      <RailCard
+                        key={entity.target.key}
+                        entity={entity}
+                        generated={generated}
+                        activeKey={activeKey}
+                        collapsed={collapsed.has(entity.target.key)}
+                        onToggleCollapse={() =>
+                          setCollapsed((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(entity.target.key)) next.delete(entity.target.key);
+                            else next.add(entity.target.key);
+                            return next;
+                          })
+                        }
+                        onSelect={select}
+                        onRegenerateOne={onRegenerateOne}
+                        generatingKey={generatingKey}
+                        batchGenerating={batchGenerating}
+                      />
+                    ))}
                   </div>
-                  {ents.map((entity) => (
-                    <RailCard
-                      key={entity.target.key}
-                      entity={entity}
-                      generated={generated}
-                      activeKey={activeKey}
-                      collapsed={collapsed.has(entity.target.key)}
-                      onToggleCollapse={() =>
-                        setCollapsed((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(entity.target.key)) next.delete(entity.target.key);
-                          else next.add(entity.target.key);
-                          return next;
-                        })
-                      }
-                      onSelect={select}
-                      onRegenerateOne={onRegenerateOne}
-                      generatingKey={generatingKey}
-                      batchGenerating={batchGenerating}
-                    />
-                  ))}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* ---- Editor pane ---- */}
-        <div className="ov2-gen-editor">
-          <div className="ov2-gen-editor-head">
-            {active && (
-              <div className="ov2-gen-editor-title">
-                <span className={`ov2-gen-badge ${KIND_BADGE[active.entity.kind].cls}`}>
-                  {KIND_BADGE[active.entity.kind].icon} {KIND_BADGE[active.entity.kind].label}
+          {/* ---- Editor pane ---- */}
+          <div className="flex flex-col rounded-lg border border-line-hairline bg-surface p-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-line-hairline pb-3">
+              {active && (
+                <div className="mr-auto flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-1 rounded-full bg-accent-tint px-2 py-0.5 text-xs font-medium text-accent-ink">
+                    {(() => {
+                      const ActiveKindIcon = KIND_BADGE[active.entity.kind].icon;
+                      return <ActiveKindIcon size={11} />;
+                    })()}{' '}
+                    {KIND_BADGE[active.entity.kind].label}
+                  </span>
+                  <span className="text-[15px] font-semibold text-ink-primary">{active.slot.name}</span>
+                  <span className="text-xs text-ink-tertiary">
+                    {editorContextLine(active.entity, active.slot)}
+                  </span>
+                </div>
+              )}
+              <Select
+                aria-label="Tone"
+                selectedKey={tone}
+                onSelectionChange={(k) => onTone(k as WizardV2State['tone'])}
+                options={TONE_OPTIONS}
+                height={36}
+                className="w-40"
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                isDisabled={!activeKey}
+                onPress={() => activeKey && onRegenerateOne(activeKey)}
+              >
+                <Icon.Zap size={13} />
+                {(!!activeKey && generatingKey === activeKey) || batchGenerating
+                  ? 'Regenerating…'
+                  : 'Regenerate this'}
+              </Button>
+              <Button variant="secondary" size="sm" onPress={onRegenerateAll}>
+                <Icon.Zap size={13} />
+                {batchGenerating ? 'Regenerating…' : 'Regenerate all'}
+              </Button>
+            </div>
+
+            {bannerFor && bannerFor === activeKey && active?.slot.appliesTo === 'member' && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-success-border bg-success-bg p-3">
+                <span className="flex-1 text-[13px] text-success">
+                  <b className="font-semibold">You edited this draft.</b> Apply this change to all{' '}
+                  {active.entity.members.length}{' '}
+                  {active.entity.members.length === 1 ? 'member' : 'members'} in {active.entity.name}?
                 </span>
-                <span className="name">{active.slot.name}</span>
-                <span className="ctx">{editorContextLine(active.entity, active.slot)}</span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onPress={() => {
+                    const aid = listAidFromKey(activeKey);
+                    if (aid) onApplyToList(aid, activeKey);
+                    setBannerFor(null);
+                  }}
+                >
+                  Apply to all in list
+                </Button>
+                <Button variant="secondary" size="sm" onPress={() => setBannerFor(null)}>
+                  Save individual only
+                </Button>
               </div>
             )}
-            <Select
-              value={tone}
-              onChange={onTone}
-              className="ov2-gen-tone"
-              options={[
-                { value: 'professional', label: 'Professional' },
-                { value: 'friendly', label: 'Friendly' },
-                { value: 'formal', label: 'Formal' },
-                { value: 'concise', label: 'Concise' },
-              ]}
-            />
-            <Button
-              icon={<ThunderboltOutlined />}
-              loading={(!!activeKey && generatingKey === activeKey) || batchGenerating}
-              onClick={() => activeKey && onRegenerateOne(activeKey)}
-              disabled={!activeKey}
-            >
-              Regenerate this
-            </Button>
-            <Button
-              icon={<ThunderboltOutlined />}
-              loading={batchGenerating}
-              onClick={onRegenerateAll}
-            >
-              Regenerate all
-            </Button>
-          </div>
 
-          {bannerFor && bannerFor === activeKey && active?.slot.appliesTo === 'member' && (
-            <div className="ov2-gen-propagate">
-              <span className="msg">
-                <b>You edited this draft.</b> Apply this change to all{' '}
-                {active.entity.members.length}{' '}
-                {active.entity.members.length === 1 ? 'member' : 'members'} in {active.entity.name}?
-              </span>
-              <span className="spacer" />
-              <Button
-                type="primary"
-                className="ov2-gen-apply-all"
-                onClick={() => {
-                  const aid = listAidFromKey(activeKey);
-                  if (aid) onApplyToList(aid, activeKey);
-                  setBannerFor(null);
-                }}
-              >
-                Apply to all in list
-              </Button>
-              <Button onClick={() => setBannerFor(null)}>Save individual only</Button>
-            </div>
-          )}
-
-          <div className="ov2-gen-editor-body">
-            {(() => {
-              const banner = draftBanner(activeDraft);
-              if (!banner) {
-                // A non-blocking auditor warning is still worth surfacing.
-                if (activeDraft?.auditStatus === 'warning' && activeDraft.contextNote) {
-                  return (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      style={{ marginBottom: 12 }}
-                      message="Review the flagged claims"
-                      description={activeDraft.contextNote}
-                    />
-                  );
-                }
-                // A regenerate that failed while this draft already existed: the
-                // draft below is the one that was already here, unchanged. Without
-                // this the attempt fails silently and the user cannot tell whether
-                // they are looking at new text or old.
-                if (activeDraft?.failureReason) {
-                  return (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      style={{ marginBottom: 12 }}
-                      message="The last attempt to regenerate this draft failed — your existing draft was kept"
-                      description={
-                        <>
-                          <div>{activeDraft.failureReason}</div>
-                          <div style={{ marginTop: 6, opacity: 0.75 }}>
-                            Nothing below was changed or lost. Fix the cause and regenerate, or send
-                            this draft as it stands.
-                          </div>
-                        </>
-                      }
-                    />
-                  );
-                }
-                return null;
-              }
-              return (
-                <Alert
-                  type={banner.type}
-                  showIcon
-                  style={{ marginBottom: 12 }}
-                  message={banner.message}
-                  description={
-                    <>
-                      <div>{banner.description}</div>
-                      {/* The internal auditor note: shown to the lobbyist ONLY,
-                          never appended to the subject/body a recipient sees. */}
-                      {activeDraft?.contextNote ? (
-                        <div style={{ marginTop: 6 }}>{activeDraft.contextNote}</div>
-                      ) : null}
-                      {activeDraft?.reviewRequestId ? (
-                        <div style={{ marginTop: 6 }}>
-                          <a href={`/reviews?id=${activeDraft.reviewRequestId}`}>
-                            Open this draft in Reviews
-                          </a>
-                        </div>
-                      ) : null}
-                      {isVersioned(activeDraft) && activeDraft?.version != null ? (
-                        <div style={{ marginTop: 6, opacity: 0.75 }}>
-                          Version {activeDraft.version}. Editing creates a new version and does not
-                          release this one.
-                        </div>
-                      ) : null}
-                    </>
-                  }
-                />
-              );
-            })()}
-            {activeDraft ? (
-              <>
-                <div className="ov2-gen-field-label">Subject</div>
-                <Input
-                  value={activeDraft.subject}
-                  onChange={(e) => editActive({ subject: e.target.value })}
-                  placeholder="Email subject"
-                />
-                <div className="ov2-gen-field-label" style={{ marginTop: 14 }}>
-                  Body
-                </div>
-                <RichTextEditor
-                  value={activeDraft.body}
-                  onChange={(html) => editActive({ body: html })}
-                  placeholder="Write the email…"
-                />
-                <div className="ov2-gen-improve" style={{ marginTop: 14 }}>
-                  <div className="ov2-gen-field-label">Improve with Meri</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Input
-                      value={improveText}
-                      onChange={(e) => setImproveText(e.target.value)}
-                      onPressEnter={submitImprove}
-                      placeholder="e.g. make it warmer, tighten the ask, add a line about the markup"
-                      disabled={!!activeKey && generatingKey === activeKey}
-                    />
-                    <Button
-                      type="primary"
-                      icon={<ThunderboltOutlined />}
-                      loading={!!activeKey && generatingKey === activeKey}
-                      disabled={!improveText.trim()}
-                      onClick={submitImprove}
-                    >
-                      Improve
-                    </Button>
-                  </div>
-                  {!!activeDraft.history?.length && (
-                    <Button
-                      type="link"
-                      size="small"
-                      style={{ paddingLeft: 0, marginTop: 4 }}
-                      onClick={() => activeKey && onRevert(activeKey)}
-                    >
-                      Revert last change
-                    </Button>
-                  )}
-                </div>
-                <Typography.Text type="secondary" className="ov2-gen-autosave">
-                  Edits save automatically. Use “Save as draft” below to keep everything and finish
-                  later.
-                </Typography.Text>
-
-                {/* Phase 1 §3.j2 — what this draft was grounded in. Rendered for
-                    every generated draft, not only failing ones: the point is
-                    that a silently thin draft looks identical to a complete one
-                    unless the provenance is always on screen. */}
-                {activeDraft.manifest ? (
-                  <ContextUsedPanel
-                    manifest={activeDraft.manifest}
-                    {...(activeDraft.auditStatus === 'held' && activeDraft.contextNote
-                      ? { heldNote: activeDraft.contextNote }
-                      : {})}
+            <div className="flex flex-1 flex-col">
+              <DraftBanner banner={draftBanner(activeDraft)} draft={activeDraft} />
+              {activeDraft ? (
+                <>
+                  <div className="mb-1.5 text-[13px] font-semibold text-ink-strong">Subject</div>
+                  <Input
+                    value={activeDraft.subject}
+                    onChange={(v) => editActive({ subject: v })}
+                    placeholder="Email subject"
+                    height={38}
                   />
-                ) : null}
-              </>
-            ) : (
-              <Typography.Text type="secondary">
-                {(!!activeKey && generatingKey === activeKey) || batchGenerating
-                  ? 'Generating…'
-                  : 'No draft yet. Click “Regenerate this”.'}
-              </Typography.Text>
-            )}
+                  <div className="mt-3.5 mb-1.5 text-[13px] font-semibold text-ink-strong">Body</div>
+                  <RichTextEditor
+                    value={activeDraft.body}
+                    onChange={(html) => editActive({ body: html })}
+                    placeholder="Write the email…"
+                  />
+                  <div className="mt-3.5 flex flex-col gap-1.5">
+                    <div className="text-[13px] font-semibold text-ink-strong">Improve with Meri</div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={improveText}
+                        onChange={setImproveText}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') submitImprove();
+                        }}
+                        placeholder="e.g. make it warmer, tighten the ask, add a line about the markup"
+                        disabled={!!activeKey && generatingKey === activeKey}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="primary"
+                        isDisabled={!improveText.trim()}
+                        onPress={submitImprove}
+                      >
+                        <Icon.Zap size={14} />
+                        {!!activeKey && generatingKey === activeKey ? 'Improving…' : 'Improve'}
+                      </Button>
+                    </div>
+                    {!!activeDraft.history?.length && (
+                      <button
+                        type="button"
+                        onClick={() => activeKey && onRevert(activeKey)}
+                        className="w-fit text-xs font-medium text-accent-ink hover:underline"
+                      >
+                        Revert last change
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-3 text-xs text-ink-tertiary">
+                    Edits save automatically. Use “Save as draft” below to keep everything and finish
+                    later.
+                  </div>
+
+                  {/* Phase 1 §3.j2 — what this draft was grounded in. Rendered for
+                      every generated draft, not only failing ones: the point is
+                      that a silently thin draft looks identical to a complete one
+                      unless the provenance is always on screen. */}
+                  {activeDraft.manifest ? (
+                    <ContextUsedPanel
+                      manifest={activeDraft.manifest}
+                      {...(activeDraft.auditStatus === 'held' && activeDraft.contextNote
+                        ? { heldNote: activeDraft.contextNote }
+                        : {})}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <div className="text-sm text-ink-tertiary">
+                  {(!!activeKey && generatingKey === activeKey) || batchGenerating
+                    ? 'Generating…'
+                    : 'No draft yet. Click “Regenerate this”.'}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* ---- Campaign-level attachments (production feature, preserved) ---- */}
-      <div className="ov2-gen-attachments">
-        <Typography.Title level={5} style={{ marginBottom: 4 }}>
-          Attachments
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+      <div className="mt-5 rounded-lg border border-line-hairline bg-surface p-4">
+        <div className="mb-1 text-[15px] font-semibold text-ink-primary">Attachments</div>
+        <div className="mb-3 text-sm text-ink-secondary">
           Files added here are attached to every email on send (max 3MB each).
-        </Typography.Paragraph>
-        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        </div>
+        <div className="flex flex-col items-start gap-2.5">
           {docs.map((d) => (
             <Checkbox
               key={d.id}
-              checked={attachmentIds.includes(d.id)}
+              isSelected={attachmentIds.includes(d.id)}
               onChange={() => onToggleAttachment(d.id)}
             >
               {d.fileName}
             </Checkbox>
           ))}
           {docs.length === 0 && (
-            <Typography.Text type="secondary">
+            <div className="text-sm text-ink-tertiary">
               {clientId
                 ? 'No stored documents for this client yet. Upload a file to attach it.'
                 : 'No attachments yet. Upload a file to attach it to every email.'}
-            </Typography.Text>
+            </div>
           )}
-          <Upload
+          <input
+            ref={fileInputRef}
+            type="file"
             multiple
-            showUploadList={false}
-            beforeUpload={(file) => {
-              onUploadAttachment(file as File);
-              return false; // handle the upload ourselves; skip AntD's default
+            className="hidden"
+            onChange={(e) => {
+              const files = e.target.files;
+              if (files) Array.from(files).forEach((f) => onUploadAttachment(f));
+              e.target.value = '';
             }}
-          >
-            <Button size="small" icon={<PaperClipOutlined />}>
-              Upload a file
-            </Button>
-          </Upload>
-        </Space>
+          />
+          <Button variant="secondary" size="sm" onPress={() => fileInputRef.current?.click()}>
+            <Icon.Document size={13} /> Upload a file
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BANNER_CLASS: Record<'warning' | 'error' | 'info', { box: string; text: string; icon: typeof Icon.AlertTriangle }> = {
+  warning: {
+    box: 'border-warning-border bg-warning-bg',
+    text: 'text-warning-heading',
+    icon: Icon.AlertTriangle,
+  },
+  error: {
+    box: 'border-danger-border bg-danger-bg',
+    text: 'text-danger',
+    icon: Icon.AlertCircle,
+  },
+  info: {
+    box: 'border-accent-border bg-accent-tint',
+    text: 'text-accent-ink',
+    icon: Icon.Info,
+  },
+};
+
+/** The active draft's block-reason banner, plus the two non-blocking notes
+ *  (auditor warning, silent-regenerate-failure) it replaces when absent. */
+function DraftBanner({
+  banner,
+  draft,
+}: {
+  banner: ReturnType<typeof draftBanner>;
+  draft: GeneratedDraft | undefined;
+}) {
+  if (!banner) {
+    // A non-blocking auditor warning is still worth surfacing.
+    if (draft?.auditStatus === 'warning' && draft.contextNote) {
+      return (
+        <Banner type="warning" message="Review the flagged claims" description={draft.contextNote} />
+      );
+    }
+    // A regenerate that failed while this draft already existed: the draft
+    // below is the one that was already here, unchanged. Without this the
+    // attempt fails silently and the user cannot tell whether they are
+    // looking at new text or old.
+    if (draft?.failureReason) {
+      return (
+        <Banner
+          type="warning"
+          message="The last attempt to regenerate this draft failed — your existing draft was kept"
+          description={
+            <>
+              <div>{draft.failureReason}</div>
+              <div className="mt-1.5 opacity-75">
+                Nothing below was changed or lost. Fix the cause and regenerate, or send this draft
+                as it stands.
+              </div>
+            </>
+          }
+        />
+      );
+    }
+    return null;
+  }
+  return (
+    <Banner
+      type={banner.type}
+      message={banner.message}
+      description={
+        <>
+          <div>{banner.description}</div>
+          {/* The internal auditor note: shown to the lobbyist ONLY, never
+              appended to the subject/body a recipient sees. */}
+          {draft?.contextNote ? <div className="mt-1.5">{draft.contextNote}</div> : null}
+          {draft?.reviewRequestId ? (
+            <div className="mt-1.5">
+              <a href={`/reviews?id=${draft.reviewRequestId}`} className="underline">
+                Open this draft in Reviews
+              </a>
+            </div>
+          ) : null}
+          {isVersioned(draft) && draft?.version != null ? (
+            <div className="mt-1.5 opacity-75">
+              Version {draft.version}. Editing creates a new version and does not release this one.
+            </div>
+          ) : null}
+        </>
+      }
+    />
+  );
+}
+
+function Banner({
+  type,
+  message,
+  description,
+}: {
+  type: 'warning' | 'error' | 'info';
+  message: string;
+  description: ReactNode;
+}) {
+  const c = BANNER_CLASS[type];
+  return (
+    <div className={`mb-3 flex gap-2.5 rounded-md border p-3 ${c.box}`}>
+      <span className={`mt-0.5 flex-none ${c.text}`}>
+        <c.icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className={`text-[13px] font-semibold ${c.text}`}>{message}</div>
+        <div className="mt-0.5 text-[12.5px] leading-[1.5] text-ink-secondary">{description}</div>
       </div>
     </div>
   );
@@ -683,17 +746,15 @@ function RailCard({
     const slot = entity.members[0];
     if (!slot) return null;
     return (
-      <div className="ov2-gen-card">
-        <RailRow
-          slot={slot}
-          ready={isReady(generated[slot.genKey])}
-          errored={generated[slot.genKey]?.status === 'error'}
-          active={activeKey === slot.genKey}
-          onSelect={onSelect}
-          onRegenerateOne={onRegenerateOne}
-          generating={generatingKey === slot.genKey || batchGenerating}
-        />
-      </div>
+      <RailRow
+        slot={slot}
+        ready={isReady(generated[slot.genKey])}
+        errored={generated[slot.genKey]?.status === 'error'}
+        active={activeKey === slot.genKey}
+        onSelect={onSelect}
+        onRegenerateOne={onRegenerateOne}
+        generating={generatingKey === slot.genKey || batchGenerating}
+      />
     );
   }
 
@@ -701,28 +762,38 @@ function RailCard({
   // members. The "List" type is conveyed by the section header above.
   const readyCount = entity.members.filter((m) => isReady(generated[m.genKey])).length;
   return (
-    <div className="ov2-gen-card list">
-      <button type="button" className="ov2-gen-listhead" onClick={onToggleCollapse}>
-        <span className="caret">{collapsed ? <RightOutlined /> : <DownOutlined />}</span>
-        <span className="name">{entity.name}</span>
-        <span className="count">
-          · {readyCount}/{entity.members.length} drafts
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left hover:bg-surface-subtle"
+      >
+        <span className="flex-none text-ink-tertiary">
+          {collapsed ? <Icon.ChevronRight size={12} /> : <Icon.ChevronDown size={12} />}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-primary">
+          {entity.name}
+        </span>
+        <span className="flex-none font-mono text-[11px] text-ink-tertiary">
+          {readyCount}/{entity.members.length}
         </span>
       </button>
-      {!collapsed &&
-        entity.members.map((slot) => (
-          <RailRow
-            key={slot.genKey}
-            slot={slot}
-            indented
-            ready={isReady(generated[slot.genKey])}
-            errored={generated[slot.genKey]?.status === 'error'}
-            active={activeKey === slot.genKey}
-            onSelect={onSelect}
-            onRegenerateOne={onRegenerateOne}
-            generating={generatingKey === slot.genKey || batchGenerating}
-          />
-        ))}
+      {!collapsed && (
+        <div className="ml-3 border-l border-line-divider pl-1">
+          {entity.members.map((slot) => (
+            <RailRow
+              key={slot.genKey}
+              slot={slot}
+              ready={isReady(generated[slot.genKey])}
+              errored={generated[slot.genKey]?.status === 'error'}
+              active={activeKey === slot.genKey}
+              onSelect={onSelect}
+              onRegenerateOne={onRegenerateOne}
+              generating={generatingKey === slot.genKey || batchGenerating}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -732,7 +803,6 @@ function RailRow({
   ready,
   errored,
   active,
-  indented,
   onSelect,
   onRegenerateOne,
   generating,
@@ -741,41 +811,47 @@ function RailRow({
   ready: boolean;
   errored?: boolean;
   active: boolean;
-  indented?: boolean;
   onSelect: (key: string) => void;
   onRegenerateOne: (genKey: string) => void;
   generating: boolean;
 }) {
   return (
     <div
-      className={'ov2-gen-row' + (active ? ' active' : '') + (indented ? ' indented' : '')}
       onClick={() => onSelect(slot.genKey)}
+      className={`group flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 ${
+        active ? 'border border-accent-border bg-accent-tint' : 'border border-transparent hover:bg-surface-subtle'
+      }`}
     >
-      <span className={'ov2-gen-check' + (ready ? ' ready' : '')}>
+      <span className="flex h-4 w-4 flex-none items-center justify-center">
         {ready ? (
-          <CheckOutlined />
+          <Icon.Check size={13} className="text-success" />
         ) : errored ? (
-          <ExclamationCircleOutlined
-            style={{ color: 'var(--ov2-warn, #d97706)' }}
-            title="Generation failed — edit or regenerate before sending"
+          <Icon.AlertCircle
+            size={13}
+            className="text-warning-heading"
+            aria-label="Generation failed — edit or regenerate before sending"
           />
         ) : null}
       </span>
-      <div className="ov2-gen-row-main">
-        <div className="ov2-gen-row-name">{slot.name}</div>
-        {slot.sub && <div className="ov2-gen-row-sub">{slot.sub}</div>}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[14px] leading-5 font-semibold text-ink-primary">
+          {slot.name}
+        </div>
+        {slot.sub && (
+          <div className="truncate text-[11.5px] leading-4 text-ink-tertiary">{slot.sub}</div>
+        )}
       </div>
-      <Button
-        size="small"
-        type="text"
-        icon={<ThunderboltOutlined />}
-        loading={generating}
+      <button
+        type="button"
         title="Regenerate just this draft"
         onClick={(e) => {
           e.stopPropagation();
           onRegenerateOne(slot.genKey);
         }}
-      />
+        className="flex-none rounded-[5px] p-1 text-ink-tertiary opacity-0 hover:bg-surface hover:text-accent-ink group-hover:opacity-100"
+      >
+        <Icon.Zap size={13} className={generating ? 'animate-pulse' : ''} />
+      </button>
     </div>
   );
 }
