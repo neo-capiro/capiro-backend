@@ -35,7 +35,15 @@ import { HearingsTab } from './HearingsTab.js';
 import { FeedTab } from '../feed/FeedTab.js';
 import type { FeedItem } from '../../../../pages/clients/tracker/intel-feed-api.js';
 
-// ── wire fixtures (canonical shapes the real normalizers accept) ─────────────
+// ── wire fixtures ────────────────────────────────────────────────────────────
+// These are the shapes `LiveHearingsService` ACTUALLY serves, field-for-field
+// (see apps/api/src/live-hearings/live-hearings.service.ts — `CalendarEvent`
+// and its row mapper): `date`, `startsAt`, `time`, `timezone`, `eventStatus`,
+// `committeeName`/`committeeSystemCode`. It never emits `calendarDate`,
+// `scheduledStart` or `timeZone`; those are names the CLIENT normalizer
+// produces. Writing the canonical names here — as this file used to — makes a
+// surface that skips the normalizer look correct in tests while rendering a
+// blank date and "Time not announced" in production (LW-QA-018).
 
 function calRow(partial: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -46,7 +54,7 @@ function calRow(partial: Record<string, unknown>): Record<string, unknown> {
     eventStatus: 'completed',
     visibility: 'public',
     date: '2026-09-02',
-    scheduledStart: '2026-09-02T14:00:00Z',
+    startsAt: '2026-09-02T14:00:00Z',
     time: '10:00 AM',
     timezone: 'America/New_York',
     location: '2167 Rayburn',
@@ -71,18 +79,23 @@ const HISTORY_SESSION = {
   recapSaved: true,
 };
 
+/**
+ * `/events/:id` returns the SAME `CalendarEvent` shape `/calendar` does
+ * (LiveHearingsService.event → hydrate → the one row mapper), so the detail
+ * fixture is a calendar row.
+ *
+ * The nested `committee` object is the one thing here the real wire does NOT
+ * send: `normalizeCanonicalHearingEvent` reads the committee ref only from
+ * `row.committee`, never from the flat `committeeSystemCode` the service emits,
+ * so against real data the detail page's committee link has no system code
+ * (LW-QA-025, reported not fixed — it lives in the shared radar normalizer,
+ * outside this change's file scope). It is kept here so the existing
+ * committee-link coverage keeps exercising that path.
+ */
 const DETAIL_EVENT = {
-  id: 'cm-119-9001',
-  title: 'Shipbuilding industrial base oversight',
-  calendarDate: '2026-09-02',
-  chamber: 'House',
-  eventType: 'HEARING',
-  eventStatus: 'COMPLETED',
-  publicAccessStatus: 'PUBLIC',
-  timeZone: 'America/New_York',
-  scheduledStart: '2026-09-02T14:00:00Z',
-  committee: { systemCode: 'hs00-lwdt', name: 'Armed Services Committee (detail test)' },
+  ...calRow({}),
   capture: { id: 'cap-1', status: 'ended', failureReason: null, gapSeconds: 0 },
+  committee: { systemCode: 'hs00-lwdt', name: 'Armed Services Committee (detail test)' },
 };
 
 const TRANSCRIPT_PAGE = {
@@ -115,6 +128,13 @@ const INTEL_READY = {
   jobs: { public: {} },
 };
 
+/**
+ * `CommitteeDirectoryService.committee()` returns `{ ...committeeDirectoryRow,
+ * parent, subcommittees, ..., upcomingEvents, recentEvents, updates }` — the
+ * row is spread FLAT, so source-health metadata sits at the OUTER level (there
+ * is no `raw.committee` envelope), and the event lists are the very same
+ * `CalendarEvent` rows `/calendar` serves.
+ */
 const ROOM_WIRE = {
   systemCode: 'hs00-lwdt',
   name: 'Armed Services Committee (detail test)',
@@ -123,6 +143,13 @@ const ROOM_WIRE = {
   parent: null,
   subcommittees: [{ systemCode: 'hs16-lwdt', name: 'Seapower and Projection Forces' }],
   officialUrl: 'https://armedservices.house.gov',
+  jurisdiction: 'Armed services',
+  lastSyncedAt: '2026-09-04T11:00:00Z',
+  sourceHealth: 'healthy',
+  sourceHealthInheritedFrom: null,
+  lastSourceSuccessAt: '2026-09-04T10:30:00Z',
+  sourceId: 'source-hs00',
+  sourceUrl: 'https://armedservices.house.gov/hearings',
   members: [
     { id: 'm1', name: 'Rep. Alice Smith', party: 'R', role: 'Chair' },
     { id: 'm2', name: 'Rep. Bob Jones', party: 'D', role: 'Ranking Member' },
@@ -130,19 +157,33 @@ const ROOM_WIRE = {
   chair: { id: 'm1', name: 'Rep. Alice Smith', party: 'R', role: 'Chair' },
   rankingMember: { id: 'm2', name: 'Rep. Bob Jones', party: 'D', role: 'Ranking Member' },
   upcomingEvents: [],
-  recentEvents: [
+  // The SAME wire row the detail endpoint serves — the parity fixture.
+  recentEvents: [calRow({})],
+  // `CommitteeSiteUpdate` rows publish their link as `sourceUrl`, and a row can
+  // reach the client without an `id`.
+  updates: [
     {
-      id: 'cm-119-9001',
-      title: 'Shipbuilding industrial base oversight',
-      calendarDate: '2026-09-02',
-      scheduledStart: '2026-09-02T14:00:00Z',
-      eventStatus: 'COMPLETED',
-      timeZone: 'America/New_York',
-      chamber: 'House',
+      id: 'u1',
+      title: 'Witness list updated',
+      sourceUrl: 'https://armedservices.house.gov/news',
+      publishedAt: '2026-09-01T12:00:00Z',
+      lastSeenAt: '2026-09-01T12:05:00Z',
+      contentHash: 'hash-u1',
+    },
+    {
+      title: 'Room change posted',
+      sourceUrl: 'https://armedservices.house.gov/room',
+      publishedAt: '2026-08-31T12:00:00Z',
+      lastSeenAt: '2026-08-31T12:05:00Z',
+      contentHash: null,
     },
   ],
-  updates: [{ id: 'u1', title: 'Witness list updated', url: 'https://armedservices.house.gov/news' }],
 };
+
+/** ROOM_WIRE with the named outer-level fields replaced. */
+function roomWith(overrides: Record<string, unknown>): Record<string, unknown> {
+  return { ...ROOM_WIRE, ...overrides };
+}
 
 /** Today's Eastern civil day (en-CA gives YYYY-MM-DD). */
 function easternDayOfNow(): string {
@@ -169,8 +210,8 @@ function wireGet(url: string): { data: unknown } | null {
     return {
       data: {
         items: [
-          calRow({ date: day2, scheduledStart: `${day2}T14:00:00Z` }),
-          calRow({ id: 'cm-119-9002', title: 'Future posture hearing', eventStatus: 'scheduled', date: day4, scheduledStart: `${day4}T18:00:00Z`, time: '2:00 PM' }),
+          calRow({ date: day2, startsAt: `${day2}T14:00:00Z` }),
+          calRow({ id: 'cm-119-9002', title: 'Future posture hearing', eventStatus: 'scheduled', date: day4, startsAt: `${day4}T18:00:00Z`, time: '2:00 PM' }),
         ],
         total: 2,
       },
@@ -182,7 +223,12 @@ function wireGet(url: string): { data: unknown } | null {
   if (url === '/api/legiwatch/live-hearings/events/cm-119-9001') return { data: DETAIL_EVENT };
   if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/transcript')) return { data: TRANSCRIPT_PAGE };
   if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/intelligence')) return { data: INTEL_READY };
-  if (url.startsWith('/api/legiwatch/live-hearings/committees/hs00-lwdt')) return { data: ROOM_WIRE };
+  // EXACT room path only. `/committees/:code/follow` and
+  // `/committees/:code/intelligence-history` are different Wave 1 contracts —
+  // a prefix match served them the ROOM envelope, so the history section read
+  // `history.data.rows` off a committee record and threw while the suite still
+  // reported green.
+  if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') return { data: ROOM_WIRE };
   if (url.startsWith('/intel-api/clients/_all/feed?')) {
     return {
       data: {
@@ -338,7 +384,7 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
     const room = await screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
     expect(within(room).getAllByText(/Seapower and Projection Forces/i).length).toBeGreaterThan(0);
-    const recent = within(room).getByLabelText('Recent & completed hearings');
+    const recent = within(room).getByLabelText('Past hearings');
     const row = within(recent).getByRole('button', { name: /Shipbuilding industrial base oversight/i });
     fireEvent.click(row);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
@@ -408,6 +454,137 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
     await waitFor(() => expect(screen.getByText('ACCESS UNVERIFIED')).toBeTruthy());
     expect(screen.queryByText('CLOSED SESSION')).toBeNull();
+  });
+});
+
+// ── LW-QA-018 ───────────────────────────────────────────────────────────────
+
+/** The Committee Room row's secondary line: "<day> · <time> · <STATUS>". */
+async function roomRowMeta(): Promise<string> {
+  const room = await screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
+  const past = within(room).getByLabelText('Past hearings');
+  const row = within(past).getByRole('button', { name: /Shipbuilding industrial base oversight/i });
+  const meta = row.querySelectorAll('span')[1];
+  return (meta?.textContent ?? '').trim();
+}
+
+describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
+  it('Committee Room renders the same day, time and status as Hearing Detail for the SAME wire row', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    const roomMeta = await roomRowMeta();
+
+    // The real day and time, not the blank-date / "Time not announced" pair an
+    // unnormalized row produced.
+    expect(roomMeta).toBe('Wed, Sep 2 · 10:00 AM ET · COMPLETED');
+
+    cleanup();
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    const detailWhen = (document.querySelector('.lw-lrow__when')?.textContent ?? '').trim();
+    const detailPills = [...document.querySelectorAll('.lw-pill')].map((p) => (p.textContent ?? '').trim());
+    expect(`${detailWhen} · ${detailPills.find((p) => p === 'COMPLETED')}`).toBe(roomMeta);
+  });
+
+  it('renders the server eventStatus verbatim — a past hearing still marked scheduled is not relabelled COMPLETED', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') {
+        return Promise.resolve({ data: roomWith({ recentEvents: [calRow({ eventStatus: 'scheduled' })] }) });
+      }
+      const hit = wireGet(url);
+      if (!hit) return Promise.reject(new Error(`unexpected GET ${url}`));
+      return Promise.resolve(hit);
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    expect(await roomRowMeta()).toBe('Wed, Sep 2 · 10:00 AM ET · SCHEDULED');
+    // The bucket is a date window, so its heading must not assert completion.
+    expect(screen.queryByLabelText('Recent & completed hearings')).toBeNull();
+  });
+
+  it('a date-only hearing shows its official day and never a fabricated time', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') {
+        return Promise.resolve({ data: roomWith({ recentEvents: [calRow({ startsAt: null, time: null })] }) });
+      }
+      const hit = wireGet(url);
+      if (!hit) return Promise.reject(new Error(`unexpected GET ${url}`));
+      return Promise.resolve(hit);
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    expect(await roomRowMeta()).toBe('Wed, Sep 2 · Time not announced · COMPLETED');
+  });
+});
+
+describe('LW-QA-018 — Committee Room source health header', () => {
+  async function renderRoom(overrides: Record<string, unknown>): Promise<HTMLElement> {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') {
+        return Promise.resolve({ data: roomWith(overrides) });
+      }
+      const hit = wireGet(url);
+      if (!hit) return Promise.reject(new Error(`unexpected GET ${url}`));
+      return Promise.resolve(hit);
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    return screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
+  }
+
+  it('maps health from the OUTER response level and labels every state', async () => {
+    const room = await renderRoom({});
+    expect(within(room).getByText(/SOURCE HEALTHY/)).toBeTruthy();
+    expect(room.textContent).toContain('Last official sync');
+    expect(room.textContent).toContain('Committee record updated');
+    expect(within(room).getByText('Monitored source ↗')).toBeTruthy();
+  });
+
+  it.each([
+    ['degraded', 'SOURCE DEGRADED'],
+    ['failing', 'SOURCE FAILING'],
+    ['unknown', 'SOURCE STATUS UNKNOWN'],
+  ])('renders %s as %s', async (health, label) => {
+    const room = await renderRoom({ sourceHealth: health });
+    expect(within(room).getByText(new RegExp(label))).toBeTruthy();
+  });
+
+  it('an absent or unrecognised health value still renders STATUS UNKNOWN, never nothing', async () => {
+    const room = await renderRoom({ sourceHealth: undefined });
+    expect(within(room).getByText(/SOURCE STATUS UNKNOWN/)).toBeTruthy();
+    cleanup();
+    const room2 = await renderRoom({ sourceHealth: 'wedged' });
+    expect(within(room2).getByText(/SOURCE STATUS UNKNOWN/)).toBeTruthy();
+  });
+
+  it('inherited health names the parent it was inherited from', async () => {
+    const room = await renderRoom({ sourceHealth: 'healthy', sourceHealthInheritedFrom: 'hs00-parent' });
+    expect(within(room).getByText(/SOURCE HEALTHY · inherited from HS00-PARENT/)).toBeTruthy();
+  });
+
+  it('says so when no official sync has ever succeeded, instead of hiding the row', async () => {
+    const room = await renderRoom({ lastSourceSuccessAt: null });
+    expect(within(room).getByText('No successful official sync recorded')).toBeTruthy();
+  });
+});
+
+describe('LW-QA-018/024 — Committee Room official updates', () => {
+  it('links an update through its sourceUrl (the only link field on the wire)', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    const room = await screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
+    const link = within(room).getByRole('link', { name: 'Witness list updated' });
+    expect(link.getAttribute('href')).toBe('https://armedservices.house.gov/news');
+  });
+
+  it('an update row without a server id keeps the SAME DOM node across a refetch (deterministic key)', async () => {
+    const { queryClient } = renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    const room = await screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
+    const updates = within(room).getByLabelText('Official updates');
+    const before = within(updates).getByText('Room change posted').closest('li');
+    expect(before).toBeTruthy();
+
+    await queryClient.invalidateQueries({ queryKey: ['lw', 'committee-room', 'hs00-lwdt'] });
+    await waitFor(() => expect(apiGet.mock.calls.filter(([u]) => u.includes('/committees/hs00-lwdt')).length).toBeGreaterThan(1));
+
+    const after = within(updates).getByText('Room change posted').closest('li');
+    // A Math.random() key remounts the row: the node identity changes.
+    expect(after).toBe(before);
   });
 });
 

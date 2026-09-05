@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { CanonicalHearingEvent } from '../../../../pages/radar/live-hearings/live-hearings.types.js';
 
 /**
  * LegiWatch shared hearing date/time contract (LW-QA-001).
@@ -129,6 +130,24 @@ export function easternDayOf(iso: string): string | null {
   if (!Number.isFinite(t)) return null;
   const p = zonedParts(t, LW_PRIMARY_TIME_ZONE);
   return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+}
+
+/**
+ * The ONE way a normalized canonical event becomes a moment (LW-QA-018).
+ *
+ * Schedule, Hearing Detail and Committee Room each hand-rolled this object and
+ * disagreed: two fell back to `scheduledStart.slice(0, 10)` — the UTC day,
+ * which is the PREVIOUS day for any hearing after 8pm ET — while the third used
+ * the Eastern day. Same hearing, different date depending on the tab. The
+ * Eastern fallback is the correct one: it matches the canonical `date` column
+ * that `calendarDate` carries.
+ */
+export function momentOfCanonicalEvent(event: CanonicalHearingEvent): HearingMoment {
+  return parseHearingMoment({
+    date: event.calendarDate ?? (event.scheduledStart ? easternDayOf(event.scheduledStart) ?? '' : ''),
+    startsAt: event.scheduledStart ?? null,
+    timeZone: event.timeZone ?? null,
+  });
 }
 
 function clockLabel(ms: number, timeZone: string): string {

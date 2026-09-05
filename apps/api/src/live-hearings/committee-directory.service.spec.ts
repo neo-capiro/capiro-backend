@@ -169,6 +169,61 @@ describe('CommitteeDirectoryService', () => {
     });
   });
 
+  // LW-QA-018: the Committee Room's WIRE contract. The web route reads source
+  // health off the OUTER response (there is no `committee` envelope) and hands
+  // the event rows to the shared canonical normalizer, which maps this
+  // service's own field names. Pin both here so a server-side rename cannot
+  // silently blank out the room's dates, times and health pill again.
+  it('serves source health at the outer response level and events under the calendar field names', async () => {
+    const { service, hearings } = fixture();
+    const wireEvent = {
+      id: 'hearing-1',
+      title: 'Commodity markets oversight',
+      chamber: 'house',
+      eventType: 'hearing',
+      eventStatus: 'scheduled',
+      visibility: 'public',
+      date: '2026-09-02',
+      startsAt: '2026-09-02T14:00:00Z',
+      time: '10:00 AM',
+      timezone: 'America/New_York',
+      committeeName: 'House Committee on Agriculture',
+      committeeSystemCode: 'hsag00',
+    };
+    hearings.calendar.mockResolvedValue({ rows: [wireEvent], total: 1, page: 1, pageSize: 100 });
+
+    const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+
+    expect(room).not.toBeNull();
+    expect(room.committee).toBeUndefined();
+    expect(room).toMatchObject({
+      systemCode: 'hsag00',
+      sourceHealth: 'healthy',
+      sourceHealthInheritedFrom: null,
+      sourceUrl: 'https://agriculture.house.gov/calendar/',
+      lastSyncedAt: lastSyncedAt.toISOString(),
+      lastSourceSuccessAt: now.toISOString(),
+    });
+
+    // The room's rows ARE the calendar rows: same names, no re-aliasing.
+    expect(room.upcomingEvents).toEqual([wireEvent]);
+    expect(Object.keys(wireEvent)).toEqual(expect.arrayContaining(['date', 'startsAt', 'timezone', 'eventStatus']));
+  });
+
+  it('reports unknown health rather than omitting the field when a body has no source', async () => {
+    const { service, prisma } = fixture();
+    prisma.committeeSource.findMany.mockResolvedValue([]);
+
+    const room = (await service.committee('ssas00', {} as never)) as Record<string, unknown>;
+
+    expect(room).toMatchObject({
+      sourceHealth: 'unknown',
+      sourceUrl: null,
+      lastSourceSuccessAt: null,
+      sourceHealthInheritedFrom: null,
+    });
+  });
+
   it('uses stated roster titles for chair and ranking member', async () => {
     const { service } = fixture();
 
