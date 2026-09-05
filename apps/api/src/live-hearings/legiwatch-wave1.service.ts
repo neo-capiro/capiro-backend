@@ -163,6 +163,13 @@ export interface ArchiveSearchInput {
 export type ArchiveSearchPage = {
   rows: Array<Record<string, unknown>>;
   total: number;
+  /**
+   * The archive's size BEFORE the query and facets narrow it. `total` is
+   * post-filter, so on its own a zero `total` cannot distinguish "nothing
+   * matched your search" from "there is nothing archived yet" — and the
+   * surface was rendering the second message for the first case (LW-QA-015).
+   */
+  corpusTotal: number;
   page: number;
   pageSize: number;
   hasMore: boolean;
