@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { sha256CanonicalJson } from '../../defense-budget/contracts/canonical-json.js';
 import { communityFundingIdentity } from './community-funding.identity.js';
@@ -6,6 +7,37 @@ import { mergeCanonicalNonIdentityFields } from './community-funding.precedence.
 import type { CanonicalNonIdentityFields } from './community-funding.precedence.js';
 import { normalizeIdentityText } from './community-funding.parser.js';
 import type { FundingCandidate } from './community-funding.types.js';
+
+/**
+ * Narrow change-event contract (District Nexus Release 4 change rail).
+ * government-data must not depend on district-nexus (layering), so the upsert
+ * service only emits prior/current facts and the CONSUMER (district-nexus's
+ * CommunityFundingChangeSink) decides what constitutes a change.
+ *
+ * The sink receives the OPEN ingest transaction client as its second argument:
+ * the consumer's ledger writes MUST run on the same tx so a ledger row and its
+ * fact row commit or roll back together (fail closed — the stores cannot
+ * diverge). Events are only emitted when a canonical write actually happened.
+ */
+export interface CommunityFundingUpsertChangeEvent {
+  requestId: string;
+  chamber: 'house' | 'senate';
+  fiscalYear: number;
+  stateCode: string | null;
+  districtCode: string | null;
+  requesterName: string;
+  prior: {
+    requestedAmountUsd: string | null;
+    finalAmountUsd: string | null;
+    amountStageRaw: string;
+  } | null;
+  current: { requestedAmountUsd: string; finalAmountUsd: string | null; amountStageRaw: string };
+}
+
+export type CommunityFundingUpsertChangeSink = (
+  event: CommunityFundingUpsertChangeEvent,
+  tx: Prisma.TransactionClient,
+) => Promise<void> | void;
 
 /**
  * Identity vs provenance repair of the original #1328 design — see
@@ -22,7 +54,12 @@ import type { FundingCandidate } from './community-funding.types.js';
 export class CommunityFundingUpsertService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsertMany(candidates: FundingCandidate[], sourceDocumentId: string, retrievedAt = new Date()) {
+  async upsertMany(
+    candidates: FundingCandidate[],
+    sourceDocumentId: string,
+    retrievedAt = new Date(),
+    changeSink?: CommunityFundingUpsertChangeSink,
+  ) {
     // One real transaction per batch (unchanged from the original design intent):
     // a whole document's ingest either fully applies or not. Explicit timeout scaled
     // to batch size — Prisma's 5s interactive-transaction default is far too short for
@@ -36,110 +73,221 @@ export class CommunityFundingUpsertService {
     // single official source document can finish without abandoning the whole
     // campaign, while remaining bounded (no infinite wait).
     const timeoutMs = Math.min(900_000, Math.max(120_000, candidates.length * 150));
-    return this.prisma.$transaction(async (tx) => {
-      let upserted = 0, changed = 0, provenanceInserted = 0, provenanceUnchanged = 0;
-      for (const candidate of candidates) {
-        const identityHash = communityFundingIdentity(candidate);
-        const existing = await tx.communityFundingRequest.findUnique({
-          where: { identityHash },
-          select: {
-            id: true, requesterName: true, requesterState: true, requesterDistrict: true,
-            recipientAddress: true, city: true, state: true, zip: true, projectDescription: true,
-            requestedAmountUsd: true, finalAmountUsd: true, amountStageRaw: true,
-            appropriationsAccountRaw: true, subcommittee: true,
-          },
-        });
+    return this.prisma.$transaction(
+      async (tx) => {
+        let upserted = 0,
+          changed = 0,
+          provenanceInserted = 0,
+          provenanceUnchanged = 0;
+        for (const candidate of candidates) {
+          const identityHash = communityFundingIdentity(candidate);
+          const existing = await tx.communityFundingRequest.findUnique({
+            where: { identityHash },
+            select: {
+              id: true,
+              requesterName: true,
+              requesterState: true,
+              requesterDistrict: true,
+              recipientAddress: true,
+              city: true,
+              state: true,
+              zip: true,
+              projectDescription: true,
+              requestedAmountUsd: true,
+              finalAmountUsd: true,
+              amountStageRaw: true,
+              appropriationsAccountRaw: true,
+              subcommittee: true,
+            },
+          });
 
-        let requestId: string;
-        if (!existing) {
-          const created = await tx.communityFundingRequest.create({ data: this.canonicalCreateData(candidate, identityHash) });
-          requestId = created.id;
-          upserted++;
-        } else {
-          requestId = existing.id;
-          const current: CanonicalNonIdentityFields = {
-            requesterName: existing.requesterName,
-            requesterState: existing.requesterState,
-            requesterDistrict: existing.requesterDistrict,
-            recipientAddress: existing.recipientAddress,
-            city: existing.city,
-            state: existing.state,
-            zip: existing.zip,
-            projectDescription: existing.projectDescription,
-            requestedAmountUsd: existing.requestedAmountUsd.toString(),
-            finalAmountUsd: existing.finalAmountUsd?.toString() ?? null,
-            amountStageRaw: existing.amountStageRaw as FundingCandidate['amountStageRaw'],
-            appropriationsAccountRaw: existing.appropriationsAccountRaw,
-            subcommittee: existing.subcommittee,
-          };
-          const merge = mergeCanonicalNonIdentityFields(current, candidate);
-          if (merge.changed) {
-            await tx.communityFundingRequest.update({ where: { id: requestId }, data: merge.fields });
-            changed++;
+          let requestId: string;
+          if (!existing) {
+            const created = await tx.communityFundingRequest.create({
+              data: this.canonicalCreateData(candidate, identityHash),
+            });
+            requestId = created.id;
+            upserted++;
+            // Release 4 change rail: a genuinely NEW canonical request is a
+            // cpf_cds_request_new event. Emitted inside this ingest transaction;
+            // the sink (district-nexus bridge) persists the ledger row through
+            // the SAME tx, so ledger and fact commit or roll back together.
+            if (changeSink) {
+              await changeSink(
+                {
+                  requestId,
+                  chamber: candidate.chamber,
+                  fiscalYear: candidate.fiscalYear,
+                  stateCode: candidate.requesterState,
+                  districtCode: candidate.requesterDistrict,
+                  requesterName: candidate.requesterName,
+                  prior: null,
+                  current: {
+                    requestedAmountUsd: candidate.requestedAmountUsd,
+                    finalAmountUsd: candidate.finalAmountUsd,
+                    amountStageRaw: candidate.amountStageRaw,
+                  },
+                },
+                tx,
+              );
+            }
+          } else {
+            requestId = existing.id;
+            const current: CanonicalNonIdentityFields = {
+              requesterName: existing.requesterName,
+              requesterState: existing.requesterState,
+              requesterDistrict: existing.requesterDistrict,
+              recipientAddress: existing.recipientAddress,
+              city: existing.city,
+              state: existing.state,
+              zip: existing.zip,
+              projectDescription: existing.projectDescription,
+              requestedAmountUsd: existing.requestedAmountUsd.toString(),
+              finalAmountUsd: existing.finalAmountUsd?.toString() ?? null,
+              amountStageRaw: existing.amountStageRaw as FundingCandidate['amountStageRaw'],
+              appropriationsAccountRaw: existing.appropriationsAccountRaw,
+              subcommittee: existing.subcommittee,
+            };
+            const merge = mergeCanonicalNonIdentityFields(current, candidate);
+            if (merge.changed) {
+              await tx.communityFundingRequest.update({
+                where: { id: requestId },
+                data: merge.fields,
+              });
+              changed++;
+              // Release 4 change rail: a canonical VALUE actually changed.
+              // prior = the persisted pre-merge row; current = the merged
+              // projection that was just written. Only emitted when the merge
+              // wrote — identical republishing and synced_at-only churn emit
+              // nothing (the detector re-verifies values before writing).
+              if (changeSink) {
+                await changeSink(
+                  {
+                    requestId,
+                    chamber: candidate.chamber,
+                    fiscalYear: candidate.fiscalYear,
+                    stateCode: merge.fields.requesterState,
+                    districtCode: merge.fields.requesterDistrict,
+                    requesterName: merge.fields.requesterName,
+                    prior: {
+                      requestedAmountUsd: current.requestedAmountUsd,
+                      finalAmountUsd: current.finalAmountUsd,
+                      amountStageRaw: current.amountStageRaw,
+                    },
+                    current: {
+                      requestedAmountUsd: merge.fields.requestedAmountUsd,
+                      finalAmountUsd: merge.fields.finalAmountUsd,
+                      amountStageRaw: merge.fields.amountStageRaw,
+                    },
+                  },
+                  tx,
+                );
+              }
+            }
+          }
+
+          // Provenance: one row per (request, sourceDocument, page, row) — see class doc.
+          // sourceRow is the deterministic per-source uniqueness key (always populated by
+          // both parsers); sourceHash covers this occurrence's own raw fields so an
+          // unchanged re-run of the same document is a true no-op, never a duplicate.
+          //
+          // NOTE: sourcePage is nullable (XLSX rows have no page), so Prisma does not
+          // generate a usable compound-unique shorthand type for this lookup (its
+          // generated compound-key input type requires sourcePage: number, not
+          // number | null) — findFirst + create/update by id is used instead. The real
+          // concurrency/duplicate guarantee is the DB-level unique index on
+          // (request_id, source_document_id, source_page, source_row), not this
+          // application-level check; see database-concurrency-proof's "application
+          // checks are advisory" rule. This whole batch already runs inside one
+          // transaction and is processed sequentially, so no intra-batch race exists here.
+          const sourceHash = sha256CanonicalJson(
+            candidate as unknown as Parameters<typeof sha256CanonicalJson>[0],
+          );
+          const existingSource = await tx.communityFundingRequestSource.findFirst({
+            where: {
+              requestId,
+              sourceDocumentId,
+              sourcePage: candidate.sourcePage,
+              sourceRow: candidate.sourceRow,
+            },
+            select: { id: true, sourceHash: true },
+          });
+          if (!existingSource) {
+            await tx.communityFundingRequestSource.create({
+              data: {
+                requestId,
+                sourceDocumentId,
+                sourcePage: candidate.sourcePage,
+                sourceRow: candidate.sourceRow,
+                sourceHash,
+                retrievedAt,
+                requesterNameRaw: candidate.requesterName,
+                amountStageRaw: candidate.amountStageRaw,
+                requestedAmountUsd: candidate.requestedAmountUsd,
+                finalAmountUsd: candidate.finalAmountUsd,
+                appropriationsAccountRaw: candidate.appropriationsAccountRaw,
+                subcommittee: candidate.subcommittee,
+              },
+            });
+            provenanceInserted++;
+          } else if (existingSource.sourceHash !== sourceHash) {
+            // Same document occurrence, corrected values on a re-run (e.g. a republished
+            // artifact with a fix) — update this provenance row in place by its stable id.
+            // Deterministic on (requestId, sourceDocumentId, sourcePage, sourceRow), never
+            // inserts a duplicate.
+            await tx.communityFundingRequestSource.update({
+              where: { id: existingSource.id },
+              data: {
+                sourceHash,
+                retrievedAt,
+                requesterNameRaw: candidate.requesterName,
+                amountStageRaw: candidate.amountStageRaw,
+                requestedAmountUsd: candidate.requestedAmountUsd,
+                finalAmountUsd: candidate.finalAmountUsd,
+                appropriationsAccountRaw: candidate.appropriationsAccountRaw,
+                subcommittee: candidate.subcommittee,
+              },
+            });
+          } else {
+            provenanceUnchanged++;
           }
         }
-
-        // Provenance: one row per (request, sourceDocument, page, row) — see class doc.
-        // sourceRow is the deterministic per-source uniqueness key (always populated by
-        // both parsers); sourceHash covers this occurrence's own raw fields so an
-        // unchanged re-run of the same document is a true no-op, never a duplicate.
-        //
-        // NOTE: sourcePage is nullable (XLSX rows have no page), so Prisma does not
-        // generate a usable compound-unique shorthand type for this lookup (its
-        // generated compound-key input type requires sourcePage: number, not
-        // number | null) — findFirst + create/update by id is used instead. The real
-        // concurrency/duplicate guarantee is the DB-level unique index on
-        // (request_id, source_document_id, source_page, source_row), not this
-        // application-level check; see database-concurrency-proof's "application
-        // checks are advisory" rule. This whole batch already runs inside one
-        // transaction and is processed sequentially, so no intra-batch race exists here.
-        const sourceHash = sha256CanonicalJson(candidate as unknown as Parameters<typeof sha256CanonicalJson>[0]);
-        const existingSource = await tx.communityFundingRequestSource.findFirst({
-          where: { requestId, sourceDocumentId, sourcePage: candidate.sourcePage, sourceRow: candidate.sourceRow },
-          select: { id: true, sourceHash: true },
-        });
-        if (!existingSource) {
-          await tx.communityFundingRequestSource.create({
-            data: {
-              requestId, sourceDocumentId, sourcePage: candidate.sourcePage, sourceRow: candidate.sourceRow,
-              sourceHash, retrievedAt, requesterNameRaw: candidate.requesterName,
-              amountStageRaw: candidate.amountStageRaw, requestedAmountUsd: candidate.requestedAmountUsd,
-              finalAmountUsd: candidate.finalAmountUsd, appropriationsAccountRaw: candidate.appropriationsAccountRaw,
-              subcommittee: candidate.subcommittee,
-            },
-          });
-          provenanceInserted++;
-        } else if (existingSource.sourceHash !== sourceHash) {
-          // Same document occurrence, corrected values on a re-run (e.g. a republished
-          // artifact with a fix) — update this provenance row in place by its stable id.
-          // Deterministic on (requestId, sourceDocumentId, sourcePage, sourceRow), never
-          // inserts a duplicate.
-          await tx.communityFundingRequestSource.update({
-            where: { id: existingSource.id },
-            data: {
-              sourceHash, retrievedAt, requesterNameRaw: candidate.requesterName,
-              amountStageRaw: candidate.amountStageRaw, requestedAmountUsd: candidate.requestedAmountUsd,
-              finalAmountUsd: candidate.finalAmountUsd, appropriationsAccountRaw: candidate.appropriationsAccountRaw,
-              subcommittee: candidate.subcommittee,
-            },
-          });
-        } else {
-          provenanceUnchanged++;
-        }
-      }
-      return { upserted, changed, unchanged: candidates.length - upserted - changed, provenanceInserted, provenanceUnchanged };
-    }, { timeout: timeoutMs, maxWait: timeoutMs });
+        return {
+          upserted,
+          changed,
+          unchanged: candidates.length - upserted - changed,
+          provenanceInserted,
+          provenanceUnchanged,
+        };
+      },
+      { timeout: timeoutMs, maxWait: timeoutMs },
+    );
   }
 
   private canonicalCreateData(c: FundingCandidate, identityHash: string) {
     return {
-      identityHash, chamber: c.chamber, requestType: c.requestType, fiscalYear: c.fiscalYear,
-      requesterName: c.requesterName, requesterState: c.requesterState, requesterDistrict: c.requesterDistrict,
-      recipientName: c.recipientName, recipientNormalized: normalizeIdentityText(c.recipientName), recipientAddress: c.recipientAddress,
-      city: c.city, state: c.state, zip: c.zip, projectTitle: c.projectTitle, projectDescription: c.projectDescription,
-      requestedAmountUsd: c.requestedAmountUsd, finalAmountUsd: c.finalAmountUsd, amountStageRaw: c.amountStageRaw,
+      identityHash,
+      chamber: c.chamber,
+      requestType: c.requestType,
+      fiscalYear: c.fiscalYear,
+      requesterName: c.requesterName,
+      requesterState: c.requesterState,
+      requesterDistrict: c.requesterDistrict,
+      recipientName: c.recipientName,
+      recipientNormalized: normalizeIdentityText(c.recipientName),
+      recipientAddress: c.recipientAddress,
+      city: c.city,
+      state: c.state,
+      zip: c.zip,
+      projectTitle: c.projectTitle,
+      projectDescription: c.projectDescription,
+      requestedAmountUsd: c.requestedAmountUsd,
+      finalAmountUsd: c.finalAmountUsd,
+      amountStageRaw: c.amountStageRaw,
       appropriationsAccountRaw: c.appropriationsAccountRaw,
-      appropriationsAccountNormalized: c.appropriationsAccountRaw ? normalizeIdentityText(c.appropriationsAccountRaw) : null,
+      appropriationsAccountNormalized: c.appropriationsAccountRaw
+        ? normalizeIdentityText(c.appropriationsAccountRaw)
+        : null,
       subcommittee: c.subcommittee,
     };
   }

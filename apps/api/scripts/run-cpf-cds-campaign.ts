@@ -31,14 +31,22 @@ import {
   type DiscoveredSource,
 } from '../src/government-data/community-funding/community-funding.discovery.js';
 import { CommunityFundingUpsertService } from '../src/government-data/community-funding/community-funding.upsert.service.js';
+import { createDistrictNexusChangeSink } from '../src/district-nexus/priority-intelligence/priority-intelligence-cpf-cds-bridge.js';
+import { DistrictNexusChangeWriter } from '../src/district-nexus/priority-intelligence/priority-intelligence-changes.js';
 import {
   parseHousePdfRows,
   parseSenatePdfRows,
 } from '../src/government-data/community-funding/community-funding.parser.js';
 import { readHouseCpfWorkbook } from '../src/government-data/community-funding/community-funding.xlsx.js';
-import type { Chamber, ExtractedFundingRow } from '../src/government-data/community-funding/community-funding.types.js';
+import type {
+  Chamber,
+  ExtractedFundingRow,
+} from '../src/government-data/community-funding/community-funding.types.js';
 import { communityFundingCampaignSourceKey } from '../src/government-data/community-funding/community-funding.source-key.js';
-import { upsertSourceDocument, sha256OfFile } from '../src/program-element/source-document/source-document-registry.js';
+import {
+  upsertSourceDocument,
+  sha256OfFile,
+} from '../src/program-element/source-document/source-document-registry.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -56,7 +64,10 @@ function sha256Bytes(buf: Buffer): string {
   return createHash('sha256').update(buf).digest('hex');
 }
 
-async function downloadBinary(url: string, dest: string): Promise<{
+async function downloadBinary(
+  url: string,
+  dest: string,
+): Promise<{
   finalUrl: string;
   contentType: string;
   bytes: number;
@@ -93,7 +104,11 @@ async function downloadBinary(url: string, dest: string): Promise<{
   throw new Error(`download hop limit for ${url}`);
 }
 
-function extractPdf(sourceFile: string, artifactPath: string, chamber: Chamber): {
+function extractPdf(
+  sourceFile: string,
+  artifactPath: string,
+  chamber: Chamber,
+): {
   rows: number;
   warnings: number;
   pages: number;
@@ -146,7 +161,9 @@ function extractPdf(sourceFile: string, artifactPath: string, chamber: Chamber):
       { encoding: 'utf8' },
     );
     if (forced.status === 0) {
-      const s = JSON.parse((forced.stdout || '').trim().split(/\r?\n/).filter(Boolean).at(-1) ?? '{}');
+      const s = JSON.parse(
+        (forced.stdout || '').trim().split(/\r?\n/).filter(Boolean).at(-1) ?? '{}',
+      );
       return { rows: s.rows, warnings: s.warnings, pages: s.pages, profile: 'senate' };
     }
   }
@@ -221,7 +238,13 @@ interface DocResult {
   url: string;
   kind: string;
   format: string;
-  status: 'skipped_non_table' | 'downloaded' | 'extracted' | 'ingested' | 'skipped_unchanged' | 'failed';
+  status:
+    | 'skipped_non_table'
+    | 'downloaded'
+    | 'extracted'
+    | 'ingested'
+    | 'skipped_unchanged'
+    | 'failed';
   parserProfile?: string;
   sourceRows?: number;
   parsed?: number;
@@ -265,8 +288,7 @@ async function processCandidate(opts: {
   const key = sourceKeyFor(chamber, fy, candidate);
   const docDir = path.join(workDir, chamber, `fy${fy}`, key);
   fs.mkdirSync(docDir, { recursive: true });
-  const ext =
-    candidate.format === 'xlsx' ? '.xlsx' : candidate.format === 'pdf' ? '.pdf' : '.bin';
+  const ext = candidate.format === 'xlsx' ? '.xlsx' : candidate.format === 'pdf' ? '.pdf' : '.bin';
   const sourceFile = path.join(docDir, `source${ext}`);
   const artifactPath = path.join(docDir, 'rows.json');
 
@@ -293,7 +315,10 @@ async function processCandidate(opts: {
       const dl = await downloadBinary(candidate.url, sourceFile);
       // finalize extension from magic
       finalSource = sourceFile;
-      if (fs.readFileSync(sourceFile).slice(0, 4).toString() === '%PDF' && !sourceFile.endsWith('.pdf')) {
+      if (
+        fs.readFileSync(sourceFile).slice(0, 4).toString() === '%PDF' &&
+        !sourceFile.endsWith('.pdf')
+      ) {
         finalSource = sourceFile.replace(/\.bin$/, '.pdf');
         fs.renameSync(sourceFile, finalSource);
       } else if (
@@ -354,7 +379,11 @@ async function processCandidate(opts: {
       parsed =
         nestProfile === 'house'
           ? parseHousePdfRows(artifact.rows, fy, guessSubcommittee(candidate.title, candidate.url))
-          : parseSenatePdfRows(artifact.rows, fy, guessSubcommittee(candidate.title, candidate.url));
+          : parseSenatePdfRows(
+              artifact.rows,
+              fy,
+              guessSubcommittee(candidate.title, candidate.url),
+            );
       documentType = chamber === 'house' ? 'cpf_table' : 'cds_table';
       extractionMethod = 'deterministic_pdf';
       base.sourceRows = artifact.rows.length;
@@ -404,9 +433,18 @@ async function processCandidate(opts: {
       },
     });
 
+    // Release 4 change rail: canonical CPF/CDS ingest feeds the District Nexus
+    // change ledger through the SAME ingest transaction (fail closed).
     const outcome = await new CommunityFundingUpsertService(
       prisma as unknown as PrismaService,
-    ).upsertMany(parsed.candidates, registry.document.id);
+    ).upsertMany(
+      parsed.candidates,
+      registry.document.id,
+      new Date(),
+      createDistrictNexusChangeSink(
+        new DistrictNexusChangeWriter(prisma as unknown as PrismaService),
+      ),
+    );
 
     const run = await prisma.communityFundingIngestRun.create({
       data: {
@@ -457,11 +495,7 @@ async function main() {
   const fyArg = arg('fy') ? Number(arg('fy')) : undefined;
 
   const chambers: Chamber[] = chamberArg ? [chamberArg] : ['house', 'senate'];
-  const years = allYears
-    ? [2022, 2023, 2024, 2025, 2026, 2027]
-    : fyArg
-      ? [fyArg]
-      : [2026];
+  const years = allYears ? [2022, 2023, 2024, 2025, 2026, 2027] : fyArg ? [fyArg] : [2026];
 
   fs.mkdirSync(workDir, { recursive: true });
   const prisma = new PrismaClient();
@@ -477,8 +511,8 @@ async function main() {
           fy,
           status: page.status,
           statusCode: page.statusCode,
-          accepted: page.candidates.filter(c => c.resolution === 'accepted').length,
-          rejected: page.candidates.filter(c => c.resolution === 'rejected').length,
+          accepted: page.candidates.filter((c) => c.resolution === 'accepted').length,
+          rejected: page.candidates.filter((c) => c.resolution === 'rejected').length,
           byKind: page.candidates.reduce<Record<string, number>>((acc, c) => {
             acc[c.kind] = (acc[c.kind] ?? 0) + 1;
             return acc;
@@ -541,11 +575,11 @@ async function main() {
       discovery,
       totals: {
         docs: results.length,
-        ingested: results.filter(r => r.status === 'ingested').length,
-        extracted: results.filter(r => r.status === 'extracted').length,
-        skippedUnchanged: results.filter(r => r.status === 'skipped_unchanged').length,
-        skippedNonTable: results.filter(r => r.status === 'skipped_non_table').length,
-        failed: results.filter(r => r.status === 'failed').length,
+        ingested: results.filter((r) => r.status === 'ingested').length,
+        extracted: results.filter((r) => r.status === 'extracted').length,
+        skippedUnchanged: results.filter((r) => r.status === 'skipped_unchanged').length,
+        skippedNonTable: results.filter((r) => r.status === 'skipped_non_table').length,
+        failed: results.filter((r) => r.status === 'failed').length,
         parsedRows: results.reduce((n, r) => n + (r.parsed ?? 0), 0),
         rejectedRows: results.reduce((n, r) => n + (r.rejected ?? 0), 0),
       },
@@ -560,7 +594,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

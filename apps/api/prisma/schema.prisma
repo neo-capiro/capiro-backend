@@ -13020,3 +13020,134 @@ model LegiWatchDigestSchedule {
   @@index([tenantId, userId, clientId], map: "legiwatch_digest_schedule_tenant_user_client_idx")
   @@map("legiwatch_digest_schedule")
 }
+
+// District Nexus Release 4 — Federal + Local Priority Intelligence.
+// Global public fact tables: no tenant_id, no RLS (same posture as
+// district_economic_fact / community_funding_request). GSA property is
+// federal-presence context only — it can never increase client Nexus
+// Strength. Changes are deterministic public facts; client association
+// happens only at read time through tenant-scoped evidence.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// One FRPP (GSA Federal Real Property Profile) public-dataset asset row.
+/// Global; public-domain data. grain distinguishes detailed assets from
+/// summarized installation rows so the two grains can never double-count.
+model GsaRealProperty {
+  id                              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceHash                      String   @unique(map: "gsa_real_property_identity_key") @map("source_hash") @db.Char(64)
+  sourceDocumentSha256            String   @map("source_document_sha256") @db.Char(64)
+  sourceDataset                   String   @default("frpp_public_detailed") @map("source_dataset") @db.VarChar(48)
+  fiscalYear                      Int      @map("fiscal_year")
+  retrievedAt                     DateTime @map("retrieved_at") @db.Timestamptz(6)
+  rpUid                           String   @map("rp_uid") @db.VarChar(64)
+  reportingAgency                 String   @map("reporting_agency") @db.Text
+  reportingAgencyCode             String?  @map("reporting_agency_code") @db.VarChar(8)
+  usingAgency                     String?  @map("using_agency") @db.Text
+  bureau                          String?  @db.Text
+  installationName                String?  @map("installation_name") @db.Text
+  installationId                  String?  @map("installation_id") @db.VarChar(64)
+  /// 'detailed_asset' | 'summarized_installation' — mixed grains are labeled,
+  /// never blended into one count.
+  grain                           String   @default("detailed_asset") @db.VarChar(24)
+  isDefense                       Boolean  @default(false) @map("is_defense")
+  usOrForeign                     String   @map("us_or_foreign") @db.VarChar(24)
+  countryName                     String?  @map("country_name") @db.Text
+  stateCode                       String?  @map("state_code") @db.VarChar(8)
+  stateName                       String?  @map("state_name") @db.Text
+  countyName                      String?  @map("county_name") @db.Text
+  cityName                        String?  @map("city_name") @db.Text
+  zipCode                         String?  @map("zip_code") @db.VarChar(16)
+  streetAddress                   String?  @map("street_address") @db.Text
+  latitude                        Decimal? @db.Decimal(10, 7)
+  longitude                       Decimal? @db.Decimal(10, 7)
+  /// 'source_coordinates' | 'source_state_only' | 'unresolved' — coordinates
+  /// are source-supplied; Capiro never geocodes GSA rows on its own.
+  geographyBasis                  String   @default("source_coordinates") @map("geography_basis") @db.VarChar(24)
+  legalInterest                   String?  @map("legal_interest") @db.VarChar(24)
+  realPropertyType                String?  @map("real_property_type") @db.Text
+  realPropertyUse                 String?  @map("real_property_use") @db.Text
+  utilization                     String?  @db.Text
+  assetStatus                     String?  @map("asset_status") @db.Text
+  assetStatusCode                 String?  @map("asset_status_code") @db.VarChar(8)
+  historicalStatus                String?  @map("historical_status") @db.Text
+  /// Present only when the source supplies it — absent is NULL, not zero.
+  squareFeet                      Decimal? @map("square_feet") @db.Decimal(18, 2)
+  squareFeetUom                   String?  @map("square_feet_uom") @db.VarChar(16)
+  congressionalDistrict           String?  @map("congressional_district") @db.VarChar(8)
+  /// Boundary Congress of the district attribution; NULL = source did not
+  /// state a vintage. Never inferred. CD119/CD120 cannot silently join.
+  boundaryCongress                Int?     @map("boundary_congress")
+  districtSource                  String   @default("source_reported") @map("district_source") @db.VarChar(24)
+  congressionalDistrictSourceUrl  String?  @map("congressional_district_source_url") @db.Text
+  congressSession                 Int?     @map("congress_session")
+  leaseExpirationDate             DateTime? @map("lease_expiration_date") @db.Date
+  leaseStartDate                  DateTime? @map("lease_start_date") @db.Date
+  annualRentUsd                   Decimal? @map("annual_rent_usd") @db.Decimal(18, 2)
+  federalEmployeesCount           Int?     @map("federal_employees_count")
+  federalContractorsCount         Int?     @map("federal_contractors_count")
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([stateCode, congressionalDistrict, fiscalYear(sort: Desc)], map: "gsa_real_property_district_idx")
+  @@index([rpUid, fiscalYear(sort: Desc)], map: "gsa_real_property_rp_uid_idx")
+  @@index([reportingAgency], map: "gsa_real_property_agency_idx")
+  @@map("gsa_real_property")
+}
+
+/// One GSA ingestion attempt against one source document. Dry runs record
+/// validation evidence but always zero fact writes (DB CHECK enforced).
+model GsaRealPropertySourceRun {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceDataset       String    @map("source_dataset") @db.VarChar(48)
+  fiscalYear          Int?      @map("fiscal_year")
+  sourceDocumentSha256 String?  @map("source_document_sha256") @db.Char(64)
+  sourceUrl           String?   @map("source_url") @db.Text
+  dryRun              Boolean   @default(true) @map("dry_run")
+  status              String    @db.VarChar(24)
+  attemptedAt         DateTime  @default(now()) @map("attempted_at") @db.Timestamptz(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(6)
+  rowsSeen            Int       @default(0) @map("rows_seen")
+  rowsWritten         Int       @default(0) @map("rows_written")
+  rowsRejected        Int       @default(0) @map("rows_rejected")
+  rowsSkippedDuplicate Int      @default(0) @map("rows_skipped_duplicate")
+  error               String?   @db.Text
+  metadataJsonb       Json      @default("{}") @map("metadata_jsonb")
+
+  @@index([sourceDataset, attemptedAt(sort: Desc)], map: "gsa_real_property_source_run_latest_idx")
+  @@map("gsa_real_property_source_run")
+}
+
+/// District Nexus Release 4 deterministic public change ledger. Global; no
+/// tenant fields. dedupe_key is the deterministic identity so replays are
+/// idempotent. The detector is deterministic code — an LLM may summarize an
+/// already-determined change but can never create or alter one.
+model DistrictNexusChange {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dedupeKey        String   @unique(map: "district_nexus_change_identity_key") @map("dedupe_key") @db.VarChar(120)
+  changeKind       String   @map("change_kind") @db.VarChar(48)
+  source           String   @db.VarChar(32)
+  sourceDataset    String?  @map("source_dataset") @db.VarChar(64)
+  sourceRecordId   String   @map("source_record_id") @db.Text
+  sourceFiscalYear Int?     @map("source_fiscal_year")
+  sourceVersion    String?  @map("source_version") @db.Text
+  stateCode        String?  @map("state_code") @db.VarChar(2)
+  districtCode     String?  @map("district_code") @db.VarChar(8)
+  boundaryCongress Int?     @map("boundary_congress")
+  memberBioguideIds String[] @default([]) @map("member_bioguide_ids")
+  oldValue         Json?    @map("old_value")
+  newValue         Json?    @map("new_value")
+  oldState         String?  @map("old_state") @db.VarChar(24)
+  newState         String?  @map("new_state") @db.VarChar(24)
+  observedAt       DateTime @map("observed_at") @db.Timestamptz(6)
+  effectiveAt      DateTime? @map("effective_at") @db.Timestamptz(6)
+  sourceYear       Int?     @map("source_year")
+  geographyVintage String?  @map("geography_vintage") @db.VarChar(48)
+  severity         String   @default("info") @db.VarChar(16)
+  provenance       Json     @default("{}") @map("provenance")
+  detectedAt       DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([stateCode, districtCode, boundaryCongress, observedAt(sort: Desc)], map: "district_nexus_change_district_idx")
+  @@index([changeKind, observedAt(sort: Desc)], map: "district_nexus_change_kind_idx")
+  @@map("district_nexus_change")
+}

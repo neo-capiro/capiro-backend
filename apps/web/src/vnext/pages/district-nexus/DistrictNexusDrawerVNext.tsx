@@ -35,6 +35,8 @@ import {
   splitDistrictKey,
 } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
 import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNext.js';
+import { DistrictPriorityIntelligencePanelVNext } from './DistrictPriorityIntelligencePanelVNext.js';
+import { DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
 import { DnxChevronDownIcon, DnxInfoIcon, DnxWarningIcon } from './icons.js';
 import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
 
@@ -65,14 +67,23 @@ interface Props {
  * context lives here so the main map does not grow a second, competing
  * dashboard below it.
  */
-export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintage, onClose }: Props) {
+export function DistrictNexusDrawerVNext({
+  districtKey,
+  clientId,
+  boundaryVintage,
+  onClose,
+}: Props) {
   const api = useApi();
   const strategicEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_STRATEGIC_FEATURE);
-  const { state, districtNo } = districtKey ? splitDistrictKey(districtKey) : { state: '', districtNo: '' };
+  const priorityEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE);
+  const { state, districtNo } = districtKey
+    ? splitDistrictKey(districtKey)
+    : { state: '', districtNo: '' };
 
   const detail = useQuery<DistrictNexusDistrictDetailResponse>({
     queryKey: ['district-nexus', 'detail', state, districtNo, clientId],
-    queryFn: () => getDistrictNexusDistrictDetail(api, state, districtNo, { clientId: clientId ?? undefined }),
+    queryFn: () =>
+      getDistrictNexusDistrictDetail(api, state, districtNo, { clientId: clientId ?? undefined }),
     enabled: Boolean(districtKey),
   });
 
@@ -132,10 +143,14 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                 ) : strategic.isError ? (
                   <CapiroBadge tone="neutral">Strategic unavailable</CapiroBadge>
                 ) : s ? (
-                  <CapiroBadge tone="neutral">Unscored strategic · below coverage floor</CapiroBadge>
+                  <CapiroBadge tone="neutral">
+                    Unscored strategic · below coverage floor
+                  </CapiroBadge>
                 ) : null
               ) : null}
-              <CapiroBadge tone="neutral">Boundary: current{boundaryVintage ? `, ${boundaryVintage}th` : ''}</CapiroBadge>
+              <CapiroBadge tone="neutral">
+                Boundary: current{boundaryVintage ? `, ${boundaryVintage}th` : ''}
+              </CapiroBadge>
             </div>
             <div className="dnx-dr-l3">
               <Link to={directoryDistrictPath(districtKey ?? '')}>
@@ -154,8 +169,9 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                       <DnxInfoIcon />
                     </span>
                     <div>
-                      <b>No boundary artifact covers this district yet.</b> Every figure below is unaffected — this
-                      is about the map&apos;s geometry, not this district&apos;s data.
+                      <b>No boundary artifact covers this district yet.</b> Every figure below is
+                      unaffected — this is about the map&apos;s geometry, not this district&apos;s
+                      data.
                     </div>
                   </div>
                 ) : null}
@@ -188,7 +204,8 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                 ) : null}
                 {strategic.isError ? (
                   <div className="dnx-muted" style={{ fontSize: 12.5 }}>
-                    Strategic Relevance could not load for this client. Nexus Strength above is unaffected.
+                    Strategic Relevance could not load for this client. Nexus Strength above is
+                    unaffected.
                   </div>
                 ) : null}
                 {s ? <StrategicSection strategic={s} /> : null}
@@ -199,13 +216,35 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                 ) : null}
               </DnxSection>
             ) : null}
-            <DnxSection title="Federal market context" meta="contracts · subawards · future" defaultOpen>
-              {districtKey ? <DistrictFederalMarketPanelVNext clientId={clientId} districtKey={districtKey} /> : null}
+            <DnxSection
+              title="Federal market context"
+              meta="contracts · subawards · future"
+              defaultOpen
+            >
+              {districtKey ? (
+                <DistrictFederalMarketPanelVNext clientId={clientId} districtKey={districtKey} />
+              ) : null}
             </DnxSection>
+            {priorityEnabled ? (
+              <DnxSection
+                title="Federal & local priorities"
+                meta="CPF/CDS · GSA · sector · changes"
+              >
+                {districtKey ? (
+                  <DistrictPriorityIntelligencePanelVNext
+                    clientId={clientId}
+                    districtKey={districtKey}
+                  />
+                ) : null}
+              </DnxSection>
+            ) : null}
             <DnxSection title="Representation" meta="">
               <RepresentationSection representatives={d.representatives} />
             </DnxSection>
-            <DnxSection title="Clients in this district" meta={`${d.clients.length} · ${d.facilities.length} facilities`}>
+            <DnxSection
+              title="Clients in this district"
+              meta={`${d.clients.length} · ${d.facilities.length} facilities`}
+            >
               <ClientsSection clients={d.clients} facilities={d.facilities} />
             </DnxSection>
             <DnxSection
@@ -219,7 +258,9 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                     awards={d.clientContractAwards}
                     emptyText="No contract award matched to this client's confirmed contractor names in this district."
                   />
-                  <div className="dnx-list-label dnx-list-label-muted">All public contract awards in this district</div>
+                  <div className="dnx-list-label dnx-list-label-muted">
+                    All public contract awards in this district
+                  </div>
                 </>
               ) : null}
               <AwardsSection
@@ -227,13 +268,17 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                 emptyText="No contract obligations placed in this district."
               />
             </DnxSection>
-            <DnxSection title="Awarded federal assistance" meta={formatMoney(d.awarded.grantObligations)}>
+            <DnxSection
+              title="Awarded federal assistance"
+              meta={formatMoney(d.awarded.grantObligations)}
+            >
               <dl className="dnx-kv" style={{ marginBottom: 12 }}>
                 <dt>Obligations</dt>
                 <dd className="dnx-num">{formatMoney(d.awarded.grantObligations)}</dd>
                 <dt>Outlays</dt>
                 <dd className="dnx-num">
-                  {formatMoney(d.awarded.grantOutlays)} <span className="dnx-muted">(never summed with obligations)</span>
+                  {formatMoney(d.awarded.grantOutlays)}{' '}
+                  <span className="dnx-muted">(never summed with obligations)</span>
                 </dd>
               </dl>
               {d.clientScoped ? (
@@ -243,10 +288,15 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                     awards={d.clientGrantAwards}
                     emptyText="No assistance award matched to this client's confirmed recipient identifiers in this district."
                   />
-                  <div className="dnx-list-label dnx-list-label-muted">All public assistance awards in this district</div>
+                  <div className="dnx-list-label dnx-list-label-muted">
+                    All public assistance awards in this district
+                  </div>
                 </>
               ) : null}
-              <AwardsSection awards={d.topGrantAwards} emptyText="No awarded assistance placed in this district." />
+              <AwardsSection
+                awards={d.topGrantAwards}
+                emptyText="No awarded assistance placed in this district."
+              />
             </DnxSection>
             <DnxSection title="Grant opportunities" meta="not awarded">
               <div className="dnx-hint" style={{ marginBottom: 10 }}>
@@ -254,17 +304,21 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                   <DnxInfoIcon />
                 </span>
                 <div>
-                  Opportunities are <b>not awarded money</b> and are never counted in the totals above.
+                  Opportunities are <b>not awarded money</b> and are never counted in the totals
+                  above.
                 </div>
               </div>
               <dl className="dnx-kv">
                 <dt>Estimated program funding</dt>
-                <dd className="dnx-num">{formatMoney(d.opportunities.opportunityEstimatedFunding)}</dd>
+                <dd className="dnx-num">
+                  {formatMoney(d.opportunities.opportunityEstimatedFunding)}
+                </dd>
                 <dt>Award ceiling</dt>
                 <dd className="dnx-num">{formatMoney(d.opportunities.opportunityAwardCeiling)}</dd>
               </dl>
               <div className="dnx-muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-                Individual opportunity listings aren&apos;t available in this view yet — see Funding Opportunities for client qualification.
+                Individual opportunity listings aren&apos;t available in this view yet — see Funding
+                Opportunities for client qualification.
               </div>
             </DnxSection>
             <DnxSection
@@ -299,7 +353,12 @@ function DnxSection({
   const [open, setOpen] = useState(Boolean(defaultOpen));
   return (
     <section className="dnx-sec">
-      <button type="button" className="dnx-sec-head" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <button
+        type="button"
+        className="dnx-sec-head"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span className="dnx-st">{title}</span>
         {meta ? <span className="dnx-sm">{meta}</span> : null}
         <DnxChevronDownIcon className={`dnx-cv${open ? ' dnx-cv-open' : ''}`} />
@@ -321,7 +380,13 @@ function WarningHint({ warning }: { warning: DataQualityWarning }) {
   );
 }
 
-function ScoreBreakdown({ breakdown, coveragePercent }: { breakdown: NexusScoreBreakdown[]; coveragePercent: number }) {
+function ScoreBreakdown({
+  breakdown,
+  coveragePercent,
+}: {
+  breakdown: NexusScoreBreakdown[];
+  coveragePercent: number;
+}) {
   const unmeasured = breakdown.filter((b) => b.credit === 0).map((b) => b.label.toLowerCase());
   return (
     <div className="dnx-bkd">
@@ -330,13 +395,21 @@ function ScoreBreakdown({ breakdown, coveragePercent }: { breakdown: NexusScoreB
         return (
           <div key={b.component} className={`dnx-br${b.credit ? '' : ' dnx-zero'}`}>
             <div className="dnx-bl">
-              <span className="dnx-sw" style={{ background: b.credit ? color : 'var(--uui-gray-200)' }} />
+              <span
+                className="dnx-sw"
+                style={{ background: b.credit ? color : 'var(--uui-gray-200)' }}
+              />
               <span className="dnx-nm" title={b.rationale}>
                 {b.label}
               </span>
             </div>
             <div className="dnx-bw">
-              <i style={{ width: `${b.weight ? (b.credit / b.weight) * 100 : 0}%`, background: color }} />
+              <i
+                style={{
+                  width: `${b.weight ? (b.credit / b.weight) * 100 : 0}%`,
+                  background: color,
+                }}
+              />
             </div>
             <div className="dnx-bv">
               {Math.round(b.credit)}/{b.weight}
@@ -349,8 +422,8 @@ function ScoreBreakdown({ breakdown, coveragePercent }: { breakdown: NexusScoreB
           <DnxInfoIcon />
         </span>
         <div>
-          <b>{coveragePercent}% evidence coverage.</b> {100 - coveragePercent} points of the model have no data
-          submitted for this district — that is a gap, not a verified zero.
+          <b>{coveragePercent}% evidence coverage.</b> {100 - coveragePercent} points of the model
+          have no data submitted for this district — that is a gap, not a verified zero.
           {unmeasured.length ? ` Unmeasured: ${unmeasured.join(', ')}.` : ''}
         </div>
       </div>
@@ -364,7 +437,9 @@ function ScoreBreakdown({ breakdown, coveragePercent }: { breakdown: NexusScoreB
  */
 function StrategicSection({ strategic }: { strategic: StrategicRelevanceScore }) {
   const band = bandOf(strategic.score);
-  const missing = strategic.breakdown.filter((b) => b.status === 'missing' || b.status === 'unavailable');
+  const missing = strategic.breakdown.filter(
+    (b) => b.status === 'missing' || b.status === 'unavailable',
+  );
   return (
     <div className="dnx-strategic">
       <div className="dnx-dr-l2" style={{ marginBottom: 12 }}>
@@ -406,7 +481,10 @@ function StrategicSection({ strategic }: { strategic: StrategicRelevanceScore })
           return (
             <div key={b.component} className={`dnx-br${scored ? '' : ' dnx-zero'}`}>
               <div className="dnx-bl">
-                <span className="dnx-sw" style={{ background: scored ? color : 'var(--uui-gray-200)' }} />
+                <span
+                  className="dnx-sw"
+                  style={{ background: scored ? color : 'var(--uui-gray-200)' }}
+                />
                 <span className="dnx-nm" title={b.rationale}>
                   {b.label}
                   {b.status === 'missing' ? ' · missing' : ''}
@@ -474,14 +552,21 @@ function StrategicSection({ strategic }: { strategic: StrategicRelevanceScore })
   );
 }
 
-function RepresentationSection({ representatives }: { representatives: DistrictNexusDistrictDetailResponse['representatives'] }) {
+function RepresentationSection({
+  representatives,
+}: {
+  representatives: DistrictNexusDistrictDetailResponse['representatives'];
+}) {
   if (!representatives) {
     return (
       <div className="dnx-hint dnx-info">
         <span className="dnx-hico">
           <DnxInfoIcon />
         </span>
-        <div>This district code does not resolve to a single House seat (statewide, delegate, or undefined geography).</div>
+        <div>
+          This district code does not resolve to a single House seat (statewide, delegate, or
+          undefined geography).
+        </div>
       </div>
     );
   }
@@ -532,7 +617,10 @@ function ClientsSection({
         <span className="dnx-hico">
           <DnxInfoIcon />
         </span>
-        <div>No client has nexus in this district — no facility, no matched award, and no reviewed relationship.</div>
+        <div>
+          No client has nexus in this district — no facility, no matched award, and no reviewed
+          relationship.
+        </div>
       </div>
     );
   }
@@ -563,8 +651,12 @@ function ClientsSection({
                 <CapiroTableCell className="dnx-right">
                   {c.employeeCount == null ? 'not reported' : formatNumber(c.employeeCount)}
                 </CapiroTableCell>
-                <CapiroTableCell className="dnx-right dnx-num">{formatMoney(c.awarded.contractObligations)}</CapiroTableCell>
-                <CapiroTableCell className="dnx-right dnx-num">{formatMoney(c.awarded.grantObligations)}</CapiroTableCell>
+                <CapiroTableCell className="dnx-right dnx-num">
+                  {formatMoney(c.awarded.contractObligations)}
+                </CapiroTableCell>
+                <CapiroTableCell className="dnx-right dnx-num">
+                  {formatMoney(c.awarded.grantObligations)}
+                </CapiroTableCell>
               </tr>
             );
           })}
@@ -576,7 +668,11 @@ function ClientsSection({
 
 function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: string }) {
   if (!awards.length) {
-    return <div style={{ fontSize: 12.5 }} className="dnx-muted">{emptyText}</div>;
+    return (
+      <div style={{ fontSize: 12.5 }} className="dnx-muted">
+        {emptyText}
+      </div>
+    );
   }
   return (
     <CapiroTableWrap className="dnx-htablewrap">
@@ -593,7 +689,13 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
             <tr key={a.id}>
               <CapiroTableCell>
                 {a.externalUrl ? (
-                  <a href={a.externalUrl} target="_blank" rel="noreferrer" className="dnx-mono" style={{ fontSize: 11.5 }}>
+                  <a
+                    href={a.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="dnx-mono"
+                    style={{ fontSize: 11.5 }}
+                  >
                     {a.label}
                   </a>
                 ) : (
@@ -603,7 +705,9 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
                 )}
                 {a.counterparty ? <div className="dnx-sub">{a.counterparty}</div> : null}
               </CapiroTableCell>
-              <CapiroTableCell className="dnx-right dnx-num">{formatMoney(a.amount)}</CapiroTableCell>
+              <CapiroTableCell className="dnx-right dnx-num">
+                {formatMoney(a.amount)}
+              </CapiroTableCell>
               <CapiroTableCell className="dnx-sub">
                 {a.awardedAt ? new Date(a.awardedAt).toLocaleDateString('en-US') : '—'}
               </CapiroTableCell>
@@ -615,9 +719,17 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
   );
 }
 
-function DemographicsSection({ demographics }: { demographics: DistrictNexusDistrictDetailResponse['demographics'] }) {
+function DemographicsSection({
+  demographics,
+}: {
+  demographics: DistrictNexusDistrictDetailResponse['demographics'];
+}) {
   if (!demographics) {
-    return <div style={{ fontSize: 12.5 }} className="dnx-muted">No demographic data available for this district.</div>;
+    return (
+      <div style={{ fontSize: 12.5 }} className="dnx-muted">
+        No demographic data available for this district.
+      </div>
+    );
   }
   return (
     <dl className="dnx-kv">
@@ -625,7 +737,9 @@ function DemographicsSection({ demographics }: { demographics: DistrictNexusDist
       <dd className="dnx-num">{formatNumber(demographics.totalPopulation)}</dd>
       <dt>Median household income</dt>
       <dd className="dnx-num">
-        {demographics.medianHouseholdIncome == null ? '—' : `$${formatNumber(demographics.medianHouseholdIncome)}`}
+        {demographics.medianHouseholdIncome == null
+          ? '—'
+          : `$${formatNumber(demographics.medianHouseholdIncome)}`}
       </dd>
       <dt>Veterans</dt>
       <dd className="dnx-num">{formatNumber(demographics.percentVeteran)}</dd>
@@ -679,9 +793,13 @@ function EvidenceSection({
                     </CapiroTableCell>
                     <CapiroTableCell>
                       {humanizeToken(e.geographyBasis)}
-                      <div className={`dnx-sub${verification.muted ? ' dnx-sub-notable' : ''}`}>{verification.text}</div>
+                      <div className={`dnx-sub${verification.muted ? ' dnx-sub-notable' : ''}`}>
+                        {verification.text}
+                      </div>
                     </CapiroTableCell>
-                    <CapiroTableCell className="dnx-right dnx-num">{formatMoney(e.amount)}</CapiroTableCell>
+                    <CapiroTableCell className="dnx-right dnx-num">
+                      {formatMoney(e.amount)}
+                    </CapiroTableCell>
                   </tr>
                 );
               })}
@@ -689,14 +807,20 @@ function EvidenceSection({
           </CapiroTable>
         </CapiroTableWrap>
       ) : (
-        <div style={{ fontSize: 12.5 }} className="dnx-muted">No evidence records for this district.</div>
+        <div style={{ fontSize: 12.5 }} className="dnx-muted">
+          No evidence records for this district.
+        </div>
       )}
       {freshness.length ? (
         <div className="dnx-prov">
           {freshness.map((f) => (
             <span key={f.source}>
               <b>{f.label}</b>{' '}
-              {f.freshnessUnavailable ? 'unknown' : f.neverSynced ? 'never synced' : new Date(f.lastSyncedAt!).toLocaleDateString('en-US')}
+              {f.freshnessUnavailable
+                ? 'unknown'
+                : f.neverSynced
+                  ? 'never synced'
+                  : new Date(f.lastSyncedAt!).toLocaleDateString('en-US')}
             </span>
           ))}
         </div>

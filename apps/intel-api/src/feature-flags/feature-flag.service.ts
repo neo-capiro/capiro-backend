@@ -29,6 +29,13 @@ export const DEFENSE_FUNDING_INTEL_FEATURE = 'defense_funding_intel';
  * the internal tenant.
  */
 export const DISTRICT_NEXUS_STRATEGIC_FEATURE = 'district_nexus_strategic_relevance';
+/**
+ * District Nexus Release 4 — Federal + Local Priority Intelligence nested flag.
+ * Same internal-first canary posture as the R2 strategic flag: enabledFor()
+ * surfaces it for the internal tenant without a DB row, while external tenants
+ * stay dark until an explicit intel_feature_flag row is written.
+ */
+export const DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE = 'district_nexus_priority_intelligence';
 
 /**
  * Tenant-scoped feature gating for intel-api capabilities.
@@ -77,6 +84,8 @@ export class FeatureFlagService {
       out[DEFENSE_FUNDING_INTEL_FEATURE] = true;
       // District Nexus Strategic Relevance — internal-first Release 2 canary.
       out[DISTRICT_NEXUS_STRATEGIC_FEATURE] = true;
+      // District Nexus Priority Intelligence — internal-first Release 4 canary.
+      out[DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE] = true;
     }
     return out;
   }

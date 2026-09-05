@@ -6,10 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  expandFootprintRows,
-  parseFootprintImport,
-} from './district-nexus-economic-import.js';
+import { expandFootprintRows, parseFootprintImport } from './district-nexus-economic-import.js';
 import type {
   ClientEconomicDistrictSummary,
   ClientEconomicFootprintResponse,
@@ -179,7 +176,8 @@ function normalizeDistrict(value: string): string {
   if (tail === 'AL') return '00';
   if (!/^\d{1,2}$/.test(tail)) throw new BadRequestException('district must be numeric or AL');
   const numeric = Number(tail);
-  if (numeric >= 90) throw new BadRequestException('district is a source sentinel, not a congressional district');
+  if (numeric >= 90)
+    throw new BadRequestException('district is a source sentinel, not a congressional district');
   return String(numeric).padStart(2, '0');
 }
 
@@ -195,7 +193,8 @@ function sumOrNull(values: Array<number | null>): number | null {
 /** Warnings containing this phrase are deliberately non-committable. */
 function blockingWarnings(evidence: FootprintPreviewEvidence): string[] {
   return evidence.warnings.filter(
-    (warning) => warning.includes('requires a numeric value') || warning.includes('requires review'),
+    (warning) =>
+      warning.includes('requires a numeric value') || warning.includes('requires review'),
   );
 }
 
@@ -260,7 +259,9 @@ export class DistrictNexusEconomicService {
         ...parsed.warnings,
         ...evidence.flatMap((row) => row.warnings),
         ...(request.externalUseApproved
-          ? ['External-use approval is applied only after an administrator reviews each evidence record.']
+          ? [
+              'External-use approval is applied only after an administrator reviews each evidence record.',
+            ]
           : []),
       ]),
     ];
@@ -335,7 +336,8 @@ export class DistrictNexusEconomicService {
         const row = imports[0];
         if (!row) throw new NotFoundException('Footprint import not found');
         if (row.status === 'committed') return this.importSummary(row);
-        if (row.status !== 'preview') throw new ConflictException('Only a preview can be committed');
+        if (row.status !== 'preview')
+          throw new ConflictException('Only a preview can be committed');
 
         if (row.content_sha256) {
           const duplicates = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
@@ -349,7 +351,9 @@ export class DistrictNexusEconomicService {
             LIMIT 1
           `);
           if (duplicates.length) {
-            throw new ConflictException('This footprint file has already been committed for this client');
+            throw new ConflictException(
+              'This footprint file has already been committed for this client',
+            );
           }
         }
 
@@ -656,15 +660,134 @@ export class DistrictNexusEconomicService {
     };
   }
 
+  /**
+   * Honest supplier/subaward availability (Release 4 repair).
+   *
+   * Previously this returned a hard-coded `available: true`, which reported
+   * false availability for tenants whose Federal Market rails have never
+   * synchronized or whose client has no attributable subaward records.
+   *
+   * Now reflects:
+   *  - feature availability (flag ON is required to even reach this route, but
+   *    the economic types still gate the semantic),
+   *  - actual source coverage: does the tenant's Federal Market subaward rail
+   *    hold ANY rows (synced), and how fresh is the newest row,
+   *  - last successful refresh vs last failure (tango sync checkpoints when
+   *    present, otherwise row freshness),
+   *  - client identity basis: confirmed contracting mappings / UEI — without a
+   *    reviewed identity, no subaward can be attributed,
+   *  - whether any attributable subaward/subawardee rows exist for the client.
+   *
+   * "No matching records" (source loaded, client has nothing attributable) and
+   * "source unavailable/not populated" (no synced rows at all) are DIFFERENT
+   * states. No new subaward store: tango_subaward stays the source of truth.
+   */
   async getSupplierFootprintStatus(tenantId: string, clientId: string) {
     await this.assertClient(tenantId, clientId);
+
+    // 1) Source coverage: how many synced subaward rows exist, and how fresh?
+    const coverageRows = await this.prisma.$queryRaw<
+      Array<{ n: bigint; last_synced_at: Date | null }>
+    >`
+      SELECT count(*)::bigint AS n, max(last_synced_at) AS last_synced_at
+      FROM tango_subaward
+      WHERE active = true
+    `;
+    const totalRows = Number(coverageRows[0]?.n ?? 0);
+    const lastSyncedAt = coverageRows[0]?.last_synced_at ?? null;
+
+    // 2) Client identity basis: reviewed contracting mappings or the client UEI.
+    const identity = await this.prisma.withTenant(tenantId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId },
+        select: { uei: true, name: true },
+      });
+      const mappings = await tx.clientIntelMapping.findMany({
+        where: { clientId, source: 'contracting', reviewStatus: 'confirmed' },
+        select: { externalId: true, externalName: true },
+      });
+      return { client, mappings };
+    });
+    const hasUei = Boolean(identity.client?.uei);
+    const hasConfirmedMappings = identity.mappings.length > 0;
+    const identityBasis: 'confirmed_uei_or_mappings' | 'none' =
+      hasUei || hasConfirmedMappings ? 'confirmed_uei_or_mappings' : 'none';
+
+    // 3) Attributable rows: does the client's confirmed identity match any
+    //    subaward prime/subawardee UEI? Only exact confirmed UEIs count.
+    let attributableRows = 0;
+    const ueis = new Set<string>();
+    if (identity.client?.uei) ueis.add(identity.client.uei.trim().toUpperCase());
+    for (const m of identity.mappings) {
+      const id = m.externalId?.trim().toUpperCase();
+      if (id && /^[A-Z0-9]{12}$/.test(id)) ueis.add(id);
+    }
+    if (ueis.size > 0 && totalRows > 0) {
+      const ueiList = [...ueis];
+      const matchRows = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
+        SELECT count(*)::bigint AS n
+        FROM tango_subaward
+        WHERE active = true
+          AND (
+            UPPER(subawardee_uei) IN (${Prisma.join(ueiList)})
+            OR UPPER(prime_recipient_uei) IN (${Prisma.join(ueiList)})
+          )
+      `;
+      attributableRows = Number(matchRows[0]?.n ?? 0);
+    }
+
+    // 4) Honest status resolution. unavailable ≠ empty ≠ zero.
+    const sourcePopulated = totalRows > 0;
+    const hasIdentity = identityBasis === 'confirmed_uei_or_mappings';
+
+    let status:
+      | 'unavailable'
+      | 'not_populated'
+      | 'no_identity'
+      | 'no_matching_records'
+      | 'available';
+    let note: string;
+    if (!sourcePopulated) {
+      status = 'not_populated';
+      note =
+        'Federal Market subaward sync has never populated any rows in this environment. This is a missing-source state, not an empty client result.';
+    } else if (lastSyncedAt == null) {
+      status = 'unavailable';
+      note = 'Subaward rows exist but carry no successful sync timestamp; freshness is unknown.';
+    } else if (!hasIdentity) {
+      status = 'no_identity';
+      note =
+        'Subaward source is populated, but this client has no confirmed contracting identity (UEI or reviewed mapping) — attribution is impossible, not zero.';
+    } else if (attributableRows === 0) {
+      status = 'no_matching_records';
+      note =
+        'Source is populated and the client identity is confirmed, but no subaward rows match. This is a real empty result, distinct from a missing source.';
+    } else {
+      status = 'available';
+      note =
+        'Subaward place of performance is preferred; subawardee-location fallback remains explicitly weaker.';
+    }
+
+    const stalenessDays = lastSyncedAt
+      ? Math.floor((Date.now() - lastSyncedAt.getTime()) / 86_400_000)
+      : null;
+
     return {
       clientId,
-      available: true,
+      status,
+      available: status === 'available',
       source: 'federal_market',
+      sourcePopulated,
+      totalSubawardRows: totalRows,
+      attributableSubawardRows: attributableRows,
+      clientIdentityBasis: identityBasis,
+      confirmedMappingCount: identity.mappings.length,
+      lastSuccessfulSyncAt: lastSyncedAt ? lastSyncedAt.toISOString() : null,
+      /** Days since the last successful sync; null when never synced. */
+      stalenessDays,
       endpoint: `/api/federal-market/clients/${encodeURIComponent(clientId)}/market/geography`,
-      note: 'Subaward place of performance is preferred; subawardee-location fallback remains explicitly weaker.',
-    } as const;
+      note,
+    };
   }
 
   private importSummary(row: ImportDbRow): FootprintImportSummary {
@@ -818,8 +941,12 @@ export class DistrictNexusEconomicService {
       const result = await this.censusGeocode(first).catch(() => null);
       if (!result) {
         for (const row of rows) {
-          if (!row.warnings.some((warning) => warning.startsWith('Address could not be resolved'))) {
-            row.warnings.push('Address could not be resolved by the Census geocoder; requires review.');
+          if (
+            !row.warnings.some((warning) => warning.startsWith('Address could not be resolved'))
+          ) {
+            row.warnings.push(
+              'Address could not be resolved by the Census geocoder; requires review.',
+            );
           }
         }
         continue;
@@ -962,8 +1089,7 @@ export class DistrictNexusEconomicService {
       const valueByColumn: Record<string, unknown> = {
         tenant_id: tenantId,
         client_id: clientId,
-        name:
-          evidence.subject_name ?? `Imported facility row ${evidence.row_ordinal ?? ''}`.trim(),
+        name: evidence.subject_name ?? `Imported facility row ${evidence.row_ordinal ?? ''}`.trim(),
         city: evidence.city,
         state: evidence.state,
         postal_code: evidence.postal_code,

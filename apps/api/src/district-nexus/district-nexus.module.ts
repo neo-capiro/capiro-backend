@@ -4,22 +4,28 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DistrictNexusController } from './district-nexus.controller.js';
 import { DistrictNexusRelationshipsController } from './district-nexus-relationships.controller.js';
 import { DistrictNexusEconomicController } from './district-nexus-economic.controller.js';
+import { DistrictNexusPriorityIntelligenceController } from './priority-intelligence/priority-intelligence.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
 import { DistrictNexusEconomicService } from './district-nexus-economic.service.js';
+import { DistrictNexusPriorityIntelligenceService } from './priority-intelligence/priority-intelligence.service.js';
+import { GsaRealPropertyIngestService } from './priority-intelligence/priority-intelligence-gsa-ingest.service.js';
+import { DistrictNexusChangeWriter } from './priority-intelligence/priority-intelligence-changes.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.guard.js';
+import { DistrictNexusPriorityIntelligenceFlagGuard } from './priority-intelligence/priority-intelligence-flag.guard.js';
 
 /**
  * District Nexus v2.
  *
  * Release 1 owns the verified footprint/truth layer. Release 2 adds a separate
  * Strategic Relevance rail. Release 3 adds reviewable first-party economic
- * evidence and public district context. These are registered in one module but
- * remain independently gated and independently scored — no parallel map or
- * blended master score.
+ * evidence and public district context. Release 4 adds Federal + Local Priority
+ * Intelligence (CPF/CDS, GSA property, sector signals, deterministic changes).
+ * These are registered in one module but remain independently gated and
+ * independently scored — no parallel map or blended master score.
  */
 @Module({
   imports: [RepresentationModule, IntelligenceModule],
@@ -27,21 +33,27 @@ import { DistrictNexusEconomicFlagGuard } from './district-nexus-economic-flag.g
     DistrictNexusController,
     DistrictNexusRelationshipsController,
     DistrictNexusEconomicController,
+    DistrictNexusPriorityIntelligenceController,
   ],
   providers: [
     DistrictNexusService,
     DistrictNexusRelationshipsService,
     DistrictNexusStrategicService,
     DistrictNexusEconomicService,
+    DistrictNexusPriorityIntelligenceService,
+    GsaRealPropertyIngestService,
+    DistrictNexusChangeWriter,
     DistrictNexusFlagGuard,
     DistrictNexusStrategicFlagGuard,
     DistrictNexusEconomicFlagGuard,
+    DistrictNexusPriorityIntelligenceFlagGuard,
   ],
   exports: [
     DistrictNexusService,
     DistrictNexusRelationshipsService,
     DistrictNexusStrategicService,
     DistrictNexusEconomicService,
+    DistrictNexusPriorityIntelligenceService,
   ],
 })
 export class DistrictNexusModule {}

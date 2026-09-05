@@ -20,10 +20,7 @@ import {
   type StrategicComponentInput,
   type StrategicEvidenceStrength,
 } from './district-nexus-strategic-scoring.js';
-import {
-  buildGapsResponse,
-  type DistrictGapInput,
-} from './district-nexus-strategic-gaps.js';
+import { buildGapsResponse, type DistrictGapInput } from './district-nexus-strategic-gaps.js';
 import {
   DEFENSE_BUDGET_COMMITTEE_CODES,
   STRATEGIC_DEFAULT_MIN_COVERAGE_PERCENT,
@@ -48,19 +45,61 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** US state full name → 2-letter (congress_member.state stores full names). */
 const STATE_NAME_TO_CODE: Readonly<Record<string, string>> = Object.freeze({
-  Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA',
-  Colorado: 'CO', Connecticut: 'CT', Delaware: 'DE', Florida: 'FL', Georgia: 'GA',
-  Hawaii: 'HI', Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA',
-  Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME', Maryland: 'MD',
-  Massachusetts: 'MA', Michigan: 'MI', Minnesota: 'MN', Mississippi: 'MS',
-  Missouri: 'MO', Montana: 'MT', Nebraska: 'NE', Nevada: 'NV',
-  'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
-  'North Carolina': 'NC', 'North Dakota': 'ND', Ohio: 'OH', Oklahoma: 'OK',
-  Oregon: 'OR', Pennsylvania: 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-  'South Dakota': 'SD', Tennessee: 'TN', Texas: 'TX', Utah: 'UT', Vermont: 'VT',
-  Virginia: 'VA', Washington: 'WA', 'West Virginia': 'WV', Wisconsin: 'WI',
-  Wyoming: 'WY', 'District of Columbia': 'DC', 'Puerto Rico': 'PR', Guam: 'GU',
-  'American Samoa': 'AS', 'Northern Mariana Islands': 'MP',
+  Alabama: 'AL',
+  Alaska: 'AK',
+  Arizona: 'AZ',
+  Arkansas: 'AR',
+  California: 'CA',
+  Colorado: 'CO',
+  Connecticut: 'CT',
+  Delaware: 'DE',
+  Florida: 'FL',
+  Georgia: 'GA',
+  Hawaii: 'HI',
+  Idaho: 'ID',
+  Illinois: 'IL',
+  Indiana: 'IN',
+  Iowa: 'IA',
+  Kansas: 'KS',
+  Kentucky: 'KY',
+  Louisiana: 'LA',
+  Maine: 'ME',
+  Maryland: 'MD',
+  Massachusetts: 'MA',
+  Michigan: 'MI',
+  Minnesota: 'MN',
+  Mississippi: 'MS',
+  Missouri: 'MO',
+  Montana: 'MT',
+  Nebraska: 'NE',
+  Nevada: 'NV',
+  'New Hampshire': 'NH',
+  'New Jersey': 'NJ',
+  'New Mexico': 'NM',
+  'New York': 'NY',
+  'North Carolina': 'NC',
+  'North Dakota': 'ND',
+  Ohio: 'OH',
+  Oklahoma: 'OK',
+  Oregon: 'OR',
+  Pennsylvania: 'PA',
+  'Rhode Island': 'RI',
+  'South Carolina': 'SC',
+  'South Dakota': 'SD',
+  Tennessee: 'TN',
+  Texas: 'TX',
+  Utah: 'UT',
+  Vermont: 'VT',
+  Virginia: 'VA',
+  Washington: 'WA',
+  'West Virginia': 'WV',
+  Wisconsin: 'WI',
+  Wyoming: 'WY',
+  'District of Columbia': 'DC',
+  'Puerto Rico': 'PR',
+  Guam: 'GU',
+  'American Samoa': 'AS',
+  'Northern Mariana Islands': 'MP',
   'Virgin Islands': 'VI',
 });
 
@@ -169,10 +208,7 @@ function memberDistrictKeys(m: MemberRow): string[] {
     // district list is house-keyed.
     return [];
   }
-  const raw =
-    m.district == null || m.district === 0
-      ? '00'
-      : String(m.district).padStart(2, '0');
+  const raw = m.district == null || m.district === 0 ? '00' : String(m.district).padStart(2, '0');
   const houseCode = districtCodeForHouseMatch(raw);
   if (!houseCode) return [];
   return [districtKeyOf(code, houseCode)];
@@ -217,7 +253,7 @@ export class DistrictNexusStrategicService {
     const districts: ClientDistrictStrategicMapResponse['districts'] = [];
 
     for (const [districtKey, members] of bundle.membersByDistrict) {
-      const scored = this.scoreDistrict(bundle, districtKey, members);
+      const scored = await this.scoreDistrict(bundle, districtKey, members);
       const nexus = nexusByKey.get(districtKey);
       const [state, district] = districtKey.split('-');
       districts.push({
@@ -265,13 +301,15 @@ export class DistrictNexusStrategicService {
       throw new NotFoundException(`Unknown state "${state}"`);
     }
     // Sentinels are not districts.
-    if (['90', '98', 'ZZ', 'AL'].includes(districtCode.toUpperCase()) && districtCode !== '00' && districtCode.toUpperCase() !== 'AL') {
+    if (
+      ['90', '98', 'ZZ', 'AL'].includes(districtCode.toUpperCase()) &&
+      districtCode !== '00' &&
+      districtCode.toUpperCase() !== 'AL'
+    ) {
       // allow AL/00 as at-large
     }
     if (['90', '98', 'ZZ'].includes(district.trim().toUpperCase())) {
-      throw new NotFoundException(
-        `"${district}" is not a congressional district code.`,
-      );
+      throw new NotFoundException(`"${district}" is not a congressional district code.`);
     }
 
     const districtKey = districtKeyOf(stateCode, districtCode === 'AL' ? '00' : districtCode);
@@ -289,7 +327,7 @@ export class DistrictNexusStrategicService {
     for (const m of [...members, ...senators]) memberSet.set(m.bioguideId, m);
     const all = [...memberSet.values()];
 
-    const strategic = this.scoreDistrict(bundle, districtKey, all);
+    const strategic = await this.scoreDistrict(bundle, districtKey, all);
     const nexusByKey = await this.loadNexusByDistrict(tenantId, clientId);
     const nexus = nexusByKey.get(districtKey) ?? null;
 
@@ -301,9 +339,7 @@ export class DistrictNexusStrategicService {
       clientName: bundle.clientName,
       memberBioguides: all.map((m) => m.bioguideId),
       strategic,
-      nexusStrength: nexus
-        ? { score: nexus.score, coveragePercent: nexus.coveragePercent }
-        : null,
+      nexusStrength: nexus ? { score: nexus.score, coveragePercent: nexus.coveragePercent } : null,
       strategicEnabled: true,
     };
   }
@@ -317,7 +353,7 @@ export class DistrictNexusStrategicService {
     const inputs: DistrictGapInput[] = [];
 
     for (const [districtKey, members] of bundle.membersByDistrict) {
-      const strategic = this.scoreDistrict(bundle, districtKey, members);
+      const strategic = await this.scoreDistrict(bundle, districtKey, members);
       const nexus = nexusByKey.get(districtKey);
       const [state, district] = districtKey.split('-');
       inputs.push({
@@ -340,11 +376,7 @@ export class DistrictNexusStrategicService {
 
   // ── Scoring (pure over bundle) ────────────────────────────────────────────
 
-  private scoreDistrict(
-    bundle: ClientBundle,
-    districtKey: string,
-    members: MemberRow[],
-  ) {
+  private async scoreDistrict(bundle: ClientBundle, districtKey: string, members: MemberRow[]) {
     const bioguides = new Set(members.map((m) => m.bioguideId));
     // Senators for the state also count for bill/strategy/engagement links.
     const [stateCode] = districtKey.split('-');
@@ -376,14 +408,17 @@ export class DistrictNexusStrategicService {
         for (const seat of seats) {
           const code = seat.systemCode.toLowerCase();
           const parent = seat.parentSystemCode?.toLowerCase() ?? null;
-          const explicitTarget =
-            targetSubs.has(code) || (parent != null && targetSubs.has(parent));
+          const explicitTarget = targetSubs.has(code) || (parent != null && targetSubs.has(parent));
           const peLinkedDefense =
             bundle.relevantPes.length > 0 &&
             (defenseCodes.has(code) || (parent != null && defenseCodes.has(parent)));
 
           if (explicitTarget || peLinkedDefense) {
-            strength = explicitTarget ? 'verified' : strength === 'verified' ? 'verified' : 'sourceAuthoritative';
+            strength = explicitTarget
+              ? 'verified'
+              : strength === 'verified'
+                ? 'verified'
+                : 'sourceAuthoritative';
             const member = members.find((m) => m.bioguideId === bg);
             evidence.push({
               component: 'committeeJurisdiction',
@@ -421,7 +456,8 @@ export class DistrictNexusStrategicService {
     {
       const evidence: StrategicEvidence[] = [];
       let strength: StrategicEvidenceStrength = 'absent';
-      const hasRelevantCommittee = (components.committeeJurisdiction?.strength ?? 'absent') !== 'absent';
+      const hasRelevantCommittee =
+        (components.committeeJurisdiction?.strength ?? 'absent') !== 'absent';
 
       if (bundle.relevantPes.length === 0) {
         strength = 'absent';
@@ -430,7 +466,11 @@ export class DistrictNexusStrategicService {
         const top = bundle.relevantPes.slice(0, 5);
         for (const pe of top) {
           const direct = pe.paths.some((p) => p.path === 'capability_pe_direct');
-          strength = direct ? 'verified' : strength === 'verified' ? 'verified' : 'sourceAuthoritative';
+          strength = direct
+            ? 'verified'
+            : strength === 'verified'
+              ? 'verified'
+              : 'sourceAuthoritative';
           evidence.push({
             component: 'programElementBudget',
             sourceType: 'client_pe_relevance',
@@ -454,7 +494,7 @@ export class DistrictNexusStrategicService {
           strength === 'absent'
             ? bundle.relevantPes.length === 0
               ? 'No client PE relevance at the configured floor.'
-              : 'Client has PE relevance, but this district\'s members lack a structured committee jurisdiction bridge.'
+              : "Client has PE relevance, but this district's members lack a structured committee jurisdiction bridge."
             : `Client PE relevance bridged through committee membership (${evidence.length} PE(s)).`,
       };
     }
@@ -478,7 +518,8 @@ export class DistrictNexusStrategicService {
         if (!isSponsor && !isCosponsor && !committeeOverlap) continue;
 
         if (isSponsor) strength = 'verified';
-        else if (strength !== 'verified') strength = isCosponsor ? 'sourceAuthoritative' : 'partial';
+        else if (strength !== 'verified')
+          strength = isCosponsor ? 'sourceAuthoritative' : 'partial';
 
         const role = isSponsor ? 'sponsor' : isCosponsor ? 'cosponsor' : 'committee referral';
         evidence.push({
@@ -502,7 +543,7 @@ export class DistrictNexusStrategicService {
         evidence,
         rationale:
           strength === 'absent'
-            ? 'No tracked bill with sponsor/cosponsor/committee referral link to this district\'s members.'
+            ? "No tracked bill with sponsor/cosponsor/committee referral link to this district's members."
             : `Tracked legislation with structured member links (${evidence.length}).`,
       };
     }
@@ -565,8 +606,10 @@ export class DistrictNexusStrategicService {
 
       for (const e of bundle.engagements) {
         if (!bioguides.has(e.memberId)) continue;
-        if (e.kind === 'client_target') strength = strength === 'partial' ? 'sourceAuthoritative' : 'verified';
-        else if (strength === 'absent') strength = e.kind === 'shared_meeting' ? 'sourceAuthoritative' : 'partial';
+        if (e.kind === 'client_target')
+          strength = strength === 'partial' ? 'sourceAuthoritative' : 'verified';
+        else if (strength === 'absent')
+          strength = e.kind === 'shared_meeting' ? 'sourceAuthoritative' : 'partial';
         else if (strength === 'partial') strength = 'sourceAuthoritative';
 
         evidence.push({
@@ -576,11 +619,11 @@ export class DistrictNexusStrategicService {
           sourceRecordId: e.sourceRecordId,
           observedAt: e.observedAt,
           summary:
-              e.kind === 'shared_meeting'
-                ? 'Shared meeting held with office (details redacted).'
-                : e.kind === 'client_target'
-                  ? 'Client target saved for this member/office.'
-                  : `Structured ${e.kind} linked to member office.`,
+            e.kind === 'shared_meeting'
+              ? 'Shared meeting held with office (details redacted).'
+              : e.kind === 'client_target'
+                ? 'Client target saved for this member/office.'
+                : `Structured ${e.kind} linked to member office.`,
           refs: { memberId: e.memberId, kind: e.kind },
         });
       }
@@ -591,7 +634,7 @@ export class DistrictNexusStrategicService {
         evidence,
         rationale:
           strength === 'absent'
-            ? 'No structured engagement/target tied to this district\'s member office.'
+            ? "No structured engagement/target tied to this district's member office."
             : `Relationship facts tied to member office (${evidence.length}).`,
       };
     }
@@ -669,14 +712,23 @@ export class DistrictNexusStrategicService {
       };
     }
 
-    // ── Member historical priorities / CPF-CDS — unavailable in R2 ────────
-    components.memberHistoricalPriorities = {
-      strength: 'unavailable',
-      evidenceCount: 0,
-      evidence: [],
-      rationale:
-        'CPF/CDS and structured member-priority rails are not available in Release 2; marked unavailable (coverage gap), not zero.',
-    };
+    // ── Member historical priorities / CPF-CDS (Release 4 wiring) ──────────
+    // Structured CPF/CDS evidence now exists in community_funding_request.
+    // Qualifying, deterministic evidence feeds full credit; the corpus being
+    // absent stays 'unavailable' (coverage gap, not zero). Requests attribute
+    // to a member only via the same deterministic geography rules the R4 read
+    // model uses (house: source-backed state+district; senate: statewide or
+    // independently source-backed project district). Requested dollars are
+    // member-priority CONTEXT — they never enter Nexus Strength and never
+    // count as awarded money.
+    {
+      const bundle3 = await this.loadMemberPriorityEvidence(
+        bioguides,
+        stateCode ?? '',
+        districtKey,
+      );
+      components.memberHistoricalPriorities = bundle3;
+    }
 
     if (bundle.geographyVintageConflicts.has(districtKey)) {
       conflicts.push({
@@ -729,81 +781,75 @@ export class DistrictNexusStrategicService {
 
     // Tenant-owned signals in one withTenant block.
     const tenantOwned = await this.prisma.withTenant(tenantId, async (tx) => {
-      const [
-        capabilities,
-        targets,
-        reportTargets,
-        tracked,
-        sharedMeetings,
-        outreach,
-      ] = await Promise.all([
-        tx.clientCapability.findMany({
-          where: { clientId, tenantId },
-          select: {
-            targetSubcommittee: true,
-            peNumbers: true,
-            peNumber: true,
-          },
-        }),
-        tx.clientTarget.findMany({
-          where: { clientId, tenantId, sourceDirectory: 'congress' },
-          select: {
-            id: true,
-            memberId: true,
-            memberName: true,
-            addedAt: true,
-          },
-        }),
-        tx.engagementReportTargetOffice.findMany({
-          where: { clientId, tenantId },
-          select: {
-            id: true,
-            memberPrincipal: true,
-            officeKey: true,
-            updatedAt: true,
-          },
-        }),
-        tx.trackedBill.findMany({
-          where: { clientId, tenantId },
-          select: { billId: true },
-        }),
-        // Shared meetings only — never private content.
-        tx.meeting.findMany({
-          where: {
-            tenantId,
-            clientId,
-            visibility: 'shared',
-            status: { not: 'cancelled' },
-          },
-          select: {
-            id: true,
-            subject: true,
-            startsAt: true,
-            attendees: {
-              select: { contactId: true, name: true, email: true, metadata: true },
+      const [capabilities, targets, reportTargets, tracked, sharedMeetings, outreach] =
+        await Promise.all([
+          tx.clientCapability.findMany({
+            where: { clientId, tenantId },
+            select: {
+              targetSubcommittee: true,
+              peNumbers: true,
+              peNumber: true,
             },
-          },
-          take: 200,
-          orderBy: { startsAt: 'desc' },
-        }),
-        tx.outreachRecord.findMany({
-          where: {
-            tenantId,
-            clientId,
-            deletedAt: null,
-            status: { in: ['sent', 'opened', 'replied'] },
-          },
-          select: {
-            id: true,
-            title: true,
-            sentAt: true,
-            metadata: true,
-            recipients: true,
-          },
-          take: 100,
-          orderBy: { createdAt: 'desc' },
-        }),
-      ]);
+          }),
+          tx.clientTarget.findMany({
+            where: { clientId, tenantId, sourceDirectory: 'congress' },
+            select: {
+              id: true,
+              memberId: true,
+              memberName: true,
+              addedAt: true,
+            },
+          }),
+          tx.engagementReportTargetOffice.findMany({
+            where: { clientId, tenantId },
+            select: {
+              id: true,
+              memberPrincipal: true,
+              officeKey: true,
+              updatedAt: true,
+            },
+          }),
+          tx.trackedBill.findMany({
+            where: { clientId, tenantId },
+            select: { billId: true },
+          }),
+          // Shared meetings only — never private content.
+          tx.meeting.findMany({
+            where: {
+              tenantId,
+              clientId,
+              visibility: 'shared',
+              status: { not: 'cancelled' },
+            },
+            select: {
+              id: true,
+              subject: true,
+              startsAt: true,
+              attendees: {
+                select: { contactId: true, name: true, email: true, metadata: true },
+              },
+            },
+            take: 200,
+            orderBy: { startsAt: 'desc' },
+          }),
+          tx.outreachRecord.findMany({
+            where: {
+              tenantId,
+              clientId,
+              deletedAt: null,
+              status: { in: ['sent', 'opened', 'replied'] },
+            },
+            select: {
+              id: true,
+              title: true,
+              sentAt: true,
+              metadata: true,
+              recipients: true,
+            },
+            take: 100,
+            orderBy: { createdAt: 'desc' },
+          }),
+        ]);
 
       // Strategies — raw SQL with explicit tenant_id (api-strategy owned tables).
       const strategyRows = await tx.$queryRaw<
@@ -1047,11 +1093,7 @@ export class DistrictNexusStrategicService {
       hearingId: h.id,
       title: h.title,
       committeeCode: h.committeeCode,
-      startsAt: h.startsAt
-        ? h.startsAt.toISOString()
-        : h.date
-          ? h.date.toISOString()
-          : null,
+      startsAt: h.startsAt ? h.startsAt.toISOString() : h.date ? h.date.toISOString() : null,
       billId: hearingBillByHearing.get(h.id) ?? null,
     }));
 
@@ -1163,6 +1205,210 @@ export class DistrictNexusStrategicService {
       conflicts,
       geographyVintageConflicts,
     };
+  }
+
+  /**
+   * Release 4 — structured member-priority evidence from the canonical CPF/CDS
+   * tables. Deterministic only:
+   *   - house members: request.requester_state == member state AND
+   *     requester_district == member district (both source-backed);
+   *   - senators: requester_state == member state (statewide attribution,
+   *     labeled in evidence);
+   * No fuzzy matching, no LLM, no client attribution — this is member-priority
+   * context feeding the centrally versioned strategic score component.
+   * Empty corpus (no rows at all) keeps the R2 'unavailable' semantics.
+   *
+   * Query shape: the corpus check + a SINGLE bounded findMany per chamber
+   * (statewide pull), then in-memory deterministic attribution. This method
+   * runs once PER DISTRICT inside scoreDistrict, so per-member findMany calls
+   * here would fan out N+1 across the client's district map — the batched
+   * pull keeps the total query count constant regardless of district count.
+   * Bounded at 5000 canonical rows per chamber: the production corpus is
+   * ~30k rows across all states/FYs (audit), so a single state's slice fits
+   * with headroom.
+   */
+  private async loadMemberPriorityEvidence(
+    bioguides: ReadonlySet<string>,
+    stateCode: string,
+    districtKey: string,
+  ): Promise<StrategicComponentInput> {
+    const evidence: StrategicEvidence[] = [];
+    try {
+      const hasAnyCorpus = await this.prisma.communityFundingRequest.findFirst({
+        select: { id: true },
+      });
+      if (!hasAnyCorpus) {
+        return {
+          strength: 'unavailable',
+          evidenceCount: 0,
+          evidence: [],
+          rationale:
+            'CPF/CDS corpus is not loaded in this environment; marked unavailable (coverage gap), not zero.',
+        };
+      }
+
+      const bioguideList = [...bioguides];
+      if (!bioguideList.length) {
+        return {
+          strength: 'absent',
+          evidenceCount: 0,
+          evidence: [],
+          rationale: 'No member of congress resolved for this district.',
+        };
+      }
+
+      // Members for these bioguides (state/district/chamber) — one query.
+      const memberRows = await this.prisma.$queryRaw<
+        Array<{
+          bioguide_id: string;
+          chamber: string;
+          state_code: string | null;
+          district: string | null;
+        }>
+      >`
+        SELECT bioguide_id::text AS bioguide_id, chamber::text AS chamber,
+               state_code, district
+        FROM congress_member
+        WHERE bioguide_id::text IN (${Prisma.join(bioguideList)})
+      `;
+
+      // ONE bounded statewide pull per chamber, then in-memory attribution.
+      // House rows without a source-backed district are skipped by the same
+      // deterministic rule the R4 read model uses (sentinel '90'/'98'/'ZZ'
+      // codes are not districts and never attribute).
+      const state = stateCode.trim().toUpperCase();
+      const canonicalDistrict = districtKey.split('-')[1] ?? '';
+      const [houseRows, senateRows] = await Promise.all([
+        this.prisma.communityFundingRequest.findMany({
+          where: { chamber: 'house', requesterState: state },
+          orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }],
+          take: 5000,
+          select: {
+            fiscalYear: true,
+            requesterName: true,
+            requesterDistrict: true,
+            recipientName: true,
+            requestedAmountUsd: true,
+          },
+        }),
+        this.prisma.communityFundingRequest.findMany({
+          where: { chamber: 'senate', requesterState: state },
+          orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }],
+          take: 5000,
+          select: {
+            fiscalYear: true,
+            requesterName: true,
+            recipientName: true,
+            requestedAmountUsd: true,
+          },
+        }),
+      ]);
+
+      const memberDistrict = new Map<string, string>();
+      const senatorBioguides: string[] = [];
+      for (const member of memberRows) {
+        const memberState = (member.state_code ?? '').trim().toUpperCase();
+        if (memberState !== state) continue;
+        if (member.chamber === 'senate') {
+          senatorBioguides.push(member.bioguide_id);
+          continue;
+        }
+        const d = member.district?.trim().toUpperCase() ?? '';
+        // Canonical at-large/sentinel handling mirrors the R4 read model:
+        // 'AL'/'00' → '00'; sentinels (90/98/ZZ) never attribute.
+        if (d === 'AL' || d === '00' || d === 'AT LARGE') {
+          memberDistrict.set(member.bioguide_id, '00');
+        } else if (/^\d{1,2}$/.test(d) && Number(d) > 0 && Number(d) <= 98) {
+          memberDistrict.set(member.bioguide_id, d.padStart(2, '0'));
+        }
+      }
+
+      const relevant: Array<{
+        bioguideId: string;
+        statewide: boolean;
+        fiscalYear: number;
+        requesterName: string;
+        recipientName: string;
+        requestedAmountUsd: string;
+      }> = [];
+      for (const r of houseRows) {
+        const district = r.requesterDistrict?.trim().toUpperCase() ?? '';
+        const padded =
+          district === 'AL' || district === '00' || district === 'AT LARGE'
+            ? '00'
+            : /^\d{1,2}$/.test(district) && Number(district) > 0 && Number(district) <= 98
+              ? district.padStart(2, '0')
+              : null;
+        if (!padded || padded !== canonicalDistrict) continue;
+        for (const [bioguideId, md] of memberDistrict) {
+          if (md !== padded) continue;
+          relevant.push({
+            bioguideId,
+            statewide: false,
+            fiscalYear: r.fiscalYear,
+            requesterName: r.requesterName,
+            recipientName: r.recipientName,
+            requestedAmountUsd: r.requestedAmountUsd.toString(),
+          });
+        }
+      }
+      for (const r of senateRows) {
+        for (const bioguideId of senatorBioguides) {
+          relevant.push({
+            bioguideId,
+            statewide: true,
+            fiscalYear: r.fiscalYear,
+            requesterName: r.requesterName,
+            recipientName: r.recipientName,
+            requestedAmountUsd: r.requestedAmountUsd.toString(),
+          });
+        }
+      }
+
+      if (!relevant.length) {
+        return {
+          strength: 'absent',
+          evidenceCount: 0,
+          evidence: [],
+          rationale:
+            'No canonical CPF/CDS requests attributable to this district/member under deterministic geography rules.',
+        };
+      }
+
+      // Deterministic geography basis summary; statewide requests are labeled.
+      const total = relevant.reduce((sum, r) => sum + Number(r.requestedAmountUsd), 0);
+      for (const r of relevant.slice(0, 10)) {
+        evidence.push({
+          component: 'memberHistoricalPriorities',
+          sourceType: r.statewide ? 'cds_request' : 'cpf_request',
+          label: `${r.fiscalYear} ${r.requesterName}: ${r.recipientName}`,
+          sourceRecordId: `${r.bioguideId}:${r.fiscalYear}`,
+          observedAt: null,
+          summary: `${r.statewide ? 'Senate statewide' : 'House district'} request, $${Math.round(Number(r.requestedAmountUsd)).toLocaleString('en-US')} requested (requested, not awarded).`,
+          refs: {
+            chamber: r.statewide ? 'senate' : 'house',
+            fiscalYear: r.fiscalYear,
+          },
+        });
+      }
+
+      return {
+        strength: 'sourceAuthoritative',
+        evidenceCount: relevant.length,
+        evidence,
+        rationale: `${relevant.length} canonical CPF/CDS request(s) ($${Math.round(total).toLocaleString('en-US')} requested across FYs) attributable under deterministic member-geography rules. Member-priority context only — never Nexus Strength.`,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `memberHistoricalPriorities evidence load failed; component marked unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return {
+        strength: 'unavailable',
+        evidenceCount: 0,
+        evidence: [],
+        rationale: 'CPF/CDS evidence query failed; component marked unavailable rather than zero.',
+      };
+    }
   }
 
   private async loadMembersForDistrict(

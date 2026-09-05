@@ -1,0 +1,921 @@
+/**
+ * District Nexus Release 4 — Priority Intelligence read model service.
+ *
+ * Compute-on-read presentation over EXISTING rails:
+ *   - CPF/CDS canonical tables (government-data/community-funding) — no new
+ *     CPF/CDS table or parser. District read is a keyed query + ONE occurrences
+ *     batch query — never N+1 per request.
+ *   - GSA FRPP facts (priority-intelligence-gsa-ingest).
+ *   - district_economic_fact metrics mapped deterministically into sector
+ *     signals (priority-intelligence-sector).
+ *   - district_nexus_change deterministic ledger.
+ *
+ * Nexus Strength / Strategic Relevance / Data Coverage are ECHOED from the
+ * existing R1/R2 owners — never recomputed or blended here. Public context
+ * (CPF/CDS, GSA, sector) has NO pathway into Nexus Strength.
+ */
+
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { DistrictNexusService } from '../district-nexus.service.js';
+import {
+  normalizeCpfCdsDistrict,
+  filterForDistrict,
+  projectRequest,
+  aggregateMemberPriorities,
+  type CommunityFundingRequestRow,
+  type CommunityFundingSourceOccurrence,
+  type ProjectedCpfCdsSignal,
+  type CommunityFundingAvailability,
+  type MemberPrioritySummary,
+  type CommunityFundingClientLink,
+} from './priority-intelligence-cpf-cds.js';
+import {
+  projectSectorMetric,
+  isStale,
+  type SectorMetricProjection,
+  type SectorSignalAvailability,
+} from './priority-intelligence-sector.js';
+import type {
+  ClientPriorityIntelligenceResponse,
+  GsaFederalPresence,
+  GsaPropertySummary,
+  PriorityIntelligenceFreshnessEntry,
+  PriorityIntelligenceAvailability,
+  RecentChangeRecord,
+} from './priority-intelligence.types.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+@Injectable()
+export class DistrictNexusPriorityIntelligenceService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly nexus: DistrictNexusService,
+  ) {}
+
+  async getClientDistrictPriorityIntelligence(
+    tenantId: string,
+    clientId: string,
+    state: string,
+    district: string,
+  ): Promise<ClientPriorityIntelligenceResponse> {
+    if (!UUID_RE.test(clientId) || !UUID_RE.test(tenantId)) {
+      throw new NotFoundException('Client not found');
+    }
+    const stateCode = state.trim().toUpperCase();
+    const districtPadded = normalizeCpfCdsDistrict(district) ?? district.trim();
+    if (stateCode.length !== 2) {
+      throw new NotFoundException(`Unknown state "${state}"`);
+    }
+    if (['90', '98', 'ZZ'].includes(district.trim().toUpperCase())) {
+      throw new NotFoundException(
+        `"${district}" is not a congressional district code. Statewide, delegate and undefined award geographies cannot be resolved to a single district.`,
+      );
+    }
+    const districtKey = `${stateCode}-${districtPadded}`;
+
+    // 1) Tenant-owned client resolution INSIDE withTenant (tenant isolation).
+    const client = await this.prisma.withTenant(tenantId, async (tx) => {
+      return tx.client.findFirst({
+        where: { id: clientId, tenantId },
+        select: { id: true, name: true, status: true },
+      });
+    });
+    if (!client || client.status === 'archived') {
+      throw new NotFoundException('Client not found');
+    }
+
+    const warnings: string[] = [];
+
+    // 2) Echo the existing R1 Nexus Strength for the client — read-only. The
+    //    response's district detail gives this district's score/coverage.
+    //    R4 adds nothing to it: public context has no scoring pathway.
+    let nexusStrength: ClientPriorityIntelligenceResponse['nexusStrength'] = null;
+    try {
+      const nexusResponse: Awaited<ReturnType<DistrictNexusService['getClientDistrictNexus']>> =
+        await this.nexus.getClientDistrictNexus(clientId, tenantId);
+      const districtSummary = nexusResponse.districts.find((d) => d.districtKey === districtKey);
+      if (districtSummary) {
+        // ClientDistrictNexusResponse has no scoreVersion — the R1 payload's
+        // score is the echo; version is reported by the strategic rail only.
+        nexusStrength = {
+          score: districtSummary.score,
+          coveragePercent: districtSummary.coveragePercent,
+          scoreVersion: 'district-nexus-v2',
+        };
+      }
+    } catch (error) {
+      warnings.push('Nexus Strength could not be loaded; shown as unavailable rather than zero.');
+      this.logEchoFailure('nexus', error);
+    }
+
+    // 3) Members for the district + state senators (tenant-scoped directory).
+    const memberBioguides = await this.loadMembers(tenantId, stateCode, districtPadded);
+
+    // 4) CPF/CDS — bounded queries + single occurrences batch.
+    const cpfCds = await this.loadCpfCds(
+      stateCode,
+      districtPadded,
+      memberBioguides,
+      clientId,
+      tenantId,
+      warnings,
+    );
+
+    // 5) GSA federal presence — indexed per-district query.
+    const federalProperty = await this.loadGsaPresence(stateCode, districtPadded);
+
+    // 6) Sector signals — deterministic mapping over district_economic_fact.
+    const sectorSignals = await this.loadSectorSignals(stateCode, districtPadded);
+
+    // 7) Recent deterministic changes (public ledger, district-scoped).
+    const recentChanges = await this.loadChanges(stateCode, districtPadded);
+
+    const freshness = this.buildFreshness(
+      cpfCds.availability,
+      federalProperty,
+      sectorSignals,
+      recentChanges.length > 0,
+    );
+
+    return {
+      clientId,
+      clientName: client.name,
+      districtKey,
+      state: stateCode,
+      district: districtPadded,
+      member: memberBioguides,
+      nexusStrength,
+      // Strategic Relevance echo is delivered by the existing strategic endpoint;
+      // the drawer already renders it. Carrying a duplicate score here would
+      // create two sources of truth, so it stays null until R2 exposes a
+      // per-district echo hook — coverage data is echoed via dataCoverage.
+      strategicRelevance: null,
+      dataCoverage: null,
+      priorityIntelligence: {
+        cpfCds: {
+          availability: cpfCds.availability,
+          districtRequests: cpfCds.districtRequests,
+          clientRequests: cpfCds.clientRequests,
+          memberHistoricalPriorities: cpfCds.memberPriorities,
+          warnings: cpfCds.warnings,
+        },
+        federalProperty,
+        sectorSignals,
+        recentChanges,
+      },
+      strongestPrioritySignals: this.buildStrongestSignals(cpfCds, federalProperty, sectorSignals),
+      missingPrioritySources: this.buildMissingSources(
+        { availability: cpfCds.availability },
+        federalProperty,
+        sectorSignals,
+      ),
+      freshness,
+      geographyVintage: await this.resolveGeographyVintage(stateCode, districtPadded, warnings),
+      warnings,
+      computedAt: new Date().toISOString(),
+    };
+  }
+
+  // ── Members ───────────────────────────────────────────────────────────────
+
+  private async loadMembers(
+    tenantId: string,
+    stateCode: string,
+    districtPadded: string,
+  ): Promise<ClientPriorityIntelligenceResponse['member']> {
+    const houseRows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ bioguide_id: string | null }>>`
+        SELECT cm.bioguide_id::text AS bioguide_id
+        FROM congress_member cm
+        WHERE cm.state_code = ${stateCode}
+          AND cm.chamber = 'house'
+          AND LPAD(COALESCE(cm.district, ''), 2, '0') = ${districtPadded}
+        LIMIT 8`,
+    );
+    const senateRows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ bioguide_id: string | null }>>`
+        SELECT cm.bioguide_id::text AS bioguide_id
+        FROM congress_member cm
+        WHERE cm.state_code = ${stateCode}
+          AND cm.chamber = 'senate'
+        LIMIT 4`,
+    );
+    const house = houseRows.map((r) => r.bioguide_id).filter((b): b is string => Boolean(b));
+    const senators = senateRows.map((r) => r.bioguide_id).filter((b): b is string => Boolean(b));
+    return {
+      houseMemberBioguideIds: house,
+      senatorBioguideIds: senators,
+      representation: `${stateCode}-${districtPadded}${house.length ? '' : ' · vacant'} · ${senators.length} senator(s)`,
+    };
+  }
+
+  // ── CPF/CDS ───────────────────────────────────────────────────────────────
+
+  private async loadCpfCds(
+    stateCode: string,
+    districtPadded: string,
+    memberBioguides: ClientPriorityIntelligenceResponse['member'],
+    clientId: string,
+    tenantId: string,
+    globalWarnings: string[],
+  ): Promise<{
+    availability: CommunityFundingAvailability;
+    districtRequests: ProjectedCpfCdsSignal[];
+    clientRequests: ProjectedCpfCdsSignal[];
+    memberPriorities: MemberPrioritySummary[];
+    warnings: string[];
+  }> {
+    const warnings: string[] = [];
+
+    // Availability: ingest-run history + corpus presence is the honest state.
+    const runs = await this.prisma.communityFundingIngestRun.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { createdAt: true, status: true },
+    });
+    const loadedFiscalYears = await this.prisma.communityFundingRequest.findMany({
+      select: { fiscalYear: true },
+      distinct: ['fiscalYear'],
+      orderBy: { fiscalYear: 'asc' },
+    });
+    const corpusLoaded = loadedFiscalYears.length > 0 || runs.length > 0;
+    const availability: CommunityFundingAvailability = {
+      status: corpusLoaded ? 'loaded' : 'unavailable',
+      reason: corpusLoaded ? null : 'corpus_not_loaded',
+      lastIngestRunAt: runs[0]?.createdAt?.toISOString() ?? null,
+      loadedFiscalYears: loadedFiscalYears.map((r) => r.fiscalYear),
+    };
+    if (!corpusLoaded) {
+      warnings.push(
+        'CPF/CDS corpus is not loaded in this environment — this is not an empty result.',
+      );
+      globalWarnings.push('CPF/CDS corpus is not loaded in this environment.');
+      return {
+        availability,
+        districtRequests: [],
+        clientRequests: [],
+        memberPriorities: [],
+        warnings,
+      };
+    }
+
+    // Canonical requests touching this state. Bounded; ordered deterministically.
+    const requestRows = await this.prisma.communityFundingRequest.findMany({
+      where: {
+        OR: [{ requesterState: stateCode }, { state: stateCode }],
+      },
+      orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }],
+      take: 400,
+      select: {
+        id: true,
+        chamber: true,
+        fiscalYear: true,
+        requesterName: true,
+        requesterState: true,
+        requesterDistrict: true,
+        recipientName: true,
+        recipientNormalized: true,
+        city: true,
+        state: true,
+        projectTitle: true,
+        requestedAmountUsd: true,
+        finalAmountUsd: true,
+        amountStageRaw: true,
+        appropriationsAccountRaw: true,
+        _count: { select: { sources: true } },
+      },
+    });
+
+    const rows: CommunityFundingRequestRow[] = requestRows.map((r) => ({
+      requestId: r.id,
+      chamber: r.chamber === 'house' ? 'house' : 'senate',
+      fiscalYear: r.fiscalYear,
+      requesterName: r.requesterName,
+      requesterState: r.requesterState,
+      requesterDistrict: r.requesterDistrict,
+      recipientName: r.recipientName,
+      recipientNormalized: r.recipientNormalized,
+      city: r.city,
+      state: r.state,
+      projectTitle: r.projectTitle,
+      requestedAmountUsd: r.requestedAmountUsd.toString(),
+      finalAmountUsd: r.finalAmountUsd ? r.finalAmountUsd.toString() : null,
+      amountStageRaw: r.amountStageRaw,
+      appropriationsAccountRaw: r.appropriationsAccountRaw,
+      sourceOccurrenceCount: r._count.sources,
+    }));
+
+    // Source occurrences — ONE batch query for every request (no N+1).
+    const requestIds = rows.map((r) => r.requestId);
+    const occurrenceRows = requestIds.length
+      ? await this.prisma.communityFundingRequestSource.findMany({
+          where: { requestId: { in: requestIds } },
+          orderBy: [{ requestId: 'asc' }, { sourceRow: 'asc' }],
+          select: {
+            requestId: true,
+            sourceDocumentId: true,
+            sourcePage: true,
+            sourceRow: true,
+            requesterNameRaw: true,
+            amountStageRaw: true,
+            requestedAmountUsd: true,
+            finalAmountUsd: true,
+            retrievedAt: true,
+          },
+        })
+      : [];
+    const occurrencesByRequest = new Map<string, CommunityFundingSourceOccurrence[]>();
+    for (const o of occurrenceRows) {
+      const list = occurrencesByRequest.get(o.requestId) ?? [];
+      list.push({
+        sourceDocumentId: o.sourceDocumentId,
+        sourcePage: o.sourcePage,
+        sourceRow: o.sourceRow,
+        requesterNameRaw: o.requesterNameRaw,
+        amountStageRaw: o.amountStageRaw,
+        requestedAmountUsd: o.requestedAmountUsd.toString(),
+        finalAmountUsd: o.finalAmountUsd ? o.finalAmountUsd.toString() : null,
+        retrievedAt: o.retrievedAt.toISOString(),
+      });
+      occurrencesByRequest.set(o.requestId, list);
+    }
+
+    // Deterministic client attribution — reviewed/confirmed mappings ONLY.
+    const confirmedRequestIds = await this.loadConfirmedClientRequestIds(tenantId, clientId);
+    const clientRecipientNames = await this.loadClientRecipientNames(tenantId, clientId);
+
+    const projections = rows.map((row) => {
+      const link = resolveClientLink(row, confirmedRequestIds, clientRecipientNames);
+      return projectRequest(row, occurrencesByRequest.get(row.requestId) ?? [], link);
+    });
+
+    const districtRequests = filterForDistrict(projections, stateCode, districtPadded, {
+      // Senate statewide requests join the state and are labeled statewide in
+      // their geography projection — the UI renders them distinctly.
+      includeSenateStatewide: true,
+    });
+
+    const membersForAggregation: Array<{
+      bioguideId: string;
+      chamber: 'house' | 'senate';
+      state: string | null;
+      district: string | null;
+    }> = [
+      ...memberBioguides.houseMemberBioguideIds.map((bioguideId) => ({
+        bioguideId,
+        chamber: 'house' as const,
+        state: stateCode,
+        district: districtPadded,
+      })),
+      ...memberBioguides.senatorBioguideIds.map((bioguideId) => ({
+        bioguideId,
+        chamber: 'senate' as const,
+        state: stateCode,
+        district: null,
+      })),
+    ];
+    const aggregation = aggregateMemberPriorities(projections, membersForAggregation);
+
+    const clientRequests = projections.filter((p) => p.clientAttribution != null);
+
+    return {
+      availability,
+      districtRequests,
+      clientRequests,
+      memberPriorities: aggregation.byMember,
+      warnings,
+    };
+  }
+
+  private async loadConfirmedClientRequestIds(
+    tenantId: string,
+    clientId: string,
+  ): Promise<ReadonlySet<string>> {
+    // Confirmed contracting mappings are the deterministic client-identity rail
+    // (same source vocabulary as the R1 linkage: 'contracting'). externalId
+    // carries the UEI-style external identifier; the row's id is the evidence
+    // id for clientAttribution provenance.
+    const confirmedMappings = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: {
+          clientId,
+          source: 'contracting',
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
+        },
+        select: { id: true, externalId: true },
+      }),
+    );
+    return new Set(confirmedMappings.map((m) => m.externalId).filter((v) => Boolean(v)));
+  }
+
+  private async loadClientRecipientNames(
+    tenantId: string,
+    clientId: string,
+  ): Promise<ReadonlySet<string>> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, reviewStatus: 'confirmed' },
+        select: { externalName: true },
+      }),
+    );
+    return new Set(
+      rows.map((r) => r.externalName?.trim().toLowerCase()).filter((v): v is string => Boolean(v)),
+    );
+  }
+
+  // ── GSA federal presence ──────────────────────────────────────────────────
+
+  private async loadGsaPresence(state: string, district: string): Promise<GsaFederalPresence> {
+    const runs = await this.prisma.gsaRealPropertySourceRun.findMany({
+      orderBy: { attemptedAt: 'desc' },
+      take: 5,
+    });
+    const lastSuccess = runs.find(
+      (r) => r.status === 'success' || r.status === 'success_with_errors',
+    );
+    const lastFailure = runs.find((r) => r.status === 'failed');
+    const anyRun = runs.length > 0;
+
+    const rows = await this.prisma.gsaRealProperty.findMany({
+      where: { stateCode: state, congressionalDistrict: district },
+      orderBy: { fiscalYear: 'desc' },
+      take: 500,
+    });
+
+    const latestFy = rows[0]?.fiscalYear ?? null;
+    const latestRows = latestFy == null ? [] : rows.filter((r) => r.fiscalYear === latestFy);
+    const latestDetailed = latestRows.filter((r) => r.grain === 'detailed_asset');
+
+    const gsaAvailability: PriorityIntelligenceAvailability = !anyRun
+      ? {
+          status: 'not_loaded',
+          reason: 'No GSA FRPP source run has ever been executed in this environment',
+          lastSuccessAt: null,
+          lastFailureAt: null,
+          lastError: null,
+        }
+      : {
+          status: lastSuccess == null ? 'error' : latestRows.length === 0 ? 'not_loaded' : 'loaded',
+          reason:
+            lastSuccess == null
+              ? 'Latest GSA FRPP source run failed'
+              : latestRows.length === 0
+                ? `No FRPP assets recorded for ${state}-${district}`
+                : null,
+          lastSuccessAt: lastSuccess?.attemptedAt?.toISOString() ?? null,
+          lastFailureAt: lastFailure?.attemptedAt?.toISOString() ?? null,
+          lastError: lastFailure?.error ?? null,
+        };
+
+    let squareFeetTotal: number | null = null;
+    let anySqft = false;
+    for (const r of latestDetailed) {
+      if (r.squareFeet != null) {
+        anySqft = true;
+        squareFeetTotal = (squareFeetTotal ?? 0) + Number(r.squareFeet);
+      }
+    }
+    if (!anySqft) squareFeetTotal = null; // no asset carried sqft → unknown, not zero
+
+    const agencyCounts = new Map<string, number>();
+    for (const r of latestDetailed) {
+      agencyCounts.set(r.reportingAgency, (agencyCounts.get(r.reportingAgency) ?? 0) + 1);
+    }
+    const agenciesByAssetCount = [...agencyCounts.entries()]
+      .map(([agency, assetCount]) => ({ agency, assetCount }))
+      .sort((a, b) => b.assetCount - a.assetCount)
+      .slice(0, 8);
+
+    const warnings: string[] = [];
+    if (latestRows.some((r) => r.boundaryCongress == null)) {
+      warnings.push(
+        'FRPP rows carry no boundary Congress for their district column — district vintage is source-unknown (not inferred).',
+      );
+    }
+
+    const topAssets: GsaPropertySummary[] = latestDetailed.slice(0, 10).map((r) => ({
+      rpUid: r.rpUid,
+      reportingAgency: r.reportingAgency,
+      usingAgency: r.usingAgency,
+      installationName: r.installationName,
+      legalInterest: r.legalInterest,
+      realPropertyType: r.realPropertyType,
+      realPropertyUse: r.realPropertyUse,
+      assetStatus: r.assetStatus,
+      squareFeet: r.squareFeet == null ? null : Number(r.squareFeet),
+      squareFeetUom: r.squareFeetUom,
+      city: r.cityName,
+      state: r.stateCode,
+      congressionalDistrict: r.congressionalDistrict,
+      boundaryCongress: r.boundaryCongress,
+      isDefense: r.isDefense,
+      grain: r.grain as 'detailed_asset' | 'summarized_installation',
+      sourceDataset: r.sourceDataset,
+      fiscalYear: r.fiscalYear,
+      sourceUrl: r.congressionalDistrictSourceUrl,
+      geographyBasis: r.geographyBasis as GsaPropertySummary['geographyBasis'],
+    }));
+
+    const fiscalYears = [...new Set(rows.map((r) => r.fiscalYear))].sort((a, b) => a - b);
+
+    return {
+      availability: gsaAvailability,
+      detailedAssetCount: latestDetailed.length,
+      detailedSquareFeetTotal: squareFeetTotal,
+      summarizedInstallationCount: latestRows.filter((r) => r.grain === 'summarized_installation')
+        .length,
+      ownedCount: latestDetailed.filter((r) => /owned/i.test(r.legalInterest ?? '')).length,
+      leasedCount: latestDetailed.filter((r) => /leased/i.test(r.legalInterest ?? '')).length,
+      agenciesByAssetCount,
+      topAssets,
+      fiscalYears,
+      warnings,
+    };
+  }
+
+  // ── Sector signals ────────────────────────────────────────────────────────
+
+  private async loadSectorSignals(
+    state: string,
+    district: string,
+  ): Promise<ClientPriorityIntelligenceResponse['priorityIntelligence']['sectorSignals']> {
+    const metricRows = await this.prisma.$queryRaw<
+      Array<{
+        source: string;
+        dataset: string;
+        source_year: number | null;
+        boundary_congress: number | null;
+        naics_code: string | null;
+        metric_key: string;
+        metric_value: string | null;
+        unit: string | null;
+        source_record_id: string | null;
+        source_url: string | null;
+        observed_at: Date | null;
+        last_synced_at: Date;
+      }>
+    >`
+      SELECT d.source::text AS source, d.dataset, d.source_year, d.boundary_congress,
+             d.naics_code, d.metric_key, d.metric_value::text AS metric_value, d.unit,
+             d.source_record_id, d.source_url, d.observed_at, d.last_synced_at
+      FROM district_economic_fact d
+      WHERE d.state = ${state} AND d.district_code = ${district}
+        AND d.source_year = (
+          SELECT max(d2.source_year) FROM district_economic_fact d2
+          WHERE d2.state = d.state AND d2.district_code = d.district_code AND d2.source = d.source
+        )
+      LIMIT 200
+    `;
+
+    const runStatusRows = await this.prisma.$queryRaw<Array<{ source: string; status: string }>>`
+      SELECT DISTINCT ON (source) source::text AS source, status::text AS status
+      FROM district_economic_source_run
+      ORDER BY source, attempted_at DESC
+    `;
+    const runStatusBySource = new Map(
+      runStatusRows.map(
+        (r) =>
+          [
+            r.source,
+            r.status as SectorSignalAvailability['sources'][number]['lastRunStatus'],
+          ] as const,
+      ),
+    );
+
+    const now = new Date();
+    const projections: SectorMetricProjection[] = [];
+    for (const m of metricRows) {
+      const projection = projectSectorMetric({
+        source: m.source as SectorSignalAvailability['sources'][number]['source'],
+        dataset: m.dataset,
+        sourceYear: m.source_year,
+        boundaryCongress: m.boundary_congress,
+        naicsCode: m.naics_code,
+        metricKey: m.metric_key,
+        metricValue: m.metric_value == null ? null : Number(m.metric_value),
+        unit: m.unit,
+        sourceRecordId: m.source_record_id,
+        sourceUrl: m.source_url,
+        observedAt: m.observed_at?.toISOString() ?? null,
+        lastSyncedAt: m.last_synced_at?.toISOString() ?? null,
+      });
+      if (projection) projections.push(projection);
+    }
+
+    const sourceList: SectorSignalAvailability['sources'] = (['acs', 'cbp', 'lodes'] as const).map(
+      (source) => {
+        const latest = metricRows.find((m) => m.source === source);
+        return {
+          source: source as SectorSignalAvailability['sources'][number]['source'],
+          dataset: latest?.dataset ?? source,
+          sourceYear: latest?.source_year ?? null,
+          lastSyncedAt: latest?.last_synced_at?.toISOString() ?? null,
+          lastRunStatus: runStatusRows.some((r) => r.source === source)
+            ? (runStatusRows.find((r) => r.source === source)
+                ?.status as SectorSignalAvailability['sources'][number]['lastRunStatus'])
+            : 'no_run',
+        };
+      },
+    );
+
+    const staleBySource = sourceList.some(
+      (s) =>
+        s.lastRunStatus === 'no_run' ||
+        (s.lastSyncedAt != null && isStale(s.sourceYear, s.lastSyncedAt, now)),
+    );
+
+    const availability: SectorSignalAvailability = {
+      status: sourceList.every((s) => s.lastRunStatus === 'no_run')
+        ? 'not_loaded'
+        : staleBySource
+          ? 'stale'
+          : 'loaded',
+      sources: sourceList,
+    };
+
+    const warnings: string[] = [];
+    if (availability.status === 'not_loaded') {
+      warnings.push('Public economic metrics have never been ingested for this district.');
+    }
+    if (availability.status === 'stale') {
+      warnings.push('Some public economic sources are stale — see freshness.');
+    }
+
+    return { availability, metrics: projections, warnings };
+  }
+
+  // ── Recent deterministic changes ──────────────────────────────────────────
+
+  private async loadChanges(state: string, district: string): Promise<RecentChangeRecord[]> {
+    const rows = await this.prisma.districtNexusChange.findMany({
+      where: { stateCode: state, districtCode: district },
+      orderBy: { observedAt: 'desc' },
+      take: 20,
+    });
+    return rows.map((c) => ({
+      changeKind: c.changeKind,
+      source: c.source,
+      sourceRecordId: c.sourceRecordId,
+      state: c.stateCode,
+      district: c.districtCode,
+      boundaryCongress: c.boundaryCongress,
+      oldValue: c.oldValue ?? null,
+      newValue: c.newValue ?? null,
+      oldState: c.oldState,
+      newState: c.newState,
+      observedAt: c.observedAt.toISOString(),
+      effectiveAt: c.effectiveAt?.toISOString() ?? null,
+      sourceYear: c.sourceYear,
+      geographyVintage: c.geographyVintage,
+      severity: c.severity as RecentChangeRecord['severity'],
+      provenance: (c.provenance ?? {}) as Record<string, unknown>,
+    }));
+  }
+
+  // ── Geography vintage ─────────────────────────────────────────────────────
+
+  private async resolveGeographyVintage(
+    state: string,
+    district: string,
+    warnings: string[],
+  ): Promise<ClientPriorityIntelligenceResponse['geographyVintage']> {
+    const vintages = await this.prisma.$queryRaw<Array<{ boundary_congress: number | null }>>`
+      SELECT DISTINCT boundary_congress
+      FROM district_economic_fact
+      WHERE state = ${state} AND district_code = ${district}
+    `;
+    const distinct = vintages.map((v) => v.boundary_congress);
+    const nonNull = [...new Set(distinct.filter((v): v is number => v != null))];
+    const conflict = (distinct.includes(null) && nonNull.length > 0) || nonNull.length > 1;
+    if (conflict) {
+      warnings.push(
+        'Geography vintage conflict: sources attribute this district to different boundary Congresses.',
+      );
+    }
+    const soleVintage = nonNull.length === 1 ? (nonNull[0] ?? null) : null;
+    return {
+      boundaryCongress: soleVintage,
+      conflict,
+      detail: conflict
+        ? `economic facts carry mixed boundary congress values: ${JSON.stringify(distinct)}`
+        : soleVintage != null
+          ? `economic facts expressed against boundary congress ${soleVintage}`
+          : 'no vintage-bearing sources loaded for this district',
+    };
+  }
+
+  // ── Aggregation helpers ───────────────────────────────────────────────────
+
+  private buildFreshness(
+    cpfCdsAvailability: CommunityFundingAvailability,
+    federalProperty: GsaFederalPresence,
+    sectorSignals: { availability: SectorSignalAvailability },
+    changesPresent: boolean,
+  ): PriorityIntelligenceFreshnessEntry[] {
+    const entries: PriorityIntelligenceFreshnessEntry[] = [];
+    const now = new Date();
+
+    entries.push({
+      rail: 'cpf_cds',
+      status:
+        cpfCdsAvailability.status === 'unavailable'
+          ? 'not_loaded'
+          : cpfCdsAvailability.loadedFiscalYears.length
+            ? 'current'
+            : 'not_loaded',
+      sourceYear: cpfCdsAvailability.loadedFiscalYears.at(-1) ?? null,
+      lastSuccessAt: cpfCdsAvailability.lastIngestRunAt,
+      lastAttemptAt: cpfCdsAvailability.lastIngestRunAt,
+      stale: false,
+    });
+
+    const gsaStatus: PriorityIntelligenceFreshnessEntry['status'] =
+      federalProperty.availability.status === 'loaded'
+        ? 'current'
+        : federalProperty.availability.status === 'not_loaded'
+          ? 'not_loaded'
+          : 'failed';
+    entries.push({
+      rail: 'gsa',
+      status: gsaStatus,
+      sourceYear: federalProperty.fiscalYears.at(-1) ?? null,
+      lastSuccessAt: federalProperty.availability.lastSuccessAt,
+      lastAttemptAt:
+        federalProperty.availability.lastSuccessAt ?? federalProperty.availability.lastFailureAt,
+      stale: gsaStatusNowStale(federalProperty.availability.lastSuccessAt),
+    });
+
+    for (const s of sectorSignals.availability.sources) {
+      const rail = (
+        s.source === 'cbp' ? 'sector_cbp' : s.source === 'acs' ? 'sector_acs' : 'sector_lodes'
+      ) as PriorityIntelligenceFreshnessEntry['rail'];
+      const stale =
+        s.lastRunStatus === 'no_run' ||
+        (s.lastSyncedAt != null && isStale(s.sourceYear, s.lastSyncedAt, new Date()));
+      entries.push({
+        rail,
+        status:
+          s.lastRunStatus === 'no_run'
+            ? 'not_loaded'
+            : s.lastRunStatus === 'failed'
+              ? 'failed'
+              : stale
+                ? 'stale'
+                : 'current',
+        sourceYear: s.sourceYear,
+        lastSuccessAt: s.lastSyncedAt,
+        lastAttemptAt: s.lastSyncedAt,
+        stale,
+      });
+    }
+
+    entries.push({
+      rail: 'changes',
+      status: changesPresent ? 'current' : 'not_loaded',
+      sourceYear: null,
+      lastSuccessAt: null,
+      lastAttemptAt: null,
+      stale: false,
+    });
+
+    return entries;
+  }
+
+  private buildStrongestSignals(
+    cpfCds: {
+      districtRequests: ProjectedCpfCdsSignal[];
+      clientRequests: ProjectedCpfCdsSignal[];
+      memberPriorities: MemberPrioritySummary[];
+    },
+    federalProperty: GsaFederalPresence,
+    sectorSignals: { availability: SectorSignalAvailability; metrics: SectorMetricProjection[] },
+  ): string[] {
+    const signals: string[] = [];
+    if (cpfCds.clientRequests.length) {
+      signals.push(
+        `${cpfCds.clientRequests.length} deterministically-linked CPF/CDS request(s) for this client`,
+      );
+    }
+    if (cpfCds.districtRequests.length) {
+      signals.push(
+        `${cpfCds.districtRequests.length} community project request(s) attributed to this district/state`,
+      );
+    }
+    if (cpfCds.memberPriorities.length) {
+      const total = cpfCds.memberPriorities.reduce((sum, m) => sum + m.requestedTotalUsd, 0);
+      signals.push(
+        `member request history: $${Math.round(total).toLocaleString('en-US')} requested across ${cpfCds.memberPriorities.length} member(s)`,
+      );
+    }
+    if ((federalProperty.detailedAssetCount ?? 0) > 0) {
+      signals.push(
+        `${federalProperty.detailedAssetCount} federal property asset(s) in this district (FY${federalProperty.fiscalYears.at(-1) ?? '?'})`,
+      );
+    }
+    const jobs = sectorSignals.metrics.find((m) => m.metricKey === 'jobs_total');
+    if (jobs && jobs.metricValue != null) {
+      signals.push(
+        `${Math.round(jobs.metricValue).toLocaleString('en-US')} district jobs (public context, not client employment)`,
+      );
+    }
+    return signals.slice(0, 6);
+  }
+
+  private buildMissingSources(
+    cpfCds: { availability: CommunityFundingAvailability },
+    federalProperty: GsaFederalPresence,
+    sectorSignals: { availability: SectorSignalAvailability },
+  ): string[] {
+    const missing: string[] = [];
+    if (cpfCds.availability.status === 'unavailable') missing.push('CPF/CDS corpus not ingested');
+    if (federalProperty.availability.status === 'not_loaded')
+      missing.push('GSA FRPP federal property data not ingested');
+    if (sectorSignals.availability.status === 'not_loaded')
+      missing.push('ACS/CBP/LODES district economic facts not ingested');
+    if (sectorSignals.availability.status === 'stale')
+      missing.push('refresh stale ACS/CBP/LODES economic facts');
+    return missing;
+  }
+
+  private logEchoFailure(rail: string, error: unknown): void {
+    // Swallowed by design — an echo failure degrades that echo to null and the
+    // warning renders; it must not blank the R4 rails or throw.
+    void rail;
+    void error;
+  }
+}
+
+/**
+ * Deterministic client link resolution. Confirmed intel mapping wins; else an
+ * exact normalized recipient-name match against confirmed mapping external
+ * names. Fuzzy matching is deliberately NOT implemented here — fuzzy CPF/CDS
+ * attribution belongs to the Advocacy History review queue, not District Nexus.
+ */
+function resolveClientLink(
+  row: CommunityFundingRequestRow,
+  confirmedRequestIds: ReadonlySet<string>,
+  clientRecipientNames: ReadonlySet<string>,
+): CommunityFundingClientLink | null {
+  if (confirmedRequestIds.has(row.requestId)) {
+    return { method: 'confirmed_client_intel_mapping', evidenceId: null };
+  }
+  if (clientRecipientNames.has(row.recipientNormalized.trim().toLowerCase())) {
+    return { method: 'exact_recipient_normalized', evidenceId: null };
+  }
+  return null;
+}
+
+function gsaStatusNowStale(lastSuccessAt: string | null): boolean {
+  // FRPP is an annual publication; a successful run older than 400 days is stale.
+  if (lastSuccessAt == null) return true;
+  const t = new Date(lastSuccessAt).getTime();
+  if (Number.isNaN(t)) return true;
+  return Date.now() - t > 400 * 86_400_000;
+}
+
+function changeRowsToRecords(
+  rows: Array<{
+    changeKind: string;
+    source: string;
+    sourceRecordId: string;
+    stateCode: string | null;
+    districtCode: string | null;
+    boundaryCongress: number | null;
+    oldValue: unknown;
+    newValue: unknown;
+    oldState: string | null;
+    newState: string | null;
+    observedAt: Date;
+    effectiveAt: Date | null;
+    sourceYear: number | null;
+    geographyVintage: string | null;
+    severity: string;
+    provenance: unknown;
+  }>,
+): RecentChangeRecord[] {
+  return rows.map((c) => ({
+    changeKind: c.changeKind,
+    source: c.source,
+    sourceRecordId: c.sourceRecordId,
+    state: c.stateCode,
+    district: c.districtCode,
+    boundaryCongress: c.boundaryCongress,
+    oldValue: c.oldValue ?? null,
+    newValue: c.newValue ?? null,
+    oldState: c.oldState,
+    newState: c.newState,
+    observedAt: c.observedAt.toISOString(),
+    effectiveAt: c.effectiveAt?.toISOString() ?? null,
+    sourceYear: c.sourceYear,
+    geographyVintage: c.geographyVintage,
+    severity: c.severity as RecentChangeRecord['severity'],
+    provenance: (c.provenance ?? {}) as Record<string, unknown>,
+  }));
+}
