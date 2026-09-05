@@ -699,8 +699,53 @@ export function useCalendarExport(
   });
 }
 
+export interface HearingUpdate {
+  id: string;
+  updateType: string;
+  title: string;
+  summary: string | null;
+  sourceUrl: string;
+  previousValue: string | null;
+  newValue: string | null;
+  officialPublishedAt: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/** Sources & Documents · "What changed" timeline (LEGIWATCH-V2-HANDOFF §5.4) —
+ *  the same `committee_site_update` rows the Committee Room's Updates &
+ *  Documents tab already reads, scoped to this one hearing. */
+export function useHearingUpdates(hearingId: string): UseQueryResult<{ hearingId: string; updates: HearingUpdate[] }, Error> {
+  const api = useApi();
+  return useQuery<{ hearingId: string; updates: HearingUpdate[] }, Error>({
+    queryKey: ['lw-vnext', 'hearing-updates', hearingId],
+    queryFn: async () =>
+      (await api.get<{ hearingId: string; updates: HearingUpdate[] }>(`${BASE}/events/${enc(hearingId)}/updates`)).data,
+    enabled: Boolean(hearingId),
+    staleTime: 60_000,
+  });
+}
+
+export interface BulkCalendarExport {
+  ics: string;
+  filename: string;
+  includedCount: number;
+  skipped: Array<{ id: string; reason: string }>;
+}
+
+/** Header-level "Export calendar" action — the current Schedule window, or an
+ *  explicit hearing selection. Real multi-event .ics, same download path as
+ *  the single-hearing export (`downloadIcs`). */
+export function useCalendarExportBulk() {
+  const api = useApi();
+  return useMutation<BulkCalendarExport, Error, { hearingIds?: string[]; from?: string; to?: string }>({
+    mutationFn: async (input) =>
+      (await api.post<BulkCalendarExport>(`${BASE}/calendar-export/bulk`, input)).data,
+  });
+}
+
 /** Save the `.ics` the server produced. The bytes are the server's, unmodified. */
-export function downloadIcs(exportResult: CalendarExport): void {
+export function downloadIcs(exportResult: Pick<CalendarExport, 'ics' | 'filename'>): void {
   const blob = new Blob([exportResult.ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

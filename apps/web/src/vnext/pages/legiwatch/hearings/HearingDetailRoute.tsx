@@ -44,7 +44,7 @@ import { FollowDialog } from './FollowDialog.js';
 import { AttendDialog, ATTENDANCE_LABEL } from './AttendDialog.js';
 import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { HearingActions, type ActionRefs } from './HearingActions.js';
-import { useAttendance, useFollowConfig } from '../lib/wave1-api.js';
+import { useAttendance, useFollowConfig, useHearingUpdates } from '../lib/wave1-api.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',
@@ -234,10 +234,10 @@ export function HearingDetailRoute() {
         </dl>
       </section>
 
-      {/* 3. Session/capture — explicit, honest state */}
-      <section className="lw-card" style={{ padding: 18 }} aria-label="Session and capture">
+      {/* 3. Live & Capture — explicit, honest state (LEGIWATCH-V2-HANDOFF §5.4) */}
+      <section className="lw-card" style={{ padding: 18 }} aria-label="Live and capture">
         <div className="lw-card__head">
-          <h2 className="lw-card__title">Session & capture</h2>
+          <h2 className="lw-card__title">Live & Capture</h2>
           {closed ? (
             <span className="lw-card__meta">Closed session — no public stream</span>
           ) : accessLabel === 'ACCESS UNVERIFIED' ? (
@@ -414,6 +414,9 @@ export function HearingDetailRoute() {
         onAction={(action, refs) => setPendingAction({ action, refs })}
       />
 
+      {/* 6b. Sources & Documents (LEGIWATCH-V2-HANDOFF §5.4) */}
+      <SourcesAndDocumentsSection hearingId={hearingId} officialUrl={officialUrl} />
+
       {/* 7. Actions (W1-7) + calendar export (W1-8). */}
       <HearingActions
         hearingId={hearingId}
@@ -432,5 +435,51 @@ export function HearingDetailRoute() {
         <AttendDialog hearingId={hearingId} hearingTitle={e.title} onClose={() => setDialog(null)} />
       ) : null}
     </div>
+  );
+}
+
+/** Official event page, the real "what changed" timeline (`committee_site_update`
+ *  rows for this hearing), and source confidence in plain language. There is
+ *  no per-hearing document-availability model yet, so a document list beyond
+ *  the official page is not fabricated — it is simply not shown. */
+function SourcesAndDocumentsSection({ hearingId, officialUrl }: { hearingId: string; officialUrl: string | null }) {
+  const updates = useHearingUpdates(hearingId);
+  return (
+    <section className="lw-card" style={{ padding: 18 }} aria-label="Sources and documents">
+      <div className="lw-card__head">
+        <h2 className="lw-card__title">Sources & Documents</h2>
+      </div>
+      <dl style={{ margin: '10px 0 0', display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 13 }}>
+        <dt style={{ color: 'var(--lw-meta)' }}>Official source</dt>
+        <dd style={{ margin: 0 }}>
+          {officialUrl ? (
+            <a className="lw-backlink" href={officialUrl} target="_blank" rel="noreferrer noopener">Official event page ↗</a>
+          ) : (
+            '—'
+          )}
+        </dd>
+      </dl>
+
+      <h3 className="lw-sect__title" style={{ marginTop: 16 }}>What changed</h3>
+      {updates.isLoading ? (
+        <LwSkeleton height={60} />
+      ) : updates.isError ? (
+        <LwStateUnavailable source="Update history" reason="The update history did not respond." onRetry={() => updates.refetch()} />
+      ) : !updates.data?.updates.length ? (
+        <p className="lw-state__body" style={{ maxWidth: 'none' }}>No official changes recorded for this proceeding yet.</p>
+      ) : (
+        <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {updates.data.updates.slice(0, 8).map((u) => (
+            <li key={u.id} style={{ fontSize: 13 }}>
+              <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                {new Date(u.firstSeenAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>{' '}
+              {u.title}
+              {u.previousValue && u.newValue ? ` — ${u.previousValue} → ${u.newValue}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

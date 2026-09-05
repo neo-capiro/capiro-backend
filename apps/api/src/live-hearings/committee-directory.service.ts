@@ -33,6 +33,18 @@ export interface CommitteeDirectoryRow {
   captureSupportObservation?: string;
   streamResolutionObservation?: string;
   nextEvent: CommitteeEventSummary | null;
+  /** Directory-card fields (LEGIWATCH-V2-HANDOFF §5.6) — undefined when no
+   *  TenantContext was supplied (the tenant-agnostic public directory read).
+   *  Leadership is read from `LiveHearingsService`'s roster, batched across
+   *  every committee in one query — never a per-card N+1. */
+  chair?: CommitteeMemberRow | null;
+  rankingMember?: CommitteeMemberRow | null;
+  following?: boolean;
+  /** Distinct clients this tenant's users have connected to the committee via
+   *  Follow (`LegiWatchCommitteeFollow.clientIds`). Not a claim about which
+   *  clients are actually AFFECTED by the committee's activity — see the
+   *  method doc. */
+  clientExposureCount?: number;
 }
 
 export interface CommitteeMemberRow {
@@ -85,7 +97,7 @@ export class CommitteeDirectoryService {
     private readonly hearings: LiveHearingsService,
   ) {}
 
-  async committees(): Promise<{
+  async committees(ctx?: TenantContext): Promise<{
     rows: CommitteeDirectoryRow[];
     total: number;
     parentCount: number;
@@ -94,13 +106,90 @@ export class CommitteeDirectoryService {
   }> {
     const snapshot = await this.loadDirectory();
     const parentCount = snapshot.rows.filter((row) => !row.isSubcommittee).length;
+    const rows = ctx ? await this.withDirectoryCardFields(snapshot.rows, ctx) : snapshot.rows;
     return {
-      rows: snapshot.rows,
-      total: snapshot.rows.length,
+      rows,
+      total: rows.length,
       parentCount,
-      subcommitteeCount: snapshot.rows.length - parentCount,
+      subcommitteeCount: rows.length - parentCount,
       asOf: snapshot.asOf,
     };
+  }
+
+  /**
+   * Batches the directory-card fields (chair, ranking member, following,
+   * client exposure) across every committee in a small, fixed number of
+   * queries — never one query per card (§41's N+1 rule).
+   */
+  private async withDirectoryCardFields(
+    rows: CommitteeDirectoryRow[],
+    ctx: TenantContext,
+  ): Promise<CommitteeDirectoryRow[]> {
+    const systemCodes = rows.map((r) => r.systemCode);
+
+    const [memberships, follows] = await Promise.all([
+      this.prisma.congressCommitteeMembership.findMany({
+        where: { systemCode: { in: systemCodes } },
+        orderBy: [{ rank: 'asc' }, { title: 'asc' }, { bioguideId: 'asc' }],
+      }),
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.legiWatchCommitteeFollow.findMany({
+          where: { tenantId: ctx.tenantId, userId: ctx.userId, committeeSystemCode: { in: systemCodes } },
+          select: { committeeSystemCode: true, clientIds: true },
+        }),
+      ),
+    ]);
+
+    const personIds = [...new Set(memberships.map((m) => m.bioguideId))];
+    const people = personIds.length
+      ? await this.prisma.congressMember.findMany({ where: { bioguideId: { in: personIds } } })
+      : [];
+    const peopleById = new Map(people.map((p) => [p.bioguideId, p]));
+
+    const membershipsByCode = new Map<string, typeof memberships>();
+    for (const m of memberships) {
+      const list = membershipsByCode.get(m.systemCode) ?? [];
+      list.push(m);
+      membershipsByCode.set(m.systemCode, list);
+    }
+
+    const followByCode = new Map<string, { following: boolean; clientExposureCount: number }>();
+    for (const f of follows) {
+      followByCode.set(f.committeeSystemCode, {
+        following: true,
+        clientExposureCount: new Set(f.clientIds).size,
+      });
+    }
+
+    return rows.map((row) => {
+      const codeMemberships = membershipsByCode.get(row.systemCode) ?? [];
+      const memberRows = codeMemberships.map((m): CommitteeMemberRow => {
+        const person = peopleById.get(m.bioguideId);
+        return {
+          id: m.id,
+          bioguideId: m.bioguideId,
+          name: person?.fullName ?? m.bioguideId,
+          party: person?.party ?? null,
+          side: m.side,
+          rank: m.rank ?? null,
+          role: m.title ?? null,
+        };
+      });
+      const chair =
+        memberRows.find((m) => {
+          const role = normalizeRole(m.role);
+          return role.includes('chair') && !role.includes('vice');
+        }) ?? null;
+      const rankingMember = memberRows.find((m) => normalizeRole(m.role).includes('ranking')) ?? null;
+      const follow = followByCode.get(row.systemCode);
+      return {
+        ...row,
+        chair,
+        rankingMember,
+        following: Boolean(follow),
+        clientExposureCount: follow?.clientExposureCount ?? 0,
+      };
+    });
   }
 
   async committee(id: string, ctx: TenantContext): Promise<Record<string, unknown> | null> {

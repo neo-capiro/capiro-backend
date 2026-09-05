@@ -42,6 +42,7 @@ import {
   LwStateAllClear,
 } from '../states/SystemStates.js';
 import { LwModal } from '../overlays/LwModal.js';
+import { useCalendarExportBulk, downloadIcs } from '../lib/wave1-api.js';
 import type { HearingCapability, Tone } from '../lib/types.js';
 import { TranscriptionSetupModal } from '../overlays/TranscriptionSetupModal.js';
 import {
@@ -180,6 +181,7 @@ export function HearingsTab({ scope }: { scope: string }) {
   };
   const history = useHearingSessionHistory();
   const resolveStream = useResolveStream();
+  const exportWeek = useCalendarExportBulk();
 
   // The user's saved desktop preference (LegiWatch Settings → default view).
   const [view, setView] = useState<ViewMode>('calendar');
@@ -421,22 +423,18 @@ export function HearingsTab({ scope }: { scope: string }) {
                     : `${totalMatches0(rows)} scheduled by you`}
                 </span>
                 <LwButton
+                  disabled={exportWeek.isPending}
                   onClick={() => {
-                    const matched = filtered.filter((e) => (e.subscription?.scheduled ?? false));
-                    const ics = matched
-                      .map((e) => `${e.calendarDate ?? e.scheduledStart ?? ''} — ${e.title} (${e.committee?.name ?? ''})`)
-                      .join('\n');
-                    const blob = new Blob([`LegiWatch watchlist-matched proceedings\n\n${ics}`], {
-                      type: 'text/plain',
-                    });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = 'legiwatch-calendar.txt';
-                    a.click();
-                    URL.revokeObjectURL(a.href);
+                    const from = weekDays[0];
+                    const to = weekDays[6];
+                    if (!from || !to) return;
+                    exportWeek.mutate(
+                      { from, to },
+                      { onSuccess: (result) => downloadIcs(result) },
+                    );
                   }}
                 >
-                  Export calendar
+                  {exportWeek.isPending ? 'Preparing…' : 'Export calendar'}
                 </LwButton>
               </div>
 

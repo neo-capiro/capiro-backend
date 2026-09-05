@@ -1,7 +1,7 @@
 /* ============================================================================
    LegiWatch vNext — design tokens (LEGIWATCH-HANDOFF Appendix A, verbatim).
    Values are read out of the prototype, NOT rounded to a 4px/8px grid.
-   A 13px font, a 206px cell, an 11px radius and a #FAF9F6 fill are deliberate.
+   A 13px font, a 206px cell, an 11px radius and a #F9FAFB fill are deliberate.
 
    ── BREAKPOINTS ───────────────────────────────────────────────────────────
    This file uses the surface-canonical pair from foundations/responsive.css —
@@ -75,20 +75,29 @@
   --lw-body: #475467;
   --lw-meta: #667085;
   --lw-faint: #98A2B3;
-  --lw-control: #E0DCD4;
-  --lw-line: #E8E5DF;
-  --lw-hover: #F2F0EB;
-  --lw-page: #F4F3F0;
-  --lw-selected: #FAF9F6;
+  /* A.2 neutrals — LEGIWATCH-V2-HANDOFF Appendix A cool surface scale
+     (Untitled UI gray), read live off `Capiro LegiWatch v2 - Untitled UI.dc.html`
+     computed styles 2026-09-05. Supersedes the warm-palette values this module
+     inherited from the global reskin (feedback_warm_surface_palette) — v2 is
+     an explicit exception, not a regression. */
+  --lw-control: #D0D5DD;
+  --lw-line: #EAECF0;
+  --lw-hover: #F2F4F7;
+  --lw-page: #EFF1F5;
+  --lw-selected: #F9FAFB;
   --lw-surface: #ffffff;
 
   /* brand + status 4-tuples [bg, ring, fg, dot] */
-  --lw-gray-bg: #FAF9F6;  --lw-gray-ring: #E8E5DF;  --lw-gray-fg: #344054;  --lw-gray-dot: #667085;
+  --lw-gray-bg: #F9FAFB;  --lw-gray-ring: #EAECF0;  --lw-gray-fg: #344054;  --lw-gray-dot: #667085;
   --lw-brand-bg: #EDF3F7; --lw-brand-ring: #C3D5E1; --lw-brand-fg: #294E68; --lw-brand-dot: #294E68;
   --lw-error-bg: #FEF3F2; --lw-error-ring: #FECDCA; --lw-error-fg: #B42318; --lw-error-dot: #F04438;
   --lw-warn-bg: #FFFAEB;  --lw-warn-ring: #FEDF89;  --lw-warn-fg: #B54708;  --lw-warn-dot: #B98900;
   --lw-succ-bg: #ECFDF3;  --lw-succ-ring: #ABEFC6;  --lw-succ-fg: #027A48;  --lw-succ-dot: #12B76A;
-  --lw-dark-bg: #F2F0EB;  --lw-dark-ring: #E0DCD4;  --lw-dark-fg: #101828;  --lw-dark-dot: #101828;
+  --lw-dark-bg: #F2F4F7;  --lw-dark-ring: #D0D5DD;  --lw-dark-fg: #101828;  --lw-dark-dot: #101828;
+  /* Primary-button ink gradient + inset highlight, read off the prototype's
+     "Create watch" control — flat `--lw-ink` stays the dark-panel/masthead fill. */
+  --lw-ink-gradient: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --lw-ink-gradient-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
 
   --lw-link: #294E68;
   --lw-link-hover: #1F3D52;
@@ -102,15 +111,15 @@
      to real borders at every consumer in this file; the ring tokens below stay
      defined (outer-ring form, warm colors) for box-shadow consumers outside
      this file (e.g. overlays/CreateWatchOverlay.tsx). */
-  --lw-shadow-card: 0 0 0 1px #E8E5DF, 0px 1px 3px rgba(16, 24, 40, .1);
-  --lw-ring-hairline: 0 0 0 1px #E8E5DF;
-  --lw-ring-control: 0 0 0 1px #E0DCD4;
+  --lw-shadow-card: 0 0 0 1px #EAECF0, 0px 1px 3px rgba(16, 24, 40, .1);
+  --lw-ring-hairline: 0 0 0 1px #EAECF0;
+  --lw-ring-control: 0 0 0 1px #D0D5DD;
   --lw-ring-selected: inset 0 0 0 2px #101828;
   --lw-ring-active: 0 0 0 1px #101828;
-  --lw-shadow-seg-on: 0 0 0 1px #E0DCD4, 0px 1px 2px rgba(16, 24, 40, .05);
-  --lw-shadow-input: 0 0 0 1px #E0DCD4, 0px 1px 2px rgba(16, 24, 40, .05);
+  --lw-shadow-seg-on: 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
+  --lw-shadow-input: 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
   --lw-shadow-input-focus: inset 0 0 0 1px #4A7A9B, 0 0 0 4px #EDF3F7;
-  --lw-shadow-dropdown: 0 0 0 1px #E8E5DF, 0px 12px 16px -4px rgba(16, 24, 40, .08), 0px 4px 6px -2px rgba(16, 24, 40, .03);
+  --lw-shadow-dropdown: 0 0 0 1px #EAECF0, 0px 12px 16px -4px rgba(16, 24, 40, .08), 0px 4px 6px -2px rgba(16, 24, 40, .03);
   --lw-shadow-drawer: -8px 0 24px rgba(16, 24, 40, .14);
   --lw-shadow-modal: 0px 24px 48px -12px rgba(16, 24, 40, .24);
   --lw-shadow-toast: 0px 12px 16px -4px rgba(16, 24, 40, .24);
@@ -201,11 +210,23 @@
   white-space: nowrap;
 }
 .capiro-vnext-root .lw .lw-btn:hover { background: var(--lw-page); }
-.capiro-vnext-root .lw .lw-btn--primary { background: var(--lw-ink); color: #fff; border-color: transparent; }
-.capiro-vnext-root .lw .lw-btn--primary:hover { background: #1D2939; }
+.capiro-vnext-root .lw .lw-btn--primary {
+  background: var(--lw-ink-gradient);
+  box-shadow: var(--lw-ink-gradient-shadow);
+  color: #fff;
+  border-color: transparent;
+}
+.capiro-vnext-root .lw .lw-btn--primary:hover { filter: brightness(1.08); }
 .capiro-vnext-root .lw .lw-btn:disabled { opacity: .55; cursor: not-allowed; }
 .capiro-vnext-root .lw .lw-btn--40 { height: 40px; }
 .capiro-vnext-root .lw .lw-btn--42 { height: 42px; }
+.capiro-vnext-root .lw .lw-btn--icon { width: 42px; padding: 0; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-filter-pill.is-active {
+  background: var(--lw-ink);
+  color: #fff;
+  border-color: transparent;
+}
+.capiro-vnext-root .lw .lw-filter-pill.is-active:hover { background: #1D2939; }
 
 /* on ink panels the primary inverts */
 .capiro-vnext-root .lw .lw-on-ink .lw-btn--primary { background: #fff; color: var(--lw-ink); }
@@ -498,7 +519,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: inset 1px 1px 0 #E8E5DF;
+  box-shadow: inset 1px 1px 0 #EAECF0;
   background: var(--lw-surface);
 }
 .capiro-vnext-root .lw .lw-cal__day.is-today { background: var(--lw-selected); }

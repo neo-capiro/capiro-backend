@@ -161,8 +161,8 @@ export class LiveHearingsController {
 
   /** Complete current committee/subcommittee catalog, including zero-hearing bodies. */
   @Get('committees')
-  committeeDirectory() {
-    return this.committees.committees();
+  committeeDirectory(@CurrentTenant() ctx: TenantContext) {
+    return this.committees.committees(ctx);
   }
 
   @Get('committees/:id')

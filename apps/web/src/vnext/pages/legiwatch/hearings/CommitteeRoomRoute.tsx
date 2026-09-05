@@ -34,6 +34,9 @@ interface RoomResponse {
   subcommittees: Array<{ systemCode: string; name: string }>;
   officialUrl?: string;
   jurisdiction?: string;
+  sourceHealth?: string;
+  sourceHealthInheritedFrom?: string | null;
+  lastSyncedAt?: string;
   members: RoomMember[];
   chair?: RoomMember | null;
   rankingMember?: RoomMember | null;
@@ -167,6 +170,19 @@ export function CommitteeRoomRoute() {
         </div>
         <h1 style={{ margin: '10px 0 4px', fontSize: 22 }}>{c.name}</h1>
         {c.jurisdiction ? <p style={{ fontSize: 13, color: 'var(--lw-meta)', margin: '0 0 8px' }}>{c.jurisdiction}</p> : null}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+          {c.sourceHealth ? (
+            <LwPill tone={c.sourceHealth === 'healthy' ? 'success' : c.sourceHealth === 'degraded' ? 'warning' : c.sourceHealth === 'failing' ? 'error' : 'gray'} size="22">
+              SOURCE {c.sourceHealth.toUpperCase()}
+              {c.sourceHealthInheritedFrom ? ` · inherited from ${c.sourceHealthInheritedFrom}` : ''}
+            </LwPill>
+          ) : null}
+          {c.lastSyncedAt ? (
+            <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+              Last official update {new Date(c.lastSyncedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </span>
+          ) : null}
+        </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {c.officialUrl ? (
             <a className="lw-backlink" href={c.officialUrl} target="_blank" rel="noreferrer noopener">Official site ↗</a>
