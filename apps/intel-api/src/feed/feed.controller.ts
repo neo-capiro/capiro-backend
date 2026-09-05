@@ -69,29 +69,42 @@ export class FeedController {
     };
   }
 
-  /** Direct, bounded lookup for an email-linked alert. */
+  /**
+   * Direct, bounded lookup for an email-linked alert.
+   *
+   * `getFeed` always answers with the paginated envelope
+   * (`{items, nextCursor, hasMore, counts, ...}`), even when narrowed to one
+   * `alertId` — it's the list method, reused here for its filtering/decoration
+   * pipeline rather than duplicated. The web client's `useLwAlert` expects a
+   * single `FeedItem` (or `null`), so the single row must be unwrapped HERE —
+   * the frontend has no way to know it received a list envelope instead of the
+   * item, and code that reads it as one (e.g. `it.sourceType.toUpperCase()`)
+   * fails on `undefined` rather than on a clear "not found".
+   */
   @Get('_all/feed/alerts/:alertId')
-  getTenantAlert(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('alertId') alertId: string) {
-    return this.svc.getFeed(ctx.tenantId, null, {
+  async getTenantAlert(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('alertId') alertId: string) {
+    const page = await this.svc.getFeed(ctx.tenantId, null, {
       alertId,
       limit: 1,
       userId: ctx.clerkUserId,
       workStates: ['all'],
     });
+    return page.items[0] ?? null;
   }
 
   @Get(':clientId/feed/alerts/:alertId')
-  getAlert(
+  async getAlert(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
     @Param('alertId') alertId: string,
   ) {
-    return this.svc.getFeed(ctx.tenantId, clientId, {
+    const page = await this.svc.getFeed(ctx.tenantId, clientId, {
       alertId,
       limit: 1,
       userId: ctx.clerkUserId,
       workStates: ['all'],
     });
+    return page.items[0] ?? null;
   }
 
   // Tenant-wide roll-up. MUST precede ':clientId/feed' so '_all' isn't captured
