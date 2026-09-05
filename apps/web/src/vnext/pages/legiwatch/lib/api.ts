@@ -4,7 +4,13 @@
  * ones (§3.3) so mutations here invalidate the old app and vice-versa.
  */
 import { useMemo } from 'react';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import {
   feedQueryString,
@@ -107,10 +113,52 @@ export function useLwAlert(scope: Scope, alertId: string | null) {
   });
 }
 
+/**
+ * Patch one item's work state inside every page of a cached feed response.
+ * Touches ONLY `items[].workState.state` — never `workStateCounts` or `total`.
+ * Those are server-computed over the whole filtered set, and hand-adjusting
+ * them here is what would double-apply a triage: the optimistic tweak plus the
+ * refetch onSettled triggers. Leaving them alone means every count moves
+ * exactly once, from the server.
+ */
+function patchFeedWorkState(
+  data: InfiniteData<FeedResponse> | undefined,
+  alertIds: Set<string>,
+  state: WorkState,
+): InfiniteData<FeedResponse> | undefined {
+  if (!data?.pages) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      items: page.items.map((it) =>
+        alertIds.has(it.id)
+          ? {
+              ...it,
+              workState: {
+                assignedTo: null,
+                snoozedUntil: null,
+                note: null,
+                ...it.workState,
+                state,
+              },
+            }
+          : it,
+      ),
+    })),
+  };
+}
+
 /** §6.2 — work-state mutation. One mutation, available in three places (§4.1
  *  #9): the packet drawer's Change menu, the feed's bulk bar, and the row-level
  *  state pill. Optimistic, with rollback; invalidates the canonical feed keys
- *  so the OLD app reflects the change after its normal refetch (§16). */
+ *  so the OLD app reflects the change after its normal refetch (§16).
+ *
+ *  LW-QA-019: `clientId` stays the explicit tenant-wide token '_all' for the
+ *  All-clients scope — the server now has real `_all` handlers, so the token is
+ *  never substituted with some arbitrary client's UUID. The optimistic patch and
+ *  the rollback below were previously only claimed by this comment: neither
+ *  onMutate nor onError existed, so a failed triage silently kept its old state. */
 export function useLwWorkState(scope: Scope) {
   const api = useApi();
   const qc = useQueryClient();
@@ -141,10 +189,33 @@ export function useLwWorkState(scope: Scope) {
         })
       ).data;
     },
+    onMutate: async (input) => {
+      // Stop in-flight feed fetches so a response already on the wire cannot
+      // land on top of the optimistic state and undo it.
+      await qc.cancelQueries({ queryKey: ['intel-feed'] });
+      // The PREFIX-matching API: the real cache entries are
+      // ['intel-feed', clientId, source, order, bucket], so the bare
+      // ['intel-feed'] key addresses no entry at all and getQueryData on it
+      // always returned undefined.
+      const snapshot = qc.getQueriesData<InfiniteData<FeedResponse>>({ queryKey: ['intel-feed'] });
+      if (input.state !== undefined) {
+        const ids = new Set(input.alertIds);
+        const next = input.state;
+        qc.setQueriesData<InfiniteData<FeedResponse>>({ queryKey: ['intel-feed'] }, (old) =>
+          patchFeedWorkState(old, ids, next),
+        );
+      }
+      return { snapshot };
+    },
+    onError: (_error, _input, context) => {
+      for (const [key, data] of context?.snapshot ?? []) qc.setQueryData(key, data);
+    },
     onSettled: () => {
       // Invalidate every feed page for this scope (all sources/orders/buckets)
       // plus the tenant roll-up — bulk triage invalidates every dependent count
-      // and the Dashboard attention feed (§3.3).
+      // and the Dashboard attention feed (§3.3). The ['intel-feed'] prefix also
+      // covers the module feed behind the nav Feed badge, so the badge re-reads
+      // the server's recomputed count here rather than being adjusted by hand.
       void qc.invalidateQueries({ queryKey: ['intel-feed'] });
       void qc.invalidateQueries({ queryKey: ['lw-vnext', 'bucket-count'] });
       void qc.invalidateQueries({ queryKey: ['lw-vnext'] });
