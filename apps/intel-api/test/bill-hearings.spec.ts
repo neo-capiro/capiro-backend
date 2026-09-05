@@ -38,6 +38,7 @@ describe('mapCombinedAlertsToHearings', () => {
     expect(r.count).toBe(1);
     expect(r.hearings[0]).toEqual({
       sessionId: 's1',
+      hearingId: null,
       title: 'HASC Markup',
       occurredAt: '2026-06-24T16:00:00.000Z',
       committeeId: 'hsas00',
@@ -76,6 +77,7 @@ describe('mapCombinedAlertsToHearings', () => {
     expect(r.count).toBe(1);
     expect(r.hearings[0]).toEqual({
       sessionId: 's1',
+      hearingId: null,
       title: null,
       occurredAt: null,
       committeeId: null,
@@ -92,12 +94,30 @@ describe('mapCombinedAlertsToHearings', () => {
     expect(r.hearings[0]!.mentions[0]!.quote).toBeNull();
     expect(r.hearings[0]!.mentions[0]!.quoteSource).toBe('encrypted');
   });
+
+  // Wave 3 — Bill 360 "Hearings" tab dead-link fix. The canonical Hearing
+  // Detail route accepts committee_hearing.id, not sessionId; the resolved
+  // map lets the frontend route correctly instead of to a 404/wrong record.
+  it('attaches the resolved canonical hearingId when the session map has one', () => {
+    const r = mapCombinedAlertsToHearings([alert('s1')], new Map([['s1', 'hearing-canonical-1']]));
+    expect(r.hearings[0]!.hearingId).toBe('hearing-canonical-1');
+  });
+
+  it('leaves hearingId null when the session was never linked to a canonical hearing', () => {
+    const r = mapCombinedAlertsToHearings([alert('s1')], new Map());
+    expect(r.hearings[0]!.hearingId).toBeNull();
+  });
 });
 
 describe('BillHearingsService.getBillHearings', () => {
   it('scopes the query by tenantId + clientId + combined/sourceRef (no RLS) and excludes dismissed', async () => {
     let calledWith: any = null;
     const prisma = {
+      // Pre-existing bug fixed in passing (Wave 3): the mock never
+      // implemented `withTenant`, which the service has always called —
+      // this test could not have been passing on main. `tx` is just
+      // `this` here since the fake never needs real transaction scoping.
+      withTenant: async (_tenantId: string, fn: (tx: any) => Promise<unknown>) => fn(prisma),
       intelAlert: {
         findMany: async (args: any) => {
           calledWith = args;
@@ -110,6 +130,9 @@ describe('BillHearingsService.getBillHearings', () => {
           ];
         },
       },
+      liveHearingSession: {
+        findMany: async () => [{ id: 's1', hearingId: 'hearing-canonical-1' }],
+      },
     } as any;
     const svc = new BillHearingsService(prisma);
     const r = await svc.getBillHearings('t1', 'c1', '119-hr-1234');
@@ -120,5 +143,6 @@ describe('BillHearingsService.getBillHearings', () => {
     expect(calledWith.where.sourceRef).toBe('119-hr-1234');
     expect(calledWith.where.status).toEqual({ notIn: ['dismissed', 'snoozed', 'suppressed'] });
     expect(calledWith.orderBy).toEqual({ createdAt: 'desc' });
+    expect(r.hearings[0]!.hearingId).toBe('hearing-canonical-1');
   });
 });
