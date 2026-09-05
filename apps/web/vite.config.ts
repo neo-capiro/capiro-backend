@@ -1,10 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 const phase19ApiTarget = process.env.PHASE19_API_TARGET?.trim();
 
 export default defineConfig({
-  plugins: [react()],
+  // tailwindcss() only generates utilities for classes it finds via the
+  // `@source` globs declared in outreach/v2/ui/tailwind.css — it has no
+  // effect anywhere else in the app. That file also skips Tailwind's
+  // preflight reset (imports theme.css + utilities.css, not the umbrella
+  // "tailwindcss" import), because the legacy `theme.css` this app already
+  // loads on every non-vnext route has its own global resets on
+  // body/html/.ant-typography that a second reset would fight.
+  plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
     host: true,
@@ -33,8 +41,14 @@ export default defineConfig({
   // plugin, so the build-time `commonjsOptions` block below doesn't help.
   // Explicitly pre-bundle @capiro/shared so esbuild rewrites the CJS
   // `exports.X = ...` form into named ESM exports the browser can import.
+  //
+  // The Meri surfaces (e.g. MeriQuickActionsPanel, meri-start-work) import the
+  // CJS subpath @capiro/shared/meri-skills. Pre-bundling the package root
+  // above does not cover this subpath — the optimizer never discovers it, so
+  // Vite serves dist/meri-skills.js raw over /@fs/ and the browser dies on
+  // `exports.X = ...` (no named ESM exports). Include it explicitly.
   optimizeDeps: {
-    include: ['@capiro/shared'],
+    include: ['@capiro/shared', '@capiro/shared/meri-skills'],
   },
   build: {
     // @capiro/shared compiles to CommonJS so that the NestJS CJS runtime can
