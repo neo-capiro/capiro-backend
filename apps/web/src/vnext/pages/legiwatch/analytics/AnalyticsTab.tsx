@@ -1,31 +1,31 @@
 /**
- * Analytics tab (§7.11). Four metric tiles, 30-day signal-volume by source
- * family, issue momentum, client exposure matrix, jurisdiction activity, and
- * the dark source-coverage panel.
- *
- * Every panel names its denominator. The exposure matrix distinguishes a real
- * zero (monitored, no signals) from an unmonitored cell. Signal volume, issue
- * momentum, and the exposure matrix have NO server-side aggregate (GAPS
- * LW-G7) — per §7.11 we do NOT compute aggregates in the browser over a
- * paginated list, so those three still render their UNAVAILABLE state with
- * the gap named.
- *
- * Source coverage (GAPS LW-G5, closed by W2-5) now reads the real per-client
- * coverage score. It is scoped to ONE client — with no client selected there
- * is no single watchlist to score, so the panel says so rather than
- * fabricating a cross-client average.
+ * Analytics tab (LEGIWATCH-V2-HANDOFF §5.8) — four metric tiles, 30-day
+ * signal-volume, issue momentum, client exposure matrix, committee activity,
+ * and source coverage. Every panel is a real server aggregate (Wave 3;
+ * legiwatch-analytics.service.ts) — never the frontend summing a paginated
+ * Feed page. A monitored client with no signals renders `0`; an unmonitored
+ * client renders a dash — the two are never conflated.
  */
-import { useLwFeed, useLwFeedItems } from '../lib/api.js';
 import { LwPill } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
-import { useWatchlistCoverage, COVERAGE_STATUS_LABEL, COVERAGE_STATUS_TONE, SIGNAL_FAMILY_LABEL } from '../lib/wave2-api.js';
+import {
+  useAnalyticsSummary,
+  useAnalyticsSignalVolume,
+  useAnalyticsIssueMomentum,
+  useAnalyticsClientExposure,
+  useAnalyticsCommitteeActivity,
+  useAnalyticsSourceCoverage,
+} from '../lib/wave3-api.js';
 
 export function AnalyticsTab({ scope }: { scope: string }) {
-  const feed = useLwFeed(scope, 'all', 'date', undefined);
-  const { items, counts, severityCounts } = useLwFeedItems(feed);
-  const coverage = useWatchlistCoverage(scope);
+  const summary = useAnalyticsSummary(scope);
+  const volume = useAnalyticsSignalVolume(scope);
+  const momentum = useAnalyticsIssueMomentum(scope);
+  const exposure = useAnalyticsClientExposure();
+  const committees = useAnalyticsCommitteeActivity(scope);
+  const coverage = useAnalyticsSourceCoverage();
 
-  if (feed.isLoading) {
+  if (summary.isLoading) {
     return (
       <div className="lw-body">
         <div className="lw-tiles">
@@ -36,106 +36,173 @@ export function AnalyticsTab({ scope }: { scope: string }) {
       </div>
     );
   }
+  if (summary.isError || !summary.data) {
+    return (
+      <div className="lw-body">
+        <LwStateUnavailable source="Analytics" reason="The analytics summary did not respond. This is not zero signals." onRetry={() => summary.refetch()} />
+      </div>
+    );
+  }
 
-  const totalSignals = Object.values(counts).reduce((a, b) => (a ?? 0) + (b ?? 0), 0) ?? 0;
-  const decisions = severityCounts.critical ?? null;
-  const coveragePct = scope ? coverage.data?.overall.percentage ?? null : null;
-  const coverageUnavailable = !scope || coverage.isError || coveragePct == null;
+  const s = summary.data;
+  const maxDay = Math.max(1, ...(volume.data?.days.map((d) => d.count) ?? [1]));
 
   return (
     <div className="lw-body">
-      {/* metric tiles — each names its denominator */}
       <div className="lw-tiles">
-        <Tile label="Total signals" value={totalSignals} denom="current feed page" />
-        <Tile label="Client decisions" value={decisions} denom="critical severity in scope" />
-        <Tile label="Bills moved" value={counts.bill ?? null} denom="federal bill packets" />
+        <Tile label="Signals in 30 days" value={s.signalsTotal} denom={`across ${s.sourceFamiliesInvolved} source famil${s.sourceFamiliesInvolved === 1 ? 'y' : 'ies'}`} />
+        <Tile label="Client decisions" value={s.clientDecisions} denom={`of ${s.signalsTotal} signals reached a decision`} />
+        <Tile label="Bills moved" value={s.billsMoved} denom={`of ${s.billsTrackedTotal} tracked bills changed stage`} />
         <Tile
           label="Source coverage"
-          value={coveragePct}
-          denom={scope ? 'watchlist concepts covered' : 'select a client'}
-          unavailable={coverageUnavailable}
+          value={s.sourceCoveragePct}
           suffix="%"
+          denom={`${s.sourceFamiliesCurrent} of ${s.sourceFamiliesTotal} committee sources healthy`}
+          unavailable={s.sourceCoveragePct == null}
         />
       </div>
 
       <div className="lw-feed-cols">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           <section className="lw-card" style={{ padding: 18 }}>
-            <h3 className="lw-sect__title">Signal volume · 30 days by source family</h3>
-            <LwStateUnavailable
-              source="Signal-volume time series"
-              reason="No server-side time-series aggregate exists (GAPS LW-G7). This panel is not computed in the browser over a paginated list."
-            />
+            <h3 className="lw-sect__title">Signal volume · last 30 days</h3>
+            {volume.isLoading ? (
+              <LwStateLoading rows={3} />
+            ) : volume.isError || !volume.data ? (
+              <LwStateUnavailable source="Signal volume" reason="The time-series aggregate did not respond." onRetry={() => volume.refetch()} />
+            ) : volume.data.total === 0 ? (
+              <p className="lw-state__body" style={{ maxWidth: 'none' }}>No signals in this window.</p>
+            ) : (
+              <>
+                <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
+                  {volume.data.total} signals across the tracked source families.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
+                  {volume.data.days.map((d) => (
+                    <div
+                      key={d.date}
+                      title={`${d.date}: ${d.count}`}
+                      style={{
+                        flex: 1,
+                        minWidth: 3,
+                        height: `${Math.max(4, (d.count / maxDay) * 80)}px`,
+                        background: 'var(--lw-brand-fg)',
+                        borderRadius: 2,
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </section>
 
           <section className="lw-card" style={{ padding: 18 }}>
-            <h3 className="lw-sect__title">Client exposure matrix</h3>
-            <p className="lw-state__body" style={{ maxWidth: 'none' }}>
-              A real zero means the client is monitored and produced no signals; an unmonitored cell
-              is labelled as such. The matrix needs a server exposure aggregate (GAPS LW-G7).
+            <h3 className="lw-sect__title">Client exposure by source family</h3>
+            <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
+              A monitored client with no signals reads 0. A client with no monitoring model reads a
+              dash — not zero.
             </p>
-            <div style={{ marginTop: 10 }}>
-              <LwPill tone="warning">UNAVAILABLE · DENOMINATOR: CLIENTS × SOURCE FAMILIES</LwPill>
-            </div>
+            {exposure.isLoading ? (
+              <LwStateLoading rows={4} />
+            ) : exposure.isError || !exposure.data ? (
+              <LwStateUnavailable source="Client exposure" reason="The exposure matrix did not respond." onRetry={() => exposure.refetch()} />
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '4px 8px' }}>Client</th>
+                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Congress.gov</th>
+                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Committee pages</th>
+                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Combined</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exposure.data.rows.map((r) => (
+                      <tr key={r.clientId} style={{ borderTop: '1px solid var(--lw-line)' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.clientName}</td>
+                        {['Congress.gov', 'Committee pages', 'Congress.gov + Committee pages'].map((fam) => (
+                          <td key={fam} style={{ textAlign: 'right', padding: '6px 8px', color: r.monitored ? undefined : 'var(--lw-faint)' }}>
+                            {r.monitored ? (r.bySourceFamily?.[fam] ?? 0) : 'not monitored'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           <section className="lw-card" style={{ padding: 18 }}>
             <h3 className="lw-sect__title">Issue momentum</h3>
-            <LwStateUnavailable
-              source="Issue momentum"
-              reason="No velocity × materiality aggregate exists server-side (GAPS LW-G7)."
-            />
-          </section>
-
-          {/* dark source-coverage panel — real per-family breakdown (W2-5) */}
-          <section style={{ background: 'var(--lw-ink)', borderRadius: 12, padding: 18, color: '#fff' }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Source coverage</h3>
-            {!scope ? (
-              <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: '20px', color: 'var(--lw-faint)' }}>
-                Coverage is scored per client. Select a client to see which signal families and
-                concepts its watchlist actually covers.
-              </p>
-            ) : coverage.isLoading ? (
-              <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--lw-faint)' }}>Loading…</p>
-            ) : coverage.isError ? (
-              <>
-                <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: '20px', color: 'var(--lw-faint)' }}>
-                  Coverage could not be loaded for this client.
-                </p>
-                <div style={{ marginTop: 12 }}>
-                  <LwPill tone="gray">UNAVAILABLE</LwPill>
-                </div>
-              </>
-            ) : coverage.data?.overall.status === 'NOT_CONFIGURED' ? (
-              <>
-                <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: '20px', color: 'var(--lw-faint)' }}>
-                  No watchlist concepts are configured for this client yet, so there is nothing to
-                  score.
-                </p>
-                <div style={{ marginTop: 12 }}>
-                  <LwPill tone="gray">NOT CONFIGURED</LwPill>
-                </div>
-              </>
+            <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
+              Velocity weighted by materiality, indexed against each topic&rsquo;s own 30-day mean of
+              100.
+            </p>
+            {momentum.isLoading ? (
+              <LwStateLoading rows={4} />
+            ) : momentum.isError || !momentum.data ? (
+              <LwStateUnavailable source="Issue momentum" reason="The momentum aggregate did not respond." onRetry={() => momentum.refetch()} />
+            ) : momentum.data.topics.length === 0 ? (
+              <p className="lw-state__body" style={{ maxWidth: 'none' }}>No watchlist topics have enough history yet.</p>
             ) : (
-              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {coverage.data?.signalFamilies.map((f) => (
-                  <div key={f.family} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ flex: 1, fontSize: 13 }}>{SIGNAL_FAMILY_LABEL[f.family]}</span>
-                    <span style={{ fontSize: 12, color: 'var(--lw-faint)', fontFamily: 'var(--lw-mono)' }}>
-                      {f.coveredConcepts}/{f.configuredConcepts}
-                    </span>
-                    <LwPill tone={COVERAGE_STATUS_TONE[f.status]} size="22">
-                      {COVERAGE_STATUS_LABEL[f.status]}
-                    </LwPill>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {momentum.data.topics.map((t) => (
+                  <div key={t.topicId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, fontSize: 13 }}>{t.label}</span>
+                    <LwPill tone={t.index >= 150 ? 'error' : t.index >= 100 ? 'warning' : 'gray'} size="22">{t.index}</LwPill>
                   </div>
                 ))}
-                {coverage.data?.recommendations.length ? (
-                  <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--lw-faint)' }}>
-                    {coverage.data.recommendations[0]}
-                  </p>
-                ) : null}
+              </div>
+            )}
+          </section>
+
+          <section className="lw-card" style={{ padding: 18 }}>
+            <h3 className="lw-sect__title">Committee activity</h3>
+            <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
+              {committees.data ? `Share of the ${committees.data.total} signals attributable to each committee.` : 'Loading…'}
+            </p>
+            {committees.isLoading ? (
+              <LwStateLoading rows={4} />
+            ) : committees.isError || !committees.data ? (
+              <LwStateUnavailable source="Committee activity" reason="The committee-activity aggregate did not respond." onRetry={() => committees.refetch()} />
+            ) : committees.data.rows.length === 0 ? (
+              <p className="lw-state__body" style={{ maxWidth: 'none' }}>No committee-attributed signals in this window.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {committees.data.rows.map((r) => (
+                  <div key={r.systemCode ?? r.committeeName} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, fontSize: 13 }}>{r.committeeName}</span>
+                    <span className="lw-mono" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>{r.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* dark source-coverage panel */}
+          <section style={{ background: 'var(--lw-ink)', borderRadius: 12, padding: 18, color: '#fff' }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Source coverage</h3>
+            <p style={{ margin: '6px 0 10px', fontSize: 12, color: 'var(--lw-faint)' }}>
+              Missing coverage is never represented as zero.
+            </p>
+            {coverage.isLoading ? (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--lw-faint)' }}>Loading…</p>
+            ) : coverage.isError || !coverage.data ? (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--lw-faint)' }}>Source coverage could not be loaded.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {coverage.data.sources.map((src) => (
+                  <div key={src.family} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, fontSize: 13 }}>{src.family}</span>
+                    <span className="lw-mono" style={{ fontSize: 12, color: 'var(--lw-faint)' }}>
+                      {src.coveragePct == null ? '—' : `${src.coveragePct}%`}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </section>

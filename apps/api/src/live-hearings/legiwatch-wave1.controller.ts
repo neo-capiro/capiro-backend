@@ -253,6 +253,21 @@ export class LegiWatchWave1Controller {
   }
 
   /**
+   * Header-level "Export calendar" action (§2/§5.1) — either an explicit
+   * `hearingIds` selection or a `from`/`to` window (the current filtered
+   * Schedule view). Returns the same JSON shape as the single-hearing
+   * `calendar-export` GET so the web client can reuse `downloadIcs()`.
+   */
+  @Post('calendar-export/bulk')
+  @Header('Cache-Control', 'no-store')
+  calendarExportBulk(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: { hearingIds?: string[]; from?: string; to?: string },
+  ) {
+    return this.wave1.calendarExportBulk(ctx, body, this.appOrigin());
+  }
+
+  /**
    * The same export as a real `text/calendar` download, for clients that
    * subscribe to a URL rather than saving a Blob.
    */

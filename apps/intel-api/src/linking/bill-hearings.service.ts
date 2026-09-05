@@ -25,6 +25,12 @@ export interface BillHearingMention {
 }
 export interface BillHearing {
   sessionId: string;
+  /** The canonical `committee_hearing.id` this session captured — the only id
+   *  the canonical Hearing Detail route (`/legiwatch/hearings/:id`) accepts.
+   *  `null` when the session was never linked to a canonical hearing record
+   *  (e.g. an ad hoc capture) — the row still renders, just without a link,
+   *  rather than routing to the wrong record. */
+  hearingId: string | null;
   title: string | null;
   occurredAt: string | null;
   committeeId: string | null;
@@ -44,7 +50,10 @@ type AlertRow = { sourceRef: string; evidence: unknown; createdAt: Date };
  * assumed newest-first; the first occurrence of a session wins. Exported for the
  * unit spec.
  */
-export function mapCombinedAlertsToHearings(rows: AlertRow[]): BillHearingsResult {
+export function mapCombinedAlertsToHearings(
+  rows: AlertRow[],
+  hearingIdBySession: Map<string, string> = new Map(),
+): BillHearingsResult {
   const bySession = new Map<string, BillHearing>();
   for (const row of rows) {
     const ev = (row.evidence ?? {}) as {
@@ -68,6 +77,7 @@ export function mapCombinedAlertsToHearings(rows: AlertRow[]): BillHearingsResul
     if (!sessionId || bySession.has(sessionId)) continue;
     bySession.set(sessionId, {
       sessionId,
+      hearingId: hearingIdBySession.get(sessionId) ?? null,
       title: h?.title ?? null,
       occurredAt: h?.occurredAt ?? null,
       committeeId: h?.committeeId ?? null,
@@ -108,6 +118,28 @@ export class BillHearingsService {
         select: { sourceRef: true, evidence: true, createdAt: true },
       }),
     );
-    return mapCombinedAlertsToHearings(rows);
+
+    // Resolve each session's canonical committee_hearing.id (LiveHearingSession
+    // is intel-api's own model — no cross-schema join needed) so the frontend
+    // can route to the ONE canonical Hearing Detail instead of a session id
+    // that route doesn't accept.
+    const sessionIds = [
+      ...new Set(
+        rows
+          .map((r) => (r.evidence as { hearing?: { sessionId?: string | null } } | null)?.hearing?.sessionId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const sessions = sessionIds.length
+      ? await this.prisma.liveHearingSession.findMany({
+          where: { id: { in: sessionIds } },
+          select: { id: true, hearingId: true },
+        })
+      : [];
+    const hearingIdBySession = new Map(
+      sessions.filter((s) => s.hearingId).map((s) => [s.id, s.hearingId as string]),
+    );
+
+    return mapCombinedAlertsToHearings(rows, hearingIdBySession);
   }
 }

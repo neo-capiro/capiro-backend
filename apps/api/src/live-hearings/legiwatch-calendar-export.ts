@@ -277,10 +277,16 @@ function buildDescription(
  * Throws only when the hearing has no usable calendar day — a row that cannot
  * be placed on a calendar must fail loudly rather than export as "today".
  */
-export function buildCalendarExport(
-  h: CalendarExportHearing,
-  options: CalendarExportOptions,
-): CalendarExportResult {
+/** One hearing's `BEGIN:VEVENT`…`END:VEVENT` block. Shared by the single-hearing
+ *  and bulk exports so the date/time contract above has exactly one implementation. */
+function buildVEventProps(h: CalendarExportHearing, options: CalendarExportOptions): {
+  props: string[];
+  dayParts: NonNullable<ReturnType<typeof calendarDayParts>>;
+  start: Date | null;
+  end: Date | null;
+  detailUrl: string;
+  uid: string;
+} {
   const dayParts = calendarDayParts(
     h.date ?? (typeof h.startsAt === 'string' ? h.startsAt : null),
   );
@@ -334,6 +340,16 @@ export function buildCalendarExport(
   props.push('TRANSP:OPAQUE');
   props.push('END:VEVENT');
 
+  return { props, dayParts, start, end, detailUrl, uid };
+}
+
+export function buildCalendarExport(
+  h: CalendarExportHearing,
+  options: CalendarExportOptions,
+): CalendarExportResult {
+  const { props, dayParts, start, end, detailUrl, uid } = buildVEventProps(h, options);
+  const allDay = start === null;
+
   const calendar: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -355,6 +371,44 @@ export function buildCalendarExport(
     detailUrl,
     uid,
     allDay,
+  };
+}
+
+/** Multi-hearing export (LEGIWATCH-V2-HANDOFF §2 header action, §5.1 primary
+ *  action) — one VCALENDAR, one VEVENT per hearing, same date/time contract as
+ *  the single-hearing export. A hearing whose date cannot be resolved is
+ *  skipped (never a thrown 500 for the whole batch) and named in `skipped`. */
+export function buildBulkCalendarExport(
+  hearings: CalendarExportHearing[],
+  options: CalendarExportOptions & { calendarName?: string },
+): { ics: string; filename: string; includedCount: number; skipped: Array<{ id: string; reason: string }> } {
+  const skipped: Array<{ id: string; reason: string }> = [];
+  const allProps: string[] = [];
+  for (const h of hearings) {
+    try {
+      allProps.push(...buildVEventProps(h, options).props);
+    } catch (err) {
+      skipped.push({ id: h.id, reason: err instanceof Error ? err.message : 'unresolvable date' });
+    }
+  }
+
+  const calendar: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Capiro//LegiWatch//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escapeIcsText(options.calendarName ?? 'LegiWatch hearings')}`,
+    ...allProps,
+    'END:VCALENDAR',
+  ];
+  const ics = calendar.map(foldIcsLine).join(CRLF) + CRLF;
+
+  return {
+    ics,
+    filename: 'legiwatch-hearings.ics',
+    includedCount: hearings.length - skipped.length,
+    skipped,
   };
 }
 

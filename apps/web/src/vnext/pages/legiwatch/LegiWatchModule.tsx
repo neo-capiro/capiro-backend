@@ -22,10 +22,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import { LEGIWATCH_TABS, REMOVED_TABS, type LegiWatchTab } from './lib/types.js';
+import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, type LegiWatchTab } from './lib/types.js';
 import { useLwFeed, useLwFeedItems } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
 import { HearingsTab } from './hearings/HearingsTab.js';
+import { CommitteesTab } from './committees/CommitteesTab.js';
 import { FeedTab } from './feed/FeedTab.js';
 import { BillsTab } from './bills/BillsTab.js';
 import { DigestTab } from './digest/DigestTab.js';
@@ -35,10 +36,11 @@ import { LegiWatchSettingsTab } from './settings/LegiWatchSettingsTab.js';
 import { SavedViewsOverlay } from './overlays/SavedViewsOverlay.js';
 import { CreateWatchOverlay } from './overlays/CreateWatchOverlay.js';
 import { SystemStatesOverlay } from './overlays/SystemStatesOverlay.js';
-import { HowItWorksOverlay } from './overlays/HowItWorksOverlay.js';
+import { LegiWatchSearchOverlay } from './overlays/LegiWatchSearchOverlay.js';
+import { ExportCalendarOverlay } from './overlays/ExportCalendarOverlay.js';
 import './legiwatch.css';
 
-type Overlay = 'views' | 'watch' | 'states' | 'how' | null;
+type Overlay = 'views' | 'watch' | 'states' | 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
   hearings: {
@@ -46,6 +48,11 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
     title: 'Hearings',
     description:
       'Move from committee schedules to live transcription, watchlist hits, and durable hearing intelligence.',
+  },
+  committees: {
+    eyebrow: 'Committee directory',
+    title: 'Committees',
+    description: 'Every current committee and subcommittee, with its roster, its published record and your client exposure.',
   },
   feed: {
     eyebrow: 'Alert worklist',
@@ -284,9 +291,38 @@ export function LegiWatchModule() {
           {scope && !selectedClient ? (
             <LwPill tone="warning">ARCHIVED CLIENT SCOPE</LwPill>
           ) : null}
+          <LwButton size="42" onClick={() => setOverlay('search')} aria-label="Search LegiWatch" title="Search LegiWatch">
+            Search LegiWatch
+          </LwButton>
           <LwButton size="42" onClick={() => setOverlay('views')}>Saved views</LwButton>
           <LwButton size="42" variant="primary" onClick={() => setOverlay('watch')}>Create watch</LwButton>
-          <LwButton size="42" onClick={() => setOverlay('how')}>How it works</LwButton>
+          <LwButton size="42" onClick={() => setOverlay('export')} aria-label="Export calendar" title="Export calendar">
+            Export calendar
+          </LwButton>
+          <button
+            type="button"
+            className="lw-btn lw-btn--42 lw-btn--icon"
+            aria-label="LegiWatch settings"
+            title="LegiWatch settings"
+            onClick={() => setTab('settings')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
           <LwPill tone={moduleFeed.isError ? 'error' : 'brand'}>
             {moduleFeed.isError ? 'SOURCE ISSUE' : `LIVE · ${activeCount} ACTIVE`}
           </LwPill>
@@ -294,7 +330,7 @@ export function LegiWatchModule() {
       </header>
 
       <div className="lw-tabs" role="tablist" aria-label="LegiWatch sections">
-        {LEGIWATCH_TABS.map((t) => (
+        {LEGIWATCH_PRIMARY_TABS.map((t) => (
           <button
             key={t}
             type="button"
@@ -343,6 +379,8 @@ export function LegiWatchModule() {
         </>
       ) : tab === 'hearings' ? (
         <HearingsTab scope={scope} />
+      ) : tab === 'committees' ? (
+        <CommitteesTab />
       ) : tab === 'feed' ? (
         <FeedTab scope={scope} clients={visibleClients} />
       ) : tab === 'bills' ? (
@@ -368,8 +406,20 @@ export function LegiWatchModule() {
         />
       ) : overlay === 'states' ? (
         <SystemStatesOverlay onClose={() => setOverlay(null)} />
-      ) : overlay === 'how' ? (
-        <HowItWorksOverlay onClose={() => setOverlay(null)} />
+      ) : overlay === 'search' ? (
+        <LegiWatchSearchOverlay
+          onClose={() => setOverlay(null)}
+          onOpenHearing={(id) => {
+            setOverlay(null);
+            navigate(`/legiwatch/hearings/${encodeURIComponent(id)}`);
+          }}
+          onOpenCommittee={(systemCode) => {
+            setOverlay(null);
+            navigate(`/legiwatch/committees/${encodeURIComponent(systemCode)}`);
+          }}
+        />
+      ) : overlay === 'export' ? (
+        <ExportCalendarOverlay scope={scope} onClose={() => setOverlay(null)} />
       ) : null}
     </div>
   );

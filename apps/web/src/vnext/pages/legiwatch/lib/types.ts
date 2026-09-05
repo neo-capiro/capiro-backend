@@ -95,16 +95,33 @@ export const CAPABILITY_LABEL: Record<HearingCapability, string> = {
   unavailable: 'UNAVAILABLE',
 };
 
-/** Tab ids — Hearings first, it is the module's landing tab (§7.1 row 3). */
-export type LegiWatchTab = 'hearings' | 'feed' | 'bills' | 'digest' | 'analytics' | 'settings';
+/** Tab ids — Hearings first, it is the module's landing tab (§7.1 row 3).
+ *  `settings` is a valid, URL-addressable value (reached from the header gear
+ *  action, LEGIWATCH-V2-HANDOFF §1.9/§2) but is not a primary destination —
+ *  it is excluded from `LEGIWATCH_PRIMARY_TABS`, the set rendered in the tab
+ *  strip. */
+export type LegiWatchTab = 'hearings' | 'committees' | 'bills' | 'feed' | 'digest' | 'analytics' | 'settings';
 
+/** Every URL-addressable tab value, including the header-only `settings`. */
 export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
   'hearings',
-  'feed',
+  'committees',
   'bills',
+  'feed',
   'digest',
   'analytics',
   'settings',
+];
+
+/** The six primary destinations rendered in the tab strip (LEGIWATCH-V2-HANDOFF
+ *  §1.1/§2) — Committees is first-class, equal to Hearings and Bills. */
+export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
+  'hearings',
+  'committees',
+  'bills',
+  'feed',
+  'digest',
+  'analytics',
 ];
 
 /** §7.2 / §7.9 — removed tabs redirect to hearings. */

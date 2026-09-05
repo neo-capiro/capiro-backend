@@ -12972,3 +12972,51 @@ model DefenseBudgetCycleManifestRegistry {
   @@index([cycleId, registeredAt(sort: Desc)], map: "dbcmr_cycle_recent_idx")
   @@map("defense_budget_cycle_manifest_registry")
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// LegiWatch V2 Wave 3 — Digest + Analytics (LEGIWATCH-V2-HANDOFF §5.8/§7)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A persisted, generated morning-brief document (§5.8 Digest). `clientId`
+/// null means "All clients" (tenant-wide). `content` carries the full
+/// structured sections so History can re-render a past run byte-for-byte —
+/// it is NOT recomputed retroactively from data that has since changed.
+/// Generation composes real IntelAlert/hearing/bill rows; nothing here is a
+/// template with placeholder prose.
+model LegiWatchDigestRun {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  clientId       String?  @map("client_id") @db.Uuid
+  generatedAt    DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+  generatedBy    String   @map("generated_by")
+  itemCount      Int      @map("item_count")
+  decisionCount  Int      @map("decision_count")
+  sourceFamilies String[] @default([]) @map("source_families")
+  content        Json     @map("content_jsonb")
+
+  @@index([tenantId, clientId, generatedAt(sort: Desc)], map: "lw_digest_run_tenant_client_idx")
+  @@map("legiwatch_digest_run")
+}
+
+/// Per-user, per-scope digest delivery schedule (§5.8 Brief controls ·
+/// Schedule delivery). `hourUtc` is the send hour; email cadence follows the
+/// same shape as `IntelAlertPreference.emailCadence` elsewhere in the module.
+/// This ONLY stores the schedule — it does not itself send anything (§1.5:
+/// external send stays behind the Stage H security review).
+model LegiWatchDigestSchedule {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  userId       String   @map("user_id")
+  clientId     String?  @map("client_id") @db.Uuid
+  cadence      String   @default("daily") // 'daily' | 'weekly' | 'off'
+  hourUtc      Int      @default(11) @map("hour_utc")
+  emailEnabled Boolean  @default(true) @map("email_enabled")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // No @@unique here: Postgres treats every NULL client_id as distinct, so a
+  // DB-level unique constraint cannot dedupe the "All clients" (client_id
+  // null) scope per user. The service upserts via findFirst-then-write
+  // instead — see legiwatch-digest.service.ts putSchedule().
+  @@index([tenantId, userId, clientId], map: "legiwatch_digest_schedule_tenant_user_client_idx")
+  @@map("legiwatch_digest_schedule")
+}

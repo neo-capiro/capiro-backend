@@ -10,6 +10,7 @@
  * likelihood is null-safe for terminal bills (§8.5).
  */
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBillDossier } from '../../../../pages/bills/bill-360-api.js';
 import { useBillHearings } from '../../../../pages/clients/tracker/bill-hearings-api.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
@@ -261,9 +262,10 @@ function HearingsTabView({
   hearings,
   loading,
 }: {
-  hearings: { hearings?: Array<{ sessionId: string; title: string | null; occurredAt: string | null }> } | undefined;
+  hearings: { hearings?: Array<{ sessionId: string; hearingId: string | null; title: string | null; occurredAt: string | null }> } | undefined;
   loading: boolean;
 }) {
+  const navigate = useNavigate();
   if (loading) return <LwStateLoading rows={2} />;
   const list = hearings?.hearings ?? [];
   if (!list.length) {
@@ -272,14 +274,29 @@ function HearingsTabView({
   return (
     <section>
       <h3 className="lw-sect__title">Proceedings referencing this bill</h3>
-      {list.map((h) => (
-        <div key={h.sessionId} className="lw-hrow" style={{ marginBottom: 8 }}>
+      {list.map((h) => {
+        const row = (
           <div>
             <div className="lw-hrow__title">{h.title ?? 'Hearing'}</div>
             <div className="lw-hrow__sub lw-mono">{h.occurredAt ?? ''}</div>
           </div>
-        </div>
-      ))}
+        );
+        return h.hearingId ? (
+          <button
+            key={h.sessionId}
+            type="button"
+            className="lw-hrow"
+            style={{ marginBottom: 8, textAlign: 'left', width: '100%', cursor: 'pointer' }}
+            onClick={() => navigate(`/legiwatch/hearings/${encodeURIComponent(h.hearingId!)}`)}
+          >
+            {row}
+          </button>
+        ) : (
+          <div key={h.sessionId} className="lw-hrow" style={{ marginBottom: 8 }}>
+            {row}
+          </div>
+        );
+      })}
     </section>
   );
 }

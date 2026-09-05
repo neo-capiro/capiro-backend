@@ -23,6 +23,9 @@ export interface BillHearingMention {
 }
 export interface BillHearing {
   sessionId: string;
+  /** Canonical `committee_hearing.id` — the id the Hearing Detail route
+   *  accepts. `null` when this session was never linked to one. */
+  hearingId: string | null;
   title: string | null;
   occurredAt: string | null;
   committeeId: string | null;
