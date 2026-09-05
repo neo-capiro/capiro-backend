@@ -695,9 +695,8 @@ export class LegiWatchWave1Service {
 
     // Count and facets reuse the same params minus the LIMIT/OFFSET pair.
     const facetParams = params.slice(0, params.length - 2);
-    const [totals, chamberFacets, committeeFacets, statusFacets] = await this.prisma.withTenant(
-      ctx.tenantId,
-      async (tx) =>
+    const [totals, chamberFacets, committeeFacets, statusFacets, corpusTotals] =
+      await this.prisma.withTenant(ctx.tenantId, async (tx) =>
         Promise.all([
           tx.$queryRawUnsafe<Array<{ total: number }>>(
             `SELECT count(DISTINCT h.id)::int AS total ${from} WHERE ${where}`,
@@ -720,14 +719,24 @@ export class LegiWatchWave1Service {
              GROUP BY h.event_status ORDER BY count DESC, value ASC`,
             ...facetParams,
           ),
+          // The archive BEFORE the query and facets narrow it. Every number
+          // above is post-filter, so a zero `total` cannot tell "nothing
+          // matched" from "nothing is here" — and the surface was rendering
+          // the second message for the first case. `baseWhere` is entirely
+          // literal, so this binds no parameters and cannot disturb the $1
+          // q-binding or the LIMIT/OFFSET binds.
+          tx.$queryRawUnsafe<Array<{ total: number }>>(
+            `SELECT count(DISTINCT h.id)::int AS total ${from} WHERE ${baseWhere}`,
+          ),
         ]),
-    );
+      );
 
     const total = totals[0]?.total ?? 0;
 
     return {
       rows: rows.map((row) => this.toArchiveResult(row)),
       total,
+      corpusTotal: corpusTotals[0]?.total ?? 0,
       page,
       pageSize,
       hasMore: offset + rows.length < total,

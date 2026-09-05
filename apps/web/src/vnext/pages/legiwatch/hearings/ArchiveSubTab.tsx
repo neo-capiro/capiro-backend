@@ -8,9 +8,9 @@
  *
  * The corpus is NOT loaded into the browser and filtered locally — matching,
  * faceting, ordering and paging all happen in Postgres. The input is debounced
- * so typing does not fire a query per keystroke, and react-query keys each
- * request by its params so a slow response for an older query cannot overwrite
- * a newer one.
+ * so typing does not fire a query per keystroke; while the input is ahead of
+ * the committed query, or a superseded request is still unwinding, the surface
+ * says a search is running instead of showing the answer to the last one.
  *
  * Every result navigates to the ONE canonical destination,
  * `/legiwatch/hearings/:id`; a transcript hit carries its segment and timecode
@@ -20,7 +20,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
-import { useArchiveSearch, w1Error, type ArchiveResult } from '../lib/wave1-api.js';
+import { isCanceled, useArchiveSearch, w1Error, type ArchiveResult } from '../lib/wave1-api.js';
 
 const PAGE_SIZE = 20;
 
@@ -35,11 +35,6 @@ const INTELLIGENCE_TYPES = [
   'POLICY_POSITION',
   'KEY_QUOTE',
 ];
-
-/** Whether any filter beyond the free-text query is set. */
-function hasActiveFilters(f: Record<string, string | undefined>): boolean {
-  return Object.entries(f).some(([key, value]) => key !== 'q' && Boolean(value));
-}
 
 export function ArchiveSubTab({ clientId }: { clientId: string }) {
   const navigate = useNavigate();
@@ -93,7 +88,34 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
   };
 
   const rows = search.data?.rows ?? [];
-  const filtersActive = hasActiveFilters({ ...filters, q: query });
+
+  // The three things a zero result can mean, kept apart. Conflating the first
+  // two is what told a user with a no-hit search that the archive was empty.
+  const hasQuery = query.length > 0;
+  const hasFacetFilters = Boolean(
+    filters.chamber ||
+      filters.committee ||
+      filters.from ||
+      filters.to ||
+      filters.eventStatus ||
+      filters.hasTranscript ||
+      filters.intelligenceType ||
+      (clientId && filters.relevanceBand),
+  );
+  // `corpusTotal` is the archive counted before the query and facets narrow it.
+  // With nothing narrowing the search a zero result IS an empty corpus, which
+  // is also the honest fallback when an older API image omits the field.
+  const corpusEmpty = (!hasQuery && !hasFacetFilters) || search.data?.corpusTotal === 0;
+
+  // The debounce leaves the input ahead of the committed query for 300ms. What
+  // is on screen during that window answers the PREVIOUS question, so say a
+  // search is running rather than paint the old corpus under the new text.
+  const isTyping = rawQuery.trim() !== query;
+  // An aborted request is the app superseding itself, never a failure to show.
+  // It also leaves us with no answer at all, so it reads as "still searching"
+  // rather than falling through to an empty state we cannot actually vouch for.
+  const wasCanceled = search.isError && isCanceled(search.error);
+  const isRealError = search.isError && !wasCanceled;
 
   return (
     <div className="lw-archive">
@@ -217,25 +239,63 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
         ) : null}
       </div>
 
-      {search.isLoading ? (
+      {isTyping || search.isLoading || wasCanceled ? (
         <>
+          <p className="lw-card__meta" style={{ marginTop: 0 }} role="status" aria-live="polite">
+            Searching…
+          </p>
           <LwSkeleton height={72} />
           <div style={{ height: 10 }} />
           <LwSkeleton height={72} delay={2} />
           <div style={{ height: 10 }} />
           <LwSkeleton height={72} delay={3} />
         </>
-      ) : search.isError ? (
+      ) : isRealError ? (
         <LwStateUnavailable
           source="Hearing archive"
           reason={`Archive search is unavailable. ${w1Error(search.error)}`}
           onRetry={() => void search.refetch()}
         />
       ) : rows.length === 0 ? (
-        // Two distinct empty states: nothing in the corpus, versus nothing
-        // matching the current filters.
+        // Three distinct empty states: an empty corpus, a query that matched
+        // nothing, and facets that matched nothing. Each has its own way out.
         <div className="lw-card" style={{ padding: 18 }}>
-          {filtersActive ? (
+          {corpusEmpty ? (
+            <p style={{ margin: 0, fontSize: 14 }}>
+              The archive has no completed proceedings yet. Hearings appear here once they have
+              taken place.
+            </p>
+          ) : hasQuery ? (
+            <>
+              <p style={{ margin: 0, fontSize: 14 }}>
+                No results match “{query}”. Try a broader phrase or clear your search.
+              </p>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                <LwButton
+                  onClick={() => {
+                    // Committed directly as well as through the input: an
+                    // explicit clear has nothing to debounce.
+                    setRawQuery('');
+                    setQuery('');
+                    setPage(1);
+                  }}
+                >
+                  Clear search
+                </LwButton>
+                {/* Both narrowings are in play, so neither exit may be missing. */}
+                {hasFacetFilters ? (
+                  <LwButton
+                    onClick={() => {
+                      setFilters({});
+                      setPage(1);
+                    }}
+                  >
+                    Clear filters
+                  </LwButton>
+                ) : null}
+              </div>
+            </>
+          ) : (
             <>
               <p style={{ margin: 0, fontSize: 14 }}>
                 No archived proceedings match these filters.
@@ -244,7 +304,6 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
                 <LwButton
                   onClick={() => {
                     setFilters({});
-                    setRawQuery('');
                     setPage(1);
                   }}
                 >
@@ -252,11 +311,6 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
                 </LwButton>
               </div>
             </>
-          ) : (
-            <p style={{ margin: 0, fontSize: 14 }}>
-              The archive has no completed proceedings yet. Hearings appear here once they have
-              taken place.
-            </p>
           )}
         </div>
       ) : (
@@ -290,7 +344,10 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
             aria-label="Archive pagination"
             style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}
           >
-            <LwButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+            <LwButton
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || search.isPlaceholderData}
+            >
               ← Previous
             </LwButton>
             <span className="lw-card__meta">
@@ -298,7 +355,10 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
             </span>
             <LwButton
               onClick={() => setPage((p) => p + 1)}
-              disabled={!search.data!.hasMore}
+              // While the held-over page is on screen, `hasMore` describes the
+              // page being left, not the one arriving. Wait for the real answer
+              // rather than let a click run off the end of the results.
+              disabled={!search.data!.hasMore || search.isPlaceholderData}
             >
               Next →
             </LwButton>
