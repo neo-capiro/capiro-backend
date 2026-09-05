@@ -2833,7 +2833,9 @@ order: 3;
   margin: 3px 0 10px;
 }
 
-.capiro-vnext-root .vnext-meri__rail-panel-tab {
+/* Specificity must beat the `.vnext-meri button { font: inherit }` reset
+   (0,2,1) — addressed as a button type selector to reach 0,3,1. */
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab {
 position: relative;
   flex: 1;
   display: flex;
@@ -2948,6 +2950,7 @@ border-bottom: 1px solid var(--meri-border);
 }
 
 /* Context items */
+/* Pending-attachment rows render the same card as a non-interactive div. */
 .capiro-vnext-root .vnext-meri__ctx-item {
   display: flex;
   align-items: center;
@@ -2956,6 +2959,18 @@ border-bottom: 1px solid var(--meri-border);
   border-radius: 10px;
   background: var(--meri-surface);
   box-shadow: var(--meri-shadow-card);
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__ctx-item {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__ctx-item:hover {
+  background: var(--meri-surface-2);
 }
 
 .capiro-vnext-root .vnext-meri__ctx-item-tile {
@@ -3077,7 +3092,7 @@ border-bottom: 1px solid var(--meri-border);
   color: var(--meri-text-faint);
 }
 
-.capiro-vnext-root .vnext-meri__rail-action-btn {
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4674,7 +4689,7 @@ width: 30px;
   color: #475467;
 }
 
-.capiro-vnext-root .vnext-meri__search-everything {
+.capiro-vnext-root .vnext-meri button.vnext-meri__search-everything {
   margin-top: 9px;
   border: 0;
   background: transparent;

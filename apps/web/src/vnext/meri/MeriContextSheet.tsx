@@ -8,6 +8,12 @@ interface MeriContextSheetProps {
   loading: boolean;
   error: boolean;
   onClose: () => void;
+  /**
+   * When set (a click on an ACTIVE CONTEXT row in the rail), the sheet opens
+   * focused on that single item — the prototype's click-to-preview behavior —
+   * instead of listing every compiled item.
+   */
+  focusItemId?: string | null;
 }
 
 /**
@@ -88,6 +94,7 @@ export function MeriContextSheet({
   loading,
   error,
   onClose,
+  focusItemId = null,
 }: MeriContextSheetProps) {
   useEffect(() => {
     if (!open) return;
@@ -101,13 +108,23 @@ export function MeriContextSheet({
   if (!open) return null;
 
   const unavailable = !loading && !error && !packet;
-  const sheetTitle = packet?.packetId ? `Context packet · ${packet.packetId}` : 'Context packet';
-  const sheetMeta = packet
-    ? `Compiled server-side for this turn. ${packet.items.length} item${
-        packet.items.length === 1 ? '' : 's'
-      } included, ${packet.exclusions.length} excluded, ${packet.unauthorizedCount} unauthorized. ` +
-      `Resolved from the packet id persisted with this message — never from the conversation's latest.`
-    : '';
+  const focusedItem =
+    focusItemId && packet ? (packet.items.find((item) => item.id === focusItemId) ?? null) : null;
+  const visibleItems = focusItemId ? (focusedItem ? [focusedItem] : []) : (packet?.items ?? []);
+  const sheetTitle = focusedItem
+    ? focusedItem.label
+    : packet?.packetId
+      ? `Context packet · ${packet.packetId}`
+      : 'Context packet';
+  const sheetEyebrow = focusedItem ? 'CONTEXT PREVIEW' : 'CONTEXT USED FOR THIS TURN';
+  const sheetMeta = focusedItem
+    ? `${focusedItem.type.replace(/_/g, ' ')} · ${focusedItem.scope} scope · included by the server-side context compiler.`
+    : packet
+      ? `Compiled server-side for this turn. ${packet.items.length} item${
+          packet.items.length === 1 ? '' : 's'
+        } included, ${packet.exclusions.length} excluded, ${packet.unauthorizedCount} unauthorized. ` +
+        `Resolved from the packet id persisted with this message — never from the conversation's latest.`
+      : '';
 
   return (
     <div
@@ -128,7 +145,7 @@ export function MeriContextSheet({
         <div className="vnext-meri__sheet-header">
           <span className="vnext-meri__sheet-header-copy">
             <span id="meri-sheet-desc" className="vnext-meri__sheet-eyebrow">
-              CONTEXT USED FOR THIS TURN
+              {sheetEyebrow}
             </span>
             <span id="meri-sheet-title" className="vnext-meri__sheet-title">
               {sheetTitle}
@@ -178,7 +195,7 @@ export function MeriContextSheet({
               ) : null}
               <div className="vnext-meri__sheet-meta">{sheetMeta}</div>
               <div className="vnext-meri__sheet-item-list">
-                {packet.items.map((item) => (
+                {visibleItems.map((item) => (
                   <article key={item.id} className="vnext-meri__sheet-item">
                     <div className="vnext-meri__sheet-item-head">
                       <MeriIcon name={contextItemIcon(item)} size={15} color="#98A2B3" />
@@ -230,9 +247,11 @@ export function MeriContextSheet({
                   </article>
                 ))}
               </div>
-              <div className="vnext-meri__sheet-excluded-label">
-                EXCLUDED · {packet.exclusions.length}
-              </div>
+              {focusedItem ? null : (
+                <>
+                  <div className="vnext-meri__sheet-excluded-label">
+                    EXCLUDED · {packet.exclusions.length}
+                  </div>
               <div className="vnext-meri__sheet-excluded-list">
                 {packet.exclusions.map((exclusion, index) => (
                   <div
@@ -251,6 +270,8 @@ export function MeriContextSheet({
                 This is a server-compiled projection. There is no add, remove or apply — membership
                 is read-only.
               </div>
+                </>
+              )}
             </>
           ) : null}
         </div>

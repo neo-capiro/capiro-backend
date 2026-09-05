@@ -11,15 +11,17 @@ function readMeri(name: string): string {
 describe('context rail panel head — CSS actually exists for what the JSX renders', () => {
   test('every class VNextMeriContextRail renders on the panel head has a real CSS rule', () => {
     const css = readMeri('vnext-meri.css');
+    // Button-carried classes are addressed as `button.<class>` to beat the
+    // `.vnext-meri button { font: inherit }` reset — accept either form.
     for (const cls of [
-      '.vnext-meri__rail-panel-head',
-      '.vnext-meri__rail-panel-title',
-      '.vnext-meri__rail-panel-tabs',
-      '.vnext-meri__rail-panel-tab',
-      '.vnext-meri__rail-panel-tab-badge',
-      '.vnext-meri__rail-panel-collapse',
-    ]) {
-      expect(css).toContain(`.capiro-vnext-root ${cls} {`);
+      ['.vnext-meri__rail-panel-head', '.capiro-vnext-root .vnext-meri__rail-panel-head {'],
+      ['.vnext-meri__rail-panel-title', '.capiro-vnext-root .vnext-meri__rail-panel-title {'],
+      ['.vnext-meri__rail-panel-tabs', '.capiro-vnext-root .vnext-meri__rail-panel-tabs {'],
+      ['.vnext-meri__rail-panel-tab', '.capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab {'],
+      ['.vnext-meri__rail-panel-tab-badge', '.capiro-vnext-root .vnext-meri__rail-panel-tab-badge {'],
+      ['.vnext-meri__rail-panel-collapse', '.capiro-vnext-root .vnext-meri__rail-panel-collapse {'],
+    ] as const) {
+      expect(css, `missing CSS rule for ${cls[0]}`).toContain(cls[1]);
     }
   });
 
@@ -41,16 +43,20 @@ describe('context rail — exclusive Context/Memory switcher, not a 4-way accord
     expect(source).not.toMatch(/key:\s*'actions'/);
   });
 
-  test('panel titles match the prototype exactly: CONVERSATION CONTEXT / WHAT MERI REMEMBERS / SOURCE DETAIL / ARTIFACT CANVAS', () => {
+  test('panel title matches the prototype exactly: Behind the answer / SOURCE DETAIL / ARTIFACT CANVAS', () => {
     const source = readMeri('VNextMeriContextRail.tsx');
-    expect(source).toContain('CONVERSATION CONTEXT');
-    expect(source).toContain('WHAT MERI REMEMBERS');
+    expect(source).toContain('Behind the answer');
+    expect(source).not.toContain('CONVERSATION CONTEXT');
+    expect(source).not.toContain('WHAT MERI REMEMBERS');
     expect(source).toContain('SOURCE DETAIL');
     expect(source).toContain('ARTIFACT CANVAS');
   });
 
-  test('Connected Sources and Skills render only inside the Context panel, not as independently toggleable accordion sections', () => {
+  test('Connected Sources and Skills are gone from the rail — they live in the composer + menu', () => {
     const source = readMeri('VNextMeriContextRail.tsx');
+    expect(source).not.toContain('CONNECTED SOURCES');
+    expect(source).not.toContain('>SKILLS<');
+    expect(source).not.toContain('Manage connections');
     expect(source).not.toContain('vnext-meri__rail-section-toggle');
     expect(source).not.toContain('setCtxOpen');
     expect(source).not.toContain('setSrcOpen');

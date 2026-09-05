@@ -1,8 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  useManagedMcpApps,
-  type ManagedApp,
-} from '../../components/chat/managed-mcp-apps.js';
 import { useApi } from '../../lib/use-api.js';
 import { config } from '../../env.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
@@ -11,7 +7,6 @@ import { MeriSourceDetail } from './MeriSourceDetail.js';
 import { MeriArtifactCanvas } from './MeriArtifactCanvas.js';
 import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
-import { ConnectorMark } from './meri-connector-logos.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
@@ -53,8 +48,12 @@ interface VNextMeriContextRailProps {
   openSection: MeriContextSection | null;
   onToggle: () => void;
   onExpandSection: (section: MeriContextSection) => void;
-  onOpenIntegrations: () => void;
-  onOpenContext: (packet: MeriContextPacket | null, loading: boolean, error: boolean) => void;
+  onOpenContext: (
+    packet: MeriContextPacket | null,
+    loading: boolean,
+    error: boolean,
+    focusItemId?: string | null,
+  ) => void;
   /** Set when a citation's "View full source" was clicked; swaps out the normal section stack. */
   activeSourceDetail: ActiveSourceDetail | null;
   onCloseSourceDetail: () => void;
@@ -109,22 +108,6 @@ export interface MeriQuickAction {
   requiresClient: boolean;
 }
 
-interface MeriSkillsResponse {
-  version: 1;
-  enabled: boolean;
-  skills: unknown;
-}
-
-const QUICK_ACTION_ICONS: MeriIconName[] = ['SearchLg', 'File05', 'BarChart01', 'Grid01', 'Dataflow03'];
-
-function actionIcon(index: number): MeriIconName {
-  return QUICK_ACTION_ICONS[index] ?? 'DotsGrid';
-}
-
-function quickActionPrompt(action: MeriQuickAction, clientName: string | null): string {
-  return action.starterPrompt.replaceAll('{{clientName}}', clientName?.trim() || 'the client selected in SCOPE');
-}
-
 /**
  * v4's rail is an exclusive one-of switcher — Context or Memory, full panel,
  * not sibling accordions. Connected Sources and Skills are sections *inside*
@@ -155,26 +138,12 @@ const TURN_TABS: Array<{ key: MeriTurnInspectorTab; icon: MeriIconName; label: s
 
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
 
-function appStatus(app: ManagedApp): string {
-  if (app.connected) return 'CONNECTED';
-  if (app.status === 'needs_reauth') return 'RECONNECT';
-  if (app.status === 'error') return 'ERROR';
-  return app.available ? 'AVAILABLE' : 'UNAVAILABLE';
-}
-
-function statusTone(status: string): 'connected' | 'error' | 'idle' {
-  if (status === 'CONNECTED') return 'connected';
-  if (status === 'ERROR' || status === 'REVOKED' || status === 'RECONNECT') return 'error';
-  return 'idle';
-}
-
 export function VNextMeriContextRail({
   controller,
   collapsed,
   openSection,
   onToggle,
   onExpandSection,
-  onOpenIntegrations,
   onOpenContext,
   activeSourceDetail,
   onCloseSourceDetail,
@@ -188,10 +157,6 @@ export function VNextMeriContextRail({
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
   const [packetError, setPacketError] = useState(false);
-  const [quickActions, setQuickActions] = useState<MeriQuickAction[]>([]);
-  const [quickActionsLoading, setQuickActionsLoading] = useState(false);
-  const [quickActionsError, setQuickActionsError] = useState(false);
-  const managed = useManagedMcpApps();
 
   useEffect(() => {
     const conversationId = controller.activeConversationId;
@@ -222,29 +187,6 @@ export function VNextMeriContextRail({
     };
   }, [api, controller.activeConversationId, controller.isStreaming]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setQuickActionsLoading(true);
-    setQuickActionsError(false);
-    void api
-      .get<MeriSkillsResponse>('/api/clio/v3/skills')
-      .then(({ data }) => {
-        if (!cancelled) setQuickActions(normalizeMeriQuickActionCatalog(data));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setQuickActions([]);
-          setQuickActionsError(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setQuickActionsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
-
   const pendingAttachments = useMemo(() => {
     const items = new Map<string, { id: string; title: string; kind: string }>();
     for (const attachment of controller.stagedAttachments) {
@@ -260,8 +202,6 @@ export function VNextMeriContextRail({
   }, [controller.stagedAttachments]);
 
   const contextItems = useMemo(() => activeContextLabels(packet), [packet]);
-
-  const connectedSources = managed?.apps ?? [];
 
   const { reviewCount, pendingProposalCount } = useMeriGovernedMemoryQueues();
   const pendingMemoryCount = reviewCount + pendingProposalCount;
@@ -286,7 +226,9 @@ export function VNextMeriContextRail({
   }
 
   const isMemoryPanel = openSection === 'memory';
-  const panelTitle = isMemoryPanel ? 'WHAT MERI REMEMBERS' : 'CONVERSATION CONTEXT';
+  // v6 prototype: the right rail's title is always "Behind the answer" —
+  // both the Context and Memory tabs live under it.
+  const panelTitle = 'Behind the answer';
   const selectedClient = controller.clients.find((client) => client.id === controller.selectedClientValue) ?? null;
   const scopeLabel = selectedClient ? selectedClient.name : 'Portfolio — all clients';
 
@@ -449,14 +391,20 @@ export function VNextMeriContextRail({
                 {contextItems.length ? (
                   <div className="vnext-meri__ctx-list">
                     {contextItems.slice(0, 5).map((item) => (
-                      <div key={item.id} className="vnext-meri__ctx-item">
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="vnext-meri__ctx-item"
+                        title={`Preview ${item.title}`}
+                        onClick={() => onOpenContext(packet, packetLoading, packetError, item.id)}
+                      >
                         <span className="vnext-meri__ctx-item-tile"><MeriIcon name="File05" size={14} color="#101828" /></span>
                         <div className="vnext-meri__ctx-item-body">
                           <span className="vnext-meri__ctx-item-title">{item.title}</span>
                           <span className="vnext-meri__ctx-item-kind">{item.kind}</span>
                         </div>
                         <span className="vnext-meri__ctx-item-dot" title="Included by the server-side context compiler" />
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : !packetLoading && !packetError ? <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState> : null}
@@ -492,85 +440,6 @@ export function VNextMeriContextRail({
                   <MeriIcon name="Sliders02" size={14} color="#344054" />
                   Open context packet
                 </button>
-              </div>
-            </div>
-
-            <div className="vnext-meri__rail-section">
-              <div className="vnext-meri__rail-section-head">
-                <span className="vnext-meri__section-label">CONNECTED SOURCES</span>
-                <MeriIcon name="ChevronUp" size={14} color="#98A2B3" />
-              </div>
-              <div className="vnext-meri__rail-section-content">
-                {managed?.loading && connectedSources.length === 0 ? <MeriPanelState tone="loading">Loading connected apps…</MeriPanelState> : null}
-                {!managed?.loading && connectedSources.length === 0 ? <MeriPanelState tone={managed?.error ? 'error' : 'empty'}>{managed?.error || 'No managed apps are configured for this tenant.'}</MeriPanelState> : null}
-                {connectedSources.length ? <div>{connectedSources.map((source) => {
-                  const status = appStatus(source);
-                  const tone = statusTone(status);
-                  return (
-                    <button type="button" key={source.id} className="vnext-meri__source-row" onClick={onOpenIntegrations}>
-                      <span className="vnext-meri__source-tile">
-                        <ConnectorMark id={source.id} size={14} />
-                      </span>
-                      <span className="vnext-meri__source-name">{source.name}</span>
-                      <span className={`vnext-meri__source-state is-${tone}`}>{status}</span>
-                      <span className={`vnext-meri__source-dot is-${tone}`} />
-                    </button>
-                  );
-                })}</div> : null}
-                <button type="button" className="vnext-meri__rail-action-btn" onClick={onOpenIntegrations}>
-                  <MeriIcon name="PuzzlePiece01" size={14} color="#344054" />
-                  Manage connections
-                </button>
-              </div>
-            </div>
-
-            <div className="vnext-meri__rail-section">
-              <div className="vnext-meri__rail-section-head">
-                <span className="vnext-meri__section-label">SKILLS</span>
-                <MeriIcon name="ChevronUp" size={14} color="#98A2B3" />
-              </div>
-              <div className="vnext-meri__rail-section-content">
-                {quickActionsLoading ? <MeriPanelState tone="loading">Loading available skills…</MeriPanelState> : null}
-                {quickActionsError ? <MeriPanelState tone="error">Skills could not be loaded right now.</MeriPanelState> : null}
-                {!quickActionsLoading && !quickActionsError && quickActions.length === 0 ? (
-                  <MeriPanelState tone="empty">No skills are available for this workspace yet.</MeriPanelState>
-                ) : null}
-                <div className="vnext-meri__actions-list">
-                  {quickActions.map((action, index) => (
-                    <button
-                      type="button"
-                      key={action.id}
-                      className="vnext-meri__action-item is-rich"
-                      disabled={controller.isStreaming || (action.requiresClient === true && !controller.selectedClientValue)}
-                      title={action.requiresClient === true && !controller.selectedClientValue ? 'Select a client in Scope first.' : undefined}
-                      onClick={() => {
-                        const prompt = quickActionPrompt(
-                          action,
-                          controller.clients.find((client) => client.id === controller.selectedClientValue)?.name ?? null,
-                        );
-                        window.dispatchEvent(new CustomEvent('meri-fill-draft', { detail: prompt }));
-                      }}
-                    >
-                      <span className="vnext-meri__action-tile"><MeriIcon name={actionIcon(index)} size={13} color="#101828" /></span>
-                      <span className="vnext-meri__action-copy">
-                        <span className="vnext-meri__action-label">{action.label}</span>
-                        {action.description ? (
-                          <span className="vnext-meri__action-desc">{action.description}</span>
-                        ) : null}
-                        {action.requiresClient ? (
-                          <span className="vnext-meri__action-meta">Needs a client</span>
-                        ) : (
-                          <span className="vnext-meri__action-meta">Works across your portfolio</span>
-                        )}
-                      </span>
-                      <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
-                    </button>
-                  ))}
-                </div>
-                <div className="vnext-meri__ctx-empty vnext-meri__ctx-note">
-                  Choose a skill to drop a starter prompt into the composer. Nothing is sent until you press Send.
-                </div>
-                <div className="vnext-meri__rail-footer">CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL</div>
               </div>
             </div>
           </div>

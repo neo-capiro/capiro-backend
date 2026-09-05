@@ -95,7 +95,8 @@ export function VNextMeriShell({
     packet: MeriContextPacket | null;
     loading: boolean;
     error: boolean;
-  }>({ open: false, packet: null, loading: false, error: false });
+    focusItemId?: string | null;
+  }>({ open: false, packet: null, loading: false, error: false, focusItemId: null });
   const threadSearchRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -322,8 +323,9 @@ export function VNextMeriShell({
               openSection={openSection}
               onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
               onExpandSection={expandSection}
-              onOpenIntegrations={handleOpenIntegrations}
-              onOpenContext={(packet, loading, error) => setContextSheet({ open: true, packet, loading, error })}
+              onOpenContext={(packet, loading, error, focusItemId) =>
+                setContextSheet({ open: true, packet, loading, error, focusItemId: focusItemId ?? null })
+              }
               activeSourceDetail={activeSourceDetail}
               onCloseSourceDetail={() => setActiveSourceDetail(null)}
               activeArtifact={controller.activeArtifact}
@@ -340,6 +342,7 @@ export function VNextMeriShell({
         packet={contextSheet.packet}
         loading={contextSheet.loading}
         error={contextSheet.error}
+        focusItemId={contextSheet.focusItemId}
         onClose={() => setContextSheet((current) => ({ ...current, open: false }))}
       />
       <MeriCommandPalette
