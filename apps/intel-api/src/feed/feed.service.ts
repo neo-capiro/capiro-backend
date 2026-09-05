@@ -109,6 +109,25 @@ export const RECOGNISED_WORK_FILTERS = [
 ] as const;
 export type WorkFilterValue = (typeof RECOGNISED_WORK_FILTERS)[number];
 
+/** Exact per-bucket counts for the six work-state buckets (Wave 2, W2-3). */
+export interface WorkStateBucketCounts {
+  new: number;
+  in_review: number;
+  assigned: number;
+  actioned: number;
+  snoozed: number;
+  dismissed: number;
+}
+
+const EMPTY_BUCKET_COUNTS: WorkStateBucketCounts = {
+  new: 0,
+  in_review: 0,
+  assigned: 0,
+  actioned: 0,
+  snoozed: 0,
+  dismissed: 0,
+};
+
 /** States a positive `id: { in }` lookup covers one-to-one with the filter name. */
 const POSITIVE_STATE_FILTERS: ReadonlySet<string> = new Set([
   'in_review',
@@ -400,13 +419,37 @@ export class FeedService {
     // filter would show 0 for every non-selected severity, which defeats the
     // point of a facet panel) — severityFacetWhere strips that one key back out.
     const { severity: _severityFilter, ...severityFacetWhere } = facetWhere;
-    const [grouped, groupedSev] = await Promise.all([
+    // W2-3: the work-state bucket counts are their OWN facet dimension, so —
+    // same rule as severityFacetWhere above — they must NOT reflect the
+    // current work-state filter (that would zero out every non-selected
+    // bucket), but MUST reflect every other active filter (client scope,
+    // status, severity, sourceType, sourceRef, date range). `facetWhere` has
+    // already had the work-state id-list narrowing applied by this point, so
+    // that filter is recomputed from the ORIGINAL query inputs rather than
+    // reused from the mutated object.
+    const [grouped, groupedSev, workStateCounts, total] = await Promise.all([
       this.prisma.withTenant(tenantId, (tx) =>
         tx.intelAlert.groupBy({ by: ['sourceType'], where: facetWhere, _count: true }),
       ),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.intelAlert.groupBy({ by: ['severity'], where: severityFacetWhere, _count: true }),
       ),
+      q.userId
+        ? this.workStateBucketCounts({
+            tenantId,
+            clientId: clientId ?? null,
+            userId: q.userId,
+            statuses,
+            severities: q.severities,
+            sourceTypes: q.sourceTypes,
+            sourceRef: q.sourceRef,
+            since: q.since,
+            until: q.until,
+          })
+        : Promise.resolve(EMPTY_BUCKET_COUNTS),
+      // The EXACT total for the fully-filtered set `items` is drawn from —
+      // never approximated from `items.length + (hasMore ? 1 : 0)`.
+      this.prisma.withTenant(tenantId, (tx) => tx.intelAlert.count({ where })),
     ]);
     const counts: Record<string, number> = {};
     for (const g of grouped) counts[g.sourceType] = g._count;
@@ -512,7 +555,88 @@ export class FeedService {
       };
     });
 
-    return { items: decorated, nextCursor, hasMore, counts, severityCounts };
+    return {
+      items: decorated,
+      nextCursor,
+      hasMore,
+      counts,
+      severityCounts,
+      // W2-3 additions. Kept as NEW sibling fields rather than restructuring
+      // `counts`/`severityCounts` — both are already read by name by existing
+      // consumers (Bill Tracker's board, Radar's TrackerFeedPanel, the Wave 1
+      // LegiWatch module), and a rename would be a breaking change to surfaces
+      // Wave 2 does not touch. `total` is the exact count of THIS query's
+      // fully-filtered set (the same `where` `items` was drawn from) — it
+      // exists so callers stop deriving a page-count floor from
+      // `items.length + (hasMore ? 1 : 0)`.
+      total,
+      workStateCounts,
+    };
+  }
+
+  /**
+   * Exact per-work-state-bucket counts (W2-3), over the SAME canonical filter
+   * inputs `getFeed` builds `where`/`facetWhere` from — this does not fork the
+   * feed's filter semantics, it just needs its own parameterized SQL because a
+   * bucket count requires a LEFT JOIN + CASE Prisma's query builder cannot
+   * express (work state lives in a separate per-user table, and the anti-join
+   * for "no row = new" cannot be a `groupBy`).
+   *
+   * ONE query. Bound parameters only — no interpolated filter values — so this
+   * carries no injection risk despite being raw SQL. Runs inside `withTenant`,
+   * which sets the RLS GUC `intel_alert`/`intel_alert_work_state` both enforce.
+   *
+   * The effective-bucket CASE mirrors `AlertWorkStateService.alertIdsInState`'s
+   * snoozed handling exactly: no row → 'new'; an ACTIVE snooze (no end date, or
+   * one still in the future) → 'snoozed'; an EXPIRED snooze reads as 'new' —
+   * per RB-01, an expired snooze is default-visible again, so it must bucket
+   * the same way the item-fetch path already treats it, not as still-snoozed.
+   */
+  private async workStateBucketCounts(input: {
+    tenantId: string;
+    clientId: string | null;
+    userId: string;
+    statuses: string[];
+    severities?: string[];
+    sourceTypes?: string[];
+    sourceRef?: string;
+    since?: Date;
+    until?: Date;
+  }): Promise<WorkStateBucketCounts> {
+    const rows = await this.prisma.withTenant(input.tenantId, (tx) =>
+      tx.$queryRaw<Array<{ bucket: string; count: bigint }>>`
+        SELECT
+          CASE
+            WHEN ws.state IS NULL THEN 'new'
+            WHEN ws.state = 'snoozed'
+              AND (ws.snoozed_until IS NULL OR ws.snoozed_until > now())
+              THEN 'snoozed'
+            WHEN ws.state = 'snoozed' THEN 'new'
+            ELSE ws.state
+          END AS bucket,
+          count(*)::int AS count
+        FROM intel_alert a
+        LEFT JOIN intel_alert_work_state ws
+          ON ws.alert_id = a.id
+         AND ws.tenant_id = a.tenant_id
+         AND ws.user_id = ${input.userId}
+        WHERE a.tenant_id = ${input.tenantId}
+          AND a.status = ANY(${input.statuses})
+          AND (${input.clientId}::text IS NULL OR a.client_id = ${input.clientId})
+          AND (${input.severities ?? null}::text[] IS NULL OR a.severity = ANY(${input.severities ?? null}))
+          AND (${input.sourceTypes ?? null}::text[] IS NULL OR a.source_type = ANY(${input.sourceTypes ?? null}))
+          AND (${input.sourceRef ?? null}::text IS NULL OR a.source_ref = ${input.sourceRef ?? null})
+          AND (${input.since ?? null}::timestamptz IS NULL OR a.created_at >= ${input.since ?? null})
+          AND (${input.until ?? null}::timestamptz IS NULL OR a.created_at < ${input.until ?? null})
+        GROUP BY 1
+      `,
+    );
+
+    const out: WorkStateBucketCounts = { ...EMPTY_BUCKET_COUNTS };
+    for (const row of rows) {
+      if (row.bucket in out) out[row.bucket as keyof WorkStateBucketCounts] = Number(row.count);
+    }
+    return out;
   }
 }
 

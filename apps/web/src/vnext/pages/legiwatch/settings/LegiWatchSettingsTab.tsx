@@ -26,6 +26,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
+import {
+  useSavedViews,
+  useWatchPresets,
+  useSetWatchPresetStatus,
+  w2Error,
+  SAVED_VIEW_SURFACE_LABEL,
+  SIGNAL_FAMILY_LABEL,
+  type WatchPreset,
+} from '../lib/wave2-api.js';
+import { CreateWatchOverlay } from '../overlays/CreateWatchOverlay.js';
 
 /** Display-timezone options (§12). 'local' follows the browser; the other two
  *  are the zones Congress actually schedules in. Canonical event truth is
@@ -215,16 +225,186 @@ export function LegiWatchSettingsTab() {
         </div>
       </section>
 
-      <section className="lw-card" aria-label="Saved views" style={{ padding: 18 }}>
-        <div className="lw-card__head">
-          <h2 className="lw-card__title">Saved views</h2>
-        </div>
-        <p style={{ fontSize: 13, margin: '0 0 10px' }}>
-          Saved views have no persistence backend yet — the Feed's saved-views strip is omitted rather than
-          rendered against nothing.
-        </p>
-        <LwButton size="36" disabled>Not available yet</LwButton>
-      </section>
+      <SavedViewsSummaryCard />
+      <WatchPresetsCard />
     </div>
+  );
+}
+
+/**
+ * Watch presets management (W2-4) — the create wizard's counterpart. Every
+ * preset created via "Create watch" ends up here, where its lifecycle
+ * (active/paused/archived) can actually be changed and its definition edited,
+ * replacing what was previously a create-only, disabled dead end (GAPS LW-G9).
+ */
+function WatchPresetsCard() {
+  const navigate = useNavigate();
+  const presets = useWatchPresets();
+  const setStatus = useSetWatchPresetStatus();
+  const [editing, setEditing] = useState<WatchPreset | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  return (
+    <section className="lw-card" aria-label="Watch presets" style={{ padding: 18 }}>
+      <div className="lw-card__head">
+        <h2 className="lw-card__title">Watch presets</h2>
+      </div>
+      {presets.isLoading ? (
+        <p className="lw-card__meta" style={{ fontSize: 13 }}>
+          Loading watch presets…
+        </p>
+      ) : presets.isError ? (
+        <p role="alert" className="lw-card__meta" style={{ fontSize: 13 }}>
+          Watch presets could not be loaded. {w2Error(presets.error)}
+        </p>
+      ) : presets.data && presets.data.rows.length === 0 ? (
+        <p className="lw-card__meta" style={{ fontSize: 13 }}>
+          No watch presets yet. Use the "Create watch" button on the LegiWatch header to define one.
+        </p>
+      ) : (
+        <>
+          {statusError ? (
+            <p role="alert" className="lw-card__meta" style={{ fontSize: 13, color: 'var(--lw-danger, #b42318)' }}>
+              {statusError}
+            </p>
+          ) : null}
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {presets.data?.rows.map((preset) => (
+              <li
+                key={preset.id}
+                className="lw-card"
+                style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}
+              >
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <LwPill
+                    tone={preset.status === 'active' ? 'success' : preset.status === 'paused' ? 'warning' : 'gray'}
+                    size="22"
+                  >
+                    {preset.status.toUpperCase()}
+                  </LwPill>
+                  <strong style={{ fontSize: 14 }}>{preset.name}</strong>
+                </div>
+                <p className="lw-card__meta" style={{ margin: 0, fontSize: 12 }}>
+                  {preset.signalFamilies.map((f) => SIGNAL_FAMILY_LABEL[f]).join(', ')} ·{' '}
+                  {preset.conditions.length} trigger{preset.conditions.length === 1 ? '' : 's'}
+                  {preset.clientIds.length
+                    ? ` · ${preset.clientIds.length} client${preset.clientIds.length === 1 ? '' : 's'}`
+                    : ''}
+                </p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <LwButton onClick={() => setEditing(preset)} disabled={preset.status === 'archived'}>
+                    Edit
+                  </LwButton>
+                  {preset.status === 'active' ? (
+                    <LwButton
+                      onClick={() =>
+                        setStatus.mutate(
+                          { id: preset.id, status: 'paused' },
+                          { onError: (err) => setStatusError(w2Error(err)) },
+                        )
+                      }
+                      disabled={setStatus.isPending}
+                    >
+                      Pause
+                    </LwButton>
+                  ) : preset.status === 'paused' ? (
+                    <LwButton
+                      onClick={() =>
+                        setStatus.mutate(
+                          { id: preset.id, status: 'active' },
+                          { onError: (err) => setStatusError(w2Error(err)) },
+                        )
+                      }
+                      disabled={setStatus.isPending}
+                    >
+                      Resume
+                    </LwButton>
+                  ) : null}
+                  {preset.status !== 'archived' ? (
+                    <LwButton
+                      onClick={() =>
+                        setStatus.mutate(
+                          { id: preset.id, status: 'archived' },
+                          { onError: (err) => setStatusError(w2Error(err)) },
+                        )
+                      }
+                      disabled={setStatus.isPending}
+                    >
+                      Archive
+                    </LwButton>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {editing ? (
+        <CreateWatchOverlay
+          editPreset={editing}
+          onClose={() => setEditing(null)}
+          onConfigure={() => {
+            setEditing(null);
+            navigate(editing.clientIds[0] ? `/clients?clientId=${editing.clientIds[0]}` : '/clients');
+          }}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * A real summary — replacing the "no persistence backend" placeholder
+ * (GAPS LW-G8). Full management (apply/rename/duplicate/share/default/delete)
+ * lives in the header's "Saved views" overlay; this card is a lightweight
+ * count-by-surface plus a way in, not a second full editor.
+ */
+function SavedViewsSummaryCard() {
+  const navigate = useNavigate();
+  const personal = useSavedViews({ scope: 'personal' });
+  const shared = useSavedViews({ scope: 'tenant' });
+
+  const bySurface = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of [...(personal.data?.rows ?? []), ...(shared.data?.rows ?? [])]) {
+      counts.set(row.surface, (counts.get(row.surface) ?? 0) + 1);
+    }
+    return counts;
+  }, [personal.data, shared.data]);
+
+  return (
+    <section className="lw-card" aria-label="Saved views" style={{ padding: 18 }}>
+      <div className="lw-card__head">
+        <h2 className="lw-card__title">Saved views</h2>
+      </div>
+      {personal.isLoading || shared.isLoading ? (
+        <p className="lw-card__meta" style={{ fontSize: 13 }}>
+          Loading saved views…
+        </p>
+      ) : personal.isError || shared.isError ? (
+        <p role="alert" className="lw-card__meta" style={{ fontSize: 13 }}>
+          Saved views could not be loaded.{' '}
+          {w2Error(personal.error ?? shared.error)}
+        </p>
+      ) : bySurface.size === 0 ? (
+        <p className="lw-card__meta" style={{ fontSize: 13 }}>
+          No saved views yet. Save a hearings, feed, bills, or committee view from its own
+          "Saved views" control to see it here.
+        </p>
+      ) : (
+        <ul style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 13 }}>
+          {[...bySurface.entries()].map(([surface, count]) => (
+            <li key={surface}>
+              {SAVED_VIEW_SURFACE_LABEL[surface as keyof typeof SAVED_VIEW_SURFACE_LABEL] ?? surface}:{' '}
+              {count} view{count === 1 ? '' : 's'}
+            </li>
+          ))}
+        </ul>
+      )}
+      <LwButton size="36" onClick={() => navigate('/legiwatch?tab=hearings')}>
+        Manage saved views
+      </LwButton>
+    </section>
   );
 }

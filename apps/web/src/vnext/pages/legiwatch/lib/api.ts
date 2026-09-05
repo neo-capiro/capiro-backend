@@ -11,6 +11,7 @@ import {
   intelFeedKeys,
   intelFeedPaths,
   type FeedItem,
+  type FeedWorkStateCounts,
   type FeedOrder,
   type FeedFilter,
   type FeedResponse,
@@ -46,25 +47,22 @@ export function useLwFeed(scope: Scope, source: FeedFilter, order: FeedOrder, wo
   });
 }
 
-/** Per-bucket live counts (§7.3 rail). Each bucket reads the first page of the
- *  same feed query under its own `workState` facet and counts what loaded —
- *  §8.6-compliant (counts come from the same query shape). The selected bucket
- *  is the one whose list is actually fetched; the others are cheap head reads.
- *  There is no per-bucket count endpoint (GAPS LW-G1). */
-export function useLwBucketCount(scope: Scope, bucket: string, enabled: boolean) {
-  const api = useApi();
-  return useQuery<number | null>({
-    queryKey: ['lw-vnext', 'bucket-count', scope || '_all', bucket],
-    queryFn: async () => {
-      const ws = bucket === 'default' ? undefined : bucket;
-      const qs = feedQueryString('all', 'date', undefined, ws);
-      const res = (await api.get<FeedResponse>(`${feedPath(scope)}?${qs}`)).data;
-      return res.items.length + (res.hasMore ? 1 : 0); // hasMore ⇒ at least one more; count is a floor
-    },
-    enabled,
-    staleTime: 30_000,
-    retry: false,
-  });
+/**
+ * Derive the "Active queue" (`default`) bucket's exact count from the same
+ * `workStateCounts` the other five buckets read directly. `default` is not
+ * one of the six stored work states — it is the shipped view's OWN
+ * definition, "everything except this user's dismissed/actively-snoozed
+ * alerts" (see `FeedQuery.workStates` in feed.service.ts) — so its count is
+ * the sum of the four buckets that definition does NOT exclude.
+ */
+export function defaultBucketCount(workStateCounts: FeedWorkStateCounts | null): number | null {
+  if (!workStateCounts) return null;
+  return (
+    workStateCounts.new +
+    workStateCounts.in_review +
+    workStateCounts.assigned +
+    workStateCounts.actioned
+  );
 }
 
 /** The full GA packet for the drawer (§7.4). */
@@ -154,15 +152,28 @@ export function useLwWorkState(scope: Scope) {
   });
 }
 
-/** Flatten the infinite feed into one item list. */
-export function useLwFeedItems(
-  feed: ReturnType<typeof useLwFeed>,
-): { items: FeedItem[]; counts: Partial<Record<string, number>>; severityCounts: Partial<Record<string, number>> } {
+/**
+ * Flatten the infinite feed into one item list, alongside the facet counts —
+ * including the EXACT work-state bucket counts (W2-3) and the exact total for
+ * the fully-filtered set. All three read from the FIRST page only: they are
+ * computed server-side over the whole filtered set (never per-page), so every
+ * page after the first carries the identical values and re-reading them would
+ * only risk drift if a later page's snapshot differs.
+ */
+export function useLwFeedItems(feed: ReturnType<typeof useLwFeed>): {
+  items: FeedItem[];
+  counts: Partial<Record<string, number>>;
+  severityCounts: Partial<Record<string, number>>;
+  workStateCounts: FeedWorkStateCounts | null;
+  total: number | null;
+} {
   return useMemo(() => {
     const pages = feed.data?.pages ?? [];
     const items = pages.flatMap((p) => p.items);
     const counts = pages[0]?.counts ?? {};
     const severityCounts = pages[0]?.severityCounts ?? {};
-    return { items, counts, severityCounts };
+    const workStateCounts = pages[0]?.workStateCounts ?? null;
+    const total = pages[0]?.total ?? null;
+    return { items, counts, severityCounts, workStateCounts, total };
   }, [feed.data]);
 }

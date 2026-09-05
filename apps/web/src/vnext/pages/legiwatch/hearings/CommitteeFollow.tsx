@@ -268,10 +268,33 @@ export function CommitteeIntelligenceHistorySection({
   clientId: string;
 }) {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
+  // Keyset pagination is forward-only by construction; a small stack of prior
+  // cursors is what makes "← Previous" possible without an offset that a
+  // continuously-arriving corpus would make unstable (see W2-1).
+  const [cursorStack, setCursorStack] = useState<Array<string | undefined>>([undefined]);
+  const [includeSubcommittees, setIncludeSubcommittees] = useState(false);
+  const [insightType, setInsightType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [speaker, setSpeaker] = useState('');
+  const [agency, setAgency] = useState('');
+  const [bill, setBill] = useState('');
+  const [programElement, setProgramElement] = useState('');
+  const cursor = cursorStack[cursorStack.length - 1];
+
+  const resetToFirstPage = () => setCursorStack([undefined]);
+
   const history = useCommitteeIntelligenceHistory(systemCode, {
     clientId: clientId || undefined,
-    page,
+    includeSubcommittees,
+    insightType: insightType || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    speaker: speaker || undefined,
+    agency: agency || undefined,
+    bill: bill || undefined,
+    programElement: programElement || undefined,
+    cursor,
     pageSize: 20,
   });
 
@@ -284,6 +307,112 @@ export function CommitteeIntelligenceHistorySection({
         </span>
       </div>
 
+      <div
+        role="group"
+        aria-label="Intelligence history filters"
+        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '0 0 14px' }}
+      >
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={includeSubcommittees}
+            onChange={(e) => {
+              setIncludeSubcommittees(e.target.checked);
+              resetToFirstPage();
+            }}
+          />
+          Include subcommittees
+        </label>
+        <select
+          aria-label="Intelligence type"
+          value={insightType}
+          onChange={(e) => {
+            setInsightType(e.target.value);
+            resetToFirstPage();
+          }}
+        >
+          <option value="">Any type</option>
+          {[
+            'QUESTION',
+            'COMMITMENT',
+            'DEADLINE',
+            'FUNDING_AMOUNT',
+            'BILL_REFERENCE',
+            'PROGRAM_ELEMENT_REFERENCE',
+            'AGENCY_REFERENCE',
+            'POLICY_POSITION',
+            'KEY_QUOTE',
+            'MENTION',
+          ].map((t) => (
+            <option key={t} value={t}>
+              {t.replace(/_/g, ' ').toLowerCase()}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          aria-label="From date"
+          value={dateFrom}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            resetToFirstPage();
+          }}
+        />
+        <input
+          type="date"
+          aria-label="To date"
+          value={dateTo}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            resetToFirstPage();
+          }}
+        />
+        <input
+          type="search"
+          aria-label="Speaker"
+          placeholder="Speaker"
+          value={speaker}
+          onChange={(e) => {
+            setSpeaker(e.target.value);
+            resetToFirstPage();
+          }}
+          style={{ width: 120 }}
+        />
+        <input
+          type="search"
+          aria-label="Agency"
+          placeholder="Agency"
+          value={agency}
+          onChange={(e) => {
+            setAgency(e.target.value);
+            resetToFirstPage();
+          }}
+          style={{ width: 120 }}
+        />
+        <input
+          type="search"
+          aria-label="Bill"
+          placeholder="Bill"
+          value={bill}
+          onChange={(e) => {
+            setBill(e.target.value);
+            resetToFirstPage();
+          }}
+          style={{ width: 100 }}
+        />
+        <input
+          type="search"
+          aria-label="Program element"
+          placeholder="Program element"
+          value={programElement}
+          onChange={(e) => {
+            setProgramElement(e.target.value);
+            resetToFirstPage();
+          }}
+          style={{ width: 140 }}
+        />
+      </div>
+
       {history.isLoading ? (
         <LwSkeleton height={120} />
       ) : history.isError ? (
@@ -294,12 +423,18 @@ export function CommitteeIntelligenceHistorySection({
         />
       ) : history.data && history.data.rows.length === 0 ? (
         // Honest unavailability: say WHY it is empty rather than implying
-        // nothing has happened at this committee.
+        // nothing has happened at this committee. A nonzero pendingExtraction-
+        // Jobs means extraction is still PROCESSING and more may still land —
+        // that reads differently from "extraction ran and found nothing."
         <p className="lw-card__meta" style={{ fontSize: 13 }}>
-          No intelligence has been extracted for this committee yet.{' '}
-          {history.data.corpus.hearingsWithTranscript === 0
-            ? `None of its ${history.data.corpus.hearings} recorded proceeding${history.data.corpus.hearings === 1 ? ' has' : 's have'} a transcript to extract from.`
-            : `${history.data.corpus.hearingsWithTranscript} of its ${history.data.corpus.hearings} proceedings have transcripts.`}
+          {history.data.corpus.pendingExtractionJobs > 0
+            ? 'Intelligence extraction is in progress for this committee — findings appear here as segments are processed.'
+            : <>
+                No intelligence has been extracted for this committee yet.{' '}
+                {history.data.corpus.hearingsWithTranscript === 0
+                  ? `None of its ${history.data.corpus.hearings} recorded proceeding${history.data.corpus.hearings === 1 ? ' has' : 's have'} a transcript to extract from.`
+                  : `${history.data.corpus.hearingsWithTranscript} of its ${history.data.corpus.hearings} proceedings have transcripts.`}
+              </>}
         </p>
       ) : history.data ? (
         <>
@@ -339,11 +474,21 @@ export function CommitteeIntelligenceHistorySection({
             aria-label="Intelligence history pagination"
             style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}
           >
-            <LwButton onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+            <LwButton
+              onClick={() => setCursorStack((stack) => stack.slice(0, -1))}
+              disabled={cursorStack.length <= 1}
+            >
               ← Previous
             </LwButton>
-            <span className="lw-card__meta">Page {page}</span>
-            <LwButton onClick={() => setPage((p) => p + 1)} disabled={!history.data.hasMore}>
+            <span className="lw-card__meta">Page {cursorStack.length}</span>
+            <LwButton
+              onClick={() =>
+                setCursorStack((stack) =>
+                  history.data?.nextCursor ? [...stack, history.data.nextCursor] : stack,
+                )
+              }
+              disabled={!history.data.hasMore}
+            >
               Next →
             </LwButton>
           </nav>

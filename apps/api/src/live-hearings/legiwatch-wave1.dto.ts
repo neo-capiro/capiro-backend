@@ -185,18 +185,66 @@ export class CommitteeFollowDto {
 
 export class CommitteeIntelligenceQueryDto {
   @IsOptional()
-  @IsString()
+  @IsIn([
+    'QUESTION',
+    'COMMITMENT',
+    'DEADLINE',
+    'FUNDING_AMOUNT',
+    'BILL_REFERENCE',
+    'PROGRAM_ELEMENT_REFERENCE',
+    'AGENCY_REFERENCE',
+    'POLICY_POSITION',
+    'KEY_QUOTE',
+    'MENTION',
+  ])
   insightType?: string;
+
+  /** Widen from the exact committee to include every subcommittee's own hearings too. */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  includeSubcommittees?: boolean;
+
+  @IsOptional()
+  @IsString()
+  dateFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  dateTo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  speaker?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  agency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bill?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  programElement?: string;
 
   @IsOptional()
   @IsUUID()
   clientId?: string;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number;
+  @IsIn(['HIGH', 'MEDIUM', 'LOW'])
+  relevanceBand?: string;
+
+  /** Keyset cursor from a prior page's `nextCursor`. Absent = first page. */
+  @IsOptional()
+  @IsString()
+  cursor?: string;
 
   @IsOptional()
   @Type(() => Number)

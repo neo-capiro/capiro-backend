@@ -360,6 +360,7 @@ export function LegiWatchModule() {
       ) : overlay === 'watch' ? (
         <CreateWatchOverlay
           onClose={() => setOverlay(null)}
+          defaultClientId={scope || undefined}
           onConfigure={() => {
             setOverlay(null);
             navigate(scope ? `/clients?clientId=${scope}` : '/clients');

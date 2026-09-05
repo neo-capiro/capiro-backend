@@ -177,28 +177,50 @@ export interface CommitteeFollowConfig {
   notifyOnHighPriorityMatch: boolean;
 }
 
+export interface CommitteeIntelligenceEntity {
+  entityType: string;
+  label: string;
+  canonicalId: string | null;
+}
+
+export interface CommitteeIntelligenceRow {
+  id: string;
+  hearingId: string;
+  insightType: string;
+  title: string;
+  summary: string;
+  evidenceText: string | null;
+  speakerName: string | null;
+  entities: CommitteeIntelligenceEntity[];
+  segmentId: string | null;
+  startMs: number | null;
+  endMs: number | null;
+  /** `H:MM:SS`, matching the timecode rendering used on Hearing Detail. */
+  timecode: string | null;
+  extractor: string;
+  extractorVersion: string;
+  hearingTitle: string;
+  hearingDate: string | null;
+  hearingCommitteeSystemCode: string | null;
+  hearingSubcommitteeSystemCode: string | null;
+  detailPath: string;
+}
+
 export interface CommitteeIntelligenceHistory {
   committeeSystemCode: string;
-  rows: Array<{
-    id: string;
-    hearingId: string;
-    insightType: string;
-    title: string;
-    summary: string;
-    evidenceText: string | null;
-    speakerName: string | null;
-    segmentId: string | null;
-    startMs: number | null;
-    hearingTitle: string;
-    hearingDate: string | null;
-    detailPath: string;
-  }>;
+  includeSubcommittees: boolean;
+  rows: CommitteeIntelligenceRow[];
   total: number;
-  page: number;
-  pageSize: number;
   hasMore: boolean;
-  /** Explains an empty list: no insights AND no transcribed hearings. */
-  corpus: { hearings: number; hearingsWithTranscript: number };
+  /** Pass back as `cursor` to fetch the next page. Keyset, not offset — see W2-1. */
+  nextCursor: string | null;
+  /**
+   * Explains an empty list honestly: no insights AND no transcribed hearings
+   * is "nothing captured yet"; a nonzero `pendingExtractionJobs` means
+   * extraction is still PROCESSING and more may still land — never render
+   * either case as if the corpus had been searched and come up empty.
+   */
+  corpus: { hearings: number; hearingsWithTranscript: number; pendingExtractionJobs: number };
 }
 
 export interface CalendarExport {
@@ -454,9 +476,26 @@ export function useUnfollowCommittee(systemCode: string) {
   });
 }
 
+export interface CommitteeIntelligenceHistoryParams {
+  insightType?: string;
+  /** Widens from the exact committee to include every subcommittee's own hearings too (W2-1). */
+  includeSubcommittees?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
+  speaker?: string;
+  agency?: string;
+  bill?: string;
+  programElement?: string;
+  clientId?: string;
+  relevanceBand?: 'HIGH' | 'MEDIUM' | 'LOW';
+  /** Keyset cursor from a prior page's `nextCursor`. Omit for the first page. */
+  cursor?: string;
+  pageSize?: number;
+}
+
 export function useCommitteeIntelligenceHistory(
   systemCode: string,
-  params: { insightType?: string; clientId?: string; page?: number; pageSize?: number } = {},
+  params: CommitteeIntelligenceHistoryParams = {},
 ): UseQueryResult<CommitteeIntelligenceHistory, Error> {
   const api = useApi();
   return useQuery<CommitteeIntelligenceHistory, Error>({

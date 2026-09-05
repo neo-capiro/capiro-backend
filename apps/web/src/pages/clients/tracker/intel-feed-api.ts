@@ -205,6 +205,16 @@ export interface FeedItem {
   workState?: FeedItemWorkState;
 }
 
+/** The six exact server-side work-state bucket counts (W2-3). */
+export interface FeedWorkStateCounts {
+  new: number;
+  in_review: number;
+  assigned: number;
+  actioned: number;
+  snoozed: number;
+  dismissed: number;
+}
+
 export interface FeedResponse {
   items: FeedItem[];
   nextCursor: string | null;
@@ -212,6 +222,17 @@ export interface FeedResponse {
   counts: Partial<Record<FeedSourceType, number>>;
   /** Per-severity totals (tenant/client-scoped) for the Feed rail "At a glance". */
   severityCounts?: Partial<Record<FeedSeverity, number>>;
+  /**
+   * Exact count of the FULLY-FILTERED set this response was drawn from — the
+   * complete result set, not `items.length + (hasMore ? 1 : 0)` (W2-3).
+   */
+  total?: number;
+  /**
+   * Exact per-bucket counts (W2-3), computed over every active filter EXCEPT
+   * the work-state selection itself — so all six numbers are always present
+   * regardless of which bucket is currently open.
+   */
+  workStateCounts?: FeedWorkStateCounts;
 }
 
 export type FeedFilter = 'all' | FeedSourceType;

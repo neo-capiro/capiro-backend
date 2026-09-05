@@ -37,6 +37,8 @@ import {
   buildAllClientsRelevance,
   buildClientRelevance,
   bandForScore,
+  timecode,
+  RELEVANCE_BAND_FLOORS,
   type ClientRelevanceResult,
   type RelevanceRow,
 } from './legiwatch-wave1-relevance.js';
@@ -59,6 +61,45 @@ function clampPageSize(value: number | undefined): number {
 function clampPage(value: number | undefined): number {
   if (!value || !Number.isFinite(value)) return 1;
   return Math.max(Math.trunc(value), 1);
+}
+
+/**
+ * Keyset cursor for committee intelligence history (W2-1): `(createdAt, id)`,
+ * the same tiebreaker pair the query orders by. Opaque base64 JSON, matching
+ * the encoding convention Feed's cursor already uses.
+ *
+ * `createdAt` is carried as the RAW TEXT Postgres prints for the timestamptz
+ * column (`i.created_at::text` in the query below) — never parsed into a JS
+ * `Date`. A `Date` (and `.toISOString()`) is millisecond-precision; Postgres
+ * `timestamptz` is microsecond-precision, and `now()` is stable for the whole
+ * duration of a transaction, so a batch of intelligence rows inserted in one
+ * INSERT statement routinely shares one `created_at` down to the microsecond.
+ * Round-tripping that value through a `Date` silently truncates it, so a
+ * reconstructed cursor could compare UNEQUAL to the very row it was built
+ * from — the tie-break `id <` branch would then also miss, and a row already
+ * shown on a prior page could be skipped from every later one. Keeping the
+ * text lossless is what makes the keyset actually stable.
+ */
+function encodeIntelHistoryCursor(row: { createdAtText: string; id: string }): string {
+  return Buffer.from(
+    JSON.stringify({ t: row.createdAtText, id: row.id }),
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeIntelHistoryCursor(cursor: string | undefined): { createdAtText: string; id: string } | null {
+  if (!cursor) return null;
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (!parsed || typeof parsed !== 'object') return null;
+    const { t, id } = parsed as { t?: unknown; id?: unknown };
+    if (typeof t !== 'string' || !t.trim() || typeof id !== 'string') return null;
+    return { createdAtText: t, id };
+  } catch {
+    // A malformed/tampered cursor is treated as absent — the query falls back
+    // to page one rather than throwing on user-supplied opaque input.
+    return null;
+  }
 }
 
 export interface FollowConfigInput {
@@ -557,13 +598,16 @@ export class LegiWatchWave1Service {
     // predicate is enforced by the policy as well as stated here.
     if (input.clientId) {
       const clientBind = bind(input.clientId);
+      // The ONE relevance-band vocabulary: RELEVANCE_BAND_FLOORS, also used by
+      // clientRelevance/allClientsRelevance and (Wave 2) committee intelligence
+      // history. A second hardcoded copy here would only need to drift once.
       const bandFloor =
         input.relevanceBand === 'HIGH'
-          ? 0.7
+          ? RELEVANCE_BAND_FLOORS.HIGH
           : input.relevanceBand === 'MEDIUM'
-            ? 0.45
+            ? RELEVANCE_BAND_FLOORS.MEDIUM
             : input.relevanceBand === 'LOW'
-              ? 0.2
+              ? RELEVANCE_BAND_FLOORS.LOW
               : null;
       filters.push(
         `AND EXISTS (
@@ -851,21 +895,68 @@ export class LegiWatchWave1Service {
   }
 
   /**
-   * Committee intelligence history.
+   * Committee intelligence history (W2-1).
    *
    * Derived from the committee's OWN canonical hearings' public insights. It
    * fabricates nothing: a committee whose hearings have produced no insights
-   * returns an empty list with the hearing counts that explain why.
+   * returns an empty list with the hearing/extraction counts that explain why.
+   *
+   * ── exact committee vs. optional subcommittee inclusion ──
+   *
+   * A hearing's `committee_system_code` is always its TOP-LEVEL committee;
+   * `subcommittee_system_code` is set ADDITIONALLY when a subcommittee
+   * convened it. So "exact committee" for a requested code — whether that
+   * code names a top-level committee or a subcommittee — means:
+   *
+   *   (committee_system_code = code AND subcommittee_system_code IS NULL)
+   *     OR subcommittee_system_code = code
+   *
+   * i.e. a full-committee hearing under `code`, or a hearing specifically
+   * convened by the subcommittee `code`. `includeSubcommittees` widens that to
+   * every hearing whose TOP-LEVEL committee is `code`, sub-convened or not —
+   * the opt-in, not the default, so a committee room's own history is not
+   * silently diluted with every subcommittee's activity.
+   *
+   * ── entity filters (speaker/agency/bill/programElement) ──
+   *
+   * `speaker` matches the stored `speaker_name` column. `agency`/`bill`/
+   * `programElement` match against `entities` (`Array<{entityType, label,
+   * canonicalId}>`) by label/canonicalId substring, NOT by entityType: the
+   * extraction pipeline enforces no fixed entityType vocabulary (confirmed
+   * against `safeEntities` in live-hearings-phase8.service.ts, which accepts
+   * any string up to 64 chars, defaulting to 'OTHER'). Requiring an exact type
+   * match would silently return nothing the moment the extractor's tagging
+   * drifts from whatever this endpoint hardcoded; matching the label/
+   * canonicalId text is honest about what the stored data actually guarantees.
+   *
+   * ── pagination ──
+   *
+   * Keyset (`created_at DESC, id DESC`), not offset/page: intelligence rows
+   * arrive continuously as Phase 9's extraction backfills, so an offset page
+   * can duplicate or skip rows across requests once new rows land above the
+   * window. A stable ORDER BY tiebreaker is necessary but not sufficient for
+   * that — only a keyset cursor is.
    */
   async committeeIntelligenceHistory(
     ctx: TenantContext,
     systemCode: string,
-    input: { page?: number; pageSize?: number; insightType?: string; clientId?: string },
+    input: {
+      cursor?: string;
+      pageSize?: number;
+      insightType?: string;
+      includeSubcommittees?: boolean;
+      dateFrom?: string;
+      dateTo?: string;
+      speaker?: string;
+      agency?: string;
+      bill?: string;
+      programElement?: string;
+      clientId?: string;
+      relevanceBand?: string;
+    },
   ): Promise<Record<string, unknown>> {
     await this.requireCommittee(ctx, systemCode);
-    const page = clampPage(input.page);
     const pageSize = clampPageSize(input.pageSize);
-    const offset = (page - 1) * pageSize;
     if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
 
     const params: unknown[] = [systemCode];
@@ -873,58 +964,111 @@ export class LegiWatchWave1Service {
       params.push(v);
       return `$${params.length}`;
     };
-    const typeFilter = input.insightType
-      ? `AND i.insight_type = ${bind(input.insightType)}`
-      : '';
-    // Client narrowing joins the tenant rail. The whole query runs inside
-    // withTenant, so RLS enforces the tenant predicate too.
-    const clientFilter = input.clientId
-      ? `AND EXISTS (
+
+    const committeeFilter = input.includeSubcommittees
+      ? `(h.committee_system_code = $1 OR h.subcommittee_system_code = $1)`
+      : `((h.committee_system_code = $1 AND h.subcommittee_system_code IS NULL) OR h.subcommittee_system_code = $1)`;
+
+    const filters: string[] = [];
+    if (input.insightType) filters.push(`AND i.insight_type = ${bind(input.insightType)}`);
+    if (input.dateFrom) filters.push(`AND h.date >= ${bind(input.dateFrom)}::date`);
+    if (input.dateTo) filters.push(`AND h.date <= ${bind(input.dateTo)}::date`);
+    if (input.speaker) filters.push(`AND i.speaker_name ILIKE ${bind(`%${input.speaker}%`)}`);
+    const entityFilter = (value: string | undefined): void => {
+      if (!value) return;
+      filters.push(
+        `AND EXISTS (
+           SELECT 1 FROM jsonb_array_elements(i.entities) AS e
+           WHERE (e->>'label' ILIKE ${bind(`%${value}%`)} OR e->>'canonicalId' ILIKE ${bind(`%${value}%`)})
+         )`,
+      );
+    };
+    entityFilter(input.agency);
+    entityFilter(input.bill);
+    entityFilter(input.programElement);
+
+    // Client relevance filtering. tenant_hearing_relevance is FORCE-RLS
+    // isolated and this whole query runs inside withTenant, so the tenant
+    // predicate is enforced by the policy as well as stated here.
+    if (input.clientId) {
+      const clientBind = bind(input.clientId);
+      const bandFloor =
+        input.relevanceBand === 'HIGH'
+          ? RELEVANCE_BAND_FLOORS.HIGH
+          : input.relevanceBand === 'MEDIUM'
+            ? RELEVANCE_BAND_FLOORS.MEDIUM
+            : input.relevanceBand === 'LOW'
+              ? RELEVANCE_BAND_FLOORS.LOW
+              : null;
+      filters.push(
+        `AND EXISTS (
            SELECT 1 FROM tenant_hearing_relevance r
-           WHERE r.insight_id = i.id AND r.client_id = ${bind(input.clientId)}::uuid
-         )`
+           WHERE r.insight_id = i.id AND r.client_id = ${clientBind}::uuid
+             ${bandFloor === null ? '' : `AND r.score >= ${bind(bandFloor)}`}
+         )`,
+      );
+    }
+
+    const filterSql = filters.join('\n        ');
+    // Snapshot the params bound so far: `total` describes the WHOLE filtered
+    // set regardless of pagination position, so it must never see the keyset
+    // cursor or the LIMIT bind added below. Slicing by this snapshot's length
+    // is exact and immune to however many params either one happens to add.
+    const countParams = [...params];
+
+    // Keyset cursor: `(created_at, id) < (cursorCreatedAt, cursorId)`,
+    // decomposed the same way Feed's cursor is (feed.service.ts) so the two
+    // LegiWatch keyset implementations read the same way. Applied to the main
+    // query only — never to the count.
+    const cursor = decodeIntelHistoryCursor(input.cursor);
+    const cursorSql = cursor
+      ? `AND (i.created_at < ${bind(cursor.createdAtText)}::timestamptz
+              OR (i.created_at = ${bind(cursor.createdAtText)}::timestamptz AND i.id < ${bind(cursor.id)}))`
       : '';
 
     const sql = `
       SELECT i.id,
-             i.hearing_id    AS "hearingId",
-             i.insight_type  AS "insightType",
+             i.hearing_id       AS "hearingId",
+             i.insight_type     AS "insightType",
              i.title,
              i.summary,
-             i.evidence_text AS "evidenceText",
-             i.speaker_name  AS "speakerName",
+             i.evidence_text    AS "evidenceText",
+             i.speaker_name     AS "speakerName",
              i.confidence,
              i.preliminary,
-             i.segment_id    AS "segmentId",
-             i.start_ms      AS "startMs",
-             i.created_at    AS "createdAt",
-             h.title         AS "hearingTitle",
-             h.date          AS "hearingDate"
+             i.entities,
+             i.segment_id       AS "segmentId",
+             i.start_ms         AS "startMs",
+             i.end_ms           AS "endMs",
+             i.extractor,
+             i.extractor_version AS "extractorVersion",
+             i.created_at       AS "createdAt",
+             i.created_at::text AS "createdAtCursor",
+             h.title            AS "hearingTitle",
+             h.date             AS "hearingDate",
+             h.committee_system_code    AS "hearingCommitteeSystemCode",
+             h.subcommittee_system_code AS "hearingSubcommitteeSystemCode"
       FROM public_hearing_insight i
       JOIN committee_hearing h ON h.id = i.hearing_id
-      WHERE (h.committee_system_code = $1 OR h.subcommittee_system_code = $1)
-        ${typeFilter}
-        ${clientFilter}
+      WHERE ${committeeFilter}
+        ${filterSql}
+        ${cursorSql}
       ORDER BY i.created_at DESC, i.id DESC
-      LIMIT ${bind(pageSize)} OFFSET ${bind(offset)}`;
+      LIMIT ${bind(pageSize + 1)}`;
 
     const countSql = `
       SELECT count(*)::int AS total
       FROM public_hearing_insight i
       JOIN committee_hearing h ON h.id = i.hearing_id
-      WHERE (h.committee_system_code = $1 OR h.subcommittee_system_code = $1)
-        ${typeFilter}
-        ${clientFilter}`;
+      WHERE ${committeeFilter}
+        ${filterSql}`;
 
-    const [rows, totals, hearingStats] = await this.prisma.withTenant(
+    const [rows, totals, hearingStats, extractionStats] = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) =>
         Promise.all([
           tx.$queryRawUnsafe<Array<Record<string, unknown>>>(sql, ...params),
-          tx.$queryRawUnsafe<Array<{ total: number }>>(
-            countSql,
-            ...params.slice(0, params.length - 2),
-          ),
+          tx.$queryRawUnsafe<Array<{ total: number }>>(countSql, ...countParams),
           tx.$queryRawUnsafe<Array<{ total: number; withTranscript: number }>>(
             `SELECT count(*)::int AS total,
                     count(*) FILTER (
@@ -935,31 +1079,67 @@ export class LegiWatchWave1Service {
                       )
                     )::int AS "withTranscript"
              FROM committee_hearing h
-             WHERE (h.committee_system_code = $1 OR h.subcommittee_system_code = $1)`,
+             WHERE ${committeeFilter}`,
+            systemCode,
+          ),
+          // Extraction is PROCESSING, not silently "nothing found", whenever
+          // this committee's hearings still have pending/leased intelligence
+          // jobs — mirrors the per-hearing `intelProcessing` signal already
+          // established on the Hearing Detail route.
+          tx.$queryRawUnsafe<Array<{ pending: number }>>(
+            `SELECT count(*)::int AS pending
+             FROM public_hearing_intelligence_job j
+             JOIN committee_hearing h ON h.id = j.hearing_id
+             WHERE ${committeeFilter}
+               AND j.status IN ('pending', 'leased')`,
             systemCode,
           ),
         ]),
     );
 
     const total = totals[0]?.total ?? 0;
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+    const last = page[page.length - 1] as
+      | { createdAtCursor?: unknown; id?: unknown }
+      | undefined;
+    const nextCursor =
+      hasMore && typeof last?.createdAtCursor === 'string' && typeof last.id === 'string'
+        ? encodeIntelHistoryCursor({ createdAtText: last.createdAtCursor, id: last.id })
+        : null;
+
     return {
       committeeSystemCode: systemCode,
-      rows: rows.map((r) => ({
-        ...r,
-        hearingDate:
-          r.hearingDate instanceof Date ? r.hearingDate.toISOString().slice(0, 10) : null,
-        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : null,
-        detailPath: `/legiwatch/hearings/${encodeURIComponent(String(r.hearingId))}`,
-      })),
+      includeSubcommittees: Boolean(input.includeSubcommittees),
+      rows: page.map((r) => {
+        // `createdAtCursor` is the internal lossless-text form used only to
+        // build `nextCursor` above; it is not part of the client-facing shape.
+        const { createdAtCursor: _createdAtCursor, ...rest } = r;
+        return {
+          ...rest,
+          entities: Array.isArray(rest.entities) ? rest.entities : [],
+          hearingDate:
+            rest.hearingDate instanceof Date ? rest.hearingDate.toISOString().slice(0, 10) : null,
+          createdAt: rest.createdAt instanceof Date ? rest.createdAt.toISOString() : null,
+          // `timecode` is the H:MM:SS rendering used everywhere else client
+          // relevance/evidence is shown (legiwatch-wave1-relevance.ts), so a
+          // committee-intelligence evidence row reads identically to a
+          // hearing-detail one.
+          timecode: typeof rest.startMs === 'number' ? timecode(rest.startMs) : null,
+          detailPath: `/legiwatch/hearings/${encodeURIComponent(String(rest.hearingId))}`,
+        };
+      }),
       total,
-      page,
-      pageSize,
-      hasMore: offset + rows.length < total,
+      hasMore,
+      nextCursor,
       // The honest-unavailable context: zero insights with zero transcribed
-      // hearings is "nothing captured yet", not "nothing happened".
+      // hearings is "nothing captured yet", not "nothing happened"; a nonzero
+      // `pendingExtractionJobs` means more may still be coming (PROCESSING),
+      // never render as if extraction had already finished with nothing found.
       corpus: {
         hearings: hearingStats[0]?.total ?? 0,
         hearingsWithTranscript: hearingStats[0]?.withTranscript ?? 0,
+        pendingExtractionJobs: extractionStats[0]?.pending ?? 0,
       },
     };
   }

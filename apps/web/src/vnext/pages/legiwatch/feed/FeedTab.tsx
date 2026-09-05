@@ -1,10 +1,13 @@
 /**
- * Feed tab (§7.3) — the alert worklist. Saved-view strip, worklist header,
- * bulk bar, packet rows, and the view-control rail (Order · Worklist buckets ·
- * Source-type chips · Arrange · the standing priority explanation).
+ * Feed tab (§7.3) — the alert worklist. Worklist header, bulk bar, packet
+ * rows, and the view-control rail (Order · Worklist buckets · Source-type
+ * chips · Arrange · the standing priority explanation).
  *
- * Saved views have no persistence backend (GAPS LW-G8) — the strip is omitted
- * rather than rendered against nothing; `Reset` clears filters, not a view.
+ * Saved views now have a real backend (W2-2, closing GAPS LW-G8) and 'feed' is
+ * one of the surfaces they cover — reachable from the header's "Saved views"
+ * control, which detects the current surface from the URL. This tab has no
+ * SEPARATE inline saved-view strip of its own; `Reset` still clears filters,
+ * not a view.
  *
  * Work states are server-authoritative (§1.8): one mutation, available in
  * three places (§4.1 #9) — the drawer's Change menu, the bulk bar, and the
@@ -20,7 +23,7 @@ import {
   useLwFeed,
   useLwFeedItems,
   useLwWorkState,
-  useLwBucketCount,
+  defaultBucketCount,
 } from '../lib/api.js';
 import {
   WORKLIST_BUCKETS,
@@ -56,7 +59,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
 
   const work = bucket === 'default' ? undefined : bucket;
   const feed = useLwFeed(scope, source, order, work);
-  const { items, counts } = useLwFeedItems(feed);
+  const { items, counts, workStateCounts } = useLwFeedItems(feed);
 
   const openAlertId = searchParams.get('alert');
 
@@ -316,11 +319,18 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
             {WORKLIST_BUCKETS.map((b) => (
               <BucketRow
                 key={b.id}
-                scope={scope}
-                bucket={b.id}
                 label={b.label}
                 active={bucket === b.id}
                 onSelect={() => setBucket(b.id)}
+                // Exact server-side counts (W2-3) for every bucket at once —
+                // one shared read, not one query per row. The active
+                // bucket's own count is `total` (the exact size of what is
+                // actually loaded), never approximated from the loaded page.
+                count={
+                  b.id === 'default'
+                    ? defaultBucketCount(workStateCounts)
+                    : (workStateCounts?.[b.id as keyof typeof workStateCounts] ?? null)
+                }
               />
             ))}
           </div>
@@ -409,25 +419,21 @@ function RailOption({
 }
 
 function BucketRow({
-  scope,
-  bucket,
   label,
   active,
   onSelect,
+  count,
 }: {
-  scope: string;
-  bucket: string;
   label: string;
   active: boolean;
   onSelect: () => void;
+  /** Exact server-side count for this bucket (W2-3); null while loading. */
+  count: number | null;
 }) {
-  // The active bucket's count is the loaded list's count; inactive buckets do a
-  // cheap head read (GAPS LW-G1 — no bucket-count endpoint).
-  const q = useLwBucketCount(scope, bucket, !active);
   return (
     <button type="button" className={`lw-rail__opt${active ? ' is-active' : ''}`} onClick={onSelect}>
       <span>{label}</span>
-      <span className="lw-rail__count">{active ? '·' : q.data == null ? '' : q.data}</span>
+      <span className="lw-rail__count">{count == null ? '' : count}</span>
     </button>
   );
 }

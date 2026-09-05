@@ -9,13 +9,15 @@
  * explicit approval (the approval mutation is the canonical watchlist PUT,
  * linked out to the client's configuration surface per §7.9).
  *
- * Coverage score: there is no server coverage score (GAPS LW-G3) — the score
- * panel renders its UNAVAILABLE state with the reason, never a fabricated %.
+ * Coverage score (W2-5): a real composite of watchlist concept coverage and
+ * source health, from the same endpoint AnalyticsTab uses — never a
+ * fabricated percentage, and NOT_CONFIGURED renders distinctly from 0%.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading } from '../states/SystemStates.js';
+import { useWatchlistCoverage, COVERAGE_STATUS_LABEL, COVERAGE_STATUS_TONE } from '../lib/wave2-api.js';
 
 const STEPS = [
   ['01', 'Confirm client priorities', 'Choose the issues that matter and set Support, Oppose, or Monitor.'],
@@ -42,6 +44,7 @@ export function ColdStart({ clientId, onConfigure }: { clientId: string; onConfi
   });
 
   const suggested = watchlist.data?.suggestedIssueAreas ?? [];
+  const coverage = useWatchlistCoverage(clientId);
 
   return (
     <div className="lw-body">
@@ -62,16 +65,38 @@ export function ColdStart({ clientId, onConfigure }: { clientId: string; onConfi
               <LwButton size="40" onClick={onConfigure}>Explore without alerts</LwButton>
             </div>
           </div>
-          {/* coverage score — UNAVAILABLE honestly (GAPS LW-G3) */}
+          {/* coverage score (W2-5) — real, never fabricated */}
           <div style={{ minWidth: 220, background: 'rgba(255,255,255,.06)', borderRadius: 11, padding: 16 }}>
             <div className="lw-eyebrow" style={{ color: 'var(--lw-faint)' }}>Coverage</div>
-            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 28, fontWeight: 600, fontFamily: 'var(--lw-mono)' }}>—</span>
-              <LwPill tone="warning">NOT READY</LwPill>
-            </div>
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--lw-faint)' }}>
-              No targeting is approved yet, and no server coverage score exists to preview one.
-            </p>
+            {coverage.isLoading ? (
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--lw-faint)' }}>Loading…</p>
+            ) : coverage.isError ? (
+              <>
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 28, fontWeight: 600, fontFamily: 'var(--lw-mono)' }}>—</span>
+                  <LwPill tone="gray">UNAVAILABLE</LwPill>
+                </div>
+                <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--lw-faint)' }}>
+                  Coverage could not be loaded.
+                </p>
+              </>
+            ) : (
+              <>
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 28, fontWeight: 600, fontFamily: 'var(--lw-mono)' }}>
+                    {coverage.data?.overall.percentage != null ? `${coverage.data.overall.percentage}%` : '—'}
+                  </span>
+                  <LwPill tone={COVERAGE_STATUS_TONE[coverage.data?.overall.status ?? 'NOT_CONFIGURED']}>
+                    {COVERAGE_STATUS_LABEL[coverage.data?.overall.status ?? 'NOT_CONFIGURED']}
+                  </LwPill>
+                </div>
+                <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--lw-faint)' }}>
+                  {coverage.data?.overall.status === 'NOT_CONFIGURED'
+                    ? 'No targeting is approved yet, so there is nothing to score.'
+                    : `${coverage.data?.overall.coveredConcepts ?? 0} of ${coverage.data?.overall.totalConcepts ?? 0} concepts covered.`}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </section>
