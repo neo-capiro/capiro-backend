@@ -784,13 +784,13 @@ export class LegiWatchWave1Service {
     ctx: TenantContext,
     systemCode: string,
   ): Promise<Record<string, unknown>> {
-    await this.requireCommittee(ctx, systemCode);
+    const { systemCode: canonicalCode } = await this.requireCommittee(ctx, systemCode);
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.legiWatchCommitteeFollow.findFirst({
-        where: { userId: ctx.userId, committeeSystemCode: systemCode },
+        where: { userId: ctx.userId, committeeSystemCode: canonicalCode },
       }),
     );
-    return this.toCommitteeFollowState(ctx, systemCode, row);
+    return this.toCommitteeFollowState(ctx, canonicalCode, row);
   }
 
   async upsertCommitteeFollow(
@@ -798,7 +798,7 @@ export class LegiWatchWave1Service {
     systemCode: string,
     input: CommitteeFollowInput,
   ): Promise<Record<string, unknown>> {
-    await this.requireCommittee(ctx, systemCode);
+    const { systemCode: canonicalCode } = await this.requireCommittee(ctx, systemCode);
     const clientIds = await this.resolveClientIds(ctx, input.clientIds ?? []);
 
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -807,13 +807,13 @@ export class LegiWatchWave1Service {
           tenantId_userId_committeeSystemCode: {
             tenantId: ctx.tenantId,
             userId: ctx.userId,
-            committeeSystemCode: systemCode,
+            committeeSystemCode: canonicalCode,
           },
         },
         create: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          committeeSystemCode: systemCode,
+          committeeSystemCode: canonicalCode,
           clientIds,
           notifyOnNewHearing: input.notifyOnNewHearing ?? true,
           notifyOnScheduleChange: input.notifyOnScheduleChange ?? true,
@@ -838,20 +838,20 @@ export class LegiWatchWave1Service {
         },
       }),
     );
-    return this.toCommitteeFollowState(ctx, systemCode, row);
+    return this.toCommitteeFollowState(ctx, canonicalCode, row);
   }
 
   async unfollowCommittee(
     ctx: TenantContext,
     systemCode: string,
   ): Promise<Record<string, unknown>> {
-    await this.requireCommittee(ctx, systemCode);
+    const { systemCode: canonicalCode } = await this.requireCommittee(ctx, systemCode);
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.legiWatchCommitteeFollow.deleteMany({
-        where: { userId: ctx.userId, committeeSystemCode: systemCode },
+        where: { userId: ctx.userId, committeeSystemCode: canonicalCode },
       }),
     );
-    return this.toCommitteeFollowState(ctx, systemCode, null);
+    return this.toCommitteeFollowState(ctx, canonicalCode, null);
   }
 
   private async toCommitteeFollowState(
@@ -956,19 +956,24 @@ export class LegiWatchWave1Service {
       relevanceBand?: string;
     },
   ): Promise<Record<string, unknown>> {
-    await this.requireCommittee(ctx, systemCode);
+    const { systemCode: canonicalCode } = await this.requireCommittee(ctx, systemCode);
     const pageSize = clampPageSize(input.pageSize);
     if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
 
-    const params: unknown[] = [systemCode];
+    const params: unknown[] = [canonicalCode];
     const bind = (v: unknown): string => {
       params.push(v);
       return `$${params.length}`;
     };
 
+    // lower() on both sides for the same reason CommitteeDirectoryService
+    // normalizes before comparing: committee_hearing.committee_system_code is
+    // written by the discovery pipeline and is not guaranteed to share
+    // congress_committee.system_code's casing, so a byte-equality join here
+    // silently returns an empty history instead of the committee's insights.
     const committeeFilter = input.includeSubcommittees
-      ? `(h.committee_system_code = $1 OR h.subcommittee_system_code = $1)`
-      : `((h.committee_system_code = $1 AND h.subcommittee_system_code IS NULL) OR h.subcommittee_system_code = $1)`;
+      ? `(lower(h.committee_system_code) = lower($1) OR lower(h.subcommittee_system_code) = lower($1))`
+      : `((lower(h.committee_system_code) = lower($1) AND h.subcommittee_system_code IS NULL) OR lower(h.subcommittee_system_code) = lower($1))`;
 
     const filters: string[] = [];
     if (input.insightType) filters.push(`AND i.insight_type = ${bind(input.insightType)}`);
@@ -1081,7 +1086,7 @@ export class LegiWatchWave1Service {
                     )::int AS "withTranscript"
              FROM committee_hearing h
              WHERE ${committeeFilter}`,
-            systemCode,
+            canonicalCode,
           ),
           // Extraction is PROCESSING, not silently "nothing found", whenever
           // this committee's hearings still have pending/leased intelligence
@@ -1093,7 +1098,7 @@ export class LegiWatchWave1Service {
              JOIN committee_hearing h ON h.id = j.hearing_id
              WHERE ${committeeFilter}
                AND j.status IN ('pending', 'leased')`,
-            systemCode,
+            canonicalCode,
           ),
         ]),
     );
@@ -1110,7 +1115,7 @@ export class LegiWatchWave1Service {
         : null;
 
     return {
-      committeeSystemCode: systemCode,
+      committeeSystemCode: canonicalCode,
       includeSubcommittees: Boolean(input.includeSubcommittees),
       rows: page.map((r) => {
         // `createdAtCursor` is the internal lossless-text form used only to
@@ -1892,14 +1897,27 @@ export class LegiWatchWave1Service {
     } as CanonicalHearingRow;
   }
 
-  /** Committee identity comes from CongressCommittee, never from hearing rows. */
+  /**
+   * Committee identity comes from CongressCommittee, never from hearing rows.
+   *
+   * Resolved case-insensitively and returns the row's CANONICAL stored
+   * `systemCode` — mirroring `CommitteeDirectoryService`'s `normalizeCode()`
+   * map lookup, which is why the Committee Room (`GET committees/:id`) has
+   * always accepted any casing. Wave 1's follow/intelligence-history routes
+   * previously did an exact-case match here, so a caller-cased systemCode that
+   * didn't byte-for-byte match the stored casing 404'd even though the same
+   * code resolved fine one route over (LW-QA-016/017). Callers MUST use the
+   * returned canonical `systemCode` for all downstream reads/writes, not the
+   * raw input, so follow rows and intelligence-history queries key off the one
+   * casing hearings actually store `committee_system_code` as.
+   */
   private async requireCommittee(
     ctx: TenantContext,
     systemCode: string,
   ): Promise<{ systemCode: string }> {
     void ctx;
     const found = await this.prisma.congressCommittee.findFirst({
-      where: { systemCode },
+      where: { systemCode: { equals: systemCode, mode: 'insensitive' } },
       select: { systemCode: true },
     });
     if (!found) throw new NotFoundException(`committee ${systemCode} not found`);

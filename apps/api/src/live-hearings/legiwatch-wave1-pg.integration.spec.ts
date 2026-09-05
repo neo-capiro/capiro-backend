@@ -880,6 +880,78 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
         wave1.committeeIntelligenceHistory(ctxA, COMMITTEE, { clientId: CLIENT_B1 }),
       ).rejects.toThrow(/Client not found/);
     });
+
+    // ── LW-QA-016 / LW-QA-017 ────────────────────────────────────────────
+    //
+    // The Committee Room (`CommitteeDirectoryService`) has always resolved a
+    // systemCode through `normalizeCode()` — trim + lowercase — so it answers
+    // 200 for any casing. Wave 1's follow and intelligence-history routes
+    // resolved with an exact-case Postgres match instead, so the same code that
+    // opened the room 404'd one route over. These pin the canonical, casing-
+    // insensitive identity that closes that gap.
+
+    it('resolves a committee whatever casing the caller sends (LW-QA-016)', async () => {
+      const state = (await wave1.committeeFollowState(ctxA, COMMITTEE.toUpperCase())) as {
+        committeeSystemCode: string;
+        following: boolean;
+      };
+      expect(state.following).toBe(false);
+      // Echoes the CANONICAL stored code, not the caller's casing.
+      expect(state.committeeSystemCode).toBe(COMMITTEE);
+    });
+
+    it('keys one follow row per committee regardless of casing (LW-QA-016)', async () => {
+      await wave1.upsertCommitteeFollow(ctxA, COMMITTEE, { clientIds: [CLIENT_A1] });
+      const upper = (await wave1.upsertCommitteeFollow(ctxA, COMMITTEE.toUpperCase(), {
+        clientIds: [CLIENT_A2],
+      })) as { committeeSystemCode: string; clientIds: string[] };
+
+      expect(upper.committeeSystemCode).toBe(COMMITTEE);
+      const rows = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.legiWatchCommitteeFollow.findMany({}),
+      );
+      // One row that was UPDATED — not a second row under a different casing.
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.committeeSystemCode).toBe(COMMITTEE);
+      expect(upper.clientIds).toEqual([CLIENT_A2]);
+
+      // …and the mixed-case caller can remove the row it just edited.
+      const gone = (await wave1.unfollowCommittee(ctxA, COMMITTEE.toUpperCase())) as {
+        following: boolean;
+      };
+      expect(gone.following).toBe(false);
+      const after = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.legiWatchCommitteeFollow.findMany({}),
+      );
+      expect(after).toHaveLength(0);
+    });
+
+    it('returns the same intelligence history for any casing (LW-QA-017)', async () => {
+      const canonical = (await wave1.committeeIntelligenceHistory(ctxA, COMMITTEE, {})) as {
+        total: number;
+        committeeSystemCode: string;
+        rows: Array<{ id: string }>;
+      };
+      const upper = (await wave1.committeeIntelligenceHistory(
+        ctxA,
+        COMMITTEE.toUpperCase(),
+        {},
+      )) as { total: number; committeeSystemCode: string; rows: Array<{ id: string }> };
+
+      expect(upper.total).toBe(canonical.total);
+      expect(upper.total).toBe(2);
+      expect(upper.rows.map((r) => r.id).sort()).toEqual(canonical.rows.map((r) => r.id).sort());
+      expect(upper.committeeSystemCode).toBe(COMMITTEE);
+    });
+
+    it('still 404s an unknown committee — casing tolerance is not fabrication', async () => {
+      await expect(
+        wave1.committeeIntelligenceHistory(ctxA, 'NOT-A-COMMITTEE', {}),
+      ).rejects.toThrow(/not found/);
+      await expect(wave1.committeeFollowState(ctxA, 'NOT-A-COMMITTEE')).rejects.toThrow(
+        /not found/,
+      );
+    });
   });
 
   // ── W1-6 · client relevance ────────────────────────────────────────────
