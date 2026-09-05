@@ -954,6 +954,21 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   });
 
   const xFeedModule = useMemo<DashboardVNextModel['xFeed']>(() => {
+    // Shared defaults wiring — every branch below must honor the user's
+    // "Save default accounts" action, not just the fully-loaded one.
+    const sharedDefaults = {
+      defaultAccounts: xFeedDefaults.data ?? [],
+      selectedDefaultUsernames: ((xFeedDashboard.data?.subscriptions ?? xFeedSubscriptions.data ?? []) as XFeedSubscriptionItem[])
+        .filter((sub) => xFeedDefaults.data?.some((account) => account.username.toLowerCase() === sub.username.toLowerCase()))
+        .map((sub) => sub.username),
+      applyDefaultAccounts: async (usernames: string[]) => {
+        await api.post('/api/intelligence/x-feed/defaults', { usernames });
+        void queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] });
+        void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
+        void queryClient.invalidateQueries({ queryKey: ['x-feed-defaults'] });
+      },
+    };
+
     if (!visibility.xFeed) {
       return {
         status: buildStatus({
@@ -973,9 +988,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         resolveHandle: async () => null,
         refreshing: false,
         refresh: () => {},
-        defaultAccounts: xFeedDefaults.data ?? [],
-        selectedDefaultUsernames: [],
-        applyDefaultAccounts: async () => {},
+        ...sharedDefaults,
       };
     }
 
@@ -1018,9 +1031,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
-        defaultAccounts: xFeedDefaults.data ?? [],
-        selectedDefaultUsernames: [],
-        applyDefaultAccounts: async () => {},
+        ...sharedDefaults,
       };
     }
 
@@ -1054,9 +1065,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
-        defaultAccounts: xFeedDefaults.data ?? [],
-        selectedDefaultUsernames: [],
-        applyDefaultAccounts: async () => {},
+        ...sharedDefaults,
       };
     }
 
@@ -1127,9 +1136,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
-        defaultAccounts: xFeedDefaults.data ?? [],
-        selectedDefaultUsernames: [],
-        applyDefaultAccounts: async () => {},
+        ...sharedDefaults,
       };
     }
 
@@ -1163,9 +1170,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
-        defaultAccounts: xFeedDefaults.data ?? [],
-        selectedDefaultUsernames: [],
-        applyDefaultAccounts: async () => {},
+        ...sharedDefaults,
       };
     }
 
@@ -1191,13 +1196,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       },
       refreshing: xFeedRefreshMutation.isPending,
       refresh: () => void xFeedRefreshMutation.mutate(),
-      defaultAccounts: xFeedDefaults.data ?? [],
-      selectedDefaultUsernames: subs.filter((sub) => xFeedDefaults.data?.some((account) => account.username.toLowerCase() === sub.username.toLowerCase())).map((sub) => sub.username),
-      applyDefaultAccounts: async (usernames: string[]) => {
-        await api.post('/api/intelligence/x-feed/defaults', { usernames });
-        void queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] });
-        void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
-      },
+      defaultAccounts: sharedDefaults.defaultAccounts,
+      selectedDefaultUsernames: sharedDefaults.selectedDefaultUsernames,
+      applyDefaultAccounts: sharedDefaults.applyDefaultAccounts,
     };
   }, [
     visibility.xFeed,
