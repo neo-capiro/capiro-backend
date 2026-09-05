@@ -1157,10 +1157,15 @@
   min-width: 0;
 }
 
-/* stat tile */
-.capiro-vnext-root .lw .lw-stat { padding: 12px; border-radius: 10px; background: var(--lw-page); border: 1px solid var(--lw-line); }
-.capiro-vnext-root .lw .lw-stat__value { font-size: 20px; line-height: 29px; font-weight: 600; color: var(--lw-ink); font-family: var(--lw-mono); }
-.capiro-vnext-root .lw .lw-stat__label { margin-top: 3px; font-size: 11px; color: var(--lw-meta); font-family: var(--lw-mono); letter-spacing: .04em; text-transform: uppercase; }
+/* stat tile — label, then value, then caption (the app-wide KPI order).
+   `min-width: 0` + `overflow-wrap: anywhere` are load-bearing (LW-QA-021): a
+   long value used to spill outside its own tile and paint over the neighbour,
+   so values were read against the wrong labels. 16px is the largest mono size
+   at which a formatted date or a "Passed 216-212" tally still fits one line. */
+.capiro-vnext-root .lw .lw-stat { padding: 12px; border-radius: 10px; background: var(--lw-page); border: 1px solid var(--lw-line); min-width: 0; }
+.capiro-vnext-root .lw .lw-stat__label { font-size: 11px; color: var(--lw-meta); font-family: var(--lw-mono); letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.capiro-vnext-root .lw .lw-stat__value { margin-top: 4px; font-size: 16px; line-height: 22px; font-weight: 600; color: var(--lw-ink); font-family: var(--lw-mono); overflow-wrap: anywhere; }
+.capiro-vnext-root .lw .lw-stat__sub { margin-top: 4px; font-size: 11px; line-height: 15px; color: var(--lw-meta); overflow-wrap: anywhere; }
 
 /* ============================================================================
    A.10 — overlays (one modal shell, five contents)

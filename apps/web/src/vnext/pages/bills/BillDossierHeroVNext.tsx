@@ -1,4 +1,5 @@
 import { fmtDate } from '../../../components/dossier/dossier-format.js';
+import { kpiSubText, kpiUnavailable, kpiValueText, orderedKpis } from '../../../pages/bills/bill-360-kpis.js';
 import type { BillContext, BillDossierResponse } from '../../../pages/bills/bill-360.types.js';
 import { DossierHero, type DossierHeroScope, type DossierKpi, type PillSev } from './dossier-primitives.js';
 
@@ -10,10 +11,11 @@ import { DossierHero, type DossierHeroScope, type DossierKpi, type PillSev } fro
  * the scope chip, stance, and priority, then the last-synced line.
  *
  * It also owns {@link decorateKpis}, which re-applies the prototype's per-cell KPI
- * value color and monospace to the API's flat `BillKpi[]`. The R1 contract returns
- * label/value/sub only (presentation stays client-side), so the color and mono
- * flags are derived here from the same dossier fields the prototype reads — the
- * only difference from the legacy adapter is the token layer (`--capiro-*`).
+ * value color and monospace to the API's `BillKpi[]`. The contract carries the
+ * cell's semantic id, its value type and (when absent) the reason it is absent;
+ * presentation stays client-side, so the color and mono flags are derived here
+ * from the same dossier fields the prototype reads — the only difference from the
+ * legacy adapter is the token layer (`--capiro-*`).
  */
 
 const STANCE: Record<NonNullable<BillContext['position']>, { label: string; sev: PillSev }> = {
@@ -52,59 +54,53 @@ function heroScope(d: BillDossierResponse): DossierHeroScope | null {
 }
 
 /**
- * Re-apply the prototype's per-cell KPI presentation. The strip is a fixed
- * 6-cell sequence (plan §2.2), so cells are decorated by position:
+ * Re-apply the prototype's per-cell KPI presentation, keyed on each cell's
+ * SEMANTIC id (LW-QA-021 — decorating by array index silently mis-colored the
+ * strip whenever the API reordered or inserted a cell):
  *
- *  0 Current status       — status severity color, proportional
- *  1 Latest recorded vote — newest vote's result severity (muted when none), mono
- *  2 Funding position     — primary ink, mono (a "—" cell stays muted)
- *  3 Δ from request       — delta sign color (muted when unavailable), mono
- *  4 Last official action — primary ink, proportional
- *  5 Next milestone       — primary ink, proportional
+ *  current_status       — status severity color, proportional
+ *  latest_vote          — newest vote's result severity (muted when none), mono
+ *  funding_position     — primary ink, mono (muted when unavailable)
+ *  delta_from_request   — delta sign color (muted when unavailable), mono
+ *  last_official_action — primary ink, proportional
+ *  next_milestone       — primary ink, proportional
+ *
+ * "Unavailable" is read off `value == null`, not off a '—' string comparison.
  */
 export function decorateKpis(d: BillDossierResponse): DossierKpi[] {
   const vote = d.votes[0] ?? null;
-  const unavailable = (k: { value: string }) => k.value === '—';
-  return d.kpis
-    // The API's KPI value/sub are opaque strings; several ARE dates (status date,
-    // last-action date). fmtDate narrows an ISO instant and passes anything else
-    // through, so the strip reads as short dates like the prototype.
-    .map((k) => ({ ...k, value: fmtDate(k.value), sub: k.sub ? fmtDate(k.sub) : k.sub }))
-    .map((k, i) => {
-      switch (i) {
-        case 0:
-          return { ...k, sev: d.bill.statusSev as PillSev };
-        case 1:
-          return {
-            ...k,
-            mono: true,
-            ...(vote
-              ? { sev: vote.resultSev as PillSev }
-              : { color: 'var(--capiro-color-text-muted)' }),
-          };
-        case 2:
-          return {
-            ...k,
-            mono: true,
-            ...(unavailable(k) ? { color: 'var(--capiro-color-text-muted)' } : {}),
-          };
-        case 3:
-          return { ...k, mono: true, color: deltaKpiColor(k.value) };
-        default:
-          return { ...k };
-      }
-    });
+  const MUTED = 'var(--capiro-color-text-muted)';
+  return orderedKpis(d.kpis).map((k) => {
+    // kpiValueText narrows a `date` value to a calendar date; kpiSubText carries
+    // the caption, or the grounded reason when the cell has no figure.
+    const cell: DossierKpi = { label: k.label, value: kpiValueText(k), sub: kpiSubText(k) };
+    if (kpiUnavailable(k)) {
+      return { ...cell, mono: k.valueType === 'money' || k.valueType === 'signed_money', color: MUTED };
+    }
+    switch (k.id) {
+      case 'current_status':
+        return { ...cell, sev: d.bill.statusSev as PillSev };
+      case 'latest_vote':
+        return { ...cell, mono: true, ...(vote ? { sev: vote.resultSev as PillSev } : {}) };
+      case 'funding_position':
+        return { ...cell, mono: true };
+      case 'delta_from_request':
+        return { ...cell, mono: true, color: deltaKpiColor(cell.value) };
+      default:
+        return cell;
+    }
+  });
 }
 
 /**
- * Δ-cell color from the rendered value. `fmtDelta` emits '+…', '−…' (U+2212),
- * 'flat', or '—', so the sign is read off the string rather than recomputed —
- * the API already decided what the cell says.
+ * Δ-cell color from the rendered value. `fmtSignedMillions` emits '+…', '−…'
+ * (U+2212) or the literal 'flat', so the sign is read off the string rather than
+ * recomputed — the API already decided what the cell says. An unavailable delta
+ * never reaches here; it is muted by `kpiUnavailable` above.
  */
 function deltaKpiColor(value: string): string {
   if (value.startsWith('+')) return 'var(--capiro-color-success)';
   if (value.startsWith('−') || value.startsWith('-')) return 'var(--capiro-color-danger)';
-  if (value === '—') return 'var(--capiro-color-text-muted)';
   return 'var(--capiro-color-text-secondary)';
 }
 

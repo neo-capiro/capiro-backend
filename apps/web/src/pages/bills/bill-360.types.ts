@@ -57,10 +57,32 @@ export interface LatestAction {
   date: string | null;
 }
 
+/**
+ * Stable identity for each cell of the Bill 360 KPI strip (LW-QA-021). Mirrors
+ * apps/intel-api/src/bill-dossier/bill-dossier.types.ts. Surfaces render the
+ * strip by looking cells up by `id` — NEVER by array position or label string.
+ */
+export type BillKpiId =
+  | 'current_status'
+  | 'latest_vote'
+  | 'funding_position'
+  | 'delta_from_request'
+  | 'last_official_action'
+  | 'next_milestone';
+
+/** A `date` value is a full ISO instant and MUST be narrowed before painting. */
+export type BillKpiValueType = 'status' | 'text' | 'date' | 'money' | 'signed_money';
+
 export interface BillKpi {
+  id: BillKpiId;
   label: string;
-  value: string;
+  /** `null` = not available; `unavailableReason` says why. Never 0, never blank. */
+  value: string | null;
+  valueType: BillKpiValueType;
+  asOf: string | null;
   sub: string | null;
+  /** Non-null exactly when `value` is null. */
+  unavailableReason: string | null;
 }
 
 export interface DossierOverview {

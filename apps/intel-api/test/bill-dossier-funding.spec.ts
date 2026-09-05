@@ -1,9 +1,17 @@
 import { BillDossierService } from '../src/bill-dossier/bill-dossier.service.js';
+import type { BillDossierResponse, BillKpiId } from '../src/bill-dossier/bill-dossier.types.js';
 import type {
   SourceBillIdentity,
   SourceBillPeImpact,
   SourceFundingPosition,
 } from '../src/sourcedata/source-data.repository.js';
+
+/** LW-QA-021: cells are addressed by SEMANTIC id, never by index or by label. */
+function kpi(d: BillDossierResponse, id: BillKpiId) {
+  const cell = d.kpis.find((k) => k.id === id);
+  if (!cell) throw new Error(`no KPI cell with id ${id}`);
+  return cell;
+}
 
 /**
  * Bill 360 funding integration (Release R3, §3.6).
@@ -135,6 +143,25 @@ function svcWith(over: Record<string, unknown> = {}) {
   return { svc: new BillDossierService({} as never, src as never, {} as never), calls };
 }
 
+/** Client route: no tracking rows, no alerts, no matches — only the funding path
+ *  is under test, so every tenant-scoped read returns empty. */
+const emptyClientPrisma = {
+  withTenant: async <T>(_tenantId: string, fn: (tx: unknown) => Promise<T> | T) =>
+    fn({
+      trackedBill: { findFirst: async () => null },
+      intelAlert: { findMany: async () => [] },
+      billMatch: { findFirst: async () => null },
+    }),
+};
+
+function clientSvcWith(over: Record<string, unknown> = {}) {
+  const { src, calls } = makeSource(over);
+  return {
+    svc: new BillDossierService(emptyClientPrisma as never, src as never, {} as never),
+    calls,
+  };
+}
+
 describe('funding OFF — the flag gates the query itself', () => {
   it('issues no funding read and returns the grounded not-enabled state', async () => {
     const { svc, calls } = svcWith();
@@ -149,12 +176,18 @@ describe('funding OFF — the flag gates the query itself', () => {
     expect(d.relatedVehicles).toEqual([]);
   });
 
-  it('leaves the funding KPI cells as em-dashes, never $0', async () => {
+  it('leaves the funding KPI cells unavailable WITH A REASON, never $0', async () => {
     const { svc } = svcWith();
     const d = await svc.getGlobalDossier(BILL);
-    expect(d.kpis.find((k) => k.label === 'Funding position')!.value).toBe('—');
-    expect(d.kpis.find((k) => k.label === 'Δ from request')!.value).toBe('—');
-    expect(JSON.stringify(d.kpis)).not.toContain('$0');
+    // LW-QA-021: an absent figure is `null` + a grounded reason — never $0, and
+    // never a bare em-dash the reader has to interpret as "blank".
+    expect(kpi(d, 'funding_position').value).toBeNull();
+    expect(kpi(d, 'funding_position').unavailableReason).toMatch(/not yet enabled/i);
+    expect(kpi(d, 'delta_from_request').value).toBeNull();
+    expect(kpi(d, 'delta_from_request').unavailableReason).toMatch(/not yet enabled/i);
+    // No fabricated amount in any VALUE. (The reason COPY legitimately contains
+    // "$0" — it is the promise not to show one, so it is excluded here.)
+    expect(JSON.stringify(d.kpis.map((k) => k.value))).not.toContain('$0');
   });
 });
 
@@ -239,8 +272,8 @@ describe('funding ON with data', () => {
         comparable: true,
       }),
     );
-    expect(d.kpis.find((k) => k.label === 'Δ from request')!.value).toBe('+$10.0B');
-    expect(d.kpis.find((k) => k.label === 'Δ from request')!.sub).toBe('same scope only');
+    expect(kpi(d, 'delta_from_request').value).toBe('+$10.0B');
+    expect(kpi(d, 'delta_from_request').sub).toBe('same scope only');
   });
 
   it('does NOT compute a delta against a request on a different scope', async () => {
@@ -258,9 +291,11 @@ describe('funding ON with data', () => {
     });
     const d = await svc.getGlobalDossier(BILL, { funding: true });
     expect(d.funding.reqCompare).toBeNull();
-    expect(d.kpis.find((k) => k.label === 'Δ from request')!.value).toBe('—');
-    // …and the guardrail explains why the two figures are not subtracted.
+    expect(kpi(d, 'delta_from_request').value).toBeNull();
+    // …and the guardrail explains why the two figures are not subtracted — the
+    // KPI cell carries that same explanation rather than a bare em-dash.
     expect(d.funding.guardrail).toMatch(/same fiscal year and the same scope/i);
+    expect(kpi(d, 'delta_from_request').unavailableReason).toBe(d.funding.guardrail);
   });
 
   it('does NOT compute a delta against a request from a different fiscal year', async () => {
@@ -319,7 +354,7 @@ describe('funding ON with data', () => {
     });
     const d = await svc.getGlobalDossier(BILL, { funding: true });
     expect(d.funding.positions.find((p) => p.primary)!.stage).toBe('enacted');
-    expect(d.kpis.find((k) => k.label === 'Funding position')!.value).toBe('$845.0B');
+    expect(kpi(d, 'funding_position').value).toBe('$845.0B');
   });
 
   it('surfaces a like-for-like Senate comparison on the same scope with no delta claimed', async () => {
@@ -511,5 +546,45 @@ describe('state bills never claim funding', () => {
     expect(d.funding.available).toBe(false);
     expect(d.funding.status).toMatch(/state funding data is not available/i);
     expect(d.funding.positions).toEqual([]);
+  });
+});
+
+/**
+ * LW-QA-021 item 5: the client-scoped route rebuilt the KPI strip WITHOUT the
+ * funding block, so a bill with a real reviewed position showed its amount in
+ * global scope and "not available" in client scope. Both routes must agree.
+ */
+describe('LW-QA-021 — funding KPIs match across global and client scope', () => {
+  const TENANT = '00000000-0000-0000-0000-0000000000aa';
+  const CLIENT = '11111111-1111-1111-1111-111111111111';
+
+  it('shows the same funding position and delta on the client route', async () => {
+    const { svc } = clientSvcWith({
+      getBillFundingPositions: async () => [
+        position(),
+        position({
+          id: 'p-request',
+          stage: 'president',
+          vehicleClass: 'request',
+          amountMillions: '830000.00',
+        }),
+      ],
+    });
+    const global = await svc.getGlobalDossier(BILL, { funding: true });
+    const scoped = await svc.getClientDossier(TENANT, CLIENT, BILL, { funding: true });
+
+    expect(kpi(global, 'funding_position').value).toBe(kpi(scoped, 'funding_position').value);
+    expect(kpi(global, 'delta_from_request').value).toBe(kpi(scoped, 'delta_from_request').value);
+    // …and they are REAL figures, so the assertion cannot pass on two nulls.
+    expect(kpi(scoped, 'funding_position').value).toBeTruthy();
+    expect(kpi(scoped, 'delta_from_request').value).toBeTruthy();
+    expect(kpi(scoped, 'funding_position').unavailableReason).toBeNull();
+  });
+
+  it('keeps the client route honest when funding really is unavailable', async () => {
+    const { svc } = clientSvcWith();
+    const scoped = await svc.getClientDossier(TENANT, CLIENT, BILL);
+    expect(kpi(scoped, 'funding_position').value).toBeNull();
+    expect(kpi(scoped, 'funding_position').unavailableReason).toMatch(/not yet enabled/i);
   });
 });
