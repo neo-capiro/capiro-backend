@@ -80,6 +80,22 @@ export class AlertWorkStateService {
   }
 
   /**
+   * The column projection for one patch. Shared by all four entry points so the
+   * client-scoped and tenant-wide writes cannot drift in which fields a patch
+   * touches. Deliberately carries NO clientId: an update must leave an existing
+   * row's client alone, and every create supplies the client explicitly.
+   */
+  private patchData(patch: WorkStatePatch, userId: string) {
+    return {
+      ...(patch.state !== undefined ? { state: patch.state } : {}),
+      ...(patch.assignedTo !== undefined ? { assignedTo: patch.assignedTo } : {}),
+      ...(patch.snoozedUntil !== undefined ? { snoozedUntil: patch.snoozedUntil } : {}),
+      ...(patch.note !== undefined ? { note: patch.note } : {}),
+      updatedBy: userId,
+    };
+  }
+
+  /**
    * Upsert on (alertId, userId) — the table's unique index, so a repeated action
    * is idempotent rather than a duplicate row.
    */
@@ -101,18 +117,60 @@ export class AlertWorkStateService {
     this.assertAssignable(patch);
     await this.assertValidAssignee(tenantId, patch);
 
-    const data = {
-      ...(patch.state !== undefined ? { state: patch.state } : {}),
-      ...(patch.assignedTo !== undefined ? { assignedTo: patch.assignedTo } : {}),
-      ...(patch.snoozedUntil !== undefined ? { snoozedUntil: patch.snoozedUntil } : {}),
-      ...(patch.note !== undefined ? { note: patch.note } : {}),
-      updatedBy: userId,
-    };
+    const data = this.patchData(patch, userId);
 
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelAlertWorkState.upsert({
         where: { alertId_userId: { alertId, userId } },
         create: { tenantId, clientId, alertId, userId, state: patch.state ?? 'new', ...data },
+        update: data,
+      }),
+    );
+  }
+
+  /**
+   * LW-QA-019: the tenant-wide ('_all' scope) counterpart to setState. The
+   * default "All clients" view has no client id to send, so the client is
+   * DERIVED from the alert rather than supplied by the caller.
+   *
+   * That is not a weaker ownership proof than assertClientInTenant, it is a
+   * stronger one: the alert is read inside `withTenant`, which both sets the
+   * RLS GUC intel_alert enforces and carries an explicit tenantId predicate, so
+   * the row is already proven to belong to the caller's tenant before its
+   * clientId is used. There is no caller-supplied client id left to forge, and
+   * the literal '_all' can therefore never reach the client_id column.
+   */
+  async setStateTenantWide(
+    tenantId: string,
+    alertId: string,
+    userId: string,
+    patch: WorkStatePatch,
+  ): Promise<void> {
+    const alert = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findFirst({
+        where: { id: alertId, tenantId },
+        select: { id: true, clientId: true },
+      }),
+    );
+    // 404 with assertAlertInClient's wording: a miss must not confirm that
+    // another tenant's alert exists.
+    if (!alert) throw new NotFoundException('Alert not found');
+    this.assertAssignable(patch);
+    await this.assertValidAssignee(tenantId, patch);
+
+    const data = this.patchData(patch, userId);
+
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlertWorkState.upsert({
+        where: { alertId_userId: { alertId, userId } },
+        create: {
+          tenantId,
+          clientId: alert.clientId,
+          alertId,
+          userId,
+          state: patch.state ?? 'new',
+          ...data,
+        },
         update: data,
       }),
     );
@@ -238,13 +296,8 @@ export class AlertWorkStateService {
     this.assertAssignable(patch);
     await this.assertValidAssignee(tenantId, patch);
 
-    const ids = Array.from(new Set(alertIds)).slice(0, BULK_MAX);
+    const ids = this.capIds(alertIds);
     if (!ids.length) return { updated: 0 };
-    if (alertIds.length > BULK_MAX) {
-      this.logger.warn(
-        `bulkSetState: received ${alertIds.length} ids, capped at ${BULK_MAX}; caller must chunk.`,
-      );
-    }
 
     const owned = await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelAlert.findMany({
@@ -265,14 +318,83 @@ export class AlertWorkStateService {
       });
     }
 
-    const data = {
-      ...(patch.state !== undefined ? { state: patch.state } : {}),
-      ...(patch.assignedTo !== undefined ? { assignedTo: patch.assignedTo } : {}),
-      ...(patch.snoozedUntil !== undefined ? { snoozedUntil: patch.snoozedUntil } : {}),
-      ...(patch.note !== undefined ? { note: patch.note } : {}),
-      updatedBy: userId,
-    };
+    const data = this.patchData(patch, userId);
 
+    return this.writeBulk(tenantId, ids, userId, patch, data, () => clientId);
+  }
+
+  /**
+   * LW-QA-019: the tenant-wide ('_all' scope) counterpart to bulkSetState.
+   *
+   * Same contract — dedupe, BULK_MAX cap, all-or-nothing on an unknown id, one
+   * tenant-scoped lookup rather than N — with the client id derived per alert
+   * instead of taken from the caller. That per-row derivation is what makes a
+   * MIXED-client batch (one selection spanning clients A, B and C, which is the
+   * normal case in the All-clients view) file each row under its own client
+   * rather than stamping them all with one.
+   */
+  async bulkSetStateTenantWide(
+    tenantId: string,
+    alertIds: string[],
+    userId: string,
+    patch: WorkStatePatch,
+  ): Promise<{ updated: number }> {
+    this.assertAssignable(patch);
+    await this.assertValidAssignee(tenantId, patch);
+
+    const ids = this.capIds(alertIds);
+    if (!ids.length) return { updated: 0 };
+
+    const owned = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findMany({
+        where: { id: { in: ids }, tenantId },
+        select: { id: true, clientId: true },
+      }),
+    );
+    const clientById = new Map(owned.map((a) => [a.id, a.clientId]));
+    const foreign = ids.filter((id) => !clientById.has(id));
+    if (foreign.length) {
+      this.logger.warn(
+        `bulkSetStateTenantWide rejected: ${foreign.length}/${ids.length} alert id(s) do not ` +
+          `belong to tenant=${tenantId} — no changes written.`,
+      );
+      throw new NotFoundException({
+        code: 'ALERT_NOT_IN_TENANT',
+        message: 'One or more alerts do not belong to this tenant. No changes were made.',
+      });
+    }
+
+    const data = this.patchData(patch, userId);
+
+    return this.writeBulk(tenantId, ids, userId, patch, data, (id) => clientById.get(id)!);
+  }
+
+  /** Dedupe + BULK_MAX cap, with the same over-cap warning on both bulk paths. */
+  private capIds(alertIds: string[]): string[] {
+    const ids = Array.from(new Set(alertIds)).slice(0, BULK_MAX);
+    if (alertIds.length > BULK_MAX) {
+      this.logger.warn(
+        `bulkSetState: received ${alertIds.length} ids, capped at ${BULK_MAX}; caller must chunk.`,
+      );
+    }
+    return ids;
+  }
+
+  /**
+   * The write half of a bulk triage, once every id is proven owned. One
+   * `withTenant` — which is a real $transaction — so the update and the create
+   * land together or not at all. `clientFor` supplies the client stamped on a
+   * row that does not exist yet: constant for a client-scoped batch, per-alert
+   * for a tenant-wide one.
+   */
+  private writeBulk(
+    tenantId: string,
+    ids: string[],
+    userId: string,
+    patch: WorkStatePatch,
+    data: ReturnType<AlertWorkStateService['patchData']>,
+    clientFor: (alertId: string) => string,
+  ): Promise<{ updated: number }> {
     return this.prisma.withTenant(tenantId, async (tx) => {
       // One UPDATE for the rows that exist…
       const updated = await tx.intelAlertWorkState.updateMany({
@@ -291,7 +413,7 @@ export class AlertWorkStateService {
         await tx.intelAlertWorkState.createMany({
           data: missing.map((alertId) => ({
             tenantId,
-            clientId,
+            clientId: clientFor(alertId),
             alertId,
             userId,
             state: patch.state ?? 'new',
