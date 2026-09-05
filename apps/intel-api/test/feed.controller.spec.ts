@@ -63,3 +63,52 @@ describe('FeedController — workState validation (Gate F c-3)', () => {
     expect(svc.getFeed).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Certification-pass regression: `getFeed()` always answers with the
+ * paginated envelope (`{items, nextCursor, hasMore, counts, ...}`), even when
+ * narrowed to one `alertId` — it is the list method, reused here for its
+ * filtering/decoration pipeline rather than duplicated. `useLwAlert` on the
+ * web client expects a single `FeedItem | null`, so `getAlert`/
+ * `getTenantAlert` MUST unwrap `items[0]` themselves; returning the envelope
+ * verbatim silently hands the frontend an object with no `sourceType` /
+ * `evidence` / `workState`, which crashed `PacketDrawer` — a bare
+ * `it.sourceType.toUpperCase()` — on EVERY alert opened, in EVERY client
+ * scope, live in production.
+ */
+describe('FeedController — single-alert routes unwrap the list envelope', () => {
+  const ENVELOPE_KEYS = ['nextCursor', 'hasMore', 'counts', 'severityCounts', 'total', 'workStateCounts'];
+
+  it('getAlert (per-client) returns the bare item, not the envelope', async () => {
+    const item = { id: 'a1', clientId: 'c1', sourceType: 'bill', evidence: {}, workState: { state: 'new' } };
+    const svc = { getFeed: jest.fn().mockResolvedValue({ items: [item], nextCursor: null, hasMore: false, counts: {}, severityCounts: {}, total: 1, workStateCounts: {} }) } as any;
+    const controller = new FeedController(svc);
+    const result = await controller.getAlert(makeCtx(), 'c1', 'a1');
+    expect(result).toEqual(item);
+    for (const key of ENVELOPE_KEYS) expect(result).not.toHaveProperty(key);
+    expect(svc.getFeed).toHaveBeenCalledWith('t1', 'c1', expect.objectContaining({ alertId: 'a1', limit: 1 }));
+  });
+
+  it('getTenantAlert (_all) returns the bare item, not the envelope', async () => {
+    const item = { id: 'a1', clientId: 'c9', sourceType: 'hearing', evidence: {}, workState: { state: 'new' } };
+    const svc = { getFeed: jest.fn().mockResolvedValue({ items: [item], nextCursor: null, hasMore: false, counts: {}, severityCounts: {}, total: 1, workStateCounts: {} }) } as any;
+    const controller = new FeedController(svc);
+    const result = await controller.getTenantAlert(makeCtx(), 'a1');
+    expect(result).toEqual(item);
+    for (const key of ENVELOPE_KEYS) expect(result).not.toHaveProperty(key);
+    // clientId=null is the tenant-wide predicate (never the literal '_all')
+    expect(svc.getFeed).toHaveBeenCalledWith('t1', null, expect.objectContaining({ alertId: 'a1', limit: 1 }));
+  });
+
+  it('getAlert returns null (not an empty envelope) when the alert is not found', async () => {
+    const svc = { getFeed: jest.fn().mockResolvedValue({ items: [], nextCursor: null, hasMore: false, counts: {}, severityCounts: {}, total: 0, workStateCounts: {} }) } as any;
+    const controller = new FeedController(svc);
+    expect(await controller.getAlert(makeCtx(), 'c1', 'ghost')).toBeNull();
+  });
+
+  it('getTenantAlert returns null (not an empty envelope) when the alert is not found', async () => {
+    const svc = { getFeed: jest.fn().mockResolvedValue({ items: [], nextCursor: null, hasMore: false, counts: {}, severityCounts: {}, total: 0, workStateCounts: {} }) } as any;
+    const controller = new FeedController(svc);
+    expect(await controller.getTenantAlert(makeCtx(), 'ghost')).toBeNull();
+  });
+});

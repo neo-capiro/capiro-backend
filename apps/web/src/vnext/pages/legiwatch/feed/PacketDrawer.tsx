@@ -68,7 +68,12 @@ export function PacketDrawer({
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 {bandInfo ? <LwPill tone={bandInfo.tone} size="22">{bandInfo.band}</LwPill> : null}
                 <span className="lw-prow__src">
-                  {it.evidence?.bill?.displayNum ?? it.sourceType.toUpperCase()} · {ageLabel(it.createdAt)}
+                  {/* Defense-in-depth (certification pass): `it` is the API response
+                      shape at runtime, not compile-time-checked — a boundary that
+                      ever answers with something other than a bare FeedItem (this
+                      crashed in production on a mis-shaped response) must degrade
+                      to a label, never throw calling .toUpperCase() on undefined. */}
+                  {it.evidence?.bill?.displayNum ?? (it.sourceType || 'ALERT').toUpperCase()} · {ageLabel(it.createdAt)}
                 </span>
                 <button
                   type="button"
