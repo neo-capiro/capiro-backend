@@ -8,6 +8,11 @@
  * result set, never a per-keystroke request). Bills has no search endpoint
  * yet, so this does not claim bill coverage rather than faking it over a
  * paginated board fetch.
+ *
+ * The archive rows arrive relevance-ranked from the server (phrase tier, then
+ * ts_rank_cd, then recency), so the six shown here are the six best matches —
+ * not, as they once were, the six most recent proceedings that happened to
+ * contain one of the words somewhere.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -56,7 +61,10 @@ export function LegiWatchSearchOverlay({
       .slice(0, 6);
   }, [committees.data, q]);
 
-  const isLoading = q.length >= 2 && (hearings.isFetching || committees.isFetching);
+  // The 250ms debounce leaves `raw` ahead of `q`; without this the previous
+  // query's hits stay on screen underneath the newly typed text.
+  const isTyping = raw.trim() !== q;
+  const isLoading = q.length >= 2 && (isTyping || hearings.isFetching || committees.isFetching);
   const hasAnyResults = (hearings.data?.rows.length ?? 0) > 0 || matchedCommittees.length > 0;
 
   return (
@@ -116,6 +124,11 @@ export function LegiWatchSearchOverlay({
             {hearings.data?.rows.length ? (
               <section>
                 <h3 className="lw-sect__title">Hearings &amp; transcripts</h3>
+                {hearings.data.matchMode === 'partial' ? (
+                  <p className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)', margin: '0 0 6px' }}>
+                    No proceeding matched every word — showing partial matches.
+                  </p>
+                ) : null}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {hearings.data.rows.map((r) => (
                     <button

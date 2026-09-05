@@ -16,7 +16,6 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { FeedItem, FeedOrder, FeedFilter } from '../../../../pages/clients/tracker/intel-feed-api.js';
 import {
@@ -53,8 +52,9 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
+  /** Rows with an in-flight row-level triage, so each pill disables its own. */
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
-  const qc = useQueryClient();
   const workState = useLwWorkState(scope);
 
   const work = bucket === 'default' ? undefined : bucket;
@@ -104,7 +104,10 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
   const bulk = (state: WorkState) => {
     const ids = [...selected];
     if (!ids.length) return;
-    const prev = qc.getQueryData(['intel-feed']);
+    // The rollback lives in useLwWorkState's onMutate/onError snapshot. This
+    // used to read and write the bare ['intel-feed'] prefix, which addresses no
+    // cache entry (the real keys carry clientId/source/order/bucket), so the
+    // "rollback" was a no-op that also wiped nothing.
     workState.mutate(
       { alertIds: ids, state },
       {
@@ -112,10 +115,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
           setSelected(new Set());
           showToast(`${ids.length} ${ids.length === 1 ? 'alert' : 'alerts'} marked ${WORK_STATE_LABEL[state].toLowerCase()}`);
         },
-        onError: () => {
-          qc.setQueryData(['intel-feed'], prev); // rollback
-          showToast('Could not update — changes rolled back');
-        },
+        onError: () => showToast('Could not update — changes rolled back'),
       },
     );
   };
@@ -216,10 +216,24 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
         <div className="lw-prow__side">
           <RowStatePill
             state={ws}
+            // LW-QA-019: a single-row failure used to be completely silent — no
+            // onError, no pending state — so a 404 left the old value on screen
+            // with nothing to tell the user the triage never happened.
+            pending={workState.isPending && pendingIds.has(it.id)}
             onChange={(next) => {
+              setPendingIds((prev) => new Set(prev).add(it.id));
               workState.mutate(
                 { alertIds: [it.id], state: next },
-                { onSuccess: () => showToast(`Marked ${WORK_STATE_LABEL[next].toLowerCase()}`) },
+                {
+                  onSuccess: () => showToast(`Marked ${WORK_STATE_LABEL[next].toLowerCase()}`),
+                  onError: () => showToast('Could not update — change reverted'),
+                  onSettled: () =>
+                    setPendingIds((prev) => {
+                      const nextSet = new Set(prev);
+                      nextSet.delete(it.id);
+                      return nextSet;
+                    }),
+                },
               );
             }}
           />
@@ -440,7 +454,16 @@ function BucketRow({
 
 /** Row-level state pill (§4.1 #9) — the third place the one work-state
  *  mutation is available, preventing a modal round trip. */
-function RowStatePill({ state, onChange }: { state: WorkState; onChange: (next: WorkState) => void }) {
+function RowStatePill({
+  state,
+  onChange,
+  pending,
+}: {
+  state: WorkState;
+  onChange: (next: WorkState) => void;
+  /** This row's own mutation is in flight — the control is not interactive. */
+  pending: boolean;
+}) {
   return (
     <span onClick={(e) => e.stopPropagation()}>
       <LwPill tone={WORK_STATE_TONE[state]}>
@@ -450,6 +473,8 @@ function RowStatePill({ state, onChange }: { state: WorkState; onChange: (next: 
         <select
           aria-label="Change work state"
           value={state}
+          disabled={pending}
+          aria-busy={pending}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onChange(e.target.value as WorkState)}
           style={{

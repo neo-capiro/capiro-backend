@@ -148,6 +148,12 @@ export interface ArchiveResult {
     snippet: string;
   } | null;
   intelligenceHit: { insightId: string; insightType: string; title: string } | null;
+  /**
+   * Which relevance tier placed this row, 0 (title/committee IS the phrase)
+   * through 6 (matched only on scattered terms in a body corpus). `null` when
+   * the request carried no query. Rows arrive already sorted by it.
+   */
+  matchTier: number | null;
   /** The ONE canonical destination every result funnels to. */
   detailPath: string;
 }
@@ -155,10 +161,23 @@ export interface ArchiveResult {
 export interface ArchiveSearchPage {
   rows: ArchiveResult[];
   total: number;
+  /**
+   * The whole archive under this tenant, counted BEFORE the query and facets
+   * are applied. It is what separates "nothing matched your search" from "the
+   * archive is empty" — `total` alone cannot tell those apart. Optional because
+   * an API image that predates it simply omits the field.
+   */
+  corpusTotal?: number;
   page: number;
   pageSize: number;
   hasMore: boolean;
   query: string | null;
+  /**
+   * `partial` means nothing matched every term and the server fell back to an
+   * any-term query. Surface it — presenting partial hits as exact ones is the
+   * dishonest option.
+   */
+  matchMode: 'all-terms' | 'partial' | null;
   facets: {
     chamber: Array<{ value: string; count: number }>;
     committee: Array<{ value: string; label: string; count: number }>;
@@ -263,8 +282,21 @@ export const w1Keys = {
   savedItems: (hearingId: string) => ['lw-w1', 'saved-items', hearingId] as const,
 };
 
+/**
+ * A request the app itself aborted — a superseded search, or one still in
+ * flight when the surface unmounted. It is not a failure and must never reach
+ * the user as one.
+ */
+export function isCanceled(err: unknown): boolean {
+  const e = err as { code?: unknown; name?: unknown } | null | undefined;
+  return (
+    e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError' || e?.name === 'AbortError'
+  );
+}
+
 /** Turn an axios failure into a message the UI can show without guessing. */
 export function w1Error(err: unknown): string {
+  if (isCanceled(err)) return '';
   const res = (err as { response?: { data?: { message?: unknown; code?: unknown } } })?.response;
   const message = res?.data?.message;
   if (typeof message === 'string' && message.trim()) return message;
@@ -395,32 +427,60 @@ export interface ArchiveSearchParams {
 }
 
 /**
+ * Which SEARCH a set of params describes, with `page` deliberately excluded:
+ * page 2 of "army robotics" is the same question as page 1, but "army" is a
+ * different question entirely. Keys are sorted so two callers that build the
+ * same params in a different order still agree.
+ */
+function searchIdentity(params: ArchiveSearchParams): string {
+  return JSON.stringify(
+    Object.entries(params)
+      .filter(([key, value]) => key !== 'page' && value !== undefined && value !== '')
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
+}
+
+/**
  * Server-side archive search.
  *
- * `keepPreviousData` holds the last page on screen while the next one loads, so
- * typing does not blank the results. react-query keys the request by params, so
- * a slow response for an older query can never overwrite a newer one — the
- * stale-response race the QA brief calls out.
+ * Two things keep a superseded response off the screen. The query function
+ * consumes react-query's `signal` and hands it to axios — that is what makes
+ * react-query abort the in-flight request when the key changes or the surface
+ * unmounts, and it is the ONLY way the abort is wired up (query-core arms the
+ * controller lazily, when the queryFn actually reads `signal`).
+ *
+ * And the previous page is held on screen only while paging within the SAME
+ * search. Holding it across a search change is what let the old corpus render
+ * underneath newly typed text: react-query keys each request separately so no
+ * cache entry is ever overwritten, but an unconditional placeholder still
+ * PAINTS the answer to a question the user has moved on from.
  */
 export function useArchiveSearch(
   params: ArchiveSearchParams,
   enabled = true,
 ): UseQueryResult<ArchiveSearchPage, Error> {
   const api = useApi();
+  const identity = searchIdentity(params);
   return useQuery<ArchiveSearchPage, Error>({
     queryKey: w1Keys.archive(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const qs = new URLSearchParams();
       for (const [key, value] of Object.entries(params)) {
         if (value === undefined || value === null || value === '') continue;
         qs.set(key, String(value));
       }
-      return (await api.get<ArchiveSearchPage>(`${BASE}/archive/search?${qs.toString()}`)).data;
+      return (
+        await api.get<ArchiveSearchPage>(`${BASE}/archive/search?${qs.toString()}`, { signal })
+      ).data;
     },
     enabled,
     // The corpus is historical; it does not change under the user mid-session.
     staleTime: 60_000,
-    placeholderData: (previous) => previous,
+    placeholderData: (previous, previousQuery) => {
+      const previousParams = previousQuery?.queryKey[2] as ArchiveSearchParams | undefined;
+      if (!previousParams || searchIdentity(previousParams) !== identity) return undefined;
+      return previous;
+    },
     retry: false,
   });
 }

@@ -23,7 +23,7 @@ import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, type LegiWatchTab } from './lib/types.js';
-import { useLwFeed, useLwFeedItems } from './lib/api.js';
+import { useLwFeed, useLwFeedItems, defaultBucketCount } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
 import { HearingsTab } from './hearings/HearingsTab.js';
 import { CommitteesTab } from './committees/CommitteesTab.js';
@@ -182,9 +182,17 @@ export function LegiWatchModule() {
 
   // The module-level feed drives the tab badge counts (§8.6: counts come from
   // the same query that fills the Feed tab). Active queue = server's default.
+  //
+  // LW-QA-020: this was `moduleItems.length` — the number of rows in the FIRST
+  // page of a hard 25-row query the module never pages — so it saturated at 25
+  // on any tenant with more active alerts. `defaultBucketCount(workStateCounts)`
+  // is the server's exact count over the whole filtered set, and is byte-for-
+  // byte the expression the Feed tab's own "Active queue" row uses against the
+  // identical cache entry, so badge and queue cannot disagree. null while the
+  // first page is in flight, or if the server omits the counts.
   const moduleFeed = useLwFeed(scope, 'all', 'date', undefined);
-  const { items: moduleItems } = useLwFeedItems(moduleFeed);
-  const activeCount = moduleItems.length; // default bucket excludes dismissed/snoozed server-side
+  const { workStateCounts } = useLwFeedItems(moduleFeed);
+  const activeCount = defaultBucketCount(workStateCounts);
 
   // Cold start detection (§7.12): a scoped client whose watchlist read returns
   // the server's "never configured" shape (suggestedIssueAreas present, no
@@ -252,7 +260,10 @@ export function LegiWatchModule() {
   // query inside the Hearings tab; Feed/Bills from their own queries. Here we
   // surface the Feed active count; the others are read in their tabs and shown
   // via the same derived-not-literal rule.
-  const tabCount: Partial<Record<LegiWatchTab, number>> = { feed: activeCount };
+  // LW-QA-020: an unavailable count omits the key entirely, so the render guard
+  // below shows NO badge rather than a fabricated 0.
+  const tabCount: Partial<Record<LegiWatchTab, number>> =
+    activeCount != null ? { feed: activeCount } : {};
 
   return (
     <div className="lw" data-module="legiwatch">
@@ -324,7 +335,11 @@ export function LegiWatchModule() {
             </svg>
           </button>
           <LwPill tone={moduleFeed.isError ? 'error' : 'brand'}>
-            {moduleFeed.isError ? 'SOURCE ISSUE' : `LIVE · ${activeCount} ACTIVE`}
+            {moduleFeed.isError
+              ? 'SOURCE ISSUE'
+              : activeCount != null
+                ? `LIVE · ${activeCount} ACTIVE`
+                : 'LIVE'}
           </LwPill>
         </div>
       </header>

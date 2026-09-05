@@ -84,7 +84,65 @@ describe('Bill 360 truth layer — H.R. 8800 failed governing rule', () => {
 
   it('reflects the rule outcome in the "Latest recorded vote" KPI', async () => {
     const d = await buildService().getGlobalDossier(HR_8800_ID);
-    const kpi = d.kpis.find((k) => k.label === 'Latest recorded vote')!;
+    const kpi = d.kpis.find((k) => k.id === 'latest_vote')!;
     expect(kpi.value).toBe(`Failed ${HR_8800_RULE_TALLY}`);
+  });
+});
+
+/**
+ * LW-QA-021 — the KPI strip's identity + honesty contract, asserted on H.R. 8800.
+ *
+ * The strip used to be an unkeyed positional array of `{label, value, sub}`. A
+ * consumer could only key it by index or by a display string, nothing could tell
+ * "genuinely none" from "not available", and a raw ISO instant sat in the value
+ * of a cell nothing formatted.
+ */
+describe('LW-QA-021 — Bill 360 KPI identity and honesty', () => {
+  const ids = async () => (await buildService().getGlobalDossier(HR_8800_ID)).kpis;
+
+  it('gives every cell a stable semantic id, in the documented order', async () => {
+    expect((await ids()).map((k) => k.id)).toEqual([
+      'current_status',
+      'latest_vote',
+      'funding_position',
+      'delta_from_request',
+      'last_official_action',
+      'next_milestone',
+    ]);
+  });
+
+  it('carries a real recorded vote where one exists — never blank', async () => {
+    const vote = (await ids()).find((k) => k.id === 'latest_vote')!;
+    expect(vote.value).toContain(HR_8800_RULE_TALLY);
+    expect(vote.unavailableReason).toBeNull();
+    expect(vote.sub).toBeTruthy();
+  });
+
+  it('dates the last official action and keeps the action text with it', async () => {
+    const action = (await ids()).find((k) => k.id === 'last_official_action')!;
+    expect(action.valueType).toBe('date');
+    expect(action.value).toBe('2026-06-17T00:00:00.000Z');
+    expect(action.asOf).toBe(action.value);
+    // The tile is meaningful, not a bare timestamp: the action text rides along.
+    expect(action.sub).toMatch(/rule/i);
+  });
+
+  it('never puts a date in the funding-delta cell', async () => {
+    const delta = (await ids()).find((k) => k.id === 'delta_from_request')!;
+    expect(delta.valueType).toBe('signed_money');
+    expect(delta.value ?? '').not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(delta.asOf).toBeNull();
+  });
+
+  it('says WHY a figure is missing instead of showing 0, blank, or a bare dash', async () => {
+    for (const k of await ids()) {
+      // The two are exclusive: a value XOR a reason, always exactly one.
+      expect(k.value == null).toBe(k.unavailableReason != null);
+      if (k.value == null) expect(k.unavailableReason!.length).toBeGreaterThan(10);
+      else expect(k.value).not.toBe('—');
+    }
+    const funding = (await ids()).find((k) => k.id === 'funding_position')!;
+    expect(funding.value).toBeNull();
+    expect(funding.unavailableReason).toMatch(/no \$0 is shown unless a source states zero/i);
   });
 });

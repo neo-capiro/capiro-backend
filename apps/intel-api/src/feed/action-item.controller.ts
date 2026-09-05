@@ -95,6 +95,50 @@ export class ActionItemController {
   ) {}
 
   /**
+   * LW-QA-019: tenant-wide bulk triage for the default "All clients" scope.
+   *
+   * MUST be declared before BOTH `_all/alerts/:alertId/work-state` (whose
+   * :alertId would otherwise capture the literal 'work-state') and the
+   * ':clientId' routes below (which would otherwise capture '_all' as a client
+   * id and 404 on the UUID check) — Nest matches in method-declaration order
+   * within a controller. Same precedent and same warning as
+   * feed.controller.ts's '_all/feed' pair.
+   *
+   * Guards, DTOs and the shared toPatch() mapper are the client-scoped routes'
+   * own; only the ownership proof differs, and it moves INTO the service, where
+   * the client is derived from the tenant-owned alert instead of trusted from
+   * the URL.
+   */
+  @Post('_all/alerts/work-state/bulk')
+  bulkSetWorkStateTenantWide(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Body() body: BulkWorkStateDto,
+  ) {
+    return this.workState.bulkSetStateTenantWide(
+      ctx.tenantId,
+      body.alertIds,
+      ctx.clerkUserId,
+      toPatch(body),
+    );
+  }
+
+  /** LW-QA-019: tenant-wide single-alert triage. See the bulk route above. */
+  @Post('_all/alerts/:alertId/work-state')
+  async setWorkStateTenantWide(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('alertId') alertId: string,
+    @Body() body: SetWorkStateDto,
+  ) {
+    await this.workState.setStateTenantWide(
+      ctx.tenantId,
+      alertId,
+      ctx.clerkUserId,
+      toPatch(body),
+    );
+    return { ok: true };
+  }
+
+  /**
    * §4.1 / P1-13: the server-built Government Affairs Alert Packet for one alert, so
    * every generator reads the same complete context instead of a frontend-authored
    * projection. Read-only, DB reads only — no LLM call and no new timeout.

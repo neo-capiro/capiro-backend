@@ -11,7 +11,7 @@
  * unknowns block is never hidden (none = say so); Escape/backdrop close;
  * browser back restores the underlying worklist state.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLwAlert, useLwPacket, useLwWorkState } from '../lib/api.js';
 import {
   WORK_STATE_LABEL,
@@ -35,6 +35,8 @@ export function PacketDrawer({
   const alert = useLwAlert(scope, alertId);
   const packet = useLwPacket(scope, alertId);
   const workState = useLwWorkState(scope);
+  /** Result of the last Change-menu action — the drawer's only feedback path. */
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -94,9 +96,22 @@ export function PacketDrawer({
                   <select
                     aria-label="Change work state"
                     value={ws}
-                    onChange={(e) =>
-                      workState.mutate({ alertIds: [it.id], state: e.target.value as WorkState })
-                    }
+                    // LW-QA-019: this call had no callbacks at all — the drawer
+                    // was silent on both success AND failure.
+                    disabled={workState.isPending}
+                    aria-busy={workState.isPending}
+                    onChange={(e) => {
+                      const next = e.target.value as WorkState;
+                      setNotice(null);
+                      workState.mutate(
+                        { alertIds: [it.id], state: next },
+                        {
+                          onSuccess: () =>
+                            setNotice(`Marked ${WORK_STATE_LABEL[next].toLowerCase()}`),
+                          onError: () => setNotice('Could not update — change reverted'),
+                        },
+                      );
+                    }}
                     style={{
                       height: 32,
                       fontFamily: 'var(--lw-mono)',
@@ -111,6 +126,15 @@ export function PacketDrawer({
                     ))}
                   </select>
                 </div>
+                {notice ? (
+                  <p
+                    className="lw-state__body"
+                    role="status"
+                    style={{ margin: '8px 0 0', maxWidth: 'none' }}
+                  >
+                    {notice}
+                  </p>
+                ) : null}
               </section>
 
               {/* Why this matters */}

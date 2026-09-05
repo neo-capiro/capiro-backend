@@ -12,7 +12,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
-import type { Tone } from '../lib/types.js';
+import {
+  SOURCE_HEALTH_LABEL,
+  SOURCE_HEALTH_TONE,
+  normalizeSourceHealth,
+} from '../lib/source-health.js';
 
 interface CommitteeMemberRow { name: string; role: string | null }
 interface CommitteeRow {
@@ -38,19 +42,6 @@ interface DirectoryResponse {
 }
 
 type FilterKey = 'house' | 'senate' | 'joint' | 'full' | 'sub' | 'following';
-
-const HEALTH_TONE: Record<string, Tone> = {
-  healthy: 'success',
-  degraded: 'warning',
-  failing: 'error',
-  unknown: 'gray',
-};
-const HEALTH_LABEL: Record<string, string> = {
-  healthy: 'SOURCE HEALTHY',
-  degraded: 'SOURCE DEGRADED',
-  failing: 'SOURCE FAILING',
-  unknown: 'SOURCE STATUS UNKNOWN',
-};
 
 function ageLabel(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -174,7 +165,7 @@ export function CommitteesTab() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {rows.map((c) => {
-            const health = c.sourceHealth in HEALTH_TONE ? c.sourceHealth : 'unknown';
+            const health = normalizeSourceHealth(c.sourceHealth);
             return (
               <div key={c.systemCode} className="lw-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -204,7 +195,7 @@ export function CommitteesTab() {
                   Last official {ageLabel(c.lastSyncedAt)}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <LwPill tone={HEALTH_TONE[health] ?? 'gray'} size="22">{HEALTH_LABEL[health] ?? 'SOURCE STATUS UNKNOWN'}</LwPill>
+                  <LwPill tone={SOURCE_HEALTH_TONE[health]} size="22">{SOURCE_HEALTH_LABEL[health]}</LwPill>
                   {(c.clientExposureCount ?? 0) > 0 ? (
                     <LwPill tone="brand" size="22">
                       {c.clientExposureCount} client{c.clientExposureCount === 1 ? '' : 's'} exposed
