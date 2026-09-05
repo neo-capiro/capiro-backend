@@ -139,6 +139,48 @@ export interface CommitteeFollowInput {
   notifyOnHighPriorityMatch?: boolean;
 }
 
+export interface ArchiveSearchInput {
+  q?: string;
+  from?: string;
+  to?: string;
+  chamber?: string;
+  committee?: string;
+  subcommittee?: string;
+  eventStatus?: string;
+  hasTranscript?: boolean;
+  intelligenceType?: string;
+  clientId?: string;
+  relevanceBand?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Declared as a type alias, not an interface, so it keeps an implicit index
+ * signature and stays assignable to the `Record<string, unknown>` shape every
+ * other read on this service returns.
+ */
+export type ArchiveSearchPage = {
+  rows: Array<Record<string, unknown>>;
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  query: string | null;
+  /**
+   * How the rows were matched. `all-terms` is the normal predicate (every term
+   * must appear somewhere). `partial` means nothing matched every term and the
+   * search fell back to an any-term query — the UI has to say so rather than
+   * present partial hits as if they were exact. `null` when there is no query.
+   */
+  matchMode: 'all-terms' | 'partial' | null;
+  facets: {
+    chamber: Array<{ value: string; count: number }>;
+    committee: Array<{ value: string; label: string; count: number }>;
+    eventStatus: Array<{ value: string; count: number }>;
+  };
+};
+
 interface CanonicalHearingRow {
   id: string;
   title: string;
@@ -496,34 +538,82 @@ export class LegiWatchWave1Service {
    *   3. the official published transcript text
    *   4. public intelligence findings
    *
+   * Results are RANKED, not merely matched. With a query present, rows come
+   * back in `matchTier` order (0 best), then by identity ts_rank_cd, then by
+   * recency:
+   *
+   *   0  title+committee IS the phrase          3  identity phrase via FTS
+   *   1  title+committee starts with it         4  identity has every term
+   *   2  title+committee contains it            5  a body corpus has the phrase
+   *                                             6  matched on scattered terms
+   *
+   * With no query the order is unchanged: pure recency, because "most relevant"
+   * is meaningless when nothing was asked.
+   *
    * `clientId` narrows to hearings with tenant relevance for that client. It
    * is validated against the caller's tenant first, so it cannot be used to
    * probe another tenant's client ids.
    */
   async searchArchive(
     ctx: TenantContext,
-    input: {
-      q?: string;
-      from?: string;
-      to?: string;
-      chamber?: string;
-      committee?: string;
-      subcommittee?: string;
-      eventStatus?: string;
-      hasTranscript?: boolean;
-      intelligenceType?: string;
-      clientId?: string;
-      relevanceBand?: string;
-      page?: number;
-      pageSize?: number;
-    },
+    input: ArchiveSearchInput,
   ): Promise<Record<string, unknown>> {
+    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    const phrase = input.q?.trim() || null;
+    // Collapsed to `[a-z0-9 ]` so the phrase tiers compare against the same
+    // normalization the SQL applies to title + committee. A consequence worth
+    // stating: this cannot contain `%`, `_` or a backslash, which is why the
+    // LIKE patterns built from it need no escaping.
+    const normPhrase = phrase ? phrase.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() : '';
+    const terms = normPhrase ? normPhrase.split(' ') : [];
+
+    const strict = await this.runArchiveSearch(ctx, input, {
+      phrase,
+      ftsQuery: phrase,
+      normPhrase: normPhrase || null,
+      mode: phrase ? 'all-terms' : null,
+    });
+    if (strict.total > 0 || terms.length < 2) return strict;
+
+    // Nothing matched EVERY term. Rather than return an empty page, fall back
+    // once to an any-term query — and label it, so the UI can say these are
+    // partial matches instead of passing them off as exact ones. One extra
+    // round trip, and only on the otherwise-empty case.
+    const partial = await this.runArchiveSearch(ctx, input, {
+      phrase,
+      ftsQuery: terms.join(' or '),
+      normPhrase: normPhrase || null,
+      mode: 'partial',
+    });
+    return partial.total > 0 ? partial : strict;
+  }
+
+  /**
+   * One matched, faceted, ranked page of the archive.
+   *
+   * `match.ftsQuery` is what the predicate and the snippets run against;
+   * `match.phrase` is the user's original string, kept separate so the phrase
+   * tiers stay meaningful when `ftsQuery` has been rewritten for the any-term
+   * fallback.
+   *
+   * Callers own the `input.clientId` tenant check; `searchArchive` does it once
+   * before either pass.
+   */
+  private async runArchiveSearch(
+    ctx: TenantContext,
+    input: ArchiveSearchInput,
+    match: {
+      phrase: string | null;
+      ftsQuery: string | null;
+      normPhrase: string | null;
+      mode: 'all-terms' | 'partial' | null;
+    },
+  ): Promise<ArchiveSearchPage> {
     const page = clampPage(input.page);
     const pageSize = clampPageSize(input.pageSize);
     const offset = (page - 1) * pageSize;
-    const q = input.q?.trim() || null;
-
-    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+    const q = match.ftsQuery;
 
     // The archive is the DURABLE HISTORICAL corpus: proceedings that already
     // happened, or whose capture reached a terminal state. A scheduled future
@@ -622,12 +712,84 @@ export class LegiWatchWave1Service {
 
     const where = `${baseWhere} ${textMatch} ${filters.join(' ')}`;
 
+    // Every parameter the shared WHERE references, captured BEFORE the ranking
+    // and paging binds. The count and the three facet queries reuse `where` and
+    // nothing else, and Postgres rejects a bind carrying more parameters than
+    // the statement uses — so this count, not "the last two", is what they slice
+    // to.
+    const filterParamCount = params.length;
+
     // The FROM clause is shared by the row query, the count and the facets so
     // a facet can never describe a different population than the results.
     const from = `
       FROM committee_hearing h
       LEFT JOIN public_hearing_capture c ON c.hearing_id = h.id
       LEFT JOIN official_hearing_transcript ot ON ot.hearing_id = h.id`;
+
+    // The hearing-identity document, exactly as `committee_hearing_search_fts_idx`
+    // declares it.
+    const identityTsv = `to_tsvector('english',
+               coalesce(h.title,'') || ' ' || coalesce(h.committee_name,'') || ' ' ||
+               coalesce(h.location,'') || ' ' || legiwatch_witness_text(h.witnesses)
+             )`;
+
+    // Title + committee only, normalized the same way `normPhrase` is. Location
+    // and witness names stay out of the phrase tiers — a room number should not
+    // manufacture a phrase hit — but they are still matched and ranked through
+    // the FTS tiers below, which use the full indexed document.
+    const normIdentity = `btrim(regexp_replace(
+               lower(coalesce(h.title,'') || ' ' || coalesce(h.committee_name,'')),
+               '[^a-z0-9]+', ' ', 'g'))`;
+
+    // ── Relevance ranking ──────────────────────────────────────────────────
+    // The four-corpus OR above answers WHETHER a hearing matched and says
+    // nothing about HOW WELL: websearch_to_tsquery lowers "Armed Services" to
+    // the unordered `'arm' & 'servic'`, so the phrase is not represented in the
+    // predicate at all. Ordering that boolean by recency alone is what put the
+    // newest proceeding whose multi-hour transcript happens to contain both
+    // stems above the House Armed Services Committee itself.
+    //
+    // The tier reconstructs the phrase and orders by it. It lives ONLY in the
+    // row query's SELECT/ORDER BY: the predicate, the count and all three
+    // facets are untouched, so no result population moves — only its order.
+    const phrase = match.phrase;
+    let matchTierSql = 'NULL';
+    if (q && phrase) {
+      const phraseBind = bind(phrase);
+      // Adjacency in one of the body corpora — a real phrase hit in a
+      // transcript still beats two stems scattered across two hours of it.
+      const bodyPhrase = `(
+                 EXISTS (
+                   SELECT 1 FROM public_hearing_transcript_segment s5
+                   WHERE s5.capture_id = c.id
+                     AND to_tsvector('english', s5.text) @@ phraseto_tsquery('english', ${phraseBind})
+                 )
+                 OR (ot.id IS NOT NULL AND to_tsvector('english', ot.text) @@ phraseto_tsquery('english', ${phraseBind}))
+                 OR EXISTS (
+                   SELECT 1 FROM public_hearing_insight i5
+                   WHERE i5.hearing_id = h.id
+                     AND to_tsvector('english',
+                           coalesce(i5.title,'') || ' ' || coalesce(i5.summary,'') || ' ' ||
+                           coalesce(i5.evidence_text,'')
+                         ) @@ phraseto_tsquery('english', ${phraseBind})
+                 ))`;
+      const literalTiers: string[] = [];
+      if (match.normPhrase) {
+        const normBind = bind(match.normPhrase);
+        literalTiers.push(
+          `WHEN ${normIdentity} = ${normBind} THEN 0`,
+          `WHEN ${normIdentity} LIKE ${normBind} || ' %' THEN 1`,
+          `WHEN ' ' || ${normIdentity} || ' ' LIKE '% ' || ${normBind} || ' %' THEN 2`,
+        );
+      }
+      matchTierSql = `CASE
+               ${literalTiers.join('\n               ')}
+               WHEN ${identityTsv} @@ phraseto_tsquery('english', ${phraseBind}) THEN 3
+               WHEN ${identityTsv} @@ websearch_to_tsquery('english', $1) THEN 4
+               WHEN ${bodyPhrase} THEN 5
+               ELSE 6
+             END`;
+    }
 
     const rowSql = `
       SELECT h.id,
@@ -683,18 +845,27 @@ export class LegiWatchWave1Service {
                LIMIT 1
              )`
                  : 'NULL'
-             } AS "intelligenceHit"
+             } AS "intelligenceHit",
+             ${matchTierSql} AS "matchTier"
       ${from}
       WHERE ${where}
-      ORDER BY COALESCE(c.actual_end, h.starts_at, h.date::timestamp) DESC, h.id DESC
+      ORDER BY ${
+        q && phrase
+          ? `"matchTier" ASC,
+               ts_rank_cd(${identityTsv}, websearch_to_tsquery('english', $1)) DESC,
+               `
+          : ''
+      }COALESCE(c.actual_end, h.starts_at, h.date::timestamp) DESC, h.id DESC
       LIMIT ${bind(pageSize)} OFFSET ${bind(offset)}`;
 
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRawUnsafe<Array<Record<string, unknown>>>(rowSql, ...params),
     );
 
-    // Count and facets reuse the same params minus the LIMIT/OFFSET pair.
-    const facetParams = params.slice(0, params.length - 2);
+    // Count and facets reuse only the params the shared WHERE references.
+    // NOT `params.length - 2`: phrase-aware ranking (LW-QA-023) binds beyond the
+    // LIMIT/OFFSET pair, so the count of FILTER params is the only safe slice.
+    const facetParams = params.slice(0, filterParamCount);
     const [totals, chamberFacets, committeeFacets, statusFacets, corpusTotals] =
       await this.prisma.withTenant(ctx.tenantId, async (tx) =>
         Promise.all([
@@ -740,7 +911,8 @@ export class LegiWatchWave1Service {
       page,
       pageSize,
       hasMore: offset + rows.length < total,
-      query: q,
+      query: match.phrase,
+      matchMode: match.mode,
       facets: {
         chamber: chamberFacets,
         committee: committeeFacets,
@@ -782,6 +954,10 @@ export class LegiWatchWave1Service {
       intelligenceCount: Number(row.insightCount ?? 0),
       transcriptHit: row.transcriptHit ?? null,
       intelligenceHit: row.intelligenceHit ?? null,
+      // Which ranking tier placed this row. Exposed so the ordering is
+      // inspectable from the client and assertable from a test, rather than
+      // being an opaque property of the SQL.
+      matchTier: row.matchTier == null ? null : Number(row.matchTier),
       // Every result funnels to the ONE canonical destination.
       detailPath: `/legiwatch/hearings/${encodeURIComponent(String(row.id))}`,
     };

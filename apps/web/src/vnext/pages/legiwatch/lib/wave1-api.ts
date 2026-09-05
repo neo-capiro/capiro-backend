@@ -148,6 +148,12 @@ export interface ArchiveResult {
     snippet: string;
   } | null;
   intelligenceHit: { insightId: string; insightType: string; title: string } | null;
+  /**
+   * Which relevance tier placed this row, 0 (title/committee IS the phrase)
+   * through 6 (matched only on scattered terms in a body corpus). `null` when
+   * the request carried no query. Rows arrive already sorted by it.
+   */
+  matchTier: number | null;
   /** The ONE canonical destination every result funnels to. */
   detailPath: string;
 }
@@ -166,6 +172,12 @@ export interface ArchiveSearchPage {
   pageSize: number;
   hasMore: boolean;
   query: string | null;
+  /**
+   * `partial` means nothing matched every term and the server fell back to an
+   * any-term query. Surface it — presenting partial hits as exact ones is the
+   * dishonest option.
+   */
+  matchMode: 'all-terms' | 'partial' | null;
   facets: {
     chamber: Array<{ value: string; count: number }>;
     committee: Array<{ value: string; label: string; count: number }>;

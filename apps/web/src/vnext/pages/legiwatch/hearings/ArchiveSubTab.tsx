@@ -318,6 +318,9 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
           <p className="lw-card__meta" style={{ marginTop: 0 }}>
             {search.data!.total} archived proceeding
             {search.data!.total === 1 ? '' : 's'}
+            {/* Nothing matched every word, so these are any-term hits. Saying so
+                is the difference between a search result and a misleading one. */}
+            {search.data!.matchMode === 'partial' ? ' · partial matches only' : ''}
             {search.isFetching ? ' · updating…' : ''}
           </p>
           <ol
