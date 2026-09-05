@@ -61,6 +61,14 @@ const INSIGHT_2 = 'lw-w1-insight-2';
 const COMMITTEE = 'hs00-lww1';
 const SUBCOMMITTEE = 'hs16-lww1';
 
+// Ranking fixtures (LW-QA-023). Seeded per-test rather than in beforeEach so
+// the population every other archive assertion counts stays exactly as it was.
+const H_DECOY = 'lw-w1-decoy'; // newer, unrelated committee, scattered terms in one segment
+const CAPTURE_DECOY = 'lw-w1-capture-decoy';
+const SEG_DECOY = 'lw-w1-seg-decoy';
+const TIE_A = 'lw-w1-tie-a'; // identical identity + identical date as TIE_B
+const TIE_B = 'lw-w1-tie-b';
+
 describeDb('LegiWatch Wave 1 (real Postgres)', () => {
   const prisma = new PrismaService();
   const hearings = new LiveHearingsService(prisma);
@@ -807,6 +815,181 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
       for (const row of result.rows) {
         expect(row.calendarDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       }
+    });
+
+    // ── relevance ranking (LW-QA-023) ────────────────────────────────────
+    //
+    // The archive used to order a four-way boolean OR by recency alone, so
+    // "Armed Services" returned the newest proceedings that happened to contain
+    // both stems somewhere rather than the Armed Services proceedings.
+
+    type RankedPage = {
+      total: number;
+      matchMode: string | null;
+      rows: Array<{
+        id: string;
+        matchTier: number | null;
+        transcriptHit: { segmentId: string; startMs: number } | null;
+      }>;
+    };
+
+    /**
+     * A NEWER, unrelated proceeding whose transcript merely contains the words
+     * "armed" and "services" in one sentence, non-adjacent. Under a pure
+     * recency sort this outranked the House Armed Services Committee itself.
+     */
+    const seedRecentDecoy = async () => {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO committee_hearing
+           (id, chamber, committee_name, committee_system_code, subcommittee_system_code,
+            title, type, date, starts_at, time, timezone, event_status, visibility, url, location,
+            stream_availability, coverage_status, congress, witnesses)
+         VALUES ($1, 'House', 'House Small Business', NULL, NULL,
+                 'Oversight of contracting support programs for small suppliers', 'hearing',
+                 CURRENT_DATE, now() - interval '1 hour', '9:00 AM', 'America/New_York',
+                 'completed', 'public', 'https://smallbusiness.house.gov/hearings/decoy',
+                 '2360 Rayburn', 'archived', 'captured', 119, ARRAY[]::text[])`,
+        H_DECOY,
+      );
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO public_hearing_capture
+           (id, hearing_id, status, domain_status, scheduled_start, actual_start, actual_end,
+            captured_seconds, transcript_gap_seconds, reconnect_count, terminal_reason_code)
+         VALUES ($1, $2, 'ended', 'COMPLETE', now() - interval '2 hours',
+                 now() - interval '2 hours', now() - interval '30 minutes', 5400, 0, 0,
+                 'CAPTURE_COMPLETE')`,
+        CAPTURE_DECOY,
+        H_DECOY,
+      );
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO public_hearing_transcript_segment
+           (id, capture_id, sequence, start_ms, end_ms, text, speaker_label, is_final)
+         VALUES ($1, $2, 1, 0, 30000,
+                 'The armed forces liaison walked through the procurement services available to small suppliers.',
+                 'CHAIR', true)`,
+        SEG_DECOY,
+        CAPTURE_DECOY,
+      );
+    };
+
+    it('ranks the real Armed Services proceeding above a newer transcript-only match', async () => {
+      await seedRecentDecoy();
+      const result = (await wave1.searchArchive(ctxA, { q: 'Armed Services' })) as RankedPage;
+
+      const ids = result.rows.map((r) => r.id);
+      // Both still match — ranking reorders the population, it does not shrink it.
+      expect(ids).toContain(H_DONE);
+      expect(ids).toContain(H_DECOY);
+      expect(ids[0]).toBe(H_DONE);
+      expect(ids.indexOf(H_DONE)).toBeLessThan(ids.indexOf(H_DECOY));
+
+      const done = result.rows.find((r) => r.id === H_DONE);
+      const decoy = result.rows.find((r) => r.id === H_DECOY);
+      expect(done?.matchTier).toBeLessThan(decoy?.matchTier as number);
+    });
+
+    it('tiers an exact identity phrase ahead of a prefix, and a prefix ahead of containment', async () => {
+      const exact = (await wave1.searchArchive(ctxA, {
+        q: 'Shipbuilding industrial base oversight House Armed Services',
+      })) as RankedPage;
+      expect(exact.rows[0]?.id).toBe(H_DONE);
+      expect(exact.rows[0]?.matchTier).toBe(0);
+
+      const prefix = (await wave1.searchArchive(ctxA, {
+        q: 'Shipbuilding industrial base',
+      })) as RankedPage;
+      expect(prefix.rows[0]?.matchTier).toBe(1);
+
+      const contained = (await wave1.searchArchive(ctxA, { q: 'Armed Services' })) as RankedPage;
+      expect(contained.rows.find((r) => r.id === H_DONE)?.matchTier).toBe(2);
+    });
+
+    it('honours a quoted phrase and does not throw on it', async () => {
+      await seedRecentDecoy();
+      const result = (await wave1.searchArchive(ctxA, { q: '"armed services"' })) as RankedPage;
+      expect(result.rows[0]?.id).toBe(H_DONE);
+      // Quoting makes websearch_to_tsquery a phrase query, so the scattered
+      // decoy does not even match — the honest outcome, not a demoted row.
+      expect(result.rows.map((r) => r.id)).not.toContain(H_DECOY);
+    });
+
+    it('still matches a single term', async () => {
+      const result = (await wave1.searchArchive(ctxA, { q: 'shipbuilding' })) as RankedPage;
+      expect(result.total).toBe(1);
+      expect(result.rows[0]?.id).toBe(H_DONE);
+      expect(result.matchMode).toBe('all-terms');
+    });
+
+    it('tiers a transcript phrase below identity but keeps its timecoded snippet', async () => {
+      const result = (await wave1.searchArchive(ctxA, {
+        q: 'multiyear procurement',
+      })) as RankedPage;
+      expect(result.rows[0]?.id).toBe(H_DONE);
+      expect(result.rows[0]?.transcriptHit?.segmentId).toBe(SEG_1);
+      expect(result.rows[0]?.transcriptHit?.startMs).toBe(0);
+      // The phrase is in a body corpus, not in the hearing's identity.
+      expect(result.rows[0]?.matchTier).toBe(5);
+    });
+
+    it('returns an empty page for a query nothing matches', async () => {
+      const result = (await wave1.searchArchive(ctxA, { q: 'zzzzq qqzzzw' })) as RankedPage;
+      expect(result.total).toBe(0);
+      expect(result.rows).toEqual([]);
+      expect(result.matchMode).toBe('all-terms');
+    });
+
+    it('falls back to partial matches rather than an empty page, and labels them', async () => {
+      // Nothing contains BOTH terms, so the strict pass is empty and the
+      // any-term pass runs. The label is what stops the UI implying an exact hit.
+      const result = (await wave1.searchArchive(ctxA, {
+        q: 'shipbuilding zzzzq',
+      })) as RankedPage;
+      expect(result.matchMode).toBe('partial');
+      expect(result.rows.map((r) => r.id)).toContain(H_DONE);
+    });
+
+    it('orders identically on repeat and breaks ties by id', async () => {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO committee_hearing
+           (id, chamber, committee_name, committee_system_code, subcommittee_system_code,
+            title, type, date, starts_at, time, timezone, event_status, visibility, url, location,
+            stream_availability, coverage_status, congress, witnesses)
+         VALUES ($1, 'House', 'House Armed Services', $3, NULL,
+                 'Tie-break oversight hearing', 'hearing', CURRENT_DATE - 5, NULL, NULL,
+                 'America/New_York', 'completed', 'public', NULL, NULL,
+                 'unknown', 'not_covered', 119, ARRAY[]::text[]),
+                ($2, 'House', 'House Armed Services', $3, NULL,
+                 'Tie-break oversight hearing', 'hearing', CURRENT_DATE - 5, NULL, NULL,
+                 'America/New_York', 'completed', 'public', NULL, NULL,
+                 'unknown', 'not_covered', 119, ARRAY[]::text[])`,
+        TIE_A,
+        TIE_B,
+        COMMITTEE,
+      );
+
+      const first = (await wave1.searchArchive(ctxA, { q: 'Armed Services' })) as RankedPage;
+      const second = (await wave1.searchArchive(ctxA, { q: 'Armed Services' })) as RankedPage;
+      expect(second.rows.map((r) => r.id)).toEqual(first.rows.map((r) => r.id));
+
+      // Same tier, same identity document (so same rank), same date — only the
+      // id tiebreak can separate them, and it is DESC.
+      const ids = first.rows.map((r) => r.id);
+      expect(ids.indexOf(TIE_B)).toBe(ids.indexOf(TIE_A) - 1);
+    });
+
+    it('keeps the count and facets correct once ranking parameters are bound', async () => {
+      // The ranking binds are appended after the filter binds. The count and the
+      // three facet queries reuse only the filter ones; handing them a stray
+      // parameter makes Postgres reject the statement outright.
+      const result = (await wave1.searchArchive(ctxA, {
+        q: 'Armed Services',
+        chamber: 'House',
+        hasTranscript: true,
+      })) as RankedPage & { facets: { chamber: Array<{ value: string; count: number }> } };
+      expect(result.total).toBe(1);
+      expect(result.rows.map((r) => r.id)).toEqual([H_DONE]);
+      const facetTotal = result.facets.chamber.reduce((sum, f) => sum + Number(f.count), 0);
+      expect(facetTotal).toBe(result.total);
     });
   });
 
