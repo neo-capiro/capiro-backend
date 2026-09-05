@@ -27,7 +27,7 @@ import { buildCompleteR2Artifact } from '../r2/r2-complete-artifact-builder-v1.j
 import { extractR2aProjectsFromPages } from '../r2a/r2a-project-extractor-v1.js';
 import { extractR2aProjectFunding } from '../r2a/r2a-project-funding-extractor-v1.js';
 import type { R2aProjectFundingValue } from '../r2a/r2a-project-funding-extractor-v1.js';
-import type { R2aProjectPageGroup } from '../r2a/r2a-project-extractor-v1.js';
+import { groupR2aPagesByStructuralIdentityV1 } from '../r2a/r2a-structural-project-header-parser-v1.js';
 import { buildR2aProjectArtifact } from '../r2a/r2a-artifact-builder-v1.js';
 import {
   reconcileR2aProjectColumn,
@@ -245,7 +245,7 @@ function r2aExtractionParts(input: { document: RdteCycleDocumentInputV1; fiscalY
   fundingValues: R2aProjectFundingValue[];
 } {
   const projects = extractR2aProjectsFromPages({ pages: input.document.pages });
-  const funding = groupR2aPages(input.document.pages).map((group) =>
+  const funding = groupR2aPagesByStructuralIdentityV1(input.document.pages).groups.map((group) =>
     extractR2aProjectFunding({ group, cycleFiscalYear: input.fiscalYear }),
   );
   const fundingValues = funding.flatMap((value) => value.values);
@@ -784,49 +784,10 @@ function collectR2Value(value: R2FundingValue, peTotals: R2PeTotalCell[]): void 
   }
 }
 
-const R2A_MARKER_RE = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
-const PE_RE = /\bPE\s+([0-9]{7}[A-Z][A-Z0-9]*)\b/i;
-const PROJECT_CODE_RE = /\bproject\s+code\s*[:.\-]?\s*(\S+(?:\s+\S+)*)/i;
-
-function groupR2aPages(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPageGroup[] {
-  const groups: R2aProjectPageGroup[] = [];
-  let currentKey: string | null = null;
-  let currentParentPe = '';
-  let currentProjectCode = '';
-  let currentPages: RdteCycleDocumentInputV1['pages'][number][] = [];
-  const flush = () => {
-    if (!currentKey) return;
-    groups.push({
-      parentPeCode: currentParentPe,
-      projectCode: currentProjectCode,
-      pages: [...currentPages],
-    });
-    currentKey = null;
-    currentPages = [];
-  };
-  for (const page of pages) {
-    const texts = [page.text ?? '', ...page.blocks.map((block) => block.text)];
-    if (!texts.some((text) => R2A_MARKER_RE.test(text))) continue;
-    const parentPeCode = texts.map((text) => PE_RE.exec(text)?.[1]).find(Boolean) ?? '';
-    const projectCode =
-      texts.map((text) => PROJECT_CODE_RE.exec(text)?.[1]?.trim()).find(Boolean) ?? '';
-    /* Phase 10B-21 Area 8 real-document finding: a front-matter page that
-     * merely mentions "R-2A" / "RDT&E Project Justification" in prose
-     * matches `R2A_MARKER_RE` with neither a labeled parent-PE nor
-     * project-code field on the page -- never open a funding group keyed
-     * on two empty strings (same false positive fixed in
-     * `extractPageHeaderInfo` / `r2aGroups` above). */
-    if (!parentPeCode && !projectCode) continue;
-    const key = `${parentPeCode}|${projectCode}`;
-    if (key === currentKey) currentPages.push(page);
-    else {
-      flush();
-      currentKey = key;
-      currentParentPe = parentPeCode;
-      currentProjectCode = projectCode;
-      currentPages = [page];
-    }
-  }
-  flush();
-  return groups;
-}
+/* Phase 10B-25: R-2A project-page grouping used to be independently
+ * re-implemented here against an inline-text "project code:" regex that
+ * never matches the real government layout (identity lives in self-labeled
+ * TABLE CELLS -- see r2a-structural-project-header-parser-v1.ts for the
+ * full root-cause writeup). Grouping is now delegated entirely to the one
+ * shared structural grouper; this file must never re-derive its own
+ * grouping logic again. */

@@ -287,14 +287,31 @@ describe('Phase 4 negative-control probes', () => {
     const projectCode = 'AB-12.34';
     const page: ParserPageResultV1 = {
       page: 1,
-      text: 'RDT&E Project Justification',
+      text: 'R-2A',
       blocks: [
-        { blockIndex: 0, blockType: 'header', text: 'RDT&E Project Justification' },
-        { blockIndex: 1, blockType: 'heading', text: `PE ${PE}` },
-        { blockIndex: 2, blockType: 'text', text: `Project Code: ${projectCode}` },
-        { blockIndex: 3, blockType: 'text', text: 'Project Title: Long Code Project' },
+        { blockIndex: 0, blockType: 'header', text: 'R-2A' },
+        { blockIndex: 1, blockType: 'text', text: 'Long Code Project' },
       ],
-      tables: [],
+      tables: [
+        {
+          tableIndex: 0,
+          rowCount: 1,
+          columnCount: 2,
+          cells: [
+            {
+              rowIndex: 0,
+              columnIndex: 0,
+              text: `R-1 Program Element (Number/Name)\nPE ${PE} / Sample PE`,
+            },
+            {
+              rowIndex: 0,
+              columnIndex: 1,
+              text: `Project (Number/Name)\n${projectCode} / Long Code Project`,
+            },
+          ],
+          warnings: [],
+        },
+      ],
       images: [],
       evidencePrecision: 'page_only',
       warnings: [],

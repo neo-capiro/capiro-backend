@@ -25,6 +25,7 @@ import {
 import {
   parserPageFailureV1Schema,
   parserPageResultV1Schema,
+  parserRuntimeResultV1Schema,
 } from '../parser-router/parser-runtime-contract-v1.js';
 import {
   buildNonRdteSemanticArtifactFromPages,
@@ -73,6 +74,25 @@ export const phase5ComposedPageOutputV1Schema = z
     pages: z.array(selectedPageResultV1Schema).min(1),
     lineages: z.array(pageLineageEntryV1Schema),
     contentSha256: sha256Schema,
+    /** Phase 10B-25: optional pass-through parser-run identity evidence,
+     * excluded from the hashed content payload (see
+     * `ComposedPageOutputV1.parserRunEntries` for the full rationale).
+     * Accepting it here (rather than `.strict()` rejecting it as an
+     * unknown key) is required for this Phase 5 boundary to parse a real
+     * composed output produced by the current compositor. */
+    parserRunEntries: z
+      .array(
+        z.object({
+          parserRunId: nonblankString,
+          result: parserRuntimeResultV1Schema,
+          method: extractionMethodV1Schema,
+          parserVersion: nonblankString,
+          parserConfigSha256: sha256Schema,
+          sourceSha256: sha256Schema,
+          outputArtifactSha256: sha256Schema,
+        }),
+      )
+      .optional(),
   })
   .strict()
   .superRefine((output, ctx) => {
@@ -270,7 +290,12 @@ export function buildProofBoundNonRdteArtifactFromComposedOutput(input: {
     );
   }
 
-  const parserRuns = buildContributingParserRuns(composedOutput.lineages, composedOutput.pages);
+  const parserRuns = buildContributingParserRuns(
+    composedOutput.lineages,
+    composedOutput.pages,
+    {},
+    composedOutput.parserRunEntries ?? [],
+  );
   const selectedPages = composedOutput.pages.flatMap((page) =>
     page.selectedResult == null ? [] : [page.selectedResult],
   );

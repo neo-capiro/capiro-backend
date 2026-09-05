@@ -5,11 +5,13 @@
  * every contributing parser result before marking parser lineage verified.
  */
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
-import type {
-  ParserRunIdentityV1,
-  ParserRuntimeResultV1,
-} from '../../parser-router/parser-runtime-contract-v1.js';
+import type { ParserRuntimeResultV1 } from '../../parser-router/parser-runtime-contract-v1.js';
 import type { ParserArtifactStoreV1 } from '../../parser-router/parser-artifact-store.js';
+import {
+  resolveContributingRunIdentityV1,
+  validateParserRunCoverageV1,
+  type ResolvedContributingRunIdentityV1,
+} from '../../parser-router/parser-run-identity-v1.js';
 import {
   blockingFinding,
   type ProofFindingV1,
@@ -32,15 +34,8 @@ function exactPages(ranges: readonly { startPage: number; endPage: number }[]): 
 
 function parserIdentity(
   run: DefenseBudgetExtractionArtifactV1['parserRuns'][number],
-): ParserRunIdentityV1 {
-  return {
-    sourceSha256: run.inputSourceSha256,
-    method: run.method,
-    parserVersion: run.parserVersion,
-    parserConfigSha256: run.parserConfigSha256,
-    pages: exactPages(run.pageRanges),
-    runtimeContractVersion: 'defense_budget_parser_job_v1',
-  };
+): ResolvedContributingRunIdentityV1 {
+  return resolveContributingRunIdentityV1(run);
 }
 
 function evidencePagesForRun(
@@ -151,7 +146,11 @@ export class FilesystemParserArtifactProofResolver implements TrustedVerificatio
 
     for (const run of artifact.parserRuns) {
       const existing = existingById.get(run.parserRunId);
-      const pages = exactPages(run.pageRanges);
+      /* Evidence coverage only (pages this run contributed *selected*
+       * evidence for in the composed output) -- never run identity. See
+       * `parserIdentity` below for the canonical requestedPages-based
+       * identity used for the independent-persistence lookup. */
+      const evidenceCoveragePages = exactPages(run.pageRanges);
       const evidencePages = evidencePagesForRun(artifact, run.parserRunId);
 
       /* A structured/manual companion is itself the independently hashed
@@ -163,7 +162,7 @@ export class FilesystemParserArtifactProofResolver implements TrustedVerificatio
           run.outputArtifactSha256 === bundle.extractionArtifact.contentSha256 ||
           run.outputArtifactSha256 === bundle.extractionArtifact.byteSha256;
         const inputMatches = run.inputSourceSha256 === bundle.sourceDocument.sourceSha256;
-        const pageCoverageValid = evidencePages.every((page) => pages.includes(page));
+        const pageCoverageValid = evidencePages.every((page) => evidenceCoveragePages.includes(page));
         const verified = outputMatches && inputMatches && pageCoverageValid;
         if (!verified) {
           findings.push(
@@ -188,7 +187,7 @@ export class FilesystemParserArtifactProofResolver implements TrustedVerificatio
         continue;
       }
 
-      if (pages.length === 0) {
+      if (evidenceCoveragePages.length === 0) {
         findings.push(
           blockingFinding(
             'parse_page_coverage_incomplete',
@@ -205,7 +204,60 @@ export class FilesystemParserArtifactProofResolver implements TrustedVerificatio
         continue;
       }
 
-      const descriptor = await this.artifactStore.findExact(parserIdentity(run));
+      /* Phase 10B-25: resolve the canonical requestedPages-based identity
+       * BEFORE any lookup. A legacy artifact predating `requestedPages`
+       * cannot be safely resolved (there is no way to recover the original
+       * requested-page set from evidence alone -- a legitimately blank page
+       * leaves no trace) and must fail closed rather than fall through to a
+       * lookup that could spuriously match. */
+      const identity = parserIdentity(run);
+      if (identity.status !== 'ok') {
+        findings.push(
+          blockingFinding(
+            'parser_run_identity_legacy_unsupported',
+            `parser run ${run.parserRunId} has no requestedPages recorded and cannot be resolved to a canonical identity (legacy artifact predating Phase 10B-25)`,
+          ),
+        );
+        parserRuns.push(
+          proofForRun({
+            run,
+            ...(existing ? { existing } : {}),
+            proofStatus: 'missing',
+          }),
+        );
+        continue;
+      }
+
+      /* Prove the run's own succeeded/failed coverage evidence is
+       * internally consistent BEFORE trusting it or using the identity to
+       * look up an independently persisted result: no overlap between
+       * succeeded/failed, the union accounts for every requested page, and
+       * every failure carries a typed code. This is what actually catches
+       * the coverage-evidence corruption/tamper cases -- an inconsistent
+       * run must never resolve to `verified`. */
+      const coverage = validateParserRunCoverageV1({
+        requestedPages: run.requestedPages ?? [],
+        succeededPages: run.succeededPages ?? [],
+        failedPages: run.failedPages ?? [],
+      });
+      if (!coverage.ok) {
+        findings.push(
+          blockingFinding(
+            'parser_run_coverage_inconsistent',
+            `parser run ${run.parserRunId} coverage evidence is inconsistent: ${coverage.findings.join('; ')}`,
+          ),
+        );
+        parserRuns.push(
+          proofForRun({
+            run,
+            ...(existing ? { existing } : {}),
+            proofStatus: 'mismatch',
+          }),
+        );
+        continue;
+      }
+
+      const descriptor = await this.artifactStore.findExact(identity.identity);
       if (!descriptor) {
         findings.push(
           blockingFinding(

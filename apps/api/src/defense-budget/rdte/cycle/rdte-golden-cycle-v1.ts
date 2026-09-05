@@ -153,25 +153,50 @@ function r2aProjectPage(input: {
   requestValue: string;
   outyearValue: string;
 }): ParserPageResultV1 {
-  const table = makeTable([
-    { rowIndex: 0, columnIndex: 0, text: 'Cost ($ in Millions)' },
-    { rowIndex: 0, columnIndex: 1, text: 'FY 2027 Request' },
-    { rowIndex: 0, columnIndex: 2, text: 'FY 2028' },
-    { rowIndex: 1, columnIndex: 0, text: 'Project Cost' },
-    { rowIndex: 1, columnIndex: 1, text: input.requestValue },
-    { rowIndex: 1, columnIndex: 2, text: input.outyearValue },
-  ]);
+  /* Phase 10B-25: R-2A project identity now comes ONLY from the real
+   * government layout's self-labeled structural table cells -- "R-1
+   * Program Element (Number/Name)" and "Project (Number/Name)" -- never
+   * from an inline "Project Code:" body-text line (that literal label
+   * never appears in the real FY2024 Army R-2A exhibit; see
+   * r2a-structural-project-header-parser-v1.ts for the full root-cause
+   * writeup). This golden fixture mirrors the real cell layout so it keeps
+   * exercising the real production identity path end-to-end. */
+  const identityTable = makeTable(
+    [
+      {
+        rowIndex: 0,
+        columnIndex: 0,
+        text: `R-1 Program Element (Number/Name)\nPE ${GOLDEN_PE} / Advanced Technology Development`,
+      },
+      {
+        rowIndex: 0,
+        columnIndex: 1,
+        text: `Project (Number/Name)\n${input.projectCode} / ${input.title}`,
+      },
+    ],
+    0,
+  );
+  const costTable = makeTable(
+    [
+      { rowIndex: 0, columnIndex: 0, text: 'Cost ($ in Millions)' },
+      { rowIndex: 0, columnIndex: 1, text: 'FY 2027 Request' },
+      { rowIndex: 0, columnIndex: 2, text: 'FY 2028' },
+      { rowIndex: 1, columnIndex: 0, text: 'Project Cost' },
+      { rowIndex: 1, columnIndex: 1, text: input.requestValue },
+      { rowIndex: 1, columnIndex: 2, text: input.outyearValue },
+    ],
+    1,
+  );
   return makePage({
     page: input.page,
     text: 'RDT&E Project Justification $ in Millions',
     blocks: [
       makeBlock(0, 'header', 'RDT&E Project Justification'),
       makeBlock(1, 'heading', `PE ${GOLDEN_PE}`),
-      makeBlock(2, 'text', `Project Code: ${input.projectCode}`),
-      makeBlock(3, 'text', `Project Title: ${input.title}`),
-      makeBlock(4, 'text', 'Mission: Develop the capability.'),
+      makeBlock(2, 'text', `Project Title: ${input.title}`),
+      makeBlock(3, 'text', 'Mission: Develop the capability.'),
     ],
-    tables: [table],
+    tables: [identityTable, costTable],
   });
 }
 

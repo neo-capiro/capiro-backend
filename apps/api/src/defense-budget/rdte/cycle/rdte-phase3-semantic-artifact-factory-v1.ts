@@ -24,7 +24,7 @@ import { buildR2PeFundingArtifact } from '../r2/r2-pe-funding-builder.js';
 import { buildCompleteR2Artifact } from '../r2/r2-complete-artifact-builder-v1.js';
 import { extractR2aProjectsFromPages } from '../r2a/r2a-project-extractor-v1.js';
 import { extractR2aProjectFunding } from '../r2a/r2a-project-funding-extractor-v1.js';
-import type { R2aProjectPageGroup } from '../r2a/r2a-project-extractor-v1.js';
+import { groupR2aPagesByStructuralIdentityV1 } from '../r2a/r2a-structural-project-header-parser-v1.js';
 import { buildR2aProjectArtifact } from '../r2a/r2a-artifact-builder-v1.js';
 import { extractR3PerformersFromPages } from '../r3/r3-table-extractor-v1.js';
 import { buildR3PerformerArtifact } from '../r3/r3-artifact-builder-v1.js';
@@ -150,47 +150,13 @@ function buildR1SummaryAcknowledgmentArtifact(input: {
   return builder.finalize();
 }
 
-function r2aGroups(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPageGroup[] {
-  const marker = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
-  const pe = /\bPE\s+([0-9]{7}[A-Z][A-Z0-9]*)\b/i;
-  const project = /\bproject\s+code\s*[:.\-]?\s*(\S+(?:\s+\S+)*)/i;
-  const groups: R2aProjectPageGroup[] = [];
-  let activeKey: string | null = null;
-  let activePe = '';
-  let activeProject = '';
-  let activePages: RdteCycleDocumentInputV1['pages'][number][] = [];
-  const flush = () => {
-    if (!activeKey) return;
-    groups.push({ parentPeCode: activePe, projectCode: activeProject, pages: activePages });
-    activeKey = null;
-    activePages = [];
-  };
-  for (const page of pages) {
-    const texts = [page.text ?? '', ...page.blocks.map((block) => block.text)];
-    if (!texts.some((text) => marker.test(text))) continue;
-    const peCode = texts.map((text) => pe.exec(text)?.[1]).find(Boolean) ?? '';
-    const projectCode = texts.map((text) => project.exec(text)?.[1]?.trim()).find(Boolean) ?? '';
-    /* Phase 10B-21 Area 8 real-document finding: a front-matter page that
-     * merely mentions "R-2A" / "RDT&E Project Justification" in prose (e.g.
-     * explaining what those exhibits are) matches `marker` with neither a
-     * labeled parent-PE nor project-code field on the page -- that must
-     * never open a funding group keyed on two empty strings, the same
-     * false positive already fixed in `extractPageHeaderInfo`
-     * (r2a-project-extractor-v1.ts). */
-    if (!peCode && !projectCode) continue;
-    const key = `${peCode}|${projectCode}`;
-    if (key === activeKey) activePages.push(page);
-    else {
-      flush();
-      activeKey = key;
-      activePe = peCode;
-      activeProject = projectCode;
-      activePages = [page];
-    }
-  }
-  flush();
-  return groups;
-}
+/* Phase 10B-25: R-2A project-page grouping used to be independently
+ * re-implemented here against an inline-text "project code:" regex that
+ * never matches the real government layout (identity lives in self-labeled
+ * TABLE CELLS -- see r2a-structural-project-header-parser-v1.ts for the
+ * full root-cause writeup). Grouping is now delegated entirely to the one
+ * shared structural grouper; this file must never re-derive its own
+ * grouping logic again. */
 
 function buildSemanticArtifact(input: {
   documentInput: RdteCycleDocumentInputV1;
@@ -277,7 +243,7 @@ function buildSemanticArtifact(input: {
     if (r1SummaryAcknowledgment != null) parts.push(r1SummaryAcknowledgment);
 
     const projects = extractR2aProjectsFromPages({ pages: value.pages });
-    const projectFunding = r2aGroups(value.pages).map((group) =>
+    const projectFunding = groupR2aPagesByStructuralIdentityV1(value.pages).groups.map((group) =>
       extractR2aProjectFunding({ group, cycleFiscalYear: input.fiscalYear }),
     );
     if (
@@ -324,7 +290,7 @@ function buildSemanticArtifact(input: {
 
   if (exhibit === 'R-2A') {
     const projects = extractR2aProjectsFromPages({ pages: value.pages });
-    const funding = r2aGroups(value.pages).map((group) =>
+    const funding = groupR2aPagesByStructuralIdentityV1(value.pages).groups.map((group) =>
       extractR2aProjectFunding({ group, cycleFiscalYear: input.fiscalYear }),
     );
     return buildR2aProjectArtifact({

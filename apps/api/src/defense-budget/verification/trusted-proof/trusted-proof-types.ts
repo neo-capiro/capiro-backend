@@ -129,6 +129,16 @@ export const PROOF_FINDING_V1_VALUES = [
   'provider_job_mismatch',
   /** Evidence pages are not covered by the persisted parser output. */
   'parse_page_coverage_incomplete',
+  // Phase 10B-25 — canonical parser-run identity + coverage proof.
+  /** A parser run's own requested/succeeded/failed page coverage evidence is
+   * internally inconsistent (overlap, unaccounted page, or an untyped
+   * failure) -- proven via `validateParserRunCoverageV1` before lookup. */
+  'parser_run_coverage_inconsistent',
+  /** A persisted artifact's parser run predates `requestedPages` and cannot
+   * be resolved to a canonical identity; there is no safe way to recover the
+   * original requested-page set from evidence alone, so lookup fails closed
+   * rather than guessing or fuzzy-matching. */
+  'parser_run_identity_legacy_unsupported',
 ] as const;
 export type ProofFindingCodeV1 = (typeof PROOF_FINDING_V1_VALUES)[number];
 
