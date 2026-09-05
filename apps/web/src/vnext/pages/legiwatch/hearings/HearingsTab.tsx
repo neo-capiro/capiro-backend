@@ -47,12 +47,11 @@ import type { HearingCapability, Tone } from '../lib/types.js';
 import { TranscriptionSetupModal } from '../overlays/TranscriptionSetupModal.js';
 import {
   calendarBucketIndex,
-  easternDayOf,
   formatHearingDay,
   formatHearingTime,
+  momentOfCanonicalEvent,
   parseHearingMoment,
   useEasternWeekDays,
-  type HearingMoment,
 } from '../lib/hearing-datetime.js';
 
 type ViewMode = 'calendar' | 'list';
@@ -68,15 +67,16 @@ function sameDay(a: Date, b: Date) {
  * UpcomingHearing shape; the canonical row carries strictly more truth.
  */
 function toLegacyHearing(e: CanonicalHearingEvent): UpcomingHearing {
+  const moment = momentOfCanonicalEvent(e);
   return {
     id: e.id,
     title: e.title,
     committee: e.committee?.name ?? 'Committee',
     chamber: e.chamber ?? '',
     // NEVER parse this string as a time — modal consumers use startsAt.
-    scheduledAt: e.calendarDate ?? (e.scheduledStart ? e.scheduledStart.slice(0, 10) : ''),
+    scheduledAt: moment.calendarDate ?? '',
     startsAt: e.scheduledStart ?? null,
-    time: e.scheduledStart ? formatHearingTime(parseHearingMoment({ date: e.calendarDate ?? '', startsAt: e.scheduledStart, timeZone: e.timeZone })) : null,
+    time: e.scheduledStart ? formatHearingTime(moment) : null,
     timezone: e.timeZone ?? null,
     visibility: e.publicAccessStatus === 'CLOSED' ? 'private' : 'public',
     type: e.eventType ?? null,
@@ -234,19 +234,11 @@ export function HearingsTab({ scope }: { scope: string }) {
   // rows themselves; the room route is handled in the live tab.
   const live = useMemo(() => rows.find((e) => e.eventStatus === 'in_progress') ?? null, [rows]);
 
-  const momentOf = (e: CanonicalHearingEvent): HearingMoment =>
-    parseHearingMoment({
-      date: e.calendarDate ?? (e.scheduledStart ? easternDayOf(e.scheduledStart) ?? '' : ''),
-      startsAt: e.scheduledStart ?? null,
-      time: null,
-      timeZone: e.timeZone ?? null,
-    });
-
   const byDay = useMemo(() => {
     const map = new Map<number, CanonicalHearingEvent[]>();
     weekDays.forEach((_, i) => map.set(i, []));
     for (const e of filtered) {
-      const idx = calendarBucketIndex(momentOf(e), weekDays);
+      const idx = calendarBucketIndex(momentOfCanonicalEvent(e), weekDays);
       if (idx >= 0) map.get(idx)!.push(e);
     }
     for (const list of map.values()) {
@@ -463,7 +455,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                                 : (e.eventType ?? 'HEARING').toUpperCase() === 'MARKUP'
                                   ? 'lw-chip--markup'
                                   : 'lw-chip--hearing';
-                          const m = momentOf(e);
+                          const m = momentOfCanonicalEvent(e);
                           return (
                             <button
                               key={e.id}
@@ -516,6 +508,7 @@ export function HearingsTab({ scope }: { scope: string }) {
               ) : (
                 filtered.map((e) => {
                   const isLive = e.eventStatus === 'in_progress';
+                  const m = momentOfCanonicalEvent(e);
                   const { capability: cap, closed, reason } = canonicalCapability(e);
                   const queued = e.capture?.status === 'scheduled';
                   const verb = isLive
@@ -538,7 +531,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span className="lw-lrow__when">
-                            {formatHearingDay(momentOf(e)).toUpperCase()} · {formatHearingTime(momentOf(e))}
+                            {formatHearingDay(m).toUpperCase()} · {formatHearingTime(m)}
                           </span>
                           <LwPill tone={KIND_TONE[(e.eventType ?? 'HEARING').toUpperCase()] ?? 'brand'} size="22">
                             {(e.eventType ?? 'HEARING').toUpperCase()}

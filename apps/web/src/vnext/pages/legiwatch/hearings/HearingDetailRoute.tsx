@@ -30,7 +30,7 @@ import {
   formatHearingDay,
   formatHearingMoment,
   formatHearingTime,
-  parseHearingMoment,
+  momentOfCanonicalEvent,
 } from '../lib/hearing-datetime.js';
 import {
   accessPillLabel,
@@ -166,11 +166,7 @@ export function HearingDetailRoute() {
   }
 
   const e = event.data;
-  const moment = parseHearingMoment({
-    date: e.calendarDate ?? (e.scheduledStart ? e.scheduledStart.slice(0, 10) : ''),
-    startsAt: e.scheduledStart ?? null,
-    timeZone: e.timeZone ?? null,
-  });
+  const moment = momentOfCanonicalEvent(e);
   // LW-QA-002: only VERIFIED closed/private is a closed session. UNKNOWN is
   // unverified — capture fails closed, but the product never claims closed.
   const closed = isClosedSession(e.publicAccessStatus);
