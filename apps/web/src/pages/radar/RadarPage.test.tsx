@@ -434,12 +434,12 @@ function billDossierFixture() {
     context: null,
     tracking: null,
     kpis: [
-      { label: 'Current status', value: 'Rule failed', sub: null },
-      { label: 'Latest recorded vote', value: 'None recorded', sub: null },
-      { label: 'Funding position', value: '—', sub: null },
-      { label: 'Δ from request', value: '—', sub: null },
-      { label: 'Last official action', value: '2026-06-17', sub: null },
-      { label: 'Next milestone', value: '—', sub: null },
+      { id: 'current_status', label: 'Current status', value: 'Rule failed', valueType: 'status', asOf: null, sub: null, unavailableReason: null },
+      { id: 'latest_vote', label: 'Latest recorded vote', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No roll call vote has been recorded on this bill.' },
+      { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: 'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.' },
+      { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: 'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.' },
+      { id: 'last_official_action', label: 'Last official action', value: '2026-06-17T00:00:00.000Z', valueType: 'date', asOf: '2026-06-17T00:00:00.000Z', sub: null, unavailableReason: null },
+      { id: 'next_milestone', label: 'Next milestone', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No analyst has recorded an expected next milestone for this bill.' },
     ],
     overview: {
       whatChanged: null,

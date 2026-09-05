@@ -41,8 +41,8 @@ function dossier(over: Partial<BillDossierResponse> = {}): BillDossierResponse {
     },
     tracking: null,
     kpis: [
-      { label: 'Current status', value: 'Passed chamber', sub: '2026-07-10' },
-      { label: 'Funding position', value: '$850.0B', sub: 'defense_appropriations_title · house' },
+      { id: 'current_status', label: 'Current status', value: 'Passed chamber', valueType: 'status', asOf: '2026-07-10T00:00:00.000Z', sub: null, unavailableReason: null },
+      { id: 'funding_position', label: 'Funding position', value: '$850.0B', valueType: 'money', asOf: '2026-07-10T00:00:00.000Z', sub: 'defense_appropriations_title · house', unavailableReason: null },
     ],
     overview: {
       whatChanged: {

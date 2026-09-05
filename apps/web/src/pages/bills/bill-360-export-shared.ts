@@ -6,6 +6,7 @@ import {
   FUNDING_VERIFICATION_STATUS_LABELS,
 } from '@capiro/shared';
 import { fmtAmt, fmtDate, fmtDelta } from '../../components/dossier/dossier-format.js';
+import { kpiSubText, kpiValueText, orderedKpis } from './bill-360-kpis.js';
 import type { BillDossierResponse } from './bill-360.types.js';
 
 /**
@@ -214,7 +215,10 @@ export function buildFactSheetLines(
   p(`Last synced: ${fmtDate(d.provenance.lastSyncedAt) || 'unknown'}`);
 
   h('Key figures');
-  for (const k of d.kpis) p(`${k.label}: ${k.value}${k.sub ? ` — ${k.sub}` : ''}`);
+  for (const k of orderedKpis(d.kpis)) {
+    const sub = kpiSubText(k);
+    p(`${k.label}: ${kpiValueText(k)}${sub ? ` — ${sub}` : ''}`);
+  }
 
   h('Overview');
   const cards: Array<[string, (typeof d.overview)['whatChanged']]> = [

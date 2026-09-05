@@ -12,6 +12,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBillDossier } from '../../../../pages/bills/bill-360-api.js';
+import { kpiSubText, kpiUnavailable, kpiValueText, orderedKpis } from '../../../../pages/bills/bill-360-kpis.js';
+import { fmtDate } from '../../../../components/dossier/dossier-format.js';
 import { useBillHearings } from '../../../../pages/clients/tracker/bill-hearings-api.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
@@ -71,7 +73,7 @@ export function Bill360Drawer({
                   <span className="lw-mono" style={{ fontSize: 18 }}>{d.bill.num}</span> — {d.bill.title}
                 </h2>
                 <div className="lw-mono" style={{ marginTop: 4, fontSize: 11, color: 'var(--lw-meta)' }}>
-                  {d.bill.chamber ?? ''}{d.bill.sponsor ? ` · ${d.bill.sponsor}` : ''}{d.bill.statusAt ? ` · updated ${d.bill.statusAt}` : ''}
+                  {d.bill.chamber ?? ''}{d.bill.sponsor ? ` · ${d.bill.sponsor}` : ''}{d.bill.statusAt ? ` · updated ${fmtDate(d.bill.statusAt)}` : ''}
                 </div>
               </div>
               <LwButton onClick={() => { /* export dossier */ window.print(); }}>Export</LwButton>
@@ -80,15 +82,26 @@ export function Bill360Drawer({
               <button type="button" className="lw-navbtn" aria-label="Close" onClick={onClose}>×</button>
             </div>
 
-            {/* stat strip */}
+            {/* stat strip — label ABOVE value (the app-wide KPI convention), each
+                cell found by its semantic id, and an unavailable cell saying why
+                rather than reading blank (LW-QA-021). */}
             <div style={{ padding: '14px 20px 0' }}>
               <div className="lw-b360__stats">
-                {(d.kpis ?? []).slice(0, 6).map((k) => (
-                  <div key={k.label} className="lw-stat">
-                    <div className="lw-stat__value">{k.value}</div>
-                    <div className="lw-stat__label">{k.label}</div>
-                  </div>
-                ))}
+                {orderedKpis(d.kpis ?? []).map((k) => {
+                  const sub = kpiSubText(k);
+                  return (
+                    <div key={k.id} className="lw-stat">
+                      <div className="lw-stat__label">{k.label}</div>
+                      <div
+                        className="lw-stat__value"
+                        style={kpiUnavailable(k) ? { color: 'var(--lw-meta)' } : undefined}
+                      >
+                        {kpiValueText(k)}
+                      </div>
+                      {sub ? <div className="lw-stat__sub">{sub}</div> : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -186,7 +199,7 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</div>
                 {m.detail ? <div style={{ fontSize: 12, color: 'var(--lw-meta)' }}>{m.detail}</div> : null}
-                {m.date ? <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{m.date}</div> : null}
+                {m.date ? <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{fmtDate(m.date)}</div> : null}
               </div>
             </div>
           ))}
@@ -316,7 +329,7 @@ function EvidenceTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['
               <LwPill tone={s.class === 'official' ? 'success' : s.class === 'verified' ? 'brand' : 'gray'} size="22">
                 {(s.class ?? s.origin ?? 'SOURCE').toUpperCase()}
               </LwPill>
-              {s.asOf ? <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{s.asOf}</span> : null}
+              {s.asOf ? <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{fmtDate(s.asOf)}</span> : null}
             </div>
             <div className="lw-block__body" style={{ marginTop: 6 }}>{s.label ?? s.origin ?? 'Source record'}</div>
           </div>

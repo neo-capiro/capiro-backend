@@ -76,10 +76,46 @@ export interface LatestAction {
   date: string | null;
 }
 
+/**
+ * Stable identity for each cell of the Bill 360 KPI strip (LW-QA-021).
+ *
+ * The strip used to be an unkeyed positional array, so every consumer had to
+ * key by array index or by a display label string — a reorder or an insertion
+ * silently painted a value under the wrong label. Consumers now look cells up
+ * by `id` and NEVER by position.
+ */
+export type BillKpiId =
+  | 'current_status'
+  | 'latest_vote'
+  | 'funding_position'
+  | 'delta_from_request'
+  | 'last_official_action'
+  | 'next_milestone';
+
+/**
+ * How a KPI value must be presented. `date` is the load-bearing one: such a
+ * value is a full ISO instant and MUST be narrowed to a calendar date by the
+ * renderer (an unformatted one paints `2026-07-22T00:00:00.000Z` in a stat tile).
+ * `signed_money` can only ever hold `fmtSignedMillions()` output — never a date.
+ */
+export type BillKpiValueType = 'status' | 'text' | 'date' | 'money' | 'signed_money';
+
 export interface BillKpi {
+  id: BillKpiId;
   label: string;
-  value: string;
+  /**
+   * `null` means NOT AVAILABLE, and `unavailableReason` then says why in the
+   * bill's own terms. Never `0`, never a bare em-dash standing in for a fact the
+   * dossier does not have (§3.6 — no $0 unless a source states zero).
+   */
+  value: string | null;
+  valueType: BillKpiValueType;
+  /** ISO instant the value is as-of, when the underlying fact carries a date. */
+  asOf: string | null;
+  /** Short caption under the value. Dates belong in `asOf`, not here. */
   sub: string | null;
+  /** Non-null exactly when `value` is null. */
+  unavailableReason: string | null;
 }
 
 /** Four fixed, keyed overview cards (each optional). Titles are hard-coded UI-side. */

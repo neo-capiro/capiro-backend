@@ -72,6 +72,17 @@ const FUNDING_NO_DATA =
   'No reviewed funding positions are linked to this bill yet. No $0 is shown unless a source states zero.';
 const STATE_FUNDING_UNSUPPORTED =
   'State funding data is not available. No $0 is shown unless a source states zero.';
+/**
+ * Funding IS linked to the bill (program-element impacts exist) but no reviewed
+ * position row does, so there is no amount to show. Distinct from
+ * FUNDING_NO_DATA, which means nothing at all is linked (LW-QA-021).
+ */
+const FUNDING_NO_PRIMARY_POSITION =
+  'This bill has program-element impacts but no reviewed funding position, so no amount is shown. No $0 is shown unless a source states zero.';
+const NO_REQUEST_COMPARISON =
+  "No President's request figure on the same fiscal year and the same funding scope is available to compare against.";
+const NO_OFFICIAL_ACTION = 'No dated official action has been recorded on this bill.';
+const NO_EXPECTED_MILESTONE = 'No analyst has recorded an expected next milestone for this bill.';
 /** Shown whenever positions span more than one measurement basis. */
 const SCOPE_GUARDRAIL =
   'This bill carries figures on more than one funding scope. Amounts are only compared within the same fiscal year and the same scope, so no cross-scope delta is shown.';
@@ -167,7 +178,17 @@ export class BillDossierService {
       // upcoming-hearing rows from the core follow. Capped at MAX_HEARINGS total.
       hearings: [...clientHearings, ...core.hearings].slice(0, MAX_HEARINGS),
       overview: this.mergeAnalystOverview(core.overview, tracking, alertRows),
-      kpis: this.buildKpis(core.bill.statusLabel, core.bill.statusAt, core.latest, core.votes, tracking),
+      // `core.funding` is the SAME block the global route derived its funding
+      // cells from. Omitting it here (LW-QA-021) made client scope report "no
+      // funding position" on bills the global scope showed a real amount for.
+      kpis: this.buildKpis(
+        core.bill.statusLabel,
+        core.bill.statusAt,
+        core.latest,
+        core.votes,
+        tracking,
+        core.funding,
+      ),
     };
   }
 
@@ -303,7 +324,7 @@ export class BillDossierService {
       latest,
       context: null,
       tracking: null,
-      kpis: this.buildKpis(statusLabel, bill.statusAt, latest, votes, null, funding),
+      kpis: this.buildKpis(statusLabel, bill.statusAt, latest, votes, null, funding.block),
       overview,
       milestones,
       votes,
@@ -435,12 +456,14 @@ export class BillDossierService {
       url: b.stateUrl ?? b.url,
     };
 
+    const funding = emptyFunding(STATE_FUNDING_UNSUPPORTED);
+
     return {
       bill,
       latest,
       context: null,
       tracking: null,
-      kpis: this.buildKpis(statusLabel, bill.statusAt, latest, votes, null),
+      kpis: this.buildKpis(statusLabel, bill.statusAt, latest, votes, null, funding),
       overview: {
         whatChanged: b.latestActionText
           ? {
@@ -459,7 +482,7 @@ export class BillDossierService {
       votes,
       governingRules: [], // federal-only concept; hidden for state bills
       noVote,
-      funding: emptyFunding(STATE_FUNDING_UNSUPPORTED),
+      funding,
       relatedVehicles: companions
         .filter((c) => c.relatedBillKey)
         .map((c) => ({
@@ -745,44 +768,91 @@ export class BillDossierService {
     return out;
   }
 
+  /**
+   * The six KPI cells, each carrying its own semantic `id` (LW-QA-021).
+   *
+   * Every cell is either a real figure or an explicit `value: null` plus a
+   * grounded `unavailableReason` — the strip never claims `0`, and it never
+   * leaves a tile blank for the reader to interpret. `funding` is the response
+   * block (the same object the dossier returns), so the client route and the
+   * global route derive identical funding cells.
+   */
   private buildKpis(
     statusLabel: string,
     statusAt: string | null,
     latest: LatestAction,
     votes: BillVote[],
     tracking: BillContext | null,
-    funding?: LoadedFunding,
+    funding: FundingBlock | null,
   ): BillKpi[] {
     const v0 = votes[0] ?? null;
     const expected = tracking?.expected ?? null;
     // R3: the funding cells show the primary position and its same-scope delta once
-    // funding data exists. They stay '—' otherwise — never $0 (§3.6).
-    const primary = funding?.block.positions.find((p) => p.primary) ?? null;
-    const req = funding?.block.reqCompare ?? null;
+    // funding data exists. Otherwise they say WHY there is no figure (§3.6).
+    const primary = funding?.positions.find((p) => p.primary) ?? null;
+    const delta = funding?.reqCompare?.deltaMillions ?? null;
+    const noFundingReason = fundingUnavailableReason(funding);
     return [
-      { label: 'Current status', value: statusLabel, sub: statusAt },
       {
+        id: 'current_status',
+        label: 'Current status',
+        value: statusLabel,
+        valueType: 'status',
+        asOf: statusAt,
+        sub: null,
+        unavailableReason: null,
+      },
+      {
+        id: 'latest_vote',
         label: 'Latest recorded vote',
-        value: v0 ? `${v0.result ?? '—'} ${v0.tally}`.trim() : 'None recorded',
-        sub: v0 ? v0.label : 'No roll call on this bill',
+        value: v0 ? (v0.result ? `${v0.result} ${v0.tally}` : v0.tally) : null,
+        valueType: 'text',
+        asOf: v0?.date ?? null,
+        sub: v0 ? v0.label : null,
+        unavailableReason: v0 ? null : NO_TARGET_VOTE,
       },
       {
+        id: 'funding_position',
         label: 'Funding position',
-        value: primary ? fmtMillions(primary.amountMillions) : '—',
-        sub: primary ? `${primary.scope} · ${primary.stage}` : 'Not linked',
+        value: primary ? fmtMillions(primary.amountMillions) : null,
+        valueType: 'money',
+        asOf: primary?.effectiveDate ?? null,
+        sub: primary ? `${primary.scope} · ${primary.stage}` : null,
+        unavailableReason: primary ? null : noFundingReason,
       },
       {
+        id: 'delta_from_request',
         label: 'Δ from request',
-        value: req?.deltaMillions != null ? fmtSignedMillions(req.deltaMillions) : '—',
-        sub: req?.deltaMillions != null ? 'same scope only' : 'n/a',
+        value: delta != null ? fmtSignedMillions(delta) : null,
+        valueType: 'signed_money',
+        asOf: null,
+        sub: delta != null ? 'same scope only' : null,
+        unavailableReason:
+          delta != null
+            ? null
+            : primary
+              ? (funding?.guardrail ?? NO_REQUEST_COMPARISON)
+              : noFundingReason,
       },
-      { label: 'Last official action', value: latest.date ?? '—', sub: latest.text },
       {
+        id: 'last_official_action',
+        label: 'Last official action',
+        value: latest.date,
+        valueType: 'date',
+        asOf: latest.date,
+        sub: latest.text,
+        unavailableReason: latest.date ? null : NO_OFFICIAL_ACTION,
+      },
+      {
+        id: 'next_milestone',
         label: 'Next milestone',
         value: expected?.milestoneType
           ? EXPECTED_MILESTONE_TYPE_LABELS[expected.milestoneType]
-          : '—',
-        sub: expected ? (expected.windowStart ?? 'Not scheduled') : 'None scheduled',
+          : null,
+        valueType: 'text',
+        asOf: expected?.windowStart ?? null,
+        sub: expected?.windowStart ? 'Expected window opens' : null,
+        unavailableReason: expected?.milestoneType ? null : NO_EXPECTED_MILESTONE,
       },
     ];
   }
@@ -1040,6 +1110,17 @@ function buildLikeForLikeComparisons(
 
 function fiscalYearOf(raw: SourceFundingPosition[], id: string): number {
   return raw.find((r) => r.id === id)?.fiscalYear ?? -1;
+}
+
+/**
+ * Why the funding KPI cells carry no amount, in the bill's own terms. The block's
+ * own `status` already explains the "nothing linked / flag off / state rail" cases;
+ * a block that IS available but has no reviewed position row (impacts only) gets
+ * its own reason rather than falling through to a bare em-dash.
+ */
+function fundingUnavailableReason(funding: FundingBlock | null): string {
+  if (!funding) return FUNDING_UNAVAILABLE;
+  return funding.status ?? FUNDING_NO_PRIMARY_POSITION;
 }
 
 function emptyFunding(status: string): FundingBlock {

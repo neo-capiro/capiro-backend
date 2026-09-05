@@ -71,6 +71,10 @@ interface MeWithLegiWatchPrefs {
   user: { legiwatchPrefs?: LegiWatchPrefs | null } & Record<string, unknown>;
 }
 
+/** This tab's own /me cache key. The save writes THIS key, not just ['me'] —
+ *  reading one key and invalidating another is what LW-QA-022 was. */
+const SETTINGS_ME_KEY = ['lw-vnext', 'settings-me'] as const;
+
 function normalize(raw: unknown): ResolvedPrefs {
   const p = (raw ?? {}) as LegiWatchPrefs;
   return {
@@ -94,25 +98,62 @@ export function LegiWatchSettingsTab() {
   const [savedFlash, setSavedFlash] = useState(false);
 
   const me = useQuery({
-    queryKey: ['lw-vnext', 'settings-me'],
-    queryFn: async () => (await api.get<{ user?: { legiwatchPrefs?: unknown } }>(`/api/me?_=${Date.now()}`)).data,
+    queryKey: SETTINGS_ME_KEY,
+    queryFn: async () => (await api.get<MeWithLegiWatchPrefs>(`/api/me?_=${Date.now()}`)).data,
     staleTime: 0,
   });
 
   const prefs = useMemo<ResolvedPrefs>(() => normalize(me.data?.user?.legiwatchPrefs), [me.data]);
 
+  /**
+   * LW-QA-022. Two things make a preference stick:
+   *
+   *  1. The PATCH response is written STRAIGHT into this tab's own cache key.
+   *     The tab reads ['lw-vnext','settings-me'] but the save used to invalidate
+   *     only the global ['me'] query, so the segmented control — a fully
+   *     controlled component — snapped back to the pre-save value even though
+   *     the row had been written.
+   *  2. The outgoing document is rebuilt from the CACHE inside mutationFn, not
+   *     from the `prefs` snapshot captured at render time. PATCH /api/me replaces
+   *     `legiwatch_prefs` wholesale, so a second change made before a refetch
+   *     used to resend — and silently revert — the first one.
+   *
+   * `mutationKey` + `scope` serialize the PATCHes: with a whole-document replace,
+   * two in-flight writes landing out of order would clobber each other.
+   */
   const save = useMutation({
-    mutationFn: async (next: LegiWatchPrefs) =>
-      (await api.patch<unknown>('/api/me', { legiwatchPrefs: next })).data,
-    onSuccess: () => {
+    mutationKey: [...SETTINGS_ME_KEY, 'save'],
+    scope: { id: SETTINGS_ME_KEY.join(':') },
+    mutationFn: async (change: LegiWatchPrefs) => {
+      const cached = qc.getQueryData<MeWithLegiWatchPrefs>(SETTINGS_ME_KEY);
+      const next = { ...normalize(cached?.user?.legiwatchPrefs), ...change };
+      return (await api.patch<MeWithLegiWatchPrefs>('/api/me', { legiwatchPrefs: next })).data;
+    },
+    onMutate: (change) => {
+      // Optimistic, so a rapid second click already builds on the new base.
+      const cached = qc.getQueryData<MeWithLegiWatchPrefs>(SETTINGS_ME_KEY);
+      if (!cached) return;
+      qc.setQueryData<MeWithLegiWatchPrefs>(SETTINGS_ME_KEY, {
+        ...cached,
+        user: { ...cached.user, legiwatchPrefs: { ...normalize(cached.user?.legiwatchPrefs), ...change } },
+      });
+    },
+    onSuccess: (data) => {
+      if (data?.user) qc.setQueryData(SETTINGS_ME_KEY, data);
+      void qc.invalidateQueries({ queryKey: SETTINGS_ME_KEY, refetchType: 'active' });
       void qc.invalidateQueries({ queryKey: ['me'] });
       setSavedFlash(true);
       window.setTimeout(() => setSavedFlash(false), 2200);
     },
+    // The server is the authority: on failure drop the optimistic value rather
+    // than leaving the control showing a preference that was never stored.
+    onError: () => {
+      void qc.invalidateQueries({ queryKey: SETTINGS_ME_KEY, refetchType: 'active' });
+    },
   });
 
   const setPref = <K extends keyof LegiWatchPrefs>(key: K, value: LegiWatchPrefs[K]) => {
-    save.mutate({ ...prefs, [key]: value });
+    save.mutate({ [key]: value } as LegiWatchPrefs);
   };
 
   if (me.isLoading) {

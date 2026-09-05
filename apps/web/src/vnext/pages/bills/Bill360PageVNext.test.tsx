@@ -42,6 +42,10 @@ let currentBillId = '119-hr-8800';
 
 const HR_8800_URL = 'https://www.congress.gov/bill/119th-congress/house-bill/8800';
 
+/** The API's grounded reason when defense_funding_intel is off for the tenant. */
+const NO_FUNDING_REASON =
+  'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.';
+
 /** Mirrors the R1 fixture's dossier for H.R. 8800: rule failed, no floor vote. */
 function hr8800(overrides: Partial<BillDossierResponse> = {}): BillDossierResponse {
   return {
@@ -69,12 +73,12 @@ function hr8800(overrides: Partial<BillDossierResponse> = {}): BillDossierRespon
     context: null,
     tracking: null,
     kpis: [
-      { label: 'Current status', value: 'Rule failed', sub: '2026-06-18' },
-      { label: 'Latest recorded vote', value: 'Failed 211-214', sub: 'Governing rule H. Res. 1398' },
-      { label: 'Funding position', value: '—', sub: 'Not linked' },
-      { label: 'Δ from request', value: '—', sub: 'n/a' },
-      { label: 'Last official action', value: '2026-06-17', sub: 'Rule reported.' },
-      { label: 'Next milestone', value: '—', sub: 'None scheduled' },
+      { id: 'current_status', label: 'Current status', value: 'Rule failed', valueType: 'status', asOf: '2026-06-18T00:00:00.000Z', sub: null, unavailableReason: null },
+      { id: 'latest_vote', label: 'Latest recorded vote', value: 'Failed 211-214', valueType: 'text', asOf: '2026-06-18T00:00:00.000Z', sub: 'Governing rule H. Res. 1398', unavailableReason: null },
+      { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
+      { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
+      { id: 'last_official_action', label: 'Last official action', value: '2026-06-17T00:00:00.000Z', valueType: 'date', asOf: '2026-06-17T00:00:00.000Z', sub: 'Rule reported.', unavailableReason: null },
+      { id: 'next_milestone', label: 'Next milestone', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No analyst has recorded an expected next milestone for this bill.' },
     ],
     overview: {
       whatChanged: {
@@ -227,10 +231,31 @@ describe('Bill360PageVNext — H.R. 8800 truth layer', () => {
     (await screen.findByRole('tab', { name: 'Funding' })).click();
     expect(await screen.findByText(/No funding positions linked yet/i)).toBeTruthy();
     // The grounded copy explains the rule; what must NOT exist is a fabricated
-    // amount — no position row and no amount slot at all.
-    expect(screen.getByText(/No \$0 is shown unless a source states zero/i)).toBeTruthy();
+    // amount — no position row and no amount slot at all. LW-QA-021: the KPI
+    // strip now states the same reason, so the copy legitimately appears more
+    // than once (it used to render a bare em-dash there).
+    expect(screen.getAllByText(/No \$0 is shown unless a source states zero/i).length).toBeGreaterThan(0);
     expect(document.querySelector('.b360-fund-amount')).toBeNull();
     expect(document.querySelector('.b360-petable')).toBeNull();
+  });
+
+  test('LW-QA-021: the KPI strip says why a figure is missing, never blank or 0', async () => {
+    getMock.mockResolvedValue({ data: hr8800() });
+    renderPage();
+
+    const strip = (await screen.findByText('Funding position')).closest('.b360-kpi')!;
+    expect(strip.textContent).toContain('Not available');
+    expect(strip.textContent).toMatch(/No \$0 is shown unless a source states zero/i);
+    expect(strip.textContent).not.toContain('$0.0');
+
+    // The last-action cell shows a calendar date, never a raw ISO instant.
+    const action = (await screen.findByText('Last official action')).closest('.b360-kpi')!;
+    expect(action.textContent).toContain('2026-06-17');
+    expect(action.textContent).not.toContain('T00:00:00.000Z');
+
+    // A date can never land in the funding-delta cell.
+    const delta = (await screen.findByText('Δ from request')).closest('.b360-kpi')!;
+    expect(delta.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
   test('the chrome bar offers both exports once the dossier has loaded', async () => {
