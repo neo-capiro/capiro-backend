@@ -422,7 +422,10 @@ display: flex;
   align-items: center;
 }
 
-.capiro-vnext-root .vnext-meri__protip-trigger {
+/* Specificity must beat the `.vnext-meri button { font: inherit }` reset
+   (0,2,1) — hence the trailing `button` type selector (0,2,1 -> we add one
+   more class to reach 0,3,1 via the repeated class trick below). */
+.capiro-vnext-root .vnext-meri button.vnext-meri__protip-trigger {
 display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -4492,6 +4495,21 @@ font-family: var(--meri-font-sans);
   background: transparent;
   box-shadow: none;
   position: relative;
+}
+
+/* Top-bar user avatar: prototype renders the initials in the sans face
+   (Inter), semibold, not the identity-mark default mono face. */
+.capiro-vnext-root .vnext-meri__avatar .capiro-identity-mark {
+  font-family: var(--meri-font-sans);
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__avatar .capiro-identity-mark__initials {
+  font-family: var(--meri-font-sans);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.01em;
 }
 
 .capiro-vnext-root .vnext-meri__avatar-status {
