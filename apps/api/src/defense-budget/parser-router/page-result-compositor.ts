@@ -59,7 +59,7 @@ export interface ComposedPageOutputV1 {
    * canonical parser-run identity, never a re-derivation of the
    * composition itself.
    */
-  parserRunEntries: readonly ParserRunResultEntry[];
+  parserRunEntries?: readonly ParserRunResultEntry[];
 }
 
 export type SelectionPolicy = 'strict_verification_coverage' | 'engine_preference';
