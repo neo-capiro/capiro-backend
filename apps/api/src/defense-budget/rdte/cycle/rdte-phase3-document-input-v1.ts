@@ -46,6 +46,7 @@ export function rdteDocumentInputFromPhase3(input: {
     input.composedOutput.lineages,
     input.composedOutput.pages,
     input.providerJobIdsByParserRunId,
+    input.composedOutput.parserRunEntries ?? [],
   );
   const pages: ParserPageResultV1[] = [];
   const unresolvedPages: number[] = [];
