@@ -31,6 +31,7 @@ import type {
   ComposedPageOutputV1,
   PageLineageEntry,
   SelectedPageResultV1,
+  ParserRunResultEntry,
 } from './page-result-compositor.js';
 import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 
@@ -58,6 +59,7 @@ export function buildContributingParserRuns(
   lineages: PageLineageEntry[],
   selectedPages: SelectedPageResultV1[],
   providerJobIdsByParserRunId: Readonly<Record<string, string>> = {},
+  parserRunEntries: readonly ParserRunResultEntry[] = [],
 ): ParserRunV1[] {
   const selectedRunIds = new Set(
     selectedPages
@@ -93,19 +95,40 @@ export function buildContributingParserRuns(
     });
   }
 
+  const entryByRunId = new Map(parserRunEntries.map((entry) => [entry.parserRunId, entry]));
+
   return [...grouped.entries()]
-    .map(([parserRunId, run]) => ({
-      parserRunId,
-      method: run.method,
-      parserVersion: run.parserVersion,
-      parserConfigSha256: run.parserConfigSha256,
-      inputSourceSha256: run.inputSourceSha256,
-      outputArtifactSha256: run.outputArtifactSha256,
-      ...(providerJobIdsByParserRunId[parserRunId]
-        ? { providerJobId: providerJobIdsByParserRunId[parserRunId] }
-        : {}),
-      pageRanges: pagesToContiguousRanges(run.pages),
-    }))
+    .map(([parserRunId, run]) => {
+      const entry = entryByRunId.get(parserRunId);
+      return {
+        parserRunId,
+        method: run.method,
+        parserVersion: run.parserVersion,
+        parserConfigSha256: run.parserConfigSha256,
+        inputSourceSha256: run.inputSourceSha256,
+        outputArtifactSha256: run.outputArtifactSha256,
+        ...(providerJobIdsByParserRunId[parserRunId]
+          ? { providerJobId: providerJobIdsByParserRunId[parserRunId] }
+          : {}),
+        /* Evidence coverage: pages this run actually contributed selected
+         * evidence for. NEVER the run's identity -- see requestedPages. */
+        pageRanges: pagesToContiguousRanges(run.pages),
+        /* Canonical run identity (Phase 10B-25): the run's own complete
+         * requested-page set, sourced from the original execution result
+         * carried on the composed output -- never reconstructed from
+         * evidence/selection. Omitted only if the entry is unavailable
+         * (should not happen for a freshly-composed artifact). */
+        ...(entry
+          ? {
+              requestedPages: [...entry.result.requestedPages].sort((a, b) => a - b),
+              succeededPages: [...entry.result.succeededPages].sort((a, b) => a - b),
+              failedPages: entry.result.failedPages
+                .map((failure) => ({ page: failure.page, code: failure.code, message: failure.message }))
+                .sort((a, b) => a.page - b.page),
+            }
+          : {}),
+      };
+    })
     .sort((a, b) => a.parserRunId.localeCompare(b.parserRunId));
 }
 
@@ -158,6 +181,7 @@ export async function buildExtractionArtifact(
     input.composedOutput.lineages,
     input.composedOutput.pages,
     input.providerJobIdsByParserRunId,
+    input.composedOutput.parserRunEntries,
   );
   const fiscalYear = parseFiscalYear(input.fiscalYear);
   const family = budgetFamilyV1Schema.parse(input.budgetFamily);

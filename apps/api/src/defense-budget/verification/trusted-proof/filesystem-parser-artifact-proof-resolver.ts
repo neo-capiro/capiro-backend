@@ -11,6 +11,10 @@ import type {
 } from '../../parser-router/parser-runtime-contract-v1.js';
 import type { ParserArtifactStoreV1 } from '../../parser-router/parser-artifact-store.js';
 import {
+  resolveContributingRunIdentityV1,
+  validateParserRunCoverageV1,
+} from '../../parser-router/parser-run-identity-v1.js';
+import {
   blockingFinding,
   type ProofFindingV1,
   type TrustedParserRunProofV1,
@@ -32,15 +36,9 @@ function exactPages(ranges: readonly { startPage: number; endPage: number }[]): 
 
 function parserIdentity(
   run: DefenseBudgetExtractionArtifactV1['parserRuns'][number],
-): ParserRunIdentityV1 {
-  return {
-    sourceSha256: run.inputSourceSha256,
-    method: run.method,
-    parserVersion: run.parserVersion,
-    parserConfigSha256: run.parserConfigSha256,
-    pages: exactPages(run.pageRanges),
-    runtimeContractVersion: 'defense_budget_parser_job_v1',
-  };
+): ParserRunIdentityV1 | null {
+  const resolved = resolveContributingRunIdentityV1(run);
+  return resolved.status === 'ok' ? resolved.identity : null;
 }
 
 function evidencePagesForRun(

@@ -51,6 +51,15 @@ export interface ComposedPageOutputV1 {
   pages: SelectedPageResultV1[];
   lineages: PageLineageEntry[];
   contentSha256: string;
+  /**
+   * The original per-run parser results this composition was built from,
+   * carrying each run's REQUESTED/succeeded/failed page coverage (Phase
+   * 10B-25). Not part of the hashed `contentSha256` payload -- it is
+   * pass-through data the extraction-artifact bridge needs to populate the
+   * canonical parser-run identity, never a re-derivation of the
+   * composition itself.
+   */
+  parserRunEntries: readonly ParserRunResultEntry[];
 }
 
 export type SelectionPolicy = 'strict_verification_coverage' | 'engine_preference';
@@ -296,7 +305,7 @@ export function composePageResults(options: ComposeOptions): ComposedPageOutputV
       (left, right) => left.page - right.page || left.parserRunId.localeCompare(right.parserRunId),
     );
 
-  const unsealed: Omit<ComposedPageOutputV1, 'contentSha256'> = {
+  const unsealed: Omit<ComposedPageOutputV1, 'contentSha256' | 'parserRunEntries'> = {
     schemaVersion: 'defense_budget_composed_output_v1',
     executionId: options.executionId,
     sourceSha256: options.sourceSha256,
@@ -306,12 +315,14 @@ export function composePageResults(options: ComposeOptions): ComposedPageOutputV
   return {
     ...unsealed,
     contentSha256: sha256CanonicalJson(unsealed as unknown as JsonValue),
+    parserRunEntries: options.parserRunEntries,
   };
 }
 
 export function verifyComposedContentSha(output: ComposedPageOutputV1): boolean {
   try {
-    const { contentSha256: _contentSha256, ...unsealed } = output;
+    const { contentSha256: _contentSha256, parserRunEntries: _parserRunEntries, ...unsealed } =
+      output;
     return sha256CanonicalJson(unsealed as unknown as JsonValue) === output.contentSha256;
   } catch {
     return false;

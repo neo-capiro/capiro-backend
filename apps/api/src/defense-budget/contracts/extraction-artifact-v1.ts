@@ -195,6 +195,15 @@ export const pageRangeV1Schema = z
   });
 export type PageRangeV1 = z.infer<typeof pageRangeV1Schema>;
 
+export const parserRunPageCoverageFailureV1Schema = z
+  .object({
+    page: z.number().int().positive(),
+    code: nonBlankString,
+    message: z.string(),
+  })
+  .strict();
+export type ParserRunPageCoverageFailureV1 = z.infer<typeof parserRunPageCoverageFailureV1Schema>;
+
 export const parserRunV1Schema = z
   .object({
     parserRunId: nonBlankString,
@@ -203,7 +212,35 @@ export const parserRunV1Schema = z
     parserConfigSha256: sha256Schema,
     inputSourceSha256: sha256Schema,
     outputArtifactSha256: sha256Schema,
+    /**
+     * Evidence coverage: the pages this run actually contributed *selected*
+     * evidence for in the final composed output. This is NOT the run's
+     * identity and must never be used to recompute a cache/proof key --
+     * see `requestedPages` below. (Phase 10B-25.)
+     */
     pageRanges: z.array(pageRangeV1Schema),
+    /**
+     * Canonical run-identity input (Phase 10B-25): the complete page set
+     * that was REQUESTED for this execution, including pages that
+     * legitimately produced no embedded text (blank pages). Registration
+     * and proof lookup must both derive their cache/proof key from exactly
+     * this field via the shared builder in `parser-run-identity-v1.ts`.
+     * Optional only for backward compatibility with artifacts persisted
+     * before this field existed; the proof resolver fails closed rather
+     * than guessing when it is absent.
+     */
+    requestedPages: z.array(z.number().int().positive()).optional(),
+    /**
+     * Requested pages this execution actually parsed successfully.
+     * Evidence only -- never run identity.
+     */
+    succeededPages: z.array(z.number().int().positive()).optional(),
+    /**
+     * Requested pages that legitimately produced no result (e.g.
+     * `no_embedded_text` on a blank page), with a typed failure reason.
+     * Evidence only -- never run identity.
+     */
+    failedPages: z.array(parserRunPageCoverageFailureV1Schema).optional(),
     providerJobId: z.string().optional(),
     metadata: jsonMetadataSchema.optional(),
   })

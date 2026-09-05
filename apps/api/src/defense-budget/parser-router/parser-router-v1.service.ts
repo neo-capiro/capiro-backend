@@ -66,6 +66,7 @@ import {
   type ParserRunRecorderV1,
 } from './parser-artifact-store.js';
 import { getDefaultParserConfig } from './parser-engine-defaults.js';
+import { buildParserRunIdentityV1 } from './parser-run-identity-v1.js';
 import { CostAccumulator, type ParserCostReportV1 } from './cost-accounting.js';
 import { assertRouterStateTransition } from './router-state-machine.js';
 
@@ -388,14 +389,13 @@ export class ParserRouterV1Service {
     }
     const parserConfig = getDefaultParserConfig(engine);
     const parserConfigSha256 = computeParserConfigSha256(parserConfig);
-    const identity = {
+    const identity = buildParserRunIdentityV1({
       sourceSha256: this.config.sourceSha256,
       method: engine,
       parserVersion,
       parserConfigSha256,
-      pages: step.pages,
-      runtimeContractVersion: 'defense_budget_parser_job_v1',
-    } as const;
+      requestedPages: step.pages,
+    });
 
     const replay = await reuseOrCreate(this.dependencies.artifactStore, identity, async () => {
       const execution = await this.dependencies.runtimeClient.executeJob({
@@ -481,14 +481,13 @@ export class ParserRouterV1Service {
       pageType,
     );
     const parserVersion = this.config.parserVersions?.llamaparse ?? 'llamaparse-v1';
-    const identity = {
+    const identity = buildParserRunIdentityV1({
       sourceSha256: this.config.sourceSha256,
-      method: 'llamaparse' as const,
+      method: 'llamaparse',
       parserVersion,
       parserConfigSha256,
-      pages: step.pages,
-      runtimeContractVersion: 'defense_budget_parser_job_v1',
-    };
+      requestedPages: step.pages,
+    });
     // Mutable box so proof assigned inside produce() remains visible to TS after await.
     const freshProofBox: { value: LlamaParseRunProofV1 | null } = { value: null };
 
