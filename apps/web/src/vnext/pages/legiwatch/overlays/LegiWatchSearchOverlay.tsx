@@ -56,7 +56,10 @@ export function LegiWatchSearchOverlay({
       .slice(0, 6);
   }, [committees.data, q]);
 
-  const isLoading = q.length >= 2 && (hearings.isFetching || committees.isFetching);
+  // The 250ms debounce leaves `raw` ahead of `q`; without this the previous
+  // query's hits stay on screen underneath the newly typed text.
+  const isTyping = raw.trim() !== q;
+  const isLoading = q.length >= 2 && (isTyping || hearings.isFetching || committees.isFetching);
   const hasAnyResults = (hearings.data?.rows.length ?? 0) > 0 || matchedCommittees.length > 0;
 
   return (

@@ -184,6 +184,9 @@ function archivePage(overrides: Record<string, unknown> = {}) {
       },
     ],
     total: 1,
+    // The archive before any query or facet narrows it — what separates
+    // "nothing matched" from "nothing is here".
+    corpusTotal: 1,
     page: 1,
     pageSize: 20,
     hasMore: false,
@@ -531,19 +534,72 @@ describe('W1-3 Archive', () => {
     );
   });
 
-  it('distinguishes a filter-specific zero result from an empty corpus', async () => {
+  // LW-QA-015. A zero result has three distinct causes and the surface used to
+  // collapse the first two into the third, telling a user whose search simply
+  // missed that the archive was empty.
+  it('reports a query-only zero result as a search miss, never an empty archive', async () => {
     handlers.get.mockImplementation((url: string) => {
-      if (url.includes('/archive/search')) return archivePage({ rows: [], total: 0 });
+      // Full corpus; only the query comes up empty.
+      if (url.includes('/archive/search')) return archivePage({ rows: [], total: 0, corpusTotal: 12 });
       return {};
     });
     renderIn(<ArchiveSubTab clientId="" />);
-    // No filters: the corpus itself is empty.
+    fireEvent.change(screen.getByLabelText('Search the hearing archive'), {
+      target: { value: 'submarine' },
+    });
+
+    const message = await screen.findByText(/No results match/);
+    expect(message.textContent).toContain('No results match “submarine”.');
+    expect(message.textContent).toContain('Try a broader phrase or clear your search.');
+    expect(screen.queryByText(/archive has no completed proceedings yet/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Clear search' })).toBeTruthy();
+    // No facet is set, so a "Clear filters" escape would be a dead end.
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+  });
+
+  it('reports a filter-only zero result as a filter miss', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/archive/search')) return archivePage({ rows: [], total: 0, corpusTotal: 12 });
+      return {};
+    });
+    renderIn(<ArchiveSubTab clientId="" />);
+    fireEvent.change(screen.getByLabelText('Chamber'), { target: { value: 'Senate' } });
+
+    expect(await screen.findByText(/No archived proceedings match these filters/)).toBeTruthy();
+    expect(screen.queryByText(/archive has no completed proceedings yet/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
+  });
+
+  it('offers both escapes when a query and a filter are narrowing together', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/archive/search')) return archivePage({ rows: [], total: 0, corpusTotal: 12 });
+      return {};
+    });
+    renderIn(<ArchiveSubTab clientId="" />);
+    fireEvent.change(screen.getByLabelText('Chamber'), { target: { value: 'Senate' } });
+    fireEvent.change(screen.getByLabelText('Search the hearing archive'), {
+      target: { value: 'submarine' },
+    });
+
+    expect(await screen.findByText(/No results match/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Clear search' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
+  });
+
+  it('reports an empty corpus only when the corpus really is empty', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/archive/search')) return archivePage({ rows: [], total: 0, corpusTotal: 0 });
+      return {};
+    });
+    renderIn(<ArchiveSubTab clientId="" />);
     expect(await screen.findByText(/archive has no completed proceedings yet/)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('Chamber'), { target: { value: 'Senate' } });
-    // With a filter on, the message changes and offers a way out.
-    expect(await screen.findByText(/No archived proceedings match these filters/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
+    // corpusTotal wins over the narrowing: there is genuinely nothing to find.
+    fireEvent.change(screen.getByLabelText('Search the hearing archive'), {
+      target: { value: 'submarine' },
+    });
+    expect(await screen.findByText(/archive has no completed proceedings yet/)).toBeTruthy();
+    expect(screen.queryByText(/No results match/)).toBeNull();
   });
 
   it('renders an honest unavailable state when search fails', async () => {

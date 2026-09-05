@@ -682,6 +682,48 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
       expect(result.rows[0]?.intelligenceHit?.insightId).toBe(INSIGHT_2);
     });
 
+    // LW-QA-015: `total` is post-filter for every shape of request, so it can
+    // never tell a search that missed from an archive that is empty. Only a
+    // count taken before the query and facets apply can.
+    it('reports corpusTotal unchanged by the query and the facets', async () => {
+      const unfiltered = (await wave1.searchArchive(ctxA, {})) as {
+        total: number;
+        corpusTotal: number;
+      };
+      expect(unfiltered.corpusTotal).toBeGreaterThan(0);
+      expect(unfiltered.corpusTotal).toBe(unfiltered.total);
+
+      const missedQuery = (await wave1.searchArchive(ctxA, {
+        q: 'zzzznotawordinthiscorpus',
+      })) as { total: number; corpusTotal: number };
+      expect(missedQuery.total).toBe(0);
+      expect(missedQuery.corpusTotal).toBe(unfiltered.corpusTotal);
+
+      const missedFacet = (await wave1.searchArchive(ctxA, {
+        committee: 'nonexistent-code',
+      })) as { total: number; corpusTotal: number };
+      expect(missedFacet.total).toBe(0);
+      expect(missedFacet.corpusTotal).toBe(unfiltered.corpusTotal);
+    });
+
+    it('reports corpusTotal 0 only when the archive really is empty', async () => {
+      // Push every proceeding back out of the archive predicate: nothing has
+      // happened yet, no capture reached a terminal state, no official
+      // transcript exists.
+      await prisma.$executeRawUnsafe(`UPDATE committee_hearing SET event_status = 'scheduled'`);
+      await prisma.$executeRawUnsafe(
+        `UPDATE public_hearing_capture SET domain_status = 'SCHEDULED'`,
+      );
+      await prisma.$executeRawUnsafe(`DELETE FROM official_hearing_transcript`);
+
+      const empty = (await wave1.searchArchive(ctxA, {})) as {
+        total: number;
+        corpusTotal: number;
+      };
+      expect(empty.total).toBe(0);
+      expect(empty.corpusTotal).toBe(0);
+    });
+
     it('filters by committee', async () => {
       const match = (await wave1.searchArchive(ctxA, { committee: COMMITTEE })) as {
         total: number;
