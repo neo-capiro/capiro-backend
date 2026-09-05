@@ -53,9 +53,13 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
+      // committee_source is included so the source-coverage test's baseline
+      // is deterministic — it is a global registry with no tenant column,
+      // so another test file's leftover rows (in the FULL suite, sharing
+      // one DB) would otherwise silently change this test's expected count.
       `TRUNCATE legiwatch_digest_run, legiwatch_digest_schedule,
                 intel_live_hearing_session, intel_watchlist_topic, intel_watchlist,
-                committee_hearing, congress_bill, congress_committee, clients
+                committee_hearing, committee_source, congress_bill, congress_committee, clients
        CASCADE`,
     );
     await prisma.$executeRawUnsafe(`DELETE FROM intel_alert WHERE tenant_id IN ($1, $2)`, TENANT_A, TENANT_B);
