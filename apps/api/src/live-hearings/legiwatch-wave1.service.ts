@@ -44,6 +44,7 @@ import {
 } from './legiwatch-wave1-relevance.js';
 import {
   buildCalendarExport,
+  buildBulkCalendarExport,
   type CalendarExportHearing,
   type CalendarExportResult,
 } from './legiwatch-calendar-export.js';
@@ -1659,14 +1660,18 @@ export class LegiWatchWave1Service {
     appOrigin: string,
   ): Promise<CalendarExportResult> {
     const hearing = await this.requireHearing(hearingId);
+    const payload = await this.toCalendarExportHearing(hearing);
+    return buildCalendarExport(payload, { appOrigin });
+  }
+
+  private async toCalendarExportHearing(hearing: CanonicalHearingRow): Promise<CalendarExportHearing> {
     const subcommittee = hearing.subcommitteeSystemCode
       ? await this.prisma.congressCommittee.findFirst({
           where: { systemCode: hearing.subcommitteeSystemCode },
           select: { name: true },
         })
       : null;
-
-    const payload: CalendarExportHearing = {
+    return {
       id: hearing.id,
       title: hearing.title,
       date: hearing.date.toISOString().slice(0, 10),
@@ -1681,7 +1686,55 @@ export class LegiWatchWave1Service {
       url: hearing.url,
       eventStatus: hearing.eventStatus,
     };
-    return buildCalendarExport(payload, { appOrigin });
+  }
+
+  /**
+   * Header-level bulk export (LEGIWATCH-V2-HANDOFF §2/§5.1) — one VCALENDAR
+   * with one VEVENT per hearing, reusing the same date/time-safe builder as
+   * the single-hearing export. Exactly one of `hearingIds` (an explicit
+   * selection — e.g. the user's followed hearings) or `from`/`to` (the
+   * current filtered Schedule window) must be given. Closed-session hearings
+   * are excluded — export never offers what the Schedule view itself hides.
+   * Bounded to 500 hearings so this can never become a request/row storm.
+   */
+  async calendarExportBulk(
+    _ctx: TenantContext,
+    input: { hearingIds?: string[]; from?: string; to?: string },
+    appOrigin: string,
+  ): Promise<{ ics: string; filename: string; includedCount: number; skipped: Array<{ id: string; reason: string }> }> {
+    const MAX = 500;
+    let rows: CanonicalHearingRow[];
+    if (input.hearingIds?.length) {
+      const ids = input.hearingIds.slice(0, MAX);
+      const found = await this.prisma.committeeHearing.findMany({
+        where: { id: { in: ids }, visibility: 'public' },
+        select: {
+          id: true, title: true, chamber: true, committeeName: true, committeeSystemCode: true,
+          subcommitteeSystemCode: true, date: true, startsAt: true, time: true, timezone: true,
+          location: true, url: true, visibility: true, eventStatus: true, type: true, witnesses: true,
+          actualEnd: true,
+        },
+      });
+      rows = found.map((h) => ({ ...h, eventType: h.type }) as CanonicalHearingRow);
+    } else if (input.from && input.to) {
+      const found = await this.prisma.committeeHearing.findMany({
+        where: { visibility: 'public', date: { gte: new Date(input.from), lte: new Date(input.to) } },
+        orderBy: [{ date: 'asc' }, { startsAt: 'asc' }],
+        take: MAX,
+        select: {
+          id: true, title: true, chamber: true, committeeName: true, committeeSystemCode: true,
+          subcommitteeSystemCode: true, date: true, startsAt: true, time: true, timezone: true,
+          location: true, url: true, visibility: true, eventStatus: true, type: true, witnesses: true,
+          actualEnd: true,
+        },
+      });
+      rows = found.map((h) => ({ ...h, eventType: h.type }) as CanonicalHearingRow);
+    } else {
+      throw new BadRequestException('calendarExportBulk requires hearingIds or a from/to window');
+    }
+
+    const payloads = await Promise.all(rows.map((h) => this.toCalendarExportHearing(h)));
+    return buildBulkCalendarExport(payloads, { appOrigin });
   }
 
   // ── Hearing Detail V2 composition ────────────────────────────────────────

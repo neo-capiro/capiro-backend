@@ -16,6 +16,9 @@ import { LegiWatchWave2Controller } from './legiwatch-wave2.controller.js';
 import { LegiWatchWave2SavedViewsService } from './legiwatch-wave2-saved-views.service.js';
 import { LegiWatchWave2WatchPresetsService } from './legiwatch-wave2-watch-presets.service.js';
 import { LegiWatchWave2CoverageService } from './legiwatch-wave2-coverage.service.js';
+import { LegiWatchWave3Controller } from './legiwatch-wave3.controller.js';
+import { LegiWatchDigestService } from './legiwatch-digest.service.js';
+import { LegiWatchAnalyticsService } from './legiwatch-analytics.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsController } from './live-hearings.controller.js';
 import { LiveHearingsPhase7Controller } from './live-hearings-phase7.controller.js';
@@ -48,6 +51,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LiveHearingsPhase8Controller,
     LegiWatchWave1Controller,
     LegiWatchWave2Controller,
+    LegiWatchWave3Controller,
     LegiWatchPhase9RolloutController,
     LegiWatchPhase9AdminController,
   ],
@@ -63,6 +67,8 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchWave2SavedViewsService,
     LegiWatchWave2WatchPresetsService,
     LegiWatchWave2CoverageService,
+    LegiWatchDigestService,
+    LegiWatchAnalyticsService,
     LegiWatchPhase9ReadinessService,
     LegiWatchPhase9RuntimeService,
     LegiWatchPhase9CutoverService,
@@ -84,6 +90,8 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchWave2SavedViewsService,
     LegiWatchWave2WatchPresetsService,
     LegiWatchWave2CoverageService,
+    LegiWatchDigestService,
+    LegiWatchAnalyticsService,
     LegiWatchPhase9ReadinessService,
     LegiWatchPhase9RuntimeService,
     LegiWatchPhase9CutoverService,
