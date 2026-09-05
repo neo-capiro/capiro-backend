@@ -956,6 +956,12 @@ export const configSchema = z.object({
   // Base URL used to build deep links in alert emails/SMS back to the client
   // profile Tracker tab.
   TRACKER_APP_BASE_URL: z.string().url().default('https://app.capiro.ai'),
+  // Base URL for LegiWatch deep links (canonical Hearing Detail, and the link
+  // embedded in exported calendar entries). Deliberately SEPARATE from
+  // TRACKER_APP_BASE_URL: the LegiWatch vNext module is served from
+  // os.capiro.ai, and an exported .ics outlives the session that produced it,
+  // so its link cannot be derived from the request host either.
+  LEGIWATCH_APP_BASE_URL: z.string().url().default('https://os.capiro.ai'),
   // SMS provider. 'none' (default) keeps SMS DORMANT: the OTP-verify + alert
   // fan-out code paths run end-to-end but no message is sent (logged + recorded
   // as 'suppressed'). 'sns' uses AWS End User Messaging (SNS publish) once an

@@ -17,6 +17,11 @@ describe('PR B reachability contract (LW-QA-003/004)', () => {
   const detail = source('../hearings/HearingDetailRoute.tsx');
   const committee = source('../hearings/CommitteeRoomRoute.tsx');
   const feed = source('../feed/FeedTab.tsx');
+  // Wave 1 moved Client Relevance out of the route body into its own component;
+  // the route composes it. The contract is that the section is REACHABLE from
+  // the detail route, not that its markup lives in one particular file.
+  const relevancePanel = source('../hearings/ClientRelevancePanel.tsx');
+  const actions = source('../hearings/HearingActions.tsx');
 
   it('registers detail + committee routes BEFORE the catch-all', () => {
     expect(routes).toContain('path="/legiwatch/hearings/:hearingId"');
@@ -60,8 +65,32 @@ describe('PR B reachability contract (LW-QA-003/004)', () => {
   it('detail surfaces transcript + intelligence + client relevance sections', () => {
     expect(detail).toContain('aria-label="Transcript"');
     expect(detail).toContain('aria-label="Intelligence"');
-    expect(detail).toContain('aria-label="Client relevance"');
     expect(detail).toContain('usePublicHearingTranscript');
     expect(detail).toContain('useHearingIntelligence');
+    // Client relevance is composed from its own component (Wave 1 W1-6).
+    expect(detail).toContain('<ClientRelevancePanel');
+    expect(relevancePanel).toContain('aria-label="Client relevance"');
+  });
+
+  it('detail composes the Wave 1 Follow, Attend, relevance and action surfaces', () => {
+    // Follow and Attend are DIFFERENT products and must stay two dialogs.
+    expect(detail).toContain('<FollowDialog');
+    expect(detail).toContain('<AttendDialog');
+    expect(detail).toContain('<HearingActions');
+    expect(actions).toContain('aria-label="Actions"');
+  });
+
+  it('the archive sub-view is reachable and routes results to canonical detail', () => {
+    const archive = source('../hearings/ArchiveSubTab.tsx');
+    expect(hearings).toContain('<ArchiveSubTab');
+    expect(hearings).toContain("id: 'archive' as const");
+    // Every archive result funnels to the ONE canonical destination.
+    expect(archive).toContain('row.detailPath');
+    expect(archive).not.toMatch(/navigate\('\/intelligence\/hearing-watch/);
+  });
+
+  it('the committee room offers following and intelligence history', () => {
+    expect(committee).toContain('<CommitteeFollowControl');
+    expect(committee).toContain('<CommitteeIntelligenceHistorySection');
   });
 });

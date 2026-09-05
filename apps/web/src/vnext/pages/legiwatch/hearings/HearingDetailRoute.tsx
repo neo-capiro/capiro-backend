@@ -13,8 +13,8 @@
  * Every outcome state is honest (§8): not-occurred / no-public-stream /
  * capture-not-requested / capture-failed / processing / no-intelligence.
  */
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   useLwWeekCalendar,
   useCanonicalHearingEvent,
@@ -39,6 +39,12 @@ import {
 } from '../lib/hearing-detail-states.js';
 import { LwPill, LwButton, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
+// Wave 1 surfaces. Each owns one workstream and reads a real Wave 1 endpoint.
+import { FollowDialog } from './FollowDialog.js';
+import { AttendDialog, ATTENDANCE_LABEL } from './AttendDialog.js';
+import { ClientRelevancePanel } from './ClientRelevancePanel.js';
+import { HearingActions, type ActionRefs } from './HearingActions.js';
+import { useAttendance, useFollowConfig } from '../lib/wave1-api.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',
@@ -62,10 +68,33 @@ function msToClock(ms: number): string {
 export function HearingDetailRoute() {
   const { hearingId = '' } = useParams<{ hearingId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const event = useCanonicalHearingEvent(hearingId);
   const transcript = usePublicHearingTranscript(hearingId);
   const intelligence = useHearingIntelligence(hearingId);
   const [transcriptQuery, setTranscriptQuery] = useState('');
+
+  // Wave 1 tenant state. Both are read here so the header controls show the
+  // real persisted state rather than a local guess.
+  const follow = useFollowConfig(hearingId);
+  const attendance = useAttendance(hearingId);
+  const [dialog, setDialog] = useState<'follow' | 'attend' | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    { action: string; refs: ActionRefs } | null
+  >(null);
+
+  // The client lens lives in the URL so it persists across navigation and can
+  // be shared. It changes the tenant ANALYSIS only, never the public record.
+  const clientId = searchParams.get('client') ?? '';
+  const setClientId = useCallback(
+    (next: string) => {
+      const params = new URLSearchParams(searchParams);
+      if (next) params.set('client', next);
+      else params.delete('client');
+      setSearchParams(params, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   const segments = useMemo(
     () => transcript.data?.pages.flatMap((p) => p.items) ?? [],
@@ -80,6 +109,32 @@ export function HearingDetailRoute() {
         s.text.toLowerCase().includes(q) || (s.speakerName ?? '').toLowerCase().includes(q),
     );
   }, [segments, transcriptQuery]);
+
+  // §9 click-to-jump, hoisted above the early returns: a hook must run on every
+  // render, and the loading/error branches below return early.
+  const jumpToSegment = useCallback((segmentId: string | undefined) => {
+    if (!segmentId) return;
+    const el = document.getElementById(`lw-seg-${CSS.escape(segmentId)}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.background = 'color-mix(in srgb, var(--lw-brand-dot) 12%, transparent)';
+      window.setTimeout(() => {
+        el.style.background = '';
+      }, 2200);
+    }
+  }, []);
+
+  // W1-3: an archive transcript hit deep-links here as `#seg-<segmentId>`.
+  // The jump waits for the transcript page containing the segment to land —
+  // scrolling before it renders would silently do nothing.
+  const hash = window.location.hash;
+  useEffect(() => {
+    if (!hash.startsWith('#seg-')) return;
+    const segmentId = decodeURIComponent(hash.slice('#seg-'.length));
+    if (!segmentId) return;
+    if (!segments.some((seg: PublicTranscriptSegment) => seg.id === segmentId)) return;
+    jumpToSegment(segmentId);
+  }, [hash, segments, jumpToSegment]);
 
   if (event.isLoading) {
     return (
@@ -131,19 +186,6 @@ export function HearingDetailRoute() {
   const committeeCode = e.subcommittee?.systemCode ?? e.committee?.systemCode ?? null;
   const officialUrl = e.officialPageUrl ?? null;
 
-  // §9 click-to-jump: an intelligence item with evidence.segmentId scrolls to
-  // and highlights the supporting transcript segment.
-  const jumpToSegment = (segmentId: string | undefined) => {
-    if (!segmentId) return;
-    const el = document.getElementById(`lw-seg-${CSS.escape(segmentId)}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.style.background = 'color-mix(in srgb, var(--lw-brand-dot) 12%, transparent)';
-      window.setTimeout(() => {
-        el.style.background = '';
-      }, 2200);
-    }
-  };
 
   return (
     <div className="lw-body lw-detail" aria-label={`Hearing detail: ${e.title}`}>
@@ -210,10 +252,48 @@ export function HearingDetailRoute() {
             <span className="lw-card__meta">No capture requested</span>
           )}
         </div>
-        {accessLabel === 'PUBLIC' && (e.eventStatus ?? '').toUpperCase() === 'SCHEDULED' ? (
-          <LwButton variant="primary" onClick={() => navigate('/legiwatch?tab=hearings')}>
-            Schedule / follow from the calendar
+        {/* W1-1 / W1-2. Follow and Attend are DIFFERENT products and are two
+            separate controls: following notifies, attending captures. The
+            Attend control renders only when the server says a mode is actually
+            available, so a closed session has no attendance affordance at all. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+          <LwButton
+            variant={follow.data?.following ? undefined : 'primary'}
+            onClick={() => setDialog('follow')}
+          >
+            {follow.data?.following ? 'Edit follow' : 'Follow'}
           </LwButton>
+
+          {attendance.data?.scheduled ? (
+            <LwButton onClick={() => setDialog('attend')}>Scheduled · manage</LwButton>
+          ) : attendance.data?.canRequest ? (
+            <LwButton variant="primary" onClick={() => setDialog('attend')}>
+              Have Capiro attend
+            </LwButton>
+          ) : attendance.data ? (
+            // No control, but the state is still stated rather than hidden.
+            <span className="lw-card__meta" style={{ alignSelf: 'center' }}>
+              {ATTENDANCE_LABEL[attendance.data.state]} — {attendance.data.message}
+            </span>
+          ) : attendance.isLoading ? (
+            <span className="lw-card__meta" style={{ alignSelf: 'center' }}>
+              Checking capture capability…
+            </span>
+          ) : (
+            <span role="alert" className="lw-card__meta" style={{ alignSelf: 'center' }}>
+              Capture capability could not be determined for this proceeding.
+            </span>
+          )}
+        </div>
+
+        {follow.data?.following ? (
+          <p className="lw-card__meta" style={{ marginTop: 8, fontSize: 12 }}>
+            Following for{' '}
+            {follow.data.clients.length
+              ? follow.data.clients.map((c) => c.name ?? c.id).join(', ')
+              : 'no clients yet'}
+            . Following does not request attendance.
+          </p>
         ) : null}
       </section>
 
@@ -324,21 +404,33 @@ export function HearingDetailRoute() {
         )}
       </section>
 
-      {/* 6. Client relevance — tenant-scoped overlay only */}
-      <section className="lw-card" style={{ padding: 18 }} aria-label="Client relevance">
-        <div className="lw-card__head">
-          <h2 className="lw-card__title">Client relevance</h2>
-          <span className="lw-card__meta">Your workspace only</span>
-        </div>
-        {e.subscription?.scheduled ? (
-          <p style={{ fontSize: 13, margin: 0 }}>You follow this proceeding. Client match detail lives in My Sessions once a capture runs.</p>
-        ) : (
-          <p style={{ fontSize: 13, color: 'var(--lw-meta)', margin: 0 }}>
-            No watchlist match recorded for your workspace. Follow the hearing from the calendar to
-            receive relevance updates.
-          </p>
-        )}
-      </section>
+      {/* 6. Client relevance (W1-6) — tenant-scoped analysis over the public
+          record above. Switching the lens re-runs the ANALYSIS only. */}
+      <ClientRelevancePanel
+        hearingId={hearingId}
+        clientId={clientId}
+        onSelectClient={setClientId}
+        onJumpToSegment={jumpToSegment}
+        onAction={(action, refs) => setPendingAction({ action, refs })}
+      />
+
+      {/* 7. Actions (W1-7) + calendar export (W1-8). */}
+      <HearingActions
+        hearingId={hearingId}
+        hearingTitle={e.title}
+        clientId={clientId}
+        canCreateBrief={availability.available}
+        canSaveMoment={availability.available}
+        pendingAction={pendingAction}
+        onPendingHandled={() => setPendingAction(null)}
+      />
+
+      {dialog === 'follow' ? (
+        <FollowDialog hearingId={hearingId} hearingTitle={e.title} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === 'attend' ? (
+        <AttendDialog hearingId={hearingId} hearingTitle={e.title} onClose={() => setDialog(null)} />
+      ) : null}
     </div>
   );
 }

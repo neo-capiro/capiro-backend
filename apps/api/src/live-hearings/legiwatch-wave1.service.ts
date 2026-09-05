@@ -1,0 +1,1781 @@
+/**
+ * LegiWatch V2 Wave 1 — tenant follow/attend/archive/relevance/actions service.
+ *
+ * Composes the EXISTING canonical Live Hearings system; it does not fork any
+ * part of it. Specifically:
+ *
+ *  - capture demand still goes through the Phase 7 schedule path and its
+ *    fail-closed policy guard. There is no second capture scheduler here.
+ *  - the public transcript and public intelligence rails are read, never
+ *    written or copied per tenant.
+ *  - committee identity comes from `CongressCommittee`, never inferred from
+ *    whichever hearings happen to fall in a date window.
+ *
+ * Tenant safety: every tenant-owned read/write runs inside
+ * `PrismaService.withTenant`, which injects `where.tenantId` and sets the RLS
+ * GUC. Client ids arriving in a request body prove nothing about whose tenant
+ * they belong to, so they are validated against the caller's tenant before
+ * being persisted or used as a filter.
+ */
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import type { TenantContext } from '@capiro/shared';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
+import { CommitteeDirectoryService } from './committee-directory.service.js';
+import {
+  assessAttendance,
+  refuseAttendanceRequest,
+  type AttendanceAssessment,
+} from './legiwatch-wave1-attendance.js';
+import {
+  buildAllClientsRelevance,
+  buildClientRelevance,
+  bandForScore,
+  type ClientRelevanceResult,
+  type RelevanceRow,
+} from './legiwatch-wave1-relevance.js';
+import {
+  buildCalendarExport,
+  type CalendarExportHearing,
+  type CalendarExportResult,
+} from './legiwatch-calendar-export.js';
+import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+
+/** Server-side page ceiling for every list this service returns. */
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 25;
+
+function clampPageSize(value: number | undefined): number {
+  if (!value || !Number.isFinite(value)) return DEFAULT_PAGE_SIZE;
+  return Math.min(Math.max(Math.trunc(value), 1), MAX_PAGE_SIZE);
+}
+
+function clampPage(value: number | undefined): number {
+  if (!value || !Number.isFinite(value)) return 1;
+  return Math.max(Math.trunc(value), 1);
+}
+
+export interface FollowConfigInput {
+  clientIds?: string[];
+  notifyOnScheduleChange?: boolean;
+  notifyOnHearingStarting?: boolean;
+  notifyOnTranscriptReady?: boolean;
+  notifyOnHighPriorityMatch?: boolean;
+}
+
+export interface FollowConfigState {
+  hearingId: string;
+  following: boolean;
+  clientIds: string[];
+  /** Names for the clients above, resolved under the caller's tenant. */
+  clients: Array<{ id: string; name: string | null; archived: boolean }>;
+  notifyOnScheduleChange: boolean;
+  notifyOnHearingStarting: boolean;
+  notifyOnTranscriptReady: boolean;
+  notifyOnHighPriorityMatch: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  /**
+   * Always false. Stated explicitly in the contract because the whole point of
+   * the Follow/Attend split is that following creates no capture demand, and a
+   * client should be able to assert that from the response.
+   */
+  createdCaptureDemand: false;
+}
+
+export interface CommitteeFollowInput {
+  clientIds?: string[];
+  notifyOnNewHearing?: boolean;
+  notifyOnScheduleChange?: boolean;
+  notifyOnTranscriptReady?: boolean;
+  notifyOnHighPriorityMatch?: boolean;
+}
+
+interface CanonicalHearingRow {
+  id: string;
+  title: string;
+  chamber: string;
+  committeeName: string | null;
+  committeeSystemCode: string | null;
+  subcommitteeSystemCode: string | null;
+  date: Date;
+  startsAt: Date | null;
+  time: string | null;
+  timezone: string | null;
+  location: string | null;
+  url: string | null;
+  visibility: string;
+  eventStatus: string;
+  eventType: string | null;
+  witnesses: string[];
+  actualEnd: Date | null;
+}
+
+@Injectable()
+export class LegiWatchWave1Service {
+  private readonly logger = new Logger(LegiWatchWave1Service.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly phase7: LiveHearingsPhase7Service,
+    private readonly committees: CommitteeDirectoryService,
+    private readonly notifications: LegiWatchLifecycleNotificationService,
+  ) {}
+
+  // ── W1-1 · configurable hearing following ────────────────────────────────
+
+  async followState(ctx: TenantContext, hearingId: string): Promise<FollowConfigState> {
+    await this.requireHearing(hearingId);
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.hearingFollow.findFirst({
+        where: { userId: ctx.userId, hearingId },
+      }),
+    );
+    return this.toFollowState(ctx, hearingId, row);
+  }
+
+  /**
+   * Upsert one follow configuration.
+   *
+   * Idempotent by (tenant, user, hearing): calling it twice with the same body
+   * leaves one row in the same state. Editing an existing follow is the same
+   * call — there is no separate update path to drift from this one.
+   *
+   * Notably this method NEVER touches `hearing_subscription`. Following is not
+   * capture demand; that separation is the Phase 7 invariant the capture worker
+   * depends on, and a regression test asserts it.
+   */
+  async upsertFollow(
+    ctx: TenantContext,
+    hearingId: string,
+    input: FollowConfigInput,
+  ): Promise<FollowConfigState> {
+    await this.requireHearing(hearingId);
+    const clientIds = await this.resolveClientIds(ctx, input.clientIds ?? []);
+
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.hearingFollow.upsert({
+        where: {
+          tenantId_userId_hearingId: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            hearingId,
+          },
+        },
+        create: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          hearingId,
+          clientIds,
+          notifyOnScheduleChange: input.notifyOnScheduleChange ?? true,
+          notifyOnHearingStarting: input.notifyOnHearingStarting ?? true,
+          notifyOnTranscriptReady: input.notifyOnTranscriptReady ?? true,
+          notifyOnHighPriorityMatch: input.notifyOnHighPriorityMatch ?? true,
+        },
+        update: {
+          clientIds,
+          // An absent flag means "leave as configured", not "reset to default":
+          // a PUT that only changes the client list must not silently re-enable
+          // a notification the user turned off.
+          ...(input.notifyOnScheduleChange === undefined
+            ? {}
+            : { notifyOnScheduleChange: input.notifyOnScheduleChange }),
+          ...(input.notifyOnHearingStarting === undefined
+            ? {}
+            : { notifyOnHearingStarting: input.notifyOnHearingStarting }),
+          ...(input.notifyOnTranscriptReady === undefined
+            ? {}
+            : { notifyOnTranscriptReady: input.notifyOnTranscriptReady }),
+          ...(input.notifyOnHighPriorityMatch === undefined
+            ? {}
+            : { notifyOnHighPriorityMatch: input.notifyOnHighPriorityMatch }),
+          updatedAt: new Date(),
+        },
+      }),
+    );
+
+    return this.toFollowState(ctx, hearingId, row);
+  }
+
+  /** Unfollow. Idempotent: unfollowing a hearing you do not follow succeeds. */
+  async unfollow(ctx: TenantContext, hearingId: string): Promise<FollowConfigState> {
+    await this.requireHearing(hearingId);
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.hearingFollow.deleteMany({ where: { userId: ctx.userId, hearingId } }),
+    );
+    return this.toFollowState(ctx, hearingId, null);
+  }
+
+  private async toFollowState(
+    ctx: TenantContext,
+    hearingId: string,
+    row: {
+      clientIds: string[];
+      notifyOnScheduleChange: boolean;
+      notifyOnHearingStarting: boolean;
+      notifyOnTranscriptReady: boolean;
+      notifyOnHighPriorityMatch: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null,
+  ): Promise<FollowConfigState> {
+    if (!row) {
+      return {
+        hearingId,
+        following: false,
+        clientIds: [],
+        clients: [],
+        notifyOnScheduleChange: true,
+        notifyOnHearingStarting: true,
+        notifyOnTranscriptReady: true,
+        notifyOnHighPriorityMatch: true,
+        createdAt: null,
+        updatedAt: null,
+        createdCaptureDemand: false,
+      };
+    }
+    return {
+      hearingId,
+      following: true,
+      clientIds: row.clientIds,
+      clients: await this.describeClients(ctx, row.clientIds),
+      notifyOnScheduleChange: row.notifyOnScheduleChange,
+      notifyOnHearingStarting: row.notifyOnHearingStarting,
+      notifyOnTranscriptReady: row.notifyOnTranscriptReady,
+      notifyOnHighPriorityMatch: row.notifyOnHighPriorityMatch,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      createdCaptureDemand: false,
+    };
+  }
+
+  // ── W1-2 · configurable attendance / capture request ─────────────────────
+
+  async attendanceState(ctx: TenantContext, hearingId: string): Promise<
+    AttendanceAssessment & { hearingId: string }
+  > {
+    const hearing = await this.requireHearing(hearingId);
+    return { hearingId, ...(await this.assess(ctx, hearing)) };
+  }
+
+  /**
+   * Request attendance.
+   *
+   * The server re-derives eligibility from canonical state and refuses the
+   * request itself when it is not permitted — a client that bypasses the
+   * frontend controls gets the same answer the UI would have shown. Actual
+   * capture demand is then created by the SHIPPED Phase 7 schedule path, so
+   * the one-canonical-capture invariant and the fail-closed policy ceiling are
+   * unchanged.
+   */
+  async requestAttendance(
+    ctx: TenantContext,
+    hearingId: string,
+    input: { mode?: 'automatic' | 'browser'; consentAcknowledged?: boolean },
+  ): Promise<Record<string, unknown>> {
+    const hearing = await this.requireHearing(hearingId);
+    const mode = input.mode ?? 'automatic';
+    const assessment = await this.assess(ctx, hearing);
+
+    const refusal = refuseAttendanceRequest(assessment, mode);
+    if (refusal) {
+      throw new ConflictException({
+        code: refusal.code,
+        message: refusal.message,
+        state: assessment.state,
+        availableModes: assessment.availableModes,
+      });
+    }
+
+    if (assessment.consentRequired && !input.consentAcknowledged) {
+      throw new ConflictException({
+        code: 'CONSENT_REQUIRED',
+        message:
+          'This attendance mode requires an explicit consent acknowledgement before it can be scheduled.',
+        state: assessment.state,
+        availableModes: assessment.availableModes,
+      });
+    }
+
+    let scheduleResult: Record<string, unknown> | null = null;
+    if (mode === 'automatic') {
+      // Delegate to the shipped path. It runs its own policy assessment,
+      // writes the demand row, ensures the ONE canonical capture and enqueues
+      // preflight. Wave 1 adds no second scheduler.
+      scheduleResult = await this.phase7.schedule(ctx, hearingId);
+    } else {
+      // Browser attendance is still tenant demand (so the user's sessions and
+      // notifications work), but it must not create server-capture demand.
+      // scheduled_by_user stays false for exactly that reason.
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$executeRawUnsafe(
+          `INSERT INTO hearing_subscription
+             (tenant_id, user_id, hearing_id, notify_on_start, notify_on_mention,
+              scheduled_by_user, scheduled_by_rule_id, client_ids, watchlist_id,
+              attendance_mode, consent_acknowledged_at, created_at, updated_at)
+           VALUES ($1::uuid, $2, $3, true, false, false, NULL, ARRAY[]::text[], NULL,
+                   'browser', now(), now(), now())
+           ON CONFLICT (tenant_id, user_id, hearing_id)
+           DO UPDATE SET attendance_mode='browser',
+                         consent_acknowledged_at=COALESCE(hearing_subscription.consent_acknowledged_at, now()),
+                         updated_at=now()`,
+          ctx.tenantId,
+          ctx.userId,
+          hearingId,
+        ),
+      );
+    }
+
+    if (mode === 'automatic') {
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$executeRawUnsafe(
+          `UPDATE hearing_subscription
+             SET attendance_mode='automatic',
+                 consent_acknowledged_at = CASE WHEN $4::boolean THEN COALESCE(consent_acknowledged_at, now()) ELSE consent_acknowledged_at END,
+                 updated_at=now()
+           WHERE tenant_id=$1::uuid AND user_id=$2 AND hearing_id=$3`,
+          ctx.tenantId,
+          ctx.userId,
+          hearingId,
+          Boolean(input.consentAcknowledged),
+        ),
+      );
+    }
+
+    const next = await this.assess(ctx, hearing);
+    return {
+      hearingId,
+      requestedMode: mode,
+      attendance: next,
+      schedule: scheduleResult,
+      // Restating the invariant in the response so a caller can assert it.
+      oneCanonicalCapture: true,
+    };
+  }
+
+  /**
+   * Cancel this tenant's attendance. Delegates to the shipped Phase 7 cancel,
+   * which preserves the canonical capture and other tenants' demand.
+   */
+  async cancelAttendance(ctx: TenantContext, hearingId: string): Promise<Record<string, unknown>> {
+    const hearing = await this.requireHearing(hearingId);
+    const result = await this.phase7.cancelSchedule(ctx, hearingId);
+    // The Phase 7 cancel only clears scheduled_by_user; a browser-mode row has
+    // that false already, so remove the row outright when nothing else holds it.
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$executeRawUnsafe(
+        `DELETE FROM hearing_subscription
+         WHERE tenant_id=$1::uuid AND user_id=$2 AND hearing_id=$3
+           AND scheduled_by_user=false AND scheduled_by_rule_id IS NULL`,
+        ctx.tenantId,
+        ctx.userId,
+        hearingId,
+      ),
+    );
+    return { ...result, attendance: await this.assess(ctx, hearing) };
+  }
+
+  private async assess(
+    ctx: TenantContext,
+    hearing: CanonicalHearingRow,
+  ): Promise<AttendanceAssessment> {
+    const [candidates, capture, subscription, transcriptCount] = await Promise.all([
+      this.prisma.hearingStreamCandidate.findMany({
+        where: { hearingId: hearing.id },
+        orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
+        select: { capturePolicy: true, resolutionState: true },
+      }),
+      // domain_status / terminal_reason_code are SQL-owned columns that are not
+      // declared on the Prisma model, exactly as the Phase 7 service reads
+      // them. Raw SQL is the only way to see them.
+      this.prisma
+        .$queryRawUnsafe<
+          Array<{
+            id: string;
+            domainStatus: string;
+            failureCode: string | null;
+            terminalReasonCode: string | null;
+          }>
+        >(
+          `SELECT id,
+                  domain_status        AS "domainStatus",
+                  failure_code         AS "failureCode",
+                  terminal_reason_code AS "terminalReasonCode"
+           FROM public_hearing_capture
+           WHERE hearing_id = $1
+           LIMIT 1`,
+          hearing.id,
+        )
+        .then((rows) => rows[0] ?? null),
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.hearingSubscription.findFirst({
+          where: { userId: ctx.userId, hearingId: hearing.id },
+          select: {
+            scheduledByUser: true,
+            attendanceMode: true,
+            consentAcknowledgedAt: true,
+          },
+        }),
+      ),
+      this.transcriptSegmentCount(hearing.id),
+    ]);
+
+    return assessAttendance({
+      hearing: {
+        id: hearing.id,
+        visibility: hearing.visibility,
+        eventStatus: hearing.eventStatus,
+        url: hearing.url,
+      },
+      candidates,
+      capture,
+      subscription,
+      hasTranscript: transcriptCount > 0,
+    });
+  }
+
+  // ── W1-3 · archive + global hearing research ─────────────────────────────
+
+  /**
+   * Server-side search over the durable historical hearing corpus.
+   *
+   * Everything — matching, faceting, ordering and paging — happens in
+   * Postgres. The browser never receives the corpus to filter locally.
+   *
+   * Matching spans four sources, unioned by hearing:
+   *   1. hearing identity (title, committee, location, witness names) via FTS
+   *   2. the canonical machine transcript segments
+   *   3. the official published transcript text
+   *   4. public intelligence findings
+   *
+   * `clientId` narrows to hearings with tenant relevance for that client. It
+   * is validated against the caller's tenant first, so it cannot be used to
+   * probe another tenant's client ids.
+   */
+  async searchArchive(
+    ctx: TenantContext,
+    input: {
+      q?: string;
+      from?: string;
+      to?: string;
+      chamber?: string;
+      committee?: string;
+      subcommittee?: string;
+      eventStatus?: string;
+      hasTranscript?: boolean;
+      intelligenceType?: string;
+      clientId?: string;
+      relevanceBand?: string;
+      page?: number;
+      pageSize?: number;
+    },
+  ): Promise<Record<string, unknown>> {
+    const page = clampPage(input.page);
+    const pageSize = clampPageSize(input.pageSize);
+    const offset = (page - 1) * pageSize;
+    const q = input.q?.trim() || null;
+
+    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    // The archive is the DURABLE HISTORICAL corpus: proceedings that already
+    // happened, or whose capture reached a terminal state. A scheduled future
+    // hearing belongs to the calendar, not here.
+    const baseWhere = `
+      h.visibility = 'public'
+      AND (
+        h.event_status IN ('completed', 'canceled')
+        OR c.domain_status IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED')
+        OR ot.id IS NOT NULL
+      )`;
+
+    // Text match. websearch_to_tsquery accepts real user input (quoted
+    // phrases, OR, -negation) without throwing on stray syntax the way
+    // to_tsquery does.
+    const textMatch = q
+      ? `AND (
+           to_tsvector('english',
+             coalesce(h.title,'') || ' ' || coalesce(h.committee_name,'') || ' ' ||
+             coalesce(h.location,'') || ' ' || legiwatch_witness_text(h.witnesses)
+           ) @@ websearch_to_tsquery('english', $1)
+           OR EXISTS (
+             SELECT 1 FROM public_hearing_transcript_segment s
+             WHERE s.capture_id = c.id
+               AND to_tsvector('english', s.text) @@ websearch_to_tsquery('english', $1)
+           )
+           OR (ot.id IS NOT NULL AND to_tsvector('english', ot.text) @@ websearch_to_tsquery('english', $1))
+           OR EXISTS (
+             SELECT 1 FROM public_hearing_insight i
+             WHERE i.hearing_id = h.id
+               AND to_tsvector('english',
+                     coalesce(i.title,'') || ' ' || coalesce(i.summary,'') || ' ' ||
+                     coalesce(i.evidence_text,'')
+                   ) @@ websearch_to_tsquery('english', $1)
+           )
+         )`
+      : '';
+
+    const filters: string[] = [];
+    // `q` is bound as $1 ONLY when it exists. Binding a null placeholder that
+    // no clause references makes Postgres reject the statement with 42P18
+    // ("could not determine data type of parameter $1"), because an unreferenced
+    // parameter has no inferable type.
+    const params: unknown[] = q ? [q] : [];
+    const bind = (value: unknown): string => {
+      params.push(value);
+      return `$${params.length}`;
+    };
+
+    if (input.from) filters.push(`AND h.date >= ${bind(input.from)}::date`);
+    if (input.to) filters.push(`AND h.date <= ${bind(input.to)}::date`);
+    if (input.chamber) filters.push(`AND lower(h.chamber) = lower(${bind(input.chamber)})`);
+    if (input.committee)
+      filters.push(`AND h.committee_system_code = ${bind(input.committee)}`);
+    if (input.subcommittee)
+      filters.push(`AND h.subcommittee_system_code = ${bind(input.subcommittee)}`);
+    if (input.eventStatus) filters.push(`AND h.event_status = ${bind(input.eventStatus)}`);
+    if (input.hasTranscript === true)
+      filters.push(
+        `AND (ot.id IS NOT NULL OR EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id))`,
+      );
+    if (input.hasTranscript === false)
+      filters.push(
+        `AND ot.id IS NULL AND NOT EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id)`,
+      );
+    if (input.intelligenceType)
+      filters.push(
+        `AND EXISTS (SELECT 1 FROM public_hearing_insight i2 WHERE i2.hearing_id = h.id AND i2.insight_type = ${bind(input.intelligenceType)})`,
+      );
+
+    // Client relevance filtering. tenant_hearing_relevance is FORCE-RLS
+    // isolated and this whole query runs inside withTenant, so the tenant
+    // predicate is enforced by the policy as well as stated here.
+    if (input.clientId) {
+      const clientBind = bind(input.clientId);
+      const bandFloor =
+        input.relevanceBand === 'HIGH'
+          ? 0.7
+          : input.relevanceBand === 'MEDIUM'
+            ? 0.45
+            : input.relevanceBand === 'LOW'
+              ? 0.2
+              : null;
+      filters.push(
+        `AND EXISTS (
+           SELECT 1 FROM tenant_hearing_relevance r
+           WHERE r.hearing_id = h.id
+             AND r.client_id = ${clientBind}::uuid
+             ${bandFloor === null ? '' : `AND r.score >= ${bind(bandFloor)}`}
+         )`,
+      );
+    }
+
+    const where = `${baseWhere} ${textMatch} ${filters.join(' ')}`;
+
+    // The FROM clause is shared by the row query, the count and the facets so
+    // a facet can never describe a different population than the results.
+    const from = `
+      FROM committee_hearing h
+      LEFT JOIN public_hearing_capture c ON c.hearing_id = h.id
+      LEFT JOIN official_hearing_transcript ot ON ot.hearing_id = h.id`;
+
+    const rowSql = `
+      SELECT h.id,
+             h.title,
+             h.chamber,
+             h.committee_name          AS "committeeName",
+             h.committee_system_code   AS "committeeSystemCode",
+             h.subcommittee_system_code AS "subcommitteeSystemCode",
+             h.date,
+             h.starts_at               AS "startsAt",
+             h.time,
+             h.timezone,
+             h.location,
+             h.url                     AS "officialPageUrl",
+             h.event_status            AS "eventStatus",
+             h.type                    AS "eventType",
+             h.witnesses,
+             c.id                      AS "captureId",
+             c.domain_status           AS "captureStatus",
+             c.actual_end              AS "captureActualEnd",
+             c.transcript_gap_seconds  AS "transcriptGapSeconds",
+             ot.id                     AS "officialTranscriptId",
+             (SELECT count(*)::int FROM public_hearing_transcript_segment s3 WHERE s3.capture_id = c.id) AS "segmentCount",
+             (SELECT count(*)::int FROM public_hearing_insight i3 WHERE i3.hearing_id = h.id) AS "insightCount",
+             ${
+               q
+                 ? `(
+               SELECT json_build_object(
+                 'segmentId', s4.id,
+                 'startMs',  s4.start_ms,
+                 'speakerName', s4.speaker_label,
+                 'snippet', ts_headline('english', s4.text, websearch_to_tsquery('english', $1),
+                                        'MaxFragments=1, MaxWords=28, MinWords=8, StartSel=<mark>, StopSel=</mark>')
+               )
+               FROM public_hearing_transcript_segment s4
+               WHERE s4.capture_id = c.id
+                 AND to_tsvector('english', s4.text) @@ websearch_to_tsquery('english', $1)
+               ORDER BY ts_rank(to_tsvector('english', s4.text), websearch_to_tsquery('english', $1)) DESC, s4.sequence ASC
+               LIMIT 1
+             )`
+                 : 'NULL'
+             } AS "transcriptHit",
+             ${
+               q
+                 ? `(
+               SELECT json_build_object('insightId', i4.id, 'insightType', i4.insight_type, 'title', i4.title)
+               FROM public_hearing_insight i4
+               WHERE i4.hearing_id = h.id
+                 AND to_tsvector('english',
+                       coalesce(i4.title,'') || ' ' || coalesce(i4.summary,'') || ' ' || coalesce(i4.evidence_text,'')
+                     ) @@ websearch_to_tsquery('english', $1)
+               ORDER BY i4.sequence ASC
+               LIMIT 1
+             )`
+                 : 'NULL'
+             } AS "intelligenceHit"
+      ${from}
+      WHERE ${where}
+      ORDER BY COALESCE(c.actual_end, h.starts_at, h.date::timestamp) DESC, h.id DESC
+      LIMIT ${bind(pageSize)} OFFSET ${bind(offset)}`;
+
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<Record<string, unknown>>>(rowSql, ...params),
+    );
+
+    // Count and facets reuse the same params minus the LIMIT/OFFSET pair.
+    const facetParams = params.slice(0, params.length - 2);
+    const [totals, chamberFacets, committeeFacets, statusFacets] = await this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.$queryRawUnsafe<Array<{ total: number }>>(
+            `SELECT count(DISTINCT h.id)::int AS total ${from} WHERE ${where}`,
+            ...facetParams,
+          ),
+          tx.$queryRawUnsafe<Array<{ value: string; count: number }>>(
+            `SELECT h.chamber AS value, count(DISTINCT h.id)::int AS count ${from} WHERE ${where}
+             GROUP BY h.chamber ORDER BY count DESC, value ASC`,
+            ...facetParams,
+          ),
+          tx.$queryRawUnsafe<Array<{ value: string; label: string; count: number }>>(
+            `SELECT h.committee_system_code AS value, min(h.committee_name) AS label,
+                    count(DISTINCT h.id)::int AS count ${from} WHERE ${where}
+               AND h.committee_system_code IS NOT NULL
+             GROUP BY h.committee_system_code ORDER BY count DESC, label ASC LIMIT 40`,
+            ...facetParams,
+          ),
+          tx.$queryRawUnsafe<Array<{ value: string; count: number }>>(
+            `SELECT h.event_status AS value, count(DISTINCT h.id)::int AS count ${from} WHERE ${where}
+             GROUP BY h.event_status ORDER BY count DESC, value ASC`,
+            ...facetParams,
+          ),
+        ]),
+    );
+
+    const total = totals[0]?.total ?? 0;
+
+    return {
+      rows: rows.map((row) => this.toArchiveResult(row)),
+      total,
+      page,
+      pageSize,
+      hasMore: offset + rows.length < total,
+      query: q,
+      facets: {
+        chamber: chamberFacets,
+        committee: committeeFacets,
+        eventStatus: statusFacets,
+      },
+    };
+  }
+
+  private toArchiveResult(row: Record<string, unknown>): Record<string, unknown> {
+    const segmentCount = Number(row.segmentCount ?? 0);
+    const hasOfficial = Boolean(row.officialTranscriptId);
+    const date = row.date instanceof Date ? row.date : null;
+    return {
+      id: row.id,
+      title: row.title,
+      chamber: row.chamber,
+      committeeName: row.committeeName,
+      committeeSystemCode: row.committeeSystemCode,
+      subcommitteeSystemCode: row.subcommitteeSystemCode,
+      // Eastern calendar day as a plain `YYYY-MM-DD` string. Never an instant:
+      // the web contract formats the parts directly and a timestamp here is
+      // what reintroduces the midnight-UTC day shift.
+      calendarDate: date ? date.toISOString().slice(0, 10) : null,
+      scheduledStart: row.startsAt instanceof Date ? row.startsAt.toISOString() : null,
+      time: row.time,
+      timeZone: row.timezone,
+      location: row.location,
+      officialPageUrl: row.officialPageUrl,
+      eventStatus: row.eventStatus,
+      eventType: row.eventType,
+      witnesses: Array.isArray(row.witnesses) ? row.witnesses : [],
+      captureStatus: row.captureStatus ?? null,
+      transcript: {
+        available: segmentCount > 0 || hasOfficial,
+        segmentCount,
+        officialTranscriptId: row.officialTranscriptId ?? null,
+        gapSeconds: row.transcriptGapSeconds ?? null,
+      },
+      intelligenceCount: Number(row.insightCount ?? 0),
+      transcriptHit: row.transcriptHit ?? null,
+      intelligenceHit: row.intelligenceHit ?? null,
+      // Every result funnels to the ONE canonical destination.
+      detailPath: `/legiwatch/hearings/${encodeURIComponent(String(row.id))}`,
+    };
+  }
+
+  // ── W1-4 · committee following + committee intelligence ──────────────────
+
+  async committeeFollowState(
+    ctx: TenantContext,
+    systemCode: string,
+  ): Promise<Record<string, unknown>> {
+    await this.requireCommittee(ctx, systemCode);
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.legiWatchCommitteeFollow.findFirst({
+        where: { userId: ctx.userId, committeeSystemCode: systemCode },
+      }),
+    );
+    return this.toCommitteeFollowState(ctx, systemCode, row);
+  }
+
+  async upsertCommitteeFollow(
+    ctx: TenantContext,
+    systemCode: string,
+    input: CommitteeFollowInput,
+  ): Promise<Record<string, unknown>> {
+    await this.requireCommittee(ctx, systemCode);
+    const clientIds = await this.resolveClientIds(ctx, input.clientIds ?? []);
+
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.legiWatchCommitteeFollow.upsert({
+        where: {
+          tenantId_userId_committeeSystemCode: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            committeeSystemCode: systemCode,
+          },
+        },
+        create: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          committeeSystemCode: systemCode,
+          clientIds,
+          notifyOnNewHearing: input.notifyOnNewHearing ?? true,
+          notifyOnScheduleChange: input.notifyOnScheduleChange ?? true,
+          notifyOnTranscriptReady: input.notifyOnTranscriptReady ?? false,
+          notifyOnHighPriorityMatch: input.notifyOnHighPriorityMatch ?? true,
+        },
+        update: {
+          clientIds,
+          ...(input.notifyOnNewHearing === undefined
+            ? {}
+            : { notifyOnNewHearing: input.notifyOnNewHearing }),
+          ...(input.notifyOnScheduleChange === undefined
+            ? {}
+            : { notifyOnScheduleChange: input.notifyOnScheduleChange }),
+          ...(input.notifyOnTranscriptReady === undefined
+            ? {}
+            : { notifyOnTranscriptReady: input.notifyOnTranscriptReady }),
+          ...(input.notifyOnHighPriorityMatch === undefined
+            ? {}
+            : { notifyOnHighPriorityMatch: input.notifyOnHighPriorityMatch }),
+          updatedAt: new Date(),
+        },
+      }),
+    );
+    return this.toCommitteeFollowState(ctx, systemCode, row);
+  }
+
+  async unfollowCommittee(
+    ctx: TenantContext,
+    systemCode: string,
+  ): Promise<Record<string, unknown>> {
+    await this.requireCommittee(ctx, systemCode);
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.legiWatchCommitteeFollow.deleteMany({
+        where: { userId: ctx.userId, committeeSystemCode: systemCode },
+      }),
+    );
+    return this.toCommitteeFollowState(ctx, systemCode, null);
+  }
+
+  private async toCommitteeFollowState(
+    ctx: TenantContext,
+    systemCode: string,
+    row: {
+      clientIds: string[];
+      notifyOnNewHearing: boolean;
+      notifyOnScheduleChange: boolean;
+      notifyOnTranscriptReady: boolean;
+      notifyOnHighPriorityMatch: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null,
+  ): Promise<Record<string, unknown>> {
+    if (!row) {
+      return {
+        committeeSystemCode: systemCode,
+        following: false,
+        clientIds: [],
+        clients: [],
+        notifyOnNewHearing: true,
+        notifyOnScheduleChange: true,
+        notifyOnTranscriptReady: false,
+        notifyOnHighPriorityMatch: true,
+        createdAt: null,
+        updatedAt: null,
+      };
+    }
+    return {
+      committeeSystemCode: systemCode,
+      following: true,
+      clientIds: row.clientIds,
+      clients: await this.describeClients(ctx, row.clientIds),
+      notifyOnNewHearing: row.notifyOnNewHearing,
+      notifyOnScheduleChange: row.notifyOnScheduleChange,
+      notifyOnTranscriptReady: row.notifyOnTranscriptReady,
+      notifyOnHighPriorityMatch: row.notifyOnHighPriorityMatch,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Committee intelligence history.
+   *
+   * Derived from the committee's OWN canonical hearings' public insights. It
+   * fabricates nothing: a committee whose hearings have produced no insights
+   * returns an empty list with the hearing counts that explain why.
+   */
+  async committeeIntelligenceHistory(
+    ctx: TenantContext,
+    systemCode: string,
+    input: { page?: number; pageSize?: number; insightType?: string; clientId?: string },
+  ): Promise<Record<string, unknown>> {
+    await this.requireCommittee(ctx, systemCode);
+    const page = clampPage(input.page);
+    const pageSize = clampPageSize(input.pageSize);
+    const offset = (page - 1) * pageSize;
+    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    const params: unknown[] = [systemCode];
+    const bind = (v: unknown): string => {
+      params.push(v);
+      return `$${params.length}`;
+    };
+    const typeFilter = input.insightType
+      ? `AND i.insight_type = ${bind(input.insightType)}`
+      : '';
+    // Client narrowing joins the tenant rail. The whole query runs inside
+    // withTenant, so RLS enforces the tenant predicate too.
+    const clientFilter = input.clientId
+      ? `AND EXISTS (
+           SELECT 1 FROM tenant_hearing_relevance r
+           WHERE r.insight_id = i.id AND r.client_id = ${bind(input.clientId)}::uuid
+         )`
+      : '';
+
+    const sql = `
+      SELECT i.id,
+             i.hearing_id    AS "hearingId",
+             i.insight_type  AS "insightType",
+             i.title,
+             i.summary,
+             i.evidence_text AS "evidenceText",
+             i.speaker_name  AS "speakerName",
+             i.confidence,
+             i.preliminary,
+             i.segment_id    AS "segmentId",
+             i.start_ms      AS "startMs",
+             i.created_at    AS "createdAt",
+             h.title         AS "hearingTitle",
+             h.date          AS "hearingDate"
+      FROM public_hearing_insight i
+      JOIN committee_hearing h ON h.id = i.hearing_id
+      WHERE (h.committee_system_code = $1 OR h.subcommittee_system_code = $1)
+        ${typeFilter}
+        ${clientFilter}
+      ORDER BY i.created_at DESC, i.id DESC
+      LIMIT ${bind(pageSize)} OFFSET ${bind(offset)}`;
+
+    const countSql = `
+      SELECT count(*)::int AS total
+      FROM public_hearing_insight i
+      JOIN committee_hearing h ON h.id = i.hearing_id
+      WHERE (h.committee_system_code = $1 OR h.subcommittee_system_code = $1)
+        ${typeFilter}
+        ${clientFilter}`;
+
+    const [rows, totals, hearingStats] = await this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.$queryRawUnsafe<Array<Record<string, unknown>>>(sql, ...params),
+          tx.$queryRawUnsafe<Array<{ total: number }>>(
+            countSql,
+            ...params.slice(0, params.length - 2),
+          ),
+          tx.$queryRawUnsafe<Array<{ total: number; withTranscript: number }>>(
+            `SELECT count(*)::int AS total,
+                    count(*) FILTER (
+                      WHERE EXISTS (
+                        SELECT 1 FROM public_hearing_capture c
+                        JOIN public_hearing_transcript_segment s ON s.capture_id = c.id
+                        WHERE c.hearing_id = h.id
+                      )
+                    )::int AS "withTranscript"
+             FROM committee_hearing h
+             WHERE (h.committee_system_code = $1 OR h.subcommittee_system_code = $1)`,
+            systemCode,
+          ),
+        ]),
+    );
+
+    const total = totals[0]?.total ?? 0;
+    return {
+      committeeSystemCode: systemCode,
+      rows: rows.map((r) => ({
+        ...r,
+        hearingDate:
+          r.hearingDate instanceof Date ? r.hearingDate.toISOString().slice(0, 10) : null,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : null,
+        detailPath: `/legiwatch/hearings/${encodeURIComponent(String(r.hearingId))}`,
+      })),
+      total,
+      page,
+      pageSize,
+      hasMore: offset + rows.length < total,
+      // The honest-unavailable context: zero insights with zero transcribed
+      // hearings is "nothing captured yet", not "nothing happened".
+      corpus: {
+        hearings: hearingStats[0]?.total ?? 0,
+        hearingsWithTranscript: hearingStats[0]?.withTranscript ?? 0,
+      },
+    };
+  }
+
+  // ── W1-6 · client relevance V2 ───────────────────────────────────────────
+
+  /** One client's structured relevance for one hearing. */
+  async clientRelevance(
+    ctx: TenantContext,
+    hearingId: string,
+    clientId: string,
+  ): Promise<ClientRelevanceResult> {
+    await this.requireHearing(hearingId);
+    const client = await this.assertClientInTenant(ctx.tenantId, clientId);
+    const [rows, segments] = await Promise.all([
+      this.relevanceRows(ctx, hearingId, clientId),
+      this.transcriptSegmentCount(hearingId),
+    ]);
+    return buildClientRelevance({
+      clientId,
+      clientName: client.name,
+      hearingId,
+      rows,
+      hasTranscript: segments > 0,
+    });
+  }
+
+  /** The All-Clients ranked view over the caller's own client list. */
+  async allClientsRelevance(
+    ctx: TenantContext,
+    hearingId: string,
+  ): Promise<Record<string, unknown>> {
+    await this.requireHearing(hearingId);
+    const [clients, rows, segments] = await Promise.all([
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.client.findMany({
+          where: { status: 'active' },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+      ),
+      this.relevanceRows(ctx, hearingId, null),
+      this.transcriptSegmentCount(hearingId),
+    ]);
+
+    const results = buildAllClientsRelevance({
+      hearingId,
+      authorizedClients: clients,
+      rows,
+      hasTranscript: segments > 0,
+    });
+
+    return {
+      hearingId,
+      scope: 'all-clients',
+      transcriptAvailable: segments > 0,
+      clients: results,
+      counts: {
+        HIGH: results.filter((r) => r.band === 'HIGH').length,
+        MEDIUM: results.filter((r) => r.band === 'MEDIUM').length,
+        LOW: results.filter((r) => r.band === 'LOW').length,
+        NONE: results.filter((r) => r.band === 'NONE').length,
+        INSUFFICIENT_EVIDENCE: results.filter((r) => r.band === 'INSUFFICIENT_EVIDENCE').length,
+      },
+    };
+  }
+
+  /**
+   * Load tenant relevance rows joined to the global insights they cite.
+   *
+   * `tenant_hearing_relevance` is FORCE-RLS isolated and this runs inside
+   * withTenant, so the tenant predicate is enforced by policy as well as by
+   * the query.
+   */
+  private async relevanceRows(
+    ctx: TenantContext,
+    hearingId: string,
+    clientId: string | null,
+  ): Promise<RelevanceRow[]> {
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
+        `SELECT r.id,
+                r.client_id    AS "clientId",
+                r.client_name  AS "clientName",
+                r.hearing_id   AS "hearingId",
+                r.insight_id   AS "insightId",
+                r.score,
+                r.matched_on   AS "matchedOn",
+                r.rationale,
+                r.updated_at   AS "updatedAt",
+                i.insight_type AS "insightType",
+                i.title        AS "insightTitle",
+                i.summary      AS "insightSummary",
+                i.evidence_text AS "evidenceText",
+                i.speaker_name AS "speakerName",
+                i.confidence,
+                i.preliminary,
+                i.segment_id   AS "segmentId",
+                i.start_ms     AS "startMs",
+                i.end_ms       AS "endMs",
+                i.extractor,
+                i.extractor_version AS "extractorVersion"
+         FROM tenant_hearing_relevance r
+         JOIN public_hearing_insight i ON i.id = r.insight_id
+         WHERE r.hearing_id = $1
+           AND ($2::uuid IS NULL OR r.client_id = $2::uuid)
+         ORDER BY r.score DESC, i.sequence ASC`,
+        hearingId,
+        clientId,
+      ),
+    );
+
+    return rows.map((r) => ({
+      id: String(r.id),
+      clientId: String(r.clientId),
+      clientName: (r.clientName as string | null) ?? null,
+      hearingId: String(r.hearingId),
+      insightId: String(r.insightId),
+      score: Number(r.score),
+      matchedOn: r.matchedOn,
+      rationale: String(r.rationale ?? ''),
+      updatedAt: r.updatedAt instanceof Date ? r.updatedAt : new Date(String(r.updatedAt)),
+      insightType: String(r.insightType),
+      insightTitle: String(r.insightTitle ?? ''),
+      insightSummary: String(r.insightSummary ?? ''),
+      evidenceText: (r.evidenceText as string | null) ?? null,
+      speakerName: (r.speakerName as string | null) ?? null,
+      confidence: r.confidence == null ? null : Number(r.confidence),
+      preliminary: Boolean(r.preliminary),
+      segmentId: (r.segmentId as string | null) ?? null,
+      startMs: r.startMs == null ? null : Number(r.startMs),
+      endMs: r.endMs == null ? null : Number(r.endMs),
+      extractor: String(r.extractor ?? 'unknown'),
+      extractorVersion: String(r.extractorVersion ?? '0'),
+    }));
+  }
+
+  // ── W1-7 · saved references ──────────────────────────────────────────────
+
+  /**
+   * Save a canonical reference. Idempotent: re-saving the same reference for
+   * the same client updates the note instead of adding a duplicate row.
+   *
+   * Only REFERENCES are stored. The public transcript and insight text stay in
+   * the global rail where they are canonical.
+   */
+  async saveItem(
+    ctx: TenantContext,
+    hearingId: string,
+    input: {
+      kind: 'moment' | 'finding' | 'hearing';
+      segmentId?: string;
+      insightId?: string;
+      clientId?: string;
+      note?: string;
+    },
+  ): Promise<Record<string, unknown>> {
+    await this.requireHearing(hearingId);
+    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    // Validate the references actually belong to THIS hearing. Without this a
+    // caller could file another proceeding's segment under this one and the
+    // saved item would render with mismatched provenance.
+    if (input.kind === 'moment') {
+      if (!input.segmentId) {
+        throw new BadRequestException('segmentId is required to save a moment');
+      }
+      await this.assertSegmentInHearing(hearingId, input.segmentId);
+    }
+    if (input.kind === 'finding') {
+      if (!input.insightId) {
+        throw new BadRequestException('insightId is required to save a finding');
+      }
+      await this.assertInsightInHearing(hearingId, input.insightId);
+    }
+
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `INSERT INTO legiwatch_saved_item
+           (tenant_id, user_id, kind, hearing_id, segment_id, insight_id, client_id, note,
+            created_at, updated_at)
+         VALUES ($1::uuid, $2, $3, $4, $5, $6, $7::uuid, $8, now(), now())
+         ON CONFLICT (tenant_id, user_id, kind, hearing_id,
+                      COALESCE(segment_id, ''), COALESCE(insight_id, ''),
+                      COALESCE(client_id, '00000000-0000-0000-0000-000000000000'::uuid))
+         DO UPDATE SET note = COALESCE(EXCLUDED.note, legiwatch_saved_item.note),
+                       updated_at = now()
+         RETURNING id`,
+        ctx.tenantId,
+        ctx.userId,
+        input.kind,
+        hearingId,
+        input.segmentId ?? null,
+        input.insightId ?? null,
+        input.clientId ?? null,
+        input.note ?? null,
+      ),
+    );
+
+    return { id: rows[0]?.id ?? null, hearingId, kind: input.kind, saved: true };
+  }
+
+  async listSavedItems(
+    ctx: TenantContext,
+    input: { hearingId?: string; clientId?: string; page?: number; pageSize?: number },
+  ): Promise<Record<string, unknown>> {
+    const page = clampPage(input.page);
+    const pageSize = clampPageSize(input.pageSize);
+    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    const [rows, total] = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+      Promise.all([
+        tx.legiWatchSavedItem.findMany({
+          where: {
+            userId: ctx.userId,
+            ...(input.hearingId ? { hearingId: input.hearingId } : {}),
+            ...(input.clientId ? { clientId: input.clientId } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        tx.legiWatchSavedItem.count({
+          where: {
+            userId: ctx.userId,
+            ...(input.hearingId ? { hearingId: input.hearingId } : {}),
+            ...(input.clientId ? { clientId: input.clientId } : {}),
+          },
+        }),
+      ]),
+    );
+
+    return {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        hearingId: r.hearingId,
+        segmentId: r.segmentId,
+        insightId: r.insightId,
+        clientId: r.clientId,
+        note: r.note,
+        createdAt: r.createdAt.toISOString(),
+        detailPath: `/legiwatch/hearings/${encodeURIComponent(r.hearingId)}`,
+      })),
+      total,
+      page,
+      pageSize,
+      hasMore: (page - 1) * pageSize + rows.length < total,
+    };
+  }
+
+  async deleteSavedItem(ctx: TenantContext, id: string): Promise<{ deleted: boolean }> {
+    const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.legiWatchSavedItem.deleteMany({ where: { id, userId: ctx.userId } }),
+    );
+    return { deleted: result.count > 0 };
+  }
+
+  /**
+   * Build the grounded context packet for "Ask Meri".
+   *
+   * The packet carries canonical IDENTIFIERS and the specific evidence the user
+   * selected — never an uncontrolled blob, and never unrelated client
+   * information. The caller (Meri) resolves the references itself under its own
+   * governance, which is what keeps Institutional Memory boundaries intact.
+   */
+  async buildMeriContextPacket(
+    ctx: TenantContext,
+    hearingId: string,
+    input: { segmentId?: string; insightId?: string; clientId?: string; question?: string },
+  ): Promise<Record<string, unknown>> {
+    const hearing = await this.requireHearing(hearingId);
+    let client: { id: string; name: string | null } | null = null;
+    if (input.clientId) client = await this.assertClientInTenant(ctx.tenantId, input.clientId);
+    if (input.segmentId) await this.assertSegmentInHearing(hearingId, input.segmentId);
+    if (input.insightId) await this.assertInsightInHearing(hearingId, input.insightId);
+
+    const segment = input.segmentId
+      ? await this.prisma.publicHearingTranscriptSegment.findUnique({
+          where: { id: input.segmentId },
+          select: { id: true, startMs: true, endMs: true, text: true, speakerLabel: true },
+        })
+      : null;
+    const insight = input.insightId
+      ? await this.prisma.publicHearingInsight.findUnique({
+          where: { id: input.insightId },
+          select: {
+            id: true,
+            insightType: true,
+            title: true,
+            summary: true,
+            evidenceText: true,
+            segmentId: true,
+            startMs: true,
+          },
+        })
+      : null;
+
+    // Only the SELECTED client's relevance, and only for this hearing. This is
+    // the boundary that stops a hearing question from pulling the tenant's
+    // whole client book into the prompt.
+    const relevance =
+      client && insight
+        ? (await this.relevanceRows(ctx, hearingId, client.id)).filter(
+            (r) => r.insightId === insight.id,
+          )
+        : [];
+
+    return {
+      source: 'legiwatch-hearing',
+      hearing: {
+        id: hearing.id,
+        title: hearing.title,
+        chamber: hearing.chamber,
+        committeeName: hearing.committeeName,
+        committeeSystemCode: hearing.committeeSystemCode,
+        subcommitteeSystemCode: hearing.subcommitteeSystemCode,
+        calendarDate: hearing.date.toISOString().slice(0, 10),
+        scheduledStart: hearing.startsAt ? hearing.startsAt.toISOString() : null,
+        eventStatus: hearing.eventStatus,
+        officialPageUrl: hearing.url,
+        detailPath: `/legiwatch/hearings/${encodeURIComponent(hearing.id)}`,
+      },
+      client: client ? { id: client.id, name: client.name } : null,
+      transcriptSegment: segment,
+      intelligenceFinding: insight,
+      clientRelevance: relevance.map((r) => ({
+        insightId: r.insightId,
+        score: r.score,
+        band: bandForScore(r.score),
+        rationale: r.rationale,
+        matchedOn: r.matchedOn,
+      })),
+      question: input.question?.trim() || null,
+      /** Explicit provenance so the answer can cite what it was given. */
+      evidenceReferences: {
+        hearingId: hearing.id,
+        segmentIds: segment ? [segment.id] : [],
+        insightIds: insight ? [insight.id] : [],
+      },
+    };
+  }
+
+  /**
+   * Grounded prefill for "Create brief".
+   *
+   * Wave 1 deliberately does NOT create the document here. Workspace owns
+   * document creation (`POST /workspace-api/drafts`) and it is a separate
+   * service with its own tenant guard; having apps/api call it server-to-server
+   * would duplicate that architecture and add a second document-creation path
+   * to keep in sync.
+   *
+   * Instead this returns the grounded context and the SOURCE REFERENCES the
+   * brief must retain for traceability, and the web posts it to the existing
+   * Workspace endpoint. One document editor, one creation path, and the
+   * grounding is assembled server-side where the canonical data lives.
+   */
+  async buildBriefPrefill(
+    ctx: TenantContext,
+    hearingId: string,
+    input: { clientId?: string; insightIds?: string[] },
+  ): Promise<Record<string, unknown>> {
+    const hearing = await this.requireHearing(hearingId);
+    let client: { id: string; name: string | null } | null = null;
+    if (input.clientId) client = await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    const requested = [...new Set((input.insightIds ?? []).filter(Boolean))];
+    for (const id of requested) await this.assertInsightInHearing(hearingId, id);
+
+    // With no explicit selection, ground the brief in this client's matched
+    // findings — never in every finding of the proceeding, which would put
+    // unrelated material into a client document.
+    const findings = requested.length
+      ? await this.prisma.publicHearingInsight.findMany({
+          where: { id: { in: requested }, hearingId },
+          select: {
+            id: true,
+            insightType: true,
+            title: true,
+            summary: true,
+            evidenceText: true,
+            speakerName: true,
+            segmentId: true,
+            startMs: true,
+          },
+          orderBy: { sequence: 'asc' },
+        })
+      : client
+        ? (await this.relevanceRows(ctx, hearingId, client.id)).slice(0, 10).map((r) => ({
+            id: r.insightId,
+            insightType: r.insightType,
+            title: r.insightTitle,
+            summary: r.insightSummary,
+            evidenceText: r.evidenceText,
+            speakerName: r.speakerName,
+            segmentId: r.segmentId,
+            startMs: r.startMs,
+          }))
+        : [];
+
+    const calendarDate = hearing.date.toISOString().slice(0, 10);
+    const detailPath = `/legiwatch/hearings/${encodeURIComponent(hearing.id)}`;
+
+    return {
+      /** Field names match Workspace's CreateDraftDto so the web can post directly. */
+      draft: {
+        docTitle: `Hearing brief — ${hearing.title}`,
+        ...(client?.name ? { client: client.name } : {}),
+      },
+      context: {
+        source: 'legiwatch-hearing',
+        hearing: {
+          id: hearing.id,
+          title: hearing.title,
+          chamber: hearing.chamber,
+          committeeName: hearing.committeeName,
+          calendarDate,
+          eventStatus: hearing.eventStatus,
+          witnesses: hearing.witnesses,
+          detailPath,
+          officialPageUrl: hearing.url,
+        },
+        client: client ? { id: client.id, name: client.name } : null,
+        findings,
+      },
+      /**
+       * The references the created document must retain. Traceability is the
+       * point: a brief whose claims cannot be walked back to a canonical
+       * segment is not a grounded brief.
+       */
+      sources: [
+        { kind: 'hearing', id: hearing.id, path: detailPath },
+        ...(hearing.url ? [{ kind: 'official_page', id: hearing.id, url: hearing.url }] : []),
+        ...findings.map((f) => ({
+          kind: 'intelligence_finding',
+          id: f.id,
+          segmentId: f.segmentId ?? null,
+          startMs: f.startMs ?? null,
+        })),
+      ],
+    };
+  }
+
+  /**
+   * Grounded prefill for "Stage outreach".
+   *
+   * Same boundary as the brief: Engagement owns outreach creation and this
+   * returns only the prefill. Nothing is sent, and nothing is auto-created —
+   * the action stages work for user review, which is the required behavior.
+   */
+  async buildOutreachPrefill(
+    ctx: TenantContext,
+    hearingId: string,
+    input: { clientId: string; insightId?: string; segmentId?: string },
+  ): Promise<Record<string, unknown>> {
+    const hearing = await this.requireHearing(hearingId);
+    const client = await this.assertClientInTenant(ctx.tenantId, input.clientId);
+    if (input.insightId) await this.assertInsightInHearing(hearingId, input.insightId);
+    if (input.segmentId) await this.assertSegmentInHearing(hearingId, input.segmentId);
+
+    const insight = input.insightId
+      ? await this.prisma.publicHearingInsight.findUnique({
+          where: { id: input.insightId },
+          select: {
+            id: true,
+            insightType: true,
+            title: true,
+            summary: true,
+            evidenceText: true,
+            speakerName: true,
+            segmentId: true,
+            startMs: true,
+          },
+        })
+      : null;
+    const segment = input.segmentId
+      ? await this.prisma.publicHearingTranscriptSegment.findUnique({
+          where: { id: input.segmentId },
+          select: { id: true, startMs: true, text: true, speakerLabel: true },
+        })
+      : null;
+
+    const detailPath = `/legiwatch/hearings/${encodeURIComponent(hearing.id)}`;
+    return {
+      clientId: client.id,
+      clientName: client.name,
+      /** Staged only. Sending stays an explicit, separate user decision. */
+      status: 'staged',
+      autoSend: false,
+      context: {
+        source: 'legiwatch-hearing',
+        hearing: {
+          id: hearing.id,
+          title: hearing.title,
+          committeeName: hearing.committeeName,
+          chamber: hearing.chamber,
+          calendarDate: hearing.date.toISOString().slice(0, 10),
+          detailPath,
+          officialPageUrl: hearing.url,
+        },
+        finding: insight,
+        transcriptMoment: segment,
+      },
+      sources: [
+        { kind: 'hearing', id: hearing.id, path: detailPath },
+        ...(insight ? [{ kind: 'intelligence_finding', id: insight.id }] : []),
+        ...(segment ? [{ kind: 'transcript_segment', id: segment.id }] : []),
+      ],
+    };
+  }
+
+  // ── W1-8 · calendar export ───────────────────────────────────────────────
+
+  async calendarExport(
+    _ctx: TenantContext,
+    hearingId: string,
+    appOrigin: string,
+  ): Promise<CalendarExportResult> {
+    const hearing = await this.requireHearing(hearingId);
+    const subcommittee = hearing.subcommitteeSystemCode
+      ? await this.prisma.congressCommittee.findFirst({
+          where: { systemCode: hearing.subcommitteeSystemCode },
+          select: { name: true },
+        })
+      : null;
+
+    const payload: CalendarExportHearing = {
+      id: hearing.id,
+      title: hearing.title,
+      date: hearing.date.toISOString().slice(0, 10),
+      startsAt: hearing.startsAt,
+      actualEnd: hearing.actualEnd,
+      time: hearing.time,
+      timezone: hearing.timezone,
+      location: hearing.location,
+      committeeName: hearing.committeeName,
+      subcommitteeName: subcommittee?.name ?? null,
+      chamber: hearing.chamber,
+      url: hearing.url,
+      eventStatus: hearing.eventStatus,
+    };
+    return buildCalendarExport(payload, { appOrigin });
+  }
+
+  // ── Hearing Detail V2 composition ────────────────────────────────────────
+
+  /**
+   * One request that fills the canonical Hearing Detail route.
+   *
+   * It COMPOSES the existing contracts rather than forking domain truth, and
+   * deliberately does not serialize the transcript body: the detail response
+   * carries transcript AVAILABILITY and counts, and the transcript itself
+   * stays on its own paginated endpoint.
+   */
+  async detailV2(
+    ctx: TenantContext,
+    hearingId: string,
+    input: { clientId?: string } = {},
+  ): Promise<Record<string, unknown>> {
+    const hearing = await this.requireHearing(hearingId);
+    if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
+
+    const [attendance, follow, segmentCount, insightSummary, committee, sources] =
+      await Promise.all([
+        this.assess(ctx, hearing),
+        this.followState(ctx, hearingId),
+        this.transcriptSegmentCount(hearingId),
+        this.prisma.$queryRawUnsafe<Array<{ insightType: string; count: number }>>(
+          `SELECT insight_type AS "insightType", count(*)::int AS count
+           FROM public_hearing_insight WHERE hearing_id = $1
+           GROUP BY insight_type ORDER BY count DESC`,
+          hearingId,
+        ),
+        hearing.committeeSystemCode
+          ? this.committees.committee(hearing.committeeSystemCode, ctx)
+          : null,
+        this.prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+          `SELECT id, source_url AS "sourceUrl", 'official_transcript' AS kind, title
+           FROM official_hearing_transcript WHERE hearing_id = $1`,
+          hearingId,
+        ),
+      ]);
+
+    const relevance = input.clientId
+      ? await this.clientRelevance(ctx, hearingId, input.clientId)
+      : await this.allClientsRelevance(ctx, hearingId);
+
+    return {
+      hearing: {
+        id: hearing.id,
+        title: hearing.title,
+        chamber: hearing.chamber,
+        committeeName: hearing.committeeName,
+        committeeSystemCode: hearing.committeeSystemCode,
+        subcommitteeSystemCode: hearing.subcommitteeSystemCode,
+        // A plain calendar-day string, never an instant — see toArchiveResult.
+        calendarDate: hearing.date.toISOString().slice(0, 10),
+        scheduledStart: hearing.startsAt ? hearing.startsAt.toISOString() : null,
+        time: hearing.time,
+        timeZone: hearing.timezone,
+        location: hearing.location,
+        officialPageUrl: hearing.url,
+        eventStatus: hearing.eventStatus,
+        eventType: hearing.eventType,
+        visibility: hearing.visibility,
+        witnesses: hearing.witnesses,
+      },
+      committee,
+      followState: follow,
+      attendanceState: attendance,
+      transcriptSummary: {
+        available: segmentCount > 0,
+        segmentCount,
+        // The body is NOT here. It stays on the paginated transcript endpoint.
+        transcriptPath: `/api/legiwatch/live-hearings/events/${encodeURIComponent(hearingId)}/transcript`,
+      },
+      intelligenceSummary: {
+        total: insightSummary.reduce((sum, r) => sum + Number(r.count), 0),
+        byType: insightSummary,
+      },
+      clientRelevance: relevance,
+      sources,
+      availableActions: this.availableActions(attendance, segmentCount > 0),
+      calendarExportPath: `/api/legiwatch/live-hearings/events/${encodeURIComponent(hearingId)}/calendar-export`,
+    };
+  }
+
+  /**
+   * Which actions the UI may offer. Derived from real state so the UI never
+   * has to guess, and never offers an action the server would refuse.
+   */
+  private availableActions(
+    attendance: AttendanceAssessment,
+    hasTranscript: boolean,
+  ): Record<string, boolean> {
+    return {
+      follow: true,
+      attend: attendance.canRequest,
+      cancelAttendance: attendance.scheduled,
+      askMeri: true,
+      createBrief: hasTranscript,
+      stageOutreach: hasTranscript,
+      saveMoment: hasTranscript,
+      saveToClient: true,
+      exportCalendar: true,
+    };
+  }
+
+  // ── W1-5 · notification inbox (generation lives in the lifecycle service) ─
+
+  async notificationInbox(
+    ctx: TenantContext,
+    input: { unreadOnly?: boolean; page?: number; pageSize?: number },
+  ): Promise<Record<string, unknown>> {
+    return this.notifications.inbox(ctx, input);
+  }
+
+  async markNotificationRead(ctx: TenantContext, id: string): Promise<{ read: boolean }> {
+    return this.notifications.markRead(ctx, id);
+  }
+
+  // ── shared helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Load a canonical hearing or 404.
+   *
+   * Hearings are GLOBAL public records, so this read is intentionally not
+   * tenant-scoped — but nothing tenant-owned is returned from it.
+   */
+  private async requireHearing(hearingId: string): Promise<CanonicalHearingRow> {
+    const hearing = await this.prisma.committeeHearing.findUnique({
+      where: { id: hearingId },
+      select: {
+        id: true,
+        title: true,
+        chamber: true,
+        committeeName: true,
+        committeeSystemCode: true,
+        subcommitteeSystemCode: true,
+        date: true,
+        startsAt: true,
+        time: true,
+        timezone: true,
+        location: true,
+        url: true,
+        visibility: true,
+        eventStatus: true,
+        type: true,
+        witnesses: true,
+        actualEnd: true,
+      },
+    });
+    if (!hearing) throw new NotFoundException(`hearing ${hearingId} not found`);
+    return {
+      ...hearing,
+      eventType: hearing.type,
+    } as CanonicalHearingRow;
+  }
+
+  /** Committee identity comes from CongressCommittee, never from hearing rows. */
+  private async requireCommittee(
+    ctx: TenantContext,
+    systemCode: string,
+  ): Promise<{ systemCode: string }> {
+    void ctx;
+    const found = await this.prisma.congressCommittee.findFirst({
+      where: { systemCode },
+      select: { systemCode: true },
+    });
+    if (!found) throw new NotFoundException(`committee ${systemCode} not found`);
+    return found;
+  }
+
+  /**
+   * A client id in a request body proves nothing about whose tenant it is in.
+   * This read runs under the caller's tenant, so another tenant's client comes
+   * back empty and 404s — which also avoids confirming that it exists.
+   */
+  private async assertClientInTenant(
+    tenantId: string,
+    clientId: string,
+  ): Promise<{ id: string; name: string | null }> {
+    const found = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true, name: true } }),
+    );
+    if (!found) throw new NotFoundException('Client not found');
+    return found;
+  }
+
+  /**
+   * Validate a whole client list at once and return it de-duplicated.
+   *
+   * Any id the caller's tenant cannot see 404s the entire request rather than
+   * being silently dropped: quietly persisting a subset would leave the user
+   * believing they follow a hearing for a client they do not.
+   */
+  private async resolveClientIds(ctx: TenantContext, clientIds: string[]): Promise<string[]> {
+    const unique = [...new Set(clientIds.filter((id) => typeof id === 'string' && id.trim()))];
+    if (!unique.length) return [];
+    const found = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findMany({ where: { id: { in: unique } }, select: { id: true } }),
+    );
+    if (found.length !== unique.length) {
+      const visible = new Set(found.map((c) => c.id));
+      const missing = unique.filter((id) => !visible.has(id));
+      throw new NotFoundException(`Client not found: ${missing.join(', ')}`);
+    }
+    return unique;
+  }
+
+  /**
+   * Resolve stored client ids for display.
+   *
+   * A follow keeps its client ids even after the client is archived or
+   * deleted, so this reports what is still resolvable and marks the rest
+   * `archived` rather than dropping them. Silently hiding them would make a
+   * follow look like it covers fewer clients than it does.
+   */
+  private async describeClients(
+    ctx: TenantContext,
+    clientIds: string[],
+  ): Promise<Array<{ id: string; name: string | null; archived: boolean }>> {
+    if (!clientIds.length) return [];
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findMany({
+        where: { id: { in: clientIds } },
+        select: { id: true, name: true, status: true },
+      }),
+    );
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return clientIds.map((id) => {
+      const row = byId.get(id);
+      return {
+        id,
+        name: row?.name ?? null,
+        // Not resolvable under this tenant, or resolvable but not active.
+        archived: !row || row.status !== 'active',
+      };
+    });
+  }
+
+  private async transcriptSegmentCount(hearingId: string): Promise<number> {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      `SELECT count(*)::int AS count
+       FROM public_hearing_transcript_segment s
+       JOIN public_hearing_capture c ON c.id = s.capture_id
+       WHERE c.hearing_id = $1`,
+      hearingId,
+    );
+    return rows[0]?.count ?? 0;
+  }
+
+  private async assertSegmentInHearing(hearingId: string, segmentId: string): Promise<void> {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT s.id FROM public_hearing_transcript_segment s
+       JOIN public_hearing_capture c ON c.id = s.capture_id
+       WHERE s.id = $1 AND c.hearing_id = $2 LIMIT 1`,
+      segmentId,
+      hearingId,
+    );
+    if (!rows.length) {
+      throw new BadRequestException(
+        `transcript segment ${segmentId} does not belong to hearing ${hearingId}`,
+      );
+    }
+  }
+
+  private async assertInsightInHearing(hearingId: string, insightId: string): Promise<void> {
+    const found = await this.prisma.publicHearingInsight.findFirst({
+      where: { id: insightId, hearingId },
+      select: { id: true },
+    });
+    if (!found) {
+      throw new BadRequestException(
+        `intelligence finding ${insightId} does not belong to hearing ${hearingId}`,
+      );
+    }
+  }
+}

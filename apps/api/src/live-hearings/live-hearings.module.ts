@@ -9,6 +9,9 @@
  */
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
+import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsController } from './live-hearings.controller.js';
 import { LiveHearingsPhase7Controller } from './live-hearings-phase7.controller.js';
@@ -39,6 +42,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LiveHearingsController,
     LiveHearingsPhase7Controller,
     LiveHearingsPhase8Controller,
+    LegiWatchWave1Controller,
     LegiWatchPhase9RolloutController,
     LegiWatchPhase9AdminController,
   ],
@@ -49,6 +53,8 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LiveHearingsPhase7ScheduleGuard,
     LiveHearingsPhase7PublicGuard,
     LiveHearingsPhase8Service,
+    LegiWatchWave1Service,
+    LegiWatchLifecycleNotificationService,
     LegiWatchPhase9ReadinessService,
     LegiWatchPhase9RuntimeService,
     LegiWatchPhase9CutoverService,
@@ -65,6 +71,8 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     CommitteeDirectoryService,
     LiveHearingsPhase7Service,
     LiveHearingsPhase8Service,
+    LegiWatchWave1Service,
+    LegiWatchLifecycleNotificationService,
     LegiWatchPhase9ReadinessService,
     LegiWatchPhase9RuntimeService,
     LegiWatchPhase9CutoverService,

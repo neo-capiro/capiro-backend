@@ -290,15 +290,15 @@ model Tenant {
   assuranceFeedbackCandidates        AssuranceFeedbackCandidate[]
   assuranceEvalFixtures              AssuranceEvalFixture[]
 
-  knowledgeEvents      KnowledgeEvent[]
-  knowledgeAssertions  KnowledgeAssertion[]
-  knowledgeEvidence    KnowledgeEvidence[]
-  knowledgeMailboxJobs KnowledgeMailboxJob[]
+  knowledgeEvents                KnowledgeEvent[]
+  knowledgeAssertions            KnowledgeAssertion[]
+  knowledgeEvidence              KnowledgeEvidence[]
+  knowledgeMailboxJobs           KnowledgeMailboxJob[]
   knowledgeMailboxExtractionJobs KnowledgeMailboxExtractionJob[]
-  knowledgeEpisodes            KnowledgeEpisode[]
-  knowledgeEpisodeEvents       KnowledgeEpisodeEvent[]
-  knowledgeEpisodeAssertions   KnowledgeEpisodeAssertion[]
-  knowledgeEpisodeEntities     KnowledgeEpisodeEntity[]
+  knowledgeEpisodes              KnowledgeEpisode[]
+  knowledgeEpisodeEvents         KnowledgeEpisodeEvent[]
+  knowledgeEpisodeAssertions     KnowledgeEpisodeAssertion[]
+  knowledgeEpisodeEntities       KnowledgeEpisodeEntity[]
   knowledgeEpisodeProjectionJobs KnowledgeEpisodeProjectionJob[]
 
   canonicalEntities                  CanonicalEntity[]
@@ -333,14 +333,14 @@ model CanonicalEntity {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant              Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entities_tenant_fkey")
-  mergedInto          CanonicalEntity?       @relation("CanonicalEntityMergeTarget", fields: [mergedIntoEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "canonical_entities_merged_into_fkey")
-  mergedSources       CanonicalEntity[]      @relation("CanonicalEntityMergeTarget")
+  tenant              Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entities_tenant_fkey")
+  mergedInto          CanonicalEntity?         @relation("CanonicalEntityMergeTarget", fields: [mergedIntoEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "canonical_entities_merged_into_fkey")
+  mergedSources       CanonicalEntity[]        @relation("CanonicalEntityMergeTarget")
   aliases             EntityAlias[]
   identifiers         EntityIdentifier[]
-  selectedResolutions EntityResolution[]     @relation("EntityResolutionSelectedEntity")
-  mergeSources        CanonicalEntityMerge?  @relation("CanonicalEntityMergeSource")
-  mergeTargets        CanonicalEntityMerge[] @relation("CanonicalEntityMergeTarget")
+  selectedResolutions EntityResolution[]       @relation("EntityResolutionSelectedEntity")
+  mergeSources        CanonicalEntityMerge?    @relation("CanonicalEntityMergeSource")
+  mergeTargets        CanonicalEntityMerge[]   @relation("CanonicalEntityMergeTarget")
   episodeMemberships  KnowledgeEpisodeEntity[]
 
   @@index([entityType, normalizedName, identityScope, tenantId, status], map: "canonical_entities_visible_name_idx")
@@ -809,7 +809,7 @@ model Client {
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant                  Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                  Tenant                              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   engagementContacts      EngagementContact[]
   meetings                Meeting[]
   mailThreads             MailThread[]
@@ -1170,11 +1170,11 @@ model MailMessage {
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  thread        MailThread             @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  connection    IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  attachments   EngagementAttachment[]
-  knowledgeJobs KnowledgeMailboxJob[]
+  tenant                  Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread                  MailThread                      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  connection              IntegrationConnection?          @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  attachments             EngagementAttachment[]
+  knowledgeJobs           KnowledgeMailboxJob[]
   knowledgeExtractionJobs KnowledgeMailboxExtractionJob[]
 
   @@unique([tenantId, source, externalId], map: "mail_messages_tenant_source_external_key")
@@ -2655,8 +2655,8 @@ model ContextPacket {
   truncated         Boolean  @default(false)
   incomplete        Boolean  @default(false)
 
-  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  outreachDraftVersions OutreachDraftVersion[]
+  tenant                 Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outreachDraftVersions  OutreachDraftVersion[]
   /// Phase 27E back-relation — see QualityTelemetryEvent.
   qualityTelemetryEvents QualityTelemetryEvent[]
   /// Phase 27F back-relation — see EvaluationRecord. The evaluation's
@@ -3142,54 +3142,54 @@ model ClientActivity {
 }
 
 model ClientFacility {
-  id                    String    @id @default(uuid()) @db.Uuid
-  tenantId              String    @map("tenant_id") @db.Uuid
-  clientId              String    @map("client_id") @db.Uuid
-  name                  String
-  addressLine           String?   @map("address_line")
-  city                  String?
-  state                 String?   @db.VarChar(2)
-  zip                   String?   @db.VarChar(10)
-  congressionalDistrict String?   @map("congressional_district") @db.VarChar(2)
+  id                            String    @id @default(uuid()) @db.Uuid
+  tenantId                      String    @map("tenant_id") @db.Uuid
+  clientId                      String    @map("client_id") @db.Uuid
+  name                          String
+  addressLine                   String?   @map("address_line")
+  city                          String?
+  state                         String?   @db.VarChar(2)
+  zip                           String?   @db.VarChar(10)
+  congressionalDistrict         String?   @map("congressional_district") @db.VarChar(2)
   /// District Nexus Release 1 (§11) — which Congress's boundary produced
   /// `congressionalDistrict`, when the Census geocoder actually supplied one
   /// (its `CD<congress>` field, e.g. `CD119`). Additive and nullable: a
   /// manually-entered district is never stamped without geocoder evidence,
   /// and a facility geocoded before this column existed stays null rather
   /// than a guessed backfill.
-  congressionalDistrictCongress Int? @map("congressional_district_congress")
-  districtSource        String?   @map("district_source") @db.VarChar(16)
-  employeeCount         Int?      @map("employee_count")
-  notes                 String?
+  congressionalDistrictCongress Int?      @map("congressional_district_congress")
+  districtSource                String?   @map("district_source") @db.VarChar(16)
+  employeeCount                 Int?      @map("employee_count")
+  notes                         String?
   // District Impact Engine (Phase 1 M1.1) — Census Geocoder outputs. One batch
   // call yields the federal CD (above) AND both state legislative chambers, so
   // these ride alongside the existing federal column rather than a new model.
-  latitude              Float?
-  longitude             Float?
+  latitude                      Float?
+  longitude                     Float?
   /// Census SLDL/SLDU BASENAME. In named-district states this is a NAME, not a
   /// number ('8th Bristol', 'First Bristol and Plymouth', 'Merrimack 18'), so
   /// the column is 64 wide, NOT the 8 it shipped as — at 8 every write for such
   /// a state threw and poisoned the nightly geocode run (migration
   /// 20260810050000). Longest real value is MA's 42-char senate district.
-  stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(64)
-  stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(64)
-  geocodedAt            DateTime? @map("geocoded_at") @db.Timestamptz(6)
+  stateHouseDistrict            String?   @map("state_house_district") @db.VarChar(64)
+  stateSenateDistrict           String?   @map("state_senate_district") @db.VarChar(64)
+  geocodedAt                    DateTime? @map("geocoded_at") @db.Timestamptz(6)
   // 'matched' | 'no_match' | 'ambiguous' | 'error' — never silently absent when a geocode was attempted.
-  geocodeStatus         String?   @map("geocode_status") @db.VarChar(16)
+  geocodeStatus                 String?   @map("geocode_status") @db.VarChar(16)
   /// W4.2: change-hash of the normalized address at last geocode attempt — the
   /// geocode-facilities scan re-geocodes only when the current address hash
   /// differs (not on any unrelated updated_at bump), and stamps it on every
   /// attempt so address-less/no-match rows don't starve the batch cap.
-  geocodeInputHash      String?   @map("geocode_input_hash")
-  geocodeAttemptCount   Int       @default(0) @map("geocode_attempt_count")
-  geocodeNextAttemptAt  DateTime? @map("geocode_next_attempt_at") @db.Timestamptz(6)
-  geocodeLastError      String?   @map("geocode_last_error")
-  geocodeMatchedAddress String?   @map("geocode_matched_address")
+  geocodeInputHash              String?   @map("geocode_input_hash")
+  geocodeAttemptCount           Int       @default(0) @map("geocode_attempt_count")
+  geocodeNextAttemptAt          DateTime? @map("geocode_next_attempt_at") @db.Timestamptz(6)
+  geocodeLastError              String?   @map("geocode_last_error")
+  geocodeMatchedAddress         String?   @map("geocode_matched_address")
   /// Census address candidates retained when a lookup is ambiguous. The API
   /// exposes these as recommendations; a user must explicitly choose one.
-  geocodeCandidates    Json?     @map("geocode_candidates_jsonb")
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  geocodeCandidates             Json?     @map("geocode_candidates_jsonb")
+  createdAt                     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -3273,11 +3273,11 @@ model ClientTargetRecommendation {
 /// rows. Computing it means a PE fan-out that can take ~30s, so GET serves this
 /// cache and a manual Refresh recomputes. One row per client (tenant-scoped, RLS).
 model ClientCapabilityFitRecommendation {
-  id       String @id @default(uuid()) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  clientId String @map("client_id") @db.Uuid
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
   /// Array<CapabilityFitMatch> (see client-capability-fit.normalize.ts) as JSON.
-  matches  Json   @default("[]") @map("matches_jsonb")
+  matches          Json     @default("[]") @map("matches_jsonb")
   /// sha256 of the capability signal fields at compute time — lets a read mark
   /// the cache stale after capability edits without recomputing.
   inputFingerprint String?  @map("input_fingerprint")
@@ -3663,16 +3663,16 @@ model LdaGovernmentEntity {
 // `capiro_analytics_ro` (that role is SELECT-only by design).
 // ─────────────────────────────────────────────────────────────────────────
 model MeriAnalyticsQueryLog {
-  id         String    @id @default(uuid()) @db.Uuid
-  tenantId   String?   @map("tenant_id") @db.Uuid
-  userId     String?   @map("user_id") @db.Uuid
-  datasetKey String    @map("dataset_key")
-  sql        String    @db.Text
-  params     Json      @default("[]")
-  rowCount   Int?      @map("row_count")
-  durationMs Int?      @map("duration_ms")
-  error      String?   @db.Text
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String?  @map("tenant_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  datasetKey String   @map("dataset_key")
+  sql        String   @db.Text
+  params     Json     @default("[]")
+  rowCount   Int?     @map("row_count")
+  durationMs Int?     @map("duration_ms")
+  error      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([createdAt], map: "meri_analytics_query_log_created_at_idx")
   @@index([tenantId], map: "meri_analytics_query_log_tenant_id_idx")
@@ -3894,11 +3894,11 @@ model CongressBillCosponsor {
 // thomas_id maps deterministically to systemCode (lowercase + "00" for full
 // committees, lowercase parent + 2-digit sub id for subcommittees).
 model CongressCommittee {
-  systemCode       String   @id @map("system_code")
-  thomasId         String   @map("thomas_id")
+  systemCode       String    @id @map("system_code")
+  thomasId         String    @map("thomas_id")
   name             String
   chamber          String // 'house' | 'senate' | 'joint'
-  parentSystemCode String?  @map("parent_system_code")
+  parentSystemCode String?   @map("parent_system_code")
   url              String?
   /// Which authority last wrote `url`: 'congress_gov' (Congress.gov API,
   /// highest authority) or 'community' (unitedstates/congress-legislators).
@@ -3909,9 +3909,9 @@ model CongressCommittee {
   urlSource        String?   @map("url_source")
   /// When the current `url` was last confirmed by its source-of-record.
   urlVerifiedAt    DateTime? @map("url_verified_at") @db.Timestamptz(6)
-  jurisdiction     String?  @db.Text
-  isCurrent        Boolean  @default(true) @map("is_current")
-  lastSyncedAt     DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  jurisdiction     String?   @db.Text
+  isCurrent        Boolean   @default(true) @map("is_current")
+  lastSyncedAt     DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
   memberships CongressCommitteeMembership[]
 
@@ -4608,27 +4608,27 @@ model SourceDocument {
 
   communityFundingRequestSources CommunityFundingRequestSource[]
 
-  programElementSources    ProgramElementSource[]
-  programElementProjects   ProgramElementProject[]
-  programElementPerformers ProgramElementPerformer[]
-  yearSourceValues         ProgramElementYearSourceValue[]
-  budgetPositions          ProgramElementBudgetPosition[]
-  projectBudgetPositions   ProgramElementProjectBudgetPosition[]
-  milestoneSchedulePeriods ProgramElementMilestoneSchedulePeriod[]
-  provisions               CommitteeReportProvision[]
-  parseJobs                DocumentParseJob[]
+  programElementSources            ProgramElementSource[]
+  programElementProjects           ProgramElementProject[]
+  programElementPerformers         ProgramElementPerformer[]
+  yearSourceValues                 ProgramElementYearSourceValue[]
+  budgetPositions                  ProgramElementBudgetPosition[]
+  projectBudgetPositions           ProgramElementProjectBudgetPosition[]
+  milestoneSchedulePeriods         ProgramElementMilestoneSchedulePeriod[]
+  provisions                       CommitteeReportProvision[]
+  parseJobs                        DocumentParseJob[]
   // Defense budget packages (R3 §3.1) — the source doc a topline/vehicle came from.
-  budgetPackageVehicles    BudgetPackageVehicle[]
-  fundingPositions         FundingPosition[]
-  interimFundingPeriods    BudgetInterimFundingPeriod[]
+  budgetPackageVehicles            BudgetPackageVehicle[]
+  fundingPositions                 FundingPosition[]
+  interimFundingPeriods            BudgetInterimFundingPeriod[]
   // Phase 8 Session 6 — Federal Funding Event foundation source bindings.
-  federalFundingMeasures            FederalFundingMeasure[]
-  federalFundingProvisions          FederalFundingProvision[]
-  federalFundingAllocationEvidence  FederalFundingAllocation[] @relation("FederalFundingAllocationEvidence")
+  federalFundingMeasures           FederalFundingMeasure[]
+  federalFundingProvisions         FederalFundingProvision[]
+  federalFundingAllocationEvidence FederalFundingAllocation[]              @relation("FederalFundingAllocationEvidence")
   // Phase 8 Session 7 — lifecycle watcher observations bound to immutable source identity.
-  defenseBudgetObservations         DefenseBudgetSourceObservation[] @relation("DefenseBudgetObservationSource")
+  defenseBudgetObservations        DefenseBudgetSourceObservation[]        @relation("DefenseBudgetObservationSource")
   // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
-  bundleMemberBindings              DefenseBudgetSourceBundleMember[]
+  bundleMemberBindings             DefenseBudgetSourceBundleMember[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -4657,30 +4657,30 @@ model SourceDocument {
 model CommunityFundingRequest {
   id                              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   identityHash                    String   @unique(map: "community_funding_request_identity_hash_key") @map("identity_hash") @db.Char(64)
-  chamber                        String
-  requestType                    String   @map("request_type")
-  congress                       Int?
-  fiscalYear                     Int      @map("fiscal_year")
-  requesterName                  String   @map("requester_name")
-  requesterState                 String?  @map("requester_state") @db.Char(2)
-  requesterDistrict              String?  @map("requester_district")
-  recipientName                  String   @map("recipient_name")
-  recipientNormalized            String   @map("recipient_normalized")
-  recipientAddress               String?  @map("recipient_address")
+  chamber                         String
+  requestType                     String   @map("request_type")
+  congress                        Int?
+  fiscalYear                      Int      @map("fiscal_year")
+  requesterName                   String   @map("requester_name")
+  requesterState                  String?  @map("requester_state") @db.Char(2)
+  requesterDistrict               String?  @map("requester_district")
+  recipientName                   String   @map("recipient_name")
+  recipientNormalized             String   @map("recipient_normalized")
+  recipientAddress                String?  @map("recipient_address")
   city                            String?
   state                           String?  @db.Char(2)
   zip                             String?
-  projectTitle                   String   @map("project_title") @db.Text
-  projectDescription             String?  @map("project_description") @db.Text
-  requestedAmountUsd             Decimal  @map("requested_amount_usd") @db.Decimal(18, 2)
+  projectTitle                    String   @map("project_title") @db.Text
+  projectDescription              String?  @map("project_description") @db.Text
+  requestedAmountUsd              Decimal  @map("requested_amount_usd") @db.Decimal(18, 2)
   // Populated only when a source explicitly distinguishes a later funded/enacted stage.
-  finalAmountUsd                 Decimal? @map("final_amount_usd") @db.Decimal(18, 2)
-  amountStageRaw                 String   @map("amount_stage_raw")
-  appropriationsAccountRaw       String?  @map("appropriations_account_raw") @db.Text
-  appropriationsAccountNormalized String? @map("appropriations_account_normalized") @db.Text
-  subcommittee                   String?
-  createdAt                      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  finalAmountUsd                  Decimal? @map("final_amount_usd") @db.Decimal(18, 2)
+  amountStageRaw                  String   @map("amount_stage_raw")
+  appropriationsAccountRaw        String?  @map("appropriations_account_raw") @db.Text
+  appropriationsAccountNormalized String?  @map("appropriations_account_normalized") @db.Text
+  subcommittee                    String?
+  createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sources CommunityFundingRequestSource[]
 
@@ -4698,23 +4698,23 @@ model CommunityFundingRequest {
 // fields (not the whole candidate-vs-canonical comparison) so an unchanged document
 // re-run touches nothing.
 model CommunityFundingRequestSource {
-  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  requestId                 String   @map("request_id") @db.Uuid
-  sourceDocumentId          String   @map("source_document_id") @db.Uuid
-  sourcePage                Int?     @map("source_page")
-  sourceRow                 Int      @map("source_row")
-  sourceHash                String   @map("source_hash") @db.Char(64)
-  retrievedAt               DateTime @map("retrieved_at") @db.Timestamptz(6)
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requestId                String   @map("request_id") @db.Uuid
+  sourceDocumentId         String   @map("source_document_id") @db.Uuid
+  sourcePage               Int?     @map("source_page")
+  sourceRow                Int      @map("source_row")
+  sourceHash               String   @map("source_hash") @db.Char(64)
+  retrievedAt              DateTime @map("retrieved_at") @db.Timestamptz(6)
   // This source occurrence's own reported values — preserved verbatim even when the
   // canonical projection above picks a different value under the precedence rule.
-  requesterNameRaw          String   @map("requester_name_raw")
-  amountStageRaw            String   @map("amount_stage_raw")
-  requestedAmountUsd        Decimal  @map("requested_amount_usd") @db.Decimal(18, 2)
-  finalAmountUsd            Decimal? @map("final_amount_usd") @db.Decimal(18, 2)
-  appropriationsAccountRaw  String?  @map("appropriations_account_raw") @db.Text
-  subcommittee              String?
-  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  requesterNameRaw         String   @map("requester_name_raw")
+  amountStageRaw           String   @map("amount_stage_raw")
+  requestedAmountUsd       Decimal  @map("requested_amount_usd") @db.Decimal(18, 2)
+  finalAmountUsd           Decimal? @map("final_amount_usd") @db.Decimal(18, 2)
+  appropriationsAccountRaw String?  @map("appropriations_account_raw") @db.Text
+  subcommittee             String?
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   request        CommunityFundingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sourceDocument SourceDocument          @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -4726,39 +4726,41 @@ model CommunityFundingRequestSource {
 }
 
 model CommunityFundingDiscoveryCrawl {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  adapterId    String   @map("adapter_id")
-  runKey       String   @map("run_key")
-  requestUrl   String   @map("request_url")
-  statusCode   Int?     @map("status_code")
-  status       String
-  contentSha256 String? @map("content_sha256") @db.Char(64)
-  byteSize     Int?     @map("byte_size")
-  itemsSeen    Int      @default(0) @map("items_seen")
-  startedAt    DateTime @map("started_at") @db.Timestamptz(6)
-  finishedAt   DateTime @map("finished_at") @db.Timestamptz(6)
-  failureReason String? @map("failure_reason") @db.Text
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  candidates   CommunityFundingDiscoveryCandidate[]
+  id            String                               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adapterId     String                               @map("adapter_id")
+  runKey        String                               @map("run_key")
+  requestUrl    String                               @map("request_url")
+  statusCode    Int?                                 @map("status_code")
+  status        String
+  contentSha256 String?                              @map("content_sha256") @db.Char(64)
+  byteSize      Int?                                 @map("byte_size")
+  itemsSeen     Int                                  @default(0) @map("items_seen")
+  startedAt     DateTime                             @map("started_at") @db.Timestamptz(6)
+  finishedAt    DateTime                             @map("finished_at") @db.Timestamptz(6)
+  failureReason String?                              @map("failure_reason") @db.Text
+  createdAt     DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  candidates    CommunityFundingDiscoveryCandidate[]
+
   @@index([adapterId, startedAt(sort: Desc)], map: "cfdc_adapter_started_idx")
   @@index([runKey], map: "cfdc_run_key_idx")
   @@map("community_funding_discovery_crawl")
 }
 
 model CommunityFundingDiscoveryCandidate {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  crawlId      String   @map("crawl_id") @db.Uuid
-  adapterId    String   @map("adapter_id")
-  runKey       String   @map("run_key")
-  candidateUrl String   @map("candidate_url")
+  id           String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  crawlId      String                         @map("crawl_id") @db.Uuid
+  adapterId    String                         @map("adapter_id")
+  runKey       String                         @map("run_key")
+  candidateUrl String                         @map("candidate_url")
   title        String?
   resolution   String
   reason       String
   emitted      Boolean
-  fiscalYear   Int      @map("fiscal_year")
-  observedAt   DateTime @map("observed_at") @db.Timestamptz(6)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  crawl CommunityFundingDiscoveryCrawl @relation(fields: [crawlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fiscalYear   Int                            @map("fiscal_year")
+  observedAt   DateTime                       @map("observed_at") @db.Timestamptz(6)
+  createdAt    DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
+  crawl        CommunityFundingDiscoveryCrawl @relation(fields: [crawlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
   @@unique([adapterId, runKey, candidateUrl], map: "cfdcand_run_url_uidx")
   @@index([crawlId], map: "cfdcand_crawl_idx")
   @@map("community_funding_discovery_candidate")
@@ -4779,6 +4781,7 @@ model CommunityFundingIngestRun {
   status         String   @default("ok")
   notes          String?  @db.Text
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@index([chamber, fiscalYear], map: "community_funding_ingest_run_unit_idx")
   @@index([artifactSha256], map: "community_funding_ingest_run_sha_idx")
   @@map("community_funding_ingest_run")
@@ -6430,25 +6433,25 @@ model CommitteeSource {
   chamber             String // 'house' | 'senate' | 'joint'
   /// 'CONGRESS_GOV' | 'HOUSE_REPOSITORY' | 'SENATE_SCHEDULE' | 'COMMITTEE_SITE' |
   /// 'COMMITTEE_RSS' | 'COMMITTEE_API' | 'COMMITTEE_STRUCTURED_DATA' | 'COMMITTEE_HEADLESS'
-  sourceType    String    @map("source_type")
-  sourceUrl     String    @map("source_url")
-  adapterKey    String    @map("adapter_key") // CommitteeSourceAdapter implementation key, e.g. "congress-gov"
-  enabled       Boolean   @default(true)
-  priority      Int       @default(100)
-  lastCheckedAt DateTime? @map("last_checked_at") @db.Timestamptz(6)
-  lastSuccessAt DateTime? @map("last_success_at") @db.Timestamptz(6)
-  lastErrorAt   DateTime? @map("last_error_at") @db.Timestamptz(6)
-  lastError     String?   @map("last_error") @db.Text
+  sourceType          String    @map("source_type")
+  sourceUrl           String    @map("source_url")
+  adapterKey          String    @map("adapter_key") // CommitteeSourceAdapter implementation key, e.g. "congress-gov"
+  enabled             Boolean   @default(true)
+  priority            Int       @default(100)
+  lastCheckedAt       DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  lastSuccessAt       DateTime? @map("last_success_at") @db.Timestamptz(6)
+  lastErrorAt         DateTime? @map("last_error_at") @db.Timestamptz(6)
+  lastError           String?   @map("last_error") @db.Text
   /// 'healthy' | 'degraded' | 'failing' | 'unknown'
-  sourceHealth  String    @default("unknown") @map("source_health")
-  parserVersion String?   @map("parser_version")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sourceHealth        String    @default("unknown") @map("source_health")
+  parserVersion       String?   @map("parser_version")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  observations HearingSourceObservation[]
+  observations     HearingSourceObservation[]
   streamCandidates HearingStreamCandidate[]
-  siteUpdates  CommitteeSiteUpdate[]
-  exceptions   CommitteeSourceException[]
+  siteUpdates      CommitteeSiteUpdate[]
+  exceptions       CommitteeSourceException[]
 
   @@unique([adapterKey, sourceUrl])
   @@index([chamber])
@@ -6466,19 +6469,19 @@ model CommitteeSource {
 // ACCEPTED failure from an unexplained one, without ever special-casing a
 // specific source identity in code. GLOBAL, no tenant_id, no RLS.
 model CommitteeSourceException {
-  id             String    @id @default(uuid())
-  sourceId       String    @map("source_id")
+  id            String    @id @default(uuid())
+  sourceId      String    @map("source_id")
   /// 'UPSTREAM_ACCESS_BLOCKED' | 'EXPECTED_UNAVAILABLE' | 'POLICY_STATE' | 'UNDER_INVESTIGATION'
-  exceptionType  String    @map("exception_type")
-  reasonCode     String    @map("reason_code")
-  evidence       String    @db.Text
-  reviewedBy     String    @map("reviewed_by")
-  reviewedAt     DateTime  @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+  exceptionType String    @map("exception_type")
+  reasonCode    String    @map("reason_code")
+  evidence      String    @db.Text
+  reviewedBy    String    @map("reviewed_by")
+  reviewedAt    DateTime  @default(now()) @map("reviewed_at") @db.Timestamptz(6)
   /// Null = still active. A reviewer sets this to retire/replace an exception
   /// (e.g. once the upstream access is restored) rather than deleting the row.
-  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiresAt     DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   source CommitteeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
@@ -6556,38 +6559,38 @@ model HearingStreamCandidate {
 // PublicHearingCaptureAttempt, never a second PublicHearingCapture. GLOBAL, no
 // tenant_id, no RLS.
 model PublicHearingCapture {
-  id                     String    @id @default(uuid())
-  hearingId              String    @unique @map("hearing_id") // soft ref → committee_hearing.id; UNIQUE enforces "one canonical capture per hearing"
-  selectedStreamCandidateId String? @map("selected_stream_candidate_id") // soft ref → hearing_stream_candidate.id
+  id                        String    @id @default(uuid())
+  hearingId                 String    @unique @map("hearing_id") // soft ref → committee_hearing.id; UNIQUE enforces "one canonical capture per hearing"
+  selectedStreamCandidateId String?   @map("selected_stream_candidate_id") // soft ref → hearing_stream_candidate.id
   /// 'scheduled' | 'leased' | 'capturing' | 'paused' | 'ended' | 'failed' | 'no_stream'
-  status                 String    @default("scheduled")
-  scheduledStart         DateTime? @map("scheduled_start") @db.Timestamptz(6)
-  actualStart            DateTime? @map("actual_start") @db.Timestamptz(6)
-  actualEnd              DateTime? @map("actual_end") @db.Timestamptz(6)
-  workerLeaseOwner       String?   @map("worker_lease_owner")
-  leaseExpiresAt         DateTime? @map("lease_expires_at") @db.Timestamptz(6)
-  deepgramSessionRef     String?   @map("deepgram_session_ref")
-  reconnectCount         Int       @default(0) @map("reconnect_count")
-  capturedSeconds        Int       @default(0) @map("captured_seconds")
-  transcriptGapSeconds   Int       @default(0) @map("transcript_gap_seconds")
-  version                Int       @default(1)
-  fencingToken           Int       @default(0) @map("fencing_token")
-  leaseAcquiredAt        DateTime? @map("lease_acquired_at")
+  status                    String    @default("scheduled")
+  scheduledStart            DateTime? @map("scheduled_start") @db.Timestamptz(6)
+  actualStart               DateTime? @map("actual_start") @db.Timestamptz(6)
+  actualEnd                 DateTime? @map("actual_end") @db.Timestamptz(6)
+  workerLeaseOwner          String?   @map("worker_lease_owner")
+  leaseExpiresAt            DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  deepgramSessionRef        String?   @map("deepgram_session_ref")
+  reconnectCount            Int       @default(0) @map("reconnect_count")
+  capturedSeconds           Int       @default(0) @map("captured_seconds")
+  transcriptGapSeconds      Int       @default(0) @map("transcript_gap_seconds")
+  version                   Int       @default(1)
+  fencingToken              Int       @default(0) @map("fencing_token")
+  leaseAcquiredAt           DateTime? @map("lease_acquired_at")
   /// Mirrors StreamResolutionState from stream-resolution-policy.ts
-  resolutionState        String    @default("NOT_CHECKED") @map("resolution_state")
-  lastResolutionAt       DateTime? @map("last_resolution_at")
-  consecutiveSourceErrors Int      @default(0) @map("consecutive_source_errors")
-  nextPreflightAt        DateTime? @map("next_preflight_at")
+  resolutionState           String    @default("NOT_CHECKED") @map("resolution_state")
+  lastResolutionAt          DateTime? @map("last_resolution_at")
+  consecutiveSourceErrors   Int       @default(0) @map("consecutive_source_errors")
+  nextPreflightAt           DateTime? @map("next_preflight_at")
   /// Millisecond-precision capture progress; capturedSeconds stays for any
   /// existing consumer, capturedMs is authoritative for the Phase 4 runtime.
-  capturedMs             Int       @default(0) @map("captured_ms")
+  capturedMs                Int       @default(0) @map("captured_ms")
   /// Serialized CaptureGap[] (startMs/endMs/reason) — small, bounded, no
   /// separate gap table needed for Phase 4's exit proof.
-  gaps                   Json      @default("[]")
-  failureCode            String?   @map("failure_code")
-  failureDetail          String?   @map("failure_detail") @db.Text
-  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  gaps                      Json      @default("[]")
+  failureCode               String?   @map("failure_code")
+  failureDetail             String?   @map("failure_detail") @db.Text
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   attempts PublicHearingCaptureAttempt[]
   segments PublicHearingTranscriptSegment[]
@@ -6629,22 +6632,22 @@ model PublicHearingCaptureAttempt {
 // tenant transcript, this is public congressional-record text — no per-tenant
 // encryption applies here. GLOBAL, no tenant_id, no RLS.
 model PublicHearingTranscriptSegment {
-  id                     String   @id @default(uuid())
-  captureId              String   @map("capture_id")
-  sequence               Int
-  startMs                Int      @map("start_ms")
-  endMs                  Int      @map("end_ms")
-  text                   String   @db.Text
-  speakerLabel           String?  @map("speaker_label")
-  speakerConfidence      Float?   @map("speaker_confidence")
-  transcriptionConfidence Float?  @map("transcription_confidence")
-  isFinal                Boolean  @default(true) @map("is_final")
-  hasGapBefore           Boolean  @default(false) @map("has_gap_before")
-  revision               Int      @default(1)
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                      String   @id @default(uuid())
+  captureId               String   @map("capture_id")
+  sequence                Int
+  startMs                 Int      @map("start_ms")
+  endMs                   Int      @map("end_ms")
+  text                    String   @db.Text
+  speakerLabel            String?  @map("speaker_label")
+  speakerConfidence       Float?   @map("speaker_confidence")
+  transcriptionConfidence Float?   @map("transcription_confidence")
+  isFinal                 Boolean  @default(true) @map("is_final")
+  hasGapBefore            Boolean  @default(false) @map("has_gap_before")
+  revision                Int      @default(1)
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  capture PublicHearingCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
-  insights PublicHearingInsight[]
+  capture         PublicHearingCapture          @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  insights        PublicHearingInsight[]
   intelligenceJob PublicHearingIntelligenceJob?
 
   @@unique([captureId, startMs, endMs])
@@ -6701,18 +6704,30 @@ model CommitteeSiteUpdate {
 // notifications, mention alerts, and optional client/watchlist association.
 // TENANT-scoped with RLS.
 model HearingSubscription {
-  id                String   @id @default(uuid()) @db.Uuid
-  tenantId          String   @map("tenant_id") @db.Uuid
-  userId            String   @map("user_id") // clerk user id
-  hearingId         String   @map("hearing_id") // soft ref → committee_hearing.id
-  notifyOnStart     Boolean  @default(true) @map("notify_on_start")
-  notifyOnMention   Boolean  @default(false) @map("notify_on_mention")
-  scheduledByUser   Boolean  @default(true) @map("scheduled_by_user")
-  scheduledByRuleId String?  @map("scheduled_by_rule_id") // soft ref → hearing_auto_record_rule.id
-  clientIds         String[] @default([]) @map("client_ids")
-  watchlistId       String?  @map("watchlist_id") // soft ref → client_watchlist.id
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                        String    @id @default(uuid()) @db.Uuid
+  tenantId                  String    @map("tenant_id") @db.Uuid
+  userId                    String    @map("user_id") // clerk user id
+  hearingId                 String    @map("hearing_id") // soft ref → committee_hearing.id
+  notifyOnStart             Boolean   @default(true) @map("notify_on_start")
+  notifyOnMention           Boolean   @default(false) @map("notify_on_mention")
+  scheduledByUser           Boolean   @default(true) @map("scheduled_by_user")
+  scheduledByRuleId         String?   @map("scheduled_by_rule_id") // soft ref → hearing_auto_record_rule.id
+  clientIds                 String[]  @default([]) @map("client_ids")
+  watchlistId               String?   @map("watchlist_id") // soft ref → client_watchlist.id
+  /// Wave 1: WHICH attendance mechanism this tenant asked for — 'automatic'
+  /// (unattended server capture) or 'browser'. A request attribute of the
+  /// tenant's demand row, never a property of the one global capture: two
+  /// tenants may ask by different mechanisms and still share one capture.
+  /// Allowed values are enforced by the SQL CHECK constraint
+  /// hearing_subscription_attendance_mode_check.
+  attendanceMode            String    @default("automatic") @map("attendance_mode")
+  /// Durable consent record for the modes that require one. NOT a capture gate
+  /// on its own — the server-side eligibility assessment stays authoritative.
+  consentAcknowledgedAt     DateTime? @map("consent_acknowledged_at") @db.Timestamptz(6)
+  notifyOnTranscriptReady   Boolean   @default(true) @map("notify_on_transcript_ready")
+  notifyOnIntelligenceReady Boolean   @default(true) @map("notify_on_intelligence_ready")
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([tenantId, userId, hearingId])
   @@index([tenantId, hearingId])
@@ -6720,26 +6735,164 @@ model HearingSubscription {
   @@map("hearing_subscription")
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// LegiWatch V2 Wave 1 — tenant follow/saved/notification layer.
+//
+// Follow and Attend stay SEPARATE products, as Phase 7 established:
+//
+//   HearingFollow       = notification interest only. Following NEVER creates
+//                         capture demand; the capture worker counts
+//                         HearingSubscription rows and does not read this table.
+//   HearingSubscription = capture demand (above).
+//
+// All four models are TENANT-scoped with FORCE RLS. Hearing and committee
+// references are SOFT refs to the GLOBAL public-record tables, matching
+// HearingSubscription.hearingId. See migration
+// 20280212010000_legiwatch_v2_wave1 for the SQL source of truth (CHECK
+// constraints, the COALESCE-based dedup index, and the RLS policies are
+// SQL-owned and intentionally not re-expressed here).
+// ─────────────────────────────────────────────────────────────────────────
+
+// A tenant user's notification interest in a canonical (global) hearing,
+// scoped to the clients they follow it FOR. Created in Phase 7 as a SQL-only
+// table (boolean interest); Wave 1 adds the client scope and one explicit flag
+// per user-selectable notification category, and surfaces it to Prisma so
+// tenant-scoped access goes through withTenant like every other tenant model.
+//
+// notifyOnStart / notifyOnUpdates are the Phase 7 flags. They are RETAINED
+// because the shipped Phase 7 follow endpoint still writes them; dropping them
+// would silently change the meaning of existing rows.
+model HearingFollow {
+  id                        String   @id @default(uuid()) @db.Uuid
+  tenantId                  String   @map("tenant_id") @db.Uuid
+  userId                    String   @map("user_id") // clerk user id
+  hearingId                 String   @map("hearing_id") // soft ref → committee_hearing.id
+  /// The clients this follow is FOR. Client IDs are the identity keys — never
+  /// client names — so renaming a client cannot orphan a follow.
+  clientIds                 String[] @default([]) @map("client_ids") @db.Uuid
+  notifyOnStart             Boolean  @default(true) @map("notify_on_start")
+  notifyOnUpdates           Boolean  @default(true) @map("notify_on_updates")
+  notifyOnScheduleChange    Boolean  @default(true) @map("notify_on_schedule_change")
+  notifyOnHearingStarting   Boolean  @default(true) @map("notify_on_hearing_starting")
+  notifyOnTranscriptReady   Boolean  @default(true) @map("notify_on_transcript_ready")
+  notifyOnHighPriorityMatch Boolean  @default(true) @map("notify_on_high_priority_match")
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, hearingId], map: "hearing_follow_tenant_user_hearing_key")
+  @@index([tenantId, userId, updatedAt(sort: Desc)], map: "hearing_follow_tenant_user_idx")
+  @@index([hearingId], map: "hearing_follow_hearing_idx")
+  @@map("hearing_follow")
+}
+
+// A tenant user's follow of a canonical committee. Committee FACTS are never
+// duplicated here — this row is interest + notification preference pointing at
+// a congress_committee.system_code.
+model LegiWatchCommitteeFollow {
+  id                        String   @id @default(uuid()) @db.Uuid
+  tenantId                  String   @map("tenant_id") @db.Uuid
+  userId                    String   @map("user_id") // clerk user id
+  committeeSystemCode       String   @map("committee_system_code") // soft ref → congress_committee.system_code
+  clientIds                 String[] @default([]) @map("client_ids") @db.Uuid
+  notifyOnNewHearing        Boolean  @default(true) @map("notify_on_new_hearing")
+  notifyOnScheduleChange    Boolean  @default(true) @map("notify_on_schedule_change")
+  notifyOnTranscriptReady   Boolean  @default(false) @map("notify_on_transcript_ready")
+  notifyOnHighPriorityMatch Boolean  @default(true) @map("notify_on_high_priority_match")
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, committeeSystemCode], map: "legiwatch_committee_follow_tenant_user_code_key")
+  @@index([tenantId, userId, updatedAt(sort: Desc)], map: "legiwatch_committee_follow_tenant_user_idx")
+  @@index([committeeSystemCode], map: "legiwatch_committee_follow_code_idx")
+  @@map("legiwatch_committee_follow")
+}
+
+// A saved hearing reference. Stores CANONICAL REFERENCES ONLY — hearing,
+// transcript segment, intelligence finding, client — never a copy of the
+// public transcript or insight text. `note` is the user's own tenant-private
+// annotation.
+//
+// The idempotency index is SQL-owned (legiwatch_saved_item_dedup_key): it
+// COALESCEs the nullable ref columns so uniqueness stays total, which Prisma
+// cannot express.
+model LegiWatchSavedItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") // clerk user id
+  /// 'moment' | 'finding' | 'hearing' — enforced by
+  /// legiwatch_saved_item_kind_check, with legiwatch_saved_item_ref_check
+  /// requiring the matching reference column so a saved item can never
+  /// resolve to nothing.
+  kind      String
+  hearingId String   @map("hearing_id") // soft ref → committee_hearing.id
+  segmentId String?  @map("segment_id") // soft ref → public_hearing_transcript_segment.id
+  insightId String?  @map("insight_id") // soft ref → public_hearing_insight.id
+  clientId  String?  @map("client_id") @db.Uuid
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, userId, createdAt(sort: Desc)], map: "legiwatch_saved_item_tenant_user_idx")
+  @@index([tenantId, hearingId], map: "legiwatch_saved_item_hearing_idx")
+  @@index([tenantId, clientId], map: "legiwatch_saved_item_client_idx")
+  @@map("legiwatch_saved_item")
+}
+
+// A LegiWatch lifecycle notification: the in-app inbox row plus the durable
+// record of which state transition produced it.
+//
+// This is NOT a parallel notification system. Channel delivery and its
+// idempotency continue to run through NotificationLog (unique on
+// alertId+userId+channel) exactly as tracker alerts do. This table exists
+// because NotificationLog cannot represent a LegiWatch lifecycle event:
+// its clientId is NOT NULL (so it cannot carry a hearing-level event that
+// belongs to no single client), and it has no deep-link target or read state.
+//
+// dedupKey encodes the STATE TRANSITION, not the observation, so repeatedly
+// observing the same schedule cannot produce a second notification.
+model LegiWatchNotificationEvent {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  userId              String    @map("user_id") // clerk user id
+  /// Allowed values enforced by legiwatch_notification_event_type_check.
+  eventType           String    @map("event_type")
+  hearingId           String    @map("hearing_id") // soft ref → committee_hearing.id
+  committeeSystemCode String?   @map("committee_system_code") // soft ref → congress_committee.system_code
+  clientId            String?   @map("client_id") @db.Uuid
+  title               String
+  body                String?
+  /// Canonical Hearing Detail route. Never an external or per-client URL.
+  deepLink            String    @map("deep_link")
+  dedupKey            String    @map("dedup_key")
+  readAt              DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, dedupKey], map: "legiwatch_notification_event_dedup_key")
+  @@index([tenantId, userId, createdAt(sort: Desc)], map: "legiwatch_notification_event_inbox_idx")
+  @@index([tenantId, hearingId], map: "legiwatch_notification_event_hearing_idx")
+  @@map("legiwatch_notification_event")
+}
+
 // Tenant-defined rule for auto-subscribing to / auto-recording future
 // hearings matching a filter set. Schema + contract only for now — the
 // matching engine is a later phase. TENANT-scoped with RLS.
 model HearingAutoRecordRule {
-  id                 String   @id @default(uuid()) @db.Uuid
-  tenantId           String   @map("tenant_id") @db.Uuid
-  name               String
-  enabled            Boolean  @default(true)
-  committeeFilters   String[] @default([]) @map("committee_filters") // congress_committee.system_code values
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  name                String
+  enabled             Boolean  @default(true)
+  committeeFilters    String[] @default([]) @map("committee_filters") // congress_committee.system_code values
   subcommitteeFilters String[] @default([]) @map("subcommittee_filters")
-  eventTypeFilters   String[] @default([]) @map("event_type_filters")
-  keywordFilters     String[] @default([]) @map("keyword_filters")
-  clientIds          String[] @default([]) @map("client_ids")
-  watchlistId        String?  @map("watchlist_id") // soft ref → client_watchlist.id
-  publicOnly         Boolean  @default(true) @map("public_only")
-  notifyEmails       String[] @default([]) @map("notify_emails")
-  notifyInApp        Boolean  @default(true) @map("notify_in_app")
-  createdBy          String   @map("created_by") // clerk user id
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  eventTypeFilters    String[] @default([]) @map("event_type_filters")
+  keywordFilters      String[] @default([]) @map("keyword_filters")
+  clientIds           String[] @default([]) @map("client_ids")
+  watchlistId         String?  @map("watchlist_id") // soft ref → client_watchlist.id
+  publicOnly          Boolean  @default(true) @map("public_only")
+  notifyEmails        String[] @default([]) @map("notify_emails")
+  notifyInApp         Boolean  @default(true) @map("notify_in_app")
+  createdBy           String   @map("created_by") // clerk user id
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([tenantId, enabled])
   @@map("hearing_auto_record_rule")
@@ -6764,31 +6917,31 @@ model HearingAutoRecordRule {
 // public_hearing_insight_confidence_check) — not re-declared as a Prisma enum
 // so the allowed-value set stays single-sourced in the migration.
 model PublicHearingInsight {
-  id                String   @id @default(uuid())
-  hearingId         String   @map("hearing_id") // soft ref → committee_hearing.id
-  captureId         String   @map("capture_id")
-  segmentId         String   @map("segment_id")
-  sequence          Int
-  startMs           Int      @map("start_ms")
-  endMs             Int      @map("end_ms")
+  id               String   @id @default(uuid())
+  hearingId        String   @map("hearing_id") // soft ref → committee_hearing.id
+  captureId        String   @map("capture_id")
+  segmentId        String   @map("segment_id")
+  sequence         Int
+  startMs          Int      @map("start_ms")
+  endMs            Int      @map("end_ms")
   /// 'QUESTION' | 'COMMITMENT' | 'DEADLINE' | 'FUNDING_AMOUNT' |
   /// 'BILL_REFERENCE' | 'PROGRAM_ELEMENT_REFERENCE' | 'AGENCY_REFERENCE' |
   /// 'POLICY_POSITION' | 'KEY_QUOTE' | 'MENTION'
-  insightType       String   @map("insight_type")
-  title             String
-  summary           String
-  evidenceText      String?  @map("evidence_text")
-  speakerName       String?  @map("speaker_name")
-  confidence        Float?
-  preliminary       Boolean  @default(false)
-  entities          Json     @default("[]")
-  extractor         String
-  extractorVersion  String   @map("extractor_version")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  insightType      String   @map("insight_type")
+  title            String
+  summary          String
+  evidenceText     String?  @map("evidence_text")
+  speakerName      String?  @map("speaker_name")
+  confidence       Float?
+  preliminary      Boolean  @default(false)
+  entities         Json     @default("[]")
+  extractor        String
+  extractorVersion String   @map("extractor_version")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  capture  PublicHearingCapture             @relation(fields: [captureId], references: [id], onDelete: Cascade)
-  segment  PublicHearingTranscriptSegment   @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  capture   PublicHearingCapture           @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  segment   PublicHearingTranscriptSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
   relevance TenantHearingRelevance[]
 
   @@index([hearingId, sequence, id], map: "public_hearing_insight_hearing_sequence_idx")
@@ -6805,21 +6958,21 @@ model PublicHearingInsight {
 // public_hearing_transcript_segment_intelligence_enqueue trigger) — this
 // model only exposes the durable row shape for the worker to read/claim.
 model PublicHearingIntelligenceJob {
-  id               String    @id @default(uuid()) @db.Uuid
-  segmentId        String    @unique @map("segment_id")
-  captureId        String    @map("capture_id")
-  hearingId        String    @map("hearing_id") // soft ref → committee_hearing.id
-  segmentRevision  Int       @default(1) @map("segment_revision")
+  id              String    @id @default(uuid()) @db.Uuid
+  segmentId       String    @unique @map("segment_id")
+  captureId       String    @map("capture_id")
+  hearingId       String    @map("hearing_id") // soft ref → committee_hearing.id
+  segmentRevision Int       @default(1) @map("segment_revision")
   /// 'pending' | 'leased' | 'completed' | 'failed'
-  status           String    @default("pending")
-  attempts         Int       @default(0)
-  dueAt            DateTime  @default(now()) @map("due_at") @db.Timestamptz(6)
-  leaseOwner       String?   @map("lease_owner")
-  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.Timestamptz(6)
-  lastError        String?   @map("last_error")
-  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status          String    @default("pending")
+  attempts        Int       @default(0)
+  dueAt           DateTime  @default(now()) @map("due_at") @db.Timestamptz(6)
+  leaseOwner      String?   @map("lease_owner")
+  leaseExpiresAt  DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  lastError       String?   @map("last_error")
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   segment PublicHearingTranscriptSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
 
@@ -9704,7 +9857,7 @@ model MemoryCandidate {
   /// Phase 27B back-relation — see LearningSignalCandidateOutcome.
   learningSignalCandidateOutcomes LearningSignalCandidateOutcome[]
   /// Phase 27E back-relation — see QualityTelemetryEvent.
-  qualityTelemetryEvents QualityTelemetryEvent[]
+  qualityTelemetryEvents          QualityTelemetryEvent[]
 
   @@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
@@ -9865,12 +10018,12 @@ model MemoryCleanupOutbox {
 /// See `packages/meriv2-core/src/learning/contract.ts` for the full contract
 /// and `docs/knowledge-plane/phase-27-learning-signal-foundation.md`.
 model LearningSignal {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @map("tenant_id") @db.Uuid
+  id          String  @id @default(uuid()) @db.Uuid
+  tenantId    String  @map("tenant_id") @db.Uuid
   /// Always the authenticated actor who performed the action — never a
   /// client-supplied value. Required: every 27A adapter has a human actor.
-  actorUserId    String    @map("actor_user_id") @db.Uuid
-  clientId       String?   @map("client_id") @db.Uuid
+  actorUserId String  @map("actor_user_id") @db.Uuid
+  clientId    String? @map("client_id") @db.Uuid
 
   sourceSurface    String  @map("source_surface") @db.VarChar(32)
   sourceObjectType String  @map("source_object_type") @db.VarChar(64)
@@ -9885,42 +10038,42 @@ model LearningSignal {
   /// Best-guess mapping into the five frozen SteeringLayer values, or null if
   /// this signal isn't a candidate for institutional memory at all. Proposal
   /// only — 27A never acts on it.
-  proposedMemoryLayer    String?  @map("proposed_memory_layer") @db.VarChar(24)
+  proposedMemoryLayer String? @map("proposed_memory_layer") @db.VarChar(24)
   /// Best-guess MemoryClass, same "proposal only" caveat.
-  proposedMemoryClass    String?  @map("proposed_memory_class") @db.VarChar(32)
+  proposedMemoryClass String? @map("proposed_memory_class") @db.VarChar(32)
 
   /// Array<{type, id}> pointers to authoritative source objects — never a
   /// copy of message/document bodies (see class doc comment).
-  evidenceJsonb  Json    @default("[]") @map("evidence_jsonb")
+  evidenceJsonb Json   @default("[]") @map("evidence_jsonb")
   /// Extraction/observation confidence in [0,1]. NULL means "not scored yet"
   /// — 27A never writes 0 as a stand-in for "unknown" (null != 0 invariant,
   /// same as `durationMs.provider` in Context Plane telemetry).
-  confidence     Float?
+  confidence    Float?
 
   /// Subset of MemoryAuthority. Guarded at write time: a human-tier value
   /// here requires `provenanceKind` to be human_explicit/human_implicit —
   /// see `assertNoAiSelfCorroboration` in contract.ts.
-  sourceAuthority String?  @map("source_authority") @db.VarChar(24)
-  sensitivity     String   @default("normal") @db.VarChar(16)
-  provenanceKind  String   @map("provenance_kind") @db.VarChar(24)
+  sourceAuthority String? @map("source_authority") @db.VarChar(24)
+  sensitivity     String  @default("normal") @db.VarChar(16)
+  provenanceKind  String  @map("provenance_kind") @db.VarChar(24)
   /// Safe structured metadata only (e.g. originTraceId, originContextPacketId,
   /// model name) — never a raw message/document body.
-  provenanceJsonb Json     @default("{}") @map("provenance_jsonb")
+  provenanceJsonb Json    @default("{}") @map("provenance_jsonb")
 
   governanceRequirement String @default("human_required") @map("governance_requirement") @db.VarChar(16)
   status                String @default("captured") @db.VarChar(16)
 
   /// Dedupe key for idempotent capture — see computeLearningSignalIdempotencyKey.
-  idempotencyKey String   @map("idempotency_key") @db.VarChar(320)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(320)
 
   /// When the underlying product event happened (not when it was captured).
   observedAt DateTime @map("observed_at") @db.Timestamptz(6)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                 Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   /// Phase 27B — at most one outcome row per signal (unique below); null
   /// means "not yet processed by LearningSignalCandidateService".
-  candidateOutcome LearningSignalCandidateOutcome?
+  candidateOutcome       LearningSignalCandidateOutcome?
   /// Phase 27E back-relation — see QualityTelemetryEvent.
   qualityTelemetryEvents QualityTelemetryEvent[]
 
@@ -9942,26 +10095,26 @@ model LearningSignal {
 /// is additionally guarded by memory_candidate_learning_signal_source_unique
 /// on MemoryCandidate itself.
 model LearningSignalCandidateOutcome {
-  id                String   @id @default(uuid()) @db.Uuid
-  tenantId          String   @map("tenant_id") @db.Uuid
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @map("tenant_id") @db.Uuid
   /// Single-column unique (not a compound (tenantId, learningSignalId)): a
   /// signal already implies exactly one tenant, and Prisma's one-to-one
   /// relation from LearningSignal.candidateOutcome requires this FK field
   /// itself to be unique.
-  learningSignalId  String   @unique(map: "learning_signal_candidate_outcome_signal_unique") @map("learning_signal_id") @db.Uuid
+  learningSignalId String @unique(map: "learning_signal_candidate_outcome_signal_unique") @map("learning_signal_id") @db.Uuid
 
   /// eligible | insufficient_evidence | negative_feedback_only | duplicate |
   /// unsupported_scope | ai_only | blocked_by_policy
-  eligibility       String   @db.VarChar(24)
-  reason            String   @db.VarChar(240)
+  eligibility String @db.VarChar(24)
+  reason      String @db.VarChar(240)
 
   /// Set only when eligibility = 'eligible'.
-  memoryCandidateId String?  @map("memory_candidate_id") @db.Uuid
+  memoryCandidateId String? @map("memory_candidate_id") @db.Uuid
 
-  decidedAt         DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+  decidedAt DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
 
-  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  learningSignal  LearningSignal  @relation(fields: [learningSignalId], references: [id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  learningSignal  LearningSignal   @relation(fields: [learningSignalId], references: [id], onDelete: Cascade)
   memoryCandidate MemoryCandidate? @relation(fields: [memoryCandidateId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, eligibility, decidedAt(sort: Desc)], map: "learning_signal_candidate_outcome_tenant_eligibility_idx")
@@ -10020,13 +10173,13 @@ model QualityTelemetryEvent {
   /// FK even for cross-service-originated events. SetNull, not Restrict:
   /// packets are prunable trace data (same reasoning as
   /// MemoryItem.originContextPacketId) and must never pin a telemetry row.
-  contextPacketId String? @map("context_packet_id") @db.Uuid
+  contextPacketId    String? @map("context_packet_id") @db.Uuid
   /// Snapshot of how many included context items came from each of the five
   /// frozen SteeringLayer values at generation time — counts only, never
   /// item bodies. Shape: { firmIdentity, firmPlaybook, userVoice,
   /// clientSteering, clientPeople }. Null when the surface does not yet
   /// report packet composition (record unknown, never guess).
-  contextLayerCounts Json?  @map("context_layer_counts_jsonb")
+  contextLayerCounts Json?   @map("context_layer_counts_jsonb")
 
   /// Lifecycle linkage (Phase 27E plan §23): set when this event is known to
   /// trace back to a captured LearningSignal / the candidate it produced.
@@ -10039,11 +10192,11 @@ model QualityTelemetryEvent {
   /// caller (percentChanged, normalizedEditDistance, versionsCount,
   /// timeToApprovalMs, sectionReplacementCount, ...). Never a diff or body —
   /// enforced by check-quality-telemetry-new-bypasses.mjs.
-  editMetrics Json?  @map("edit_metrics_jsonb")
+  editMetrics Json? @map("edit_metrics_jsonb")
   /// Short safe reason codes / correlation ids only (e.g. { reasonCode,
   /// sampledFrom, computedBy, regenerateOfEventId }) — never free text that
   /// could carry confidential content.
-  provenance  Json   @default("{}") @map("provenance_jsonb")
+  provenance  Json  @default("{}") @map("provenance_jsonb")
 
   /// Cross-cutting correlation id (ContextPacket.traceId / audit_logs.
   /// request_id) so a full request can be reconstructed across tables
@@ -10061,11 +10214,11 @@ model QualityTelemetryEvent {
   /// redelivery of the same underlying event never double-counts.
   idempotencyKey String @map("idempotency_key") @db.VarChar(320)
 
-  tenant          Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contextPacket   ContextPacket?                  @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
-  learningSignal  LearningSignal?                 @relation(fields: [learningSignalId], references: [id], onDelete: SetNull)
-  memoryCandidate MemoryCandidate?                @relation(fields: [memoryCandidateId], references: [id], onDelete: SetNull)
-  memoryItemUses  QualityTelemetryMemoryItemUse[]
+  tenant            Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contextPacket     ContextPacket?                  @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
+  learningSignal    LearningSignal?                 @relation(fields: [learningSignalId], references: [id], onDelete: SetNull)
+  memoryCandidate   MemoryCandidate?                @relation(fields: [memoryCandidateId], references: [id], onDelete: SetNull)
+  memoryItemUses    QualityTelemetryMemoryItemUse[]
   /// Phase 27F back-relation — see EvaluationRecord.
   evaluationRecords EvaluationRecord[]
 
@@ -10142,20 +10295,20 @@ model EvaluationRecord {
 
   /// outreach | workspace | crm_fill | meetings | strategies | meri — reuses
   /// QualityTelemetryEvent's exact vocabulary (see the CHECK constraint).
-  surface       String @db.VarChar(24)
+  surface        String @db.VarChar(24)
   /// Namespaced operation identifier, same free-text convention as
   /// QualityTelemetryEvent.operation (e.g. "outreach.draft_version.generate").
-  operation     String @db.VarChar(96)
+  operation      String @db.VarChar(96)
   /// Closed comparison-design vocabulary — one value today
   /// ("institutional_context_ablation"); a future per-layer ablation study
   /// is a new value, not a reinterpretation of this one.
   evaluationType String @map("evaluation_type") @db.VarChar(40)
 
-  status     String  @db.VarChar(16)
+  status        String  @db.VarChar(16)
   /// Set only when status = 'skipped'. Shares one vocabulary with
   /// 'not_sampled' (the sampling-stage skip) so this column never needs a
   /// second CHECK depending on which stage produced the skip.
-  skipReason String? @map("skip_reason") @db.VarChar(40)
+  skipReason    String? @map("skip_reason") @db.VarChar(40)
   /// Set only when status = 'failed'. A short code, never a stack trace or
   /// provider error body.
   failureReason String? @map("failure_reason") @db.VarChar(160)
@@ -10164,7 +10317,7 @@ model EvaluationRecord {
   /// ContextPacket — frozen historical evidence (§18/§32). Never mutated;
   /// the control arm is an in-memory projection, never written back here or
   /// anywhere else. SetNull: packets are prunable trace data.
-  contextPacketId String? @map("context_packet_id") @db.Uuid
+  contextPacketId         String? @map("context_packet_id") @db.Uuid
   /// Convenience join to the canonical outcome-truth row for this same
   /// artifact, if Phase 27E already recorded one (§31: "Quality Telemetry
   /// remains source of outcome truth" — this table never duplicates it).
@@ -10179,8 +10332,8 @@ model EvaluationRecord {
 
   /// sha256 of the treatment/control output text — identity/comparison only,
   /// never the body itself (enforced in application code, not just here).
-  treatmentOutputHash String? @map("treatment_output_hash") @db.VarChar(128)
-  controlOutputHash   String? @map("control_output_hash") @db.VarChar(128)
+  treatmentOutputHash     String? @map("treatment_output_hash") @db.VarChar(128)
+  controlOutputHash       String? @map("control_output_hash") @db.VarChar(128)
   /// Which control-projection policy produced the control arm — versioned
   /// independently of configVersion so a future second projection policy
   /// (e.g. a per-layer ablation) is distinguishable from this one.
@@ -10209,18 +10362,18 @@ model EvaluationRecord {
 
   traceId String? @map("trace_id") @db.VarChar(160)
 
-  observedAt DateTime  @map("observed_at") @db.Timestamptz(6)
-  startedAt  DateTime? @map("started_at") @db.Timestamptz(6)
+  observedAt  DateTime  @map("observed_at") @db.Timestamptz(6)
+  startedAt   DateTime? @map("started_at") @db.Timestamptz(6)
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   /// Dedupe key (§28) — see computeEvaluationIdempotencyKey. A retry of the
   /// same underlying request reaches the same row, never a duplicate.
   idempotencyKey String @map("idempotency_key") @db.VarChar(400)
 
-  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contextPacket      ContextPacket?        @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contextPacket         ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
   qualityTelemetryEvent QualityTelemetryEvent? @relation(fields: [qualityTelemetryEventId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, idempotencyKey], map: "evaluation_record_tenant_idempotency_unique")
@@ -11748,14 +11901,14 @@ model KnowledgeEvent {
   status            String   @default("active") @db.VarChar(24)
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_events_tenant_fkey")
-  assertions  KnowledgeAssertion[]  @relation("KnowledgeAssertionOriginEvent")
-  evidence    KnowledgeEvidence[]   @relation("KnowledgeEvidenceEvent")
-  mailboxJobs KnowledgeMailboxJob[]
-  mailboxExtractionJobs KnowledgeMailboxExtractionJob[]
-  episodeMemberships    KnowledgeEpisodeEvent[]
+  tenant                  Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_events_tenant_fkey")
+  assertions              KnowledgeAssertion[]            @relation("KnowledgeAssertionOriginEvent")
+  evidence                KnowledgeEvidence[]             @relation("KnowledgeEvidenceEvent")
+  mailboxJobs             KnowledgeMailboxJob[]
+  mailboxExtractionJobs   KnowledgeMailboxExtractionJob[]
+  episodeMemberships      KnowledgeEpisodeEvent[]
   episodeAssertionOrigins KnowledgeEpisodeAssertion[]
-  episodeProjectionJobs KnowledgeEpisodeProjectionJob[]
+  episodeProjectionJobs   KnowledgeEpisodeProjectionJob[]
 
   @@unique([tenantId, id], map: "knowledge_events_tenant_identity_unique")
   @@unique([tenantId, idempotencyKey], map: "knowledge_events_idempotency_unique")
@@ -11804,8 +11957,8 @@ model KnowledgeAssertion {
   supersedes   KnowledgeAssertion?  @relation("KnowledgeAssertionSupersession", fields: [supersedesAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_supersedes_fkey")
   supersededBy KnowledgeAssertion[] @relation("KnowledgeAssertionSupersession")
 
-  contradicts    KnowledgeAssertion?  @relation("KnowledgeAssertionContradiction", fields: [contradictsAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_contradicts_fkey")
-  contradictedBy KnowledgeAssertion[] @relation("KnowledgeAssertionContradiction")
+  contradicts        KnowledgeAssertion?         @relation("KnowledgeAssertionContradiction", fields: [contradictsAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_contradicts_fkey")
+  contradictedBy     KnowledgeAssertion[]        @relation("KnowledgeAssertionContradiction")
   episodeMemberships KnowledgeEpisodeAssertion[]
 
   @@unique([tenantId, id], map: "knowledge_assertions_tenant_identity_unique")
@@ -11863,9 +12016,9 @@ model KnowledgeMailboxJob {
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_tenant_fkey")
-  mailMessage MailMessage     @relation(fields: [mailMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_message_fkey")
-  resultEvent KnowledgeEvent? @relation(fields: [resultEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_event_fkey")
+  tenant         Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_tenant_fkey")
+  mailMessage    MailMessage                     @relation(fields: [mailMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_message_fkey")
+  resultEvent    KnowledgeEvent?                 @relation(fields: [resultEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_event_fkey")
   extractionJobs KnowledgeMailboxExtractionJob[]
 
   @@unique([tenantId, mailMessageId, sourceRevision], map: "knowledge_mailbox_jobs_identity_unique")
@@ -11879,28 +12032,28 @@ model KnowledgeMailboxJob {
 // Runtime queue operations intentionally use the tenant-aware raw SQL boundary
 // because the SQL migration owns RLS, trigger, and operational-state checks.
 model KnowledgeMailboxExtractionJob {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
-  mailboxJobId    String    @map("mailbox_job_id") @db.Uuid
-  mailMessageId   String    @map("mail_message_id") @db.Uuid
-  eventId         String    @map("event_id") @db.Uuid
-  sourceRevision  String    @map("source_revision") @db.VarChar(64)
-  contentHash     String    @map("content_hash") @db.VarChar(64)
-  sensitivity     String    @db.VarChar(32)
-  accessScope     Json      @map("access_scope")
-  status          String    @default("pending") @db.VarChar(24)
-  attemptCount    Int       @default(0) @map("attempt_count")
-  availableAt     DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
-  lockedAt        DateTime? @map("locked_at") @db.Timestamptz(6)
-  lockedBy        String?   @map("locked_by") @db.VarChar(160)
-  lastError       String?   @map("last_error") @db.Text
-  result          Json?
-  assertionCount  Int       @default(0) @map("assertion_count")
-  heldCount       Int       @default(0) @map("held_count")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  mailboxJobId   String    @map("mailbox_job_id") @db.Uuid
+  mailMessageId  String    @map("mail_message_id") @db.Uuid
+  eventId        String    @map("event_id") @db.Uuid
+  sourceRevision String    @map("source_revision") @db.VarChar(64)
+  contentHash    String    @map("content_hash") @db.VarChar(64)
+  sensitivity    String    @db.VarChar(32)
+  accessScope    Json      @map("access_scope")
+  status         String    @default("pending") @db.VarChar(24)
+  attemptCount   Int       @default(0) @map("attempt_count")
+  availableAt    DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  lockedAt       DateTime? @map("locked_at") @db.Timestamptz(6)
+  lockedBy       String?   @map("locked_by") @db.VarChar(160)
+  lastError      String?   @map("last_error") @db.Text
+  result         Json?
+  assertionCount Int       @default(0) @map("assertion_count")
+  heldCount      Int       @default(0) @map("held_count")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_extraction_jobs_tenant_fkey")
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_extraction_jobs_tenant_fkey")
   mailboxJob  KnowledgeMailboxJob @relation(fields: [mailboxJobId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_extraction_jobs_mailbox_job_fkey")
   mailMessage MailMessage         @relation(fields: [mailMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_extraction_jobs_message_fkey")
   event       KnowledgeEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_extraction_jobs_event_fkey")
@@ -11938,10 +12091,10 @@ model KnowledgeEpisode {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episodes_tenant_fkey")
-  events      KnowledgeEpisodeEvent[]
-  assertions  KnowledgeEpisodeAssertion[]
-  entities    KnowledgeEpisodeEntity[]
+  tenant         Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episodes_tenant_fkey")
+  events         KnowledgeEpisodeEvent[]
+  assertions     KnowledgeEpisodeAssertion[]
+  entities       KnowledgeEpisodeEntity[]
   projectionJobs KnowledgeEpisodeProjectionJob[]
 
   @@unique([tenantId, strategy, identityKey], map: "knowledge_episodes_identity_unique")
@@ -12083,7 +12236,7 @@ model FederalFundingMeasure {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sourceDocument SourceDocument               @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument            @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   provisions     FederalFundingProvision[]
 
   // measure_type / status / authority_type value sets and the availability
@@ -12121,8 +12274,8 @@ model FederalFundingProvision {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  measure        FederalFundingMeasure        @relation(fields: [measureId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sourceDocument SourceDocument               @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  measure        FederalFundingMeasure      @relation(fields: [measureId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceDocument SourceDocument             @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   allocations    FederalFundingAllocation[]
 
   // availability start<=end, source_page>0, evidence_sha256/dedup_key hex-64
@@ -12136,14 +12289,14 @@ model FederalFundingProvision {
 }
 
 model FederalFundingAllocation {
-  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  provisionId               String    @map("provision_id") @db.Uuid
-  targetType                String    @map("target_type")
-  targetNativeKey           String?   @map("target_native_key")
-  targetId                  String?   @map("target_id")
-  allocationStage           String    @map("allocation_stage")
-  mappingMaturity           String    @map("mapping_maturity")
-  reviewState               String    @default("candidate") @map("review_state")
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provisionId              String   @map("provision_id") @db.Uuid
+  targetType               String   @map("target_type")
+  targetNativeKey          String?  @map("target_native_key")
+  targetId                 String?  @map("target_id")
+  allocationStage          String   @map("allocation_stage")
+  mappingMaturity          String   @map("mapping_maturity")
+  reviewState              String   @default("candidate") @map("review_state")
   // Exact/account-level allocated dollars. NULL unless the DB-owned
   // federal_funding_allocation_authoritative_dollars_chk is satisfied:
   // mappingMaturity in (exact_identifier, exact_line_item, account_level),
@@ -12151,25 +12304,25 @@ model FederalFundingAllocation {
   // reviewState = verified, an identity is present, and evidence is present.
   // Prisma cannot express this multi-column CHECK — it is SQL-owned; do not
   // assume application code alone can guarantee this invariant.
-  authoritativeAmountUsd    Decimal?  @map("authoritative_amount_usd") @db.Decimal(20, 2)
-  inferredRelevance         Boolean   @default(false) @map("inferred_relevance")
-  confidence                Decimal?  @db.Decimal(5, 4)
-  baseRequestStatus         String    @default("unknown") @map("base_request_status")
-  potentialDoubleCount      Boolean   @default(false) @map("potential_double_count")
-  fundingPosture            String    @default("unknown") @map("funding_posture")
-  evidenceSourceDocumentId  String    @map("evidence_source_document_id") @db.Uuid
-  evidencePage              Int?      @map("evidence_page")
-  evidenceSha256            String    @map("evidence_sha256") @db.Char(64)
+  authoritativeAmountUsd   Decimal? @map("authoritative_amount_usd") @db.Decimal(20, 2)
+  inferredRelevance        Boolean  @default(false) @map("inferred_relevance")
+  confidence               Decimal? @db.Decimal(5, 4)
+  baseRequestStatus        String   @default("unknown") @map("base_request_status")
+  potentialDoubleCount     Boolean  @default(false) @map("potential_double_count")
+  fundingPosture           String   @default("unknown") @map("funding_posture")
+  evidenceSourceDocumentId String   @map("evidence_source_document_id") @db.Uuid
+  evidencePage             Int?     @map("evidence_page")
+  evidenceSha256           String   @map("evidence_sha256") @db.Char(64)
   // Required by federal_funding_allocation_obligation_ref_chk when
   // allocationStage = 'obligated'.
-  obligationReference       String?   @map("obligation_reference")
-  executionReference        String?   @map("execution_reference")
-  dedupKey                  String    @map("dedup_key") @db.Char(64)
-  metadata                  Json      @default("{}") @map("metadata_jsonb")
-  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  obligationReference      String?  @map("obligation_reference")
+  executionReference       String?  @map("execution_reference")
+  dedupKey                 String   @map("dedup_key") @db.Char(64)
+  metadata                 Json     @default("{}") @map("metadata_jsonb")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  provision             FederalFundingProvision @relation(fields: [provisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  provision              FederalFundingProvision @relation(fields: [provisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   evidenceSourceDocument SourceDocument          @relation("FederalFundingAllocationEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   // target_type / allocation_stage / mapping_maturity / review_state /
@@ -12258,8 +12411,8 @@ model DefenseBudgetExpectedSource {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  cycle        DefenseBudgetCycle              @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  observations DefenseBudgetSourceObservation[]
+  cycle         DefenseBudgetCycle                @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observations  DefenseBudgetSourceObservation[]
   bundleMembers DefenseBudgetSourceBundleMember[]
 
   @@unique([dedupKey], map: "defense_budget_expected_source_dedup_key_key")
@@ -12290,32 +12443,32 @@ model DefenseBudgetExpectedSource {
 // by this table — see that function's `no_bundle` outcome.
 // ───────────────────────────────────────────────────────────────────────────
 model DefenseBudgetSourceBundleMember {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expectedSourceId String   @map("expected_source_id") @db.Uuid
-  memberKey        String   @map("member_key")
-  volume           String?
-  budgetActivity   String?  @map("budget_activity")
-  officialUrl      String   @map("official_url")
-  title            String
-  required         Boolean  @default(true)
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expectedSourceId       String   @map("expected_source_id") @db.Uuid
+  memberKey              String   @map("member_key")
+  volume                 String?
+  budgetActivity         String?  @map("budget_activity")
+  officialUrl            String   @map("official_url")
+  title                  String
+  required               Boolean  @default(true)
   // missing | observed | verified
-  memberStatus     String   @default("missing") @map("member_status")
-  observationId    String?  @map("observation_id") @db.Uuid
-  sourceDocumentId String?  @map("source_document_id") @db.Uuid
+  memberStatus           String   @default("missing") @map("member_status")
+  observationId          String?  @map("observation_id") @db.Uuid
+  sourceDocumentId       String?  @map("source_document_id") @db.Uuid
   // Identity snapshot the seeding caller asserts this member belongs under —
   // NOT authoritative on its own. A trigger (see migration.sql) re-derives
   // the SAME five fields from the joined expected_source row on every
   // INSERT/UPDATE and rejects the write if they disagree, so a member can
   // never bind to an expected source of a different FY/track/stage/family/
   // component even if the seeding code computed the wrong expectedSourceId.
-  expectedFiscalYear     Int     @map("expected_fiscal_year")
-  expectedAuthorityTrack String  @map("expected_authority_track")
-  expectedStage          String  @map("expected_stage")
-  expectedSourceFamily   String  @map("expected_source_family")
-  expectedComponent      String? @map("expected_component")
-  metadata         Json     @default("{}") @map("metadata_jsonb")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expectedFiscalYear     Int      @map("expected_fiscal_year")
+  expectedAuthorityTrack String   @map("expected_authority_track")
+  expectedStage          String   @map("expected_stage")
+  expectedSourceFamily   String   @map("expected_source_family")
+  expectedComponent      String?  @map("expected_component")
+  metadata               Json     @default("{}") @map("metadata_jsonb")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   expectedSource DefenseBudgetExpectedSource     @relation(fields: [expectedSourceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   observation    DefenseBudgetSourceObservation? @relation(fields: [observationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -12397,9 +12550,9 @@ model DefenseBudgetSourceObservation {
   supersededBy DefenseBudgetSourceObservation?  @relation("DefenseBudgetObservationVersion", fields: [supersededByObservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   supersedes   DefenseBudgetSourceObservation[] @relation("DefenseBudgetObservationVersion")
 
-  outbox      DefenseBudgetIngestionOutbox[]
-  signalsFrom DefenseBudgetLifecycleSignal[] @relation("DefenseBudgetSignalFrom")
-  signalsTo   DefenseBudgetLifecycleSignal[] @relation("DefenseBudgetSignalTo")
+  outbox               DefenseBudgetIngestionOutbox[]
+  signalsFrom          DefenseBudgetLifecycleSignal[]    @relation("DefenseBudgetSignalFrom")
+  signalsTo            DefenseBudgetLifecycleSignal[]    @relation("DefenseBudgetSignalTo")
   bundleMemberBindings DefenseBudgetSourceBundleMember[]
 
   // Idempotency: the same bytes for the same expected source are ONE
@@ -12665,15 +12818,15 @@ model DefenseBudgetScheduleTick {
 }
 
 model DefenseBudgetReviewResolution {
-  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expectedSourceId       String   @map("expected_source_id") @db.Uuid
-  previousExpectedState  String   @map("previous_expected_state")
-  decision               String
-  reviewReasonBefore     String?  @map("review_reason_before")
-  note                   String
-  actorUserId            String   @map("actor_user_id") @db.Uuid
-  tenantId               String   @map("tenant_id") @db.Uuid
-  resolvedAt             DateTime @default(now()) @map("resolved_at") @db.Timestamptz(6)
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expectedSourceId      String   @map("expected_source_id") @db.Uuid
+  previousExpectedState String   @map("previous_expected_state")
+  decision              String
+  reviewReasonBefore    String?  @map("review_reason_before")
+  note                  String
+  actorUserId           String   @map("actor_user_id") @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  resolvedAt            DateTime @default(now()) @map("resolved_at") @db.Timestamptz(6)
 
   @@index([expectedSourceId, resolvedAt(sort: Desc)], map: "dbrr_expected_source_idx")
   @@index([tenantId, resolvedAt(sort: Desc)], map: "dbrr_tenant_idx")

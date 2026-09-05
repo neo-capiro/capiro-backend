@@ -22,7 +22,8 @@
  * with the reason named, and Attend live (browser capture) is the honest path.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArchiveSubTab } from './ArchiveSubTab.js';
 import {
   useHearingSessionHistory,
   useResolveStream,
@@ -150,8 +151,33 @@ function useMediaBelow900(): boolean {
   return below;
 }
 
+/**
+ * The Hearings sub-views (W1-3 IA):
+ *   ?sub=schedule  the calendar + list (the landing sub-view)
+ *   ?sub=sessions  My Sessions and scheduled recordings
+ *   ?sub=archive   the durable historical corpus, searched server-side
+ */
+const HEARING_SUBS = [
+  { id: 'schedule' as const, label: 'Schedule' },
+  { id: 'sessions' as const, label: 'My Sessions' },
+  { id: 'archive' as const, label: 'Archive' },
+];
+type HearingSub = (typeof HEARING_SUBS)[number]['id'];
+
 export function HearingsTab({ scope }: { scope: string }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Unknown values land on the schedule rather than rendering nothing.
+  const rawSub = searchParams.get('sub');
+  const sub: HearingSub = HEARING_SUBS.some((s) => s.id === rawSub)
+    ? (rawSub as HearingSub)
+    : 'schedule';
+  const setSub = (next: HearingSub) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'schedule') params.delete('sub');
+    else params.set('sub', next);
+    setSearchParams(params, { replace: true });
+  };
   const history = useHearingSessionHistory();
   const resolveStream = useResolveStream();
 
@@ -269,10 +295,43 @@ export function HearingsTab({ scope }: { scope: string }) {
     );
   }
 
+  // The sub-view strip is rendered for every sub-view so navigation is always
+  // reachable, including from the Archive.
+  const subStrip = (
+    <div className="lw-tabs" role="tablist" aria-label="Hearings sub-views" style={{ marginBottom: 14 }}>
+      {HEARING_SUBS.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="tab"
+          aria-selected={sub === option.id}
+          className={`lw-tab${sub === option.id ? ' is-active' : ''}`}
+          onClick={() => setSub(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (sub === 'archive') {
+    return (
+      <div className="lw-body">
+        {subStrip}
+        {/* W1-3 — server-side search over the durable historical corpus. */}
+        <ArchiveSubTab clientId={scope} />
+      </div>
+    );
+  }
+
   return (
     <div className="lw-body">
-      <div className="lw-hearings-cols">
-        {/* LEFT — the schedule */}
+      {subStrip}
+      <div className={`lw-hearings-cols${sub === 'sessions' ? ' lw-hearings-cols--single' : ''}`}>
+        {/* LEFT — the schedule. Hidden on the Sessions sub-view, which is about
+            what the workspace is attending rather than what is scheduled. */}
+        {sub === 'sessions' ? null : (
+        <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           <div className="lw-controls">
             <LwSeg
@@ -523,6 +582,9 @@ export function HearingsTab({ scope }: { scope: string }) {
             </section>
           )}
         </div>
+
+        </>
+        )}
 
         {/* RIGHT — My Sessions + Scheduled recordings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>

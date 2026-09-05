@@ -6,7 +6,11 @@
  * honest; nothing is a static fixture.
  */
 import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  CommitteeFollowControl,
+  CommitteeIntelligenceHistorySection,
+} from './CommitteeFollow.js';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import {
@@ -57,6 +61,10 @@ function normalizeMemberRow(v: unknown): RoomMember | null {
 export function CommitteeRoomRoute() {
   const { systemCode = '' } = useParams<{ systemCode: string }>();
   const navigate = useNavigate();
+  // The module's client lens travels in `?client`, so committee intelligence
+  // narrows to the same client the rest of LegiWatch is scoped to.
+  const [searchParams] = useSearchParams();
+  const clientId = searchParams.get('client') ?? '';
   const api = useApi();
 
   const room = useQuery<RoomResponse, Error>({
@@ -169,6 +177,11 @@ export function CommitteeRoomRoute() {
             </button>
           ))}
         </div>
+        {/* W1-4 — committee following. Tenant/user interest pointing at this
+            canonical system code; no committee facts are duplicated into it. */}
+        <div style={{ marginTop: 12 }}>
+          <CommitteeFollowControl systemCode={systemCode} committeeName={c.name} />
+        </div>
       </section>
 
       <section className="lw-card" style={{ padding: 18 }} aria-label="Members and leadership">
@@ -258,6 +271,9 @@ export function CommitteeRoomRoute() {
           </ul>
         )}
       </section>
+
+      {/* W1-4 — derived from this committee's OWN canonical hearings. */}
+      <CommitteeIntelligenceHistorySection systemCode={systemCode} clientId={clientId} />
     </div>
   );
 }
