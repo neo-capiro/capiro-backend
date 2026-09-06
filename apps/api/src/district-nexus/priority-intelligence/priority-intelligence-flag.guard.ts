@@ -23,13 +23,24 @@ import {
  *      guard additionally re-checks the parent row itself so it can never be
  *      mounted without the parent), AND
  *   2. an enabled `district_nexus_priority_intelligence` row for the tenant OR
- *      the canonical capiro-internal tenant (first intended rollout canary).
+ *      the canonical capiro-internal tenant (first intended rollout canary) —
+ *      UNLESS an explicit `enabled = false` row exists for that tenant, which
+ *      always wins over the internal-canary fallback (see below).
  *
  * Mirrors DistrictNexusStrategicFlagGuard exactly: intel_feature_flag is
  * intel-api owned with a TEXT tenant_id (NO ::uuid cast), read under
  * withSystem; every read error fails closed as 404; the internal tenant is the
  * deliberate canary fallback even before a flag row is inserted. Do not
  * broaden: external tenants stay dark until an explicit row is written.
+ *
+ * Explicit-disable override: the internal-canary fallback (both the
+ * configured-UUID match and the capiro-internal slug lookup) is an "enabled
+ * when no row says otherwise" default, NOT an unconditional override. An
+ * operator writing an explicit `enabled: false` row for capiro-internal +
+ * this feature must be able to turn the child rail off independently of the
+ * parent `district_nexus_v2` flag — so every internal-canary path is gated on
+ * `NOT EXISTS` a disabled row for this exact feature+tenant. This means the
+ * internal-tenant path can no longer skip the DB round-trip.
  */
 export const DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE = 'district_nexus_priority_intelligence';
 
@@ -50,24 +61,38 @@ export class DistrictNexusPriorityIntelligenceFlagGuard implements CanActivate {
     const tenantId = req.tenantContext?.tenantId;
     if (!tenantId) throw new NotFoundException();
 
-    // Fast path: configured internal UUID sees priority intelligence (nested
-    // under DN v2 canary discipline).
-    if (this.internalTenantId && tenantId === this.internalTenantId) return true;
+    const isConfiguredInternalTenant = Boolean(
+      this.internalTenantId && tenantId === this.internalTenantId,
+    );
 
     let enabled = false;
     try {
       // withSystem: intel_feature_flag is intel-api owned + FORCE RLS.
       // NO ::uuid cast — tenant_id is TEXT. Both the child flag and the parent
-      // district_nexus_v2 entitlement are checked in the SAME query.
+      // district_nexus_v2 entitlement are checked in the SAME query. The
+      // internal-canary branch (configured UUID OR capiro-internal slug) is
+      // gated on NOT EXISTS a disabled row, so an explicit off-switch always
+      // wins over the fallback — this can no longer skip the DB round-trip.
       const rows = await this.prisma.withSystem(
         (tx) =>
           tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
           WHERE (
-            EXISTS (
-              SELECT 1 FROM tenants
-              WHERE id::text = ${tenantId}
-                AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
+            (
+              (
+                ${isConfiguredInternalTenant}
+                OR EXISTS (
+                  SELECT 1 FROM tenants
+                  WHERE id::text = ${tenantId}
+                    AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
+                )
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM intel_feature_flag
+                WHERE feature = ${DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE}
+                  AND tenant_id = ${tenantId}
+                  AND enabled = false
+              )
             )
             OR (
               EXISTS (

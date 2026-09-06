@@ -111,7 +111,19 @@ export class DistrictNexusPriorityIntelligenceService {
     }
 
     // 3) Members for the district + state senators (tenant-scoped directory).
-    const memberBioguides = await this.loadMembers(tenantId, stateCode, districtPadded);
+    //    Defensively isolated like the Nexus Strength echo above: a failure
+    //    here must degrade this one rail, not 500 the whole endpoint.
+    let memberBioguides: ClientPriorityIntelligenceResponse['member'] = {
+      houseMemberBioguideIds: [],
+      senatorBioguideIds: [],
+      representation: 'Representation unavailable',
+    };
+    try {
+      memberBioguides = await this.loadMembers(tenantId, stateCode, districtPadded);
+    } catch (error) {
+      warnings.push('Representation could not be loaded; shown as unavailable rather than zero.');
+      this.logEchoFailure('members', error);
+    }
 
     // 4) CPF/CDS — bounded queries + single occurrences batch.
     const cpfCds = await this.loadCpfCds(
@@ -191,9 +203,9 @@ export class DistrictNexusPriorityIntelligenceService {
         tx.$queryRaw<Array<{ bioguide_id: string | null }>>`
         SELECT cm.bioguide_id::text AS bioguide_id
         FROM congress_member cm
-        WHERE cm.state_code = ${stateCode}
+        WHERE cm.state = ${stateCode}
           AND cm.chamber = 'house'
-          AND LPAD(COALESCE(cm.district, ''), 2, '0') = ${districtPadded}
+          AND LPAD(COALESCE(cm.district::text, ''), 2, '0') = ${districtPadded}
         LIMIT 8`,
     );
     const senateRows = await this.prisma.withTenant(
@@ -202,7 +214,7 @@ export class DistrictNexusPriorityIntelligenceService {
         tx.$queryRaw<Array<{ bioguide_id: string | null }>>`
         SELECT cm.bioguide_id::text AS bioguide_id
         FROM congress_member cm
-        WHERE cm.state_code = ${stateCode}
+        WHERE cm.state = ${stateCode}
           AND cm.chamber = 'senate'
         LIMIT 4`,
     );

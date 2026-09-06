@@ -38,6 +38,22 @@ export const DISTRICT_NEXUS_STRATEGIC_FEATURE = 'district_nexus_strategic_releva
 export const DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE = 'district_nexus_priority_intelligence';
 
 /**
+ * Internal-tenant canary features: visible for the Capiro internal tenant
+ * even with no `intel_feature_flag` row, so QA can see them before any
+ * external rollout. This is a GAP-FILLING default, not an override — an
+ * explicit row (enabled true or false) for the tenant+feature always takes
+ * precedence, so an operator can turn one of these off for capiro-internal
+ * independently of the others and independently of any parent flag.
+ */
+const INTERNAL_CANARY_FEATURES: readonly string[] = [
+  HEARING_WATCH_FEATURE,
+  BILL_360_FEATURE,
+  DEFENSE_FUNDING_INTEL_FEATURE,
+  DISTRICT_NEXUS_STRATEGIC_FEATURE,
+  DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE,
+];
+
+/**
  * Tenant-scoped feature gating for intel-api capabilities.
  *
  * A feature is ON for a tenant when an enabled FeatureFlag row exists for
@@ -45,6 +61,13 @@ export const DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE = 'district_nexus_prio
  * `CAPIRO_INTERNAL_TENANT_ID` env as an always-on fallback, so the feature is
  * visible internally even before any DB row is seeded. Flip on per-tenant by
  * inserting a row — no redeploy.
+ *
+ * The internal-tenant fallback only fills the GAP where no row exists yet —
+ * it never overrides an explicit row. Previously an explicit `enabled: false`
+ * row for capiro-internal had zero effect (the fallback short-circuited
+ * before the row was even read), which meant the internal-canary rollout for
+ * a feature could never be turned off independently. Always read the row
+ * first; only fall back to the internal-tenant default when there is none.
  */
 @Injectable()
 export class FeatureFlagService {
@@ -59,33 +82,30 @@ export class FeatureFlagService {
   }
 
   async isEnabled(feature: string, tenantId: string): Promise<boolean> {
-    if (this.internalTenantId && tenantId === this.internalTenantId) return true;
     const row = await this.prisma.withTenant(tenantId, (tx) =>
       tx.featureFlag.findUnique({
         where: { feature_tenantId: { feature, tenantId } },
       }),
     );
-    return Boolean(row?.enabled);
+    if (row) return row.enabled;
+    return Boolean(this.internalTenantId && tenantId === this.internalTenantId);
   }
 
   /** Map of all features enabled for a tenant (for the UI's /feature-flags). */
   async enabledFor(tenantId: string): Promise<Record<string, boolean>> {
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.featureFlag.findMany({ where: { tenantId, enabled: true } }),
+      tx.featureFlag.findMany({ where: { tenantId } }),
     );
     const out: Record<string, boolean> = {};
-    for (const r of rows) out[r.feature] = true;
+    const explicit = new Set<string>();
+    for (const r of rows) {
+      explicit.add(r.feature);
+      if (r.enabled) out[r.feature] = true;
+    }
     if (this.internalTenantId && tenantId === this.internalTenantId) {
-      out[HEARING_WATCH_FEATURE] = true;
-      // isEnabled() short-circuits every flag TRUE for the internal tenant, but
-      // enabledFor() (which powers the web /feature-flags map) must ALSO surface
-      // bill_360 so the R1 dossier UI reveals itself internally with no DB row.
-      out[BILL_360_FEATURE] = true;
-      out[DEFENSE_FUNDING_INTEL_FEATURE] = true;
-      // District Nexus Strategic Relevance — internal-first Release 2 canary.
-      out[DISTRICT_NEXUS_STRATEGIC_FEATURE] = true;
-      // District Nexus Priority Intelligence — internal-first Release 4 canary.
-      out[DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE] = true;
+      for (const feature of INTERNAL_CANARY_FEATURES) {
+        if (!explicit.has(feature)) out[feature] = true;
+      }
     }
     return out;
   }

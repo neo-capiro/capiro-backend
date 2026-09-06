@@ -1267,7 +1267,7 @@ export class DistrictNexusStrategicService {
         }>
       >`
         SELECT bioguide_id::text AS bioguide_id, chamber::text AS chamber,
-               state_code, district
+               state AS state_code, district::text AS district
         FROM congress_member
         WHERE bioguide_id::text IN (${Prisma.join(bioguideList)})
       `;

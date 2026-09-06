@@ -64,20 +64,49 @@ function makeGuard(outcome: { rows?: unknown[]; throws?: Error }, internalTenant
 }
 
 describe('DistrictNexusPriorityIntelligenceFlagGuard', () => {
-  test('allows configured internal tenant without DB round-trip', async () => {
-    const { guard, withSystem } = makeGuard({ rows: [] }, INTERNAL);
+  test('internal missing row (configured UUID, no explicit row anywhere) → allowed, but now DOES hit the DB', async () => {
+    // Regression guard for the release defect: the old fast path returned
+    // true before any query, which meant an explicit disabled row could never
+    // be consulted. The DB round-trip is now mandatory so a disabled row can
+    // always be found. With zero rows (no disabled row exists), the
+    // NOT EXISTS holds and access is still granted.
+    const { guard, withSystem } = makeGuard({ rows: [{ ok: 1 }] }, INTERNAL);
     await expect(guard.canActivate(ctxFor(INTERNAL))).resolves.toBe(true);
-    expect(withSystem).not.toHaveBeenCalled();
+    expect(withSystem).toHaveBeenCalledTimes(1);
   });
 
-  test('allows when both parent DN flag and priority intelligence flag are enabled', async () => {
+  test('internal missing row (slug-matched tenant, no configured UUID) → allowed', async () => {
     const { guard } = makeGuard({ rows: [{ ok: 1 }] });
     await expect(guard.canActivate(ctxFor(TENANT))).resolves.toBe(true);
   });
 
-  test('404s when flags are off — never 403', async () => {
+  test('internal enabled row (explicit enabled:true row for capiro-internal) → allowed', async () => {
+    // Same DB shape as "missing row": an enabled=true row does not match the
+    // `enabled = false` NOT EXISTS clause, so the internal-canary branch
+    // still holds and the query returns a row.
+    const { guard } = makeGuard({ rows: [{ ok: 1 }] }, INTERNAL);
+    await expect(guard.canActivate(ctxFor(INTERNAL))).resolves.toBe(true);
+  });
+
+  test('internal explicit disabled row → 404 (the fixed defect: an explicit off-switch must win)', async () => {
+    // The NOT EXISTS(disabled row) clause fails, and the tenant has no
+    // separate enabled=true row either, so the whole WHERE is false → no
+    // rows → 404. This is the exact scenario that was silently broken
+    // before this fix: an admin inserting `enabled: false` for
+    // capiro-internal had zero effect because the fallback never consulted
+    // the row at all.
+    const { guard } = makeGuard({ rows: [] }, INTERNAL);
+    await expect(guard.canActivate(ctxFor(INTERNAL))).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  test('external missing row → 404 (no fallback for non-internal tenants)', async () => {
     const { guard } = makeGuard({ rows: [] });
     await expect(guard.canActivate(ctxFor(TENANT))).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  test('external enabled row (both parent and child flags enabled) → allowed', async () => {
+    const { guard } = makeGuard({ rows: [{ ok: 1 }] });
+    await expect(guard.canActivate(ctxFor(TENANT))).resolves.toBe(true);
   });
 
   test('parent off + child on → 404 (child cannot bypass district_nexus_v2)', async () => {
@@ -99,20 +128,23 @@ describe('DistrictNexusPriorityIntelligenceFlagGuard', () => {
     expect(withTenant).not.toHaveBeenCalled();
   });
 
-  test('SQL checks BOTH feature keys via bound params and does not cast tenant_id to uuid', async () => {
+  test('SQL checks BOTH feature keys via bound params, checks for a disabled row, and does not cast tenant_id to uuid', async () => {
     const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
     await guard.canActivate(ctxFor(TENANT));
     expect(captured.sql).toContain('intel_feature_flag');
+    expect(captured.sql).toContain('NOT EXISTS');
     // Feature keys are bound parameters (Prisma.sql), not string-literal SQL.
     expect(captured.values).toContain(DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE);
     expect(captured.values).toContain(DISTRICT_NEXUS_FEATURE);
     expect(captured.values).toContain(CAPIRO_INTERNAL_TENANT_SLUG);
+    // The isConfiguredInternalTenant boolean is bound too.
+    expect(captured.values).toContain(false);
     expect(captured.sql).not.toMatch(/tenant_id\s*::\s*uuid/);
     // id::text on tenants is fine; tenant_id column itself must not be cast.
     expect(captured.sql).toMatch(/tenant_id = \?/);
   });
 
-  test('fails closed on DB error', async () => {
+  test('database-read failure fails closed on DB error', async () => {
     const { guard } = makeGuard({ throws: new Error('db down') });
     await expect(guard.canActivate(ctxFor(TENANT))).rejects.toBeInstanceOf(NotFoundException);
   });
