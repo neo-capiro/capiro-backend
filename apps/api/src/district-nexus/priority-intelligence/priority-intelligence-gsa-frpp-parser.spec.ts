@@ -1,6 +1,7 @@
 import {
   parseFrppWorksheet,
   frppIdentityPreimage,
+  normalizeCongressionalDistrict,
   DEFENSE_AGENCY_PATTERNS,
 } from './priority-intelligence-gsa-frpp-parser.js';
 
@@ -195,6 +196,42 @@ describe('parseFrppWorksheet', () => {
     expect(result.rows[0]!.latitude).toBeNull();
     expect(result.rows[0]!.congressionalDistrict).toBeNull();
     expect(result.rows[0]!.countryName).toBe('FED STATES MICRONESIA');
+  });
+
+  it('nulls multi-district congressional values instead of inventing a single key', () => {
+    const result = parseFrppWorksheet(
+      fakeWorksheet(FULL_HEADER, [
+        fullRow({ 'Congressional District': '46,47,48,49' }),
+        fullRow({
+          'Real Property Unique Identifier': 'RPUID-0002',
+          'Congressional District': '05',
+        }),
+      ]),
+      2024,
+    );
+    expect(result.rows[0]!.congressionalDistrict).toBeNull();
+    expect(result.rows[1]!.congressionalDistrict).toBe('5');
+  });
+
+  it('accepts FY24 "Rentable Square Feet" UOM without truncating under the widened ceiling', () => {
+    const result = parseFrppWorksheet(
+      fakeWorksheet(FULL_HEADER, [
+        fullRow({ 'Square Feet Unit of Measure': 'Rentable Square Feet' }),
+      ]),
+      2024,
+    );
+    expect(result.rows[0]!.squareFeetUom).toBe('Rentable Square Feet');
+    expect(result.rows[0]!.squareFeetUom!.length).toBe(20);
+  });
+});
+
+describe('normalizeCongressionalDistrict', () => {
+  it('accepts single district tokens and rejects multi/free-text', () => {
+    expect(normalizeCongressionalDistrict('2')).toBe('2');
+    expect(normalizeCongressionalDistrict('05')).toBe('5');
+    expect(normalizeCongressionalDistrict('46,47,48,49')).toBeNull();
+    expect(normalizeCongressionalDistrict('AL-02')).toBeNull();
+    expect(normalizeCongressionalDistrict(null)).toBeNull();
   });
 });
 

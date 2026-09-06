@@ -13072,8 +13072,8 @@ model GsaRealProperty {
   historicalStatus                String?  @map("historical_status") @db.Text
   /// Present only when the source supplies it — absent is NULL, not zero.
   squareFeet                      Decimal? @map("square_feet") @db.Decimal(18, 2)
-  squareFeetUom                   String?  @map("square_feet_uom") @db.VarChar(16)
-  congressionalDistrict           String?  @map("congressional_district") @db.VarChar(8)
+  squareFeetUom                   String?  @map("square_feet_uom") @db.VarChar(32)
+  congressionalDistrict           String?  @map("congressional_district") @db.VarChar(32)
   /// Boundary Congress of the district attribution; NULL = source did not
   /// state a vintage. Never inferred. CD119/CD120 cannot silently join.
   boundaryCongress                Int?     @map("boundary_congress")
