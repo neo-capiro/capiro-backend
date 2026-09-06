@@ -298,6 +298,17 @@ describeDb('R4 change ledger is reached through REAL commit entrypoints (Postgre
       expect(result.changes!.written).toBe(3); // three additions, one per new rp_uid
       expect(result.changes!.duplicates).toBe(0);
       expect(await ledgerCount({ changeKind: 'gsa_property_added' })).toBe(3);
+
+      // This is the FIRST-EVER commit against this (just-truncated) table —
+      // an empty prior snapshot — so every addition here is baseline
+      // population of the whole fiscal year, not a discrete later change.
+      // Real production shape: FY2024's actual initial load wrote 291,757
+      // rows exactly like this, all in one run.
+      const baselineRows = await prisma.districtNexusChange.findMany({
+        where: { changeKind: 'gsa_property_added' },
+      });
+      expect(baselineRows).toHaveLength(3);
+      for (const r of baselineRows) expect(r.observationKind).toBe('baseline');
     });
 
     it('identical re-publication emits nothing new (idempotent)', async () => {
@@ -350,8 +361,18 @@ describeDb('R4 change ledger is reached through REAL commit entrypoints (Postgre
       expect(removed).toHaveLength(1);
       expect(removed[0]!.sourceRecordId).toBe('RP-R4-TEST-0003');
       expect(removed[0]!.newState).toBe('absent');
+      // Removals/corrections require a prior row — never baseline.
+      expect(material[0]!.observationKind).toBe('change');
+      expect(removed[0]!.observationKind).toBe('change');
 
       expect(await ledgerCount({ changeKind: 'gsa_property_added' })).toBe(4); // 3 from run1 + RP-0004
+      // RP-0004 is a genuinely SUBSEQUENT addition (the prior snapshot from
+      // this fiscal year is non-empty by now) — a real later change, not a
+      // repeat of the baseline classification from the first commit.
+      const rp0004 = await prisma.districtNexusChange.findFirst({
+        where: { changeKind: 'gsa_property_added', sourceRecordId: 'RP-R4-TEST-0004' },
+      });
+      expect(rp0004!.observationKind).toBe('change');
     });
   });
 });

@@ -739,7 +739,13 @@ export class DistrictNexusPriorityIntelligenceService {
 
   private async loadChanges(state: string, district: string): Promise<RecentChangeRecord[]> {
     const rows = await this.prisma.districtNexusChange.findMany({
-      where: { stateCode: state, districtCode: district },
+      // observationKind: 'change' excludes baseline rows (a source/year's
+      // first-ever bulk population, e.g. GSA's initial FY load) from this
+      // "recent changes" rail — they are real and still queryable directly
+      // against district_nexus_change for audit, but are not "recent
+      // intelligence" a user should see, and would otherwise crowd out
+      // genuine later additions/removals/corrections within `take: 20`.
+      where: { stateCode: state, districtCode: district, observationKind: 'change' },
       orderBy: { observedAt: 'desc' },
       take: 20,
     });

@@ -25,8 +25,11 @@
  *    events inside its real ingest transaction; the district-nexus bridge
  *    (createDistrictNexusChangeSink) runs detectCpfCdsChange and persists
  *    through the same transaction — the ledger can never diverge from facts.
- *  - Economic: detectEconomicFactChange remains pure logic prepared for a
- *    future economic commit path (no production call site yet — honest).
+ *  - Economic: writeEconomicFacts() (apps/api/scripts/district-economic-source.ts)
+ *    looks up the fact's most recent prior-year value inside the same upsert
+ *    statement, calls detectEconomicFactChange, and persists any resulting
+ *    change through the same transaction as the fact write — same
+ *    same-transaction discipline as GSA and CPF/CDS above.
  */
 
 import { createHash } from 'node:crypto';
@@ -65,6 +68,8 @@ export function changeDedupeKey(parts: {
   return createHash('sha256').update(preimage, 'utf8').digest('hex').slice(0, 120);
 }
 
+export type ChangeObservationKind = 'baseline' | 'change';
+
 export interface DetectedChange {
   changeKind: string;
   source: string;
@@ -84,6 +89,15 @@ export interface DetectedChange {
   sourceYear: number | null;
   geographyVintage: string | null;
   severity: DistrictNexusChangeSeverity;
+  /**
+   * 'baseline' marks the first-ever observation of an entire source/year
+   * publication (e.g. a fiscal year's whole GSA FRPP file loaded against an
+   * empty prior snapshot) — real, source-backed, auditable, but NOT a
+   * "recent intelligence change" a user should see crowding out genuine
+   * later additions/removals/corrections. 'change' is everything else,
+   * including the default for sources with no baseline-flood risk.
+   */
+  observationKind: ChangeObservationKind;
   provenance: Record<string, unknown>;
 }
 
@@ -127,6 +141,13 @@ export function detectGsaChanges(params: {
 }): DetectedChange[] {
   const changes: DetectedChange[] = [];
   const priorByRpUid = new Map(params.priorRows.map((r) => [r.rpUid, r]));
+  // An empty prior snapshot means this publication is the first-ever
+  // observation of the whole source/year — every "addition" detected below is
+  // baseline population, not a discrete later change. Removals/material
+  // changes can only be detected against a NON-empty prior snapshot by
+  // construction (they require a prior row to compare against), so they are
+  // never baseline.
+  const isBaselinePublication = params.priorRows.length === 0;
 
   for (const current of params.currentRows) {
     const prior = priorByRpUid.get(current.rpUid) as (typeof params.priorRows)[number] | undefined;
@@ -163,6 +184,7 @@ export function detectGsaChanges(params: {
           absoluteDelta: null,
           structuralChange: true,
         }).severity,
+        observationKind: isBaselinePublication ? 'baseline' : 'change',
         provenance: {
           policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
           sourceDocumentSha256: params.sourceDocumentSha256,
@@ -218,6 +240,7 @@ export function detectGsaChanges(params: {
         sourceYear: params.fiscalYear,
         geographyVintage: vintage,
         severity: decision.severity,
+        observationKind: 'change',
         provenance: {
           policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
           severityReason: decision.reason,
@@ -260,6 +283,7 @@ export function detectGsaChanges(params: {
           absoluteDelta: null,
           structuralChange: true,
         }).severity,
+        observationKind: 'change',
         provenance: {
           policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
           sourceDocumentSha256: params.sourceDocumentSha256,
@@ -330,6 +354,10 @@ export function detectCpfCdsChange(params: {
           absoluteDelta: null,
           structuralChange: true,
         }).severity,
+        // CPF/CDS has no documented single-day bulk-backfill flood risk like
+        // GSA's whole-file annual publication — every new canonical request is
+        // a genuine, individually-sourced event, so it is never baseline.
+        observationKind: 'change',
         provenance: {
           policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
           chamber: params.chamber,
@@ -380,6 +408,7 @@ export function detectCpfCdsChange(params: {
       sourceYear: params.fiscalYear,
       geographyVintage: vintage,
       severity: decision.severity,
+      observationKind: 'change',
       provenance: {
         policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
         severityReason: decision.reason,
@@ -437,6 +466,10 @@ export function detectEconomicFactChange(params: {
       sourceYear: params.currentYear,
       geographyVintage: 'source_vintage_per_year',
       severity: decision.severity,
+      // Year-over-year comparison requires a real prior value (line ~409
+      // returns [] otherwise), so a first-ever vintage can never reach here —
+      // always a genuine change, never baseline.
+      observationKind: 'change',
       provenance: {
         policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
         severityReason: decision.reason,
@@ -504,6 +537,7 @@ export class DistrictNexusChangeWriter {
           sourceYear: change.sourceYear,
           geographyVintage: change.geographyVintage,
           severity: change.severity,
+          observationKind: change.observationKind,
           provenance: change.provenance as Prisma.InputJsonValue,
         },
       });

@@ -9,9 +9,11 @@
  * the same query (or a new unguarded rail) is caught before it reaches a
  * real drawer again.
  *
- * This is the migration-free hotfix scope only: the SQL correctness fix and
- * the member-rail failure isolation. GSA baseline/observation_kind coverage
- * lives in the separate migration-bearing PR that adds that column.
+ * The SQL correctness fix, the state-code-to-full-name conversion, and the
+ * member-rail failure isolation tests below also exist, unchanged, in the
+ * separate migration-free hotfix (already merged) — this file is the
+ * superset, additionally covering GSA baseline/observation_kind semantics
+ * (Phase 3), which depend on the migration this branch adds.
  */
 import { describe, expect, jest, test } from '@jest/globals';
 import { DistrictNexusPriorityIntelligenceService } from './priority-intelligence.service.js';
@@ -244,6 +246,74 @@ describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
     await loadMembers(TENANT, 'MT', '00');
     const houseSql = capturedCongressMemberSql.find((sql) => sql.includes("chamber = 'house'"));
     expect(houseSql).toBeDefined();
+  });
+});
+
+describe('DistrictNexusPriorityIntelligenceService — GSA baseline suppression (Phase 3)', () => {
+  test('loadChanges() queries observationKind: "change" — baseline rows are excluded at the DB level, not client-side', async () => {
+    // A DB-level filter (not a post-fetch slice) is what actually protects
+    // the `take: 20` window: if baseline rows were filtered in JS after
+    // fetching only 20 rows ordered by recency, a district with >20 baseline
+    // rows would still see zero real events. Filtering in the WHERE clause
+    // means the 20-row window is drawn only from genuine 'change' rows to
+    // begin with — this test proves the query shape, not just the output.
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    const findMany = (prisma as unknown as { districtNexusChange: { findMany: jest.Mock } })
+      .districtNexusChange.findMany;
+    const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
+
+    await svc.getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ observationKind: 'change' }),
+        take: 20,
+      }),
+    );
+  });
+
+  test('a district with many baseline rows still surfaces genuine change rows within the 20-row window (pagination coexistence)', async () => {
+    // Simulate the real shape: the mocked findMany is asked to filter to
+    // observationKind:'change', and returns ONLY the genuine change rows
+    // (as the real WHERE clause would) even though far more than 20 baseline
+    // rows exist in the underlying table for this district.
+    const changeRow = {
+      changeKind: 'cpf_cds_request_new',
+      source: 'cpf',
+      sourceRecordId: 'req-1',
+      stateCode: 'FL',
+      districtCode: '08',
+      boundaryCongress: null,
+      oldValue: null,
+      newValue: { requestedAmountUsd: '500000' },
+      oldState: null,
+      newState: 'requested',
+      observedAt: new Date('2026-09-05T00:00:00.000Z'),
+      effectiveAt: null,
+      sourceYear: 2026,
+      geographyVintage: 'source_unknown',
+      severity: 'notable',
+      provenance: {},
+    };
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    const districtNexusChange = (
+      prisma as unknown as {
+        districtNexusChange: {
+          findMany: jest.Mock<
+            (args?: { where?: { observationKind?: string } }) => Promise<unknown[]>
+          >;
+        };
+      }
+    ).districtNexusChange;
+    districtNexusChange.findMany.mockImplementation(async (args) =>
+      args?.where?.observationKind === 'change' ? [changeRow] : [],
+    );
+    const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
+
+    const result = await svc.getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+
+    expect(result.priorityIntelligence.recentChanges).toHaveLength(1);
+    expect(result.priorityIntelligence.recentChanges[0]!.changeKind).toBe('cpf_cds_request_new');
   });
 });
 

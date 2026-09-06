@@ -178,117 +178,127 @@ export class GsaRealPropertyIngestService {
 
         await this.prisma.$transaction(
           async (tx) => {
-          for (const { hash, row } of prepared) {
-            const existing = await tx.gsaRealProperty.findUnique({ where: { sourceHash: hash } });
-            if (existing) {
-              skipped += 1;
-              continue;
-            }
-            await tx.gsaRealProperty.create({
-              data: {
-                sourceHash: hash,
-                sourceDocumentSha256: options.sourceDocumentSha256,
-                sourceDataset: options.sourceDataset,
-                fiscalYear: options.fiscalYear,
-                retrievedAt: new Date(),
-                rpUid: row.rpUid,
-                reportingAgency: row.reportingAgency,
-                reportingAgencyCode: row.reportingAgencyCode,
-                usingAgency: row.usingAgency,
-                bureau: row.bureau,
-                installationName: row.installationName,
-                installationId: row.installationId,
-                grain: row.grain,
-                isDefense: row.isDefense,
-                usOrForeign: row.usOrForeign,
-                countryName: row.countryName,
-                stateCode: row.stateCode,
-                stateName: row.stateName,
-                countyName: row.countyName,
-                cityName: row.cityName,
-                zipCode: row.zipCode,
-                streetAddress: row.streetAddress,
-                latitude: row.latitude,
-                longitude: row.longitude,
-                geographyBasis: row.geographyBasis,
-                legalInterest: row.legalInterest,
-                realPropertyType: row.realPropertyType,
-                realPropertyUse: row.realPropertyUse,
-                utilization: row.utilization,
-                assetStatus: row.assetStatus,
-                assetStatusCode: row.assetStatusCode,
-                historicalStatus: row.historicalStatus,
-                squareFeet: row.squareFeet,
-                squareFeetUom: row.squareFeetUom,
-                congressionalDistrict: row.congressionalDistrict,
-                boundaryCongress: row.boundaryCongress,
-                districtSource: row.congressionalDistrict ? 'source_reported' : 'unresolved',
-                congressionalDistrictSourceUrl: options.sourceUrl,
-                congressSession: row.congressSession,
-                leaseExpirationDate: row.leaseExpirationDate,
-                leaseStartDate: row.leaseStartDate,
-                annualRentUsd: row.annualRentUsd,
-                federalEmployeesCount:
-                  row.federalEmployeesCount == null ? null : Math.trunc(row.federalEmployeesCount),
-                federalContractorsCount:
-                  row.federalContractorsCount == null
-                    ? null
-                    : Math.trunc(row.federalContractorsCount),
-              },
-            });
-            written += 1;
-            // Release 4 change rail: this row is genuinely NEW (no prior
-            // persisted row for the rp_uid) → gsa_property_added, written in
-            // the same chunk transaction. Rows whose rp_uid existed before are
-            // NOT changes (corrected re-publication adds a new fact row with a
-            // new document SHA; the VALUE diff is handled post-commit below).
-            if (this.changeWriter && !priorByRpUid.has(row.rpUid)) {
-              chunkAdditions.push({
-                changeKind: 'gsa_property_added',
-                source: 'gsa',
-                sourceDataset: options.sourceDataset,
-                sourceRecordId: row.rpUid,
-                sourceFiscalYear: options.fiscalYear,
-                sourceVersion: `frpp_fy${options.fiscalYear}:${options.sourceDocumentSha256.slice(0, 12)}`,
-                stateCode: row.stateCode,
-                districtCode: row.congressionalDistrict,
-                boundaryCongress: row.boundaryCongress,
-                oldValue: null,
-                newValue: {
-                  squareFeet: row.squareFeet == null ? null : String(row.squareFeet),
-                  legalInterest: row.legalInterest,
-                  assetStatus: row.assetStatus,
-                  realPropertyUse: row.realPropertyUse,
-                },
-                oldState: null,
-                newState: 'present',
-                observedAt: new Date(),
-                effectiveAt: null,
-                sourceYear: options.fiscalYear,
-                geographyVintage:
-                  row.boundaryCongress == null ? 'source_unknown' : `cd${row.boundaryCongress}`,
-                severity: decideChangeSeverity('gsa', {
-                  relativeDelta: null,
-                  absoluteDelta: null,
-                  structuralChange: true,
-                }).severity,
-                provenance: {
-                  policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
+            for (const { hash, row } of prepared) {
+              const existing = await tx.gsaRealProperty.findUnique({ where: { sourceHash: hash } });
+              if (existing) {
+                skipped += 1;
+                continue;
+              }
+              await tx.gsaRealProperty.create({
+                data: {
+                  sourceHash: hash,
                   sourceDocumentSha256: options.sourceDocumentSha256,
-                  detection: 'prior persisted snapshot had no row for this rp_uid',
-                  sourceRunId: run.id,
+                  sourceDataset: options.sourceDataset,
+                  fiscalYear: options.fiscalYear,
+                  retrievedAt: new Date(),
+                  rpUid: row.rpUid,
+                  reportingAgency: row.reportingAgency,
+                  reportingAgencyCode: row.reportingAgencyCode,
+                  usingAgency: row.usingAgency,
+                  bureau: row.bureau,
+                  installationName: row.installationName,
+                  installationId: row.installationId,
+                  grain: row.grain,
+                  isDefense: row.isDefense,
+                  usOrForeign: row.usOrForeign,
+                  countryName: row.countryName,
+                  stateCode: row.stateCode,
+                  stateName: row.stateName,
+                  countyName: row.countyName,
+                  cityName: row.cityName,
+                  zipCode: row.zipCode,
+                  streetAddress: row.streetAddress,
+                  latitude: row.latitude,
+                  longitude: row.longitude,
+                  geographyBasis: row.geographyBasis,
+                  legalInterest: row.legalInterest,
+                  realPropertyType: row.realPropertyType,
+                  realPropertyUse: row.realPropertyUse,
+                  utilization: row.utilization,
+                  assetStatus: row.assetStatus,
+                  assetStatusCode: row.assetStatusCode,
+                  historicalStatus: row.historicalStatus,
+                  squareFeet: row.squareFeet,
+                  squareFeetUom: row.squareFeetUom,
+                  congressionalDistrict: row.congressionalDistrict,
+                  boundaryCongress: row.boundaryCongress,
+                  districtSource: row.congressionalDistrict ? 'source_reported' : 'unresolved',
+                  congressionalDistrictSourceUrl: options.sourceUrl,
+                  congressSession: row.congressSession,
+                  leaseExpirationDate: row.leaseExpirationDate,
+                  leaseStartDate: row.leaseStartDate,
+                  annualRentUsd: row.annualRentUsd,
+                  federalEmployeesCount:
+                    row.federalEmployeesCount == null
+                      ? null
+                      : Math.trunc(row.federalEmployeesCount),
+                  federalContractorsCount:
+                    row.federalContractorsCount == null
+                      ? null
+                      : Math.trunc(row.federalContractorsCount),
                 },
               });
+              written += 1;
+              // Release 4 change rail: this row is genuinely NEW (no prior
+              // persisted row for the rp_uid) → gsa_property_added, written in
+              // the same chunk transaction. Rows whose rp_uid existed before are
+              // NOT changes (corrected re-publication adds a new fact row with a
+              // new document SHA; the VALUE diff is handled post-commit below).
+              if (this.changeWriter && !priorByRpUid.has(row.rpUid)) {
+                chunkAdditions.push({
+                  changeKind: 'gsa_property_added',
+                  source: 'gsa',
+                  sourceDataset: options.sourceDataset,
+                  sourceRecordId: row.rpUid,
+                  sourceFiscalYear: options.fiscalYear,
+                  sourceVersion: `frpp_fy${options.fiscalYear}:${options.sourceDocumentSha256.slice(0, 12)}`,
+                  stateCode: row.stateCode,
+                  districtCode: row.congressionalDistrict,
+                  boundaryCongress: row.boundaryCongress,
+                  oldValue: null,
+                  newValue: {
+                    squareFeet: row.squareFeet == null ? null : String(row.squareFeet),
+                    legalInterest: row.legalInterest,
+                    assetStatus: row.assetStatus,
+                    realPropertyUse: row.realPropertyUse,
+                  },
+                  oldState: null,
+                  newState: 'present',
+                  observedAt: new Date(),
+                  effectiveAt: null,
+                  sourceYear: options.fiscalYear,
+                  geographyVintage:
+                    row.boundaryCongress == null ? 'source_unknown' : `cd${row.boundaryCongress}`,
+                  severity: decideChangeSeverity('gsa', {
+                    relativeDelta: null,
+                    absoluteDelta: null,
+                    structuralChange: true,
+                  }).severity,
+                  // priorByRpUid is the whole-FY snapshot taken before this
+                  // run's writes (loadPriorSnapshot above); if it started empty,
+                  // this run is the first-ever observation of the entire fiscal
+                  // year, not a discrete later addition — classify it as
+                  // baseline so it doesn't crowd the user-facing "recent
+                  // changes" rail. A future fiscal year's own first load will
+                  // get the same treatment the next time this snapshot is empty.
+                  observationKind: priorByRpUid.size === 0 ? 'baseline' : 'change',
+                  provenance: {
+                    policyVersion: DISTRICT_NEXUS_CHANGE_POLICY_VERSION,
+                    sourceDocumentSha256: options.sourceDocumentSha256,
+                    detection: 'prior persisted snapshot had no row for this rp_uid',
+                    sourceRunId: run.id,
+                  },
+                });
+              }
             }
-          }
-          if (chunkAdditions.length > 0) {
-            if (!this.changeWriter) {
-              throw new Error(
-                'change-writer invariant violated: additions detected without a DistrictNexusChangeWriter',
-              );
+            if (chunkAdditions.length > 0) {
+              if (!this.changeWriter) {
+                throw new Error(
+                  'change-writer invariant violated: additions detected without a DistrictNexusChangeWriter',
+                );
+              }
+              mergeSummary(await this.changeWriter.writeChanges(chunkAdditions, tx));
             }
-            mergeSummary(await this.changeWriter.writeChanges(chunkAdditions, tx));
-          }
           },
           { timeout: TX_TIMEOUT_MS, maxWait: 30_000 },
         );
