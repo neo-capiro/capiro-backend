@@ -26,6 +26,8 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
   const [defaultXCategory, setDefaultXCategory] = useState('All categories');
   const [defaultXDraft, setDefaultXDraft] = useState<string[]>([]);
   const [defaultXDirty, setDefaultXDirty] = useState(false);
+  const [savingDefaults, setSavingDefaults] = useState(false);
+  const [defaultXError, setDefaultXError] = useState<string | null>(null);
   const [customDraft, setCustomDraft] = useState(() => model.news.preferences.customTopics.join(', '));
   const workOrder = model.order.filter((key): key is WorkKey => key === 'today' || key === 'work');
   const wireEnabled = model.visibility.news || model.visibility.xFeed;
@@ -85,15 +87,38 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
     finally { setAddingX(false); }
   };
   const toggleDefaultX = (account: DefaultXFeedAccount) => {
+    if (savingDefaults) return;
     const selected = selectedDefaultUsernames.some((username) => username.toLowerCase() === account.username.toLowerCase());
     setDefaultXDraft(selected
       ? selectedDefaultUsernames.filter((username) => username.toLowerCase() !== account.username.toLowerCase())
       : [...selectedDefaultUsernames, account.username]);
     setDefaultXDirty(true);
+    setDefaultXError(null);
   };
   const saveDefaultX = async () => {
-    await model.xFeed.applyDefaultAccounts(selectedDefaultUsernames);
-    setDefaultXDirty(false);
+    if (savingDefaults) return;
+    setSavingDefaults(true);
+    setDefaultXError(null);
+    try {
+      // Keep defaultXDirty true until the POST + subscription refetch finish.
+      // Clearing dirty first made the UI fall back to stale selectedDefaultUsernames
+      // and look like the save never happened.
+      await model.xFeed.applyDefaultAccounts(selectedDefaultUsernames);
+      setDefaultXDirty(false);
+      setDefaultXDraft([]);
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'response' in error
+          ? String((error as { response?: { data?: { message?: string | string[] } } }).response?.data?.message ?? '')
+          : '';
+      const normalized = Array.isArray(message) ? message.join(' ') : message;
+      setDefaultXError(
+        normalized.trim() ||
+          'Could not save default X accounts. Check your selection and try again.',
+      );
+    } finally {
+      setSavingDefaults(false);
+    }
   };
 
   const saveCustomTopics = () => {
@@ -149,8 +174,9 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
           {defaultXAccounts.length > 0 ? <div className="dashv2-default-x">
             <div className="dashv2-default-x__head"><span><strong>Default X account library</strong><small>Select the feeds you want enabled. You can change this at any time.</small></span><span className="dashv2-pill dashv2-pill--brand">{selectedDefaultUsernames.length} selected</span></div>
             <div className="dashv2-default-x__controls"><select aria-label="Filter default X accounts" value={defaultXCategory} onChange={(event) => setDefaultXCategory(event.target.value)}>{defaultXCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select><button type="button" className="dashv2-link" onClick={() => { setDefaultXDraft(defaultXAccounts.map((account) => account.username)); setDefaultXDirty(true); }}>Select all</button><button type="button" className="dashv2-link" onClick={() => { setDefaultXDraft([]); setDefaultXDirty(true); }}>Clear all</button></div>
-            <div className="dashv2-default-x__list">{visibleDefaultXAccounts.map((account) => { const checked = selectedDefaultUsernames.some((username) => username.toLowerCase() === account.username.toLowerCase()); return <label key={account.username} className="dashv2-default-x__option"><input type="checkbox" checked={checked} onChange={() => toggleDefaultX(account)} /><span><strong>{account.displayName}</strong><small>@{account.username} · {account.rationale}</small></span></label>; })}</div>
-            {defaultXDirty ? <button type="button" className="dashv2-primary dashv2-default-x__save" onClick={() => void saveDefaultX()}>Save default accounts</button> : null}
+            <div className="dashv2-default-x__list">{visibleDefaultXAccounts.map((account) => { const checked = selectedDefaultUsernames.some((username) => username.toLowerCase() === account.username.toLowerCase()); return <label key={account.username} className="dashv2-default-x__option"><input type="checkbox" checked={checked} disabled={savingDefaults} onChange={() => toggleDefaultX(account)} /><span><strong>{account.displayName}</strong><small>@{account.username} · {account.rationale}</small></span></label>; })}</div>
+            {defaultXDirty ? <button type="button" className="dashv2-primary dashv2-default-x__save" disabled={savingDefaults} onClick={() => void saveDefaultX()}>{savingDefaults ? 'Saving…' : 'Save default accounts'}</button> : null}
+            {defaultXError ? <p className="dashv2-drawer__error">{defaultXError}</p> : null}
           </div> : null}
           {model.xFeed.subscriptions.map((sub) => <div key={sub.id} className="dashv2-account"><span className="dashv2-avatar dashv2-avatar--tiny">{initials(sub.displayName ?? sub.username)}</span><span className="dashv2-account__copy"><strong>@{sub.username}</strong>{sub.displayName ? <small>{sub.displayName}</small> : null}</span><button type="button" className="dashv2-account__remove" aria-label={`Remove @${sub.username}`} onClick={() => void model.xFeed.removeSource(sub.id)}><DashboardIcon name="XClose" size={16} /></button></div>)}
           <SectionHead label="Add a manual account" hint="Any public handle" /><div className="dashv2-add-row"><input value={xDraft} onChange={(e)=>setXDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();void addX();}}} placeholder="@username" aria-label="X username"/><CapiroButton variant="secondary" size="standard" disabled={addingX} onClick={() => void addX()}>{addingX?'Adding…':'Add'}</CapiroButton></div>

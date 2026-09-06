@@ -962,10 +962,21 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         .filter((sub) => xFeedDefaults.data?.some((account) => account.username.toLowerCase() === sub.username.toLowerCase()))
         .map((sub) => sub.username),
       applyDefaultAccounts: async (usernames: string[]) => {
+        // Await the POST and the subscription refetch so the Customize drawer
+        // can keep the draft selection visible until the server selection is
+        // actually reflected in selectedDefaultUsernames. Fire-and-forget
+        // invalidation left a window where dirty=false and stale subs made
+        // every checkbox snap back to the pre-save state.
         await api.post('/api/intelligence/x-feed/defaults', { usernames });
-        void queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] });
-        void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
-        void queryClient.invalidateQueries({ queryKey: ['x-feed-defaults'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] }),
+          queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] }),
+          queryClient.invalidateQueries({ queryKey: ['x-feed-defaults'] }),
+        ]);
+        await Promise.all([
+          queryClient.refetchQueries({ queryKey: ['x-feed-subscriptions'] }),
+          queryClient.refetchQueries({ queryKey: ['x-feed-dashboard'] }),
+        ]);
       },
     };
 
@@ -1098,9 +1109,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
-        defaultAccounts: xFeedDefaults.data ?? [],
-        selectedDefaultUsernames: [],
-        applyDefaultAccounts: async () => {},
+        ...sharedDefaults,
       };
     }
 

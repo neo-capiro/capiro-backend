@@ -18,8 +18,11 @@ import { DEFAULT_X_FEED_ACCOUNTS } from './x-feed-default-library.js';
 /**
  * Maximum number of X accounts a single user can subscribe to.
  * Enforced on add. Can be overridden via X_FEED_MAX_SOURCES env var.
+ *
+ * Default raised above the curated default-library size (~60) so
+ * "Save default accounts" / Select all is not capped mid-save at 25.
  */
-const MAX_SOURCES = Number.parseInt(process.env.X_FEED_MAX_SOURCES ?? '25', 10);
+const MAX_SOURCES = Number.parseInt(process.env.X_FEED_MAX_SOURCES ?? '100', 10);
 
 /** TTL for the in-process account-resolution cache (username → X user data). */
 const ACCOUNT_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -348,19 +351,55 @@ export class XFeedService {
       .filter((username): username is string => Boolean(username)))];
     const current = await this.getSubscriptions(ctx);
     const existingDefault = new Set(current.filter((sub) => allowed.has(sub.username.toLowerCase())).map((sub) => sub.username.toLowerCase()));
+    const failed: Array<{ username: string; message: string }> = [];
 
+    // Apply selected defaults one-by-one. A single X resolve failure must not
+    // roll back already-added accounts or leave the drawer thinking nothing saved.
     for (const username of selected) {
-      await this.addSubscription(ctx, username);
+      try {
+        await this.addSubscription(ctx, username);
+      } catch (error) {
+        const message =
+          error instanceof HttpException
+            ? String(error.message)
+            : error instanceof Error
+              ? error.message
+              : String(error);
+        this.logger.warn(`applyDefaultSubscriptions failed for @${username}: ${message}`);
+        failed.push({ username, message });
+      }
     }
     for (const sub of current) {
       if (allowed.has(sub.username.toLowerCase()) && !selected.some((username) => username.toLowerCase() === sub.username.toLowerCase())) {
-        await this.removeSubscription(ctx, sub.id);
+        try {
+          await this.removeSubscription(ctx, sub.id);
+        } catch (error) {
+          const message =
+            error instanceof HttpException
+              ? String(error.message)
+              : error instanceof Error
+                ? error.message
+                : String(error);
+          this.logger.warn(`applyDefaultSubscriptions remove failed for @${sub.username}: ${message}`);
+          failed.push({ username: sub.username, message });
+        }
       }
     }
+
+    const subscriptions = await this.getSubscriptions(ctx);
+    if (failed.length > 0 && subscriptions.filter((sub) => allowed.has(sub.username.toLowerCase())).length === 0 && selected.length > 0) {
+      // Nothing from the selection stuck — surface as a hard failure so the UI
+      // does not claim success and clear the draft.
+      throw new BadGatewayException(
+        failed[0]?.message || 'Could not apply default X accounts.',
+      );
+    }
+
     return {
       selected,
-      subscriptions: await this.getSubscriptions(ctx),
+      subscriptions,
       added: selected.filter((username) => !existingDefault.has(username.toLowerCase())).length,
+      failed,
     };
   }
 
