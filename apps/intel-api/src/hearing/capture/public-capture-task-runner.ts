@@ -250,7 +250,9 @@ export async function runPublicCaptureTask(
         jobType: 'capture',
         workerId,
         now: now(),
-        limit,
+        // A capture can run for hours. Claim only the job this standalone task
+        // can start now; queued siblings must remain claimable by other tasks.
+        limit: 1,
         leaseDurationMs: WORKER_JOB_LEASE_MS,
       });
   const result: PublicCaptureTaskResult = {

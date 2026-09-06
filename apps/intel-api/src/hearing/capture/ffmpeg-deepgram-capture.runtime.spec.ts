@@ -79,6 +79,7 @@ describe('FfmpegDeepgramCaptureRuntime', () => {
     const result = await runtime.run({
       captureId: 'capture-1',
       hearingId: 'hearing-1',
+      lease: { ownerId: 'worker-1', fencingToken: 1 },
       mediaUrl: 'https://media.senate.gov/live/master.m3u8',
       officialPageUrl: 'https://www.armed-services.senate.gov/hearings/example',
       timelineOffsetMs: 5_000,
@@ -108,6 +109,7 @@ describe('FfmpegDeepgramCaptureRuntime', () => {
         processFactory: {
           spawn: jest.fn(() => {
             queueMicrotask(() => {
+              process.stderr.write('old warning '.repeat(2_000));
               process.stderr.write('upstream refused the manifest');
               process.complete(1);
             });
@@ -128,10 +130,58 @@ describe('FfmpegDeepgramCaptureRuntime', () => {
       runtime.run({
         captureId: 'capture-1',
         hearingId: 'hearing-1',
+        lease: { ownerId: 'worker-1', fencingToken: 1 },
         mediaUrl: 'https://media.senate.gov/live/master.m3u8',
         timelineOffsetMs: 0,
         signal: new AbortController().signal,
       }),
     ).rejects.toThrow(/upstream refused the manifest/);
+  });
+
+  it('persists shutdown finals and gaps before returning a failed attempt for recovery', async () => {
+    const process = new FakeFfmpegProcess();
+    let callbacks: ServerDeepgramStreamCallbacks;
+    let releaseWrite!: () => void;
+    const pendingWrite = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const appendFinal = jest.fn(() => pendingWrite);
+    const appendGap = jest.fn(async () => undefined);
+    let finalized = false;
+    const runtime = new FfmpegDeepgramCaptureRuntime('key', { appendFinal, appendGap }, {
+      buildCommand: jest.fn(async () => command()),
+      processFactory: { spawn: () => {
+        queueMicrotask(() => process.complete(1));
+        return process as never;
+      } },
+      createTranscriber: (cb) => {
+        callbacks = cb;
+        return {
+          timelineCursorMs: 2_000,
+          start: jest.fn(), sendAudio: jest.fn(() => true),
+          stopAndWait: jest.fn(async () => {
+            if (finalized) return;
+            finalized = true;
+            callbacks.onFinal({ startMs: 0, endMs: 1_000, text: 'last words' });
+            callbacks.onGap({ startMs: 1_000, endMs: 2_000, reason: 'DEEPGRAM_DISCONNECT' });
+          }),
+        };
+      },
+    });
+    let settled = false;
+    const running = runtime.run({
+      captureId: 'capture-1', hearingId: 'hearing-1',
+      lease: { ownerId: 'worker-1', fencingToken: 1 },
+      mediaUrl: 'https://media.senate.gov/live/master.m3u8', timelineOffsetMs: 0,
+      signal: new AbortController().signal,
+    }).catch((error) => { settled = true; return error; });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(appendFinal).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    releaseWrite();
+    const error = await running;
+    expect(appendGap).toHaveBeenCalledTimes(1);
+    expect(error).toMatchObject({
+      capturedMs: 2_000,
+      captureGaps: [{ startMs: 1_000, endMs: 2_000, reason: 'DEEPGRAM_DISCONNECT' }],
+    });
   });
 });

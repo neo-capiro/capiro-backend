@@ -6,7 +6,7 @@ import {
   buildValidatedFfmpegAudioCommand,
   type FfmpegAudioCommand,
 } from './ffmpeg-audio-command.js';
-import type { CaptureGap } from './public-hearing-capture-state.js';
+import type { CaptureGap, CaptureLease } from './public-hearing-capture-state.js';
 import type { PublicCaptureRuntimePort } from './public-capture.orchestrator.js';
 import {
   ServerDeepgramStreamManager,
@@ -18,6 +18,7 @@ export interface PublicTranscriptSinkPort {
   appendFinal(input: {
     captureId: string;
     hearingId: string;
+    lease: Pick<CaptureLease, 'ownerId' | 'fencingToken'>;
     segment: FinalSegment;
   }): Promise<void>;
   publishInterim?(input: {
@@ -28,6 +29,7 @@ export interface PublicTranscriptSinkPort {
   appendGap(input: {
     captureId: string;
     hearingId: string;
+    lease: Pick<CaptureLease, 'ownerId' | 'fencingToken'>;
     gap: CaptureGap;
   }): Promise<void>;
 }
@@ -125,6 +127,7 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
   async run(input: {
     captureId: string;
     hearingId: string;
+    lease: Pick<CaptureLease, 'ownerId' | 'fencingToken'>;
     mediaUrl: string;
     officialPageUrl?: string;
     timelineOffsetMs: number;
@@ -144,6 +147,7 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
       sampleRate: this.sampleRate,
       channels: this.channels,
     });
+    if (input.signal.aborted) throw abortError(input.signal.reason);
 
     const gaps: CaptureGap[] = [];
     let process: FfmpegProcess | undefined;
@@ -181,6 +185,7 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
           this.sink.appendFinal({
             captureId: input.captureId,
             hearingId: input.hearingId,
+            lease: input.lease,
             segment,
           }),
         );
@@ -192,6 +197,7 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
           this.sink.appendGap({
             captureId: input.captureId,
             hearingId: input.hearingId,
+            lease: input.lease,
             gap: canonicalGap,
           }),
         );
@@ -208,9 +214,8 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
       channels: this.channels,
       initialTimelineMs: Math.floor(input.timelineOffsetMs),
     });
-    transcriber.start();
-
     try {
+      transcriber.start();
       process = this.processFactory.spawn(command);
       const abortListener = () => {
         stopProcess(process, this.terminationGraceMs);
@@ -229,8 +234,9 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
             }
           });
           process!.stderr.on('data', (chunk: Buffer | Uint8Array | string) => {
-            if (stderr.length >= this.maxStderrBytes) return;
-            stderr += Buffer.from(chunk).toString('utf8').slice(0, this.maxStderrBytes - stderr.length);
+            // Keep the latest diagnostics: startup warnings can fill this
+            // buffer long before a multi-hour source eventually fails.
+            stderr = (stderr + Buffer.from(chunk).toString('utf8')).slice(-this.maxStderrBytes);
           });
           process!.once('error', (error) => reject(error));
           process!.once('close', (code, signal) => {
@@ -256,13 +262,15 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
             }
             resolve();
           });
+          // Abortion can race the asynchronous command validation / spawn.
+          if (input.signal.aborted) abortListener();
         });
       } finally {
         stopped = true;
         input.signal.removeEventListener('abort', abortListener);
       }
 
-      await transcriber.stopAndWait(5_000);
+      await transcriber.stopAndWait(35_000);
       await writeChain;
       if (transcriptionError) {
         throw captureRuntimeFailure(transcriptionError, transcriber.timelineCursorMs, gaps);
@@ -279,6 +287,16 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
       }
       return { capturedMs: Math.floor(transcriber.timelineCursorMs), gaps };
     } catch (error) {
+      stopped = true;
+      stopProcess(process, this.terminationGraceMs);
+      try {
+        await transcriber.stopAndWait(35_000);
+      } catch {
+        // Preserve the original runtime failure after bounded final draining.
+      }
+      // Finalization may still produce final segments or explicit buffer gaps.
+      // Persist them before the coordinator snapshots progress and retries.
+      await writeChain;
       throw captureRuntimeFailure(error, transcriber.timelineCursorMs, gaps);
     } finally {
       stopped = true;

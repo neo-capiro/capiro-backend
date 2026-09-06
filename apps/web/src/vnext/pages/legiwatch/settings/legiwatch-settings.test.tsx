@@ -10,7 +10,7 @@
  */
 import { createElement } from 'react';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -91,18 +91,29 @@ afterEach(() => {
   cleanup();
 });
 
-function renderSettings() {
+function SettingsLocation() {
+  const location = useLocation();
+  return createElement('output', { 'data-testid': 'settings-location' }, `${location.pathname}${location.search}`);
+}
+
+function renderSettings(initial = '/legiwatch?tab=settings') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(MemoryRouter, null, createElement(LegiWatchSettingsTab)),
+      createElement(MemoryRouter, { initialEntries: [initial] }, createElement(LegiWatchSettingsTab), createElement(SettingsLocation)),
     ),
   );
 }
 
 describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storage)', () => {
+  it('opens real watchlist setup with the current client scope', async () => {
+    renderSettings('/legiwatch?tab=settings&client=client-A');
+    fireEvent.click(await screen.findByRole('button', { name: 'Open watchlist / monitoring setup' }));
+    expect(screen.getByTestId('settings-location')).toHaveTextContent('/radar?tab=watchlist&client=client-A');
+  });
+
   it('renders the display preferences from the stored prefs doc', async () => {
     renderSettings();
     await screen.findByLabelText('LegiWatch settings');

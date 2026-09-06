@@ -36,12 +36,25 @@ describe('public capture adapters (Postgres)',()=>{
 
   it('deduplicates final segments and marks the first segment after a gap',async()=>{
     const capture=await store.ensureCapture({hearingId:'phase4-hearing',idempotencyKey:'k',now:new Date()});
-    const final={captureId:capture.id,hearingId:'phase4-hearing',segment:{startMs:1000,endMs:2000,text:'one'}};
+    const acquired=await store.tryAcquireLease({captureId:capture.id,ownerId:'transcript-worker',now:new Date(),leaseDurationMs:60_000});
+    const lease=acquired.lease!;
+    const final={captureId:capture.id,hearingId:'phase4-hearing',lease,segment:{startMs:1000,endMs:2000,text:'one'}};
     await transcripts.appendFinal(final); await transcripts.appendFinal(final);
-    await transcripts.appendGap({captureId:capture.id,hearingId:'phase4-hearing',gap:{startMs:2000,endMs:3000,reason:'MEDIA_DISCONNECT'}});
-    await transcripts.appendFinal({captureId:capture.id,hearingId:'phase4-hearing',segment:{startMs:3000,endMs:4000,text:'two'}});
+    await transcripts.appendGap({captureId:capture.id,hearingId:'phase4-hearing',lease,gap:{startMs:2000,endMs:3000,reason:'MEDIA_DISCONNECT'}});
+    await transcripts.appendFinal({captureId:capture.id,hearingId:'phase4-hearing',lease,segment:{startMs:3000,endMs:4000,text:'two'}});
     const rows=await prisma.$queryRawUnsafe<Array<{sequence:number;hasGapBefore:boolean}>>(`SELECT sequence,has_gap_before AS "hasGapBefore" FROM public_hearing_transcript_segment ORDER BY sequence`);
     expect(rows).toEqual([{sequence:1,hasGapBefore:false},{sequence:2,hasGapBefore:true}]);
+    const progress=await prisma.$queryRawUnsafe<Array<{capturedMs:number}>>(`SELECT captured_ms AS "capturedMs" FROM public_hearing_capture WHERE id=$1`,capture.id);
+    expect(progress[0]?.capturedMs).toBe(4000);
+    await prisma.$executeRawUnsafe(`UPDATE public_hearing_capture SET lease_expires_at=now()-interval '1 second' WHERE id=$1`,capture.id);
+    // Simulate a renewal requested before expiry but not executed until after
+    // it. The stale request timestamp must not resurrect an expired lease.
+    await expect(store.renewLease({captureId:capture.id,ownerId:lease.ownerId,
+      fencingToken:lease.fencingToken,now:new Date(Date.now()-60_000),leaseDurationMs:120_000}))
+      .rejects.toBeInstanceOf(StaleCaptureFencingTokenError);
+    await expect(transcripts.appendFinal({...final,segment:{startMs:4000,endMs:5000,text:'expired'}})).rejects.toBeInstanceOf(StaleCaptureFencingTokenError);
+    await store.tryAcquireLease({captureId:capture.id,ownerId:'replacement-worker',now:new Date(),leaseDurationMs:60_000});
+    await expect(transcripts.appendGap({captureId:capture.id,hearingId:'phase4-hearing',lease,gap:{startMs:4000,endMs:5000,reason:'MEDIA_DISCONNECT'}})).rejects.toBeInstanceOf(StaleCaptureFencingTokenError);
   });
 
   // ==========================================================================

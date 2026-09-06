@@ -30,8 +30,8 @@ class Phase8IntelligenceQueryDto {
 }
 
 /**
- * Phase 8 read surface. Kept on a versioned path while the Phase 7 placeholder
- * remains available as the immediate rollback contract.
+ * Canonical Phase 8 read surface. The established intelligence route also
+ * uses this service and preserves legacy evidence fields for rollback clients.
  */
 @Controller('legiwatch/live-hearings')
 @UseGuards(RolesGuard)

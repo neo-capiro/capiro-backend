@@ -954,19 +954,29 @@ export class TrackerWatchlistService {
         ? input.jurisdictions.map((j) => j.toUpperCase())
         : [],
     };
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.intelAlertPreference.upsert({
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      // Verification belongs to one normalized phone number. Lock the
+      // existing row so an OTP confirmation and a preference save cannot
+      // transfer verification to a different number through a stale read.
+      const [existing] = await tx.$queryRaw<Array<{ smsPhone: string | null; smsPhoneVerified: boolean }>>`
+        SELECT sms_phone AS "smsPhone", sms_phone_verified AS "smsPhoneVerified"
+        FROM intel_alert_preference
+        WHERE tenant_id = ${tenantId} AND client_id = ${clientId} AND user_id = ${userId}
+        FOR UPDATE
+      `;
+      const smsPhoneVerified = Boolean(data.smsPhone && existing?.smsPhoneVerified && existing.smsPhone === data.smsPhone);
+      return tx.intelAlertPreference.upsert({
         where: { userId_clientId: { userId, clientId } },
         create: { tenantId, clientId, userId, ...data },
-        update: data,
-      }),
-    );
+        update: { ...data, smsPhoneVerified },
+      });
+    });
   }
 
   /**
    * Mark a verified phone on the user's pref (P1.1, called after OTP confirm —
    * ported from apps/api tracker.service.markPhoneVerified). The confirm flow
-   * is the ONLY writer of `smsPhoneVerified` (putAlertPrefs never sets it),
+   * is the ONLY path that grants `smsPhoneVerified` (putAlertPrefs can revoke it),
    * preserving the legacy consent contract. Client-ownership + row-tenant
    * guards mirror legacy's assertClient (cross-tenant review finding, PR-1).
    */

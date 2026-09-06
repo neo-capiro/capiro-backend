@@ -14,7 +14,7 @@
  * alert JOIN target) — the two are never conflated (§28/§32: missing data is
  * never zero).
  */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -23,13 +23,17 @@ const SOURCE_FAMILY_LABEL: Record<string, string> = {
   bill: 'Congress.gov',
   hearing: 'Committee pages',
   combined: 'Congress.gov + Committee pages',
+  state_bill: 'State legislatures',
+  regulation: 'Federal Register',
+  program_element: 'Program element service',
 };
-
-const MATERIALITY_WEIGHT: Record<string, number> = { low: 1, medium: 2, high: 3 };
 
 function parseRange(from?: string, to?: string): { from: Date; to: Date } {
   const to_ = to ? new Date(to) : new Date();
   const from_ = from ? new Date(from) : new Date(to_.getTime() - 30 * 24 * 60 * 60 * 1000);
+  if (!Number.isFinite(from_.getTime()) || !Number.isFinite(to_.getTime()) || from_ > to_) {
+    throw new BadRequestException('from and to must be valid dates with from no later than to');
+  }
   return { from: from_, to: to_ };
 }
 
@@ -44,8 +48,20 @@ export class LegiWatchAnalyticsService {
       const decisions = alerts.filter((a) => a.status === 'reviewed' || a.status === 'sent').length;
       const sourceFamilies = new Set(alerts.map((a) => a.sourceType));
 
-      const billsChanged = await tx.congressBill.count({ where: { statusAt: { gte: from, lte: to } } });
-      const billsTrackedTotal = await tx.congressBill.count();
+      // intel_tracked_bill is the canonical mixed federal/state portfolio.
+      // Count unique bills within this tenant/client, never the public corpus.
+      const [billCounts] = await tx.$queryRaw<Array<{ tracked: bigint; moved: bigint }>>`
+        WITH tracked AS (
+          SELECT DISTINCT bill_id FROM intel_tracked_bill
+          WHERE tenant_id = ${ctx.tenantId}
+            AND (${clientId}::text IS NULL OR client_id = ${clientId})
+        )
+        SELECT COUNT(*) AS tracked,
+               COUNT(*) FILTER (WHERE COALESCE(cb.status_at, sb.status_at) BETWEEN ${from} AND ${to}) AS moved
+        FROM tracked t
+        LEFT JOIN congress_bill cb ON cb.id = t.bill_id
+        LEFT JOIN state_bill sb ON sb.id = t.bill_id
+      `;
 
       const [committeeSourceHealthy, committeeSourceTotal] = await Promise.all([
         tx.committeeSource.count({ where: { sourceHealth: 'healthy' } }),
@@ -56,8 +72,8 @@ export class LegiWatchAnalyticsService {
         signalsTotal: alerts.length,
         sourceFamiliesInvolved: sourceFamilies.size,
         clientDecisions: decisions,
-        billsMoved: billsChanged,
-        billsTrackedTotal,
+        billsMoved: Number(billCounts?.moved ?? 0),
+        billsTrackedTotal: Number(billCounts?.tracked ?? 0),
         sourceCoveragePct: committeeSourceTotal > 0 ? Math.round((committeeSourceHealthy / committeeSourceTotal) * 100) : null,
         sourceFamiliesCurrent: committeeSourceHealthy,
         sourceFamiliesTotal: committeeSourceTotal,
@@ -75,12 +91,12 @@ export class LegiWatchAnalyticsService {
         ? await tx.$queryRaw<Array<{ day: Date; count: bigint }>>`
             SELECT date_trunc('day', created_at) AS day, COUNT(*) AS count
             FROM intel_alert
-            WHERE tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to} AND client_id = ${clientId}
+            WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to} AND client_id = ${clientId}
             GROUP BY 1 ORDER BY 1`
         : await tx.$queryRaw<Array<{ day: Date; count: bigint }>>`
             SELECT date_trunc('day', created_at) AS day, COUNT(*) AS count
             FROM intel_alert
-            WHERE tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to}
+            WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to}
             GROUP BY 1 ORDER BY 1`;
       return {
         from: from.toISOString(),
@@ -91,9 +107,9 @@ export class LegiWatchAnalyticsService {
     });
   }
 
-  /** Velocity indexed against each topic's OWN 30-day mean of 100 — a topic
-   *  with no alerts in the trailing 30 days is excluded, never divided by
-   *  zero into a fabricated spike. */
+  /** Recent-week velocity indexed against the topic's prior 23-day daily
+   *  average (steady activity = 100). A topic with no prior baseline is
+   *  excluded rather than divided by zero into a fabricated spike. */
   async issueMomentum(ctx: TenantContext, clientId: string | null, fromQ?: string, toQ?: string) {
     const { to } = parseRange(fromQ, toQ);
     const thirtyStart = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -106,7 +122,7 @@ export class LegiWatchAnalyticsService {
                    SUM(CASE ia.materiality WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END)::float AS weighted
             FROM intel_alert ia
             JOIN intel_watchlist_topic wt ON wt.id = ia.topic_id
-            WHERE ia.tenant_id = ${ctx.tenantId} AND ia.client_id = ${clientId}
+            WHERE ia.status IN ('new', 'reviewed', 'sent') AND ia.tenant_id = ${ctx.tenantId} AND ia.client_id = ${clientId}
               AND ia.topic_id IS NOT NULL AND ia.created_at BETWEEN ${thirtyStart} AND ${to}
             GROUP BY 1, 2, 3`
         : await tx.$queryRaw<Array<{ topicId: string; label: string; window: string; weighted: number }>>`
@@ -115,7 +131,7 @@ export class LegiWatchAnalyticsService {
                    SUM(CASE ia.materiality WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END)::float AS weighted
             FROM intel_alert ia
             JOIN intel_watchlist_topic wt ON wt.id = ia.topic_id
-            WHERE ia.tenant_id = ${ctx.tenantId}
+            WHERE ia.status IN ('new', 'reviewed', 'sent') AND ia.tenant_id = ${ctx.tenantId}
               AND ia.topic_id IS NOT NULL AND ia.created_at BETWEEN ${thirtyStart} AND ${to}
             GROUP BY 1, 2, 3`;
 
@@ -123,7 +139,9 @@ export class LegiWatchAnalyticsService {
       for (const r of rows) {
         const cur = byTopic.get(r.topicId) ?? { label: r.label, recent7: 0, trail30: 0 };
         if (r.window === 'recent7') cur.recent7 += Number(r.weighted);
-        else cur.trail30 += Number(r.weighted);
+        // SQL buckets are disjoint. Include both in the full 30-day total
+        // before subtracting the recent week to derive the prior baseline.
+        cur.trail30 += Number(r.weighted);
         byTopic.set(r.topicId, cur);
       }
 
@@ -163,7 +181,7 @@ export class LegiWatchAnalyticsService {
         tx.$queryRaw<Array<{ clientId: string; sourceType: string; count: bigint }>>`
           SELECT client_id AS "clientId", source_type AS "sourceType", COUNT(*) AS count
           FROM intel_alert
-          WHERE tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to}
+          WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${ctx.tenantId} AND created_at BETWEEN ${from} AND ${to}
           GROUP BY 1, 2`,
       ]);
       const monitored = new Set(monitoredIds.map((r) => r.clientId));
@@ -208,7 +226,7 @@ export class LegiWatchAnalyticsService {
             FROM intel_alert ia
             JOIN intel_live_hearing_session lhs ON lhs.id = ia.source_ref
             LEFT JOIN congress_committee cc ON cc.system_code = lhs.committee_id
-            WHERE ia.tenant_id = ${ctx.tenantId} AND ia.client_id = ${clientId}
+            WHERE ia.status IN ('new', 'reviewed', 'sent') AND ia.tenant_id = ${ctx.tenantId} AND ia.client_id = ${clientId}
               AND ia.source_type = 'hearing' AND ia.created_at BETWEEN ${from} AND ${to}
               AND lhs.committee_id IS NOT NULL
             GROUP BY 1, 2 ORDER BY count DESC LIMIT 10`
@@ -217,7 +235,7 @@ export class LegiWatchAnalyticsService {
             FROM intel_alert ia
             JOIN intel_live_hearing_session lhs ON lhs.id = ia.source_ref
             LEFT JOIN congress_committee cc ON cc.system_code = lhs.committee_id
-            WHERE ia.tenant_id = ${ctx.tenantId}
+            WHERE ia.status IN ('new', 'reviewed', 'sent') AND ia.tenant_id = ${ctx.tenantId}
               AND ia.source_type = 'hearing' AND ia.created_at BETWEEN ${from} AND ${to}
               AND lhs.committee_id IS NOT NULL
             GROUP BY 1, 2 ORDER BY count DESC LIMIT 10`;
@@ -293,10 +311,10 @@ export class LegiWatchAnalyticsService {
       ? tx.$queryRaw<Row[]>`
           SELECT id, source_type AS "sourceType", status
           FROM intel_alert
-          WHERE tenant_id = ${tenantId} AND created_at BETWEEN ${from} AND ${to} AND client_id = ${clientId}`
+          WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${tenantId} AND created_at BETWEEN ${from} AND ${to} AND client_id = ${clientId}`
       : tx.$queryRaw<Row[]>`
           SELECT id, source_type AS "sourceType", status
           FROM intel_alert
-          WHERE tenant_id = ${tenantId} AND created_at BETWEEN ${from} AND ${to}`;
+          WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${tenantId} AND created_at BETWEEN ${from} AND ${to}`;
   }
 }

@@ -51,6 +51,9 @@ export class ServerDeepgramStreamManager {
   private connection?: ListenLiveClient;
   private connectionGeneration = 0;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private keepAliveTimer?: ReturnType<typeof setInterval>;
+  private drainTimer?: ReturnType<typeof setTimeout>;
+  private nextSendAt = 0;
   private reconnectAttempt = 0;
   private reconnectScheduled = false;
   private started = false;
@@ -139,16 +142,16 @@ export class ServerDeepgramStreamManager {
       endMs,
     };
 
-    if (this.connection && this.opened && this.sendToConnection(bufferedChunk.bytes)) {
-      return true;
-    }
-    return this.bufferChunk(bufferedChunk);
+    if (!this.bufferChunk(bufferedChunk)) return false;
+    this.flushBuffer();
+    return !this.terminalErrorSent;
   }
 
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;
     this.opened = false;
+    this.clearConnectionTimers();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
     this.reconnectScheduled = false;
@@ -196,6 +199,10 @@ export class ServerDeepgramStreamManager {
       timer = setTimeout(waiter, remainingMs);
       this.stop();
     });
+    // CloseStream is only a protocol request. Release a socket that never
+    // acknowledges it, and ignore finals arriving after the drain deadline.
+    this.connectionGeneration += 1;
+    try { connection.disconnect(); } catch { /* Bounded shutdown is complete. */ }
   }
 
   private openConnection(): void {
@@ -204,6 +211,7 @@ export class ServerDeepgramStreamManager {
     this.lastConnectionError = undefined;
 
     const generation = ++this.connectionGeneration;
+    try { this.connection?.disconnect(); } catch { /* Retired socket cleanup. */ }
     const deepgram = createClient(this.apiKey);
     const connection = deepgram.listen.live({
       model: this.model,
@@ -230,7 +238,20 @@ export class ServerDeepgramStreamManager {
         return;
       }
       this.opened = true;
+      this.nextSendAt = Date.now();
       this.connectionBaseMs = this.buffer[0]?.startMs ?? this.sourceCursorMs;
+      // A recess or a stalled media input must not hit Deepgram's 10-second
+      // idle timeout. The SDK sends KeepAlive as a text control message.
+      this.keepAliveTimer = setInterval(() => {
+        if (!isCurrent() || !this.opened || this.stopped) return;
+        try {
+          connection.keepAlive();
+        } catch (error) {
+          this.opened = false;
+          this.scheduleReconnect(error instanceof Error ? error : new Error(String(error)));
+          try { connection.requestClose(); } catch { /* Reconnect owns recovery. */ }
+        }
+      }, 3_000);
       this.logger.log(
         `server deepgram open model=${this.model} sampleRate=${this.sampleRate} ` +
           `channels=${this.channels} baseMs=${Math.round(this.connectionBaseMs)}`,
@@ -305,6 +326,7 @@ export class ServerDeepgramStreamManager {
   }
 
   private scheduleReconnect(cause: Error): void {
+    this.clearConnectionTimers();
     if (this.reconnectScheduled || this.stopped || this.terminalErrorSent) return;
     if (this.reconnectAttempt >= this.maxReconnects) {
       this.emitBufferedGap('DEEPGRAM_DISCONNECT');
@@ -328,11 +350,30 @@ export class ServerDeepgramStreamManager {
   }
 
   private flushBuffer(): void {
+    if (this.drainTimer) return;
     while (this.opened && this.buffer.length > 0) {
+      const waitMs = this.nextSendAt - Date.now();
+      if (waitMs > 0) {
+        this.drainTimer = setTimeout(() => {
+          this.drainTimer = undefined;
+          this.flushBuffer();
+        }, Math.ceil(waitMs));
+        return;
+      }
       const chunk = this.buffer[0]!;
-      if (!this.sendToConnection(chunk.bytes)) return;
-      this.buffer.shift();
-      this.bufferedBytes -= chunk.bytes.byteLength;
+      // Pace both HLS bursts and reconnect replay. Sending the whole backlog
+      // synchronously exceeds the provider's 1.25x realtime input limit.
+      const size = Math.min(chunk.bytes.byteLength, this.sampleRate * this.channels * 2 / 10);
+      const bytes = chunk.bytes.subarray(0, size);
+      if (!this.sendToConnection(bytes)) return;
+      const durationMs = this.bytesToMs(bytes.byteLength);
+      this.nextSendAt = Date.now() + durationMs / 1.25;
+      this.bufferedBytes -= bytes.byteLength;
+      if (size === chunk.bytes.byteLength) this.buffer.shift();
+      else {
+        chunk.bytes = chunk.bytes.subarray(size);
+        chunk.startMs += durationMs;
+      }
     }
   }
 
@@ -406,6 +447,7 @@ export class ServerDeepgramStreamManager {
     if (this.terminalErrorSent || this.stopped) return;
     this.terminalErrorSent = true;
     this.opened = false;
+    this.clearConnectionTimers();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
     this.reconnectScheduled = false;
@@ -421,6 +463,13 @@ export class ServerDeepgramStreamManager {
     const waiters = [...this.closeWaiters];
     this.closeWaiters.clear();
     for (const resolve of waiters) resolve();
+  }
+
+  private clearConnectionTimers(): void {
+    if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+    if (this.drainTimer) clearTimeout(this.drainTimer);
+    this.keepAliveTimer = undefined;
+    this.drainTimer = undefined;
   }
 }
 

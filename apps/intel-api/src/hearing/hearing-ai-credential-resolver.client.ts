@@ -11,6 +11,7 @@ export interface ResolvedAiProviderForHeader {
 }
 
 const CACHE_TTL_MS = 60_000;
+const RESOLVE_TIMEOUT_MS = 5_000;
 
 /**
  * BYOK3 — resolves a tenant's AI credential from apps/api (the credential
@@ -56,6 +57,11 @@ export class HearingAiCredentialResolver {
     const cached = this.cache.get(tenantId);
     if (cached && cached.expiresAt > Date.now()) return cached.value;
 
+    // This lookup precedes the orchestrator's own timeout. Without a separate
+    // deadline a stalled credential service leaves enrichment (and the capture
+    // finalization that drains it) pending indefinitely.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
     try {
       const res = await fetch(`${this.apiBaseUrl}/api/internal/ai-credentials/resolve`, {
         method: 'POST',
@@ -64,6 +70,7 @@ export class HearingAiCredentialResolver {
           'x-internal-service-secret': this.sharedSecret,
         },
         body: JSON.stringify({ tenantId, provider: 'anthropic' }),
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as {
@@ -93,6 +100,8 @@ export class HearingAiCredentialResolver {
       // Don't cache failures — a transient blip shouldn't pin the tenant to
       // the global key for the rest of the TTL window.
       return undefined;
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

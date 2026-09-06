@@ -129,6 +129,7 @@ function renderModule(initial: string) {
         <Routes>
           <Route path="/legiwatch" element={<LegiWatchModule />} />
           <Route path="/clients" element={<div data-testid="crm">CRM exited</div>} />
+          <Route path="/radar" element={<div data-testid="watchlist">Monitoring setup</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -157,6 +158,17 @@ describe('PR C §13 — watchlist gate scopes to dependent tabs only', () => {
     // Module chrome survives — the tab strip and client selector are present.
     expect(screen.getByRole('tablist')).toBeTruthy();
     expect(screen.getByLabelText('LegiWatch client scope')).toBeTruthy();
+  });
+
+  it.each([
+    { browse: '', action: 'Configure the watchlist' },
+    { browse: '&browse=1', action: 'Set up the watchlist' },
+  ])('opens real monitoring setup for the scoped client through $action', async ({ browse, action }) => {
+    const { location } = renderModule(`/legiwatch?client=c-nowl&tab=feed${browse}`);
+    fireEvent.click(await screen.findByRole('button', { name: action }));
+    await waitFor(() => expect(location.current.pathname).toBe('/radar'));
+    expect(new URLSearchParams(location.current.search).get('tab')).toBe('watchlist');
+    expect(new URLSearchParams(location.current.search).get('client')).toBe('c-nowl');
   });
 
   it('no-watchlist client: Digest tab shows the inline gate; Analytics same', async () => {

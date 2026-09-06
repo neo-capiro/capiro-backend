@@ -395,8 +395,7 @@ describeDb('Live Hearings canonical detail stack (Postgres integration, PR B §4
     });
     // Defense-in-depth from the service layer: the closed hearing has no PUBLIC
     // transcript surface even when addressed directly.
-    const closed = await phase7.transcript(H_CLOSED, { limit: 10 });
-    expect(closed.items).toHaveLength(0);
+    await expect(phase7.transcript(H_CLOSED, { limit: 10 })).rejects.toMatchObject({ status: 403 });
   });
 
   it('§5-H closed hearing: intelligence route refuses non-public proceedings (404 contract)', async () => {
@@ -448,6 +447,31 @@ describeDb('Live Hearings canonical detail stack (Postgres integration, PR B §4
     const wireA = JSON.stringify(forA).toLowerCase();
     expect(wireA).not.toContain(CLIENT_B);
     expect(wireA).not.toContain('beta advocacy');
+  });
+
+  it('filters client relevance before paging and counts only this tenant matches', async () => {
+    // Make the first public insight unrelated and the later one relevant. A
+    // post-LIMIT filter would incorrectly return an empty first page.
+    await prisma.$executeRawUnsafe(
+      `UPDATE tenant_hearing_relevance SET insight_id='lw-insight-2'
+       WHERE tenant_id=$1::uuid AND hearing_id=$2`,
+      TENANT_A,
+      H_MAIN,
+    );
+    const relevant = await phase8.intelligence(ctxA, H_MAIN, {
+      onlyRelevant: true, clientId: CLIENT_A, limit: 1,
+    });
+    expect((relevant.items as InsightWire[]).map((item) => item.id)).toEqual(['lw-insight-2']);
+    expect(relevant).toMatchObject({
+      hasMore: false,
+      nextCursor: null,
+      summary: { total: 1, returned: 1, byType: { QUESTION: 1 } },
+    });
+
+    const otherTenant = await phase8.intelligence(ctxB, H_MAIN, {
+      onlyRelevant: true, clientId: CLIENT_A, limit: 1,
+    });
+    expect(otherTenant).toMatchObject({ items: [], hasMore: false, summary: { total: 0 } });
   });
 
   it('§4/§8 intelligence status: PROCESSING while extraction pending, READY when drained, EMPTY only when truly nothing', async () => {

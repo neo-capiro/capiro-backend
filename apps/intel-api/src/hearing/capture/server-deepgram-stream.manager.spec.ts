@@ -18,6 +18,7 @@ import {
 interface FakeConnection {
   on: jest.Mock;
   send: jest.Mock;
+  keepAlive: jest.Mock;
   requestClose: jest.Mock;
   emit: (event: string, payload?: unknown) => void;
 }
@@ -29,6 +30,7 @@ function fakeConnection(): FakeConnection {
       handlers.set(event, [...(handlers.get(event) ?? []), callback]);
     }),
     send: jest.fn(),
+    keepAlive: jest.fn(),
     requestClose: jest.fn(),
     emit: (event: string, payload?: unknown) => {
       for (const callback of handlers.get(event) ?? []) callback(payload);
@@ -93,6 +95,7 @@ describe('ServerDeepgramStreamManager', () => {
     manager.start();
     first.emit('open');
     manager.sendAudio(Buffer.alloc(32_000)); // source timeline 0-1000 ms
+    jest.advanceTimersByTime(800);
     first.emit('close', { code: 1011, reason: 'reset' });
     expect(cb.onReconnecting).toHaveBeenCalledWith(1);
 
@@ -101,6 +104,8 @@ describe('ServerDeepgramStreamManager', () => {
     expect(live).toHaveBeenCalledTimes(2);
     second.emit('open');
     expect(second.send).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(400);
+    expect(second.send).toHaveBeenCalledTimes(5);
 
     second.emit('transcript', {
       is_final: true,
@@ -218,6 +223,70 @@ describe('ServerDeepgramStreamManager', () => {
       reason: 'DEEPGRAM_DISCONNECT',
     });
     expect(cb.onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a silent socket alive across four hours and cleans up its timers on stop', () => {
+    const connection = fakeConnection();
+    const live = jest.fn(() => connection);
+    createClientMock.mockReturnValue({ listen: { live } } as never);
+    const cb = callbacks();
+    const manager = new ServerDeepgramStreamManager('key', cb);
+    manager.start();
+    connection.emit('open');
+
+    jest.advanceTimersByTime(4 * 60 * 60_000);
+    expect(connection.keepAlive).toHaveBeenCalledTimes(4_800);
+    expect(live).toHaveBeenCalledTimes(1);
+    expect(manager.sendAudio(Buffer.alloc(3_200))).toBe(true);
+    expect(cb.onError).not.toHaveBeenCalled();
+    manager.stop();
+    jest.advanceTimersByTime(30_000);
+    expect(connection.keepAlive).toHaveBeenCalledTimes(4_800);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('paces backlog replay and prevents fresh PCM from overtaking buffered audio', () => {
+    const connection = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => connection) } } as never);
+    const manager = new ServerDeepgramStreamManager('key', callbacks());
+    manager.start();
+    manager.sendAudio(Buffer.alloc(32_000, 1));
+    connection.emit('open');
+    manager.sendAudio(Buffer.alloc(3_200, 2));
+    expect(connection.send).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(719);
+    expect(connection.send).toHaveBeenCalledTimes(9);
+    expect(manager.bufferedDurationMs).toBe(200);
+    jest.advanceTimersByTime(81);
+    expect(connection.send).toHaveBeenCalledTimes(11);
+    expect(Buffer.from(connection.send.mock.calls[9]![0]).every((value) => value === 1)).toBe(true);
+    expect(Buffer.from(connection.send.mock.calls[10]![0]).every((value) => value === 2)).toBe(true);
+    expect(manager.bufferedDurationMs).toBe(0);
+    manager.stop();
+  });
+
+  it('drains buffered PCM and still accepts the final transcript during CloseStream', async () => {
+    const connection = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => connection) } } as never);
+    const cb = callbacks();
+    const manager = new ServerDeepgramStreamManager('key', cb);
+    manager.start();
+    connection.emit('open');
+    manager.sendAudio(Buffer.alloc(32_000));
+    connection.requestClose.mockImplementation(() => {
+      connection.emit('transcript', {
+        is_final: true, start: 0, duration: 1,
+        channel: { alternatives: [{ transcript: 'closing testimony' }] },
+      });
+      connection.emit('close', { code: 1000 });
+    });
+    const stopped = manager.stopAndWait(5_000);
+    await jest.advanceTimersByTimeAsync(1_000);
+    await stopped;
+    expect(connection.send).toHaveBeenCalledTimes(10);
+    expect(cb.onFinal).toHaveBeenCalledWith(expect.objectContaining({ text: 'closing testimony' }));
+    expect(cb.onGap).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
   });
 
 });

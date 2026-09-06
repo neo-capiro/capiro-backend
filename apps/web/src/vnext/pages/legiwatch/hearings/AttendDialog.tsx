@@ -11,7 +11,10 @@
  * live" or automatic capture for a closed, private, classified or executive
  * session.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCreateHearing } from '../../../../lib/hearing-watch-api.js';
+import { usePhase7BrowserJoin } from '../../../../pages/radar/live-hearings/live-hearings-phase7-api.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { LwPill } from '../lib/primitives.js';
 import {
@@ -48,7 +51,7 @@ const MODE_COPY: Record<
   },
   browser: {
     label: 'Browser attendance',
-    hint: 'The official source cannot be captured unattended. You open the stream in your browser and Capiro transcribes the tab audio while it plays.',
+    hint: 'Open the official stream and start sharing its tab audio in the hearing room. Keep your browser and the stream open while Capiro transcribes it.',
   },
 };
 
@@ -64,29 +67,55 @@ export function AttendDialog({
   const attendance = useAttendance(hearingId);
   const request = useRequestAttendance(hearingId);
   const cancel = useCancelAttendance(hearingId);
+  const browserJoin = usePhase7BrowserJoin();
+  const createBrowserSession = useCreateHearing();
+  const navigate = useNavigate();
 
   const state: AttendanceAssessment | undefined = attendance.data;
   const modes = state?.availableModes ?? [];
   const [mode, setMode] = useState<'automatic' | 'browser' | null>(null);
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitInFlight = useRef(false);
 
-  const effectiveMode = mode ?? modes[0] ?? null;
-  const busy = request.isPending || cancel.isPending;
-  const needsConsent = Boolean(state?.consentRequired);
+  const effectiveMode = mode && modes.includes(mode) ? mode : modes[0] ?? null;
+  const busy = request.isPending || cancel.isPending || browserJoin.isPending || createBrowserSession.isPending;
+  const needsConsent = effectiveMode === 'browser' || Boolean(state?.consentRequired);
 
-  const onSubmit = () => {
-    if (!effectiveMode) return;
+  const onSubmit = async () => {
+    if (!effectiveMode || !state?.canRequest || busy || submitInFlight.current || (needsConsent && !consent)) return;
+    submitInFlight.current = true;
     setError(null);
-    request.mutate(
-      { mode: effectiveMode, consentAcknowledged: consent },
-      {
-        onSuccess: () => onClose(),
-        // The server re-derives eligibility; if it refuses, say so rather than
-        // reporting a success the backend did not perform.
-        onError: (err) => setError(w1Error(err)),
-      },
-    );
+    try {
+      await request.mutateAsync({ mode: effectiveMode, consentAcknowledged: consent });
+      if (effectiveMode === 'browser') {
+        // Recording intent alone does not create a browser session. Reuse the
+        // shipped canonical join guard so a server capture that started while
+        // this dialog was open attaches to the shared transcript instead.
+        const plan = await browserJoin.mutateAsync(hearingId);
+        if (plan.mode === 'BLOCKED') throw new Error(plan.message);
+        if (plan.mode === 'BROWSER_CAPTURE') {
+          const session = await createBrowserSession.mutateAsync({
+            title: plan.title,
+            sourceType: plan.sourceType,
+            audioSource: plan.audioSource,
+            recordingPolicy: plan.recordingPolicy,
+            sourceUrl: plan.sourceUrl,
+            hearingId: plan.hearingId,
+            committeeId: plan.committeeId,
+            consentAttestation: 'I confirm this proceeding is public and recording it through my browser is permitted.',
+          });
+          if (!session?.id) throw new Error('The browser hearing room could not be created. Please retry.');
+          navigate(`/intelligence/hearing-watch/${encodeURIComponent(session.id)}`);
+        }
+      }
+      onClose();
+    } catch (err) {
+      // Keep the modal open on policy, network or room-creation failure.
+      setError(w1Error(err));
+    } finally {
+      submitInFlight.current = false;
+    }
   };
 
   const onCancelAttendance = () => {
@@ -110,8 +139,8 @@ export function AttendDialog({
       title="Attendance & capture"
       subtitle={hearingTitle}
       note="Attending captures and transcribes this proceeding."
-      primaryLabel={busy ? 'Working…' : state?.scheduled ? 'Scheduled' : 'Schedule attendance'}
-      onPrimary={onSubmit}
+      primaryLabel={busy ? 'Working…' : state?.scheduled ? 'Scheduled' : effectiveMode === 'browser' ? 'Open browser attendance' : 'Schedule attendance'}
+      onPrimary={() => void onSubmit()}
       primaryDisabled={!canSubmit}
       primaryTitle={
         state && !state.canRequest ? state.message : !consent && needsConsent ? 'Consent is required for this attendance mode.' : undefined

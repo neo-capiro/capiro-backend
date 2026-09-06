@@ -190,6 +190,25 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
   });
 
   describe('PostHearingService', () => {
+    it('hydrates summary cards using the same segment key as the live socket', async () => {
+      const { prisma, model } = makeFakePrisma();
+      model('liveHearingSession').findFirst.mockResolvedValue({ id: 's1', title: 'Markup', status: 'live' });
+      model('liveSummaryCard').findMany.mockResolvedValue([{
+        id: 'database-card-1',
+        segmentId: 'segment-1',
+        cardType: 'summary',
+        title: 'Hearing resumed',
+        body: 'The committee returned from recess.',
+        startMs: 14_400_000,
+      }]);
+      const crypto = { configured: false } as unknown as HearingCryptoService;
+      const result = await new PostHearingService(prisma, crypto).summarize('tenant-1', 's1');
+
+      expect(result?.cards).toEqual([expect.objectContaining({
+        id: 'segment-1', title: 'Hearing resumed', startMs: 14_400_000,
+      })]);
+    });
+
     it('summarize() scopes both the session lookup and the derived reads to the caller tenantId', async () => {
       const { prisma, withTenant, model } = makeFakePrisma();
       model('liveHearingSession').findFirst.mockResolvedValue({

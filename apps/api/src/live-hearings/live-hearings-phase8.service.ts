@@ -129,8 +129,23 @@ export class LiveHearingsPhase8Service {
     const cursor = decodePhase8Cursor(input.cursor);
     const limit = clamp(input.limit ?? DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
     const clientId = input.clientId?.trim() || null;
+    // Filter before paging: otherwise a page of unrelated public findings can
+    // hide later client matches. Tenant predicates and the RLS context are both
+    // required when a public-corpus query consults tenant relevance.
+    const relevantPredicate = (tenantParameter: number, clientParameter: number) => input.onlyRelevant
+      ? `AND EXISTS (
+           SELECT 1 FROM tenant_hearing_relevance r
+           WHERE r.tenant_id=$${tenantParameter}::uuid
+             AND r.hearing_id=i.hearing_id AND r.insight_id=i.id
+             AND ($${clientParameter}::uuid IS NULL OR r.client_id=$${clientParameter}::uuid)
+         )`
+      : '';
+    const queryCorpus = <T>(sql: string, ...parameters: unknown[]): Promise<T> => input.onlyRelevant
+      ? this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.$queryRawUnsafe<T>(sql, ...parameters, ctx.tenantId, clientId))
+      : this.prisma.$queryRawUnsafe<T>(sql, ...parameters);
 
-    const rows = await this.prisma.$queryRawUnsafe<InsightRow[]>(
+    const rows = await queryCorpus<InsightRow[]>(
       `SELECT id,
               hearing_id AS "hearingId",
               capture_id AS "captureId",
@@ -150,8 +165,9 @@ export class LiveHearingsPhase8Service {
               extractor_version AS "extractorVersion",
               created_at AS "createdAt",
               updated_at AS "updatedAt"
-       FROM public_hearing_insight
+       FROM public_hearing_insight i
        WHERE hearing_id=$1
+         ${relevantPredicate(5, 6)}
          AND (
            $2::int IS NULL OR
            sequence > $2 OR
@@ -169,16 +185,18 @@ export class LiveHearingsPhase8Service {
     const insightIds = pageRows.map((row) => row.id);
 
     const [totals, typeCounts, publicQueue, tenantResult] = await Promise.all([
-      this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      queryCorpus<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count
-         FROM public_hearing_insight
-         WHERE hearing_id=$1`,
+         FROM public_hearing_insight i
+         WHERE hearing_id=$1
+           ${relevantPredicate(2, 3)}`,
         hearingId,
       ),
-      this.prisma.$queryRawUnsafe<TypeCountRow[]>(
+      queryCorpus<TypeCountRow[]>(
         `SELECT insight_type AS "insightType", COUNT(*)::int AS count
-         FROM public_hearing_insight
+         FROM public_hearing_insight i
          WHERE hearing_id=$1
+           ${relevantPredicate(2, 3)}
          GROUP BY insight_type
          ORDER BY insight_type`,
         hearingId,
@@ -236,10 +254,9 @@ export class LiveHearingsPhase8Service {
       relevanceByInsight.set(match.insightId, list);
     }
 
-    let items = pageRows.map((row) =>
+    const items = pageRows.map((row) =>
       mapInsight(row, relevanceByInsight.get(row.id) ?? []),
     );
-    if (input.onlyRelevant) items = items.filter((item) => item.relevance.length > 0);
 
     const publicCounts = queueCounts(publicQueue);
     const tenantCounts = queueCounts(tenantResult.tenantQueue);

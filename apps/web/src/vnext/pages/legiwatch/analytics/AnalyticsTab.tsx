@@ -17,6 +17,8 @@ import {
   useAnalyticsSourceCoverage,
 } from '../lib/wave3-api.js';
 
+const EXPOSURE_FAMILIES = ['Congress.gov', 'Committee pages', 'Congress.gov + Committee pages', 'State legislatures', 'Federal Register', 'Program element service'];
+
 export function AnalyticsTab({ scope }: { scope: string }) {
   const summary = useAnalyticsSummary(scope);
   const volume = useAnalyticsSignalVolume(scope);
@@ -112,16 +114,16 @@ export function AnalyticsTab({ scope }: { scope: string }) {
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', padding: '4px 8px' }}>Client</th>
-                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Congress.gov</th>
-                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Committee pages</th>
-                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Combined</th>
+                      {EXPOSURE_FAMILIES.map((family) => (
+                        <th key={family} style={{ textAlign: 'right', padding: '4px 8px' }}>{family}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {exposure.data.rows.map((r) => (
                       <tr key={r.clientId} style={{ borderTop: '1px solid var(--lw-line)' }}>
                         <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.clientName}</td>
-                        {['Congress.gov', 'Committee pages', 'Congress.gov + Committee pages'].map((fam) => (
+                        {EXPOSURE_FAMILIES.map((fam) => (
                           <td key={fam} style={{ textAlign: 'right', padding: '6px 8px', color: r.monitored ? undefined : 'var(--lw-faint)' }}>
                             {r.monitored ? (r.bySourceFamily?.[fam] ?? 0) : 'not monitored'}
                           </td>
@@ -139,8 +141,8 @@ export function AnalyticsTab({ scope }: { scope: string }) {
           <section className="lw-card" style={{ padding: 18 }}>
             <h3 className="lw-sect__title">Issue momentum</h3>
             <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
-              Velocity weighted by materiality, indexed against each topic&rsquo;s own 30-day mean of
-              100.
+              The last seven days, weighted by materiality, compared with each topic&rsquo;s
+              previous 23-day daily average. A steady rate is 100.
             </p>
             {momentum.isLoading ? (
               <LwStateLoading rows={4} />

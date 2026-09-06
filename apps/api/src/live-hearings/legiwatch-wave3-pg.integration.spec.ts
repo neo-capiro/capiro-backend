@@ -176,6 +176,25 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
       const rows = await prisma.legiWatchDigestSchedule.findMany({ where: { tenantId: TENANT_A, userId: USER_A1 } });
       expect(rows).toHaveLength(1); // upsert, not a second row
     });
+
+    it.each([null, CLIENT_A1])('concurrent schedule saves produce one row for scope %s', async (clientId) => {
+      await Promise.all(Array.from({ length: 4 }, (_, hourUtc) =>
+        digest.putSchedule(ctxA1, clientId, { cadence: 'daily', hourUtc, emailEnabled: true }),
+      ));
+      const rows = await prisma.legiWatchDigestSchedule.findMany({
+        where: { tenantId: TENANT_A, userId: USER_A1, clientId },
+      });
+      expect(rows).toHaveLength(1);
+    });
+
+    it('rejects a schedule for another tenant client without persisting it', async () => {
+      await expect(digest.putSchedule(ctxA1, CLIENT_B1, {
+        cadence: 'daily', hourUtc: 11, emailEnabled: true,
+      })).rejects.toMatchObject({ status: 404 });
+      expect(await prisma.legiWatchDigestSchedule.count({
+        where: { tenantId: TENANT_A, userId: USER_A1 },
+      })).toBe(0);
+    });
   });
 
   describe('Analytics', () => {

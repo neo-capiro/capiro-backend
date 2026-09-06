@@ -368,7 +368,7 @@ export function LegiWatchModule() {
         // stays mounted; the dependent tab's body is what's replaced.
         <WatchlistGatePanel
           clientName={selectedClient?.name ?? ''}
-          onConfigure={() => navigate(`/clients?clientId=${encodeURIComponent(scope)}`)}
+          onConfigure={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(scope)}`)}
           onExplore={() => {
             // §14: browse mode stays INSIDE /legiwatch — URL-persisted so it
             // survives refresh, back/forward, and deep links. Never exits to CRM.
@@ -384,7 +384,7 @@ export function LegiWatchModule() {
             <span style={{ fontSize: 13, color: 'var(--lw-body)' }}>
               Public LegiWatch data remains available. Client-specific alerts and relevance require a monitoring model.
             </span>
-            <LwButton size="36" onClick={() => navigate(`/clients?clientId=${encodeURIComponent(scope)}`)}>
+            <LwButton size="36" onClick={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(scope)}`)}>
               Set up the watchlist
             </LwButton>
           </div>
@@ -416,7 +416,7 @@ export function LegiWatchModule() {
           defaultClientId={scope || undefined}
           onConfigure={() => {
             setOverlay(null);
-            navigate(scope ? `/clients?clientId=${scope}` : '/clients');
+            navigate(scope ? `/radar?tab=watchlist&client=${encodeURIComponent(scope)}` : '/radar?tab=watchlist');
           }}
         />
       ) : overlay === 'states' ? (

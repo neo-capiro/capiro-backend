@@ -4,6 +4,7 @@ import { App as AntApp } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { LiveHearingRoomPage } from './LiveHearingRoomPage.js';
+import { LiveHearingRoomVNext } from '../../vnext/pages/legiwatch/live/LiveHearingRoomVNext.js';
 
 const mocks = vi.hoisted(() => ({
   mintWsTicket: vi.fn(),
@@ -210,14 +211,15 @@ function browserSetup() {
   });
 }
 
-function renderRoom() {
+function renderRoom(vnext = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <AntApp>
         <MemoryRouter initialEntries={['/intelligence/hearing-watch/session-1']}>
           <Routes>
-            <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
+            <Route path={vnext ? '/intelligence/hearing-watch/:sessionId' : '/intelligence/hearing-watch/:id'}
+              element={vnext ? <LiveHearingRoomVNext sessionId="session-1" /> : <LiveHearingRoomPage />} />
           </Routes>
         </MemoryRouter>
       </AntApp>
@@ -267,6 +269,48 @@ describe('LiveHearingRoomPage browser capture', () => {
     renderRoom();
     expect(await screen.findByText('Persisted testimony from the prior session.')).toBeInTheDocument();
     expect(screen.getByText('Speaker 1:')).toBeInTheDocument();
+  });
+
+  test('vNext routes the session id into the working browser capture controls', async () => {
+    renderRoom(true);
+    const socket = await connectRoom();
+    expect(mocks.mintWsTicket).toHaveBeenCalledWith(expect.anything(), 'session-1');
+    fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
+    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
+    act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+    await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe('recording'));
+  });
+
+  test('restores saved intelligence and deduplicates the same live card', async () => {
+    const card = { id: 'segment-1', cardType: 'potential_ask', title: 'Persisted commitment', startMs: 20 };
+    mocks.apiGet.mockImplementation(async (url: string) => ({ data: url.endsWith('/summary') ? { cards: [card] } : [] }));
+    renderRoom();
+    expect(await screen.findByText('Persisted commitment')).toBeInTheDocument();
+    const socket = await connectRoom();
+    act(() => socket.receive({ type: 'card', card }));
+    expect(screen.getAllByText('Persisted commitment')).toHaveLength(1);
+  });
+
+  test('Disconnect returns to a reconnectable state without leaving inert capture controls', async () => {
+    renderRoom();
+    const socket = await connectRoom();
+    fireEvent.click(screen.getByRole('button', { name: /^Disconnect$/i }));
+    expect(socket.readyState).toBe(FakeWebSocket.CLOSED);
+    expect(screen.getByRole('button', { name: /^Connect$/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Start transcription/i })).toBeDisabled();
+  });
+
+  test('a late capture_ready after stop cannot start a recorder', async () => {
+    renderRoom();
+    const socket = await connectRoom();
+    fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
+    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: /End session/i }));
+    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_stop')).toBe(true));
+    act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+    act(() => socket.receive({ type: 'status', status: 'ended' }));
+    await waitFor(() => expect(socket.readyState).toBe(FakeWebSocket.CLOSED));
+    expect(FakeMediaRecorder.instances).toHaveLength(0);
   });
 
   test('a rapid double-click mints only one WebSocket ticket', async () => {

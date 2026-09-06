@@ -30,6 +30,9 @@ const FIRST_AUDIO_TIMEOUT_MS = 30_000;
 const HEARTBEAT_MS = 30_000;
 const MAX_FRAME_BYTES = 1_000_000;
 const MAX_BYTES_PER_SECOND = 512 * 1024;
+const MAX_PENDING_INPUT_BYTES = 2 * 1024 * 1024;
+const MAX_PENDING_INPUT_MESSAGES = 256;
+const CAPTURE_DATABASE_DEADLINE_MS = 15_000;
 const BROWSER_MIME_TYPES = new Set(['audio/webm;codecs=opus', 'audio/webm']);
 
 type CaptureState = 'connected' | 'starting' | 'ready' | 'capturing' | 'stopping' | 'ended';
@@ -55,6 +58,9 @@ interface LiveConn {
   claimStartedAt?: Date;
   timelineOffsetMs: number;
   hasAudio: boolean;
+  inboundChain: Promise<void>;
+  pendingInputBytes: number;
+  pendingInputMessages: number;
   rawChain: Promise<void>;
   pendingEnrichment: Set<Promise<void>>;
   finalizePromise?: Promise<void>;
@@ -132,6 +138,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     // the single-use ticket carries their identity so the upgrade rechecks that a
     // private session still belongs to them before accepting any audio.
     const session = await this.sessions.assertCaptureAllowed(tenantId, sessionId, userId);
+    if (client.readyState !== client.OPEN) return;
     const conn: LiveConn = {
       ws: client,
       tenantId,
@@ -154,6 +161,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       state: 'connected',
       timelineOffsetMs: 0,
       hasAudio: false,
+      inboundChain: Promise.resolve(),
+      pendingInputBytes: 0,
+      pendingInputMessages: 0,
       rawChain: Promise.resolve(),
       pendingEnrichment: new Set(),
       rateWindowStartedAt: Date.now(),
@@ -163,13 +173,45 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.send(client, { type: 'status', status: 'connected' });
 
     client.on('message', (raw: Buffer, isBinary: boolean) => {
-      void this.onMessage(client, raw, isBinary);
+      if (conn.state === 'stopping' || conn.state === 'ended') return;
+      // Apply admission limits before closing over a frame in the async queue.
+      // Downstream rate checks run too late when a DB operation is stalled.
+      if (conn.pendingInputBytes + raw.byteLength > MAX_PENDING_INPUT_BYTES ||
+          conn.pendingInputMessages >= MAX_PENDING_INPUT_MESSAGES) {
+        this.send(client, { type: 'error', code: 'CAPTURE_INPUT_OVERFLOW',
+          message: 'Capture input could not keep up. Restart transcription.' });
+        void this.finalize(conn, 'failed', true, 'CAPTURE_INPUT_OVERFLOW');
+        return;
+      }
+      conn.pendingInputBytes += raw.byteLength;
+      conn.pendingInputMessages += 1;
+      // EventEmitter does not await async handlers. Two initial audio frames
+      // could both try paused -> live; the losing update then killed a healthy
+      // capture. Preserve the browser's frame/control order across DB awaits.
+      conn.inboundChain = conn.inboundChain
+        .then(() => this.onMessage(client, raw, isBinary))
+        .catch(async (error) => {
+          this.logger.warn(`capture message failed session=${sessionId}: ${(error as Error).message}`);
+          this.send(client, {
+            type: 'error',
+            code: 'CAPTURE_MESSAGE_FAILED',
+            message: 'The capture could not process an incoming frame. Restart transcription.',
+          });
+          await this.finalize(conn, 'failed', true, 'CAPTURE_MESSAGE_FAILED');
+        })
+        .finally(() => {
+          conn.pendingInputBytes -= raw.byteLength;
+          conn.pendingInputMessages -= 1;
+        });
     });
   }
 
   async handleDisconnect(client: WebSocket): Promise<void> {
     const conn = this.conns.get(client);
     if (!conn) return;
+    // The final browser frame and an in-flight claim may still be awaiting the
+    // database when the socket closes. Drain them before releasing that claim.
+    await conn.inboundChain;
     await this.finalize(
       conn,
       conn.hasAudio ? 'ended' : 'failed',
@@ -181,7 +223,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   private async onMessage(client: WebSocket, raw: Buffer, isBinary: boolean): Promise<void> {
     const conn = this.conns.get(client);
-    if (!conn || conn.state === 'ended') return;
+    if (!conn || conn.state === 'ended' || conn.state === 'stopping') return;
 
     if (isBinary) {
       await this.onAudioFrame(conn, raw);
@@ -222,7 +264,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
       return;
     }
-    if (!BROWSER_MIME_TYPES.has(mimeType.toLowerCase())) {
+    if (typeof mimeType !== 'string' || !BROWSER_MIME_TYPES.has(mimeType.toLowerCase())) {
       this.send(conn.ws, {
         type: 'error',
         code: 'UNSUPPORTED_AUDIO_CONTAINER',
@@ -231,7 +273,17 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
-    const claim = await this.sessions.claimCapture(conn.tenantId, conn.sessionId);
+    const pendingClaim = this.sessions.claimCapture(conn.tenantId, conn.sessionId);
+    let claim: Awaited<typeof pendingClaim>;
+    try {
+      claim = await captureDeadline(pendingClaim, 'Capture claim timed out');
+    } catch (error) {
+      // Timing out a Promise does not cancel its SQL. If it eventually acquired
+      // a claim, release that exact token without starting a late provider.
+      void pendingClaim.then((lateClaim) => lateClaim
+        ? this.releaseAbandonedClaim(conn, lateClaim.startedAt) : undefined).catch(() => undefined);
+      throw error;
+    }
     if (!claim) {
       this.send(conn.ws, {
         type: 'error',
@@ -240,10 +292,16 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
       return;
     }
+    if (conn.state !== 'connected' || conn.ws.readyState !== conn.ws.OPEN) {
+      await this.releaseAbandonedClaim(conn, claim.startedAt);
+      return;
+    }
 
     conn.state = 'starting';
     conn.claimStartedAt = claim.startedAt;
-    conn.timelineOffsetMs = await this.commit.maxEndMs(conn.tenantId, conn.sessionId);
+    conn.timelineOffsetMs = await captureDeadline(
+      this.commit.maxEndMs(conn.tenantId, conn.sessionId), 'Capture timeline lookup timed out');
+    if (conn.state !== 'starting') return;
     this.logger.log(
       `capture claimed session=${conn.sessionId} user=${conn.userId} ` +
         `surface=${displaySurface ?? 'unknown'} offsetMs=${conn.timelineOffsetMs}`,
@@ -251,11 +309,22 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     conn.heartbeatTimer = setInterval(() => {
       const claimToken = conn.claimStartedAt;
-      if (!claimToken || conn.state === 'ended') return;
+      if (!claimToken || conn.state === 'ended' || conn.state === 'stopping') return;
+      // DB heartbeats never cross the browser connection. Native WS ping/pong
+      // keeps the proxy connection active during recesses without relying on a
+      // background tab's JavaScript timer.
+      if (conn.ws.readyState === conn.ws.OPEN) {
+        try {
+          conn.ws.ping();
+        } catch (error) {
+          void this.finalize(conn, 'failed', true, `CAPTURE_SOCKET_UNAVAILABLE: ${(error as Error).message}`);
+          return;
+        }
+      }
       void this.sessions
         .heartbeatCapture(conn.tenantId, conn.sessionId, claimToken)
         .then((ok) => {
-          if (!ok && conn.state !== 'ended') {
+          if (!ok && conn.state !== 'ended' && conn.state !== 'stopping') {
             this.send(conn.ws, {
               type: 'error',
               code: 'CAPTURE_LEASE_LOST',
@@ -270,6 +339,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           }
         })
         .catch((err) => {
+          if (conn.state === 'ended' || conn.state === 'stopping') return;
           this.logger.warn(`capture heartbeat failed: ${(err as Error).message}`);
           this.send(conn.ws, {
             type: 'error',
@@ -403,11 +473,13 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       try {
         activated = Boolean(
           claimToken &&
-          (await this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken)),
+          (await captureDeadline(this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken),
+            'Capture activation timed out')),
         );
       } catch (err) {
         this.logger.warn(`capture activation failed: ${(err as Error).message}`);
       }
+      if (!['ready', 'capturing'].includes(conn.state)) return;
       if (!activated) {
         this.send(conn.ws, {
           type: 'error',
@@ -623,6 +695,17 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
+  private async releaseAbandonedClaim(conn: LiveConn, token: Date): Promise<void> {
+    try {
+      await captureDeadline(
+        this.sessions.releaseCapture(conn.tenantId, conn.sessionId, token, 'failed'),
+        'Abandoned capture release timed out',
+      );
+    } catch (error) {
+      this.logger.warn(`abandoned capture claim cleanup failed: ${(error as Error).message}`);
+    }
+  }
+
   private withOffset<T extends InterimSegment | FinalSegment>(segment: T, offsetMs: number): T {
     return {
       ...segment,
@@ -654,6 +737,17 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       // ignore
     }
     client.close();
+  }
+}
+
+async function captureDeadline<T>(operation: Promise<T>, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([operation, new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), CAPTURE_DATABASE_DEADLINE_MS);
+    })]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

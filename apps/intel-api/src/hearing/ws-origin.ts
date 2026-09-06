@@ -16,6 +16,7 @@ import type { IncomingMessage } from 'node:http';
 const WS_ALLOWED_ORIGINS = new Set(
   [
     'https://app.capiro.ai',
+    'https://os.capiro.ai',
     'https://app-dev.capiro.ai',
     'https://capiro.ai',
     'https://www.capiro.ai',

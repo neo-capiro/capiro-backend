@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { isStateBillKey } from '@capiro/shared';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -185,7 +186,10 @@ export class FeedController {
   ) {
     // Bill 360 shows the full event history for a bill — a personal dismiss must
     // not hide a historical event from the record, so no userId is passed here.
-    const query = this.buildQuery('bill', severity, status, since, until, order, cursor, limit);
+    const query = this.buildQuery(
+      isStateBillKey(billId) ? 'state_bill' : 'bill',
+      severity, status, since, until, order, cursor, limit,
+    );
     return this.svc.getFeed(ctx.tenantId, clientId, { ...query, sourceRef: billId });
   }
 }

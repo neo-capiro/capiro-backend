@@ -137,6 +137,7 @@ export interface PublicCaptureRuntimePort {
   run(input: {
     captureId: string;
     hearingId: string;
+    lease: Pick<CaptureLease, 'ownerId' | 'fencingToken'>;
     mediaUrl: string;
     officialPageUrl?: string;
     /** Existing canonical timeline cursor when a fenced replacement worker resumes. */
@@ -185,6 +186,7 @@ export type CaptureReconcileOutcome =
   | { action: 'NOT_FOUND' }
   | { action: 'NO_CAPTURE_DEMAND' }
   | { action: 'TERMINAL'; captureId: string; status: PublicHearingCaptureStatus }
+  | { action: 'CAPTURE_IN_PROGRESS'; captureId: string }
   | { action: 'PREFLIGHT_SCHEDULED'; captureId: string; dueAt: Date }
   | { action: 'WAITING_FOR_STREAM'; captureId: string; dueAt?: Date; resolution: ClassifiedStreamResolution }
   | { action: 'BROWSER_ONLY'; captureId: string; resolution: ClassifiedStreamResolution }
@@ -233,6 +235,12 @@ export class PublicCaptureOrchestrator {
     });
     if (isTerminal(capture.status)) {
       return { action: 'TERMINAL', captureId: capture.id, status: capture.status };
+    }
+    // The scheduler must not advance the optimistic version underneath a
+    // four-hour worker. That worker owns resolution and finalization until its
+    // lease ends; an expired lease remains eligible for ordinary recovery.
+    if (capture.lease && capture.lease.expiresAt.getTime() > now.getTime()) {
+      return { action: 'CAPTURE_IN_PROGRESS', captureId: capture.id };
     }
 
     if (isCanceled(hearing.eventStatus)) {
@@ -484,6 +492,15 @@ export class PublicCaptureWorkerCoordinator {
     let runtimeStarted = false;
     let renewFailure: Error | undefined;
     let renewing = false;
+    let leaseDeadline: ReturnType<typeof setTimeout> | undefined;
+    const armLeaseDeadline = () => {
+      if (leaseDeadline) clearTimeout(leaseDeadline);
+      leaseDeadline = setTimeout(() => {
+        renewFailure = new Error('Public hearing capture lease expired before renewal');
+        abort.abort(renewFailure);
+      }, Math.max(0, lease.expiresAt.getTime() - this.now().getTime()));
+    };
+    armLeaseDeadline();
     const renewal = setInterval(() => {
       if (renewing || abort.signal.aborted) return;
       renewing = true;
@@ -496,7 +513,9 @@ export class PublicCaptureWorkerCoordinator {
           leaseDurationMs: this.leaseDurationMs,
         })
         .then((next) => {
+          if (abort.signal.aborted) return;
           lease = next;
+          armLeaseDeadline();
         })
         .catch((error: unknown) => {
           renewFailure = error instanceof Error ? error : new Error(String(error));
@@ -586,6 +605,7 @@ export class PublicCaptureWorkerCoordinator {
       const result = await this.runtime.run({
         captureId: capture.id,
         hearingId: hearing.id,
+        lease: { ownerId: input.workerId, fencingToken: lease.fencingToken },
         mediaUrl: resolution.media.url,
         officialPageUrl: hearing.officialPageUrl,
         timelineOffsetMs: capture.capturedMs,
@@ -675,6 +695,10 @@ export class PublicCaptureWorkerCoordinator {
         // Attempt history is best-effort; fenced state remains authoritative.
       }
 
+      // Losing ownership is a retryable task failure, not permission to mark
+      // the shared capture terminal. Let the durable queue arrange takeover.
+      if (renewFailure) throw renewFailure;
+
       try {
         if (canScheduleRecovery) {
           const recovering = transitionCapture(capture, 'RECOVERING', this.now());
@@ -733,6 +757,7 @@ export class PublicCaptureWorkerCoordinator {
       return { action: 'FAILED', error: message };
     } finally {
       clearInterval(renewal);
+      if (leaseDeadline) clearTimeout(leaseDeadline);
       abort.abort();
       try {
         await this.store.releaseLease({

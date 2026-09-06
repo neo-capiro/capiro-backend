@@ -39,20 +39,6 @@ export function transcriptAvailability(
   e: EventForAvailability,
 ): { available: boolean; note: string; state: string } {
   const status = (e.eventStatus ?? '').toUpperCase();
-  if (status === 'SCHEDULED' || status === 'POSTPONED') {
-    return {
-      available: false,
-      state: 'not-yet-occurred',
-      note: 'This proceeding has not occurred yet. The transcript appears here once the gavel sounds and processing completes.',
-    };
-  }
-  if (status === 'CANCELED') {
-    return {
-      available: false,
-      state: 'canceled',
-      note: 'This proceeding was canceled — no transcript exists.',
-    };
-  }
   if (isClosedSession(e.publicAccessStatus)) {
     return {
       available: false,
@@ -70,25 +56,46 @@ export function transcriptAvailability(
     };
   }
   const captureStatus = (e.capture?.status ?? '').toUpperCase();
-  if (captureStatus === 'FAILED' || e.capture?.failureReason) {
+  if (captureStatus === 'FAILED') {
     return {
-      available: false,
+      available: true,
       state: 'capture-failed',
-      note: `Capture failed${e.capture?.failureReason ? `: ${e.capture.failureReason}` : ''} — no transcript was produced.`,
+      note: `Capture failed${e.capture?.failureReason ? `: ${e.capture.failureReason}` : ''}. Any transcript recorded before the failure remains available below.`,
     };
   }
   if (
     captureStatus === 'CAPTURING' ||
+    captureStatus === 'RECORDING' ||
+    captureStatus === 'RECOVERING' ||
     captureStatus === 'READY' ||
     captureStatus === 'PREPARING' ||
     captureStatus === 'WAITING_FOR_STREAM' ||
     captureStatus === 'SCHEDULED'
   ) {
     return {
-      available: false,
+      available: true,
       state: 'capture-in-progress',
       note: 'Capture is in progress. Transcript segments appear as processing completes.',
     };
+  }
+  // A canonical capture can run before an official calendar's status catches
+  // up. Its recorded/live segments must not disappear behind stale SCHEDULED
+  // metadata; only report not-occurred when there is no capture to inspect.
+  if (!captureStatus || captureStatus === 'NOT_SCHEDULED') {
+    if (status === 'SCHEDULED' || status === 'POSTPONED') {
+      return {
+        available: false,
+        state: 'not-yet-occurred',
+        note: 'This proceeding has not occurred yet. The transcript appears here once capture starts.',
+      };
+    }
+    if (status === 'CANCELED' || status === 'CANCELLED') {
+      return {
+        available: false,
+        state: 'canceled',
+        note: 'This proceeding was canceled and has no capture record.',
+      };
+    }
   }
   if (status === 'COMPLETED' && (!captureStatus || captureStatus === 'NOT_SCHEDULED')) {
     return {

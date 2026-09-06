@@ -13,22 +13,17 @@
  * Every outcome state is honest (§8): not-occurred / no-public-stream /
  * capture-not-requested / capture-failed / processing / no-intelligence.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  useLwWeekCalendar,
   useCanonicalHearingEvent,
   usePublicHearingTranscript,
   useHearingIntelligence,
-  serverCaptureCapability,
-  browserCaptureCapability,
-  type CanonicalHearingEvent,
   type PublicTranscriptSegment,
   type HearingIntelligenceItem,
 } from '../lib/canonical-hearings.js';
 import {
   formatHearingDay,
-  formatHearingMoment,
   formatHearingTime,
   momentOfCanonicalEvent,
 } from '../lib/hearing-datetime.js';
@@ -45,6 +40,7 @@ import { AttendDialog, ATTENDANCE_LABEL } from './AttendDialog.js';
 import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { HearingActions, type ActionRefs } from './HearingActions.js';
 import { useAttendance, useFollowConfig, useHearingUpdates } from '../lib/wave1-api.js';
+import { useHearingWakeLock } from '../../../../lib/use-hearing-wake-lock.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',
@@ -68,11 +64,19 @@ function msToClock(ms: number): string {
 export function HearingDetailRoute() {
   const { hearingId = '' } = useParams<{ hearingId: string }>();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const event = useCanonicalHearingEvent(hearingId);
   const transcript = usePublicHearingTranscript(hearingId);
   const intelligence = useHearingIntelligence(hearingId);
   const [transcriptQuery, setTranscriptQuery] = useState('');
+  const [segmentToReveal, setSegmentToReveal] = useState<string | null>(null);
+  const lastHashJump = useRef('');
+  const captureStatus = event.data?.capture?.status?.toUpperCase();
+  useHearingWakeLock(
+    ['LIVE', 'IN_PROGRESS'].includes(event.data?.eventStatus?.toUpperCase() ?? '') ||
+    ['PREPARING', 'RECORDING', 'CAPTURING', 'RECOVERING'].includes(captureStatus ?? ''),
+  );
 
   // Wave 1 tenant state. Both are read here so the header controls show the
   // real persisted state rather than a local guess.
@@ -114,27 +118,46 @@ export function HearingDetailRoute() {
   // render, and the loading/error branches below return early.
   const jumpToSegment = useCallback((segmentId: string | undefined) => {
     if (!segmentId) return;
-    const el = document.getElementById(`lw-seg-${CSS.escape(segmentId)}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.style.background = 'color-mix(in srgb, var(--lw-brand-dot) 12%, transparent)';
-      window.setTimeout(() => {
-        el.style.background = '';
-      }, 2200);
-    }
+    setTranscriptQuery('');
+    setSegmentToReveal(segmentId);
   }, []);
 
   // W1-3: an archive transcript hit deep-links here as `#seg-<segmentId>`.
   // The jump waits for the transcript page containing the segment to land —
   // scrolling before it renders would silently do nothing.
-  const hash = window.location.hash;
   useEffect(() => {
-    if (!hash.startsWith('#seg-')) return;
-    const segmentId = decodeURIComponent(hash.slice('#seg-'.length));
-    if (!segmentId) return;
-    if (!segments.some((seg: PublicTranscriptSegment) => seg.id === segmentId)) return;
+    const target = `${hearingId}${hash}`;
+    if (!hash.startsWith('#seg-')) {
+      lastHashJump.current = '';
+      return;
+    }
+    if (lastHashJump.current === target) return;
+    let segmentId: string;
+    try {
+      segmentId = decodeURIComponent(hash.slice('#seg-'.length));
+    } catch {
+      return; // A malformed incoming fragment must not crash the entire room.
+    }
+    if (!segmentId || !segments.some((seg) => seg.id === segmentId)) return;
+    lastHashJump.current = target;
     jumpToSegment(segmentId);
-  }, [hash, segments, jumpToSegment]);
+  }, [hearingId, hash, segments, jumpToSegment]);
+
+  useEffect(() => {
+    if (!segmentToReveal) return;
+    const el = document.getElementById(`lw-seg-${segmentToReveal}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.background = 'color-mix(in srgb, var(--lw-brand-dot) 12%, transparent)';
+    const timeout = window.setTimeout(() => {
+      el.style.background = '';
+      setSegmentToReveal(null);
+    }, 2200);
+    return () => {
+      window.clearTimeout(timeout);
+      el.style.background = '';
+    };
+  }, [segmentToReveal, visibleSegments]);
 
   if (event.isLoading) {
     return (
@@ -312,35 +335,38 @@ export function HearingDetailRoute() {
                 onChange={(ev) => setTranscriptQuery(ev.target.value)}
               />
             </div>
-            {transcript.isLoading ? <LwSkeleton height={120} /> : null}
+            {availability.state !== 'transcript-ready' ? (
+              <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>{availability.note}</p>
+            ) : null}
             {transcript.isError ? (
               <LwStateUnavailable
                 source="Transcript"
-                reason="Transcript segments could not be loaded."
+                reason={segments.length ? 'Transcript updates are temporarily unavailable. Recorded segments remain below.' : 'Transcript segments could not be loaded.'}
                 onRetry={() => void transcript.refetch()}
               />
-            ) : visibleSegments.length === 0 ? (
+            ) : null}
+            {transcript.isLoading ? <LwSkeleton height={120} /> : visibleSegments.length === 0 && !transcript.isError ? (
               <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
                 {segments.length === 0 ? 'No transcript segments recorded.' : 'No segments match this search.'}
               </p>
-            ) : (
+            ) : visibleSegments.length > 0 ? (
               <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {visibleSegments.map((s: PublicTranscriptSegment) => (
                   <li
                     key={s.id}
-                    id={`lw-seg-${CSS.escape(s.id)}`}
+                    id={`lw-seg-${s.id}`}
                     style={{ borderLeft: s.gapBefore ? '2px solid var(--lw-faint)' : undefined, paddingLeft: 10, transition: 'background 0.4s' }}
                   >
                     <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
                       <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{msToClock(s.startMs)}</span>
-                      {s.speakerName ? <strong style={{ fontSize: 13 }}>{s.speakerName}</strong> : null}
+                      {s.speakerName || s.speakerLabel ? <strong style={{ fontSize: 13 }}>{s.speakerName ?? s.speakerLabel}</strong> : null}
                       {s.gapBefore ? <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>· gap</span> : null}
                     </div>
                     <p style={{ margin: '2px 0 0', fontSize: 14 }}>{s.text}</p>
                   </li>
                 ))}
               </ol>
-            )}
+            ) : null}
           </>
         )}
       </section>
@@ -351,7 +377,23 @@ export function HearingDetailRoute() {
           <h2 className="lw-card__title">Intelligence</h2>
           <span className="lw-card__meta">{intel.length} items</span>
         </div>
-        {intel.length === 0 ? (
+        {intelligence.isError ? (
+          <LwStateUnavailable
+            source="Intelligence"
+            reason={intel.length ? 'Intelligence updates are temporarily unavailable. The last received findings remain below.' : 'Intelligence could not be loaded.'}
+            onRetry={() => void intelligence.refetch()}
+          />
+        ) : null}
+        {intelligence.data?.status === 'FAILED' ? (
+          <p role="alert" style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
+            Intelligence extraction failed.{segments.length > 0 ? ' The transcript remains available for review.' : ''}
+          </p>
+        ) : intelligence.data?.status === 'DEGRADED' ? (
+          <p role="status" style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
+            Some intelligence extraction jobs failed. Findings may be incomplete while processing continues.
+          </p>
+        ) : null}
+        {intelligence.isLoading ? <LwSkeleton height={100} /> : intel.length === 0 && !intelligence.isError && intelligence.data?.status !== 'FAILED' ? (
           <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
             {intelProcessing
               ? 'Intelligence extraction is in progress — findings appear here as segments are processed.'
@@ -359,7 +401,7 @@ export function HearingDetailRoute() {
                 ? 'No intelligence was extracted for this proceeding.'
                 : 'Intelligence requires a transcript — none is available for this proceeding.'}
           </p>
-        ) : (
+        ) : intel.length > 0 ? (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {intel.map((item: HearingIntelligenceItem) => (
               <li key={item.id} style={{ borderLeft: '2px solid var(--lw-brand-dot)', paddingLeft: 10 }}>
@@ -397,7 +439,7 @@ export function HearingDetailRoute() {
               </li>
             ))}
           </ul>
-        )}
+        ) : null}
       </section>
 
       {/* 6. Client relevance (W1-6) — tenant-scoped analysis over the public
@@ -418,8 +460,8 @@ export function HearingDetailRoute() {
         hearingId={hearingId}
         hearingTitle={e.title}
         clientId={clientId}
-        canCreateBrief={availability.available}
-        canSaveMoment={availability.available}
+        canCreateBrief={availability.available && segments.length > 0}
+        canSaveMoment={availability.available && segments.length > 0}
         pendingAction={pendingAction}
         onPendingHandled={() => setPendingAction(null)}
       />

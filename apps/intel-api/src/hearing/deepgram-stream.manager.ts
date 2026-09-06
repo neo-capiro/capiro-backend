@@ -2,6 +2,10 @@ import { Logger } from '@nestjs/common';
 import { createClient, type ListenLiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import type { FinalSegment, InterimSegment } from './hearing.types.js';
 
+// Deepgram closes an otherwise healthy stream after ten seconds without audio
+// or KeepAlive. Recesses and browser scheduling gaps must not end a hearing.
+const KEEP_ALIVE_MS = 4_000;
+
 export interface DeepgramStreamCallbacks {
   onInterim: (seg: InterimSegment) => void;
   onFinal: (seg: FinalSegment) => void;
@@ -34,6 +38,9 @@ export class DeepgramStreamManager {
   private opened = false;
   private started = false;
   private terminalErrorSent = false;
+  private transportClosed = false;
+  private finalizationComplete = false;
+  private keepAliveTimer?: ReturnType<typeof setInterval>;
   private firstAudioLogged = false;
   private firstTranscriptLogged = false;
   private readonly model: string;
@@ -76,7 +83,11 @@ export class DeepgramStreamManager {
     if (this.started) return;
     this.started = true;
     this.closedByUs = false;
-    this.open();
+    try {
+      this.open();
+    } catch (error) {
+      this.emitTerminalError(error instanceof Error ? error : new Error(String(error)));
+    }
   }
 
   /** Forward one binary audio frame. Returns false until Deepgram is ready. */
@@ -102,6 +113,7 @@ export class DeepgramStreamManager {
   stop(): void {
     this.closedByUs = true;
     this.opened = false;
+    this.clearKeepAlive();
     try {
       this.connection?.requestClose();
     } catch {
@@ -111,7 +123,7 @@ export class DeepgramStreamManager {
 
   /** Request Deepgram finalization and wait briefly for its Close event. */
   async stopAndWait(timeoutMs = 2_500): Promise<void> {
-    if (!this.connection) return;
+    if (!this.connection || this.transportClosed) return;
     await new Promise<void>((resolve) => {
       let settled = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -126,6 +138,10 @@ export class DeepgramStreamManager {
       timer = setTimeout(waiter, timeoutMs);
       this.stop();
     });
+    // CloseStream only asks the provider to close. End the transport and final
+    // callback window even when that request is never acknowledged.
+    this.finalizationComplete = true;
+    try { this.connection.disconnect(); } catch { /* Shutdown stays bounded. */ }
   }
 
   private open(): void {
@@ -143,7 +159,27 @@ export class DeepgramStreamManager {
     this.connection = connection;
 
     connection.on(LiveTranscriptionEvents.Open, () => {
+      // A stop/start-timeout can win the race with the provider opening. Never
+      // resurrect capture or leave a billable socket alive after finalization.
+      if (this.closedByUs || this.terminalErrorSent) {
+        try {
+          connection.requestClose();
+        } catch {
+          this.resolveCloseWaiters();
+        }
+        return;
+      }
       this.opened = true;
+      this.clearKeepAlive();
+      this.keepAliveTimer = setInterval(() => {
+        if (!this.opened || this.closedByUs) return;
+        try {
+          connection.keepAlive();
+        } catch (error) {
+          this.emitTerminalError(error instanceof Error ? error : new Error(String(error)));
+        }
+      }, KEEP_ALIVE_MS);
+      this.keepAliveTimer.unref?.();
       this.logger.log(
         `deepgram open model=${this.model} encoding=${this.encoding || 'auto-detect'} ` +
           `sampleRate=${this.sampleRate ?? 'n/a'}`,
@@ -157,6 +193,7 @@ export class DeepgramStreamManager {
     });
 
     connection.on(LiveTranscriptionEvents.Transcript, (data: DeepgramTranscript) => {
+      if (this.transportClosed || this.finalizationComplete) return;
       if (!this.firstTranscriptLogged) {
         this.firstTranscriptLogged = true;
         this.logger.log(
@@ -190,6 +227,8 @@ export class DeepgramStreamManager {
 
     connection.on(LiveTranscriptionEvents.Close, (event: unknown) => {
       this.opened = false;
+      this.transportClosed = true;
+      this.clearKeepAlive();
       const e = event as { code?: number; reason?: string } | undefined;
       this.logger.warn(
         `deepgram close code=${e?.code ?? '?'} reason=${e?.reason || '(none)'} ` +
@@ -207,7 +246,14 @@ export class DeepgramStreamManager {
   private emitTerminalError(err: Error): void {
     if (this.terminalErrorSent || this.closedByUs) return;
     this.terminalErrorSent = true;
+    this.opened = false;
+    this.clearKeepAlive();
     this.callbacks.onError(err);
+  }
+
+  private clearKeepAlive(): void {
+    if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+    this.keepAliveTimer = undefined;
   }
 
   private resolveCloseWaiters(): void {

@@ -302,6 +302,7 @@ export function w1Error(err: unknown): string {
   if (typeof message === 'string' && message.trim()) return message;
   if (Array.isArray(message) && typeof message[0] === 'string') return message[0];
   if (typeof res?.data?.code === 'string') return res.data.code;
+  if (err instanceof Error && err.message.trim()) return err.message;
   return 'Something went wrong. Please try again.';
 }
 
@@ -367,6 +368,15 @@ export function useAttendance(hearingId: string): UseQueryResult<AttendanceAsses
     enabled: Boolean(hearingId),
     staleTime: 30_000,
     retry: false,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return state && ['COMPLETE', 'FAILED', 'CLOSED_SESSION', 'NOT_ELIGIBLE'].includes(state)
+        ? false
+        : 15_000;
+    },
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 }
 
@@ -388,6 +398,9 @@ export function useRequestAttendance(hearingId: string) {
     onSuccess: (data) => {
       qc.setQueryData(w1Keys.attendance(hearingId), data.attendance);
       void qc.invalidateQueries({ queryKey: ['lw-w1', 'detail', hearingId] });
+      void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
+      void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
+      void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
     },
   });
 }
@@ -405,6 +418,9 @@ export function useCancelAttendance(hearingId: string) {
     onSuccess: (data) => {
       qc.setQueryData(w1Keys.attendance(hearingId), data.attendance);
       void qc.invalidateQueries({ queryKey: ['lw-w1', 'detail', hearingId] });
+      void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
+      void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
+      void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
     },
   });
 }

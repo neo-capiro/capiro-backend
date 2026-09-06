@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
-import { LiveHearingsService, type CalendarEvent } from './live-hearings.service.js';
+import { LiveHearingsService } from './live-hearings.service.js';
+import { assessStrictSchedulePolicy } from './live-hearings-phase7-schedule.guard.js';
 
 const TRANSCRIPT_MAX_PAGE_SIZE = 500;
 const LIST_MAX_PAGE_SIZE = 100;
@@ -130,13 +131,6 @@ interface ListRow {
   scheduledByRuleId?: string | null;
 }
 
-export interface SchedulePolicyAssessment {
-  allowed: boolean;
-  state: 'READY' | 'PREFLIGHT_REQUIRED' | 'BROWSER_ONLY' | 'LICENSE_REQUIRED' | 'BLOCKED';
-  reasonCode: string;
-  message: string;
-}
-
 export interface Phase7Participation {
   scheduled: boolean;
   scheduledByUser: boolean;
@@ -244,10 +238,6 @@ export class LiveHearingsPhase7Service {
       updates,
       transcriptDisclaimer:
         'Machine-generated transcript. Verify consequential quotations against the official recording or transcript.',
-      intelligence: {
-        status: 'PHASE_8_PERSISTENCE_NOT_ENABLED',
-        items: [],
-      },
       asOf: new Date().toISOString(),
     };
   }
@@ -261,12 +251,17 @@ export class LiveHearingsPhase7Service {
     items: Array<Record<string, unknown>>;
     total: number;
     nextCursor: string | null;
+    /** Resume from the live tail even when no further page exists yet. */
+    resumeCursor: string | null;
     hasMore: boolean;
   }> {
-    await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId);
+    if (hearing.visibility !== 'public') {
+      throw new ForbiddenException('Canonical public transcript is unavailable for a non-public proceeding.');
+    }
     const capture = await this.captureDetail(hearingId);
     if (!capture) {
-      return { hearingId, capture: null, items: [], total: 0, nextCursor: null, hasMore: false };
+      return { hearingId, capture: null, items: [], total: 0, nextCursor: null, resumeCursor: null, hasMore: false };
     }
 
     const decoded = decodeTranscriptCursor(input.cursor);
@@ -328,6 +323,9 @@ export class LiveHearingsPhase7Service {
       })),
       total: countRows[0]?.count ?? 0,
       nextCursor: hasMore && last ? encodeTranscriptCursor(last.sequence, last.id) : null,
+      resumeCursor: last
+        ? encodeTranscriptCursor(last.sequence, last.id)
+        : decoded ? encodeTranscriptCursor(decoded.sequence, decoded.id) : null,
       hasMore,
     };
   }
@@ -662,16 +660,6 @@ export class LiveHearingsPhase7Service {
     };
   }
 
-  async intelligenceSeam(hearingId: string): Promise<Record<string, unknown>> {
-    await this.requireHearing(hearingId);
-    return {
-      hearingId,
-      status: 'PHASE_8_PERSISTENCE_NOT_ENABLED',
-      items: [],
-      message: 'Public hearing intelligence persistence is introduced in Phase 8; no insight is fabricated here.',
-    };
-  }
-
   private async requireHearing(hearingId: string): Promise<CanonicalHearingRow> {
     const row = await this.prisma.committeeHearing.findUnique({
       where: { id: hearingId },
@@ -874,92 +862,21 @@ export class LiveHearingsPhase7Service {
   }
 }
 
-export function assessSchedulePolicy(
-  hearing: Pick<CanonicalHearingRow, 'eventStatus' | 'visibility'>,
-  candidates: Array<{ capturePolicy: string; resolutionState: string }>,
-): SchedulePolicyAssessment {
-  if (hearing.visibility !== 'public') {
-    return {
-      allowed: false,
-      state: 'BLOCKED',
-      reasonCode: 'NON_PUBLIC_PROCEEDING',
-      message: 'This proceeding is not public and cannot be scheduled for public server capture.',
-    };
-  }
-  if (hearing.eventStatus === 'canceled') {
-    return {
-      allowed: false,
-      state: 'BLOCKED',
-      reasonCode: 'EVENT_CANCELED',
-      message: 'This proceeding has been canceled.',
-    };
-  }
-  if (hearing.eventStatus === 'completed') {
-    return {
-      allowed: false,
-      state: 'BLOCKED',
-      reasonCode: 'EVENT_COMPLETED',
-      message: 'This proceeding is already complete.',
-    };
-  }
-  if (!candidates.length) {
-    return {
-      allowed: true,
-      state: 'PREFLIGHT_REQUIRED',
-      reasonCode: 'STREAM_NOT_RESOLVED_YET',
-      message: 'Recording demand was accepted; Capiro will resolve the official stream near the start time.',
-    };
-  }
-  if (candidates.some((candidate) => candidate.capturePolicy === 'SERVER_CAPTURE_ALLOWED')) {
-    return {
-      allowed: true,
-      state: 'READY',
-      reasonCode: 'SERVER_CAPTURE_ALLOWED',
-      message: 'An approved server-capture source is available.',
-    };
-  }
-  if (
-    candidates.some(
-      (candidate) =>
-        candidate.capturePolicy === 'REVIEW_REQUIRED' ||
-        ['NOT_CHECKED', 'WAITING_FOR_STREAM', 'SOURCE_ERROR'].includes(candidate.resolutionState),
-    )
-  ) {
-    return {
-      allowed: true,
-      state: 'PREFLIGHT_REQUIRED',
-      reasonCode: 'STREAM_PREFLIGHT_REQUIRED',
-      message: 'Recording demand was accepted; the official source still requires preflight or re-resolution.',
-    };
-  }
-  if (candidates.every((candidate) => candidate.capturePolicy === 'BROWSER_CAPTURE_ONLY')) {
-    return {
-      allowed: false,
-      state: 'BROWSER_ONLY',
-      reasonCode: 'BROWSER_CAPTURE_ONLY',
-      message: 'The currently verified source is browser-capture only; unattended server capture is not permitted.',
-    };
-  }
-  if (candidates.every((candidate) => candidate.capturePolicy === 'LICENSE_REQUIRED')) {
-    return {
-      allowed: false,
-      state: 'LICENSE_REQUIRED',
-      reasonCode: 'LICENSE_REQUIRED',
-      message: 'The currently verified source requires a license before server capture can be enabled.',
-    };
-  }
-  return {
-    allowed: false,
-    state: 'BLOCKED',
-    reasonCode: 'NO_SERVER_CAPTURABLE_SOURCE',
-    message: 'No currently verified source is eligible for unattended server capture.',
-  };
-}
+/** One capture-policy decision for request guards and internal scheduling callers. */
+export const assessSchedulePolicy = assessStrictSchedulePolicy;
 
 export function browserJoinPlan(
   hearing: CanonicalHearingRow,
   capture: Phase7CaptureDetail | null,
 ): BrowserJoinPlan {
+  if (hearing.visibility !== 'public') {
+    return {
+      mode: 'BLOCKED',
+      hearingId: hearing.id,
+      reasonCode: 'NON_PUBLIC_PROCEEDING',
+      message: 'Browser-assisted capture is available only for public proceedings.',
+    };
+  }
   if (capture && ATTACHABLE_CAPTURE_STATES.has(capture.status)) {
     return {
       mode: 'ATTACH_CANONICAL',
@@ -969,14 +886,6 @@ export function browserJoinPlan(
       reasonCode: ACTIVE_CAPTURE_STATES.has(capture.status)
         ? 'CANONICAL_CAPTURE_ACTIVE'
         : 'CANONICAL_TRANSCRIPT_AVAILABLE',
-    };
-  }
-  if (hearing.visibility !== 'public') {
-    return {
-      mode: 'BLOCKED',
-      hearingId: hearing.id,
-      reasonCode: 'NON_PUBLIC_PROCEEDING',
-      message: 'Browser-assisted capture is available only for public proceedings.',
     };
   }
   if (hearing.eventStatus === 'canceled') {

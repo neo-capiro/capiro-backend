@@ -82,14 +82,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  document.body.innerHTML = '';
+  cleanup();
 });
 
-function renderBills(scope: string) {
+function renderBills(scope: string, initialEntry = '/legiwatch?tab=bills') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/legiwatch?tab=bills']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/legiwatch" element={<BillsTab scope={scope} clients={CLIENTS as never} />} />
         </Routes>
@@ -99,6 +99,52 @@ function renderBills(scope: string) {
 }
 
 describe('PR C §15 — Bills All-clients = real tenant roll-up', () => {
+  it('restores a saved view from URL controls and passes server filters to the board', async () => {
+    renderBills('', '/legiwatch?tab=bills&billView=table&billChanged7=1&billActive=1&billSort=relevance');
+    await screen.findByText('H.R. 9001');
+    expect(screen.getByRole('tab', { name: 'Table' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Changed in 7 days' }).getAttribute('aria-pressed')).toBe('true');
+    expect(apiGet.mock.calls.some(([url]) => url.includes('changedWithinDays=7') && url.includes('activeOnly=true'))).toBe(true);
+  });
+
+  it('loads later pages and preserves separate client tracking rows without duplicate page rows', async () => {
+    const first = ROLLUP.columns[0]!.cards[0]!;
+    apiGet.mockImplementation(async (url) => ({ data: url.includes('cursor=page-2')
+      ? { columns: [{ id: 'introduced', label: 'Introduced', cards: [first, { ...first, clientId: 'c-b', clientName: 'Beta Advocacy' }] }], total: 2, hasMore: false }
+      : { columns: [{ id: 'introduced', label: 'Introduced', cards: [first] }], total: 2, hasMore: true, nextCursor: 'page-2' } }));
+    renderBills('');
+    await screen.findByText('H.R. 9001');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more bills' }));
+    await screen.findByText('Beta Advocacy');
+    expect(screen.getAllByText('H.R. 9001')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Load more bills' })).toBeNull();
+    expect(apiGet.mock.calls.some(([url]) => url.includes('cursor=page-2'))).toBe(true);
+  });
+
+  it('applies high-fit consistently after switching from cards to table', async () => {
+    apiGet.mockResolvedValue({ data: {
+      ...ROLLUP,
+      columns: [{ ...ROLLUP.columns[0], cards: ROLLUP.columns[0]!.cards.map((c, i) => ({ ...c, matchedHighPriorityTopics: i === 0 ? ['shipbuilding'] : [] })) }],
+    } });
+    renderBills('');
+    await screen.findByText('H.R. 9001');
+    fireEvent.click(screen.getByRole('button', { name: 'High fit' }));
+    expect(screen.queryByText('S. 700')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Table' }));
+    expect(screen.getByText('H.R. 9001')).toBeTruthy();
+    expect(screen.queryByText('S. 700')).toBeNull();
+  });
+
+  it('shows enacted status instead of a passage forecast for the API display label', async () => {
+    apiGet.mockResolvedValue({ data: { columns: [{ id: 'enacted', label: 'Enacted', cards: [{ ...ROLLUP.columns[0]!.cards[0], stage: 'enacted', canonicalStatus: 'Became law' }] }], total: 1 } });
+    renderBills('');
+    await screen.findByText('BECAME LAW');
+    expect(screen.queryByText('55%')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Table' }));
+    expect(screen.getByText('BECAME LAW')).toBeTruthy();
+    expect(screen.queryByText('55%')).toBeNull();
+  });
+
   it('empty scope calls the `_all` board route (not the first client)', async () => {
     renderBills('');
     await screen.findByText('H.R. 9001');

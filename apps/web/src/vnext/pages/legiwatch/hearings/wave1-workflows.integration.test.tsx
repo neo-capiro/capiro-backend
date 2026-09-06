@@ -12,7 +12,7 @@
  * actually requested.
  */
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -196,6 +196,10 @@ function archivePage(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function LocationProbe() {
+  return <output data-testid="current-location">{useLocation().pathname}</output>;
+}
+
 function renderIn(ui: React.ReactElement, initialEntries = ['/legiwatch']) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -203,6 +207,7 @@ function renderIn(ui: React.ReactElement, initialEntries = ['/legiwatch']) {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={initialEntries}>
+        <LocationProbe />
         <Routes>
           <Route path="*" element={ui} />
         </Routes>
@@ -409,8 +414,79 @@ describe('W1-2 Attend dialog', () => {
     expect(screen.getByRole('radio', { name: /Browser attendance/ })).toBeTruthy();
     // Consent is required, so the primary is blocked until it is given.
     expect(
-      (screen.getByRole('button', { name: 'Schedule attendance' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Open browser attendance' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  function browserAttendance() {
+    const assessment = attendanceState({ state: 'BROWSER_ONLY', availableModes: ['browser'], consentRequired: true });
+    handlers.get.mockImplementation(() => assessment);
+    handlers.put.mockImplementation(() => ({ attendance: assessment }));
+    return {
+      mode: 'BROWSER_CAPTURE', hearingId: HEARING_ID, title: 'Shipbuilding', sourceType: 'hearing',
+      sourceUrl: 'https://armedservices.house.gov/hearings', audioSource: 'browser_mic', recordingPolicy: 'transcript_only',
+    };
+  }
+
+  async function openBrowserAttendance() {
+    await screen.findByText('Browser attendance required');
+    fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this proceeding is public/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open browser attendance' }));
+  }
+
+  it('opens a real browser hearing session after consent and canonical join assessment', async () => {
+    const plan = browserAttendance();
+    handlers.post.mockImplementation((url) => url.endsWith('/join-browser') ? plan : { id: 'browser-session-1' });
+    const onClose = vi.fn();
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
+    await openBrowserAttendance();
+    await waitFor(() => expect(screen.getByTestId('current-location')).toHaveTextContent('/intelligence/hearing-watch/browser-session-1'));
+    expect(calls.filter((call) => call.method !== 'get').map((call) => call.url)).toEqual([
+      `/api/legiwatch/live-hearings/events/${HEARING_ID}/attendance`,
+      `/api/legiwatch/live-hearings/events/${HEARING_ID}/join-browser`,
+      '/intel-api/hearings',
+    ]);
+    expect(calls.find((call) => call.url === '/intel-api/hearings')?.body).toMatchObject({
+      hearingId: HEARING_ID, audioSource: 'browser_mic', sourceUrl: plan.sourceUrl,
+      consentAttestation: expect.stringContaining('recording it through my browser is permitted'),
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('attaches to an existing canonical capture without creating a duplicate browser session', async () => {
+    browserAttendance();
+    handlers.post.mockImplementation(() => ({ mode: 'ATTACH_CANONICAL', hearingId: HEARING_ID, captureId: 'cap-existing', captureStatus: 'CAPTURING' }));
+    const onClose = vi.fn();
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
+    await openBrowserAttendance();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(calls.some((call) => call.url === '/intel-api/hearings')).toBe(false);
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/legiwatch');
+  });
+
+  it('keeps the browser dialog open with the actual policy refusal', async () => {
+    browserAttendance();
+    handlers.post.mockImplementation(() => ({ mode: 'BLOCKED', hearingId: HEARING_ID, message: 'This proceeding has been canceled.' }));
+    const onClose = vi.fn();
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
+    await openBrowserAttendance();
+    expect(await screen.findByRole('alert')).toHaveTextContent('This proceeding has been canceled.');
+    expect(calls.some((call) => call.url === '/intel-api/hearings')).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not close or navigate when creating the browser room fails', async () => {
+    const plan = browserAttendance();
+    handlers.post.mockImplementation((url) => {
+      if (url.endsWith('/join-browser')) return plan;
+      throw new Error('Hearing service is unavailable.');
+    });
+    const onClose = vi.fn();
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
+    await openBrowserAttendance();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Hearing service is unavailable.');
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/legiwatch');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('a CLOSED session gets NO attendance affordance', async () => {
@@ -881,6 +957,8 @@ describe('W1-7 actions and W1-8 export', () => {
     // The grounded context comes from apps/api; Workspace still creates it.
     expect(calls.some((c) => c.url.endsWith('/actions/brief-prefill'))).toBe(true);
     expect(calls.some((c) => c.url === '/workspace-api/drafts')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Open →' }));
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/workspace/draft/draft-1');
   });
 
   it('Stage outreach stages work and states that nothing was sent', async () => {

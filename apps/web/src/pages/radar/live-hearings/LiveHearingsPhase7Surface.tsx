@@ -792,17 +792,6 @@ function EventRoom({ eventId, goBack }: { eventId: string; goBack: () => void })
             </div>
           </section>
           <section className="lh7-room-card">
-            <span className="lh7-eyebrow">Live Intelligence</span>
-            {room.intelligenceStatus === 'PHASE_8_PERSISTENCE_NOT_ENABLED' ? (
-              <Alert
-                type="info"
-                showIcon
-                message="Intelligence persistence is not enabled in Phase 7"
-                description="This room deliberately does not fabricate insight cards. Phase 8 will persist public insights and tenant-isolated relevance."
-              />
-            ) : null}
-          </section>
-          <section className="lh7-room-card">
             <span className="lh7-eyebrow">Source provenance</span>
             <div className="lh7-fact-list">
               <span><small>Official page</small><strong>{officialUrl ? 'Resolved' : 'Unavailable'}</strong></span>

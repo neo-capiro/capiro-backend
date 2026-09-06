@@ -21,6 +21,9 @@ const SOURCE_FAMILY_LABEL: Record<string, string> = {
   bill: 'Congress.gov',
   hearing: 'Committee pages',
   combined: 'Congress.gov + Committee pages',
+  state_bill: 'State legislatures',
+  regulation: 'Federal Register',
+  program_element: 'Program element service',
 };
 
 interface AlertRow {
@@ -71,7 +74,7 @@ export class LegiWatchDigestService {
             SELECT id, client_id AS "clientId", source_type AS "sourceType", severity, urgency, score, title,
                    why_it_matters AS "whyItMatters", recommended_action AS "recommendedAction", created_at AS "createdAt"
             FROM intel_alert
-            WHERE tenant_id = ${ctx.tenantId} AND created_at >= ${windowStart} AND client_id = ${clientId}
+            WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${ctx.tenantId} AND created_at >= ${windowStart} AND client_id = ${clientId}
             ORDER BY score DESC, created_at DESC
             LIMIT 200
           `
@@ -79,15 +82,16 @@ export class LegiWatchDigestService {
             SELECT id, client_id AS "clientId", source_type AS "sourceType", severity, urgency, score, title,
                    why_it_matters AS "whyItMatters", recommended_action AS "recommendedAction", created_at AS "createdAt"
             FROM intel_alert
-            WHERE tenant_id = ${ctx.tenantId} AND created_at >= ${windowStart}
+            WHERE status IN ('new', 'reviewed', 'sent') AND tenant_id = ${ctx.tenantId} AND created_at >= ${windowStart}
             ORDER BY score DESC, created_at DESC
             LIMIT 200
           `;
 
-      const clientIds = [...new Set(alertRows.map((r) => r.clientId))];
-      const clients = clientIds.length
-        ? await tx.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } })
-        : [];
+      const clients = await tx.client.findMany({
+        where: { tenantId: ctx.tenantId, ...(clientId ? { id: clientId } : { status: { not: 'archived' } }) },
+        select: { id: true, name: true },
+      });
+      if (clientId && clients.length === 0) throw new NotFoundException('Client not found');
       const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
 
       const upcomingRaw = await tx.committeeHearing.findMany({
@@ -97,12 +101,24 @@ export class LegiWatchDigestService {
         select: { id: true, title: true, date: true, committeeName: true },
       });
 
-      const billsMoved = await tx.congressBill.findMany({
-        where: { statusAt: { gte: windowStart } },
-        orderBy: [{ statusAt: 'desc' }],
-        take: 10,
-        select: { id: true, billType: true, billNumber: true, congress: true, title: true, status: true, statusAt: true },
-      });
+      const billsMoved = await tx.$queryRaw<Array<{ id: string; display: string; status: string | null; statusAt: Date | null }>>`
+        WITH tracked AS (
+          SELECT DISTINCT bill_id FROM intel_tracked_bill
+          WHERE tenant_id = ${ctx.tenantId}
+            AND (${clientId}::text IS NULL OR client_id = ${clientId})
+        ), movement AS (
+          SELECT cb.id,
+                 upper(cb.bill_type) || '.' || cb.bill_number::text || ' (' || cb.congress::text || 'th)' AS display,
+                 cb.status, cb.status_at AS "statusAt"
+          FROM tracked t JOIN congress_bill cb ON cb.id = t.bill_id
+          WHERE cb.status_at BETWEEN ${windowStart} AND ${now}
+          UNION ALL
+          SELECT sb.id, upper(sb.state) || ' ' || sb.identifier AS display, sb.status, sb.status_at AS "statusAt"
+          FROM tracked t JOIN state_bill sb ON sb.id = t.bill_id
+          WHERE sb.status_at BETWEEN ${windowStart} AND ${now}
+        )
+        SELECT * FROM movement ORDER BY "statusAt" DESC, id LIMIT 10
+      `;
 
       const whatChanged = alertRows.slice(0, 8).map((r) => ({
         id: r.id,
@@ -148,8 +164,8 @@ export class LegiWatchDigestService {
         clientsInScope: clientId ? 1 : clients.length,
         headline:
           whatChanged.length === 0
-            ? 'Nothing moved across your monitored sources since the last scan.'
-            : `${whatChanged.length} development${whatChanged.length === 1 ? '' : 's'} moved across your monitored sources — ${decisionsRequired.length} need${decisionsRequired.length === 1 ? 's' : ''} a decision today.`,
+            ? 'No matching developments were recorded in the last 48 hours.'
+            : `${whatChanged.length} development${whatChanged.length === 1 ? '' : 's'} recorded in the last 48 hours — ${decisionsRequired.length} flagged for priority review.`,
         whatChanged,
         decisionsRequired,
         upcomingHearings: upcomingRaw.map((h) => ({
@@ -160,7 +176,7 @@ export class LegiWatchDigestService {
         })),
         billMovement: billsMoved.map((b) => ({
           id: b.id,
-          display: `${b.billType.toUpperCase()}.${b.billNumber} (${b.congress}th)`.replace('..', '.'),
+          display: b.display,
           status: b.status,
           statusAt: b.statusAt?.toISOString() ?? null,
         })),
@@ -190,6 +206,7 @@ export class LegiWatchDigestService {
   }
 
   async history(ctx: TenantContext, clientId: string | null, limit = 20): Promise<{ rows: Array<Record<string, unknown>> }> {
+    if (!Number.isInteger(limit) || limit < 1) throw new BadRequestException('limit must be a positive integer');
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.legiWatchDigestRun.findMany({
         where: { tenantId: ctx.tenantId, clientId },
@@ -233,10 +250,26 @@ export class LegiWatchDigestService {
     clientId: string | null,
     input: { cadence: 'daily' | 'weekly' | 'off'; hourUtc: number; emailEnabled: boolean },
   ): Promise<Record<string, unknown>> {
-    if (input.hourUtc < 0 || input.hourUtc > 23) {
-      throw new BadRequestException('hourUtc must be between 0 and 23');
+    if (!input || !['daily', 'weekly', 'off'].includes(input.cadence)
+      || !Number.isInteger(input.hourUtc) || input.hourUtc < 0 || input.hourUtc > 23
+      || typeof input.emailEnabled !== 'boolean') {
+      throw new BadRequestException('cadence must be daily, weekly or off; hourUtc must be an integer between 0 and 23; emailEnabled must be boolean');
     }
     const saved = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (clientId) {
+        const client = await tx.client.findFirst({
+          where: { tenantId: ctx.tenantId, id: clientId },
+          select: { id: true },
+        });
+        if (!client) throw new NotFoundException('Client not found');
+      }
+      // The nullable all-clients scope has no unique constraint. Serialize
+      // competing saves before checking for an existing row; the transaction
+      // releases this scope-specific lock on commit or rollback.
+      await tx.$executeRawUnsafe(
+        'SELECT pg_advisory_xact_lock(hashtext($1))',
+        `legiwatch_digest_schedule:${JSON.stringify([ctx.tenantId, ctx.userId, clientId])}`,
+      );
       const existing = await tx.legiWatchDigestSchedule.findFirst({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, clientId },
       });

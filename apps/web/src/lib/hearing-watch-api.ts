@@ -27,8 +27,8 @@ export interface LiveHearingSession {
 /** A directly-embeddable media URL (HLS/MP4/audio) vs. an event/committee page.
  *  A media URL is played right in the Live Hearing Room via its own player; a
  *  page URL (or a YouTube watch link) is embedded via iframe or opened in a new
- *  tab instead. Either way, transcription is always via browser-tab audio
- *  capture — there is no server-side stream ingestion.
+ *  tab instead. This session API uses browser-tab capture; canonical scheduled
+ *  attendance uses the separate server capture lifecycle.
  *
  *  `stream`/`manifest`/`playlist` must appear as their own path segment (bounded
  *  by `/`, `.`, `-`, `_`, or start/end) — a bare substring match would also hit
@@ -186,6 +186,10 @@ export function useHearingSession(id: string) {
     enabled: Boolean(id),
     retry: false,
     staleTime: 15_000,
+    refetchInterval: (query) => ['live', 'scheduled', 'failed-recoverable'].includes(
+      query.state.data?.status ?? '',
+    ) ? 15_000 : false,
+    refetchIntervalInBackground: true,
   });
 }
 

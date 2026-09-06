@@ -43,6 +43,7 @@ describe('FFmpeg server capture argv', () => {
     const command = buildFfmpegAudioCommand({ mediaUrl });
     const inputIndex = command.args.indexOf('-i');
     expect(command.args[inputIndex + 1]).toBe(mediaUrl);
+    expect(command.args[inputIndex - 1]).toBe('-re');
   });
 
   it('rejects non-HTTPS, credential-bearing, local, and header-injection inputs', () => {

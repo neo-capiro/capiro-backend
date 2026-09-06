@@ -74,6 +74,9 @@ export function buildFfmpegAudioCommand(input: FfmpegAudioCommandInput): FfmpegA
     '1',
     '-reconnect_delay_max',
     String(reconnectDelayMaxSec),
+    // HLS segments and archive media can otherwise decode far faster than the
+    // speech provider accepts, overflowing the bounded reconnect PCM queue.
+    '-re',
     '-i',
     mediaUrl,
     '-map',

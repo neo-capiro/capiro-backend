@@ -188,7 +188,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
   }): Promise<PublicCaptureRecord> {
     return this.updateState(
       input,
-      'id = $1 AND version = $2',
+      'id = $1 AND version = $2 AND (worker_lease_owner IS NULL OR lease_expires_at <= clock_timestamp())',
       [input.captureId, input.expectedVersion],
       false,
     );
@@ -201,7 +201,8 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     attemptedAt: Date;
     nextPreflightAt?: Date;
   }): Promise<PublicCaptureRecord> {
-    return this.updateResolution(input, '', []);
+    return this.updateResolution(input,
+      ' AND (worker_lease_owner IS NULL OR lease_expires_at <= clock_timestamp())', []);
   }
 
   async recordFencedResolution(input: {
@@ -215,7 +216,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
   }): Promise<PublicCaptureRecord> {
     return this.updateResolution(
       input,
-      ' AND worker_lease_owner = $10 AND fencing_token = $11',
+      ' AND worker_lease_owner = $10 AND fencing_token = $11 AND lease_expires_at > clock_timestamp()',
       [input.ownerId, input.fencingToken],
       true,
     );
@@ -259,6 +260,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
       `UPDATE public_hearing_capture
        SET lease_expires_at=$4, updated_at=$3
        WHERE id=$1 AND worker_lease_owner=$2 AND fencing_token=$5
+         AND lease_expires_at > clock_timestamp()
        RETURNING ${CAPTURE_COLUMNS}`,
       input.captureId,
       input.ownerId,
@@ -299,7 +301,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
   }): Promise<PublicCaptureRecord> {
     return this.updateState(
       input,
-      'id=$1 AND version=$2 AND worker_lease_owner=$3 AND fencing_token=$4',
+      'id=$1 AND version=$2 AND worker_lease_owner=$3 AND fencing_token=$4 AND lease_expires_at > clock_timestamp()',
       [input.captureId, input.expectedVersion, input.ownerId, input.fencingToken],
       true,
       input.capturedMs,

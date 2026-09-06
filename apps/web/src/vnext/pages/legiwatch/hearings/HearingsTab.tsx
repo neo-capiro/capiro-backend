@@ -16,21 +16,18 @@
  *    classified from canonical visibility BEFORE any capture affordance:
  *    they render "Closed session — no public stream", never "Attend live".
  *
- * Scheduled (unattended) recordings: there is no server capture-job queue
- * (GAPS LW-G2). The queue panel renders its UNAVAILABLE state honestly rather
- * than fabricating a queue — the setup modal's Unattended mode is disabled
- * with the reason named, and Attend live (browser capture) is the honest path.
+ * Scheduled server attendance is managed from canonical hearing detail.
+ * Browser sessions use the shared live capture room.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArchiveSubTab } from './ArchiveSubTab.js';
 import {
   useHearingSessionHistory,
-  useResolveStream,
-  type UpcomingHearing,
 } from '../../../../lib/hearing-watch-api.js';
 import {
   useLwWeekCalendar,
+  isLiveEvent,
   browserCaptureCapability,
   serverCaptureCapability,
   type CanonicalHearingEvent,
@@ -44,7 +41,6 @@ import {
 import { LwModal } from '../overlays/LwModal.js';
 import { useCalendarExportBulk, downloadIcs } from '../lib/wave1-api.js';
 import type { HearingCapability, Tone } from '../lib/types.js';
-import { TranscriptionSetupModal } from '../overlays/TranscriptionSetupModal.js';
 import {
   calendarBucketIndex,
   formatHearingDay,
@@ -60,33 +56,6 @@ const KIND_TONE: Record<string, Tone> = { HEARING: 'brand', MARKUP: 'gray' };
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-/**
- * Canonical → legacy-modal adapter. The setup modal still speaks the legacy
- * UpcomingHearing shape; the canonical row carries strictly more truth.
- */
-function toLegacyHearing(e: CanonicalHearingEvent): UpcomingHearing {
-  const moment = momentOfCanonicalEvent(e);
-  return {
-    id: e.id,
-    title: e.title,
-    committee: e.committee?.name ?? 'Committee',
-    chamber: e.chamber ?? '',
-    // NEVER parse this string as a time — modal consumers use startsAt.
-    scheduledAt: moment.calendarDate ?? '',
-    startsAt: e.scheduledStart ?? null,
-    time: e.scheduledStart ? formatHearingTime(moment) : null,
-    timezone: e.timeZone ?? null,
-    visibility: e.publicAccessStatus === 'CLOSED' ? 'private' : 'public',
-    type: e.eventType ?? null,
-    location: e.location ?? null,
-    url: e.officialPageUrl ?? null,
-    sessionId: null,
-    sessionStatus: null,
-    watchlistMatchCount: 0,
-    recapSaved: false,
-  };
 }
 
 /** vNext capability for a canonical row (LW-QA-002): visibility FIRST. */
@@ -180,7 +149,6 @@ export function HearingsTab({ scope }: { scope: string }) {
     setSearchParams(params, { replace: true });
   };
   const history = useHearingSessionHistory();
-  const resolveStream = useResolveStream();
   const exportWeek = useCalendarExportBulk();
 
   // The user's saved desktop preference (LegiWatch Settings → default view).
@@ -189,7 +157,6 @@ export function HearingsTab({ scope }: { scope: string }) {
   const [committee, setCommittee] = useState<string>('');
   const [kind, setKind] = useState<string>('');
   const [search, setSearch] = useState('');
-  const [setupHearing, setSetupHearing] = useState<CanonicalHearingEvent | null>(null);
 
   // PR D / LW-QA-011: below 900px the seven-day grid compresses to ~90px
   // columns — unreadable. The schedule TEMPORARILY renders agenda/list layout
@@ -215,6 +182,7 @@ export function HearingsTab({ scope }: { scope: string }) {
 
   const rows = useMemo(() => calendar.data?.items ?? [], [calendar.data]);
   const serverTotal = calendar.data?.total ?? 0;
+  const scheduledAttendance = rows.filter((event) => event.subscription?.scheduled);
 
   const filtered = useMemo(() => {
     const k = kind.toUpperCase();
@@ -232,7 +200,7 @@ export function HearingsTab({ scope }: { scope: string }) {
 
   // Live rows come from the canonical live endpoint's shape via the calendar
   // rows themselves; the room route is handled in the live tab.
-  const live = useMemo(() => rows.find((e) => e.eventStatus === 'in_progress') ?? null, [rows]);
+  const live = useMemo(() => rows.find((e) => isLiveEvent(e)) ?? null, [rows]);
 
   const byDay = useMemo(() => {
     const map = new Map<number, CanonicalHearingEvent[]>();
@@ -251,12 +219,7 @@ export function HearingsTab({ scope }: { scope: string }) {
   }, [filtered, weekDays]);
 
   const openHearing = (e: CanonicalHearingEvent) => {
-    // Every row routes to the canonical detail (PR B); the setup modal is
-    // reachable from detail. Live hearings keep the room route.
-    if (e.eventStatus === 'in_progress') {
-      navigate(`/legiwatch/live`);
-      return;
-    }
+    // Live and archived proceedings share the canonical transcript/intel room.
     navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`);
   };
 
@@ -444,7 +407,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                         <span className="lw-cal__empty">No proceedings</span>
                       ) : (
                         list.map((e) => {
-                          const isLive = e.eventStatus === 'in_progress';
+                          const isLive = isLiveEvent(e);
                           const { capability: cap, closed } = canonicalCapability(e);
                           const queued = e.capture?.status === 'scheduled';
                           const kindCls =
@@ -507,7 +470,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                 </div>
               ) : (
                 filtered.map((e) => {
-                  const isLive = e.eventStatus === 'in_progress';
+                  const isLive = isLiveEvent(e);
                   const m = momentOfCanonicalEvent(e);
                   const { capability: cap, closed, reason } = canonicalCapability(e);
                   const queued = e.capture?.status === 'scheduled';
@@ -596,7 +559,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                 <div className="lw-session__title">{live.title}</div>
                 <div className="lw-session__sub">{live.committee?.name ?? ''}</div>
                 <div className="lw-session__actions">
-                  <LwButton variant="primary" size="40" onClick={() => navigate('/legiwatch/live')}>
+                  <LwButton variant="primary" size="40" onClick={() => openHearing(live)}>
                     Open live room →
                   </LwButton>
                   <LwButton size="40" onClick={() => openHearing(live)}>
@@ -613,8 +576,12 @@ export function HearingsTab({ scope }: { scope: string }) {
             <div className="lw-history__label">Recent session history</div>
             <div className="lw-history__rows">
               {(history.data?.pages?.[0]?.items ?? []).slice(0, 3).map((s) => {
-                const rec = s.status === 'failed-recoverable';
-                const done = s.status === 'completed';
+                const rec = ['failed-recoverable', 'failed'].includes(s.status);
+                const done = ['completed', 'ended'].includes(s.status);
+                const browserSession = ['browser_mic', 'browser_tab'].includes(s.audioSource);
+                const path = s.hearingId && !browserSession
+                  ? `/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`
+                  : `/intelligence/hearing-watch/${encodeURIComponent(s.id)}`;
                 return (
                   <div
                     key={s.id}
@@ -622,24 +589,23 @@ export function HearingsTab({ scope }: { scope: string }) {
                     role="button"
                     tabIndex={0}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => s.hearingId
-                      ? navigate(`/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`)
-                      : navigate(`/intelligence/hearing-watch/${encodeURIComponent(s.id)}`)}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter') { s.hearingId
-                      ? navigate(`/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`)
-                      : navigate(`/intelligence/hearing-watch/${encodeURIComponent(s.id)}`); } }}
+                    onClick={() => navigate(path)}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') {
+                      ev.preventDefault();
+                      navigate(path);
+                    } }}
                     aria-label={`Open ${s.title}`}
                   >
                     <div>
                       <div className="lw-hrow__title">{s.title}</div>
                       <div className="lw-hrow__sub">
-                        {done ? 'Completed' : rec ? 'Failed recoverable · source drift' : s.status}
+                        {done ? 'Completed' : rec ? 'Capture interrupted · can resume' : s.status}
                         {s.watchlistMatchCount != null ? ` · ${s.watchlistMatchCount} matches` : ''}
                       </div>
                     </div>
                     <span className="lw-hrow__pill">
                       <LwPill tone={rec ? 'warning' : done ? 'success' : 'gray'}>
-                        {rec ? 'RECOVERABLE' : done ? (s.recapSaved ? 'RECAP READY' : 'REVIEWED') : s.status.toUpperCase()}
+                        {rec ? 'RECOVERABLE' : done ? (s.recapSaved ? 'RECAP READY' : 'COMPLETE') : s.status.toUpperCase()}
                       </LwPill>
                     </span>
                   </div>
@@ -654,37 +620,35 @@ export function HearingsTab({ scope }: { scope: string }) {
           <section className="lw-card" aria-label="Scheduled recordings">
             <div className="lw-card__head">
               <h2 className="lw-card__title">Scheduled recordings</h2>
-              <span className="lw-card__meta">Unattended queue</span>
+              <span className="lw-card__meta">Selected week</span>
             </div>
             <div className="lw-recs__rows">
-              {/* GAPS LW-G2: no server capture-job queue exists. Render the honest
-                  empty/unavailable state rather than a fabricated queue. */}
-              <div className="lw-recs__empty">
-                No recordings are queued. Unattended capture isn't available on this backend yet —
-                schedule one from the calendar and Capiro records the proceeding once the capture
-                service is enabled.
-              </div>
+              {scheduledAttendance.length === 0 ? (
+                <div className="lw-recs__empty">No attendance is scheduled for the selected week. Open a hearing to check automatic or browser attendance.</div>
+              ) : scheduledAttendance.map((event) => (
+                <button key={event.id} type="button" className="lw-hrow" onClick={() => openHearing(event)}
+                  style={{ width: '100%', border: 0, background: 'none', textAlign: 'left', cursor: 'pointer' }}>
+                  <div>
+                    <div className="lw-hrow__title">{event.title}</div>
+                    <div className="lw-hrow__sub">{formatHearingDay(momentOfCanonicalEvent(event))} · {formatHearingTime(momentOfCanonicalEvent(event))}</div>
+                  </div>
+                  <LwPill tone="brand">{event.capture?.status ?? 'SCHEDULED'}</LwPill>
+                </button>
+              ))}
             </div>
             <div className="lw-note">
               <div className="lw-note__label">How unattended capture works</div>
               <div className="lw-note__body">
-                Capture starts five minutes before the gavel, stops at adjournment, and delivers the
-                transcript, matched moments and client impact to My Sessions. Stream capability is
-                resolved at setup, so a queued recording is one that can actually run.
+                Automatic attendance records the official stream on the server and continues when
+                you leave the site. Open a hearing to check its capture status, transcript and intelligence.
+                Browser attendance requires an open tab and an awake device.
               </div>
             </div>
           </section>
         </div>
       </div>
 
-      {setupHearing ? (
-        <TranscriptionSetupModal
-          hearing={toLegacyHearing(setupHearing)}
-          capability={canonicalCapability(setupHearing).capability}
-          resolveStream={resolveStream}
-          onClose={() => setSetupHearing(null)}
-        />
-      ) : null}
+
     </div>
   );
 }

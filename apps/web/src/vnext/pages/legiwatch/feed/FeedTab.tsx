@@ -14,8 +14,8 @@
  * row-level state pill. Optimistic with rollback; invalidates the canonical
  * feed keys so the old app reflects the change (§16).
  */
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { FeedItem, FeedOrder, FeedFilter } from '../../../../pages/clients/tracker/intel-feed-api.js';
 import {
@@ -38,20 +38,45 @@ import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateEmpty, LwStateUnavailable, LwStateAllClear } from '../states/SystemStates.js';
 import { PacketDrawer } from './PacketDrawer.js';
 import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
-import { useSearchParams } from 'react-router-dom';
 
 type Arrange = 'stream' | 'byClient';
 
 export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const previousScope = useRef(scope);
+  const scopeChanged = previousScope.current !== scope;
+  useEffect(() => {
+    if (!scopeChanged) return;
+    previousScope.current = scope;
+    if (!searchParams.has('alert')) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('alert');
+      return next;
+    }, { replace: true });
+  }, [scope, scopeChanged, searchParams, setSearchParams]);
+
+  // Selection, pending row mutations and toast timers belong to one client
+  // scope. Never mount a previous scope's open packet under the new client.
+  return <ScopedFeedTab key={scope} scope={scope} clients={clients} suppressAlert={scopeChanged} />;
+}
+
+function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Client[]; suppressAlert: boolean }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [order, setOrder] = useState<FeedOrder>('date');
-  const [bucket, setBucket] = useState('default');
-  const [source, setSource] = useState<FeedFilter>('all');
-  const [arrange, setArrange] = useState<Arrange>('stream');
-  const [search, setSearch] = useState('');
+  // These exact URL fields are persisted by Saved Views. Derive them on every
+  // navigation so applying a preset or going Back restores the visible feed.
+  const order: FeedOrder = searchParams.get('order') === 'score' ? 'score' : 'date';
+  const bucket = WORKLIST_BUCKETS.find((item) => item.id === searchParams.get('work'))?.id ?? 'default';
+  const source: FeedFilter = SOURCE_FAMILIES.find((item) => item.id === searchParams.get('filter'))?.id ?? 'all';
+  const arrange: Arrange = searchParams.get('arrange') === 'byClient' ? 'byClient' : 'stream';
+  const search = searchParams.get('q') ?? '';
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimeout = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (toastTimeout.current !== null) window.clearTimeout(toastTimeout.current);
+  }, []);
   /** Rows with an in-flight row-level triage, so each pill disables its own. */
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
@@ -61,7 +86,21 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
   const feed = useLwFeed(scope, source, order, work);
   const { items, counts, workStateCounts } = useLwFeedItems(feed);
 
-  const openAlertId = searchParams.get('alert');
+  const openAlertId = suppressAlert ? null : searchParams.get('alert');
+
+  const updateView = (
+    changes: Partial<Record<'q' | 'order' | 'work' | 'filter' | 'arrange', string | null>>,
+    replace = false,
+  ) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [key, value] of Object.entries(changes)) {
+        if (value) next.set(key, value);
+        else next.delete(key);
+      }
+      return next;
+    }, { replace });
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -98,7 +137,8 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
 
   const showToast = (msg: string) => {
     setToast(msg);
-    window.setTimeout(() => setToast(null), 2600);
+    if (toastTimeout.current !== null) window.clearTimeout(toastTimeout.current);
+    toastTimeout.current = window.setTimeout(() => setToast(null), 2600);
   };
 
   const bulk = (state: WorkState) => {
@@ -259,7 +299,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
               aria-label="Search the feed"
               placeholder="Search title, client, source, record"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => updateView({ q: e.target.value || null }, true)}
             />
           </div>
         </div>
@@ -283,9 +323,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
               <div style={{ padding: 18 }}>
                 <LwStateEmpty
                   onReset={() => {
-                    setSearch('');
-                    setSource('all');
-                    setBucket('default');
+                    updateView({ q: null, filter: null, work: null });
                   }}
                 />
               </div>
@@ -324,7 +362,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
                 { id: 'score' as FeedOrder, label: 'Priority' },
               ]}
               value={order}
-              onChange={setOrder}
+              onChange={(next) => updateView({ order: next === 'date' ? null : next })}
             />
           </div>
 
@@ -335,7 +373,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
                 key={b.id}
                 label={b.label}
                 active={bucket === b.id}
-                onSelect={() => setBucket(b.id)}
+                onSelect={() => updateView({ work: b.id === 'default' ? null : b.id })}
                 // Exact server-side counts (W2-3) for every bucket at once —
                 // one shared read, not one query per row. The active
                 // bucket's own count is `total` (the exact size of what is
@@ -355,7 +393,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
               label="All sources"
               count={Object.values(counts).reduce((a, b) => (a ?? 0) + (b ?? 0), 0) ?? null}
               active={source === 'all'}
-              onClick={() => setSource('all')}
+              onClick={() => updateView({ filter: null })}
             />
             {SOURCE_FAMILIES.map((f) => (
               <RailOption
@@ -363,7 +401,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
                 label={f.label}
                 count={counts[f.id] ?? null}
                 active={source === f.id}
-                onClick={() => setSource(f.id)}
+                onClick={() => updateView({ filter: f.id })}
               />
             ))}
           </div>
@@ -377,7 +415,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
                 { id: 'byClient' as Arrange, label: 'Group by client' },
               ]}
               value={arrange}
-              onChange={setArrange}
+              onChange={(next) => updateView({ arrange: next === 'stream' ? null : next })}
             />
           </div>
 
@@ -390,11 +428,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
             <div style={{ marginTop: 10 }}>
               <LwButton
                 onClick={() => {
-                  setSearch('');
-                  setSource('all');
-                  setBucket('default');
-                  setOrder('date');
-                  setArrange('stream');
+                  updateView({ q: null, filter: null, work: null, order: null, arrange: null });
                 }}
               >
                 Reset
@@ -425,7 +459,7 @@ function RailOption({
   onClick: () => void;
 }) {
   return (
-    <button type="button" className={`lw-rail__opt${active ? ' is-active' : ''}`} onClick={onClick}>
+    <button type="button" className={`lw-rail__opt${active ? ' is-active' : ''}`} aria-pressed={active} onClick={onClick}>
       <span>{label}</span>
       {count != null ? <span className="lw-rail__count">{count}</span> : null}
     </button>
@@ -445,7 +479,7 @@ function BucketRow({
   count: number | null;
 }) {
   return (
-    <button type="button" className={`lw-rail__opt${active ? ' is-active' : ''}`} onClick={onSelect}>
+    <button type="button" className={`lw-rail__opt${active ? ' is-active' : ''}`} aria-pressed={active} onClick={onSelect}>
       <span>{label}</span>
       <span className="lw-rail__count">{count == null ? '' : count}</span>
     </button>

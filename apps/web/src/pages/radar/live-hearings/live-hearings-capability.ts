@@ -10,7 +10,7 @@ export interface HearingActionCapability {
   mode: 'SERVER' | 'BROWSER' | 'NONE';
 }
 
-const TERMINAL_EVENT_STATUSES = new Set(['CANCELED', 'COMPLETED']);
+const TERMINAL_EVENT_STATUSES = new Set(['CANCELED', 'CANCELLED', 'COMPLETED', 'ADJOURNED']);
 const CLOSED_ACCESS = new Set(['CLOSED', 'CLASSIFIED']);
 const NO_STREAM_ACCESS = new Set(['NOT_STREAMED']);
 const SERVER_BLOCKING_STREAM_STATES = new Set([
@@ -24,6 +24,7 @@ const ACTIVE_CAPTURE_STATES = new Set([
   'PREPARING',
   'WAITING_FOR_BROADCAST',
   'RECORDING',
+  'CAPTURING',
   'RECOVERING',
 ]);
 
@@ -63,9 +64,10 @@ export function capturePolicyLabel(policy?: HearingCapturePolicy): string {
 
 function accessBlockReason(access: HearingPublicAccessStatus): string | undefined {
   const normalized = normalizeEnum(access);
-  if (normalized === 'CLOSED') return 'This proceeding is closed to the public.';
+  if (normalized === 'CLOSED' || normalized === 'PRIVATE') return 'This proceeding is closed to the public.';
   if (normalized === 'CLASSIFIED') return 'This proceeding is classified.';
   if (normalized === 'NOT_STREAMED') return 'The committee has not provided a public stream.';
+  if (normalized !== 'PUBLIC') return 'Public access has not been confirmed.';
   return undefined;
 }
 
@@ -78,10 +80,10 @@ export function serverCaptureCapability(event: CanonicalHearingEvent): HearingAc
 
   const accessReason = accessBlockReason(event.publicAccessStatus);
   if (accessReason) return { allowed: false, mode: 'NONE', reason: accessReason };
-  if (status === 'CANCELED') {
+  if (status === 'CANCELED' || status === 'CANCELLED') {
     return { allowed: false, mode: 'NONE', reason: 'This proceeding was canceled.' };
   }
-  if (status === 'COMPLETED' || streamState === 'ENDED') {
+  if (status === 'COMPLETED' || status === 'ADJOURNED' || streamState === 'ENDED') {
     return { allowed: false, mode: 'NONE', reason: 'The live proceeding has ended.' };
   }
   if (ACTIVE_CAPTURE_STATES.has(captureStatus)) {
@@ -121,7 +123,7 @@ export function browserCaptureCapability(event: CanonicalHearingEvent): HearingA
   const status = normalizeEnum(event.eventStatus);
   const accessReason = accessBlockReason(event.publicAccessStatus);
   if (accessReason) return { allowed: false, mode: 'NONE', reason: accessReason };
-  if (status === 'CANCELED') {
+  if (status === 'CANCELED' || status === 'CANCELLED') {
     return { allowed: false, mode: 'NONE', reason: 'This proceeding was canceled.' };
   }
   if (!safeOfficialHttpUrl(event.officialPageUrl)) {
@@ -140,7 +142,8 @@ export function isLiveEvent(event: CanonicalHearingEvent, _now = new Date()): bo
   const captureStatus = normalizeEnum(event.capture?.status);
   if (TERMINAL_EVENT_STATUSES.has(eventStatus)) return false;
   if (event.actualEnd) return false;
-  if (eventStatus === 'LIVE' || streamState === 'LIVE' || captureStatus === 'RECORDING') return true;
+  if (['LIVE', 'IN_PROGRESS'].includes(eventStatus) || streamState === 'LIVE' ||
+      ['RECORDING', 'CAPTURING'].includes(captureStatus)) return true;
   // A scheduled clock time is not proof that a committee actually started.
   // Congressional votes and committee business frequently delay proceedings;
   // only an explicit actual-start signal may supplement the live state.

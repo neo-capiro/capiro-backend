@@ -100,6 +100,9 @@ export class PostHearingService {
         }),
       })),
       cards: cards.map((c) => ({
+        // The live gateway identifies its single Meri card by segmentId. Reuse
+        // that key when hydrating so polling/reopening does not duplicate cards.
+        id: c.segmentId ?? c.id,
         cardType: c.cardType,
         title: this.revealText({
           textCiphertext: c.titleCiphertext,

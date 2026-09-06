@@ -15,7 +15,7 @@
  * honest "could not be loaded" state (never crash) if the transport ever
  * again returns the wrong shape.
  */
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeedItem } from '../../../../pages/clients/tracker/intel-feed-api.js';
@@ -30,6 +30,11 @@ vi.mock('../../../../lib/use-api.js', () => ({
     get: (url: string) => apiGet(url),
     post: vi.fn().mockResolvedValue({ data: { ok: true } }),
   }),
+}));
+vi.mock('../../../../pages/clients/tracker/MemoComposerDrawer.js', () => ({
+  MemoComposerDrawer: ({ clientId, item }: { clientId: string; item: FeedItem }) => (
+    <div role="dialog" aria-label="Existing memo composer">{clientId} · {item.id}</div>
+  ),
 }));
 
 import { PacketDrawer } from './PacketDrawer.js';
@@ -83,6 +88,17 @@ describe('PacketDrawer — the /feed/alerts/:alertId contract', () => {
     // the expected label instead of throwing.
     const dialog = await screen.findByRole('dialog', { name: 'Alert packet' });
     await waitFor(() => expect(within(dialog).getAllByText(/BILL/i).length).toBeGreaterThan(0));
+  });
+
+  it('opens the existing memo composer for the alert client from the all-clients scope', async () => {
+    apiGet.mockImplementation(async (url = '') => ({ data: url.includes('/feed/alerts/') ? ALERT : null }));
+    renderDrawer();
+    const draft = await screen.findByRole('button', { name: 'Draft memo' });
+    fireEvent.click(draft);
+    expect(await screen.findByRole('dialog', { name: 'Existing memo composer' })).toHaveTextContent('client-A · a1');
+    expect(screen.getByRole('button', { name: 'Create brief' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stage outreach' })).toBeDisabled();
+    expect(screen.getByText('Create briefs and stage outreach from a hearing’s detail page.')).toBeInTheDocument();
   });
 
   it('never crashes to a blank screen if the transport ever answers with the list envelope again', async () => {

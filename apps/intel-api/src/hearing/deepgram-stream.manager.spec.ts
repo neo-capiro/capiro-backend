@@ -15,7 +15,9 @@ import { DeepgramStreamManager, type DeepgramStreamCallbacks } from './deepgram-
 interface FakeConnection {
   on: jest.Mock;
   send: jest.Mock;
+  keepAlive: jest.Mock;
   requestClose: jest.Mock;
+  disconnect: jest.Mock;
   emit: (event: string, payload?: unknown) => void;
 }
 
@@ -28,7 +30,9 @@ function fakeConnection(): FakeConnection {
       handlers.set(event, list);
     }),
     send: jest.fn(),
+    keepAlive: jest.fn(),
     requestClose: jest.fn(),
+    disconnect: jest.fn(),
     emit: (event: string, payload?: unknown) => {
       for (const cb of handlers.get(event) ?? []) cb(payload);
     },
@@ -56,6 +60,12 @@ const createClientMock = jest.mocked(createClient);
 describe('DeepgramStreamManager browser WebM safety', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
   });
 
   it('lets Deepgram auto-detect the WebM container instead of claiming raw Opus', () => {
@@ -129,17 +139,99 @@ describe('DeepgramStreamManager browser WebM safety', () => {
     try {
       const conn = fakeConnection();
       createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);
-      const manager = new DeepgramStreamManager('key', callbacks());
+      const cb = callbacks();
+      const manager = new DeepgramStreamManager('key', cb);
       manager.start();
       conn.emit('open');
 
       const stopping = manager.stopAndWait(25);
+      const final = { is_final: true, start: 0, duration: 1,
+        channel: { alternatives: [{ transcript: 'final words' }] } };
+      conn.emit('transcript', final);
       await jest.advanceTimersByTimeAsync(25);
       await stopping;
+      conn.emit('transcript', final);
 
       expect((manager as any).closeWaiters.size).toBe(0);
+      expect(conn.disconnect).toHaveBeenCalledTimes(1);
+      expect(cb.onFinal).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('keeps an idle four-hour hearing open without reconnecting or changing its timeline', async () => {
+    const conn = fakeConnection();
+    const live = jest.fn(() => conn);
+    createClientMock.mockReturnValue({ listen: { live } } as never);
+    const cb = callbacks();
+    const manager = new DeepgramStreamManager('key', cb);
+    manager.start();
+    conn.emit('open');
+    expect(manager.sendAudio(Buffer.from('webm-header'))).toBe(true);
+
+    await jest.advanceTimersByTimeAsync(4 * 60 * 60 * 1_000);
+    conn.emit('transcript', {
+      is_final: true,
+      start: 14_400,
+      duration: 2,
+      channel: { alternatives: [{ transcript: 'The hearing will resume.' }] },
+    });
+
+    expect(conn.keepAlive).toHaveBeenCalledTimes(3_600);
+    expect(live).toHaveBeenCalledTimes(1);
+    expect(cb.onError).not.toHaveBeenCalled();
+    expect(cb.onFinal).toHaveBeenCalledWith(expect.objectContaining({
+      startMs: 14_400_000,
+      endMs: 14_402_000,
+      text: 'The hearing will resume.',
+    }));
+    manager.stop();
+    await jest.advanceTimersByTimeAsync(12_000);
+    expect(conn.keepAlive).toHaveBeenCalledTimes(3_600);
+  });
+
+  it('stops keepalive and fails once when the provider becomes unavailable', async () => {
+    const conn = fakeConnection();
+    conn.keepAlive.mockImplementation(() => { throw new Error('socket unavailable'); });
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);
+    const cb = callbacks();
+    const manager = new DeepgramStreamManager('key', cb);
+    manager.start();
+    conn.emit('open');
+
+    await jest.advanceTimersByTimeAsync(12_000);
+    expect(conn.keepAlive).toHaveBeenCalledTimes(1);
+    expect(cb.onError).toHaveBeenCalledTimes(1);
+    expect(manager.sendAudio(Buffer.from('late-audio'))).toBe(false);
+  });
+
+  it('does not resurrect a socket that opens after capture was stopped', async () => {
+    const conn = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);
+    const cb = callbacks();
+    const manager = new DeepgramStreamManager('key', cb);
+    manager.start();
+    manager.stop();
+    conn.emit('open');
+
+    await jest.advanceTimersByTimeAsync(12_000);
+    expect(cb.onOpen).not.toHaveBeenCalled();
+    expect(conn.keepAlive).not.toHaveBeenCalled();
+    expect(conn.requestClose).toHaveBeenCalledTimes(2);
+    expect(manager.isOpen).toBe(false);
+  });
+
+  it('does not wait for another close after the provider already disconnected', async () => {
+    const conn = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);
+    const manager = new DeepgramStreamManager('key', callbacks());
+    manager.start();
+    conn.emit('open');
+    conn.emit('close', { code: 1011 });
+
+    await manager.stopAndWait();
+    expect(conn.requestClose).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
   });
 });

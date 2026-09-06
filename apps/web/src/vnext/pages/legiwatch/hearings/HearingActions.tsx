@@ -125,7 +125,7 @@ export function HearingActions({
                 kind: 'done',
                 action,
                 message: 'Brief created in Workspace with its hearing sources attached.',
-                href: `/workspace/drafts/${draftId}`,
+                href: `/workspace/draft/${encodeURIComponent(draftId)}`,
               }),
             onError: fail,
           },

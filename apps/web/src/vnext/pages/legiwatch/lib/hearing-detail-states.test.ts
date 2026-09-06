@@ -83,10 +83,12 @@ describe('hearing detail — transcript availability matrix (LW-QA-003)', () => 
     );
     expect(r.state).toBe('capture-failed');
     expect(r.note).toMatch(/NO_PUBLIC_STREAM/);
+    expect(r.available).toBe(true);
+    expect(r.note).not.toMatch(/no transcript was produced/i);
   });
 
   it('capture in progress (scheduled/preparing/waiting/ready/capturing)', () => {
-    for (const status of ['SCHEDULED', 'PREPARING', 'WAITING_FOR_STREAM', 'READY', 'CAPTURING']) {
+    for (const status of ['SCHEDULED', 'PREPARING', 'WAITING_FOR_STREAM', 'READY', 'CAPTURING', 'RECORDING', 'RECOVERING']) {
       const r = transcriptAvailability(
         event({
           eventStatus: 'IN_PROGRESS',
@@ -95,8 +97,24 @@ describe('hearing detail — transcript availability matrix (LW-QA-003)', () => 
         }),
       );
       expect(r.state).toBe('capture-in-progress');
-      expect(r.available).toBe(false);
+      expect(r.available).toBe(true);
     }
+  });
+
+  it('recorded capture takes precedence over stale calendar metadata, while private access still gates it', () => {
+    for (const status of ['CAPTURING', 'RECORDING', 'COMPLETE', 'ENDED', 'FAILED']) {
+      expect(transcriptAvailability(event({ eventStatus: 'SCHEDULED', capture: { status } as never })).available).toBe(true);
+      expect(transcriptAvailability(event({ eventStatus: 'SCHEDULED', publicAccessStatus: 'PRIVATE', capture: { status } as never })).available).toBe(false);
+    }
+  });
+
+  it('a recovered capture with historical failure details retains its transcript', () => {
+    const result = transcriptAvailability(event({
+      eventStatus: 'COMPLETED',
+      capture: { status: 'COMPLETE_WITH_GAPS', failureReason: 'STREAM_DISCONNECTED' } as never,
+    }));
+    expect(result.available).toBe(true);
+    expect(result.state).toBe('transcript-ready');
   });
 
   it('completed without capture', () => {

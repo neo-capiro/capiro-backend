@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Hls from 'hls.js';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -21,6 +21,7 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined, AudioOutlined, SaveOutlined } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
+import { useHearingWakeLock } from '../../lib/use-hearing-wake-lock.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import '../radar/legiwatch.css';
 import {
@@ -40,7 +41,7 @@ import {
 const { Title, Text, Paragraph } = Typography;
 const RECORDER_MIME = 'audio/webm;codecs=opus';
 const CAPTURE_READY_TIMEOUT_MS = 15_000;
-const SERVER_END_TIMEOUT_MS = 8_000;
+const SERVER_END_TIMEOUT_MS = 30_000;
 const MAX_WS_BUFFERED_BYTES = 2 * 1024 * 1024;
 
 type Phase =
@@ -292,10 +293,15 @@ function mergeSegments(persisted: HearingTranscriptItem[], live: LiveSegment[]):
   return [...map.values()].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
 }
 
-export function LiveHearingRoomPage() {
+export function LiveHearingRoomPage({
+  sessionId,
+  presentation = 'canonical',
+}: { sessionId?: string; presentation?: 'canonical' | 'vnext' } = {}) {
   const enabled = useIntelFeatureEnabled('hearing_watch');
-  const { id = '' } = useParams();
+  const params = useParams();
+  const id = sessionId ?? params.id ?? '';
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { message } = AntApp.useApp();
   const api = useApi();
   const confirmConsent = useConfirmConsent();
@@ -318,13 +324,14 @@ export function LiveHearingRoomPage() {
   const [recapOpen, setRecapOpen] = useState(false);
   const [liveSegments, setLiveSegments] = useState<LiveSegment[]>([]);
   const [interim, setInterim] = useState('');
-  const [cards, setCards] = useState<Card_[]>([]);
+  const [liveCards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [bytesSent, setBytesSent] = useState(0);
   const [lastTranscriptAt, setLastTranscriptAt] = useState<number | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const connectTimerRef = useRef<number | null>(null);
   const socketGenerationRef = useRef(0);
   const displayStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -351,6 +358,48 @@ export function LiveHearingRoomPage() {
   const sessionEnded =
     phase === 'ended' || session.data?.status === 'ended' || session.data?.status === 'failed';
   const captureActive = ['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phase);
+  const wakeLock = useHearingWakeLock(captureActive);
+  const summary = useQuery<{ cards?: Card_[] }>({
+    queryKey: ['intel', 'hearing', id, 'summary'],
+    queryFn: async () => (await api.get<{ cards?: Card_[] }>(
+      `/intel-api/hearings/${encodeURIComponent(id)}/summary`,
+    )).data,
+    enabled: enabled && Boolean(id),
+    retry: false,
+    refetchInterval: captureActive || session.data?.status === 'live' ? 15_000 : false,
+    refetchIntervalInBackground: true,
+  });
+  const cards = useMemo(() => {
+    const merged = new Map<string, Card_>();
+    for (const card of [...(summary.data?.cards ?? []), ...liveCards]) {
+      const key = card.id || `${card.cardType}:${card.startMs}:${card.title}`;
+      merged.set(key, { ...card, id: key });
+    }
+    return [...merged.values()].sort((a, b) => (b.startMs ?? 0) - (a.startMs ?? 0));
+  }, [summary.data, liveCards]);
+  const refreshPersisted = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['intel', 'hearing', id] });
+  }, [queryClient, id]);
+
+  // Reopened sessions and a refreshed first page may expose additional history.
+  // Drain it automatically so a four-hour room never stops at 500 segments.
+  useEffect(() => {
+    if (transcript.hasNextPage && !transcript.isFetchingNextPage && !transcript.isError) {
+      void transcript.fetchNextPage();
+    }
+  }, [transcript.hasNextPage, transcript.isFetchingNextPage, transcript.isError, transcript.fetchNextPage]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshPersisted();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', refreshPersisted);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', refreshPersisted);
+    };
+  }, [refreshPersisted]);
 
   /**
    * Tear down everything that can still produce or hold audio. Dropping the
@@ -375,12 +424,19 @@ export function LiveHearingRoomPage() {
   }, []);
 
   const disconnectSocket = useCallback(() => {
+    if (connectTimerRef.current !== null) window.clearTimeout(connectTimerRef.current);
+    connectTimerRef.current = null;
+    socketGenerationRef.current += 1;
     const ws = wsRef.current;
     wsRef.current = null;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       ws.close();
     }
-  }, []);
+    if (phaseRef.current === 'connected' || phaseRef.current === 'connecting') {
+      setPhaseNow('idle');
+      setStatusText(null);
+    }
+  }, [setPhaseNow]);
 
   const stopRecorderAndFlush = useCallback(async () => {
     const recorder = mediaRecorderRef.current;
@@ -416,6 +472,7 @@ export function LiveHearingRoomPage() {
     stoppingRef.current = true;
     setPhaseNow('stopping');
     setStatusText('Finishing transcript…');
+    let confirmedEnd = false;
     try {
       await stopRecorderAndFlush();
       cleanupCaptureTracks();
@@ -429,18 +486,21 @@ export function LiveHearingRoomPage() {
           ended,
           SERVER_END_TIMEOUT_MS,
           'The server did not confirm the session end.',
-        ).catch(() => undefined);
+        ).then(() => { confirmedEnd = true; }).catch(() => undefined);
       }
+    } catch (err) {
+      setError((err as Error).message || 'The last browser audio could not be uploaded.');
     } finally {
       disconnectSocket();
       captureReadyRef.current = null;
       serverEndedRef.current = null;
       setInterim('');
-      setStatusText('Session ended');
+      setStatusText(confirmedEnd ? 'Session ended' : 'Capture stopped. Server finalization has not been confirmed; refresh to check the saved transcript.');
       setPhaseNow('ended');
       stoppingRef.current = false;
+      refreshPersisted();
     }
-  }, [cleanupCaptureTracks, disconnectSocket, setPhaseNow, stopRecorderAndFlush]);
+  }, [cleanupCaptureTracks, disconnectSocket, setPhaseNow, stopRecorderAndFlush, refreshPersisted]);
 
   const connect = useCallback(async () => {
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'ended') return;
@@ -453,11 +513,19 @@ export function LiveHearingRoomPage() {
       if (generation !== socketGenerationRef.current) return;
       const ws = new WebSocket(wsUrl(id, ticket));
       wsRef.current = ws;
+      connectTimerRef.current = window.setTimeout(() => {
+        if (wsRef.current !== ws || ws.readyState === WebSocket.OPEN) return;
+        setError('The hearing connection timed out. Check your connection and try again.');
+        disconnectSocket();
+      }, CAPTURE_READY_TIMEOUT_MS);
 
       ws.onopen = () => {
         if (wsRef.current !== ws) return;
+        if (connectTimerRef.current !== null) window.clearTimeout(connectTimerRef.current);
+        connectTimerRef.current = null;
         setPhaseNow('connected');
         setStatusText('Connected — ready to choose the hearing tab.');
+        refreshPersisted();
       };
       // A drop for any reason (max-duration cutoff, network blip, auth expiry,
       // lost lease) must tear down browser capture too — otherwise a running
@@ -467,6 +535,8 @@ export function LiveHearingRoomPage() {
       // creates.
       ws.onclose = () => {
         if (wsRef.current !== ws) return;
+        if (connectTimerRef.current !== null) window.clearTimeout(connectTimerRef.current);
+        connectTimerRef.current = null;
         wsRef.current = null;
         captureReadyRef.current?.reject(
           new Error('Connection closed before capture became ready.'),
@@ -474,9 +544,12 @@ export function LiveHearingRoomPage() {
         captureReadyRef.current = null;
         cleanupCaptureTracks();
         if (phaseRef.current !== 'ended' && phaseRef.current !== 'stopping') {
-          setStatusText(null);
+          setError('Connection interrupted. Reconnect and share the hearing tab again to resume transcription.');
+          setStatusText('Capture stopped. Previously saved transcript and intelligence remain available.');
           setPhaseNow('idle');
         }
+        setInterim('');
+        refreshPersisted();
       };
       ws.onerror = () => {
         if (wsRef.current === ws) setError('WebSocket connection error');
@@ -504,7 +577,12 @@ export function LiveHearingRoomPage() {
             setError(err.message);
             captureReadyRef.current?.reject(err);
             captureReadyRef.current = null;
-            if (msg.code === 'TRANSCRIPTION_RESTART_REQUIRED') cleanupCaptureTracks();
+            if (msg.code === 'TRANSCRIPTION_RESTART_REQUIRED') {
+              cleanupCaptureTracks();
+              disconnectSocket();
+              setPhaseNow('idle');
+              setStatusText('Capture stopped — reconnect and share the hearing tab again.');
+            }
           } else if (msg.type === 'status') {
             const status = String(msg.status ?? '');
             if (status === 'connected') {
@@ -520,13 +598,17 @@ export function LiveHearingRoomPage() {
             } else if (status === 'capture_restart_required') {
               setStatusText('Capture stopped — reconnect and start again to resume safely.');
               cleanupCaptureTracks();
+              disconnectSocket();
+              setPhaseNow('idle');
             } else if (status === 'max_duration_reached') {
               setStatusText('Session reached the maximum duration and is being finalized.');
             } else if (status === 'ended' || status === 'failed') {
+              cleanupCaptureTracks();
               serverEndedRef.current?.resolve();
               serverEndedRef.current = null;
               setPhaseNow('ended');
               setStatusText(status === 'ended' ? 'Session ended' : 'Session ended with an error');
+              refreshPersisted();
             } else if (status) {
               setStatusText(status);
             }
@@ -536,20 +618,20 @@ export function LiveHearingRoomPage() {
         }
       };
     } catch (err) {
+      if (generation !== socketGenerationRef.current) return;
       setError((err as Error).message || 'Not authenticated');
       setStatusText(null);
       setPhaseNow('idle');
     }
-  }, [api, cleanupCaptureTracks, id, setPhaseNow]);
+  }, [api, cleanupCaptureTracks, disconnectSocket, id, setPhaseNow, refreshPersisted]);
 
   /**
    * Chamber-agnostic capture path: the analyst opens/plays the hearing (the embed
    * above, or a separate tab for anything that can't be embedded), picks that tab
    * here with "Share tab audio" checked, and MediaRecorder streams WebM/Opus
    * chunks over the WebSocket. This captures audio already being rendered on the
-   * analyst's own machine; it never touches the source platform's servers, and
-   * there is no server-side stream ingestion — this is the only transcription
-   * path.
+   * analyst's own machine. Scheduled server attendance is a separate capture
+   * lifecycle and is never stopped by leaving this browser room.
    *
    * The recorder is NOT started when the picker resolves. It starts only after
    * the server has claimed the session lease, opened Deepgram and answered
@@ -571,6 +653,8 @@ export function LiveHearingRoomPage() {
     setError(null);
     setPhaseNow('requesting_share');
     setStatusText('Choose the browser tab playing the hearing and enable Share tab audio.');
+    const generation = socketGenerationRef.current;
+    let captureRequested = false;
     try {
       // video:true is required by the browser to offer a "Tab" source with a
       // "Share tab audio" checkbox; the video track is discarded immediately.
@@ -597,10 +681,12 @@ export function LiveHearingRoomPage() {
 
       displayStreamRef.current = display;
       setPhaseNow('preparing');
+      const captureSocket = wsRef.current;
       const ready = new Promise<void>((resolve, reject) => {
         captureReadyRef.current = { resolve: () => resolve(), reject };
       });
-      wsRef.current.send(
+      captureRequested = true;
+      captureSocket.send(
         JSON.stringify({
           type: 'capture_start',
           mimeType: RECORDER_MIME,
@@ -612,6 +698,14 @@ export function LiveHearingRoomPage() {
         CAPTURE_READY_TIMEOUT_MS,
         'Transcription did not become ready. Try again.',
       );
+      const phaseAfterReady = phaseRef.current as Phase;
+      if (
+        generation !== socketGenerationRef.current || phaseAfterReady !== 'preparing' ||
+        wsRef.current !== captureSocket || captureSocket.readyState !== WebSocket.OPEN
+      ) {
+        display.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       display.getVideoTracks().forEach((t) => t.stop());
       const recorder = new MediaRecorder(new MediaStream(audioTracks), { mimeType: RECORDER_MIME });
@@ -625,17 +719,20 @@ export function LiveHearingRoomPage() {
           // 'stopping' is still a sending phase — that is the final flushed chunk,
           // which must reach the server before capture_stop. 'ended' is not.
           if (phaseRef.current === 'ended') return;
-          if (!ws || ws.readyState !== WebSocket.OPEN) return;
-          if (ws.bufferedAmount > MAX_WS_BUFFERED_BYTES) {
+          if (ws !== captureSocket || ws.readyState !== WebSocket.OPEN) return;
+          if (ws.bufferedAmount + event.data.size > MAX_WS_BUFFERED_BYTES) {
             throw new Error(
               'Network upload is falling behind. The capture was stopped to prevent data loss.',
             );
           }
           const buffer = await event.data.arrayBuffer();
+          if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN ||
+              generation !== socketGenerationRef.current) return;
           ws.send(buffer);
           setBytesSent((n) => n + buffer.byteLength);
         });
         sendChainRef.current.catch((err) => {
+          if (generation !== socketGenerationRef.current) return;
           setError((err as Error).message);
           cleanupCaptureTracks();
           disconnectSocket();
@@ -655,8 +752,14 @@ export function LiveHearingRoomPage() {
       setPhaseNow('capturing');
       setStatusText('Capturing and transcribing browser-tab audio…');
     } catch (err) {
+      const phaseAfterError = phaseRef.current as Phase;
+      if (generation !== socketGenerationRef.current || phaseAfterError === 'ended' ||
+          phaseAfterError === 'stopping') return;
       captureReadyRef.current = null;
       cleanupCaptureTracks();
+      // Once the handshake has begun, close that transport before a retry. A
+      // late capture_ready must never attach a recorder after a timeout/stop.
+      if (captureRequested) disconnectSocket();
       setError(`Could not start browser capture: ${(err as Error).message}`);
       setStatusText(
         wsRef.current?.readyState === WebSocket.OPEN ? 'Connected — ready to try again.' : null,
@@ -697,8 +800,8 @@ export function LiveHearingRoomPage() {
     } else {
       disconnectSocket();
     }
-    navigate('/intelligence/hearing-watch');
-  }, [captureActive, disconnectSocket, endSession, navigate]);
+    navigate(presentation === 'vnext' ? '/legiwatch?tab=hearings' : '/intelligence/hearing-watch');
+  }, [captureActive, disconnectSocket, endSession, navigate, presentation]);
 
   const cardColor = useMemo(
     () =>
@@ -725,7 +828,7 @@ export function LiveHearingRoomPage() {
 
   return (
     <div
-      className="lw-root redesign"
+      className={presentation === 'vnext' ? 'lw lw-liveroom' : 'lw-root redesign'}
       style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
     >
       <Space style={{ marginBottom: 12 }} wrap>
@@ -733,7 +836,7 @@ export function LiveHearingRoomPage() {
           Back
         </Button>
         <Title level={4} style={{ margin: 0 }}>
-          <AudioOutlined /> Live Hearing Room
+          <AudioOutlined /> {session.data?.title ?? 'Live Hearing Room'}
         </Title>
         <Badge
           status={
@@ -870,6 +973,12 @@ export function LiveHearingRoomPage() {
             Choose the browser tab playing the hearing and enable Share tab audio. Chrome or Edge is
             required.
           </Text>
+          {captureActive && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {wakeLock === 'active' ? 'Screen wake lock active.' : 'Keep this device awake while sharing audio.'}
+              {' '}Browser transcription needs this tab and device to stay open. Scheduled Capiro attendance runs on the server.
+            </Text>
+          )}
           {statusText && <Badge status="processing" text={statusText} />}
           <Text type="secondary" style={{ fontSize: 11 }}>
             Uploaded {(bytesSent / 1024 / 1024).toFixed(2)} MB
@@ -880,8 +989,9 @@ export function LiveHearingRoomPage() {
         </Space>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 16 }}>
         <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
+          {transcript.isError && <Alert type="warning" message="Saved transcript could not be refreshed." />}
           {transcript.isLoading && segments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Spin />
@@ -909,6 +1019,7 @@ export function LiveHearingRoomPage() {
         </Card>
 
         <Card title="Intelligence cards" size="small" style={{ minHeight: 420 }}>
+          {summary.isError && <Alert type="warning" message="Saved intelligence could not be refreshed." />}
           {cards.length === 0 ? (
             <Empty description="Relevant moments will appear here." />
           ) : (

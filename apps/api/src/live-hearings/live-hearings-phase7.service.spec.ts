@@ -3,6 +3,7 @@ import {
   browserJoinPlan,
   decodeTranscriptCursor,
   encodeTranscriptCursor,
+  LiveHearingsPhase7Service,
 } from './live-hearings-phase7.service.js';
 
 describe('Live Hearings Phase 7 pure contracts', () => {
@@ -48,6 +49,16 @@ describe('Live Hearings Phase 7 pure contracts', () => {
       ]),
     ).toMatchObject({ allowed: false, state: 'LICENSE_REQUIRED' });
   });
+
+  it.each(['BROWSER_CAPTURE_ONLY', 'LICENSE_REQUIRED', 'BLOCKED'])(
+    'does not allow an unresolved stream to override %s inside the service',
+    (capturePolicy) => {
+      expect(assessSchedulePolicy(publicHearing, [{
+        capturePolicy,
+        resolutionState: 'WAITING_FOR_STREAM',
+      }])).toMatchObject({ allowed: false });
+    },
+  );
 
   it('rejects private, canceled, and completed proceedings', () => {
     expect(assessSchedulePolicy({ ...publicHearing, visibility: 'private' }, [])).toMatchObject({
@@ -111,5 +122,41 @@ describe('Live Hearings Phase 7 pure contracts', () => {
     expect(
       browserJoinPlan({ ...publicHearing, url: null } as never, null),
     ).toMatchObject({ mode: 'BLOCKED', reasonCode: 'OFFICIAL_PAGE_UNAVAILABLE' });
+  });
+
+  it('blocks a non-public hearing even when its earlier public capture still exists', () => {
+    expect(browserJoinPlan({ ...publicHearing, visibility: 'private' } as never, {
+      id: 'earlier-public-capture', status: 'CAPTURING',
+    } as never)).toMatchObject({ mode: 'BLOCKED', reasonCode: 'NON_PUBLIC_PROCEEDING' });
+  });
+
+  it('retains a transcript catch-up cursor at the live tail and through an empty poll', async () => {
+    const raw = jest.fn()
+      .mockResolvedValueOnce([{ captureId: 'capture-1', domainStatus: 'CAPTURING' }])
+      .mockResolvedValueOnce([{ id: 'seg-500', sequence: 500, text: 'Still recording', isFinal: true }])
+      .mockResolvedValueOnce([{ count: 500 }])
+      .mockResolvedValueOnce([{ captureId: 'capture-1', domainStatus: 'CAPTURING' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ count: 500 }]);
+    const service = new LiveHearingsPhase7Service({
+      committeeHearing: { findUnique: jest.fn().mockResolvedValue(publicHearing) },
+      $queryRawUnsafe: raw,
+    } as never, {} as never, {} as never);
+    const tail = await service.transcript('h-1', { cursor: encodeTranscriptCursor(499, 'seg-499') });
+    expect(tail).toMatchObject({ hasMore: false, nextCursor: null,
+      resumeCursor: encodeTranscriptCursor(500, 'seg-500') });
+    const poll = await service.transcript('h-1', { cursor: encodeTranscriptCursor(500, 'seg-500') });
+    expect(poll).toMatchObject({ items: [], hasMore: false,
+      resumeCursor: encodeTranscriptCursor(500, 'seg-500') });
+  });
+
+  it('rejects a private transcript before reading an existing capture', async () => {
+    const raw = jest.fn();
+    const service = new LiveHearingsPhase7Service({
+      committeeHearing: { findUnique: jest.fn().mockResolvedValue({ ...publicHearing, visibility: 'private' }) },
+      $queryRawUnsafe: raw,
+    } as never, {} as never, {} as never);
+    await expect(service.transcript('h-1', {})).rejects.toMatchObject({ status: 403 });
+    expect(raw).not.toHaveBeenCalled();
   });
 });

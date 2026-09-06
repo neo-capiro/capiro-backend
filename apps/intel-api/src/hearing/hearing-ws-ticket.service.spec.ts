@@ -173,6 +173,7 @@ describe('verifyWsOrigin', () => {
 
   it.each([
     'https://app.capiro.ai',
+    'https://os.capiro.ai',
     'https://app-dev.capiro.ai',
     'https://capiro.ai',
     'https://www.capiro.ai',
@@ -183,6 +184,7 @@ describe('verifyWsOrigin', () => {
   it.each([
     'https://evil.example.com',
     'https://app.capiro.ai.evil.com',
+    'https://os.capiro.ai.evil.com',
     'http://app.capiro.ai',
     'https://acmelobby.app.capiro.ai',
   ])('rejects the non-allowlisted origin %p', (origin) => {

@@ -93,9 +93,13 @@ export function useLwWeekCalendar(params: WeekRangeParams) {
         throw new Error(liveHearingApiError(err));
       }
     },
-    // Week navigation is user-paced; never refetch behind the user's back and
-    // never retry-storm a failing endpoint (QA §19).
+    // Keep the selected week and filters stable while detecting hearings that
+    // start live and capture requests that advance during an open session.
     staleTime: 60_000,
     retry: false,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 }

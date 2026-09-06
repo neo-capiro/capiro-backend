@@ -8,6 +8,7 @@ jest.mock('@deepgram/sdk', () => {
   const conns: Array<{
     on: (event: string, cb: (payload?: unknown) => void) => void;
     send: jest.Mock;
+    keepAlive: jest.Mock;
     requestClose: jest.Mock;
     emit: (event: string, payload?: unknown) => void;
   }> = [];
@@ -24,7 +25,9 @@ jest.mock('@deepgram/sdk', () => {
               handlers.set(event, list);
             },
             send: jest.fn(),
+            keepAlive: jest.fn(),
             requestClose: jest.fn(),
+            disconnect: jest.fn(),
             emit: (event: string, payload?: unknown) => {
               for (const cb of handlers.get(event) ?? []) cb(payload);
             },
@@ -69,14 +72,18 @@ function deferred<T = void>() {
 
 function fakeSocket() {
   const sent: unknown[] = [];
+  const handlers = new Map<string, (...args: any[]) => void>();
   const socket = {
     OPEN: 1,
     readyState: 1,
     send: jest.fn((value: unknown) => sent.push(value)),
+    ping: jest.fn(),
     close: jest.fn(),
+    on: jest.fn((event: string, handler: (...args: any[]) => void) => handlers.set(event, handler)),
   } as unknown as WebSocket;
   return {
     socket,
+    emit: (event: string, ...args: unknown[]) => handlers.get(event)?.(...args),
     sentJson: () =>
       sent
         .filter((value): value is string => typeof value === 'string')
@@ -97,7 +104,14 @@ function makeGateway(
   } = {},
 ) {
   const sessions = {
-    assertCaptureAllowed: jest.fn(),
+    assertCaptureAllowed: jest.fn(async () => ({
+      sourceType: 'hearing',
+      recordingPolicy: 'transcript_only',
+      issueIds: [],
+      billIds: [],
+      programElementIds: [],
+      agencyIds: [],
+    })),
     claimCapture: overrides.claimCapture ?? jest.fn(),
     activateCapture: overrides.activateCapture ?? jest.fn(async () => true),
     heartbeatCapture: overrides.heartbeatCapture ?? jest.fn(async () => true),
@@ -123,7 +137,7 @@ function makeGateway(
 
   const gateway = new HearingGateway(
     {} as OrgTenantResolverService,
-    {} as FeatureFlagService,
+    { isEnabled: jest.fn(async () => true) } as unknown as FeatureFlagService,
     sessions,
     {} as HearingWsTicketService,
     commit,
@@ -156,6 +170,9 @@ function baseConn(socket: WebSocket) {
     state: 'connected',
     timelineOffsetMs: 0,
     hasAudio: false,
+    inboundChain: Promise.resolve(),
+    pendingInputBytes: 0,
+    pendingInputMessages: 0,
     rawChain: Promise.resolve(),
     pendingEnrichment: new Set<Promise<void>>(),
     rateWindowStartedAt: Date.now(),
@@ -177,11 +194,109 @@ function clearConnTimers(conn: Record<string, unknown>) {
   clearTimeout(conn.startTimer as NodeJS.Timeout);
   clearTimeout(conn.firstAudioTimer as NodeJS.Timeout);
   clearTimeout(conn.durationTimer as NodeJS.Timeout);
+  (conn.deepgram as { stop?: () => void } | undefined)?.stop?.();
 }
 
 describe('HearingGateway capture protocol', () => {
   beforeEach(() => {
     deepgramConns.length = 0;
+  });
+
+  it('preserves initial browser frame order while the first frame activates the lease', async () => {
+    const activation = deferred<boolean>();
+    const activateCapture = jest.fn(() => activation.promise);
+    const { gateway } = makeGateway({ activateCapture });
+    const ws = fakeSocket();
+    await (gateway as any).startSession(ws.socket, 'session-1', 'tenant-1', 'user-1');
+    const conn = (gateway as any).conns.get(ws.socket);
+    conn.state = 'ready';
+    conn.claimStartedAt = new Date();
+    conn.deepgram = { sendAudio: jest.fn(() => true) };
+
+    ws.emit('message', Buffer.from('webm-header'), true);
+    ws.emit('message', Buffer.from('webm-cluster'), true);
+    await Promise.resolve();
+    expect(activateCapture).toHaveBeenCalledTimes(1);
+    expect(conn.deepgram.sendAudio).not.toHaveBeenCalled();
+
+    activation.resolve(true);
+    await conn.inboundChain;
+    expect(activateCapture).toHaveBeenCalledTimes(1);
+    expect(conn.deepgram.sendAudio.mock.calls.map(([bytes]: [Buffer]) => bytes.toString()))
+      .toEqual(['webm-header', 'webm-cluster']);
+    expect(conn.state).toBe('capturing');
+  });
+
+  it('bounds queued browser frames while activation stalls and never forwards them after finalization', async () => {
+    jest.useFakeTimers();
+    try {
+      const activation = deferred<boolean>();
+      const { gateway } = makeGateway({ activateCapture: jest.fn(() => activation.promise) });
+      const ws = fakeSocket();
+      await (gateway as any).startSession(ws.socket, 'session-1', 'tenant-1', 'user-1');
+      const conn = (gateway as any).conns.get(ws.socket);
+      conn.state = 'ready';
+      conn.claimStartedAt = new Date();
+      conn.deepgram = { sendAudio: jest.fn(() => true), stopAndWait: jest.fn(async () => undefined) };
+      ws.emit('message', Buffer.from('header'), true);
+      await Promise.resolve();
+      for (let i = 0; i < 1_000; i++) ws.emit('message', Buffer.alloc(8_000), true);
+      expect(conn.pendingInputMessages).toBeLessThanOrEqual(256);
+      expect(conn.pendingInputBytes).toBeLessThanOrEqual(2 * 1024 * 1024);
+      expect(ws.sentJson()).toContainEqual(expect.objectContaining({ code: 'CAPTURE_INPUT_OVERFLOW' }));
+      await jest.advanceTimersByTimeAsync(15_000);
+      await conn.inboundChain;
+      activation.resolve(true);
+      await Promise.resolve();
+      expect(conn.deepgram.sendAudio).not.toHaveBeenCalled();
+      expect(conn.pendingInputBytes).toBe(0);
+      expect(conn.pendingInputMessages).toBe(0);
+      expect(conn.state).toBe('ended');
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('lets disconnect finish when claim SQL hangs and releases a claim that resolves after its deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      const pending = deferred<{ startedAt: Date }>();
+      const { gateway, sessions } = makeGateway({ claimCapture: jest.fn(() => pending.promise) });
+      const ws = fakeSocket();
+      await (gateway as any).startSession(ws.socket, 'session-1', 'tenant-1', 'user-1');
+      ws.emit('message', Buffer.from(JSON.stringify({ type: 'capture_start', mimeType: 'audio/webm' })), false);
+      await Promise.resolve();
+      const disconnected = gateway.handleDisconnect(ws.socket);
+      await jest.advanceTimersByTimeAsync(15_000);
+      await disconnected;
+      const token = new Date();
+      pending.resolve({ startedAt: token });
+      await jest.advanceTimersByTimeAsync(0);
+      expect(sessions.releaseCapture).toHaveBeenCalledWith('tenant-1', 'session-1', token, 'failed');
+      expect(deepgramConns).toHaveLength(0);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('keeps the browser proxy and capture lease active for a four-hour recess', async () => {
+    jest.useFakeTimers();
+    try {
+      const heartbeatCapture = jest.fn(async () => true);
+      const claimCapture = jest.fn(async () => ({ startedAt: new Date() }));
+      const { gateway } = makeGateway({ claimCapture, heartbeatCapture });
+      const ws = fakeSocket();
+      const conn = baseConn(ws.socket);
+      await (gateway as any).startCapture(conn, 'audio/webm');
+      deepgramConns[0]!.emit('open');
+      await (gateway as any).onAudioFrame(conn, Buffer.from('webm-header'));
+
+      await jest.advanceTimersByTimeAsync(4 * 60 * 60 * 1_000);
+      expect(conn.state).toBe('capturing');
+      expect(heartbeatCapture).toHaveBeenCalledTimes(480);
+      expect(ws.socket.ping).toHaveBeenCalledTimes(480);
+      expect(ws.sentJson()).not.toContainEqual(expect.objectContaining({ type: 'error' }));
+      clearConnTimers(conn);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('returns SESSION_ALREADY_ACTIVE when another browser owns the DB capture lease', async () => {

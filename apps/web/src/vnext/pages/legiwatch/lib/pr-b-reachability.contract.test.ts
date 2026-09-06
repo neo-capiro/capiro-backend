@@ -32,12 +32,15 @@ describe('PR B reachability contract (LW-QA-003/004)', () => {
     expect(catchIdx).toBeGreaterThan(detailIdx);
   });
 
-  it('calendar chips + list rows + history rows open the detail route', () => {
+  it('calendar rows open detail and history retains both public and browser transcript destinations', () => {
     expect(hearings).toContain("navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`)");
     expect(hearings).toMatch(/openHearing/);
-    // My Sessions history is keyboard-reachable and prefers hearingId → detail.
+    // Browser recordings have their own persisted transcript even when linked
+    // to a canonical event. Behavioral mouse/keyboard coverage lives beside
+    // HearingsTab in hearing-detail-navigation.integration.test.tsx.
     expect(hearings).toMatch(/onKeyDown/);
-    expect(hearings).toContain("navigate(`/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`)");
+    expect(hearings).toContain('`/legiwatch/hearings/${encodeURIComponent(s.hearingId)}`');
+    expect(hearings).toContain('`/intelligence/hearing-watch/${encodeURIComponent(s.id)}`');
   });
 
   it('list rows link the committee room; detail links back', () => {

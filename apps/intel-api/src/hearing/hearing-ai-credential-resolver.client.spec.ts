@@ -130,4 +130,29 @@ describe('HearingAiCredentialResolver', () => {
     const resolver = new HearingAiCredentialResolver(makeConfig());
     expect(await resolver.resolve('tenant-1')).toBeUndefined();
   });
+
+  it('bounds a stalled lookup and permits the next segment to retry', async () => {
+    jest.useFakeTimers();
+    try {
+      const fetchSpy = jest.fn((_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new Error('lookup aborted')), { once: true });
+        }),
+      );
+      (global as unknown as { fetch: unknown }).fetch = fetchSpy;
+      const resolver = new HearingAiCredentialResolver(makeConfig());
+      const lookup = resolver.resolve('tenant-1');
+      await jest.advanceTimersByTimeAsync(5_000);
+
+      await expect(lookup).resolves.toBeUndefined();
+      expect(jest.getTimerCount()).toBe(0);
+
+      const retry = resolver.resolve('tenant-1');
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(5_000);
+      await expect(retry).resolves.toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

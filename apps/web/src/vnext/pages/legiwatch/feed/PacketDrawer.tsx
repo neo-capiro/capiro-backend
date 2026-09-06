@@ -11,7 +11,7 @@
  * unknowns block is never hidden (none = say so); Escape/backdrop close;
  * browser back restores the underlying worklist state.
  */
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLwAlert, useLwPacket, useLwWorkState } from '../lib/api.js';
 import {
   WORK_STATE_LABEL,
@@ -22,21 +22,33 @@ import {
 } from '../lib/types.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading } from '../states/SystemStates.js';
+import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
 
-export function PacketDrawer({
-  scope,
-  alertId,
-  onClose,
-}: {
+const MemoComposerDrawer = lazy(async () => ({
+  default: (await import('../../../../pages/clients/tracker/MemoComposerDrawer.js')).MemoComposerDrawer,
+}));
+
+interface PacketDrawerProps {
   scope: string;
   alertId: string;
   onClose: () => void;
-}) {
+}
+
+export function PacketDrawer(props: PacketDrawerProps) {
+  return <PacketDrawerContent key={`${props.scope}:${props.alertId}`} {...props} />;
+}
+
+function PacketDrawerContent({
+  scope,
+  alertId,
+  onClose,
+}: PacketDrawerProps) {
   const alert = useLwAlert(scope, alertId);
   const packet = useLwPacket(scope, alertId);
   const workState = useLwWorkState(scope);
   /** Result of the last Change-menu action — the drawer's only feedback path. */
   const [notice, setNotice] = useState<string | null>(null);
+  const [memoOpen, setMemoOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -48,6 +60,8 @@ export function PacketDrawer({
   const pk = packet.data;
   const bandInfo = it ? packetBand(it) : null;
   const ws = ((it?.workState?.state ?? 'new') as WorkState);
+  const memoClientId = it?.clientId || (scope !== '_all' ? scope : '');
+  const hearingHref = it ? feedHearingDetailHref(it) : null;
 
   return (
     <>
@@ -254,15 +268,26 @@ export function PacketDrawer({
 
             {/* Action bar — internal artefacts only (§1.5). No external send. */}
             <div className="lw-drawer__foot">
-              <LwButton variant="primary" onClick={() => { /* Workspace draft via canonical action */ }}>
+              <LwButton disabled title="Create a brief from the hearing detail page.">
                 Create brief
               </LwButton>
-              <LwButton onClick={() => {}}>Draft memo</LwButton>
-              <LwButton onClick={() => {}}>Stage outreach</LwButton>
+              <LwButton variant="primary" onClick={() => setMemoOpen(true)} disabled={!memoClientId || !it.id}
+                title={memoClientId ? undefined : 'This alert must belong to a client before drafting a memo.'}>Draft memo</LwButton>
+              <LwButton disabled title="Stage outreach from the hearing detail page.">Stage outreach</LwButton>
+              <p className="lw-card__meta" style={{ width: '100%', margin: '6px 0 0' }}>
+                Create briefs and stage outreach from a hearing’s detail page.
+                {hearingHref ? <> <a href={hearingHref}>Open hearing actions</a></> : null}
+              </p>
             </div>
           </>
         )}
       </aside>
+      {memoOpen && it && memoClientId ? (
+        <Suspense fallback={<div role="status">Opening memo editor…</div>}>
+          <MemoComposerDrawer open clientId={memoClientId} clientName={it.clientName ?? 'Client'}
+            item={it} onClose={() => setMemoOpen(false)} />
+        </Suspense>
+      ) : null}
     </>
   );
 }

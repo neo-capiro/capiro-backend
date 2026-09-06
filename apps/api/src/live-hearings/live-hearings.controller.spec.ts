@@ -72,9 +72,9 @@ describe('LiveHearingsController contract', () => {
   it('returns the canonical committee directory without deriving identities from events', async () => {
     const { controller, committees } = fixture();
 
-    const result = await controller.committeeDirectory();
+    const result = await controller.committeeDirectory(ctx);
 
-    expect(committees.committees).toHaveBeenCalledTimes(1);
+    expect(committees.committees).toHaveBeenCalledWith(ctx);
     expect(result.rows).toEqual([{ systemCode: 'hsag00' }]);
   });
 });

@@ -98,7 +98,78 @@ const firstPartyResolution = {
   },
 };
 
+describe('long-running capture lease lifecycle', () => {
+  beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date('2026-08-20T14:00:00Z')); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  it('renews a single capture through four hours and finalizes after the runtime ends', async () => {
+    const h = storeHarness();
+    h.store.renewLease = jest.fn(async (input) => ({
+      ownerId: input.ownerId, fencingToken: input.fencingToken,
+      acquiredAt: input.now, expiresAt: new Date(input.now.getTime() + input.leaseDurationMs),
+    }));
+    let finish!: (result: { capturedMs: number; gaps: [] }) => void;
+    let signal!: AbortSignal;
+    const runtime = { run: jest.fn(async (input) => {
+      signal = input.signal;
+      return new Promise<{ capturedMs: number; gaps: [] }>((resolve) => { finish = resolve; });
+    }) };
+    const worker = new PublicCaptureWorkerCoordinator(h.store,
+      { resolve: jest.fn(async () => firstPartyResolution) }, runtime);
+    const running = worker.run({ captureId: 'capture-1', hearingId: 'hearing-1', workerId: 'worker-a' });
+    await jest.advanceTimersByTimeAsync(4 * 60 * 60_000);
+    expect(runtime.run).toHaveBeenCalledTimes(1);
+    expect(h.store.renewLease).toHaveBeenCalledTimes(720);
+    expect(signal.aborted).toBe(false);
+    finish({ capturedMs: 14_400_000, gaps: [] });
+    await expect(running).resolves.toMatchObject({ action: 'COMPLETE', capturedMs: 14_400_000 });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('aborts at the lease deadline when a renewal hangs without rejecting', async () => {
+    const h = storeHarness();
+    h.store.renewLease = jest.fn(() => new Promise<CaptureLease>(() => undefined));
+    let signal!: AbortSignal;
+    const runtime = { run: jest.fn(async (input) => {
+      signal = input.signal;
+      return new Promise<never>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    }) };
+    const worker = new PublicCaptureWorkerCoordinator(h.store,
+      { resolve: jest.fn(async () => firstPartyResolution) }, runtime);
+    const running = worker.run({ captureId: 'capture-1', hearingId: 'hearing-1', workerId: 'worker-a' });
+    const failure = expect(running).rejects.toThrow('lease expired');
+    await jest.advanceTimersByTimeAsync(59_999);
+    expect(signal.aborted).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    await failure;
+    expect(signal.aborted).toBe(true);
+    expect(h.getRow().status).toBe('CAPTURING');
+    expect(h.store.renewLease).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+});
+
 describe('public capture orchestration', () => {
+  it('leaves an actively leased capture and its optimistic version unchanged during scheduler passes', async () => {
+    const h = storeHarness();
+    const now = new Date('2026-08-20T15:00:00Z');
+    h.setRow({ ...capture(), status: 'CAPTURING', version: 8,
+      lease: { ownerId: 'worker-a', fencingToken: 1, acquiredAt: now,
+        expiresAt: new Date(now.getTime() + 60_000) } });
+    const resolver = { resolve: jest.fn(async () => firstPartyResolution) };
+    const queue = { enqueue: jest.fn(), schedulePreflight: jest.fn() };
+    const orchestrator = new PublicCaptureOrchestrator(h.store, resolver, queue, { now: () => now });
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toEqual({
+      action: 'CAPTURE_IN_PROGRESS', captureId: 'capture-1',
+    });
+    expect(resolver.resolve).not.toHaveBeenCalled();
+    expect(h.store.recordResolution).not.toHaveBeenCalled();
+    expect(h.store.saveState).not.toHaveBeenCalled();
+    expect(h.getRow().version).toBe(8);
+  });
+
   it('enqueues one global job without tenant context or a resolved media URL', async () => {
     const h = storeHarness();
     const enqueue = jest.fn(async () => ({ enqueued: true, jobId: 'job-1' }));

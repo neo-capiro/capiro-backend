@@ -10,7 +10,7 @@
  * unrelated Data Explorer route (§7.5).
  */
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
@@ -24,26 +24,38 @@ import {
 import {
   trackerKeys,
   type BoardBill,
+  type BoardColumn,
   type BoardResponse,
   type RecommendationsResponse,
 } from '../../../../pages/clients/tracker/tracker-api.js';
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
-import { LwStateLoading, LwStateUnavailable, LwStateAllClear, LwStateEmpty } from '../states/SystemStates.js';
+import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import { Bill360Drawer } from './Bill360Drawer.js';
 
 type ViewMode = 'cards' | 'table';
 type SortKey = 'passage' | 'relevance';
 
 export function BillsTab({ scope, clients }: { scope: string; clients: Client[] }) {
+  return <ScopedBillsTab key={scope} scope={scope} clients={clients} />;
+}
+
+function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }) {
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const [view, setView] = useState<ViewMode>('cards');
-  const [sort, setSort] = useState<SortKey>('passage');
-  const [highFit, setHighFit] = useState(false);
-  const [changed7, setChanged7] = useState(false);
-  const [activeOnly, setActiveOnly] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const view: ViewMode = params.get('billView') === 'table' ? 'table' : 'cards';
+  const sort: SortKey = params.get('billSort') === 'relevance' ? 'relevance' : 'passage';
+  const highFit = params.get('billHighFit') === '1';
+  const changed7 = params.get('billChanged7') === '1';
+  const activeOnly = params.get('billActive') === '1';
+  const setFilter = (key: string, value: string | null) => setParams((previous) => {
+    const next = new URLSearchParams(previous);
+    if (value == null) next.delete(key);
+    else next.set(key, value);
+    return next;
+  });
   const [openBill, setOpenBill] = useState<string | null>(null);
 
   // Bills board + recommendations are client-scoped surfaces. PR C / LW-QA-012:
@@ -96,6 +108,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
 
   const invalidateAll = () => {
     void qc.invalidateQueries({ queryKey: trackerKeys.board(clientId) });
+    void qc.invalidateQueries({ queryKey: trackerKeys.board('_all') });
     void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(clientId) });
     void qc.invalidateQueries({ queryKey: trackerKeys.summary(clientId) });
   };
@@ -117,30 +130,42 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
     },
   });
 
-  const columns = board.data?.pages?.[0]?.columns ?? [];
+  const columns = useMemo(() => {
+    const merged = new Map<string, BoardColumn>();
+    const seen = new Set<string>();
+    for (const page of board.data?.pages ?? []) {
+      for (const col of page.columns) {
+        const target: BoardColumn = merged.get(col.id) ?? { ...col, bills: [], count: 0 };
+        for (const bill of col.bills) {
+          // The tenant board contains tracking rows, so the same bill may
+          // legitimately appear for two different clients.
+          const key = `${bill.clientId ?? clientId}:${bill.billId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          target.bills.push(bill);
+        }
+        target.count = target.bills.length;
+        merged.set(col.id, target);
+      }
+    }
+    return [...merged.values()];
+  }, [board.data, clientId]);
   const total = board.data?.pages?.[0]?.total ?? 0;
+  const loadedCount = columns.reduce((n, c) => n + c.bills.length, 0);
   const fedCount = columns.reduce(
     (n, c) => n + c.bills.filter((b) => !b.jurisdiction || b.jurisdiction === 'US').length,
     0,
   );
-  const stateCount = total - fedCount >= 0 ? columns.reduce((n, c) => n + c.bills.filter((b) => b.jurisdiction && b.jurisdiction !== 'US').length, 0) : 0;
+  const stateCount = loadedCount - fedCount;
 
   const topRecs = (recs.data?.recommendations ?? []).filter((r) => !r.belowFloor).slice(0, 3);
 
-  const sortBills = (list: BoardBill[]): BoardBill[] =>
-    [...list].sort((a, b) =>
+  const visibleBills = (list: BoardBill[]): BoardBill[] =>
+    list.filter((b) => !highFit || (b.matchedHighPriorityTopics?.length ?? 0) > 0).sort((a, b) =>
       sort === 'passage'
         ? b.probability - a.probability
         : (b.matchedHighPriorityTopics?.length ?? 0) - (a.matchedHighPriorityTopics?.length ?? 0),
     );
-
-  if (!clientId) {
-    return (
-      <div className="lw-body">
-        <LwStateEmpty onReset={undefined} />
-      </div>
-    );
-  }
 
   if (board.isLoading) {
     return (
@@ -152,7 +177,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
     );
   }
 
-  if (board.isError) {
+  if (board.isError && !board.data) {
     return (
       <div className="lw-body">
         <LwStateUnavailable
@@ -175,6 +200,12 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
             Recommendations are tailored per client. Select a client to see tailored recommendations.
           </span>
         </div>
+      ) : recs.isError ? (
+        <LwStateUnavailable
+          source="Recommended bills"
+          reason="Recommendations could not be loaded."
+          onRetry={() => void recs.refetch()}
+        />
       ) : topRecs.length > 0 ? (
         <section className="lw-card" aria-label="Recommended bills">
           <div className="lw-card__head">
@@ -219,12 +250,12 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
             { id: 'table' as ViewMode, label: 'Table' },
           ]}
           value={view}
-          onChange={setView}
+          onChange={(next) => setFilter('billView', next)}
         />
         <button
           type="button"
           className={`lw-btn${highFit ? ' lw-btn--primary' : ''}`}
-          onClick={() => setHighFit((v) => !v)}
+          onClick={() => setFilter('billHighFit', highFit ? null : '1')}
           aria-pressed={highFit}
         >
           High fit
@@ -232,7 +263,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
         <button
           type="button"
           className={`lw-btn${changed7 ? ' lw-btn--primary' : ''}`}
-          onClick={() => setChanged7((v) => !v)}
+          onClick={() => setFilter('billChanged7', changed7 ? null : '1')}
           aria-pressed={changed7}
         >
           Changed in 7 days
@@ -240,7 +271,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
         <button
           type="button"
           className={`lw-btn${activeOnly ? ' lw-btn--primary' : ''}`}
-          onClick={() => setActiveOnly((v) => !v)}
+          onClick={() => setFilter('billActive', activeOnly ? null : '1')}
           aria-pressed={activeOnly}
         >
           Active only
@@ -249,7 +280,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
           aria-label="Sort"
           className="lw-btn"
           value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
+          onChange={(e) => setFilter('billSort', e.target.value)}
         >
           <option value="passage">Passage likelihood</option>
           <option value="relevance">Client relevance</option>
@@ -257,7 +288,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
         <span style={{ flex: 1 }} />
         <LwButton
           onClick={() => {
-            const rows = columns.flatMap((c) => c.bills.map((b) => `${b.displayNum}\t${b.title}\t${c.label}\t${b.jurisdiction ?? 'US'}`));
+            const rows = columns.flatMap((c) => visibleBills(c.bills).map((b) => `${b.displayNum}\t${b.title}\t${c.label}\t${b.jurisdiction ?? 'US'}`));
             const blob = new Blob([`Bill\tTitle\tStage\tJurisdiction\n${rows.join('\n')}`], { type: 'text/tab-separated-values' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
@@ -266,7 +297,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
             URL.revokeObjectURL(a.href);
           }}
         >
-          Export
+          {board.hasNextPage ? 'Export loaded bills' : 'Export'}
         </LwButton>
       </div>
 
@@ -275,20 +306,18 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
         <>
           <div className="lw-board">
             {columns.map((col) => {
-              let bills = col.bills;
-              if (highFit) bills = bills.filter((b) => (b.matchedHighPriorityTopics?.length ?? 0) > 0);
-              bills = sortBills(bills);
+              const bills = visibleBills(col.bills);
               return (
                 <div key={col.id} className="lw-bcol">
                   <div className="lw-bcol__head">
                     <span className="lw-bcol__label">{col.label}</span>
-                    <span className="lw-rail__count">{col.count}</span>
+                    <span className="lw-rail__count">{bills.length}</span>
                   </div>
                   {bills.length === 0 ? (
                     <div className="lw-recs__empty" style={{ padding: '6px 4px' }}>No bills</div>
                   ) : (
                     bills.map((b) => {
-                      const terminal = b.canonicalStatus === 'enacted' || b.canonicalStatus === 'failed' || b.terminalRisk;
+                      const terminal = b.stage === 'enacted' || b.canonicalStatus?.toLowerCase() === 'failed' || b.terminalRisk;
                       return (
                         <button key={`${b.clientId ?? 'own'}-${b.billId}`} type="button" className="lw-bcard" onClick={() => setOpenBill(b.billId)}>
                           <div className="lw-bcard__id">{b.displayNum}</div>
@@ -297,7 +326,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
                             <span>{b.jurisdiction && b.jurisdiction !== 'US' ? b.jurisdiction : 'Federal'}</span>
                             {isAllScope && b.clientName ? <span>{b.clientName}</span> : null}
                             {terminal ? (
-                              <LwPill tone={b.canonicalStatus === 'enacted' ? 'success' : 'error'} size="22">
+                              <LwPill tone={b.stage === 'enacted' ? 'success' : 'error'} size="22">
                                 {(b.canonicalStatus ?? 'TERMINAL').toUpperCase()}
                               </LwPill>
                             ) : (
@@ -313,7 +342,7 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
             })}
           </div>
           <div className="lw-card__meta" style={{ padding: '4px 2px' }}>
-            {total} tracked · {fedCount} federal · {stateCount} state · authoritative tracked status from the server
+            {total} tracked · {loadedCount < total ? `${loadedCount} loaded · ` : ''}{fedCount} federal · {stateCount} state{loadedCount < total ? ' among loaded bills' : ''} · authoritative tracked status from the server
           </div>
         </>
       ) : (
@@ -331,14 +360,14 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
               </thead>
               <tbody>
                 {columns.flatMap((col) =>
-                  sortBills(col.bills).map((b) => {
-                    const terminal = b.canonicalStatus === 'enacted' || b.canonicalStatus === 'failed' || b.terminalRisk;
+                  visibleBills(col.bills).map((b) => {
+                    const terminal = b.stage === 'enacted' || b.canonicalStatus?.toLowerCase() === 'failed' || b.terminalRisk;
                     return (
                       <tr key={`${b.clientId ?? 'own'}-${b.billId}`} style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }} onClick={() => setOpenBill(b.billId)}>
                         <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12, fontWeight: 600 }}>{b.displayNum}</td>
                         <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>{b.title}</td>
                         <td style={{ padding: '12px 18px' }}><LwPill tone="brand" size="22">{col.label}</LwPill></td>
-                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{isAllScope && b.clientName ? b.clientName : b.jurisdiction ?? 'US'}</td>
+                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{b.clientName ?? clients.find((c) => c.id === clientId)?.name ?? 'Client unavailable'}</td>
                         <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
                           {terminal ? (b.canonicalStatus ?? 'TERMINAL').toUpperCase() : `${Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%`}
                         </td>
@@ -351,6 +380,14 @@ export function BillsTab({ scope, clients }: { scope: string; clients: Client[] 
           </div>
         </section>
       )}
+
+      {board.isFetchNextPageError ? <p role="alert">More bills could not be loaded. Your loaded bills are still shown.</p> : null}
+      {board.hasNextPage ? (
+        <LwButton onClick={() => void board.fetchNextPage()} disabled={board.isFetchingNextPage}>
+          {board.isFetchingNextPage ? 'Loading…' : board.isFetchNextPageError ? 'Retry loading more bills' : 'Load more bills'}
+        </LwButton>
+      ) : null}
+      {track.isError ? <p role="alert">The bill could not be tracked. Please try again.</p> : null}
 
       {openBill ? (
         <Bill360Drawer

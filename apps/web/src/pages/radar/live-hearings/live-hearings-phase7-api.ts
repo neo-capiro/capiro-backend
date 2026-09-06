@@ -340,7 +340,7 @@ export function normalizePhase7Room(value: unknown): Phase7Room {
       stringValue(row.transcriptDisclaimer) ??
       'Machine-generated transcript. Verify consequential quotations against the official recording or transcript.',
     intelligenceStatus:
-      stringValue(record(row.intelligence).status) ?? 'PHASE_8_PERSISTENCE_NOT_ENABLED',
+      stringValue(record(row.intelligence).status) ?? 'UNKNOWN',
     asOf: isoValue(row.asOf),
   };
 }

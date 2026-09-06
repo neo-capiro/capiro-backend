@@ -25,6 +25,12 @@ const TENANT = 'tenant-1';
 const CLIENT = '11111111-1111-1111-1111-111111111111';
 const WL_ID = `wl:${CLIENT}`;
 
+// Legacy reconciliation fixtures omit expectedVersion. Keep their date
+// deterministic; the dedicated MP-02 cases below separately cover both
+// sides of the 2026-08-10 version-enforcement cutover.
+beforeEach(() => jest.useFakeTimers().setSystemTime(new Date('2026-07-28T00:00:00Z')));
+afterEach(() => jest.useRealTimers());
+
 // getWatchlist reads run inside withTenant (RLS); getSectorSuggestion uses
 // withSystem. These shims run the callback with the supplied tx bag (the real
 // withTenant opens a SET-LOCAL tx). Prevents the pre-existing "withTenant is not
@@ -1078,6 +1084,7 @@ describe('TrackerWatchlistService.putAlertPrefs — P1-01 default vs deliberate 
       // assertPrefRowTenant's read (no existing row) + the upsert write.
       withTenant: async (_tid: string, fn: (t: unknown) => unknown) =>
         fn({
+          $queryRaw: async () => [],
           intelAlertPreference: {
             findUnique: async () => null,
             upsert: async (args: { create: unknown; update: unknown }) => {

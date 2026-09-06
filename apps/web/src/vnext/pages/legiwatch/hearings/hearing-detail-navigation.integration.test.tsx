@@ -306,6 +306,7 @@ function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initia
           <Route path="/legiwatch/feed" element={<FeedTab scope="" clients={[]} />} />
           <Route path="/legiwatch/hearings/:hearingId" element={<HearingDetailRoute />} />
           <Route path="/legiwatch/committees/:systemCode" element={<CommitteeRoomRoute />} />
+          <Route path="/intelligence/hearing-watch/:sessionId" element={<div data-testid="browser-hearing-room">Browser hearing room</div>} />
         </Routes>
       </Router>
     </QueryClientProvider>,
@@ -314,6 +315,55 @@ function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initia
 }
 
 describe('PR B §6 — every entry surface reaches Hearing Detail (real navigation)', () => {
+  it.each(['calendar chip', 'live room button'])('live %s opens the canonical hearing instead of an unhandled route', async (entry) => {
+    apiGet.mockImplementation((url: string) => {
+      const hit = wireGet(url);
+      if (hit && url.startsWith('/api/legiwatch/live-hearings/calendar?')) {
+        const page = hit.data as { items: Record<string, unknown>[] };
+        return Promise.resolve({ data: { ...page, items: page.items.map((row, index) => index === 0 ? { ...row, eventStatus: 'in_progress', capture: { status: 'capturing' } } : row) } });
+      }
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
+    const control = entry === 'calendar chip'
+      ? await within(await screen.findByLabelText('Week calendar')).findByRole('button', { name: /Shipbuilding industrial base oversight/i })
+      : await screen.findByRole('button', { name: /Open live room/i });
+    fireEvent.click(control);
+    await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+  });
+
+  it('browser session history opens the actual session even when linked to a canonical hearing', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/intel-api/hearings/history?')) {
+        return Promise.resolve({ data: { items: [{ ...HISTORY_SESSION, audioSource: 'browser_mic' }], total: 1, hasMore: false } });
+      }
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
+    fireEvent.click(await screen.findByRole('button', { name: /Open Shipbuilding industrial base oversight/i }));
+    await waitFor(() => expect(location.current.pathname).toBe('/intelligence/hearing-watch/sess-1'));
+    expect(screen.getByTestId('browser-hearing-room')).toBeTruthy();
+  });
+
+  it('shows a real scheduled subscription in the selected week recording rail', async () => {
+    apiGet.mockImplementation((url: string) => {
+      const hit = wireGet(url);
+      if (hit && url.startsWith('/api/legiwatch/live-hearings/calendar?')) {
+        const page = hit.data as { items: Record<string, unknown>[] };
+        return Promise.resolve({ data: { ...page, items: page.items.map((row, index) => index === 0 ? { ...row, eventStatus: 'scheduled', subscription: { scheduled: true }, capture: { status: 'scheduled' } } : row) } });
+      }
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
+    const rail = await screen.findByLabelText('Scheduled recordings');
+    const scheduled = await within(rail).findByText('Shipbuilding industrial base oversight');
+    expect(rail.textContent).not.toMatch(/isn't available on this backend/i);
+    fireEvent.click(scheduled.closest('button')!);
+    await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
+  });
+
   it('calendar chip click → detail route renders the hearing', async () => {
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
     const grid = await screen.findByLabelText('Week calendar');
@@ -408,6 +458,68 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
 });
 
 describe('PR B §6 — detail surface honesty (rendered component)', () => {
+  it('shows a live transcript while the canonical capture is still capturing', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001') {
+        return Promise.resolve({ data: { ...DETAIL_EVENT, eventStatus: 'in_progress', capture: { id: 'cap-1', status: 'capturing' } } });
+      }
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    const transcript = await screen.findByLabelText('Transcript');
+    expect(await within(transcript).findByText('The committee will come to order.')).toBeTruthy();
+    expect(within(transcript).getByText(/Capture is in progress/i)).toBeTruthy();
+  });
+
+  it('loads archive evidence beyond 500 segments and honors its router fragment', async () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const segments = Array.from({ length: 501 }, (_, index) => ({
+      id: `long-seg-${index + 1}`, sequence: index + 1, text: `Archive segment ${index + 1}`,
+      startMs: index * 20_000, endMs: (index + 1) * 20_000, isFinal: true,
+    }));
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/transcript')) {
+        const cursor = new URL(url, 'https://example.test').searchParams.get('cursor');
+        return Promise.resolve({ data: { items: cursor ? segments.slice(500) : segments.slice(0, 500), total: 501, nextCursor: cursor ? null : 'page-2', hasMore: !cursor, resumeCursor: cursor ? 'end' : 'page-2' } });
+      }
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001#seg-long-seg-501');
+    await screen.findByText('Archive segment 501');
+    await waitFor(() => expect(scroll.mock.instances).toContain(document.getElementById('lw-seg-long-seg-501')));
+    expect(screen.getByText('501 segments')).toBeTruthy();
+    scroll.mockRestore();
+  });
+
+  it('does not describe an intelligence fetch failure as no extracted intelligence', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.endsWith('/intelligence')) return Promise.reject(new Error('Network unavailable'));
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    const intelligence = await screen.findByLabelText('Intelligence');
+    await within(intelligence).findByText('Intelligence could not be loaded.');
+    expect(intelligence.textContent).not.toMatch(/No intelligence was extracted/i);
+  });
+
+  it('keeps partial transcripts visible when capture failed after recording began', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001') {
+        return Promise.resolve({ data: { ...DETAIL_EVENT, capture: { id: 'cap-1', status: 'FAILED', failureReason: 'STREAM_INTERRUPTED' } } });
+      }
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    const transcript = await screen.findByLabelText('Transcript');
+    await within(transcript).findByText('The committee will come to order.');
+    expect(transcript.textContent).toMatch(/recorded before the failure remains available/i);
+    expect(transcript.textContent).not.toMatch(/no transcript was produced/i);
+  });
+
   it('§9 intelligence grounding: evidence button jumps to and highlights the supporting segment', async () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
     const intel = await screen.findByLabelText('Intelligence');
@@ -420,6 +532,17 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
     const before = seg!.style.background;
     fireEvent.click(evidenceButton);
     await waitFor(() => expect(seg!.style.background).not.toBe(before));
+  });
+
+  it('clears a transcript search when jumping to evidence hidden by the filter', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    await screen.findByText('The committee will come to order.');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search transcript' }), { target: { value: 'come to order' } });
+    expect(document.getElementById('lw-seg-seg-2')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: /Jump to transcript evidence/i }));
+    await waitFor(() => expect(document.getElementById('lw-seg-seg-2')).toBeTruthy());
+    expect(screen.getByRole('textbox', { name: 'Search transcript' })).toHaveValue('');
+    expect(document.getElementById('lw-seg-seg-2')!.style.background).not.toBe('');
   });
 
   it('§8 PROCESSING extraction never renders as "no intelligence was extracted"', async () => {

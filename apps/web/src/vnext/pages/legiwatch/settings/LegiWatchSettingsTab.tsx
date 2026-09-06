@@ -21,7 +21,7 @@
  * preserves and shows the OFFICIAL event timezone (lib/hearing-datetime.ts).
  */
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
@@ -92,6 +92,8 @@ function normalize(raw: unknown): ResolvedPrefs {
 }
 
 export function LegiWatchSettingsTab() {
+  const [searchParams] = useSearchParams();
+  const scope = searchParams.get('client') ?? '';
   const api = useApi();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -260,7 +262,7 @@ export function LegiWatchSettingsTab() {
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet — per-client alert prefs exist under each client</span>
         </div>
         <div style={{ marginTop: 14 }}>
-          <LwButton size="36" onClick={() => navigate('/legiwatch?tab=bills')}>
+          <LwButton size="36" onClick={() => navigate(scope ? `/radar?tab=watchlist&client=${encodeURIComponent(scope)}` : '/radar?tab=watchlist')}>
             Open watchlist / monitoring setup
           </LwButton>
         </div>
@@ -387,7 +389,7 @@ function WatchPresetsCard() {
           onClose={() => setEditing(null)}
           onConfigure={() => {
             setEditing(null);
-            navigate(editing.clientIds[0] ? `/clients?clientId=${editing.clientIds[0]}` : '/clients');
+            navigate(editing.clientIds[0] ? `/radar?tab=watchlist&client=${encodeURIComponent(editing.clientIds[0])}` : '/radar?tab=watchlist');
           }}
         />
       ) : null}

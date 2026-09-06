@@ -162,12 +162,42 @@ jobs:
           pnpm --filter @capiro/intel-api exec jest --ci --silent
           --json --outputFile=$GITHUB_WORKSPACE/intel-summary.json
           src/feed/alert-packet.spec.ts
+          src/feed/feed-bill-events.controller.spec.ts
+          src/hearing/ws-origin.spec.ts
           src/hearing/deepgram-stream.manager.spec.ts
           src/hearing/hearing-ai-credential-resolver.client.spec.ts
           src/hearing/hearing-capture-hardening.spec.ts
           src/hearing/hearing-gateway.capture.spec.ts
           src/hearing/hearing-tenant-scoping.spec.ts
           src/hearing/hearing-ws-ticket.service.spec.ts
+          src/hearing/capture/automatic-stream-resolver.spec.ts
+          src/hearing/capture/ffmpeg-audio-command.spec.ts
+          src/hearing/capture/ffmpeg-deepgram-capture.runtime.spec.ts
+          src/hearing/capture/hearing-subscription.repository.spec.ts
+          src/hearing/capture/public-capture-credentials.adapter.spec.ts
+          src/hearing/capture/public-capture-credentials.spec.ts
+          src/hearing/capture/public-capture-disposition-backfill.spec.ts
+          src/hearing/capture/public-capture-jobs.spec.ts
+          src/hearing/capture/public-capture-persistent-queue.adapter.spec.ts
+          src/hearing/capture/public-capture-queue.adapter.spec.ts
+          src/hearing/capture/public-capture-task-runner.spec.ts
+          src/hearing/capture/public-capture.orchestrator.spec.ts
+          src/hearing/capture/public-hearing-capture-attempt.store.spec.ts
+          src/hearing/capture/public-hearing-capture-state.spec.ts
+          src/hearing/capture/public-hearing-capture.store.closeout.spec.ts
+          src/hearing/capture/public-hearing-capture.store.spec.ts
+          src/hearing/capture/public-hearing-transcript.store.spec.ts
+          src/hearing/capture/server-deepgram-stream.manager.spec.ts
+          src/hearing/capture/stream-preflight-policy.spec.ts
+          src/hearing/capture/stream-resolution-policy.spec.ts
+          src/hearing/intelligence/deterministic-public-hearing-extractor.spec.ts
+          src/hearing/intelligence/hearing-intelligence-job.store.spec.ts
+          src/hearing/intelligence/postgres-public-hearing-insight.store.spec.ts
+          src/hearing/intelligence/public-hearing-boundary.spec.ts
+          src/hearing/intelligence/public-hearing-intelligence.coordinator.spec.ts
+          src/hearing/intelligence/public-hearing-intelligence.processor.spec.ts
+          src/hearing/intelligence/tenant-hearing-relevance.processor.spec.ts
+          src/tracker/tracker-alert-prefs-verification.spec.ts
           src/feed/recommended-actions.util.spec.ts
           src/intel-alert/canonical-alert.adapter.spec.ts
           src/intel-alert/intel-alert.service.dedupe-state-alerts.spec.ts
@@ -202,7 +232,7 @@ jobs:
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 38 559
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 65 650
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -221,6 +251,8 @@ jobs:
           src/pages/intelligence/HearingWatchPage
           src/pages/intelligence/LiveHearingRoomPage.capture
           src/lib/hearing-watch-api
+          src/lib/use-hearing-wake-lock
+          src/vnext/pages/legiwatch/
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
 
@@ -231,4 +263,4 @@ jobs:
       # the tight signal here, the suite count is the coarse one.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 372
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 120 500

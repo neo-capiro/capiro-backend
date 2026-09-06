@@ -63,7 +63,7 @@ describe('Live Hearings capture capabilities', () => {
     ).toEqual(expect.objectContaining({ allowed: true, mode: 'BROWSER' }));
   });
 
-  test.each(['CLOSED', 'CLASSIFIED', 'NOT_STREAMED'])(
+  test.each(['CLOSED', 'PRIVATE', 'CLASSIFIED', 'NOT_STREAMED', 'UNKNOWN'])(
     'never exposes a recording action for %s proceedings',
     (publicAccessStatus) => {
       const candidate = event({ publicAccessStatus });
@@ -108,6 +108,9 @@ describe('Live Hearings capture capabilities', () => {
 
   test('treats only an explicit live/capture/actual-start signal as live', () => {
     expect(isLiveEvent(event({ eventStatus: 'LIVE' }))).toBe(true);
+    expect(isLiveEvent(event({ eventStatus: 'in_progress' }))).toBe(true);
+    expect(isLiveEvent(event({ capture: { status: 'CAPTURING' } }))).toBe(true);
+    expect(isLiveEvent(event({ eventStatus: 'ADJOURNED', capture: { status: 'CAPTURING' } }))).toBe(false);
     expect(
       isLiveEvent(
         event({

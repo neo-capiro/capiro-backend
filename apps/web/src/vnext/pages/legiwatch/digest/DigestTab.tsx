@@ -6,7 +6,7 @@
  * browser's own print-to-PDF (a real PDF, no server-side rendering
  * dependency introduced for one feature).
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import {
@@ -44,7 +44,7 @@ function Brief({ content }: { content: DigestContent }) {
 
         <Section title="What changed">
           {content.whatChanged.length === 0 ? (
-            <p className="lw-state__body">Nothing changed — sources are current.</p>
+            <p className="lw-state__body">No matching developments were recorded in this window.</p>
           ) : (
             <ol style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {content.whatChanged.map((it, i) => (
@@ -61,13 +61,13 @@ function Brief({ content }: { content: DigestContent }) {
 
         <Section title="Decisions required">
           {content.decisionsRequired.length === 0 ? (
-            <p className="lw-state__body">No decisions are due today.</p>
+            <p className="lw-state__body">No high-priority decisions were identified in this window.</p>
           ) : (
             content.decisionsRequired.map((it) => (
               <div key={it.id} className="lw-block" style={{ marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{it.title}</span>
-                  <LwPill tone="error" size="22">DUE TODAY</LwPill>
+                  <LwPill tone="error" size="22">PRIORITY</LwPill>
                 </div>
                 {it.recommendedAction ? (
                   <p className="lw-block__body" style={{ marginTop: 4 }}>{it.recommendedAction}</p>
@@ -77,7 +77,7 @@ function Brief({ content }: { content: DigestContent }) {
           )}
         </Section>
 
-        <Section title="Upcoming hearings">
+        <Section title="Upcoming public hearings">
           {content.upcomingHearings.length === 0 ? (
             <p className="lw-state__body">Nothing further this week.</p>
           ) : (
@@ -131,8 +131,8 @@ function Brief({ content }: { content: DigestContent }) {
           <div className="lw-eyebrow">Provenance</div>
           <p className="lw-state__body" style={{ maxWidth: 'none', marginTop: 6 }}>
             Built from {content.provenance.sourceFamilies.length ? content.provenance.sourceFamilies.join(', ') : 'no source families'} ·
-            {' '}{content.provenance.officialRecordCount} official record{content.provenance.officialRecordCount === 1 ? '' : 's'} ·
-            {' '}{content.provenance.captureCount} Capiro capture{content.provenance.captureCount === 1 ? '' : 's'}.
+            {' '}{content.provenance.officialRecordCount} source alert{content.provenance.officialRecordCount === 1 ? '' : 's'} ·
+            {' '}{content.provenance.captureCount} hearing-linked alert{content.provenance.captureCount === 1 ? '' : 's'}.
           </p>
         </footer>
       </div>
@@ -141,28 +141,28 @@ function Brief({ content }: { content: DigestContent }) {
 }
 
 export function DigestTab({ scope }: { scope: string }) {
+  // A client change must discard selection and mutation state, including a
+  // generation that completes after its original scope has been left.
+  return <ScopedDigestTab key={scope} scope={scope} />;
+}
+
+function ScopedDigestTab({ scope }: { scope: string }) {
   const [viewingRunId, setViewingRunId] = useState<string | null>(null);
   const generate = useGenerateDigest(scope);
   const history = useDigestHistory(scope);
-  const viewedRun = useDigestRun(viewingRunId);
+  const selectedRunId = viewingRunId ?? history.data?.rows[0]?.id ?? null;
+  const viewedRun = useDigestRun(selectedRunId);
   const schedule = useDigestSchedule(scope);
   const putSchedule = usePutDigestSchedule(scope);
 
-  // Landing view is the most recent persisted run, never a silent write —
-  // "Generate now" is the only action that creates a new one.
-  useEffect(() => {
-    setViewingRunId(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope]);
-  useEffect(() => {
-    if (!viewingRunId && history.data && history.data.rows.length > 0) {
-      setViewingRunId(history.data.rows[0]!.id);
-    }
-  }, [history.data, viewingRunId]);
-
-  const content = generate.data ?? viewedRun.data;
-  const isLoading = history.isLoading || (Boolean(viewingRunId) && viewedRun.isLoading);
-  const hasNoHistoryYet = !history.isLoading && (history.data?.rows.length ?? 0) === 0 && !generate.data;
+  // Generated content is only a fast path for THAT selected run. Choosing
+  // history must never leave the most recently generated brief on screen.
+  const content = generate.data?.id === selectedRunId ? generate.data : viewedRun.data;
+  const isLoading = !content && (history.isLoading || (Boolean(selectedRunId) && viewedRun.isLoading));
+  const hasNoHistoryYet = history.isSuccess && history.data.rows.length === 0 && !selectedRunId;
+  const generateNow = () => generate.mutate(undefined, {
+    onSuccess: (run) => setViewingRunId(run.id),
+  });
 
   return (
     <div className="lw-body">
@@ -170,8 +170,12 @@ export function DigestTab({ scope }: { scope: string }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           {isLoading ? (
             <div className="lw-card" style={{ padding: 18 }}><LwStateLoading rows={4} /></div>
+          ) : history.isError && !content ? (
+            <LwStateUnavailable source="Digest history" reason="Saved briefs could not be loaded." onRetry={() => void history.refetch()} />
+          ) : viewedRun.isError && !content ? (
+            <LwStateUnavailable source="Digest" reason="The selected brief could not be loaded." onRetry={() => void viewedRun.refetch()} />
           ) : generate.isError && !content ? (
-            <LwStateUnavailable source="Digest" reason="The brief could not be generated." onRetry={() => generate.mutate()} />
+            <LwStateUnavailable source="Digest" reason="The brief could not be generated." onRetry={generateNow} />
           ) : content ? (
             <Brief content={content} />
           ) : hasNoHistoryYet ? (
@@ -179,7 +183,7 @@ export function DigestTab({ scope }: { scope: string }) {
               <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 12 }}>
                 No digest has been generated yet for this scope.
               </p>
-              <LwButton variant="primary" onClick={() => generate.mutate()} disabled={generate.isPending}>
+              <LwButton variant="primary" onClick={generateNow} disabled={generate.isPending}>
                 {generate.isPending ? 'Generating…' : 'Generate now'}
               </LwButton>
             </div>
@@ -192,15 +196,12 @@ export function DigestTab({ scope }: { scope: string }) {
             <div style={{ padding: '0 16px 16px', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <LwButton
                 variant="primary"
-                onClick={() => {
-                  setViewingRunId(null);
-                  generate.mutate();
-                }}
+                onClick={generateNow}
                 disabled={generate.isPending}
               >
                 {generate.isPending ? 'Generating…' : 'Generate now'}
               </LwButton>
-              <LwButton onClick={() => window.print()}>Export PDF</LwButton>
+              <LwButton onClick={() => window.print()} disabled={!content}>Export PDF</LwButton>
               <LwButton
                 disabled
                 title="Send now is disabled until the Stage H security review ships. The digest produces an internal artefact pending human action."
@@ -208,16 +209,24 @@ export function DigestTab({ scope }: { scope: string }) {
                 Send now
               </LwButton>
             </div>
+            {generate.isError && content ? (
+              <p role="alert" className="lw-state__body" style={{ padding: '0 16px 16px' }}>
+                The new brief could not be generated. The previously selected brief is still shown.
+              </p>
+            ) : null}
 
             <div className="lw-rail__sect">
-              <div className="lw-rail__label">Schedule delivery</div>
+              <div className="lw-rail__label">Saved delivery preference</div>
               {schedule.isLoading ? (
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--lw-body)' }}>Loading…</p>
+              ) : schedule.isError ? (
+                <LwStateUnavailable source="Digest schedule" reason="The schedule could not be loaded." onRetry={() => void schedule.refetch()} />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                     <span style={{ width: 70 }}>Cadence</span>
                     <select
+                      disabled={putSchedule.isPending}
                       value={schedule.data?.cadence ?? 'off'}
                       onChange={(e) =>
                         putSchedule.mutate({
@@ -234,18 +243,19 @@ export function DigestTab({ scope }: { scope: string }) {
                   </label>
                   {schedule.data && schedule.data.cadence !== 'off' ? (
                     <p style={{ margin: 0, fontSize: 12, color: 'var(--lw-body)' }}>
-                      Delivered {schedule.data.cadence} at {String(schedule.data.hourUtc).padStart(2, '0')}:00 UTC.
+                      Preference saved: {schedule.data.cadence} at {String(schedule.data.hourUtc).padStart(2, '0')}:00 UTC. Automatic delivery is not active.
                     </p>
                   ) : null}
                 </div>
               )}
+              {putSchedule.isError ? <p role="alert" className="lw-state__body">The schedule could not be saved.</p> : null}
             </div>
 
             <div className="lw-rail__sect">
               <div className="lw-rail__label">Delivery</div>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--lw-body)' }}>
-                Email cadence follows the client&rsquo;s alert preferences. No Teams connection is
-                configured — stated as such, not hidden.
+                Generate briefs here on demand. Delivery preferences are stored for future use;
+                they do not currently generate or email a digest automatically.
               </p>
             </div>
           </section>
@@ -255,13 +265,15 @@ export function DigestTab({ scope }: { scope: string }) {
             <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {history.isLoading ? (
                 <LwStateLoading rows={3} />
+              ) : history.isError ? (
+                <p role="alert" className="lw-state__body">Digest history could not be loaded.</p>
               ) : history.data?.rows.length ? (
                 history.data.rows.map((r) => (
                   <button
                     key={r.id}
                     type="button"
                     className="lw-block"
-                    style={{ textAlign: 'left', width: '100%', cursor: 'pointer', background: viewingRunId === r.id ? 'var(--lw-selected)' : undefined }}
+                    style={{ textAlign: 'left', width: '100%', cursor: 'pointer', background: selectedRunId === r.id ? 'var(--lw-selected)' : undefined }}
                     onClick={() => setViewingRunId(r.id)}
                   >
                     <div style={{ fontSize: 13, fontWeight: 600 }}>

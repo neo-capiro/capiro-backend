@@ -1,5 +1,4 @@
 import {
-  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -433,10 +432,13 @@ export function useCanonicalHearingEvent(id: string) {
       const event = query.state.data;
       const status = event?.eventStatus?.toUpperCase();
       const capture = event?.capture?.status?.toUpperCase();
-      return status === 'LIVE' || ['PREPARING', 'RECORDING', 'RECOVERING'].includes(capture ?? '')
+      return ['LIVE', 'IN_PROGRESS'].includes(status ?? '') || ['PREPARING', 'RECORDING', 'CAPTURING', 'RECOVERING', 'WAITING_FOR_STREAM', 'SCHEDULED'].includes(capture ?? '')
         ? 10_000
-        : false;
+        : ['SCHEDULED', 'POSTPONED'].includes(status ?? '') ? 30_000 : false;
     },
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 }
 
@@ -475,63 +477,134 @@ function normalizeTranscriptSegment(value: unknown): PublicTranscriptSegment | n
     speakerLabel: stringValue(row.speakerLabel),
     confidence: numberValue(row.confidence),
     isFinal: booleanValue(row.isFinal) ?? true,
-    gapBefore: booleanValue(row.gapBefore) ?? false,
+    gapBefore: booleanValue(row.gapBefore, row.hasGapBefore) ?? false,
   };
+}
+
+interface CaughtUpTranscript {
+  // Preserve the pages contract used by both vNext and the legacy room. Empty
+  // polling responses never add pages (four hours must not retain 1,440 pages).
+  pages: PublicTranscriptPage[];
+  pageParams: Array<string | null>;
+  resumeCursor?: string;
+  captureId?: string;
+  reconciledAt: number;
 }
 
 export function usePublicHearingTranscript(id: string) {
   const api = useApi();
-  return useInfiniteQuery<PublicTranscriptPage>({
+  const queryClient = useQueryClient();
+  const result = useQuery<CaughtUpTranscript>({
     queryKey: keys.transcript(id),
-    queryFn: async ({ pageParam }) => {
-      const query = new URLSearchParams({ limit: '500' });
-      if (typeof pageParam === 'string' && pageParam) query.set('cursor', pageParam);
-      const response = await api.get<unknown>(
-        `/api/legiwatch/live-hearings/events/${encodeURIComponent(id)}/transcript?${query}`,
+    queryFn: async ({ signal }) => {
+      const previous = queryClient.getQueryData<CaughtUpTranscript>(keys.transcript(id));
+      // Final segments normally append. Reconcile occasional speaker/text
+      // corrections every five minutes, rather than rereading four hours of
+      // transcript on every ten-second live update.
+      const reconcile = !previous?.resumeCursor || Date.now() - previous.reconciledAt >= 300_000;
+      let cursor = reconcile ? undefined : previous?.resumeCursor;
+      let captureId = previous?.captureId;
+      let reconciledAt = reconcile ? Date.now() : previous!.reconciledAt;
+      const segments = new Map<string, PublicTranscriptSegment>(
+        reconcile ? [] : previous!.pages.flatMap((page) => page.items).map((item) => [item.id, item]),
       );
-      const envelope = record(response.data);
-      const rawItems = array(
-        Array.isArray(response.data) ? response.data : envelope.items ?? envelope.segments,
-      );
-      const items = rawItems
-        .map(normalizeTranscriptSegment)
-        .filter((item): item is PublicTranscriptSegment => Boolean(item));
-      return {
-        items,
-        total: numberValue(envelope.total) ?? items.length,
-        nextCursor: stringValue(envelope.nextCursor) ?? null,
-        hasMore: booleanValue(envelope.hasMore) ?? Boolean(envelope.nextCursor),
-      };
+      const seen = new Set<string>();
+      let resetCapture = false;
+      while (true) {
+        const query = new URLSearchParams({ limit: '500' });
+        if (cursor) query.set('cursor', cursor);
+        const response = await api.get<unknown>(
+          `/api/legiwatch/live-hearings/events/${encodeURIComponent(id)}/transcript?${query}`,
+          { signal },
+        );
+        const envelope = record(response.data);
+        const capture = record(envelope.capture);
+        const nextCaptureId = stringValue(capture.id, capture.captureId);
+        if (cursor && captureId && nextCaptureId && captureId !== nextCaptureId) {
+          if (resetCapture) throw new Error('The hearing capture changed while loading. Please retry.');
+          resetCapture = true;
+          cursor = undefined;
+          segments.clear();
+          seen.clear();
+          captureId = nextCaptureId;
+          reconciledAt = Date.now();
+          continue;
+        }
+        captureId = nextCaptureId;
+        for (const raw of array(Array.isArray(response.data) ? response.data : envelope.items ?? envelope.segments)) {
+          const item = normalizeTranscriptSegment(raw);
+          if (item) segments.set(item.id, item);
+        }
+        const nextCursor = stringValue(envelope.nextCursor);
+        const hasMore = booleanValue(envelope.hasMore) ?? Boolean(nextCursor);
+        if (hasMore) {
+          if (!nextCursor || nextCursor === cursor || seen.has(nextCursor)) {
+            throw new Error('Transcript pagination did not advance. Please retry.');
+          }
+          seen.add(nextCursor);
+          cursor = nextCursor;
+          continue;
+        }
+        const items = [...segments.values()].sort((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id));
+        return {
+          pages: [{ items, total: numberValue(envelope.total) ?? items.length, nextCursor: null, hasMore: false }],
+          pageParams: [null],
+          resumeCursor: stringValue(envelope.resumeCursor),
+          captureId,
+          reconciledAt,
+        };
+      }
     },
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => (last.hasMore ? (last.nextCursor ?? undefined) : undefined),
     enabled: Boolean(id),
     retry: false,
     refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
+  // Existing callers may still expose their old load-more button. All pages
+  // are now drained automatically, including when joining an ongoing hearing.
+  return { ...result, hasNextPage: false, isFetchingNextPage: result.isFetching, fetchNextPage: result.refetch };
 }
 
 export function useHearingIntelligence(id: string) {
   const api = useApi();
   return useQuery<HearingIntelligenceEnvelope>({
     queryKey: keys.intelligence(id),
-    queryFn: async () => {
-      const response = await api.get<unknown>(
-        `/api/legiwatch/live-hearings/events/${encodeURIComponent(id)}/intelligence`,
-      );
-      const envelope = record(response.data);
-      const items = array(
-        Array.isArray(response.data) ? response.data : envelope.items ?? envelope.insights,
-      )
-        .map(normalizeIntelligence)
-        .filter((item): item is HearingIntelligenceItem => Boolean(item));
+    queryFn: async ({ signal }) => {
+      const items = new Map<string, HearingIntelligenceItem>();
+      let envelope: UnknownRecord = {};
+      let cursor: string | undefined;
+      const seen = new Set<string>();
+      // Intelligence can be corrected, deleted and extracted out of transcript
+      // order. Reconcile each bounded page instead of treating it as append-only
+      // or silently stopping at the API's first 200 findings.
+      while (true) {
+        const query = cursor ? `?${new URLSearchParams({ cursor, limit: '500' })}` : '';
+        const response = await api.get<unknown>(
+          `/api/legiwatch/live-hearings/events/${encodeURIComponent(id)}/intelligence${query}`,
+          { signal },
+        );
+        envelope = record(response.data);
+        for (const raw of array(Array.isArray(response.data) ? response.data : envelope.items ?? envelope.insights)) {
+          const item = normalizeIntelligence(raw);
+          if (item) items.set(item.id, item);
+        }
+        const nextCursor = stringValue(envelope.nextCursor);
+        if (!(booleanValue(envelope.hasMore) ?? Boolean(nextCursor))) break;
+        if (!nextCursor || nextCursor === cursor || seen.has(nextCursor)) {
+          throw new Error('Intelligence pagination did not advance. Please retry.');
+        }
+        seen.add(nextCursor);
+        cursor = nextCursor;
+      }
       // PR B §8/§9: the route's status (READY | PROCESSING | DEGRADED | FAILED |
       // EMPTY) and queue counts must reach the UI — an empty item list with
       // pending jobs is "extraction in progress", never "none was extracted".
-      const result = items as HearingIntelligenceEnvelope;
-      if (!Array.isArray(response.data)) {
+      const result = [...items.values()] as HearingIntelligenceEnvelope;
+      if (Object.keys(envelope).length > 0) {
         result.status = stringValue(envelope.status);
-        result.total = numberValue(envelope.total);
+        result.total = numberValue(envelope.total, record(envelope.summary).total);
         const jobs = record(envelope.jobs);
         if (Object.keys(jobs).length > 0) {
           result.jobs = {
@@ -545,6 +618,9 @@ export function useHearingIntelligence(id: string) {
     enabled: Boolean(id),
     retry: false,
     refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
   });
 }
 

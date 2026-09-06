@@ -1,5 +1,19 @@
 import { OptimisticCaptureWriteError, PublicHearingCaptureStore, StaleCaptureFencingTokenError } from './public-hearing-capture.store.js';
 describe('PublicHearingCaptureStore SQL guards',()=>{
+  it('checks renewal expiry at database execution time instead of a queued request timestamp', async () => {
+    const raw = jest.fn().mockResolvedValue([]);
+    const store = new PublicHearingCaptureStore({ $queryRawUnsafe: raw } as never);
+    const requestedAt = new Date('2026-09-06T10:00:00Z');
+    await expect(store.renewLease({
+      captureId: 'c', ownerId: 'worker', fencingToken: 7,
+      now: requestedAt, leaseDurationMs: 60_000,
+    })).rejects.toBeInstanceOf(StaleCaptureFencingTokenError);
+    const sql = raw.mock.calls[0]![0] as string;
+    expect(sql).toContain('worker_lease_owner=$2 AND fencing_token=$5');
+    expect(sql).toContain('lease_expires_at > clock_timestamp()');
+    expect(sql).not.toContain('lease_expires_at > $3');
+  });
+
   it('uses database conflict idempotency',async()=>{ const raw=jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([{id:'c',hearingId:'h',status:'SCHEDULED',version:1,resolutionState:'NOT_CHECKED',consecutiveSourceErrors:0,fencingToken:0,capturedMs:0,gaps:[]}]);
     const store=new PublicHearingCaptureStore({$queryRawUnsafe:raw} as never); await store.ensureCapture({hearingId:'h',idempotencyKey:'k',now:new Date()}); expect(raw.mock.calls[0][0]).toContain('ON CONFLICT (hearing_id) DO NOTHING'); });
   it('distinguishes optimistic and stale fencing failures',async()=>{ const raw=jest.fn().mockResolvedValue([]); const store=new PublicHearingCaptureStore({$queryRawUnsafe:raw} as never);
