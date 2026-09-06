@@ -318,39 +318,29 @@ function manifestInputFor(fixture: BridgeFixture): MaterializationManifestInputV
   };
 }
 
-async function cleanupCandidateGraph(prisma: PrismaClient, cycleIds: string[]): Promise<void> {
-  if (cycleIds.length === 0) return;
-  const statements = [
-    `DELETE FROM "budget_review_decision_v1" WHERE "candidate_id" IN (SELECT "id" FROM "budget_extraction_candidate_v1" WHERE "cycle_id" = ANY($1::text[]))`,
-    `DELETE FROM "budget_verification_check_v1" WHERE "run_id" IN (SELECT r."id" FROM "budget_verification_run_v1" r JOIN "budget_extraction_candidate_v1" c ON c."id" = r."candidate_id" WHERE c."cycle_id" = ANY($1::text[]))`,
-    `DELETE FROM "budget_verification_discrepancy_v1" WHERE "run_id" IN (SELECT r."id" FROM "budget_verification_run_v1" r JOIN "budget_extraction_candidate_v1" c ON c."id" = r."candidate_id" WHERE c."cycle_id" = ANY($1::text[]))`,
-    `DELETE FROM "budget_verification_proof" WHERE "run_id" IN (SELECT r."id" FROM "budget_verification_run_v1" r JOIN "budget_extraction_candidate_v1" c ON c."id" = r."candidate_id" WHERE c."cycle_id" = ANY($1::text[]))`,
-    `DELETE FROM "budget_verification_run_v1" WHERE "candidate_id" IN (SELECT "id" FROM "budget_extraction_candidate_v1" WHERE "cycle_id" = ANY($1::text[]))`,
-    `DELETE FROM "budget_extraction_candidate_v1" WHERE "cycle_id" = ANY($1::text[])`,
-    `DELETE FROM "defense_budget_cycle_manifest_registry" WHERE "cycle_id" = ANY($1::text[])`,
-  ];
-  for (const sql of statements) {
-    try {
-      await prisma.$executeRawUnsafe(sql, cycleIds);
-    } catch {
-      // best effort -- the database is disposable
-    }
-  }
-}
-
+/**
+ * The verification audit tables (`budget_extraction_candidate_v1`,
+ * `budget_verification_run_v1`, checks, discrepancies, proofs, review
+ * decisions) are append-only by design -- `*_no_delete` / `*_no_update`
+ * triggers refuse any DELETE, and the SourceDocument rows they reference are
+ * pinned by RESTRICT foreign keys. This spec therefore never tries to delete
+ * them: every run uses fresh random UUIDs for cycle ids, SourceDocument ids
+ * and source bytes, so rows from earlier runs cannot collide with or be
+ * mistaken for this run's rows, and they simply accumulate in the disposable
+ * database. Only the lifecycle rows the corpus-loader test creates
+ * (`defense_budget_cycle` / expected source / observation) are removed,
+ * because `defense_budget_cycle` is unique per (fiscal year, authority track)
+ * and a leftover cycle from a crashed run would otherwise block the next run.
+ * Consequently this spec must not run concurrently against one database.
+ */
 async function cleanupLifecycleRows(prisma: PrismaClient): Promise<void> {
   const statements = [
     `DELETE FROM "defense_budget_source_observation" WHERE "cycle_id" IN (SELECT "id" FROM "defense_budget_cycle" WHERE "template_version" = $1)`,
     `DELETE FROM "defense_budget_expected_source" WHERE "cycle_id" IN (SELECT "id" FROM "defense_budget_cycle" WHERE "template_version" = $1)`,
     `DELETE FROM "defense_budget_cycle" WHERE "template_version" = $1`,
-    `DELETE FROM "source_document" WHERE "source_key" LIKE 'phase10b28r-spec-%'`,
   ];
   for (const sql of statements) {
-    try {
-      await prisma.$executeRawUnsafe(sql, LIFECYCLE_MARKER);
-    } catch {
-      // best effort
-    }
+    await prisma.$executeRawUnsafe(sql, LIFECYCLE_MARKER);
   }
 }
 
@@ -359,7 +349,6 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
 
   let prisma: PrismaClient;
   let workDir: string;
-  const cycleIdsCreated: string[] = [];
 
   // Production-shaped identities: the lifecycle cycle row id is a UUID, the
   // SourceDocument id is a UUID. Fresh per run so repeated runs on one
@@ -405,7 +394,6 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
     await prisma.$connect();
     await cleanupLifecycleRows(prisma);
     workDir = mkdtempSync(join(tmpdir(), 'phase10b28r-cycle-identity-'));
-    cycleIdsCreated.push(RAW_CYCLE_ID);
     await registerSourceDocument(SOURCE_DOCUMENT_ID, SOURCE_BYTES);
     fixtureA = await buildBridgeFixture({
       workDir,
@@ -418,7 +406,9 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
   });
 
   afterAll(async () => {
-    await cleanupCandidateGraph(prisma, cycleIdsCreated);
+    // Audit rows are immutable and stay (see cleanupLifecycleRows); the
+    // lifecycle rows created for the corpus-loader test are removed so the
+    // unique (fiscal year, authority track) cycle can be recreated next run.
     await cleanupLifecycleRows(prisma);
     await prisma.$disconnect();
     rmSync(workDir, { recursive: true, force: true });
@@ -675,7 +665,6 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
     const otherCycle = randomUUID();
     const otherFyCycle = randomUUID();
     const otherDocument = randomUUID();
-    cycleIdsCreated.push(otherCycle, otherFyCycle);
 
     const sameDocumentOtherCycle = await buildBridgeFixture({
       workDir,
@@ -729,7 +718,6 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
 
   it('coexists with pre-fix REJECT rows: a raw-UUID manifest (pre-10B-27 shape) still persists as REJECT under the same lifecycle cycle, and readiness sees the newest terminal candidate', async () => {
     const legacyCycle = randomUUID();
-    cycleIdsCreated.push(legacyCycle);
     const preFix = await buildBridgeFixture({
       workDir,
       cycleId: legacyCycle,

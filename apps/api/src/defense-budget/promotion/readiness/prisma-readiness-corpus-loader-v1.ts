@@ -48,10 +48,11 @@ export class PrismaReadinessCorpusLoaderV1 implements ReadinessCorpusLoaderPortV
     // Phase 10B-28R: every scalar parameter compared with a uuid column is
     // cast explicitly. Prisma sends string parameters as `text`, and Postgres
     // has no `uuid = text` operator -- against a real database these queries
-    // failed with 42883 the first time a cycle actually existed (proven by
-    // verification/persistence/lifecycle-bridge-candidate-cycle-identity.
-    // integration.spec.ts). The table-routed fakes never exercised the
-    // parameter types, which is why this stayed latent.
+    // failed with 42883 the first time a cycle actually existed (surfaced by
+    // the first real-Postgres run of verification/persistence/
+    // lifecycle-bridge-candidate-cycle-identity.integration.spec.ts, which
+    // now exercises this loader end to end). The table-routed fakes never
+    // exercised the parameter types, which is why this stayed latent.
     const allExpected = await this.prisma.$queryRawUnsafe<ExpectedRow[]>(
       `SELECT "id", "source_family" AS "sourceFamily", "expected_state" AS "expectedState", "optional"
          FROM "defense_budget_expected_source" WHERE "cycle_id" = $1::uuid ORDER BY "id"`,

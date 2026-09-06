@@ -53,8 +53,19 @@ fail() { echo "GATE_FAIL: $*"; FAILED=1; }
 pass() { echo "GATE_OK:   $*"; }
 json() { node -e 'const fs=require("fs");const j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const v=process.argv[2].split(".").reduce((o,k)=>o==null?o:o[k],j);console.log(typeof v==="object"?JSON.stringify(v):String(v))' "$1" "$2" 2>/dev/null; }
 no_download_markers() {
-  # uv prints these while syncing/installing; none may appear on a compliant launcher.
+  # For a COMPLIANT launcher (--no-sync): uv must not even ATTEMPT a sync, so
+  # none of these strings -- attempt or completion -- may appear at all.
   if grep -Eq 'Downloading|Downloaded|Installed [0-9]+ package|Building capiro-defense-budget-parser|Built capiro-defense-budget-parser|Resolved [0-9]+ package|Prepared [0-9]+ package|pypi\.org' "$1"; then return 1; fi
+  return 0
+}
+no_completed_download() {
+  # For control B (sync forced back on, UV_OFFLINE=1 must still block it): uv
+  # is EXPECTED to attempt and fail closed -- "Building capiro-defense-budget-
+  # parser", "Resolved N package", and "Failed to resolve/fetch" are the
+  # attempt's own failure chatter, not evidence of a download. Only a
+  # COMPLETED fetch/build/install (past tense: Downloaded, Built, Installed N
+  # package) means the offline guard did not hold.
+  if grep -Eq 'Downloaded [0-9]|Built capiro-defense-budget-parser$|Installed [0-9]+ package' "$1"; then return 1; fi
   return 0
 }
 
@@ -143,7 +154,7 @@ RC=$?
 "${BASE[@]}" -e UV_NO_SYNC=0 -w /defense-budget-parser --entrypoint uv "$IMG" run capiro-defense-budget-parser version --json > "$OUT/controlB.stdout" 2> "$OUT/controlB.stderr"
 RC=$?
 [ $RC -ne 0 ] && pass "control B (sync on, network available) failed closed with exit $RC" || fail "control B unexpectedly succeeded: image allowed a runtime sync with network (UV_OFFLINE guard missing)"
-no_download_markers "$OUT/controlB.stderr" && pass "control B: nothing was downloaded or installed" || fail "control B downloaded/installed packages at runtime"
+no_completed_download "$OUT/controlB.stderr" && pass "control B: nothing was downloaded or installed (attempt-then-refuse chatter is expected)" || fail "control B downloaded/installed packages at runtime"
 echo "control B stderr head: $(head -c 300 "$OUT/controlB.stderr" | tr '\n' ' ')"
 
 echo "=== summary ==="

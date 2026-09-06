@@ -68,17 +68,51 @@ RUN uv sync --locked --no-dev --extra ocr \
 # API image without a full monorepo rebuild of apps/api:
 #  - parser-runtime-contract-v1.ts: accept Python JSON null on optional fields
 #  - source-document-parser-handoff.ts: synthetic cycle manifest + parser project dir
+#    + Phase 10B-28R `uv run --no-sync` launcher
 #  - prisma-parser-run-recorder.ts: idempotent upsert on DocumentParseJob unique key
+# Phase 10B-28R: the candidate cycle-identity repair spans five more files. They
+# are overlaid too so a drain image built on an API base that predates 10B-28R
+# still persists bridge candidates under the RAW lifecycle cycle id (the value
+# every readiness/eligibility reader queries) and still reads them back
+# correctly; without this overlay such an image would carry the launcher fix
+# but not the identity fix. The overlay is a same-era convenience only -- the
+# release process rebuilds the API base from the merge SHA regardless.
+#  - verification-contract-v1.ts: optional VerificationRequestV1.cycleId
+#  - parser-router-v1.service.ts: router passes its governed cycleId to the verifier
+#  - budget-verification-v1.service.ts: candidate identity = requested cycleId
+#  - prisma-readiness-corpus-loader-v1.ts / prisma-materialization-artifact-source-v1.ts:
+#    uuid parameter casts + candidate (not run) status
 COPY apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
   /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts
 COPY apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts
 COPY apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts \
   /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+COPY apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
+  /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts
+COPY apps/api/src/defense-budget/verification/verification-contract-v1.ts \
+  /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts
+COPY apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
+  /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts
+COPY apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts
+COPY apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts
 RUN chown capiro:capiro \
   /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
-  /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+  /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts \
+  /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
+  /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts \
+  /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts \
+ && grep -q "cycleId: this.config.cycleId" \
+      /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
+ && grep -q "resolveCandidateCycleId" \
+      /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
+ && grep -q -- "--no-sync" \
+      /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts
 
 # Phase 10B-23B: this image now bakes ONLY the detection + recognition
 # models. The other three PP-Structure sub-models formerly baked here

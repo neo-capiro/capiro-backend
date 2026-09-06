@@ -160,7 +160,9 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
     // above) and `budget_verification_run_v1.id` is uuid; Postgres has no
     // `uuid = text` operator, so this failed with 42883 against a real
     // database the first time loadCandidateRefs actually found a candidate
-    // (proven by lifecycle-bridge-candidate-cycle-identity.integration.spec.ts).
+    // (surfaced by the first real-Postgres run of
+    // lifecycle-bridge-candidate-cycle-identity.integration.spec.ts, which now
+    // exercises this reader end to end).
     const rows = await this.prisma.$queryRawUnsafe<Array<{ resultSnapshot: unknown }>>(
       `SELECT "result_snapshot_jsonb" AS "resultSnapshot"
          FROM "budget_verification_run_v1"
