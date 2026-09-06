@@ -29,6 +29,7 @@ import { BudgetVerificationV1Service } from '../verification/services/budget-ver
 import { createProductionParserVerificationContext } from './production-parser-verification-context.js';
 import { FilesystemExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 import { resolveArtifactFactoryForFamilyV1 } from './rdte-durable-semantic-artifact-factory-v1.js';
+import { lifecycleBridgeManifestCycleIdV1 } from './lifecycle-bridge-manifest-cycle-id-v1.js';
 
 export interface SourceDocumentParserHandoffInput {
   readonly executionId: string;
@@ -222,9 +223,17 @@ export async function runParserHandoffForSourceDocument(
       | 'SOCOM'
       | 'OTHER'
       | 'UNKNOWN';
+    // Phase 10B-27: proof resolvers validate the synthetic lifecycle-bridge
+    // manifest with validateBudgetCycleManifestV1, which requires cycleId to
+    // contain String(fiscalYear). Lifecycle cycle ids (UUIDs in production;
+    // harness labels in qualification) do not. Translate only the proof-facing
+    // cycleId here — do not mutate the lifecycle row or weaken the validator.
     const syntheticManifest = {
       schemaVersion: 'defense_budget_cycle_manifest_v1' as const,
-      cycleId: input.cycleId,
+      cycleId: lifecycleBridgeManifestCycleIdV1({
+        cycleId: input.cycleId,
+        fiscalYear: Number(input.fiscalYear),
+      }),
       fiscalYear: Number(input.fiscalYear),
       domain: 'defense' as const,
       documents: [
