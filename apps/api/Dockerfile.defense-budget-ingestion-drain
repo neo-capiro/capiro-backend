@@ -3,8 +3,10 @@
 # The sole-live API runtime image intentionally contains NO Python / uv /
 # parser-ML packages (see docs/runbooks/defense-budget-parser-router.md §2).
 # The governed one-shot drain still has to invoke
-# `uv run capiro-defense-budget-parser` via LocalParserRuntimeClient after it
-# archives a SourceDocument. This image layers ONLY the table-target parser
+# `uv run --no-sync capiro-defense-budget-parser` via LocalParserRuntimeClient
+# after it archives a SourceDocument (see LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1
+# in source-document-parser-handoff.ts and the UV_* environment below for the
+# no-runtime-download contract this image must honor). This image layers ONLY the table-target parser
 # runtime (pdfplumber + Camelot) onto a pinned API image digest so the drain
 # worker can hand off without changing the long-running API service image.
 #
@@ -135,9 +137,27 @@ RUN chmod +x /usr/local/bin/bake_model.sh && \
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
 # (Fargate task user cannot create /home/capiro/.cache/uv).
+#
+# Phase 10B-28R: the parser environment is COMPLETE after `uv sync --locked`
+# above. Nothing may be installed, resolved, built, or downloaded at task
+# start. Before this contract, `uv run capiro-defense-budget-parser` re-synced
+# the project on every task start: with the empty runtime UV_CACHE_DIR it
+# treated the editable root project as uncached, rebuilt it, and fetched the
+# unpinned build backend `hatchling` from PyPI -- a silent runtime package
+# download in Fargate and a hard startup failure without network.
+#  - UV_NO_SYNC=1  `uv run` never re-syncs the project environment here (the
+#                  production launcher also passes --no-sync explicitly).
+#  - UV_OFFLINE=1  uv refuses ALL network access in this image, so a
+#                  regression that reintroduces a runtime sync fails closed
+#                  at startup instead of downloading from PyPI.
+# apps/api/scripts/verify-defense-budget-drain-offline-startup.sh proves this
+# contract against a built image (version, profiling, parsing) with Docker
+# networking disabled; run it as part of every drain-image qualification.
 ENV DEFENSE_BUDGET_PARSER_PROJECT_DIR=/defense-budget-parser \
     UV_PROJECT=/defense-budget-parser \
     UV_CACHE_DIR=/tmp/uv-cache \
+    UV_NO_SYNC=1 \
+    UV_OFFLINE=1 \
     XDG_CACHE_HOME=/tmp \
     PATH="/defense-budget-parser/.venv/bin:/usr/local/bin:${PATH}"
 

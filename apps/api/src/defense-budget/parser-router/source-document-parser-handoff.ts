@@ -64,6 +64,135 @@ export interface SourceDocumentParserHandoffResult {
   readonly outputPath: string;
 }
 
+/**
+ * Phase 10B-28R: the production launcher for the isolated Python parser
+ * runtime on the lifecycle-bridge path (version, profiling, and parsing all
+ * go through it via `LocalParserRuntimeClient`).
+ *
+ * `--no-sync` is load-bearing. Without it `uv run` first syncs the project
+ * environment, and in the ingestion-drain image that sync never finds the
+ * build-time cache (the image's runtime `UV_CACHE_DIR` is empty by design:
+ * the non-root task user cannot use the root-owned build cache), so uv
+ * rebuilds the editable root project and fetches its build backend
+ * (`hatchling`) from PyPI at task start -- a runtime package download that
+ * fails hard in a network-less container and is a silent supply-chain
+ * dependency everywhere else. The environment this launcher needs was fully
+ * installed at image build time (`uv sync --locked`), so the launcher must
+ * only RUN it, never re-sync it. The drain image additionally sets
+ * `UV_OFFLINE=1`, so a regression that reintroduces a runtime sync fails
+ * closed at startup instead of downloading.
+ *
+ * Developer workflow: run `uv sync --locked` once in
+ * `apps/defense-budget-parser` (see its README); the specs that drive this
+ * handoff need that pre-synced environment for exactly the reason production
+ * does.
+ */
+export const LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1 = Object.freeze({
+  command: 'uv',
+  commandArgs: Object.freeze(['run', '--no-sync', 'capiro-defense-budget-parser'] as const),
+});
+
+export type LifecycleBridgeSyntheticManifestInputV1 = Pick<
+  SourceDocumentParserHandoffInput,
+  | 'cycleId'
+  | 'fiscalYear'
+  | 'sourceDocumentId'
+  | 'title'
+  | 'sourcePath'
+  | 'sourceUrl'
+  | 'sourceSha256'
+  | 'budgetFamily'
+  | 'exhibitType'
+  | 'authority'
+  | 'component'
+  | 'budgetCycle'
+  | 'documentType'
+  | 'parserPolicy'
+>;
+
+/**
+ * Phase 2 verification requires a cycle-manifest locator + documentKey. The
+ * lifecycle bridge path has a SourceDocument, not a curated annual package
+ * file, so synthesize a strict single-document manifest that names this exact
+ * SourceDocument and points at the local PDF path. CLI extract paths still
+ * pass a real curated package via extract-*.ts.
+ *
+ * Phase 10B-28R: extracted verbatim (key order included -- the manifest's
+ * content hash is taken over its serialized bytes) from the body of
+ * `runParserHandoffForSourceDocument` so persistence/readiness tests can
+ * exercise the exact production manifest shape without running the parser.
+ */
+export function buildLifecycleBridgeSyntheticManifestV1(input: LifecycleBridgeSyntheticManifestInputV1) {
+  const component = (input.component ?? 'UNKNOWN') as
+    | 'ARMY'
+    | 'NAVY'
+    | 'AF'
+    | 'SF'
+    | 'USMC'
+    | 'DW'
+    | 'DARPA'
+    | 'DHA'
+    | 'MDA'
+    | 'SOCOM'
+    | 'OTHER'
+    | 'UNKNOWN';
+  // Phase 10B-27: proof resolvers validate the synthetic lifecycle-bridge
+  // manifest with validateBudgetCycleManifestV1, which requires cycleId to
+  // contain String(fiscalYear). Lifecycle cycle ids (UUIDs in production;
+  // harness labels in qualification) do not. Translate only the proof-facing
+  // cycleId here — do not mutate the lifecycle row or weaken the validator.
+  // Phase 10B-28R: the router (and therefore the persisted candidate identity)
+  // keeps the untranslated lifecycle cycleId; see runVerification in
+  // parser-router-v1.service.ts and BudgetVerificationV1Service.
+  return {
+    schemaVersion: 'defense_budget_cycle_manifest_v1' as const,
+    cycleId: lifecycleBridgeManifestCycleIdV1({
+      cycleId: input.cycleId,
+      fiscalYear: Number(input.fiscalYear),
+    }),
+    fiscalYear: Number(input.fiscalYear),
+    domain: 'defense' as const,
+    documents: [
+      {
+        documentKey: input.sourceDocumentId,
+        required: true,
+        title: input.title,
+        sourceLocator: input.sourcePath,
+        ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+        expectedSourceSha256: input.sourceSha256,
+        family: input.budgetFamily,
+        exhibit: input.exhibitType,
+        authority: input.authority,
+        component,
+        budgetCycle: input.budgetCycle,
+        documentType: input.documentType,
+        parserPolicy: input.parserPolicy,
+        // Both branches of the old ternary here produced the identical
+        // array; a plain (mutable) literal is both simpler and required --
+        // `BudgetCycleManifestDocumentV1.requiredDataCategories` is a
+        // mutable array type, which an `as const` tuple cannot satisfy.
+        // This document is now also passed as `document` to the durable
+        // RDT&E semantic factory below (Phase 10B-10), so it must
+        // structurally match that type, not just survive a JSON.stringify.
+        requiredDataCategories: ['identity', 'funding'] as Array<'identity' | 'funding'>,
+        requiredFundingFields: ['request'] as Array<'request'>,
+        expectedLineKinds: (input.budgetFamily === 'rdte'
+          ? ['RDTE_PE']
+          : input.budgetFamily === 'procurement'
+            ? ['PROCUREMENT_BLIN']
+            : input.budgetFamily === 'om'
+              ? ['OM_SAG']
+              : input.budgetFamily === 'milcon'
+                ? ['MILCON_PROJECT']
+                : ['UNKNOWN']) as Array<
+          'RDTE_PE' | 'PROCUREMENT_BLIN' | 'OM_SAG' | 'MILCON_PROJECT' | 'UNKNOWN'
+        >,
+        allowEmpty: false,
+      },
+    ],
+  };
+}
+
 interface VerificationContext {
   service: BudgetVerificationV1Service;
   artifactStore: ParserArtifactStoreV1;
@@ -158,8 +287,8 @@ export async function runParserHandoffForSourceDocument(
     );
   }
   const runtimeClient = new LocalParserRuntimeClient({
-    command: 'uv',
-    commandArgs: ['run', 'capiro-defense-budget-parser'],
+    command: LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1.command,
+    commandArgs: [...LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1.commandArgs],
     cwd: parserProjectDir,
     workDir: runtimeWorkDir,
     timeoutMs: 15 * 60 * 1000,
@@ -205,76 +334,10 @@ export async function runParserHandoffForSourceDocument(
     allowPaidParse,
   });
   try {
-    // Phase 2 verification requires a cycle-manifest locator + documentKey.
-    // The lifecycle bridge path has a SourceDocument, not a curated annual
-    // package file, so synthesize a strict single-document manifest that
-    // names this exact SourceDocument and points at the local PDF path.
-    // CLI extract paths still pass a real curated package via extract-*.ts.
-    const component = (input.component ?? 'UNKNOWN') as
-      | 'ARMY'
-      | 'NAVY'
-      | 'AF'
-      | 'SF'
-      | 'USMC'
-      | 'DW'
-      | 'DARPA'
-      | 'DHA'
-      | 'MDA'
-      | 'SOCOM'
-      | 'OTHER'
-      | 'UNKNOWN';
-    // Phase 10B-27: proof resolvers validate the synthetic lifecycle-bridge
-    // manifest with validateBudgetCycleManifestV1, which requires cycleId to
-    // contain String(fiscalYear). Lifecycle cycle ids (UUIDs in production;
-    // harness labels in qualification) do not. Translate only the proof-facing
-    // cycleId here — do not mutate the lifecycle row or weaken the validator.
-    const syntheticManifest = {
-      schemaVersion: 'defense_budget_cycle_manifest_v1' as const,
-      cycleId: lifecycleBridgeManifestCycleIdV1({
-        cycleId: input.cycleId,
-        fiscalYear: Number(input.fiscalYear),
-      }),
-      fiscalYear: Number(input.fiscalYear),
-      domain: 'defense' as const,
-      documents: [
-        {
-          documentKey: input.sourceDocumentId,
-          required: true,
-          title: input.title,
-          sourceLocator: input.sourcePath,
-          ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
-          expectedSourceSha256: input.sourceSha256,
-          family: input.budgetFamily,
-          exhibit: input.exhibitType,
-          authority: input.authority,
-          component,
-          budgetCycle: input.budgetCycle,
-          documentType: input.documentType,
-          parserPolicy: input.parserPolicy,
-          // Both branches of the old ternary here produced the identical
-          // array; a plain (mutable) literal is both simpler and required --
-          // `BudgetCycleManifestDocumentV1.requiredDataCategories` is a
-          // mutable array type, which an `as const` tuple cannot satisfy.
-          // This document is now also passed as `document` to the durable
-          // RDT&E semantic factory below (Phase 10B-10), so it must
-          // structurally match that type, not just survive a JSON.stringify.
-          requiredDataCategories: ['identity', 'funding'] as Array<'identity' | 'funding'>,
-          requiredFundingFields: ['request'] as Array<'request'>,
-          expectedLineKinds: (input.budgetFamily === 'rdte'
-            ? ['RDTE_PE']
-            : input.budgetFamily === 'procurement'
-              ? ['PROCUREMENT_BLIN']
-              : input.budgetFamily === 'om'
-                ? ['OM_SAG']
-                : input.budgetFamily === 'milcon'
-                  ? ['MILCON_PROJECT']
-                  : ['UNKNOWN']) as Array<
-            'RDTE_PE' | 'PROCUREMENT_BLIN' | 'OM_SAG' | 'MILCON_PROJECT' | 'UNKNOWN'
-          >,
-          allowEmpty: false,
-        },
-      ],
-    };
+    // See buildLifecycleBridgeSyntheticManifestV1 for why this manifest exists
+    // and how its proof-facing cycleId relates to the lifecycle cycleId.
+    const syntheticManifest = buildLifecycleBridgeSyntheticManifestV1(input);
+    const component = syntheticManifest.documents[0]!.component;
     const manifestPath = path.join(documentWorkDir, 'lifecycle-bridge-manifest.json');
     fs.writeFileSync(manifestPath, `${JSON.stringify(syntheticManifest, null, 2)}\n`, 'utf8');
 

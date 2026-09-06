@@ -187,6 +187,10 @@ describe('ParserRouterV1Service executable workflow', () => {
         sourceDocumentId: 'source-document-1',
         expectedSourcePdfSha256: SOURCE_SHA,
         expectedExtractionArtifactSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        // Phase 10B-28R: the router hands the verifier ITS governed cycle id
+        // (the lifecycle cycle on the bridge path), so persisted candidate
+        // identity never depends on the proof manifest's cycleId label.
+        cycleId: 'fy2027-pb',
       }),
     );
     const artifact = JSON.parse(readFileSync(output.artifactLocator, 'utf8'));

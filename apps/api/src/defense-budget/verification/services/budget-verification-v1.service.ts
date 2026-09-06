@@ -83,8 +83,9 @@ export class BudgetVerificationV1Service {
 
     const policySha256 = computePolicySha256(policy);
     const startedAt = this.clock.now();
+    const candidateCycleId = this.resolveCandidateCycleId(request, resolution);
     const candidateIdentity: CandidateIdentityV1 = {
-      cycleId: resolution.manifest.cycleId ?? '',
+      cycleId: candidateCycleId,
       manifestContentSha256: resolution.manifestContentSha256,
       manifestDocumentKey: request.manifestDocumentKey,
       extractionArtifactId: resolution.artifact.artifactId,
@@ -230,7 +231,7 @@ export class BudgetVerificationV1Service {
       policySha256,
       verificationRunId,
       candidateId,
-      cycleId: resolution.manifest.cycleId ?? '',
+      cycleId: candidateCycleId,
       manifestContentSha256: resolution.manifestContentSha256,
       manifestDocumentKey: request.manifestDocumentKey,
       extractionArtifactId: resolution.artifact.artifactId,
@@ -261,7 +262,7 @@ export class BudgetVerificationV1Service {
         result,
         proofBundle: resolution.proofBundle,
         proofFindings: resolution.proofFindings,
-        proofSnapshots: this.buildProofSnapshots(resolution),
+        proofSnapshots: this.buildProofSnapshots(resolution, candidateCycleId),
         checks: result.checks,
         discrepancies: result.discrepancies,
         startedAt: result.startedAt,
@@ -300,7 +301,25 @@ export class BudgetVerificationV1Service {
     );
   }
 
-  private buildProofSnapshots(resolution: TrustedProofResolutionV1) {
+  /**
+   * Phase 10B-28R: the cycle identity a candidate is persisted under. The
+   * request's governed cycle id wins when present (the lifecycle
+   * `DefenseBudgetCycle.id` on the ingestion-bridge path; the manifest's own
+   * cycleId on curated CLI paths, where the two coincide); otherwise the proof
+   * manifest's cycleId, exactly as before this phase. Never a trust input:
+   * proof resolution has already completed before this is consulted, and the
+   * manifest's own label stays hash-bound on the manifest proof snapshot.
+   */
+  private resolveCandidateCycleId(
+    request: VerificationRequestV1,
+    resolution: TrustedProofResolutionV1,
+  ): string {
+    const requested = request.cycleId?.trim();
+    if (requested) return requested;
+    return resolution.manifest.cycleId ?? '';
+  }
+
+  private buildProofSnapshots(resolution: TrustedProofResolutionV1, candidateCycleId: string) {
     const snapshots: Array<{
       proofKind: string;
       status: string;
@@ -317,6 +336,13 @@ export class BudgetVerificationV1Service {
         locator: resolution.proofBundle.manifest.locator,
         contentSha256: resolution.proofBundle.manifest.contentSha256,
         cycleId: resolution.proofBundle.manifest.cycleId,
+        // Phase 10B-28R: when the candidate is persisted under a governed
+        // cycle id that differs from the manifest's own label (the
+        // lifecycle-bridge `fy{year}:{uuid}` case), record the relationship
+        // on the immutable proof row so both identities stay recoverable.
+        ...(candidateCycleId !== resolution.proofBundle.manifest.cycleId
+          ? { candidateCycleId }
+          : {}),
       },
     });
     snapshots.push({
@@ -387,8 +413,9 @@ export class BudgetVerificationV1Service {
       highMaterialityThresholdMillions: '0',
       riskThresholds: { automaticPassMax: 0, targetedReextractionMax: 0, paidVerifierMax: 0 },
     });
+    const candidateCycleId = this.resolveCandidateCycleId(request, resolution);
     const candidateIdentity: CandidateIdentityV1 = {
-      cycleId: resolution.manifest.cycleId ?? '',
+      cycleId: candidateCycleId,
       manifestContentSha256: resolution.manifestContentSha256,
       manifestDocumentKey: request.manifestDocumentKey,
       extractionArtifactId: resolution.artifact.artifactId,
@@ -408,7 +435,7 @@ export class BudgetVerificationV1Service {
       policySha256,
       verificationRunId,
       candidateId,
-      cycleId: resolution.manifest.cycleId ?? '',
+      cycleId: candidateCycleId,
       manifestContentSha256: resolution.manifestContentSha256,
       manifestDocumentKey: request.manifestDocumentKey,
       extractionArtifactId: resolution.artifact.artifactId,
@@ -461,7 +488,7 @@ export class BudgetVerificationV1Service {
         result,
         proofBundle: resolution.proofBundle,
         proofFindings: resolution.proofFindings,
-        proofSnapshots: this.buildProofSnapshots(resolution),
+        proofSnapshots: this.buildProofSnapshots(resolution, candidateCycleId),
         checks: result.checks,
         discrepancies: result.discrepancies,
         startedAt: result.startedAt,

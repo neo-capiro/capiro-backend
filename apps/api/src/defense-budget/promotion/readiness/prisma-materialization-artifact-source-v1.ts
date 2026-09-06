@@ -45,6 +45,14 @@ interface CandidateRowV1 {
   sourceDocumentId: string;
   sourceSha256: string;
   candidateId: string;
+  /**
+   * Phase 10B-28R: the CANDIDATE row's own terminal status. This is the only
+   * place `REVIEW_ACCEPTED` can ever appear -- a review decision updates
+   * `budget_extraction_candidate_v1.status` and leaves the immutable run row
+   * at its verifier status (`NEEDS_REVIEW`). Reading the run's status here
+   * made every accepted-review candidate look permanently unusable.
+   */
+  candidateStatus: string;
   manifestContentSha256: string;
   policySha256: string;
   currentRunId: string | null;
@@ -83,6 +91,7 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
               c."source_document_id"        AS "sourceDocumentId",
               c."source_sha256"             AS "sourceSha256",
               c."id"::text                  AS "candidateId",
+              c."status"                    AS "candidateStatus",
               c."manifest_content_sha256"   AS "manifestContentSha256",
               c."policy_sha256"             AS "policySha256",
               c."current_run_id"::text      AS "currentRunId",
@@ -125,7 +134,9 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
         candidateId: row.candidateId,
         verificationRunId: row.currentRunId,
         decision: row.runDecision as 'PASS' | 'REVIEW' | 'REJECT',
-        status: row.runStatus as
+        // The verifier's decision comes from the run; the usable/terminal
+        // status comes from the candidate row (see CandidateRowV1.candidateStatus).
+        status: row.candidateStatus as
           | 'VERIFICATION_PASSED'
           | 'REVIEW_ACCEPTED'
           | 'NEEDS_REVIEW'
@@ -145,10 +156,15 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
     acceptedAssertionIds: readonly string[];
     rejectedAssertionIds: readonly string[];
   }> {
+    // Phase 10B-28R: `runId` arrives as text (it was selected with `::text`
+    // above) and `budget_verification_run_v1.id` is uuid; Postgres has no
+    // `uuid = text` operator, so this failed with 42883 against a real
+    // database the first time loadCandidateRefs actually found a candidate
+    // (proven by lifecycle-bridge-candidate-cycle-identity.integration.spec.ts).
     const rows = await this.prisma.$queryRawUnsafe<Array<{ resultSnapshot: unknown }>>(
       `SELECT "result_snapshot_jsonb" AS "resultSnapshot"
          FROM "budget_verification_run_v1"
-        WHERE "id" = $1`,
+        WHERE "id" = $1::uuid`,
       runId,
     );
     const snapshot = rows[0]?.resultSnapshot;

@@ -262,6 +262,20 @@ export const verificationRequestV1Schema = z
     mode: z.enum(['inspect', 'persist_audit']),
     expectedSourcePdfSha256: sha256Schema.optional(),
     expectedExtractionArtifactSha256: sha256Schema.optional(),
+    /**
+     * Phase 10B-28R: the governed cycle identity this candidate belongs to --
+     * the lifecycle `DefenseBudgetCycle.id` (a UUID) on the ingestion-bridge
+     * path, the manifest's own cycleId on curated CLI paths. When present,
+     * the persisted candidate identity (`budget_extraction_candidate_v1.
+     * cycle_id`) and `result.cycleId` carry THIS value, which is what every
+     * cycle-keyed reader (readiness materialization, promotion eligibility,
+     * the manifest registry) queries by. The proof manifest's own cycleId
+     * (`fy{year}:{uuid}` on the bridge path, purely to satisfy the manifest
+     * validator) stays hash-bound and is recorded on the manifest proof
+     * snapshot. Absent => the manifest cycleId is used, exactly as before.
+     * Never a trust input: it does not participate in proof resolution.
+     */
+    cycleId: z.string().min(1).optional(),
   })
   .strict();
 export type VerificationRequestV1 = z.infer<typeof verificationRequestV1Schema>;
