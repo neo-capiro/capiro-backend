@@ -146,7 +146,13 @@ export class GsaRealPropertyIngestService {
         : await this.loadPriorSnapshot(options.fiscalYear);
 
       // Chunked deterministic processing; each row's identity is content-derived.
-      const CHUNK = 500;
+      // CHUNK=50 + 120s interactive timeout: a first-publication 500-row chunk
+      // of findUnique+create pairs exceeds Prisma's default 5s interactive tx
+      // wall (P2028 observed on the first FY24 production commit attempt after
+      // the varchar overflow fix). Smaller chunks keep each tx well under the
+      // ceiling without changing the atomic fact+ledger contract.
+      const CHUNK = 50;
+      const TX_TIMEOUT_MS = 120_000;
       for (let i = 0; i < options.rows.length; i += CHUNK) {
         const chunk = options.rows.slice(i, i + CHUNK);
         const prepared: Array<{ hash: string; row: FrppRawRow }> = [];
@@ -170,7 +176,8 @@ export class GsaRealPropertyIngestService {
         // transaction as the chunk's fact rows (atomic commit or rollback).
         const chunkAdditions: DetectedChange[] = [];
 
-        await this.prisma.$transaction(async (tx) => {
+        await this.prisma.$transaction(
+          async (tx) => {
           for (const { hash, row } of prepared) {
             const existing = await tx.gsaRealProperty.findUnique({ where: { sourceHash: hash } });
             if (existing) {
@@ -282,7 +289,9 @@ export class GsaRealPropertyIngestService {
             }
             mergeSummary(await this.changeWriter.writeChanges(chunkAdditions, tx));
           }
-        });
+          },
+          { timeout: TX_TIMEOUT_MS, maxWait: 30_000 },
+        );
       }
 
       // Material changes + removals: computed against the pre-run snapshot for
