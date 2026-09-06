@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    'prisma/migrations/20280902010000_district_nexus_release4_priority_intelligence/migration.sql',
+    'prisma/migrations/20260905205000_district_nexus_release4_priority_intelligence/migration.sql',
   ),
   'utf8',
 );
