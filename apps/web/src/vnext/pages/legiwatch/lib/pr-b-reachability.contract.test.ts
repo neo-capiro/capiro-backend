@@ -90,7 +90,10 @@ describe('PR B reachability contract (LW-QA-003/004)', () => {
   });
 
   it('the committee room offers following and intelligence history', () => {
-    expect(committee).toContain('<CommitteeFollowControl');
+    // The redesigned room (COMMITTEE-ROOM-HANDOFF) opens the follow dialog from
+    // both the banner action and the rail card, and renders the real
+    // intelligence history section on the Intelligence tab.
+    expect(committee).toContain('<CommitteeFollowDialog');
     expect(committee).toContain('<CommitteeIntelligenceHistorySection');
   });
 });

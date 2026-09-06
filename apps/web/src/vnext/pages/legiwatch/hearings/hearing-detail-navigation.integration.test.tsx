@@ -151,11 +151,11 @@ const ROOM_WIRE = {
   sourceId: 'source-hs00',
   sourceUrl: 'https://armedservices.house.gov/hearings',
   members: [
-    { id: 'm1', name: 'Rep. Alice Smith', party: 'R', role: 'Chair' },
-    { id: 'm2', name: 'Rep. Bob Jones', party: 'D', role: 'Ranking Member' },
+    { id: 'm1', name: 'Rep. Alice Smith', party: 'R', side: 'majority', role: 'Chair' },
+    { id: 'm2', name: 'Rep. Bob Jones', party: 'D', side: 'minority', role: 'Ranking Member' },
   ],
-  chair: { id: 'm1', name: 'Rep. Alice Smith', party: 'R', role: 'Chair' },
-  rankingMember: { id: 'm2', name: 'Rep. Bob Jones', party: 'D', role: 'Ranking Member' },
+  chair: { id: 'm1', name: 'Rep. Alice Smith', party: 'R', side: 'majority', role: 'Chair' },
+  rankingMember: { id: 'm2', name: 'Rep. Bob Jones', party: 'D', side: 'minority', role: 'Ranking Member' },
   upcomingEvents: [],
   // The SAME wire row the detail endpoint serves — the parity fixture.
   recentEvents: [calRow({})],
@@ -459,13 +459,16 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
 
 // ── LW-QA-018 ───────────────────────────────────────────────────────────────
 
-/** The Committee Room row's secondary line: "<day> · <time> · <STATUS>". */
+/** The Committee Room row's "when · status" line, read from the redesigned
+ *  TimelineRow: the when-stamp and the status label, joined the way the
+ *  parity assertion compares against Hearing Detail. */
 async function roomRowMeta(): Promise<string> {
   const room = await screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
   const past = within(room).getByLabelText('Past hearings');
   const row = within(past).getByRole('button', { name: /Shipbuilding industrial base oversight/i });
-  const meta = row.querySelectorAll('span')[1];
-  return (meta?.textContent ?? '').trim();
+  const when = (row.querySelector('.lwcr-event__when')?.textContent ?? '').trim();
+  const status = (row.querySelector('.lwcr-event__meta .lwcr-update__type')?.textContent ?? '').trim();
+  return `${when} · ${status}`;
 }
 
 describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
@@ -514,7 +517,7 @@ describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
   });
 });
 
-describe('LW-QA-018 — Committee Room source health header', () => {
+describe('LW-QA-018 — Committee Room provenance strip (redesigned)', () => {
   async function renderRoom(overrides: Record<string, unknown>): Promise<HTMLElement> {
     apiGet.mockImplementation((url: string) => {
       if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') {
@@ -528,39 +531,54 @@ describe('LW-QA-018 — Committee Room source health header', () => {
     return screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
   }
 
-  it('maps health from the OUTER response level and labels every state', async () => {
+  it('maps health from the OUTER response level and reads the four real fields', async () => {
     const room = await renderRoom({});
-    expect(within(room).getByText(/SOURCE HEALTHY/)).toBeTruthy();
-    expect(room.textContent).toContain('Last official sync');
-    expect(room.textContent).toContain('Committee record updated');
-    expect(within(room).getByText('Monitored source ↗')).toBeTruthy();
+    // The redesigned strip: a "Healthy" word next to its dot (never colour-only),
+    // and the two distinct timestamps as their own cells.
+    expect(within(room).getByText('Source health')).toBeTruthy();
+    expect(within(room).getByText('Healthy')).toBeTruthy();
+    expect(within(room).getByText('Last source success')).toBeTruthy();
+    expect(within(room).getByText('Committee record')).toBeTruthy();
+    expect(within(room).getByText('Next refresh')).toBeTruthy();
+    expect(within(room).getByText('Monitored source')).toBeTruthy();
   });
 
   it.each([
-    ['degraded', 'SOURCE DEGRADED'],
-    ['failing', 'SOURCE FAILING'],
-    ['unknown', 'SOURCE STATUS UNKNOWN'],
+    ['degraded', 'Degraded'],
+    ['failing', 'Failing'],
+    ['unknown', 'Not yet read'],
   ])('renders %s as %s', async (health, label) => {
     const room = await renderRoom({ sourceHealth: health });
-    expect(within(room).getByText(new RegExp(label))).toBeTruthy();
+    const cell = within(room).getByText('Source health').closest('.lwcr-ledger__cell') as HTMLElement;
+    expect(within(cell).getByText(label)).toBeTruthy();
   });
 
-  it('an absent or unrecognised health value still renders STATUS UNKNOWN, never nothing', async () => {
+  it('an absent or unrecognised health value still renders "Not yet read", never nothing', async () => {
     const room = await renderRoom({ sourceHealth: undefined });
-    expect(within(room).getByText(/SOURCE STATUS UNKNOWN/)).toBeTruthy();
+    const cell = within(room).getByText('Source health').closest('.lwcr-ledger__cell') as HTMLElement;
+    expect(within(cell).getByText('Not yet read')).toBeTruthy();
     cleanup();
     const room2 = await renderRoom({ sourceHealth: 'wedged' });
-    expect(within(room2).getByText(/SOURCE STATUS UNKNOWN/)).toBeTruthy();
+    const cell2 = within(room2).getByText('Source health').closest('.lwcr-ledger__cell') as HTMLElement;
+    expect(within(cell2).getByText('Not yet read')).toBeTruthy();
   });
 
   it('inherited health names the parent it was inherited from', async () => {
     const room = await renderRoom({ sourceHealth: 'healthy', sourceHealthInheritedFrom: 'hs00-parent' });
-    expect(within(room).getByText(/SOURCE HEALTHY · inherited from HS00-PARENT/)).toBeTruthy();
+    const cell = within(room).getByText('Source health').closest('.lwcr-ledger__cell') as HTMLElement;
+    expect(within(cell).getByText('Inherited from HS00-PARENT')).toBeTruthy();
   });
 
-  it('says so when no official sync has ever succeeded, instead of hiding the row', async () => {
+  it('says "Never read" when no official sync has ever succeeded, instead of hiding the row', async () => {
     const room = await renderRoom({ lastSourceSuccessAt: null });
-    expect(within(room).getByText('No successful official sync recorded')).toBeTruthy();
+    const cell = within(room).getByText('Last source success').closest('.lwcr-ledger__cell') as HTMLElement;
+    expect(within(cell).getByText('Never read')).toBeTruthy();
+  });
+
+  it('a full committee renders Own source and no inherited marker', async () => {
+    const room = await renderRoom({ sourceHealthInheritedFrom: null });
+    const cell = within(room).getByText('Source health').closest('.lwcr-ledger__cell') as HTMLElement;
+    expect(within(cell).getByText('Own source')).toBeTruthy();
   });
 });
 
