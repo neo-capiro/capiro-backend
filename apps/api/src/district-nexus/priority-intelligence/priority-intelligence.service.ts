@@ -47,6 +47,71 @@ import type {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * 2-letter code → full state name. congress_member.state stores the full
+ * name ("Florida"), never the code — mirrors
+ * district-nexus-strategic.service.ts's STATE_NAME_TO_CODE/STATE_CODE_TO_NAME
+ * (kept local here rather than shared, matching that file's own precedent).
+ */
+const STATE_CODE_TO_NAME: Readonly<Record<string, string>> = Object.freeze({
+  AL: 'Alabama',
+  AK: 'Alaska',
+  AZ: 'Arizona',
+  AR: 'Arkansas',
+  CA: 'California',
+  CO: 'Colorado',
+  CT: 'Connecticut',
+  DE: 'Delaware',
+  FL: 'Florida',
+  GA: 'Georgia',
+  HI: 'Hawaii',
+  ID: 'Idaho',
+  IL: 'Illinois',
+  IN: 'Indiana',
+  IA: 'Iowa',
+  KS: 'Kansas',
+  KY: 'Kentucky',
+  LA: 'Louisiana',
+  ME: 'Maine',
+  MD: 'Maryland',
+  MA: 'Massachusetts',
+  MI: 'Michigan',
+  MN: 'Minnesota',
+  MS: 'Mississippi',
+  MO: 'Missouri',
+  MT: 'Montana',
+  NE: 'Nebraska',
+  NV: 'Nevada',
+  NH: 'New Hampshire',
+  NJ: 'New Jersey',
+  NM: 'New Mexico',
+  NY: 'New York',
+  NC: 'North Carolina',
+  ND: 'North Dakota',
+  OH: 'Ohio',
+  OK: 'Oklahoma',
+  OR: 'Oregon',
+  PA: 'Pennsylvania',
+  RI: 'Rhode Island',
+  SC: 'South Carolina',
+  SD: 'South Dakota',
+  TN: 'Tennessee',
+  TX: 'Texas',
+  UT: 'Utah',
+  VT: 'Vermont',
+  VA: 'Virginia',
+  WA: 'Washington',
+  WV: 'West Virginia',
+  WI: 'Wisconsin',
+  WY: 'Wyoming',
+  DC: 'District of Columbia',
+  PR: 'Puerto Rico',
+  GU: 'Guam',
+  AS: 'American Samoa',
+  MP: 'Northern Mariana Islands',
+  VI: 'Virgin Islands',
+});
+
 @Injectable()
 export class DistrictNexusPriorityIntelligenceService {
   constructor(
@@ -197,13 +262,20 @@ export class DistrictNexusPriorityIntelligenceService {
     stateCode: string,
     districtPadded: string,
   ): Promise<ClientPriorityIntelligenceResponse['member']> {
+    // congress_member.state stores the full state name ("Florida"), never the
+    // 2-letter code this method receives — confirmed live against production
+    // (e.g. district-nexus-strategic.service.ts's own STATE_CODE_TO_NAME
+    // comment: "congress_member.state stores full names"). Comparing the raw
+    // code against this column always returns zero rows silently (no error,
+    // so this was invisible until checked against real data).
+    const stateName = STATE_CODE_TO_NAME[stateCode] ?? stateCode;
     const houseRows = await this.prisma.withTenant(
       tenantId,
       (tx) =>
         tx.$queryRaw<Array<{ bioguide_id: string | null }>>`
         SELECT cm.bioguide_id::text AS bioguide_id
         FROM congress_member cm
-        WHERE cm.state = ${stateCode}
+        WHERE cm.state = ${stateName}
           AND cm.chamber = 'house'
           AND LPAD(COALESCE(cm.district::text, ''), 2, '0') = ${districtPadded}
         LIMIT 8`,
@@ -214,7 +286,7 @@ export class DistrictNexusPriorityIntelligenceService {
         tx.$queryRaw<Array<{ bioguide_id: string | null }>>`
         SELECT cm.bioguide_id::text AS bioguide_id
         FROM congress_member cm
-        WHERE cm.state = ${stateCode}
+        WHERE cm.state = ${stateName}
           AND cm.chamber = 'senate'
         LIMIT 4`,
     );

@@ -36,10 +36,12 @@ function makePrisma(opts: {
   congressMemberBehavior: 'empty' | 'throw' | ((sql: string) => Array<{ bioguide_id: string }>);
 }) {
   const capturedCongressMemberSql: string[] = [];
+  const capturedCongressMemberValues: unknown[][] = [];
   const queryRaw = jest.fn(async (strings: TemplateStringsArray, ..._values: unknown[]) => {
     const sql = sqlTextOf(strings);
     if (sql.includes('congress_member')) {
       capturedCongressMemberSql.push(sql);
+      capturedCongressMemberValues.push(_values);
       if (opts.congressMemberBehavior === 'throw') {
         throw new Error('column cm.state_code does not exist');
       }
@@ -90,6 +92,7 @@ function makePrisma(opts: {
   return {
     prisma: { ...shared, withTenant, withSystem } as unknown as PrismaService,
     capturedCongressMemberSql,
+    capturedCongressMemberValues,
   };
 }
 
@@ -128,6 +131,47 @@ describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
     // The house query also casts the INTEGER district column to text before
     // coalescing against an empty-string literal.
     expect(capturedCongressMemberSql[0]).toMatch(/COALESCE\(cm\.district::text, ''\)/);
+  });
+
+  test('converts the 2-letter state code to the full name congress_member.state actually stores', async () => {
+    // Verified live against production: congress_member.state holds "Florida",
+    // never "FL". The fixed column reference (cm.state, not cm.state_code)
+    // stopped the query from throwing, but comparing a 2-letter code against
+    // this column would still silently match zero rows forever — no error,
+    // so this was invisible until checked against real data post-deploy.
+    const { prisma, capturedCongressMemberValues } = makePrisma({
+      congressMemberBehavior: 'empty',
+    });
+    const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
+    const loadMembers = (
+      svc as unknown as {
+        loadMembers: (tenantId: string, state: string, district: string) => Promise<unknown>;
+      }
+    ).loadMembers.bind(svc);
+
+    await loadMembers(TENANT, 'FL', '08');
+
+    expect(capturedCongressMemberValues).toHaveLength(2);
+    for (const values of capturedCongressMemberValues) {
+      expect(values).toContain('Florida');
+      expect(values).not.toContain('FL');
+    }
+  });
+
+  test('an unmapped/unknown state code falls back to passing the code through unchanged', async () => {
+    const { prisma, capturedCongressMemberValues } = makePrisma({
+      congressMemberBehavior: 'empty',
+    });
+    const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
+    const loadMembers = (
+      svc as unknown as {
+        loadMembers: (tenantId: string, state: string, district: string) => Promise<unknown>;
+      }
+    ).loadMembers.bind(svc);
+
+    await loadMembers(TENANT, 'ZZ', '08');
+
+    expect(capturedCongressMemberValues[0]).toContain('ZZ');
   });
 
   test('maps real bioguide ids from both chambers', async () => {
