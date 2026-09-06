@@ -8,7 +8,7 @@
  * `Client.intakeData` — without vNext taking a runtime path into an
  * antd-carrying module. Behavior is unchanged; the functions moved verbatim.
  */
-import { normalizeSector } from '@capiro/shared';
+import { normalizeFundingPriorities, normalizeSector } from '@capiro/shared';
 import type { Client, ClientFormValues, ClientPayload } from './clientTypes.js';
 
 // The 3 wizard steps (post cleanup — see docs/plans note below). Logo lives
@@ -41,7 +41,11 @@ import type { Client, ClientFormValues, ClientPayload } from './clientTypes.js';
 //    (sectorTag, insight generator, LDA issue-code matching, client-since
 //    date) except `internalNotes`, which is captured but never displayed
 //    anywhere; flagged as a gap rather than silently dropped.
-export const CLIENT_FORM_STEP_TITLES = ['Company Info', "Gov't Registration", 'Sector & Tracks'] as const;
+export const CLIENT_FORM_STEP_TITLES = [
+  'Company Info',
+  "Gov't Registration",
+  'Sector & Tracks',
+] as const;
 
 // Field names owned by each step, used to scope per-step validation so Next
 // only validates the fields the user has actually seen.
@@ -74,6 +78,7 @@ export const CLIENT_FORM_STEP_FIELDS: Array<Array<keyof ClientFormValues>> = [
   ],
   [
     'sectors',
+    'fundingPriorities',
     'submissionTracks',
     'issueCodes',
     'engagementStartDate',
@@ -141,6 +146,12 @@ export function formValuesToClientPayload(
     if (value === undefined) delete intakeData[key];
     else intakeData[key] = value;
   }
+  // Undefined means this editor did not own the field; [] is an explicit clear.
+  if (values.fundingPriorities !== undefined) {
+    const priorities = normalizeFundingPriorities(values.fundingPriorities);
+    if (priorities.length) intakeData.fundingPriorities = priorities;
+    else delete intakeData.fundingPriorities;
+  }
 
   const payload: ClientPayload = {
     name: optionalText(values.name) ?? '',
@@ -177,7 +188,7 @@ export function formValuesToClientPayload(
   // stripping punctuation would stop them matching federal_grant.eligibility.
   payload.applicantTypes = Array.isArray(values.applicantTypes)
     ? values.applicantTypes.filter((v: unknown): v is string => typeof v === 'string')
-    : [];
+    : (existing?.applicantTypes ?? []);
   payload.setAsideCertifications = Array.isArray(values.setAsideCertifications)
     ? values.setAsideCertifications.filter((v: unknown): v is string => typeof v === 'string')
     : [];
@@ -232,6 +243,7 @@ export function clientToFormValues(client?: Client): ClientFormValues {
     ldaRegistrantName: readText(intake, ['ldaRegistrantName', 'lda_registrant_name']),
     ein: readText(intake, ['ein']),
     // Sector & tracks
+    fundingPriorities: normalizeFundingPriorities(intake.fundingPriorities),
     engagementStartDate: readDate(intake, ['engagementStartDate', 'engagement_start_date']),
     internalNotes: readText(intake, ['internalNotes', 'internal_notes']),
     // ── Legacy reads retained so older intakeData round-trips even though the

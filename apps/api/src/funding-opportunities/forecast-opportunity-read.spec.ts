@@ -109,7 +109,17 @@ describe('capability matching is a whole-token fact check, never a substring', (
     // signal that fires on almost everything reads as evidence and is not.
     expect(containsWholeToken('IT services and AI research', 'IT')).toBe(false);
     expect(containsWholeToken('IT services and AI research', 'AI')).toBe(false);
-    expect(containsWholeToken('IT services and AI research', 'research')).toBe(true);
+    expect(containsWholeToken('IT services and AI research', 'research')).toBe(false);
+  });
+
+  test('generic multiword topics cannot manufacture evidence', () => {
+    expect(
+      containsWholeToken('Research and development services', 'research and development'),
+    ).toBe(false);
+    expect(containsWholeToken('Government funding opportunities', 'government funding')).toBe(
+      false,
+    );
+    expect(containsWholeToken('Turbofan research and development', 'turbofan research')).toBe(true);
   });
 
   test('an empty or null side never matches', () => {
@@ -193,6 +203,38 @@ describe('every signal is established by EXACT comparison, or not at all', () =>
       VEHICLE_OFF,
     );
     expect(s.capabilityMatch).toBe(true);
+  });
+
+  test('a concrete funding priority is interest evidence without claiming capability or strategic review', () => {
+    const s = deriveForecastSignals(
+      forecastRow({ title: 'Follow-on requirement', description: 'Engine overhaul services.' }),
+      { ...THIN_PROFILE, fundingPriorities: ['engine overhaul'] },
+      VEHICLE_OFF,
+    );
+    expect(s.fundingPriorityMatch).toBe(true);
+    expect(s.capabilityMatch).toBe(false);
+    expect(s.reviewedStrategicPriority).toBe(false);
+  });
+
+  test.each(['research and development', 'government funding', 'IT', 'engine'])(
+    '%s does not match an unrelated or generic priority',
+    (priority) => {
+      const s = deriveForecastSignals(
+        forecastRow({
+          title: 'Engineering research and development with government funding',
+          description: 'IT services',
+        }),
+        { ...THIN_PROFILE, fundingPriorities: [priority] },
+        VEHICLE_OFF,
+      );
+      expect(s.fundingPriorityMatch).toBe(false);
+    },
+  );
+
+  test('legacy profiles without the optional priorities field still derive the same capability evidence', () => {
+    const s = deriveForecastSignals(forecastRow(), signalProfile(), VEHICLE_OFF);
+    expect(s.capabilityMatch).toBe(true);
+    expect(s.fundingPriorityMatch).toBe(false);
   });
 
   test('prior agency history survives the closed dept/HQ rewrite set', () => {
@@ -557,6 +599,45 @@ describe('reading one forecast', () => {
     const { service } = makePort({ vehicle: { enabled: true, hasAccess: true } });
     const out = await service.getForecast(TENANT, USER, 'FCST-1', CLIENT, AS_OF);
     expect(out.recommendation!.machineRecommendation).not.toBe('pursue');
+  });
+
+  test('a forecast named in funding priorities is only monitor until capability or program fit is established', async () => {
+    const { service } = makePort({
+      profile: {
+        signals: { ...THIN_PROFILE, fundingPriorities: ['engine overhaul'] },
+        tooThin: false,
+        missingProfileFields: [],
+      },
+    });
+    const out = await service.getForecast(TENANT, USER, 'FCST-1', CLIENT, AS_OF);
+    expect(out.recommendation).toMatchObject({
+      forecastRecommendation: 'monitor',
+      recommendationConfidence: 'low',
+      reasonCodes: ['funding_priority_match'],
+      signals: {
+        fundingPriorityMatch: true,
+        capabilityMatch: false,
+        reviewedStrategicPriority: false,
+      },
+    });
+    expect(out.recommendation!.primaryReason).toMatch(/funding priority.*needs confirmation/i);
+  });
+
+  test('generic priorities alone cannot create a forecast recommendation', async () => {
+    const { service } = makePort({
+      forecast: forecastRow({ title: 'Research and development services', description: null }),
+      profile: {
+        signals: { ...THIN_PROFILE, fundingPriorities: ['research and development'] },
+        tooThin: false,
+        missingProfileFields: [],
+      },
+    });
+    const out = await service.getForecast(TENANT, USER, 'FCST-1', CLIENT, AS_OF);
+    expect(out.recommendation).toMatchObject({
+      forecastRecommendation: 'pass',
+      reasonCodes: ['no_client_evidence'],
+      signals: { fundingPriorityMatch: false, capabilityMatch: false },
+    });
   });
 
   test('an inactive forecast is pass, whatever else matches', async () => {

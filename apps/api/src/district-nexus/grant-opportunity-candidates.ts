@@ -9,16 +9,18 @@
  * left to drift between the read path and the producer.
  */
 import type { ClientRelevanceProfile } from './grant-opportunity-relevance.js';
+import { getClientOrganizationTypes, normalizeFundingPriorities } from '@capiro/shared';
 
 /** Already-fetched rows; a caller assembles these however its own query shape allows. */
 export interface ClientRelevanceProfileRows {
   sectorTag: string | null;
-  capabilities: Array<{ name: string; tags: unknown }>;
+  capabilities: Array<{ name: string; tags: unknown; keywords?: string[] }>;
+  fundingPriorities?: string[];
   facilityStates: Array<string | null>;
   priorAssistanceListings: Array<string | null>;
   priorAgencies: Array<string | null>;
   /**
-   * `Client.applicantTypes` — Grants.gov applicant-type codes, set deliberately
+   * `Client.applicantTypes` — Grants.gov organization labels, set deliberately
    * per client. Optional on this interface so an existing caller that has not
    * been taught to select the column degrades to the honest empty profile
    * rather than failing to compile into a wrong one.
@@ -50,14 +52,14 @@ export function shapeClientRelevanceProfile(
     sector: rows.sectorTag,
     capabilityKeywords: dedupeStrings([
       ...rows.capabilities.map((c) => c.name),
+      ...rows.capabilities.flatMap((c) => c.keywords ?? []),
       ...rows.capabilities.flatMap((c) => stringTags(c.tags)),
     ]),
+    fundingPriorities: normalizeFundingPriorities(rows.fundingPriorities),
     priorAssistanceListings: dedupeStrings(rows.priorAssistanceListings),
     priorAgencies: dedupeStrings(rows.priorAgencies),
-    // `Client.applicantTypes`, verbatim — never inferred from the sector. An
-    // empty array is honest and computeEligibility reports it as needs_review;
-    // guessing here would tell a user they can apply for something they cannot.
-    applicantTypes: dedupeStrings(rows.applicantTypes ?? []),
+    // Source-only rules saved by older forms cannot establish client identity.
+    applicantTypes: getClientOrganizationTypes(dedupeStrings(rows.applicantTypes ?? [])),
     states: dedupeStrings(rows.facilityStates),
     knownPartnerNames: [],
   };

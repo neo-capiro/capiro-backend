@@ -190,13 +190,17 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
       </FovCard>
       {/* 2 ─ Fit and eligibility. Two separate concepts, deliberately adjacent
              so the difference is visible rather than merged into one score. */}
-      <FovCard title="Why it fits this client" testId="fo-detail-fit">
+      <FovCard title="Client fit and eligibility" testId="fo-detail-fit">
         <div className="fov-card__facts">
           <FovFact
             label="Fit"
             value={
               <FovPill tone={FIT_BAND_COLORS[explained.fitBand]}>
-                {FIT_BAND_LABELS[explained.fitBand]}
+                {unscored
+                  ? 'Not evaluated'
+                  : explained.strongest
+                    ? FIT_BAND_LABELS[explained.fitBand]
+                    : 'No fit evidence'}
               </FovPill>
             }
           />
@@ -211,7 +215,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           <FovFact label="Relevance score" value={unscored ? 'Not calculated' : o.relevanceScore} />
         </div>
         <p className="fov-muted" style={{ margin: '0 0 8px' }}>
-          {o.eligibility.reason}
+          Eligibility: {o.eligibility.reason}
         </p>
         {explained.signals.length > 0 ? (
           <div className="fov-stack fov-stack--2">
@@ -226,13 +230,13 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           <span className="fov-muted">
             {unscored
               ? 'No client selected, so no signals were evaluated.'
-              : 'No matching signals against this client’s recorded profile. That is an absence of evidence, not evidence of a poor fit.'}
+              : 'No fit evidence in this client’s recorded profile. Add specific capabilities or funding priorities to improve matching; organization types are used separately to check grant eligibility.'}
           </span>
         )}
         {o.missingProfileFields.length > 0 ? (
           <div className="fov-card__gaps" style={{ marginTop: 8 }}>
             <span className="fov-micro">
-              Better matching needs:{' '}
+              Complete this client’s matching profile:{' '}
               {o.missingProfileFields.map((f, i) => (
                 <span key={f.field}>
                   {i > 0 ? ', ' : ''}

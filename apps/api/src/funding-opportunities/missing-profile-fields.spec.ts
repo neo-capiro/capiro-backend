@@ -39,9 +39,16 @@ describe('missingProfileFields', () => {
     expect(fields.map((f) => f.field)).not.toContain('naicsCodes');
   });
 
-  test('applicant-type impact tells operators not to dump the full enum', () => {
+  test('organization types affect eligibility rather than relevance', () => {
     const field = missingProfileFields(complete(), 'grants_gov').find((f) => f.field === 'applicantTypes');
-    expect(field?.impact).toMatch(/not the full Grants\.gov enum/i);
+    expect(field?.label).toBe('Organization types');
+    expect(field?.impact).toMatch(/does not increase the relevance score/i);
+    expect(field?.impact).toContain('“Unrestricted” and “Other”');
+  });
+
+  test('a client with explicit priorities is not told it has no topical matching input', () => {
+    const fields = missingProfileFields(complete({ fundingPriorityCount: 2 }), 'grants_gov');
+    expect(fields.map((f) => f.field)).not.toContain('capabilities');
   });
 });
 
@@ -52,5 +59,13 @@ describe('profileIsTooThin', () => {
 
   test('empty everything is thin', () => {
     expect(profileIsTooThin(complete())).toBe(true);
+  });
+
+  test('organization types alone establish no substantive matching profile', () => {
+    expect(profileIsTooThin(complete({ applicantTypeCount: 15 }))).toBe(true);
+  });
+
+  test('explicit priorities supply topical matching input', () => {
+    expect(profileIsTooThin(complete({ fundingPriorityCount: 1 }))).toBe(false);
   });
 });

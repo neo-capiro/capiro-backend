@@ -261,6 +261,7 @@ export interface OpportunitySourceFreshness {
  */
 export interface OpportunityMatchedSignal {
   signal: string;
+  source?: 'capability' | 'funding_priority';
   /** Signal strength band, so the UI can say WHY a weak match is weak. */
   strength: 'strong' | 'moderate' | 'weak';
   weight: number;

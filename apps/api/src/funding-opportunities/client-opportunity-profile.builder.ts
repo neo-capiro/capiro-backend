@@ -8,6 +8,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { getClientOrganizationTypes, normalizeFundingPriorities } from '@capiro/shared';
 import { shapeClientRelevanceProfile } from '../district-nexus/grant-opportunity-candidates.js';
 import type { ClientRelevanceProfile } from '../district-nexus/grant-opportunity-relevance.js';
 import type { SamClientProfile } from './sam-opportunity-relevance.js';
@@ -59,7 +60,8 @@ function buildGrantProfile(
   // again, one dedupe at a time.
   return shapeClientRelevanceProfile({
     sectorTag: facts.sectorTag,
-    capabilities: facts.capabilities.map((c) => ({ name: c.name, tags: c.tags })),
+    capabilities: facts.capabilities,
+    fundingPriorities: facts.fundingPriorities,
     facilityStates: facts.facilities.map((f) => f.state),
     priorAssistanceListings: history.assistanceListings,
     priorAgencies: history.assistanceAgencies,
@@ -76,6 +78,7 @@ function buildSamProfile(facts: ClientProfileFacts, history: AwardHistoryFacts):
       ...facts.capabilities.flatMap((c) => c.keywords ?? []),
       ...facts.capabilities.flatMap((c) => stringTags(c.tags)),
     ]),
+    fundingPriorities: normalizeFundingPriorities(facts.fundingPriorities),
     programElementCodes: dedupeStrings(facts.capabilities.flatMap((c) => c.peNumbers ?? [])),
     priorAgencies: history.contractAgencies,
     priorOffices: history.contractOffices,
@@ -85,7 +88,7 @@ function buildSamProfile(facts: ClientProfileFacts, history: AwardHistoryFacts):
     facilitySites: facts.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
     setAsideCertifications: facts.setAsideCertifications,
     sector: facts.sectorTag,
-    applicantTypes: facts.applicantTypes,
+    applicantTypes: getClientOrganizationTypes(facts.applicantTypes),
   };
 }
 
@@ -100,7 +103,8 @@ function buildCompleteness(
     hasCageCode: Boolean(facts.cageCode),
     naicsCount: facts.naicsCodes.length,
     pscCount: facts.pscCodes.length,
-    applicantTypeCount: facts.applicantTypes.length,
+    applicantTypeCount: getClientOrganizationTypes(facts.applicantTypes).length,
+    fundingPriorityCount: normalizeFundingPriorities(facts.fundingPriorities).length,
     capabilityCount: facts.capabilities.length,
     facilityCount: facts.facilities.length,
     hasSector: Boolean(facts.sectorTag),

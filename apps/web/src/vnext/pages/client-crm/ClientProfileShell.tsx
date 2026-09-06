@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { UIcon, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
+import { readClientFundingPriorities } from '../../../pages/clients/client-registrations.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { sectorLabel } from '../../lib/labels.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
@@ -126,6 +127,7 @@ export function ClientProfileShell({
   onCloseDrawer,
 }: ProfileShellProps) {
   const chips = focusChipsFor(client);
+  const fundingPriorities = readClientFundingPriorities(client);
   const isActive = (client.status ?? '').toLowerCase() === 'active';
   const statusTone = isActive ? 'success' : (client.status ?? '').toLowerCase() === 'at risk' ? 'warning' : 'gray';
   const [st, sr, sf, sd] = PILL[statusTone];
@@ -199,6 +201,29 @@ export function ClientProfileShell({
               <p className="cap-pf-client-description">
                 {client.description || client.productDescription}
               </p>
+            ) : null}
+
+            {fundingPriorities.length > 0 ? (
+              <div className="cap-pf-funding-priorities">
+                <span className="cap-pf-funding-priorities__label">Funding priorities</span>
+                <ul aria-label="Funding priorities">
+                  {fundingPriorities.slice(0, 3).map((priority) => (
+                    <li key={priority}>{priority}</li>
+                  ))}
+                </ul>
+                {fundingPriorities.length > 3 ? (
+                  <details>
+                    <summary>
+                      Show {fundingPriorities.length - 3} more {fundingPriorities.length === 4 ? 'priority' : 'priorities'}
+                    </summary>
+                    <ul aria-label="Additional funding priorities">
+                      {fundingPriorities.slice(3).map((priority) => (
+                        <li key={priority}>{priority}</li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+              </div>
             ) : null}
 
             {/* Focus row */}

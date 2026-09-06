@@ -32,6 +32,7 @@
  * discarded because "defense" is generic. It simply needs a second meaningful
  * signal before it counts as a suggestion.
  */
+import { getClientOrganizationTypes } from '@capiro/shared';
 import { evaluateSetAsideEligibility } from './set-aside.js';
 
 /** Ordered strongest-first; the order is the tie-break for matchedSignals. */
@@ -78,26 +79,28 @@ export const SAM_SIGNAL_STRENGTH: Readonly<Record<SamRelevanceSignalKey, SignalS
     genericTopical: 'weak',
   });
 
-export const SAM_RELEVANCE_WEIGHTS: Readonly<Record<SamRelevanceSignalKey, number>> = Object.freeze({
-  // A 6-digit NAICS or a full PSC is a procurement-classification identity, not
-  // a topical guess: the same code on a client's profile and on a notice means
-  // the government classified both as the same kind of work.
-  naicsExact: 30,
-  pscExact: 28,
-  // An accepted (verbatim PE-code) opportunity→PE link intersected with a PE the
-  // client's own capabilities name. Two independent structured facts.
-  programElement: 26,
-  agencyHistory: 18,
-  placeOfPerformanceSite: 14,
-  setAsideSelfReported: 10,
-  naicsIndustryGroup: 10,
-  pscCategory: 8,
-  capabilityKeyword: 12,
-  officeHistory: 9,
-  facilityState: 6,
-  sector: 4,
-  genericTopical: 1,
-});
+export const SAM_RELEVANCE_WEIGHTS: Readonly<Record<SamRelevanceSignalKey, number>> = Object.freeze(
+  {
+    // A 6-digit NAICS or a full PSC is a procurement-classification identity, not
+    // a topical guess: the same code on a client's profile and on a notice means
+    // the government classified both as the same kind of work.
+    naicsExact: 30,
+    pscExact: 28,
+    // An accepted (verbatim PE-code) opportunity→PE link intersected with a PE the
+    // client's own capabilities name. Two independent structured facts.
+    programElement: 26,
+    agencyHistory: 18,
+    placeOfPerformanceSite: 14,
+    setAsideSelfReported: 10,
+    naicsIndustryGroup: 10,
+    pscCategory: 8,
+    capabilityKeyword: 12,
+    officeHistory: 9,
+    facilityState: 6,
+    sector: 4,
+    genericTopical: 1,
+  },
+);
 
 /**
  * Low-distinctiveness tokens. A hit on one of these is recorded (so an operator
@@ -132,6 +135,24 @@ export const GENERIC_TOKENS: ReadonlySet<string> = new Set([
   'general',
   'program',
   'contract',
+  'contracts',
+  'funding',
+  'fund',
+  'funds',
+  'grant',
+  'grants',
+  'project',
+  'projects',
+  'research',
+  'development',
+  'innovation',
+  'innovative',
+  'advanced',
+  'opportunity',
+  'opportunities',
+  'business',
+  'businesses',
+  'small',
   'and',
   'the',
   'of',
@@ -144,6 +165,7 @@ export interface SamMatchedSignal {
   weight: number;
   /** The verbatim value that matched. Never a paraphrase. */
   matchedOn: string;
+  source?: 'capability' | 'funding_priority';
 }
 
 /** Structured facts about the client. Every field is a FACT, never an inference. */
@@ -154,6 +176,8 @@ export interface SamClientProfile {
   pscCodes: string[];
   /** `ClientCapability.name` + `.keywords` + `.tags`, deduped. */
   capabilityKeywords: string[];
+  /** Short, client-confirmed project or funding objective phrases. */
+  fundingPriorities?: string[];
   /** `ClientCapability.peNumbers`, uppercased. */
   programElementCodes: string[];
   /** Awarding agencies the client has prior federal awards from. */
@@ -355,12 +379,14 @@ function push(
   out: SamMatchedSignal[],
   signal: SamRelevanceSignalKey,
   matchedOn: string,
+  source?: SamMatchedSignal['source'],
 ): void {
   out.push({
     signal,
     strength: SAM_SIGNAL_STRENGTH[signal],
     weight: SAM_RELEVANCE_WEIGHTS[signal],
     matchedOn,
+    ...(source ? { source } : {}),
   });
 }
 
@@ -382,7 +408,9 @@ export function isGeneralSmallBusinessSetAside(setAsideCode: string | null | und
 
 /** Does the client self-report as a small business? A REPORT, not a certification. */
 export function selfReportsSmallBusiness(applicantTypes: string[]): boolean {
-  return applicantTypes.some((t) => norm(t).includes('small business'));
+  // A substring would incorrectly accept "For profit organizations other than
+  // small businesses". Compare the recognized client identity exactly.
+  return getClientOrganizationTypes(applicantTypes).includes('Small businesses');
 }
 
 /**
@@ -474,7 +502,9 @@ export function scoreSamOpportunityRelevance(
       if (!sameState) return false;
       const siteZip = normCode(site.zip);
       const siteCity = norm(site.city);
-      return Boolean((oppZip && siteZip && oppZip === siteZip) || (oppCity && siteCity && oppCity === siteCity));
+      return Boolean(
+        (oppZip && siteZip && oppZip === siteZip) || (oppCity && siteCity && oppCity === siteCity),
+      );
     });
     if (exactSite) {
       // "El Paso, TX 79901" — the conventional rendering, because this string is
@@ -500,22 +530,46 @@ export function scoreSamOpportunityRelevance(
     isGeneralSmallBusinessSetAside(opp.setAsideCode) &&
     selfReportsSmallBusiness(client.applicantTypes)
   ) {
-    push(signals, 'setAsideSelfReported', opp.setAside ?? opp.setAsideCode ?? 'Small business set-aside');
+    push(
+      signals,
+      'setAsideSelfReported',
+      opp.setAside ?? opp.setAsideCode ?? 'Small business set-aside',
+    );
   }
 
   // ── Text signals ─────────────────────────────────────────────────────────
-  // Substring, not fuzzy: a deterministic hit an operator can go and find in the
-  // notice is the requirement. A near-miss nobody can see is worse than no hit.
+  // Token phrases remain auditable and avoid matching "care" inside "Medicare".
+  // A priority is client intent, not an established capability. The two share
+  // one topical weight and retain their source for a truthful explanation.
   const haystack = `${norm(opp.title)} ${norm(opp.description)}`;
-  const distinctiveKeyword = client.capabilityKeywords.find((k) => {
-    const needle = norm(k);
-    if (needle.length <= 2) return false;
-    // A capability keyword that IS a generic token carries no signal. A
-    // multi-word phrase containing one ("radar systems") does, and passes.
-    if (!needle.includes(' ') && GENERIC_TOKENS.has(needle)) return false;
-    return haystack.includes(needle);
-  });
-  if (distinctiveKeyword) push(signals, 'capabilityKeyword', distinctiveKeyword);
+  const phrase = (value: string) =>
+    norm(value)
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .join(' ');
+  const phraseHaystack = ` ${phrase(haystack)} `;
+  const matchingTopic = (values: string[]) =>
+    values
+      .filter(
+        (value) =>
+          tokens(value).some((token) => !GENERIC_TOKENS.has(token)) &&
+          phraseHaystack.includes(` ${phrase(value)} `),
+      )
+      .sort(
+        (a, b) =>
+          tokens(b).filter((t) => !GENERIC_TOKENS.has(t)).length -
+          tokens(a).filter((t) => !GENERIC_TOKENS.has(t)).length,
+      )[0];
+  const capabilityHit = matchingTopic(client.capabilityKeywords);
+  const priorityHit = capabilityHit ? undefined : matchingTopic(client.fundingPriorities ?? []);
+  const distinctiveKeyword = capabilityHit ?? priorityHit;
+  if (distinctiveKeyword)
+    push(
+      signals,
+      'capabilityKeyword',
+      distinctiveKeyword,
+      capabilityHit ? 'capability' : 'funding_priority',
+    );
 
   // Sector tokens, minus the generic ones. `Client.sectorTag` carries
   // pre-migration free text on older clients ("Defense / Aerospace"), so it is
@@ -538,9 +592,7 @@ export function scoreSamOpportunityRelevance(
     (a, b) => SAM_RELEVANCE_SIGNALS.indexOf(a.signal) - SAM_RELEVANCE_SIGNALS.indexOf(b.signal),
   );
 
-  const earned = signals
-    .filter((s) => s.strength !== 'weak')
-    .reduce((sum, s) => sum + s.weight, 0);
+  const earned = signals.filter((s) => s.strength !== 'weak').reduce((sum, s) => sum + s.weight, 0);
   const relevanceScore = Math.round((earned / MAX_SCORE) * 100);
 
   const strongCount = signals.filter((s) => s.strength === 'strong').length;

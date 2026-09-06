@@ -10,6 +10,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GRANTS_GOV_UNRESTRICTED_APPLICANTS } from '@capiro/shared';
 import { ClientFormDialogVNext } from './ClientFormDialogVNext.js';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
 
@@ -51,7 +52,9 @@ function fillRequiredStepOne() {
   fireEvent.change(screen.getByLabelText(/^Legal name/), {
     target: { value: 'Vantage Orbital Systems, Inc.' },
   });
-  fireEvent.change(screen.getByLabelText(/^Website/), { target: { value: 'vantageorbital.example' } });
+  fireEvent.change(screen.getByLabelText(/^Website/), {
+    target: { value: 'vantageorbital.example' },
+  });
   fireEvent.change(screen.getByLabelText(/^Company description/), {
     target: { value: 'Smallsat propulsion and orbital logistics.' },
   });
@@ -69,7 +72,9 @@ describe('ClientFormDialogVNext', () => {
 
     fillRequiredStepOne();
     // Errors clear as the fields become valid (post-failure re-validation).
-    await waitFor(() => expect(screen.queryByText('Legal name is required')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText('Legal name is required')).not.toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     // Step 2 (Gov't Registration) is next; Back appears once past step 1.
@@ -114,6 +119,9 @@ describe('ClientFormDialogVNext', () => {
     const naics = screen.getByLabelText(/^NAICS codes/);
     fireEvent.change(naics, { target: { value: '336414' } });
     fireEvent.keyDown(naics, { key: 'Enter' });
+    fireEvent.click(screen.getByText('Select organization types'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Small business' }));
+    expect(screen.queryByRole('checkbox', { name: /Unrestricted/ })).not.toBeInTheDocument();
     // The footer briefly disables after a step change (guards against a fast
     // double-click landing on the next step's now-differently-sized last
     // button — see the `stepTransitioning` comment in the component).
@@ -125,8 +133,15 @@ describe('ClientFormDialogVNext', () => {
     // reference endpoint.
     fireEvent.click(await screen.findByLabelText('Energy'));
     fireEvent.click(await screen.findByLabelText('DEF — Defense'));
+    const priorities = screen.getByLabelText(/^Funding priorities/);
+    fireEvent.change(priorities, { target: { value: 'Battery recycling' } });
+    fireEvent.keyDown(priorities, { key: ' ' });
+    expect(priorities).toHaveValue('Battery recycling');
+    fireEvent.keyDown(priorities, { key: 'Enter' });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Add client' })).not.toBeDisabled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add client' })).not.toBeDisabled(),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -137,6 +152,8 @@ describe('ClientFormDialogVNext', () => {
     expect(submission.payload.primaryContactPhone).toBe('+1 202-555-0147');
     expect(submission.payload.uei).toBe('ABQ997XK21RR');
     expect(submission.payload.naicsCodes).toEqual(['336414']);
+    expect(submission.payload.applicantTypes).toEqual(['Small businesses']);
+    expect(submission.payload.intakeData?.fundingPriorities).toEqual(['Battery recycling']);
     expect(submission.payload.issueCodes).toEqual(['DEF']);
     // First (only) selected sector mirrors to the controlled top-level tag.
     expect(submission.payload.sectorTag).toBe('ENERGY');
@@ -161,6 +178,7 @@ describe('ClientFormDialogVNext', () => {
       logoContentType: null,
       logoUploadedAt: null,
       status: 'active',
+      applicantTypes: ['Small businesses', GRANTS_GOV_UNRESTRICTED_APPLICANTS],
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
       intakeData: {
@@ -171,6 +189,7 @@ describe('ClientFormDialogVNext', () => {
         city: 'Norfolk',
         peNumber: '0604215N',
         governmentHistory: { note: 'kept' },
+        fundingPriorities: ['Port electrification'],
       },
     } as unknown as Client;
     const { onSubmit } = renderDialog({ mode: 'edit', client });
@@ -181,6 +200,7 @@ describe('ClientFormDialogVNext', () => {
     expect(screen.queryByLabelText('DBA / trade name')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Saved selections need review')).toBeInTheDocument();
     // The footer briefly disables after a step change (guards against a fast
     // double-click landing on the next step's now-differently-sized last
     // button — see the `stepTransitioning` comment in the component).
@@ -200,7 +220,64 @@ describe('ClientFormDialogVNext', () => {
       city: 'Norfolk',
       peNumber: '0604215N',
       governmentHistory: { note: 'kept' },
+      fundingPriorities: ['Port electrification'],
     });
+    expect(payload.applicantTypes).toEqual([
+      'Small businesses',
+      GRANTS_GOV_UNRESTRICTED_APPLICANTS,
+    ]);
+  });
+
+  it('allows a deliberate organization correction and funding priority clear in edit mode', async () => {
+    const client = {
+      name: 'Prairie Network',
+      website: 'prairie.example',
+      description: 'Community connectivity.',
+      applicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS],
+      intakeData: { fundingPriorities: ['Rural broadband'], profileNotes: ['keep'] },
+    } as unknown as Client;
+    const { onSubmit } = renderDialog({ mode: 'edit', client });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByText('Select organization types'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'County government' }));
+    expect(screen.queryByText('Saved selections need review')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Rural broadband' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const { payload } = onSubmit.mock.calls[0]![0];
+    expect(payload.applicantTypes).toEqual(['County governments']);
+    expect(payload.intakeData).not.toHaveProperty('fundingPriorities');
+    expect(payload.intakeData?.profileNotes).toEqual(['keep']);
+  });
+
+  it('keeps an overlong pending priority visible and blocks saving until corrected', async () => {
+    const { onSubmit } = renderDialog();
+    fillRequiredStepOne();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const priorities = screen.getByLabelText(/^Funding priorities/);
+    fireEvent.change(priorities, { target: { value: 'A'.repeat(121) } });
+    fireEvent.keyDown(priorities, { key: 'Enter' });
+    expect(screen.getByRole('alert')).toHaveTextContent('120 characters or fewer');
+    expect(priorities).toHaveValue('A'.repeat(121));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add client' })).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.change(priorities, { target: { value: 'Rural broadband' } });
+    fireEvent.keyDown(priorities, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]![0].payload.intakeData?.fundingPriorities).toEqual([
+      'Rural broadband',
+    ]);
   });
 
   /**
@@ -243,7 +320,9 @@ describe('ClientFormDialogVNext', () => {
     expect(screen.getByLabelText('Energy')).toBeInTheDocument();
 
     // Once the lock clears, a deliberate click submits normally.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled(),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
   });
@@ -258,7 +337,9 @@ describe('ClientFormDialogVNext', () => {
     });
     expect(screen.getByText('crest.png')).toBeInTheDocument();
     // Document upload was removed from the wizard (2026-08-23).
-    expect(screen.queryByLabelText('Documents', { selector: 'input[type="file"]' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Documents', { selector: 'input[type="file"]' }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());

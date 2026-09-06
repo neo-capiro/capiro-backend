@@ -265,7 +265,12 @@ export interface ClientOpportunity {
   /** Operator-readable justification for eligibilityState. Always populated. */
   eligibilityReason: string;
   /** The specific values that matched, never paraphrased. */
-  matchedSignals: Array<{ signal: string; weight: number; matchedOn: string }>;
+  matchedSignals: Array<{
+    signal: string;
+    weight: number;
+    matchedOn: string;
+    source?: 'capability' | 'funding_priority';
+  }>;
   /** The ClientGrantNexus district link, when a project site established one. */
   districtKey: DistrictKey | null;
 }

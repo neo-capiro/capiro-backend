@@ -427,6 +427,31 @@ describe('generateSamCandidates', () => {
     expect(row.evidenceSourceType).toBe('deterministic_relevance_v1');
   });
 
+  test('confirmed funding priorities reach saved contract matching evidence without becoming a capability claim', async () => {
+    const { prisma, created } = makeFake({
+      clients: [clientRow({ intakeData: { fundingPriorities: ['radar systems'] } })],
+      notices: [noticeRow({ title: 'Radar systems testing' })],
+    });
+    const result = await generateSamCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: 15,
+      commit: true,
+    });
+    expect(result.created).toBe(1);
+    expect(created[0]).toEqual(
+      expect.objectContaining({
+        matchSignals: expect.arrayContaining([
+          expect.objectContaining({
+            signal: 'capabilityKeyword',
+            matchedOn: 'radar systems',
+            source: 'funding_priority',
+          }),
+        ]),
+      }),
+    );
+  });
+
   test('re-running over its own row is idempotent: refresh, not a duplicate', async () => {
     const { prisma, created, updated } = makeFake({
       existing: [

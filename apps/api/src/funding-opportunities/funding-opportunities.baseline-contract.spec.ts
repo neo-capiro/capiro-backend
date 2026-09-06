@@ -77,7 +77,8 @@ const CONTRACT_VALUE: ContractValue = {
 };
 
 const MATCHED_SIGNAL: OpportunityMatchedSignal = {
-  signal: 'exact_naics_match',
+  signal: 'capabilityKeyword',
+  source: 'funding_priority',
   strength: 'strong',
   weight: 1,
   matchedOn: '541330',

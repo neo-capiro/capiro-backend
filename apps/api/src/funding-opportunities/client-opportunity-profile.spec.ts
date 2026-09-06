@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
+import { GRANTS_GOV_OTHER_APPLICANTS, GRANTS_GOV_UNRESTRICTED_APPLICANTS } from '@capiro/shared';
 import {
   buildClientOpportunityProfile,
   dedupeStrings,
@@ -133,6 +134,40 @@ describe('splitMappings', () => {
 // ── The builder ─────────────────────────────────────────────────────────────
 
 describe('buildClientOpportunityProfile', () => {
+  test('explicit priorities and capability keywords reach both matching rails', () => {
+    const profile = buildClientOpportunityProfile(
+      toClientProfileFacts(rawClient({
+        intakeData: {
+          fundingPriorities: ['  rural   broadband ', 'RURAL BROADBAND', null, 'battery recycling'],
+          fundingAsk: '$200,000',
+        },
+      }), []),
+      emptyAwardHistory(),
+    );
+    expect(profile.grant.fundingPriorities).toEqual(['rural broadband', 'battery recycling']);
+    expect(profile.sam.fundingPriorities).toEqual(profile.grant.fundingPriorities);
+    expect(profile.completeness.fundingPriorityCount).toBe(2);
+    expect(profile.grant.capabilityKeywords).toContain('depot');
+    expect(profile.sam.capabilityKeywords).toContain('depot');
+  });
+
+  test('malformed priority JSON cannot turn arbitrary intake into match terms', () => {
+    const profile = buildClientOpportunityProfile(
+      toClientProfileFacts(rawClient({ intakeData: { fundingPriorities: 'all grants', fundingAsk: 'energy' } }), []),
+      emptyAwardHistory(),
+    );
+    expect(profile.grant.fundingPriorities).toEqual([]);
+    expect(profile.sam.fundingPriorities).toEqual([]);
+  });
+
+  test('source-only legacy rules cannot establish identity or completeness and are not mutated', () => {
+    const row = rawClient({ applicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS, GRANTS_GOV_OTHER_APPLICANTS] });
+    const profile = buildClientOpportunityProfile(toClientProfileFacts(row, []), emptyAwardHistory());
+    expect(profile.grant.applicantTypes).toEqual([]);
+    expect(profile.sam.applicantTypes).toEqual([]);
+    expect(profile.completeness.applicantTypeCount).toBe(0);
+    expect(row.applicantTypes).toEqual([GRANTS_GOV_UNRESTRICTED_APPLICANTS, GRANTS_GOV_OTHER_APPLICANTS]);
+  });
   test('is versioned', () => {
     const profile = buildClientOpportunityProfile(toClientProfileFacts(rawClient(), []), history());
     expect(profile.version).toBe(CLIENT_OPPORTUNITY_PROFILE_VERSION);
@@ -227,6 +262,16 @@ describe('profile fingerprint', () => {
       history(),
     );
     expect(changed.fingerprint).not.toBe(base().fingerprint);
+  });
+
+  test('moves when priorities are added or cleared, while normalized duplicates are identical', () => {
+    const withPriorities = (fundingPriorities: unknown) => buildClientOpportunityProfile(
+      toClientProfileFacts(rawClient({ intakeData: { fundingPriorities } }), []), history(),
+    );
+    const changed = withPriorities(['rural broadband']);
+    expect(changed.fingerprint).not.toBe(base().fingerprint);
+    expect(withPriorities([]).fingerprint).toBe(base().fingerprint);
+    expect(withPriorities(['rural  broadband', 'RURAL BROADBAND']).fingerprint).toBe(changed.fingerprint);
   });
 
   test('moves when award history moves', () => {

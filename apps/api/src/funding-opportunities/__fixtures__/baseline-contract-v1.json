@@ -93,7 +93,8 @@
     ],
     "OpportunityWorkflow.owner": ["email", "name", "userId"],
     "OpportunityWorkflow.facility": ["districtKey", "id", "name", "state"],
-    "OpportunityMatchedSignal": ["matchedOn", "signal", "strength", "weight"],
+    "OpportunityMatchedSignal": ["matchedOn", "signal",
+      "source", "strength", "weight"],
     "MissingProfileField": ["field", "href", "impact", "label"],
     "FundingOpportunityCounts": [
       "activeContracts",

@@ -137,6 +137,28 @@
   margin-top: 12px;
   flex-wrap: wrap;
 }
+.capiro-vnext-root .cap-pf-funding-priorities {
+  max-width: 64ch;
+  margin-top: 10px;
+  color: #475467;
+  font-size: 13px;
+  line-height: 20px;
+}
+.capiro-vnext-root .cap-pf-funding-priorities__label {
+  color: #344054;
+  font-weight: 600;
+}
+.capiro-vnext-root .cap-pf-funding-priorities ul {
+  margin: 3px 0 0;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .cap-pf-funding-priorities summary {
+  width: fit-content;
+  margin-top: 4px;
+  color: #344054;
+  cursor: pointer;
+}
 .capiro-vnext-root .cap-pf-focus-chip {
   display: inline-flex;
   align-items: center;
@@ -448,4 +470,3 @@
   .capiro-vnext-root .cap-pf-identity-tile { width: 48px; height: 48px; }
   .capiro-vnext-root .cap-pf-account-card { width: 100%; }
 }
-

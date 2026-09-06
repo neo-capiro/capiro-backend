@@ -21,10 +21,12 @@ import {
   SECTOR_TAGS,
   SUBMISSION_TRACKS,
   SUBMISSION_TRACK_LABELS,
-  GRANTS_GOV_APPLICANT_TYPES,
+  MAX_FUNDING_PRIORITIES,
+  MAX_FUNDING_PRIORITY_LENGTH,
 } from '@capiro/shared';
 import type { Client, ClientFormSubmit, ClientFormValues } from './clientTypes.js';
 import { SET_ASIDE_CERTIFICATION_OPTIONS } from './client-registrations.js';
+import { OrganizationTypesField } from './OrganizationTypesField.js';
 import { useApi } from '../../lib/use-api.js';
 import {
   CLIENT_FORM_STEP_FIELDS,
@@ -212,11 +214,7 @@ export function ClientFormModal({
 
 /* ── Step 1: Company Info ────────────────────────────────────────────────── */
 
-function CompanyInfoStep({
-  form,
-}: {
-  form: ReturnType<typeof Form.useForm<ClientFormValues>>[0];
-}) {
+function CompanyInfoStep({ form }: { form: ReturnType<typeof Form.useForm<ClientFormValues>>[0] }) {
   return (
     <>
       <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
@@ -401,18 +399,8 @@ function GovRegistrationStep({
           leaving a client that looks configured and still never evaluates as
           eligible, which is worse than leaving it empty. */}
       <Col xs={24}>
-        <Form.Item
-          name="applicantTypes"
-          label="Grant applicant types"
-          tooltip="What this client qualifies as on Grants.gov. Drives the District Nexus grant-eligibility column — until it is set, every opportunity reads “needs review” rather than eligible."
-        >
-          <Select
-            mode="multiple"
-            allowClear
-            optionFilterProp="label"
-            placeholder="Select the types this client qualifies as"
-            options={GRANTS_GOV_APPLICANT_TYPES.map((t) => ({ value: t, label: t }))}
-          />
+        <Form.Item name="applicantTypes">
+          <OrganizationTypesField />
         </Form.Item>
       </Col>
       <Col xs={24}>
@@ -457,6 +445,31 @@ function SectorTracksStep() {
         tooltip="Multi-select. The first sector chosen becomes the primary sector that drives sector-adaptive intelligence panels and comment-period alerts."
       >
         <Checkbox.Group options={SECTOR_TAGS.map((t) => ({ label: SECTOR_LABELS[t], value: t }))} />
+      </Form.Item>
+
+      <Form.Item
+        name="fundingPriorities"
+        label="Funding priorities"
+        extra="Add concrete projects or outcomes you want funded. Press Enter or comma after each phrase. Up to 20 priorities, 120 characters each; matching also considers capabilities and award history."
+        rules={[
+          {
+            validator: async (_, value: string[] | undefined) => {
+              if ((value?.length ?? 0) > MAX_FUNDING_PRIORITIES)
+                throw new Error('Add up to 20 priorities.');
+              if (value?.some((priority) => priority.trim().length > MAX_FUNDING_PRIORITY_LENGTH)) {
+                throw new Error('Keep each priority to 120 characters or fewer.');
+              }
+            },
+          },
+        ]}
+      >
+        <Select
+          mode="tags"
+          allowClear
+          placeholder="Rural broadband, battery recycling, workforce training"
+          tokenSeparators={[',']}
+          options={[]}
+        />
       </Form.Item>
 
       <Form.Item

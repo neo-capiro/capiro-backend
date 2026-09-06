@@ -78,7 +78,8 @@ export function ForecastOpportunityDetail({
     // 404 and "the request failed" get different copy, for the same reason the
     // opportunity detail separates them: "no such forecast" on a network blip
     // would tell somebody an agency had dropped a plan it still holds.
-    const status = (query.error as { response?: { status?: number } } | undefined)?.response?.status;
+    const status = (query.error as { response?: { status?: number } } | undefined)?.response
+      ?.status;
     const notFound = status === 404;
     return (
       <div data-testid={notFound ? 'fo-forecast-not-found' : 'fo-forecast-error'}>
@@ -113,9 +114,7 @@ export function ForecastOpportunityDetail({
           <Tooltip title="An agency's own statement of what it expects to buy. Not a solicitation, and not a competition anybody can respond to yet.">
             <Tag color="gold">{INBOX_SOURCE_LABELS.agency_forecast}</Tag>
           </Tooltip>
-          {f.facts.isActive === false ? (
-            <Tag color="red">Withdrawn by the agency</Tag>
-          ) : null}
+          {f.facts.isActive === false ? <Tag color="red">Withdrawn by the agency</Tag> : null}
           {f.facts.status ? <Tag>{f.facts.status}</Tag> : null}
         </Space>
         <Title level={4} style={{ margin: '6px 0 2px' }}>
@@ -226,11 +225,11 @@ export function ForecastOpportunityDetail({
                 const established = f.recommendation!.signals[key];
                 return (
                   <div key={key} data-testid={`fo-forecast-signal-${key}`}>
-                    {unavailable ? (
+                    {unavailable || established == null ? (
                       // NOT an unticked box. "Could not be evaluated" is a fact
                       // about the data; rendering it as false would state an
                       // absence of the client's fit instead.
-                      <Tooltip title={unavailable.reason}>
+                      <Tooltip title={unavailable?.reason}>
                         <Tag>{label}: not evaluated</Tag>
                       </Tooltip>
                     ) : (
@@ -440,11 +439,15 @@ function notProvided() {
  * ever support a `monitor`.
  */
 const SIGNAL_LABELS: Array<
-  [keyof Omit<import('./funding-opportunities-api.js').ForecastSignalEvidence, 'unavailable'>, string]
+  [
+    keyof Omit<import('./funding-opportunities-api.js').ForecastSignalEvidence, 'unavailable'>,
+    string,
+  ]
 > = [
   ['exactNaicsMatch', 'Exact NAICS match'],
   ['exactPscMatch', 'Exact PSC match'],
   ['capabilityMatch', 'Recorded capability match'],
+  ['fundingPriorityMatch', 'Recorded funding priority match'],
   ['programElementLinkedSourceBacked', 'Program Element named in the record'],
   ['priorAgencyHistory', 'Prior award history with this agency'],
   ['knownVehicleAccess', 'Known contract-vehicle access'],

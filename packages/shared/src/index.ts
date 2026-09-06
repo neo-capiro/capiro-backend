@@ -4001,6 +4001,103 @@ export function applicantTypeKey(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** These source rules describe a notice, not a client's organization type. */
+export const GRANTS_GOV_OTHER_APPLICANTS = GRANTS_GOV_APPLICANT_TYPES[0];
+export const GRANTS_GOV_UNRESTRICTED_APPLICANTS = GRANTS_GOV_APPLICANT_TYPES[15];
+
+/**
+ * Short display labels grouped for client profile editing. Values retain the
+ * exact ingested Grants.gov labels so existing profiles and notices keep their
+ * identity. "Other" and "Unrestricted" belong only on opportunity eligibility.
+ */
+export const GRANTS_GOV_ORGANIZATION_TYPE_GROUPS = [
+  {
+    id: 'business',
+    label: 'Businesses',
+    options: [
+      { value: GRANTS_GOV_APPLICANT_TYPES[13], label: 'Small business' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[12], label: 'Other for-profit organization' },
+    ],
+  },
+  {
+    id: 'nonprofit',
+    label: 'Nonprofits',
+    options: [
+      { value: GRANTS_GOV_APPLICANT_TYPES[1], label: 'Nonprofit with 501(c)(3) status' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[9], label: 'Nonprofit without 501(c)(3) status' },
+    ],
+  },
+  {
+    id: 'education',
+    label: 'Education',
+    options: [
+      { value: GRANTS_GOV_APPLICANT_TYPES[4], label: 'Public college or university' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[5], label: 'Private college or university' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[11], label: 'Independent school district' },
+    ],
+  },
+  {
+    id: 'government',
+    label: 'Government and housing',
+    options: [
+      { value: GRANTS_GOV_APPLICANT_TYPES[3], label: 'State government' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[8], label: 'County government' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[7], label: 'City or township government' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[10], label: 'Special district government' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[14], label: 'Public or Indian housing authority' },
+    ],
+  },
+  {
+    id: 'tribal',
+    label: 'Tribal entities',
+    options: [
+      { value: GRANTS_GOV_APPLICANT_TYPES[2], label: 'Federally recognized tribal government' },
+      { value: GRANTS_GOV_APPLICANT_TYPES[6], label: 'Other tribal organization' },
+    ],
+  },
+  {
+    id: 'individual',
+    label: 'Individuals',
+    options: [{ value: GRANTS_GOV_APPLICANT_TYPES[16], label: 'Individual' }],
+  },
+] as const;
+
+const GRANTS_GOV_ORGANIZATION_OPTIONS = GRANTS_GOV_ORGANIZATION_TYPE_GROUPS.flatMap((group) => [
+  ...group.options,
+]);
+
+export function isGrantsGovSourceEligibilityRule(value: string): boolean {
+  const key = applicantTypeKey(value);
+  return (
+    key === applicantTypeKey(GRANTS_GOV_OTHER_APPLICANTS) ||
+    key === applicantTypeKey(GRANTS_GOV_UNRESTRICTED_APPLICANTS)
+  );
+}
+
+/** Read-only normalization; does not migrate or discard persisted profile data. */
+export function getClientOrganizationTypes(values: readonly string[]): GrantsGovApplicantType[] {
+  const keys = new Set(values.map(applicantTypeKey));
+  return GRANTS_GOV_ORGANIZATION_OPTIONS.filter((option) =>
+    keys.has(applicantTypeKey(option.value)),
+  ).map((option) => option.value);
+}
+
+/** Unknown/legacy values remain visible verbatim when explaining saved data. */
+export function getGrantsGovOrganizationTypeLabel(value: string): string {
+  return (
+    GRANTS_GOV_ORGANIZATION_OPTIONS.find(
+      (option) => applicantTypeKey(option.value) === applicantTypeKey(value),
+    )?.label ?? value
+  );
+}
+
+export {
+  normalizeFundingPriorities,
+  fundingPrioritiesFromIntake,
+  MAX_FUNDING_PRIORITIES,
+  MAX_FUNDING_PRIORITY_LENGTH,
+} from './funding-priorities.js';
+
 // PE Phase G funding-claim contract — subpath @capiro/shared/funding-claim
 // Import FundingClaim helpers from '@capiro/shared/funding-claim' (subpath export).
 // Kept out of this single-file barrel so Vite/Rollup named-export tracing for the

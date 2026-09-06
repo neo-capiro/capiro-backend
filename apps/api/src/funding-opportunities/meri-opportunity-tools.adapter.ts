@@ -299,7 +299,7 @@ export class MeriOpportunityToolsAdapter {
     const row = await this.readOne(actor, source, input.sourceRecordId, input.clientId);
     if (!row) return envelope(tool, 'not_found', asOf, NOT_FOUND_EXPLANATION);
 
-    const explained = explainOpportunity(row.matchedSignals);
+    const explained = explainOpportunity(row.matchedSignals, row.source);
     const total = explained.signals.length;
     const signals = explained.signals.slice(0, MERI_TOOL_CAPS.signals);
 

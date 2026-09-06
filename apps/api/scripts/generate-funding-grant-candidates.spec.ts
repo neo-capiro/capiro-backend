@@ -284,6 +284,39 @@ describe('generateFundingGrantCandidates', () => {
     );
   });
 
+  test('confirmed funding priorities reach the producer and retain intent provenance in the saved match', async () => {
+    const { prisma, created } = makeFake({
+      clients: [
+        clientRow({
+          ...GRID_CLIENT,
+          capabilities: [],
+          intakeData: { fundingPriorities: ['grid resilience'] },
+        }),
+      ],
+      grants: [grantRow(GRID_GRANT)],
+      mappings: [],
+    });
+    const result = await generateFundingGrantCandidates(prisma, {
+      tenantIds: [TENANT],
+      clientId: null,
+      minRelevance: DEFAULT_MIN_RELEVANCE,
+      commit: true,
+    });
+    expect(result.created).toBe(1);
+    expect(created[0]).toEqual(
+      expect.objectContaining({
+        relevanceScore: 25,
+        matchSignals: expect.arrayContaining([
+          expect.objectContaining({
+            signal: 'capabilityKeyword',
+            matchedOn: 'grid resilience',
+            source: 'funding_priority',
+          }),
+        ]),
+      }),
+    );
+  });
+
   test('human workflow decisions are preserved on rerun', async () => {
     const { prisma, created, updated } = makeFake({
       existing: [
@@ -749,9 +782,8 @@ describe('the producer uses the shared suggestion floor (G1)', () => {
   );
 
   test("the numeric default is the read path's, not the assistance-listing floor", () => {
-    // 29 (the listing floor) sits ABOVE a keyword+sector pair at ~18, so the
-    // numeric backstop refused everything the floor's third arm admitted. 15
-    // matches the SAM producer and the sibling District Nexus producer.
+    // A listing-only threshold would reject genuine topic-plus-sector fits.
+    // Keep the default at 15 and let the shared evidence rule decide fit.
     expect(DEFAULT_MIN_RELEVANCE).toBe(15);
   });
 
@@ -774,7 +806,7 @@ describe('the producer uses the shared suggestion floor (G1)', () => {
     expect(result.errors).toBe(0);
   });
 
-  test('the pair really is keyword+sector, and really does score ~18', async () => {
+  test('the pair is keyword+sector, with no eligibility inflation in its score', async () => {
     // Pins WHY the case is the one that matters: it clears the floor's third arm
     // and lands between the new numeric default (15) and the old one (~29).
     const { prisma } = makeFake({
@@ -795,7 +827,7 @@ describe('the producer uses the shared suggestion floor (G1)', () => {
     );
     expect(scored.matchedSignals.map((s) => s.signal)).toEqual(['capabilityKeyword', 'sector']);
     expect(scored.meetsSuggestionFloor).toBe(true);
-    expect(scored.relevanceScore).toBe(18);
+    expect(scored.relevanceScore).toBe(25);
   });
 
   test('BOTH halves of the fix are load-bearing: the old numeric default alone still refuses it', async () => {
@@ -832,6 +864,26 @@ describe('the producer uses the shared suggestion floor (G1)', () => {
         client: GRID_CLIENT,
         grant: GRID_GRANT,
         expected: true,
+      },
+      {
+        name: 'funding priority from intake plus independent sector',
+        client: {
+          ...GRID_CLIENT,
+          capabilities: [],
+          intakeData: { fundingPriorities: ['grid resilience'] },
+        },
+        grant: GRID_GRANT,
+        expected: true,
+      },
+      {
+        name: 'generic funding priority plus independent sector cannot establish fit',
+        client: {
+          ...BARE_CLIENT,
+          sectorTag: 'Energy',
+          intakeData: { fundingPriorities: ['research and development'] },
+        },
+        grant: { ...BARE_GRANT, title: 'Energy research and development' },
+        expected: false,
       },
       {
         name: 'capabilityKeyword + fundingCategory (the third arm, other weak signal)',

@@ -50,6 +50,7 @@ describe('every signal either scorer can emit has a label', () => {
 
   test('no label is a raw camelCase key', () => {
     for (const key of labelledSignalKeys()) {
+      if (key === 'applicantType' || key === 'stateRestriction') continue;
       const explained = explainOpportunity([sig(key, 'strong', 'X')]);
       expect(explained.strongest!.label).not.toMatch(/[a-z][A-Z]/);
       expect(explained.strongest!.label).not.toBe(key);
@@ -60,6 +61,7 @@ describe('every signal either scorer can emit has a label', () => {
     // The whole point of matchedOn is that an operator can go and check it, so a
     // detail that omits it is a claim with no citation.
     for (const key of labelledSignalKeys()) {
+      if (key === 'applicantType' || key === 'stateRestriction') continue;
       const explained = explainOpportunity([sig(key, 'moderate', 'VERIFY-ME-1234')]);
       expect(explained.strongest!.detail).toContain('VERIFY-ME-1234');
     }
@@ -164,6 +166,35 @@ describe('the explanation does not depend on input order', () => {
 // ── Thin and conflicting profiles ──────────────────────────────────────────
 
 describe('thin and conflicting profiles stay honest', () => {
+  test('grant explanations use the grant floor for a priority with independent sector evidence', () => {
+    const result = explainOpportunity([
+      { ...sig('capabilityKeyword', 'moderate', 'rural broadband'), source: 'funding_priority' },
+      sig('sector', 'weak', 'education'),
+    ], 'grants_gov');
+    expect(result.weakOnly).toBe(false);
+  });
+  test('eligibility context never becomes fit evidence, even with old strong metadata', () => {
+    const result = explainOpportunity([
+      sig('applicantType', 'strong', 'Small businesses'),
+      sig('stateRestriction', 'strong', 'TX'),
+    ]);
+    expect(result.signals).toEqual([]);
+    expect(result.strongest).toBeNull();
+    expect(result.weakOnly).toBe(true);
+  });
+
+  test('a funding priority names its source and phrase without inventing a capability', () => {
+    const result = explainOpportunity([
+      { ...sig('capabilityKeyword', 'moderate', 'rural broadband'), source: 'funding_priority' },
+    ]);
+    expect(result.strongest).toMatchObject({
+      label: 'Funding priority match',
+      source: 'funding_priority',
+      matchedOn: 'rural broadband',
+    });
+    expect(result.strongest?.detail).toContain('recorded funding priority "rural broadband"');
+    expect(result.strongest?.detail).not.toContain('capability');
+  });
   test('no signals at all yields no leading reason, not an invented one', () => {
     // Absence produces nothing. It must never produce "no agency history" as
     // though that were a finding — we did not look and fail, we hold nothing.

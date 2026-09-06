@@ -5,7 +5,11 @@ import {
   scoreForecastRelevance,
   type ForecastRelevanceInput,
 } from './forecast-relevance.js';
-import { FORECAST_RECOMMENDATIONS, MACHINE_RECOMMENDATIONS, RECOMMENDATION_CONFIDENCES } from './opportunity-recommendation.js';
+import {
+  FORECAST_RECOMMENDATIONS,
+  MACHINE_RECOMMENDATIONS,
+  RECOMMENDATION_CONFIDENCES,
+} from './opportunity-recommendation.js';
 
 /**
  * P25 — the forecast recommendation truth table.
@@ -58,11 +62,17 @@ describe('vocabularies', () => {
       input({ exactNaicsMatch: true }),
       input({ exactPscMatch: true }),
       input({ capabilityMatch: true }),
+      input({ fundingPriorityMatch: true }),
       input({ programElementLinkedSourceBacked: true }),
       input({ locationMatch: true }),
       input({ knownVehicleAccess: true }),
       input({ reviewedStrategicPriority: true }),
-      input({ exactNaicsMatch: true, priorAgencyHistory: true, knownVehicleAccess: true, anticipatedAwardDate: APPROACHING_AWARD }),
+      input({
+        exactNaicsMatch: true,
+        priorAgencyHistory: true,
+        knownVehicleAccess: true,
+        anticipatedAwardDate: APPROACHING_AWARD,
+      }),
     ];
     for (const c of cases) {
       for (const code of scoreForecastRelevance(c).reasonCodes) {
@@ -75,7 +85,12 @@ describe('vocabularies', () => {
 describe('rule 1: an inactive forecast is always pass, regardless of any other signal', () => {
   test('inactive beats even a strong match', () => {
     const r = scoreForecastRelevance(
-      input({ isActive: false, exactNaicsMatch: true, priorAgencyHistory: true, knownVehicleAccess: true }),
+      input({
+        isActive: false,
+        exactNaicsMatch: true,
+        priorAgencyHistory: true,
+        knownVehicleAccess: true,
+      }),
     );
     expect(r.forecastRecommendation).toBe('pass');
     expect(r.machineRecommendation).toBe('pass');
@@ -109,17 +124,28 @@ describe('acceptance: an exact program/capability match CAN surface, with an ear
     ['exact NAICS match', { exactNaicsMatch: true }, 'exact_naics_match'],
     ['exact PSC match', { exactPscMatch: true }, 'exact_psc_match'],
     ['capability match', { capabilityMatch: true }, 'capability_match'],
-    ['a source-backed PE link', { programElementLinkedSourceBacked: true }, 'program_element_linked'],
-  ] as Array<[string, Partial<ForecastRelevanceInput>, string]>)('%s alone -> shape_now', (_label, partial, code) => {
-    const r = scoreForecastRelevance(input(partial));
-    expect(r.forecastRecommendation).toBe('shape_now');
-    expect(r.machineRecommendation).toBe('monitor'); // never 'pursue' — see opportunity-recommendation.ts's own doc
-    expect(r.reasonCodes).toContain(code);
-    expect(r.recommendedNextAction.length).toBeGreaterThan(0);
-  });
+    [
+      'a source-backed PE link',
+      { programElementLinkedSourceBacked: true },
+      'program_element_linked',
+    ],
+  ] as Array<[string, Partial<ForecastRelevanceInput>, string]>)(
+    '%s alone -> shape_now',
+    (_label, partial, code) => {
+      const r = scoreForecastRelevance(input(partial));
+      expect(r.forecastRecommendation).toBe('shape_now');
+      expect(r.machineRecommendation).toBe('monitor'); // never 'pursue' — see opportunity-recommendation.ts's own doc
+      expect(r.reasonCodes).toContain(code);
+      expect(r.recommendedNextAction.length).toBeGreaterThan(0);
+    },
+  );
 
   test('weaker evidence alone (location, vehicle access, or strategic priority) is monitor, not shape_now', () => {
-    for (const partial of [{ locationMatch: true }, { knownVehicleAccess: true }, { reviewedStrategicPriority: true }]) {
+    for (const partial of [
+      { locationMatch: true },
+      { knownVehicleAccess: true },
+      { reviewedStrategicPriority: true },
+    ]) {
       const r = scoreForecastRelevance(input(partial));
       expect(r.forecastRecommendation).toBe('monitor');
     }
@@ -127,6 +153,27 @@ describe('acceptance: an exact program/capability match CAN surface, with an ear
 });
 
 describe('confidence: high needs BOTH a strong match and (prior history OR vehicle access)', () => {
+  test.each([{}, { priorAgencyHistory: true }, { knownVehicleAccess: true }])(
+    'a recorded funding priority with %j remains low-confidence monitoring',
+    (extra) => {
+      const r = scoreForecastRelevance(input({ fundingPriorityMatch: true, ...extra }));
+      expect(r.forecastRecommendation).toBe('monitor');
+      expect(r.recommendationConfidence).toBe('low');
+      expect(r.reasonCodes).toContain('funding_priority_match');
+      expect(r.reasonCodes).not.toContain('capability_match');
+      expect(r.primaryReason).toMatch(/funding priority.*needs confirmation/i);
+    },
+  );
+
+  test('an additional funding priority does not raise confidence in an exact match', () => {
+    const withPriority = scoreForecastRelevance(
+      input({ exactNaicsMatch: true, fundingPriorityMatch: true }),
+    );
+    const withoutPriority = scoreForecastRelevance(input({ exactNaicsMatch: true }));
+    expect(withPriority.forecastRecommendation).toBe(withoutPriority.forecastRecommendation);
+    expect(withPriority.recommendationConfidence).toBe(withoutPriority.recommendationConfidence);
+  });
+
   test('strong match + prior agency history -> high', () => {
     const r = scoreForecastRelevance(input({ exactNaicsMatch: true, priorAgencyHistory: true }));
     expect(r.recommendationConfidence).toBe('high');
@@ -153,16 +200,24 @@ describe('acceptance: no response deadline is ever fabricated', () => {
   });
 
   test('an approaching award date adds urgency wording to a shape_now action; a far-out or absent one does not', () => {
-    const approaching = scoreForecastRelevance(input({ exactNaicsMatch: true, anticipatedAwardDate: APPROACHING_AWARD }));
-    const far = scoreForecastRelevance(input({ exactNaicsMatch: true, anticipatedAwardDate: FAR_AWARD }));
-    const absent = scoreForecastRelevance(input({ exactNaicsMatch: true, anticipatedAwardDate: null }));
+    const approaching = scoreForecastRelevance(
+      input({ exactNaicsMatch: true, anticipatedAwardDate: APPROACHING_AWARD }),
+    );
+    const far = scoreForecastRelevance(
+      input({ exactNaicsMatch: true, anticipatedAwardDate: FAR_AWARD }),
+    );
+    const absent = scoreForecastRelevance(
+      input({ exactNaicsMatch: true, anticipatedAwardDate: null }),
+    );
     expect(approaching.recommendedNextAction).toMatch(/anticipated award estimate/i);
     expect(far.recommendedNextAction).not.toMatch(/anticipated award estimate/i);
     expect(absent.recommendedNextAction).not.toMatch(/anticipated award estimate/i);
   });
 
   test('a PAST anticipated award date is not "approaching" — it does not add urgency wording', () => {
-    const r = scoreForecastRelevance(input({ exactNaicsMatch: true, anticipatedAwardDate: PAST_AWARD }));
+    const r = scoreForecastRelevance(
+      input({ exactNaicsMatch: true, anticipatedAwardDate: PAST_AWARD }),
+    );
     expect(r.recommendedNextAction).not.toMatch(/anticipated award estimate/i);
   });
 
@@ -176,7 +231,8 @@ describe('acceptance: no response deadline is ever fabricated', () => {
     ];
     for (const c of cases) {
       const r = scoreForecastRelevance(c);
-      const text = `${r.primaryReason} ${r.primaryRisk ?? ''} ${r.recommendedNextAction}`.toLowerCase();
+      const text =
+        `${r.primaryReason} ${r.primaryRisk ?? ''} ${r.recommendedNextAction}`.toLowerCase();
       expect(text).not.toContain('deadline');
     }
   });
@@ -198,7 +254,8 @@ describe('no eligibility state is inferred from a forecast', () => {
       const r = scoreForecastRelevance(c);
       expect(r).not.toHaveProperty('eligibility');
       expect(r).not.toHaveProperty('eligibilityState');
-      const text = `${r.primaryReason} ${r.primaryRisk ?? ''} ${r.recommendedNextAction}`.toLowerCase();
+      const text =
+        `${r.primaryReason} ${r.primaryRisk ?? ''} ${r.recommendedNextAction}`.toLowerCase();
       expect(text).not.toMatch(/\beligible\b|\bineligible\b/);
     }
   });
@@ -206,7 +263,11 @@ describe('no eligibility state is inferred from a forecast', () => {
 
 describe('acceptance: the recommendation is stable — same input, same output', () => {
   test('calling twice with an identical input produces an identical result', () => {
-    const i = input({ exactPscMatch: true, priorAgencyHistory: true, anticipatedAwardDate: APPROACHING_AWARD });
+    const i = input({
+      exactPscMatch: true,
+      priorAgencyHistory: true,
+      anticipatedAwardDate: APPROACHING_AWARD,
+    });
     expect(scoreForecastRelevance(i)).toEqual(scoreForecastRelevance(i));
   });
 
@@ -231,7 +292,14 @@ describe('every combination produces a valid, invariant-respecting result', () =
             for (const priorAgencyHistory of [true, false]) {
               for (const anticipatedAwardDate of [FAR_AWARD, APPROACHING_AWARD, null]) {
                 const r = scoreForecastRelevance(
-                  input({ isActive, profileTooThin, exactNaicsMatch, knownVehicleAccess, priorAgencyHistory, anticipatedAwardDate }),
+                  input({
+                    isActive,
+                    profileTooThin,
+                    exactNaicsMatch,
+                    knownVehicleAccess,
+                    priorAgencyHistory,
+                    anticipatedAwardDate,
+                  }),
                 );
                 count += 1;
                 expect(forecastRecs.has(r.forecastRecommendation)).toBe(true);

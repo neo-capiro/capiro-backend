@@ -1,12 +1,10 @@
 import { describe, expect, test } from '@jest/globals';
+import { GRANTS_GOV_OTHER_APPLICANTS, GRANTS_GOV_UNRESTRICTED_APPLICANTS } from '@capiro/shared';
 import {
   shapeClientRelevanceProfile,
   type ClientRelevanceProfileRows,
 } from './grant-opportunity-candidates.js';
-import {
-  computeEligibility,
-  type OpportunityProfile,
-} from './grant-opportunity-relevance.js';
+import { computeEligibility, type OpportunityProfile } from './grant-opportunity-relevance.js';
 
 function rows(partial: Partial<ClientRelevanceProfileRows> = {}): ClientRelevanceProfileRows {
   return {
@@ -37,20 +35,28 @@ describe('shapeClientRelevanceProfile', () => {
     const profile = shapeClientRelevanceProfile(
       rows({
         sectorTag: 'Defense / Aerospace',
-        capabilities: [{ name: 'Hypersonics', tags: ['scramjet', 'thermal protection'] }],
+        capabilities: [
+          {
+            name: 'Hypersonics',
+            keywords: ['thermal protection'],
+            tags: ['scramjet', 'thermal protection'],
+          },
+        ],
+        fundingPriorities: ['Field demonstration', ' Field demonstration ', ''],
         facilityStates: ['tx', 'TX', null, '  '],
         priorAssistanceListings: ['93.778', '93.778', null],
         priorAgencies: ['HHS'],
-        applicantTypes: ['12'],
+        applicantTypes: ['Small businesses'],
       }),
     );
 
     expect(profile).toEqual({
       sector: 'Defense / Aerospace',
-      capabilityKeywords: ['Hypersonics', 'scramjet', 'thermal protection'],
+      capabilityKeywords: ['Hypersonics', 'thermal protection', 'scramjet'],
+      fundingPriorities: ['Field demonstration'],
       priorAssistanceListings: ['93.778'],
       priorAgencies: ['HHS'],
-      applicantTypes: ['12'],
+      applicantTypes: ['Small businesses'],
       states: ['tx', 'TX'],
       knownPartnerNames: [],
     });
@@ -66,11 +72,33 @@ describe('shapeClientRelevanceProfile', () => {
   });
 
   describe('applicantTypes — the input F3 eligibility was missing', () => {
-    test('dedupes and drops blanks like every other code array', () => {
+    test('legacy source-only and numeric values remain stored but cannot establish organization eligibility', () => {
+      const stored = rows({
+        applicantTypes: ['12', GRANTS_GOV_OTHER_APPLICANTS, GRANTS_GOV_UNRESTRICTED_APPLICANTS],
+      });
+      const before = [...stored.applicantTypes!];
+      const profile = shapeClientRelevanceProfile(stored);
+      expect(stored.applicantTypes).toEqual(before);
+      expect(profile.applicantTypes).toEqual([]);
+      expect(
+        computeEligibility(profile, opportunity({ eligibleApplicantTypes: ['Small businesses'] }))
+          .state,
+      ).toBe('needs_review');
+    });
+
+    test('normalizes recognized organization labels and drops blanks', () => {
       const profile = shapeClientRelevanceProfile(
-        rows({ applicantTypes: ['12', ' 12 ', '', null, '06'] }),
+        rows({
+          applicantTypes: [
+            'Small businesses',
+            ' small  BUSINESSES ',
+            '',
+            null,
+            'State governments',
+          ],
+        }),
       );
-      expect(profile.applicantTypes).toEqual(['12', '06']);
+      expect(profile.applicantTypes).toEqual(['Small businesses', 'State governments']);
     });
 
     test('a caller that has not been taught to select the column degrades to empty', () => {
@@ -90,31 +118,43 @@ describe('shapeClientRelevanceProfile', () => {
      * hand-built profile literal.
      */
     test('a populated client CAN now reach eligible', () => {
-      const profile = shapeClientRelevanceProfile(rows({ applicantTypes: ['12'] }));
-      const result = computeEligibility(profile, opportunity({ eligibleApplicantTypes: ['12'] }));
+      const profile = shapeClientRelevanceProfile(rows({ applicantTypes: ['Small businesses'] }));
+      const result = computeEligibility(
+        profile,
+        opportunity({ eligibleApplicantTypes: ['Small businesses'] }),
+      );
       expect(result.state).toBe('eligible');
-      expect(result.reason).toContain('12');
+      expect(result.reason).toContain('Small businesses');
     });
 
     test('an unpopulated client still reports needs_review, never eligible', () => {
       const profile = shapeClientRelevanceProfile(rows({}));
-      const result = computeEligibility(profile, opportunity({ eligibleApplicantTypes: ['12'] }));
+      const result = computeEligibility(
+        profile,
+        opportunity({ eligibleApplicantTypes: ['Small businesses'] }),
+      );
       expect(result.state).toBe('needs_review');
     });
 
     test('a populated client with a non-matching type is ineligible, not needs_review', () => {
-      const profile = shapeClientRelevanceProfile(rows({ applicantTypes: ['12'] }));
-      const result = computeEligibility(profile, opportunity({ eligibleApplicantTypes: ['06'] }));
+      const profile = shapeClientRelevanceProfile(rows({ applicantTypes: ['Small businesses'] }));
+      const result = computeEligibility(
+        profile,
+        opportunity({ eligibleApplicantTypes: ['State governments'] }),
+      );
       expect(result.state).toBe('ineligible');
     });
 
     test('a geographic restriction still gates eligibility even with a matching type', () => {
       const profile = shapeClientRelevanceProfile(
-        rows({ applicantTypes: ['12'], facilityStates: ['CA'] }),
+        rows({ applicantTypes: ['Small businesses'], facilityStates: ['CA'] }),
       );
       const result = computeEligibility(
         profile,
-        opportunity({ eligibleApplicantTypes: ['12'], geographicRestrictions: ['TX'] }),
+        opportunity({
+          eligibleApplicantTypes: ['Small businesses'],
+          geographicRestrictions: ['TX'],
+        }),
       );
       expect(result.state).toBe('ineligible');
     });

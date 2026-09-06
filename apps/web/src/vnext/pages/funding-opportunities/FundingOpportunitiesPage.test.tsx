@@ -237,6 +237,68 @@ describe('simple vNext navigation', () => {
 });
 
 describe('useful and correctly scoped recommendations', () => {
+  test('funding priority reasons name the actual phrase and keep grant eligibility separate', async () => {
+    current = response({
+      rows: [
+        row({
+          source: 'grants_gov',
+          eligibility: { state: 'eligible', reason: 'Organization type matches.' },
+          matchSignals: [
+            {
+              signal: 'applicantType',
+              matchedOn: 'County governments',
+              strength: 'weak',
+              weight: 25,
+            },
+            { signal: 'stateRestriction', matchedOn: 'VA', strength: 'weak', weight: 15 },
+            {
+              signal: 'capabilityKeyword',
+              source: 'funding_priority',
+              matchedOn: 'rural broadband deployment',
+              strength: 'moderate',
+              weight: 15,
+            },
+          ],
+        }),
+      ],
+    });
+    mount();
+    const card = await screen.findByTestId('fo-inbox-row-row-1');
+    expect(
+      within(card).getByText('Funding priority match: rural broadband deployment'),
+    ).toBeInTheDocument();
+    expect(within(card).getByText('Last assessed eligibility')).toBeInTheDocument();
+    expect(within(card).getByText('Last assessed match')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'View current match' })).toBeInTheDocument();
+    expect(within(card).queryByText(/County governments/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/Restricted to a state/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/Capability match/)).not.toBeInTheDocument();
+  });
+
+  test('an eligibility-only saved row does not claim a reason it matched', async () => {
+    current = response({
+      rows: [
+        row({
+          matchSignals: [
+            {
+              signal: 'applicantType',
+              matchedOn: 'Small businesses',
+              strength: 'weak',
+              weight: 25,
+            },
+            { signal: 'stateRestriction', matchedOn: 'VA', strength: 'weak', weight: 0 },
+          ],
+        }),
+      ],
+    });
+    mount();
+    const card = await screen.findByTestId('fo-inbox-row-row-1');
+    expect(within(card).queryByText('Why it matched')).not.toBeInTheDocument();
+    expect(
+      within(card).getByText('Review the source details and client requirements before deciding.'),
+    ).toBeInTheDocument();
+  });
+
   test('each row names its client and displays recorded fit reasons instead of a percent', async () => {
     current = response({
       rows: [row(), row({ id: 'row-2', client: { id: 'client-2', name: 'Beta Systems' } })],

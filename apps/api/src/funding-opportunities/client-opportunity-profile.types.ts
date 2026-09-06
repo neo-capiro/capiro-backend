@@ -37,7 +37,7 @@ import type { ClientRelevanceProfile } from '../district-nexus/grant-opportunity
 import type { SamClientProfile } from './sam-opportunity-relevance.js';
 import type { ProfileCompleteness } from './missing-profile-fields.js';
 
-export const CLIENT_OPPORTUNITY_PROFILE_VERSION = 'v1' as const;
+export const CLIENT_OPPORTUNITY_PROFILE_VERSION = 'v2' as const;
 export type ClientOpportunityProfileVersion = typeof CLIENT_OPPORTUNITY_PROFILE_VERSION;
 
 /**
@@ -97,6 +97,8 @@ export interface ClientProfileFacts {
   naicsCodes: string[];
   pscCodes: string[];
   applicantTypes: string[];
+  /** Explicit client project phrases from intakeData.fundingPriorities. */
+  fundingPriorities?: string[];
   setAsideCertifications: string[];
   sectorTag: string | null;
   capabilities: ProfileCapability[];

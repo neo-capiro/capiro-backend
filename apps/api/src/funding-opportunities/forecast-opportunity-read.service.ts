@@ -492,6 +492,7 @@ export class ForecastOpportunityReadService {
             naicsCodes: profile.sam.naicsCodes,
             pscCodes: profile.sam.pscCodes,
             capabilityKeywords: profile.sam.capabilityKeywords,
+            fundingPriorities: profile.sam.fundingPriorities,
             programElementCodes: profile.sam.programElementCodes,
             priorAgencies: profile.sam.priorAgencies,
             facilityStates: profile.sam.facilityStates,

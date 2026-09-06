@@ -56,6 +56,10 @@ import {
 import type { Capability } from './CapabilityDrawer.js';
 import { CapabilityDrawer } from './CapabilityDrawer.js';
 import type { Client, ClientAttachment, ClientFormSubmit } from './clientTypes.js';
+import {
+  readClientFundingPriorities,
+  readClientOrganizationTypeRows,
+} from './client-registrations.js';
 import { IntelligenceTab } from './IntelligenceTab.js';
 import { SharedMeetingsSection } from '../engagement/meetings/SharedMeetingsSection.js';
 import { TargetsTab } from './TargetsTab.js';
@@ -667,6 +671,8 @@ function OverviewTab({
   const location = formatLocation(intake);
   const sbClassLabels = sbClassificationLabels(intake);
   const engagementStart = readText(intake, ['engagementStartDate', 'engagement_start_date']);
+  const fundingPriorities = readClientFundingPriorities(client);
+  const organizationTypeRows = readClientOrganizationTypeRows(client);
 
   // Sector tags: prefer the stored multi-select list (intakeData.sectors),
   // rendered via controlled labels; fall back to the single primary sector.
@@ -712,6 +718,21 @@ function OverviewTab({
                 }
               />
               <InfoRow label="Description" value={client.description} />
+              <InfoRow
+                label="Funding priorities"
+                value={
+                  fundingPriorities.length ? (
+                    <ul aria-label="Funding priorities" style={{ margin: 0, paddingLeft: 18 }}>
+                      {fundingPriorities.map((priority) => (
+                        <li key={priority}>{priority}</li>
+                      ))}
+                    </ul>
+                  ) : null
+                }
+              />
+              {organizationTypeRows.map((row) => (
+                <InfoRow key={row.label} label={row.label} value={row.value} />
+              ))}
               <InfoRow label="Location" value={location} />
               <InfoRow
                 label="Small Business Classification"

@@ -17,6 +17,8 @@ export interface ForecastSignalEvidence {
   exactNaicsMatch: boolean;
   exactPscMatch: boolean;
   capabilityMatch: boolean;
+  /** An explicitly recorded topic of interest, not evidence of delivery capability. */
+  fundingPriorityMatch?: boolean;
   priorAgencyHistory: boolean;
   programElementLinkedSourceBacked: boolean;
   locationMatch: boolean;
@@ -65,7 +67,9 @@ function norm(value: string | null | undefined): string {
 export function containsWholeToken(haystack: string | null, needle: string | null): boolean {
   const h = norm(haystack);
   const n = norm(needle);
-  if (!h || !n || n.length <= 2 || (!n.includes(' ') && GENERIC_TOKENS.has(n))) return false;
+  if (!h || !n || !n.split(' ').some((token) => token.length > 2 && !GENERIC_TOKENS.has(token))) {
+    return false;
+  }
   return ` ${h} `.includes(` ${n} `);
 }
 
@@ -86,6 +90,7 @@ export interface ForecastSignalProfile {
   naicsCodes: string[];
   pscCodes: string[];
   capabilityKeywords: string[];
+  fundingPriorities?: string[];
   programElementCodes: string[];
   priorAgencies: string[];
   facilityStates: string[];
@@ -137,6 +142,9 @@ export function deriveForecastSignals(
   // forecast is the same evidence as one named in its title.
   const text = [forecast.title, forecast.description].filter(Boolean).join(' ');
   const capabilityMatch = profile.capabilityKeywords.some((kw) => containsWholeToken(text, kw));
+  const fundingPriorityMatch = (profile.fundingPriorities ?? []).some((priority) =>
+    containsWholeToken(text, priority),
+  );
 
   // Every level of the provider's hierarchy, because prior-award history is
   // recorded against whichever level the award itself named.
@@ -198,6 +206,7 @@ export function deriveForecastSignals(
     exactNaicsMatch,
     exactPscMatch,
     capabilityMatch,
+    fundingPriorityMatch,
     priorAgencyHistory,
     programElementLinkedSourceBacked,
     locationMatch,
@@ -221,6 +230,7 @@ export function toForecastRelevanceInput(
     exactNaicsMatch: signals.exactNaicsMatch,
     exactPscMatch: signals.exactPscMatch,
     capabilityMatch: signals.capabilityMatch,
+    fundingPriorityMatch: signals.fundingPriorityMatch ?? false,
     priorAgencyHistory: signals.priorAgencyHistory,
     programElementLinkedSourceBacked: signals.programElementLinkedSourceBacked,
     locationMatch: signals.locationMatch,

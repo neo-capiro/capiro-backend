@@ -229,7 +229,7 @@ export class MeriOpportunityAssessmentService {
       input.sourceRecordId,
       input.clientId,
     );
-    const explained = explainOpportunity(row.matchedSignals);
+    const explained = explainOpportunity(row.matchedSignals, row.source);
 
     // P33 and P34 are SAM-only and may legitimately refuse. A refusal lowers
     // coverage and is reported as such by `incompletenessOf`; it never becomes

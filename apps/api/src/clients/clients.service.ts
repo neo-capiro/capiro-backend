@@ -27,6 +27,7 @@ import { EntityResolutionService } from '../intelligence/entity-resolution.servi
 import { ClientPrepopulationService } from '../intelligence/client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { validateClientFundingProfile } from './client-funding-profile.validation.js';
 
 export interface CreateClientInput {
   name: string;
@@ -49,7 +50,7 @@ export interface CreateClientInput {
   naicsCodes?: string[];
   pscCodes?: string[];
   setAsideCertifications?: string[];
-  /** Grants.gov applicant-type codes — the input District Nexus F3 eligibility needs. */
+  /** Grants.gov organization labels used by grant eligibility and relevance. */
   applicantTypes?: string[];
   // Pre-confirmed LDA client ids (e.g. Meri's create_client after the user
   // confirmed the registry entity). Seeded directly so LDA-filing reads and
@@ -1117,6 +1118,7 @@ export class ClientsService {
   }
 
   async create(ctx: TenantContext, input: CreateClientInput) {
+    input = { ...input, ...validateClientFundingProfile(input) };
     const { client, ldaRegistrantId } = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
@@ -1312,6 +1314,7 @@ export class ClientsService {
       }
 
       try {
+        const fundingProfile = validateClientFundingProfile(input);
         const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.client.create({
             data: {
@@ -1323,7 +1326,8 @@ export class ClientsService {
               primaryContactName: input.primaryContactName ?? null,
               primaryContactEmail: input.primaryContactEmail ?? null,
               primaryContactPhone: input.primaryContactPhone ?? null,
-              intakeData: (input.intakeData ?? {}) as object,
+              intakeData: (fundingProfile.intakeData ?? {}) as object,
+              applicantTypes: fundingProfile.applicantTypes ?? [],
               profileType: input.profileType ?? null,
               sectorTag: input.sectorTag ?? null,
               submissionTracks: input.submissionTracks ?? [],
@@ -1385,17 +1389,20 @@ export class ClientsService {
   }
 
   async update(ctx: TenantContext, id: string, input: UpdateClientInput) {
-    // Read the current UEI before the update so we can detect whether it changed.
+    // Read this tenant's current profile to preserve legacy organization values
+    // and detect whether its UEI changed.
     const before = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findUnique({
-        where: { id },
-        select: { uei: true, name: true },
+      tx.client.findFirst({
+        where: { id, tenantId: ctx.tenantId },
+        select: { uei: true, name: true, applicantTypes: true },
       }),
     );
+    if (!before) throw new NotFoundException('Client not found');
+    input = { ...input, ...validateClientFundingProfile(input, before) };
 
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.update({
-        where: { id },
+        where: { id, tenantId: ctx.tenantId },
         data: {
           ...('name' in input ? { name: input.name } : {}),
           ...('website' in input ? { website: input.website ?? null } : {}),

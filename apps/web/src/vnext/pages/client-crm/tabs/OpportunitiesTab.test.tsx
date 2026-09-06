@@ -1,252 +1,88 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ClientCrmOpportunitiesProto } from './OpportunitiesTab.js';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import type { FundingOpportunity } from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
+import { ClientCrmOpportunitiesProto } from './OpportunitiesTab.js';
 
-/**
- * Moved verbatim from IntelligenceTab.test.tsx's "funding panel (items 4-5,
- * wire-audit)" describe block when Funding & Budget became its own top-level
- * client directory ("Opportunities") instead of an Intelligence domain — same
- * assertions, same fixtures, only the component under test changed.
- */
-
-const getMock = vi.hoisted(() => vi.fn());
-const postMock = vi.hoisted(() => vi.fn());
-vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock, post: postMock }),
+const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }));
+vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => ({ get: apiGet }) }));
+vi.mock('../../../../lib/intel-feature-flags.js', () => ({
+  useIntelFeature: () => ({ enabled: true, ready: true }),
 }));
+vi.mock('../../../components/feedback/toast.js', () => ({
+  useCapiroToast: () => ({ success: vi.fn(), error: vi.fn() }),
+}));
+vi.mock('../../../../pages/clients/relevance-api.js', () => ({
+  getRelevantPesForClient: async () => ({ data: [] }),
+  formatScorePct: (score: number) => `${score * 100}%`,
+}));
+afterEach(cleanup);
 
-const client: Client = {
-  id: 'client-1',
-  name: 'Overland AI',
-  website: 'overland.ai',
-  description: null,
-  productDescription: null,
-  primaryContactName: null,
-  primaryContactEmail: null,
-  primaryContactPhone: null,
-  logoS3Key: null,
-  logoContentType: null,
-  logoUploadedAt: null,
-  intakeData: null,
-  status: 'active',
-  createdAt: '2026-01-15T00:00:00.000Z',
-  updatedAt: '2026-01-15T00:00:00.000Z',
-};
-
-function LocationProbe() {
-  const location = useLocation();
-  return (
-    <div data-testid="location">
-      {location.pathname}
-      {location.search}
-    </div>
-  );
-}
-
-function renderOpportunities() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/clients']}>
-        <Routes>
-          <Route
-            path="/clients"
-            element={
-              <>
-                <ClientCrmOpportunitiesProto client={client} />
-                <LocationProbe />
-              </>
-            }
-          />
-          <Route path="*" element={<LocationProbe />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-}
-
-const RELEVANT_PE = {
-  peCode: '0602308A',
-  title: 'Advanced Robotics Research',
-  score: 0.82,
-  paths: [{ path: 'capability_pe_direct', score: 0.82, evidence: ['Capability "Autonomy stack" lists PE 0602308A'] }],
-};
-
-const OPPORTUNITY_SUMMARY = {
-  clientId: 'client-1',
-  counts: { activeGrants: 2, activeContracts: 3, saved: 1, pursuing: 1, dismissed: 0, deadlinesIn30Days: 1 },
-  nextDeadline: null,
-  topGrants: [
-    {
-      id: 'opp-1',
+describe('client opportunity relevance', () => {
+  test('shows the recorded funding priority separately from grant eligibility', async () => {
+    const grant = {
+      id: 'grant-1',
       source: 'grants_gov',
-      sourceUrl: 'https://grants.gov/opp-1',
+      sourceRecordId: 'grant-1',
+      title: 'Rural connectivity program',
       kind: 'grant',
-      title: 'Autonomy Research Grant',
-      agency: 'DARPA',
-      responseDeadline: '2026-09-01T00:00:00.000Z',
+      agency: 'USDA',
+      responseDeadline: null,
       responseDeadlineNote: null,
-      grantFunding: { estimatedProgramFunding: 2_000_000, awardFloor: null, awardCeiling: 2_400_000, expectedAwardCount: null, costSharingRequired: null },
+      grantFunding: null,
       contractValue: null,
-      relevanceScore: 87,
-      workflow: { id: 'wf-1', status: 'pursuing', owner: null, facility: null, notes: null, dismissedReason: null, outcomeNote: null, userCreated: false, staleAt: null, createdAt: '2026-01-01T00:00:00.000Z' },
-    },
-  ],
-  topContracts: [],
-  missingProfileFields: [],
-  freshness: [],
-  emptyReason: null,
-  emptyExplanation: null,
-  generatedAt: '2026-08-16T00:00:00.000Z',
-};
-
-function mockFundingApis(overrides: { pes?: unknown; flags?: unknown; opportunities?: unknown } = {}) {
-  const pes = overrides.pes ?? { data: [RELEVANT_PE], total: 1, page: 1, limit: 12 };
-  const flags = overrides.flags ?? { funding_opportunities: true };
-  const opportunities = overrides.opportunities ?? OPPORTUNITY_SUMMARY;
-  getMock.mockImplementation((url: string) => {
-    if (url === '/api/intelligence/clients/client-1/pe-relevance') return Promise.resolve({ data: pes });
-    if (url === '/intel-api/feature-flags') return Promise.resolve({ data: flags });
-    if (url === '/api/intelligence/clients/client-1/opportunities/summary') return Promise.resolve({ data: opportunities });
-    return Promise.reject(new Error(`unexpected GET ${url}`));
-  });
-}
-
-describe('ClientCrmOpportunitiesProto (items 4-5, wire-audit)', () => {
-  beforeEach(() => {
-    getMock.mockReset();
-  });
-
-  /**
-   * The panel renders NO heading of its own. It sits under a record-surface
-   * header that already reads "Opportunities", and it used to add a second
-   * one titled "Funding & Budget" whose subtitle restated that header verbatim
-   * but for "in one place" / "in one domain" — two headings for one thing,
-   * under a name that contradicted the row the user had just clicked. Keep the
-   * action; don't let the heading come back.
-   */
-  it('renders no second heading of its own, only the Sync sources action', async () => {
-    mockFundingApis();
-    renderOpportunities();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-
-    expect(screen.queryByText('Funding & Budget')).not.toBeInTheDocument();
-    expect(screen.queryByText(/relevant defense budget programs in one domain\./)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sync sources' })).toBeInTheDocument();
-  });
-
-  it('re-fetches the opportunities and PE-relevance sources when Sync sources is clicked', async () => {
-    mockFundingApis();
-    renderOpportunities();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    const callsBeforeSync = getMock.mock.calls.length;
-
-    fireEvent.click(screen.getByText('Sync sources'));
-
-    // A static button with no onClick did nothing on click; this asserts a
-    // real re-read of the same sources the panel below already renders.
-    await waitFor(() => expect(getMock.mock.calls.length).toBeGreaterThan(callsBeforeSync));
-  });
-
-  it('renders real relevant PEs and wires "Open PE" navigation using the real peCode (item 4)', async () => {
-    mockFundingApis();
-    renderOpportunities();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    expect(screen.getByText('82%')).toBeInTheDocument();
-    // The fixture's own PE must not leak through as if real.
-    expect(screen.queryByText('Ground Vehicle Autonomy Kit')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Open PE →'));
-    expect(screen.getByTestId('location')).toHaveTextContent('/program-elements/0602308A');
-  });
-
-  it('wires the "Open budget" header link to the real Program Elements index (item 4)', async () => {
-    mockFundingApis();
-    renderOpportunities();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Open budget'));
-    expect(screen.getByTestId('location')).toHaveTextContent('/program-elements');
-  });
-
-  it('renders the real opportunities list when funding_opportunities is enabled (item 5)', async () => {
-    mockFundingApis();
-    renderOpportunities();
-
-    await waitFor(() => expect(screen.getByText('Autonomy Research Grant')).toBeInTheDocument());
-    // "Pursuing" also appears in the domain stats strip's own fixture cell.
-    expect(screen.getAllByText('Pursuing').length).toBeGreaterThan(0);
-    expect(screen.getByText('87% fit')).toBeInTheDocument();
-    // The fixture's own opportunities must not leak through as if real.
-    expect(screen.queryByText('Ground Robotics Autonomy Kit')).not.toBeInTheDocument();
-  });
-
-  it('shows an honest "not enabled" message instead of the OPPS fixture when funding_opportunities is disabled for the tenant', async () => {
-    mockFundingApis({ flags: {} });
-    renderOpportunities();
-
-    // Relevant Programs is unaffected by this flag and must still answer for real.
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-
-    expect(screen.getByText('Funding opportunities is not enabled for this account yet.')).toBeInTheDocument();
-    // Neither the real data nor the OPPS design fixture — and no dead button
-    // promising a list that was never fetched.
-    expect(screen.queryByText('Autonomy Research Grant')).not.toBeInTheDocument();
-    expect(screen.queryByText('Autonomous Ground Vehicle Integration')).not.toBeInTheDocument();
-    expect(screen.queryByText('View all 7')).not.toBeInTheDocument();
-  });
-
-  it('still fills in Relevant programs on the domain stats strip when funding_opportunities is disabled', async () => {
-    mockFundingApis({ flags: {} });
-    renderOpportunities();
-
-    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
-    // 1 relevant PE from RELEVANT_PE — real, despite the opportunities flag
-    // being off. The other four cells have nothing to answer with and stay dashes.
-    const cell = screen.getByText('Relevant programs').closest('.capiro-intel-stats-cell');
-    expect(cell).not.toBeNull();
-    expect(within(cell as HTMLElement).getByText('1')).toBeInTheDocument();
-  });
-
-  it('shows an honest empty message when no program element clears the relevance threshold', async () => {
-    mockFundingApis({ pes: { data: [], total: 0, page: 1, limit: 12 } });
-    renderOpportunities();
-
-    await waitFor(() =>
-      expect(
-        screen.getByText('No program elements scored above the relevance threshold for this client.'),
-      ).toBeInTheDocument(),
-    );
-  });
-
-  it('shows an honest error, not the OPPS/PROGRAMS fixtures, when funding queries fail on an enabled tenant', async () => {
-    getMock.mockImplementation((url: string) => {
-      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: { funding_opportunities: true } });
-      if (url === '/api/intelligence/clients/client-1/opportunities/summary') {
-        return Promise.reject(new Error('opportunities service unavailable'));
-      }
-      if (url === '/api/intelligence/clients/client-1/pe-relevance') {
-        return Promise.reject(new Error('relevance service unavailable'));
-      }
-      return Promise.reject(new Error(`unexpected GET ${url}`));
+      workflow: null,
+      eligibility: { state: 'needs_review', reason: 'Confirm the organization type.' },
+      matchedSignals: [
+        {
+          signal: 'applicantType',
+          strength: 'strong',
+          weight: 25,
+          matchedOn: 'County governments',
+        },
+        { signal: 'stateRestriction', strength: 'weak', weight: 15, matchedOn: 'VA' },
+        {
+          signal: 'capabilityKeyword',
+          source: 'funding_priority',
+          strength: 'moderate',
+          weight: 15,
+          matchedOn: 'rural broadband deployment',
+        },
+      ],
+    } as FundingOpportunity;
+    apiGet.mockResolvedValue({
+      data: {
+        clientId: 'client-1',
+        counts: { activeGrants: 1, activeContracts: 0, pursuing: 0, saved: 0 },
+        nextDeadline: null,
+        topGrants: [grant],
+        topContracts: [],
+        emptyExplanation: null,
+      },
     });
-    renderOpportunities();
-
-    // `opportunitiesQ` sets an explicit retry: 1 on the query itself, which
-    // overrides this test's QueryClient-level retry:false default.
-    await waitFor(
-      () => expect(screen.getByText(/Funding opportunities could not be loaded/)).toBeInTheDocument(),
-      { timeout: 5000 },
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <ClientCrmOpportunitiesProto client={{ id: 'client-1', name: 'County' } as Client} />
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
-    expect(screen.getByText(/Relevant budget programs could not be loaded/)).toBeInTheDocument();
-    expect(screen.queryByText('Autonomous Ground Vehicle Integration')).not.toBeInTheDocument();
-    expect(screen.queryByText('Ground Robotics')).not.toBeInTheDocument();
-    expect(screen.queryByText('View all 7')).not.toBeInTheDocument();
+    expect(
+      await screen.findByText('Funding priority match: rural broadband deployment'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Eligibility: Needs review')).toHaveAttribute(
+      'title',
+      'Confirm the organization type.',
+    );
+    expect(screen.queryByText(/County governments/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Rural connectivity program' })).toHaveAttribute(
+      'href',
+      '/intelligence/opportunities/grants_gov/grant-1?clientId=client-1',
+    );
   });
 });

@@ -56,6 +56,7 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { fundingPrioritiesFromIntake } from '@capiro/shared';
 import { runWithSyncRun, emptyCounts, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 import { DISTRICT_NEXUS_FEATURE } from '../src/district-nexus/district-nexus-flag.guard.js';
 import {
@@ -150,7 +151,8 @@ export interface CandidatesPrisma {
         id: string;
         sectorTag: string | null;
         applicantTypes: string[];
-        capabilities: Array<{ name: string; sector: string | null; tags: unknown }>;
+        intakeData?: unknown;
+        capabilities: Array<{ name: string; sector: string | null; tags: unknown; keywords?: string[] }>;
         facilities: Array<{ state: string | null }>;
       }>
     >;
@@ -232,7 +234,8 @@ async function buildRelevanceProfileForClient(
     id: string;
     sectorTag: string | null;
     applicantTypes: string[];
-    capabilities: Array<{ name: string; tags: unknown }>;
+    intakeData?: unknown;
+    capabilities: Array<{ name: string; tags: unknown; keywords?: string[] }>;
     facilities: Array<{ state: string | null }>;
   },
   mappingsByClient: Map<string, Array<{ source: string; externalId: string | null; externalName: string | null }>>,
@@ -266,6 +269,7 @@ async function buildRelevanceProfileForClient(
     priorAssistanceListings,
     priorAgencies,
     applicantTypes: client.applicantTypes,
+    fundingPriorities: fundingPrioritiesFromIntake(client.intakeData),
   };
   return shapeClientRelevanceProfile(rowsIn);
 }
@@ -315,7 +319,8 @@ export async function generateCandidates(
           id: true,
           sectorTag: true,
           applicantTypes: true,
-          capabilities: { select: { name: true, sector: true, tags: true } },
+          intakeData: true,
+          capabilities: { select: { name: true, sector: true, tags: true, keywords: true } },
           facilities: { select: { state: true } },
         },
       });

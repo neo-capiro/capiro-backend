@@ -125,6 +125,11 @@ export function OpportunityCard({
    * happened to serialise in a different order.
    */
   const explained = explainSignals(o.matchedSignals);
+  const fitLabel = !clientId
+    ? 'Not evaluated'
+    : explained.strongest
+      ? FIT_BAND_LABELS[explained.fitBand]
+      : 'No fit evidence';
 
   /**
    * Can this notice be PURSUED at all? Buttons are HIDDEN rather than
@@ -231,14 +236,14 @@ export function OpportunityCard({
           <span className="fov-fact__label">Fit</span>
           <FovPill
             tone={FIT_BAND_COLORS[explained.fitBand]}
-            ariaLabel={`Fit: ${FIT_BAND_LABELS[explained.fitBand]}`}
+            ariaLabel={`Fit: ${fitLabel}`}
             title={
               explained.strongest
                 ? `${explained.strongest.label} — matched on "${explained.strongest.matchedOn}"`
                 : 'No matching signals against this client’s recorded profile.'
             }
           >
-            {FIT_BAND_LABELS[explained.fitBand]}
+            {fitLabel}
           </FovPill>
         </span>
 
@@ -274,9 +279,10 @@ export function OpportunityCard({
           <span className="fov-fact">
             <span className="fov-fact__label">Codes</span>
             <span className="fov-fact__value">
-              {[...o.naicsCodes.map((c) => `NAICS ${c}`), ...o.pscCodes.map((c) => `PSC ${c}`)].join(
-                ' · ',
-              )}
+              {[
+                ...o.naicsCodes.map((c) => `NAICS ${c}`),
+                ...o.pscCodes.map((c) => `PSC ${c}`),
+              ].join(' · ')}
             </span>
           </span>
         ) : null}
@@ -325,14 +331,13 @@ export function OpportunityCard({
         </div>
       ) : null}
 
-      {/* The full evidence, behind a disclosure. Nothing is hidden — the
-          numeric relevance and every signal including the weak ones are here. */}
-      {o.matchedSignals.length > 0 ? (
+      {/* Fit evidence excludes eligibility context, which has its own status above. */}
+      {explained.signals.length > 0 ? (
         <FovDisclosure
           className="fov-card__evidence"
           summary={
             <span className="fov-micro">
-              Evidence ({o.matchedSignals.length}) · relevance {o.relevanceScore}
+              Fit evidence ({explained.signals.length}) · relevance {o.relevanceScore}
             </span>
           }
         >
@@ -341,8 +346,6 @@ export function OpportunityCard({
               <div key={`${s.signal}:${s.matchedOn}`} className="fov-row">
                 <FovPill tone={FIT_BAND_COLORS[s.strength]}>{s.label}</FovPill>
                 <span className="fov-micro">matched on “{s.matchedOn}”</span>
-                {/* The raw key, for anyone reconciling against the scorer. */}
-                <code className="fov-code">{s.signal}</code>
               </div>
             ))}
           </div>
@@ -352,7 +355,7 @@ export function OpportunityCard({
       {o.missingProfileFields.length > 0 ? (
         <div className="fov-card__gaps">
           <span className="fov-micro">
-            Better matching needs:{' '}
+            Complete this client’s matching profile:{' '}
             {o.missingProfileFields.map((f, i) => (
               <span key={f.field}>
                 {i > 0 ? ', ' : ''}
@@ -418,10 +421,18 @@ export function OpportunityCard({
                   Pursue
                 </CapiroButton>
               ) : null}
-              <CapiroButton size="compact" disabled={!canAct || busy} onClick={() => onAskMeri?.(o)}>
+              <CapiroButton
+                size="compact"
+                disabled={!canAct || busy}
+                onClick={() => onAskMeri?.(o)}
+              >
                 Ask Meri
               </CapiroButton>
-              <CapiroButton size="compact" disabled={!canAct || busy} onClick={() => onDismiss?.(o)}>
+              <CapiroButton
+                size="compact"
+                disabled={!canAct || busy}
+                onClick={() => onDismiss?.(o)}
+              >
                 Dismiss
               </CapiroButton>
             </>

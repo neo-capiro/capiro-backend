@@ -27,6 +27,7 @@ export interface ProfileCompleteness {
   pscCount: number;
   applicantTypeCount: number;
   capabilityCount: number;
+  fundingPriorityCount?: number;
   facilityCount: number;
   hasSector: boolean;
   /** Confirmed `contracting` ClientIntelMapping rows — the contractor identity. */
@@ -106,19 +107,19 @@ export function missingProfileFields(
   if (wantGrants && p.applicantTypeCount === 0) {
     out.push({
       field: 'applicantTypes',
-      label: 'Grants.gov applicant types',
+      label: 'Organization types',
       impact:
-        'Without them, grant eligibility can only ever be “needs review”, never “eligible”, and the applicant-type relevance signal cannot fire. Record only the legal forms this client actually qualifies as — not the full Grants.gov enum.',
+        'Select the organization types this client actually qualifies as so grant applicant eligibility can be checked. Organization type does not increase the relevance score. “Unrestricted” and “Other” describe opportunity rules and do not establish client identity.',
       href: clientSettingsHref(p.clientId),
     });
   }
 
-  if (p.capabilityCount === 0) {
+  if (p.capabilityCount === 0 && (p.fundingPriorityCount ?? 0) === 0) {
     out.push({
       field: 'capabilities',
-      label: 'Capabilities',
+      label: 'Capabilities or funding priorities',
       impact:
-        'Capability names and keywords drive the text-matching signal on both rails. With no capabilities, a notice can only match on codes and history. Distinctive multi-word phrases (not generic words like “systems” or “defense”) are what clear the suggestion floor on grants.',
+        'Add concrete capabilities or funding priorities, such as “battery recycling” or “rural broadband.” Matching checks these phrases against notice text alongside codes, sector and award history. Broad terms such as “funding” or “services” do not establish fit.',
       href: clientSettingsHref(p.clientId),
     });
   }
@@ -166,7 +167,7 @@ export function missingProfileFields(
  * The threshold is deliberately about SIGNAL SOURCES, not field count: a client
  * with codes but no capabilities can still match on codes, and one with
  * capabilities but no codes can still match on text. A client with none of
- * NAICS, PSC, applicant types, capabilities OR award history has nothing any
+ * NAICS, PSC, capabilities, funding priorities OR award history has no fit
  * signal reads, so "no matches" says nothing about the opportunity universe —
  * and the UI must say THAT rather than implying the market is empty.
  */
@@ -174,8 +175,8 @@ export function profileIsTooThin(p: ProfileCompleteness): boolean {
   return (
     p.naicsCount === 0 &&
     p.pscCount === 0 &&
-    p.applicantTypeCount === 0 &&
     p.capabilityCount === 0 &&
+    (p.fundingPriorityCount ?? 0) === 0 &&
     p.priorAssistanceListingCount === 0 &&
     p.priorAgencyCount === 0
   );

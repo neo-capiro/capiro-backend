@@ -13,6 +13,7 @@ import {
 } from '../../../../pages/clients/relevance-api.js';
 import {
   FUNDING_OPPORTUNITIES_FEATURE,
+  ELIGIBILITY_LABELS,
   KIND_LABELS,
   SOURCE_LABELS,
   formatDeadline,
@@ -22,6 +23,7 @@ import {
   type FundingOpportunity,
   type OpportunityWorkflowStatus,
 } from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
+import { explainSignals } from '../../../../pages/intelligence/opportunities/opportunity-explanations.js';
 import { LinkBtn, SecondaryBtn, CouldNotLoad, DomainStatsStrip } from './IntelligenceTab.js';
 import './intelligence-tab.css';
 
@@ -234,7 +236,8 @@ function FundingPanel({ client }: { client: Client }) {
                 Opportunities
               </span>
               <span className="capiro-intel-body" style={{ display: 'block', marginTop: 4 }}>
-                Matches use capabilities, facilities, eligibility, agencies, and Strategy context.
+                Fit uses capabilities, funding priorities, award history, and relevant programs.
+                Organization types help check grant eligibility separately.
               </span>
             </span>
             {realOpportunities ? (
@@ -316,6 +319,7 @@ function FundingPanel({ client }: { client: Client }) {
 
 function RealOppRow({ o, clientId }: { o: FundingOpportunity; clientId: string }) {
   const money = moneyLine(o);
+  const strongest = explainSignals(o.matchedSignals).strongest;
   const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
   const soon =
     deadline.daysRemaining != null && deadline.daysRemaining >= 0 && deadline.daysRemaining <= 14;
@@ -341,6 +345,14 @@ function RealOppRow({ o, clientId }: { o: FundingOpportunity; clientId: string }
           </Link>
         </span>
         <span className="capiro-intel-opp-agency">{o.agency ?? SOURCE_LABELS[o.source]}</span>
+        {strongest ? (
+          <span className="capiro-intel-opp-agency">
+            {strongest.label}: {strongest.matchedOn}
+          </span>
+        ) : null}
+        <span className="capiro-intel-opp-agency" title={o.eligibility.reason}>
+          Eligibility: {ELIGIBILITY_LABELS[o.eligibility.state]}
+        </span>
       </span>
       <span className="capiro-intel-opp-money">
         <span className="capiro-intel-opp-amount">{money.value}</span>

@@ -1,8 +1,9 @@
 /**
  * Tango agency forecasts → client recommendations. Dry-run unless --commit.
  * Reuses the read-side signal derivation and categorical scorer. Only a specific
- * program/code/capability fit creates a suggestion; location/history alone does
- * not. Estimates never populate responseDeadlineSnapshot or follow-up dates.
+ * program/code/capability fit or explicit concrete priority creates a suggestion;
+ * priority-only fit is monitor, and location/history alone does not surface.
+ * Estimates never populate responseDeadlineSnapshot or follow-up dates.
  *
  * --tenant and --client narrow scope; neither bypasses capability flags. Global
  * source reads stay outside tenant transactions. Every RLS bypass has an
@@ -253,7 +254,10 @@ export async function generateForecastCandidates(
                     existing: row,
                     relevanceScore,
                     minRelevance: options.minRelevance,
-                    meetsSuggestionFloor: scored.forecastRecommendation === 'shape_now',
+                    meetsSuggestionFloor:
+                      scored.forecastRecommendation === 'shape_now' ||
+                      (scored.forecastRecommendation === 'monitor' &&
+                        signals.fundingPriorityMatch === true),
                   });
                   const machineData = {
                     relevanceScore,
@@ -285,6 +289,25 @@ export async function generateForecastCandidates(
                                       .filter(Boolean)
                                       .join(' '),
                                     keyword,
+                                  ),
+                                )
+                                .slice(0, 3)
+                                .join(', '),
+                            },
+                          ]
+                        : []),
+                      ...(signals.fundingPriorityMatch
+                        ? [
+                            {
+                              signal: 'funding_priority_match',
+                              source: 'funding_priority',
+                              matchedOn: (profile.sam.fundingPriorities ?? [])
+                                .filter((priority) =>
+                                  containsWholeToken(
+                                    [forecast.title, forecast.description]
+                                      .filter(Boolean)
+                                      .join(' '),
+                                    priority,
                                   ),
                                 )
                                 .slice(0, 3)

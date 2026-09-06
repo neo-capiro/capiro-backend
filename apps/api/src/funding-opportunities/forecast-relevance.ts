@@ -55,6 +55,9 @@
  *     capabilities/keywords against the forecast's title/description,
  *     established by the SAME kind of scorer `sam-opportunity-relevance.ts`
  *     already uses for live solicitations — never fuzzy-matched here.
+ *   - `fundingPriorityMatch`               — a concrete topic explicitly
+ *     recorded in the client's funding priorities and named in the forecast.
+ *     Interest alone supports monitoring, never a claim of capability.
  *   - `priorAgencyHistory`                 — from `FederalBusinessProfile`
  *     (P21): a verified Tango entity observation or first-party award
  *     history with the SAME agency this forecast names.
@@ -78,8 +81,14 @@
  *     in this program.
  */
 
-import type { MachineRecommendation, RecommendationConfidence } from './opportunity-recommendation.js';
-import { FORECAST_TO_MACHINE_RECOMMENDATION, type ForecastRecommendation } from './opportunity-recommendation.js';
+import type {
+  MachineRecommendation,
+  RecommendationConfidence,
+} from './opportunity-recommendation.js';
+import {
+  FORECAST_TO_MACHINE_RECOMMENDATION,
+  type ForecastRecommendation,
+} from './opportunity-recommendation.js';
 
 export const FORECAST_REASON_CODES = [
   'forecast_inactive',
@@ -88,6 +97,7 @@ export const FORECAST_REASON_CODES = [
   'exact_naics_match',
   'exact_psc_match',
   'capability_match',
+  'funding_priority_match',
   'prior_agency_history',
   'program_element_linked',
   'location_match',
@@ -105,6 +115,8 @@ export interface ForecastRelevanceInput {
   exactNaicsMatch: boolean;
   exactPscMatch: boolean;
   capabilityMatch: boolean;
+  /** A recorded topic of interest; never a strong capability/program signal. */
+  fundingPriorityMatch?: boolean;
   priorAgencyHistory: boolean;
   /** TRUE ONLY for a source-backed link — see this file's own class doc. */
   programElementLinkedSourceBacked: boolean;
@@ -156,7 +168,8 @@ export function scoreForecastRelevance(input: ForecastRelevanceInput): ForecastR
       recommendationConfidence: 'high',
       primaryReason: 'The agency has marked this forecast inactive.',
       primaryRisk: null,
-      recommendedNextAction: 'No action. Keep it saved for reference if it informs future capture planning.',
+      recommendedNextAction:
+        'No action. Keep it saved for reference if it informs future capture planning.',
       reasonCodes: ['forecast_inactive'],
     };
   }
@@ -178,6 +191,7 @@ export function scoreForecastRelevance(input: ForecastRelevanceInput): ForecastR
   if (input.exactNaicsMatch) codes.push('exact_naics_match');
   if (input.exactPscMatch) codes.push('exact_psc_match');
   if (input.capabilityMatch) codes.push('capability_match');
+  if (input.fundingPriorityMatch) codes.push('funding_priority_match');
   if (input.priorAgencyHistory) codes.push('prior_agency_history');
   if (input.programElementLinkedSourceBacked) codes.push('program_element_linked');
   if (input.locationMatch) codes.push('location_match');
@@ -201,12 +215,16 @@ export function scoreForecastRelevance(input: ForecastRelevanceInput): ForecastR
 
   // ── Rule 4: an exact program or capability match — shape now ────────────
   const hasStrongMatch =
-    input.exactNaicsMatch || input.exactPscMatch || input.capabilityMatch || input.programElementLinkedSourceBacked;
+    input.exactNaicsMatch ||
+    input.exactPscMatch ||
+    input.capabilityMatch ||
+    input.programElementLinkedSourceBacked;
   if (hasStrongMatch) {
     return {
       forecastRecommendation: 'shape_now',
       machineRecommendation: toCommon('shape_now'),
-      recommendationConfidence: input.priorAgencyHistory || input.knownVehicleAccess ? 'high' : 'medium',
+      recommendationConfidence:
+        input.priorAgencyHistory || input.knownVehicleAccess ? 'high' : 'medium',
       primaryReason: "An exact program or capability match against this client's recorded profile.",
       primaryRisk: input.knownVehicleAccess
         ? null
@@ -216,20 +234,28 @@ export function scoreForecastRelevance(input: ForecastRelevanceInput): ForecastR
     };
   }
 
-  // ── Rule 5: weaker evidence only (location/vehicle/strategic priority alone) — monitor ──
+  // ── Rule 5: weaker evidence only (interest/location/vehicle/strategic priority) — monitor ──
   return {
     forecastRecommendation: 'monitor',
     machineRecommendation: toCommon('monitor'),
     recommendationConfidence: 'low',
-    primaryReason: 'Some evidence ties this forecast to the client, but no exact program or capability match.',
+    primaryReason: input.fundingPriorityMatch
+      ? 'The forecast names a recorded funding priority; program or capability fit still needs confirmation.'
+      : 'Some evidence ties this forecast to the client, but no exact program or capability match.',
     primaryRisk: null,
     recommendedNextAction: 'Watch for a linked solicitation, or confirm interest with the client.',
     reasonCodes: codes,
   };
 }
 
-function shapeNowAction(input: ForecastRelevanceInput, approaching: boolean, days: number | null): string {
-  const urgency = approaching ? ` The agency's own anticipated award estimate is ${days} day${days === 1 ? '' : 's'} out.` : '';
+function shapeNowAction(
+  input: ForecastRelevanceInput,
+  approaching: boolean,
+  days: number | null,
+): string {
+  const urgency = approaching
+    ? ` The agency's own anticipated award estimate is ${days} day${days === 1 ? '' : 's'} out.`
+    : '';
   if (!input.knownVehicleAccess) {
     return `Research the program office and confirm a route to compete before a solicitation posts.${urgency}`;
   }

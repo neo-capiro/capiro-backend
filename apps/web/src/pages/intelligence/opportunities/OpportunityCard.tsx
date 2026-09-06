@@ -19,11 +19,7 @@ import {
   type AcquisitionPositionState,
   type FundingOpportunity,
 } from './funding-opportunities-api.js';
-import {
-  FIT_BAND_COLORS,
-  FIT_BAND_LABELS,
-  explainSignals,
-} from './opportunity-explanations.js';
+import { FIT_BAND_COLORS, FIT_BAND_LABELS, explainSignals } from './opportunity-explanations.js';
 
 const { Text, Paragraph } = Typography;
 
@@ -119,6 +115,11 @@ export function OpportunityCard({
    * to serialise in a different order.
    */
   const explained = explainSignals(o.matchedSignals);
+  const fitLabel = !clientId
+    ? 'Not evaluated'
+    : explained.strongest
+      ? FIT_BAND_LABELS[explained.fitBand]
+      : 'No fit evidence';
 
   /**
    * Can this notice be PURSUED at all?
@@ -202,7 +203,10 @@ export function OpportunityCard({
           <Text className="fo-fact__value">
             {deadline.text}
             {deadline.daysRemaining != null && deadline.daysRemaining >= 0 ? (
-              <Text type={deadline.daysRemaining <= 14 ? 'danger' : 'secondary'} style={{ fontSize: 11 }}>
+              <Text
+                type={deadline.daysRemaining <= 14 ? 'danger' : 'secondary'}
+                style={{ fontSize: 11 }}
+              >
                 {' '}
                 ({deadline.daysRemaining}d)
               </Text>
@@ -237,8 +241,8 @@ export function OpportunityCard({
                 : 'No matching signals against this client’s recorded profile.'
             }
           >
-            <Tag color={FIT_BAND_COLORS[explained.fitBand]} aria-label={`Fit: ${FIT_BAND_LABELS[explained.fitBand]}`}>
-              {FIT_BAND_LABELS[explained.fitBand]}
+            <Tag color={FIT_BAND_COLORS[explained.fitBand]} aria-label={`Fit: ${fitLabel}`}>
+              {fitLabel}
             </Tag>
           </Tooltip>
         </span>
@@ -289,9 +293,10 @@ export function OpportunityCard({
               Codes
             </Text>
             <Text className="fo-fact__value">
-              {[...o.naicsCodes.map((c) => `NAICS ${c}`), ...o.pscCodes.map((c) => `PSC ${c}`)].join(
-                ' · ',
-              )}
+              {[
+                ...o.naicsCodes.map((c) => `NAICS ${c}`),
+                ...o.pscCodes.map((c) => `PSC ${c}`),
+              ].join(' · ')}
             </Text>
           </span>
         ) : null}
@@ -352,13 +357,8 @@ export function OpportunityCard({
         </div>
       ) : null}
 
-      {/*
-        The full evidence, behind a disclosure. Nothing is hidden — the numeric
-        relevance and every signal including the weak ones are here, because an
-        operator judging a match needs to see that most of the evidence was thin.
-        They are just not what the card leads with.
-      */}
-      {o.matchedSignals.length > 0 ? (
+      {/* Eligibility context has its own status and is not counted as fit evidence. */}
+      {explained.signals.length > 0 ? (
         <Collapse
           ghost
           size="small"
@@ -368,7 +368,7 @@ export function OpportunityCard({
               key: 'evidence',
               label: (
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  Evidence ({o.matchedSignals.length}) · relevance {o.relevanceScore}
+                  Fit evidence ({explained.signals.length}) · relevance {o.relevanceScore}
                 </Text>
               ),
               children: (
@@ -380,10 +380,6 @@ export function OpportunityCard({
                       </Tag>
                       <Text type="secondary" style={{ fontSize: 11 }}>
                         matched on “{s.matchedOn}”
-                      </Text>
-                      {/* The raw key, for anyone reconciling against the scorer. */}
-                      <Text type="secondary" style={{ fontSize: 10, marginLeft: 6 }} code>
-                        {s.signal}
                       </Text>
                     </div>
                   ))}
@@ -397,7 +393,7 @@ export function OpportunityCard({
       {o.missingProfileFields.length > 0 ? (
         <div className="fo-card__gaps">
           <Text type="secondary" style={{ fontSize: 11 }}>
-            Better matching needs:{' '}
+            Complete this client’s matching profile:{' '}
             {o.missingProfileFields.map((f, i) => (
               <span key={f.field}>
                 {i > 0 ? ', ' : ''}
@@ -503,11 +499,16 @@ export function OpportunityCard({
                 if (key === 'note') onNote?.(o);
                 if (key === 'site') onLinkSite?.(o);
                 if (key === 'task') onCreateTask?.(o);
-                if (key === 'source' && o.sourceUrl) window.open(o.sourceUrl, '_blank', 'noreferrer');
+                if (key === 'source' && o.sourceUrl)
+                  window.open(o.sourceUrl, '_blank', 'noreferrer');
               },
             }}
           >
-            <Button size="small" icon={<EllipsisOutlined />} aria-label={`More actions for ${o.title}`} />
+            <Button
+              size="small"
+              icon={<EllipsisOutlined />}
+              aria-label={`More actions for ${o.title}`}
+            />
           </Dropdown>
         </Space>
         {!canAct ? (

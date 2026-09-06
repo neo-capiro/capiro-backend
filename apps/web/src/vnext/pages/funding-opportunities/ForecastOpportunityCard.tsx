@@ -9,6 +9,7 @@ import {
   type InboxRow,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 import { FovCard, FovPill } from './fov-ui.js';
+import { forecastAssessmentReason } from '../../../pages/intelligence/opportunities/opportunity-explanations.js';
 
 /**
  * One agency procurement forecast, in the triage inbox — vNext port of the
@@ -43,6 +44,7 @@ export function ForecastOpportunityCard({
   onAction?: (action: ForecastAction) => void;
 }) {
   const facts = row.forecast;
+  const assessmentReason = forecastAssessmentReason(row.matchSignals);
 
   return (
     <FovCard className="fov-card--forecast" testId={`fo-forecast-row-${row.id}`}>
@@ -97,6 +99,12 @@ export function ForecastOpportunityCard({
           {row.title}
         </button>
       </div>
+      {assessmentReason ? (
+        <p className="fov-muted" data-testid="fo-forecast-fit-reason">
+          {assessmentReason}
+        </p>
+      ) : null}
+
       <div className="fov-card__meta">
         <span className="fov-muted">
           {row.agency ?? 'Agency not stated'}

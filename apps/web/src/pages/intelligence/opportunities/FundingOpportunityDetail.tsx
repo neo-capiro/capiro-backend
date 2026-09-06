@@ -14,10 +14,7 @@ import { OpportunityActionPlan } from './OpportunityActionPlan.js';
 import { MeriOpportunityAssessment } from './MeriOpportunityAssessment.js';
 import { OpportunityBudgetContext } from './OpportunityBudgetContext.js';
 import { OpportunityRiskPanel } from './OpportunityRiskPanel.js';
-import {
-  DetailSectionBoundary,
-  OpportunityAssessmentPanel,
-} from './OpportunityAssessmentPanel.js';
+import { DetailSectionBoundary, OpportunityAssessmentPanel } from './OpportunityAssessmentPanel.js';
 import {
   DIBBS_NO_DETAIL_DESCRIPTION,
   DIBBS_NO_DETAIL_MESSAGE,
@@ -141,7 +138,8 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
      * "Not found" on a network blip would tell somebody a live solicitation had
      * been withdrawn.
      */
-    const status = (query.error as { response?: { status?: number } } | undefined)?.response?.status;
+    const status = (query.error as { response?: { status?: number } } | undefined)?.response
+      ?.status;
     const notFound = status === 404;
     return (
       <div data-testid={notFound ? 'fo-detail-not-found' : 'fo-detail-error'}>
@@ -231,7 +229,11 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
             label="Fit"
             value={
               <Tag color={FIT_BAND_COLORS[explained.fitBand]}>
-                {FIT_BAND_LABELS[explained.fitBand]}
+                {unscored
+                  ? 'Not evaluated'
+                  : explained.strongest
+                    ? FIT_BAND_LABELS[explained.fitBand]
+                    : 'No fit evidence'}
               </Tag>
             }
           />
@@ -246,7 +248,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           <Fact label="Relevance score" value={unscored ? 'Not calculated' : o.relevanceScore} />
         </div>
         <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-          {o.eligibility.reason}
+          Eligibility: {o.eligibility.reason}
         </Paragraph>
         {explained.signals.length > 0 ? (
           <Space direction="vertical" size={2} style={{ width: '100%' }}>
@@ -265,13 +267,13 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           <Text type="secondary" style={{ fontSize: 12 }}>
             {unscored
               ? 'No client selected, so no signals were evaluated.'
-              : 'No matching signals against this client’s recorded profile. That is an absence of evidence, not evidence of a poor fit.'}
+              : 'No fit evidence in this client’s recorded profile. Add specific capabilities or funding priorities to improve matching; organization types are used separately to check grant eligibility.'}
           </Text>
         )}
         {o.missingProfileFields.length > 0 ? (
           <div className="fo-card__gaps" style={{ marginTop: 8 }}>
             <Text type="secondary" style={{ fontSize: 11 }}>
-              Better matching needs:{' '}
+              Complete this client’s matching profile:{' '}
               {o.missingProfileFields.map((f, i) => (
                 <span key={f.field}>
                   {i > 0 ? ', ' : ''}
@@ -367,7 +369,10 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
             label="Team decision"
             value={o.decision ? o.decision.decision : 'No decision recorded'}
           />
-          <Fact label="Workflow stage" value={o.workflow ? WORKFLOW_LABELS[o.workflow.status] : 'Not started'} />
+          <Fact
+            label="Workflow stage"
+            value={o.workflow ? WORKFLOW_LABELS[o.workflow.status] : 'Not started'}
+          />
           <Fact
             label="Owner"
             value={o.workflow?.owner?.name ?? o.workflow?.owner?.email ?? 'Unassigned'}

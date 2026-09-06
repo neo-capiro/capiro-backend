@@ -31,6 +31,10 @@ import {
   type PipelineStageView,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 import { refreshOpportunityQueries, sourceWebUrl } from './opportunity-query-cache.js';
+import {
+  isFitSignal,
+  signalLabel,
+} from '../../../pages/intelligence/opportunities/opportunity-explanations.js';
 import { FundingOpportunityDrawer } from './FundingOpportunityDrawer.js';
 import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
 import { FovAlert, FovCard, FovPill, FovSkeletonRows } from './fov-ui.js';
@@ -452,12 +456,14 @@ function fitReasons(row: InboxRow): string[] {
             : '';
       if (
         !matchedOn ||
-        (typeof record.weight === 'number' && record.weight <= 0) ||
+        !isFitSignal({
+          signal: kind,
+          weight: typeof record.weight === 'number' ? record.weight : undefined,
+        }) ||
         /applicant|eligib|geograph|small.business/i.test(kind)
       )
         return [];
       const labels: Record<string, string> = {
-        capabilityKeyword: 'Capability match',
         exactNaics: 'NAICS match',
         exactNaicsMatch: 'NAICS match',
         priorAssistanceListing: 'Prior grant program',
@@ -466,12 +472,21 @@ function fitReasons(row: InboxRow): string[] {
       };
       const label =
         labels[kind] ??
-        kind
-          .replace(/([a-z])([A-Z])/g, '$1 $2')
-          .replaceAll('_', ' ')
-          .toLowerCase();
+        signalLabel(
+          kind,
+          record.source === 'funding_priority' || record.source === 'capability'
+            ? record.source
+            : undefined,
+        );
+      const displayLabel =
+        label === 'Unrecognized match signal'
+          ? kind
+              .replace(/([a-z])([A-Z])/g, '$1 $2')
+              .replaceAll('_', ' ')
+              .toLowerCase()
+          : label;
       return [
-        `${label ? label[0]!.toUpperCase() + label.slice(1) : 'Matched evidence'}: ${matchedOn}`,
+        `${displayLabel ? displayLabel[0]!.toUpperCase() + displayLabel.slice(1) : 'Matched evidence'}: ${matchedOn}`,
       ];
     })
     .slice(0, 2);
@@ -561,7 +576,7 @@ function OpportunityRow({
         </span>
         {row.source === 'sam_gov' || row.source === 'grants_gov' ? (
           <span>
-            <span className="fov-filter-label">Eligibility</span>
+            <span className="fov-filter-label">Last assessed eligibility</span>
             {row.eligibility.state
               ? (ELIGIBILITY_LABELS[row.eligibility.state as EligibilityState] ??
                 row.eligibility.state)
@@ -601,7 +616,7 @@ function OpportunityRow({
       </div>
       {reasons.length ? (
         <div className="fo-simple-row__fit">
-          <span className="fov-filter-label">Why it matched</span>
+          <span className="fov-filter-label">Last assessed match</span>
           {reasons.map((reason) => (
             <span key={reason}>{reason}</span>
           ))}
@@ -611,6 +626,14 @@ function OpportunityRow({
           Review the source details and client requirements before deciding.
         </p>
       )}
+      {row.source === 'grants_gov' || row.source === 'sam_gov' || forecast ? (
+        <p className="fov-micro">
+          This saved assessment may predate profile changes.{' '}
+          <button type="button" className="fov-link" onClick={onOpenDetail}>
+            View current match
+          </button>
+        </p>
+      ) : null}
       {tracking ? (
         <div className="fo-simple-row__next">
           <strong>Next action</strong>

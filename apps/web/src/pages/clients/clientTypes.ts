@@ -58,6 +58,8 @@ export interface ClientIntakeData extends Record<string, unknown> {
   sector?: string;
   trl?: string | number;
   fundingAsk?: string;
+  /** Concrete projects or outcomes the client is seeking funding for. */
+  fundingPriorities?: string[];
   requestType?: string;
   peNumber?: string;
   engagement?: string;
@@ -244,6 +246,7 @@ export interface ClientFormValues {
   applicantTypes?: string[];
   setAsideCertifications?: string[];
   // Sector & tracks (step 3)
+  fundingPriorities?: string[];
   engagementStartDate?: string;
   internalNotes?: string;
   // ── Legacy fields retained for back-compat reads elsewhere in the app.

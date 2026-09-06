@@ -1,22 +1,21 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   SECTOR_LABELS,
   SECTOR_TAGS,
   SUBMISSION_TRACKS,
   SUBMISSION_TRACK_LABELS,
-  GRANTS_GOV_APPLICANT_TYPES,
+  MAX_FUNDING_PRIORITIES,
+  MAX_FUNDING_PRIORITY_LENGTH,
 } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
-import type { Client, ClientFormSubmit, ClientFormValues } from '../../../pages/clients/clientTypes.js';
+import type {
+  Client,
+  ClientFormSubmit,
+  ClientFormValues,
+} from '../../../pages/clients/clientTypes.js';
 import { SET_ASIDE_CERTIFICATION_OPTIONS } from '../../../pages/clients/client-registrations.js';
+import { OrganizationTypesField } from '../../../pages/clients/OrganizationTypesField.js';
 import {
   CLIENT_FORM_STEP_FIELDS,
   CLIENT_FORM_STEP_TITLES,
@@ -75,7 +74,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * primaryContactEmail must parse as an email when present. Everything else is
  * optional. Returns the message to show, or undefined when valid.
  */
-function validateField(field: keyof ClientFormValues, values: ClientFormValues): string | undefined {
+function validateField(
+  field: keyof ClientFormValues,
+  values: ClientFormValues,
+): string | undefined {
   if (field === 'name' && !(values.name ?? '').trim()) return 'Legal name is required';
   if (field === 'website' && !(values.website ?? '').trim()) return 'Website is required';
   if (field === 'description' && !(values.description ?? '').trim())
@@ -103,6 +105,7 @@ export function ClientFormDialogVNext({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [priorityInputError, setPriorityInputError] = useState<string | undefined>();
   // The footer's LAST button changes identity across the one transition where
   // isLastStep flips (Gov't Registration -> Sector & Tracks): "Next" (type
   // button) is replaced by "Save changes"/"Add client" (type submit) in the
@@ -121,6 +124,7 @@ export function ClientFormDialogVNext({
     setErrors({});
     setLogoFile(null);
     setCurrentStep(0);
+    setPriorityInputError(undefined);
   }, [client, open]);
 
   const isLastStep = currentStep === CLIENT_FORM_STEP_TITLES.length - 1;
@@ -132,7 +136,9 @@ export function ClientFormDialogVNext({
     // so the message clears the moment the input becomes valid (antd's
     // post-failure validateTrigger behavior).
     setErrors((existing) =>
-      existing[field] === undefined ? existing : { ...existing, [field]: validateField(field, next) },
+      existing[field] === undefined
+        ? existing
+        : { ...existing, [field]: validateField(field, next) },
     );
   };
 
@@ -186,6 +192,11 @@ export function ClientFormDialogVNext({
   // (display:none) step would otherwise give zero feedback. Jump to the step
   // that owns the first errored field, then focus/scroll it once visible.
   function handleSubmit() {
+    if (priorityInputError) {
+      setCurrentStep(2);
+      focusField('fundingPriorities');
+      return;
+    }
     for (let step = 0; step < CLIENT_FORM_STEP_FIELDS.length; step += 1) {
       const invalid = validateStep(step);
       if (invalid) {
@@ -245,7 +256,12 @@ export function ClientFormDialogVNext({
             <GovRegistrationStep values={values} set={set} />
           </div>
           <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
-            <SectorTracksStep values={values} set={set} enabled={open} />
+            <SectorTracksStep
+              values={values}
+              set={set}
+              enabled={open}
+              onPriorityValidationChange={setPriorityInputError}
+            />
           </div>
 
           {/* Logo — separate wired upload feature, shown on every step so it
@@ -264,7 +280,12 @@ export function ClientFormDialogVNext({
           />
 
           <div className="capiro-cform__footer">
-            <CapiroButton variant="secondary" size="standard" onClick={onCancel} disabled={stepTransitioning}>
+            <CapiroButton
+              variant="secondary"
+              size="standard"
+              onClick={onCancel}
+              disabled={stepTransitioning}
+            >
               Cancel
             </CapiroButton>
             {currentStep > 0 ? (
@@ -372,12 +393,24 @@ function CompanyInfoStep({ values, errors = {}, set }: StepProps) {
         Small Business Classification
       </div>
       <div className="capiro-cform__checkgrid">
-        <CformCheck label="Small Business (SB)" checked={values.sbSb} onChange={(v) => set('sbSb', v)} />
+        <CformCheck
+          label="Small Business (SB)"
+          checked={values.sbSb}
+          onChange={(v) => set('sbSb', v)}
+        />
         <CformCheck label="WOSB" checked={values.sbWosb} onChange={(v) => set('sbWosb', v)} />
         <CformCheck label="SDVOSB" checked={values.sbSdvosb} onChange={(v) => set('sbSdvosb', v)} />
-        <CformCheck label="HUBZone" checked={values.sbHubzone} onChange={(v) => set('sbHubzone', v)} />
+        <CformCheck
+          label="HUBZone"
+          checked={values.sbHubzone}
+          onChange={(v) => set('sbHubzone', v)}
+        />
         <CformCheck label="8(a)" checked={values.sbEightA} onChange={(v) => set('sbEightA', v)} />
-        <CformCheck label="Large Business" checked={values.sbLarge} onChange={(v) => set('sbLarge', v)} />
+        <CformCheck
+          label="Large Business"
+          checked={values.sbLarge}
+          onChange={(v) => set('sbLarge', v)}
+        />
         <CformCheck
           label="Foreign-owned"
           checked={values.sbForeignOwned}
@@ -464,12 +497,9 @@ function GovRegistrationStep({ values, set }: StepProps) {
           leaving a client that looks configured and still never evaluates as
           eligible, which is worse than leaving it empty. */}
       <div className="capiro-cform__span2">
-        <MultiCheckField
+        <OrganizationTypesField
           id={fieldId('applicantTypes')}
-          label="Grant applicant types"
-          helpText="What this client qualifies as on Grants.gov. Drives the District Nexus grant-eligibility column — until it is set, every opportunity reads “needs review” rather than eligible."
-          options={GRANTS_GOV_APPLICANT_TYPES.map((t) => ({ value: t, label: t }))}
-          values={values.applicantTypes ?? []}
+          value={values.applicantTypes ?? []}
           onChange={(list) => set('applicantTypes', list)}
         />
       </div>
@@ -491,7 +521,15 @@ function GovRegistrationStep({ values, set }: StepProps) {
 
 /* ── Step 3: Sector & Tracks ─────────────────────────────────────────────── */
 
-function SectorTracksStep({ values, set, enabled }: StepProps & { enabled: boolean }) {
+function SectorTracksStep({
+  values,
+  set,
+  enabled,
+  onPriorityValidationChange,
+}: StepProps & {
+  enabled: boolean;
+  onPriorityValidationChange: (error: string | undefined) => void;
+}) {
   const api = useApi();
   // LDA issue-code reference list (code + English name), for the client-level
   // matching override below.
@@ -510,6 +548,19 @@ function SectorTracksStep({ values, set, enabled }: StepProps & { enabled: boole
         options={SECTOR_TAGS.map((t) => ({ value: t, label: SECTOR_LABELS[t] }))}
         values={values.sectors ?? []}
         onChange={(list) => set('sectors', list)}
+      />
+
+      <TagListField
+        id={fieldId('fundingPriorities')}
+        label="Funding priorities"
+        placeholder="Rural broadband, battery recycling, workforce training"
+        helpText="Add concrete projects or outcomes you want funded. Press Enter or comma after each phrase. Up to 20 priorities, 120 characters each; matching also considers capabilities and award history."
+        values={values.fundingPriorities ?? []}
+        onChange={(list) => set('fundingPriorities', list)}
+        phrases
+        maxItems={MAX_FUNDING_PRIORITIES}
+        maxTokenLength={MAX_FUNDING_PRIORITY_LENGTH}
+        onValidationChange={onPriorityValidationChange}
       />
 
       <CheckGroupField
@@ -615,7 +666,11 @@ function CformCheck({
 }) {
   return (
     <label className="capiro-cform__check">
-      <input type="checkbox" checked={Boolean(checked)} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={Boolean(checked)}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       <span>{label}</span>
     </label>
   );
@@ -723,7 +778,12 @@ function MultiCheckField({
           onChange={(e) => setFilter(e.target.value)}
         />
       ) : null}
-      <div className="capiro-cform__checklist" role="group" aria-label={label} id={searchable ? undefined : id}>
+      <div
+        className="capiro-cform__checklist"
+        role="group"
+        aria-label={label}
+        id={searchable ? undefined : id}
+      >
         {loading ? (
           <span className="capiro-field__help">Loading…</span>
         ) : visible.length === 0 ? (
@@ -762,6 +822,10 @@ function TagListField({
   helpText,
   values,
   onChange,
+  phrases = false,
+  maxItems,
+  maxTokenLength,
+  onValidationChange,
 }: {
   id?: string;
   label: string;
@@ -769,17 +833,44 @@ function TagListField({
   helpText?: string;
   values: string[];
   onChange: (values: string[]) => void;
+  phrases?: boolean;
+  maxItems?: number;
+  maxTokenLength?: number;
+  onValidationChange?: (error: string | undefined) => void;
 }) {
   const [pending, setPending] = useState('');
-  const commit = (raw: string) => {
+  const parsePending = (raw: string) => {
     const tokens = raw
-      .split(/[\s,]+/)
-      .map((t) => t.trim())
+      .split(phrases ? /[,\n]+/ : /[\s,]+/)
+      .map((t) => t.trim().replace(/\s+/g, ' '))
       .filter(Boolean);
-    if (!tokens.length) return;
     const next = [...values];
-    for (const token of tokens) if (!next.includes(token)) next.push(token);
+    for (const token of tokens) {
+      if (
+        !next.some((value) =>
+          phrases ? value.toLowerCase() === token.toLowerCase() : value === token,
+        )
+      )
+        next.push(token);
+    }
+    const message =
+      maxTokenLength && tokens.some((token) => token.length > maxTokenLength)
+        ? `Keep each priority to ${maxTokenLength} characters or fewer.`
+        : maxItems && next.length > maxItems
+          ? `Add up to ${maxItems} priorities. Remove one before adding another.`
+          : undefined;
+    return { next, message };
+  };
+  const error = parsePending(pending).message;
+  useEffect(() => {
+    onValidationChange?.(error);
+  }, [error, onValidationChange]);
+  const commit = (raw: string) => {
+    const { next, message } = parsePending(raw);
+    if (message) return false;
+    if (!raw.trim()) return true;
     onChange(next);
+    return true;
   };
   return (
     <label className="capiro-field" htmlFor={id}>
@@ -806,22 +897,29 @@ function TagListField({
         className="capiro-input"
         placeholder={placeholder}
         value={pending}
-        onChange={(e) => setPending(e.target.value)}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error && id ? `${id}-error` : undefined}
+        onChange={(e) => {
+          setPending(e.target.value);
+        }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+          if (e.key === 'Enter' || e.key === ',' || (!phrases && e.key === ' ')) {
             e.preventDefault();
-            commit(pending);
-            setPending('');
+            if (commit(pending)) setPending('');
           } else if (e.key === 'Backspace' && !pending && values.length) {
             onChange(values.slice(0, -1));
           }
         }}
         onBlur={() => {
-          commit(pending);
-          setPending('');
+          if (commit(pending)) setPending('');
         }}
       />
       {helpText ? <span className="capiro-field__help">{helpText}</span> : null}
+      {error ? (
+        <span id={id ? `${id}-error` : undefined} className="capiro-field__error" role="alert">
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }

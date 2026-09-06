@@ -369,6 +369,29 @@ function makeService(state: FakeState) {
 // ── Discovery without producer rows ──────────────────────────────────────────
 
 describe('grant + contract discovery works with NO producer candidate rows', () => {
+  test('funding priorities reach discovery, live match reasons and clear without a producer run', async () => {
+    const state = makeState();
+    state.client = {
+      ...state.client,
+      capabilities: [],
+      intakeData: { fundingPriorities: ['turbofan'], fundingAsk: '$200,000' },
+    };
+    const { service, prisma } = makeService(state);
+    const result = await service.listClientOpportunities(TENANT, CLIENT, {});
+    for (const source of ['grants_gov', 'sam_gov']) {
+      expect(result.opportunities.find((row) => row.source === source)?.matchedSignals).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ signal: 'capabilityKeyword', matchedOn: 'turbofan', source: 'funding_priority' }),
+        ]),
+      );
+    }
+    expect(JSON.stringify(prisma.federalGrant.findMany.mock.calls)).toContain('turbofan');
+    expect(JSON.stringify(prisma.samOpportunity.findMany.mock.calls)).toContain('turbofan');
+    state.client.intakeData = { fundingPriorities: [] };
+    const cleared = await service.listClientOpportunities(TENANT, CLIENT, {});
+    expect(cleared.opportunities.find((row) => row.source === 'grants_gov')).toBeUndefined();
+    expect(cleared.opportunities.flatMap((row) => row.matchedSignals).some((signal) => signal.source === 'funding_priority')).toBe(false);
+  });
   test('a client with matching NAICS sees the contract opportunity with no workflow row anywhere', async () => {
     const { service, state } = makeService(makeState());
     expect(state.workflows).toHaveLength(0);

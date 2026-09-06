@@ -8,6 +8,7 @@ import {
   type ForecastAction,
   type InboxRow,
 } from './funding-opportunities-api.js';
+import { forecastAssessmentReason } from './opportunity-explanations.js';
 
 const { Text } = Typography;
 
@@ -62,9 +63,14 @@ export function ForecastOpportunityCard({
   onAction?: (action: ForecastAction) => void;
 }) {
   const facts = row.forecast;
+  const assessmentReason = forecastAssessmentReason(row.matchSignals);
 
   return (
-    <Card size="small" className="fo-card fo-card--forecast" data-testid={`fo-forecast-row-${row.id}`}>
+    <Card
+      size="small"
+      className="fo-card fo-card--forecast"
+      data-testid={`fo-forecast-row-${row.id}`}
+    >
       <div className="fo-inbox-row__head">
         <Space size={6} wrap>
           <Button
@@ -118,6 +124,12 @@ export function ForecastOpportunityCard({
           {row.title}
         </Button>
       </div>
+      {assessmentReason ? (
+        <Typography.Paragraph type="secondary" data-testid="fo-forecast-fit-reason">
+          {assessmentReason}
+        </Typography.Paragraph>
+      ) : null}
+
       <div className="fo-card__meta">
         <Text type="secondary" style={{ fontSize: 12 }}>
           {row.agency ?? 'Agency not stated'}

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { fundingPrioritiesFromIntake } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
@@ -1064,7 +1065,8 @@ export class DistrictNexusService {
         select: {
           sectorTag: true,
           applicantTypes: true,
-          capabilities: { select: { name: true, sector: true, tags: true } },
+          intakeData: true,
+          capabilities: { select: { name: true, sector: true, tags: true, keywords: true } },
           facilities: { select: { state: true } },
         },
       }),
@@ -1095,6 +1097,7 @@ export class DistrictNexusService {
       // Archived client → `client` is null here, so this stays empty and F3
       // eligibility reports needs_review, matching every other field above.
       applicantTypes: client?.applicantTypes ?? [],
+      fundingPriorities: fundingPrioritiesFromIntake(client?.intakeData),
     });
   }
 

@@ -6,11 +6,14 @@ import { FundingOpportunityExplore } from './FundingOpportunityExplore.js';
 import { OpportunityClientActions } from './OpportunityClientActions.js';
 import { TangoOpportunityDetail } from './TangoOpportunityDetail.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
+import { OpportunityCard } from './OpportunityCard.js';
+import { ForecastOpportunityCard } from './ForecastOpportunityCard.js';
 import { useUrlState } from '../../../pages/intelligence/opportunities/funding-opportunities-url-state.js';
 import {
   decodeOpportunityRef,
   encodeOpportunityRef,
   type ForecastOpportunityRecord,
+  type InboxRow,
   type FundingOpportunity,
   type FundingOpportunityListResponse,
   type OpportunityWorkflowStatus,
@@ -318,6 +321,101 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Browse source selection and existing shared links', () => {
+  test('a forecast card explains a priority-only assessment without calling it a capability match', () => {
+    const record: InboxRow = {
+      id: 'forecast-workflow',
+      source: 'agency_forecast',
+      sourceRecordId: 'forecast-1',
+      client: { id: 'client-2', name: 'Beta Systems' },
+      title: 'Future aircraft maintenance',
+      agency: 'Air Force',
+      forecast: null,
+      dibbs: null,
+      sbir: null,
+      responseDeadline: null,
+      daysUntilDeadline: null,
+      workflowStatus: 'suggested',
+      humanDecision: null,
+      nextAction: null,
+      nextActionDueAt: null,
+      owner: null,
+      relevanceScore: 15,
+      eligibility: { state: null, reason: null },
+      noLongerSuggested: false,
+      sourceClosed: false,
+      updatedAt: NOW,
+      matchSignals: [
+        {
+          signal: 'forecast_assessment',
+          forecastRecommendation: 'monitor',
+          recommendationConfidence: 'low',
+          primaryReason: 'A recorded funding priority matches; confirm capability fit.',
+          recommendedNextAction: 'Review scope.',
+          reasonCodes: ['funding_priority_match'],
+        },
+      ],
+    };
+    mount(<ForecastOpportunityCard row={record} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />);
+    expect(screen.getByTestId('fo-forecast-fit-reason')).toHaveTextContent(
+      'A recorded funding priority matches; confirm capability fit.',
+    );
+    expect(screen.queryByText('Capability match')).not.toBeInTheDocument();
+  });
+
+  test('the detailed card counts only substantive fit evidence and identifies priority phrases', () => {
+    mount(
+      <OpportunityCard
+        clientId="client-2"
+        opportunity={{
+          ...opportunity(),
+          matchedSignals: [
+            {
+              signal: 'applicantType',
+              strength: 'weak',
+              weight: 25,
+              matchedOn: 'County governments',
+            },
+            { signal: 'stateRestriction', strength: 'weak', weight: 15, matchedOn: 'VA' },
+            {
+              signal: 'capabilityKeyword',
+              source: 'funding_priority',
+              strength: 'moderate',
+              weight: 15,
+              matchedOn: 'rural broadband deployment',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText('Fit evidence (1) · relevance 0')).toBeInTheDocument();
+    expect(screen.getAllByText('Funding priority match').length).toBeGreaterThan(0);
+    expect(screen.getByText('matched on "rural broadband deployment"')).toBeInTheDocument();
+    expect(screen.queryByText(/County governments/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Restricted to a state/)).not.toBeInTheDocument();
+  });
+
+  test('eligibility-only cards show no fit evidence instead of a weak fit judgment', () => {
+    mount(
+      <OpportunityCard
+        clientId="client-2"
+        opportunity={{
+          ...opportunity(),
+          matchedSignals: [
+            {
+              signal: 'applicantType',
+              strength: 'weak',
+              weight: 25,
+              matchedOn: 'Small businesses',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText('No fit evidence')).toBeInTheDocument();
+    expect(screen.queryByText(/Fit evidence \(/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Strongest reason')).not.toBeInTheDocument();
+  });
+
   test('a new Browse visit requests one federal contract feed', async () => {
     mount(<FundingOpportunityExplore clientId={undefined} />);
     await screen.findByText('No records match this search');
@@ -666,6 +764,38 @@ describe('Tango and forecast details use real records and actions', () => {
     );
     await waitFor(() =>
       expect(success).toHaveBeenCalledWith('Watching. Find this opportunity in Tracking.'),
+    );
+  });
+  test('forecast evidence distinguishes a recorded funding priority from a capability', async () => {
+    forecastResponse = forecast({
+      recommendation: {
+        forecastRecommendation: 'monitor',
+        machineRecommendation: 'monitor',
+        recommendationConfidence: 'low',
+        primaryReason: 'A recorded funding priority matches; confirm capability fit.',
+        primaryRisk: null,
+        recommendedNextAction: 'Confirm scope when the solicitation is released.',
+        reasonCodes: ['funding_priority_match'],
+        signals: {
+          exactNaicsMatch: false,
+          exactPscMatch: false,
+          capabilityMatch: false,
+          fundingPriorityMatch: true,
+          priorAgencyHistory: false,
+          programElementLinkedSourceBacked: false,
+          locationMatch: false,
+          knownVehicleAccess: false,
+          reviewedStrategicPriority: false,
+          unavailable: [],
+        },
+      },
+    });
+    mount(<ForecastOpportunityDetail forecastId="forecast/7" clientId="client-2" />);
+    expect(await screen.findByTestId('fo-forecast-signal-fundingPriorityMatch')).toHaveTextContent(
+      'Recorded funding priority match: yes',
+    );
+    expect(screen.getByTestId('fo-forecast-signal-capabilityMatch')).toHaveTextContent(
+      'Recorded capability match: no match',
     );
   });
   test('a forecast read failure is distinct from a missing source record', async () => {

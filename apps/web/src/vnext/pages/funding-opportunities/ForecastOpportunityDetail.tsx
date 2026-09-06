@@ -277,11 +277,11 @@ export function ForecastOpportunityDetail({
                   const established = f.recommendation!.signals[key];
                   return (
                     <div key={key} data-testid={`fo-forecast-signal-${key}`}>
-                      {unavailable ? (
+                      {unavailable || established == null ? (
                         // NOT an unticked box. "Could not be evaluated" is a fact
                         // about the data; rendering it as false would state an
                         // absence of the client's fit instead.
-                        <FovPill title={unavailable.reason}>{label}: not evaluated</FovPill>
+                        <FovPill title={unavailable?.reason}>{label}: not evaluated</FovPill>
                       ) : (
                         <FovPill tone={established ? 'green' : 'default'}>
                           {label}: {established ? 'yes' : 'no match'}
@@ -410,6 +410,7 @@ const SIGNAL_LABELS: Array<[keyof Omit<ForecastSignalEvidence, 'unavailable'>, s
   ['exactNaicsMatch', 'Exact NAICS match'],
   ['exactPscMatch', 'Exact PSC match'],
   ['capabilityMatch', 'Recorded capability match'],
+  ['fundingPriorityMatch', 'Recorded funding priority match'],
   ['programElementLinkedSourceBacked', 'Program Element named in the record'],
   ['priorAgencyHistory', 'Prior award history with this agency'],
   ['knownVehicleAccess', 'Known contract-vehicle access'],

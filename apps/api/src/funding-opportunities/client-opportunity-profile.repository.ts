@@ -34,6 +34,7 @@
  */
 
 import { dedupeStrings } from './client-opportunity-profile.builder.js';
+import { fundingPrioritiesFromIntake } from '@capiro/shared';
 import type { AwardHistoryIdentityV2 } from './award-history-identity.js';
 import type {
   AwardHistoryFacts,
@@ -73,6 +74,7 @@ export const CLIENT_PROFILE_SELECT = {
   naicsCodes: true,
   pscCodes: true,
   applicantTypes: true,
+  intakeData: true,
   setAsideCertifications: true,
   sectorTag: true,
   capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
@@ -111,6 +113,7 @@ export interface RawProfileClientRow {
   naicsCodes: string[];
   pscCodes: string[];
   applicantTypes: string[];
+  intakeData?: unknown;
   setAsideCertifications: string[];
   sectorTag: string | null;
   capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
@@ -200,6 +203,7 @@ export function toClientProfileFacts(
     naicsCodes: row.naicsCodes,
     pscCodes: row.pscCodes,
     applicantTypes: row.applicantTypes,
+    fundingPriorities: fundingPrioritiesFromIntake(row.intakeData),
     setAsideCertifications: row.setAsideCertifications,
     sectorTag: row.sectorTag,
     capabilities: row.capabilities.map((c) => ({

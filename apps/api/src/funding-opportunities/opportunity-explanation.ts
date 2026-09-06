@@ -37,6 +37,7 @@
  */
 
 import type { SignalStrength } from './sam-opportunity-relevance.js';
+import { meetsGrantSuggestionFloor } from '../district-nexus/grant-opportunity-relevance.js';
 
 /**
  * How a signal reads to a person, per rail-agnostic key.
@@ -56,8 +57,8 @@ const SIGNAL_COPY: Readonly<Record<string, SignalCopy>> = Object.freeze({
     detail: (v) => `The client has previously received funding under Assistance Listing ${v}.`,
   },
   applicantType: {
-    label: 'Aimed at this kind of organization',
-    detail: (v) => `The notice names ${v} among its eligible applicant types.`,
+    label: 'Organization type eligibility',
+    detail: (v) => `The notice accepts ${v}. This checks applicant type and does not increase fit.`,
   },
   agency: {
     label: 'Prior award history with this agency',
@@ -149,6 +150,7 @@ export const FIT_BAND_LABELS: Readonly<Record<FitBand, string>> = Object.freeze(
 export interface ExplainedSignal {
   /** The scorer's own key. Kept for the evidence panel; never rendered as prose. */
   signal: string;
+  source?: 'capability' | 'funding_priority';
   label: string;
   detail: string;
   strength: SignalStrength;
@@ -199,13 +201,29 @@ export function labelledSignalKeys(): string[] {
  * array order cannot change which reason leads the card.
  */
 export function explainOpportunity(
-  matchedSignals: ReadonlyArray<{ signal: string; strength: SignalStrength; matchedOn: string }>,
+  matchedSignals: ReadonlyArray<{
+    signal: string;
+    strength: SignalStrength;
+    matchedOn: string;
+    source?: 'capability' | 'funding_priority';
+  }>,
+  source?: string,
 ): OpportunityExplanation {
   const signals: ExplainedSignal[] = matchedSignals
+    // Eligibility is displayed separately; older saved positive weights do not
+    // turn organization identity or a geographic restriction into fit evidence.
+    .filter((sig) => sig.signal !== 'applicantType' && sig.signal !== 'stateRestriction')
     .map((sig) => {
-      const copy = copyFor(sig.signal);
+      const copy: SignalCopy =
+        sig.signal === 'capabilityKeyword' && sig.source === 'funding_priority'
+          ? {
+              label: 'Funding priority match',
+              detail: (v) => `The notice matches the client's recorded funding priority "${v}".`,
+            }
+          : copyFor(sig.signal);
       return {
         signal: sig.signal,
+        ...(sig.source ? { source: sig.source } : {}),
         label: copy.label,
         detail: copy.detail(sig.matchedOn),
         strength: sig.strength,
@@ -229,6 +247,9 @@ export function explainOpportunity(
     strongest,
     signals,
     // The same floor the producers and P06 use: one strong, or two moderate.
-    weakOnly: strongCount === 0 && moderateCount < 2,
+    weakOnly:
+      source === 'grants_gov'
+        ? !meetsGrantSuggestionFloor(matchedSignals)
+        : strongCount === 0 && moderateCount < 2,
   };
 }

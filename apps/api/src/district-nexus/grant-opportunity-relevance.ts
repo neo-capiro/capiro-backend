@@ -64,19 +64,18 @@ export const SIGNAL_STRENGTH: Readonly<Record<RelevanceSignalKey, SignalStrength
 // The only import in this otherwise dependency-free module: the shared
 // normalizer both sides of the applicant-type comparison must agree on.
 // Pure function, no I/O — the file stays deterministic.
-import { applicantTypeKey } from '@capiro/shared';
+import {
+  applicantTypeKey,
+  getClientOrganizationTypes,
+  GRANTS_GOV_UNRESTRICTED_APPLICANTS,
+} from '@capiro/shared';
 
 export const RELEVANCE_WEIGHTS: Readonly<Record<RelevanceSignalKey, number>> = Object.freeze({
   assistanceListing: 40,
-  // Keep the established numeric scale for sorting existing records. Applicant
-  // type and geography are supporting eligibility facts, never sufficient fit
-  // evidence: the shared suggestion floor requires a program/capability match.
-  applicantType: 25,
+  // Retain these signals as eligibility context, without inflating thematic fit.
+  applicantType: 0,
   agency: 20,
-  // The client is present in a state the notice RESTRICTS itself to. A
-  // restriction the client satisfies is a positive relevance fact (the pool of
-  // competitors is smaller), separate from it not being disqualifying.
-  stateRestriction: 15,
+  stateRestriction: 0,
   capabilityKeyword: 15,
   sector: 10,
   fundingCategory: 10,
@@ -91,11 +90,15 @@ export interface MatchedSignal {
   strength: SignalStrength;
   /** The specific value that matched, for display. Never a paraphrase. */
   matchedOn: string;
+  /** Distinguishes demonstrated capability from a stated funding objective. */
+  source?: 'capability' | 'funding_priority';
 }
 
 export interface ClientRelevanceProfile {
   sector: string | null;
   capabilityKeywords: string[];
+  /** Short, client-confirmed project or funding objective phrases. */
+  fundingPriorities?: string[];
   /** Assistance Listing numbers the client has previously received under. */
   priorAssistanceListings: string[];
   /** Agencies the client has prior awards from. */
@@ -135,7 +138,7 @@ export interface RelevanceResult {
   /**
    * Whether this pair is strong enough to SURFACE as a suggestion.
    *
-   * An exact prior program, or a substantive capability with independent
+   * An exact prior program, or a substantive capability/funding priority with independent
    * topical/agency evidence. Eligibility, geography and generic/repeated words
    * cannot establish fit, even when their numeric score is above the backstop.
    */
@@ -160,14 +163,10 @@ const MAX_SCORE = RELEVANCE_MAX_SCORE;
  * The floor at which "an exact Assistance Listing match, and nothing else,
  * qualifies" — DERIVED from the weights rather than written down.
  *
- * That invariant is the actual product rule behind
- * generate-grant-opportunity-candidates.ts's relevance floor. It used to be
- * spelled `40`, which was correct only because the denominator happened to be
- * 100 and `assistanceListing` happened to weigh 40. Adding the `applicantType`
- * and `stateRestriction` signals moved the denominator to
- * {@link RELEVANCE_MAX_SCORE}, at which point a hardcoded 40 would have quietly
- * started EXCLUDING listing-only matches — a shipped producer silently
- * generating fewer candidates, with no failing test to say so.
+ * Keep the program-identity invariant independent of future weight changes.
+ * Eligibility context currently has zero weight, so the denominator measures
+ * thematic fit only. The producer's numeric threshold must continue to admit
+ * an exact prior Assistance Listing match on its own.
  *
  * grant-opportunity-relevance.spec.ts pins the invariant directly, so a future
  * weight change that breaks it fails the build instead of the feature.
@@ -332,9 +331,9 @@ export function computeEligibility(
 ): { state: EligibilityState; reason: string } {
   const geoRestricted = opportunity.geographicRestrictions.length > 0;
   if (geoRestricted) {
-    const clientStates = new Set(client.states.map((s) => s.toUpperCase()));
+    const clientStates = new Set(client.states.map((s) => s.trim().toUpperCase()).filter(Boolean));
     const overlap = opportunity.geographicRestrictions.some((s) =>
-      clientStates.has(s.toUpperCase()),
+      clientStates.has(s.trim().toUpperCase()),
     );
     if (!overlap) {
       if (clientStates.size === 0) {
@@ -351,17 +350,19 @@ export function computeEligibility(
     }
   }
 
-  if (opportunity.eligibleApplicantTypes.length === 0) {
+  const sourceTypes = opportunity.eligibleApplicantTypes.filter((type) => type.trim().length > 0);
+  if (sourceTypes.length === 0) {
     return {
       state: 'unknown',
       reason: 'The opportunity does not state eligible applicant types.',
     };
   }
-  if (client.applicantTypes.length === 0) {
+  const clientOrganizationTypes = getClientOrganizationTypes(client.applicantTypes);
+  if (clientOrganizationTypes.length === 0) {
     return {
       state: 'needs_review',
       reason:
-        'The opportunity states applicant types but we hold none for this client — confirm the client’s applicant type to resolve.',
+        'No recognized organization type is recorded for this client. Confirm the client’s organization type; “Other” and “Unrestricted” are opportunity rules, not organization types.',
     };
   }
 
@@ -370,21 +371,41 @@ export function computeEligibility(
   // such as 'For profit organizations other than small businesses'; a stored
   // client value differing only in case or a double space must not read as
   // "ineligible" for a client that genuinely qualifies.
-  const clientTypes = new Set(client.applicantTypes.map(applicantTypeKey));
-  const matched = opportunity.eligibleApplicantTypes.filter((t) =>
+  const clientTypes = new Set(clientOrganizationTypes.map(applicantTypeKey));
+  const matched = getClientOrganizationTypes(sourceTypes).filter((t) =>
     clientTypes.has(applicantTypeKey(t)),
   );
+  const unrestricted = sourceTypes.some(
+    (type) => applicantTypeKey(type) === applicantTypeKey(GRANTS_GOV_UNRESTRICTED_APPLICANTS),
+  );
+  const geographicReason = geoRestricted ? ' The client is present in a permitted state.' : '';
+  if (unrestricted) {
+    return {
+      state: 'eligible',
+      reason: `The notice accepts all organization types, including the client’s recorded type (${clientOrganizationTypes.join(', ')}).${geographicReason} This confirms the structured organization-type check only; review the notice’s Additional Information on Eligibility and other requirements.`,
+    };
+  }
   if (matched.length > 0) {
     return {
       state: 'eligible',
-      reason: `Client applicant type ${matched.join(', ')} is accepted by this opportunity${
-        geoRestricted ? ', and the client is present in a permitted state' : ''
-      }.`,
+      reason: `Client organization type ${matched.join(', ')} is accepted by this opportunity.${geographicReason} This confirms the structured organization-type check only; review additional eligibility requirements in the notice.`,
+    };
+  }
+  // "Other" delegates to source text; future or unrecognized source categories
+  // are likewise insufficient to declare a known client type disqualified.
+  const recognizedSourceKeys = new Set(
+    getClientOrganizationTypes(sourceTypes).map(applicantTypeKey),
+  );
+  if (sourceTypes.some((type) => !recognizedSourceKeys.has(applicantTypeKey(type)))) {
+    return {
+      state: 'needs_review',
+      reason:
+        'The client’s recorded organization types do not match the notice’s explicit categories, but the notice includes “Other” or an unrecognized category. Review its Additional Information on Eligibility before deciding whether this client can apply.',
     };
   }
   return {
     state: 'ineligible',
-    reason: `This opportunity accepts applicant types ${opportunity.eligibleApplicantTypes.join(', ')}; the client qualifies as ${client.applicantTypes.join(', ')}.`,
+    reason: `This opportunity accepts organization types ${sourceTypes.join(', ')}; the client’s recorded organization types (${clientOrganizationTypes.join(', ')}) do not match.`,
   };
 }
 
@@ -404,12 +425,17 @@ export function scoreOpportunityRelevance(
 ): RelevanceResult {
   const matchedSignals: MatchedSignal[] = [];
 
-  const add = (signal: RelevanceSignalKey, matchedOn: string): void => {
+  const add = (
+    signal: RelevanceSignalKey,
+    matchedOn: string,
+    source?: MatchedSignal['source'],
+  ): void => {
     matchedSignals.push({
       signal,
       weight: RELEVANCE_WEIGHTS[signal],
       strength: SIGNAL_STRENGTH[signal],
       matchedOn,
+      ...(source ? { source } : {}),
     });
   };
 
@@ -418,13 +444,13 @@ export function scoreOpportunityRelevance(
     add('assistanceListing', opportunity.assistanceListingNumber ?? listing);
   }
 
-  // Compared through `applicantTypeKey` on BOTH sides, exactly as
-  // computeEligibility does — the two must never disagree about whether the same
-  // pair of label strings matches, or a notice would read "eligible" while
-  // scoring as though the applicant type were irrelevant.
+  // Keep exact organization matches as zero-weight eligibility context.
+  // The read helper excludes source-only rules and unrecognized client values.
   if (opportunity.eligibleApplicantTypes.length > 0 && client.applicantTypes.length > 0) {
-    const clientTypeKeys = new Set(client.applicantTypes.map(applicantTypeKey));
-    const typeHit = opportunity.eligibleApplicantTypes.find((t) =>
+    const clientTypeKeys = new Set(
+      getClientOrganizationTypes(client.applicantTypes).map(applicantTypeKey),
+    );
+    const typeHit = getClientOrganizationTypes(opportunity.eligibleApplicantTypes).find((t) =>
       clientTypeKeys.has(applicantTypeKey(t)),
     );
     if (typeHit) add('applicantType', typeHit);
@@ -449,11 +475,17 @@ export function scoreOpportunityRelevance(
   // Exact token phrases, with punctuation normalized, keep matching auditable.
   // Prefer a specific capability over a broad tag from the same profile.
   const haystack = ` ${textTokens(opportunity.title).join(' ')} ${textTokens(opportunity.description).join(' ')} `;
-  const keywordHit = client.capabilityKeywords
-    .filter((k) => substantiveTokens(k).length > 0 && containsPhrase(haystack, k))
-    .sort((a, b) => substantiveTokens(b).length - substantiveTokens(a).length)[0];
+  const matchingTopic = (values: string[]) =>
+    values
+      .filter((value) => substantiveTokens(value).length > 0 && containsPhrase(haystack, value))
+      .sort((a, b) => substantiveTokens(b).length - substantiveTokens(a).length)[0];
+  const capabilityHit = matchingTopic(client.capabilityKeywords);
+  const priorityHit = capabilityHit ? undefined : matchingTopic(client.fundingPriorities ?? []);
+  const keywordHit = capabilityHit ?? priorityHit;
   if (keywordHit) {
-    add('capabilityKeyword', keywordHit);
+    // A priority is topical intent, not a claim that the client already has the
+    // capability. Score the topical family once and preserve its provenance.
+    add('capabilityKeyword', keywordHit, capabilityHit ? 'capability' : 'funding_priority');
   }
 
   // The same word in capability, sector and category is one piece of evidence,
@@ -510,13 +542,13 @@ export function scoreOpportunityRelevance(
  * definition rather than re-deriving the band math inline.
  *
  * An exact Assistance Listing qualifies on its own. Otherwise a substantive
- * capability must have independent support from sector, category, partner or
+ * capability or funding priority must have independent support from sector, category, partner or
  * prior agency. Applicant type and geography only describe who may apply.
  * Inspect identity and evidence as well as the band, so old stored "strong"
  * eligibility labels and repeated copies of a signal cannot qualify a pair.
  */
 export function meetsGrantSuggestionFloor(
-  signals: ReadonlyArray<Pick<MatchedSignal, 'signal' | 'strength' | 'matchedOn'>>,
+  signals: ReadonlyArray<{ signal: string; strength: SignalStrength; matchedOn: string }>,
 ): boolean {
   if (signals.some((s) => s.signal === 'assistanceListing' && normalizeListing(s.matchedOn))) {
     return true;

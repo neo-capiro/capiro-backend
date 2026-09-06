@@ -196,6 +196,59 @@ describe('forecast candidate producer', () => {
     expect(f.created).toHaveLength(0);
     expect(f.updated).toHaveLength(0);
   });
+
+  test('a concrete recorded priority creates a monitor suggestion with the matched phrase, not a capability claim', async () => {
+    const f = fake({
+      clients: [
+        client({ naicsCodes: [], intakeData: { fundingPriorities: ['autonomous navigation'] } }),
+      ],
+    });
+    expect((await generateForecastCandidates(f.db, opts)).created).toBe(1);
+    expect(f.created[0]).toMatchObject({
+      relevanceScore: 30,
+      eligibilityState: null,
+      responseDeadlineSnapshot: null,
+      matchSignals: expect.arrayContaining([
+        {
+          signal: 'funding_priority_match',
+          source: 'funding_priority',
+          matchedOn: 'autonomous navigation',
+        },
+        expect.objectContaining({
+          signal: 'forecast_assessment',
+          forecastRecommendation: 'monitor',
+          recommendationConfidence: 'low',
+        }),
+      ]),
+    });
+    expect(f.created[0].matchSignals.map((signal: any) => signal.signal)).not.toContain(
+      'capability_match',
+    );
+  });
+
+  test('generic or unrelated priorities cannot manufacture forecasts', async () => {
+    for (const priority of ['research and development', 'engine', 'rural broadband deployment']) {
+      const f = fake({
+        clients: [client({ naicsCodes: [], intakeData: { fundingPriorities: [priority] } })],
+        forecasts: [forecast({ naicsCode: null, title: 'Engineering research and development' })],
+      });
+      expect((await generateForecastCandidates(f.db, opts)).created).toBe(0);
+    }
+  });
+
+  test('removing a formerly matching priority marks an automatic suggestion stale', async () => {
+    const f = fake({
+      clients: [
+        client({
+          naicsCodes: [],
+          intakeData: { fundingPriorities: ['rural broadband deployment'] },
+        }),
+      ],
+      existing: [existing()],
+    });
+    expect((await generateForecastCandidates(f.db, opts)).markedStale).toBe(1);
+    expect(f.updated[0].data.staleAt).toBeInstanceOf(Date);
+  });
   test('location-only, generic capability, thin profile and inactive forecasts cannot manufacture suggestions', async () => {
     for (const c of [
       client({

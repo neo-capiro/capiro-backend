@@ -1,3 +1,11 @@
+import {
+  GRANTS_GOV_UNRESTRICTED_APPLICANTS,
+  applicantTypeKey,
+  getClientOrganizationTypes,
+  getGrantsGovOrganizationTypeLabel,
+  isGrantsGovSourceEligibilityRule,
+  fundingPrioritiesFromIntake,
+} from '@capiro/shared';
 import type { Client } from './clientTypes.js';
 import { toRecord } from './client-profile-crm-model.js';
 
@@ -73,7 +81,48 @@ function text(record: Record<string, unknown>, keys: string[]): string | null {
 }
 
 function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && !!v.trim()) : [];
+  return Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string' && !!v.trim())
+    : [];
+}
+
+/** The same saved priorities used by opportunity matching, separate from sector tags. */
+export function readClientFundingPriorities(client: Client): string[] {
+  return fundingPrioritiesFromIntake(client.intakeData);
+}
+
+/** Source eligibility rules in older profiles are visible for review, never identity. */
+export function readClientOrganizationTypeRows(client: Client): RegistrationRow[] {
+  const savedTypes = strings(client.applicantTypes);
+  const organizationTypes = getClientOrganizationTypes(savedTypes);
+  const organizationKeys = new Set(organizationTypes.map(applicantTypeKey));
+  const reviewValues = new Map<string, string>();
+  for (const value of savedTypes) {
+    const key = applicantTypeKey(value);
+    if (organizationKeys.has(key)) continue;
+    reviewValues.set(
+      key,
+      isGrantsGovSourceEligibilityRule(value)
+        ? key === applicantTypeKey(GRANTS_GOV_UNRESTRICTED_APPLICANTS)
+          ? 'Unrestricted (opportunity rule)'
+          : 'Other (requires source eligibility review)'
+        : value.trim(),
+    );
+  }
+  const rows: RegistrationRow[] = [];
+  if (organizationTypes.length) {
+    rows.push({
+      label: 'Organization types',
+      value: organizationTypes.map(getGrantsGovOrganizationTypeLabel).join(' · '),
+    });
+  }
+  if (reviewValues.size) {
+    rows.push({
+      label: 'Organization types — review needed',
+      value: [...reviewValues.values()].join(' · '),
+    });
+  }
+  return rows;
 }
 
 /**
@@ -105,7 +154,8 @@ export function readClientRegistrations(client: Client): ClientRegistrations {
   // relevance engine reads. Prefer the explicit primary; fall back to the
   // array's first entry so a client edited only through the array still shows one.
   const naicsCodes = strings(client.naicsCodes);
-  const primaryNaics = text(intake, ['primaryNaics', 'primary_naics', 'naics']) ?? naicsCodes[0] ?? null;
+  const primaryNaics =
+    text(intake, ['primaryNaics', 'primary_naics', 'naics']) ?? naicsCodes[0] ?? null;
   push('Primary NAICS', primaryNaics);
 
   const additionalNaics =
@@ -118,7 +168,10 @@ export function readClientRegistrations(client: Client): ClientRegistrations {
   // Set-asides: the verified SAM certifications first, then the self-reported
   // Small Business Classification flags. Both are real and mean different
   // things, so they are labelled separately instead of merged into one list.
-  push('Set-aside certifications', strings(client.setAsideCertifications).map(setAsideLabel).join(' · '));
+  push(
+    'Set-aside certifications',
+    strings(client.setAsideCertifications).map(setAsideLabel).join(' · '),
+  );
   push(
     'Small business classification',
     SB_CLASSIFICATION_LABELS.filter((flag) => sb[flag.key] === true)
@@ -126,7 +179,7 @@ export function readClientRegistrations(client: Client): ClientRegistrations {
       .join(' · '),
   );
 
-  push('Eligible applicant types', strings(client.applicantTypes).join(' · '));
+  rows.push(...readClientOrganizationTypeRows(client));
   push('LDA registrant', text(intake, ['ldaRegistrantName', 'lda_registrant_name']));
   // Legacy free-text. Named for what the field is, not the design's "Contract
   // vehicles" — nothing guarantees the text describes vehicles.

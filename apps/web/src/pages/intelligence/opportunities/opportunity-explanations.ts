@@ -40,7 +40,7 @@ export const FIT_BAND_COLORS: Record<SignalStrength, string> = {
 export const SIGNAL_LABELS: Record<string, string> = {
   // Grant rail
   assistanceListing: 'Prior award under this Assistance Listing',
-  applicantType: 'Aimed at this kind of organization',
+  applicantType: 'Organization type meets the applicant rule',
   agency: 'Prior award history with this agency',
   stateRestriction: 'Restricted to a state the client is in',
   fundingCategory: 'Funding category match',
@@ -57,9 +57,19 @@ export const SIGNAL_LABELS: Record<string, string> = {
   officeHistory: 'Prior award history with this office',
   facilityState: 'Client has a site in this state',
   // Shared
-  capabilityKeyword: 'Capability keyword match',
+  capabilityKeyword: 'Capability match',
   sector: 'Same sector',
   genericTopical: 'Common industry term',
+  // Agency forecast rail
+  funding_priority_match: 'Funding priority match',
+  exact_naics_match: 'Exact NAICS match',
+  exact_psc_match: 'Exact product/service code match',
+  capability_match: 'Capability match',
+  prior_agency_history: 'Prior award history with this agency',
+  program_element_linked_source_backed: 'Client-relevant Program Element',
+  location_match: 'Client location match',
+  known_vehicle_access: 'Recorded vehicle access',
+  reviewed_strategic_priority: 'Reviewed strategic priority',
 };
 
 /**
@@ -68,8 +78,34 @@ export const SIGNAL_LABELS: Record<string, string> = {
  * Never returns the raw key: an unlabelled key rendering as itself is the exact
  * defect P09 removes.
  */
-export function signalLabel(signal: string): string {
+export type MatchSignalSource = 'capability' | 'funding_priority';
+
+export function signalLabel(signal: string, source?: MatchSignalSource): string {
+  if (signal === 'capabilityKeyword' && source === 'funding_priority') {
+    return 'Funding priority match';
+  }
   return SIGNAL_LABELS[signal] ?? 'Unrecognized match signal';
+}
+
+/** Eligibility context must not become fit evidence, including on older saved rows. */
+export function isFitSignal(signal: { signal: string; weight?: number }): boolean {
+  return (
+    signal.signal !== 'applicantType' &&
+    signal.signal !== 'stateRestriction' &&
+    (signal.weight == null || signal.weight > 0)
+  );
+}
+
+/** Forecast cards show the stored assessment; only the detail performs a fresh assessment. */
+export function forecastAssessmentReason(signals: ReadonlyArray<unknown> = []): string | null {
+  for (const signal of signals) {
+    if (!signal || typeof signal !== 'object') continue;
+    const record = signal as Record<string, unknown>;
+    if (record.signal === 'forecast_assessment' && typeof record.primaryReason === 'string') {
+      return record.primaryReason.trim() || null;
+    }
+  }
+  return null;
 }
 
 export interface ExplainedSignalView {
@@ -77,6 +113,7 @@ export interface ExplainedSignalView {
   label: string;
   strength: SignalStrength;
   matchedOn: string;
+  source?: MatchSignalSource;
 }
 
 /**
@@ -88,14 +125,26 @@ export interface ExplainedSignalView {
 const STRENGTH_ORDER: Record<SignalStrength, number> = { strong: 0, moderate: 1, weak: 2 };
 
 export function explainSignals(
-  matchedSignals: ReadonlyArray<{ signal: string; strength: SignalStrength; matchedOn: string }>,
-): { fitBand: SignalStrength; strongest: ExplainedSignalView | null; signals: ExplainedSignalView[] } {
+  matchedSignals: ReadonlyArray<{
+    signal: string;
+    strength: SignalStrength;
+    matchedOn: string;
+    weight?: number;
+    source?: MatchSignalSource;
+  }>,
+): {
+  fitBand: SignalStrength;
+  strongest: ExplainedSignalView | null;
+  signals: ExplainedSignalView[];
+} {
   const signals = matchedSignals
+    .filter(isFitSignal)
     .map((s) => ({
       signal: s.signal,
-      label: signalLabel(s.signal),
+      label: signalLabel(s.signal, s.source),
       strength: s.strength,
       matchedOn: s.matchedOn,
+      ...(s.source ? { source: s.source } : {}),
     }))
     .sort((a, b) => STRENGTH_ORDER[a.strength] - STRENGTH_ORDER[b.strength]);
 

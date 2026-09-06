@@ -26,6 +26,10 @@ import { useApi } from '../../../../lib/use-api.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import { formatCompact } from '../mappers.js';
 import {
+  isFitSignal,
+  signalLabel,
+} from '../../../intelligence/opportunities/opportunity-explanations.js';
+import {
   getClientDistrictNexus,
   getClientDistrictNexusV2,
   type ClientDistrictNexusV2,
@@ -273,7 +277,9 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
     <div className="iv1-surface">
       <div className="iv1-empty" style={{ padding: '24px 16px', textAlign: 'center' }}>
         <b>Couldn&apos;t load district nexus</b>
-        <span>Something went wrong fetching this client&apos;s contract spend. Try refreshing.</span>
+        <span>
+          Something went wrong fetching this client&apos;s contract spend. Try refreshing.
+        </span>
       </div>
     </div>
   );
@@ -453,6 +459,17 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
                           ? ` · ${o.responseDateDesc}`
                           : ''}
                       <div className="iv1-dnx-row-sub">{o.eligibilityReason}</div>
+                      {o.matchedSignals
+                        .filter(isFitSignal)
+                        .slice(0, 2)
+                        .map((signal) => (
+                          <div
+                            key={`${signal.signal}:${signal.matchedOn}`}
+                            className="iv1-dnx-row-sub"
+                          >
+                            {signalLabel(signal.signal, signal.source)}: {signal.matchedOn}
+                          </div>
+                        ))}
                     </li>
                   ))}
                 </ul>
@@ -573,7 +590,9 @@ function DistrictNexusSectionV1({ clientId }: DistrictNexusSectionProps) {
         <div className="iv1-surface">
           <div className="iv1-empty" style={{ padding: '24px 16px', textAlign: 'center' }}>
             <b>Couldn&apos;t load district nexus</b>
-            <span>Something went wrong fetching this client&apos;s contract spend. Try refreshing.</span>
+            <span>
+              Something went wrong fetching this client&apos;s contract spend. Try refreshing.
+            </span>
           </div>
         </div>
       ) : !data || !data.linked ? (
@@ -598,9 +617,8 @@ function DistrictNexusSectionV1({ clientId }: DistrictNexusSectionProps) {
             <span>
               {data.totalAwards.toLocaleString()} award{data.totalAwards === 1 ? '' : 's'} (
               {formatCompact(data.totalAmount)}) matched to{' '}
-              {data.contractorNames.join(', ') || 'this client'}, but their congressional
-              districts aren&apos;t resolved yet. District enrichment runs continuously —
-              check back shortly.
+              {data.contractorNames.join(', ') || 'this client'}, but their congressional districts
+              aren&apos;t resolved yet. District enrichment runs continuously — check back shortly.
             </span>
           </div>
         </div>
@@ -719,8 +737,8 @@ function YourRepresentativesBlock({
       <div className="iv1-surface-head">
         <h3>Your representatives</h3>
         <span className="iv1-surface-sub">
-          Federal House + Senate, state upper + lower — resolved from each facility&apos;s
-          geocoded district
+          Federal House + Senate, state upper + lower — resolved from each facility&apos;s geocoded
+          district
         </span>
       </div>
       <div className="iv1-dnx-list">
@@ -741,7 +759,10 @@ function YourRepresentativesBlock({
                   : 'District undetermined — confirm the address (Facilities tab).'}
               </div>
             ) : (
-              <div className="iv1-dnx-row-sub" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div
+                className="iv1-dnx-row-sub"
+                style={{ display: 'flex', flexDirection: 'column', gap: 3 }}
+              >
                 <FederalMemberLine label="House" member={representation.federal.house} />
                 {representation.federal.senate.map((s) => (
                   <FederalMemberLine key={s.bioguideId} label="Senate" member={s} />
@@ -757,7 +778,13 @@ function YourRepresentativesBlock({
   );
 }
 
-function FederalMemberLine({ label, member }: { label: string; member: FederalMemberSummary | null }) {
+function FederalMemberLine({
+  label,
+  member,
+}: {
+  label: string;
+  member: FederalMemberSummary | null;
+}) {
   if (!member) return <span>{label}: —</span>;
   return (
     <span>

@@ -76,6 +76,8 @@ export interface OpportunityMatchedSignal {
   strength: 'strong' | 'moderate' | 'weak';
   weight: number;
   matchedOn: string;
+  /** Identifies the recorded client phrase that produced a capabilityKeyword signal. */
+  source?: 'capability' | 'funding_priority';
 }
 
 export interface MissingProfileField {
@@ -633,7 +635,18 @@ export interface InboxRow {
   workflowStatus: string;
   humanDecision: string | null;
   pipelineStage?: string | null;
-  matchSignals?: OpportunityMatchedSignal[];
+  matchSignals?: Array<
+    | (Pick<OpportunityMatchedSignal, 'signal' | 'matchedOn' | 'source'> &
+        Partial<Pick<OpportunityMatchedSignal, 'strength' | 'weight'>>)
+    | ({ signal: 'forecast_assessment' } & Pick<
+        ForecastRecommendationView,
+        | 'forecastRecommendation'
+        | 'recommendationConfidence'
+        | 'primaryReason'
+        | 'recommendedNextAction'
+        | 'reasonCodes'
+      >)
+  >;
   nextAction: string | null;
   nextActionDueAt: string | null;
   owner: { userId: string; name: string | null; email: string | null } | null;
@@ -738,6 +751,7 @@ export interface ForecastSignalEvidence {
   exactNaicsMatch: boolean;
   exactPscMatch: boolean;
   capabilityMatch: boolean;
+  fundingPriorityMatch?: boolean;
   priorAgencyHistory: boolean;
   programElementLinkedSourceBacked: boolean;
   locationMatch: boolean;

@@ -74,7 +74,10 @@ describe('hard / high-confidence signals', () => {
   });
 
   test('an exact PSC match is strong', () => {
-    const r = scoreSamOpportunityRelevance(client({ pscCodes: ['1560'] }), opp({ pscCode: '1560' }));
+    const r = scoreSamOpportunityRelevance(
+      client({ pscCodes: ['1560'] }),
+      opp({ pscCode: '1560' }),
+    );
     expect(r.matchedSignals.find((s) => s.signal === 'pscExact')?.strength).toBe('strong');
     expect(r.meetsSuggestionFloor).toBe(true);
   });
@@ -214,7 +217,11 @@ describe('the suggestion floor: generic terms cannot create a suggestion alone',
 
   test('two independent MODERATE signals clear the floor', () => {
     const r = scoreSamOpportunityRelevance(
-      client({ naicsCodes: ['336412'], capabilityKeywords: ['turbofan'], priorOffices: ['DLA Aviation'] }),
+      client({
+        naicsCodes: ['336412'],
+        capabilityKeywords: ['turbofan'],
+        priorOffices: ['DLA Aviation'],
+      }),
       opp({ naicsCode: '336411', office: 'DLA Aviation', title: 'Turbofan overhaul' }),
     );
     const moderate = r.matchedSignals.filter((s) => s.strength === 'moderate');
@@ -281,7 +288,10 @@ describe('NAICS / PSC family fallbacks are reported as the FAMILY, not the code'
   });
 
   test('a PSC category match is moderate', () => {
-    const r = scoreSamOpportunityRelevance(client({ pscCodes: ['1510'] }), opp({ pscCode: '1560' }));
+    const r = scoreSamOpportunityRelevance(
+      client({ pscCodes: ['1510'] }),
+      opp({ pscCode: '1560' }),
+    );
     expect(r.matchedSignals.find((s) => s.signal === 'pscCategory')?.strength).toBe('moderate');
   });
 
@@ -292,6 +302,82 @@ describe('NAICS / PSC family fallbacks are reported as the FAMILY, not the code'
     );
     expect(r.matchedSignals.map((s) => s.signal)).not.toContain('naicsIndustryGroup');
   });
+});
+
+describe('funding priorities as explicit client intent', () => {
+  test('a specific priority can support structured procurement evidence', () => {
+    const result = scoreSamOpportunityRelevance(
+      client({ fundingPriorities: ['Autonomous ground vehicles'], naicsCodes: ['336111'] }),
+      opp({ title: 'Autonomous ground vehicles for logistics demonstration', naicsCode: '336111' }),
+    );
+    expect(result.matchedSignals).toContainEqual({
+      signal: 'capabilityKeyword',
+      matchedOn: 'Autonomous ground vehicles',
+      source: 'funding_priority',
+      weight: 12,
+      strength: 'moderate',
+    });
+    expect(result.meetsSuggestionFloor).toBe(true);
+    expect(result.relevanceScore).toBeGreaterThan(15);
+  });
+
+  test('capability and priorities cannot double-count the topical family', () => {
+    const profile = client({ capabilityKeywords: ['Radar systems'], naicsCodes: ['334511'] });
+    const notice = opp({ title: 'Radar systems testing', naicsCode: '334511' });
+    const baseline = scoreSamOpportunityRelevance(profile, notice);
+    const withPriority = scoreSamOpportunityRelevance(
+      { ...profile, fundingPriorities: ['Radar systems testing', 'Radar systems'] },
+      notice,
+    );
+    expect(withPriority.relevanceScore).toBe(baseline.relevanceScore);
+    expect(
+      withPriority.matchedSignals.filter((signal) => signal.signal === 'capabilityKeyword'),
+    ).toEqual([
+      {
+        signal: 'capabilityKeyword',
+        matchedOn: 'Radar systems',
+        source: 'capability',
+        weight: 12,
+        strength: 'moderate',
+      },
+    ]);
+  });
+
+  test.each(['funding opportunities', 'research and development', 'advanced systems'])(
+    'generic priority %s cannot establish fit',
+    (priority) => {
+      const result = scoreSamOpportunityRelevance(
+        client({ fundingPriorities: [priority] }),
+        opp({ title: priority }),
+      );
+      expect(result.matchedSignals).toEqual([]);
+      expect(result.meetsSuggestionFloor).toBe(false);
+      expect(result.relevanceScore).toBe(0);
+    },
+  );
+
+  test('priority alone is not a complete recommendation', () => {
+    const result = scoreSamOpportunityRelevance(
+      client({ fundingPriorities: ['radar systems'] }),
+      opp({ title: 'Radar systems' }),
+    );
+    expect(result.matchedSignals).toHaveLength(1);
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test.each(['capabilityKeywords', 'fundingPriorities'] as const)(
+    '%s observes word boundaries and rejects generic multiword phrases',
+    (field) => {
+      const result = scoreSamOpportunityRelevance(
+        client({ [field]: ['care', 'advanced systems'] }),
+        opp({ title: 'Medicare advanced systems' }),
+      );
+      expect(result.matchedSignals.some((signal) => signal.signal === 'capabilityKeyword')).toBe(
+        false,
+      );
+      expect(result.relevanceScore).toBe(0);
+    },
+  );
 });
 
 describe('set-aside is a relevance signal, never an eligibility determination', () => {
@@ -306,11 +392,30 @@ describe('set-aside is a relevance signal, never an eligibility determination', 
 
   test('a self-reported small business matching a small-business set-aside is a signal', () => {
     expect(selfReportsSmallBusiness(['Small businesses'])).toBe(true);
+    expect(selfReportsSmallBusiness([' small  BUSINESSES '])).toBe(true);
     const r = scoreSamOpportunityRelevance(
       client({ applicantTypes: ['Small businesses'] }),
       opp({ setAsideCode: 'SBA', setAside: 'Total Small Business Set-Aside (FAR 19.5)' }),
     );
     expect(r.matchedSignals.map((s) => s.signal)).toContain('setAsideSelfReported');
+  });
+
+  test.each([
+    'For profit organizations other than small businesses',
+    'Small business consulting',
+    'Not a small business',
+    'Unrestricted',
+    'Others',
+  ])('the client type %s cannot create a small-business set-aside match', (applicantType) => {
+    expect(selfReportsSmallBusiness([applicantType])).toBe(false);
+    const result = scoreSamOpportunityRelevance(
+      client({ applicantTypes: [applicantType] }),
+      opp({ setAsideCode: 'SBA', setAside: 'Total Small Business Set-Aside (FAR 19.5)' }),
+    );
+    expect(result.matchedSignals.map((signal) => signal.signal)).not.toContain(
+      'setAsideSelfReported',
+    );
+    expect(result.relevanceScore).toBe(0);
   });
 
   test('an 8(a) set-aside produces no relevance signal from a self-reported small business', () => {
@@ -348,8 +453,14 @@ describe('contract eligibility is honest about what is not held', () => {
   test('without a recorded certification it never guesses eligible or ineligible', () => {
     const cases = [
       computeSamEligibility(client(), opp()),
-      computeSamEligibility(client({ applicantTypes: ['Small businesses'] }), opp({ setAsideCode: 'SBA' })),
-      computeSamEligibility(client(), opp({ setAsideCode: 'SDVOSBC', setAside: 'SDVOSB Set-Aside' })),
+      computeSamEligibility(
+        client({ applicantTypes: ['Small businesses'] }),
+        opp({ setAsideCode: 'SBA' }),
+      ),
+      computeSamEligibility(
+        client(),
+        opp({ setAsideCode: 'SDVOSBC', setAside: 'SDVOSB Set-Aside' }),
+      ),
     ];
     for (const c of cases) {
       expect(['needs_review', 'unknown']).toContain(c.state);

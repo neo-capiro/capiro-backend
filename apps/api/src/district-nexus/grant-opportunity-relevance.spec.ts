@@ -1,5 +1,14 @@
 import { describe, expect, test } from '@jest/globals';
 import {
+  GRANTS_GOV_APPLICANT_TYPES,
+  GRANTS_GOV_ORGANIZATION_TYPE_GROUPS,
+  GRANTS_GOV_OTHER_APPLICANTS,
+  GRANTS_GOV_UNRESTRICTED_APPLICANTS,
+  getClientOrganizationTypes,
+  getGrantsGovOrganizationTypeLabel,
+  isGrantsGovSourceEligibilityRule,
+} from '@capiro/shared';
+import {
   computeEligibility,
   meetsGrantSuggestionFloor,
   scoreOpportunityRelevance,
@@ -11,12 +20,9 @@ import {
 } from './grant-opportunity-relevance.js';
 
 /**
- * Score expectations below are a share of RELEVANCE_MAX_SCORE, which the Funding
- * Opportunities work moved from 100 to 140 by adding the `applicantType` (25) and
- * `stateRestriction` (15) strong signals. The absolute numbers therefore changed
- * even where the matched-signal SETS did not; the ratios are what is being pinned.
- * They are written as explicit fractions so a future weight change shows up as an
- * arithmetic disagreement rather than as an unexplained magic number.
+ * Scores measure fit evidence. Applicant type and geography remain explanatory
+ * signals with zero weight; neither can inflate thematic relevance. Expectations
+ * use the exported denominator so the program-match floor stays reproducible.
  */
 const pct = (earned: number): number => Math.round((earned / RELEVANCE_MAX_SCORE) * 100);
 
@@ -80,6 +86,7 @@ describe('relevance signals', () => {
     expect(hit?.strength).toBe('weak');
     expect(hit?.matchedOn).toBe('Small businesses');
     expect(result.eligibilityState).toBe('eligible');
+    expect(result.relevanceScore).toBe(0);
     expect(result.meetsSuggestionFloor).toBe(false);
   });
 
@@ -91,13 +98,15 @@ describe('relevance signals', () => {
     expect(result.matchedSignals.map((s) => s.signal)).toContain('applicantType');
   });
 
-  test('a state restriction the client satisfies is a positive relevance signal', () => {
+  test('a state restriction the client satisfies is eligibility context with no fit score', () => {
     const result = scoreOpportunityRelevance(
       client({ states: ['CA'] }),
       opportunity({ geographicRestrictions: ['CA', 'OR'] }),
     );
     const hit = result.matchedSignals.find((s) => s.signal === 'stateRestriction');
     expect(hit?.matchedOn).toBe('CA');
+    expect(hit?.weight).toBe(0);
+    expect(result.relevanceScore).toBe(0);
   });
 
   test('an UNRESTRICTED opportunity is not a geographic match for everybody', () => {
@@ -321,37 +330,46 @@ describe('relevance signals', () => {
 describe('eligibility is computed only from structured fields', () => {
   test('a matching applicant type is eligible', () => {
     const result = computeEligibility(
-      client({ applicantTypes: ['12'] }),
-      opportunity({ eligibleApplicantTypes: ['12', '20'] }),
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: ['Small businesses', 'State governments'] }),
     );
     expect(result.state).toBe('eligible');
   });
 
   test('a non-matching applicant type is ineligible, and the reason names both sides', () => {
     const result = computeEligibility(
-      client({ applicantTypes: ['12'] }),
-      opportunity({ eligibleApplicantTypes: ['06'] }),
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: ['State governments'] }),
     );
     expect(result.state).toBe('ineligible');
-    expect(result.reason).toContain('06');
-    expect(result.reason).toContain('12');
+    expect(result.reason).toContain('State governments');
+    expect(result.reason).toContain('Small businesses');
   });
 
   test('an opportunity that states no applicant types is unknown, never eligible', () => {
     // Defaulting to eligible is the dangerous direction to be wrong in.
-    const result = computeEligibility(client({ applicantTypes: ['12'] }), opportunity());
+    const result = computeEligibility(
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity(),
+    );
     expect(result.state).toBe('unknown');
   });
 
   test('missing client applicant type is needs_review, not a guess', () => {
-    const result = computeEligibility(client(), opportunity({ eligibleApplicantTypes: ['12'] }));
+    const result = computeEligibility(
+      client(),
+      opportunity({ eligibleApplicantTypes: ['Small businesses'] }),
+    );
     expect(result.state).toBe('needs_review');
   });
 
   test('geographic restriction with no client presence is ineligible', () => {
     const result = computeEligibility(
-      client({ states: ['TX'], applicantTypes: ['12'] }),
-      opportunity({ geographicRestrictions: ['CA', 'OR'], eligibleApplicantTypes: ['12'] }),
+      client({ states: ['TX'], applicantTypes: ['Small businesses'] }),
+      opportunity({
+        geographicRestrictions: ['CA', 'OR'],
+        eligibleApplicantTypes: ['Small businesses'],
+      }),
     );
     expect(result.state).toBe('ineligible');
     expect(result.reason).toContain('CA');
@@ -359,16 +377,16 @@ describe('eligibility is computed only from structured fields', () => {
 
   test('geographic restriction the client satisfies does not block eligibility', () => {
     const result = computeEligibility(
-      client({ states: ['CA'], applicantTypes: ['12'] }),
-      opportunity({ geographicRestrictions: ['CA'], eligibleApplicantTypes: ['12'] }),
+      client({ states: ['CA'], applicantTypes: ['Small businesses'] }),
+      opportunity({ geographicRestrictions: ['CA'], eligibleApplicantTypes: ['Small businesses'] }),
     );
     expect(result.state).toBe('eligible');
   });
 
   test('geographic restriction with no known client state needs review', () => {
     const result = computeEligibility(
-      client({ applicantTypes: ['12'] }),
-      opportunity({ geographicRestrictions: ['CA'], eligibleApplicantTypes: ['12'] }),
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ geographicRestrictions: ['CA'], eligibleApplicantTypes: ['Small businesses'] }),
     );
     expect(result.state).toBe('needs_review');
   });
@@ -376,17 +394,111 @@ describe('eligibility is computed only from structured fields', () => {
   test('every outcome carries a reason', () => {
     const cases = [
       computeEligibility(
-        client({ applicantTypes: ['12'] }),
-        opportunity({ eligibleApplicantTypes: ['12'] }),
+        client({ applicantTypes: ['Small businesses'] }),
+        opportunity({ eligibleApplicantTypes: ['Small businesses'] }),
       ),
       computeEligibility(
-        client({ applicantTypes: ['12'] }),
-        opportunity({ eligibleApplicantTypes: ['06'] }),
+        client({ applicantTypes: ['Small businesses'] }),
+        opportunity({ eligibleApplicantTypes: ['State governments'] }),
       ),
       computeEligibility(client(), opportunity()),
-      computeEligibility(client(), opportunity({ eligibleApplicantTypes: ['12'] })),
+      computeEligibility(client(), opportunity({ eligibleApplicantTypes: ['Small businesses'] })),
     ];
     for (const c of cases) expect(c.reason.length).toBeGreaterThan(10);
+  });
+});
+
+describe('organization types and source eligibility rules', () => {
+  test('the client picker preserves fifteen source identities without source-only rules', () => {
+    const values = GRANTS_GOV_ORGANIZATION_TYPE_GROUPS.flatMap((group) =>
+      group.options.map((option) => option.value),
+    );
+    expect(GRANTS_GOV_APPLICANT_TYPES).toHaveLength(17);
+    expect(new Set(values).size).toBe(15);
+    expect(values.every((value) => GRANTS_GOV_APPLICANT_TYPES.includes(value))).toBe(true);
+    expect(values.some(isGrantsGovSourceEligibilityRule)).toBe(false);
+    expect(getGrantsGovOrganizationTypeLabel('Small businesses')).toBe('Small business');
+    expect(getGrantsGovOrganizationTypeLabel('Legacy organization')).toBe('Legacy organization');
+  });
+
+  test('reading client types canonicalizes real identities without mutating saved legacy values', () => {
+    const stored = [
+      'small  BUSINESSES',
+      GRANTS_GOV_OTHER_APPLICANTS,
+      GRANTS_GOV_UNRESTRICTED_APPLICANTS,
+      '12',
+      'Small businesses',
+    ];
+    const before = [...stored];
+    expect(getClientOrganizationTypes(stored)).toEqual(['Small businesses']);
+    expect(stored).toEqual(before);
+  });
+
+  test('unrestricted source eligibility accepts a recorded organization with an explicit limitation', () => {
+    const result = computeEligibility(
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS] }),
+    );
+    expect(result.state).toBe('eligible');
+    expect(result.reason).toContain('accepts all organization types');
+    expect(result.reason).toContain('Additional Information on Eligibility');
+    expect(result.reason).toContain('check only');
+  });
+
+  test.each([[], [GRANTS_GOV_UNRESTRICTED_APPLICANTS], [GRANTS_GOV_OTHER_APPLICANTS], ['12']])(
+    'unrestricted source does not invent a client identity from %j',
+    (...values: string[]) => {
+      const result = computeEligibility(
+        client({ applicantTypes: values }),
+        opportunity({ eligibleApplicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS] }),
+      );
+      expect(result.state).toBe('needs_review');
+    },
+  );
+
+  test.each([
+    [GRANTS_GOV_OTHER_APPLICANTS],
+    [GRANTS_GOV_OTHER_APPLICANTS, 'State governments'],
+    ['A newly introduced source category'],
+  ])('source eligibility %j cannot establish a false mismatch', (...types: string[]) => {
+    const result = computeEligibility(
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: types }),
+    );
+    expect(result.state).toBe('needs_review');
+  });
+
+  test('an explicit organization match still resolves the type check when Other is also accepted', () => {
+    const result = computeEligibility(
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: [GRANTS_GOV_OTHER_APPLICANTS, 'Small businesses'] }),
+    );
+    expect(result.state).toBe('eligible');
+    expect(result.reason).toContain('review additional eligibility requirements');
+  });
+
+  test('unrestricted applicant types do not override an explicit geographic mismatch', () => {
+    const result = computeEligibility(
+      client({ applicantTypes: ['Small businesses'], states: ['TX'] }),
+      opportunity({
+        eligibleApplicantTypes: [GRANTS_GOV_UNRESTRICTED_APPLICANTS],
+        geographicRestrictions: ['CA'],
+      }),
+    );
+    expect(result.state).toBe('ineligible');
+  });
+
+  test('legacy source-only selections neither establish identity nor generate match evidence', () => {
+    const result = scoreOpportunityRelevance(
+      client({ applicantTypes: [GRANTS_GOV_OTHER_APPLICANTS, GRANTS_GOV_UNRESTRICTED_APPLICANTS] }),
+      opportunity({
+        eligibleApplicantTypes: [GRANTS_GOV_OTHER_APPLICANTS, GRANTS_GOV_UNRESTRICTED_APPLICANTS],
+      }),
+    );
+    expect(result.eligibilityState).toBe('needs_review');
+    expect(result.matchedSignals).toEqual([]);
+    expect(result.relevanceScore).toBe(0);
+    expect(result.meetsSuggestionFloor).toBe(false);
   });
 });
 
@@ -398,17 +510,17 @@ describe('relevance and eligibility are independent', () => {
       client({
         priorAssistanceListings: ['93.778'],
         priorAgencies: ['HHS'],
-        applicantTypes: ['12'],
+        applicantTypes: ['Small businesses'],
         states: ['TX'],
       }),
       opportunity({
         assistanceListingNumber: '93.778',
         agency: 'HHS',
-        eligibleApplicantTypes: ['06'],
+        eligibleApplicantTypes: ['State governments'],
       }),
     );
-    // assistanceListing + agency only: the client's applicant type ('12') is NOT
-    // among the ones this notice accepts ('06'), so applicantType does not fire,
+    // assistanceListing + agency only: the client's applicant type ('Small businesses') is NOT
+    // among the ones this notice accepts ('State governments'), so applicantType does not fire,
     // and the notice states no geographic restriction.
     expect(result.relevanceScore).toBe(
       pct(RELEVANCE_WEIGHTS.assistanceListing + RELEVANCE_WEIGHTS.agency),
@@ -420,8 +532,8 @@ describe('relevance and eligibility are independent', () => {
     // Eligibility can be displayed as context without recommending an unrelated
     // program to every organization of the same legal form.
     const result = scoreOpportunityRelevance(
-      client({ applicantTypes: ['12'] }),
-      opportunity({ eligibleApplicantTypes: ['12'], title: 'Something unrelated' }),
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: ['Small businesses'], title: 'Something unrelated' }),
     );
     expect(result.matchedSignals.map((s) => s.signal)).toEqual(['applicantType']);
     expect(result.relevanceScore).toBe(pct(RELEVANCE_WEIGHTS.applicantType));
@@ -432,11 +544,94 @@ describe('relevance and eligibility are independent', () => {
 
   test('an opportunity with no client tie at all still scores zero', () => {
     const result = scoreOpportunityRelevance(
-      client({ applicantTypes: ['12'] }),
-      opportunity({ eligibleApplicantTypes: ['06'], title: 'Something unrelated' }),
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: ['State governments'], title: 'Something unrelated' }),
     );
     expect(result.relevanceScore).toBe(0);
     expect(result.eligibilityState).toBe('ineligible');
+  });
+});
+
+describe('funding priorities as explicit client intent', () => {
+  test('a specific project priority with independent agency evidence can establish fit', () => {
+    const result = scoreOpportunityRelevance(
+      client({
+        fundingPriorities: ['Autonomous ground vehicles'],
+        priorAgencies: ['Department of Energy'],
+      }),
+      opportunity({
+        title: 'Autonomous ground vehicles for field demonstration',
+        agency: 'Department of Energy',
+      }),
+    );
+    expect(result.matchedSignals).toContainEqual({
+      signal: 'capabilityKeyword',
+      matchedOn: 'Autonomous ground vehicles',
+      source: 'funding_priority',
+      weight: 15,
+      strength: 'moderate',
+    });
+    expect(result.meetsSuggestionFloor).toBe(true);
+    expect(result.relevanceScore).toBe(35);
+  });
+
+  test('capability and funding priority matching the same topic score once with capability provenance', () => {
+    const profile = client({
+      capabilityKeywords: ['Battery storage'],
+      priorAgencies: ['Department of Energy'],
+    });
+    const notice = opportunity({
+      title: 'Battery storage demonstrations',
+      agency: 'Department of Energy',
+    });
+    const baseline = scoreOpportunityRelevance(profile, notice);
+    const withPriority = scoreOpportunityRelevance(
+      { ...profile, fundingPriorities: ['Battery storage', 'Battery storage demonstrations'] },
+      notice,
+    );
+    expect(withPriority.relevanceScore).toBe(baseline.relevanceScore);
+    expect(
+      withPriority.matchedSignals.filter((signal) => signal.signal === 'capabilityKeyword'),
+    ).toEqual([
+      {
+        signal: 'capabilityKeyword',
+        matchedOn: 'Battery storage',
+        source: 'capability',
+        weight: 15,
+        strength: 'moderate',
+      },
+    ]);
+  });
+
+  test.each(['funding opportunities', 'research and development', 'advanced systems'])(
+    'generic priority %s creates no topical evidence',
+    (priority) => {
+      const result = scoreOpportunityRelevance(
+        client({ fundingPriorities: [priority], priorAgencies: ['DOE'] }),
+        opportunity({ title: priority, agency: 'DOE' }),
+      );
+      expect(result.matchedSignals.some((signal) => signal.signal === 'capabilityKeyword')).toBe(
+        false,
+      );
+      expect(result.meetsSuggestionFloor).toBe(false);
+    },
+  );
+
+  test('a priority repeated as sector and funding category cannot corroborate itself', () => {
+    const result = scoreOpportunityRelevance(
+      client({ fundingPriorities: ['energy'], sector: 'Energy' }),
+      opportunity({ title: 'Energy projects', fundingCategory: 'Energy' }),
+    );
+    expect(result.matchedSignals.map((signal) => signal.signal)).toEqual(['capabilityKeyword']);
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('priority matching observes word boundaries', () => {
+    const result = scoreOpportunityRelevance(
+      client({ fundingPriorities: ['care'] }),
+      opportunity({ title: 'Medicare operations' }),
+    );
+    expect(result.matchedSignals).toEqual([]);
   });
 });
 
@@ -451,7 +646,7 @@ describe('grant suggestion floor', () => {
       }),
     );
     expect(result.eligibilityState).toBe('eligible');
-    expect(result.relevanceScore).toBeGreaterThan(15);
+    expect(result.relevanceScore).toBe(0);
     expect(result.meetsSuggestionFloor).toBe(false);
   });
 
@@ -515,7 +710,9 @@ describe('grant suggestion floor', () => {
       opportunity({ title: 'Grid resilience for energy systems', fundingCategory: 'Energy' }),
     );
     expect(result.matchedSignals.map((s) => s.signal)).toEqual(['capabilityKeyword', 'sector']);
-    expect(result.relevanceScore).toBe(18);
+    expect(result.relevanceScore).toBe(
+      pct(RELEVANCE_WEIGHTS.capabilityKeyword + RELEVANCE_WEIGHTS.sector),
+    );
     expect(result.meetsSuggestionFloor).toBe(true);
   });
 

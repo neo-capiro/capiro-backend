@@ -1426,6 +1426,7 @@ export class FundingOpportunitiesService {
       );
       const terms = distinctiveSearchTerms([
         ...facts.grantProfile.capabilityKeywords,
+        ...(facts.grantProfile.fundingPriorities ?? []),
         facts.grantProfile.sector,
       ]);
       for (const term of terms) {
@@ -1546,7 +1547,11 @@ export class FundingOpportunitiesService {
       if (profile.setAsideCertifications.length) {
         structuredOr.push({ setAsideCode: { in: profile.setAsideCertifications } });
       }
-      const terms = distinctiveSearchTerms([...profile.capabilityKeywords, profile.sector]);
+      const terms = distinctiveSearchTerms([
+        ...profile.capabilityKeywords,
+        ...(profile.fundingPriorities ?? []),
+        profile.sector,
+      ]);
       for (const term of terms) {
         textOr.push({ title: { contains: term, mode: 'insensitive' } });
         textOr.push({ description: { contains: term, mode: 'insensitive' } });
@@ -1768,6 +1773,7 @@ export class FundingOpportunitiesService {
           strength: s.strength,
           weight: s.weight,
           matchedOn: s.matchedOn,
+          ...(s.source ? { source: s.source } : {}),
         })),
         eligibility: { state: eligibility.state, reason: eligibility.reason },
         // Floor is owned by the grant scorer so keyword+sector fits can surface
@@ -1800,6 +1806,7 @@ export class FundingOpportunitiesService {
         strength: sig.strength,
         weight: sig.weight,
         matchedOn: sig.matchedOn,
+        ...(sig.source ? { source: sig.source } : {}),
       })),
       eligibility: { state: eligibility.state, reason: eligibility.reason },
       meetsSuggestionFloor: scored.meetsSuggestionFloor,
