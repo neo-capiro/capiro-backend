@@ -21,7 +21,7 @@ export function Switch({ isSelected, onChange, children }: Props) {
         <>
           <span
             className={`flex h-5 w-9 flex-none items-center rounded-full p-0.5 transition-colors ${
-              on ? 'bg-accent' : 'bg-line-control'
+              on ? 'btn-dark' : 'bg-line-control'
             }`}
           >
             <span

@@ -456,7 +456,7 @@ function PoolRow({
     >
       <span
         className={`mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border ${
-          selectedOn ? 'border-accent bg-accent text-white' : 'border-line-control bg-surface'
+          selectedOn ? 'btn-dark border-transparent text-white' : 'border-line-control bg-surface'
         }`}
       >
         {selectedOn && <Icon.Check size={11} />}

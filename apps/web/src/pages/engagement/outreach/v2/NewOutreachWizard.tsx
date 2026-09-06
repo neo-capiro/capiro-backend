@@ -2618,9 +2618,9 @@ export function NewOutreachWizard({
               <span
                 className={`flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs ${
                   done
-                    ? 'bg-accent text-white'
+                    ? 'btn-dark text-white'
                     : active
-                      ? 'border-2 border-accent bg-surface text-accent-ink'
+                      ? 'border-2 border-ink-strong bg-surface text-ink-primary'
                       : 'border border-line-hairline bg-neutral-bg text-ink-tertiary'
                 }`}
               >

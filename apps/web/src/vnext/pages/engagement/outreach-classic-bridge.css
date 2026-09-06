@@ -77,3 +77,38 @@
 .capiro-vnext-root .eng-outreach-classic h4 {
   color: var(--capiro-color-text-heading, #17212c);
 }
+
+/*
+ * ── Bare-button chrome ──────────────────────────────────────────────────
+ * The V2 wizard renders many icon-only buttons with NO chrome classes at all
+ * (the recipients rows' chevron/star controls carry only `flex-none
+ * text-ink-*`). On app.capiro.ai antd's reset.css neutralizes the UA's
+ * native button chrome (margin/padding/border/background/bevel) for the
+ * whole document; on os.capiro.ai that stylesheet never loads, and the
+ * vNext foundation reset touches only `font`/`outline`. The result was the
+ * Recipients-step bug: chevron/plus/star rendered as ~28px native grey
+ * bevelled squares, overflowing the row grid's 84px controls column into
+ * the name text (overlapping buttons, 2026-09-06).
+ *
+ * The fix mirrors antd's reset at ZERO specificity: the whole selector is
+ * wrapped in `:where()`, so the rule scores (0,0,0) — below every Tailwind
+ * utility, antd class, and `.ov2-*` rule (all ≥ (0,1,0)), and below the
+ * vNext foundation reset itself. Buttons that declare their own box
+ * (`bg-surface`, `border-*`, `.ant-btn`, `.ov2-rs-add`, `.btn-dark`, hover
+ * tints…) keep it; only truly bare buttons are reset to transparent. Same
+ * pattern email-compose-modal.css §Bare-button chrome solves per-class for
+ * the client-crm surface; this is the subtree-wide generalization.
+ *
+ * app.capiro.ai never loads this file — antd's reset.css already covers
+ * it there, so legacy rendering is unchanged.
+ */
+:where(.capiro-vnext-root .eng-outreach-classic button) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  /* No `color` declaration on purpose: the UA's `buttontext` default only
+     shows on buttons with no text class, and every bare button here
+     carries a `text-*` ink utility that wins regardless. */
+}

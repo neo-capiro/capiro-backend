@@ -493,7 +493,7 @@
 .ov2-rs-thead.congress,
 .ov2-rs-row.congress {
   grid-template-columns:
-    84px minmax(160px, 1.3fr) minmax(110px, 1fr) minmax(110px, 1fr)
+    90px minmax(160px, 1.3fr) minmax(110px, 1fr) minmax(110px, 1fr)
     44px 90px 62px;
 }
 .ov2-rs-thead.clients,

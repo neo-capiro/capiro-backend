@@ -103,7 +103,7 @@ export function StepTemplate({
                 }`}
               >
                 {selected && (
-                  <span className="absolute top-3.5 right-3.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-accent text-white">
+                  <span className="btn-dark absolute top-3.5 right-3.5 flex h-[18px] w-[18px] items-center justify-center rounded-full text-white">
                     <Icon.Check size={11} />
                   </span>
                 )}

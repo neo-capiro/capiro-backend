@@ -249,6 +249,16 @@ function clientIndustry(client: Client): string {
   );
 }
 
+// UUI icon-only control for the directory rows: ghost circular button sized to
+// the AddControl's 26px circle so chevron/+ /star read as one control family
+// (Untitled UI ghost-variant icon button: transparent face, gray-500 icon,
+// gray-100 hover, 8px control radius). Bare `flex-none text-ink-*` buttons were
+// the original overlap bug — on os.capiro.ai nothing resets native button
+// chrome, so they rendered as bevelled grey squares.
+const ROW_ICON_BTN =
+  'flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full ' +
+  'text-ink-tertiary hover:bg-neutral-bg hover:text-ink-primary transition-colors';
+
 // Per the boards: list members read as direct sends, so they tag "In To"
 // like individuals; only group membership gets its own (amber) tag.
 const MEMBERSHIP_TAG: Record<TargetType, { text: string; cls: string }> = {
@@ -465,7 +475,7 @@ export function StepRecipientsSelect({
         <span className="flex-1" />
         <button
           type="button"
-          className="rounded-sm bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          className="btn-dark rounded-sm px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           disabled={builder.members.length === 0}
           onClick={() => {
             setSaveListName('');
@@ -568,7 +578,7 @@ export function StepRecipientsSelect({
       <h2 className="flex items-center gap-2 text-[22px] leading-7 font-bold tracking-[-0.02em] text-ink-primary">
         Select recipients
         {total > 0 && (
-          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="btn-dark rounded-full px-2 py-0.5 text-xs font-semibold text-white">
             {total}
           </span>
         )}
@@ -1072,7 +1082,7 @@ function CcBccPopover({
           <button
             type="button"
             className={`px-2.5 py-1 text-xs font-semibold ${
-              type === 'cc' ? 'bg-accent text-white' : 'bg-surface text-ink-secondary'
+              type === 'cc' ? 'btn-dark text-white' : 'bg-surface text-ink-secondary'
             }`}
             onClick={() => setType('cc')}
           >
@@ -1081,7 +1091,7 @@ function CcBccPopover({
           <button
             type="button"
             className={`border-l border-line-control px-2.5 py-1 text-xs font-semibold ${
-              type === 'bcc' ? 'bg-accent text-white' : 'bg-surface text-ink-secondary'
+              type === 'bcc' ? 'btn-dark text-white' : 'bg-surface text-ink-secondary'
             }`}
             onClick={() => setType('bcc')}
           >
@@ -1438,7 +1448,7 @@ function SelectedPanel({
             <div className="relative" ref={bulkAnchorRef}>
               <button
                 type="button"
-                className="rounded-sm bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                className="btn-dark rounded-sm px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                 disabled={selectedCount === 0}
                 title={selectedCount === 0 ? 'Select at least one recipient first' : undefined}
                 onClick={() => setBulkPopoverOpen((o) => !o)}
@@ -1758,7 +1768,7 @@ function ListEntity({
       <div className="flex flex-wrap items-center gap-2 border-b border-line-hairline bg-surface-subtle px-3 py-2.5">
         <button
           type="button"
-          className="flex-none text-ink-tertiary"
+          className={ROW_ICON_BTN}
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? 'Collapse list' : 'Expand list'}
         >
@@ -1987,7 +1997,7 @@ function GroupEntity({
       <div className="flex flex-wrap items-center gap-2 border-b border-line-hairline bg-surface-subtle px-3 py-2.5">
         <button
           type="button"
-          className="flex-none text-ink-tertiary"
+          className={ROW_ICON_BTN}
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? 'Collapse group' : 'Expand group'}
         >
@@ -2329,7 +2339,7 @@ function AddControl({
   const addButton = membership ? (
     <button
       type="button"
-      className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full bg-accent text-white disabled:opacity-50"
+      className="btn-dark flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-white disabled:opacity-50"
       disabled={addDisabled}
       title={
         addDisabled
@@ -2346,7 +2356,7 @@ function AddControl({
   ) : (
     <button
       type="button"
-      className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full border border-line-control bg-surface text-ink-secondary hover:border-accent hover:text-accent-ink disabled:opacity-50"
+      className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full border border-line-control bg-surface text-ink-secondary transition-colors hover:border-ink-strong hover:text-ink-primary disabled:opacity-50"
       disabled={addDisabled}
       title={addDisabled ? 'Use the checkbox to add to the list' : undefined}
       onClick={() => !addDisabled && onAdd(recipient)}
@@ -2419,7 +2429,7 @@ function MemberRows({
         <span className="controls">
           <button
             type="button"
-            className="flex-none text-ink-tertiary"
+            className={ROW_ICON_BTN}
             onClick={onToggleExpand}
             aria-label={expanded ? 'Collapse staffers' : 'Expand staffers'}
           >
@@ -2436,7 +2446,11 @@ function MemberRows({
           />
           <button
             type="button"
-            className={`flex-none ${favorited ? 'text-warning-heading' : 'text-ink-quaternary hover:text-ink-tertiary'}`}
+            className={`flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full transition-colors ${
+              favorited
+                ? 'text-warning-heading hover:bg-warning-bg'
+                : 'text-ink-quaternary hover:bg-neutral-bg hover:text-ink-primary'
+            }`}
             onClick={onToggleFavorite}
             aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
           >
@@ -3058,7 +3072,7 @@ function ClientRows({
         <span className="controls">
           <button
             type="button"
-            className="flex-none text-ink-tertiary"
+            className={ROW_ICON_BTN}
             onClick={onToggleExpand}
             aria-label={open ? 'Collapse contacts' : 'Expand contacts'}
           >
@@ -3119,10 +3133,10 @@ function ClientRows({
                   />
                   <button
                     type="button"
-                    className={`flex-none ${
+                    className={`flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full transition-colors ${
                       favSet.has(favId)
-                        ? 'text-warning-heading'
-                        : 'text-ink-quaternary hover:text-ink-tertiary'
+                        ? 'text-warning-heading hover:bg-warning-bg'
+                        : 'text-ink-quaternary hover:bg-neutral-bg hover:text-ink-primary'
                     }`}
                     onClick={() => onToggleFavorite(person)}
                     aria-label={favSet.has(favId) ? 'Remove from favorites' : 'Add to favorites'}

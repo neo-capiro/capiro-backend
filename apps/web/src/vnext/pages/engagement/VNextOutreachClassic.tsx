@@ -59,7 +59,15 @@ export interface VNextOutreachClassicProps {
 const CLASSIC_ON_VNEXT_ANTD_THEME: ThemeConfig = {
   algorithm: antdTheme.defaultAlgorithm,
   token: {
-    colorPrimary: '#294e68',
+    // Owner direction 2026-09-06: every button in the wizard renders metallic
+    // black, not navy. The wizard's own primary actions already use the
+    // btn-dark gradient (v2/ui/tailwind.css); these antd tokens cover the
+    // antd-rendered buttons (Continue, Modal OK, checked checkboxes) so no
+    // blue primary survives anywhere in the flow. Ramp mirrors btn-dark's
+    // gradient stops (#39424f → #1b2430 → #0e141c).
+    colorPrimary: '#1b2430',
+    colorPrimaryHover: '#39424f',
+    colorPrimaryActive: '#0e141c',
     colorLink: '#294e68',
     colorLinkHover: '#1f3d52',
     colorText: '#101828',
