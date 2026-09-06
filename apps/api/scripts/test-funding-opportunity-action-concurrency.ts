@@ -424,7 +424,10 @@ async function main(): Promise<void> {
       legacyReused.task.id !== legacy.id ||
       !legacyReused.task.reused ||
       legacyReused.task.ownerUserId !== fixture.userId ||
-      legacyReused.task.dueDate !== followUp.toISOString()
+      // dueDate is @db.Date (calendar day, no time-of-day): compare against
+      // what the legacy row actually persisted, not the pre-truncation
+      // `followUp` instant used only to construct it.
+      legacyReused.task.dueDate !== legacy.dueDate?.toISOString()
     ) {
       throw new Error('Legacy reuse changed the task identity, owner or date');
     }
@@ -475,7 +478,10 @@ async function main(): Promise<void> {
       preserved.notes !== 'Human note survives retry' ||
       preserved.nextAction !== 'Teammate confirmed acquisition requirements' ||
       preserved.ownerUserId !== fixture.userId ||
-      preserved.nextActionDueAt?.toISOString() !== followUp.toISOString()
+      // The workflow row mirrors the task's own (date-truncated) due date, not
+      // the pre-truncation `followUp` instant — same reasoning as the legacy
+      // reuse check above.
+      preserved.nextActionDueAt?.toISOString() !== legacy.dueDate?.toISOString()
     ) {
       throw new Error('Retry overwrote human workflow edits or disagreed with the task owner/date');
     }

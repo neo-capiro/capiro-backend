@@ -559,7 +559,7 @@ describe('the forecast read surface stays a READ, and the CATALOG vocabulary sta
     // is the design working: a new rail cannot reach the inbox without someone
     // editing the file that guards the catalog boundary.
     expect(inboxSource).toMatch(
-      /export const INBOX_SOURCES = \[\.\.\.OPPORTUNITY_SOURCES, 'agency_forecast', 'dibbs', 'sbir_sttr'\] as const;/,
+      /export const INBOX_SOURCES = \[\s*\.\.\.OPPORTUNITY_SOURCES,\s*'agency_forecast',\s*'dibbs',\s*'sbir_sttr',?\s*\]\s*as const;/,
     );
 
     // With `sbir_sttr` live, EVERY planned source is now an inbox rail. The

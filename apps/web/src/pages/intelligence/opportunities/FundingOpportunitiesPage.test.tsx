@@ -317,6 +317,11 @@ function emptyInbox(partial: Partial<InboxResponse> = {}): InboxResponse {
     nextCursor: null,
     pageSize: 50,
     counts: {
+      suggested: 0,
+      tracked: 0,
+      saved: 0,
+      completed: 0,
+      tracked_deadlines: 0,
       needs_review: 0,
       pursuing: 0,
       deadlines: 0,

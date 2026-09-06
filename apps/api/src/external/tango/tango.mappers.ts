@@ -64,11 +64,33 @@ export function unexpectedFields(
   return Object.keys(raw).filter((k) => !allowed.has(k));
 }
 
-/** `''`, `null` and `undefined` all collapse to null. Everything else is trimmed text. */
+// The provider serves free-text fields (titles, descriptions, place names)
+// HTML-entity-escaped — e.g. `Rob Jagger&#039;s Rec Site Upgrades`. Left
+// undecoded, that literal `&#039;` reaches every UI that renders the field
+// verbatim. Same class of defect already fixed once for intel_article
+// (numeric + named entities, decoded before any other processing).
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+};
+
+function decodeEntities(s: string): string {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity: string) => {
+    if (entity[0] === '#') {
+      const isHex = entity[1]?.toLowerCase() === 'x';
+      const codePoint = Number.parseInt(entity.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+      return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : match;
+    }
+    return NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+  });
+}
+
+/** `''`, `null` and `undefined` all collapse to null. Everything else is trimmed, entity-decoded text. */
 export function str(value: unknown): string | null {
   if (value == null) return null;
   if (typeof value === 'string') {
-    const trimmed = value.trim();
+    const trimmed = decodeEntities(value).trim();
     return trimmed === '' ? null : trimmed;
   }
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);

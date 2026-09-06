@@ -103,6 +103,11 @@ function setupBrowserMocks() {
 }
 
 const ZERO_COUNTS = {
+  suggested: 0,
+  tracked: 0,
+  saved: 0,
+  completed: 0,
+  tracked_deadlines: 0,
   needs_review: 0,
   pursuing: 0,
   deadlines: 0,
@@ -331,6 +336,11 @@ describe('the six queues are the top-level model, and source is only a filter', 
   test('all six queues are offered, with their counts', async () => {
     inboxData = inboxResponse({
       counts: {
+        suggested: 0,
+        tracked: 0,
+        saved: 0,
+        completed: 0,
+        tracked_deadlines: 0,
         needs_review: 4,
         pursuing: 2,
         deadlines: 7,
@@ -483,6 +493,11 @@ describe('an empty queue explains WHICH kind of empty it is', () => {
     inboxData = inboxResponse({
       rows: [],
       counts: {
+        suggested: -1,
+        tracked: -1,
+        saved: -1,
+        completed: -1,
+        tracked_deadlines: -1,
         needs_review: -1,
         pursuing: -1,
         deadlines: -1,
@@ -503,6 +518,11 @@ describe('an empty queue explains WHICH kind of empty it is', () => {
     // of the two failures, and it is indistinguishable from an empty queue.
     inboxData = inboxResponse({
       counts: {
+        suggested: -1,
+        tracked: -1,
+        saved: -1,
+        completed: -1,
+        tracked_deadlines: -1,
         needs_review: -1,
         pursuing: -1,
         deadlines: -1,
