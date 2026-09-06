@@ -1,4 +1,8 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import {
+  DistrictNexusChangeWriter,
+  detectEconomicFactChange,
+} from '../src/district-nexus/priority-intelligence/priority-intelligence-changes.js';
 
 export type EconomicSourceName = 'acs' | 'cbp' | 'lodes';
 
@@ -35,6 +39,13 @@ export interface EconomicSourceRunResult {
   rowsWritten: number;
   rowsRejected: number;
   status: 'success' | 'success_with_errors' | 'failed' | 'unavailable';
+  /**
+   * District Nexus change-ledger rows written for this run (economic_fact
+   * material changes only — never a tenant-scoped count). Optional: a dry
+   * run or an unavailable-source call never reaches change detection, so
+   * this is absent rather than a misleading 0 in those paths.
+   */
+  changesWritten?: number;
 }
 
 function finiteOrNull(value: number | null | undefined): number | null {
@@ -108,46 +119,119 @@ export async function writeEconomicFacts(
     });
   }
 
+  const changeWriter = new DistrictNexusChangeWriter(prisma as never);
+  let changesWritten = 0;
+
   try {
     if (!options.dryRun) {
       const chunkSize = 250;
+      const TX_TIMEOUT_MS = 120_000;
       for (let offset = 0; offset < valid.length; offset += chunkSize) {
         const chunk = valid.slice(offset, offset + chunkSize);
         await prisma.$transaction(
-          chunk.map((fact) =>
-            prisma.$executeRaw(Prisma.sql`
-              INSERT INTO district_economic_fact (
-                source, dataset, source_year, geography_type, state,
-                district_code, boundary_congress, metric_key, metric_value,
-                unit, margin_of_error, naics_code, source_record_id, source_url,
-                metadata_jsonb, observed_at, last_synced_at
-              ) VALUES (
-                ${fact.source}, ${fact.dataset}, ${fact.sourceYear},
-                'congressional_district', ${fact.state}, ${fact.districtCode},
-                ${fact.boundaryCongress}, ${fact.metricKey}, ${fact.metricValue},
-                ${fact.unit}, ${fact.marginOfError ?? null},
-                ${fact.naicsCode ?? null}, ${fact.sourceRecordId ?? null},
-                ${fact.sourceUrl ?? null},
-                ${JSON.stringify(fact.metadata ?? {})}::jsonb,
-                ${fact.observedAt ?? null}, now()
-              )
-              ON CONFLICT (
-                source, dataset, source_year, state, district_code,
-                (COALESCE(boundary_congress, -1)), metric_key,
-                (COALESCE(naics_code, ''))
-              ) DO UPDATE SET
-                metric_value = EXCLUDED.metric_value,
-                unit = EXCLUDED.unit,
-                margin_of_error = EXCLUDED.margin_of_error,
-                source_record_id = EXCLUDED.source_record_id,
-                source_url = EXCLUDED.source_url,
-                metadata_jsonb = EXCLUDED.metadata_jsonb,
-                observed_at = EXCLUDED.observed_at,
-                last_synced_at = now()
-            `),
-          ),
+          async (tx) => {
+            for (const fact of chunk) {
+              // Fact write + old-value capture in ONE statement: the WITH
+              // clause is evaluated against the pre-statement snapshot, so
+              // old_fact holds the row's value BEFORE this upsert touches it
+              // — even though district_economic_fact is upsert-in-place
+              // (unlike GSA's append-only history), this still gets a true
+              // old/new pair without a separate round trip, and without a
+              // race between "read" and "write" since both happen in the
+              // same statement inside this transaction.
+              // "Prior" is the most recent existing row for this metric
+              // IDENTITY (source/dataset/state/district/boundary_congress/
+              // metric_key/naics), at a source_year no later than this fact's
+              // own year — NOT an exact source_year match. source_year is
+              // part of the upsert's conflict target, so a genuinely new
+              // vintage (e.g. 2024's first value) creates a brand-new row
+              // rather than overwriting 2023's; comparing only against an
+              // exact-year match would make every new-vintage row look like
+              // a first-ever population (priorValue always null) and never
+              // detect a real year-over-year movement. Ordering by
+              // `source_year <= this year, most recent first` naturally
+              // prefers an exact same-year row when one exists (a same-year
+              // correction/re-publication) and otherwise falls back to the
+              // latest earlier vintage (a genuine year-over-year comparison).
+              const rows = await tx.$queryRaw<
+                Array<{ old_metric_value: string | null; old_source_year: number | null }>
+              >(Prisma.sql`
+                WITH old_fact AS (
+                  SELECT metric_value, source_year
+                  FROM district_economic_fact
+                  WHERE source = ${fact.source} AND dataset = ${fact.dataset}
+                    AND source_year <= ${fact.sourceYear} AND state = ${fact.state}
+                    AND district_code = ${fact.districtCode}
+                    AND (COALESCE(boundary_congress, -1)) = COALESCE(${fact.boundaryCongress}, -1)
+                    AND metric_key = ${fact.metricKey}
+                    AND (COALESCE(naics_code, '')) = COALESCE(${fact.naicsCode ?? null}, '')
+                  ORDER BY source_year DESC
+                  LIMIT 1
+                )
+                INSERT INTO district_economic_fact (
+                  source, dataset, source_year, geography_type, state,
+                  district_code, boundary_congress, metric_key, metric_value,
+                  unit, margin_of_error, naics_code, source_record_id, source_url,
+                  metadata_jsonb, observed_at, last_synced_at
+                ) VALUES (
+                  ${fact.source}, ${fact.dataset}, ${fact.sourceYear},
+                  'congressional_district', ${fact.state}, ${fact.districtCode},
+                  ${fact.boundaryCongress}, ${fact.metricKey}, ${fact.metricValue},
+                  ${fact.unit}, ${fact.marginOfError ?? null},
+                  ${fact.naicsCode ?? null}, ${fact.sourceRecordId ?? null},
+                  ${fact.sourceUrl ?? null},
+                  ${JSON.stringify(fact.metadata ?? {})}::jsonb,
+                  ${fact.observedAt ?? null}, now()
+                )
+                ON CONFLICT (
+                  source, dataset, source_year, state, district_code,
+                  (COALESCE(boundary_congress, -1)), metric_key,
+                  (COALESCE(naics_code, ''))
+                ) DO UPDATE SET
+                  metric_value = EXCLUDED.metric_value,
+                  unit = EXCLUDED.unit,
+                  margin_of_error = EXCLUDED.margin_of_error,
+                  source_record_id = EXCLUDED.source_record_id,
+                  source_url = EXCLUDED.source_url,
+                  metadata_jsonb = EXCLUDED.metadata_jsonb,
+                  observed_at = EXCLUDED.observed_at,
+                  last_synced_at = now()
+                RETURNING
+                  (SELECT metric_value FROM old_fact)::text AS old_metric_value,
+                  (SELECT source_year FROM old_fact) AS old_source_year
+              `);
+              rowsWritten += 1;
+
+              const priorValue = rows[0]?.old_metric_value ?? null;
+              const priorYear = rows[0]?.old_source_year;
+              // priorYear is only ever read by detectEconomicFactChange when
+              // priorValue is non-null (i.e. a prior row genuinely existed),
+              // so a first-ever vintage (no prior row → priorValue null) has
+              // explicit baseline semantics: it can never reach here as a
+              // "change" — detectEconomicFactChange returns [] whenever
+              // either side is missing, which is exactly "identical rerun /
+              // no prior to compare" as well as "first-ever population".
+              const changes = detectEconomicFactChange({
+                source: fact.source,
+                dataset: fact.dataset,
+                stateCode: fact.state,
+                districtCode: fact.districtCode,
+                metricKey: fact.metricKey,
+                naicsCode: fact.naicsCode ?? null,
+                priorYear: priorYear ?? fact.sourceYear,
+                priorValue,
+                currentYear: fact.sourceYear,
+                currentValue: fact.metricValue == null ? null : String(fact.metricValue),
+                observedAt: fact.observedAt ?? new Date(),
+              });
+              if (changes.length > 0) {
+                const summary = await changeWriter.writeChanges(changes, tx);
+                changesWritten += summary.written;
+              }
+            }
+          },
+          { timeout: TX_TIMEOUT_MS, maxWait: 30_000 },
         );
-        rowsWritten += chunk.length;
       }
     }
 
@@ -165,6 +249,7 @@ export async function writeEconomicFacts(
       rowsWritten: options.dryRun ? 0 : rowsWritten,
       rowsRejected,
       status,
+      changesWritten: options.dryRun ? 0 : changesWritten,
     };
   } catch (error) {
     await prisma.$executeRaw(Prisma.sql`

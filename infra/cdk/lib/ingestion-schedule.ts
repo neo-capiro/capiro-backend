@@ -739,6 +739,26 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: client forecast recommendations after the Tango forecast sync (daily 13:05 UTC)',
     enabled: true,
   },
+  {
+    // District Nexus federal-market substrate: the sync script itself is
+    // fully built, tested, dry-run-by-default, and newest-first incremental
+    // via its own tango_subaward_sync_checkpoint (see
+    // sync-tango-subawards.ts) — the only reason tango_subaward has stayed
+    // empty in production is that this command was never registered in the
+    // container entrypoint (fixed in this same PR) or scheduled anywhere.
+    // Registered here DARK: the first-ever commit for this tenant/filter
+    // combination is still gated by the script's own --allow-full
+    // requirement, which this command array deliberately does NOT pass —
+    // enabling this rule alone is not enough to start a catalog-wide write,
+    // matching the safety posture already used for DIBBS/SBIR below.
+    id: 'SyncTangoSubawards',
+    command: ['sync-tango-subawards', '--commit'],
+    cron: { minute: '15', hour: '13' },
+    tier: 'daily',
+    description:
+      'District Nexus: Tango subaward incremental sync into tango_subaward (daily 13:15 UTC)',
+    enabled: false,
+  },
   // ── Funding Opportunities P40 part 3 — DIBBS bid board (ships DISABLED) ─────
   //
   // TWO JOBS, and the pairing is load-bearing rather than belt-and-braces.
@@ -1054,6 +1074,45 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '0', hour: '5', day: '1' },
     tier: 'monthly',
     description: 'Census district refs (monthly)',
+  },
+  {
+    // District Nexus: periodic check for a new ACS annual vintage. Registered
+    // dark (R4 operational hardening) — the script's own DRY_RUN default
+    // means this fires as a dry run even once `enabled: true`, UNLESS the
+    // shared task's container environment separately sets DRY_RUN=false; this
+    // matrix's `command` array has no mechanism to set that per-job. Flipping
+    // this on for real therefore needs a matching env-var decision, not just
+    // `enabled: true` — do not assume enabling alone makes it commit.
+    id: 'SyncDistrictEconomicAcs',
+    command: ['sync-district-economic-acs'],
+    cron: { minute: '5', hour: '5', day: '1' },
+    tier: 'monthly',
+    description: 'District Nexus: ACS annual-vintage check (monthly)',
+    enabled: false,
+  },
+  {
+    // Same DRY_RUN caveat as SyncDistrictEconomicAcs above.
+    id: 'SyncDistrictEconomicCbp',
+    command: ['sync-district-economic-cbp'],
+    cron: { minute: '10', hour: '5', day: '1' },
+    tier: 'monthly',
+    description: 'District Nexus: CBP annual-vintage check (monthly)',
+    enabled: false,
+  },
+  {
+    // District Nexus: periodic LODES availability check. The script itself
+    // requires LODES_DISTRICT_AGGREGATE (an out-of-repo aggregate artifact
+    // this repo has no pipeline to produce yet — see the R4 hardening
+    // program's LODES diagnosis); until that exists this job can only ever
+    // record another 'unavailable' district_economic_source_run row. Kept
+    // dark, registered so the operational shape exists once the aggregate
+    // pipeline is a real product decision. Same DRY_RUN caveat as above.
+    id: 'SyncDistrictEconomicLodes',
+    command: ['sync-district-economic-lodes'],
+    cron: { minute: '15', hour: '5', day: '1' },
+    tier: 'monthly',
+    description: 'District Nexus: LODES availability check (monthly)',
+    enabled: false,
   },
   {
     id: 'SyncOpenspending',
