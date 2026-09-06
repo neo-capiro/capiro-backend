@@ -81,10 +81,7 @@ describe('the cursor is compound, so the order is total', () => {
       { column: 'updatedAt', direction: 'desc' },
       { s: AT.toISOString(), i: 'wf-0005' },
     ) as { OR: Array<Record<string, unknown>> };
-    expect(where.OR).toEqual([
-      { updatedAt: { lt: AT } },
-      { updatedAt: AT, id: { gt: 'wf-0005' } },
-    ]);
+    expect(where.OR).toEqual([{ updatedAt: { lt: AT } }, { updatedAt: AT, id: { gt: 'wf-0005' } }]);
   });
 
   test('an ascending updatedAt cursor uses gt', () => {
@@ -101,9 +98,7 @@ describe('the cursor is compound, so the order is total', () => {
       { column: 'responseDeadlineSnapshot', direction: 'asc' },
       { column: 'updatedAt', direction: 'desc' },
     ] as const) {
-      const where = JSON.stringify(
-        buildInboxCursorWhere(sort, { s: AT.toISOString(), i: 'wf-1' }),
-      );
+      const where = JSON.stringify(buildInboxCursorWhere(sort, { s: AT.toISOString(), i: 'wf-1' }));
       expect(where).toContain('"gt":"wf-1"');
       expect(where).not.toContain('gte');
     }
@@ -137,8 +132,13 @@ describe('the cursor is opaque and validated', () => {
 // ── The filters ─────────────────────────────────────────────────────────────
 
 describe('the six filter predicates', () => {
-  test('there are exactly six, and they are the ones the plan names', () => {
+  test('the recommended and tracking filters preserve the legacy filter names', () => {
     expect([...INBOX_FILTERS]).toEqual([
+      'suggested',
+      'tracked',
+      'tracked_deadlines',
+      'saved',
+      'completed',
       'needs_review',
       'pursuing',
       'deadlines',
@@ -159,15 +159,15 @@ describe('the six filter predicates', () => {
     // The difference is `null`, which means never observed — treating that as closed
     // would hide every row written before the snapshot column existed.
     const where = buildInboxFilterWhere('needs_review') as Record<string, unknown>;
-    expect(where.NOT).toEqual({ sourceActiveSnapshot: false });
+    expect(where.OR).toEqual([{ sourceActiveSnapshot: true }, { sourceActiveSnapshot: null }]);
     expect(where.sourceActiveSnapshot).toBeUndefined();
   });
 
   test('pursuing catches a pursuing workflow OR a pursue decision', () => {
     // The two can legitimately disagree — P07 keeps them separate — so a tab that
     // read only one would silently drop half the pursuits.
-    const where = buildInboxFilterWhere('pursuing') as { OR: unknown[] };
-    expect(where.OR).toEqual([{ workflowStatus: 'pursuing' }, { humanDecision: 'pursue' }]);
+    const where = buildInboxFilterWhere('pursuing') as { AND: Array<{ OR: unknown[] }> };
+    expect(where.AND[0]!.OR).toEqual([{ workflowStatus: 'pursuing' }, { humanDecision: 'pursue' }]);
   });
 
   const decisionFilters: Array<[InboxFilter, string]> = [
@@ -182,11 +182,16 @@ describe('the six filter predicates', () => {
   test('deadlines requires a date and excludes closed and passed rows', () => {
     const where = buildInboxFilterWhere('deadlines') as Record<string, unknown>;
     expect(where.responseDeadlineSnapshot).toEqual({ not: null });
-    expect(where.NOT).toEqual([{ sourceActiveSnapshot: false }, { humanDecision: 'pass' }]);
+    expect(where.AND).toEqual([
+      { OR: [{ sourceActiveSnapshot: true }, { sourceActiveSnapshot: null }] },
+      { OR: [{ humanDecision: null }, { humanDecision: { not: 'pass' } }] },
+    ]);
   });
 
   test('recently_changed excludes only passed rows', () => {
-    expect(buildInboxFilterWhere('recently_changed')).toEqual({ NOT: { humanDecision: 'pass' } });
+    expect(buildInboxFilterWhere('recently_changed')).toEqual({
+      OR: [{ humanDecision: null }, { humanDecision: { not: 'pass' } }],
+    });
   });
 
   test('no filter reaches outside client_funding_opportunity', () => {
@@ -545,6 +550,9 @@ function makeFake(
   };
 
   const prisma: any = {
+    withSystem: jest.fn(async (run: (t: any) => Promise<unknown>) =>
+      run({ $queryRaw: jest.fn(async () => [{ ok: 1 }]) }),
+    ),
     withTenant: jest.fn(async (_t: string, run: (t: any) => Promise<unknown>) => run(tx)),
   };
   return {
@@ -636,7 +644,7 @@ describe('the query count stays bounded as the corpus grows', () => {
     const res = await service.list(TENANT, USER, { pageSize: 50 });
     expect(res.rows).toHaveLength(50);
     // visibility(2) + rows(1) + clients(1) + owners(1) + one title rail(1) + counts(6)
-    expect(queries()).toBeLessThanOrEqual(12);
+    expect(queries()).toBeLessThanOrEqual(6 + INBOX_FILTERS.length);
   });
 
   test('doubling the row count does not change the query count', async () => {
@@ -657,7 +665,12 @@ describe('the query count stays bounded as the corpus grows', () => {
       rows: [
         row({ id: 'wf-0001', source: 'sam_gov', samOpportunityId: 'notice-1' }),
         row({ id: 'wf-0002', source: 'sam_gov', samOpportunityId: 'notice-1' }),
-        row({ id: 'wf-0003', source: 'grants_gov', samOpportunityId: null, grantOpportunityId: 'grant-1' }),
+        row({
+          id: 'wf-0003',
+          source: 'grants_gov',
+          samOpportunityId: null,
+          grantOpportunityId: 'grant-1',
+        }),
       ],
     });
     await service.list(TENANT, USER, { pageSize: 10 });
@@ -832,7 +845,7 @@ describe('a failure is reported, never rendered as zero', () => {
   test('`?source=agency_forecast` narrows to the forecast rail and is echoed back', async () => {
     const { service, rowArgs } = makeFake({ rows: [FORECAST_ROW] });
     const res = await service.list(TENANT, USER, { source: 'agency_forecast' });
-    expect(rowArgs[0].where.source).toBe('agency_forecast');
+    expect(rowArgs[0].where.source).toEqual({ in: ['agency_forecast'] });
     expect(res.source).toBe('agency_forecast');
   });
 
@@ -885,7 +898,7 @@ describe('a failure is reported, never rendered as zero', () => {
     expect(res.rows[0]!.agency).toBe('Defense Logistics Agency');
   });
 
-  test('quantity keeps the provider\'s exact digits and is never a JS number', async () => {
+  test("quantity keeps the provider's exact digits and is never a JS number", async () => {
     const { service } = makeFake({
       rows: [DIBBS_ROW],
       // 18 significant digits: past 2^53, so a float round-trip would corrupt it.
@@ -969,7 +982,7 @@ describe('a failure is reported, never rendered as zero', () => {
     const { service, rowArgs } = makeFake({ rows: [DIBBS_ROW] });
     const res = await service.list(TENANT, USER, { source: 'dibbs' });
 
-    expect(rowArgs[0].where.source).toBe('dibbs');
+    expect(rowArgs[0].where.source).toEqual({ in: ['dibbs'] });
     expect(res.source).toBe('dibbs');
   });
 
@@ -1047,7 +1060,7 @@ describe('a failure is reported, never rendered as zero', () => {
     const calls = (tx.clientFundingOpportunity.count as jest.Mock).mock.calls as Array<[any]>;
     expect(calls.length).toBeGreaterThan(0);
     for (const [args] of calls) {
-      expect(args.where.source).toBe('agency_forecast');
+      expect(args.where.source).toEqual({ in: ['agency_forecast'] });
     }
   });
 
@@ -1183,21 +1196,23 @@ describe('source is a filter, not the top-level model', () => {
     const { service, rowArgs } = makeFake();
     const res = await service.list(TENANT, USER, {});
     expect(res.source).toBeNull();
-    expect(rowArgs[0]!.where.source).toBeUndefined();
+    expect(rowArgs[0]!.where.source).toEqual({
+      in: expect.arrayContaining(['grants_gov', 'sam_gov', 'dibbs']),
+    });
   });
 
   test('a known source narrows the row query', async () => {
     const { service, rowArgs } = makeFake();
     const res = await service.list(TENANT, USER, { source: 'grants_gov' });
     expect(res.source).toBe('grants_gov');
-    expect(rowArgs[0]!.where.source).toBe('grants_gov');
+    expect(rowArgs[0]!.where.source).toEqual({ in: ['grants_gov'] });
   });
 
   test('the source narrowing reaches the COUNTS too, so a badge cannot contradict its list', async () => {
     const { service, tx } = makeFake();
     await service.list(TENANT, USER, { source: 'sam_gov' });
     for (const call of tx.clientFundingOpportunity.count.mock.calls) {
-      expect(call[0].where.source).toBe('sam_gov');
+      expect(call[0].where.source).toEqual({ in: ['sam_gov'] });
     }
   });
 
@@ -1221,7 +1236,7 @@ describe('source is a filter, not the top-level model', () => {
     });
     await service.list(TENANT, USER, { clientId: 'client-2', source: 'grants_gov' });
     expect(rowArgs[0]!.where.clientId.in).toEqual(['client-2']);
-    expect(rowArgs[0]!.where.source).toBe('grants_gov');
+    expect(rowArgs[0]!.where.source).toEqual({ in: ['grants_gov'] });
   });
 });
 

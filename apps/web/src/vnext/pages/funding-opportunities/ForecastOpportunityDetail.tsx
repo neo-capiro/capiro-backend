@@ -3,8 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { useApi } from '../../../lib/use-api.js';
 import {
-  FORECAST_ACTIONS,
-  FORECAST_ACTION_LABELS,
   FORECAST_RECOMMENDATION_COLORS,
   FORECAST_RECOMMENDATION_LABELS,
   INBOX_SOURCE_LABELS,
@@ -16,6 +14,7 @@ import {
   type ForecastRecommendation,
   type ForecastSignalEvidence,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
+import { OpportunityClientActions, OpportunityOwnerLabel } from './OpportunityClientActions.js';
 import { FovAlert, FovCard, FovPill, FovSkeletonRows } from './fov-ui.js';
 
 /**
@@ -35,7 +34,6 @@ import { FovAlert, FovCard, FovPill, FovSkeletonRows } from './fov-ui.js';
 export function ForecastOpportunityDetail({
   forecastId,
   clientId,
-  onAction,
 }: {
   forecastId: string;
   clientId: string | null;
@@ -62,7 +60,8 @@ export function ForecastOpportunityDetail({
     // 404 and "the request failed" get different copy: "no such forecast" on a
     // network blip would tell somebody an agency had dropped a plan it still
     // holds.
-    const status = (query.error as { response?: { status?: number } } | undefined)?.response?.status;
+    const status = (query.error as { response?: { status?: number } } | undefined)?.response
+      ?.status;
     const notFound = status === 404;
     return (
       <div data-testid={notFound ? 'fo-forecast-not-found' : 'fo-forecast-error'}>
@@ -99,7 +98,9 @@ export function ForecastOpportunityDetail({
           >
             {INBOX_SOURCE_LABELS.agency_forecast}
           </FovPill>
-          {f.facts.isActive === false ? <FovPill tone="red">Withdrawn by the agency</FovPill> : null}
+          {f.facts.isActive === false ? (
+            <FovPill tone="red">Withdrawn by the agency</FovPill>
+          ) : null}
           {f.facts.status ? <FovPill>{f.facts.status}</FovPill> : null}
         </span>
         <h2 className="fov-page__title" style={{ margin: '6px 0 2px' }}>
@@ -118,12 +119,39 @@ export function ForecastOpportunityDetail({
           tone="info"
           testId="fo-forecast-unscored"
           message="Showing the agency's record only"
-          description="No client is selected, so fit and the early-signal recommendation are not calculated. Open this from a client's inbox row to see them."
+          description="No client is selected, so fit and the early-signal recommendation are not calculated. Choose a client below to assess the fit and save this forecast."
         />
       ) : null}
 
+      <FovCard title="Agency plan at a glance" testId="fo-forecast-glance">
+        <div className="fov-card__facts">
+          <span className="fov-fact">
+            <span className="fov-fact__label">Anticipated award (estimate)</span>
+            <span className="fov-fact__value">
+              {formatSourceDate(f.facts.anticipatedAwardDate, 'Not stated by the agency')}
+            </span>
+          </span>
+          <span className="fov-fact">
+            <span className="fov-fact__label">Estimated period</span>
+            <span className="fov-fact__value">{f.facts.estimatedPeriod ?? 'Not provided'}</span>
+          </span>
+          <span className="fov-fact">
+            <span className="fov-fact__label">Last observed by Capiro</span>
+            <span className="fov-fact__value">{formatForecastFreshness(f.facts)}</span>
+          </span>
+        </div>
+        {f.description ? (
+          <p style={{ whiteSpace: 'pre-wrap' }}>{f.description}</p>
+        ) : (
+          <p className="fov-muted">The agency did not provide a description.</p>
+        )}
+        <p className="fov-micro">
+          This is an agency purchasing plan. Timing may change; there is no application deadline.
+          The provider does not supply a direct source URL for these records.
+        </p>
+      </FovCard>
       {/* 1 ─ Early-signal assessment */}
-      <FovCard title="Early-signal assessment" testId="fo-forecast-assessment">
+      <FovCard title="Why it fits this client" testId="fo-forecast-assessment">
         {f.recommendation ? (
           <div className="fov-stack fov-stack--6">
             <span className="fov-row">
@@ -172,77 +200,25 @@ export function ForecastOpportunityDetail({
         )}
       </FovCard>
 
-      {/* 2 ─ Evidence, including what could not be evaluated */}
-      <FovCard title="Evidence" testId="fo-forecast-evidence">
-        {f.recommendation ? (
-          <>
-            <div className="fov-stack fov-stack--2">
-              {SIGNAL_LABELS.map(([key, label]) => {
-                const unavailable = f.recommendation!.signals.unavailable.find(
-                  (u) => u.signal === key,
-                );
-                const established = f.recommendation!.signals[key];
-                return (
-                  <div key={key} data-testid={`fo-forecast-signal-${key}`}>
-                    {unavailable ? (
-                      // NOT an unticked box. "Could not be evaluated" is a fact
-                      // about the data; rendering it as false would state an
-                      // absence of the client's fit instead.
-                      <FovPill title={unavailable.reason}>{label}: not evaluated</FovPill>
-                    ) : (
-                      <FovPill tone={established ? 'green' : 'default'}>
-                        {label}: {established ? 'yes' : 'no match'}
-                      </FovPill>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {f.missingProfileFields.length > 0 ? (
-              <div style={{ marginTop: 8 }}>
-                <span className="fov-micro">
-                  Better matching needs:{' '}
-                  {f.missingProfileFields.map((m, i) => (
-                    <span key={m.field}>
-                      {i > 0 ? ', ' : ''}
-                      {m.href ? (
-                        <a href={m.href} title={m.impact}>
-                          {m.label}
-                        </a>
-                      ) : (
-                        <span title={m.impact}>{m.label}</span>
-                      )}
-                    </span>
-                  ))}
-                </span>
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <span className="fov-muted">
-            No signals were evaluated, so nothing here says anything about this client’s fit.
-          </span>
-        )}
-      </FovCard>
-
-      {/* 3 ─ What happens next: the linkage gap, stated as a gap */}
-      <FovCard title="What happens next" testId="fo-forecast-linkage">
-        <p className="fov-muted" style={{ margin: '0 0 6px' }}>
-          {/* Stated as a gap in Capiro, not as a fact about the agency: "no
-              solicitation followed" is a claim nobody can make from this
-              record. */}
-          Capiro does not yet link a forecast to the solicitation it becomes.{' '}
-          {f.linkedOpportunity == null ? 'Nothing is linked to this record.' : null} That is an
-          absence of a link, not evidence that no solicitation followed — the only honest way to
-          make the link is an exact identifier the agency does not publish on this record, and
-          inferring one from the title text is the kind of guess this system does not make.
-        </p>
-        <span className="fov-muted">
-          Until then: watch for a matching notice on the SAM.gov rail, and keep any decision you
-          record here — it stays attached to the forecast even after a real notice appears.
-        </span>
-      </FovCard>
-
+      <OpportunityClientActions
+        source="agency_forecast"
+        sourceRecordId={f.sourceRecordId}
+        clientId={f.clientId}
+        title={f.title}
+        isActive={f.facts.isActive !== false}
+        canPursue={false}
+        workflowStatus={f.workflow?.status}
+        notes={f.workflow?.notes}
+        ownerUserId={f.workflow ? f.workflow.ownerUserId : null}
+        nextAction={
+          f.workflow?.nextAction !== undefined ? f.workflow.nextAction : f.decision?.nextAction
+        }
+        nextActionDueAt={
+          f.workflow?.nextActionDueAt !== undefined
+            ? f.workflow.nextActionDueAt
+            : f.decision?.nextActionDueAt
+        }
+      />
       {/* 4 ─ Team plan */}
       <FovCard title="Team plan" testId="fo-forecast-plan">
         <div className="fov-card__facts">
@@ -253,95 +229,158 @@ export function ForecastOpportunityDetail({
             </span>
           </span>
           <span className="fov-fact">
-            <span className="fov-fact__label">Workflow stage</span>
+            <span className="fov-fact__label">Tracking status</span>
             <span className="fov-fact__value">{f.workflow?.status ?? 'Not started'}</span>
           </span>
           <span className="fov-fact">
+            <span className="fov-fact__label">Owner</span>
+            <span className="fov-fact__value">
+              <OpportunityOwnerLabel ownerUserId={f.workflow ? f.workflow.ownerUserId : null} />
+            </span>
+          </span>
+          <span className="fov-fact">
             <span className="fov-fact__label">Next action</span>
-            <span className="fov-fact__value">{f.decision?.nextAction ?? 'None recorded'}</span>
+            <span className="fov-fact__value">
+              {f.workflow?.nextAction ?? f.decision?.nextAction ?? 'None recorded'}
+            </span>
           </span>
           <span className="fov-fact">
             <span className="fov-fact__label">Next action due</span>
             <span className="fov-fact__value">
-              {f.decision?.nextActionDueAt
-                ? new Date(f.decision.nextActionDueAt).toLocaleDateString()
+              {(f.workflow?.nextActionDueAt ?? f.decision?.nextActionDueAt)
+                ? formatSourceDate(
+                    (f.workflow?.nextActionDueAt ?? f.decision?.nextActionDueAt)!.slice(0, 10),
+                  )
                 : 'No date'}
             </span>
           </span>
         </div>
+        {f.workflow?.notes ? <p style={{ whiteSpace: 'pre-wrap' }}>{f.workflow.notes}</p> : null}
         {f.decision?.reason ? (
           <p className="fov-muted" style={{ margin: 0 }}>
             Reason given: {f.decision.reason}
           </p>
         ) : null}
-        {onAction ? (
-          <div className="fov-card__actions" data-testid="fo-forecast-detail-actions">
-            <span className="fov-row">
-              {FORECAST_ACTIONS.map((action) => (
-                <CapiroButton key={action} size="compact" onClick={() => onAction(action)}>
-                  {FORECAST_ACTION_LABELS[action]}
-                </CapiroButton>
-              ))}
-            </span>
-          </div>
-        ) : null}
       </FovCard>
 
-      {/* 5 ─ Source record */}
-      <FovCard title="Source record" testId="fo-forecast-source">
-        <div className="fov-desc-wrap">
-          <table className="fov-desc">
-            <tbody>
-              <DescRow label="Source">{INBOX_SOURCE_LABELS.agency_forecast}</DescRow>
-              <DescRow label="Agency system">{f.facts.sourceSystem ?? notProvided()}</DescRow>
-              <DescRow label="Provider record id">{f.sourceRecordId}</DescRow>
-              <DescRow label="Agency’s own id">{f.externalId ?? notProvided()}</DescRow>
-              <DescRow label="Anticipated award">
-                {formatSourceDate(f.facts.anticipatedAwardDate, 'Not stated by the agency')}
-              </DescRow>
-              <DescRow label="Anticipated solicitation">
-                {/* Always this sentence: the resource carries no such field at all. */}
-                {notProvided()}
-              </DescRow>
-              <DescRow label="Estimated period">{f.facts.estimatedPeriod ?? notProvided()}</DescRow>
-              <DescRow label="Fiscal year">{f.facts.fiscalYear ?? notProvided()}</DescRow>
-              <DescRow label="NAICS">{f.naicsCode ?? notProvided()}</DescRow>
-              <DescRow label="PSC">{f.pscCode ?? notProvided()}</DescRow>
-              <DescRow label="Set-aside">{f.setAside ?? notProvided()}</DescRow>
-              <DescRow label="Contract vehicle">{f.contractVehicle ?? notProvided()}</DescRow>
-              <DescRow label="Place of performance">{f.placeOfPerformance ?? notProvided()}</DescRow>
-              <DescRow label="Agency contact">
-                {f.primaryContact
-                  ? [
-                      f.primaryContact.name,
-                      f.primaryContact.title,
-                      f.primaryContact.email,
-                      f.primaryContact.phone,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : notProvided()}
-              </DescRow>
-              <DescRow label="Freshness">
-                <span data-testid="fo-forecast-detail-freshness">
-                  {formatForecastFreshness(f.facts)}
-                </span>
-              </DescRow>
-            </tbody>
-          </table>
-        </div>
-        {f.description ? (
-          <p className="fov-muted" style={{ margin: '10px 0 0' }}>
-            {/* Untrusted source text. Rendered as prose, never interpreted — an
+      <details>
+        <summary>Evidence and source details</summary>
+        {/* 2 ─ Evidence, including what could not be evaluated */}
+        <FovCard title="Evidence" testId="fo-forecast-evidence">
+          {f.recommendation ? (
+            <>
+              <div className="fov-stack fov-stack--2">
+                {SIGNAL_LABELS.map(([key, label]) => {
+                  const unavailable = f.recommendation!.signals.unavailable.find(
+                    (u) => u.signal === key,
+                  );
+                  const established = f.recommendation!.signals[key];
+                  return (
+                    <div key={key} data-testid={`fo-forecast-signal-${key}`}>
+                      {unavailable ? (
+                        // NOT an unticked box. "Could not be evaluated" is a fact
+                        // about the data; rendering it as false would state an
+                        // absence of the client's fit instead.
+                        <FovPill title={unavailable.reason}>{label}: not evaluated</FovPill>
+                      ) : (
+                        <FovPill tone={established ? 'green' : 'default'}>
+                          {label}: {established ? 'yes' : 'no match'}
+                        </FovPill>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {f.missingProfileFields.length > 0 ? (
+                <div style={{ marginTop: 8 }}>
+                  <span className="fov-micro">
+                    Better matching needs:{' '}
+                    {f.missingProfileFields.map((m, i) => (
+                      <span key={m.field}>
+                        {i > 0 ? ', ' : ''}
+                        {m.href ? (
+                          <a href={m.href} title={m.impact}>
+                            {m.label}
+                          </a>
+                        ) : (
+                          <span title={m.impact}>{m.label}</span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <span className="fov-muted">
+              No signals were evaluated, so nothing here says anything about this client’s fit.
+            </span>
+          )}
+        </FovCard>
+        {/* 5 ─ Source record */}
+        <FovCard title="Source record" testId="fo-forecast-source">
+          <div className="fov-desc-wrap">
+            <table className="fov-desc">
+              <tbody>
+                <DescRow label="Source">{INBOX_SOURCE_LABELS.agency_forecast}</DescRow>
+                <DescRow label="Agency system">{f.facts.sourceSystem ?? notProvided()}</DescRow>
+                <DescRow label="Provider record id">{f.sourceRecordId}</DescRow>
+                <DescRow label="Agency’s own id">{f.externalId ?? notProvided()}</DescRow>
+                <DescRow label="Anticipated award">
+                  {formatSourceDate(f.facts.anticipatedAwardDate, 'Not stated by the agency')}
+                </DescRow>
+                <DescRow label="Anticipated solicitation">
+                  {/* Always this sentence: the resource carries no such field at all. */}
+                  {notProvided()}
+                </DescRow>
+                <DescRow label="Estimated period">
+                  {f.facts.estimatedPeriod ?? notProvided()}
+                </DescRow>
+                <DescRow label="Fiscal year">{f.facts.fiscalYear ?? notProvided()}</DescRow>
+                <DescRow label="NAICS">{f.naicsCode ?? notProvided()}</DescRow>
+                <DescRow label="PSC">{f.pscCode ?? notProvided()}</DescRow>
+                <DescRow label="Set-aside">{f.setAside ?? notProvided()}</DescRow>
+                <DescRow label="Contract vehicle">{f.contractVehicle ?? notProvided()}</DescRow>
+                <DescRow label="Place of performance">
+                  {f.placeOfPerformance ?? notProvided()}
+                </DescRow>
+                <DescRow label="Agency contact">
+                  {f.primaryContact
+                    ? [
+                        f.primaryContact.name,
+                        f.primaryContact.title,
+                        f.primaryContact.email,
+                        f.primaryContact.phone,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    : notProvided()}
+                </DescRow>
+                <DescRow label="Freshness">
+                  <span data-testid="fo-forecast-detail-freshness">
+                    {formatForecastFreshness(f.facts)}
+                  </span>
+                </DescRow>
+              </tbody>
+            </table>
+          </div>
+          {f.description ? (
+            <p className="fov-muted" style={{ margin: '10px 0 0' }}>
+              {/* Untrusted source text. Rendered as prose, never interpreted — an
                 instruction inside an agency description is data, not a command. */}
-            {f.description}
-          </p>
-        ) : (
-          <p className="fov-muted" style={{ margin: '10px 0 0' }}>
-            The agency provides no description for this record.
-          </p>
-        )}
-      </FovCard>
+              {f.description}
+            </p>
+          ) : (
+            <p className="fov-muted" style={{ margin: '10px 0 0' }}>
+              The agency provides no description for this record.
+            </p>
+          )}
+        </FovCard>{' '}
+        <FovAlert
+          message="Related solicitation not linked yet"
+          description="Check federal contract notices as the agency's plans develop. Your saved work remains attached to this forecast."
+        />
+      </details>
     </div>
   );
 }

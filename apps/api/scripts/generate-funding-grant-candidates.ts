@@ -118,9 +118,16 @@ export function parseArgs(argv: string[]): Args {
 }
 
 function dedupe(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))];
+  return [
+    ...new Set(
+      values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)),
+    ),
+  ];
 }
-async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function withBypass<T>(
+  prisma: PrismaClient,
+  fn: (tx: PrismaClient) => Promise<T>,
+): Promise<T> {
   return prisma.$transaction(async (rawTx) => {
     const tx = rawTx as unknown as PrismaClient;
     await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
@@ -133,8 +140,10 @@ export async function resolveTenantIds(
   explicitTenantId: string | null,
 ): Promise<string[]> {
   if (explicitTenantId) return [explicitTenantId];
-  const rows = await withBypass(prisma, (tx) =>
-    tx.$queryRaw<Array<{ tenant_id: string }>>`
+  const rows = await withBypass(
+    prisma,
+    (tx) =>
+      tx.$queryRaw<Array<{ tenant_id: string }>>`
       SELECT DISTINCT tenant_id
       FROM intel_feature_flag
       WHERE feature = ${FUNDING_OPPORTUNITIES_FEATURE} AND enabled = true
@@ -279,6 +288,7 @@ export async function generateFundingGrantCandidates(
                   clientId: true,
                   grantOpportunityId: true,
                   workflowStatus: true,
+                  humanDecision: true,
                   userCreated: true,
                   evidenceSourceType: true,
                   staleAt: true,
@@ -315,8 +325,7 @@ export async function generateFundingGrantCandidates(
                   // award-history data can ever qualify on this rail. PR #1146
                   // fixed that class everywhere else and missed this file.
                   const meetsSuggestionFloor = scored.meetsSuggestionFloor;
-                  const existing =
-                    existingByKey.get(`${client.clientId}:${grant.id}`) ?? null;
+                  const existing = existingByKey.get(`${client.clientId}:${grant.id}`) ?? null;
                   const decision = decideProducerAction({
                     existing,
                     relevanceScore: scored.relevanceScore,
@@ -353,8 +362,7 @@ export async function generateFundingGrantCandidates(
                             evidenceSourceType: EVIDENCE_SOURCE_TYPE,
                             userCreated: false,
                             relevanceScore: scored.relevanceScore,
-                            matchSignals:
-                              scored.matchedSignals as unknown as Prisma.InputJsonValue,
+                            matchSignals: scored.matchedSignals as unknown as Prisma.InputJsonValue,
                             eligibilityState: eligibility.state,
                             eligibilityReason: eligibility.reason,
                             sourceStatusSnapshot: grant.status,
@@ -375,8 +383,7 @@ export async function generateFundingGrantCandidates(
                           where: { id: decision.id },
                           data: {
                             relevanceScore: scored.relevanceScore,
-                            matchSignals:
-                              scored.matchedSignals as unknown as Prisma.InputJsonValue,
+                            matchSignals: scored.matchedSignals as unknown as Prisma.InputJsonValue,
                             eligibilityState: eligibility.state,
                             eligibilityReason: eligibility.reason,
                             sourceStatusSnapshot: grant.status,
@@ -484,7 +491,9 @@ async function main(): Promise<void> {
       if (result.completion === 'INCOMPLETE') {
         // Deliberately does NOT say "raise the cap" — there is no cap. It names
         // the guard that tripped and the exact flag needed to finish the walk.
-        console.warn(`[${SOURCE}] ⚠️ INCOMPLETE: ${result.incompleteReason ?? 'coverage is partial'}`);
+        console.warn(
+          `[${SOURCE}] ⚠️ INCOMPLETE: ${result.incompleteReason ?? 'coverage is partial'}`,
+        );
       }
       return result;
     };

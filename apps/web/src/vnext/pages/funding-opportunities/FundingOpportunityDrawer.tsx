@@ -2,12 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroDrawer } from '../../components/overlays/index.js';
 import {
-  DIBBS_NO_DETAIL_DESCRIPTION,
-  DIBBS_NO_DETAIL_MESSAGE,
   DIBBS_SOURCE,
   FORECAST_SOURCE,
-  SBIR_NO_DETAIL_DESCRIPTION,
-  SBIR_NO_DETAIL_MESSAGE,
   SBIR_SOURCE,
   asCatalogRef,
   opportunityDetailPath,
@@ -15,6 +11,7 @@ import {
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
 import { FundingOpportunityDetail } from './FundingOpportunityDetail.js';
+import { TangoOpportunityDetail } from './TangoOpportunityDetail.js';
 import { FovAlert } from './fov-ui.js';
 
 /**
@@ -43,24 +40,18 @@ export function FundingOpportunityDrawer({
    * body switches on `refValue.source`; see {@link asCatalogRef}.
    */
   const catalogRef = refValue ? asCatalogRef(refValue) : null;
-  const isDibbs = refValue?.source === DIBBS_SOURCE;
-  /** Rails with no detail body render an honest sentence, never another record type's body. */
-  const hasNoDetailBody = isDibbs || refValue?.source === SBIR_SOURCE;
 
   return (
     <div className="fov-drawerhost" data-testid="fo-detail-drawer">
       <CapiroDrawer open={refValue != null} onClose={onClose} title={drawerTitle(refValue)}>
         <div className="fov">
-          {refValue && !hasNoDetailBody ? (
+          {refValue ? (
             <div className="fov-row" style={{ justifyContent: 'flex-end' }}>
-              {/*
-                The same body at its own URL — the full page is the link worth
-                pasting into a ticket. WITHHELD for rails with no detail body:
-                the full page has none either, so the control would lead from
-                "there is no detail here" to a second page saying the same
-                thing.
-              */}
-              <CapiroButton size="compact" onClick={() => navigate(opportunityDetailPath(refValue))}>
+              {/* Every supported feed shares its detail body with the full page. */}
+              <CapiroButton
+                size="compact"
+                onClick={() => navigate(opportunityDetailPath(refValue))}
+              >
                 Open full page
               </CapiroButton>
             </div>
@@ -80,19 +71,11 @@ export function FundingOpportunityDrawer({
               forecastId={refValue.sourceRecordId}
               clientId={refValue.clientId}
             />
-          ) : isDibbs ? (
-            <FovAlert
-              tone="info"
-              testId="fo-drawer-dibbs-no-detail"
-              message={DIBBS_NO_DETAIL_MESSAGE}
-              description={DIBBS_NO_DETAIL_DESCRIPTION}
-            />
-          ) : refValue.source === SBIR_SOURCE ? (
-            <FovAlert
-              tone="info"
-              testId="fo-drawer-sbir-no-detail"
-              message={SBIR_NO_DETAIL_MESSAGE}
-              description={SBIR_NO_DETAIL_DESCRIPTION}
+          ) : refValue.source === DIBBS_SOURCE || refValue.source === SBIR_SOURCE ? (
+            <TangoOpportunityDetail
+              source={refValue.source}
+              sourceRecordId={refValue.sourceRecordId}
+              clientId={refValue.clientId}
             />
           ) : (
             <FovAlert

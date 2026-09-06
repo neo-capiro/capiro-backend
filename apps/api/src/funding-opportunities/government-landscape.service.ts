@@ -84,8 +84,7 @@ const NOT_WIRED_EXPLANATION: Readonly<Partial<Record<LandscapeSource, string>>> 
   legislation:
     'Related bills and amendments are not yet joined to an opportunity. Nothing here says none exist.',
   hearing: 'Hearings are not yet joined to an opportunity. Nothing here says none are scheduled.',
-  regulation:
-    'Regulations are not yet joined to an opportunity. Nothing here says none apply.',
+  regulation: 'Regulations are not yet joined to an opportunity. Nothing here says none apply.',
   committee:
     'Committee context is not yet joined to an opportunity. Nothing here says no committee has jurisdiction.',
   acquisition_personnel:
@@ -145,12 +144,22 @@ export interface LandscapePort {
   /** PE links on this notice, with their review status. */
   readProgramElementLinks(
     samOpportunityId: string,
-  ): Promise<Array<{ id: string; peCode: string | null; reviewStatus: string; matchBasis: string; asOf: Date | null }>>;
+  ): Promise<
+    Array<{
+      id: string;
+      peCode: string | null;
+      reviewStatus: string;
+      matchBasis: string;
+      asOf: Date | null;
+    }>
+  >;
   /** The client's own recorded sites. */
   readClientFacilities(
     tenantId: string,
     clientId: string,
-  ): Promise<Array<{ id: string; name: string; state: string | null; congressionalDistrict: string | null }>>;
+  ): Promise<
+    Array<{ id: string; name: string; state: string | null; congressionalDistrict: string | null }>
+  >;
   /** The notice's stated place of performance, for a district/state overlap. */
   readNoticePlace(samOpportunityId: string): Promise<{ state: string | null } | null>;
 
@@ -207,11 +216,8 @@ export interface ActionPlanResult {
   /**
    * Whether accepting an action can actually commit anything for this source.
    *
-   * Reported rather than assumed, because it is FALSE for a forecast today:
-   * P08's action route is bounded to `OPPORTUNITY_SOURCES`, and the workflow row
-   * it writes has no place to put a forecast. A UI that offered an Accept button
-   * anyway would hand the user a 400 with no explanation, so the reason travels
-   * with the plan instead.
+   * Forecast shaping actions use the same atomic review-task route as notices.
+   * They never imply an application or create a pursuit.
    */
   acceptance: { wired: boolean; explanation: string };
 }
@@ -220,9 +226,9 @@ export interface ActionPlanResult {
 function acceptanceFor(source: string): ActionPlanResult['acceptance'] {
   return source === FORECAST_INBOX_SOURCE
     ? {
-        wired: false,
+        wired: true,
         explanation:
-          'Accepting an action is not wired for agency forecasts yet: the pursuit workflow records notices, and a forecast is not one. These are shaping steps to take by hand.',
+          'Accepting a forecast action creates or reuses a review task. Forecasts can be watched; pursuit waits for a published solicitation.',
       }
     : {
         wired: true,
@@ -336,7 +342,10 @@ export class GovernmentLandscapeService {
     }
 
     const ordered = orderLandscapeItems(items);
-    const sources = this.reportSources(ordered, { peLinks: peLinks.length, facilities: facilities.length });
+    const sources = this.reportSources(ordered, {
+      peLinks: peLinks.length,
+      facilities: facilities.length,
+    });
 
     return {
       clientId,
@@ -392,7 +401,7 @@ export class GovernmentLandscapeService {
         'An action plan is composed for SAM.gov contract opportunities and agency forecasts.',
       );
     }
-    assertRequestSourceRecordId(source === FORECAST_INBOX_SOURCE ? 'sam_gov' : source, sourceRecordId);
+    assertRequestSourceRecordId(source, sourceRecordId);
 
     // The wall FIRST. Identical wording and identical shape whether or not the
     // client exists, so the response cannot be used to probe for one.
@@ -452,8 +461,7 @@ export class GovernmentLandscapeService {
 
     return {
       state: 'available',
-      explanation:
-        'Proposed actions only. Nothing here is committed until somebody accepts it.',
+      explanation: 'Proposed actions only. Nothing here is committed until somebody accepts it.',
       plan,
       acceptance: acceptanceFor(source),
     };
@@ -496,7 +504,11 @@ export class GovernmentLandscapeService {
       }
       // Read, and genuinely empty. A real finding, and worded as one.
       const readCount =
-        source === 'program_element' ? read.peLinks : source === 'client_facility' ? read.facilities : 0;
+        source === 'program_element'
+          ? read.peLinks
+          : source === 'client_facility'
+            ? read.facilities
+            : 0;
       return {
         source,
         state: 'empty' as LandscapeSourceState,
@@ -534,7 +546,11 @@ export class GovernmentLandscapeService {
         itemCount: 0,
         explanation: 'Not available for this client.',
       })),
-      coverage: { available: 0, wired: WIRED_LANDSCAPE_SOURCES.size, declared: LANDSCAPE_SOURCES.length },
+      coverage: {
+        available: 0,
+        wired: WIRED_LANDSCAPE_SOURCES.size,
+        declared: LANDSCAPE_SOURCES.length,
+      },
       fingerprint: landscapeFingerprint([]),
       generatedAt: asOf.toISOString(),
     };
@@ -606,7 +622,7 @@ export class GovernmentLandscapeService {
           // catalog data with no tenant_id (P24).
           const row = await this.prisma.withSystem((tx) =>
             tx.tangoProcurementForecast.findUnique({
-              where: { id: sourceRecordId },
+              where: { tangoForecastId: sourceRecordId },
               select: { isActive: true },
             }),
           );

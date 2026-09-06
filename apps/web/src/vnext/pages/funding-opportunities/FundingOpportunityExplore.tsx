@@ -1,429 +1,204 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
-import { CapiroSkeleton } from '../../components/feedback/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { useApi } from '../../../lib/use-api.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import {
-  MERI_VNEXT_PATH,
-  MERI_WINDOW_CLIENT_QUERY,
-  MERI_WINDOW_PROMPT_QUERY,
-} from '../../../components/chat/meri-window.js';
-import {
-  readEnum,
-  readEnumList,
   readInt,
   useUrlState,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-url-state.js';
 import {
-  ELIGIBILITY_LABELS,
-  KIND_LABELS,
-  type EligibilityState,
+  decodeOpportunityRef,
+  encodeOpportunityRef,
+  formatSourceDate,
+  moneyLine,
+  FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
+  FUNDING_OPPORTUNITIES_SBIR_FEATURE,
   type FundingOpportunity,
   type FundingOpportunityListResponse,
-  type OpportunityKind,
-  type OpportunitySourceFreshness,
+  type InboxSource,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
-import { OpportunityCard } from './OpportunityCard.js';
 import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
+import { FundingOpportunityDrawer } from './FundingOpportunityDrawer.js';
 import {
-  FovAlert,
-  FovCard,
-  FovModal,
-  FovMultiSelect,
-  FovSegmented,
-  FovSkeletonRows,
-} from './fov-ui.js';
+  fundingFeedPath,
+  type FundingFeedRecord,
+  type FundingFeedResponse,
+  type TangoOpportunityFeed,
+} from './opportunity-feeds-api.js';
+import { refreshOpportunityQueries, sourceWebUrl } from './opportunity-query-cache.js';
+import { FovAlert, FovCard, FovPill, FovSkeletonRows } from './fov-ui.js';
 
-interface TenantMember {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface FacilityLite {
-  id: string;
-  name: string;
-  city: string | null;
-  state: string | null;
-  congressionalDistrict: string | null;
-}
-
-export const EXPLORE_TABS = [
-  'all',
-  'grants',
-  'contracts',
-  'saved',
-  'pursuing',
-  'deadlines',
-  'dismissed',
-] as const;
-export type ExploreTab = (typeof EXPLORE_TABS)[number];
-type EditorAction = 'assign' | 'note' | 'site' | 'task';
-
-const TABS: Array<{ value: ExploreTab; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'grants', label: 'Grants' },
-  { value: 'contracts', label: 'Government contracts' },
-  { value: 'saved', label: 'Saved' },
-  { value: 'pursuing', label: 'Pursuing' },
-  { value: 'deadlines', label: 'Deadlines' },
-  { value: 'dismissed', label: 'Dismissed' },
+type Feed = InboxSource | 'combined';
+const FEEDS: Array<{ value: Feed; label: string }> = [
+  { value: 'sam_gov', label: 'Federal contracts' },
+  { value: 'grants_gov', label: 'Federal grants' },
+  { value: 'agency_forecast', label: 'Agency forecasts' },
+  { value: 'sbir_sttr', label: 'SBIR/STTR' },
+  { value: 'dibbs', label: 'DLA purchasing (DIBBS)' },
 ];
+const LEGACY_WORKFLOWS: Record<string, string> = {
+  saved: 'saved',
+  pursuing: 'pursuing',
+  dismissed: 'dismissed',
+};
+interface BrowseRow {
+  source: InboxSource;
+  sourceRecordId: string;
+  title: string;
+  agency: string | null;
+  description: string | null;
+  sourceUrl: string | null;
+  timing: string | null;
+  timingLabel: string;
+  amount: string | null;
+  status: string | null;
+  workflowStatus: string | null;
+}
 
-const KIND_OPTIONS = (Object.keys(KIND_LABELS) as OpportunityKind[]).map((value) => ({
-  label: KIND_LABELS[value],
-  value,
-}));
-const ELIGIBILITY_OPTIONS = (Object.keys(ELIGIBILITY_LABELS) as EligibilityState[]).map(
-  (value) => ({ label: ELIGIBILITY_LABELS[value], value }),
-);
-const ALL_KINDS = Object.keys(KIND_LABELS) as OpportunityKind[];
-const ALL_ELIGIBILITY = Object.keys(ELIGIBILITY_LABELS) as EligibilityState[];
+export function readBrowseFeed(
+  feed: string | null,
+  legacyTab: string | null,
+  legacySource: string | null,
+): Feed {
+  if (feed && [...FEEDS.map((f) => f.value), 'combined'].includes(feed as Feed))
+    return feed as Feed;
+  if (legacyTab === 'grants') return 'grants_gov';
+  if (legacyTab === 'contracts') return 'sam_gov';
+  if (legacySource === 'sam_gov' || legacySource === 'grants_gov') return legacySource;
+  // Preserve old combined and workflow URLs without making them a sixth primary feed.
+  return legacyTab ? 'combined' : 'sam_gov';
+}
 
-/**
- * `Explore federal opportunities` — the raw source catalog, vNext port of the
- * canonical FundingOpportunityExplore.
- *
- * A RESEARCH TOOL: one row per source record, scored against a client if one
- * is selected, with the full filter set. The honesty rules it carries (no
- * blended total, null money is never `$0`, relevance and eligibility stay
- * separate, a failed request is not an empty list) read the same data through
- * the same endpoints; only the presentation moved to vNext primitives. Tab,
- * filters and page number stay in the URL.
- */
 export function FundingOpportunityExplore({ clientId }: { clientId: string | undefined }) {
   const api = useApi();
-  const qc = useQueryClient();
+  const cache = useQueryClient();
   const toast = useCapiroToast();
   const url = useUrlState();
-  const navigate = useNavigate();
-
-  const tab = readEnum<ExploreTab>(url.get('tab'), EXPLORE_TABS, 'all');
-  const search = url.get('q') ?? '';
-  const agency = url.get('agency') ?? '';
-  const naics = url.get('naics') ?? '';
-  const psc = url.get('psc') ?? '';
-  const setAside = url.get('setAside') ?? '';
-  const kinds = readEnumList<OpportunityKind>(url.get('kind'), ALL_KINDS);
-  const eligibility = readEnumList<EligibilityState>(url.get('eligibility'), ALL_ELIGIBILITY);
-  const minRelevance = readInt(url.get('minRelevance'), 0, 100);
-  const hasActiveFilters =
-    search !== '' ||
-    agency !== '' ||
-    naics !== '' ||
-    psc !== '' ||
-    setAside !== '' ||
-    kinds.length > 0 ||
-    eligibility.length > 0 ||
-    minRelevance != null;
+  const forecasts = useIntelFeature(FUNDING_OPPORTUNITIES_FORECASTS_FEATURE);
+  const sbir = useIntelFeature(FUNDING_OPPORTUNITIES_SBIR_FEATURE);
+  const feed = readBrowseFeed(url.get('feed'), url.get('tab'), url.get('source'));
+  const auxiliary = ['agency_forecast', 'dibbs', 'sbir_sttr'].includes(feed);
+  const ready = forecasts.ready && sbir.ready;
+  const available =
+    (feed !== 'agency_forecast' && feed !== 'sbir_sttr') ||
+    (feed === 'agency_forecast' && forecasts.enabled) ||
+    (feed === 'sbir_sttr' && sbir.enabled);
   const page = readInt(url.get('page'), 1, 100_000) ?? 1;
-
-  // Every filter change resets to page 1. A filter applied on page 7 of the
-  // old result set lands the reader on a page that may not exist in the new one.
-  const patch = (next: Record<string, string | number | null | undefined>) =>
-    url.set({ ...next, page: null });
-
-  const [editor, setEditor] = useState<{
-    action: EditorAction;
-    opportunity: FundingOpportunity;
-  } | null>(null);
-  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
-  const [facilityId, setFacilityId] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
-
-  const members = useQuery<TenantMember[]>({
-    queryKey: ['tenant-members'],
-    queryFn: async () => (await api.get<TenantMember[]>('/api/tenant-members')).data,
-    staleTime: 60_000,
-    enabled: Boolean(clientId),
+  const legacyStatus = !url.get('feed') ? LEGACY_WORKFLOWS[url.get('tab') ?? ''] : undefined;
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: '25',
+    activeState: legacyStatus ? 'all' : url.get('activeState') === 'all' ? 'all' : 'active',
   });
-  const facilities = useQuery<FacilityLite[]>({
-    queryKey: ['client-facilities', clientId],
-    queryFn: async () =>
-      (await api.get<FacilityLite[]>(`/api/clients/${encodeURIComponent(clientId!)}/facilities`))
-        .data,
-    staleTime: 60_000,
-    enabled: Boolean(clientId),
-  });
-
-  const query = useMemo(() => {
-    const params = new URLSearchParams();
-    if (clientId) params.set('clientId', clientId);
-    if (tab === 'grants') params.set('source', 'grants_gov');
-    if (tab === 'contracts') params.set('source', 'sam_gov');
-    if (tab === 'saved') params.set('workflowStatus', 'saved');
-    if (tab === 'pursuing') params.set('workflowStatus', 'pursuing');
-    if (tab === 'dismissed') params.set('workflowStatus', 'dismissed');
-    if (tab === 'deadlines') {
+  if (clientId) params.set('clientId', clientId);
+  for (const key of ['q', 'agency']) {
+    const value = url.get(key)?.trim();
+    if (value) params.set(key, value);
+  }
+  if (!auxiliary || feed === 'agency_forecast') {
+    const naics = url.get('naics')?.trim();
+    if (naics) params.set('naics', naics);
+  }
+  if (!auxiliary) {
+    if (feed !== 'combined') params.set('source', feed);
+    if (legacyStatus) params.set('workflowStatus', legacyStatus);
+    for (const key of [
+      'psc',
+      'setAside',
+      'kind',
+      'eligibility',
+      'minRelevance',
+      'deadlineFrom',
+      'deadlineTo',
+    ]) {
+      const value = url.get(key);
+      if (value) params.set(key, value);
+    }
+    if (!url.get('feed') && url.get('tab') === 'deadlines') {
       params.set('deadlineFrom', new Date().toISOString());
       params.set('deadlineTo', new Date(Date.now() + 30 * 86_400_000).toISOString());
     }
-    params.set('activeState', ['saved', 'pursuing', 'dismissed'].includes(tab) ? 'all' : 'active');
-    if (search.trim()) params.set('q', search.trim());
-    if (agency.trim()) params.set('agency', agency.trim());
-    if (naics.trim()) params.set('naics', naics.trim());
-    if (psc.trim()) params.set('psc', psc.trim());
-    if (setAside.trim()) params.set('setAside', setAside.trim());
-    if (kinds.length) params.set('kind', kinds.join(','));
-    if (eligibility.length) params.set('eligibility', eligibility.join(','));
-    if (minRelevance != null) params.set('minRelevance', String(minRelevance));
-    params.set('page', String(page));
-    params.set('pageSize', '25');
-    return params.toString();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    clientId,
-    tab,
-    search,
-    agency,
-    naics,
-    psc,
-    setAside,
-    kinds.join(','),
-    eligibility.join(','),
-    minRelevance,
-    page,
-  ]);
-
-  const listQuery = useQuery<FundingOpportunityListResponse>({
-    queryKey: ['funding-opportunities', query],
+  }
+  const queryString = params.toString();
+  const catalog = useQuery<FundingOpportunityListResponse>({
+    queryKey: ['funding-opportunities', queryString],
     queryFn: async () =>
-      (await api.get<FundingOpportunityListResponse>(`/api/intelligence/opportunities?${query}`))
-        .data,
+      (
+        await api.get<FundingOpportunityListResponse>(
+          `/api/intelligence/opportunities?${queryString}`,
+        )
+      ).data,
+    enabled: ready && available && !auxiliary,
     retry: 1,
     staleTime: 30_000,
   });
-
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: ['funding-opportunities'] });
-    void qc.invalidateQueries({ queryKey: ['funding-opportunity-inbox'] });
-    void qc.invalidateQueries({ queryKey: ['client-funding-opportunities'] });
-    void qc.invalidateQueries({ queryKey: ['engagement-tasks'] });
-  };
-
-  const workflowMutation = useMutation({
-    mutationFn: async (input: {
-      o: FundingOpportunity;
-      action: 'save' | 'pursue' | 'dismiss' | 'restore';
-    }) => {
-      if (!clientId) throw new Error('Select a client first.');
-      const { o, action } = input;
-      const base = `/api/intelligence/clients/${clientId}/opportunities/${o.source}/${o.sourceRecordId}`;
-      if (action === 'dismiss') return api.post(`${base}/dismiss`, {});
-      if (action === 'restore') return api.post(`${base}/restore`, {});
-      return api.post(`${base}/save`, { status: action === 'pursue' ? 'pursuing' : 'saved' });
-    },
-    onSuccess: (_r, input) => {
-      toast.success(
-        `${
-          input.action === 'dismiss'
-            ? 'Dismissed'
-            : input.action === 'restore'
-              ? 'Restored'
-              : input.action === 'pursue'
-                ? 'Marked as pursuing'
-                : 'Saved'
-        } — ${input.o.title}`,
-      );
-      invalidate();
-    },
-    onError: (err) => toast.error(`Action failed — ${apiErrorMessage(err)}`),
+  const tango = useQuery<FundingFeedResponse>({
+    queryKey: ['funding-opportunity-feed', feed, queryString],
+    queryFn: async () =>
+      (
+        await api.get<FundingFeedResponse>(
+          `${fundingFeedPath(feed as TangoOpportunityFeed)}?${queryString}`,
+        )
+      ).data,
+    enabled: ready && available && auxiliary,
+    retry: 1,
+    staleTime: 30_000,
   });
-
-  const editorMutation = useMutation({
-    mutationFn: async () => {
-      if (!clientId || !editor) throw new Error('Select a client first.');
-      const o = editor.opportunity;
-      const base = `/api/intelligence/clients/${clientId}/opportunities/${o.source}/${o.sourceRecordId}`;
-      if (editor.action === 'task') {
-        // ONE atomic server action since P08. The server derives the title,
-        // description, due date and the idempotency key — sending them from
-        // here is what let the task and the opportunity drift apart.
-        return api.post(`${base}/action`, {
-          intent: o.isPursuable && o.isActive ? 'pursuit' : 'review',
-          ownerUserId: ownerUserId ?? undefined,
-          notes: notes.trim() || undefined,
-        });
-      }
-      const body =
-        editor.action === 'assign'
-          ? { ownerUserId }
-          : editor.action === 'site'
-            ? { facilityId }
-            : { notes: notes.trim() || null };
-      return api.patch(base, body);
-    },
-    onSuccess: () => {
-      toast.success(
-        `${
-          editor?.action === 'assign'
-            ? 'Owner assigned'
-            : editor?.action === 'site'
-              ? 'Project site linked'
-              : editor?.action === 'task'
-                ? 'Task created'
-                : 'Note saved'
-        } — ${editor?.opportunity.title ?? ''}`,
+  const openRow = (row: BrowseRow) =>
+    url.set({
+      detail: encodeOpportunityRef({
+        source: row.source,
+        sourceRecordId: row.sourceRecordId,
+        clientId: clientId ?? null,
+      }),
+    });
+  const save = useMutation({
+    mutationFn: async (row: BrowseRow) => {
+      if (!clientId) throw new Error('Choose a client in the details to save.');
+      return api.post(
+        `/api/intelligence/clients/${encodeURIComponent(clientId)}/opportunities/${row.source}/${encodeURIComponent(row.sourceRecordId)}/save`,
+        { status: 'saved' },
       );
-      setEditor(null);
-      invalidate();
     },
-    onError: (err) => toast.error(`Action failed — ${apiErrorMessage(err)}`),
+    onSuccess: async () => {
+      await refreshOpportunityQueries(cache);
+      toast.success('Saved. Find this opportunity in Tracking.');
+    },
+    onError: () => toast.error('The opportunity could not be saved. Please try again.'),
   });
-
-  function openEditor(action: EditorAction, opportunity: FundingOpportunity) {
-    setEditor({ action, opportunity });
-    setOwnerUserId(opportunity.workflow?.owner?.userId ?? null);
-    setFacilityId(opportunity.workflow?.facility?.id ?? null);
-    setNotes(action === 'note' ? (opportunity.workflow?.notes ?? '') : '');
-  }
-
-  function askMeriAboutOpportunity(opportunity: FundingOpportunity) {
-    if (!clientId) return;
-    const sourceLabel = opportunity.source === 'grants_gov' ? 'Grants.gov' : 'SAM.gov';
-    const prompt = [
-      `Assess this ${sourceLabel} funding opportunity for the selected client.`,
-      `Title: ${opportunity.title}`,
-      `Reference: ${opportunity.sourceReference ?? opportunity.sourceRecordId}`,
-      `Agency: ${[opportunity.agency, opportunity.subAgency, opportunity.office].filter(Boolean).join(' / ') || 'not stated'}`,
-      `Deadline: ${opportunity.responseDeadline ?? opportunity.responseDeadlineNote ?? 'not stated'}`,
-      `Current deterministic relevance: ${opportunity.relevanceScore}/100.`,
-      `Eligibility state: ${opportunity.eligibility.state} — ${opportunity.eligibility.reason}`,
-      opportunity.sourceUrl ? `Source: ${opportunity.sourceUrl}` : '',
-      'Explain the match, identify missing facts or eligibility risks, recommend pursue/watch/dismiss, and give concrete next steps. Keep source facts, Capiro context, and inferences clearly separated.',
-    ]
-      .filter(Boolean)
-      .join('\n');
-    // requestMeriContextPrompt/MeriOverlay is the LEGACY chat-drawer mechanism
-    // and is not mounted anywhere in the vNext shell (AppShellUui) — calling
-    // it here silently did nothing but set the client filter. vNext's Meri is
-    // a dedicated route that bypasses AppShellUui entirely (VNextApp), reached
-    // by navigating to /meri/new with the one-time launch context in the URL.
-    const params = new URLSearchParams();
-    params.set(MERI_WINDOW_PROMPT_QUERY, prompt);
-    params.set(MERI_WINDOW_CLIENT_QUERY, clientId);
-    navigate(`${MERI_VNEXT_PATH}/new?${params.toString()}`);
-  }
-
-  const data = listQuery.data;
-  const counts = data?.counts;
+  const rows: BrowseRow[] = auxiliary
+    ? (tango.data?.rows ?? []).map(feedRow)
+    : (catalog.data?.opportunities ?? []).map(catalogRow);
+  const current = auxiliary ? tango : catalog;
+  const total = auxiliary ? tango.data?.total : catalog.data?.total;
+  const hasMore = auxiliary ? tango.data?.hasMore : total != null && page * 25 < total;
+  const choices = FEEDS.filter((f) => f.value !== 'agency_forecast' || forecasts.enabled).filter(
+    (f) => f.value !== 'sbir_sttr' || sbir.enabled,
+  );
+  if (feed === 'combined')
+    choices.push({
+      value: 'combined',
+      label: 'Federal grants & contracts (shared link)',
+    });
+  if (!choices.some((choice) => choice.value === feed))
+    choices.push(FEEDS.find((choice) => choice.value === feed)!);
 
   return (
     <div className="fov-explore fov-stack fov-stack--10" data-testid="fo-explore">
-      <OpportunityFreshnessStrip freshness={data?.freshness} />
-
-      {!clientId ? (
-        <div data-testid="fo-no-client">
-          <FovAlert
-            tone="info"
-            message="Showing the raw opportunity catalog"
-            description="Pick a client to calculate relevance and eligibility or to save and pursue opportunities."
-          />
-        </div>
-      ) : null}
-
-      <div className="fov-kpis" data-testid="fo-kpis">
-        <Kpi
-          label="Active grants"
-          value={counts?.activeGrants}
-          loading={listQuery.isPending}
-          caption={sourceFreshnessCaption(data?.freshness, 'grants_gov')}
-        />
-        <Kpi
-          label="Active contract opportunities"
-          value={counts?.activeContracts}
-          loading={listQuery.isPending}
-          caption={sourceFreshnessCaption(data?.freshness, 'sam_gov')}
-        />
-        <Kpi label="Saved" value={counts?.saved} loading={listQuery.isPending} />
-        <Kpi label="Pursuing" value={counts?.pursuing} loading={listQuery.isPending} />
-        <Kpi
-          label="Deadlines in 30 days"
-          value={counts?.deadlinesIn30Days}
-          loading={listQuery.isPending}
-        />
-      </div>
-
-      <FovSegmented<ExploreTab>
-        block
-        value={tab}
-        onChange={(value) => patch({ tab: value === 'all' ? null : value })}
-        options={TABS}
-        // Named because two of the tab labels ("Saved", "Pursuing") are also
-        // KPI tile labels a few lines above.
-        ariaLabel="Opportunity workflow tab"
-      />
-
-      <FovCard>
-        <div className="fov-filters">
-          <SearchField value={search} onSearch={(value) => patch({ q: value })} />
-          <input
-            className="capiro-input fov-filter-input"
-            placeholder="Agency"
-            style={{ width: 160 }}
-            value={agency}
-            onChange={(event) => patch({ agency: event.target.value })}
-            aria-label="Agency"
-          />
-          <input
-            className="capiro-input fov-filter-input"
-            placeholder="NAICS"
-            style={{ width: 110 }}
-            value={naics}
-            onChange={(event) => patch({ naics: event.target.value })}
-            aria-label="NAICS code"
-          />
-          <input
-            className="capiro-input fov-filter-input"
-            placeholder="PSC"
-            style={{ width: 100 }}
-            value={psc}
-            onChange={(event) => patch({ psc: event.target.value })}
-            aria-label="PSC code"
-          />
-          <input
-            className="capiro-input fov-filter-input"
-            placeholder="Set-aside"
-            style={{ width: 140 }}
-            value={setAside}
-            onChange={(event) => patch({ setAside: event.target.value })}
-            aria-label="Set-aside"
-          />
-          <FovMultiSelect
-            label="Notice type"
-            placeholder="Notice type"
-            options={KIND_OPTIONS}
-            value={kinds}
-            onChange={(value) => patch({ kind: value.join(',') })}
-          />
-          <FovMultiSelect
-            label="Eligibility"
-            placeholder="Eligibility"
-            options={ELIGIBILITY_OPTIONS}
-            value={eligibility}
-            onChange={(value) => patch({ eligibility: value.join(',') })}
-          />
-          <input
-            type="number"
-            className="capiro-input fov-filter-input"
-            min={0}
-            max={100}
-            placeholder="Min relevance"
-            style={{ width: 130 }}
-            value={minRelevance ?? ''}
+      <div className="fov-row" style={{ flexWrap: 'wrap' }}>
+        <label>
+          <span className="fov-filter-label">Opportunity feed</span>
+          <select
+            className="capiro-input"
+            value={feed}
             onChange={(event) =>
-              patch({ minRelevance: event.target.value === '' ? null : Number(event.target.value) })
-            }
-            aria-label="Minimum relevance"
-          />
-          <button
-            type="button"
-            className="fov-filters__reset"
-            disabled={!hasActiveFilters}
-            onClick={() =>
-              patch({
+              url.set({
+                feed: event.target.value,
+                tab: null,
+                source: null,
+                page: null,
+                cursor: null,
                 q: null,
                 agency: null,
                 naics: null,
@@ -432,252 +207,262 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
                 kind: null,
                 eligibility: null,
                 minRelevance: null,
+                deadlineFrom: null,
+                deadlineTo: null,
+                activeState: null,
+                detail: null,
               })
             }
           >
-            Reset filters
-          </button>
-        </div>
-      </FovCard>
-
-      {listQuery.isError ? (
-        <div data-testid="fo-error">
-          <FovAlert
-            tone="error"
-            message="Funding opportunities failed to load"
-            description="This is a request failure, not an empty result. No conclusion can be drawn about how many opportunities exist."
-            action={
-              <CapiroButton size="compact" onClick={() => void listQuery.refetch()}>
-                Retry
-              </CapiroButton>
-            }
-          />
-        </div>
-      ) : listQuery.isPending ? (
-        <div data-testid="fo-loading">
-          <FovSkeletonRows rows={8} />
-        </div>
-      ) : (data?.opportunities.length ?? 0) === 0 ? (
-        <FovCard testId="fo-empty">
-          <div className="fov-empty">
-            <span className="fov-empty__title">No opportunities to show</span>
-            <span className="fov-muted">
-              {data?.emptyExplanation ?? 'No opportunities match the current filters.'}
-            </span>
-            {data?.missingProfileFields?.length ? (
-              <div style={{ marginTop: 12, textAlign: 'left' }}>
-                <span className="fov-empty__title" style={{ fontSize: 12 }}>
-                  What would improve matching for this client:
-                </span>
-                <ul className="fov-gaps">
-                  {data.missingProfileFields.map((field) => (
-                    <li key={field.field}>
-                      {field.href ? <a href={field.href}>{field.label}</a> : field.label} —{' '}
-                      {field.impact}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        </FovCard>
+            {choices.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!clientId ? (
+          <span className="fov-muted" data-testid="fo-no-client">
+            Search the source records. Choose a client when you want to assess the fit or save an
+            item.
+          </span>
+        ) : null}
+      </div>
+      {!ready ? (
+        <FovSkeletonRows rows={3} />
+      ) : !available ? (
+        <FovAlert
+          tone="info"
+          message="This feed is not enabled for your workspace"
+          description="Your other opportunity feeds remain available from the selector."
+        />
       ) : (
         <>
-          <div className="fov-stack fov-stack--10">
-            {data!.opportunities.map((opportunity) => (
-              <OpportunityCard
-                key={opportunity.id}
-                opportunity={opportunity}
-                clientId={clientId ?? null}
-                busy={workflowMutation.isPending || editorMutation.isPending}
-                onSave={(value) => workflowMutation.mutate({ o: value, action: 'save' })}
-                onPursue={(value) => workflowMutation.mutate({ o: value, action: 'pursue' })}
-                onDismiss={(value) => workflowMutation.mutate({ o: value, action: 'dismiss' })}
-                onRestore={(value) => workflowMutation.mutate({ o: value, action: 'restore' })}
-                onAssign={(value) => openEditor('assign', value)}
-                onNote={(value) => openEditor('note', value)}
-                onLinkSite={(value) => openEditor('site', value)}
-                onCreateTask={(value) => openEditor('task', value)}
-                onAskMeri={askMeriAboutOpportunity}
+          {auxiliary ? (
+            <FeedFreshness freshness={tango.data?.freshness} />
+          ) : (
+            <OpportunityFreshnessStrip freshness={catalog.data?.freshness} />
+          )}
+          {legacyStatus ? (
+            <p className="fov-muted">
+              This shared link shows {legacyStatus} grants and contracts. Tracking contains all
+              supported saved work.
+            </p>
+          ) : null}
+          <form
+            key={`${feed}:${queryString}`}
+            className="fov-row"
+            style={{ flexWrap: 'wrap' }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              url.set({
+                q: String(data.get('q') ?? ''),
+                agency: String(data.get('agency') ?? ''),
+                naics: String(data.get('naics') ?? ''),
+                activeState: String(data.get('activeState') ?? 'active'),
+                page: null,
+              });
+            }}
+          >
+            <label>
+              <span className="fov-filter-label">Search</span>
+              <input
+                className="capiro-input"
+                name="q"
+                defaultValue={url.get('q') ?? ''}
+                placeholder="Title, topic or keyword"
               />
-            ))}
-          </div>
-          <div className="fov-pager">
-            <span className="fov-muted">
-              Showing {data!.opportunities.length} of {data!.total}
-              {data!.totalIsCapped ? '+ (scan bound reached — narrow the filters to see more)' : ''}
-            </span>
-            <span className="fov-row">
-              <CapiroButton
-                size="compact"
-                disabled={page <= 1}
-                onClick={() => url.set({ page: page - 1 <= 1 ? null : page - 1 })}
-              >
-                Previous
-              </CapiroButton>
-              <CapiroButton
-                size="compact"
-                disabled={page * data!.pageSize >= data!.total}
-                onClick={() => url.set({ page: page + 1 })}
-              >
-                Next
-              </CapiroButton>
-            </span>
-          </div>
+            </label>
+            <CapiroButton type="submit">Search</CapiroButton>
+            <details>
+              <summary>Filters</summary>
+              <div className="fov-row" style={{ paddingBlock: 8, flexWrap: 'wrap' }}>
+                <label>
+                  <span className="fov-filter-label">Agency</span>
+                  <input
+                    className="capiro-input"
+                    name="agency"
+                    defaultValue={url.get('agency') ?? ''}
+                  />
+                </label>
+                {!auxiliary || feed === 'agency_forecast' ? (
+                  <label>
+                    <span className="fov-filter-label">NAICS code</span>
+                    <input
+                      className="capiro-input"
+                      name="naics"
+                      defaultValue={url.get('naics') ?? ''}
+                    />
+                  </label>
+                ) : null}
+                <label>
+                  <span className="fov-filter-label">Availability</span>
+                  <select
+                    className="capiro-input"
+                    name="activeState"
+                    defaultValue={url.get('activeState') ?? 'active'}
+                  >
+                    <option value="active">Open or not withdrawn</option>
+                    <option value="all">Include closed records</option>
+                  </select>
+                </label>
+                <CapiroButton type="submit">Apply filters</CapiroButton>
+              </div>
+            </details>
+          </form>
+          {current.isPending ? (
+            <FovSkeletonRows rows={5} />
+          ) : current.isError ? (
+            <FovAlert
+              tone="error"
+              message="This feed could not be loaded"
+              description="Your saved work is unchanged. Try loading the feed again."
+              action={<CapiroButton onClick={() => void current.refetch()}>Retry</CapiroButton>}
+            />
+          ) : (
+            <>
+              <p className="fov-muted" aria-live="polite">
+                {total?.toLocaleString() ?? '—'} records
+                {!auxiliary && catalog.data?.totalIsCapped ? ' or more' : ''} in this search
+              </p>
+              {!rows.length ? (
+                <FovAlert
+                  message="No records match this search"
+                  description="Try another keyword, clear a filter, or choose a different feed."
+                />
+              ) : (
+                rows.map((row) => {
+                  const sourceUrl = sourceWebUrl(row.sourceUrl);
+                  const isSaved = [
+                    'saved',
+                    'pursuing',
+                    'won',
+                    'lost',
+                    'dismissed',
+                    'expired',
+                  ].includes(row.workflowStatus ?? '');
+                  return (
+                    <FovCard key={`${row.source}:${row.sourceRecordId}`} className="fo-simple-row">
+                      <div className="fov-row" style={{ justifyContent: 'space-between' }}>
+                        <span className="fov-muted">{row.agency ?? 'Agency not provided'}</span>
+                        {row.workflowStatus ? (
+                          <FovPill>{row.workflowStatus}</FovPill>
+                        ) : row.status ? (
+                          <FovPill>{row.status}</FovPill>
+                        ) : null}
+                      </div>
+                      <h3 style={{ marginBlock: 8 }}>
+                        <button className="fov-title-button" onClick={() => openRow(row)}>
+                          {row.title}
+                        </button>
+                      </h3>
+                      <div className="fov-row" style={{ flexWrap: 'wrap' }}>
+                        <span>
+                          {row.timingLabel}:{' '}
+                          {formatSourceDate(row.timing?.slice(0, 10) ?? null, 'Not provided')}
+                        </span>
+                        {row.amount ? <span>{row.amount}</span> : null}
+                      </div>
+                      {row.description ? (
+                        <p className="fov-muted">
+                          {row.description.slice(0, 280)}
+                          {row.description.length > 280 ? '…' : ''}
+                        </p>
+                      ) : null}
+                      <div className="fov-row" style={{ flexWrap: 'wrap' }}>
+                        <CapiroButton size="compact" onClick={() => openRow(row)}>
+                          View details
+                        </CapiroButton>
+                        {!isSaved ? (
+                          <CapiroButton
+                            size="compact"
+                            loading={
+                              save.isPending &&
+                              save.variables?.sourceRecordId === row.sourceRecordId
+                            }
+                            onClick={() => (clientId ? save.mutate(row) : openRow(row))}
+                          >
+                            {clientId ? 'Save' : 'Save for a client'}
+                          </CapiroButton>
+                        ) : null}
+                        {sourceUrl ? (
+                          <a href={sourceUrl} target="_blank" rel="noreferrer">
+                            Open source ↗
+                          </a>
+                        ) : null}
+                      </div>
+                    </FovCard>
+                  );
+                })
+              )}
+              {page > 1 || hasMore ? (
+                <nav className="fov-row" aria-label="Browse pages">
+                  <CapiroButton disabled={page <= 1} onClick={() => url.set({ page: page - 1 })}>
+                    Previous
+                  </CapiroButton>
+                  <span>Page {page}</span>
+                  <CapiroButton disabled={!hasMore} onClick={() => url.set({ page: page + 1 })}>
+                    Next
+                  </CapiroButton>
+                </nav>
+              ) : null}
+            </>
+          )}
         </>
       )}
-
-      <FovModal
-        open={editor != null}
-        title={editorTitle(editor?.action)}
-        onCancel={() => setEditor(null)}
-        onOk={() => editorMutation.mutate()}
-        okLoading={editorMutation.isPending}
-        okDisabled={
-          (editor?.action === 'assign' && !ownerUserId) ||
-          (editor?.action === 'site' && !facilityId)
-        }
-      >
-        {editor?.action === 'assign' || editor?.action === 'task' ? (
-          <select
-            className="capiro-select"
-            style={{ width: '100%', marginBottom: 12 }}
-            value={ownerUserId ?? ''}
-            onChange={(event) => setOwnerUserId(event.target.value || null)}
-            aria-label="Opportunity owner"
-          >
-            <option value="">
-              {editor.action === 'task' ? 'Task owner (optional)' : 'Select owner'}
-            </option>
-            {(members.data ?? []).map((member) => (
-              <option key={member.id} value={member.id}>
-                {`${member.name} (${member.email})`}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        {editor?.action === 'site' ? (
-          <select
-            className="capiro-select"
-            style={{ width: '100%' }}
-            value={facilityId ?? ''}
-            onChange={(event) => setFacilityId(event.target.value || null)}
-            aria-label="Project site"
-          >
-            <option value="">Select a client facility</option>
-            {(facilities.data ?? []).map((facility) => (
-              <option key={facility.id} value={facility.id}>
-                {[facility.name, facility.city, facility.state].filter(Boolean).join(' · ')}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        {editor?.action === 'note' || editor?.action === 'task' ? (
-          <textarea
-            className="capiro-input"
-            rows={5}
-            style={{ width: '100%', resize: 'vertical' }}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder={
-              editor.action === 'task' ? 'Additional task context (optional)' : 'Add a team note'
-            }
-            maxLength={4000}
-            aria-label={editor.action === 'task' ? 'Task context' : 'Opportunity note'}
-          />
-        ) : null}
-      </FovModal>
-    </div>
-  );
-}
-
-/**
- * Search commits on Enter or the button — the same commit-on-search contract
- * antd's Input.Search carried (typing does not re-query on every keystroke).
- */
-function SearchField({ value, onSearch }: { value: string; onSearch: (value: string) => void }) {
-  const [draft, setDraft] = useState(value);
-  return (
-    <span className="fov-row" style={{ gap: 4 }}>
-      <input
-        className="capiro-input fov-filter-input"
-        placeholder="Search title, agency or reference…"
-        style={{ width: 240 }}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') onSearch(draft);
-        }}
-        aria-label="Search opportunities"
+      <FundingOpportunityDrawer
+        refValue={decodeOpportunityRef(url.get('detail'))}
+        onClose={() => url.set({ detail: null })}
       />
-      <CapiroButton size="compact" onClick={() => onSearch(draft)} aria-label="Search">
-        Search
-      </CapiroButton>
-    </span>
-  );
-}
-
-function editorTitle(action: EditorAction | undefined): string {
-  if (action === 'assign') return 'Assign opportunity owner';
-  if (action === 'site') return 'Link a reviewed project site';
-  if (action === 'task') return 'Create pursuit task';
-  return 'Add opportunity note';
-}
-
-function Kpi({
-  label,
-  value,
-  loading,
-  caption,
-}: {
-  label: string;
-  value: number | undefined;
-  loading: boolean;
-  caption?: string;
-}) {
-  return (
-    <div className="fov-kpi">
-      <div className="fov-kpi__label">{label}</div>
-      <div className="fov-kpi__value">
-        {loading ? <CapiroSkeleton width={48} height={20} /> : (value ?? '—')}
-      </div>
-      <div className="fov-kpi__caption">{loading ? '' : (caption ?? '')}</div>
     </div>
   );
 }
 
-/**
- * "Grants.gov · 42m" — the source name plus a compact relative sync time, from
- * the SAME freshness array the source rails already render. No new query, no
- * fabricated number: this is a caption, not a claim beyond what the rail says.
- */
-function sourceFreshnessCaption(
-  freshness: OpportunitySourceFreshness[] | undefined,
-  source: 'grants_gov' | 'sam_gov',
-): string | undefined {
-  const entry = (freshness ?? []).find((f) => f.source === source);
-  if (!entry || !entry.lastSyncedAt) return undefined;
-  const then = new Date(entry.lastSyncedAt).getTime();
-  if (Number.isNaN(then)) return undefined;
-  const minutes = Math.round((Date.now() - then) / 60000);
-  let when: string;
-  if (minutes < 1) when = 'just now';
-  else if (minutes < 60) when = `${minutes}m ago`;
-  else if (minutes < 60 * 24) when = `${Math.round(minutes / 60)}h ago`;
-  else when = `${Math.round(minutes / (60 * 24))}d ago`;
-  return `${entry.label} · ${when}`;
+function catalogRow(row: FundingOpportunity): BrowseRow {
+  const amount = moneyLine(row);
+  return {
+    source: row.source,
+    sourceRecordId: row.sourceRecordId,
+    title: row.title,
+    agency: row.agency,
+    description: row.summaryIsLink ? null : row.summary,
+    sourceUrl: row.sourceUrl,
+    timing: row.responseDeadline,
+    timingLabel: 'Response deadline',
+    amount: `${amount.label}: ${amount.value}`,
+    status: row.status,
+    workflowStatus: row.workflow?.status ?? null,
+  };
 }
-
-/**
- * Local copy of the canonical Explore's `apiErrorMessage` — that export lives
- * in the antd Explore file, and this eight-line generic error formatter is not
- * worth an extraction module of its own.
- */
-export function apiErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const data = (error as { response?: { data?: { message?: unknown } } }).response?.data;
-    if (typeof data?.message === 'string') return data.message;
-    if (Array.isArray(data?.message)) return data.message.join(', ');
-  }
-  return error instanceof Error ? error.message : 'Request failed';
+function feedRow(row: FundingFeedRecord): BrowseRow {
+  return {
+    ...row,
+    timing: row.source === 'agency_forecast' ? row.anticipatedAwardDate : row.responseDeadline,
+    timingLabel:
+      row.source === 'agency_forecast' ? 'Anticipated award (estimate)' : 'Response deadline',
+    amount: null,
+    workflowStatus: row.workflow?.status ?? null,
+  };
+}
+function FeedFreshness({ freshness }: { freshness: FundingFeedResponse['freshness'] | undefined }) {
+  if (!freshness) return null;
+  const messages = {
+    not_synced: 'This feed has not completed a recorded sync',
+    current: 'Feed updated',
+    stale: 'This feed may be out of date',
+    failed: 'The latest feed update failed or was incomplete',
+    unknown: 'Feed update status is unavailable',
+  };
+  return (
+    <FovAlert
+      tone={freshness.state === 'failed' || freshness.state === 'stale' ? 'warning' : 'info'}
+      message={messages[freshness.state]}
+      description={
+        freshness.lastSuccessAt
+          ? `Last complete update: ${new Date(freshness.lastSuccessAt).toLocaleString()}.`
+          : 'There is no recorded complete update to show.'
+      }
+    />
+  );
 }

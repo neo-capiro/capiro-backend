@@ -3,6 +3,7 @@ import {
   DIBBS_ENDPOINTS,
   parseArgs,
   runDibbsSync,
+  runDibbsSyncJob,
   type DibbsEndpoint,
   type DibbsEndpointSummary,
   type DibbsSyncDeps,
@@ -110,7 +111,11 @@ function award(uuid: string, overrides: Record<string, unknown> = {}): Record<st
     nomenclature: 'NUT, PLAIN',
     total_contract_price: '12345.67',
     awardee_cage: '1ABC1',
-    awardee: { uei: 'ABCDEFGHIJK1', cage_code: '1ABC1', legal_business_name: 'Acme' },
+    awardee: {
+      uei: 'ABCDEFGHIJK1',
+      cage_code: '1ABC1',
+      legal_business_name: 'Acme',
+    },
     award_date: '2026-07-01',
     posted_date: '2026-07-02',
     ...overrides,
@@ -223,7 +228,10 @@ describe('write posture', () => {
 
 describe('idempotency and replay', () => {
   test('re-running the same page does not duplicate — the provider uuid is the key', async () => {
-    const pages = { rfq: [[rfq('a'), rfq('b')]] as Pages, award: [[award('c')]] as Pages };
+    const pages = {
+      rfq: [[rfq('a'), rfq('b')]] as Pages,
+      award: [[award('c')]] as Pages,
+    };
 
     const first = fakeDeps(pages);
     await runDibbsSync(first.deps, { commit: true, full: true });
@@ -242,7 +250,11 @@ describe('idempotency and replay', () => {
       rfq: [[rfq('a')], [rfq('a', { nomenclature: 'WASHER, FLAT (REV B)' })]],
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(solicitations.size).toBe(1);
     // Both were processed and both were written — "written" counts upserts
@@ -298,7 +310,11 @@ describe('quantityDroppedMissingUnit', () => {
       rfq: [[rfq('a', { quantity: '500', unit_of_issue: null }), rfq('b')]],
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(summary.quantityDroppedMissingUnit).toBe(1);
     // Kept, not dropped — losing a biddable item over a secondary field would
@@ -309,8 +325,14 @@ describe('quantityDroppedMissingUnit', () => {
   });
 
   test('a unit with no quantity is NOT a drop', async () => {
-    const { deps } = fakeDeps({ rfq: [[rfq('a', { quantity: null, unit_of_issue: 'EA' })]] });
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const { deps } = fakeDeps({
+      rfq: [[rfq('a', { quantity: null, unit_of_issue: 'EA' })]],
+    });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
     expect(summary.quantityDroppedMissingUnit).toBe(0);
   });
 
@@ -318,7 +340,11 @@ describe('quantityDroppedMissingUnit', () => {
     const { deps } = fakeDeps({
       rfp: [[rfp('a', { quantity: '500', unit_of_issue: null })]],
     });
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfp'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfp'],
+    });
     expect(summary.quantityDroppedMissingUnit).toBe(0);
   });
 });
@@ -327,11 +353,14 @@ describe('quantityDroppedMissingUnit', () => {
 
 describe('the incremental window', () => {
   test('each endpoint sends its OWN documented date-filter spelling', async () => {
-    const { deps, calls } = fakeDeps({ rfq: [[]], rfp: [[]], award: [[]] }, {
-      rfq: new Date('2026-08-01T00:00:00.000Z'),
-      rfp: new Date('2026-08-01T00:00:00.000Z'),
-      award: new Date('2026-08-01T00:00:00.000Z'),
-    });
+    const { deps, calls } = fakeDeps(
+      { rfq: [[]], rfp: [[]], award: [[]] },
+      {
+        rfq: new Date('2026-08-01T00:00:00.000Z'),
+        rfp: new Date('2026-08-01T00:00:00.000Z'),
+        award: new Date('2026-08-01T00:00:00.000Z'),
+      },
+    );
 
     await runDibbsSync(deps, { commit: false, overlapDays: 0 });
 
@@ -370,7 +399,10 @@ describe('the incremental window', () => {
   test('a first run — no stored rows — has no window at all', async () => {
     const { deps, calls } = fakeDeps({ rfq: [[]] }, { rfq: null });
 
-    const summary = await runDibbsSync(deps, { commit: false, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: false,
+      endpoints: ['rfq'],
+    });
 
     expect(calls[0]!.options).not.toHaveProperty('issueDateAfter');
     expect(byEndpoint(summary, 'rfq').windowFrom).toBeNull();
@@ -379,7 +411,11 @@ describe('the incremental window', () => {
   test('--full drops the window even when a high-water mark exists', async () => {
     const { deps, calls } = fakeDeps({ rfq: [[]] }, { rfq: new Date('2026-08-08T00:00:00.000Z') });
 
-    const summary = await runDibbsSync(deps, { commit: false, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: false,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(calls[0]!.options).not.toHaveProperty('issueDateAfter');
     expect(summary.windowKind).toBe('full');
@@ -408,7 +444,11 @@ describe('page-complete walking', () => {
       rfq: [[rfq('a'), rfq('b')], [rfq('c')], [rfq('d')]],
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(solicitations.size).toBe(4);
     expect(byEndpoint(summary, 'rfq').pagesRead).toBe(3);
@@ -437,16 +477,28 @@ describe('page-complete walking', () => {
   test('one endpoint stopping early does not make the others look incomplete', async () => {
     const { deps } = fakeDeps({ rfq: [[rfq('a')]], award: [[award('b')]] });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq', 'award'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq', 'award'],
+    });
 
     expect(byEndpoint(summary, 'rfq').complete).toBe(true);
     expect(byEndpoint(summary, 'award').complete).toBe(true);
   });
 
   test('an endpoint the caller did not ask for is never called', async () => {
-    const { deps } = fakeDeps({ rfq: [[rfq('a')]], rfp: [[rfp('b')]], award: [[award('c')]] });
+    const { deps } = fakeDeps({
+      rfq: [[rfq('a')]],
+      rfp: [[rfp('b')]],
+      award: [[award('c')]],
+    });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(deps.gateway.listRfps).not.toHaveBeenCalled();
     expect(deps.gateway.listAwards).not.toHaveBeenCalled();
@@ -481,7 +533,11 @@ describe('rate limiting', () => {
       return { items: [rfq('a')], totalCount: 1, nextPage: null, rate: null };
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(calls).toBe(2);
     // Retry-After is in seconds; the sleep is in milliseconds.
@@ -505,7 +561,10 @@ describe('rate limiting', () => {
   });
 
   test('a rate limit that outlasts every retry stops ONE endpoint, never the run', async () => {
-    const { deps, awards } = fakeDeps({ rfq: [[rfq('a')]], award: [[award('z')]] });
+    const { deps, awards } = fakeDeps({
+      rfq: [[rfq('a')]],
+      award: [[award('z')]],
+    });
     (deps.gateway as any).listRfqs = jest.fn(async () => {
       throw rateLimitError(1);
     });
@@ -550,11 +609,24 @@ describe('rate limiting', () => {
         items: [rfq(`p${page}`)],
         totalCount: null,
         nextPage: page === 1 ? 2 : null,
-        rate: page === 1 ? { remaining: 0, limit: 25, resetIn: 31, retryAfter: null, limitType: null } : null,
+        rate:
+          page === 1
+            ? {
+                remaining: 0,
+                limit: 25,
+                resetIn: 31,
+                retryAfter: null,
+                limitType: null,
+              }
+            : null,
       };
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     // Waiting for the 429 also works, but it spends a request to learn what the
     // previous response already said.
@@ -570,7 +642,11 @@ describe('rate limiting', () => {
       fetchImpl: (async () =>
         new Response('slow down', {
           status: 429,
-          headers: { 'retry-after': '31', 'x-ratelimit-remaining': '0', 'x-ratelimit-limit': '25' },
+          headers: {
+            'retry-after': '31',
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-limit': '25',
+          },
         })) as any,
     });
 
@@ -601,12 +677,22 @@ describe('rate limiting', () => {
         nextPage: page === 1 ? 2 : null,
         rate:
           page === 1
-            ? { remaining: 0, limit: 25, resetIn: 9_999_999, retryAfter: null, limitType: null }
+            ? {
+                remaining: 0,
+                limit: 25,
+                resetIn: 9_999_999,
+                retryAfter: null,
+                limitType: null,
+              }
             : null,
       };
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(sleeps).toEqual([120_000]);
     expect(byEndpoint(summary, 'rfq').throttleWaits).toBe(1);
@@ -622,7 +708,11 @@ describe('rate limiting', () => {
       return { items: [rfq('a')], totalCount: 1, nextPage: null, rate: null };
     });
 
-    const summary = await runDibbsSync(deps, { commit: true, full: true, endpoints: ['rfq'] });
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+    });
 
     expect(sleeps).toEqual([120_000]);
     expect(byEndpoint(summary, 'rfq').rateLimitRetries).toBe(1);
@@ -634,7 +724,10 @@ describe('rate limiting', () => {
 
 describe('TangoDibbsClient envelope handling', () => {
   const okResponse = (body: unknown) =>
-    new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
 
   test('a documented envelope parses, and `next` reduces to a page number', async () => {
     const client = new TangoDibbsClient({
@@ -714,7 +807,9 @@ describe('TangoDibbsClient envelope handling', () => {
     const client = new TangoDibbsClient({
       apiKey: 'super-secret-key',
       fetchImpl: (async () =>
-        new Response('bad request for key=super-secret-key', { status: 400 })) as any,
+        new Response('bad request for key=super-secret-key', {
+          status: 400,
+        })) as any,
     });
 
     await expect(client.listRfqs()).rejects.toThrow(TangoDibbsHttpError);
@@ -722,5 +817,125 @@ describe('TangoDibbsClient envelope handling', () => {
       expect(String((error as Error).message)).not.toContain('super-secret-key');
       expect(String((error as Error).message)).toContain('[REDACTED]');
     });
+  });
+});
+
+describe('DIBBS scheduled run ledger', () => {
+  function ledger() {
+    const writes: any[] = [];
+    const prisma = {
+      syncRun: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn(async (args: any) => {
+          writes.push(args.data);
+          return { id: 'run1' };
+        }),
+        update: jest.fn(async (args: any) => {
+          writes.push(args.data);
+          return {};
+        }),
+      },
+    };
+    return { prisma, writes };
+  }
+  test('records a successful real walk and its persisted row count under the freshness source key', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({ rfq: [[rfq('R1')]] });
+    expect(await runDibbsSyncJob(prisma, deps, { commit: true })).toMatchObject({
+      updated: 1,
+      errors: 0,
+      complete: true,
+    });
+    expect(writes[0]).toMatchObject({
+      source: 'sync-tango-dibbs',
+      status: 'running',
+    });
+    expect(writes[1]).toMatchObject({
+      status: 'success',
+      rowsUpdated: 1,
+      errorCount: 0,
+    });
+  });
+  test('dry runs do not write a success record', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({ rfq: [[rfq('R1')]] });
+    await runDibbsSyncJob(prisma, deps, { commit: false });
+    expect(writes).toHaveLength(0);
+    expect(deps.upsertSolicitation).not.toHaveBeenCalled();
+  });
+  test('a capped full reconciliation is partial, not a clean successful source refresh', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({ rfq: [[rfq('R1')], [rfq('R2')]] });
+    const counts = await runDibbsSyncJob(prisma, deps, {
+      commit: true,
+      full: true,
+      limit: 1,
+    });
+    expect(counts.complete).toBe(false);
+    expect(writes[1]).toMatchObject({
+      status: 'partial',
+      errorMessage: expect.stringContaining('full run incomplete: rfq'),
+    });
+  });
+  test('exhausted 429 retries record partial and the rate-limit reason', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({});
+    (deps.gateway.listRfqs as jest.Mock).mockImplementation(async () => {
+      throw new TangoDibbsHttpError(429, 'Rate limit');
+    });
+    const counts = await runDibbsSyncJob(prisma, deps, {
+      commit: true,
+      maxRateLimitRetries: 0,
+    });
+    expect(counts.complete).toBe(false);
+    expect(writes[1]).toMatchObject({
+      status: 'partial',
+      errorMessage: expect.stringContaining('rate-limit retries exhausted'),
+    });
+  });
+  test('a provider/auth failure persists an error and propagates to the command exit', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({});
+    (deps.gateway.listRfqs as jest.Mock).mockImplementation(async () => {
+      throw new TangoDibbsHttpError(401, 'Unauthorized');
+    });
+    await expect(runDibbsSyncJob(prisma, deps, { commit: true })).rejects.toThrow('Unauthorized');
+    expect(writes[1]).toMatchObject({
+      status: 'error',
+      errorCount: 1,
+      errorMessage: 'Unauthorized',
+    });
+  });
+  test('row persistence failure is success_with_errors and yields a failing command result', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({ rfq: [[rfq('R1')]] });
+    (deps.upsertSolicitation as jest.Mock).mockImplementation(async () => {
+      throw new Error('database failure');
+    });
+    expect((await runDibbsSyncJob(prisma, deps, { commit: true })).errors).toBe(1);
+    expect(writes[1]).toMatchObject({
+      status: 'success_with_errors',
+      errorCount: 1,
+      errorMessage: expect.stringContaining('failed to persist'),
+    });
+  });
+  test('missing credentials are recorded, and a selected endpoint cannot claim whole-feed freshness', async () => {
+    const first = ledger();
+    const { deps } = fakeDeps({});
+    (deps.gateway as { configured: boolean }).configured = false;
+    await expect(runDibbsSyncJob(first.prisma, deps, { commit: true })).rejects.toThrow(
+      'No TANGO_API_KEY',
+    );
+    expect(first.writes[1].status).toBe('error');
+    const second = ledger();
+    expect(
+      (
+        await runDibbsSyncJob(second.prisma, fakeDeps({}).deps, {
+          commit: true,
+          endpoints: ['rfq'],
+        })
+      ).complete,
+    ).toBe(false);
+    expect(second.writes[1].status).toBe('partial');
   });
 });

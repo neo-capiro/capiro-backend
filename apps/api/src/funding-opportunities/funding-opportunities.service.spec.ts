@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
@@ -12,6 +12,15 @@ import {
  * is under test here is the combining, filtering, bounding, tenant-safety and
  * honest-empty-state logic, all of which is deterministic given rows.
  */
+
+// Lifecycle assertions are relative to the fixture's observation time, not the test runner's date.
+beforeEach(() => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date('2026-07-28T00:00:00Z'));
+});
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 const TENANT = '00000000-0000-0000-0000-000000000001';
 const OTHER_TENANT = '00000000-0000-0000-0000-000000000002';
@@ -56,11 +65,8 @@ function grantRow(partial: Record<string, unknown> = {}): Record<string, unknown
     opportunityNumber: 'DE-FOA-0001',
     category: null,
     fundingInstrument: 'Grant',
-    // Populated so the default fixture CLEARS the suggestion floor: the grant
-    // scorer bands applicantType as strong, and one strong signal is the bar.
-    // An empty eligibility array plus the default client's other facts produces
-    // zero signals, which is correctly filtered out — a fixture that relied on
-    // that would be testing nothing.
+    // Eligibility alone is insufficient: capability + independent sector facts
+    // in the description establish substantive program fit for this client.
     eligibility: ['Small businesses'],
     cfdaNumbers: ['81.086'],
     awardCeiling: null,
@@ -70,7 +76,7 @@ function grantRow(partial: Record<string, unknown> = {}): Record<string, unknown
     openDate: new Date('2026-06-01T00:00:00Z'),
     closeDate: new Date('2026-12-01T00:00:00Z'),
     status: 'posted',
-    description: 'Research into advanced manufacturing.',
+    description: 'Research into advanced manufacturing for turbofan defense systems.',
     url: 'https://www.grants.gov/x',
     costSharing: null,
     responseDateDesc: null,
@@ -124,7 +130,14 @@ function makeState(partial: Partial<FakeState> = {}): FakeState {
       sectorTag: 'DEFENSE',
       capabilities: [{ name: 'turbofan', tags: [], keywords: [], peNumbers: [] }],
       facilities: [
-        { id: FACILITY, name: 'El Paso Plant', city: 'El Paso', state: 'TX', zip: '79906', congressionalDistrict: '16' },
+        {
+          id: FACILITY,
+          name: 'El Paso Plant',
+          city: 'El Paso',
+          state: 'TX',
+          zip: '79906',
+          congressionalDistrict: '16',
+        },
       ],
     },
     mappings: [],
@@ -133,7 +146,15 @@ function makeState(partial: Partial<FakeState> = {}): FakeState {
     workflows: [],
     users: [{ id: USER, firstName: 'Ada', lastName: 'Byron', email: 'ada@example.com' }],
     facilities: [
-      { id: FACILITY, name: 'El Paso Plant', city: 'El Paso', state: 'TX', zip: '79906', congressionalDistrict: '16', clientId: CLIENT },
+      {
+        id: FACILITY,
+        name: 'El Paso Plant',
+        city: 'El Paso',
+        state: 'TX',
+        zip: '79906',
+        congressionalDistrict: '16',
+        clientId: CLIENT,
+      },
     ],
     // Shape mirrors readFreshness's query, which reports the latest ATTEMPT and
     // the latest SUCCESS separately — the old single-row shape could not express
@@ -193,6 +214,10 @@ function makeFake(state: FakeState) {
     clientIntelMapping: {
       findMany: jest.fn(async () => state.mappings),
     },
+    engagementTask: {
+      findFirst: jest.fn(async () => null),
+      updateMany: jest.fn(async () => ({ count: 0 })),
+    },
     clientFundingOpportunity: {
       findMany: jest.fn(async () => state.workflows),
       findFirst: jest.fn(async (args: any) => {
@@ -232,15 +257,19 @@ function makeFake(state: FakeState) {
         return row;
       }),
     },
-    user: { findMany: jest.fn(async () => state.users), findFirst: jest.fn(async (args: any) => state.users.find((u) => u.id === args?.where?.id) ?? null) },
+    user: {
+      findMany: jest.fn(async () => state.users),
+      findFirst: jest.fn(
+        async (args: any) => state.users.find((u) => u.id === args?.where?.id) ?? null,
+      ),
+    },
     clientFacility: {
       findMany: jest.fn(async () => state.facilities),
       findFirst: jest.fn(async (args: any) => {
         const w = args?.where ?? {};
         return (
           state.facilities.find(
-            (f) =>
-              f.id === w.id && (w.clientId === undefined || f.clientId === w.clientId),
+            (f) => f.id === w.id && (w.clientId === undefined || f.clientId === w.clientId),
           ) ?? null
         );
       }),
@@ -256,9 +285,14 @@ function makeFake(state: FakeState) {
     // P23. Reads via prisma.withSystem((tx) => tx.$queryRaw`...`) —
     // isFundingOpportunitiesFeatureEnabled's own query, keyed on state so a
     // test can turn the flag on without touching any other codepath.
-    $queryRaw: jest.fn(async (strings: unknown) => {
+    $queryRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
       const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
-      if (sql.includes('intel_feature_flag')) return state.vehicleFitEnabled ? [{ ok: 1 }] : [];
+      if (sql.includes('intel_feature_flag'))
+        return values.includes('funding_opportunities_vehicle_fit')
+          ? state.vehicleFitEnabled
+            ? [{ ok: 1 }]
+            : []
+          : [{ ok: 1 }];
       return [];
     }),
     clientRelevantVehicle: {
@@ -274,7 +308,7 @@ function makeFake(state: FakeState) {
       return fn(tx);
     }),
     withSystem: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
-    $queryRaw: jest.fn(async (strings: unknown) => {
+    $queryRaw: jest.fn(async (strings: unknown, ...values: unknown[]) => {
       if (state.queryRawThrows) throw state.queryRawThrows;
       const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
       if (sql.includes('sync_run')) return state.syncRuns;
@@ -286,14 +320,16 @@ function makeFake(state: FakeState) {
     }),
     federalGrant: {
       findMany: jest.fn(async () => state.grants),
-      findUnique: jest.fn(async (args: any) =>
-        state.grants.find((g) => g.id === args.where.id) ?? null,
+      findUnique: jest.fn(
+        async (args: any) => state.grants.find((g) => g.id === args.where.id) ?? null,
       ),
       groupBy: jest.fn(async () => [{ status: 'posted', _count: { _all: state.grants.length } }]),
     },
     samOpportunity: {
       findMany: jest.fn(async () => state.sam),
-      findUnique: jest.fn(async (args: any) => state.sam.find((s) => s.id === args.where.id) ?? null),
+      findUnique: jest.fn(
+        async (args: any) => state.sam.find((s) => s.id === args.where.id) ?? null,
+      ),
       groupBy: jest.fn(async () => [{ active: true, _count: { _all: state.sam.length } }]),
     },
   };
@@ -320,7 +356,11 @@ function makeService(state: FakeState) {
   };
   const tangoGateway = { configured: state.vehicleFitEnabled ?? false };
   return {
-    service: new FundingOpportunitiesService(fake.prisma as never, tangoStore as never, tangoGateway as never),
+    service: new FundingOpportunitiesService(
+      fake.prisma as never,
+      tangoStore as never,
+      tangoGateway as never,
+    ),
     ...fake,
     state,
   };
@@ -420,8 +460,9 @@ describe('grant + contract discovery works with NO producer candidate rows', () 
     });
     const { service, prisma } = makeService(state);
     await service.listClientOpportunities(TENANT, CLIENT, {});
-    const contractCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter((call: unknown[]) =>
-      Array.isArray(call[0]) && (call[0] as unknown[]).join('?').includes('FROM federal_award'),
+    const contractCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter(
+      (call: unknown[]) =>
+        Array.isArray(call[0]) && (call[0] as unknown[]).join('?').includes('FROM federal_award'),
     );
     expect(contractCalls).toHaveLength(0);
   });
@@ -450,8 +491,10 @@ describe('grant + contract discovery works with NO producer candidate rows', () 
     });
     const { service, prisma } = makeService(state);
     await service.listClientOpportunities(TENANT, CLIENT, {});
-    const assistanceCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter((call: unknown[]) =>
-      Array.isArray(call[0]) && (call[0] as unknown[]).join('?').includes('FROM federal_assistance_award'),
+    const assistanceCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter(
+      (call: unknown[]) =>
+        Array.isArray(call[0]) &&
+        (call[0] as unknown[]).join('?').includes('FROM federal_assistance_award'),
     );
     expect(assistanceCalls).toHaveLength(0);
   });
@@ -532,7 +575,10 @@ describe('notice stage and pursuability', () => {
     // "continuous" and "TBD" deadlines are real; treating them as expired hides
     // live money.
     const { service } = makeService(
-      makeState({ sam: [], grants: [grantRow({ closeDate: null, responseDateDesc: 'Continuous' })] }),
+      makeState({
+        sam: [],
+        grants: [grantRow({ closeDate: null, responseDateDesc: 'Continuous' })],
+      }),
     );
     const res = await service.listClientOpportunities(TENANT, CLIENT, {});
     expect(res.opportunities[0]?.isActive).toBe(true);
@@ -547,7 +593,11 @@ describe('a SAM description that is a URL is flagged', () => {
     const { service } = makeService(
       makeState({
         grants: [],
-        sam: [samRow({ description: 'https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=x' })],
+        sam: [
+          samRow({
+            description: 'https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=x',
+          }),
+        ],
       }),
     );
     const res = await service.listClientOpportunities(TENANT, CLIENT, {});
@@ -556,7 +606,10 @@ describe('a SAM description that is a URL is flagged', () => {
 
   test('a link summary is not searched by the text filter', async () => {
     const { service } = makeService(
-      makeState({ grants: [], sam: [samRow({ description: 'https://api.sam.gov/x?noticeid=turbofan' })] }),
+      makeState({
+        grants: [],
+        sam: [samRow({ description: 'https://api.sam.gov/x?noticeid=turbofan' })],
+      }),
     );
     // 'noticeid' appears only inside the URL. A hit there is a false positive the
     // user cannot see the reason for.
@@ -764,8 +817,14 @@ describe('workflow persistence', () => {
   test('saving twice UPDATES the same row rather than creating a second', async () => {
     const state = makeState();
     const { service } = makeService(state);
-    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'saved', actorUserId: USER });
-    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'pursuing', actorUserId: USER });
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'saved',
+      actorUserId: USER,
+    });
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'pursuing',
+      actorUserId: USER,
+    });
     expect(state.workflows).toHaveLength(1);
     expect(state.workflows[0]!.workflowStatus).toBe('pursuing');
   });
@@ -793,7 +852,10 @@ describe('workflow persistence', () => {
       ],
     });
     const { service } = makeService(state);
-    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'saved', actorUserId: USER });
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'saved',
+      actorUserId: USER,
+    });
     expect(state.workflows[0]!.staleAt).toBeNull();
     expect(state.workflows[0]!.userCreated).toBe(true);
   });
@@ -801,11 +863,16 @@ describe('workflow persistence', () => {
   test('dismiss records the reason; restore clears it and lands on saved, not suggested', async () => {
     const state = makeState();
     const { service } = makeService(state);
-    await service.dismiss(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, reason: 'Wrong NAICS' });
+    await service.dismiss(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      reason: 'Wrong NAICS',
+    });
     expect(state.workflows[0]!.workflowStatus).toBe('dismissed');
     expect(state.workflows[0]!.dismissedReason).toBe('Wrong NAICS');
 
-    const restored = await service.restore(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER });
+    const restored = await service.restore(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+    });
     // 'suggested' means "a machine proposed this and nobody has looked"; a human
     // has now looked twice.
     expect(restored.status).toBe('saved');
@@ -815,7 +882,10 @@ describe('workflow persistence', () => {
   test('restore refuses a row that is not dismissed', async () => {
     const state = makeState();
     const { service } = makeService(state);
-    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'saved', actorUserId: USER });
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'saved',
+      actorUserId: USER,
+    });
     await expect(
       service.restore(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER }),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -867,13 +937,19 @@ describe('workflow persistence', () => {
   test('the created-by-edit row and every workflow write are audited', async () => {
     const state = makeState();
     const { service } = makeService(state);
-    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, notes: 'x' });
+    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      notes: 'x',
+    });
     expect(state.audits).toHaveLength(1);
     expect(state.audits[0]!.action).toBe('funding_opportunity.workflow.created_by_edit');
     expect(state.audits[0]!.entityType).toBe('client_funding_opportunity');
     expect(state.audits[0]!.actorUserId).toBe(USER);
 
-    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, notes: 'y' });
+    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      notes: 'y',
+    });
     expect(state.audits).toHaveLength(2);
     expect(state.audits[1]!.action).toBe('funding_opportunity.workflow.patched');
   });
@@ -881,8 +957,14 @@ describe('workflow persistence', () => {
   test('setWorkflowStatus, dismiss and restore each write one audit row', async () => {
     const state = makeState();
     const { service } = makeService(state);
-    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'saved', actorUserId: USER });
-    await service.dismiss(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, reason: 'no fit' });
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'saved',
+      actorUserId: USER,
+    });
+    await service.dismiss(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      reason: 'no fit',
+    });
     await service.restore(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER });
     expect(state.audits.map((a) => a.action)).toEqual([
       'funding_opportunity.workflow.saved',
@@ -896,7 +978,10 @@ describe('workflow persistence', () => {
     // at a missing notice would render as a blank card forever.
     const { service } = makeService(makeState({ sam: [] }));
     await expect(
-      service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'saved', actorUserId: USER }),
+      service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        status: 'saved',
+        actorUserId: USER,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -918,7 +1003,10 @@ describe('workflow persistence', () => {
   test('a saved opportunity survives a relevance threshold that would exclude it', async () => {
     const state = makeState();
     const { service } = makeService(state);
-    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'pursuing', actorUserId: USER });
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'pursuing',
+      actorUserId: USER,
+    });
     const res = await service.listClientOpportunities(TENANT, CLIENT, {
       source: 'sam_gov',
       minRelevance: 100,
@@ -926,7 +1014,6 @@ describe('workflow persistence', () => {
     expect(res.opportunities).toHaveLength(1);
     expect(res.opportunities[0]?.workflow?.status).toBe('pursuing');
   });
-
 
   test('concurrent first saves recover from the partial unique-index race', async () => {
     const state = makeState();
@@ -995,7 +1082,7 @@ describe('tenant safety', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  test("a facility belonging to another CLIENT in the same tenant is refused", async () => {
+  test('a facility belonging to another CLIENT in the same tenant is refused', async () => {
     const state = makeState({
       facilities: [
         {
@@ -1022,7 +1109,9 @@ describe('tenant safety', () => {
     await expect(service.listClientOpportunities(TENANT, CLIENT, {})).rejects.toBeInstanceOf(
       NotFoundException,
     );
-    await expect(service.getClientSummary(TENANT, CLIENT)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getClientSummary(TENANT, CLIENT)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   test('a non-uuid SAM id is a 400, not a driver-level 500', async () => {
@@ -1106,7 +1195,12 @@ describe('sort order is workflow → relevance → deadline → source update', 
         grants: [],
         sam: [
           samRow({ id: a, noticeId: 'N-NULL', title: 'No deadline', responseDeadline: null }),
-          samRow({ id: b, noticeId: 'N-SOON', title: 'Soon', responseDeadline: new Date('2026-08-01T00:00:00Z') }),
+          samRow({
+            id: b,
+            noticeId: 'N-SOON',
+            title: 'Soon',
+            responseDeadline: new Date('2026-08-01T00:00:00Z'),
+          }),
         ],
       }),
     );
@@ -1396,7 +1490,13 @@ describe('the client-profile summary always returns a payload', () => {
     const { service } = makeService(makeState());
     const summary = await service.getClientSummary(TENANT, CLIENT);
     expect(Object.keys(summary.counts)).toEqual(
-      expect.arrayContaining(['activeGrants', 'activeContracts', 'saved', 'pursuing', 'deadlinesIn30Days']),
+      expect.arrayContaining([
+        'activeGrants',
+        'activeContracts',
+        'saved',
+        'pursuing',
+        'deadlinesIn30Days',
+      ]),
     );
   });
 
@@ -1574,7 +1674,9 @@ describe('informational notices are reachable only when asked for', () => {
   test('explicitly filtering by an informational kind opens the door', async () => {
     const { service, prisma } = makeService(awardState());
     await service.listClientOpportunities(TENANT, CLIENT, { kind: ['award_notice'] });
-    const json = whereClauses(prisma.samOpportunity.findMany as never).map(jsonOf).join(' ');
+    const json = whereClauses(prisma.samOpportunity.findMany as never)
+      .map(jsonOf)
+      .join(' ');
     // The informational branch is an OR of the kind clauses (not a NOT of them).
     expect(json).toContain('award');
     const res = await service.listClientOpportunities(TENANT, CLIENT, { kind: ['award_notice'] });
@@ -1605,9 +1707,7 @@ describe('pursuit is refused for notices that cannot be pursued', () => {
     // Nothing enforced this before: `pursuing` was accepted for any notice the URL
     // named. An award notice announces a competition somebody ELSE won, and once
     // marked pursuing it sorts to the TOP of the workflow rail, above real bids.
-    const { service } = makeService(
-      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
-    );
+    const { service } = makeService(makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }));
     await expect(
       service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
         status: 'pursuing',
@@ -1678,9 +1778,7 @@ describe('pursuit is refused for notices that cannot be pursued', () => {
   });
 
   test('the guard also covers the patch path', async () => {
-    const { service } = makeService(
-      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
-    );
+    const { service } = makeService(makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }));
     await expect(
       service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
         actorUserId: USER,
@@ -1760,9 +1858,7 @@ describe('decide — the team decision, separate from workflow status', () => {
   test('the pursuit guard still applies to a decision of pursue', async () => {
     // A decision endpoint must not become a second, unguarded way to pursue a
     // notice the save path refuses.
-    const { service } = makeService(
-      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
-    );
+    const { service } = makeService(makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }));
     await expect(
       service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
         decision: 'pursue',
@@ -1858,5 +1954,161 @@ describe('decide — the team decision, separate from workflow status', () => {
     const res = await service.listClientOpportunities(TENANT, CLIENT, {});
     const row = res.opportunities.find((o) => o.sourceRecordId === SAM_ID);
     expect(row?.decision).toBeNull();
+  });
+});
+
+describe('simple actions preserve the team workflow', () => {
+  test('Save does not demote an existing pursuit', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pursue',
+      actorUserId: USER,
+    });
+    const result = await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'saved',
+      actorUserId: USER,
+    });
+    expect(result.status).toBe('pursuing');
+    expect(state.workflows[0]!.humanDecision).toBe('pursue');
+  });
+  test('Watch refuses to replace an existing pursuit', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pursue',
+      actorUserId: USER,
+    });
+    await expect(
+      service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, { decision: 'monitor', actorUserId: USER }),
+    ).rejects.toThrow(BadRequestException);
+    expect(state.workflows[0]!.workflowStatus).toBe('pursuing');
+  });
+  test('clearing a next action also clears its date', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'monitor',
+      actorUserId: USER,
+      nextAction: 'Check agency timing',
+      nextActionDueAt: '2026-08-15T00:00:00Z',
+    });
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'monitor',
+      actorUserId: USER,
+      nextAction: '',
+    });
+    expect(state.workflows[0]!.nextAction).toBeNull();
+    expect(state.workflows[0]!.nextActionDueAt).toBeNull();
+  });
+  test('a passed opportunity can be restored while keeping decision history in the audit', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      decision: 'pass',
+      actorUserId: USER,
+      reason: 'No fit',
+    });
+    const restored = await service.restore(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+    });
+    expect(restored.status).toBe('saved');
+    expect(state.workflows[0]!.humanDecision).toBeNull();
+    expect(state.audits.some((a) => a.action === 'funding_opportunity.decision.pass')).toBe(true);
+  });
+});
+
+describe('editing a team plan without changing the decision', () => {
+  test('an undecided saved record retains its action and date in the read model', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    const result = await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      nextAction: 'Ask the agency',
+      nextActionDueAt: '2026-08-15T00:00:00Z',
+    });
+    expect(result).toMatchObject({
+      status: 'saved',
+      nextAction: 'Ask the agency',
+      nextActionDueAt: '2026-08-15T00:00:00.000Z',
+    });
+    expect(state.workflows[0]!.humanDecision ?? null).toBeNull();
+    const detail = await service.getOpportunity(TENANT, 'sam_gov', SAM_ID, CLIENT);
+    expect(detail.workflow?.nextAction).toBe('Ask the agency');
+  });
+  test('a date-only change uses the locked existing action and syncs the linked task', async () => {
+    const state = makeState();
+    const { service, tx } = makeService(state);
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      decision: 'monitor',
+      nextAction: 'Check timing',
+    });
+    const decisionAt = state.workflows[0]!.decisionAt;
+    (tx.engagementTask.findFirst as jest.Mock).mockImplementation(async () => ({
+      id: 'task-1',
+      title: 'Check timing',
+      ownerUserId: USER,
+      dueDate: null,
+    }));
+    const result = await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      nextActionDueAt: '2026-08-15T00:00:00Z',
+      ownerUserId: null,
+    });
+    expect(result.nextAction).toBe('Check timing');
+    expect(state.workflows[0]!.decisionAt).toBe(decisionAt);
+    expect(state.workflows[0]!.humanDecision).toBe('monitor');
+    expect(tx.engagementTask.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: 'task-1', tenantId: TENANT, clientId: CLIENT }),
+      data: { dueDate: new Date('2026-08-15T00:00:00Z'), ownerUserId: null },
+    });
+  });
+  test('clearing the action clears both workflow and linked-task follow-up dates', async () => {
+    const state = makeState();
+    const { service, tx } = makeService(state);
+    await service.decide(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      decision: 'monitor',
+      nextAction: 'Check timing',
+      nextActionDueAt: '2026-08-15T00:00:00Z',
+    });
+    (tx.engagementTask.findFirst as jest.Mock).mockImplementation(async () => ({
+      id: 'task-1',
+      title: 'Check timing',
+      ownerUserId: USER,
+      dueDate: new Date('2026-08-15T00:00:00Z'),
+    }));
+    const result = await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      nextAction: null,
+    });
+    expect(result).toMatchObject({ nextAction: null, nextActionDueAt: null });
+    expect(tx.engagementTask.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { dueDate: null } }),
+    );
+  });
+  test('a date without a resulting action is refused and notes-only edits preserve the plan', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await expect(
+      service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        actorUserId: USER,
+        nextActionDueAt: '2026-08-15T00:00:00Z',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      nextAction: 'Check timing',
+      nextActionDueAt: '2026-08-15T00:00:00Z',
+    });
+    const result = await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      notes: 'Waiting on agency',
+    });
+    expect(result).toMatchObject({
+      nextAction: 'Check timing',
+      nextActionDueAt: '2026-08-15T00:00:00.000Z',
+    });
   });
 });

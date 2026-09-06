@@ -29,7 +29,16 @@ describe('CLI parsing', () => {
 
   test('--commit, --tenant, --client and --min-relevance are all honoured', () => {
     expect(
-      parseArgs(['node', 'x', '--commit', '--tenant', TENANT, '--client', CLIENT, '--min-relevance=40']),
+      parseArgs([
+        'node',
+        'x',
+        '--commit',
+        '--tenant',
+        TENANT,
+        '--client',
+        CLIENT,
+        '--min-relevance=40',
+      ]),
     ).toEqual({
       commit: true,
       tenantId: TENANT,
@@ -55,7 +64,14 @@ describe('decideProducerAction — the human-decision protection', () => {
     'a %s row is left completely alone',
     (status) => {
       const d = decideProducerAction({
-        existing: { id: 'wf-1', workflowStatus: status, userCreated: false, evidenceSourceType: 'deterministic_relevance_v1', staleAt: null },
+        existing: {
+          id: 'wf-1',
+          humanDecision: null,
+          workflowStatus: status,
+          userCreated: false,
+          evidenceSourceType: 'deterministic_relevance_v1',
+          staleAt: null,
+        },
         ...qualifying,
       });
       expect(d.action).toBe('skip_human_decision');
@@ -64,7 +80,14 @@ describe('decideProducerAction — the human-decision protection', () => {
 
   test('a human-created row is left alone even at status suggested', () => {
     const d = decideProducerAction({
-      existing: { id: 'wf-1', workflowStatus: 'suggested', userCreated: true, evidenceSourceType: 'user_action', staleAt: null },
+      existing: {
+        id: 'wf-1',
+        humanDecision: null,
+        workflowStatus: 'suggested',
+        userCreated: true,
+        evidenceSourceType: 'user_action',
+        staleAt: null,
+      },
       ...qualifying,
     });
     expect(d.action).toBe('skip_human_decision');
@@ -73,7 +96,14 @@ describe('decideProducerAction — the human-decision protection', () => {
   test('a human decision is preserved even when the score COLLAPSES', () => {
     // A nightly job re-running is not new information about somebody's decision.
     const d = decideProducerAction({
-      existing: { id: 'wf-1', workflowStatus: 'pursuing', userCreated: true, evidenceSourceType: 'user_action', staleAt: null },
+      existing: {
+        id: 'wf-1',
+        humanDecision: null,
+        workflowStatus: 'pursuing',
+        userCreated: true,
+        evidenceSourceType: 'user_action',
+        staleAt: null,
+      },
       relevanceScore: 0,
       meetsSuggestionFloor: false,
       minRelevance: 15,
@@ -83,7 +113,14 @@ describe('decideProducerAction — the human-decision protection', () => {
 
   test("the producer's OWN suggested row is refreshed when it still qualifies", () => {
     const d = decideProducerAction({
-      existing: { id: 'wf-1', workflowStatus: 'suggested', userCreated: false, evidenceSourceType: 'deterministic_relevance_v1', staleAt: null },
+      existing: {
+        id: 'wf-1',
+        humanDecision: null,
+        workflowStatus: 'suggested',
+        userCreated: false,
+        evidenceSourceType: 'deterministic_relevance_v1',
+        staleAt: null,
+      },
       ...qualifying,
     });
     expect(d).toEqual({ action: 'refresh', id: 'wf-1', relevanceScore: 50 });
@@ -91,7 +128,14 @@ describe('decideProducerAction — the human-decision protection', () => {
 
   test("the producer's own row is marked STALE, never deleted, when it stops qualifying", () => {
     const d = decideProducerAction({
-      existing: { id: 'wf-1', workflowStatus: 'suggested', userCreated: false, evidenceSourceType: 'deterministic_relevance_v1', staleAt: null },
+      existing: {
+        id: 'wf-1',
+        humanDecision: null,
+        workflowStatus: 'suggested',
+        userCreated: false,
+        evidenceSourceType: 'deterministic_relevance_v1',
+        staleAt: null,
+      },
       relevanceScore: 2,
       meetsSuggestionFloor: false,
       minRelevance: 15,
@@ -101,7 +145,14 @@ describe('decideProducerAction — the human-decision protection', () => {
 
   test('an already-stale row is a no-op, so re-runs do not churn updated_at', () => {
     const d = decideProducerAction({
-      existing: { id: 'wf-1', workflowStatus: 'suggested', userCreated: false, evidenceSourceType: 'deterministic_relevance_v1', staleAt: new Date() },
+      existing: {
+        id: 'wf-1',
+        humanDecision: null,
+        workflowStatus: 'suggested',
+        userCreated: false,
+        evidenceSourceType: 'deterministic_relevance_v1',
+        staleAt: new Date(),
+      },
       relevanceScore: 2,
       meetsSuggestionFloor: false,
       minRelevance: 15,
@@ -207,14 +258,16 @@ function makeFake(opts: {
   }
 
   const prisma: SamCandidatesPrisma = {
-    $transaction: (async (fn: (tx: SamCandidatesPrisma) => Promise<unknown>) => fn(prisma)) as never,
+    $transaction: (async (fn: (tx: SamCandidatesPrisma) => Promise<unknown>) =>
+      fn(prisma)) as never,
     $executeRawUnsafe: (async (sql: string) => {
       bypassCalls.push(sql);
       return 0;
     }) as never,
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
-      if (sql.includes('intel_feature_flag')) return (opts.flagRows ?? [{ tenant_id: TENANT }]) as never;
+      if (sql.includes('intel_feature_flag'))
+        return (opts.flagRows ?? [{ tenant_id: TENANT }]) as never;
       if (sql.includes('federal_award')) {
         awardHistoryQueries.push({ sql, values });
         return (opts.contractHistory ?? []) as never;
@@ -252,9 +305,7 @@ function makeFake(opts: {
         const ids = where?.samOpportunityId?.in as string[] | undefined;
         // The producer scopes this read to the current notice page. Honouring
         // that here is what proves the scoping is real rather than cosmetic.
-        return (ids
-          ? rows.filter((r) => ids.includes(r.samOpportunityId))
-          : rows) as never;
+        return (ids ? rows.filter((r) => ids.includes(r.samOpportunityId)) : rows) as never;
       }),
       create: jest.fn(async (args: unknown) => {
         created.push((args as { data: unknown }).data);
@@ -722,7 +773,9 @@ describe('coverage is complete, not capped', () => {
   });
 
   test('the workflow read is scoped to the current notice page', async () => {
-    const notices = Array.from({ length: PAGE_SIZE + 5 }, (_, i) => noticeRow({ id: `n-${pad(i)}` }));
+    const notices = Array.from({ length: PAGE_SIZE + 5 }, (_, i) =>
+      noticeRow({ id: `n-${pad(i)}` }),
+    );
     const { prisma, workflowWhere } = makeFake({ notices });
     await generateSamCandidates(prisma, {
       tenantIds: [TENANT],

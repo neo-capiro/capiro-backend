@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
@@ -61,6 +52,13 @@ import {
   type InboxFilter,
   type InboxSource,
 } from './funding-opportunity-inbox.service.js';
+import { FundingOpportunityClientAccessGuard } from './funding-opportunity-client-access.guard.js';
+import {
+  FundingOpportunityFeedService,
+  TANGO_OPPORTUNITY_FEEDS,
+  isTangoOpportunityFeed,
+  type TangoOpportunityFeed,
+} from './funding-opportunity-feed.service.js';
 import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import {
   FundingOpportunitiesService,
@@ -182,6 +180,20 @@ class OpportunityListQueryDto {
   pageSize?: number;
 }
 
+class FeedListQueryDto {
+  @IsOptional() @IsUUID() clientId?: string;
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @IsString() @MaxLength(120) agency?: string;
+  @IsOptional() @IsString() @MaxLength(12) naics?: string;
+  @IsOptional() @IsIn(['active', 'closed', 'all']) activeState?: 'active' | 'closed' | 'all';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;
+}
+class FeedParamsDto {
+  @IsIn(TANGO_OPPORTUNITY_FEEDS) source!: TangoOpportunityFeed;
+  @IsOptional() @IsString() @MaxLength(256) id?: string;
+}
+
 class SaveOpportunityDto {
   // 'suggested' is deliberately NOT accepted: it is the producer's own output,
   // and a user action is by definition not a machine suggestion.
@@ -230,6 +242,14 @@ class PatchOpportunityDto {
   @IsString()
   @MaxLength(2000)
   outcomeNote?: string | null;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  nextAction?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  nextActionDueAt?: string | null;
 }
 
 /**
@@ -296,6 +316,9 @@ class OpportunityActionDto {
   @IsString()
   @MaxLength(500)
   nextAction?: string;
+  @IsOptional()
+  @IsISO8601()
+  nextActionDueAt?: string | null;
 }
 
 /**
@@ -346,6 +369,9 @@ class InboxQueryDto {
   @Min(1)
   @Max(INBOX_MAX_PAGE_SIZE)
   pageSize?: number;
+  @IsOptional()
+  @IsIn(['updated', 'deadline'])
+  sort?: 'updated' | 'deadline';
 }
 
 class DismissOpportunityDto {
@@ -402,6 +428,9 @@ class InboxSourceParamDto {
   @IsString()
   @MaxLength(256)
   id!: string;
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 /**
@@ -519,7 +548,7 @@ class RecordOutcomeDto {
  * facility→client ownership and owner→tenant membership before any write.
  */
 @Controller('intelligence')
-@UseGuards(RolesGuard, FundingOpportunitiesFlagGuard)
+@UseGuards(RolesGuard, FundingOpportunitiesFlagGuard, FundingOpportunityClientAccessGuard)
 @Roles('standard_user')
 export class FundingOpportunitiesController {
   constructor(
@@ -535,6 +564,7 @@ export class FundingOpportunitiesController {
     private readonly budgetContext: OpportunityBudgetContextService,
     private readonly risk: OpportunityRiskService,
     private readonly outcomes: FundingOpportunityOutcomeService,
+    private readonly feeds?: FundingOpportunityFeedService,
   ) {}
 
   /** The catalog view. Scored for `clientId` when one is supplied. */
@@ -561,6 +591,7 @@ export class FundingOpportunitiesController {
       pageSize: query.pageSize,
       clientId: query.clientId,
       source: query.source,
+      sort: query.sort,
     });
   }
 
@@ -590,12 +621,25 @@ export class FundingOpportunitiesController {
     @Param('forecastId') forecastId: string,
     @Query('clientId') clientId?: string,
   ) {
-    return this.forecasts.getForecast(
-      ctx.tenantId,
-      ctx.userId,
-      forecastId,
-      clientId ?? null,
-    );
+    return this.forecasts.getForecast(ctx.tenantId, ctx.userId, forecastId, clientId ?? null);
+  }
+
+  @Get('opportunities/feeds/:source')
+  feedList(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: FeedParamsDto,
+    @Query() query: FeedListQueryDto,
+  ) {
+    return this.feeds!.list(ctx.tenantId, ctx.userId, params.source, query);
+  }
+
+  @Get('opportunities/feeds/:source/:id')
+  feedDetail(
+    @CurrentTenant() ctx: TenantContext,
+    @Param() params: FeedParamsDto,
+    @Query() query: FeedListQueryDto,
+  ) {
+    return this.feeds!.detail(ctx.tenantId, ctx.userId, params.source, params.id!, query.clientId);
   }
 
   @Get('opportunities')
@@ -690,13 +734,7 @@ export class FundingOpportunitiesController {
     @Param('id') id: string,
     @Query('clientId') clientId: string,
   ) {
-    return this.landscape.composeActionPlan(
-      ctx.tenantId,
-      ctx.userId,
-      clientId,
-      params.source,
-      id,
-    );
+    return this.landscape.composeActionPlan(ctx.tenantId, ctx.userId, clientId, params.source, id);
   }
 
   /**
@@ -911,10 +949,15 @@ export class FundingOpportunitiesController {
   save(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param() params: SourceParamDto,
+    @Param() params: InboxSourceParamDto,
     @Param('id') id: string,
     @Body() body: SaveOpportunityDto,
   ) {
+    if (isTangoOpportunityFeed(params.source))
+      return this.feeds!.write(ctx.tenantId, ctx.userId, clientId, params.source, id, {
+        ...body,
+        status: body.status ?? 'saved',
+      });
     return this.service.setWorkflowStatus(ctx.tenantId, clientId, params.source, id, {
       status: body.status ?? 'saved',
       actorUserId: ctx.userId,
@@ -929,10 +972,12 @@ export class FundingOpportunitiesController {
   patch(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param() params: SourceParamDto,
+    @Param() params: InboxSourceParamDto,
     @Param('id') id: string,
     @Body() body: PatchOpportunityDto,
   ) {
+    if (isTangoOpportunityFeed(params.source))
+      return this.feeds!.write(ctx.tenantId, ctx.userId, clientId, params.source, id, body);
     return this.service.patchWorkflow(ctx.tenantId, clientId, params.source, id, {
       actorUserId: ctx.userId,
       ...(body.status !== undefined ? { status: body.status } : {}),
@@ -940,6 +985,8 @@ export class FundingOpportunitiesController {
       ...(body.facilityId !== undefined ? { facilityId: body.facilityId } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       ...(body.outcomeNote !== undefined ? { outcomeNote: body.outcomeNote } : {}),
+      ...(body.nextAction !== undefined ? { nextAction: body.nextAction } : {}),
+      ...(body.nextActionDueAt !== undefined ? { nextActionDueAt: body.nextActionDueAt } : {}),
     });
   }
 
@@ -958,10 +1005,12 @@ export class FundingOpportunitiesController {
   decide(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param() params: SourceParamDto,
+    @Param() params: InboxSourceParamDto,
     @Param('id') id: string,
     @Body() body: DecideOpportunityDto,
   ) {
+    if (isTangoOpportunityFeed(params.source))
+      return this.feeds!.write(ctx.tenantId, ctx.userId, clientId, params.source, id, body);
     return this.service.decide(ctx.tenantId, clientId, params.source, id, {
       decision: body.decision,
       actorUserId: ctx.userId,
@@ -985,7 +1034,7 @@ export class FundingOpportunitiesController {
   act(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param() params: SourceParamDto,
+    @Param() params: InboxSourceParamDto,
     @Param('id') id: string,
     @Body() body: OpportunityActionDto,
   ) {
@@ -995,6 +1044,7 @@ export class FundingOpportunitiesController {
       ...(body.ownerUserId !== undefined ? { ownerUserId: body.ownerUserId } : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       ...(body.nextAction !== undefined ? { nextAction: body.nextAction } : {}),
+      ...(body.nextActionDueAt !== undefined ? { nextActionDueAt: body.nextActionDueAt } : {}),
     });
   }
 
@@ -1002,10 +1052,15 @@ export class FundingOpportunitiesController {
   dismiss(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param() params: SourceParamDto,
+    @Param() params: InboxSourceParamDto,
     @Param('id') id: string,
     @Body() body: DismissOpportunityDto,
   ) {
+    if (isTangoOpportunityFeed(params.source))
+      return this.feeds!.write(ctx.tenantId, ctx.userId, clientId, params.source, id, {
+        status: 'dismissed',
+        reason: body.reason,
+      });
     return this.service.dismiss(ctx.tenantId, clientId, params.source, id, {
       actorUserId: ctx.userId,
       reason: body.reason ?? null,
@@ -1016,9 +1071,13 @@ export class FundingOpportunitiesController {
   restore(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param() params: SourceParamDto,
+    @Param() params: InboxSourceParamDto,
     @Param('id') id: string,
   ) {
+    if (isTangoOpportunityFeed(params.source))
+      return this.feeds!.write(ctx.tenantId, ctx.userId, clientId, params.source, id, {
+        restore: true,
+      });
     return this.service.restore(ctx.tenantId, clientId, params.source, id, {
       actorUserId: ctx.userId,
     });

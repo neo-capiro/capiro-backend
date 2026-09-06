@@ -78,7 +78,11 @@
  * with no live trigger yet, documented as such rather than left unbuilt.
  */
 
-import type { EligibilityState, OpportunityKind, OpportunitySource } from './funding-opportunities.types.js';
+import type {
+  EligibilityState,
+  OpportunityKind,
+  OpportunitySource,
+} from './funding-opportunities.types.js';
 
 export const MACHINE_RECOMMENDATIONS = ['pursue', 'monitor', 'pass', 'needs_review'] as const;
 export type MachineRecommendation = (typeof MACHINE_RECOMMENDATIONS)[number];
@@ -115,13 +119,14 @@ export type RecommendationConfidence = (typeof RECOMMENDATION_CONFIDENCES)[numbe
 export const FORECAST_RECOMMENDATIONS = ['shape_now', 'monitor', 'pass', 'needs_review'] as const;
 export type ForecastRecommendation = (typeof FORECAST_RECOMMENDATIONS)[number];
 
-export const FORECAST_TO_MACHINE_RECOMMENDATION: Readonly<Record<ForecastRecommendation, MachineRecommendation>> =
-  Object.freeze({
-    shape_now: 'monitor',
-    monitor: 'monitor',
-    pass: 'pass',
-    needs_review: 'needs_review',
-  });
+export const FORECAST_TO_MACHINE_RECOMMENDATION: Readonly<
+  Record<ForecastRecommendation, MachineRecommendation>
+> = Object.freeze({
+  shape_now: 'monitor',
+  monitor: 'monitor',
+  pass: 'pass',
+  needs_review: 'needs_review',
+});
 
 /**
  * The bounded reason vocabulary. Bounded so the web mirror can label every value
@@ -159,6 +164,8 @@ export interface RecommendationInput {
   isPursuable: boolean;
   responseDeadline: string | null;
   relevanceScore: number;
+  /** The source scorer owns substantive fit; generic strength bands are a legacy fallback. */
+  meetsSuggestionFloor?: boolean;
   /** Strength bands only. Order is deliberately not consulted. */
   signalStrengths: ReadonlyArray<'strong' | 'moderate' | 'weak'>;
   /** Signal keys, used only for membership tests. */
@@ -250,11 +257,9 @@ function kindPhrase(kind: OpportunityKind): string {
   return kind.replace(/_/g, ' ');
 }
 
-export function recommendOpportunity(
-  input: RecommendationInput,
-): OpportunityRecommendationResult {
+export function recommendOpportunity(input: RecommendationInput): OpportunityRecommendationResult {
   const t = tally(input.signalStrengths);
-  const floor = meetsEvidenceFloor(t);
+  const floor = input.meetsSuggestionFloor ?? meetsEvidenceFloor(t);
   const days = daysUntil(input.responseDeadline, input.asOf);
   const imminent = days != null && days >= 0 && days <= IMMINENT_DEADLINE_DAYS;
   const hasAgencyHistory = input.signalKeys.some((k) => AGENCY_HISTORY_SIGNALS.has(k));
@@ -297,7 +302,8 @@ export function recommendOpportunity(
       recommendationConfidence: 'high',
       primaryReason: 'The source has closed this opportunity.',
       primaryRisk: null,
-      recommendedNextAction: 'No action. Keep it saved for reference if it informs future pursuits.',
+      recommendedNextAction:
+        'No action. Keep it saved for reference if it informs future pursuits.',
       reasonCodes: ['source_closed'],
     };
   }
@@ -395,7 +401,8 @@ export function recommendOpportunity(
         primaryReason:
           'Strong capability match, but this opportunity requires vehicle access that has not been resolved.',
         primaryRisk: risk,
-        recommendedNextAction: 'Resolve acquisition position (direct, related-entity, or teaming) before committing bid effort.',
+        recommendedNextAction:
+          'Resolve acquisition position (direct, related-entity, or teaming) before committing bid effort.',
         reasonCodes: ['vehicle_access_unresolved', ...codes, ...deadlineCodes],
       };
     }

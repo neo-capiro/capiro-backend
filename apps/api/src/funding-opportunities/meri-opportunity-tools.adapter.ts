@@ -5,11 +5,16 @@ import { FundingOpportunitiesService } from './funding-opportunities.service.js'
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
 import {
+  FUNDING_OPPORTUNITIES_FEATURE,
   FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
   isFundingOpportunitiesFeatureEnabled,
 } from './funding-opportunities-flag.guard.js';
 import { explainOpportunity } from './opportunity-explanation.js';
-import { OPPORTUNITY_SOURCES, type FundingOpportunity, type OpportunitySource } from './funding-opportunities.types.js';
+import {
+  OPPORTUNITY_SOURCES,
+  type FundingOpportunity,
+  type OpportunitySource,
+} from './funding-opportunities.types.js';
 
 /**
  * Typed, local, read-only Meri tools for Funding Opportunities (P37).
@@ -180,14 +185,23 @@ export class MeriOpportunityToolsAdapter {
    */
   private async enabled(tenantId: string): Promise<boolean> {
     try {
-      return await isFundingOpportunitiesFeatureEnabled(
-        this.prisma,
-        tenantId,
-        FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
+      // Meri calls bypass HTTP route guards. Its own capability must never
+      // reopen Funding Opportunities after the workspace's master is disabled.
+      return (
+        (await isFundingOpportunitiesFeatureEnabled(
+          this.prisma,
+          tenantId,
+          FUNDING_OPPORTUNITIES_FEATURE,
+        )) &&
+        (await isFundingOpportunitiesFeatureEnabled(
+          this.prisma,
+          tenantId,
+          FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
+        ))
       );
     } catch (error) {
       this.logger.error(
-        `${FUNDING_OPPORTUNITIES_MERI_V2_FEATURE} flag read failed for tenant ${tenantId}; failing closed`,
+        `Funding Opportunities capability read failed for tenant ${tenantId}; failing closed`,
         error instanceof Error ? error.stack : String(error),
       );
       return false;
@@ -258,7 +272,13 @@ export class MeriOpportunityToolsAdapter {
     if (!row) return envelope(tool, 'not_found', asOf, NOT_FOUND_EXPLANATION);
 
     return cap(
-      envelope(tool, 'available', asOf, 'Local Capiro record. No provider call was made.', toFacts(row)),
+      envelope(
+        tool,
+        'available',
+        asOf,
+        'Local Capiro record. No provider call was made.',
+        toFacts(row),
+      ),
     );
   }
 
@@ -500,9 +520,7 @@ export class MeriOpportunityToolsAdapter {
       rows,
     } as Comparison);
     if (requested.length > kept.length) {
-      out.truncated = [
-        { collection: 'rows', kept: kept.length, total: requested.length },
-      ];
+      out.truncated = [{ collection: 'rows', kept: kept.length, total: requested.length }];
     }
     return cap(out);
   }
@@ -521,9 +539,9 @@ export class MeriOpportunityToolsAdapter {
     // Source allowlist — every other tool in this adapter does this check via
     // asOpportunitySource, but this method was passing input.source straight to
     // composeActionPlan, which permits 'agency_forecast' in addition to
-    // 'sam_gov' with no flag check. That bypassed the master
-    // funding_opportunities flag for forecast data when called via Meri (this
-    // adapter never passes through the NestJS HTTP guard pipeline). Adding the
+    // 'sam_gov' with no source capability check. That bypassed the forecast
+    // capability when called via Meri (this adapter never passes through the
+    // NestJS HTTP guard pipeline). Adding the
     // same allowlist closes the gap: only 'grants_gov' and 'sam_gov' — the
     // sources OPPORTUNITY_SOURCES admits — can reach composeActionPlan.
     const source = asOpportunitySource(input.source);
@@ -769,9 +787,7 @@ function unsupportedSource(value: unknown): string {
  * Guards against the empty case: `[].every()` is `true`, and a packet with no
  * sources at all must not read as denied.
  */
-export function isDeniedPacket(packet: {
-  sources: ReadonlyArray<{ state: string }>;
-}): boolean {
+export function isDeniedPacket(packet: { sources: ReadonlyArray<{ state: string }> }): boolean {
   return packet.sources.length > 0 && packet.sources.every((s) => s.state === 'denied');
 }
 

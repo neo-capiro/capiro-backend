@@ -5,13 +5,7 @@ import {
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 import { FovPill } from './fov-ui.js';
 
-/**
- * Per-rail source health, as pills. vNext port of the canonical
- * OpportunityFreshnessStrip — same freshness input, same colour rule: an
- * outright FAILED last run is red even when older data exists, because the
- * rail is broken NOW and that is the fact a reader needs before trusting
- * anything below it.
- */
+/** Catalog health remains visible; detailed counts do not crowd the workflow. */
 export function OpportunityFreshnessStrip({
   freshness,
 }: {
@@ -19,31 +13,41 @@ export function OpportunityFreshnessStrip({
 }) {
   if (!freshness?.length) return null;
   return (
-    <div className="fov-page__freshness fov-freshness" data-testid="fo-freshness">
-      {freshness.map((f) => {
-        const enrichment = formatEnrichment(f);
-        return (
-          <span key={f.verb} className="fov-row">
-            <FovPill
-              tone={
-                f.neverSynced || f.lastRunStatus === 'error'
-                  ? 'red'
-                  : f.lastRunDegraded === true
-                    ? 'orange'
-                    : 'default'
-              }
-            >
-              {formatFreshness(f)} ·{' '}
-              {f.countsUnavailable || f.activeRecordCount == null || f.recordCount == null
-                ? 'counts unavailable'
-                : `${f.activeRecordCount.toLocaleString()} active of ${f.recordCount.toLocaleString()}`}
-            </FovPill>
-            {enrichment ? (
-              <FovPill tone={f.enrichment?.degraded ? 'orange' : 'default'}>{enrichment}</FovPill>
-            ) : null}
-          </span>
-        );
-      })}
+    <div
+      className="fov-page__freshness fov-freshness"
+      data-testid="fo-freshness"
+      aria-label="Catalog source updates"
+    >
+      {freshness.map((source) => (
+        <FovPill
+          key={source.verb}
+          tone={
+            source.neverSynced || source.lastRunStatus === 'error'
+              ? 'red'
+              : source.lastRunDegraded
+                ? 'orange'
+                : 'default'
+          }
+        >
+          {formatFreshness(source)}
+        </FovPill>
+      ))}
+      <details className="fo-source-health">
+        <summary>Source details</summary>
+        <div className="fov-stack fov-stack--8">
+          {freshness.map((source) => (
+            <p className="fov-micro" key={source.verb}>
+              {source.label}:{' '}
+              {source.countsUnavailable ||
+              source.activeRecordCount == null ||
+              source.recordCount == null
+                ? 'Record counts unavailable'
+                : `${source.activeRecordCount.toLocaleString()} active of ${source.recordCount.toLocaleString()} records`}
+              {formatEnrichment(source) ? ` · ${formatEnrichment(source)}` : ''}
+            </p>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

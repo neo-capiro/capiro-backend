@@ -62,9 +62,7 @@ function clientRow(partial: Record<string, unknown> = {}) {
     applicantTypes: ['Small businesses'],
     setAsideCertifications: [],
     sectorTag: 'HEALTH',
-    capabilities: [
-      { name: 'Medicaid analytics', tags: ['health'], keywords: [], peNumbers: [] },
-    ],
+    capabilities: [{ name: 'Medicaid analytics', tags: ['health'], keywords: [], peNumbers: [] }],
     facilities: [
       {
         id: '00000000-0000-0000-0000-0000000000f1',
@@ -79,13 +77,15 @@ function clientRow(partial: Record<string, unknown> = {}) {
   };
 }
 
-function makeFake(options: {
-  grants?: Array<Record<string, unknown>>;
-  clients?: Array<Record<string, unknown>>;
-  mappings?: Array<Record<string, unknown>>;
-  existing?: Array<Record<string, unknown>>;
-  flagRows?: Array<{ tenant_id: string }>;
-} = {}) {
+function makeFake(
+  options: {
+    grants?: Array<Record<string, unknown>>;
+    clients?: Array<Record<string, unknown>>;
+    mappings?: Array<Record<string, unknown>>;
+    existing?: Array<Record<string, unknown>>;
+    flagRows?: Array<{ tenant_id: string }>;
+  } = {},
+) {
   const created: unknown[] = [];
   const updated: unknown[] = [];
   const clientWhere: unknown[] = [];
@@ -167,12 +167,23 @@ function makeFake(options: {
     }),
   };
   fake.clientFundingOpportunity = {
-    findMany: jest.fn(async (args: { where?: any }) => {
+    findMany: jest.fn(async (args: { where?: any; select?: Record<string, boolean> }) => {
       const rows = options.existing ?? [];
       const ids = args?.where?.grantOpportunityId?.in as string[] | undefined;
       // The producer scopes this read to the current grant page. Honouring that
       // here is what proves the scoping is real rather than cosmetic.
-      return ids ? rows.filter((r: any) => ids.includes(r.grantOpportunityId)) : rows;
+      const scoped = ids ? rows.filter((r: any) => ids.includes(r.grantOpportunityId)) : rows;
+      // Honour projection too: a safety check cannot preserve a decision the
+      // production query never selected, even if a permissive fake returned it.
+      return args.select
+        ? scoped.map((row) =>
+            Object.fromEntries(
+              Object.entries(args.select!)
+                .filter(([, selected]) => selected)
+                .map(([key]) => [key, row[key]]),
+            ),
+          )
+        : scoped;
     }),
     create: jest.fn(async (args: { data: unknown }) => {
       created.push(args.data);
@@ -350,7 +361,6 @@ describe('generateFundingGrantCandidates', () => {
     expect(bypassCalls.some((sql) => sql.includes('app.bypass_rls'))).toBe(true);
     expect((clientWhere[0] as { tenantId?: string }).tenantId).toBe(TENANT);
   });
-
 });
 
 // ── P03: complete coverage ──────────────────────────────────────────────────
@@ -366,9 +376,7 @@ describe('coverage is complete, not capped', () => {
     const grants = Array.from({ length: 4001 }, (_, i) =>
       grantRow({ id: `grant-${pad(i)}`, cfdaNumbers: [] }),
     );
-    const clients = Array.from({ length: 501 }, (_, i) =>
-      clientRow({ id: `client-${pad(i)}` }),
-    );
+    const clients = Array.from({ length: 501 }, (_, i) => clientRow({ id: `client-${pad(i)}` }));
     const { prisma } = makeFake({ grants, clients, mappings: [] });
 
     const result = await generateFundingGrantCandidates(prisma, {
@@ -524,7 +532,9 @@ describe('coverage is complete, not capped', () => {
     ).toBeLessThanOrEqual(2);
     // Award history is per client per rail, not per pair.
     const historyCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter(([strings]) =>
-      Array.from(strings as TemplateStringsArray).join('?').includes('federal_a'),
+      Array.from(strings as TemplateStringsArray)
+        .join('?')
+        .includes('federal_a'),
     );
     expect(historyCalls.length).toBeLessThanOrEqual(2 * clients.length);
   }, 60000);
@@ -687,7 +697,58 @@ const GRID_GRANT = {
 };
 
 describe('the producer uses the shared suggestion floor (G1)', () => {
-  test('the numeric default is the read path\'s, not the assistance-listing floor', () => {
+  test.each([
+    { workflowStatus: 'suggested', userCreated: false, humanDecision: null, stale: true },
+    { workflowStatus: 'suggested', userCreated: true, humanDecision: null, stale: false },
+    { workflowStatus: 'suggested', userCreated: false, humanDecision: 'monitor', stale: false },
+    { workflowStatus: 'suggested', userCreated: false, humanDecision: 'pass', stale: false },
+    { workflowStatus: 'saved', userCreated: false, humanDecision: null, stale: false },
+    { workflowStatus: 'pursuing', userCreated: false, humanDecision: null, stale: false },
+    { workflowStatus: 'dismissed', userCreated: false, humanDecision: null, stale: false },
+  ])(
+    'rescoring applicant-only $workflowStatus ($humanDecision, userCreated=$userCreated) preserves human choices',
+    async ({ workflowStatus, userCreated, humanDecision, stale }) => {
+      const { prisma, created, updated } = makeFake({
+        clients: [clientRow({ ...BARE_CLIENT, applicantTypes: ['Small businesses'] })],
+        grants: [grantRow({ ...BARE_GRANT, eligibility: ['Small businesses'] })],
+        mappings: [],
+        existing: [
+          {
+            id: 'old-applicant-only',
+            clientId: CLIENT,
+            grantOpportunityId: GRANT,
+            workflowStatus,
+            userCreated,
+            humanDecision,
+            evidenceSourceType: 'deterministic_relevance_v1',
+            staleAt: null,
+          },
+        ],
+      });
+      const result = await generateFundingGrantCandidates(prisma, {
+        tenantIds: [TENANT],
+        clientId: null,
+        minRelevance: DEFAULT_MIN_RELEVANCE,
+        commit: true,
+      });
+      expect(result.errors).toBe(0);
+      expect(created).toEqual([]);
+      expect(result.markedStale).toBe(stale ? 1 : 0);
+      expect(result.humanDecisionsPreserved).toBe(stale ? 0 : 1);
+      expect(updated).toEqual(
+        stale
+          ? [
+              {
+                where: { id: 'old-applicant-only' },
+                data: { staleAt: expect.any(Date) },
+              },
+            ]
+          : [],
+      );
+    },
+  );
+
+  test("the numeric default is the read path's, not the assistance-listing floor", () => {
     // 29 (the listing floor) sits ABOVE a keyword+sector pair at ~18, so the
     // numeric backstop refused everything the floor's third arm admitted. 15
     // matches the SAM producer and the sibling District Nexus producer.
@@ -803,10 +864,37 @@ describe('the producer uses the shared suggestion floor (G1)', () => {
         expected: false,
       },
       {
-        name: 'applicantType alone (strong)',
+        name: 'applicantType alone (eligibility is not substantive fit)',
         client: { ...BARE_CLIENT, applicantTypes: ['Small businesses'] },
         grant: { ...BARE_GRANT, eligibility: ['Small businesses'] },
-        expected: true,
+        expected: false,
+      },
+      {
+        name: 'generic research capability plus sector and eligibility',
+        client: {
+          ...BARE_CLIENT,
+          applicantTypes: ['Small businesses'],
+          sectorTag: 'Health',
+          capabilities: [
+            { name: 'research and development', tags: [], keywords: [], peNumbers: [] },
+          ],
+        },
+        grant: {
+          ...BARE_GRANT,
+          title: 'Health research and development',
+          eligibility: ['Small businesses'],
+        },
+        expected: false,
+      },
+      {
+        name: 'the same energy topic repeated in capability, sector and category',
+        client: {
+          ...BARE_CLIENT,
+          sectorTag: 'ENERGY',
+          capabilities: [{ name: 'energy', tags: ['energy'], keywords: ['energy'], peNumbers: [] }],
+        },
+        grant: { ...BARE_GRANT, title: 'Energy funding', category: 'Energy' },
+        expected: false,
       },
       {
         name: 'assistanceListing from real award history (strong)',

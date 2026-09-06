@@ -20,6 +20,9 @@ export function decideProducerAction(params: {
   existing: {
     id: string;
     workflowStatus: string;
+    // Kept separate from workflowStatus: older monitor/pass decisions can
+    // legitimately still have the producer's original "suggested" status.
+    humanDecision: string | null;
     userCreated: boolean;
     evidenceSourceType: string;
     staleAt: Date | null;
@@ -34,6 +37,7 @@ export function decideProducerAction(params: {
   if (existing) {
     if (
       existing.userCreated ||
+      existing.humanDecision != null ||
       HUMAN_DECISION_STATUSES.has(existing.workflowStatus as OpportunityWorkflowStatus)
     ) {
       return { action: 'skip_human_decision', id: existing.id };

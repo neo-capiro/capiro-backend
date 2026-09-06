@@ -50,10 +50,7 @@
       "title",
       "workflow"
     ],
-    "FundingOpportunity.eligibility": [
-      "reason",
-      "state"
-    ],
+    "FundingOpportunity.eligibility": ["reason", "state"],
     "OpportunityDecision": [
       "decidedAt",
       "decidedByUserId",
@@ -70,12 +67,7 @@
       "recommendationConfidence",
       "recommendedNextAction"
     ],
-    "FundingOpportunity.placeOfPerformance": [
-      "city",
-      "country",
-      "state",
-      "zip"
-    ],
+    "FundingOpportunity.placeOfPerformance": ["city", "country", "state", "zip"],
     "GrantFunding": [
       "awardCeiling",
       "awardFloor",
@@ -83,15 +75,14 @@
       "estimatedProgramFunding",
       "expectedAwardCount"
     ],
-    "ContractValue": [
-      "basis",
-      "estimatedValue"
-    ],
+    "ContractValue": ["basis", "estimatedValue"],
     "OpportunityWorkflow": [
       "createdAt",
       "dismissedReason",
       "facility",
       "id",
+      "nextAction",
+      "nextActionDueAt",
       "notes",
       "outcomeNote",
       "owner",
@@ -100,29 +91,10 @@
       "updatedAt",
       "userCreated"
     ],
-    "OpportunityWorkflow.owner": [
-      "email",
-      "name",
-      "userId"
-    ],
-    "OpportunityWorkflow.facility": [
-      "districtKey",
-      "id",
-      "name",
-      "state"
-    ],
-    "OpportunityMatchedSignal": [
-      "matchedOn",
-      "signal",
-      "strength",
-      "weight"
-    ],
-    "MissingProfileField": [
-      "field",
-      "href",
-      "impact",
-      "label"
-    ],
+    "OpportunityWorkflow.owner": ["email", "name", "userId"],
+    "OpportunityWorkflow.facility": ["districtKey", "id", "name", "state"],
+    "OpportunityMatchedSignal": ["matchedOn", "signal", "strength", "weight"],
+    "MissingProfileField": ["field", "href", "impact", "label"],
     "FundingOpportunityCounts": [
       "activeContracts",
       "activeGrants",
@@ -188,10 +160,7 @@
     ]
   },
   "vocabularies": {
-    "OPPORTUNITY_SOURCES": [
-      "grants_gov",
-      "sam_gov"
-    ],
+    "OPPORTUNITY_SOURCES": ["grants_gov", "sam_gov"],
     "OPPORTUNITY_KINDS": [
       "grant",
       "cooperative_agreement",
@@ -204,10 +173,7 @@
       "award_notice",
       "other"
     ],
-    "NON_PURSUABLE_KINDS": [
-      "award_notice",
-      "special_notice"
-    ],
+    "NON_PURSUABLE_KINDS": ["award_notice", "special_notice"],
     "OPPORTUNITY_WORKFLOW_STATUSES": [
       "suggested",
       "saved",
@@ -217,13 +183,7 @@
       "lost",
       "expired"
     ],
-    "HUMAN_DECISION_STATUSES": [
-      "dismissed",
-      "lost",
-      "pursuing",
-      "saved",
-      "won"
-    ],
+    "HUMAN_DECISION_STATUSES": ["dismissed", "lost", "pursuing", "saved", "won"],
     "WORKFLOW_SORT_PRIORITY": {
       "pursuing": 0,
       "saved": 1,
@@ -233,12 +193,7 @@
       "expired": 5,
       "dismissed": 6
     },
-    "ELIGIBILITY_STATES": [
-      "eligible",
-      "ineligible",
-      "needs_review",
-      "unknown"
-    ],
+    "ELIGIBILITY_STATES": ["eligible", "ineligible", "needs_review", "unknown"],
     "EMPTY_REASONS": [
       "client_profile_too_thin",
       "no_match_above_threshold",
@@ -247,28 +202,10 @@
       "no_source_records",
       "source_never_synced"
     ],
-    "WRITE_DTO_ACCEPTED_STATUSES": [
-      "saved",
-      "pursuing",
-      "won",
-      "lost"
-    ],
-    "MACHINE_RECOMMENDATIONS": [
-      "pursue",
-      "monitor",
-      "pass",
-      "needs_review"
-    ],
-    "RECOMMENDATION_CONFIDENCES": [
-      "high",
-      "medium",
-      "low"
-    ],
-    "HUMAN_DECISIONS": [
-      "pursue",
-      "monitor",
-      "pass"
-    ]
+    "WRITE_DTO_ACCEPTED_STATUSES": ["saved", "pursuing", "won", "lost"],
+    "MACHINE_RECOMMENDATIONS": ["pursue", "monitor", "pass", "needs_review"],
+    "RECOMMENDATION_CONFIDENCES": ["high", "medium", "low"],
+    "HUMAN_DECISIONS": ["pursue", "monitor", "pass"]
   },
   "moneyFields": [
     "GrantFunding.estimatedProgramFunding",
@@ -379,5 +316,8 @@
     "neverSynced": "True only when the rail has never completed a successful run. On a degraded freshness read it stays false, because 'we do not know' must not be reported as 'it has never synced'.",
     "countsUnavailable": "True when catalog counts could not be read. Distinct from a count of zero.",
     "degradedReadIsNotNeverSynced": "readFreshness catches its own failure and returns countsUnavailable=true with null timestamps rather than propagating. The opportunities themselves still render."
+  },
+  "additiveContractChanges": {
+    "2026-09-06_team_plan": "OpportunityWorkflow adds nullable nextAction and nextActionDueAt fields so a saved, undecided opportunity can retain and expose its team follow-up plan without manufacturing a human decision. Existing keys, vocabularies, original base SHA, and historical test-floor records are preserved. The strict constructor/interface assertions continue to pin the complete approved response shape."
   }
 }

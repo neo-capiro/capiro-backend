@@ -206,7 +206,12 @@ export interface SamCandidatesPrisma {
         applicantTypes: string[];
         setAsideCertifications: string[];
         sectorTag: string | null;
-        capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
+        capabilities: Array<{
+          name: string;
+          tags: unknown;
+          keywords: string[];
+          peNumbers: string[];
+        }>;
         facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
       }>
     >;
@@ -258,6 +263,7 @@ export interface SamCandidatesPrisma {
         clientId: string;
         samOpportunityId: string | null;
         workflowStatus: string;
+        humanDecision: string | null;
         userCreated: boolean;
         evidenceSourceType: string;
         staleAt: Date | null;
@@ -299,8 +305,10 @@ export async function resolveTenantIds(
   explicitTenantId: string | null,
 ): Promise<string[]> {
   if (explicitTenantId) return [explicitTenantId];
-  const rows = await withBypass(prisma, (tx) =>
-    tx.$queryRaw<{ tenant_id: string }>`
+  const rows = await withBypass(
+    prisma,
+    (tx) =>
+      tx.$queryRaw<{ tenant_id: string }>`
       SELECT DISTINCT tenant_id FROM intel_feature_flag
       WHERE feature = ${FUNDING_OPPORTUNITIES_FEATURE} AND enabled = true
     `,
@@ -473,6 +481,7 @@ export async function generateSamCandidates(
                   clientId: true,
                   samOpportunityId: true,
                   workflowStatus: true,
+                  humanDecision: true,
                   userCreated: true,
                   evidenceSourceType: true,
                   staleAt: true,

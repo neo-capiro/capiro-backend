@@ -12,10 +12,7 @@ import {
   type PlanStage,
   type ProposedAction,
 } from './opportunity-action-plan.js';
-import {
-  GovernmentLandscapeService,
-  type LandscapePort,
-} from './government-landscape.service.js';
+import { GovernmentLandscapeService, type LandscapePort } from './government-landscape.service.js';
 import type { LandscapeItem } from './government-landscape.types.js';
 
 /**
@@ -124,7 +121,9 @@ describe('action plan — determinism', () => {
     expect(first.actions.map((a) => a.id)).toEqual(again.actions.map((a) => a.id));
     // Ids are per-pair: the SAME action title on a different opportunity is a
     // different action, which is what keeps a UI from marking both as dealt with.
-    const other = buildActionPlan(input({ sourceRecordId: '66666666-6666-6666-6666-666666666666' }));
+    const other = buildActionPlan(
+      input({ sourceRecordId: '66666666-6666-6666-6666-666666666666' }),
+    );
     expect(other.actions.map((a) => a.id)).not.toEqual(first.actions.map((a) => a.id));
   });
 
@@ -185,9 +184,7 @@ describe('action plan — targets', () => {
   });
 
   it('never emits an action whose evidence includes an inferred item', () => {
-    const plan = buildActionPlan(
-      input({ landscape: [acceptedPe(), quarantinedPe(), district()] }),
-    );
+    const plan = buildActionPlan(input({ landscape: [acceptedPe(), quarantinedPe(), district()] }));
     const inferredIds = new Set(['match-quarantined']);
     for (const action of plan.actions) {
       for (const e of action.evidence) expect(inferredIds.has(e.sourceId)).toBe(false);
@@ -262,7 +259,9 @@ describe('action plan — stage', () => {
     // routing it to `closed_or_informational` would swap shaping advice for
     // "watch for a repost" — which is advice about a solicitation that never was.
     expect(
-      planStageFor(input({ source: 'agency_forecast', sourceRecordId: FORECAST_ID, isActive: false })),
+      planStageFor(
+        input({ source: 'agency_forecast', sourceRecordId: FORECAST_ID, isActive: false }),
+      ),
     ).toBe('forecast');
   });
 
@@ -405,7 +404,9 @@ describe('action plan — prerequisites', () => {
     const plan = buildActionPlan(input({ hasRequirements: false }));
     const questions = plan.actions.find((a) => a.title.includes('questions'));
     expect(questions?.dueDate).not.toBeNull();
-    expect(questions?.unresolvedPrerequisites.join(' ')).toContain('question deadline has not been extracted');
+    expect(questions?.unresolvedPrerequisites.join(' ')).toContain(
+      'question deadline has not been extracted',
+    );
   });
 
   it('states the vehicle gap on a sources-sought plan', () => {
@@ -610,9 +611,7 @@ describe('composeActionPlan', () => {
     expect(result.acceptance.wired).toBe(true);
   });
 
-  it('reports that acceptance is NOT wired for a forecast, and says why', async () => {
-    // A UI that offered an Accept button here would hand the user a 400 from
-    // P08's source guard with no explanation.
+  it('reports forecast acceptance through review tasks without implying pursuit', async () => {
     const service = makeService({
       readPlanLifecycle: async () => ({ kind: 'other', isActive: true, responseDeadline: null }),
     });
@@ -624,8 +623,43 @@ describe('composeActionPlan', () => {
       FORECAST_ID,
       AS_OF,
     );
-    expect(result.acceptance.wired).toBe(false);
-    expect(result.acceptance.explanation).toContain('a forecast is not one');
+    expect(result.acceptance.wired).toBe(true);
+    expect(result.acceptance.explanation).toContain('review task');
+    expect(hasPursuitAction(result.plan!)).toBe(false);
+  });
+
+  it('resolves an opaque provider forecast ID through the actual database reader', async () => {
+    const providerId = 'agency-plan-2027:robotics';
+    let lookup: unknown;
+    const prisma = {
+      withSystem: async (run: (tx: any) => Promise<unknown>) =>
+        run({
+          tangoProcurementForecast: {
+            findUnique: async (args: unknown) => {
+              lookup = args;
+              return { isActive: true };
+            },
+          },
+        }),
+      withTenant: async (_tenantId: string, run: (tx: any) => Promise<unknown>) =>
+        run({
+          client: { findMany: async () => [{ id: CLIENT, memoryWall: false }] },
+          clientMemoryAccess: { findMany: async () => [] },
+          clientRelevantVehicle: { count: async () => 0 },
+        }),
+    };
+    const service = new GovernmentLandscapeService(prisma as never);
+    const result = await service.composeActionPlan(
+      TENANT,
+      USER,
+      CLIENT,
+      'agency_forecast',
+      providerId,
+      AS_OF,
+    );
+    expect(lookup).toEqual({ where: { tangoForecastId: providerId }, select: { isActive: true } });
+    expect(result.state).toBe('available');
+    expect(result.plan!.sourceRecordId).toBe(providerId);
   });
 
   it('states the acceptance rule even when it denies', async () => {

@@ -18,16 +18,16 @@
  * client to spend a week on a bid they were never allowed to submit.
  */
 
-/** Ordered strongest-first; the order is the tie-break for matchedSignals. */
+/** Display fit evidence first and eligibility context last. */
 export const RELEVANCE_SIGNALS = [
   'assistanceListing',
-  'applicantType',
   'agency',
-  'stateRestriction',
   'capabilityKeyword',
   'sector',
   'fundingCategory',
   'knownPartner',
+  'applicantType',
+  'stateRestriction',
 ] as const;
 
 export type RelevanceSignalKey = (typeof RELEVANCE_SIGNALS)[number];
@@ -46,9 +46,9 @@ export type SignalStrength = 'strong' | 'moderate' | 'weak';
  */
 export const SIGNAL_STRENGTH: Readonly<Record<RelevanceSignalKey, SignalStrength>> = Object.freeze({
   assistanceListing: 'strong',
-  applicantType: 'strong',
-  agency: 'strong',
-  stateRestriction: 'strong',
+  applicantType: 'weak',
+  agency: 'moderate',
+  stateRestriction: 'weak',
   capabilityKeyword: 'moderate',
   sector: 'weak',
   fundingCategory: 'weak',
@@ -68,17 +68,9 @@ import { applicantTypeKey } from '@capiro/shared';
 
 export const RELEVANCE_WEIGHTS: Readonly<Record<RelevanceSignalKey, number>> = Object.freeze({
   assistanceListing: 40,
-  // An explicit applicant-type match means the notice is AIMED at organizations
-  // of this legal form. Structured on both sides (federal_grant.eligibility vs
-  // Client.applicantTypes, both label strings), so it is evidence, not a topical
-  // guess — hence a strong band.
-  //
-  // It deliberately OVERLAPS with computeEligibility, which reads the same two
-  // arrays. That is not duplication: eligibility answers "may they apply", this
-  // answers "is this aimed at them". A notice open to state governments AND small
-  // businesses is more relevant to a small business than one open to state
-  // governments alone, and the eligibility state ('eligible') is identical in
-  // both cases, so eligibility cannot carry that distinction.
+  // Keep the established numeric scale for sorting existing records. Applicant
+  // type and geography are supporting eligibility facts, never sufficient fit
+  // evidence: the shared suggestion floor requires a program/capability match.
   applicantType: 25,
   agency: 20,
   // The client is present in a state the notice RESTRICTS itself to. A
@@ -143,11 +135,9 @@ export interface RelevanceResult {
   /**
    * Whether this pair is strong enough to SURFACE as a suggestion.
    *
-   * Same bar as SAM for the structured half (1 strong OR 2 moderate), PLUS a
-   * grant-specific path: one moderate capability-keyword hit together with a
-   * distinctive weak topical signal (sector / fundingCategory / knownPartner).
-   * Keyword-only fit used to be invisible because grants have only one moderate
-   * signal; the weak companion is what stops pure noise from clearing the floor.
+   * An exact prior program, or a substantive capability with independent
+   * topical/agency evidence. Eligibility, geography and generic/repeated words
+   * cannot establish fit, even when their numeric score is above the backstop.
    */
   meetsSuggestionFloor: boolean;
 }
@@ -222,7 +212,96 @@ function normalizeListing(value: string | null | undefined): string {
 // catch-all meaning "no specific sector" (packages/shared SECTOR_TAGS) — none
 // of these should be able to manufacture a match by themselves. Distinctive
 // topical words ("defense", "aerospace", "energy") pass through.
-const GENERIC_SECTOR_TOKENS = new Set(['and', 'of', 'the', 'for', 'government', 'federal', 'other']);
+const GENERIC_TOPIC_TOKENS = new Set([
+  'and',
+  'of',
+  'the',
+  'for',
+  'with',
+  'from',
+  'into',
+  'other',
+  'government',
+  'federal',
+  'public',
+  'private',
+  'department',
+  'bureau',
+  'office',
+  'agency',
+  'grant',
+  'grants',
+  'funding',
+  'funded',
+  'fund',
+  'funds',
+  'program',
+  'programs',
+  'project',
+  'projects',
+  'research',
+  'development',
+  'innovation',
+  'innovative',
+  'technology',
+  'technologies',
+  'technical',
+  'service',
+  'services',
+  'support',
+  'assistance',
+  'system',
+  'systems',
+  'solution',
+  'solutions',
+  'management',
+  'general',
+  'advanced',
+  'group',
+  'business',
+  'businesses',
+  'small',
+  'nonprofit',
+  'organization',
+  'organizations',
+  'opportunity',
+  'opportunities',
+  'application',
+  'applications',
+  'applicant',
+  'applicants',
+  'eligibility',
+  'eligible',
+  'inc',
+  'llc',
+  'ltd',
+  'corp',
+  'corporation',
+  'company',
+  'companies',
+]);
+
+function textTokens(value: string | null | undefined): string[] {
+  return norm(value)
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function substantiveTokens(value: string | null | undefined): string[] {
+  return [
+    ...new Set(textTokens(value).filter((t) => t.length > 2 && !GENERIC_TOPIC_TOKENS.has(t))),
+  ];
+}
+
+/** Token boundaries avoid matches such as "care" inside "Medicare". */
+function containsPhrase(haystack: string, value: string): boolean {
+  const phrase = textTokens(value).join(' ');
+  return phrase.length > 0 && haystack.includes(` ${phrase} `);
+}
+
+function addsTopic(value: string, existing: ReadonlySet<string>): boolean {
+  return substantiveTokens(value).some((token) => !existing.has(token));
+}
 
 /**
  * client.sector (Client.sectorTag) is meant to be a controlled SectorTag
@@ -236,9 +315,7 @@ const GENERIC_SECTOR_TOKENS = new Set(['and', 'of', 'the', 'for', 'government', 
  * punctuated value ever will).
  */
 function sectorTokens(sector: string | null | undefined): string[] {
-  return norm(sector)
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length > 2 && !GENERIC_SECTOR_TOKENS.has(t));
+  return substantiveTokens(sector);
 }
 
 /**
@@ -369,21 +446,25 @@ export function scoreOpportunityRelevance(
     if (stateHit) add('stateRestriction', stateHit);
   }
 
-  // Keyword matching runs over title + description. Substring rather than
-  // fuzzy: a deterministic, explainable hit is the requirement, and a
-  // near-miss the operator cannot see is worse than no hit.
-  const haystack = `${norm(opportunity.title)} ${norm(opportunity.description)}`;
-  const keywordHit = client.capabilityKeywords.find((k) => {
-    const needle = norm(k);
-    return needle.length > 2 && haystack.includes(needle);
-  });
+  // Exact token phrases, with punctuation normalized, keep matching auditable.
+  // Prefer a specific capability over a broad tag from the same profile.
+  const haystack = ` ${textTokens(opportunity.title).join(' ')} ${textTokens(opportunity.description).join(' ')} `;
+  const keywordHit = client.capabilityKeywords
+    .filter((k) => substantiveTokens(k).length > 0 && containsPhrase(haystack, k))
+    .sort((a, b) => substantiveTokens(b).length - substantiveTokens(a).length)[0];
   if (keywordHit) {
     add('capabilityKeyword', keywordHit);
   }
 
-  const sectorHit = sectorTokens(client.sector).find((t) => haystack.includes(t));
+  // The same word in capability, sector and category is one piece of evidence,
+  // not three independent reasons to recommend a grant.
+  const usedTopics = new Set(substantiveTokens(keywordHit));
+  const sectorHit = sectorTokens(client.sector).find(
+    (t) => !usedTopics.has(t) && containsPhrase(haystack, t),
+  );
   if (sectorHit) {
     add('sector', sectorHit);
+    usedTopics.add(sectorHit);
   }
 
   // Client-independent on purpose is NOT allowed here: fundingCategory is the
@@ -394,13 +475,13 @@ export function scoreOpportunityRelevance(
   // 120 of 183 signal hits were exactly this, including clients with zero
   // capabilities and no sector at all).
   const category = norm(opportunity.fundingCategory);
-  if (category && norm(client.sector) === category) {
+  if (category && norm(client.sector) === category && addsTopic(category, usedTopics)) {
     add('fundingCategory', opportunity.fundingCategory ?? '');
+    substantiveTokens(category).forEach((token) => usedTopics.add(token));
   }
 
   const partnerHit = client.knownPartnerNames.find((p) => {
-    const needle = norm(p);
-    return needle.length > 2 && haystack.includes(needle);
+    return addsTopic(p, usedTopics) && containsPhrase(haystack, p);
   });
   if (partnerHit) {
     add('knownPartner', partnerHit);
@@ -428,27 +509,29 @@ export function scoreOpportunityRelevance(
  * Grant suggestion floor. Exported so the FO service and producers share one
  * definition rather than re-deriving the band math inline.
  *
- *   - 1 strong, OR
- *   - 2 moderate, OR
- *   - 1 moderate capabilityKeyword AND 1 distinctive weak topical signal
- *     (sector / fundingCategory / knownPartner)
- *
- * The third arm is grant-specific: this rail has only one moderate signal, so
- * the strict SAM floor (1 strong / 2 moderate) made every keyword-only fit
- * invisible even when a real sector token also hit.
+ * An exact Assistance Listing qualifies on its own. Otherwise a substantive
+ * capability must have independent support from sector, category, partner or
+ * prior agency. Applicant type and geography only describe who may apply.
+ * Inspect identity and evidence as well as the band, so old stored "strong"
+ * eligibility labels and repeated copies of a signal cannot qualify a pair.
  */
 export function meetsGrantSuggestionFloor(
-  signals: ReadonlyArray<Pick<MatchedSignal, 'signal' | 'strength'>>,
+  signals: ReadonlyArray<Pick<MatchedSignal, 'signal' | 'strength' | 'matchedOn'>>,
 ): boolean {
-  const strong = signals.filter((s) => s.strength === 'strong').length;
-  if (strong >= 1) return true;
-  const moderate = signals.filter((s) => s.strength === 'moderate');
-  if (moderate.length >= 2) return true;
-  const hasKeyword = moderate.some((s) => s.signal === 'capabilityKeyword');
-  if (!hasKeyword) return false;
+  if (signals.some((s) => s.signal === 'assistanceListing' && normalizeListing(s.matchedOn))) {
+    return true;
+  }
+  const capability = signals.find(
+    (s) => s.signal === 'capabilityKeyword' && substantiveTokens(s.matchedOn).length > 0,
+  );
+  if (!capability) return false;
+  const capabilityTokens = new Set(substantiveTokens(capability.matchedOn));
   return signals.some(
     (s) =>
-      s.strength === 'weak' &&
-      (s.signal === 'sector' || s.signal === 'fundingCategory' || s.signal === 'knownPartner'),
+      (s.signal === 'agency' ||
+        s.signal === 'sector' ||
+        s.signal === 'fundingCategory' ||
+        s.signal === 'knownPartner') &&
+      addsTopic(s.matchedOn, capabilityTokens),
   );
 }

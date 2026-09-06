@@ -1,3 +1,12 @@
+import { fundingFollowupPatch } from './funding-opportunity-followup.js';
+import { readFundingWorkflowForUpdate } from './funding-opportunity-workflow-lock.js';
+import { syncExistingFundingActionTask } from './funding-opportunity-task-link.js';
+import {
+  FundingOpportunityFeedService,
+  isTangoOpportunityFeed,
+} from './funding-opportunity-feed.service.js';
+import { requireFundingSourceAccess } from './funding-opportunity-source-access.js';
+import type { InboxSource } from './funding-opportunity-inbox.service.js';
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -18,10 +27,7 @@ import {
   buildClientOpportunityProfile,
   emptyAwardHistory,
 } from './client-opportunity-profile.builder.js';
-import {
-  buildAwardHistoryIdentity,
-  contractorIdsToResolve,
-} from './award-history-identity.js';
+import { buildAwardHistoryIdentity, contractorIdsToResolve } from './award-history-identity.js';
 import {
   asProfileReadClient,
   readAwardHistoryByBasis,
@@ -53,13 +59,19 @@ import {
   sourceRecordIdentityColumns,
   sourceRecordWhere,
 } from './funding-opportunity-identity.js';
-import { isFundingOpportunitiesFeatureEnabled, FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE } from './funding-opportunities-flag.guard.js';
+import {
+  isFundingOpportunitiesFeatureEnabled,
+  FUNDING_OPPORTUNITIES_VEHICLE_FIT_FEATURE,
+} from './funding-opportunities-flag.guard.js';
 import {
   AcquisitionPositionService,
   type AcquisitionPosition,
   type AcquisitionPositionReader,
 } from './acquisition-position.js';
-import { TangoStoreService, computeFilterFingerprint } from '../external/tango/tango-store.service.js';
+import {
+  TangoStoreService,
+  computeFilterFingerprint,
+} from '../external/tango/tango-store.service.js';
 import { TANGO_GATEWAY, type TangoGateway } from '../external/tango/tango.types.js';
 import {
   HUMAN_DECISION_STATUSES,
@@ -129,7 +141,9 @@ export class FundingOpportunitiesService {
     private readonly tangoStore: TangoStoreService,
     @Inject(TANGO_GATEWAY) private readonly tangoGateway: TangoGateway,
   ) {
-    this.acquisitionPosition = new AcquisitionPositionService(this.buildAcquisitionPositionReader());
+    this.acquisitionPosition = new AcquisitionPositionService(
+      this.buildAcquisitionPositionReader(),
+    );
   }
 
   /**
@@ -145,7 +159,11 @@ export class FundingOpportunitiesService {
     return {
       isConfigured: () => this.tangoGateway.configured,
       getSyncStatus: async () => {
-        const checkpoint = await this.tangoStore.readCheckpoint(SYNC_VERB, RESOURCE_TYPE, filterFingerprint);
+        const checkpoint = await this.tangoStore.readCheckpoint(
+          SYNC_VERB,
+          RESOURCE_TYPE,
+          filterFingerprint,
+        );
         return {
           neverSynced: checkpoint == null,
           lastSyncedAt: checkpoint?.lastRunAt ? checkpoint.lastRunAt.toISOString() : null,
@@ -173,7 +191,9 @@ export class FundingOpportunitiesService {
       getVehicleSnapshot: async (tangoVehicleId) => {
         const snapshot = await this.tangoStore.getActiveSnapshot('vehicle', tangoVehicleId);
         if (!snapshot) return null;
-        const normalized = snapshot.normalizedJsonb as unknown as { lastDateToOrder?: string | null } | null;
+        const normalized = snapshot.normalizedJsonb as unknown as {
+          lastDateToOrder?: string | null;
+        } | null;
         return { lastDateToOrder: normalized?.lastDateToOrder ?? null };
       },
     };
@@ -208,7 +228,8 @@ export class FundingOpportunitiesService {
       pageSize: page.pageSize,
       counts: this.countFor(sorted, []),
       freshness,
-      emptyReason: page.items.length === 0 ? this.emptyReasonFor(rows, sorted, freshness, null) : null,
+      emptyReason:
+        page.items.length === 0 ? this.emptyReasonFor(rows, sorted, freshness, null) : null,
       emptyExplanation:
         page.items.length === 0
           ? EMPTY_EXPLANATIONS[this.emptyReasonFor(rows, sorted, freshness, null)]
@@ -400,13 +421,29 @@ export class FundingOpportunitiesService {
     const write = async () =>
       this.prisma.withTenant(tenantId, async (tx) => {
         const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (
+          input.status === 'pursuing' &&
+          existing &&
+          (existing.humanDecision === 'pass' ||
+            ['won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus))
+        )
+          throw new BadRequestException('Restore or reopen this record before pursuing it.');
+        const preserveStatus =
+          input.status === 'saved' &&
+          existing &&
+          (existing.humanDecision === 'pursue' ||
+            ['pursuing', 'won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus));
         const saved = existing
           ? await tx.clientFundingOpportunity.update({
               where: { id: existing.id },
               // Backfill the generic identity on the way past. The migration
               // filled every row that existed when it ran; this catches the tail
               // written by pre-P13 code during the rolling deploy.
-              data: { ...data, ...backfillIdentityColumns(source, sourceRecordId) },
+              data: {
+                ...data,
+                ...(preserveStatus ? { workflowStatus: existing.workflowStatus } : {}),
+                ...backfillIdentityColumns(source, sourceRecordId),
+              },
             })
           : await tx.clientFundingOpportunity.create({
               data: {
@@ -421,6 +458,15 @@ export class FundingOpportunitiesService {
                 ...data,
               },
             });
+        if (saved.humanDecision === 'pursue' || saved.humanDecision === 'monitor')
+          await syncExistingFundingActionTask(tx, {
+            tenantId,
+            clientId,
+            source,
+            sourceRecordId,
+            intent: saved.humanDecision === 'pursue' ? 'pursuit' : 'review',
+            ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+          });
         await this.writeWorkflowAudit(tx, {
           tenantId,
           actorUserId: input.actorUserId,
@@ -434,7 +480,7 @@ export class FundingOpportunitiesService {
               }
             : null,
           after: {
-            workflowStatus: input.status,
+            workflowStatus: saved.workflowStatus,
             ownerUserId: saved.ownerUserId ?? null,
             facilityId: saved.facilityId ?? null,
           },
@@ -451,12 +497,7 @@ export class FundingOpportunitiesService {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
-      return this.prisma.withTenant(tenantId, async (tx) => {
-        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
-        if (!existing) throw error;
-        const saved = await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data });
-        return this.shapeWorkflow(saved, null, null);
-      });
+      return write();
     }
   }
 
@@ -532,7 +573,10 @@ export class FundingOpportunitiesService {
       decisionAt: decidedAt,
       decisionByUserId: input.actorUserId,
       ...(input.nextAction !== undefined
-        ? { nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null }
+        ? {
+            nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null,
+            ...(!input.nextAction?.trim() ? { nextActionDueAt: null } : {}),
+          }
         : {}),
       ...(input.nextActionDueAt !== undefined ? { nextActionDueAt: dueAt } : {}),
       updatedBy: input.actorUserId,
@@ -541,6 +585,22 @@ export class FundingOpportunitiesService {
     const write = async () =>
       this.prisma.withTenant(tenantId, async (tx) => {
         const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (
+          input.decision === 'pursue' &&
+          existing &&
+          (existing.humanDecision === 'pass' ||
+            ['won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus))
+        )
+          throw new BadRequestException('Restore or reopen this record before pursuing it.');
+        if (
+          input.decision === 'monitor' &&
+          existing &&
+          (['pursue', 'pass'].includes(existing.humanDecision ?? '') ||
+            ['pursuing', 'won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus))
+        )
+          throw new BadRequestException(
+            'Use the existing pursuit or restore the closed record before changing it to Watch.',
+          );
         const data = {
           ...decisionData,
           // `pass` leaves workflow untouched. A pass is a judgement, not a
@@ -577,6 +637,20 @@ export class FundingOpportunitiesService {
               },
             });
 
+        if (saved.humanDecision === 'pursue' || saved.humanDecision === 'monitor')
+          await syncExistingFundingActionTask(tx, {
+            tenantId,
+            clientId,
+            source,
+            sourceRecordId,
+            intent: saved.humanDecision === 'pursue' ? 'pursuit' : 'review',
+            ...(input.nextAction !== undefined ? { nextAction: input.nextAction } : {}),
+            ...(input.nextActionDueAt !== undefined ||
+            (input.nextAction !== undefined && !input.nextAction?.trim())
+              ? { nextActionDueAt: saved.nextActionDueAt }
+              : {}),
+          });
+
         // Same transaction as the write. An audit row written afterwards can be
         // lost exactly when it matters most.
         await this.writeWorkflowAudit(tx, {
@@ -609,15 +683,7 @@ export class FundingOpportunitiesService {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
-      return this.prisma.withTenant(tenantId, async (tx) => {
-        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
-        if (!existing) throw error;
-        const saved = await tx.clientFundingOpportunity.update({
-          where: { id: existing.id },
-          data: { ...decisionData, ...(workflowStatus ? { workflowStatus } : {}) },
-        });
-        return this.shapeDecision(saved)!;
-      });
+      return write();
     }
   }
 
@@ -635,9 +701,11 @@ export class FundingOpportunitiesService {
   async describeForAction(
     tenantId: string,
     clientId: string,
-    source: OpportunitySource,
+    source: InboxSource,
     sourceRecordId: string,
   ): Promise<{
+    ownerUserId?: string | null;
+    nextActionDueAt?: string | null;
     title: string;
     sourceReference: string | null;
     sourceUrl: string | null;
@@ -645,12 +713,35 @@ export class FundingOpportunitiesService {
     isPursuable: boolean;
     pursuitRefusal: string | null;
   }> {
+    await requireFundingSourceAccess(this.prisma, tenantId, source);
     await this.assertClientInTenant(tenantId, clientId);
+    const workflow = await this.prisma.withTenant(tenantId, (tx) =>
+      this.findWorkflowRow(tx, clientId, source, sourceRecordId),
+    );
+    const teamFollowup = {
+      ownerUserId: workflow?.ownerUserId ?? null,
+      nextActionDueAt: workflow?.nextActionDueAt?.toISOString() ?? null,
+    };
+    const workflowRefusal =
+      workflow &&
+      (workflow.humanDecision === 'pass' ||
+        ['won', 'lost', 'dismissed', 'expired'].includes(workflow.workflowStatus))
+        ? 'Restore or reopen this record before pursuing it.'
+        : null;
+    if (isTangoOpportunityFeed(source))
+      return {
+        ...(await new FundingOpportunityFeedService(this.prisma).describeForAction(
+          source,
+          sourceRecordId,
+        )),
+        ...teamFollowup,
+        ...(workflowRefusal ? { isPursuable: false, pursuitRefusal: workflowRefusal } : {}),
+      };
     const row = await this.fetchOneSourceRow(source, sourceRecordId);
     if (!row) throw new NotFoundException('Opportunity not found');
     const base = this.shapeUnscored(row);
 
-    let pursuitRefusal: string | null = null;
+    let pursuitRefusal: string | null = workflowRefusal;
     try {
       this.assertPursuable(row, 'pursuing');
     } catch (error) {
@@ -658,6 +749,7 @@ export class FundingOpportunitiesService {
     }
 
     return {
+      ...teamFollowup,
       title: base.title,
       sourceReference: base.sourceReference,
       sourceUrl: base.sourceUrl,
@@ -684,7 +776,7 @@ export class FundingOpportunitiesService {
     input: {
       tenantId: string;
       clientId: string;
-      source: OpportunitySource;
+      source: InboxSource;
       sourceRecordId: string;
       actorUserId: string;
       decision: HumanDecision;
@@ -694,8 +786,9 @@ export class FundingOpportunitiesService {
       nextAction?: string | null;
       nextActionDueAt?: Date | null;
       taskId: string;
+      reuseTask?: boolean;
     },
-  ): Promise<{ id: string; workflowStatus: string }> {
+  ): Promise<{ id: string; workflowStatus: string; decision: HumanDecision }> {
     const existing = await this.findWorkflowRow(
       tx,
       input.clientId,
@@ -703,19 +796,49 @@ export class FundingOpportunitiesService {
       input.sourceRecordId,
     );
 
+    if (
+      input.decision === 'pursue' &&
+      !input.reuseTask &&
+      existing &&
+      (existing.humanDecision === 'pass' ||
+        ['won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus))
+    )
+      throw new BadRequestException('Restore or reopen this record before pursuing it.');
+    const preserveDecision =
+      existing &&
+      ((input.reuseTask &&
+        (existing.humanDecision != null ||
+          ['won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus))) ||
+        (input.decision === 'monitor' &&
+          (existing.humanDecision === 'pursue' ||
+            existing.humanDecision === 'pass' ||
+            ['pursuing', 'won', 'lost', 'dismissed', 'expired'].includes(
+              existing.workflowStatus,
+            ))));
+    const secondaryReview =
+      preserveDecision && input.decision === 'monitor' && existing.humanDecision !== 'monitor';
     const data = {
-      workflowStatus: input.workflowStatus,
-      humanDecision: input.decision,
-      decisionAt: new Date(),
-      decisionByUserId: input.actorUserId,
-      ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
-      ...(input.notes !== undefined
+      workflowStatus: preserveDecision ? existing.workflowStatus : input.workflowStatus,
+      humanDecision:
+        preserveDecision && existing.humanDecision ? existing.humanDecision : input.decision,
+      decisionAt: preserveDecision && existing.decisionAt ? existing.decisionAt : new Date(),
+      decisionByUserId:
+        preserveDecision && existing.decisionByUserId
+          ? existing.decisionByUserId
+          : input.actorUserId,
+      ...(!secondaryReview && input.ownerUserId !== undefined
+        ? { ownerUserId: input.ownerUserId }
+        : {}),
+      ...(!preserveDecision && input.notes !== undefined
         ? { notes: input.notes?.trim() ? input.notes.trim() : null }
         : {}),
-      nextAction: input.nextAction?.trim() ? input.nextAction.trim() : null,
+      nextAction:
+        preserveDecision && existing.nextAction
+          ? existing.nextAction
+          : input.nextAction?.trim() || null,
       // The SAME date the task carries. Two dates that could drift is how a task
       // says one thing and the inbox says another.
-      nextActionDueAt: input.nextActionDueAt ?? null,
+      nextActionDueAt: secondaryReview ? existing.nextActionDueAt : (input.nextActionDueAt ?? null),
       userCreated: true,
       staleAt: null,
       updatedBy: input.actorUserId,
@@ -758,7 +881,11 @@ export class FundingOpportunitiesService {
       },
     });
 
-    return { id: saved.id, workflowStatus: saved.workflowStatus };
+    return {
+      id: saved.id,
+      workflowStatus: saved.workflowStatus,
+      decision: saved.humanDecision as HumanDecision,
+    };
   }
 
   /**
@@ -815,6 +942,8 @@ export class FundingOpportunitiesService {
       facilityId?: string | null;
       notes?: string | null;
       outcomeNote?: string | null;
+      nextAction?: string | null;
+      nextActionDueAt?: string | null;
     },
   ): Promise<OpportunityWorkflow> {
     await this.assertClientInTenant(tenantId, clientId);
@@ -846,11 +975,39 @@ export class FundingOpportunitiesService {
     const write = async (): Promise<OpportunityWorkflow> =>
       this.prisma.withTenant(tenantId, async (tx) => {
         const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (
+          input.status === 'pursuing' &&
+          existing &&
+          (existing.humanDecision === 'pass' ||
+            ['won', 'lost', 'dismissed', 'expired'].includes(existing.workflowStatus))
+        )
+          throw new BadRequestException('Restore or reopen this record before pursuing it.');
+        const followup = fundingFollowupPatch(input, existing);
         if (existing) {
           const saved = await tx.clientFundingOpportunity.update({
             where: { id: existing.id },
-            data: mutable,
+            data: {
+              ...mutable,
+              ...followup,
+              ...(input.status === 'saved' &&
+              (existing.humanDecision === 'pursue' ||
+                ['pursuing', 'won', 'lost', 'dismissed', 'expired'].includes(
+                  existing.workflowStatus,
+                ))
+                ? { workflowStatus: existing.workflowStatus }
+                : {}),
+            },
           });
+          if (saved.humanDecision === 'pursue' || saved.humanDecision === 'monitor')
+            await syncExistingFundingActionTask(tx, {
+              tenantId,
+              clientId,
+              source,
+              sourceRecordId,
+              intent: saved.humanDecision === 'pursue' ? 'pursuit' : 'review',
+              ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+              ...followup,
+            });
           await this.writeWorkflowAudit(tx, {
             tenantId,
             actorUserId: input.actorUserId,
@@ -860,8 +1017,15 @@ export class FundingOpportunitiesService {
               workflowStatus: existing.workflowStatus,
               ownerUserId: existing.ownerUserId ?? null,
               facilityId: existing.facilityId ?? null,
+              nextAction: existing.nextAction ?? null,
+              nextActionDueAt: existing.nextActionDueAt?.toISOString() ?? null,
             },
-            after: mutable,
+            after: {
+              ...mutable,
+              nextAction: saved.nextAction ?? null,
+              nextActionDueAt: saved.nextActionDueAt?.toISOString() ?? null,
+              workflowStatus: saved.workflowStatus,
+            },
           });
           return this.shapeWorkflow(saved, null, null);
         }
@@ -888,6 +1052,7 @@ export class FundingOpportunitiesService {
             responseDeadlineSnapshot: snap.deadline,
             sourceUpdatedAtSnapshot: snap.updatedAt,
             ...mutable,
+            ...followup,
             // An edit is a save, not a pursuit — unless the caller asked for a
             // status explicitly.
             workflowStatus: input.status ?? 'saved',
@@ -899,7 +1064,12 @@ export class FundingOpportunitiesService {
           action: 'funding_opportunity.workflow.created_by_edit',
           entityId: created.id,
           before: null,
-          after: { workflowStatus: created.workflowStatus, ...mutable },
+          after: {
+            workflowStatus: created.workflowStatus,
+            ...mutable,
+            nextAction: created.nextAction ?? null,
+            nextActionDueAt: created.nextActionDueAt?.toISOString() ?? null,
+          },
         });
         return this.shapeWorkflow(created, null, null);
       });
@@ -913,15 +1083,7 @@ export class FundingOpportunitiesService {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
-      return this.prisma.withTenant(tenantId, async (tx) => {
-        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
-        if (!existing) throw error;
-        const saved = await tx.clientFundingOpportunity.update({
-          where: { id: existing.id },
-          data: mutable,
-        });
-        return this.shapeWorkflow(saved, null, null);
-      });
+      return write();
     }
   }
 
@@ -1034,9 +1196,9 @@ export class FundingOpportunitiesService {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
       if (!existing) throw new NotFoundException('No dismissed opportunity to restore.');
-      if (existing.workflowStatus !== 'dismissed') {
+      if (existing.workflowStatus !== 'dismissed' && existing.humanDecision !== 'pass') {
         throw new BadRequestException(
-          `Only a dismissed opportunity can be restored; this one is '${existing.workflowStatus}'.`,
+          `Only a passed or dismissed opportunity can be restored; this one is '${existing.workflowStatus}'.`,
         );
       }
       const saved = await tx.clientFundingOpportunity.update({
@@ -1044,6 +1206,10 @@ export class FundingOpportunitiesService {
         data: {
           workflowStatus: 'saved',
           dismissedReason: null,
+          humanDecision: null,
+          decisionReason: null,
+          decisionAt: null,
+          decisionByUserId: null,
           staleAt: null,
           userCreated: true,
           updatedBy: input.actorUserId,
@@ -1054,7 +1220,11 @@ export class FundingOpportunitiesService {
         actorUserId: input.actorUserId,
         action: 'funding_opportunity.workflow.restored',
         entityId: existing.id,
-        before: { workflowStatus: 'dismissed', dismissedReason: existing.dismissedReason ?? null },
+        before: {
+          workflowStatus: existing.workflowStatus,
+          humanDecision: existing.humanDecision,
+          dismissedReason: existing.dismissedReason ?? null,
+        },
         after: { workflowStatus: 'saved', dismissedReason: null },
       });
       return this.shapeWorkflow(saved, null, null);
@@ -1494,13 +1664,11 @@ export class FundingOpportunitiesService {
   private async findWorkflowRow(
     tx: Prisma.TransactionClient,
     clientId: string,
-    source: OpportunitySource,
+    source: InboxSource,
     sourceRecordId: string,
   ) {
     assertRequestSourceRecordId(source, sourceRecordId);
-    return tx.clientFundingOpportunity.findFirst({
-      where: { clientId, ...sourceRecordWhere(source, sourceRecordId) },
-    });
+    return readFundingWorkflowForUpdate(tx, clientId, source, sourceRecordId);
   }
 
   // ── Tenant-safety assertions ─────────────────────────────────────────────
@@ -1547,7 +1715,11 @@ export class FundingOpportunitiesService {
 
   // ── Step 3: shaping and scoring (pure, in memory) ────────────────────────
 
-  private sourceSnapshot(src: SourceRow): { status: string | null; deadline: Date | null; updatedAt: Date | null } {
+  private sourceSnapshot(src: SourceRow): {
+    status: string | null;
+    deadline: Date | null;
+    updatedAt: Date | null;
+  } {
     if (src.kind === 'grant') {
       return {
         status: src.row.status ?? null,
@@ -1669,6 +1841,7 @@ export class FundingOpportunitiesService {
         isPursuable: base.isPursuable,
         responseDeadline: base.responseDeadline,
         relevanceScore: scored.relevanceScore,
+        meetsSuggestionFloor: scored.meetsSuggestionFloor,
         signalStrengths: scored.matchedSignals.map((sig) => sig.strength),
         signalKeys: scored.matchedSignals.map((sig) => sig.signal),
         eligibility: scored.eligibility.state,
@@ -1850,6 +2023,8 @@ export class FundingOpportunitiesService {
       workflowStatus: string;
       ownerUserId: string | null;
       notes: string | null;
+      nextAction?: string | null;
+      nextActionDueAt?: Date | null;
       dismissedReason: string | null;
       outcomeNote: string | null;
       userCreated: boolean;
@@ -1886,6 +2061,8 @@ export class FundingOpportunitiesService {
           }
         : null,
       notes: row.notes,
+      nextAction: row.nextAction ?? null,
+      nextActionDueAt: row.nextActionDueAt?.toISOString() ?? null,
       dismissedReason: row.dismissedReason,
       outcomeNote: row.outcomeNote,
       userCreated: row.userCreated,
@@ -1904,10 +2081,7 @@ export class FundingOpportunitiesService {
     return true;
   }
 
-  private applyPostFilters(
-    items: FundingOpportunity[],
-    q: OpportunityQuery,
-  ): FundingOpportunity[] {
+  private applyPostFilters(items: FundingOpportunity[], q: OpportunityQuery): FundingOpportunity[] {
     let out = items;
 
     // Dismissed rows are hidden UNLESS explicitly asked for. A dismissal is a
@@ -2168,7 +2342,10 @@ export class FundingOpportunitiesService {
       const byVerb = new Map(runs.map((r) => [r.source, r]));
       const grantRow = grantCounts[0];
       const counts = {
-        grants_gov: { total: Number(grantRow?.total ?? 0n), active: Number(grantRow?.active ?? 0n) },
+        grants_gov: {
+          total: Number(grantRow?.total ?? 0n),
+          active: Number(grantRow?.active ?? 0n),
+        },
         sam_gov: {
           total: Number(samCounts[0]?.total ?? 0n),
           active: Number(samCounts[0]?.active ?? 0n),
@@ -2308,8 +2485,7 @@ export const EMPTY_EXPLANATIONS: Record<EmptyReason, string> = {
     'This client has no NAICS codes, PSC codes, applicant types, capabilities or federal award history — nothing any matching signal reads. “No matches” here says nothing about the opportunity universe.',
   no_match_above_threshold:
     'Opportunities were evaluated and none cleared the relevance floor for this client. Completing the profile fields listed below is what changes this.',
-  no_saved_opportunities:
-    'Nothing has been saved or marked as being pursued for this client yet.',
+  no_saved_opportunities: 'Nothing has been saved or marked as being pursued for this client yet.',
   no_results_for_filters:
     'No opportunities match the current filters. Clearing filters will widen the view.',
 };
@@ -2422,9 +2598,7 @@ type SamRow = {
 
 type SourceFetchResult = { rows: SourceRow[]; capped: boolean };
 
-type SourceRow =
-  | { kind: 'grant'; row: GrantRow }
-  | { kind: 'sam'; row: SamRow };
+type SourceRow = { kind: 'grant'; row: GrantRow } | { kind: 'sam'; row: SamRow };
 
 interface WorkflowRowWithRefs {
   row: {
@@ -2495,9 +2669,24 @@ function dedupe(values: Array<string | null | undefined>): string[] {
 
 function distinctiveSearchTerms(values: Array<string | null | undefined>): string[] {
   const generic = new Set([
-    'systems', 'system', 'technology', 'technologies', 'services', 'service',
-    'solutions', 'solution', 'group', 'company', 'federal', 'government',
-    'defense', 'support', 'management', 'program', 'contract', 'other',
+    'systems',
+    'system',
+    'technology',
+    'technologies',
+    'services',
+    'service',
+    'solutions',
+    'solution',
+    'group',
+    'company',
+    'federal',
+    'government',
+    'defense',
+    'support',
+    'management',
+    'program',
+    'contract',
+    'other',
   ]);
   return dedupe(values)
     .flatMap((value) => value.toLowerCase().split(/[^a-z0-9]+/))
@@ -2569,7 +2758,12 @@ function districtKeyFor(state: string | null, district: string | null): string |
  */
 export function parsePlaceOfPerformance(
   value: unknown,
-): { city: string | null; state: string | null; zip: string | null; country: string | null } | null {
+): {
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  country: string | null;
+} | null {
   if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
   const v = value as Record<string, unknown>;
   const nested = (key: string, inner: string): string | null => {

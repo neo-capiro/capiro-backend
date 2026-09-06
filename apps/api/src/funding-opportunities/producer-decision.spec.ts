@@ -4,12 +4,29 @@ import { decideProducerAction } from './producer-decision.js';
 const producerRow = {
   id: 'row-1',
   workflowStatus: 'suggested',
+  humanDecision: null,
   userCreated: false,
   evidenceSourceType: 'deterministic_relevance_v1',
   staleAt: null,
 };
 
 describe('funding opportunity producer decisions', () => {
+  test.each(['monitor', 'pass', 'pursue'])(
+    'preserves a historical %s decision even when status is still suggested',
+    (humanDecision) => {
+      for (const qualifies of [true, false]) {
+        expect(
+          decideProducerAction({
+            existing: { ...producerRow, humanDecision },
+            relevanceScore: qualifies ? 50 : 0,
+            meetsSuggestionFloor: qualifies,
+            minRelevance: 15,
+          }),
+        ).toEqual({ action: 'skip_human_decision', id: 'row-1' });
+      }
+    },
+  );
+
   test.each(['saved', 'pursuing', 'dismissed', 'won', 'lost'])(
     'preserves the human status %s',
     (workflowStatus) => {

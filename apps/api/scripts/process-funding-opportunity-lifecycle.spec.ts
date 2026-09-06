@@ -50,8 +50,17 @@ describe('first observation establishes a SILENT baseline', () => {
     // present value.
     const decision = deriveLifecycleEvents({
       ...base,
-      previous: snapshot({ fingerprint: null, status: null, deadline: null, active: null }),
-      current: snapshot({ fingerprint: 'fp-new', active: false, status: 'archived' }),
+      previous: snapshot({
+        fingerprint: null,
+        status: null,
+        deadline: null,
+        active: null,
+      }),
+      current: snapshot({
+        fingerprint: 'fp-new',
+        active: false,
+        status: 'archived',
+      }),
       revisionReasons: ['Revision advanced from 1 to 2.'],
     });
     expect(decision.baseline).toBe(true);
@@ -66,7 +75,11 @@ describe('first observation establishes a SILENT baseline', () => {
     const decision = deriveLifecycleEvents({
       ...base,
       previous: snapshot({ fingerprint: null, status: null, active: null }),
-      current: snapshot({ active: false, status: 'archived', fingerprint: 'fp-new' }),
+      current: snapshot({
+        active: false,
+        status: 'archived',
+        fingerprint: 'fp-new',
+      }),
     });
     expect(decision.events).toEqual([]);
   });
@@ -116,7 +129,10 @@ describe('alerts go only to saved and pursuing', () => {
   );
 
   test('closing_soon also respects the status gate', () => {
-    const closingSoon = { ...base, current: snapshot({ deadline: new Date('2026-08-05T00:00:00Z') }) };
+    const closingSoon = {
+      ...base,
+      current: snapshot({ deadline: new Date('2026-08-05T00:00:00Z') }),
+    };
     expect(types({ ...closingSoon, workflowStatus: 'saved' })).toContain('closing_soon');
     expect(types({ ...closingSoon, workflowStatus: 'suggested' })).not.toContain('closing_soon');
   });
@@ -127,7 +143,10 @@ describe('alerts go only to saved and pursuing', () => {
 describe('deadline changes include the null transitions', () => {
   test('date → date', () => {
     expect(
-      types({ ...base, current: snapshot({ deadline: new Date('2026-08-25T00:00:00Z') }) }),
+      types({
+        ...base,
+        current: snapshot({ deadline: new Date('2026-08-25T00:00:00Z') }),
+      }),
     ).toContain('deadline_changed');
   });
 
@@ -135,7 +154,10 @@ describe('deadline changes include the null transitions', () => {
     // Old predicate required BOTH deadlines non-null, so this was silently
     // ignored — and a deadline being withdrawn ("responses accepted
     // continuously") changes what a bid team does this week.
-    const decision = deriveLifecycleEvents({ ...base, current: snapshot({ deadline: null }) });
+    const decision = deriveLifecycleEvents({
+      ...base,
+      current: snapshot({ deadline: null }),
+    });
     expect(decision.events.map((e) => e.type)).toContain('deadline_changed');
     expect(decision.events.find((e) => e.type === 'deadline_changed')?.body).toContain(
       'no stated deadline',
@@ -153,7 +175,11 @@ describe('deadline changes include the null transitions', () => {
 
   test('null → null is not a change', () => {
     expect(
-      types({ ...base, previous: snapshot({ deadline: null }), current: snapshot({ deadline: null }) }),
+      types({
+        ...base,
+        previous: snapshot({ deadline: null }),
+        current: snapshot({ deadline: null }),
+      }),
     ).not.toContain('deadline_changed');
   });
 
@@ -171,7 +197,10 @@ describe('amendment alerts are gated on the FINGERPRINT, not on narration', () =
     // produce an `amended` event however many times it rewrites the row.
     expect(types({ ...base, revisionReasons: [] })).not.toContain('amended');
     expect(
-      types({ ...base, revisionReasons: ['Status changed from none to posted.'] }),
+      types({
+        ...base,
+        revisionReasons: ['Status changed from none to posted.'],
+      }),
     ).not.toContain('amended');
   });
 
@@ -203,8 +232,14 @@ describe('amendment alerts are gated on the FINGERPRINT, not on narration', () =
   });
 
   test('two different amendments produce different dedup fingerprints', () => {
-    const first = deriveLifecycleEvents({ ...base, current: snapshot({ fingerprint: 'fp-a' }) });
-    const second = deriveLifecycleEvents({ ...base, current: snapshot({ fingerprint: 'fp-b' }) });
+    const first = deriveLifecycleEvents({
+      ...base,
+      current: snapshot({ fingerprint: 'fp-a' }),
+    });
+    const second = deriveLifecycleEvents({
+      ...base,
+      current: snapshot({ fingerprint: 'fp-b' }),
+    });
     expect(first.events.find((e) => e.type === 'amended')?.fingerprint).toBe('fp-a');
     expect(second.events.find((e) => e.type === 'amended')?.fingerprint).toBe('fp-b');
   });
@@ -213,7 +248,10 @@ describe('amendment alerts are gated on the FINGERPRINT, not on narration', () =
     // Both facts are the same fact. deadline_changed is the actionable one.
     const emitted = types({
       ...base,
-      current: snapshot({ fingerprint: 'fp-new', deadline: new Date('2026-08-25T00:00:00Z') }),
+      current: snapshot({
+        fingerprint: 'fp-new',
+        deadline: new Date('2026-08-25T00:00:00Z'),
+      }),
       revisionReasons: [],
     });
     expect(emitted).toContain('deadline_changed');
@@ -223,7 +261,10 @@ describe('amendment alerts are gated on the FINGERPRINT, not on narration', () =
   test('a deadline move WITH a named source revision reports both', () => {
     const emitted = types({
       ...base,
-      current: snapshot({ fingerprint: 'fp-new', deadline: new Date('2026-08-25T00:00:00Z') }),
+      current: snapshot({
+        fingerprint: 'fp-new',
+        deadline: new Date('2026-08-25T00:00:00Z'),
+      }),
       revisionReasons: ['The source reports a modification on 2026-07-28.'],
     });
     expect(emitted).toContain('deadline_changed');
@@ -233,7 +274,11 @@ describe('amendment alerts are gated on the FINGERPRINT, not on narration', () =
   test('a closure is not ALSO announced as a generic amendment', () => {
     const emitted = types({
       ...base,
-      current: snapshot({ fingerprint: 'fp-new', active: false, status: 'archived' }),
+      current: snapshot({
+        fingerprint: 'fp-new',
+        active: false,
+        status: 'archived',
+      }),
       revisionReasons: [],
     });
     expect(emitted).toContain('cancelled_or_closed');
@@ -245,6 +290,10 @@ describe('amendment alerts are gated on the FINGERPRINT, not on narration', () =
 
 interface FakeRow {
   id: string;
+  source?: string;
+  humanDecision?: string | null;
+  sourceRecordKey?: string;
+  samOpportunityId?: string | null;
   workflowStatus: string;
   userCreated: boolean;
   sourceFingerprint: string | null;
@@ -260,6 +309,11 @@ function lifecycleFake(options: {
   samResponseDeadline?: Date | null;
   samDescription?: string;
   existingAlert?: boolean;
+  sourceFlags?: string[];
+  expiryRaced?: boolean;
+  forecast?: Record<string, unknown>;
+  dibbs?: Record<string, unknown>;
+  topic?: Record<string, unknown>;
 }) {
   const updates: any[] = [];
   const alerts: any[] = [];
@@ -268,6 +322,23 @@ function lifecycleFake(options: {
   const fake: Record<string, any> = {};
   fake.$transaction = async (fn: (tx: any) => Promise<unknown>) => fn(fake);
   fake.$executeRawUnsafe = async () => 0;
+  fake.$queryRaw = async () =>
+    (
+      options.sourceFlags ?? [
+        'funding_opportunities',
+        'funding_opportunities_forecasts',
+        'funding_opportunities_sbir',
+      ]
+    ).map((feature) => ({ feature }));
+  fake.tangoProcurementForecast = {
+    findMany: async () => (options.forecast ? [options.forecast] : []),
+  };
+  fake.tangoDibbsSolicitation = {
+    findMany: async () => (options.dibbs ? [options.dibbs] : []),
+  };
+  fake.tangoSbirTopic = {
+    findMany: async () => (options.topic ? [options.topic] : []),
+  };
 
   const allRows = options.rows.map((row) => ({
     tenantId: TENANT,
@@ -282,12 +353,18 @@ function lifecycleFake(options: {
   }));
 
   fake.clientFundingOpportunity = {
+    updateMany: async (args: any) => {
+      updates.push(args);
+      return { count: options.expiryRaced ? 0 : 1 };
+    },
     // Honours the keyset contract: `id > cursor ORDER BY id LIMIT take`.
     findMany: async (args: any) => {
       const cursor: string | null = args?.where?.id?.gt ?? null;
       pages.push({ cursor, take: args?.take });
       return allRows
-        .filter((row) => (cursor ? row.id > cursor : true))
+        .filter(
+          (row) => (cursor ? row.id > cursor : true) && args.where.source.in.includes(row.source),
+        )
         .sort((a, b) => a.id.localeCompare(b.id))
         .slice(0, args?.take ?? allRows.length);
     },
@@ -359,7 +436,9 @@ describe('processLifecycle', () => {
     const result = await run(fake);
     expect(result.expired).toBe(1);
     expect(updates[0]).toEqual(
-      expect.objectContaining({ data: expect.objectContaining({ workflowStatus: 'expired' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ workflowStatus: 'expired' }),
+      }),
     );
   });
 
@@ -377,16 +456,21 @@ describe('processLifecycle', () => {
     expect(audits[0].data.after.reason).toBe('source_no_longer_active');
   });
 
-  test.each(['saved', 'pursuing'])('%s decisions are preserved when the source closes', async (status) => {
-    const { fake, updates } = lifecycleFake({
-      rows: [row({ id: 'wf-1', workflowStatus: status, userCreated: true })],
-    });
-    const result = await run(fake);
-    expect(result.expired).toBe(0);
-    expect(updates[0]).toEqual(
-      expect.objectContaining({ data: expect.not.objectContaining({ workflowStatus: 'expired' }) }),
-    );
-  });
+  test.each(['saved', 'pursuing'])(
+    '%s decisions are preserved when the source closes',
+    async (status) => {
+      const { fake, updates } = lifecycleFake({
+        rows: [row({ id: 'wf-1', workflowStatus: status, userCreated: true })],
+      });
+      const result = await run(fake);
+      expect(result.expired).toBe(0);
+      expect(updates[0]).toEqual(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ workflowStatus: 'expired' }),
+        }),
+      );
+    },
+  );
 
   test('a human-created row is never expired by the machine, whatever its status', async () => {
     const { fake } = lifecycleFake({
@@ -406,7 +490,9 @@ describe('processLifecycle', () => {
   });
 
   test('every alert is accompanied by an audit record in the same transaction', async () => {
-    const { fake, alerts, audits } = lifecycleFake({ rows: [row({ id: 'wf-1' })] });
+    const { fake, alerts, audits } = lifecycleFake({
+      rows: [row({ id: 'wf-1' })],
+    });
     await run(fake);
     expect(alerts.length).toBeGreaterThan(0);
     const lifecycleAudits = audits.filter((a) =>
@@ -429,7 +515,13 @@ describe('processLifecycle', () => {
     // looks like — a real one would also have moved updatedAt and lastSyncedAt,
     // neither of which is a fingerprint input.
     const first = lifecycleFake({
-      rows: [row({ id: 'wf-1', sourceFingerprint: null, sourceActiveSnapshot: null })],
+      rows: [
+        row({
+          id: 'wf-1',
+          sourceFingerprint: null,
+          sourceActiveSnapshot: null,
+        }),
+      ],
       samActive: true,
     });
     await run(first.fake);
@@ -483,7 +575,13 @@ describe('processLifecycle', () => {
 
   test('a rewritten statement of work IS reported, even though no column names it', async () => {
     const first = lifecycleFake({
-      rows: [row({ id: 'wf-1', sourceFingerprint: null, sourceActiveSnapshot: null })],
+      rows: [
+        row({
+          id: 'wf-1',
+          sourceFingerprint: null,
+          sourceActiveSnapshot: null,
+        }),
+      ],
       samActive: true,
       samDescription: 'Original scope.',
     });
@@ -519,7 +617,9 @@ describe('processLifecycle', () => {
   });
 
   test('a dry run writes nothing', async () => {
-    const { fake, updates, alerts, audits } = lifecycleFake({ rows: [row({ id: 'wf-1' })] });
+    const { fake, updates, alerts, audits } = lifecycleFake({
+      rows: [row({ id: 'wf-1' })],
+    });
     const result = await run(fake, false);
     expect(updates).toHaveLength(0);
     expect(alerts).toHaveLength(0);
@@ -529,13 +629,22 @@ describe('processLifecycle', () => {
   });
 
   test('a dry run does not double-count alerts that already exist', async () => {
-    const { fake } = lifecycleFake({ rows: [row({ id: 'wf-1' })], existingAlert: true });
+    const { fake } = lifecycleFake({
+      rows: [row({ id: 'wf-1' })],
+      existingAlert: true,
+    });
     expect((await run(fake, false)).alerts).toBe(0);
   });
 
   test('the baseline pass reports what it baselined', async () => {
     const { fake, alerts } = lifecycleFake({
-      rows: [row({ id: 'wf-1', sourceFingerprint: null, sourceActiveSnapshot: null })],
+      rows: [
+        row({
+          id: 'wf-1',
+          sourceFingerprint: null,
+          sourceActiveSnapshot: null,
+        }),
+      ],
     });
     const result = await run(fake);
     expect(result.baselined).toBe(1);
@@ -549,7 +658,11 @@ describe('coverage is keyset-paginated, not capped', () => {
     // `take: 5000` window per tenant and, on filling it, incremented the run's
     // ERROR COUNT — so past the cap the pass was silently partial.
     const rows = Array.from({ length: 1_200 }, (_, index) =>
-      row({ id: `wf-${String(index).padStart(5, '0')}`, workflowStatus: 'suggested', userCreated: false }),
+      row({
+        id: `wf-${String(index).padStart(5, '0')}`,
+        workflowStatus: 'suggested',
+        userCreated: false,
+      }),
     );
     const { fake, pages } = lifecycleFake({ rows });
     const result = await run(fake);
@@ -590,4 +703,178 @@ describe('coverage is keyset-paginated, not capped', () => {
     expect(result.errors).toBe(1);
     expect(result.expired).toBe(0);
   });
+});
+
+describe('Tango tracked opportunity lifecycle', () => {
+  const forecast = {
+    tangoForecastId: 'F1',
+    title: 'Navigation systems',
+    description: 'Procurement plan',
+    agency: 'Navy',
+    anticipatedAwardDate: new Date('2026-08-01T00:00:00Z'),
+    estimatedPeriod: 'Q4 FY26',
+    isActive: true,
+    status: 'Planned',
+    providerModifiedAt: new Date('2026-07-28T00:00:00Z'),
+  };
+  const forecastRow = (extra: Partial<FakeRow> = {}) =>
+    row({
+      id: 'wf-forecast',
+      source: 'agency_forecast',
+      sourceRecordKey: 'F1',
+      samOpportunityId: null,
+      responseDeadlineSnapshot: null,
+      ...extra,
+    });
+
+  test('first watch is silent; an estimated date change is one update, never a deadline alert', async () => {
+    const first = lifecycleFake({
+      rows: [forecastRow({ sourceFingerprint: null })],
+      forecast,
+    });
+    expect((await run(first.fake)).baselined).toBe(1);
+    expect(first.alerts).toHaveLength(0);
+    expect(first.updates[0].data.responseDeadlineSnapshot).toBeNull();
+    const changed = {
+      ...forecast,
+      anticipatedAwardDate: new Date('2026-08-02T00:00:00Z'),
+    };
+    const next = lifecycleFake({
+      rows: [forecastRow(first.updates[0].data)],
+      forecast: changed,
+    });
+    expect((await run(next.fake)).alerts).toBe(1);
+    expect(next.alerts[0].data.metadata.eventType).toBe('amended');
+    expect(next.alerts[0].data.title).toContain('Agency forecast updated');
+    expect(next.alerts[0].data.body).toContain('not response deadlines');
+    const again = lifecycleFake({
+      rows: [forecastRow(next.updates[0].data)],
+      forecast: changed,
+    });
+    expect((await run(again.fake)).alerts).toBe(0);
+  });
+  test('forecast estimates remain non-deadlines even on a malformed legacy snapshot', () => {
+    const result = deriveLifecycleEvents({
+      ...base,
+      source: 'agency_forecast',
+      current: snapshot({
+        deadline: new Date('2026-08-01'),
+        fingerprint: 'updated',
+      }),
+    });
+    expect(result.events.map((event) => event.type)).toEqual(['amended']);
+  });
+  test('passing the estimated award date does not expire a forecast', async () => {
+    const f = lifecycleFake({
+      rows: [
+        forecastRow({
+          sourceFingerprint: null,
+          userCreated: false,
+          workflowStatus: 'suggested',
+        }),
+      ],
+      forecast: { ...forecast, anticipatedAwardDate: new Date('2025-01-01') },
+    });
+    expect((await run(f.fake)).expired).toBe(0);
+  });
+  test('a provider modification stamp alone is not a material amendment', async () => {
+    const first = lifecycleFake({
+      rows: [forecastRow({ sourceFingerprint: null })],
+      forecast,
+    });
+    await run(first.fake);
+    const f = lifecycleFake({
+      rows: [forecastRow(first.updates[0].data)],
+      forecast: { ...forecast, providerModifiedAt: new Date('2026-07-29') },
+    });
+    expect((await run(f.fake)).alerts).toBe(0);
+  });
+  test('forecast disabled means no read/alert, and master disabled means no work', async () => {
+    const f = lifecycleFake({
+      rows: [forecastRow()],
+      forecast,
+      sourceFlags: ['funding_opportunities'],
+    });
+    expect((await run(f.fake)).evaluated).toBe(0);
+    const off = lifecycleFake({ rows: [row({ id: 'wf1' })], sourceFlags: [] });
+    expect((await run(off.fake)).evaluated).toBe(0);
+    expect(off.pages).toHaveLength(0);
+  });
+  test('DIBBS and SBIR resolve by their generic identities and detect real response deadlines', async () => {
+    for (const source of ['dibbs', 'sbir_sttr']) {
+      const f = lifecycleFake({
+        rows: [
+          row({
+            id: 'wf1',
+            source,
+            sourceRecordKey: 'T1',
+            samOpportunityId: null,
+          }),
+        ],
+        dibbs: {
+          tangoDibbsId: 'T1',
+          solicitation: 'SPE-123',
+          nomenclature: 'Navigation system',
+          isOpen: true,
+          statusCode: 'Open',
+          closesDate: new Date('2026-08-05'),
+        },
+        topic: {
+          tangoSbirId: 'T1',
+          title: 'Navigation research',
+          topicNumber: 'NAV-001',
+          solicitationStatus: 'Open',
+          closeDate: new Date('2026-08-05'),
+        },
+      });
+      const result = await run(f.fake);
+      expect(result.errors).toBe(0);
+      expect(f.alerts.map((a) => a.data.metadata.eventType)).toContain('deadline_changed');
+      expect(f.alerts.map((a) => a.data.metadata.eventType)).toContain('closing_soon');
+    }
+  });
+});
+
+describe('lifecycle expiration respects human decisions', () => {
+  test('an older suggested row with a monitor decision is never expired', async () => {
+    const f = lifecycleFake({
+      rows: [
+        row({
+          id: 'wf1',
+          workflowStatus: 'suggested',
+          userCreated: false,
+          humanDecision: 'monitor',
+        }),
+      ],
+    });
+    expect((await run(f.fake)).expired).toBe(0);
+    expect(f.updates[0].data).not.toHaveProperty('workflowStatus');
+  });
+  test('a save made after the page read wins over expiration', async () => {
+    const f = lifecycleFake({
+      rows: [row({ id: 'wf1', workflowStatus: 'suggested', userCreated: false })],
+      expiryRaced: true,
+    });
+    expect((await run(f.fake)).expired).toBe(0);
+    expect(f.updates[0].where).toMatchObject({
+      tenantId: TENANT,
+      clientId: CLIENT,
+      workflowStatus: 'suggested',
+      userCreated: false,
+      humanDecision: null,
+    });
+    expect(f.audits).toHaveLength(0);
+  });
+});
+
+test('historical watch decisions align with Tracking while passed/terminal work stays quiet', () => {
+  const changed = {
+    ...base,
+    workflowStatus: 'suggested',
+    humanDecision: 'monitor',
+    current: snapshot({ fingerprint: 'changed' }),
+  };
+  expect(types(changed)).toContain('amended');
+  expect(types({ ...changed, workflowStatus: 'saved', humanDecision: 'pass' })).toEqual([]);
+  expect(types({ ...changed, workflowStatus: 'lost' })).toEqual([]);
 });

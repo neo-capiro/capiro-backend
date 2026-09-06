@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OPPORTUNITY_SOURCES } from './funding-opportunities.types.js';
 import { readSourceRecordId } from './funding-opportunity-identity.js';
+import { readEnabledFundingSources } from './funding-opportunity-source-access.js';
 
 /**
  * The cross-client triage inbox: what a government-affairs team needs to look at,
@@ -37,6 +38,11 @@ import { readSourceRecordId } from './funding-opportunity-identity.js';
  */
 
 export const INBOX_FILTERS = [
+  'suggested',
+  'tracked',
+  'tracked_deadlines',
+  'saved',
+  'completed',
   'needs_review',
   'pursuing',
   'deadlines',
@@ -73,7 +79,12 @@ export type InboxFilter = (typeof INBOX_FILTERS)[number];
  * That was a real, if dormant, defect — a UI switching on `row.source` had no
  * legal value to switch to.
  */
-export const INBOX_SOURCES = [...OPPORTUNITY_SOURCES, 'agency_forecast', 'dibbs', 'sbir_sttr'] as const;
+export const INBOX_SOURCES = [
+  ...OPPORTUNITY_SOURCES,
+  'agency_forecast',
+  'dibbs',
+  'sbir_sttr',
+] as const;
 export type InboxSource = (typeof INBOX_SOURCES)[number];
 
 /** `INBOX_SOURCES` entries that are not also an `OpportunitySource`. */
@@ -129,6 +140,31 @@ export const DIBBS_INBOX_SOURCE = 'dibbs' as const;
  */
 export const SBIR_INBOX_SOURCE = 'sbir_sttr' as const;
 
+/** Older Tango producers stored reason codes; expose only established fit evidence. */
+export function inboxMatchSignals(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== 'object') return [];
+  const reasonCodes = (raw as { reasonCodes?: unknown }).reasonCodes;
+  if (!Array.isArray(reasonCodes)) return [];
+  const labels: Record<string, string> = {
+    exact_nsn_match: 'Exact NSN match',
+    exact_part_number_match: 'Exact part-number match',
+    prior_cage_award_history: 'Prior awards tied to the client’s CAGE',
+    buyer_history: 'Prior work with this buyer',
+    capability_text_match: 'Recorded capability matches the source text',
+    capability_topic_match: 'Recorded capability matches this topic',
+    prior_agency_history: 'Prior work with this agency',
+    program_element_link: 'Source-backed program element link',
+    prior_sbir_history: 'Source-backed SBIR award history',
+  };
+  return reasonCodes
+    .filter(
+      (code): code is string =>
+        typeof code === 'string' && Object.prototype.hasOwnProperty.call(labels, code),
+    )
+    .map((code) => ({ signal: code, matchedOn: labels[code] }));
+}
+
 export const INBOX_PAGE_SIZE = 50;
 export const INBOX_MAX_PAGE_SIZE = 200;
 
@@ -141,8 +177,16 @@ export const INBOX_MAX_PAGE_SIZE = 200;
  * between two rows sharing a deadline from repeating or skipping one.
  */
 export const FILTER_SORT: Readonly<
-  Record<InboxFilter, { column: 'responseDeadlineSnapshot' | 'updatedAt'; direction: 'asc' | 'desc' }>
+  Record<
+    InboxFilter,
+    { column: 'responseDeadlineSnapshot' | 'updatedAt'; direction: 'asc' | 'desc' }
+  >
 > = Object.freeze({
+  suggested: { column: 'updatedAt', direction: 'desc' },
+  tracked_deadlines: { column: 'updatedAt', direction: 'desc' },
+  tracked: { column: 'updatedAt', direction: 'desc' },
+  saved: { column: 'updatedAt', direction: 'desc' },
+  completed: { column: 'updatedAt', direction: 'desc' },
   // Soonest deadline first: an undecided row with a deadline next week outranks one
   // closing in a year.
   needs_review: { column: 'responseDeadlineSnapshot', direction: 'asc' },
@@ -333,6 +377,8 @@ export interface InboxRow {
   nextAction: string | null;
   nextActionDueAt: string | null;
   owner: { userId: string; name: string | null; email: string | null } | null;
+  pipelineStage: string | null;
+  matchSignals: unknown[];
   relevanceScore: number | null;
   eligibility: { state: string | null; reason: string | null };
   /** True when the producer stopped suggesting this but a human decision stands. */
@@ -442,17 +488,72 @@ export function decodeInboxCursor(raw: string): InboxCursor {
  * attention the inbox exists to direct.
  */
 export function buildInboxFilterWhere(
-filter: InboxFilter,
+  filter: InboxFilter,
 ): Prisma.ClientFundingOpportunityWhereInput {
   switch (filter) {
+    case 'suggested':
+      return {
+        humanDecision: null,
+        workflowStatus: 'suggested',
+        staleAt: null,
+        OR: [{ sourceActiveSnapshot: true }, { sourceActiveSnapshot: null }],
+      };
+    case 'tracked_deadlines': {
+      const until = new Date(Date.now() + 30 * 86_400_000);
+      return {
+        AND: [
+          buildInboxFilterWhere('tracked'),
+          {
+            OR: [
+              { nextActionDueAt: { lte: until } },
+              { source: { not: 'agency_forecast' }, responseDeadlineSnapshot: { lte: until } },
+            ],
+          },
+        ],
+      };
+    }
+    case 'tracked':
+      return {
+        AND: [
+          {
+            OR: [
+              { workflowStatus: { in: ['saved', 'pursuing'] } },
+              { humanDecision: { in: ['monitor', 'pursue'] } },
+            ],
+          },
+          { workflowStatus: { notIn: ['won', 'lost', 'dismissed', 'expired'] } },
+          { OR: [{ humanDecision: null }, { humanDecision: { not: 'pass' } }] },
+        ],
+      };
+    case 'saved':
+      return {
+        AND: [
+          { OR: [{ workflowStatus: 'saved' }, { humanDecision: 'monitor' }] },
+          { workflowStatus: { notIn: ['pursuing', 'won', 'lost', 'dismissed', 'expired'] } },
+          { OR: [{ humanDecision: null }, { humanDecision: 'monitor' }] },
+        ],
+      };
+    case 'completed':
+      return {
+        OR: [
+          { workflowStatus: { in: ['won', 'lost', 'dismissed', 'expired'] } },
+          { humanDecision: 'pass' },
+        ],
+      };
     case 'needs_review':
       return {
         humanDecision: null,
         workflowStatus: { in: ['suggested', 'saved'] },
-        NOT: { sourceActiveSnapshot: false },
+        OR: [{ sourceActiveSnapshot: true }, { sourceActiveSnapshot: null }],
       };
     case 'pursuing':
-      return { OR: [{ workflowStatus: 'pursuing' }, { humanDecision: 'pursue' }] };
+      return {
+        AND: [
+          { OR: [{ workflowStatus: 'pursuing' }, { humanDecision: 'pursue' }] },
+          { workflowStatus: { notIn: ['won', 'lost', 'dismissed', 'expired'] } },
+          { OR: [{ humanDecision: null }, { humanDecision: { not: 'pass' } }] },
+        ],
+      };
     case 'monitoring':
       return { humanDecision: 'monitor' };
     case 'passed':
@@ -461,18 +562,21 @@ filter: InboxFilter,
       // A dated, still-open row somebody has not passed on.
       return {
         responseDeadlineSnapshot: { not: null },
-        NOT: [{ sourceActiveSnapshot: false }, { humanDecision: 'pass' }],
+        AND: [
+          { OR: [{ sourceActiveSnapshot: true }, { sourceActiveSnapshot: null }] },
+          { OR: [{ humanDecision: null }, { humanDecision: { not: 'pass' } }] },
+        ],
       };
     case 'recently_changed':
       // The lifecycle pass touches `updatedAt` when a source fact moves, so this
       // is "what the sources did", not "what we did".
-      return { NOT: { humanDecision: 'pass' } };
+      return { OR: [{ humanDecision: null }, { humanDecision: { not: 'pass' } }] };
   }
 }
 
 export type InboxSort = {
-column: 'responseDeadlineSnapshot' | 'updatedAt';
-direction: 'asc' | 'desc';
+  column: 'responseDeadlineSnapshot' | 'updatedAt';
+  direction: 'asc' | 'desc';
 };
 
 /**
@@ -627,7 +731,10 @@ export function toInboxDibbsFacts(row: DibbsFactRow): InboxDibbsFacts {
  */
 export const DIBBS_AGENCY = 'Defense Logistics Agency' as const;
 
-export function dibbsInboxTitle(row: { nomenclature: string | null; solicitation: string }): string {
+export function dibbsInboxTitle(row: {
+  nomenclature: string | null;
+  solicitation: string;
+}): string {
   const nomenclature = row.nomenclature?.trim();
   return nomenclature && nomenclature.length > 0 ? nomenclature : row.solicitation;
 }
@@ -780,13 +887,29 @@ export class FundingOpportunityInboxService {
       pageSize?: number;
       clientId?: string;
       source?: string;
+      sort?: 'updated' | 'deadline';
     },
   ): Promise<InboxResponse> {
     const filter = this.parseFilter(query.filter);
     const source = this.parseSource(query.source);
     const pageSize = this.parsePageSize(query.pageSize);
     const cursor = query.cursor ? decodeInboxCursor(query.cursor) : null;
-    const sort = FILTER_SORT[filter];
+    const sort: InboxSort =
+      source === FORECAST_INBOX_SOURCE || query.sort === 'updated'
+        ? { column: 'updatedAt', direction: 'desc' }
+        : query.sort === 'deadline'
+          ? { column: 'responseDeadlineSnapshot', direction: 'asc' }
+          : FILTER_SORT[filter];
+    if (query.sort && !['updated', 'deadline'].includes(query.sort))
+      throw new BadRequestException('sort must be updated or deadline');
+    if (cursor && sort.column === 'updatedAt' && cursor.s == null)
+      throw new BadRequestException(
+        'This cursor belongs to a different sort; start at the first page.',
+      );
+    const enabledSources = await readEnabledFundingSources(this.prisma, tenantId);
+    if (source && !enabledSources.includes(source))
+      throw new NotFoundException('This opportunity feed is unavailable.');
+    const allowedSources = source ? [source] : enabledSources;
 
     return this.prisma.withTenant(tenantId, async (tx) => {
       // Ethical wall FIRST, and as a positive allow-list of client ids rather than
@@ -816,9 +939,8 @@ export class FundingOpportunityInboxService {
       const where: Prisma.ClientFundingOpportunityWhereInput = {
         tenantId,
         clientId: { in: scopedClientIds },
-        ...(source ? { source } : {}),
-        ...this.filterWhere(filter),
-        ...(cursor ? this.cursorWhere(sort, cursor) : {}),
+        source: { in: allowedSources },
+        AND: [this.filterWhere(filter), ...(cursor ? [this.cursorWhere(sort, cursor)] : [])],
       };
 
       const rows = await tx.clientFundingOpportunity.findMany({
@@ -852,6 +974,8 @@ export class FundingOpportunityInboxService {
           nextActionDueAt: true,
           ownerUserId: true,
           relevanceScore: true,
+          matchSignals: true,
+          pipelineStage: true,
           eligibilityState: true,
           eligibilityReason: true,
           responseDeadlineSnapshot: true,
@@ -867,8 +991,14 @@ export class FundingOpportunityInboxService {
       // Batched per page: clients, owners and source titles. Three queries for the
       // whole page, never one per row — the N+1 this endpoint would otherwise be.
       const [clientsById, ownersById, titlesByKey] = await Promise.all([
-        this.clientsById(tx, page.map((r) => r.clientId)),
-        this.ownersById(tx, page.map((r) => r.ownerUserId).filter((v): v is string => v != null)),
+        this.clientsById(
+          tx,
+          page.map((r) => r.clientId),
+        ),
+        this.ownersById(
+          tx,
+          page.map((r) => r.ownerUserId).filter((v): v is string => v != null),
+        ),
         this.titlesFor(tx, page),
       ]);
 
@@ -882,7 +1012,7 @@ export class FundingOpportunityInboxService {
         const key = `${row.source}:${readSourceRecordId(row) ?? ''}`;
         const meta = titlesByKey.get(key);
         const owner = row.ownerUserId ? ownersById.get(row.ownerUserId) : undefined;
-        const deadline = row.responseDeadlineSnapshot;
+        const deadline = rowSource === FORECAST_INBOX_SOURCE ? null : row.responseDeadlineSnapshot;
         return {
           id: row.id,
           client: {
@@ -930,7 +1060,12 @@ export class FundingOpportunityInboxService {
               }
             : null,
           relevanceScore: row.relevanceScore ?? null,
-          eligibility: { state: row.eligibilityState ?? null, reason: row.eligibilityReason ?? null },
+          pipelineStage: row.pipelineStage ?? null,
+          matchSignals: inboxMatchSignals(row.matchSignals),
+          eligibility: {
+            state: row.eligibilityState ?? null,
+            reason: row.eligibilityReason ?? null,
+          },
           noLongerSuggested: row.staleAt != null,
           // From the snapshot the lifecycle pass maintains. `false` means observed
           // closed; `null` means never observed, which is NOT the same as open.
@@ -943,7 +1078,9 @@ export class FundingOpportunityInboxService {
       const nextCursor =
         hasMore && last
           ? encodeInboxCursor(
-              sort.column === 'responseDeadlineSnapshot' ? last.responseDeadlineSnapshot : last.updatedAt,
+              sort.column === 'responseDeadlineSnapshot'
+                ? last.responseDeadlineSnapshot
+                : last.updatedAt,
               last.id,
             )
           : null;
@@ -954,9 +1091,14 @@ export class FundingOpportunityInboxService {
       // The SOURCE narrowing is applied to both, so a tab badge and the list under
       // it always agree; `countsAllClients` widens the CLIENT scope only, because
       // its one job is to answer "does another client have rows in this queue".
-      const { counts, unavailableReason } = await this.counts(tx, tenantId, scopedClientIds, source);
+      const { counts, unavailableReason } = await this.counts(
+        tx,
+        tenantId,
+        scopedClientIds,
+        allowedSources,
+      );
       const allClients = appliedClientId
-        ? await this.counts(tx, tenantId, visibleClientIds, source)
+        ? await this.counts(tx, tenantId, visibleClientIds, allowedSources)
         : null;
 
       return {
@@ -1021,7 +1163,6 @@ export class FundingOpportunityInboxService {
     return buildInboxFilterWhere(filter);
   }
 
-
   /**
    * The compound keyset predicate.
    *
@@ -1036,7 +1177,6 @@ export class FundingOpportunityInboxService {
   ): Prisma.ClientFundingOpportunityWhereInput {
     return buildInboxCursorWhere(sort, cursor);
   }
-
 
   /**
    * Client ids this user may see, as an allow-list.
@@ -1069,7 +1209,9 @@ export class FundingOpportunityInboxService {
   private async ownersById(
     tx: Prisma.TransactionClient,
     ids: string[],
-  ): Promise<Map<string, { id: string; firstName: string | null; lastName: string | null; email: string }>> {
+  ): Promise<
+    Map<string, { id: string; firstName: string | null; lastName: string | null; email: string }>
+  > {
     if (ids.length === 0) return new Map();
     const rows = await tx.user.findMany({
       where: { id: { in: [...new Set(ids)] } },
@@ -1314,7 +1456,7 @@ export class FundingOpportunityInboxService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     visibleClientIds: string[],
-    source: InboxSource | null = null,
+    sources: readonly InboxSource[],
   ): Promise<{ counts: Record<InboxFilter, number>; unavailableReason: string | null }> {
     try {
       const entries = await Promise.all(
@@ -1323,7 +1465,7 @@ export class FundingOpportunityInboxService {
             where: {
               tenantId,
               clientId: { in: visibleClientIds },
-              ...(source ? { source } : {}),
+              source: { in: [...sources] },
               ...this.filterWhere(filter),
             },
           });
@@ -1338,7 +1480,10 @@ export class FundingOpportunityInboxService {
       const reason = error instanceof Error ? error.message : String(error);
       this.logger.warn(`inbox counts unavailable: ${reason}`);
       return {
-        counts: Object.fromEntries(INBOX_FILTERS.map((f) => [f, -1])) as Record<InboxFilter, number>,
+        counts: Object.fromEntries(INBOX_FILTERS.map((f) => [f, -1])) as Record<
+          InboxFilter,
+          number
+        >,
         unavailableReason: reason,
       };
     }

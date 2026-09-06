@@ -156,6 +156,7 @@ function landscapePacket(over: Record<string, unknown> = {}) {
 function makeAdapter(
   over: {
     flagEnabled?: boolean;
+    masterEnabled?: boolean;
     flagThrows?: boolean;
     visibleClientIds?: string[];
     getOpportunity?: (...args: unknown[]) => Promise<FundingOpportunity>;
@@ -172,7 +173,14 @@ function makeAdapter(
     withSystem: async (fn: (tx: unknown) => unknown) => {
       calls.flag += 1;
       if (over.flagThrows) throw new Error('42883 operator does not exist: text = uuid');
-      return fn({ $queryRaw: async () => (flagEnabled ? [{ ok: 1 }] : []) });
+      return fn({
+        $queryRaw: async (_query: TemplateStringsArray, ...values: unknown[]) => {
+          const enabled = values.includes('funding_opportunities')
+            ? (over.masterEnabled ?? true)
+            : flagEnabled;
+          return enabled ? [{ ok: 1 }] : [];
+        },
+      });
     },
     withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) => {
       calls.wall += 1;
@@ -196,12 +204,21 @@ function makeAdapter(
       if (over.getClientSummary) return over.getClientSummary();
       return {
         clientId: CLIENT,
-        counts: { activeGrants: 1, activeContracts: 2, saved: 0, pursuing: 0, dismissed: 0, deadlinesIn30Days: 1 },
+        counts: {
+          activeGrants: 1,
+          activeContracts: 2,
+          saved: 0,
+          pursuing: 0,
+          dismissed: 0,
+          deadlinesIn30Days: 1,
+        },
         nextDeadline: null,
         topGrants: [],
         topContracts: [opportunity()],
         missingProfileFields: [MISSING_CERTIFICATIONS],
-        freshness: [{ source: 'sam_gov', lastSyncedAt: '2026-08-06T00:00:00.000Z', state: 'fresh' }],
+        freshness: [
+          { source: 'sam_gov', lastSyncedAt: '2026-08-06T00:00:00.000Z', state: 'fresh' },
+        ],
         emptyReason: null,
         emptyExplanation: null,
         generatedAt: AS_OF.toISOString(),
@@ -246,10 +263,22 @@ function makeAdapter(
 /** Every tool, called with its own required inputs. One list, six call sites. */
 function invokeAll(adapter: MeriOpportunityToolsAdapter, actor: Actor, clientId = CLIENT) {
   return [
-    adapter.getFundingOpportunity(actor, { clientId, source: 'sam_gov', sourceRecordId: SAM_ID }, AS_OF),
-    adapter.explainOpportunityMatch(actor, { clientId, source: 'sam_gov', sourceRecordId: SAM_ID }, AS_OF),
+    adapter.getFundingOpportunity(
+      actor,
+      { clientId, source: 'sam_gov', sourceRecordId: SAM_ID },
+      AS_OF,
+    ),
+    adapter.explainOpportunityMatch(
+      actor,
+      { clientId, source: 'sam_gov', sourceRecordId: SAM_ID },
+      AS_OF,
+    ),
     adapter.getOpportunityClientContext(actor, { clientId }, AS_OF),
-    adapter.getOpportunityGovernmentLandscape(actor, { clientId, source: 'sam_gov', sourceRecordId: SAM_ID }, AS_OF),
+    adapter.getOpportunityGovernmentLandscape(
+      actor,
+      { clientId, source: 'sam_gov', sourceRecordId: SAM_ID },
+      AS_OF,
+    ),
     adapter.compareFundingOpportunities(
       actor,
       {
@@ -261,13 +290,27 @@ function invokeAll(adapter: MeriOpportunityToolsAdapter, actor: Actor, clientId 
       },
       AS_OF,
     ),
-    adapter.buildOpportunityActionPlan(actor, { clientId, source: 'sam_gov', sourceRecordId: SAM_ID }, AS_OF),
+    adapter.buildOpportunityActionPlan(
+      actor,
+      { clientId, source: 'sam_gov', sourceRecordId: SAM_ID },
+      AS_OF,
+    ),
   ];
 }
 
 // ── 1. The gate ─────────────────────────────────────────────────────────────
 
 describe('P37 — the gate is flag, then role, then wall, and all three fail closed', () => {
+  it('every tool stays disabled when Meri is enabled but the Funding Opportunities master is off', async () => {
+    const { adapter, calls } = makeAdapter({ masterEnabled: false, flagEnabled: true });
+    const results = await Promise.all(invokeAll(adapter, STANDARD));
+    expect(results.every((result) => result.state === 'disabled' && result.data === null)).toBe(
+      true,
+    );
+    expect(calls.wall).toBe(0);
+    expect(calls.getOpportunity + calls.summary + calls.compose + calls.plan).toBe(0);
+  });
+
   it('every tool returns `disabled` when the flag is off, and reads nothing', async () => {
     const { adapter, calls } = makeAdapter({ flagEnabled: false });
     const results = await Promise.all(invokeAll(adapter, STANDARD));
@@ -340,8 +383,18 @@ describe('P37 — the gate is flag, then role, then wall, and all three fail clo
         landscapePacket({
           items: [],
           sources: [
-            { source: 'program_element', state: 'denied', itemCount: 0, explanation: 'Not available for this client.' },
-            { source: 'hearing', state: 'denied', itemCount: 0, explanation: 'Not available for this client.' },
+            {
+              source: 'program_element',
+              state: 'denied',
+              itemCount: 0,
+              explanation: 'Not available for this client.',
+            },
+            {
+              source: 'hearing',
+              state: 'denied',
+              itemCount: 0,
+              explanation: 'Not available for this client.',
+            },
           ],
         }),
     });
@@ -358,7 +411,11 @@ describe('P37 — the gate is flag, then role, then wall, and all three fail clo
     // Telling the model its id was malformed gets a corrected retry. "Not
     // available for this client" tells it to give up on a client that is fine.
     const { adapter, calls } = makeAdapter();
-    const result = await adapter.getOpportunityClientContext(STANDARD, { clientId: 'not-a-uuid' }, AS_OF);
+    const result = await adapter.getOpportunityClientContext(
+      STANDARD,
+      { clientId: 'not-a-uuid' },
+      AS_OF,
+    );
     expect(result.state).toBe('invalid_request');
     expect(calls.wall).toBe(0);
   });
@@ -386,7 +443,13 @@ describe('P37 — no tool can call Tango or retrieve a credential', () => {
   });
 
   it('names no credential, secret or gateway', () => {
-    for (const forbidden of ['TANGO_API_KEY', 'SecretsManager', 'getSecret', 'TangoGateway', 'TangoStoreService']) {
+    for (const forbidden of [
+      'TANGO_API_KEY',
+      'SecretsManager',
+      'getSecret',
+      'TangoGateway',
+      'TangoStoreService',
+    ]) {
       expect(code).not.toContain(forbidden);
     }
   });
@@ -471,7 +534,9 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
       AS_OF,
     );
     expect(result.state).toBe('not_found');
-    expect(result.explanation).toContain('says nothing about whether the notice exists at the source');
+    expect(result.explanation).toContain(
+      'says nothing about whether the notice exists at the source',
+    );
   });
 
   it('a source outside the vocabulary is refused by name, not silently treated as SAM', async () => {
@@ -585,7 +650,8 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
     ]);
     // The failed rows still carry their reason, so the comparison cannot read
     // as complete.
-    for (const row of result.data!.rows.slice(1)) expect(row.explanation.length).toBeGreaterThan(10);
+    for (const row of result.data!.rows.slice(1))
+      expect(row.explanation.length).toBeGreaterThan(10);
   });
 
   it('a comparison of fewer than two is an invalid request, not an empty answer', async () => {
@@ -614,7 +680,14 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
     const code = readFileSync(join(__dirname, 'meri-opportunity-tools.adapter.ts'), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^\s*\/\/.*$/gm, '');
-    for (const verb of ['.create(', '.update(', '.upsert(', '.delete(', '.createMany(', '$executeRaw']) {
+    for (const verb of [
+      '.create(',
+      '.update(',
+      '.upsert(',
+      '.delete(',
+      '.createMany(',
+      '$executeRaw',
+    ]) {
       expect(code).not.toContain(verb);
     }
   });
@@ -640,7 +713,9 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
 
     const refused = makeAdapter({
       composeActionPlan: async () => {
-        throw new BadRequestException('An action plan is composed for SAM.gov contract opportunities.');
+        throw new BadRequestException(
+          'An action plan is composed for SAM.gov contract opportunities.',
+        );
       },
     });
     const result = await refused.adapter.buildOpportunityActionPlan(

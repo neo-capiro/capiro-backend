@@ -11,10 +11,9 @@
  * ── Pre-SAM early signals, never a competition ──────────────────────────────
  *
  * A forecast is "here is what an agency expects to buy" — never a
- * solicitation, never an active competition. Nothing in this script, or
- * downstream of it, may call it either. `funding_opportunities_forecasts`
- * stays off; this phase ships the schema and the sync, not the surface that
- * would make a forecast visible.
+ * solicitation, never an active competition. Client visibility is separately
+ * gated by funding_opportunities_forecasts and the candidate producer. This
+ * global source sync never enables customer capabilities.
  *
  * ── Pages to EXHAUSTION, not to a row limit ─────────────────────────────────
  *
@@ -29,22 +28,17 @@
  *
  * ── Incremental, WITH OVERLAP ────────────────────────────────────────────────
  *
- * Each run's own start time (captured before any network call) becomes the
- * NEXT run's high-water mark, minus a safety overlap (default 4 hours) —
- * `sync-tango-forecasts` reads the checkpoint's `windowEnd`, subtracts the
- * overlap, and uses THAT as `modified_after`. This is what keeps a forecast
- * modified WHILE a run is executing from falling into the gap between "when
- * this run started reading" and "when it finished" — the next run's window
- * reaches backward far enough to see it again.
+ * A checkpoint stores the whole walk's lower bound in windowStart and its
+ * ORIGINAL start time in windowEnd. While cursor is non-null, windowEnd is a
+ * pending upper bound, not a successful watermark. Every resumed attempt keeps
+ * both bounds. Only the completed cursor-null walk commits that original bound;
+ * the next incremental read starts there minus the safety overlap. This catches
+ * updates to early pages even when a backfill takes several days to finish.
  *
- * The high-water mark only advances on a FULLY EXHAUSTED page walk. A run
- * stopped by the request ceiling or by `--limit` keeps the checkpoint's
- * `windowStart`/`windowEnd` exactly as they were — a resumed run continues
- * the SAME window rather than silently narrowing it.
- *
- * The FIRST run ever (no checkpoint row) has no window at all: `modified_after`
- * is omitted entirely, and the walk is a full historical read of the whole
- * catalog by design — there is nothing to be incremental relative to yet.
+ * Checkpoint format v2 has a distinct fingerprint. Older checkpoints did not
+ * preserve the original walk start, so their cursor/window cannot be safely
+ * promoted. The first v2 run deliberately replays the catalog once. Existing
+ * forecast rows and human work remain intact; upserts are idempotent.
  *
  * ── Resilience ───────────────────────────────────────────────────────────────
  *
@@ -65,10 +59,20 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { runWithSyncRun, emptyCounts } from '../src/ingestion/sync-run.helper.js';
 import { TangoGatewayService } from '../src/external/tango/tango.client.js';
-import { TangoResilienceService, TangoRequestCeilingExceededError } from '../src/external/tango/tango-resilience.service.js';
-import { TangoStoreService, computeFilterFingerprint } from '../src/external/tango/tango-store.service.js';
-import { toForecastRow, type TangoForecastRow } from '../src/external/tango/tango-forecast.mapper.js';
+import {
+  TangoResilienceService,
+  TangoRequestCeilingExceededError,
+} from '../src/external/tango/tango-resilience.service.js';
+import {
+  TangoStoreService,
+  computeFilterFingerprint,
+} from '../src/external/tango/tango-store.service.js';
+import {
+  toForecastRow,
+  type TangoForecastRow,
+} from '../src/external/tango/tango-forecast.mapper.js';
 import type { TangoGateway } from '../src/external/tango/tango.types.js';
 import { redact, redactWithKnownSecret } from '../src/external/tango/tango.errors.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
@@ -105,8 +109,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const parsedOverlap = overlapRaw != null ? Number(overlapRaw) : NaN;
   return {
     commit: hasFlag(argv, 'commit'),
-    limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50_000) : undefined,
-    overlapHours: Number.isFinite(parsedOverlap) && parsedOverlap >= 0 ? parsedOverlap : DEFAULT_OVERLAP_HOURS,
+    limit:
+      Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50_000) : undefined,
+    overlapHours:
+      Number.isFinite(parsedOverlap) && parsedOverlap >= 0 ? parsedOverlap : DEFAULT_OVERLAP_HOURS,
   };
 }
 
@@ -147,25 +153,32 @@ export interface ForecastSyncSummary {
  * network effect is behind `deps`, so this runs against fakes in
  * sync-tango-forecasts.spec.ts with no real Postgres and no real Tango call.
  */
-export async function runForecastSync(deps: ForecastSyncDeps, options: ForecastSyncOptions): Promise<ForecastSyncSummary> {
+export async function runForecastSync(
+  deps: ForecastSyncDeps,
+  options: ForecastSyncOptions,
+): Promise<ForecastSyncSummary> {
   const now = deps.now ?? (() => new Date());
   const runStartedAt = now();
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const overlapMs = (options.overlapHours ?? DEFAULT_OVERLAP_HOURS) * 60 * 60 * 1000;
 
-  // No filter dimension beyond the resource type itself — an empty object's
-  // fingerprint, the same way every other Tango checkpoint computes one.
-  const filterFingerprint = computeFilterFingerprint({});
+  // Version the checkpoint format, not the provider query. Safe one-time replay
+  // avoids treating a legacy unfinished window as a proven watermark.
+  const filterFingerprint = computeFilterFingerprint({
+    cursorWindowVersion: 2,
+  });
   const checkpoint = await deps.store.readCheckpoint(SYNC_VERB, 'forecast', filterFingerprint);
   const isFirstRun = checkpoint == null;
 
-  // A resumed (in_progress) run reuses the SAME window a prior attempt at
-  // THIS checkpoint used — only a run that fully exhausts its pages gets to
-  // advance windowEnd, below. Reading it fresh from the checkpoint on every
-  // attempt (rather than threading it through some other state) is what
-  // makes a retry after a crash behave identically to a fresh process.
-  const modifiedAfter =
-    checkpoint?.windowEnd != null ? new Date(checkpoint.windowEnd.getTime() - overlapMs).toISOString() : null;
+  // A v2 cursor belongs to the stored lower/upper bounds. Completion is the
+  // only point at which the pending original upper bound becomes a watermark.
+  const resuming = checkpoint?.cursor != null;
+  const modifiedAfter = resuming
+    ? (checkpoint.windowStart?.toISOString() ?? null)
+    : checkpoint?.windowEnd != null
+      ? new Date(checkpoint.windowEnd.getTime() - overlapMs).toISOString()
+      : null;
+  const walkStartedAt = resuming ? (checkpoint.windowEnd ?? runStartedAt) : runStartedAt;
 
   let cursor: string | null = checkpoint?.cursor ?? null;
   let processed = 0;
@@ -173,6 +186,7 @@ export async function runForecastSync(deps: ForecastSyncDeps, options: ForecastS
   let unmappable = 0;
   let errored = 0;
   let ceilingReached = false;
+  let pageFailed = false;
 
   const limit = options.limit ?? Number.POSITIVE_INFINITY;
 
@@ -216,10 +230,15 @@ export async function runForecastSync(deps: ForecastSyncDeps, options: ForecastS
         } catch {
           errored += 1;
           written -= 1;
+          pageFailed = true;
         }
       }
     }
 
+    // An upsert failure must replay this entire page. Advancing either the
+    // cursor or the incremental watermark here permanently loses the failed row.
+    // Successful rows are safe to upsert again; leave the last durable checkpoint.
+    if (pageFailed) break;
     cursor = page.nextCursor;
     const isDone = cursor == null;
     if (options.commit) {
@@ -228,10 +247,10 @@ export async function runForecastSync(deps: ForecastSyncDeps, options: ForecastS
         resourceType: 'forecast',
         filterFingerprint,
         cursor,
-        // Only advance the high-water mark on a fully-exhausted walk.
-        ...(isDone
-          ? { windowStart: modifiedAfter, windowEnd: runStartedAt.toISOString() }
-          : {}),
+        // Retain the original window even while incomplete. Consumers may use
+        // its upper bound as a watermark ONLY after completeness='complete'.
+        windowStart: modifiedAfter,
+        windowEnd: walkStartedAt.toISOString(),
         completeness: isDone ? 'complete' : 'in_progress',
         rowsProcessed: page.items.length,
       });
@@ -245,7 +264,7 @@ export async function runForecastSync(deps: ForecastSyncDeps, options: ForecastS
     unmappable,
     errored,
     ceilingReached,
-    completeness: ceilingReached || cursor != null ? 'in_progress' : 'complete',
+    completeness: pageFailed || ceilingReached || cursor != null ? 'in_progress' : 'complete',
     isFirstRun,
     modifiedAfter,
   };
@@ -273,11 +292,6 @@ function realUpsertForecast(prisma: PrismaClient): ForecastSyncDeps['upsertForec
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
-  if (!apiKey) {
-    console.error('TANGO_FORECAST_SYNC_ERR No TANGO_API_KEY configured.');
-    process.exitCode = 1;
-    return;
-  }
 
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -300,18 +314,36 @@ async function main(): Promise<void> {
         : undefined,
     });
 
-    const summary = await runForecastSync(
-      {
-        gateway,
-        store,
-        upsertForecast: realUpsertForecast(prisma),
-      },
-      { commit: args.commit, limit: args.limit, overlapHours: args.overlapHours },
-    );
-
-    console.log(
-      `TANGO_FORECAST_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit, health: gateway.getHealth() })}`,
-    );
+    const execute = async () => {
+      if (!apiKey) throw new Error('No TANGO_API_KEY configured.');
+      const summary = await runForecastSync(
+        { gateway, store, upsertForecast: realUpsertForecast(prisma) },
+        {
+          commit: args.commit,
+          limit: args.limit,
+          overlapHours: args.overlapHours,
+        },
+      );
+      if (summary.errored || summary.completeness !== 'complete') process.exitCode = 1;
+      console.log(
+        `TANGO_FORECAST_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit, health: gateway.getHealth() })}`,
+      );
+      return {
+        ...emptyCounts(),
+        updated: summary.written,
+        skipped: summary.unmappable,
+        errors: summary.errored,
+        complete: summary.completeness === 'complete',
+        ...(summary.completeness !== 'complete'
+          ? {
+              incompleteReason:
+                'Forecast page walk incomplete; durable checkpoint retained for retry.',
+            }
+          : {}),
+      };
+    };
+    if (args.commit) await runWithSyncRun(prisma, SYNC_VERB, execute);
+    else await execute();
   } finally {
     await prisma.$disconnect();
   }
@@ -329,7 +361,10 @@ const isDirectRun = (() => {
 if (isDirectRun) {
   void main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('TANGO_FORECAST_SYNC_ERR', redactWithKnownSecret(redact(message), process.env.TANGO_API_KEY ?? null));
+    console.error(
+      'TANGO_FORECAST_SYNC_ERR',
+      redactWithKnownSecret(redact(message), process.env.TANGO_API_KEY ?? null),
+    );
     process.exitCode = 1;
   });
 }

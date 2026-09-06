@@ -41,10 +41,15 @@
  * and the only symptom was a degraded run status. This walks the whole table by
  * keyset cursor.
  */
+import { createHash } from 'node:crypto';
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { runWithSyncRun, emptyCounts, type RunCounts } from '../src/ingestion/sync-run.helper.js';
-import { FUNDING_OPPORTUNITIES_FEATURE } from '../src/funding-opportunities/funding-opportunities-flag.guard.js';
+import {
+  FUNDING_OPPORTUNITIES_FEATURE,
+  FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
+} from '../src/funding-opportunities/funding-opportunities-flag.guard.js';
+import { isTopicClosed } from '../src/funding-opportunities/sbir-relevance.js';
 import {
   grantSourceFingerprint,
   isGrantActive,
@@ -125,6 +130,8 @@ function describeDeadline(value: Date | null): string {
  */
 export function deriveLifecycleEvents(input: {
   title: string;
+  source?: string;
+  humanDecision?: string | null;
   workflowStatus: string;
   previous: LifecycleSnapshot;
   current: LifecycleSnapshot;
@@ -146,7 +153,13 @@ export function deriveLifecycleEvents(input: {
   // ── Alertability. Checked before any event is constructed so that a
   // non-alertable row costs nothing and cannot leak an alert through a branch
   // added later.
-  if (!ALERTABLE_STATUSES.has(workflowStatus)) return { events: [], baseline: false };
+  const terminal = ['dismissed', 'won', 'lost', 'expired'].includes(workflowStatus);
+  const tracked =
+    ALERTABLE_STATUSES.has(workflowStatus) ||
+    input.humanDecision === 'monitor' ||
+    input.humanDecision === 'pursue';
+  if (terminal || input.humanDecision === 'pass' || !tracked)
+    return { events: [], baseline: false };
 
   const events: LifecycleEvent[] = [];
 
@@ -157,8 +170,9 @@ export function deriveLifecycleEvents(input: {
   // deadline ("responses accepted continuously" replacing a fixed date) and a
   // newly-published one are the two changes most likely to alter what a bid team
   // does this week.
-  const previousDeadline = previous.deadline?.getTime() ?? null;
-  const currentDeadline = current.deadline?.getTime() ?? null;
+  const forecast = input.source === 'agency_forecast';
+  const previousDeadline = forecast ? null : (previous.deadline?.getTime() ?? null);
+  const currentDeadline = forecast ? null : (current.deadline?.getTime() ?? null);
   if (previousDeadline !== currentDeadline) {
     events.push({
       type: 'deadline_changed',
@@ -177,7 +191,7 @@ export function deriveLifecycleEvents(input: {
   if (closed) {
     events.push({
       type: 'cancelled_or_closed',
-      title: `Opportunity closed: ${title}`,
+      title: `${forecast ? 'Forecast inactive' : 'Opportunity closed'}: ${title}`,
       body: `The source now reports this opportunity as ${current.status ?? 'closed or inactive'}.`,
       fingerprint: `${current.status ?? 'inactive'}:${iso(current.deadline)}`,
     });
@@ -194,10 +208,12 @@ export function deriveLifecycleEvents(input: {
   if (sourceChanged && (revisionReasons.length > 0 || !alreadyExplained)) {
     events.push({
       type: 'amended',
-      title: `Opportunity updated: ${title}`,
-      body: revisionReasons.length
-        ? `The source published a change: ${revisionReasons.join(' ')} Review the source notice for the full amendment.`
-        : 'The source record changed since Capiro last evaluated this opportunity. The changed field is not one Capiro snapshots, so review the source notice for the amendment.',
+      title: `${forecast ? 'Agency forecast updated' : 'Opportunity updated'}: ${title}`,
+      body: forecast
+        ? 'The agency updated its purchasing plan. Review the current scope, contact details and estimated timing; these estimates are not response deadlines.'
+        : revisionReasons.length
+          ? `The source published a change: ${revisionReasons.join(' ')} Review the source notice for the full amendment.`
+          : 'The source record changed since Capiro last evaluated this opportunity. The changed field is not one Capiro snapshots, so review the source notice for the amendment.',
       // Keyed on the new fingerprint, so a SECOND, different amendment alerts
       // again while a re-run over the same amendment does not. Using the reasons
       // here instead would collapse two distinct amendments that happen to
@@ -206,7 +222,7 @@ export function deriveLifecycleEvents(input: {
     });
   }
 
-  if (current.active === true && current.deadline) {
+  if (!forecast && current.active === true && current.deadline) {
     const remaining = current.deadline.getTime() - now.getTime();
     const max = CLOSING_SOON_DAYS * 86_400_000;
     if (remaining >= 0 && remaining <= max) {
@@ -234,7 +250,10 @@ function value(argv: string[], name: string): string | null {
   return index >= 0 && index + 1 < argv.length ? argv[index + 1]! : null;
 }
 
-async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function withBypass<T>(
+  prisma: PrismaClient,
+  fn: (tx: PrismaClient) => Promise<T>,
+): Promise<T> {
   return prisma.$transaction(async (rawTx) => {
     const tx = rawTx as unknown as PrismaClient;
     await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
@@ -244,8 +263,10 @@ async function withBypass<T>(prisma: PrismaClient, fn: (tx: PrismaClient) => Pro
 
 async function tenantIds(prisma: PrismaClient, explicit: string | null): Promise<string[]> {
   if (explicit) return [explicit];
-  const rows = await withBypass(prisma, (tx) =>
-    tx.$queryRaw<Array<{ tenant_id: string }>>`
+  const rows = await withBypass(
+    prisma,
+    (tx) =>
+      tx.$queryRaw<Array<{ tenant_id: string }>>`
       SELECT DISTINCT tenant_id FROM intel_feature_flag
       WHERE feature = ${FUNDING_OPPORTUNITIES_FEATURE} AND enabled = true
     `,
@@ -260,8 +281,10 @@ const WORKFLOW_SELECT = {
   source: true,
   grantOpportunityId: true,
   samOpportunityId: true,
+  sourceRecordKey: true,
   workflowStatus: true,
   userCreated: true,
+  humanDecision: true,
   sourceStatusSnapshot: true,
   responseDeadlineSnapshot: true,
   sourceUpdatedAtSnapshot: true,
@@ -309,6 +332,91 @@ const SAM_SELECT = {
 
 type GrantRow = { id: string; title: string } & GrantLifecycleFacts;
 type SamRow = { id: string; title: string } & SamLifecycleFacts;
+
+/** Stable source fields only: local sync clocks never create amendments. */
+const FORECAST_SELECT = {
+  tangoForecastId: true,
+  title: true,
+  description: true,
+  agency: true,
+  departmentName: true,
+  organizationAgencyName: true,
+  officeName: true,
+  naicsCode: true,
+  pscCode: true,
+  setAside: true,
+  contractVehicle: true,
+  placeOfPerformance: true,
+  anticipatedAwardDate: true,
+  estimatedPeriod: true,
+  fiscalYear: true,
+  primaryContactName: true,
+  primaryContactEmail: true,
+  primaryContactPhone: true,
+  primaryContactTitle: true,
+  sourceUrl: true,
+  sourceSystem: true,
+  status: true,
+  isActive: true,
+  providerModifiedAt: true,
+} satisfies Prisma.TangoProcurementForecastSelect;
+const DIBBS_SELECT = {
+  tangoDibbsId: true,
+  solicitation: true,
+  nomenclature: true,
+  documentType: true,
+  nsn: true,
+  partNumber: true,
+  quantity: true,
+  unitOfIssue: true,
+  setAside: true,
+  statusCode: true,
+  buyerCode: true,
+  issuedDate: true,
+  closesDate: true,
+  isOpen: true,
+  documentUrl: true,
+  techDocsUrl: true,
+} satisfies Prisma.TangoDibbsSolicitationSelect;
+const SBIR_SELECT = {
+  tangoSbirId: true,
+  title: true,
+  topicNumber: true,
+  agency: true,
+  year: true,
+  solicitationNumber: true,
+  releaseDate: true,
+  openDate: true,
+  closeDate: true,
+  activity: true,
+  solicitationStatus: true,
+  topicUrl: true,
+  officialSolicitationUrl: true,
+} satisfies Prisma.TangoSbirTopicSelect;
+
+function sourceFingerprint(row: object): string {
+  return createHash('sha256').update(JSON.stringify(row)).digest('hex');
+}
+
+/** Flags apply before pagination and notification creation, including CLI scope. */
+async function lifecycleSources(prisma: PrismaClient, tenantId: string): Promise<string[]> {
+  const rows = await withBypass(
+    prisma,
+    (tx) => tx.$queryRaw<Array<{ feature: string }>>`
+    SELECT feature FROM intel_feature_flag WHERE tenant_id = ${tenantId}::uuid AND enabled = true
+      AND feature IN (${FUNDING_OPPORTUNITIES_FEATURE}, ${FUNDING_OPPORTUNITIES_FORECASTS_FEATURE}, ${'funding_opportunities_sbir'})
+  `,
+  );
+  const flags = new Set(rows.map((row) => row.feature));
+  if (!flags.has(FUNDING_OPPORTUNITIES_FEATURE)) return [];
+  return [
+    'grants_gov',
+    'sam_gov',
+    'dibbs',
+    ...(flags.has(FUNDING_OPPORTUNITIES_FORECASTS_FEATURE) ? ['agency_forecast'] : []),
+    ...(flags.has('funding_opportunities_sbir') ? ['sbir_sttr'] : []),
+  ];
+}
 
 function grantFacts(row: GrantRow): GrantLifecycleFacts {
   return {
@@ -414,6 +522,8 @@ export async function processLifecycle(
   let baselined = 0;
 
   for (const tenantId of options.tenantIds) {
+    const sources = await lifecycleSources(prisma, tenantId);
+    if (!sources.length) continue;
     // ── Keyset walk. No cap: `id > cursor ORDER BY id` with a bounded page size
     // visits every row exactly once, and the (tenant_id, id) index added in
     // 20260810040000 serves it.
@@ -421,7 +531,11 @@ export async function processLifecycle(
     for (;;) {
       const rows = await withBypass(prisma, (tx) =>
         tx.clientFundingOpportunity.findMany({
-          where: { tenantId, ...(cursor ? { id: { gt: cursor } } : {}) },
+          where: {
+            tenantId,
+            source: { in: sources },
+            ...(cursor ? { id: { gt: cursor } } : {}),
+          },
           select: WORKFLOW_SELECT,
           orderBy: { id: 'asc' },
           take: PAGE_SIZE,
@@ -430,25 +544,67 @@ export async function processLifecycle(
       if (rows.length === 0) break;
       cursor = rows[rows.length - 1]!.id;
 
-      const grantIds = rows.flatMap((row) => (row.grantOpportunityId ? [row.grantOpportunityId] : []));
+      const grantIds = rows.flatMap((row) =>
+        row.grantOpportunityId ? [row.grantOpportunityId] : [],
+      );
       const samIds = rows.flatMap((row) => (row.samOpportunityId ? [row.samOpportunityId] : []));
-      const [grants, sam] = await Promise.all([
+      const keys = (source: string) =>
+        rows.flatMap((row) =>
+          row.source === source && row.sourceRecordKey ? [row.sourceRecordKey] : [],
+        );
+      const forecastIds = keys('agency_forecast'),
+        dibbsIds = keys('dibbs'),
+        sbirIds = keys('sbir_sttr');
+      const [grants, sam, forecasts, dibbs, sbir] = await Promise.all([
         grantIds.length
-          ? prisma.federalGrant.findMany({ where: { id: { in: grantIds } }, select: GRANT_SELECT })
+          ? prisma.federalGrant.findMany({
+              where: { id: { in: grantIds } },
+              select: GRANT_SELECT,
+            })
           : [],
         samIds.length
-          ? prisma.samOpportunity.findMany({ where: { id: { in: samIds } }, select: SAM_SELECT })
+          ? prisma.samOpportunity.findMany({
+              where: { id: { in: samIds } },
+              select: SAM_SELECT,
+            })
+          : [],
+        forecastIds.length
+          ? prisma.tangoProcurementForecast.findMany({
+              where: { tangoForecastId: { in: forecastIds } },
+              select: FORECAST_SELECT,
+            })
+          : [],
+        dibbsIds.length
+          ? prisma.tangoDibbsSolicitation.findMany({
+              where: { tangoDibbsId: { in: dibbsIds } },
+              select: DIBBS_SELECT,
+            })
+          : [],
+        sbirIds.length
+          ? prisma.tangoSbirTopic.findMany({
+              where: { tangoSbirId: { in: sbirIds } },
+              select: SBIR_SELECT,
+            })
           : [],
       ]);
       const grantById = new Map(grants.map((row) => [row.id, row as unknown as GrantRow]));
       const samById = new Map(sam.map((row) => [row.id, row as unknown as SamRow]));
+
+      const forecastById = new Map(forecasts.map((row) => [row.tangoForecastId, row]));
+      const dibbsById = new Map(dibbs.map((row) => [row.tangoDibbsId, row]));
+      const sbirById = new Map(sbir.map((row) => [row.tangoSbirId, row]));
 
       for (const row of rows) {
         evaluated += 1;
         try {
           const grant = row.grantOpportunityId ? grantById.get(row.grantOpportunityId) : null;
           const contract = row.samOpportunityId ? samById.get(row.samOpportunityId) : null;
-          if (!grant && !contract) {
+          const forecast =
+            row.source === 'agency_forecast' ? forecastById.get(row.sourceRecordKey ?? '') : null;
+          const dibbsRecord =
+            row.source === 'dibbs' ? dibbsById.get(row.sourceRecordKey ?? '') : null;
+          const topic = row.source === 'sbir_sttr' ? sbirById.get(row.sourceRecordKey ?? '') : null;
+          if (!grant && !contract && !forecast && !dibbsRecord && !topic) {
             // The source record is gone. Counted as an error rather than expired:
             // a vanished catalog row is a data problem to investigate, and
             // silently retiring a pursuit on the strength of it would be worse.
@@ -456,8 +612,16 @@ export async function processLifecycle(
             continue;
           }
 
-          const title = grant?.title ?? contract!.title;
-          let current: LifecycleSnapshot;
+          const title =
+            grant?.title ??
+            contract?.title ??
+            forecast?.title ??
+            dibbsRecord?.nomenclature ??
+            dibbsRecord?.solicitation ??
+            topic?.title ??
+            topic?.topicNumber ??
+            'SBIR/STTR topic';
+          let current!: LifecycleSnapshot;
 
           if (grant) {
             const facts = grantFacts(grant);
@@ -468,8 +632,8 @@ export async function processLifecycle(
               active: isGrantActive(facts, now),
               fingerprint: grantSourceFingerprint(facts),
             };
-          } else {
-            const facts = samFacts(contract!);
+          } else if (contract) {
+            const facts = samFacts(contract);
             current = {
               status: facts.active ? 'active' : 'archived',
               deadline: facts.responseDeadline,
@@ -479,6 +643,40 @@ export async function processLifecycle(
               updatedAt: null,
               active: isSamActive(facts, now),
               fingerprint: samSourceFingerprint(facts),
+            };
+          }
+
+          if (forecast) {
+            const { providerModifiedAt, ...facts } = forecast;
+            current = {
+              status: forecast.status,
+              deadline: null,
+              updatedAt: providerModifiedAt,
+              active: forecast.isActive,
+              fingerprint: sourceFingerprint(facts),
+            };
+          } else if (dibbsRecord) {
+            const pastClose =
+              dibbsRecord.closesDate != null &&
+              dibbsRecord.closesDate.toISOString().slice(0, 10) < now.toISOString().slice(0, 10);
+            current = {
+              status: dibbsRecord.statusCode,
+              deadline: dibbsRecord.closesDate,
+              updatedAt: null,
+              active: dibbsRecord.isOpen === false || pastClose ? false : true,
+              fingerprint: sourceFingerprint(dibbsRecord),
+            };
+          } else if (topic) {
+            current = {
+              status: topic.solicitationStatus,
+              deadline: topic.closeDate,
+              updatedAt: null,
+              active: !isTopicClosed({
+                solicitationStatus: topic.solicitationStatus,
+                closeDate: topic.closeDate?.toISOString().slice(0, 10) ?? null,
+                asOf: now,
+              }),
+              fingerprint: sourceFingerprint(topic),
             };
           }
 
@@ -500,6 +698,8 @@ export async function processLifecycle(
 
           const decision = deriveLifecycleEvents({
             title,
+            source: row.source,
+            humanDecision: row.humanDecision,
             workflowStatus: row.workflowStatus,
             previous,
             current,
@@ -513,7 +713,11 @@ export async function processLifecycle(
           // human has touched it" — a human-created row is never expired by a
           // machine, whatever its status.
           const shouldExpire =
-            current.active === false && row.workflowStatus === 'suggested' && row.userCreated === false;
+            current.active === false &&
+            row.workflowStatus === 'suggested' &&
+            row.userCreated === false &&
+            row.humanDecision == null;
+          let didExpire = shouldExpire;
 
           const snapshotData = {
             sourceStatusSnapshot: current.status,
@@ -528,7 +732,11 @@ export async function processLifecycle(
               for (const event of decision.events) {
                 const sourceId = `${row.id}:${event.type}:${event.fingerprint}`;
                 const exists = await tx.clioProactiveAlert.findFirst({
-                  where: { tenantId, sourceType: 'funding_opportunity', sourceId },
+                  where: {
+                    tenantId,
+                    sourceType: 'funding_opportunity',
+                    sourceId,
+                  },
                   select: { id: true },
                 });
                 if (exists) continue;
@@ -577,12 +785,29 @@ export async function processLifecycle(
                 });
               }
 
-              await tx.clientFundingOpportunity.update({
-                where: { id: row.id },
-                data: { ...(shouldExpire ? { workflowStatus: 'expired' } : {}), ...snapshotData },
-              });
-
               if (shouldExpire) {
+                // The user may save/watch/pursue after our page read. Only a
+                // still-undecided suggestion may transition to expired.
+                const result = await tx.clientFundingOpportunity.updateMany({
+                  where: {
+                    id: row.id,
+                    tenantId,
+                    clientId: row.clientId,
+                    workflowStatus: 'suggested',
+                    userCreated: false,
+                    humanDecision: null,
+                  },
+                  data: { workflowStatus: 'expired', ...snapshotData },
+                });
+                didExpire = result.count > 0;
+              } else {
+                await tx.clientFundingOpportunity.update({
+                  where: { id: row.id, tenantId, clientId: row.clientId },
+                  data: snapshotData,
+                });
+              }
+
+              if (didExpire) {
                 // Expiry is silent to the USER but never silent to the audit log:
                 // a suggestion disappearing without a trace is indistinguishable
                 // from a bug.
@@ -594,7 +819,9 @@ export async function processLifecycle(
                     action: 'funding_opportunity.lifecycle.expired',
                     entityType: 'client_funding_opportunity',
                     entityId: row.id,
-                    before: { workflowStatus: row.workflowStatus } as Prisma.InputJsonValue,
+                    before: {
+                      workflowStatus: row.workflowStatus,
+                    } as Prisma.InputJsonValue,
                     after: {
                       workflowStatus: 'expired',
                       reason: 'source_no_longer_active',
@@ -613,7 +840,11 @@ export async function processLifecycle(
               const sourceId = `${row.id}:${event.type}:${event.fingerprint}`;
               const exists = await withBypass(prisma, (tx) =>
                 tx.clioProactiveAlert.findFirst({
-                  where: { tenantId, sourceType: 'funding_opportunity', sourceId },
+                  where: {
+                    tenantId,
+                    sourceType: 'funding_opportunity',
+                    sourceId,
+                  },
                   select: { id: true },
                 }),
               );
@@ -621,7 +852,7 @@ export async function processLifecycle(
             }
           }
 
-          if (shouldExpire) expired += 1;
+          if (didExpire) expired += 1;
           counts.updated += 1;
         } catch (error) {
           counts.errors += 1;

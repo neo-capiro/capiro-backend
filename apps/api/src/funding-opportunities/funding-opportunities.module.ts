@@ -3,6 +3,8 @@ import { FundingOpportunitiesController } from './funding-opportunities.controll
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
 import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
+import { FundingOpportunityClientAccessGuard } from './funding-opportunity-client-access.guard.js';
+import { FundingOpportunityFeedService } from './funding-opportunity-feed.service.js';
 import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
@@ -76,6 +78,7 @@ import {
     // its own transaction and the whole point of P08 is one transaction.
     FundingOpportunityActionsService,
     FundingOpportunityInboxService,
+    FundingOpportunityFeedService,
     // P26. Depends on PrismaService and FundingOpportunitiesService — both
     // already resolvable here, the second a SIBLING provider in this module, so
     // no new import and no cycle. The dependency runs one way only:
@@ -134,6 +137,7 @@ import {
     // record already committed ahead of it.
     FundingOpportunityOutcomeService,
     FundingOpportunitiesFlagGuard,
+    FundingOpportunityClientAccessGuard,
     FundingOpportunitiesInboxFlagGuard,
     FundingOpportunitiesForecastFlagGuard,
     FundingOpportunitiesNoticeHistoryFlagGuard,

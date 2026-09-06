@@ -70,19 +70,17 @@ describe('relevance signals', () => {
     expect(result.relevanceScore).toBeGreaterThanOrEqual(MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR);
   });
 
-  test('an explicit applicant-type match is a strong relevance signal in its own right', () => {
-    // Separate from eligibility, which reads the same two arrays: a notice open
-    // to small businesses AND state governments is more relevant to a small
-    // business than one open to state governments alone, and both are equally
-    // "eligible", so eligibility cannot carry that distinction.
+  test('an applicant-type match explains eligibility without establishing substantive fit', () => {
     const result = scoreOpportunityRelevance(
       client({ applicantTypes: ['Small businesses'] }),
       opportunity({ eligibleApplicantTypes: ['Small businesses', 'State governments'] }),
     );
     const hit = result.matchedSignals.find((s) => s.signal === 'applicantType');
     expect(hit).toBeDefined();
-    expect(hit?.strength).toBe('strong');
+    expect(hit?.strength).toBe('weak');
     expect(hit?.matchedOn).toBe('Small businesses');
+    expect(result.eligibilityState).toBe('eligible');
+    expect(result.meetsSuggestionFloor).toBe(false);
   });
 
   test('applicant-type matching tolerates case and whitespace, like eligibility does', () => {
@@ -247,7 +245,7 @@ describe('relevance signals', () => {
   });
 
   describe('fundingCategory (regression: was client-independent self-match)', () => {
-    test('does NOT match just because the category string appears in the opportunity\'s own text', () => {
+    test("does NOT match just because the category string appears in the opportunity's own text", () => {
       // A grant's own title/description mentioning its own funding category is
       // a fact about the OPPORTUNITY, not the client — this client has no
       // sector, no capabilities, nothing that could legitimately signal a match.
@@ -377,8 +375,14 @@ describe('eligibility is computed only from structured fields', () => {
 
   test('every outcome carries a reason', () => {
     const cases = [
-      computeEligibility(client({ applicantTypes: ['12'] }), opportunity({ eligibleApplicantTypes: ['12'] })),
-      computeEligibility(client({ applicantTypes: ['12'] }), opportunity({ eligibleApplicantTypes: ['06'] })),
+      computeEligibility(
+        client({ applicantTypes: ['12'] }),
+        opportunity({ eligibleApplicantTypes: ['12'] }),
+      ),
+      computeEligibility(
+        client({ applicantTypes: ['12'] }),
+        opportunity({ eligibleApplicantTypes: ['06'] }),
+      ),
       computeEligibility(client(), opportunity()),
       computeEligibility(client(), opportunity({ eligibleApplicantTypes: ['12'] })),
     ];
@@ -413,11 +417,8 @@ describe('relevance and eligibility are independent', () => {
   });
 
   test('an opportunity whose ONLY tie to the client is the applicant type scores low, and stays eligible', () => {
-    // This case used to assert a score of zero. It changed deliberately: an
-    // applicant-type match is now a strong relevance signal (§6), so a notice
-    // aimed at this kind of organization is not "irrelevant" — it is weakly
-    // relevant, and separately eligible. The independence being pinned is that
-    // eligibility did not inflate the score to something it hasn't earned.
+    // Eligibility can be displayed as context without recommending an unrelated
+    // program to every organization of the same legal form.
     const result = scoreOpportunityRelevance(
       client({ applicantTypes: ['12'] }),
       opportunity({ eligibleApplicantTypes: ['12'], title: 'Something unrelated' }),
@@ -426,6 +427,7 @@ describe('relevance and eligibility are independent', () => {
     expect(result.relevanceScore).toBe(pct(RELEVANCE_WEIGHTS.applicantType));
     expect(result.relevanceScore).toBeLessThan(MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR);
     expect(result.eligibilityState).toBe('eligible');
+    expect(result.meetsSuggestionFloor).toBe(false);
   });
 
   test('an opportunity with no client tie at all still scores zero', () => {
@@ -439,6 +441,111 @@ describe('relevance and eligibility are independent', () => {
 });
 
 describe('grant suggestion floor', () => {
+  test('small-business eligibility and permitted geography cannot recommend an unrelated program', () => {
+    const result = scoreOpportunityRelevance(
+      client({ applicantTypes: ['Small businesses'], states: ['FL'], sector: 'Aerospace' }),
+      opportunity({
+        title: 'Community arts education',
+        eligibleApplicantTypes: ['Small businesses'],
+        geographicRestrictions: ['FL'],
+      }),
+    );
+    expect(result.eligibilityState).toBe('eligible');
+    expect(result.relevanceScore).toBeGreaterThan(15);
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('prior agency history alone does not recommend every program at that agency', () => {
+    const result = scoreOpportunityRelevance(
+      client({ priorAgencies: ['Department of Energy'], applicantTypes: ['Small businesses'] }),
+      opportunity({ agency: 'Department of Energy', eligibleApplicantTypes: ['Small businesses'] }),
+    );
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('specific grid capability with prior Energy agency history remains discoverable', () => {
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['grid resilience'], priorAgencies: ['Department of Energy'] }),
+      opportunity({ title: 'Grid-resilience demonstration', agency: 'Department of Energy' }),
+    );
+    expect(result.meetsSuggestionFloor).toBe(true);
+  });
+
+  test.each([
+    'research',
+    'research and development',
+    'technology',
+    'advanced systems',
+    'small business',
+    'funding opportunities',
+  ])('generic capability "%s" cannot turn a broad sector match into a suggestion', (keyword) => {
+    const result = scoreOpportunityRelevance(
+      client({
+        capabilityKeywords: [keyword],
+        sector: 'Health',
+        applicantTypes: ['Small businesses'],
+      }),
+      opportunity({ title: `Health ${keyword}`, eligibleApplicantTypes: ['Small businesses'] }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).not.toContain('capabilityKeyword');
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('a word embedded inside another word is not capability evidence', () => {
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['care'], sector: 'Health' }),
+      opportunity({ title: 'Health analytics for Medicare administration' }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).not.toContain('capabilityKeyword');
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('one topic repeated as capability, sector and category counts once', () => {
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['energy', 'ENERGY'], sector: 'Energy' }),
+      opportunity({ title: 'Energy funding', fundingCategory: 'Energy' }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).toEqual(['capabilityKeyword']);
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('a category repeating the sector does not inflate a genuine match', () => {
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['grid resilience'], sector: 'Energy' }),
+      opportunity({ title: 'Grid resilience for energy systems', fundingCategory: 'Energy' }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).toEqual(['capabilityKeyword', 'sector']);
+    expect(result.relevanceScore).toBe(18);
+    expect(result.meetsSuggestionFloor).toBe(true);
+  });
+
+  test('a broad tag cannot shadow a more specific matching capability', () => {
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['energy', 'grid resilience'], sector: 'Energy' }),
+      opportunity({ title: 'Grid resilience for energy systems' }),
+    );
+    expect(result.matchedSignals.find((s) => s.signal === 'capabilityKeyword')?.matchedOn).toBe(
+      'grid resilience',
+    );
+    expect(result.meetsSuggestionFloor).toBe(true);
+  });
+
+  test('legacy strong eligibility labels and duplicated capability signals cannot bypass the floor', () => {
+    expect(
+      meetsGrantSuggestionFloor([
+        { signal: 'applicantType', strength: 'strong', matchedOn: 'Small businesses' },
+        { signal: 'stateRestriction', strength: 'strong', matchedOn: 'FL' },
+      ]),
+    ).toBe(false);
+    expect(
+      meetsGrantSuggestionFloor([
+        { signal: 'capabilityKeyword', strength: 'moderate', matchedOn: 'energy' },
+        { signal: 'capabilityKeyword', strength: 'moderate', matchedOn: 'energy' },
+        { signal: 'sector', strength: 'weak', matchedOn: 'Energy' },
+      ]),
+    ).toBe(false);
+  });
+
   test('an assistance-listing hit alone clears the floor', () => {
     const result = scoreOpportunityRelevance(
       client({ priorAssistanceListings: ['93.778'] }),

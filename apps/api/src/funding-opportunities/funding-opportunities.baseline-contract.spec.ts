@@ -96,6 +96,9 @@ const WORKFLOW: OpportunityWorkflow = {
   owner: null,
   facility: null,
   notes: null,
+  // Additive team-plan fields also exist before a human decision is recorded.
+  nextAction: null,
+  nextActionDueAt: null,
   dismissedReason: null,
   outcomeNote: null,
   userCreated: false,
@@ -455,7 +458,9 @@ describe('null money means "no figure stated", never zero', () => {
   });
 
   test('a null money field survives a JSON round trip as null, not 0', () => {
-    const round = JSON.parse(JSON.stringify({ grantFunding: GRANT_FUNDING, contractValue: CONTRACT_VALUE }));
+    const round = JSON.parse(
+      JSON.stringify({ grantFunding: GRANT_FUNDING, contractValue: CONTRACT_VALUE }),
+    );
     expect(round.grantFunding.estimatedProgramFunding).toBeNull();
     expect(round.grantFunding.awardFloor).toBeNull();
     expect(round.grantFunding.awardCeiling).toBeNull();
@@ -597,7 +602,9 @@ describe('the release gate cannot shrink below its frozen floor', () => {
   ];
 
   test.each(floors)('the %s floor is at or above the frozen floor', (app, floor) => {
-    const m = new RegExp(`assert-test-summary\\.mjs[^\\n]*apps/${app}\\s+(\\d+)\\s+(\\d+)`).exec(yml);
+    const m = new RegExp(`assert-test-summary\\.mjs[^\\n]*apps/${app}\\s+(\\d+)\\s+(\\d+)`).exec(
+      yml,
+    );
     expect(m).not.toBeNull();
     const [suites, tests] = [Number(m![1]), Number(m![2])];
     expect(suites).toBeGreaterThanOrEqual(floor.suites);

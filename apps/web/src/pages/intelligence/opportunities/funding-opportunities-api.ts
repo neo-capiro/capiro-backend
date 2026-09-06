@@ -181,6 +181,8 @@ export interface OpportunityDecision {
 }
 
 export interface OpportunityWorkflow {
+  nextAction?: string | null;
+  nextActionDueAt?: string | null;
   id: string;
   status: OpportunityWorkflowStatus;
   owner: { userId: string; name: string | null; email: string | null } | null;
@@ -327,6 +329,11 @@ export interface ClientFundingOpportunitySummary {
  * history.
  */
 export const INBOX_FILTERS = [
+  'suggested',
+  'tracked',
+  'saved',
+  'completed',
+  'tracked_deadlines',
   'needs_review',
   'pursuing',
   'deadlines',
@@ -337,6 +344,11 @@ export const INBOX_FILTERS = [
 export type InboxFilter = (typeof INBOX_FILTERS)[number];
 
 export const INBOX_FILTER_LABELS: Record<InboxFilter, string> = {
+  suggested: 'New recommendations',
+  tracked: 'All tracked',
+  saved: 'Saved & watching',
+  completed: 'Completed',
+  tracked_deadlines: 'Due soon',
   needs_review: 'Needs review',
   pursuing: 'Pursuing',
   deadlines: 'Deadlines',
@@ -352,6 +364,11 @@ export const INBOX_FILTER_LABELS: Record<InboxFilter, string> = {
  * queue's job is to say what would have to be true for a row to appear here.
  */
 export const INBOX_FILTER_DESCRIPTIONS: Record<InboxFilter, string> = {
+  suggested: 'New client matches that have not been saved or decided on.',
+  tracked: 'Saved opportunities, watched forecasts, and active pursuits for this client.',
+  saved: 'Items saved for later or explicitly being watched.',
+  completed: 'Completed pursuits and passed opportunities, with their history retained.',
+  tracked_deadlines: 'Tracked work with an upcoming deadline or a team follow-up date.',
   needs_review: 'Machine suggestions nobody has decided on yet, whose source is still open.',
   pursuing: 'Opportunities somebody decided to pursue, or whose workflow is already pursuing.',
   deadlines: 'Dated, still-open opportunities nobody has passed on.',
@@ -615,6 +632,8 @@ export interface InboxRow {
   daysUntilDeadline: number | null;
   workflowStatus: string;
   humanDecision: string | null;
+  pipelineStage?: string | null;
+  matchSignals?: OpportunityMatchedSignal[];
   nextAction: string | null;
   nextActionDueAt: string | null;
   owner: { userId: string; name: string | null; email: string | null } | null;
@@ -783,7 +802,14 @@ export interface ForecastOpportunityRecord {
   recommendation: ForecastRecommendationView | null;
   clientId: string | null;
   decision: OpportunityDecision | null;
-  workflow: { id: string; status: string } | null;
+  workflow: {
+    id: string;
+    status: string;
+    notes?: string | null;
+    ownerUserId?: string | null;
+    nextAction?: string | null;
+    nextActionDueAt?: string | null;
+  } | null;
   /**
    * ALWAYS NULL today. "Not yet linked", never "no solicitation followed" — the
    * only honest way to link a forecast to a later notice is an exact identifier
@@ -826,7 +852,20 @@ export function formatSourceDate(
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!m) return value;
   const [, y, mo, d] = m as unknown as [string, string, string, string];
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTHS = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   const month = MONTHS[Number(mo) - 1] ?? mo;
   return `${Number(d)} ${month} ${y}`;
 }
@@ -848,8 +887,7 @@ export function formatForecastFreshness(facts: InboxForecastFacts): string {
 // ── Notice history and the material-change timeline (P28) ───────────────────
 
 /** The notice-history flag. Byte-matches the API guard's own constant. */
-export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE =
-  'funding_opportunities_notice_history';
+export const FUNDING_OPPORTUNITIES_NOTICE_HISTORY_FEATURE = 'funding_opportunities_notice_history';
 
 /** Mirrors CHANGE_SEVERITIES in apps/api's opportunity-change-classifier.ts. */
 export const CHANGE_SEVERITIES = ['critical', 'significant', 'informational'] as const;
@@ -998,8 +1036,7 @@ export function requirementsApiPath(source: string, sourceRecordId: string): str
 // ── Government landscape (P33) ───────────────────────────────────────────────
 
 /** The landscape flag. Byte-matches the API guard's own constant. */
-export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE =
-  'funding_opportunities_government_landscape';
+export const FUNDING_OPPORTUNITIES_LANDSCAPE_FEATURE = 'funding_opportunities_government_landscape';
 
 /** Mirrors LANDSCAPE_SOURCES in apps/api's government-landscape.types.ts. */
 export const LANDSCAPE_SOURCE_LABELS: Record<string, string> = {
@@ -1058,11 +1095,7 @@ export interface LandscapePacketView {
   generatedAt: string;
 }
 
-export function landscapeApiPath(
-  source: string,
-  sourceRecordId: string,
-  clientId: string,
-): string {
+export function landscapeApiPath(source: string, sourceRecordId: string, clientId: string): string {
   return `/api/intelligence/opportunities/${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}/landscape?clientId=${encodeURIComponent(clientId)}`;
 }
 
@@ -1921,7 +1954,10 @@ export function moneyLine(o: FundingOpportunity): { label: string; value: string
   if (o.source === 'sam_gov') {
     // Always "Not stated" today, and that is a fact about SAM.gov rather than a
     // gap in this UI — see ContractValue in the API types.
-    return { label: 'Contract value', value: formatMoney(o.contractValue?.estimatedValue ?? null, 'Not stated') };
+    return {
+      label: 'Contract value',
+      value: formatMoney(o.contractValue?.estimatedValue ?? null, 'Not stated'),
+    };
   }
   return { label: 'Value', value: 'Not stated' };
 }

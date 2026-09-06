@@ -2,7 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
-import type { OpportunitySource } from './funding-opportunities.types.js';
+import type { HumanDecision } from './funding-opportunities.types.js';
+import { readVisibleClientIds, type InboxSource } from './funding-opportunity-inbox.service.js';
+import {
+  FUNDING_OPPORTUNITY_TASK_SOURCE,
+  findFundingOpportunityTask,
+  fundingOpportunityTaskSourceId,
+} from './funding-opportunity-task-link.js';
+import { sourceRecordWhere } from './funding-opportunity-identity.js';
 
 /**
  * One action that creates an Engagement task AND records the decision, in ONE
@@ -35,15 +42,16 @@ import type { OpportunitySource } from './funding-opportunities.types.js';
  * caller, so two clients cannot disagree about what "the same action" means:
  *
  *     sourceType = 'funding_opportunity'
- *     sourceId   = '<source>:<sourceRecordId>:<intent>'
+ *     sourceId   = 'v2:<clientId>:<source>:<encodedRecordId>:<intent>'
  *
  * A double-clicked button, a retried request and a replayed mutation all land on
  * the same key and get the SAME task back. `review` and `pursuit` are separate
  * keys on purpose: escalating a reviewed opportunity to a pursuit is a real second
- * action and deserves its own task.
+ * action and deserves its own task. Older keys are reused only when the task's
+ * actual client matches; existing rows and human edits are never reassigned.
  */
 
-export const FUNDING_OPPORTUNITY_TASK_SOURCE = 'funding_opportunity';
+export { FUNDING_OPPORTUNITY_TASK_SOURCE };
 
 export const OPPORTUNITY_ACTION_INTENTS = ['review', 'pursuit'] as const;
 export type OpportunityActionIntent = (typeof OPPORTUNITY_ACTION_INTENTS)[number];
@@ -58,7 +66,7 @@ export interface OpportunityActionResult {
     reused: boolean;
   };
   /** The decision recorded alongside the task. */
-  decision: 'pursue' | 'monitor';
+  decision: HumanDecision;
   workflowStatus: string;
 }
 
@@ -71,11 +79,12 @@ export class FundingOpportunityActionsService {
 
   /** Deterministic, derived from the target and the intent. Never caller-supplied. */
   static taskSourceId(
-    source: OpportunitySource,
+    clientId: string,
+    source: InboxSource,
     sourceRecordId: string,
     intent: OpportunityActionIntent,
   ): string {
-    return `${source}:${sourceRecordId}:${intent}`;
+    return fundingOpportunityTaskSourceId(clientId, source, sourceRecordId, intent);
   }
 
   /**
@@ -91,7 +100,7 @@ export class FundingOpportunityActionsService {
   async act(
     tenantId: string,
     clientId: string,
-    source: OpportunitySource,
+    source: InboxSource,
     sourceRecordId: string,
     input: {
       intent: OpportunityActionIntent;
@@ -99,8 +108,17 @@ export class FundingOpportunityActionsService {
       ownerUserId?: string | null;
       notes?: string | null;
       nextAction?: string | null;
+      /** Team follow-up date. Never inferred from a source deadline or estimate. */
+      nextActionDueAt?: string | null;
     },
   ): Promise<OpportunityActionResult> {
+    // Actions can be called outside the catalog UI. Tenant membership alone
+    // does not grant access to a client behind an ethical wall.
+    const assertVisibleClient = async (tx: Prisma.TransactionClient) => {
+      const visibleClientIds = await readVisibleClientIds(tx, tenantId, input.actorUserId);
+      if (!visibleClientIds.includes(clientId)) throw new NotFoundException('Client not found.');
+    };
+    await this.prisma.withTenant(tenantId, assertVisibleClient);
     const target = await this.opportunities.describeForAction(
       tenantId,
       clientId,
@@ -123,6 +141,7 @@ export class FundingOpportunityActionsService {
     const decision = input.intent === 'pursuit' ? 'pursue' : 'monitor';
     const workflowStatus = input.intent === 'pursuit' ? 'pursuing' : 'saved';
     const sourceId = FundingOpportunityActionsService.taskSourceId(
+      clientId,
       source,
       sourceRecordId,
       input.intent,
@@ -131,24 +150,73 @@ export class FundingOpportunityActionsService {
       input.intent === 'pursuit' ? `Pursue: ${target.title}` : `Review: ${target.title}`
     ).slice(0, 240);
     const description = [
-      `${source === 'grants_gov' ? 'Grants.gov' : 'SAM.gov'} opportunity ${target.sourceReference ?? sourceRecordId}`,
+      `${SOURCE_LABELS[source]} opportunity ${target.sourceReference ?? sourceRecordId}`,
       target.sourceUrl ?? null,
       input.notes?.trim() || null,
     ]
       .filter(Boolean)
       .join('\n');
 
-    // The task's due date and the opportunity's next-action date are the SAME
-    // value, taken from the source deadline. Two dates that could drift is how a
-    // task says one thing and the inbox says another.
-    const dueDate = target.responseDeadline ? new Date(target.responseDeadline) : null;
+    // A response deadline belongs to the source. A follow-up date belongs to
+    // the team, and can precede it or be absent entirely (including forecasts).
+    const followUp =
+      input.nextActionDueAt !== undefined ? input.nextActionDueAt : target.nextActionDueAt;
+    const dueDate = followUp == null ? null : new Date(followUp);
+    if (dueDate && !Number.isFinite(dueDate.getTime())) {
+      throw new BadRequestException('Follow-up date must be a valid ISO date.');
+    }
+    const nextAction = input.nextAction?.trim() || title;
+    const taskSelect = { id: true, title: true, ownerUserId: true, dueDate: true } as const;
+    const findTask = async (tx: Prisma.TransactionClient) =>
+      findFundingOpportunityTask(tx, {
+        tenantId,
+        clientId,
+        source,
+        sourceRecordId,
+        intent: input.intent,
+      });
+
+    const recordDecision = async (
+      tx: Prisma.TransactionClient,
+      task: { id: string; title: string; ownerUserId: string | null; dueDate: Date | null },
+      reused: boolean,
+    ): Promise<OpportunityActionResult> => {
+      // A retry reuses the task's actual owner and date. Replaying an older
+      // request must not overwrite a teammate's task edits or make the workflow
+      // disagree with that task. The decision writer preserves existing human
+      // decisions, notes and next-action text when reuseTask is true.
+      const saved = await this.opportunities.applyActionDecision(tx, {
+        tenantId,
+        clientId,
+        source,
+        sourceRecordId,
+        actorUserId: input.actorUserId,
+        decision,
+        workflowStatus,
+        ownerUserId: task.ownerUserId,
+        notes: input.notes,
+        nextAction,
+        nextActionDueAt: task.dueDate,
+        taskId: task.id,
+        reuseTask: reused,
+      });
+      return {
+        task: {
+          id: task.id,
+          title: task.title,
+          ownerUserId: task.ownerUserId ?? null,
+          dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+          reused,
+        },
+        decision: saved.decision,
+        workflowStatus: saved.workflowStatus,
+      };
+    };
 
     const write = async (): Promise<OpportunityActionResult> =>
       this.prisma.withTenant(tenantId, async (tx) => {
-        const existingTask = await tx.engagementTask.findFirst({
-          where: { tenantId, sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE, sourceId },
-          select: { id: true, title: true, ownerUserId: true, dueDate: true },
-        });
+        await assertVisibleClient(tx);
+        const existingTask = await findTask(tx);
 
         const task =
           existingTask ??
@@ -158,43 +226,19 @@ export class FundingOpportunityActionsService {
               clientId,
               title,
               description: description || null,
-              ownerUserId: input.ownerUserId ?? null,
+              ownerUserId:
+                input.ownerUserId !== undefined ? input.ownerUserId : (target.ownerUserId ?? null),
               dueDate,
               sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE,
               sourceId,
               createdByUserId: input.actorUserId,
             },
-            select: { id: true, title: true, ownerUserId: true, dueDate: true },
+            select: taskSelect,
           }));
 
         // Same transaction. If this throws, the task insert above rolls back with
         // it — which is the entire point of the phase.
-        const saved = await this.opportunities.applyActionDecision(tx, {
-          tenantId,
-          clientId,
-          source,
-          sourceRecordId,
-          actorUserId: input.actorUserId,
-          decision,
-          workflowStatus,
-          ownerUserId: input.ownerUserId,
-          notes: input.notes,
-          nextAction: input.nextAction ?? (input.intent === 'pursuit' ? title : null),
-          nextActionDueAt: dueDate,
-          taskId: task.id,
-        });
-
-        return {
-          task: {
-            id: task.id,
-            title: task.title,
-            ownerUserId: task.ownerUserId ?? null,
-            dueDate: task.dueDate ? task.dueDate.toISOString() : null,
-            reused: existingTask != null,
-          },
-          decision,
-          workflowStatus: saved.workflowStatus,
-        };
+        return recordDecision(tx, task, existingTask != null);
       });
 
     try {
@@ -212,33 +256,33 @@ export class FundingOpportunityActionsService {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
-      return this.prisma.withTenant(tenantId, async (tx) => {
-        const winner = await tx.engagementTask.findFirst({
-          where: { tenantId, sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE, sourceId },
-          select: { id: true, title: true, ownerUserId: true, dueDate: true },
+      const recovered = await this.prisma.withTenant(tenantId, async (tx) => {
+        await assertVisibleClient(tx);
+        const winner = await findTask(tx);
+        if (winner) return recordDecision(tx, winner, true);
+        // A concurrent Save/Watch can win the workflow insert without creating
+        // a task. Our task insert then rolls back with the losing workflow write.
+        // Verify that exact client/source row exists before one full retry; the
+        // retry rechecks the locked decision and cannot reopen a passed record.
+        const workflowWinner = await tx.clientFundingOpportunity.findFirst({
+          where: { tenantId, clientId, ...sourceRecordWhere(source, sourceRecordId) },
+          select: { id: true },
         });
-        // The row that caused the P2002 must exist by now — Postgres blocks a
-        // conflicting INSERT until the winning transaction ends, so by the time
-        // this catch runs the winner has either committed (this find succeeds)
-        // or rolled back (in which case the constraint could not have fired).
-        // Re-throwing the ORIGINAL error on the impossible case, rather than a
-        // new one, matches decide()'s own defensive fallback exactly.
-        if (!winner) throw error;
-        return {
-          task: {
-            id: winner.id,
-            title: winner.title,
-            ownerUserId: winner.ownerUserId ?? null,
-            dueDate: winner.dueDate ? winner.dueDate.toISOString() : null,
-            reused: true,
-          },
-          decision,
-          workflowStatus,
-        };
+        if (!workflowWinner) throw error;
+        return null;
       });
+      return recovered ?? write();
     }
   }
 }
+
+const SOURCE_LABELS: Record<InboxSource, string> = {
+  grants_gov: 'Grants.gov',
+  sam_gov: 'SAM.gov',
+  agency_forecast: 'Agency procurement forecast',
+  dibbs: 'DIBBS',
+  sbir_sttr: 'SBIR/STTR',
+};
 
 /** Thrown-shape guard so a missing target reads as 404 rather than a 500. */
 export function assertTargetFound<T>(value: T | null, message = 'Opportunity not found'): T {

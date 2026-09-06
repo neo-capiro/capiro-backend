@@ -95,7 +95,9 @@ describe('the vocabularies are bounded', () => {
   });
 
   test('no reason code is emitted twice for one opportunity', () => {
-    const result = recommendOpportunity(input({ responseDeadline: SOON, signalKeys: ['naicsExact', 'priorAgency'] }));
+    const result = recommendOpportunity(
+      input({ responseDeadline: SOON, signalKeys: ['naicsExact', 'priorAgency'] }),
+    );
     expect(new Set(result.reasonCodes).size).toBe(result.reasonCodes.length);
   });
 });
@@ -105,24 +107,38 @@ describe('the vocabularies are bounded', () => {
 describe('a closed or informational notice can never be pursue', () => {
   test('a closed notice is pass, even with perfect evidence', () => {
     const r = recommendOpportunity(
-      input({ isActive: false, signalStrengths: ['strong', 'strong'], signalKeys: ['naicsExact', 'priorAgency'] }),
+      input({
+        isActive: false,
+        signalStrengths: ['strong', 'strong'],
+        signalKeys: ['naicsExact', 'priorAgency'],
+      }),
     );
     expect(r.machineRecommendation).toBe('pass');
     expect(r.reasonCodes).toContain('source_closed');
   });
 
-  test.each([...OPPORTUNITY_KINDS])('an informational %s notice is monitor, never pursue', (kind) => {
-    const r = recommendOpportunity(
-      input({ kind, isPursuable: false, signalStrengths: ['strong'], signalKeys: ['naicsExact'] }),
-    );
-    expect(r.machineRecommendation).toBe('monitor');
-    expect(r.reasonCodes).toContain('informational_notice');
-  });
+  test.each([...OPPORTUNITY_KINDS])(
+    'an informational %s notice is monitor, never pursue',
+    (kind) => {
+      const r = recommendOpportunity(
+        input({
+          kind,
+          isPursuable: false,
+          signalStrengths: ['strong'],
+          signalKeys: ['naicsExact'],
+        }),
+      );
+      expect(r.machineRecommendation).toBe('monitor');
+      expect(r.reasonCodes).toContain('informational_notice');
+    },
+  );
 
   test('closed OUTRANKS informational, so precedence is total not accidental', () => {
     // Both conditions hold. Written as independent ifs the answer would depend on
     // which check happened to be first, and no reviewer could tell which was meant.
-    const r = recommendOpportunity(input({ isActive: false, isPursuable: false, kind: 'award_notice' }));
+    const r = recommendOpportunity(
+      input({ isActive: false, isPursuable: false, kind: 'award_notice' }),
+    );
     expect(r.machineRecommendation).toBe('pass');
     expect(r.reasonCodes).toEqual(['source_closed']);
   });
@@ -138,7 +154,11 @@ describe('strong relevance with unresolved eligibility is needs_review, not purs
     'eligibility %s with a strong match is needs_review',
     (eligibility) => {
       const r = recommendOpportunity(
-        input({ eligibility, signalStrengths: ['strong', 'strong'], signalKeys: ['naicsExact', 'priorAgency'] }),
+        input({
+          eligibility,
+          signalStrengths: ['strong', 'strong'],
+          signalKeys: ['naicsExact', 'priorAgency'],
+        }),
       );
       expect(r.machineRecommendation).toBe('needs_review');
       // Medium, not high: the fit is strong, the open question is permission.
@@ -154,7 +174,11 @@ describe('strong relevance with unresolved eligibility is needs_review, not purs
 
   test('unresolved eligibility with weak evidence is low confidence', () => {
     const r = recommendOpportunity(
-      input({ eligibility: 'needs_review', signalStrengths: ['weak'], signalKeys: ['genericToken'] }),
+      input({
+        eligibility: 'needs_review',
+        signalStrengths: ['weak'],
+        signalKeys: ['genericToken'],
+      }),
     );
     expect(r.machineRecommendation).toBe('needs_review');
     expect(r.recommendationConfidence).toBe('low');
@@ -165,7 +189,9 @@ describe('strong relevance with unresolved eligibility is needs_review, not purs
 
 describe('the evidence floor decides pursue vs monitor vs pass', () => {
   test('one strong signal clears the floor', () => {
-    const r = recommendOpportunity(input({ signalStrengths: ['strong'], signalKeys: ['naicsExact'] }));
+    const r = recommendOpportunity(
+      input({ signalStrengths: ['strong'], signalKeys: ['naicsExact'] }),
+    );
     expect(r.machineRecommendation).toBe('pursue');
   });
 
@@ -203,7 +229,9 @@ describe('the evidence floor decides pursue vs monitor vs pass', () => {
   });
 
   test('no signals at all is pass at high confidence', () => {
-    const r = recommendOpportunity(input({ signalStrengths: [], signalKeys: [], relevanceScore: 0 }));
+    const r = recommendOpportunity(
+      input({ signalStrengths: [], signalKeys: [], relevanceScore: 0 }),
+    );
     expect(r.machineRecommendation).toBe('pass');
     expect(r.recommendationConfidence).toBe('high');
   });
@@ -300,7 +328,9 @@ describe('the recommendation is deterministic', () => {
     // Same opportunity, two different clocks: the deadline is imminent under one
     // and not the other. If the module called new Date() this would be untestable
     // and the output would drift daily.
-    const before = recommendOpportunity(input({ responseDeadline: SOON, asOf: new Date('2026-07-01T00:00:00.000Z') }));
+    const before = recommendOpportunity(
+      input({ responseDeadline: SOON, asOf: new Date('2026-07-01T00:00:00.000Z') }),
+    );
     const near = recommendOpportunity(input({ responseDeadline: SOON, asOf: ASOF }));
     expect(before.reasonCodes).not.toContain('deadline_imminent');
     expect(near.reasonCodes).toContain('deadline_imminent');
@@ -445,7 +475,9 @@ describe('every combination produces a valid, invariant-respecting result', () =
 
 describe('vehicleAccessRequired (P23) downgrades pursue to needs_review, and nothing else', () => {
   test('required and unresolved: a would-be pursue becomes needs_review', () => {
-    const r = recommendOpportunity(input({ vehicleAccessRequired: true, vehicleAccessResolved: false }));
+    const r = recommendOpportunity(
+      input({ vehicleAccessRequired: true, vehicleAccessResolved: false }),
+    );
     expect(r.machineRecommendation).toBe('needs_review');
     expect(r.reasonCodes).toContain('vehicle_access_unresolved');
     expect(r.primaryReason).toMatch(/vehicle access/);
@@ -454,13 +486,17 @@ describe('vehicleAccessRequired (P23) downgrades pursue to needs_review, and not
   });
 
   test('required and resolved: the recommendation is an ordinary pursue, untouched', () => {
-    const r = recommendOpportunity(input({ vehicleAccessRequired: true, vehicleAccessResolved: true }));
+    const r = recommendOpportunity(
+      input({ vehicleAccessRequired: true, vehicleAccessResolved: true }),
+    );
     expect(r.machineRecommendation).toBe('pursue');
     expect(r.reasonCodes).not.toContain('vehicle_access_unresolved');
   });
 
   test('not required: vehicleAccessResolved is irrelevant, and the recommendation is unaffected', () => {
-    const r = recommendOpportunity(input({ vehicleAccessRequired: false, vehicleAccessResolved: false }));
+    const r = recommendOpportunity(
+      input({ vehicleAccessRequired: false, vehicleAccessResolved: false }),
+    );
     expect(r.machineRecommendation).toBe('pursue');
     expect(r.reasonCodes).not.toContain('vehicle_access_unresolved');
   });
@@ -469,7 +505,9 @@ describe('vehicleAccessRequired (P23) downgrades pursue to needs_review, and not
     // Every RecommendationInput built before P23 — and every real caller
     // today (decision-log D-44) — never sets either field. This is the
     // contract that guarantees that silence.
-    const withFields = recommendOpportunity(input({ vehicleAccessRequired: undefined, vehicleAccessResolved: undefined }));
+    const withFields = recommendOpportunity(
+      input({ vehicleAccessRequired: undefined, vehicleAccessResolved: undefined }),
+    );
     const withoutFields = recommendOpportunity(input());
     expect(withFields).toEqual(withoutFields);
     expect(withoutFields.machineRecommendation).toBe('pursue');
@@ -496,10 +534,32 @@ describe('vehicleAccessRequired (P23) downgrades pursue to needs_review, and not
   });
 
   test('unresolved-vehicle needs_review is still a valid, invariant-respecting result', () => {
-    const r = recommendOpportunity(input({ vehicleAccessRequired: true, vehicleAccessResolved: false }));
+    const r = recommendOpportunity(
+      input({ vehicleAccessRequired: true, vehicleAccessResolved: false }),
+    );
     expect([...MACHINE_RECOMMENDATIONS]).toContain(r.machineRecommendation);
     expect([...RECOMMENDATION_CONFIDENCES]).toContain(r.recommendationConfidence);
     expect(r.primaryReason.length).toBeGreaterThan(0);
     expect(r.recommendedNextAction.length).toBeGreaterThan(0);
+  });
+});
+
+describe('source-specific evidence floor', () => {
+  test('substantive grant capability plus topic fit is not rejected by the SAM strength rule', () => {
+    const result = recommendOpportunity(
+      input({
+        source: 'grants_gov',
+        kind: 'grant',
+        relevanceScore: 35,
+        signalStrengths: ['moderate', 'weak'],
+        signalKeys: ['keywordMatch', 'sectorTag'],
+        meetsSuggestionFloor: true,
+      }),
+    );
+    expect(result.machineRecommendation).not.toBe('pass');
+  });
+  test('a source scorer can refuse superficially strong evidence', () => {
+    const result = recommendOpportunity(input({ meetsSuggestionFloor: false }));
+    expect(result.machineRecommendation).toBe('pass');
   });
 });

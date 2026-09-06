@@ -64,6 +64,12 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import {
+  runWithSyncRun,
+  emptyCounts,
+  type RunCounts,
+  type SyncRunCapablePrisma,
+} from '../src/ingestion/sync-run.helper.js';
+import {
   TangoDibbsClient,
   TangoDibbsEnvelopeError,
   TangoDibbsHttpError,
@@ -172,7 +178,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     // silently narrow the window, which is the one failure this script cannot
     // detect afterwards.
     since: sinceRaw != null && /^\d{4}-\d{2}-\d{2}$/.test(sinceRaw.trim()) ? sinceRaw.trim() : null,
-    limit: Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50_000) : undefined,
+    limit:
+      Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50_000) : undefined,
     overlapDays:
       Number.isFinite(parsedOverlap) && parsedOverlap >= 0 ? parsedOverlap : DEFAULT_OVERLAP_DAYS,
     endpoints: parseEndpoints(flagValue(argv, 'endpoint')),
@@ -519,6 +526,49 @@ export async function runDibbsSync(
   };
 }
 
+/** Run ledger used by freshness/alarms; the same core walk runs in dry-run mode. */
+export async function runDibbsSyncJob(
+  prisma: SyncRunCapablePrisma,
+  deps: DibbsSyncDeps,
+  options: DibbsSyncOptions,
+): Promise<RunCounts> {
+  const execute = async (): Promise<RunCounts> => {
+    if (!deps.gateway.configured) throw new Error('No TANGO_API_KEY configured.');
+    if (options.endpoints?.length === 0) throw new Error('No valid DIBBS endpoints selected.');
+    const summary = await runDibbsSync(deps, options);
+    console.log(`TANGO_DIBBS_SYNC_DONE ${JSON.stringify(summary)}`);
+    const errors = summary.endpoints.reduce((sum, endpoint) => sum + endpoint.errored, 0);
+    const allEndpoints = DIBBS_ENDPOINTS.every((name) =>
+      summary.endpoints.some((endpoint) => endpoint.endpoint === name),
+    );
+    const complete = summary.completeness === 'complete' && allEndpoints;
+    const incomplete = summary.endpoints
+      .filter((endpoint) => !endpoint.complete)
+      .map((endpoint) => endpoint.endpoint);
+    return {
+      ...emptyCounts(),
+      updated: summary.endpoints.reduce((sum, endpoint) => sum + endpoint.written, 0),
+      skipped: summary.endpoints.reduce(
+        (sum, endpoint) => sum + endpoint.droppedNoUuid + endpoint.droppedNoRequiredField,
+        0,
+      ),
+      errors,
+      complete,
+      ...(!complete
+        ? {
+            incompleteReason: `DIBBS ${summary.windowKind} run incomplete: ${incomplete.join(', ') || 'only selected endpoints were scanned'}${summary.rateLimited ? '; rate-limit retries exhausted' : ''}.`,
+          }
+        : {}),
+      ...(errors
+        ? {
+            errorMessage: `${errors} DIBBS records failed to persist. Re-run the affected window or --full reconciliation.`,
+          }
+        : {}),
+    };
+  };
+  return options.commit ? runWithSyncRun(prisma, 'sync-tango-dibbs', execute) : execute();
+}
+
 // ── Real wiring ──────────────────────────────────────────────────────────────
 
 function realUpsertSolicitation(prisma: PrismaClient): DibbsSyncDeps['upsertSolicitation'] {
@@ -551,7 +601,9 @@ function realUpsertAward(prisma: PrismaClient): DibbsSyncDeps['upsertAward'] {
 function realHighWaterMark(prisma: PrismaClient): DibbsSyncDeps['highWaterMark'] {
   return async (endpoint) => {
     if (endpoint === 'award') {
-      const row = await prisma.tangoDibbsAward.aggregate({ _max: { postedDate: true } });
+      const row = await prisma.tangoDibbsAward.aggregate({
+        _max: { postedDate: true },
+      });
       return row._max.postedDate ?? null;
     }
     const row = await prisma.tangoDibbsSolicitation.aggregate({
@@ -565,19 +617,6 @@ function realHighWaterMark(prisma: PrismaClient): DibbsSyncDeps['highWaterMark']
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
-  if (!apiKey) {
-    console.error('TANGO_DIBBS_SYNC_ERR No TANGO_API_KEY configured.');
-    process.exitCode = 1;
-    return;
-  }
-  if (args.endpoints.length === 0) {
-    console.error(
-      `TANGO_DIBBS_SYNC_ERR --endpoint matched none of: ${DIBBS_ENDPOINTS.join(', ')}. Nothing to do.`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
@@ -587,7 +626,8 @@ async function main(): Promise<void> {
       timeoutMs: process.env.TANGO_TIMEOUT_MS ? Number(process.env.TANGO_TIMEOUT_MS) : undefined,
     });
 
-    const summary = await runDibbsSync(
+    const result = await runDibbsSyncJob(
+      prisma,
       {
         gateway,
         upsertSolicitation: realUpsertSolicitation(prisma),
@@ -605,7 +645,7 @@ async function main(): Promise<void> {
       },
     );
 
-    console.log(`TANGO_DIBBS_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit })}`);
+    if (result.errors > 0 || result.complete === false) process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }

@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ForecastOpportunityCard } from './ForecastOpportunityCard.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
@@ -23,7 +24,14 @@ import {
 const { apiGetMock } = vi.hoisted(() => ({ apiGetMock: vi.fn() }));
 
 vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: apiGetMock, post: vi.fn(), patch: vi.fn() }),
+  useApi: () => ({
+    get: (path: string) =>
+      ['/api/clients', '/api/tenant-members'].includes(path)
+        ? Promise.resolve({ data: [] })
+        : apiGetMock(path),
+    post: vi.fn(),
+    patch: vi.fn(),
+  }),
 }));
 
 function facts(partial: Partial<InboxForecastFacts> = {}): InboxForecastFacts {
@@ -135,7 +143,11 @@ function forecastRecord(
 
 function wrap(node: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{node}</QueryClientProvider>);
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={qc}>{node}</QueryClientProvider>
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -165,7 +177,11 @@ describe('a source-stated date is formatted from its parts, never from an instan
 describe('the forecast card labels the record for what it is', () => {
   test('the label carries BOTH facts: where it came from and what it is', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.getByTestId('fo-forecast-label').textContent).toBe(
       'Agency forecast · early signal',
@@ -174,14 +190,22 @@ describe('the forecast card labels the record for what it is', () => {
 
   test('the card names its client, because the inbox is cross-client', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.getByRole('button', { name: 'Show only Acme Defense' })).toBeTruthy();
   });
 
   test('the anticipated award date is labelled as an award estimate, never a deadline', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.getByText('Anticipated award')).toBeTruthy();
     expect(screen.getByTestId('fo-forecast-award-date').textContent).toBe('1 Mar 2027');
@@ -189,7 +213,11 @@ describe('the forecast card labels the record for what it is', () => {
 
   test('the anticipated solicitation date is STATED as not provided, not omitted', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.getByTestId('fo-forecast-solicitation-date').textContent).toBe(
       'Not provided by the source',
@@ -198,7 +226,11 @@ describe('the forecast card labels the record for what it is', () => {
 
   test('the agency system and freshness are both on the card', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.getByText(/via APFS/)).toBeTruthy();
     expect(screen.getByTestId('fo-forecast-freshness').textContent).toMatch(/Last observed/);
@@ -206,7 +238,11 @@ describe('the forecast card labels the record for what it is', () => {
 
   test('an unscored forecast says "Not scored yet", not zero', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.getByTestId('fo-forecast-relevance').textContent).toBe('Not scored yet');
   });
@@ -280,7 +316,11 @@ describe('the forecast card labels the record for what it is', () => {
 describe('THE ACCEPTANCE BAR: no forecast card claims a competition exists', () => {
   test('none of the banned words appears in the card’s own text', () => {
     const { container } = wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     const text = container.textContent ?? '';
     for (const banned of [/\bopen\b/i, /eligib/i, /deadline/i]) {
@@ -290,7 +330,11 @@ describe('THE ACCEPTANCE BAR: no forecast card claims a competition exists', () 
 
   test('the only mention of "solicitation" is the not-provided field label', () => {
     const { container } = wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     const text = container.textContent ?? '';
     const mentions = text.match(/solicitation/gi) ?? [];
@@ -300,7 +344,11 @@ describe('THE ACCEPTANCE BAR: no forecast card claims a competition exists', () 
 
   test('there is no eligibility field at all — not even "Unknown"', () => {
     const { container } = wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(container.textContent).not.toMatch(/eligib/i);
   });
@@ -347,7 +395,11 @@ describe('a forecast never offers Pursue or Submit', () => {
 
   test('with no handler the actions are ABSENT rather than inert', () => {
     wrap(
-      <ForecastOpportunityCard row={forecastRow()} onSelectClient={vi.fn()} onOpenDetail={vi.fn()} />,
+      <ForecastOpportunityCard
+        row={forecastRow()}
+        onSelectClient={vi.fn()}
+        onOpenDetail={vi.fn()}
+      />,
     );
     expect(screen.queryByTestId('fo-forecast-actions')).toBeNull();
   });
@@ -403,9 +455,13 @@ describe('the forecast detail explains the gaps rather than hiding them', () => 
   test('the linkage section states an absence of a LINK, not an absence of a solicitation', async () => {
     apiGetMock.mockResolvedValue({ data: forecastRecord() });
     wrap(<ForecastOpportunityDetail forecastId="FCST-1" clientId="client-1" />);
-    await waitFor(() => expect(screen.getByTestId('fo-forecast-linkage')).toBeTruthy());
-    const text = screen.getByTestId('fo-forecast-linkage').textContent ?? '';
-    expect(text).toMatch(/absence of a link, not evidence that no solicitation followed/i);
+    expect(await screen.findByText('Related solicitation not linked yet')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Check federal contract notices as the agency's plans develop/),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('fo-forecast-detail').textContent).not.toMatch(
+      /no solicitation (exists|followed)/i,
+    );
   });
 
   test('the unscoped read says fit was not calculated, and why', async () => {
@@ -444,21 +500,27 @@ describe('the forecast detail explains the gaps rather than hiding them', () => 
     expect(source).toMatch(/Anticipated solicitationNot provided by the source/);
   });
 
-  test('the detail never states an eligibility or a response deadline either', async () => {
+  test('the detail labels forecast timing as estimates and gives no eligibility or deadline fact', async () => {
     apiGetMock.mockResolvedValue({ data: forecastRecord() });
-    const { container } = wrap(<ForecastOpportunityDetail forecastId="FCST-1" clientId="client-1" />);
+    const { container } = wrap(
+      <ForecastOpportunityDetail forecastId="FCST-1" clientId="client-1" />,
+    );
     await waitFor(() => expect(screen.getByTestId('fo-forecast-detail')).toBeTruthy());
-    expect(container.textContent).not.toMatch(/eligib/i);
-    expect(container.textContent).not.toMatch(/deadline/i);
+    const factLabels = [...container.querySelectorAll('.fov-fact__label')]
+      .map((label) => label.textContent)
+      .join(' ');
+    expect(factLabels).not.toMatch(/eligib|response deadline|application deadline/i);
+    expect(factLabels).toContain('Anticipated award (estimate)');
+    expect(container.textContent).toContain('there is no application deadline');
   });
 
-  test('the detail offers the same four actions and no pursuit', async () => {
+  test('the detail offers Save, Watch, review, and Pass without a pursuit', async () => {
     apiGetMock.mockResolvedValue({ data: forecastRecord() });
-    wrap(<ForecastOpportunityDetail forecastId="FCST-1" clientId="client-1" onAction={vi.fn()} />);
-    await waitFor(() => expect(screen.getByTestId('fo-forecast-detail-actions')).toBeTruthy());
-    expect(screen.getByTestId('fo-forecast-detail-actions').textContent).toBe(
-      'MonitorAssign researchPlan capability briefingPass',
-    );
+    wrap(<ForecastOpportunityDetail forecastId="FCST-1" clientId="client-1" />);
+    const actions = await screen.findByTestId('fo-client-actions');
+    for (const name of ['Save', 'Watch', 'Create review task', 'Pass']) {
+      expect(within(actions).getByRole('button', { name })).toBeEnabled();
+    }
     expect(screen.queryByRole('button', { name: /pursue|submit/i })).toBeNull();
   });
 });

@@ -62,7 +62,10 @@ type Fixture = {
   tenantId: string;
   userId: string;
   clientId: string;
+  otherClientId: string;
   samOpportunityId: string;
+  reviewOpportunityId: string;
+  legacyOpportunityId: string;
 };
 
 type ActionResult = Awaited<ReturnType<FundingOpportunityActionsService['act']>>;
@@ -78,7 +81,10 @@ function makeFixture(): Fixture {
     tenantId: randomUUID(),
     userId: randomUUID(),
     clientId: randomUUID(),
+    otherClientId: randomUUID(),
     samOpportunityId: randomUUID(),
+    reviewOpportunityId: randomUUID(),
+    legacyOpportunityId: randomUUID(),
   };
 }
 
@@ -112,31 +118,43 @@ async function seedFixtures(prisma: PrismaService, fixture: Fixture): Promise<vo
         joinedAt: now,
       },
     });
-    await tx.client.create({
-      data: {
-        id: fixture.clientId,
-        tenantId: fixture.tenantId,
-        name: 'P08 disposable concurrency client',
-      },
-    });
+    for (const clientId of [fixture.clientId, fixture.otherClientId]) {
+      await tx.client.create({
+        data: {
+          id: clientId,
+          tenantId: fixture.tenantId,
+          name: 'P08 disposable concurrency client',
+        },
+      });
+    }
+    await tx.$executeRaw`
+      INSERT INTO intel_feature_flag (id, tenant_id, feature, enabled)
+      VALUES (${randomUUID()}, ${fixture.tenantId}, 'funding_opportunities', true)
+    `;
   });
 
-  await prisma.samOpportunity.create({
-    data: {
-      id: fixture.samOpportunityId,
-      noticeId: `P08-CONCURRENCY-${fixture.samOpportunityId}`,
-      solicitationNumber: 'P08-CONCURRENCY',
-      title: OPPORTUNITY_TITLE,
-      noticeType: 'Solicitation',
-      baseType: 'Solicitation',
-      agency: 'P08 Test Agency',
-      responseDeadline: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-      archiveDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-      sourceUrl: 'https://example.invalid/p08-concurrency',
-      active: true,
-      updatedAt: now,
-    },
-  });
+  for (const id of [
+    fixture.samOpportunityId,
+    fixture.reviewOpportunityId,
+    fixture.legacyOpportunityId,
+  ]) {
+    await prisma.samOpportunity.create({
+      data: {
+        id,
+        noticeId: `P08-CONCURRENCY-${id}`,
+        solicitationNumber: 'P08-CONCURRENCY',
+        title: OPPORTUNITY_TITLE,
+        noticeType: 'Solicitation',
+        baseType: 'Solicitation',
+        agency: 'P08 Test Agency',
+        responseDeadline: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+        archiveDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+        sourceUrl: 'https://example.invalid/p08-concurrency',
+        active: true,
+        updatedAt: now,
+      },
+    });
+  }
 }
 
 /**
@@ -158,10 +176,9 @@ async function seedFixtures(prisma: PrismaService, fixture: Fixture): Promise<vo
  * P2002 — leaving engagement_tasks_tenant_source_uniq as the ONLY thing between
  * CONCURRENCY parallel find-then-create calls and CONCURRENCY duplicate rows.
  *
- * Seeded directly rather than by a warm-up `review` act() because that path is
- * independently broken: intent 'review' sends nextAction=null with a non-null
- * nextActionDueAt, which violates client_funding_opportunity_next_action_chk.
- * That is a real pre-existing defect, out of scope for this fix.
+ * Seeded directly so the pursuit concurrency proof is independent of review
+ * behavior. A separate assertion below exercises dated review creation through
+ * the real service and its database constraint.
  */
 async function seedDecisionRow(prisma: PrismaService, fixture: Fixture): Promise<void> {
   const identity = buildSourceRecordIdentity(OPPORTUNITY_SOURCE, fixture.samOpportunityId);
@@ -189,7 +206,26 @@ async function cleanupFixtures(prisma: PrismaService, fixture: Fixture): Promise
   const steps: Array<[string, () => Promise<unknown>]> = [
     [
       'samOpportunity',
-      () => prisma.samOpportunity.deleteMany({ where: { id: fixture.samOpportunityId } }),
+      () =>
+        prisma.samOpportunity.deleteMany({
+          where: {
+            id: {
+              in: [
+                fixture.samOpportunityId,
+                fixture.reviewOpportunityId,
+                fixture.legacyOpportunityId,
+              ],
+            },
+          },
+        }),
+    ],
+    [
+      'featureFlag',
+      () =>
+        prisma.withSystem(
+          (tx) =>
+            tx.$executeRaw`DELETE FROM intel_feature_flag WHERE tenant_id = ${fixture.tenantId}`,
+        ),
     ],
     [
       'tenant',
@@ -235,6 +271,7 @@ async function main(): Promise<void> {
     const opportunities = new FundingOpportunitiesService(prisma, tangoStore, tangoGateway);
     const actions = new FundingOpportunityActionsService(prisma, opportunities);
     const sourceId = FundingOpportunityActionsService.taskSourceId(
+      fixture.clientId,
       OPPORTUNITY_SOURCE,
       fixture.samOpportunityId,
       'pursuit',
@@ -244,10 +281,16 @@ async function main(): Promise<void> {
 
     const results = await Promise.allSettled(
       Array.from({ length: CONCURRENCY }, () =>
-        actions.act(fixture.tenantId, fixture.clientId, OPPORTUNITY_SOURCE, fixture.samOpportunityId, {
-          intent: 'pursuit',
-          actorUserId: fixture.userId,
-        }),
+        actions.act(
+          fixture.tenantId,
+          fixture.clientId,
+          OPPORTUNITY_SOURCE,
+          fixture.samOpportunityId,
+          {
+            intent: 'pursuit',
+            actorUserId: fixture.userId,
+          },
+        ),
       ),
     );
 
@@ -256,7 +299,9 @@ async function main(): Promise<void> {
     );
     if (rejected.length > 0) {
       const reasons = rejected
-        .map((result) => (result.reason instanceof Error ? result.reason.stack : String(result.reason)))
+        .map((result) =>
+          result.reason instanceof Error ? result.reason.stack : String(result.reason),
+        )
         .join('\n');
       throw new Error(
         `${rejected.length}/${CONCURRENCY} concurrent actions rejected; expected every loser to recover from P2002\n${reasons}`,
@@ -293,8 +338,150 @@ async function main(): Promise<void> {
     assertEqual(counts.decisionCount, 1, 'exactly one client_funding_opportunity row must survive');
     assertEqual(reusedCount, CONCURRENCY - 1, 'all but the winning action must report reused=true');
 
+    // Same source notice, different client: the original tenant/source-only key
+    // used to return the first client's task here.
+    await seedDecisionRow(prisma, { ...fixture, clientId: fixture.otherClientId });
+    const other = await actions.act(
+      fixture.tenantId,
+      fixture.otherClientId,
+      OPPORTUNITY_SOURCE,
+      fixture.samOpportunityId,
+      {
+        intent: 'pursuit',
+        actorUserId: fixture.userId,
+      },
+    );
+    if (taskIds.has(other.task.id) || other.task.reused)
+      throw new Error('A second client reused the first client task');
+    const otherRetry = await actions.act(
+      fixture.tenantId,
+      fixture.otherClientId,
+      OPPORTUNITY_SOURCE,
+      fixture.samOpportunityId,
+      {
+        intent: 'pursuit',
+        actorUserId: fixture.userId,
+      },
+    );
+    if (otherRetry.task.id !== other.task.id || !otherRetry.task.reused)
+      throw new Error('Second client retry did not reuse its own task');
+
+    // Exercise the actual non-null-date / non-empty-text database constraint.
+    const followUp = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const reviewed = await actions.act(
+      fixture.tenantId,
+      fixture.clientId,
+      OPPORTUNITY_SOURCE,
+      fixture.reviewOpportunityId,
+      {
+        intent: 'review',
+        actorUserId: fixture.userId,
+        nextAction: '   ',
+        nextActionDueAt: followUp.toISOString(),
+      },
+    );
+    const reviewRow = await prisma.withTenant(fixture.tenantId, (tx) =>
+      tx.clientFundingOpportunity.findFirstOrThrow({
+        where: { clientId: fixture.clientId, samOpportunityId: fixture.reviewOpportunityId },
+      }),
+    );
+    if (
+      !reviewRow.nextAction?.trim() ||
+      reviewRow.nextActionDueAt?.toISOString() !== reviewed.task.dueDate
+    ) {
+      throw new Error('Dated review did not persist matching date and nonempty next action');
+    }
+
+    // Preserve preexisting task identity and human edits, but never reuse it for
+    // another client even when an old workflow audit incorrectly referenced it.
+    const legacy = await prisma.withTenant(fixture.tenantId, (tx) =>
+      tx.engagementTask.create({
+        data: {
+          tenantId: fixture.tenantId,
+          clientId: fixture.clientId,
+          title: 'Human-edited legacy pursuit',
+          ownerUserId: fixture.userId,
+          dueDate: followUp,
+          sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE,
+          sourceId: `${OPPORTUNITY_SOURCE}:${fixture.legacyOpportunityId}:pursuit`,
+          createdByUserId: fixture.userId,
+        },
+      }),
+    );
+    const legacyReused = await actions.act(
+      fixture.tenantId,
+      fixture.clientId,
+      OPPORTUNITY_SOURCE,
+      fixture.legacyOpportunityId,
+      {
+        intent: 'pursuit',
+        actorUserId: fixture.userId,
+        ownerUserId: null,
+        nextActionDueAt: null,
+      },
+    );
+    if (
+      legacyReused.task.id !== legacy.id ||
+      !legacyReused.task.reused ||
+      legacyReused.task.ownerUserId !== fixture.userId ||
+      legacyReused.task.dueDate !== followUp.toISOString()
+    ) {
+      throw new Error('Legacy reuse changed the task identity, owner or date');
+    }
+    const legacyOther = await actions.act(
+      fixture.tenantId,
+      fixture.otherClientId,
+      OPPORTUNITY_SOURCE,
+      fixture.legacyOpportunityId,
+      {
+        intent: 'pursuit',
+        actorUserId: fixture.userId,
+      },
+    );
+    if (legacyOther.task.id === legacy.id || legacyOther.task.reused)
+      throw new Error('Legacy task leaked across client boundaries');
+
+    // Retrying after a teammate edits the task must retain their actual task
+    // fields and human workflow notes instead of replaying stale input.
+    await prisma.withTenant(fixture.tenantId, async (tx) => {
+      await tx.clientFundingOpportunity.updateMany({
+        where: { clientId: fixture.clientId, samOpportunityId: fixture.legacyOpportunityId },
+        data: {
+          notes: 'Human note survives retry',
+          nextAction: 'Teammate confirmed acquisition requirements',
+        },
+      });
+    });
+    await actions.act(
+      fixture.tenantId,
+      fixture.clientId,
+      OPPORTUNITY_SOURCE,
+      fixture.legacyOpportunityId,
+      {
+        intent: 'pursuit',
+        actorUserId: fixture.userId,
+        ownerUserId: null,
+        notes: 'Stale request note',
+        nextAction: 'Stale next action',
+        nextActionDueAt: null,
+      },
+    );
+    const preserved = await prisma.withTenant(fixture.tenantId, (tx) =>
+      tx.clientFundingOpportunity.findFirstOrThrow({
+        where: { clientId: fixture.clientId, samOpportunityId: fixture.legacyOpportunityId },
+      }),
+    );
+    if (
+      preserved.notes !== 'Human note survives retry' ||
+      preserved.nextAction !== 'Teammate confirmed acquisition requirements' ||
+      preserved.ownerUserId !== fixture.userId ||
+      preserved.nextActionDueAt?.toISOString() !== followUp.toISOString()
+    ) {
+      throw new Error('Retry overwrote human workflow edits or disagreed with the task owner/date');
+    }
+
     console.log(
-      `P08_ACTION_CONCURRENCY_OK: ${CONCURRENCY} concurrent actions -> 1 task row, 1 decision row, ${reusedCount} reused=true`,
+      `P08_ACTION_CONCURRENCY_OK: ${CONCURRENCY} concurrent actions -> 1 task row, 1 decision row, ${reusedCount} reused=true; client isolation, dated review, legacy reuse and human-edit preservation passed`,
     );
   } finally {
     if (connected) {

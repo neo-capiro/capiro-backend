@@ -4,6 +4,8 @@ import request from 'supertest';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { configureApiHttpApp } from '../bootstrap/configure-api-http-app.js';
+import { FundingOpportunityClientAccessGuard } from './funding-opportunity-client-access.guard.js';
+import { FundingOpportunityFeedService } from './funding-opportunity-feed.service.js';
 import { FundingOpportunitiesController } from './funding-opportunities.controller.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
 import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
@@ -59,6 +61,15 @@ const GRANT_ID = '362036';
 describe('funding-opportunities :source/:id routes through the real HTTP pipeline', () => {
   let app: INestApplication;
 
+  const patchWorkflow = jest
+    .fn()
+    .mockResolvedValue({ id: 'workflow-1', status: 'saved', nextAction: 'Confirm agency timing' });
+  const feedList = jest.fn().mockResolvedValue({ source: 'agency_forecast', rows: [], total: 0 });
+  const feedDetail = jest
+    .fn()
+    .mockResolvedValue({ source: 'dibbs', sourceRecordId: 'line-1', responseDeadline: null });
+  const feedWrite = jest.fn().mockResolvedValue({ id: 'workflow-1', status: 'saved' });
+  const action = jest.fn().mockResolvedValue({ workflowId: 'workflow-1', workflowStatus: 'saved' });
   const getOpportunity = jest.fn().mockResolvedValue({
     id: `grants_gov:${GRANT_ID}`,
     source: 'grants_gov',
@@ -72,8 +83,12 @@ describe('funding-opportunities :source/:id routes through the real HTTP pipelin
     const moduleRef = await Test.createTestingModule({
       controllers: [FundingOpportunitiesController],
       providers: [
-        { provide: FundingOpportunitiesService, useValue: { getOpportunity } },
-        { provide: FundingOpportunityActionsService, useValue: {} },
+        { provide: FundingOpportunitiesService, useValue: { getOpportunity, patchWorkflow } },
+        { provide: FundingOpportunityActionsService, useValue: { act: action } },
+        {
+          provide: FundingOpportunityFeedService,
+          useValue: { list: feedList, detail: feedDetail, write: feedWrite },
+        },
         { provide: FundingOpportunityInboxService, useValue: {} },
         { provide: ForecastOpportunityReadService, useValue: {} },
         { provide: OpportunityTimelineService, useValue: { getTimeline } },
@@ -91,6 +106,8 @@ describe('funding-opportunities :source/:id routes through the real HTTP pipelin
       // Every guard named anywhere on the controller must be overridden, not
       // just the ones these routes hit: Nest resolves all route guards at
       // init, and the real ones want PrismaService.
+      .overrideGuard(FundingOpportunityClientAccessGuard)
+      .useValue({ canActivate: () => true })
       .overrideGuard(FundingOpportunitiesFlagGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(FundingOpportunitiesInboxFlagGuard)
@@ -123,22 +140,16 @@ describe('funding-opportunities :source/:id routes through the real HTTP pipelin
       includeEmailSignatureLargeBody: false,
       defaultJsonLimit: '1mb',
     });
-    app.use(
-      (
-        req: { tenantContext?: TenantContext },
-        _res: unknown,
-        next: () => void,
-      ) => {
-        req.tenantContext = {
-          tenantId: TENANT,
-          tenantSlug: 'test',
-          userId: USER,
-          clerkUserId: `clerk_${USER}`,
-          role: 'standard_user',
-        };
-        next();
-      },
-    );
+    app.use((req: { tenantContext?: TenantContext }, _res: unknown, next: () => void) => {
+      req.tenantContext = {
+        tenantId: TENANT,
+        tenantSlug: 'test',
+        userId: USER,
+        clerkUserId: `clerk_${USER}`,
+        role: 'standard_user',
+      };
+      next();
+    });
     await app.init();
   });
 
@@ -202,5 +213,85 @@ describe('funding-opportunities :source/:id routes through the real HTTP pipelin
       expect.anything(),
       expect.anything(),
     );
+  });
+  it('Browse accepts a paginated Tango feed with no client selected', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/intelligence/opportunities/feeds/agency_forecast')
+      .query({ page: 2, pageSize: 25, q: 'aircraft' });
+    expect(res.status).toBe(200);
+    expect(feedList).toHaveBeenCalledWith(
+      TENANT,
+      USER,
+      'agency_forecast',
+      expect.objectContaining({ page: 2, pageSize: 25, q: 'aircraft' }),
+    );
+  });
+  it('DIBBS detail validates both source and opaque id', async () => {
+    const res = await request(app.getHttpServer()).get(
+      '/api/intelligence/opportunities/feeds/dibbs/line-1',
+    );
+    expect(res.status).toBe(200);
+    expect(feedDetail).toHaveBeenCalledWith(TENANT, USER, 'dibbs', 'line-1', undefined);
+  });
+  it('forecast Save whitelists the client and source path segments', async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/api/intelligence/clients/${CLIENT}/opportunities/agency_forecast/forecast-1/save`)
+      .send({ status: 'saved' });
+    expect(res.status).toBe(201);
+    expect(feedWrite).toHaveBeenCalledWith(TENANT, USER, CLIENT, 'agency_forecast', 'forecast-1', {
+      status: 'saved',
+    });
+  });
+  it('forecast Review accepts an explicit team follow-up date', async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/api/intelligence/clients/${CLIENT}/opportunities/agency_forecast/forecast-1/action`)
+      .send({
+        intent: 'review',
+        nextAction: 'Verify agency timing',
+        nextActionDueAt: '2026-10-01T00:00:00Z',
+      });
+    expect(res.status).toBe(201);
+    expect(action).toHaveBeenCalledWith(
+      TENANT,
+      CLIENT,
+      'agency_forecast',
+      'forecast-1',
+      expect.objectContaining({ intent: 'review', nextActionDueAt: '2026-10-01T00:00:00Z' }),
+    );
+  });
+
+  it('PATCH accepts team-plan fields and forwards explicit null without recording a decision', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/intelligence/clients/${CLIENT}/opportunities/sam_gov/${SAM_ID}`)
+      .send({
+        ownerUserId: null,
+        nextAction: 'Confirm agency timing',
+        nextActionDueAt: null,
+        notes: 'Assigned for review',
+      });
+    expect(res.status).toBe(200);
+    expect(patchWorkflow).toHaveBeenCalledWith(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      ownerUserId: null,
+      nextAction: 'Confirm agency timing',
+      nextActionDueAt: null,
+      notes: 'Assigned for review',
+    });
+  });
+  it('PATCH rejects a malformed follow-up date', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/intelligence/clients/${CLIENT}/opportunities/sam_gov/${SAM_ID}`)
+      .send({ nextActionDueAt: 'next Tuesday' });
+    expect(res.status).toBe(400);
+  });
+  it('PATCH forwards forecast team-plan fields through the same validated route', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/intelligence/clients/${CLIENT}/opportunities/agency_forecast/forecast-1`)
+      .send({ nextAction: null, nextActionDueAt: null });
+    expect(res.status).toBe(200);
+    expect(feedWrite).toHaveBeenCalledWith(TENANT, USER, CLIENT, 'agency_forecast', 'forecast-1', {
+      nextAction: null,
+      nextActionDueAt: null,
+    });
   });
 });

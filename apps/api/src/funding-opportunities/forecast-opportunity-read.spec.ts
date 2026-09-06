@@ -197,7 +197,11 @@ describe('every signal is established by EXACT comparison, or not at all', () =>
 
   test('prior agency history survives the closed dept/HQ rewrite set', () => {
     const s = deriveForecastSignals(
-      forecastRow({ agency: 'DEPT OF THE NAVY', departmentName: null, organizationAgencyName: null }),
+      forecastRow({
+        agency: 'DEPT OF THE NAVY',
+        departmentName: null,
+        organizationAgencyName: null,
+      }),
       signalProfile({ priorAgencies: ['DEPARTMENT OF THE NAVY'] }),
       VEHICLE_OFF,
     );
@@ -215,7 +219,11 @@ describe('every signal is established by EXACT comparison, or not at all', () =>
 
   test('a DIFFERENT agency is not prior history, however similar the name', () => {
     const s = deriveForecastSignals(
-      forecastRow({ agency: 'DEPT OF THE ARMY', departmentName: null, organizationAgencyName: null }),
+      forecastRow({
+        agency: 'DEPT OF THE ARMY',
+        departmentName: null,
+        organizationAgencyName: null,
+      }),
       signalProfile({ priorAgencies: ['DEPT OF THE NAVY'] }),
       VEHICLE_OFF,
     );
@@ -252,7 +260,11 @@ describe('every signal is established by EXACT comparison, or not at all', () =>
   });
 
   test('location matches on a two-letter state the free text actually names', () => {
-    const s = deriveForecastSignals(forecastRow(), signalProfile({ facilityStates: ['FL'] }), VEHICLE_OFF);
+    const s = deriveForecastSignals(
+      forecastRow(),
+      signalProfile({ facilityStates: ['FL'] }),
+      VEHICLE_OFF,
+    );
     expect(s.locationMatch).toBe(true);
   });
 
@@ -334,7 +346,12 @@ describe('the scorer input carries the signals through unchanged', () => {
 
   test('there is no eligibility and no deadline anywhere in the input', () => {
     const facts = toInboxForecastFacts(forecastRow());
-    const input = toForecastRelevanceInput(facts, deriveForecastSignals(forecastRow(), signalProfile(), VEHICLE_OFF), false, AS_OF);
+    const input = toForecastRelevanceInput(
+      facts,
+      deriveForecastSignals(forecastRow(), signalProfile(), VEHICLE_OFF),
+      false,
+      AS_OF,
+    );
     expect(Object.keys(input)).not.toContain('eligibility');
     expect(Object.keys(input).join(' ')).not.toMatch(/deadline/i);
   });
@@ -473,10 +490,7 @@ function makePort(
       return opts.vehicle ?? { enabled: false, hasAccess: false };
     },
   };
-  const service = new ForecastOpportunityReadService(
-    {} as never,
-    {} as never,
-  ).withPort(port);
+  const service = new ForecastOpportunityReadService({} as never, {} as never).withPort(port);
   return { service, calls };
 }
 
@@ -492,9 +506,9 @@ describe('reading one forecast', () => {
     // "We hold no such forecast" and "the agency forecast nothing" are
     // different facts, and only the first one is ever true.
     const { service } = makePort({ forecast: null });
-    await expect(service.getForecast(TENANT, USER, 'FCST-404', CLIENT, AS_OF)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getForecast(TENANT, USER, 'FCST-404', CLIENT, AS_OF),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   test('the unscoped read returns source facts and NO client judgement', async () => {
@@ -594,8 +608,42 @@ describe('reading one forecast', () => {
       },
     });
     const out = await service.getForecast(TENANT, USER, 'FCST-1', CLIENT, AS_OF);
-    expect(out.workflow).toEqual({ id: 'wf-9', status: 'saved' });
+    expect(out.workflow).toEqual({
+      id: 'wf-9',
+      status: 'saved',
+      ownerUserId: null,
+      notes: null,
+      nextAction: null,
+      nextActionDueAt: null,
+    });
     expect(out.decision!.decision).toBe('monitor');
+  });
+
+  test('saved forecasts expose their current team plan without inventing a human decision', async () => {
+    const { service } = makePort({
+      workflow: {
+        id: 'wf-saved',
+        workflowStatus: 'saved',
+        humanDecision: null,
+        decisionReason: null,
+        decisionAt: null,
+        decisionByUserId: null,
+        ownerUserId: USER,
+        notes: 'Confirm program office interest with the client.',
+        nextAction: 'Arrange a capability briefing',
+        nextActionDueAt: new Date('2026-09-16T15:00:00Z'),
+      },
+    });
+    const out = await service.getForecast(TENANT, USER, 'FCST-1', CLIENT, AS_OF);
+    expect(out.decision).toBeNull();
+    expect(out.workflow).toEqual({
+      id: 'wf-saved',
+      status: 'saved',
+      ownerUserId: USER,
+      notes: 'Confirm program office interest with the client.',
+      nextAction: 'Arrange a capability briefing',
+      nextActionDueAt: '2026-09-16T15:00:00.000Z',
+    });
   });
 
   test('the record has no eligibility, no deadline and no money field at all', async () => {
@@ -616,7 +664,9 @@ describe('reading one forecast', () => {
 
   test('a contact block appears only when the provider stated at least one part', async () => {
     const { service } = makePort();
-    expect((await service.getForecast(TENANT, USER, 'FCST-1', null, AS_OF)).primaryContact).toBeNull();
+    expect(
+      (await service.getForecast(TENANT, USER, 'FCST-1', null, AS_OF)).primaryContact,
+    ).toBeNull();
 
     const withContact = makePort();
     const svc = withContact.service as unknown as { port: ForecastReadPort };

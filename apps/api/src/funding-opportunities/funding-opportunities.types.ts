@@ -479,7 +479,14 @@ export interface OpportunityWorkflow {
   id: string;
   status: OpportunityWorkflowStatus;
   owner: { userId: string; name: string | null; email: string | null } | null;
-  facility: { id: string; name: string; state: string | null; districtKey: DistrictKey | null } | null;
+  facility: {
+    id: string;
+    name: string;
+    state: string | null;
+    districtKey: DistrictKey | null;
+  } | null;
+  nextAction?: string | null;
+  nextActionDueAt?: IsoTimestamp | null;
   notes: string | null;
   dismissedReason: string | null;
   outcomeNote: string | null;

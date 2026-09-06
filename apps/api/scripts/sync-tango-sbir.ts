@@ -74,6 +74,12 @@
 import { config as dotenvConfig } from 'dotenv';
 import { Prisma, PrismaClient } from '@prisma/client';
 import {
+  runWithSyncRun,
+  emptyCounts,
+  type RunCounts,
+  type SyncRunCapablePrisma,
+} from '../src/ingestion/sync-run.helper.js';
+import {
   TangoSbirClient,
   TangoSbirEnvelopeError,
   TangoSbirHttpError,
@@ -554,6 +560,49 @@ export async function runSbirSync(
   };
 }
 
+/** Run ledger used by freshness/alarms; the same core walk runs in dry-run mode. */
+export async function runSbirSyncJob(
+  prisma: SyncRunCapablePrisma,
+  deps: SbirSyncDeps,
+  options: SbirSyncOptions,
+): Promise<RunCounts> {
+  const execute = async (): Promise<RunCounts> => {
+    if (!deps.gateway.configured) throw new Error('No TANGO_API_KEY configured.');
+    if (options.endpoints?.length === 0) throw new Error('No valid SBIR endpoints selected.');
+    const summary = await runSbirSync(deps, options);
+    console.log(`TANGO_SBIR_SYNC_DONE ${JSON.stringify(summary)}`);
+    const errors = summary.endpoints.reduce((sum, endpoint) => sum + endpoint.errored, 0);
+    const allEndpoints = SBIR_ENDPOINTS.every((name) =>
+      summary.endpoints.some((endpoint) => endpoint.endpoint === name),
+    );
+    const complete = summary.completeness === 'complete' && allEndpoints;
+    const incomplete = summary.endpoints
+      .filter((endpoint) => !endpoint.complete)
+      .map((endpoint) => endpoint.endpoint);
+    return {
+      ...emptyCounts(),
+      updated: summary.endpoints.reduce((sum, endpoint) => sum + endpoint.written, 0),
+      skipped: summary.endpoints.reduce(
+        (sum, endpoint) => sum + endpoint.droppedNoId + endpoint.droppedNoRequiredField,
+        0,
+      ),
+      errors,
+      complete,
+      ...(!complete
+        ? {
+            incompleteReason: `SBIR ${summary.windowKind} run incomplete: ${incomplete.join(', ') || 'only selected endpoints were scanned'}${summary.rateLimited ? '; rate-limit retries exhausted' : ''}.`,
+          }
+        : {}),
+      ...(errors
+        ? {
+            errorMessage: `${errors} SBIR records failed to persist. Re-run the affected window or --full reconciliation.`,
+          }
+        : {}),
+    };
+  };
+  return options.commit ? runWithSyncRun(prisma, 'sync-tango-sbir', execute) : execute();
+}
+
 // ── Real wiring ──────────────────────────────────────────────────────────────
 
 function realUpsertSolicitation(prisma: PrismaClient): SbirSyncDeps['upsertSolicitation'] {
@@ -590,10 +639,14 @@ function realUpsertTopic(prisma: PrismaClient): SbirSyncDeps['upsertTopic'] {
 function realHighWaterMark(prisma: PrismaClient): SbirSyncDeps['highWaterMark'] {
   return async (endpoint) => {
     if (endpoint === 'solicitation') {
-      const row = await prisma.tangoSbirSolicitation.aggregate({ _max: { startDate: true } });
+      const row = await prisma.tangoSbirSolicitation.aggregate({
+        _max: { startDate: true },
+      });
       return row._max.startDate ?? null;
     }
-    const row = await prisma.tangoSbirTopic.aggregate({ _max: { releaseDate: true } });
+    const row = await prisma.tangoSbirTopic.aggregate({
+      _max: { releaseDate: true },
+    });
     return row._max.releaseDate ?? null;
   };
 }
@@ -601,19 +654,6 @@ function realHighWaterMark(prisma: PrismaClient): SbirSyncDeps['highWaterMark'] 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
-  if (!apiKey) {
-    console.error('TANGO_SBIR_SYNC_ERR No TANGO_API_KEY configured.');
-    process.exitCode = 1;
-    return;
-  }
-  if (args.endpoints.length === 0) {
-    console.error(
-      `TANGO_SBIR_SYNC_ERR --endpoint matched none of: ${SBIR_ENDPOINTS.join(', ')}. Nothing to do.`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
@@ -623,7 +663,8 @@ async function main(): Promise<void> {
       timeoutMs: process.env.TANGO_TIMEOUT_MS ? Number(process.env.TANGO_TIMEOUT_MS) : undefined,
     });
 
-    const summary = await runSbirSync(
+    const result = await runSbirSyncJob(
+      prisma,
       {
         gateway,
         upsertSolicitation: realUpsertSolicitation(prisma),
@@ -641,7 +682,7 @@ async function main(): Promise<void> {
       },
     );
 
-    console.log(`TANGO_SBIR_SYNC_DONE ${JSON.stringify({ ...summary, commit: args.commit })}`);
+    if (result.errors > 0 || result.complete === false) process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }

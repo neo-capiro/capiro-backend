@@ -1,32 +1,28 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
-import {
-  CapiroTable,
-  CapiroTableBody,
-  CapiroTableCell,
-  CapiroTableHead,
-  CapiroTableHeaderCell,
-  CapiroTableWrap,
-} from '../../components/tables/index.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import {
   FUNDING_OPPORTUNITIES_PIPELINE_FEATURE,
+  INBOX_SOURCES,
   PIPELINE_STAGES,
   PIPELINE_STAGES_NEEDING_REASON,
   PIPELINE_STAGE_LABELS,
   PURSUIT_OUTCOME_KINDS,
   pipelineBoardApiPath,
+  opportunityDetailPath,
   pipelineStageApiPath,
   type PipelineBoardView,
   type PipelineCardView,
   type PipelineStageView,
   type PursuitOutcomeKindView,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
+import { refreshOpportunityQueries } from './opportunity-query-cache.js';
 import { OpportunityOutcomeModal } from './OpportunityOutcomeModal.js';
-import { FovAlert, FovCard, FovModal, FovPill, FovSegmented, FovSkeletonRows } from './fov-ui.js';
+import { FovAlert, FovCard, FovModal, FovPill, FovSkeletonRows } from './fov-ui.js';
 
 function isPursuitOutcomeKind(value: PipelineStageView): value is PursuitOutcomeKindView {
   return (PURSUIT_OUTCOME_KINDS as readonly string[]).includes(value);
@@ -46,10 +42,10 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
   const qc = useQueryClient();
   const toast = useCapiroToast();
   const flag = useIntelFeature(FUNDING_OPPORTUNITIES_PIPELINE_FEATURE);
-  const [view, setView] = useState<'board' | 'list'>('board');
-  const [pending, setPending] = useState<{ card: PipelineCardView; to: PipelineStageView } | null>(
-    null,
-  );
+  const [pending, setPending] = useState<{
+    card: PipelineCardView;
+    to: PipelineStageView;
+  } | null>(null);
   const [reason, setReason] = useState('');
   // Opened automatically once a move to won/lost/passed COMMITS — P36 is what
   // happens after that transition, never a gate on it.
@@ -84,8 +80,7 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
       });
     },
     onSuccess: (_data, input) => {
-      void qc.invalidateQueries({ queryKey: ['funding-opportunity-pipeline'] });
-      void qc.invalidateQueries({ queryKey: ['funding-opportunity-inbox'] });
+      void refreshOpportunityQueries(qc);
       toast.success(
         `Moved to ${PIPELINE_STAGE_LABELS[input.to]} — recorded with your name and the time.`,
       );
@@ -109,7 +104,10 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
       );
       // A conflict means the board is out of date, so refetch even on failure —
       // otherwise the next attempt sends the same stale version and fails again.
-      if (conflict) void qc.invalidateQueries({ queryKey: ['funding-opportunity-pipeline'] });
+      if (conflict)
+        void qc.invalidateQueries({
+          queryKey: ['funding-opportunity-pipeline'],
+        });
     },
   });
 
@@ -135,7 +133,8 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
         tone="error"
         testId="fo-pipeline-error"
         message="The pipeline failed to load"
-        description="This is a request failure, not an empty pipeline. Nothing follows from it about what this client is pursuing."
+        description="Please retry to see the current stages."
+        action={<CapiroButton onClick={() => void query.refetch()}>Retry</CapiroButton>}
       />
     );
   }
@@ -145,6 +144,16 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
   const countFor = (stage: PipelineStageView) =>
     board.counts.stages.find((s) => s.stage === stage)?.count ?? 0;
 
+  const detailPath = (card: PipelineCardView) => {
+    const source = INBOX_SOURCES.find((value) => value === card.source);
+    return source && card.sourceRecordId
+      ? opportunityDetailPath({
+          source,
+          sourceRecordId: card.sourceRecordId,
+          clientId,
+        })
+      : null;
+  };
   const cardBody = (card: PipelineCardView) => (
     <div
       key={card.rowId}
@@ -153,7 +162,13 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
       draggable
       onDragStart={(e) => e.dataTransfer.setData('text/plain', card.rowId)}
     >
-      <span style={{ fontSize: 12 }}>{card.title ?? card.sourceRecordId ?? card.rowId}</span>{' '}
+      <span style={{ fontSize: 12 }}>
+        {detailPath(card) ? (
+          <Link to={detailPath(card)!}>{card.title ?? card.sourceRecordId}</Link>
+        ) : (
+          (card.title ?? card.rowId)
+        )}
+      </span>{' '}
       {card.stageBasis !== 'recorded' ? (
         <FovPill
           tone="gold"
@@ -192,104 +207,46 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
   );
 
   return (
-    <FovCard
-      title="Pursuit pipeline"
-      testId="fo-pipeline"
-      extra={
-        <FovSegmented<'board' | 'list'>
-          value={view}
-          onChange={setView}
-          ariaLabel="Pipeline view"
-          options={[
-            { value: 'board', label: 'Board' },
-            { value: 'list', label: 'List' },
-          ]}
-        />
-      }
-    >
-      {view === 'board' ? (
-        <div className="fov-pipeline__columns" data-testid="fo-pipeline-board">
-          {PIPELINE_STAGES.map((stage) => {
-            const cards = byStage(stage);
-            const count = countFor(stage);
-            return (
-              <section
-                key={stage}
-                className="fov-pipeline__column"
-                data-testid={`fo-pipeline-column-${stage}`}
-                aria-label={`${PIPELINE_STAGE_LABELS[stage]}, ${count} opportunities`}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const rowId = e.dataTransfer.getData('text/plain');
-                  const card = board.cards.find((c) => c.rowId === rowId);
-                  // Refused locally when the SERVER did not list this move.
-                  // The POST is still the gate; this only avoids a request
-                  // that is certain to fail.
-                  if (card && card.allowedTransitions.includes(stage)) requestMove(card, stage);
-                }}
-              >
-                <header>
-                  <span>{PIPELINE_STAGE_LABELS[stage]}</span>{' '}
-                  <span className="fov-micro">({count})</span>
-                </header>
-                {cards.map(cardBody)}
-                {cards.length < count ? (
-                  <span className="fov-micro" data-testid={`fo-pipeline-more-${stage}`}>
-                    {count - cards.length} more not shown.
-                  </span>
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
-      ) : (
-        <CapiroTableWrap data-testid="fo-pipeline-list">
-          <CapiroTable>
-            <CapiroTableHead>
-              <tr>
-                <CapiroTableHeaderCell>Opportunity</CapiroTableHeaderCell>
-                <CapiroTableHeaderCell>Stage</CapiroTableHeaderCell>
-                <CapiroTableHeaderCell>Move</CapiroTableHeaderCell>
-              </tr>
-            </CapiroTableHead>
-            <CapiroTableBody>
-              {board.cards.map((card) => (
-                <tr key={card.rowId}>
-                  <CapiroTableCell>
-                    {card.title ?? card.sourceRecordId ?? card.rowId}
-                  </CapiroTableCell>
-                  <CapiroTableCell>
-                    {card.stage ? (
-                      <FovPill title={card.stageExplanation}>
-                        {PIPELINE_STAGE_LABELS[card.stage]}
-                      </FovPill>
-                    ) : (
-                      <span className="fov-muted" title={card.stageExplanation}>
-                        Not in the pipeline
-                      </span>
-                    )}
-                  </CapiroTableCell>
-                  <CapiroTableCell>
-                    <span className="fov-row" style={{ gap: 4 }}>
-                      {card.allowedTransitions.map((to) => (
-                        <CapiroButton
-                          key={to}
-                          size="compact"
-                          onClick={() => requestMove(card, to)}
-                          data-testid={`fo-pipeline-list-move-${card.rowId}-${to}`}
-                        >
-                          {PIPELINE_STAGE_LABELS[to]}
-                        </CapiroButton>
-                      ))}
-                    </span>
-                  </CapiroTableCell>
-                </tr>
-              ))}
-            </CapiroTableBody>
-          </CapiroTable>
-        </CapiroTableWrap>
-      )}
+    <FovCard title="Pursuit board" testId="fo-pipeline">
+      <p className="fov-micro">
+        {board.counts.stages.reduce((sum, item) => sum + item.count, 0)} staged opportunities. Saved
+        items without a stage are available in the Tracking list.
+      </p>
+      <div className="fov-pipeline__columns" data-testid="fo-pipeline-board">
+        {PIPELINE_STAGES.map((stage) => {
+          const cards = byStage(stage);
+          const count = countFor(stage);
+          return (
+            <section
+              key={stage}
+              className="fov-pipeline__column"
+              data-testid={`fo-pipeline-column-${stage}`}
+              aria-label={`${PIPELINE_STAGE_LABELS[stage]}, ${count} opportunities`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const rowId = e.dataTransfer.getData('text/plain');
+                const card = board.cards.find((c) => c.rowId === rowId);
+                // Refused locally when the SERVER did not list this move.
+                // The POST is still the gate; this only avoids a request
+                // that is certain to fail.
+                if (card && card.allowedTransitions.includes(stage)) requestMove(card, stage);
+              }}
+            >
+              <header>
+                <span>{PIPELINE_STAGE_LABELS[stage]}</span>{' '}
+                <span className="fov-micro">({count})</span>
+              </header>
+              {cards.map(cardBody)}
+              {cards.length < count ? (
+                <span className="fov-micro" data-testid={`fo-pipeline-more-${stage}`}>
+                  {count - cards.length} more not shown.
+                </span>
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
 
       <div style={{ marginTop: 8 }} data-testid="fo-pipeline-footnotes">
         {board.counts.unstaged.suggested > 0 ? (
@@ -321,7 +278,11 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
         onCancel={() => setPending(null)}
         onOk={() => {
           if (pending == null) return;
-          move.mutate({ card: pending.card, to: pending.to, reason: reason.trim() });
+          move.mutate({
+            card: pending.card,
+            to: pending.to,
+            reason: reason.trim(),
+          });
           setPending(null);
         }}
         testId="fo-pipeline-reason-modal"

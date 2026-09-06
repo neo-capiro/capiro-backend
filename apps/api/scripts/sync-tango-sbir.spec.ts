@@ -4,6 +4,7 @@ import {
   SBIR_ENDPOINTS,
   parseArgs,
   runSbirSync,
+  runSbirSyncJob,
   type SbirEndpoint,
   type SbirEndpointSummary,
   type SbirSyncDeps,
@@ -205,7 +206,10 @@ describe('write posture', () => {
 
 describe('idempotency and replay', () => {
   test('re-running the same page does not duplicate — the provider id is the key', async () => {
-    const pages = { solicitation: [[solicitation('SOL1')]], topic: [[topic('T1')]] };
+    const pages = {
+      solicitation: [[solicitation('SOL1')]],
+      topic: [[topic('T1')]],
+    };
     const { deps, solicitations, topics } = fakeDeps(pages);
     await runSbirSync(deps, { commit: true });
     await runSbirSync(deps, { commit: true });
@@ -218,7 +222,10 @@ describe('idempotency and replay', () => {
     const { deps, topics } = fakeDeps({
       topic: [[topic('T1'), topic('T1', { title: 'Revised' })]],
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['topic'],
+    });
 
     expect(topics.size).toBe(1);
     expect((topics.get('T1') as any).title).toBe('Revised');
@@ -238,7 +245,10 @@ describe('identity: neither endpoint may reach for the other key, or for uuid', 
     const { deps, topics } = fakeDeps({
       topic: [[{ uuid: 'T1', topic_number: 'A26-1' }]],
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['topic'],
+    });
 
     expect(topics.size).toBe(0);
     expect(byEndpoint(summary, 'topic').droppedNoId).toBe(1);
@@ -248,7 +258,10 @@ describe('identity: neither endpoint may reach for the other key, or for uuid', 
     const { deps, solicitations } = fakeDeps({
       solicitation: [[{ topic_id: 'SOL1', solicitation_number: 'N-1' }]],
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['solicitation'],
+    });
 
     expect(solicitations.size).toBe(0);
     expect(byEndpoint(summary, 'solicitation').droppedNoId).toBe(1);
@@ -264,7 +277,10 @@ describe('identity: neither endpoint may reach for the other key, or for uuid', 
         ],
       ],
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['solicitation'],
+    });
     const s = byEndpoint(summary, 'solicitation');
 
     expect(s.droppedNoId).toBe(1);
@@ -279,7 +295,10 @@ describe('topicsWithNoStatedCycle is a contract signal, not noise', () => {
     const { deps, topics } = fakeDeps({
       topic: [[topic('T1', { solicitation_number: undefined }), topic('T2')]],
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['topic'],
+    });
 
     // Stored, because the column is nullable precisely so this is representable
     // — dropping it would lose a real topic over a secondary field.
@@ -289,7 +308,10 @@ describe('topicsWithNoStatedCycle is a contract signal, not noise', () => {
 
   test('a cycle can never contribute to the count', async () => {
     const { deps } = fakeDeps({ solicitation: [[solicitation('SOL1')]] });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['solicitation'],
+    });
     expect(summary.topicsWithNoStatedCycle).toBe(0);
   });
 
@@ -299,7 +321,10 @@ describe('topicsWithNoStatedCycle is a contract signal, not noise', () => {
     const { deps, topics } = fakeDeps({
       topic: [[topic('T1', { solicitation_number: 'DoD-SBIR-99.Z-NEVER-SYNCED' })]],
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['topic'],
+    });
 
     expect(topics.size).toBe(1);
     expect(summary.topicsWithNoStatedCycle).toBe(0);
@@ -321,7 +346,10 @@ describe('solicitation date-order reconciliation', () => {
     (deps as any).upsertSolicitation = jest.fn(async () => {
       throw new Error('constraint violation');
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['solicitation'],
+    });
     const s = byEndpoint(summary, 'solicitation');
     expect(summary.solicitationsWithInvertedDates).toBe(1);
     expect(s.errored).toBe(1);
@@ -341,7 +369,10 @@ describe('solicitation date-order reconciliation', () => {
       ],
     });
 
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['solicitation'],
+    });
     const s = byEndpoint(summary, 'solicitation');
 
     expect(solicitations.size).toBe(2);
@@ -379,14 +410,21 @@ describe('the incremental window', () => {
       { topic: [[topic('T1')]] },
       { topic: new Date('2026-06-10T00:00:00.000Z') },
     );
-    await runSbirSync(deps, { commit: false, endpoints: ['topic'], overlapDays: 7 });
+    await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+      overlapDays: 7,
+    });
 
     expect(calls[0]!.options.releaseDateAfter).toBe('2026-06-03');
   });
 
   test('a first run — no stored rows — has no window at all', async () => {
     const { deps, calls } = fakeDeps({ topic: [[topic('T1')]] });
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+    });
 
     expect(calls[0]!.options.releaseDateAfter).toBeUndefined();
     expect(byEndpoint(summary, 'topic').windowFrom).toBeNull();
@@ -397,7 +435,11 @@ describe('the incremental window', () => {
       { topic: [[topic('T1')]] },
       { topic: new Date('2026-06-10T00:00:00.000Z') },
     );
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'], full: true });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+      full: true,
+    });
 
     expect(calls[0]!.options.releaseDateAfter).toBeUndefined();
     expect(summary.windowKind).toBe('full');
@@ -424,7 +466,10 @@ describe('page-complete walking', () => {
     const { deps } = fakeDeps({
       topic: [[topic('T1')], [topic('T2')], [topic('T3')]],
     });
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+    });
     const t = byEndpoint(summary, 'topic');
 
     expect(t.pagesRead).toBe(3);
@@ -434,8 +479,14 @@ describe('page-complete walking', () => {
   });
 
   test('--limit stops early and the run is reported in_progress, not complete', async () => {
-    const { deps } = fakeDeps({ topic: [[topic('T1'), topic('T2')], [topic('T3')]] });
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'], limit: 2 });
+    const { deps } = fakeDeps({
+      topic: [[topic('T1'), topic('T2')], [topic('T3')]],
+    });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+      limit: 2,
+    });
 
     expect(byEndpoint(summary, 'topic').complete).toBe(false);
     expect(summary.completeness).toBe('in_progress');
@@ -487,7 +538,10 @@ describe('rate limiting', () => {
       return real(options);
     });
 
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+    });
     const t = byEndpoint(summary, 'topic');
 
     // Retry-After wins over resetIn: guessing is worse in both directions.
@@ -520,7 +574,10 @@ describe('rate limiting', () => {
       throw rateLimitError({ retryAfter: 1, resetIn: 1, remaining: 0 });
     });
 
-    const summary = await runSbirSync(deps, { commit: false, maxRateLimitRetries: 2 });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      maxRateLimitRetries: 2,
+    });
 
     // The cycle walk still completed. Killing it too would turn one throttled
     // walk into two unsynced datasets.
@@ -539,9 +596,20 @@ describe('rate limiting', () => {
     const { deps, sleeps } = fakeDeps(
       { topic: [[topic('T1')], [topic('T2')]] },
       {},
-      { topic: { remaining: 0, limit: 25, resetIn: 31, retryAfter: null, limitType: null } },
+      {
+        topic: {
+          remaining: 0,
+          limit: 25,
+          resetIn: 31,
+          retryAfter: null,
+          limitType: null,
+        },
+      },
     );
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+    });
 
     expect(sleeps).toContain(31_000);
     expect(byEndpoint(summary, 'topic').throttleWaits).toBeGreaterThan(0);
@@ -567,9 +635,20 @@ describe('rate limiting', () => {
     const { deps, sleeps } = fakeDeps(
       { topic: [[topic('T1')], [topic('T2')]] },
       {},
-      { topic: { remaining: 0, limit: 25, resetIn: 9_999_999, retryAfter: null, limitType: null } },
+      {
+        topic: {
+          remaining: 0,
+          limit: 25,
+          resetIn: 9_999_999,
+          retryAfter: null,
+          limitType: null,
+        },
+      },
     );
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+    });
 
     expect(sleeps).toContain(120_000);
     expect(sleeps).not.toContain(9_999_999_000);
@@ -582,11 +661,19 @@ describe('rate limiting', () => {
     let calls = 0;
     (deps.gateway as any).listTopics = jest.fn(async (options: any) => {
       calls += 1;
-      if (calls === 1) throw rateLimitError({ retryAfter: 9_999_999, resetIn: null, remaining: 0 });
+      if (calls === 1)
+        throw rateLimitError({
+          retryAfter: 9_999_999,
+          resetIn: null,
+          remaining: 0,
+        });
       return real(options);
     });
 
-    const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: false,
+      endpoints: ['topic'],
+    });
 
     expect(sleeps).toContain(120_000);
     expect(sleeps).not.toContain(9_999_999_000);
@@ -596,7 +683,10 @@ describe('rate limiting', () => {
 
 describe('what the summary reports', () => {
   test('windowKind, completeness and rateLimited are all stated, never inferred by a reader', async () => {
-    const { deps } = fakeDeps({ solicitation: [[solicitation('SOL1')]], topic: [[topic('T1')]] });
+    const { deps } = fakeDeps({
+      solicitation: [[solicitation('SOL1')]],
+      topic: [[topic('T1')]],
+    });
     const summary = await runSbirSync(deps, { commit: true });
 
     expect(summary.windowKind).toBe('derived-high-water');
@@ -612,7 +702,10 @@ describe('what the summary reports', () => {
     (deps as any).upsertTopic = jest.fn(async () => {
       throw new Error('constraint violation');
     });
-    const summary = await runSbirSync(deps, { commit: true, endpoints: ['topic'] });
+    const summary = await runSbirSync(deps, {
+      commit: true,
+      endpoints: ['topic'],
+    });
     const t = byEndpoint(summary, 'topic');
 
     expect(t.errored).toBe(1);
@@ -626,7 +719,9 @@ describe('what the summary reports', () => {
       {
         code: 'P2004',
         clientVersion: '5.22.0',
-        meta: { database_error: 'violates check constraint tango_sbir_solicitation_dates_chk' },
+        meta: {
+          database_error: 'violates check constraint tango_sbir_solicitation_dates_chk',
+        },
       },
     );
     (deps as any).upsertSolicitation = jest.fn(async () => {
@@ -635,7 +730,10 @@ describe('what the summary reports', () => {
     const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+      const summary = await runSbirSync(deps, {
+        commit: true,
+        endpoints: ['solicitation'],
+      });
       const s = byEndpoint(summary, 'solicitation');
       expect(s.errored).toBe(1);
       expect(s.written).toBe(0);
@@ -654,5 +752,114 @@ describe('what the summary reports', () => {
     } finally {
       log.mockRestore();
     }
+  });
+});
+
+describe('SBIR/STTR scheduled run ledger', () => {
+  function ledger() {
+    const writes: any[] = [];
+    const prisma = {
+      syncRun: {
+        findFirst: jest.fn(async () => null),
+        create: jest.fn(async (args: any) => {
+          writes.push(args.data);
+          return { id: 'run1' };
+        }),
+        update: jest.fn(async (args: any) => {
+          writes.push(args.data);
+          return {};
+        }),
+      },
+    };
+    return { prisma, writes };
+  }
+  test('records successful solicitation and topic writes under the UI freshness source key', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({
+      solicitation: [[solicitation('S1')]],
+      topic: [[topic('T1')]],
+    });
+    expect(await runSbirSyncJob(prisma, deps, { commit: true })).toMatchObject({
+      updated: 2,
+      errors: 0,
+      complete: true,
+    });
+    expect(writes[0]).toMatchObject({
+      source: 'sync-tango-sbir',
+      status: 'running',
+    });
+    expect(writes[1]).toMatchObject({ status: 'success', rowsUpdated: 2 });
+  });
+  test('dry-run has no successful run record or source writes', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({ topic: [[topic('T1')]] });
+    await runSbirSyncJob(prisma, deps, { commit: false });
+    expect(writes).toHaveLength(0);
+    expect(deps.upsertTopic).not.toHaveBeenCalled();
+  });
+  test('limited full reconciliation and exhausted rate-limit retries remain partial', async () => {
+    const first = ledger();
+    const { deps } = fakeDeps({ topic: [[topic('T1')], [topic('T2')]] });
+    expect(
+      (
+        await runSbirSyncJob(first.prisma, deps, {
+          commit: true,
+          full: true,
+          limit: 1,
+        })
+      ).complete,
+    ).toBe(false);
+    expect(first.writes[1]).toMatchObject({
+      status: 'partial',
+      errorMessage: expect.stringContaining('full run incomplete: topic'),
+    });
+    const second = ledger();
+    const throttled = fakeDeps({}).deps;
+    (throttled.gateway.listTopics as jest.Mock).mockImplementation(async () => {
+      throw new TangoSbirHttpError(429, 'Rate limit');
+    });
+    expect(
+      (
+        await runSbirSyncJob(second.prisma, throttled, {
+          commit: true,
+          maxRateLimitRetries: 0,
+        })
+      ).complete,
+    ).toBe(false);
+    expect(second.writes[1]).toMatchObject({
+      status: 'partial',
+      errorMessage: expect.stringContaining('rate-limit retries exhausted'),
+    });
+  });
+  test('provider/auth failure persists an error and propagates to the CLI', async () => {
+    const { prisma, writes } = ledger();
+    const { deps } = fakeDeps({});
+    (deps.gateway.listSolicitations as jest.Mock).mockImplementation(async () => {
+      throw new TangoSbirHttpError(401, 'Unauthorized');
+    });
+    await expect(runSbirSyncJob(prisma, deps, { commit: true })).rejects.toThrow('Unauthorized');
+    expect(writes[1]).toMatchObject({ status: 'error', errorCount: 1 });
+  });
+  test('persistence errors and incomplete endpoint selections cannot report clean source success', async () => {
+    const first = ledger();
+    const { deps } = fakeDeps({ topic: [[topic('T1')]] });
+    (deps.upsertTopic as jest.Mock).mockImplementation(async () => {
+      throw new Error('database failure');
+    });
+    expect((await runSbirSyncJob(first.prisma, deps, { commit: true })).errors).toBe(1);
+    expect(first.writes[1]).toMatchObject({
+      status: 'success_with_errors',
+      errorMessage: expect.stringContaining('failed to persist'),
+    });
+    const second = ledger();
+    expect(
+      (
+        await runSbirSyncJob(second.prisma, fakeDeps({}).deps, {
+          commit: true,
+          endpoints: ['topic'],
+        })
+      ).complete,
+    ).toBe(false);
+    expect(second.writes[1].status).toBe('partial');
   });
 });

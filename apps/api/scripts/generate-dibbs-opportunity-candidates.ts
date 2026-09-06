@@ -204,7 +204,12 @@ export interface DibbsCandidatesPrisma {
         setAsideCertifications: string[];
         sectorTag: string | null;
         cageCode: string | null;
-        capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
+        capabilities: Array<{
+          name: string;
+          tags: unknown;
+          keywords: string[];
+          peNumbers: string[];
+        }>;
         facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
       }>
     >;
@@ -230,6 +235,7 @@ export interface DibbsCandidatesPrisma {
         clientId: string;
         sourceRecordKey: string | null;
         workflowStatus: string;
+        humanDecision: string | null;
         userCreated: boolean;
         evidenceSourceType: string;
         staleAt: Date | null;
@@ -260,8 +266,10 @@ export async function resolveTenantIds(
   explicitTenantId: string | null,
 ): Promise<string[]> {
   if (explicitTenantId) return [explicitTenantId];
-  const rows = await withBypass(prisma, (tx) =>
-    tx.$queryRaw<{ tenant_id: string }>`
+  const rows = await withBypass(
+    prisma,
+    (tx) =>
+      tx.$queryRaw<{ tenant_id: string }>`
       SELECT DISTINCT tenant_id FROM intel_feature_flag
       WHERE feature = ${FUNDING_OPPORTUNITIES_FEATURE} AND enabled = true
     `,
@@ -429,6 +437,7 @@ export async function generateDibbsCandidates(
                   clientId: true,
                   sourceRecordKey: true,
                   workflowStatus: true,
+                  humanDecision: true,
                   userCreated: true,
                   evidenceSourceType: true,
                   staleAt: true,
@@ -467,7 +476,8 @@ export async function generateDibbsCandidates(
                     asOf: now,
                   });
                   const relevanceScore = CONFIDENCE_SCORE[scored.recommendationConfidence];
-                  const existing = existingByKey.get(`${client.clientId}:${row.tangoDibbsId}`) ?? null;
+                  const existing =
+                    existingByKey.get(`${client.clientId}:${row.tangoDibbsId}`) ?? null;
                   const decision = decideProducerAction({
                     existing,
                     relevanceScore,

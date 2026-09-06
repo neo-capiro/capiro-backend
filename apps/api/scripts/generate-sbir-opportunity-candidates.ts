@@ -44,7 +44,10 @@ import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun, emptyCounts, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 import { FUNDING_OPPORTUNITIES_FEATURE } from '../src/funding-opportunities/funding-opportunities-flag.guard.js';
 import { scoreSbirRelevance, isTopicClosed } from '../src/funding-opportunities/sbir-relevance.js';
-import { GENERIC_TOKENS, normAgency } from '../src/funding-opportunities/sam-opportunity-relevance.js';
+import {
+  GENERIC_TOKENS,
+  normAgency,
+} from '../src/funding-opportunities/sam-opportunity-relevance.js';
 import { buildClientOpportunityProfile } from '../src/funding-opportunities/client-opportunity-profile.builder.js';
 import { profileIsTooThin } from '../src/funding-opportunities/missing-profile-fields.js';
 import type {
@@ -203,7 +206,12 @@ export interface SbirCandidatesPrisma {
         applicantTypes: string[];
         setAsideCertifications: string[];
         sectorTag: string | null;
-        capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
+        capabilities: Array<{
+          name: string;
+          tags: unknown;
+          keywords: string[];
+          peNumbers: string[];
+        }>;
         facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
       }>
     >;
@@ -232,6 +240,7 @@ export interface SbirCandidatesPrisma {
         clientId: string;
         sourceRecordKey: string | null;
         workflowStatus: string;
+        humanDecision: string | null;
         userCreated: boolean;
         evidenceSourceType: string;
         staleAt: Date | null;
@@ -259,8 +268,10 @@ export async function resolveTenantIds(
   explicitTenantId: string | null,
 ): Promise<string[]> {
   if (explicitTenantId) return [explicitTenantId];
-  const rows = await withBypass(prisma, (tx) =>
-    tx.$queryRaw<{ tenant_id: string }>`
+  const rows = await withBypass(
+    prisma,
+    (tx) =>
+      tx.$queryRaw<{ tenant_id: string }>`
       SELECT DISTINCT tenant_id FROM intel_feature_flag
       WHERE feature = ${FUNDING_OPPORTUNITIES_FEATURE} AND enabled = true
     `,
@@ -415,6 +426,7 @@ export async function generateSbirCandidates(
                   clientId: true,
                   sourceRecordKey: true,
                   workflowStatus: true,
+                  humanDecision: true,
                   userCreated: true,
                   evidenceSourceType: true,
                   staleAt: true,
@@ -460,7 +472,8 @@ export async function generateSbirCandidates(
                     asOf: now,
                   });
                   const relevanceScore = CONFIDENCE_SCORE[scored.recommendationConfidence];
-                  const existing = existingByKey.get(`${client.clientId}:${topic.tangoSbirId}`) ?? null;
+                  const existing =
+                    existingByKey.get(`${client.clientId}:${topic.tangoSbirId}`) ?? null;
                   const decision = decideProducerAction({
                     existing,
                     relevanceScore,
@@ -569,7 +582,9 @@ export async function generateSbirCandidates(
     });
   }
 
-  console.log(`[sbir-candidates] ${topicCorpus} not-past-close-date topics scanned, ${openCorpus} open`);
+  console.log(
+    `[sbir-candidates] ${topicCorpus} not-past-close-date topics scanned, ${openCorpus} open`,
+  );
 
   const coverage =
     topicWalkIncomplete || clientWalkOutcome?.completion === 'INCOMPLETE'

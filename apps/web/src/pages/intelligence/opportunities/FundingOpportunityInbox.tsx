@@ -286,7 +286,17 @@ export function FundingOpportunityInbox({
         onChange={goToFilter}
         aria-label="Triage queue"
         style={{ margin: '12px 0' }}
-        options={INBOX_FILTERS.map((value) => ({
+        options={INBOX_FILTERS.filter((value) =>
+          [
+            'needs_review',
+            'pursuing',
+            'deadlines',
+            'recently_changed',
+            'monitoring',
+            'passed',
+            filter,
+          ].includes(value),
+        ).map((value) => ({
           value,
           label: (
             <Tooltip title={INBOX_FILTER_DESCRIPTIONS[value]}>
@@ -691,11 +701,7 @@ function SourceFactsMissingCard({
   onOpenDetail: () => void;
 }) {
   return (
-    <Card
-      size="small"
-      className="fo-card fo-card--dibbs"
-      data-testid={`${testIdPrefix}-${row.id}`}
-    >
+    <Card size="small" className="fo-card fo-card--dibbs" data-testid={`${testIdPrefix}-${row.id}`}>
       <div className="fo-inbox-row__head">
         <Space size={6} wrap>
           <Button

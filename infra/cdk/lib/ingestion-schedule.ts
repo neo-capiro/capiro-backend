@@ -717,13 +717,10 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: relevant vehicles and past-performance sync into client_relevant_vehicle (daily 12:40 UTC)',
     enabled: false,
   },
-  // Incremental — modified_after plus a safety overlap, pages to
-  // exhaustion. Disabled pending the real-key live run's canary, same
-  // posture as every other Funding Opportunities job in this block.
-  // funding_opportunities_forecasts stays off regardless of this schedule:
-  // this job populates tango_procurement_forecast, it does not surface
-  // anything — a forecast becomes visible only once a later phase turns
-  // that flag on.
+  // Forecast source and client recommendations are separate jobs. Both are
+  // registered for daily ingestion. The producer independently enforces master
+  // and forecast flags; scheduling never enables a customer capability.
+  // Deploy only scoped rules after checking live task/image drift.
   {
     id: 'SyncTangoForecasts',
     command: ['sync-tango-forecasts', '--commit'],
@@ -731,7 +728,16 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description:
       'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
-    enabled: false,
+    enabled: true,
+  },
+  {
+    id: 'GenerateForecastOpportunityCandidates',
+    command: ['generate-forecast-opportunity-candidates', '--commit'],
+    cron: { minute: '5', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: client forecast recommendations after the Tango forecast sync (daily 13:05 UTC)',
+    enabled: true,
   },
   // ── Funding Opportunities P40 part 3 — DIBBS bid board (ships DISABLED) ─────
   //
