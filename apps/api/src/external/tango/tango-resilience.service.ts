@@ -130,6 +130,17 @@ import {
 const MAX_ATTEMPTS = 3;
 const BASE_DELAY_MS = 500;
 const MAX_DELAY_MS = 8000;
+// The provider-stated retryAfter is honored above local backoff (below), but
+// it is untrusted, unbounded, external input — a bad or misparsed value
+// (seconds vs. a reset timestamp, an inflated quota window) must not turn
+// into an effectively-infinite sleep inside one task invocation. Observed
+// live: a forecast sync sat with an idle DB connection for 6+ hours after a
+// rate-limit response, no further requests, no error, nothing to resume from
+// but the same stall on retry. Checkpointing already exists so a run can
+// cleanly give up and let the next invocation continue instead of blocking
+// in place — generous enough for a real "wait a bit" (multi-minute) limit,
+// bounded enough that 3 attempts never hangs for hours.
+const MAX_RETRY_AFTER_MS = 120_000;
 
 export const BREAKER_STATES = ['closed', 'open', 'half_open'] as const;
 export type BreakerState = (typeof BREAKER_STATES)[number];
@@ -413,7 +424,7 @@ export class TangoResilienceService implements TangoGateway {
   private backoffMs(error: TangoError, attempt: number): number {
     const retryAfterSeconds = error.rate?.retryAfter;
     if (retryAfterSeconds != null && retryAfterSeconds > 0) {
-      return retryAfterSeconds * 1000;
+      return Math.min(retryAfterSeconds * 1000, MAX_RETRY_AFTER_MS);
     }
     return Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), MAX_DELAY_MS);
   }

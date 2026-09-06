@@ -212,6 +212,24 @@ describe('retry: only what TangoError.retryable says', () => {
     expect(clock.sleeps).toEqual([7000]);
   });
 
+  test('an excessive provider-stated retryAfter is capped, not honored verbatim', async () => {
+    // Live incident this guards: a forecast sync's DB connection sat idle for
+    // 6+ hours after a rate-limit response, no further requests logged — a
+    // single retryAfter this large, honored verbatim, is indistinguishable
+    // from a hang. A day's worth of seconds is a plausible bad value (a reset
+    // TIMESTAMP mistaken for a relative duration, or an inflated quota window).
+    let calls = 0;
+    const { service, clock } = build({
+      getVersion: jest.fn(async () => {
+        calls += 1;
+        if (calls < 2) throw tangoError('rate_limit', { retryAfter: 86_400 });
+        return {};
+      }),
+    });
+    await service.getVersion();
+    expect(clock.sleeps).toEqual([120_000]);
+  });
+
   test('with no retryAfter, backoff is exponential: 500ms then 1000ms', async () => {
     const { service, clock } = build({
       getVersion: jest.fn(async () => {
