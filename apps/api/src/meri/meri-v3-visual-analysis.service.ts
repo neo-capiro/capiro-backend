@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { sha256CanonicalAnalysisJson } from './meri-analysis-provenance.js';
@@ -289,6 +290,7 @@ export class MeriV3VisualAnalysisService {
     const purpose = optionalString(input.purpose, 500);
     const resultSha256 = sha256CanonicalAnalysisJson(modelFacingResults);
     const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      assertMeriToolRequestActive();
       const out: Array<{
         id: string;
         title: string;
@@ -299,6 +301,7 @@ export class MeriV3VisualAnalysisService {
         imageAvailable: boolean;
       }> = [];
       for (let index = 0; index < count; index += 1) {
+        assertMeriToolRequestActive();
         const visual = visualsByIndex[index] ?? null;
         const image = images[index] ?? null;
         const rawMeta = metadataRecord(image?.metadata);

@@ -235,15 +235,15 @@ export class ClientCapabilitiesService {
     });
   }
 
-  /** All submission history rows for a client across capabilities (read-only:
-   * Meri context at the default 50, the profile UI's single-read route at 200). */
-  async listClientHistory(ctx: TenantContext, clientId: string, limit = 50) {
+  /** History across capabilities. Existing callers retain the default 50/UI
+   * limit; null explicitly requests the full list for counted Meri pagination. */
+  async listClientHistory(ctx: TenantContext, clientId: string, limit: number | null = 50) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(ctx.tenantId, clientId, tx as any);
       return tx.clientSubmissionHistory.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         orderBy: { fiscalYear: 'desc' },
-        take: limit,
+        ...(limit === null ? {} : { take: limit }),
       });
     });
   }

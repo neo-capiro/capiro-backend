@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import type { ToolExecutionControl } from '@capiro/meriv2-core';
+import { createMeriExecutionControl } from '../meri-execution-control.js';
 
 export interface ManagedMcpToolSchema {
   name: string;
@@ -27,11 +29,12 @@ export class ApiManagedMcpRepo {
     this.serviceSecret = config.get<string>('INTERNAL_SERVICE_SECRET') || undefined;
   }
 
-  async schemas(): Promise<ManagedMcpToolSchema[]> {
+  async schemas(control?: ToolExecutionControl): Promise<ManagedMcpToolSchema[]> {
     const creds = RequestCredentialsStore.get();
     if (!creds?.bearerToken) return [];
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/clio/v3/mcp-tool-schemas`, {
+        signal: control?.signal,
         headers: this.headers(creds.bearerToken, creds.impersonateTenantId, false),
       });
       if (!response.ok) {
@@ -48,14 +51,18 @@ export class ApiManagedMcpRepo {
     }
   }
 
-  async executeRead(toolName: string, input: Record<string, unknown>): Promise<unknown> {
+  async executeRead(
+    toolName: string,
+    input: Record<string, unknown>,
+    control?: ToolExecutionControl,
+  ): Promise<unknown> {
     const creds = RequestCredentialsStore.get();
     if (!creds?.bearerToken) {
       throw new Error(`No forwarded credential available for managed app tool "${toolName}"`);
     }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const execution = createMeriExecutionControl(control, this.timeoutMs);
     try {
+      execution.assertActive();
       const response = await fetch(
         `${this.apiBaseUrl}/api/clio/v3/mcp-tools/${encodeURIComponent(toolName)}`,
         {
@@ -63,9 +70,10 @@ export class ApiManagedMcpRepo {
           headers: {
             ...this.headers(creds.bearerToken, creds.impersonateTenantId, true),
             'content-type': 'application/json',
+            ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
           },
           body: JSON.stringify(input ?? {}),
-          signal: controller.signal,
+          signal: execution.signal,
         },
       );
       if (!response.ok) {
@@ -74,9 +82,9 @@ export class ApiManagedMcpRepo {
           `Managed app tool "${toolName}" failed: ${response.status} ${detail.slice(0, 200)}`,
         );
       }
-      return response.json() as Promise<unknown>;
+      return (await response.json()) as unknown;
     } finally {
-      clearTimeout(timer);
+      execution.dispose();
     }
   }
 
@@ -91,9 +99,7 @@ export class ApiManagedMcpRepo {
       ...(includeServiceIdentity && this.serviceSecret
         ? { 'x-internal-service-secret': this.serviceSecret }
         : {}),
-      ...(impersonateTenantId
-        ? { 'x-capiro-impersonate-tenant': impersonateTenantId }
-        : {}),
+      ...(impersonateTenantId ? { 'x-capiro-impersonate-tenant': impersonateTenantId } : {}),
     };
   }
 }

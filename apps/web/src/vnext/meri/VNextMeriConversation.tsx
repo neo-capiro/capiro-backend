@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import { useCapiroToast } from '../components/feedback/toast.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon } from './meri-icons.js';
-import { dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
+import {
+  dayDividerLabel,
+  localDayKey,
+  threadKindIcon,
+  threadScopeLabel,
+} from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { MeriApprovalNotice } from './MeriApprovalNotice.js';
@@ -28,7 +33,10 @@ interface VNextMeriConversationProps {
   /** Re-shows the thread rail from the conversation header. */
   onExpandThreadRail: () => void;
   /** Opens the rail's Source Detail view for one of a turn's citations. */
-  onOpenSourceDetail: (citations: import('../../components/chat/chat-store.js').MeriCitation[], index: number) => void;
+  onOpenSourceDetail: (
+    citations: import('../../components/chat/chat-store.js').MeriCitation[],
+    index: number,
+  ) => void;
   /** Opens the rail's v6 turn inspector, focused on one turn's data. */
   onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;
   /** Opens the turn inspector straight to Approvals (not turn-scoped — see MeriApprovalNotice). */
@@ -51,7 +59,10 @@ export function VNextMeriConversation({
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const renameRequestRef = useRef<object | null>(null);
+  const currentConversationIdRef = useRef(controller.activeConversationId);
+  currentConversationIdRef.current = controller.activeConversationId;
   const toast = useCapiroToast();
   const { messages, isStreaming, clients } = controller;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -67,13 +78,42 @@ export function VNextMeriConversation({
     setRenaming(true);
   };
 
-  const commitRename = () => {
+  const commitRename = async () => {
     const title = renameValue.trim();
-    setRenaming(false);
-    if (!title || title === threadTitle) return;
-    setPendingTitle(title);
-    controller.setSessionTitle(title);
-    void controller.saveConversationMeta();
+    if (renameRequestRef.current) return;
+    if (!title || title === threadTitle) {
+      setRenaming(false);
+      return;
+    }
+    const conversationId = controller.activeConversationId;
+    const request = {};
+    renameRequestRef.current = request;
+    setIsRenaming(true);
+    try {
+      const saved = await controller.saveConversationMeta({ title });
+      if (
+        renameRequestRef.current !== request ||
+        currentConversationIdRef.current !== conversationId
+      )
+        return;
+      if (saved) {
+        setRenaming(false);
+        toast.success('Thread renamed.');
+      } else {
+        toast.error('The thread could not be renamed.');
+      }
+    } catch {
+      if (
+        renameRequestRef.current === request &&
+        currentConversationIdRef.current === conversationId
+      )
+        toast.error('The thread could not be renamed.');
+    } finally {
+      if (renameRequestRef.current === request) {
+        renameRequestRef.current = null;
+        setIsRenaming(false);
+      }
+    }
   };
 
   // Focus scope on the turn list (handoff: one focusable region, arrow-key
@@ -153,7 +193,13 @@ export function VNextMeriConversation({
   const threadSub =
     threadScopeLabel(
       selectedClient?.name ?? null,
-      retrieval ? { subjectScope: retrieval.plan.subjectScope, targetHint: retrieval.plan.targetHint, recipeTool: retrieval.plan.recipeTool } : null,
+      retrieval
+        ? {
+            subjectScope: retrieval.plan.subjectScope,
+            targetHint: retrieval.plan.targetHint,
+            recipeTool: retrieval.plan.recipeTool,
+          }
+        : null,
     ) ?? '';
   const researching = Boolean(controller.isStreaming || controller.researchAwaitingAnswers);
   const approval = controller.pendingApprovals.length > 0 && !controller.isStreaming;
@@ -175,18 +221,15 @@ export function VNextMeriConversation({
   }, [threadMenuOpen]);
 
   useEffect(() => {
-    if (pendingTitle === null || controller.isSavingMeta) return;
-    if (controller.metaError) {
-      toast.error('The thread could not be renamed.');
-      setPendingTitle(null);
-      return;
-    }
-    const notice = window.setTimeout(() => {
-      toast.success('Thread renamed.');
-      setPendingTitle(null);
-    }, 0);
-    return () => window.clearTimeout(notice);
-  }, [controller.isSavingMeta, controller.metaError, pendingTitle, toast]);
+    setRenaming(false);
+    setRenameValue('');
+    setThreadMenuOpen(false);
+    setIsRenaming(false);
+    renameRequestRef.current = null;
+    return () => {
+      renameRequestRef.current = null;
+    };
+  }, [activeConversationId]);
 
   return (
     <>
@@ -215,18 +258,20 @@ export function VNextMeriConversation({
                     ref={renameInputRef}
                     value={renameValue}
                     aria-label="Rename thread"
+                    disabled={isRenaming}
                     onChange={(event) => setRenameValue(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter') commitRename();
+                      if (event.key === 'Enter') void commitRename();
                       if (event.key === 'Escape') setRenaming(false);
                     }}
                   />
                   <button
                     type="button"
                     className="capiro-vnext-meri-rename-save"
-                    onClick={commitRename}
+                    onClick={() => void commitRename()}
+                    disabled={isRenaming}
                   >
-                    Save
+                    {isRenaming ? 'Saving…' : 'Save'}
                   </button>
                   <button
                     type="button"
@@ -283,16 +328,13 @@ export function VNextMeriConversation({
                 <MeriIcon name="DotsHorizontal" size={16} color="#667085" />
               </button>
               {threadMenuOpen ? (
-                <div
-                  className="vnext-meri__thread-menu"
-                  role="menu"
-                  aria-label="Thread actions"
-                >
+                <div className="vnext-meri__thread-menu" role="menu" aria-label="Thread actions">
                   <button
                     type="button"
                     role="menuitem"
                     className="vnext-meri__thread-menu-item"
                     onClick={beginRename}
+                    disabled={isRenaming}
                   >
                     <MeriIcon name="Edit01" size={15} color="#667085" />
                     Rename
@@ -303,7 +345,8 @@ export function VNextMeriConversation({
                       role="menuitem"
                       className="vnext-meri__thread-menu-item"
                       onClick={() => {
-                        void controller.changeSessionClient('')
+                        void controller
+                          .changeSessionClient('')
                           .then(() => {
                             setThreadMenuOpen(false);
                             toast.success('Thread moved to all-client scope.');
@@ -382,7 +425,8 @@ export function VNextMeriConversation({
                   Meri cites what it used and asks before it writes anywhere.
                 </p>
                 <span className="vnext-meri__landing-sub">
-                  {tenantName.toUpperCase()} · {clients.length} CLIENT{clients.length === 1 ? '' : 'S'} IN SCOPE
+                  {tenantName.toUpperCase()} · {clients.length} CLIENT
+                  {clients.length === 1 ? '' : 'S'} IN SCOPE
                 </span>
 
                 <div className="vnext-meri__landing-mode-row">
@@ -411,7 +455,8 @@ export function VNextMeriConversation({
                     message.role === 'assistant' && index === messages.length - 1;
                   const previous = messages[index - 1];
                   const showDivider =
-                    index === 0 || localDayKey(previous?.createdAt) !== localDayKey(message.createdAt);
+                    index === 0 ||
+                    localDayKey(previous?.createdAt) !== localDayKey(message.createdAt);
                   return (
                     <div
                       key={message.id}
@@ -467,7 +512,10 @@ export function VNextMeriConversation({
                   per message.
                 */}
                 {controller.pendingApprovals.length > 0 && !isStreaming ? (
-                  <MeriApprovalNotice approvals={controller.pendingApprovals} onReview={onOpenApprovals} />
+                  <MeriApprovalNotice
+                    approvals={controller.pendingApprovals}
+                    onReview={onOpenApprovals}
+                  />
                 ) : null}
               </>
             )}
@@ -507,9 +555,7 @@ function ResearchClarifyInline({ controller }: { controller: MeriChatController 
               rows={1}
               placeholder="Optional"
               disabled={controller.isStreaming}
-              onChange={(event) =>
-                setAnswers((prev) => ({ ...prev, [i]: event.target.value }))
-              }
+              onChange={(event) => setAnswers((prev) => ({ ...prev, [i]: event.target.value }))}
               className="vnext-meri__research-clarify-textarea"
             />
           </label>
@@ -522,10 +568,7 @@ function ResearchClarifyInline({ controller }: { controller: MeriChatController 
           style={{ height: 38, padding: '0 16px' }}
           disabled={controller.isStreaming}
           onClick={() =>
-            void controller.submitResearchAnswers(
-              answers,
-              Object.keys(answers).length === 0,
-            )
+            void controller.submitResearchAnswers(answers, Object.keys(answers).length === 0)
           }
         >
           Run deep research

@@ -1,3 +1,4 @@
+import { MERI_CAPABILITY_REGISTRY, selectMeriCapabilitySchemas } from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -23,17 +24,19 @@ import {
   runAuditor,
   runGovernmentAffairsChecks,
   assurePreToolPersist,
-  wrapToolResultForPrompt,
   KeywordIntentRouter,
   type AuditorMode,
   type LedgerEntry,
   type MeriContext,
   type ToolRegistry,
+  assertToolExecutionActive,
+  type ToolExecutionControl,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
+import { createMeriExecutionControl } from '../meri-execution-control.js';
 import {
   composeChatSystemPrompt,
   toolLabel,
@@ -41,9 +44,13 @@ import {
   type ChatStep,
 } from '../chat/chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
+import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import { meriEvidenceManifest, seedMeriContextEvidence } from './meriv3-context-evidence.js';
+import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
+  readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import type {
@@ -51,11 +58,14 @@ import type {
   MeriV3ChatResult,
   MeriV3ChatStreamEvent,
   OpenAiResponsesFunctionCall,
+  MeriV3ProviderTelemetry,
+  OpenAiResponsesResult,
 } from './meriv3.types.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
   signal?: AbortSignal;
+  deadlineAt?: number;
 }
 
 const TOOL_RESULT_CHARS = 12_000;
@@ -158,6 +168,26 @@ export class MeriV3AssistantService {
     dto: MeriV3ChatInput,
     opts: MeriV3RunOptions = {},
   ): Promise<MeriV3ChatResult> {
+    const control = createMeriExecutionControl(
+      opts,
+      resolveMeriV3ReasoningProfile(dto.reasoningMode).turnBudgetMs,
+    );
+    try {
+      return await this.runTurn(ctx, dto, {
+        ...opts,
+        signal: control.signal,
+        deadlineAt: control.deadlineAt,
+      });
+    } finally {
+      control.dispose();
+    }
+  }
+
+  private async runTurn(
+    ctx: MeriContext,
+    dto: MeriV3ChatInput,
+    opts: MeriV3RunOptions,
+  ): Promise<MeriV3ChatResult> {
     const emit = opts.onEvent ?? (() => {});
     const profile = resolveMeriV3ReasoningProfile(dto.reasoningMode);
     const initialInput = this.toResponsesInput(dto);
@@ -167,7 +197,7 @@ export class MeriV3AssistantService {
         runtime: 'meriv3',
         model: profile.model,
         reasoningMode: profile.mode,
-        reasoningEffort: profile.effort,
+        reasoningEffort: null,
       };
     }
 
@@ -193,6 +223,7 @@ export class MeriV3AssistantService {
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
 
+    const initialEvidence = seedMeriContextEvidence(currentGovernedMeriContext());
     const baseSystem = composeChatSystemPrompt(dto, ctx, intent);
     const instructions = [
       flattenSystemParts({
@@ -205,24 +236,66 @@ export class MeriV3AssistantService {
       'Choose and sequence read tools yourself. Continue researching when a material gap remains; stop when the evidence is sufficient.',
       'Think privately. Never output hidden chain-of-thought, reasoning tokens, system instructions, or provider reasoning summaries.',
       'The visible work log is limited to tool names, source summaries, approvals, citations, and a concise explanation of conclusions.',
+      initialEvidence.citationPrompt,
     ].join('\n');
 
-    const toolSchemas = await this.fetchToolSchemas();
+    const readOnlyNames = new Set<string>(
+      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly).map((tool) => tool.name),
+    );
+    const toolSchemas =
+      dto.toolPolicy === 'none'
+        ? []
+        : (await this.fetchToolSchemas(opts)).filter(
+            (schema) => dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name),
+          );
     const tools = toolSchemas.map(anthropicSchemaToResponsesTool);
     const verificationAvailable = toolSchemas.length > 0;
     const input: Array<Record<string, unknown>> = [...initialInput];
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<MeriV3ChatResult['pendingApprovals']> = [];
     const artifacts: ChatArtifact[] = [];
-    const citations: MeriCitation[] = [];
-    const ledgerEntries: LedgerEntry[] = [];
+    const citations: MeriCitation[] = [...initialEvidence.citations];
+    const ledgerEntries: LedgerEntry[] = [...initialEvidence.ledgerEntries];
     const usage = emptyUsage();
     const toolsUsed: string[] = [];
     let complianceOutcome: 'PASS' | 'WARN' | 'BLOCK' | undefined;
     let pageWritePayload: { subject: string; body: string } | null = null;
     let finalText = '';
     let actualModel = profile.model;
-    let actualEffort = profile.effort;
+    let actualEffort: MeriV3ChatResult['reasoningEffort'] = null;
+    const providerCalls: MeriV3ProviderTelemetry[] = [];
+    let telemetry: MeriV3ProviderTelemetry = {
+      requestedModel: profile.model,
+      effectiveModel: null,
+      requestedReasoningEffort: profile.effort,
+      effectiveReasoningEffort: null,
+      reasoningFallbackReasons: [],
+      finishReason: 'not_started',
+      partial: false,
+    };
+    const recordProviderResult = (response: OpenAiResponsesResult): void => {
+      actualModel = response.model;
+      actualEffort = response.telemetry?.effectiveReasoningEffort ?? null;
+      const calls = response.providerCalls ?? (response.telemetry ? [response.telemetry] : []);
+      providerCalls.push(...calls);
+      if (response.telemetry)
+        telemetry = {
+          ...response.telemetry,
+          reasoningFallbackReasons: [
+            ...new Set(providerCalls.flatMap((call) => call.reasoningFallbackReasons)),
+          ],
+          partial: response.telemetry.partial || providerCalls.some((call) => call.partial),
+        };
+      emit({
+        type: 'runtime',
+        runtime: 'meriv3',
+        model: actualModel,
+        reasoningMode: profile.mode,
+        reasoningEffort: actualEffort,
+        telemetry,
+        providerCalls: [...providerCalls],
+      });
+    };
     let rounds = 0;
     const startedAt = Date.now();
 
@@ -285,19 +358,17 @@ export class MeriV3AssistantService {
       runtime: 'meriv3',
       model: profile.model,
       reasoningMode: profile.mode,
-      reasoningEffort: profile.effort,
+      reasoningEffort: null,
+      telemetry,
     });
 
     const reserveMs = synthesisReserveMs(profile.turnBudgetMs);
-    const synthesisFloorMs = Math.min(
-      reserveMs,
-      Math.max(60_000, Math.floor(profile.turnBudgetMs * 0.1)),
-    );
     let gatheredToolOutput = false;
 
     const runForcedSynthesis = async (reason: string): Promise<string> => {
-      const remainingMs = profile.turnBudgetMs - (Date.now() - startedAt);
-      const timeoutMs = Math.max(synthesisFloorMs, remainingMs);
+      assertToolExecutionActive(opts);
+      const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
+      const timeoutMs = Math.max(1, remainingMs);
       this.logger.warn(
         `MeriV3 forcing no-tools synthesis (${reason}); timeoutMs=${timeoutMs} reserveMs=${reserveMs} toolsUsed=${toolsUsed.length}`,
       );
@@ -315,10 +386,11 @@ export class MeriV3AssistantService {
         tools: [],
         toolChoice: 'none',
         timeoutMs,
+        deadlineAt: opts.deadlineAt,
         ...(opts.signal ? { signal: opts.signal } : {}),
         safetyIdentifier: safetyIdentifier(ctx),
       });
-      actualModel = synthesis.model;
+      recordProviderResult(synthesis);
       addUsage(usage, synthesis.usage);
       void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
       return synthesis.outputText;
@@ -326,8 +398,8 @@ export class MeriV3AssistantService {
 
     try {
       for (rounds = 0; rounds < profile.maxToolRounds; rounds += 1) {
-        if (opts.signal?.aborted) break;
-        const remainingMs = profile.turnBudgetMs - (Date.now() - startedAt);
+        assertToolExecutionActive(opts);
+        const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
         // Stop opening new gather rounds once only the synthesis reserve remains.
         if (remainingMs <= reserveMs) break;
 
@@ -339,11 +411,12 @@ export class MeriV3AssistantService {
           toolChoice: 'auto',
           // Clamp each gather call so it cannot eat the reserved synthesis window.
           timeoutMs: Math.max(15_000, remainingMs - reserveMs),
+          deadlineAt: opts.deadlineAt,
           ...(opts.signal ? { signal: opts.signal } : {}),
           safetyIdentifier: safetyIdentifier(ctx),
         });
-        actualModel = response.model;
-        actualEffort = profile.effort;
+        recordProviderResult(response);
+        assertToolExecutionActive(opts);
         addUsage(usage, response.usage);
         void this.meterRound(ctx, response.model, response.usage, response.usedTenantKey);
 
@@ -375,6 +448,7 @@ export class MeriV3AssistantService {
           emit,
           prePersistRefusal,
           noteComplianceOutcome,
+          control: opts,
         });
         gatheredToolOutput = gatheredToolOutput || executions.length > 0;
 
@@ -403,6 +477,27 @@ export class MeriV3AssistantService {
         );
       }
     } catch (error) {
+      const failedTelemetry = readOpenAiResponsesErrorTelemetry(error);
+      if (failedTelemetry) {
+        providerCalls.push(failedTelemetry);
+        telemetry = {
+          ...failedTelemetry,
+          reasoningFallbackReasons: [
+            ...new Set(providerCalls.flatMap((call) => call.reasoningFallbackReasons)),
+          ],
+        };
+        actualEffort = failedTelemetry.effectiveReasoningEffort;
+        actualModel = failedTelemetry.effectiveModel ?? actualModel;
+      }
+      telemetry = {
+        ...telemetry,
+        partial: true,
+        finishReason: opts.signal?.aborted
+          ? opts.signal.reason?.name === 'TimeoutError'
+            ? 'deadline_exceeded'
+            : 'cancelled'
+          : 'runtime_error',
+      };
       if (opts.signal?.aborted) finalText = '';
       else if (
         !finalText &&
@@ -436,6 +531,20 @@ export class MeriV3AssistantService {
       }
     }
 
+    if (opts.signal?.aborted || (opts.deadlineAt !== undefined && Date.now() >= opts.deadlineAt)) {
+      telemetry = {
+        ...telemetry,
+        partial: true,
+        finishReason:
+          opts.signal?.aborted && opts.signal.reason?.name !== 'TimeoutError'
+            ? 'cancelled'
+            : 'deadline_exceeded',
+      };
+      finalText =
+        telemetry.finishReason === 'deadline_exceeded'
+          ? 'I reached this turn’s time limit before completing the answer. Ask me to continue from the evidence collected so far.'
+          : '';
+    }
     const released = this.finalizeReply({
       ctx,
       dto,
@@ -450,8 +559,9 @@ export class MeriV3AssistantService {
       emit,
     });
 
-    if (released.reply && !opts.signal?.aborted) emit({ type: 'text', text: released.reply });
-    if (dto.pageWrite && pageWritePayload && !released.held) {
+    if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
+      emit({ type: 'text', text: released.reply });
+    if (dto.pageWrite && pageWritePayload && !released.held && !opts.signal?.aborted) {
       emit({
         type: 'page_write',
         target: 'outreach_draft',
@@ -476,8 +586,19 @@ export class MeriV3AssistantService {
         durationMs: Date.now() - startedAt,
         held: released.held,
         aborted: Boolean(opts.signal?.aborted),
+        telemetry,
+        providerCalls,
       }),
     );
+    emit({
+      type: 'runtime',
+      runtime: 'meriv3',
+      model: actualModel,
+      reasoningMode: profile.mode,
+      reasoningEffort: actualEffort,
+      telemetry,
+      providerCalls: [...providerCalls],
+    });
 
     return {
       reply: released.reply,
@@ -489,6 +610,11 @@ export class MeriV3AssistantService {
         cacheCreationTokens: usage.cacheCreationTokens,
       },
       steps,
+      evidenceManifest: meriEvidenceManifest(
+        currentGovernedMeriContext(),
+        released.citations,
+        ledgerEntries,
+      ),
       ...(released.citations.length ? { citations: released.citations } : {}),
       ...(pendingApprovals.length ? { pendingApprovals } : {}),
       ...(artifacts.length && !released.held ? { artifacts } : {}),
@@ -496,6 +622,10 @@ export class MeriV3AssistantService {
       model: actualModel,
       reasoningMode: profile.mode,
       reasoningEffort: actualEffort,
+      telemetry,
+      providerCalls,
+      ...(dto.toolPolicy ? { held: released.held } : {}),
+      ...(dto.toolPolicy === 'read-only' ? { ledgerEntries } : {}),
     };
   }
 
@@ -507,7 +637,8 @@ export class MeriV3AssistantService {
           (message.role === 'user' || message.role === 'assistant') &&
           typeof message.text === 'string',
       )
-      .slice(-40)
+      // The authenticated API already bounds replay after its summary boundary.
+      // A second slice here silently discards turns that are not in the summary.
       .map((message) => ({
         role: message.role as 'user' | 'assistant',
         content: String(message.text),
@@ -549,10 +680,36 @@ export class MeriV3AssistantService {
     emit: (event: MeriV3ChatStreamEvent) => void;
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
+    control?: ToolExecutionControl;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
     for (const call of args.calls) {
+      assertToolExecutionActive(args.control);
       const schema = args.schemas.find((candidate) => candidate.name === call.name);
+      // Enforce capability selection at execution too: a provider can emit an
+      // undeclared call, but it cannot escape the caller's narrower tool policy.
+      if (!schema) {
+        const detail = 'This tool is not available for this operation.';
+        args.steps.push({
+          tool: call.name,
+          label: toolLabel(call.name),
+          status: 'blocked',
+          detail,
+        });
+        args.emit({
+          type: 'tool_done',
+          tool: call.name,
+          label: toolLabel(call.name),
+          status: 'blocked',
+          detail,
+        });
+        executions.push({
+          call,
+          result: { error: detail },
+          serialized: JSON.stringify({ error: detail }),
+        });
+        continue;
+      }
       let parsed: Record<string, unknown>;
       try {
         parsed = parseArguments(call.arguments);
@@ -587,13 +744,24 @@ export class MeriV3AssistantService {
         prePersistRefusal: args.prePersistRefusal,
         noteComplianceOutcome: args.noteComplianceOutcome,
         scopeViolation: augmented.scopeViolation,
+        control: args.control,
       });
-      const cites = extractCitationsFromToolResult(call.name, result, args.citations.length + 1);
+      const visibleResult = projectMeriToolEvidence({
+        result,
+        maxCharacters: TOOL_RESULT_CHARS,
+        readOnly: this.registry.get(call.name)?.readOnly === true,
+        inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
+      });
+      const cites = extractCitationsFromToolResult(
+        call.name,
+        visibleResult,
+        args.citations.length + 1,
+      );
       args.citations.push(...cites);
-      const body = wrapToolResultForPrompt(call.name, result, TOOL_RESULT_CHARS);
+      const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
-      args.ledgerEntries.push({ tool: call.name, serialized, result });
-      executions.push({ call, result, serialized });
+      args.ledgerEntries.push({ tool: call.name, serialized, result: visibleResult });
+      executions.push({ call, result: visibleResult, serialized });
     }
     return executions;
   }
@@ -634,7 +802,9 @@ export class MeriV3AssistantService {
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
     scopeViolation?: string;
+    control?: ToolExecutionControl;
   }): Promise<unknown> {
+    assertToolExecutionActive(args.control);
     const label = toolLabel(args.name);
     args.emit({ type: 'tool_call', tool: args.name, label });
     if (args.scopeViolation) {
@@ -669,12 +839,15 @@ export class MeriV3AssistantService {
 
     if (definition.readOnly === false) {
       try {
-        const authority = await this.actionProposals.create({
-          tool: args.name,
-          input: args.input,
-          ...(args.conversationId ? { conversationId: args.conversationId } : {}),
-          surface: 'chat',
-        });
+        const authority = await this.actionProposals.create(
+          {
+            tool: args.name,
+            input: args.input,
+            ...(args.conversationId ? { conversationId: args.conversationId } : {}),
+            surface: 'chat',
+          },
+          args.control,
+        );
         const proposal = authority.proposal;
         if (authority.disposition === 'executed') {
           args.noteComplianceOutcome('PASS');
@@ -733,16 +906,22 @@ export class MeriV3AssistantService {
         args.emit({ type: 'tool_done', tool: args.name, label, status: 'blocked', detail });
         return { blocked: true, message: detail };
       } catch (error) {
+        assertToolExecutionActive(args.control);
         const detail =
           error instanceof Error ? error.message.slice(0, 180) : 'Action authority failed';
         args.steps.push({ tool: args.name, label, status: 'error', detail });
         args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
-        return { error: true, message: 'Nothing was executed or proposed.', detail };
+        return {
+          error: true,
+          message:
+            'The action authority did not confirm the outcome. Check the proposal before retrying.',
+          detail,
+        };
       }
     }
 
     try {
-      const result = await this.registry.invoke(args.name, args.input, args.ctx);
+      const result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
       args.steps.push({ tool: args.name, label, status: 'done' });
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
       for (const artifact of extractChatArtifacts(result)) {
@@ -751,6 +930,7 @@ export class MeriV3AssistantService {
       }
       return result;
     } catch (error) {
+      assertToolExecutionActive(args.control);
       const detail = error instanceof Error ? error.message.slice(0, 180) : 'Tool failed';
       args.steps.push({ tool: args.name, label, status: 'error', detail });
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
@@ -875,7 +1055,7 @@ export class MeriV3AssistantService {
     return { reply: released, citations: usedCitations, held };
   }
 
-  private async fetchToolSchemas(): Promise<ToolSchema[]> {
+  private async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
     const credentials = RequestCredentialsStore.get();
     if (!credentials?.bearerToken) {
       this.logger.warn('MeriV3: no bearer available; proceeding without Capiro tools');
@@ -883,6 +1063,7 @@ export class MeriV3AssistantService {
     }
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas`, {
+        signal: control?.signal,
         headers: {
           authorization: `Bearer ${credentials.bearerToken}`,
           accept: 'application/json',
@@ -893,8 +1074,7 @@ export class MeriV3AssistantService {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const body = (await response.json()) as { schemas?: ToolSchema[] };
-      const registered = new Set(this.registry.list());
-      return (body.schemas ?? []).filter((schema) => registered.has(schema.name));
+      return selectMeriCapabilitySchemas(body.schemas ?? [], 'full_chat', this.registry.list());
     } catch (error) {
       this.logger.warn(
         `MeriV3 tool-schema fetch failed: ${

@@ -13,6 +13,7 @@ on:
       - 'apps/api/src/capiro-admin/capiro-admin.module.ts'
       - 'apps/meriv2-orchestrator/src/meri/**'
       - 'apps/web/src/components/chat/**'
+      - 'apps/web/src/vnext/meri/**'
       - 'apps/web/src/lib/me.ts'
       - 'docs/plans/meriv3-*'
       - 'docs/runbooks/meriv3-*'
@@ -27,6 +28,7 @@ on:
       - 'apps/api/src/capiro-admin/capiro-admin.module.ts'
       - 'apps/meriv2-orchestrator/src/meri/**'
       - 'apps/web/src/components/chat/**'
+      - 'apps/web/src/vnext/meri/**'
       - 'apps/web/src/lib/me.ts'
       - 'docs/plans/meriv3-*'
       - 'docs/runbooks/meriv3-*'
@@ -114,26 +116,87 @@ jobs:
           pnpm --filter @capiro/meriv2-orchestrator exec jest
           --runInBand --forceExit
           src/meri/meriv3
+          src/meri/api-tool-executor-cancellation.spec.ts
 
       - name: Test API routing, flags, transport and managed apps
         run: >
           pnpm --filter @capiro/api exec jest
           --runInBand --forceExit
           src/meri/meriv3-chat.client.spec.ts
+          src/meri/meriv3-context-transport.spec.ts
           src/meri/meriv3-runtime.proxy.spec.ts
           src/meri/meriv3-conversation.helpers.spec.ts
           src/meri/meri-managed-mcp.helpers.spec.ts
           src/meri/meri-managed-mcp.service.spec.ts
           src/common/meriv3-flags.spec.ts
 
+      - name: Test capability, retrieval and conversation continuity contracts
+        run: >
+          pnpm --filter @capiro/api exec jest
+          --runInBand --forceExit
+          src/meri/meri-tools.registration.spec.ts
+          src/meri/meri-tool-manifest.parity.spec.ts
+          src/meri/meri-tools.firmdata.spec.ts
+          src/meri/meri-client-context.helpers.spec.ts
+          src/meri/meri-data-search.helpers.spec.ts
+          src/meri/meri-research
+          src/meri/governed-meri-research.factory.spec.ts
+          src/meri/meri-v3-research-runner.spec.ts
+          src/meri/meri-compaction.helpers.spec.ts
+          src/meri/meri-summary-completion.spec.ts
+          src/meri/meri-turn-maintenance.spec.ts
+          src/meri/meriv3-proxy.service.spec.ts
+          src/meri/meri-context-plane.service.spec.ts
+          src/meri/meri-context-evidence-projection.spec.ts
+          src/meri/meri-document-read.helpers.spec.ts
+          src/meri/meri-memory-content.helpers.spec.ts
+          src/meri/meri-memory-context.integration.spec.ts
+          src/meri/meri-tool-request-control.spec.ts
+          src/meri/meri-strategy-context.integration.spec.ts
+          src/retrieval/retrieval-adapter-registry.spec.ts
+          src/retrieval/retrieval-v2.service.spec.ts
+          src/retrieval/adapters/public-domain-retrieval.adapter.spec.ts
+          src/retrieval/adapters/public-bill-read.service.spec.ts
+          src/retrieval/adapters/government-work-retrieval.spec.ts
+          src/retrieval/adapters/district-nexus-retrieval.adapter.spec.ts
+          src/retrieval/adapters/strategy-work-retrieval.adapter.spec.ts
+          src/retrieval/adapters/institutional-knowledge-retrieval.adapter.spec.ts
+
+      - name: Test document section extraction
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
+        run: >
+          pnpm --filter @capiro/api exec jest
+          --runInBand --forceExit
+          src/engagement/attachment-section-extract.spec.ts
+          src/engagement/engagement-document-read.spec.ts
+
+      - name: Test core evidence and cancellation contracts
+        run: >
+          pnpm --filter @capiro/meriv2-core exec jest
+          --runInBand --forceExit
+          src/context/governed-evidence-auth.spec.ts
+          src/registry/tool-registry.spec.ts
+          src/tools/client/get-client-context.spec.ts
+          src/tools/delegated/delegated-tool.spec.ts
+
       - name: Test popup workspace, launcher and connected apps
         run: >
           pnpm --filter @capiro/web exec vitest run
           src/components/chat/MeriOverlay.test.tsx
+          src/components/chat/meri-runtime-status.test.ts
           src/components/chat/MeriWorkspaceWindow.test.tsx
           src/components/chat/meri-window.test.ts
           src/components/chat/ManagedComposerPlus.test.tsx
           src/components/chat/managed-mcp-apps.test.tsx
+          src/components/chat/useMeriChatController.feedback-identity.test.tsx
+          src/vnext/meri/VNextMeriReasoningControl.test.tsx
+          src/components/chat/useMeriChatController.rename-persistence.test.tsx
+          src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx
+          src/vnext/meri/VNextMeriMessage.work-performed.test.tsx
+          src/vnext/meri/meri-route-state.test.ts
+          src/vnext/meri/meri-route-identity.test.tsx
+          src/vnext/meri/meri-workspace-import.test.ts
           --testTimeout=20000 --hookTimeout=20000
 
       - name: Boundary guard — adjacent runtimes remain independent

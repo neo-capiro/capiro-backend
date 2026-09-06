@@ -3,6 +3,13 @@ import { TextEncoder } from 'node:util';
 import type { TenantContext } from '@capiro/shared';
 import { MeriResearchService } from './meri-research.service.js';
 
+// These dependencies are supplied explicitly by this service unit harness.
+jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
+jest.mock('../reviews/reviews.service.js', () => ({ ReviewsService: class {} }));
+jest.mock('../engagement/ai-credential-resolver.service.js', () => ({ AiCredentialResolverService: class {} }));
+jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
+
 /**
  * Unit test for the FORCED-SYNTHESIS fallback in MeriResearchService.
  *

@@ -76,6 +76,9 @@ export interface MeriGovernedTurnContext {
     | 'outreach.generate'
     | 'strategies.generate';
   prompt: string;
+  /** API-projected evidence; authenticated before it can enter a grounding ledger. */
+  evidence?: MeriContextEvidenceEnvelope;
+  attestation?: { version: 1; issuedAt: number; signature: string };
   contextPacket: MeriContextPacketSummary;
   retrieval: {
     plan: {
@@ -114,6 +117,50 @@ export interface MeriGovernedTurnContext {
   };
 }
 
+export interface MeriContextEvidenceRecord {
+  domain: string;
+  recordId: string;
+  /** Canonical service identifier when a long ID needs a bounded citation alias. */
+  sourceRecordId?: string;
+  payload: Record<string, unknown>;
+  provenance?: Record<string, unknown>;
+  projection: {
+    truncated: boolean;
+    originalCharacters: number;
+    returnedCharacters: number;
+  };
+}
+
+/** Runtime-only data, never a browser-supplied ledger or a memory approval. */
+export interface MeriContextEvidenceEnvelope {
+  version: 1;
+  tenantId: string;
+  userId: string;
+  packetId: string | null;
+  sourceRecordCount: number;
+  projectedRecordCount: number;
+  truncated: boolean;
+  records: MeriContextEvidenceRecord[];
+}
+
+/** Body-free, durable provenance for the sources displayed with a saved reply. */
+export interface MeriEvidenceManifest {
+  version: 1;
+  packetId: string | null;
+  /** Counts from the initial Context Plane; later tool sources are listed below. */
+  sourceRecordCount: number;
+  projectedRecordCount: number;
+  /** True if any initial or subsequent tool projection disclosed clipping. */
+  truncated: boolean;
+  sources: Array<{
+    id: string;
+    tool: string;
+    origin: 'initial_context' | 'tool';
+    /** Null when the runtime did not receive a complete-source assertion. */
+    truncated: boolean | null;
+  }>;
+}
+
 export interface MeriContext {
   tenantId: string;
   userId: string;
@@ -141,7 +188,11 @@ export interface ToolDefinition<I, O> {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: ZodType<I>;
-  readonly handler: (input: I, ctx: MeriContext) => Promise<O>;
+  readonly handler: (
+    input: I,
+    ctx: MeriContext,
+    control?: import('./tool-execution-control').ToolExecutionControl,
+  ) => Promise<O>;
   readonly readOnly: boolean;
   readonly execution?: ToolExecutionMetadata;
 }
@@ -157,7 +208,12 @@ export interface ToolRegistry {
   get(name: string): AnyToolDefinition | undefined;
   list(): string[];
   executionMetadata(name: string): ToolExecutionMetadata | undefined;
-  invoke<O>(name: string, input: unknown, ctx: MeriContext): Promise<O>;
+  invoke<O>(
+    name: string,
+    input: unknown,
+    ctx: MeriContext,
+    control?: import('./tool-execution-control').ToolExecutionControl,
+  ): Promise<O>;
 }
 
 export class ToolNotFoundError extends Error {

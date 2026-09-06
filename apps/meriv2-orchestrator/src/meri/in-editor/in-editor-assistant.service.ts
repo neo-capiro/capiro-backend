@@ -1,3 +1,4 @@
+import { selectMeriCapabilitySchemas } from '@capiro/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -182,7 +183,8 @@ export class InEditorAssistantService {
           `in-editor: hit max_tokens cap (${MAX_TOKENS}) in round ${round + 1}; edits discarded as possibly truncated`,
         );
         return {
-          reply: `${textOut}\n\nI hit my length limit before finishing this edit, so I haven’t applied anything — narrow the request and I’ll retry.`.trim(),
+          reply:
+            `${textOut}\n\nI hit my length limit before finishing this edit, so I haven’t applied anything — narrow the request and I’ll retry.`.trim(),
           edits: [],
           steps,
         };
@@ -408,7 +410,7 @@ export class InEditorAssistantService {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as { schemas?: AnthropicToolSchema[] };
-      return (body.schemas ?? []).filter((s) => ASSISTANT_TOOLS.has(s.name));
+      return selectMeriCapabilitySchemas(body.schemas ?? [], 'in_editor', this.registry.list());
     } catch (e) {
       this.logger.warn(`in-editor: tool-schema fetch failed (${(e as Error).message})`);
       return [];

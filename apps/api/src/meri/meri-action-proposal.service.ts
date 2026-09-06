@@ -16,6 +16,7 @@ import {
   type AuthoritativePolicyDecision,
 } from './meri-policy-pack.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
   'proposed', 'approved', 'executing', 'succeeded', 'failed_retryable',
@@ -281,6 +282,7 @@ export class MeriActionProposalService {
   }
 
   async create(ctx: TenantContext, request: CreateMeriActionProposalInput): Promise<MeriActionAuthorityResult> {
+    assertMeriToolRequestActive();
     this.assertEnabled();
     const tool = request.tool.trim();
     const input = this.tools.validateSideEffectingInput(tool, request.input);
@@ -309,6 +311,7 @@ export class MeriActionProposalService {
     });
 
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      assertMeriToolRequestActive();
       const created = await tx.meriActionProposal.create({
         data: {
           tenantId: ctx.tenantId,
@@ -357,6 +360,7 @@ export class MeriActionProposalService {
     if (decision.outcome === 'BLOCK') return { disposition: 'blocked', proposal: this.toPublic(row) };
 
     try {
+      assertMeriToolRequestActive();
       const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input);
       const completed = await this.finalize(ctx, row.id, {
         status: 'succeeded',

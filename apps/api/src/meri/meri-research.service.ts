@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { validateFormBCitations } from '@capiro/shared';
-import { runAuditor, ledgerToToolResultMap, type LedgerEntry } from '@capiro/meriv2-core';
+import { runAuditor, ledgerToToolResultMap, type LedgerEntry, type MeriEvidenceManifest } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -33,6 +33,16 @@ import {
   type ThinkingSettings,
 } from './meri-thinking.helpers.js';
 
+import {
+  captureResearchHandoff, readResearchHandoff, researchHandoffPrompt,
+  type ResearchHandoffInput,
+} from './meri-research-handoff.js';
+import { attachmentMetaRef } from './meri-attachment.helpers.js';
+import { MeriV3ResearchRunner, type ResearchRuntimeAuth } from './meri-v3-research-runner.js';
+import type { MeriV3ProviderTelemetry } from './meriv3-chat.client.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
+
 const PRODUCT_NAME = 'Meri';
 
 /**
@@ -45,7 +55,7 @@ const PRODUCT_NAME = 'Meri';
  */
 const SYNTHESIS_FLOOR_MS = 180_000;
 
-interface SourceAttribution {
+export interface SourceAttribution {
   tool: string;
   label: string;
   count?: number | null;
@@ -58,18 +68,12 @@ interface SseSink {
 }
 
 /**
- * MeriResearchService — the "Deep Research" brain.
- *
- * A lobbyist starts a session with a topic. Meri:
- *   1. PLAN: proposes a research plan + clarifying questions (one model call).
- *   2. CLARIFY: the user answers (no model call; persisted via answerClarifications).
- *   3. GATHER + 4. SYNTHESIZE: an agentic Anthropic-native streaming tool loop
- *      across all 22 internal Meri tools + web, then a long, cited report.
- *
- * The final report is persisted as a ClioArtifact (kind = 'research_report') and
- * linked back to the session. Mirrors the drawer's streaming tool-use loop in
- * meri.service.ts so behavior is consistent (SSE block parsing, record-boundary
- * -safe tool-result feedback, in-process tool execution).
+ * Deep Research workflow and persistence. The provider plans, chooses reads,
+ * and synthesizes; this service preserves scope, evidence, progress and reports.
+ * V3 tenants use chat's existing Responses runtime for planning and research.
+ * Existing non-V3 sessions retain their legacy provider path during rollout.
+ * Chat-originated sessions snapshot server-owned history and attachments, then
+ * persist their plan, clarifications and final report back into that thread.
  */
 @Injectable()
 export class MeriResearchService {
@@ -81,6 +85,8 @@ export class MeriResearchService {
     private readonly tools: MeriToolsService,
     private readonly aiCredentials: AiCredentialResolverService,
     private readonly reviews: ReviewsService,
+    @Optional() private readonly v3Research?: MeriV3ResearchRunner,
+    @Optional() @Inject(MERI_TURN_MAINTENANCE) private readonly turnMaintenance?: MeriTurnMaintenance,
   ) {}
 
   // ── Session CRUD ─────────────────────────────────────────────────────────
@@ -106,12 +112,7 @@ export class MeriResearchService {
   }
 
   async getSession(ctx: TenantContext, id: string) {
-    const session = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioResearchSession.findFirst({
-        where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-      }),
-    );
-    if (!session) throw new NotFoundException('Research session not found');
+    const session = await this.ensureSession(ctx, id);
 
     // Attach the report artifact body when complete.
     let report: { id: string; title: string; bodyText: string | null } | null = null;
@@ -126,33 +127,51 @@ export class MeriResearchService {
     return { ...session, report };
   }
 
-  async createSession(
-    ctx: TenantContext,
-    input: { topic: string; clientId?: string | null; title?: string },
-  ) {
+  async createSession(ctx: TenantContext, input: ResearchHandoffInput) {
     const topic = (input.topic ?? '').trim();
     if (!topic) throw new BadRequestException('A research topic is required');
-
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioResearchSession.create({
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const handoff = await captureResearchHandoff(tx, ctx, { ...input, topic });
+      const session = await tx.clioResearchSession.create({
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          clientId: input.clientId ?? null,
+          clientId: handoff.clientId,
           title: clampTitle(input.title?.trim() || topic),
           topic,
           status: 'plan',
+          metadata: { handoff } as unknown as Prisma.InputJsonObject,
         },
-        select: {
-          id: true,
-          title: true,
-          topic: true,
-          status: true,
-          clientId: true,
-          createdAt: true,
-        },
-      }),
-    );
+        select: { id: true, title: true, topic: true, status: true, clientId: true, createdAt: true },
+      });
+      if (handoff.conversationId) {
+        const staged = new Set(input.attachmentIds ?? []);
+        const message = await tx.clioMessage.create({
+          data: {
+            tenantId: ctx.tenantId, userId: ctx.userId, clientId: handoff.clientId,
+            conversationId: handoff.conversationId, role: 'user', body: topic,
+            metadata: {
+              researchSessionId: session.id,
+              attachments: handoff.attachments.filter((row) => staged.has(row.id)).map(attachmentMetaRef),
+            } as unknown as Prisma.InputJsonObject,
+          },
+          select: { id: true },
+        });
+        // Only claim unconsumed uploads. Existing evidence stays linked to its original turn.
+        if (staged.size) {
+          const unconsumed = handoff.attachments.filter((row) => staged.has(row.id) && !row.sourceMessageId);
+          const claimed = await tx.clioAttachment.updateMany({
+            where: { id: { in: unconsumed.map((row) => row.id) }, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null },
+            data: { messageId: message.id },
+          });
+          if (claimed.count !== unconsumed.length) throw new BadRequestException('A staged attachment was consumed by another conversation; retry research');
+        }
+        await tx.clioConversation.update({
+          where: { id: handoff.conversationId }, data: { updatedAt: new Date() },
+        });
+      }
+      return { ...session, conversationId: handoff.conversationId, reasoningMode: handoff.reasoningMode };
+    });
   }
 
   async deleteSession(ctx: TenantContext, id: string) {
@@ -193,16 +212,25 @@ export class MeriResearchService {
     for (const [k, v] of Object.entries(answers ?? {})) {
       if (typeof v === 'string' && v.trim()) clean[String(k)] = v.trim();
     }
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioResearchSession.update({
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.clioResearchSession.update({
         where: { id: session.id },
         data: {
           clarifyingAnswers: clean as Prisma.InputJsonValue,
           status: 'researching',
           updatedAt: new Date(),
         },
-      }),
-    );
+      });
+      const handoff = readResearchHandoff(session.metadata);
+      if (handoff?.conversationId) await tx.clioMessage.create({
+        data: {
+          tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId,
+          conversationId: handoff.conversationId, role: 'user',
+          body: `Research clarification answers:\n${JSON.stringify(clean)}`,
+          metadata: { researchSessionId: session.id },
+        },
+      });
+    });
     return { ok: true };
   }
 
@@ -213,13 +241,14 @@ export class MeriResearchService {
    * questions. Persists them on the session and emits a `clarify` SSE event the
    * UI renders as an answer form.
    */
-  async streamPlan(ctx: TenantContext, id: string, sse: SseSink) {
+  async streamPlan(ctx: TenantContext, id: string, sse: SseSink, auth: ResearchRuntimeAuth = {}) {
     const session = await this.ensureSession(ctx, id);
     sse.write(sseEvent({ type: 'phase', phase: 'plan' }));
 
     const clientContext = await this.clientContext(ctx, session.clientId);
     const system = buildPlanSystemPrompt(PRODUCT_NAME);
-    const user = buildPlanUserPrompt(session.topic, clientContext);
+    const handoff = readResearchHandoff(session.metadata);
+    const user = [buildPlanUserPrompt(session.topic, clientContext), researchHandoffPrompt(handoff, session.id)].filter(Boolean).join('\n\n');
 
     // The planning call emits nothing until it returns, and it may take as long
     // as CLIO_REQUEST_TIMEOUT_MS — which would otherwise be silence long enough
@@ -237,20 +266,34 @@ export class MeriResearchService {
     progress.set('Planning the research…');
 
     let proposal: PlanProposal;
+    const useV3 = this.v3Research && await this.v3Research.enabled(ctx);
     try {
-      const raw = await this.anthropicComplete(ctx.tenantId, system, user);
+      const raw = useV3
+        ? await this.v3Research!.plan(ctx, {
+            sessionId: session.id, topic: session.topic, clientId: session.clientId,
+            system, user, handoff,
+          }, auth)
+        : await this.anthropicComplete(ctx.tenantId, system, user);
       proposal = parsePlanProposal(raw, session.topic);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Planning failed';
       this.logger.warn(`Research plan failed: ${msg}`);
+      if (useV3) {
+        // A failed configured provider must remain a visible failure; do not
+        // label a deterministic substitute as its completed research plan.
+        await this.markFailed(ctx, session.id);
+        sse.write(sseEvent({ type: 'error', message: msg }));
+        sse.write(sseEvent({ type: 'done' }));
+        return;
+      }
       // Fall back to a safe deterministic plan so the lobbyist is never stuck.
       proposal = parsePlanProposal('', session.topic);
     } finally {
       progress.stop();
     }
 
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioResearchSession.update({
+    const planMessageId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.clioResearchSession.update({
         where: { id: session.id },
         data: {
           title: clampTitle(proposal.title),
@@ -259,23 +302,33 @@ export class MeriResearchService {
           status: 'awaiting_clarification',
           updatedAt: new Date(),
         },
-      }),
-    );
+      });
+      const planMessage = handoff?.conversationId ? await tx.clioMessage.create({
+        data: {
+          tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId,
+          conversationId: handoff.conversationId, role: 'assistant',
+          body: `Research plan — ${proposal.title}\n\n${proposal.plan.map((step, index) => `${index + 1}. ${step}`).join('\n')}` +
+            (proposal.clarifyingQuestions.length ? `\n\nClarifying questions:\n${proposal.clarifyingQuestions.join('\n')}` : ''),
+          metadata: { researchSessionId: session.id },
+        },
+        select: { id: true },
+      }) : null;
+      return planMessage?.id ?? null;
+    });
 
     sse.write(sseEvent({ type: 'title', title: proposal.title }));
     sse.write(sseEvent({ type: 'plan', plan: proposal.plan }));
     sse.write(sseEvent({ type: 'clarify', questions: proposal.clarifyingQuestions }));
-    sse.write(sseEvent({ type: 'done' }));
+    sse.write(sseEvent({ type: 'done', ...(planMessageId ? { messageId: planMessageId } : {}) }));
   }
 
   // ── Phases 3+4: GATHER + SYNTHESIZE (streamed) ──────────────────────────────
 
   /**
-   * Stream the agentic research run: multi-round Anthropic tool loop over all 22
-   * internal tools + web, then the synthesized report. Persists the report as a
-   * ClioArtifact and links it to the session.
+   * Run the selected provider with read-only research tools. Both runtimes share
+   * evidence checks and report persistence in the originating conversation.
    */
-  async streamResearch(ctx: TenantContext, id: string, sse: SseSink) {
+  async streamResearch(ctx: TenantContext, id: string, sse: SseSink, auth: ResearchRuntimeAuth = {}) {
     // A research run is minutes long and — under MERI_AUDITOR_MODE=enforce — emits
     // NO report text until the post-hoc audit clears it (see bufferReport below).
     // Without a heartbeat the reader stares at an empty assistant bubble for the
@@ -293,7 +346,13 @@ export class MeriResearchService {
       ),
     });
     try {
-      await this.runResearchStream(ctx, id, sse, progress);
+      await this.runResearchStream(ctx, id, sse, progress, auth);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Research failed';
+      this.logger.warn(`Research run failed: ${message}`);
+      await this.markFailed(ctx, id);
+      sse.write(sseEvent({ type: 'error', message }));
+      sse.write(sseEvent({ type: 'done' }));
     } finally {
       progress.stop();
     }
@@ -304,6 +363,7 @@ export class MeriResearchService {
     id: string,
     sse: SseSink,
     progress: ProgressReporter,
+    auth: ResearchRuntimeAuth,
   ) {
     const session = await this.ensureSession(ctx, id);
 
@@ -312,7 +372,29 @@ export class MeriResearchService {
     const clarifyingAnswers = asStringRecord(session.clarifyingAnswers);
     const clientContext = await this.clientContext(ctx, session.clientId);
 
+    const handoff = readResearchHandoff(session.metadata);
+    const user = [buildResearchUserPrompt({
+      topic: session.topic, plan, clarifyingQuestions, clarifyingAnswers, clientContext,
+    }), researchHandoffPrompt(handoff, session.id)].filter(Boolean).join('\n\n');
+
     sse.write(sseEvent({ type: 'phase', phase: 'gather' }));
+    if (this.v3Research && await this.v3Research.enabled(ctx)) {
+      progress.set('Researching with the conversation’s selected reasoning mode…');
+      const result = await this.v3Research.run(ctx, {
+        sessionId: session.id, conversationId: handoff?.conversationId ?? null,
+        clientId: session.clientId, system: buildResearchSystemPrompt(PRODUCT_NAME),
+        user, handoff, clientContext,
+      }, auth, (event) => {
+        // The shared report/audit tail delivers text after evidence checks.
+        if (event.type !== 'text' && event.type !== 'done') sse.write(sseEvent(event));
+      });
+      await this.finishResearch(ctx, session, sse, progress, {
+        ...result, auditorMode: await resolveTenantAuditorMode(this.prisma, ctx.tenantId),
+        bufferReport: true,
+      });
+      return;
+    }
+
 
     // BYOK: run Deep Research gather on the tenant's own key when set, else the
     // global fallback (resolver). Model stays CLIO_RESEARCH_MODEL.
@@ -373,13 +455,7 @@ export class MeriResearchService {
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
       {
         role: 'user',
-        content: buildResearchUserPrompt({
-          topic: session.topic,
-          plan,
-          clarifyingQuestions,
-          clarifyingAnswers,
-          clientContext,
-        }),
+        content: user,
       },
     ];
 
@@ -813,6 +889,35 @@ export class MeriResearchService {
       sse.write(sseEvent({ type: 'error', message: msg }));
     }
 
+    await this.finishResearch(ctx, session, sse, progress, {
+      reportBody, sources, toolsUsed, ledgerEntries, model, auditorMode, bufferReport,
+    });
+  }
+
+  private async finishResearch(
+    ctx: TenantContext,
+    session: Awaited<ReturnType<MeriResearchService['ensureSession']>>,
+    sse: SseSink,
+    progress: ProgressReporter,
+    result: {
+      reportBody: string;
+      sources: SourceAttribution[];
+      toolsUsed: string[];
+      ledgerEntries: LedgerEntry[];
+      model: string;
+      auditorMode: Awaited<ReturnType<typeof resolveTenantAuditorMode>>;
+      bufferReport: boolean;
+      citations?: unknown[];
+      telemetry?: MeriV3ProviderTelemetry;
+      providerCalls?: MeriV3ProviderTelemetry[];
+      evidenceManifest?: MeriEvidenceManifest;
+    },
+  ) {
+    let { reportBody } = result;
+    const { sources, toolsUsed, ledgerEntries, model, auditorMode, bufferReport } = result;
+    const plan = asStringArray(session.plan);
+    const handoff = readResearchHandoff(session.metadata);
+    if (!reportBody.trim()) throw new BadRequestException('Research did not produce a report. Please retry.');
     // Strip unresolved FORM B [S:tool:record_id] tokens from the report BEFORE
     // the auditor + persist. The research prompt instructs a FORM-B token on
     // every material claim, so a token whose tool wasn't called this turn (or
@@ -914,10 +1019,7 @@ export class MeriResearchService {
       `enforce mode and it was not delivered. A reviewer must approve it in Reviews before ` +
       `the content is released; the saved report is marked *held for review*.` +
       (heldReason ? `\n>\n> ${heldReason.slice(0, 500)}` : '');
-    if (bufferReport) {
-      const deliverable = held ? heldNotice : reportBody;
-      if (deliverable.trim().length > 0) sse.write(sseEvent({ type: 'text', text: deliverable }));
-    }
+
 
     // Persist the report artifact + link it to the session.
     progress.set('Saving the report…');
@@ -930,16 +1032,24 @@ export class MeriResearchService {
       generatedAt: new Date(),
     });
 
-    const artifactId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      // ClioArtifact.conversationId is a required FK to clio_conversations, so a
-      // research session needs a lightweight backing conversation to anchor its
-      // report artifact (this also surfaces the report in the existing artifact
-      // panel). One backing conversation per session, created on first report.
+    const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (session.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))) {
+        throw new NotFoundException('Research session not found');
+      }
+      // Research started in chat stays in that thread. Standalone/older sessions
+      // retain their existing backing conversation behavior.
       const existing =
         session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
           ? (session.metadata as Record<string, unknown>).backingConversationId
           : undefined;
-      let conversationId = typeof existing === 'string' ? existing : null;
+      let conversationId = handoff?.conversationId ?? (typeof existing === 'string' ? existing : null);
+      if (handoff?.conversationId) {
+        const origin = await tx.clioConversation.findFirst({
+          where: { id: handoff.conversationId, tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId, archivedAt: null },
+          select: { id: true },
+        });
+        if (!origin) throw new BadRequestException('The originating conversation is no longer available in this client scope');
+      }
       if (!conversationId) {
         const conversation = await tx.clioConversation.create({
           data: {
@@ -955,12 +1065,34 @@ export class MeriResearchService {
         conversationId = conversation.id;
       }
 
+      const reportMessage = handoff?.conversationId ? await tx.clioMessage.create({
+        data: {
+          tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId,
+          conversationId, role: 'assistant', body: held ? heldNotice : artifactBody,
+          metadata: {
+            researchSessionId: session.id, researchReport: true, model,
+            reasoningMode: handoff.reasoningMode,
+            ...(result.telemetry ? {
+              telemetry: result.telemetry,
+              reasoningEffort: result.telemetry.effectiveReasoningEffort,
+              finishReason: result.telemetry.finishReason,
+              partial: result.telemetry.partial,
+            } : {}),
+            ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
+            ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
+            ...(result.citations ? { citations: result.citations } : {}),
+            ...(held ? { heldForReview: true } : {}),
+          } as unknown as Prisma.InputJsonObject,
+        },
+        select: { id: true },
+      }) : null;
       const artifact = await tx.clioArtifact.create({
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           clientId: session.clientId ?? null,
           conversationId,
+          ...(reportMessage ? { messageId: reportMessage.id } : {}),
           title: session.title,
           kind: 'research_report',
           contentType: 'text/markdown',
@@ -972,10 +1104,14 @@ export class MeriResearchService {
             toolsUsed,
             sourceCount: sources.length,
             model,
+            ...(result.telemetry ? { telemetry: result.telemetry } : {}),
+            ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
+            ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
+            ...(handoff ? { reasoningMode: handoff.reasoningMode, originatingConversationId: handoff.conversationId } : {}),
             // Phase 2.5-1: set only under enforce+finding; consumers/UI treat a
             // held report as not-yet-cleared (its body carries the banner too).
             ...(held ? { heldForReview: true } : {}),
-          } as Prisma.InputJsonObject,
+          } as unknown as Prisma.InputJsonObject,
         },
         select: { id: true },
       });
@@ -985,12 +1121,31 @@ export class MeriResearchService {
           status: 'complete',
           reportArtifactId: artifact.id,
           sources: sources as unknown as Prisma.InputJsonValue,
-          metadata: { backingConversationId: conversationId } as Prisma.InputJsonObject,
+          metadata: {
+            ...(session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata) ? session.metadata : {}),
+            backingConversationId: conversationId,
+            ...(result.telemetry ? { telemetry: result.telemetry } : {}),
+            ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
+            ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
+            ...(reportMessage ? { reportMessageId: reportMessage.id } : {}),
+          } as unknown as Prisma.InputJsonObject,
           updatedAt: new Date(),
         },
       });
-      return artifact.id;
+      if (handoff?.conversationId) await tx.clioConversation.update({
+        where: { id: conversationId }, data: { updatedAt: new Date() },
+      });
+      return { artifactId: artifact.id, messageId: reportMessage?.id ?? null, conversationId };
     });
+    const artifactId = persisted.artifactId;
+
+    if (handoff?.conversationId) {
+      try {
+        this.turnMaintenance?.scheduleAfterTurnMaintenance(ctx, handoff.conversationId);
+      } catch (error) {
+        this.logger.warn(`Research conversation maintenance could not be scheduled: ${error instanceof Error ? error.message : 'unknown error'}`);
+      }
+    }
 
     // G4: a held report becomes a pending review_request so a reviewer can
     // clear heldForReview through the Reviews queue (fail-open by contract).
@@ -1008,15 +1163,34 @@ export class MeriResearchService {
       });
     }
 
+    if (bufferReport) {
+      const deliverable = held ? heldNotice : reportBody;
+      if (deliverable.trim().length > 0) sse.write(sseEvent({ type: 'text', text: deliverable }));
+    }
+
     sse.write(sseEvent({ type: 'phase', phase: 'done' }));
     // The report event REPLACES the whole chat message client-side — when held
     // (enforce only) it must carry the hold notice, never the report body, or
     // the buffering above would be undone at the finish line.
-    sse.write(sseEvent({ type: 'report', artifactId, body: held ? heldNotice : artifactBody }));
+    sse.write(sseEvent({
+      type: 'report', artifactId, messageId: persisted.messageId,
+      conversationId: persisted.conversationId, body: held ? heldNotice : artifactBody,
+    }));
     sse.write(sseEvent({ type: 'done' }));
   }
 
   // ── internals ───────────────────────────────────────────────────────────
+
+  private async markFailed(ctx: TenantContext, id: string): Promise<void> {
+    try {
+      await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioResearchSession.updateMany({
+        where: { id, tenantId: ctx.tenantId, userId: ctx.userId, status: { not: 'complete' } },
+        data: { status: 'failed', updatedAt: new Date() },
+      }));
+    } catch (error) {
+      this.logger.warn(`Could not persist research failure: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+  }
 
   private async ensureSession(ctx: TenantContext, id: string) {
     const session = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1025,6 +1199,18 @@ export class MeriResearchService {
       }),
     );
     if (!session) throw new NotFoundException('Research session not found');
+    if (session.clientId && !(await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId as string),
+    ))) throw new NotFoundException('Research session not found');
+    const handoff = readResearchHandoff(session.metadata);
+    if (handoff?.conversationId) {
+      const originatingConversationId = handoff.conversationId;
+      const origin = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioConversation.findFirst({
+        where: { id: originatingConversationId, tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId, archivedAt: null },
+        select: { id: true },
+      }));
+      if (!origin || handoff.clientId !== session.clientId) throw new BadRequestException('The originating conversation is no longer available in this client scope');
+    }
     return session;
   }
 

@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FORM_B_CITATION_RE, type MeriCitation } from '@capiro/shared';
+import {
+  extractCitationsFromToolResult,
+  FORM_B_CITATION_RE,
+  type MeriCitation,
+} from '@capiro/shared';
 import type { LedgerEntry } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
@@ -86,10 +90,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function firstString(
-  record: Record<string, unknown>,
-  fields: readonly string[],
-): string | null {
+function firstString(record: Record<string, unknown>, fields: readonly string[]): string | null {
   for (const field of fields) {
     const value = record[field];
     if (typeof value === 'string' && value.trim()) return value.trim();
@@ -102,12 +103,25 @@ function truncate(value: string | null, max: number): string | null {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
 
-function resultRows(result: unknown): Record<string, unknown>[] {
+function resultRows(result: unknown, tool: string): Record<string, unknown>[] {
   if (Array.isArray(result)) return result.filter(isRecord);
   if (!isRecord(result)) return [];
   for (const key of RESULT_ARRAY_KEYS) {
     const rows = result[key];
-    if (Array.isArray(rows)) return rows.filter(isRecord);
+    if (Array.isArray(rows)) {
+      return rows.filter(isRecord).flatMap((row) => {
+        if (key !== 'records' || !isRecord(row.payload) || typeof row.recordId !== 'string') {
+          return [row];
+        }
+        // Shared retrieval keeps titles and links inside an evidence envelope.
+        // Reuse the canonical extractor so Form-B references beyond the initial
+        // five prompt citations receive the same authoritative source identity.
+        return extractCitationsFromToolResult(tool, { records: [row] }, 1, 1).map((citation) => ({
+          ...citation,
+          sourceTool: tool,
+        }));
+      });
+    }
   }
   return firstString(result, [...TITLE_FIELDS, ...SNIPPET_FIELDS]) ? [result] : [];
 }
@@ -132,7 +146,7 @@ function evidenceFromLedger(entries: readonly LedgerEntry[]): CitationEvidence[]
   const evidence: CitationEvidence[] = [];
   const seen = new Set<string>();
   for (const entry of entries) {
-    for (const row of resultRows(entry.result)) {
+    for (const row of resultRows(entry.result, entry.tool)) {
       const id = firstString(row, ID_FIELDS);
       const title = firstString(row, TITLE_FIELDS);
       if (!id || !title) continue;
@@ -159,12 +173,8 @@ function matchingEvidence(
   evidence: readonly CitationEvidence[],
 ): CitationEvidence | undefined {
   return (
-    evidence.find(
-      (item) => item.id === citation.id && item.sourceTool === citation.tool,
-    ) ??
-    evidence.find(
-      (item) => item.id === citation.id && item.callTool === citation.tool,
-    ) ??
+    evidence.find((item) => item.id === citation.id && item.sourceTool === citation.tool) ??
+    evidence.find((item) => item.id === citation.id && item.callTool === citation.tool) ??
     evidence.find((item) => item.id === citation.id)
   );
 }

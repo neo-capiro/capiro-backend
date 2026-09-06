@@ -159,6 +159,8 @@ import {
   planCompaction,
   sanitizeSummaryOutput,
 } from './meri-compaction.helpers.js';
+import { scheduleMeriTurnMaintenance, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
+import { completeMeriSummary } from './meri-summary-completion.js';
 import {
   buildMessageEmbeddingText,
   groupHitsByConversation,
@@ -267,7 +269,7 @@ type GraphNeighborRow = {
 const GRAPH_FUSION_MAX = 4;
 
 @Injectable()
-export class MeriService {
+export class MeriService implements MeriTurnMaintenance {
   private readonly logger = new Logger(MeriService.name);
 
   // P2-2: per-(tenant, tool) circuit breaker — pauses a tool after repeated
@@ -763,14 +765,19 @@ export class MeriService {
         where: {
           conversationId,
           role: { in: ['user', 'assistant'] },
-          ...(summaryBoundary ? { createdAt: { gt: summaryBoundary.createdAt } } : {}),
+          ...(summaryBoundary
+            ? {
+                OR: [
+                  { createdAt: { gt: summaryBoundary.createdAt } },
+                  { createdAt: summaryBoundary.createdAt, id: { gt: conversation.summaryUpToMessageId! } },
+                ],
+              }
+            : {}),
         },
-        orderBy: { createdAt: 'desc' },
-        // Last-N turns kept verbatim. The char-budget trim (CLIO_HISTORY_CHAR_BUDGET)
-        // is the real cap; this just bounds the DB read. Raised from 20→40 (and
-        // 60→80 post-summary) so short turns aren't evicted before the char budget
-        // even applies — fixes "Meri loses context" in longer threads.
-        take: summaryBoundary ? 80 : 40,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        // Bound the DB read, with headroom while after-turn compaction runs.
+        // The existing CLIO_HISTORY_CHAR_BUDGET still bounds model context.
+        take: 80,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
@@ -2060,13 +2067,7 @@ export class MeriService {
     // search and run compaction when the conversation outgrows its budget.
     // Scheduled off the response cycle and fail-open — it never blocks or
     // breaks the streaming reply.
-    setImmediate(() => {
-      this.afterTurnMaintenance(ctx, conversationId).catch((err) => {
-        this.logger.warn(
-          `Meri after-turn maintenance failed [conv ${conversationId}]: ${err instanceof Error ? err.message : err}`,
-        );
-      });
-    });
+    if (assistantMessageId) this.scheduleAfterTurnMaintenance(ctx, conversationId);
 
     sse.write(
       `data: ${JSON.stringify({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
@@ -2531,13 +2532,7 @@ export class MeriService {
         groundingSeverity,
       }).catch(() => {});
     }
-    setImmediate(() => {
-      this.afterTurnMaintenance(ctx, args.conversationId).catch((err) => {
-        this.logger.warn(
-          `Meri after-turn maintenance failed [conv ${args.conversationId}]: ${err instanceof Error ? err.message : err}`,
-        );
-      });
-    });
+    if (assistantMessageId) this.scheduleAfterTurnMaintenance(ctx, args.conversationId);
 
     if (errorMessage && !aborted) {
       emit({ type: 'error', message: errorMessage });
@@ -2568,14 +2563,27 @@ export class MeriService {
 
   // ── Long-conversation compaction + history search (F2) ───────────────────
 
+  /** Shared by legacy, V2 and V3, only after the assistant turn is persisted. */
+  scheduleAfterTurnMaintenance(ctx: TenantContext, conversationId: string): void {
+    scheduleMeriTurnMaintenance(
+      () => this.afterTurnMaintenance(ctx, conversationId),
+      (err) =>
+        this.logger.warn(
+          `Meri after-turn maintenance failed [conv ${conversationId}]: ${err instanceof Error ? err.message : err}`,
+        ),
+    );
+  }
+
   private async afterTurnMaintenance(ctx: TenantContext, conversationId: string): Promise<void> {
-    await this.indexRecentMessagesForSearch(ctx, conversationId).catch((err) => {
-      // Embeddings degrade silently to the ILIKE fallback at query time.
-      this.logger.debug(
-        `Meri message indexing skipped: ${err instanceof Error ? err.message : err}`,
-      );
-    });
-    await this.maybeCompactConversation(ctx, conversationId);
+    await Promise.all([
+      this.maybeCompactConversation(ctx, conversationId),
+      this.indexRecentMessagesForSearch(ctx, conversationId).catch((err) => {
+        // Embeddings degrade silently to the ILIKE fallback at query time.
+        this.logger.debug(
+          `Meri message indexing skipped: ${err instanceof Error ? err.message : err}`,
+        );
+      }),
+    ]);
   }
 
   /**
@@ -2663,7 +2671,7 @@ export class MeriService {
     const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.findFirst({
         where: { id: conversationId, tenantId: ctx.tenantId },
-        select: { summary: true, summaryUpToMessageId: true },
+        select: { summary: true, summaryUpToMessageId: true, clientId: true },
       }),
     );
     if (!conversation) return;
@@ -2680,11 +2688,18 @@ export class MeriService {
         where: {
           conversationId,
           role: { in: ['user', 'assistant'] },
-          ...(boundary ? { createdAt: { gt: boundary.createdAt } } : {}),
+          ...(boundary
+            ? {
+                OR: [
+                  { createdAt: { gt: boundary.createdAt } },
+                  { createdAt: boundary.createdAt, id: { gt: conversation.summaryUpToMessageId! } },
+                ],
+              }
+            : {}),
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: 200,
-        select: { id: true, role: true, body: true },
+        select: { id: true, role: true, body: true, clientId: true, metadata: true },
       }),
     );
     const existingSummary = boundary ? conversation.summary : null;
@@ -2697,14 +2712,26 @@ export class MeriService {
     if (!plan.compact || !plan.upToMessageId) return;
     const prompt = buildCompactionPrompt({
       existingSummary,
-      turns: plan.toSummarize.map((m) => ({ role: m.role, body: m.body })),
+      clientId: conversation.clientId,
+      turns: plan.toSummarize,
     });
-    const raw = await this.completeWithIntentModel(ctx.tenantId, prompt.system, prompt.user, 1200);
+    const raw = await completeMeriSummary({
+      runtime: (await this.meriFlags.isMeriV3ChatEnabled(ctx.tenantId, ctx.tenantSlug)) ? 'meriv3' : 'legacy',
+      system: prompt.system,
+      user: prompt.user,
+      resolveOpenAi: () => this.aiCredentials.resolveProvider(ctx, 'openai'),
+      completeLegacy: () => this.completeWithIntentModel(ctx.tenantId, prompt.system, prompt.user, 1200),
+    });
     const summary = raw ? sanitizeSummaryOutput(raw) : null;
     if (!summary) return;
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.update({
-        where: { id: conversationId },
+    const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioConversation.updateMany({
+        // A slower overlapping maintenance job must not regress the boundary.
+        where: {
+          id: conversationId,
+          tenantId: ctx.tenantId,
+          summaryUpToMessageId: conversation.summaryUpToMessageId,
+        },
         data: {
           summary,
           summaryUpToMessageId: plan.upToMessageId,
@@ -2712,6 +2739,7 @@ export class MeriService {
         },
       }),
     );
+    if (!updated.count) return;
     this.logger.log(
       `Meri compaction [conv ${conversationId}]: folded ${plan.toSummarize.length} messages into the running summary (~${estimateTokens(summary)} tokens)`,
     );

@@ -2901,6 +2901,7 @@ const CITATION_SNIPPET_FIELDS = [
   'abstract',
   'snippet',
   'text',
+  'textContent',
   'latestAction',
   'excerpt',
 ] as const;
@@ -2927,6 +2928,39 @@ function truncateCitation(text: string, max: number): string {
 function citationRowsOf(payload: Record<string, unknown>): unknown[] | null {
   if (Array.isArray(payload.data)) return payload.data as unknown[];
   if (Array.isArray(payload.results)) return payload.results as unknown[];
+  // Shared retrieval returns evidence envelopes, not the legacy data/results
+  // rows. Preserve the authoritative record ID when rendering source popovers.
+  if (Array.isArray(payload.records)) {
+    return payload.records.flatMap((value) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+      const record = value as Record<string, unknown>;
+      if (
+        typeof record.recordId !== 'string' ||
+        !record.payload ||
+        typeof record.payload !== 'object' ||
+        Array.isArray(record.payload)
+      )
+        return [];
+      const data = record.payload as Record<string, unknown>;
+      const provenance =
+        record.provenance && typeof record.provenance === 'object'
+          ? (record.provenance as Record<string, unknown>)
+          : {};
+      return [
+        {
+          ...data,
+          id: record.recordId,
+          title:
+            firstCitationString(data, CITATION_TITLE_FIELDS) ??
+            firstCitationString(data, ['issueTitle', 'peCode']) ??
+            `${typeof record.domain === 'string' ? record.domain : 'Source'}: ${record.recordId}`,
+          url:
+            firstCitationString(data, CITATION_URL_FIELDS) ??
+            firstCitationString(provenance, CITATION_URL_FIELDS),
+        },
+      ];
+    });
+  }
   return null;
 }
 
@@ -3376,177 +3410,781 @@ export async function recordAiUsageEvent<Tx = unknown>(
 // ---------------------------------------------------------------------------
 
 /**
- * CANONICAL name -> description for every apps/api Meri tool (meri-tools.service
- * TOOL_DEFINITIONS). The single checked-in source both sides assert against so
- * they can never drift silently: apps/api pins that TOOL_DEFINITIONS equals this,
- * and the meriv2-orchestrator pins that the union of its three delegated catalogs
- * equals this verbatim (catching description drift the old name-only test missed).
+ * Canonical capability definitions shared by the API and orchestrator.
  * Inlined here (not a re-exported submodule) per this file header.
  */
-export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
-  get_client_context:
-    'Load authorized Capiro client context: recent meetings, threads, contacts, and tasks, plus the client profile (capabilities, key people, facilities, submission history).',
-  search_research_sources:
-    'Search authorized Capiro clients, meetings, mail, notes, and directory notes.',
-  run_analysis:
-    'Execute Python (pandas/numpy/matplotlib) in a locked-down sandbox for real computation: aggregations, year-over-year deltas, joins, and charts over data you already retrieved with other tools. Pass small datasets inline as rows; read them in code from ./data/<name>.csv. print() findings, assign a `results` dict/list/DataFrame for tables, and matplotlib figures are returned as chart artifacts. No network, no filesystem outside the working directory.',
-  search_client_knowledge:
-    'Semantic search over one client\'s knowledge base: profile/overview facts, key people (titles, roles, contact history), facilities (locations, congressional districts, headcount), and uploaded document contents. Use this FIRST for questions about a specific client ("who at X handles Y", "summarize the uploaded doc", "which districts have X facilities"). Returns typed, citable knowledge-base entries.',
-  query_intelligence:
-    'Query federal lobbying intelligence: surging LDA issues, trending topics, recent congressional bills, federal spending data, and counts of available intelligence data sources (SEC filings, FARA registrations, GAO reports, grants, hearings, state bills, CRS reports, news articles, economic data). Optionally filter by a client name for contractor spending.',
-  query_knowledge_graph:
-    "Explore the firm's institutional-memory knowledge graph: the connected web of clients, bills, issues, people, offices, meetings, email threads, and memories. Use for relationship questions like \"what's our full history with this client/office\", \"what is everything connected to bill X\", or \"what do we know around issue Y\". Pass a seed node (e.g. 'client:<id>', 'bill:119-hr-1234', 'issue:SHIP') to get its neighborhood, or omit to get an overview. Edges are tagged fact (from firm data) vs mention (from analyst notes). Tenant + own-private scoped.",
-  find_path_to:
-    "Find the warm-introduction routes from your clients to a target office or person in the knowledge graph (\"who do we already know near the Senate Defense Approps subcommittee?\"). Pass a target node id (e.g. 'office:<id>' or 'person:<id>'); returns the shortest connection paths so you can see which client/person gets you there. Tenant + own-private scoped.",
-  search_memory:
-    'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items, each with a relevance score and a `memoryItemId` you can pass to confirm_memory / correct_memory / forget_memory. Tenant + own-private scoped.',
-  search_congress_bills:
-    'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
-  get_bill_status:
-    'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
-  search_floor_votes:
-    "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",
-  search_cbo_cost_estimates:
-    'Look up CBO cost estimates (budget scores) for congressional bills in the Capiro database. Filter by bill id ("119-hr-8800") or keyword. Returns the estimate title, publication date, and cbo.gov link. Explicitly reports when NO estimate exists for a bill — never guess a score.',
-  resolve_entity:
-    'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
-  search_lda_filings:
-    'Search LDA lobbying disclosure filings in the Capiro database. Filter by client name, registrant, issue area, or keyword.',
-  list_global_datasets:
-    'List the global (public-domain, non-tenant) reference datasets query_global_data can aggregate over — LDA lobbying registrations, SEC filings, FARA registrations, congressional and state bills, federal grants and contract opportunities, federal awards, GAO/CRS reports, FEC committees, and news. For each dataset: its queryable fields, their types, and whether they can be filtered/grouped/aggregated. Call this BEFORE query_global_data if you are not already certain of a dataset\'s exact field names — do not guess them.',
-  query_global_data:
-    "Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like \"how many active LDA registrations do we have\" or \"which agency posted the most grants this year\" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset's field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.",
-  search_sec_filings:
-    'Search SEC EDGAR filings (10-K, 10-Q, 8-K, DEF14A, S-1, etc.) in the Capiro database. Filter by company name, form type, CIK, or date range. Returns company, form type, filing date, and description.',
-  search_fara_registrations:
-    'Search FARA (Foreign Agents Registration Act) registrations. Filter by registrant name, foreign principal, country, or status. Returns registrant, foreign principal, country, and status.',
-  search_federal_grants:
-    'Search federal grant opportunities (NOFOs) from Grants.gov. Filter by agency, keyword, status (posted/closed/forecasted), or date range. Returns title, agency, funding amounts, eligibility, and deadlines.',
-  search_federal_awards:
-    'Search federal contract awards/obligations (USAspending) the firm has synced. Filter by keyword, awarding agency, or Program Element (PE) code. Returns contractor, agency, amount, description, PE code, and place-of-performance — useful for defense-contracting and PE-linked questions.',
-  search_gao_reports:
-    'Search GAO (Government Accountability Office) reports and testimonies. Filter by keyword, report type, topic, or agency. Returns title, report type, date, topics, and recommendations count.',
-  search_state_bills:
-    'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
-  get_state_bill_status:
-    'Get the authoritative legislative status of ONE state bill (by canonical id "tx-2025-hb1234" or a designation like "TX HB 1234" — state required if not embedded in the designation): its canonical status (introduced/committee/reported/floor/passed_chamber/resolving/to_governor/enacted/vetoed/veto_overridden/failed/dead_by_deadline), recent action timeline, roll-call votes, and companion-bill links with their status. Explicitly states when there is NO recorded vote (never infer passage) and when the bill is dead_by_deadline (session adjourned sine die — dead absent a special session).',
-  search_state_floor_votes:
-    "Search state legislature roll-call votes. Filter by bill (canonical id or designation), keyword over the motion text, state, chamber, or limit. Returns each vote's motion, tally, passed/failed result, date, and source link. Member-level filtering is not yet available for state votes (crosswalk hardening in progress) — never promise a member-scoped result. Explicitly reports when NO matching vote exists.",
-  get_state_legislator:
-    'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
-  get_committee_roster:
-    'Get the full roster of ONE committee: chair, vice chair, ranking member, and every member (grouped by side/rank for federal; role for state — state chambers do not share a minority-leadership vocabulary). `jurisdiction` is required (federal and state committees are separate namespaces — never guessed from the committee string alone); `state` is required when jurisdiction=state. Matches by exact systemCode/committee id first, then by name — reports "committee referral unmatched" rather than guessing when the name matches zero or more than one committee.',
-  get_representation:
-    "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
-  list_members:
-    'List CURRENT members of Congress by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". `state` accepts a full name ("Virginia") or 2-letter code ("VA"); `chamber` is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. This is the authoritative federal member roster — use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. Explicitly reports when NO members match; never fabricate a member.',
-  get_state_rule_status:
-    'Look up ONE rule/notice\'s status and lifecycle stage — state agency register or Federal Register, whichever matches. Accepts an exact id ("FL-31100933", or a Federal Register document number like "2026-01234") or a title keyword; `state` scopes a keyword search to that state\'s register (omit to also search federal + other states). Stage (notice/nprm/comment_closed/final/effective) is derived deterministically from the rule\'s type and comment/effective dates — never guessed. Explicitly reports ambiguous keyword matches (asks which one) and NO-match cases — never fabricates a rule\'s status.',
-  search_intel_articles:
-    'Search aggregated policy news and intelligence articles from sources like Roll Call, The Hill, Axios, Politico, Brookings, and agency press. Filter by keyword, source, or topic.',
-  search_committee_hearings:
-    'Search congressional committee hearings, markups, and meetings. Filter by committee name, chamber (House/Senate/Joint), keyword, or date range.',
-  search_crs_reports:
-    'Search Congressional Research Service (CRS) reports and analyses. Filter by keyword, topic, or author.',
-  query_economic_data:
-    'Query economic indicators from BLS (Bureau of Labor Statistics), Census (ACS district demographics), and BEA (Bureau of Economic Analysis GDP/industry data). Specify data source and parameters like state, district, series, or year.',
-  search_public_web:
-    'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',
-  scrape_web_page:
-    'Fetch and extract readable text from a public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Blocks localhost/private-network targets.',
-  create_meeting_brief:
-    'Create and persist a deterministic meeting brief artifact from authorized Capiro data.',
-  draft_policy_memo:
-    'Create and persist a policy memo artifact from authorized Capiro client context.',
-  save_note: 'Save a user-scoped Meri note and optionally an encrypted Capiro meeting note.',
-  send_email: "Send an email via the tenant's connected Microsoft 365 account on behalf of Meri.",
-  list_emails:
-    "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
-  search_emails:
-    "Search the user's synced email (Microsoft 365/Google) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). Matching is an exact, case-insensitive substring — there is NO fuzzy or typo tolerance, so a real company or person's name that is spelled even slightly differently (plural vs singular, a hyphen, an abbreviation, a missing/extra word) will not match. If a full name or phrase returns zero results, retry with just its single most distinctive word before concluding the person or company is absent, and treat any hit on that broader term as a possible naming variant worth surfacing to the user rather than a false lead to discard. IMPORTANT: bodies are stored as short previews and junk/spam, deleted/trash, and drafts folders never sync, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
-  list_upcoming_meetings:
-    "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
-  reply_email:
-    "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
-  save_memory:
-    "Persist a durable fact or preference the user shares (a nickname, reporting style, ongoing priority, etc.) to Meri's long-term memory so it is recalled in future conversations. Use this whenever the user asks you to remember something.",
-  confirm_memory:
-    'Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers ("yes, that\'s still right"). Pass the memoryItemId from search_memory. Does not change the content.',
-  correct_memory:
-    'Correct a remembered fact: supersede it with new content while preserving the prior version as history. The old memory is retired from recall and the new one takes its place. Use when the user says a remembered fact is wrong or outdated ("actually it\'s X now"). Pass the memoryItemId from search_memory plus the corrected content.',
-  forget_memory:
-    "Forget a remembered fact: stop recalling it immediately and remove it from Meri's memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.",
-  search_program_elements:
-    'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1/R-2 RDT&E Program Elements AND P-1/P-40 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
-  get_program_element:
-    "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1/P-40 procurement line item vs R-1/R-2 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
-  get_pe_budget_timeline:
-    "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
-  get_pe_contractors:
-    'Get the top contractors linked to a Program Element over the last ~24 months, by direct PE tag or DoD acquisition-program code. Note: PE-to-contractor linkage is sparse — many PEs return no contractors.',
-  get_pe_bills:
-    'Get congressional bills that reference a Program Element (by PE code), with sponsor, lead committee, and latest action.',
-  get_pe_report_language:
-    "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
-  search_acquisition_personnel:
-    'Search DoD acquisition personnel — the program managers, contracting officers, PEOs, and program leads who run defense programs. Filter by name (query), military service, organization, role, or linked Program Element (peCode). Returns name, service, organization, title, role, linked PE(s), and source count.',
-  get_acquisition_person:
-    "Get a single DoD acquisition person's full detail by id: name, service, organization, title, role, program of record, linked Program Elements, public profile, and the source citations behind each fact.",
-  create_word:
-    'Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.',
-  create_excel:
-    'Generate a downloadable Microsoft Excel (.xlsx) workbook from a structured spec (one or more sheets, each with headers and rows). Use when the user asks for a spreadsheet, data export, or table as a file. Numeric-looking cells are stored as numbers.',
-  create_powerpoint:
-    'Generate a downloadable Microsoft PowerPoint (.pptx) deck from a structured spec (title slide plus content slides with bullets and an optional table per slide). Use when the user asks for a slide deck or presentation.',
-  schedule_task:
-    'Schedule a recurring task for Meri to run automatically on a cadence (e.g. a weekly research brief). Requires a name, an instruction prompt, and intervalMinutes (>=60). Scheduled runs are READ-ONLY research only — they cannot send email or write data. Use when the user asks Meri to do something "every week / daily / on a schedule".',
-  list_scheduled_tasks:
-    "List the caller's recurring scheduled Meri tasks (name, cadence, next run, enabled state).",
-  cancel_scheduled_task: 'Cancel (disable) a recurring scheduled Meri task by its id.',
-  query_tasks:
-    'List engagement tasks/to-dos for the firm or a client — filter by status and due date. Use for "what is due, overdue, or open".',
-  query_action_items:
-    'List the firm\'s "Needs Attention" action recommendations for a client or across all clients — each card says what changed, why it matters, and the recommended action with deadline and priority.',
-  search_tracked_bills:
-    "List the bills the firm is actively tracking for a client, with each bill's latest status and the note attached when it was pinned.",
-  query_regulatory_dockets:
-    'List regulatory dockets / rulemaking documents from Regulations.gov, or upcoming open comment-period deadlines. Filter by agency or document type. Use for "what comment periods are closing soon".',
-  search_sam_opportunities:
-    'Search SAM.gov federal contract opportunities (solicitations, sources sought, presolicitations) by keyword or NAICS code. Active notices by default, newest first, with response deadlines and points of contact.',
-  query_debriefs:
-    'List post-meeting debriefs for a client — outcomes, follow-ups, and commitments captured after meetings. Restricted (confidential) debrief bodies are withheld.',
-  query_outreach:
-    "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",
-  read_client_documents:
-    'List the documents uploaded in a client\'s Documents tab, and (when documentId is given) extract and return the text content of one document so you can read, summarize, or quote it. Supports .txt, .csv, .docx, .pdf, .xlsx, .pptx, and audio/video transcription. Use when the user references "the document/file I uploaded", a contract, a brief, a deck, or asks you to read/summarize an attached file for a client.',
-  lookup_client_registry:
-    "Pre-create check for a prospective client name — ALWAYS call this BEFORE proposing create_client. Reports (1) whether a client with that name already exists in the firm's book of business, (2) the LDA lobbying-disclosure registry's exact match if any (create_client will link it automatically), and (3) close LDA candidates otherwise — relay those to the user and ask which registered entity applies (pass the chosen id as create_client's `ldaClientId`) or none (`skipLdaCheck: true`). Read-only; creates nothing.",
-  create_client:
-    "Create a NEW client record in the firm's book of business. Requires user approval. Call lookup_client_registry FIRST and resolve its findings with the user, then propose this with the resolved inputs: `ldaClientId` for a confirmed LDA registry entity, `skipLdaCheck: true` if the user said none apply, or neither when the name matched exactly / wasn't in the registry. The same checks are re-enforced here as backstops — the action FAILS VISIBLY (creating nothing) on a duplicate client, an unresolved close-match LDA ambiguity, an unknown `ldaClientId`, or the plan's client-slot limit. Required: `name`. Optional: `website`, `description`, `sectorTag`, `primaryContactName`/`primaryContactEmail`/`primaryContactPhone`. When you propose it, ask IN THE SAME MESSAGE whether — once approved — the user also wants the full profile filled via web research and internal data (their website via scrape_web_page, LDA filings, federal awards → update_client_profile).",
-  create_task:
-    'Create an engagement task/follow-up (title, optional client, due date, description). Requires user approval.',
-  update_task:
-    "Update an engagement task's status, due date, or title (e.g. mark done). Requires user approval.",
-  update_client_profile:
-    "Write approved values into a client profile (the Documents/Overview tab fields): name, website, description, productDescription, primaryContactName, primaryContactEmail, primaryContactPhone, sectorTag, issueCodes, uei, cageCode, naicsCodes, pscCodes. You may ALSO append facilities (locations: name, address, city, state, ZIP, congressionalDistrict, employeeCount), capabilities (products/technologies the organization offers: name, type, description, sector), and people (key contacts / personnel: name, title, email, phone, role, lastContact, notes) discovered on the client's website or in filings -- pass them as the facilities[], capabilities[], and people[] arrays. These arrays are MERGED, never used to delete existing rows: a person already on the profile (matched on email, else exact name) is updated in place — blank fields are filled and lastContact advances, but values already there are left alone — and a facility/capability whose name is already present is skipped. Re-running enrichment is therefore safe and will NOT duplicate rows; the result reports peopleCreated, peopleUpdated, and skipped separately, so report what actually changed rather than assuming every row you sent was new. Only call this AFTER you have shown the user the proposed values (ideally with a source for each, e.g. from search_public_web / scrape_web_page / LDA filings) and they have approved them. Pass only the fields/rows you are changing. Requires user approval.",
-  find_contacts:
-    "Find REAL people the firm actually corresponds with, harvested from the connected Outlook/Gmail mailboxes and calendars — name, email address, organization, when they were last in contact, and how many messages. Use this INSTEAD of reading names out of list_emails / search_emails previews when you need contacts for a client profile: those previews give you display names with no addresses and no history, which is guesswork. Filter by `clientId` (returns everyone whose email domain matches that client's website, plus anyone already linked to them), by `domain`, or by `query` (name/email substring). `onProfile` tells you who is ALREADY on the client's People tab, so you only propose the ones who are missing. Read-only.",
-  // Funding Opportunities (P37). Six READ-ONLY tools over Capiro's own
-  // normalized tables — implemented in
-  // apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts.
-  get_funding_opportunity:
-    "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
-  explain_opportunity_match:
-    'Explain WHY an opportunity matched a client: every matched signal with its strength and the exact value it matched on, the overall fit band, and the four separate judgements Capiro keeps apart — relevance (capability/agency fit), eligibility (can they bid), the machine recommendation (pursue/monitor/pass/needs_review), and the human decision if one has been made. Use this instead of guessing from a score. Also names the client profile fields Capiro is missing, so a weak match can be reported as unassessable rather than as a poor fit.',
-  get_opportunity_client_context:
-    "Load one client's federal-opportunity posture: counts by rail, the next deadline, top-ranked grants and contracts, per-source data freshness, and — importantly — which client profile fields Capiro is missing. Use this FIRST when asked how a client is doing on federal opportunities, and to distinguish 'no matches' from 'the catalog has not synced' from 'the profile is too thin to score'.",
-  get_opportunity_government_landscape:
-    'Load the government-affairs context Capiro can evidence for a SAM.gov contract opportunity: reviewed Program Element links (only an ACCEPTED review counts as source-backed; an unreviewed match is labelled inferred and is not evidence of a link), the client’s recorded facilities, and state-level place-of-performance overlap. Reports coverage and which context sources are not yet wired — an unwired source means Capiro cannot look, never that nothing is there. SAM.gov only.',
-  compare_funding_opportunities:
-    'Compare two to five opportunities side by side for one client, using local facts only: deadlines, activity, relevance, eligibility, recommendation and recorded decision. Pass `opportunities` as a list of {source, sourceRecordId}. Grant funding and contract value are reported separately and are never summed. A record Capiro cannot read is listed with its reason rather than silently dropped, so the comparison cannot look more complete than it is.',
-  build_opportunity_action_plan:
-    'Get the deterministic, stage-aware action plan for an opportunity — what a capture team should do next given where the acquisition actually is (forecast, sources sought, presolicitation, solicitation, amendment, grant, or closed). Returns PROPOSALS ONLY: nothing is committed, no task is created, no workflow moves. A person accepts an action in Capiro, which then creates the task and records the decision in one transaction. A closed or informational notice never proposes a pursuit.',
-};
+export type MeriToolSurface = 'full_chat' | 'in_editor';
+export type MeriToolBackend = 'meri' | 'federal_market';
+
+export interface MeriCapabilityDefinition {
+  readonly name: string;
+  readonly description: string;
+  readonly backend: MeriToolBackend;
+  readonly readOnly: boolean;
+  readonly surfaces: readonly MeriToolSurface[];
+}
+
+/**
+ * Authoritative native API capability registry. API definitions and orchestrator
+ * registrations derive from this list; adding a tool requires explicitly choosing
+ * its handler owner, side effects and allowed surfaces. Provider/app MCP tools
+ * retain their separate authenticated discovery and execution path.
+ */
+export const MERI_CAPABILITY_REGISTRY = [
+  {
+    name: 'get_research_evidence',
+    description:
+      'Read immutable attachment evidence for your research session, with source IDs, completeness/status and paging; verify supplied attachments before citing them.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_capiro_data',
+    description:
+      'Search authorized Capiro data across supported domains, including strategies, budget lines, legislation, hearings, funding, federal awards, directory and District Nexus. Returns evidence references and explicit domain coverage; missing, stale or partial data must not be treated as proof of absence.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_client_context',
+    description:
+      'Load authorized client context and profile capabilities, people, facilities and submission history. Inspect profileSections for exact counts, availability and nextCursor; request a section with its cursor to read more. A missing or unavailable section is not evidence that the client lacks it.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_research_sources',
+    description: 'Search authorized Capiro clients, meetings, mail, notes, and directory notes.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'run_analysis',
+    description:
+      'Execute Python (pandas/numpy/matplotlib) in a locked-down sandbox for real computation: aggregations, year-over-year deltas, joins, and charts over data you already retrieved with other tools. Pass small datasets inline as rows; read them in code from ./data/<name>.csv. print() findings, assign a `results` dict/list/DataFrame for tables, and matplotlib figures are returned as chart artifacts. No network, no filesystem outside the working directory.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_client_knowledge',
+    description:
+      'Semantic search over one client\'s knowledge base: profile/overview facts, key people (titles, roles, contact history), facilities (locations, congressional districts, headcount), and uploaded document contents. Use this FIRST for questions about a specific client ("who at X handles Y", "summarize the uploaded doc", "which districts have X facilities"). Returns typed, citable knowledge-base entries.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'query_intelligence',
+    description:
+      'Query federal lobbying intelligence: surging LDA issues, trending topics, recent congressional bills, federal spending data, and counts of available intelligence data sources (SEC filings, FARA registrations, GAO reports, grants, hearings, state bills, CRS reports, news articles, economic data). Optionally filter by a client name for contractor spending.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'query_knowledge_graph',
+    description:
+      "Explore the firm's institutional-memory knowledge graph: the connected web of clients, bills, issues, people, offices, meetings, email threads, and memories. Use for relationship questions like \"what's our full history with this client/office\", \"what is everything connected to bill X\", or \"what do we know around issue Y\". Pass a seed node (e.g. 'client:<id>', 'bill:119-hr-1234', 'issue:SHIP') to get its neighborhood, or omit to get an overview. Edges are tagged fact (from firm data) vs mention (from analyst notes). Tenant + own-private scoped.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'find_path_to',
+    description:
+      "Find the warm-introduction routes from your clients to a target office or person in the knowledge graph (\"who do we already know near the Senate Defense Approps subcommittee?\"). Pass a target node id (e.g. 'office:<id>' or 'person:<id>'); returns the shortest connection paths so you can see which client/person gets you there. Tenant + own-private scoped.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_memory',
+    description:
+      'Recall approved Institutional Memory facts with sections, source provenance, approval and freshness status, coverage and continuation cursors. Searches authorized firm and own-private memory, plus the selected client when clientId is provided. Use for remembered facts and preferences; use search_capiro_data to search underlying source documents, meetings and other ingested domains. Returns memoryItemId for confirm_memory / correct_memory / forget_memory.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_congress_bills',
+    description:
+      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_bill_status',
+    description:
+      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_floor_votes',
+    description:
+      "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_cbo_cost_estimates',
+    description:
+      'Look up CBO cost estimates (budget scores) for congressional bills in the Capiro database. Filter by bill id ("119-hr-8800") or keyword. Returns the estimate title, publication date, and cbo.gov link. Explicitly reports when NO estimate exists for a bill — never guess a score.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'resolve_entity',
+    description:
+      'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_lda_filings',
+    description:
+      'Search LDA lobbying disclosure filings in the Capiro database. Filter by client name, registrant, issue area, or keyword.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'list_global_datasets',
+    description:
+      "List the global (public-domain, non-tenant) reference datasets query_global_data can aggregate over — LDA lobbying registrations, SEC filings, FARA registrations, congressional and state bills, federal grants and contract opportunities, federal awards, GAO/CRS reports, FEC committees, and news. For each dataset: its queryable fields, their types, and whether they can be filtered/grouped/aggregated. Call this BEFORE query_global_data if you are not already certain of a dataset's exact field names — do not guess them.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'query_global_data',
+    description:
+      'Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like "how many active LDA registrations do we have" or "which agency posted the most grants this year" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset\'s field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_sec_filings',
+    description:
+      'Search SEC EDGAR filings (10-K, 10-Q, 8-K, DEF14A, S-1, etc.) in the Capiro database. Filter by company name, form type, CIK, or date range. Returns company, form type, filing date, and description.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_fara_registrations',
+    description:
+      'Search FARA (Foreign Agents Registration Act) registrations. Filter by registrant name, foreign principal, country, or status. Returns registrant, foreign principal, country, and status.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_federal_grants',
+    description:
+      'Search federal grant opportunities (NOFOs) from Grants.gov. Filter by agency, keyword, status (posted/closed/forecasted), or date range. Returns title, agency, funding amounts, eligibility, and deadlines.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_federal_awards',
+    description:
+      'Search federal contract awards/obligations (USAspending) the firm has synced. Filter by keyword, awarding agency, or Program Element (PE) code. Returns contractor, agency, amount, description, PE code, and place-of-performance — useful for defense-contracting and PE-linked questions.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_gao_reports',
+    description:
+      'Search GAO (Government Accountability Office) reports and testimonies. Filter by keyword, report type, topic, or agency. Returns title, report type, date, topics, and recommendations count.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_state_bills',
+    description:
+      'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_state_bill_status',
+    description:
+      'Get the authoritative legislative status of ONE state bill (by canonical id "tx-2025-hb1234" or a designation like "TX HB 1234" — state required if not embedded in the designation): its canonical status (introduced/committee/reported/floor/passed_chamber/resolving/to_governor/enacted/vetoed/veto_overridden/failed/dead_by_deadline), recent action timeline, roll-call votes, and companion-bill links with their status. Explicitly states when there is NO recorded vote (never infer passage) and when the bill is dead_by_deadline (session adjourned sine die — dead absent a special session).',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_state_floor_votes',
+    description:
+      "Search state legislature roll-call votes. Filter by bill (canonical id or designation), keyword over the motion text, state, chamber, or limit. Returns each vote's motion, tally, passed/failed result, date, and source link. Member-level filtering is not yet available for state votes (crosswalk hardening in progress) — never promise a member-scoped result. Explicitly reports when NO matching vote exists.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_state_legislator',
+    description:
+      'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_committee_roster',
+    description:
+      'Get the full roster of ONE committee: chair, vice chair, ranking member, and every member (grouped by side/rank for federal; role for state — state chambers do not share a minority-leadership vocabulary). `jurisdiction` is required (federal and state committees are separate namespaces — never guessed from the committee string alone); `state` is required when jurisdiction=state. Matches by exact systemCode/committee id first, then by name — reports "committee referral unmatched" rather than guessing when the name matches zero or more than one committee.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_representation',
+    description:
+      "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'list_members',
+    description:
+      'List CURRENT members of Congress by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". `state` accepts a full name ("Virginia") or 2-letter code ("VA"); `chamber` is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. This is the authoritative federal member roster — use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. Explicitly reports when NO members match; never fabricate a member.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_state_rule_status',
+    description:
+      'Look up ONE rule/notice\'s status and lifecycle stage — state agency register or Federal Register, whichever matches. Accepts an exact id ("FL-31100933", or a Federal Register document number like "2026-01234") or a title keyword; `state` scopes a keyword search to that state\'s register (omit to also search federal + other states). Stage (notice/nprm/comment_closed/final/effective) is derived deterministically from the rule\'s type and comment/effective dates — never guessed. Explicitly reports ambiguous keyword matches (asks which one) and NO-match cases — never fabricates a rule\'s status.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_intel_articles',
+    description:
+      'Search aggregated policy news and intelligence articles from sources like Roll Call, The Hill, Axios, Politico, Brookings, and agency press. Filter by keyword, source, or topic.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_committee_hearings',
+    description:
+      'Search congressional committee hearings, markups, and meetings. Filter by committee name, chamber (House/Senate/Joint), keyword, or date range.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_crs_reports',
+    description:
+      'Search Congressional Research Service (CRS) reports and analyses. Filter by keyword, topic, or author.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'query_economic_data',
+    description:
+      'Query economic indicators from BLS (Bureau of Labor Statistics), Census (ACS district demographics), and BEA (Bureau of Economic Analysis GDP/industry data). Specify data source and parameters like state, district, series, or year.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_public_web',
+    description:
+      'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'scrape_web_page',
+    description:
+      'Fetch and extract readable text from a public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Blocks localhost/private-network targets.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_meeting_brief',
+    description:
+      'Create and persist a deterministic meeting brief artifact from authorized Capiro data.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'draft_policy_memo',
+    description: 'Create and persist a policy memo artifact from authorized Capiro client context.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_note',
+    description: 'Save a user-scoped Meri note and optionally an encrypted Capiro meeting note.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'send_email',
+    description:
+      "Send an email via the tenant's connected Microsoft 365 account on behalf of Meri.",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'list_emails',
+    description:
+      "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_emails',
+    description:
+      "Search the user's synced email (Microsoft 365/Google) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). Matching is an exact, case-insensitive substring — there is NO fuzzy or typo tolerance, so a real company or person's name that is spelled even slightly differently (plural vs singular, a hyphen, an abbreviation, a missing/extra word) will not match. If a full name or phrase returns zero results, retry with just its single most distinctive word before concluding the person or company is absent, and treat any hit on that broader term as a possible naming variant worth surfacing to the user rather than a false lead to discard. IMPORTANT: bodies are stored as short previews and junk/spam, deleted/trash, and drafts folders never sync, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'list_upcoming_meetings',
+    description:
+      "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'reply_email',
+    description:
+      "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_memory',
+    description:
+      "Persist a durable fact or preference the user shares (a nickname, reporting style, ongoing priority, etc.) to Meri's long-term memory so it is recalled in future conversations. Use this whenever the user asks you to remember something.",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'confirm_memory',
+    description:
+      'Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers ("yes, that\'s still right"). Pass the memoryItemId from search_memory. Does not change the content.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'correct_memory',
+    description:
+      'Correct a remembered fact: supersede it with new content while preserving the prior version as history. The old memory is retired from recall and the new one takes its place. Use when the user says a remembered fact is wrong or outdated ("actually it\'s X now"). Pass the memoryItemId from search_memory plus the corrected content.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'forget_memory',
+    description:
+      "Forget a remembered fact: stop recalling it immediately and remove it from Meri's memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_program_elements',
+    description:
+      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1/R-2 RDT&E Program Elements AND P-1/P-40 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_program_element',
+    description:
+      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1/P-40 procurement line item vs R-1/R-2 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_pe_budget_timeline',
+    description:
+      "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_pe_contractors',
+    description:
+      'Get the top contractors linked to a Program Element over the last ~24 months, by direct PE tag or DoD acquisition-program code. Note: PE-to-contractor linkage is sparse — many PEs return no contractors.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_pe_bills',
+    description:
+      'Get congressional bills that reference a Program Element (by PE code), with sponsor, lead committee, and latest action.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_pe_report_language',
+    description:
+      "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_acquisition_personnel',
+    description:
+      'Search DoD acquisition personnel — the program managers, contracting officers, PEOs, and program leads who run defense programs. Filter by name (query), military service, organization, role, or linked Program Element (peCode). Returns name, service, organization, title, role, linked PE(s), and source count.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'get_acquisition_person',
+    description:
+      "Get a single DoD acquisition person's full detail by id: name, service, organization, title, role, program of record, linked Program Elements, public profile, and the source citations behind each fact.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'create_word',
+    description:
+      'Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_excel',
+    description:
+      'Generate a downloadable Microsoft Excel (.xlsx) workbook from a structured spec (one or more sheets, each with headers and rows). Use when the user asks for a spreadsheet, data export, or table as a file. Numeric-looking cells are stored as numbers.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_powerpoint',
+    description:
+      'Generate a downloadable Microsoft PowerPoint (.pptx) deck from a structured spec (title slide plus content slides with bullets and an optional table per slide). Use when the user asks for a slide deck or presentation.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'schedule_task',
+    description:
+      'Schedule a recurring task for Meri to run automatically on a cadence (e.g. a weekly research brief). Requires a name, an instruction prompt, and intervalMinutes (>=60). Scheduled runs are READ-ONLY research only — they cannot send email or write data. Use when the user asks Meri to do something "every week / daily / on a schedule".',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'list_scheduled_tasks',
+    description:
+      "List the caller's recurring scheduled Meri tasks (name, cadence, next run, enabled state).",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'cancel_scheduled_task',
+    description: 'Cancel (disable) a recurring scheduled Meri task by its id.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'query_tasks',
+    description:
+      'List engagement tasks/to-dos for the firm or a client — filter by status and due date. Use for "what is due, overdue, or open".',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'query_action_items',
+    description:
+      'List the firm\'s "Needs Attention" action recommendations for a client or across all clients — each card says what changed, why it matters, and the recommended action with deadline and priority.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_tracked_bills',
+    description:
+      "List the bills the firm is actively tracking for a client, with each bill's latest status and the note attached when it was pinned.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'query_regulatory_dockets',
+    description:
+      'List regulatory dockets / rulemaking documents from Regulations.gov, or upcoming open comment-period deadlines. Filter by agency or document type. Use for "what comment periods are closing soon".',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'search_sam_opportunities',
+    description:
+      'Search SAM.gov federal contract opportunities (solicitations, sources sought, presolicitations) by keyword or NAICS code. Active notices by default, newest first, with response deadlines and points of contact.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'query_debriefs',
+    description:
+      'List post-meeting debriefs for a client — outcomes, follow-ups, and commitments captured after meetings. Restricted (confidential) debrief bodies are withheld.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'query_outreach',
+    description:
+      "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'read_client_documents',
+    description:
+      'List the documents uploaded in a client\'s Documents tab, and (when documentId is given) extract and return the text content of one document so you can read, summarize, or quote it. Supports .txt, .csv, .docx, .pdf, .xlsx, .pptx, and audio/video transcription. Use when the user references "the document/file I uploaded", a contract, a brief, a deck, or asks you to read/summarize an attached file for a client.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat', 'in_editor'],
+  },
+  {
+    name: 'lookup_client_registry',
+    description:
+      "Pre-create check for a prospective client name — ALWAYS call this BEFORE proposing create_client. Reports (1) whether a client with that name already exists in the firm's book of business, (2) the LDA lobbying-disclosure registry's exact match if any (create_client will link it automatically), and (3) close LDA candidates otherwise — relay those to the user and ask which registered entity applies (pass the chosen id as create_client's `ldaClientId`) or none (`skipLdaCheck: true`). Read-only; creates nothing.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_client',
+    description:
+      "Create a NEW client record in the firm's book of business. Requires user approval. Call lookup_client_registry FIRST and resolve its findings with the user, then propose this with the resolved inputs: `ldaClientId` for a confirmed LDA registry entity, `skipLdaCheck: true` if the user said none apply, or neither when the name matched exactly / wasn't in the registry. The same checks are re-enforced here as backstops — the action FAILS VISIBLY (creating nothing) on a duplicate client, an unresolved close-match LDA ambiguity, an unknown `ldaClientId`, or the plan's client-slot limit. Required: `name`. Optional: `website`, `description`, `sectorTag`, `primaryContactName`/`primaryContactEmail`/`primaryContactPhone`. When you propose it, ask IN THE SAME MESSAGE whether — once approved — the user also wants the full profile filled via web research and internal data (their website via scrape_web_page, LDA filings, federal awards → update_client_profile).",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'create_task',
+    description:
+      'Create an engagement task/follow-up (title, optional client, due date, description). Requires user approval.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'update_task',
+    description:
+      "Update an engagement task's status, due date, or title (e.g. mark done). Requires user approval.",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'update_client_profile',
+    description:
+      "Write approved values into a client profile (the Documents/Overview tab fields): name, website, description, productDescription, primaryContactName, primaryContactEmail, primaryContactPhone, sectorTag, issueCodes, uei, cageCode, naicsCodes, pscCodes. You may ALSO append facilities (locations: name, address, city, state, ZIP, congressionalDistrict, employeeCount), capabilities (products/technologies the organization offers: name, type, description, sector), and people (key contacts / personnel: name, title, email, phone, role, lastContact, notes) discovered on the client's website or in filings -- pass them as the facilities[], capabilities[], and people[] arrays. These arrays are MERGED, never used to delete existing rows: a person already on the profile (matched on email, else exact name) is updated in place — blank fields are filled and lastContact advances, but values already there are left alone — and a facility/capability whose name is already present is skipped. Re-running enrichment is therefore safe and will NOT duplicate rows; the result reports peopleCreated, peopleUpdated, and skipped separately, so report what actually changed rather than assuming every row you sent was new. Only call this AFTER you have shown the user the proposed values (ideally with a source for each, e.g. from search_public_web / scrape_web_page / LDA filings) and they have approved them. Pass only the fields/rows you are changing. Requires user approval.",
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'find_contacts',
+    description:
+      "Find REAL people the firm actually corresponds with, harvested from the connected Outlook/Gmail mailboxes and calendars — name, email address, organization, when they were last in contact, and how many messages. Use this INSTEAD of reading names out of list_emails / search_emails previews when you need contacts for a client profile: those previews give you display names with no addresses and no history, which is guesswork. Filter by `clientId` (returns everyone whose email domain matches that client's website, plus anyone already linked to them), by `domain`, or by `query` (name/email substring). `onProfile` tells you who is ALREADY on the client's People tab, so you only propose the ones who are missing. Read-only.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_funding_opportunity',
+    description:
+      "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'explain_opportunity_match',
+    description:
+      'Explain WHY an opportunity matched a client: every matched signal with its strength and the exact value it matched on, the overall fit band, and the four separate judgements Capiro keeps apart — relevance (capability/agency fit), eligibility (can they bid), the machine recommendation (pursue/monitor/pass/needs_review), and the human decision if one has been made. Use this instead of guessing from a score. Also names the client profile fields Capiro is missing, so a weak match can be reported as unassessable rather than as a poor fit.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_opportunity_client_context',
+    description:
+      "Load one client's federal-opportunity posture: counts by rail, the next deadline, top-ranked grants and contracts, per-source data freshness, and — importantly — which client profile fields Capiro is missing. Use this FIRST when asked how a client is doing on federal opportunities, and to distinguish 'no matches' from 'the catalog has not synced' from 'the profile is too thin to score'.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_opportunity_government_landscape',
+    description:
+      'Load the government-affairs context Capiro can evidence for a SAM.gov contract opportunity: reviewed Program Element links (only an ACCEPTED review counts as source-backed; an unreviewed match is labelled inferred and is not evidence of a link), the client’s recorded facilities, and state-level place-of-performance overlap. Reports coverage and which context sources are not yet wired — an unwired source means Capiro cannot look, never that nothing is there. SAM.gov only.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'compare_funding_opportunities',
+    description:
+      'Compare two to five opportunities side by side for one client, using local facts only: deadlines, activity, relevance, eligibility, recommendation and recorded decision. Pass `opportunities` as a list of {source, sourceRecordId}. Grant funding and contract value are reported separately and are never summed. A record Capiro cannot read is listed with its reason rather than silently dropped, so the comparison cannot look more complete than it is.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'build_opportunity_action_plan',
+    description:
+      'Get the deterministic, stage-aware action plan for an opportunity — what a capture team should do next given where the acquisition actually is (forecast, sources sought, presolicitation, solicitation, amendment, grant, or closed). Returns PROPOSALS ONLY: nothing is committed, no task is created, no workflow moves. A person accepts an action in Capiro, which then creates the task and records the decision in one transaction. A closed or informational notice never proposes a pursuit.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_federal_contract_awards',
+    description:
+      'Search Capiro’s locally synchronized federal contract awards. Returns recipient, UEI, awarding agency, obligated amount, action date, place-of-performance district, source freshness and USAspending provenance. Pass clientId to restrict results to that client’s reviewed federal identities. Read-only; never calls MakeGov.',
+    backend: 'federal_market',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_federal_subawards',
+    description:
+      'Search locally synchronized MakeGov/Tango individual subawards, keeping prime and subrecipient identities separate. Returns amount, agency/office, NAICS, action date, and source-backed place-of-performance. Congressional district remains unknown unless explicitly resolved; state/city/ZIP are never converted into a district by inference. Pass clientId to restrict results to reviewed client identities. Subaward amounts are never added to prime-award amounts. Read-only; never calls MakeGov.',
+    backend: 'federal_market',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_contract_vehicles',
+    description:
+      'Search locally synchronized federal contract vehicles and client vehicle positions. With clientId, returns only vehicles connected to reviewed client or parent identities and labels self vs parent access. Without clientId, searches the global Tango vehicle snapshot catalog. Vehicle metrics are acquisition context, not opportunity value or probability of win.',
+    backend: 'federal_market',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'search_procurement_forecasts',
+    description:
+      'Search locally synchronized agency procurement forecasts from MakeGov/Tango. Forecasts are early signals, not open solicitations, and have no inferred eligibility or response deadline. Returns agency/office, anticipated award date, NAICS/PSC, set-aside, vehicle text, place-of-performance text, source system and freshness.',
+    backend: 'federal_market',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_district_federal_market',
+    description:
+      'Get source-backed federal-market activity for a congressional geography. Contract obligations and explicitly district-resolved subawards are separate awarded-money rails. State-backed subawards that lack a district are returned separately and never attributed to the requested district. SAM opportunities and agency forecasts are future signals and never included in awarded totals. Optionally pass clientId to scope awarded activity to that client’s reviewed federal identities.',
+    backend: 'federal_market',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+] as const satisfies readonly MeriCapabilityDefinition[];
+
+export type MeriCapability = (typeof MERI_CAPABILITY_REGISTRY)[number];
+export type MeriCapabilityName = MeriCapability['name'];
+
+/** Compatibility projections; never maintain an independent name/description list. */
+export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = Object.fromEntries(
+  MERI_CAPABILITY_REGISTRY.map(({ name, description }) => [name, description]),
+);
+
+export const MERI_CORE_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
+  (tool): tool is Extract<MeriCapability, { backend: 'meri' }> => tool.backend === 'meri',
+).map(({ name, description }) => ({ name, description }));
+
+export const MERI_FEDERAL_MARKET_TOOL_DEFINITIONS = MERI_CAPABILITY_REGISTRY.filter(
+  (tool): tool is Extract<MeriCapability, { backend: 'federal_market' }> =>
+    tool.backend === 'federal_market',
+).map(({ name, description }) => ({ name, description }));
+
+export function meriCapabilitiesForSurface(
+  surface: MeriToolSurface,
+): readonly MeriCapabilityDefinition[] {
+  return MERI_CAPABILITY_REGISTRY.filter((tool) =>
+    (tool.surfaces as readonly MeriToolSurface[]).includes(surface),
+  );
+}
+
+/** Fail closed even if an unknown API schema or internal-only native handler exists. */
+export function selectMeriCapabilitySchemas<T extends { name: string }>(
+  schemas: readonly T[],
+  surface: MeriToolSurface,
+  callableNames: Iterable<string>,
+): T[] {
+  const allowed = new Set(meriCapabilitiesForSurface(surface).map((tool) => tool.name));
+  const callable = new Set(callableNames);
+  const seen = new Set<string>();
+  return schemas.filter((schema) => {
+    if (!allowed.has(schema.name) || !callable.has(schema.name) || seen.has(schema.name))
+      return false;
+    seen.add(schema.name);
+    return true;
+  });
+}
+
+/** Registry startup contract: no intended full-chat capability may be silently lost. */
+export function assertMeriCapabilityHandlers(callableNames: Iterable<string>): void {
+  const callable = new Set(callableNames);
+  const missing = MERI_CAPABILITY_REGISTRY.filter((tool) => !callable.has(tool.name));
+  if (missing.length) {
+    throw new Error(
+      `Meri capabilities have no callable handler: ${missing.map((tool) => tool.name).join(', ')}`,
+    );
+  }
+}
 
 /** The canonical tool-name set (sorted), derived from the manifest. */
 export const MERI_TOOL_NAMES: readonly string[] = Object.keys(MERI_TOOL_MANIFEST).sort();

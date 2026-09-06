@@ -17,6 +17,9 @@ import type { EvaluationCaptureService } from '../evaluation/evaluation-capture.
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import type { MeriToolsService } from './meri-tools.service.js';
+import type { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import type { MeriTurnMaintenance } from './meri-turn-maintenance.js';
 
 type ResearchContextLoader = (
   ctx: TenantContext,
@@ -37,11 +40,10 @@ const governedResearch = new AsyncLocalStorage<MeriGovernedTurnContext>();
 /**
  * Phase 19 adoption wrapper for the established long-running Deep Research loop.
  *
- * The service itself remains unchanged. Its public plan/research entrypoints are
- * wrapped so the session topic is resolved through the shared Context Plane
- * before any model call; the private clientContext seam then consumes only that
- * governed prompt. No direct ContextCompiler call or parallel research RAG path
- * remains on Capiro traffic.
+ * Resolve the session's current task through the shared Context Plane before
+ * either provider phase. The service separately supplies its immutable chat and
+ * attachment handoff to the same V3 Responses runtime used by chat. Historical
+ * text stays model context; it does not rewrite this turn's retrieval scope.
  *
  * Planning uses `meri.research`. The gather+synthesize run uses
  * `research.generate-report`, so both Phase 19 operations are real enforced
@@ -57,8 +59,10 @@ export function createGovernedMeriResearchService(
   // Phase 27F — optional, same contract as elsewhere in this program: absent
   // means no evaluation decision is ever recorded, no other behavior change.
   evaluation?: EvaluationCaptureService,
+  v3Research?: MeriV3ResearchRunner,
+  turnMaintenance?: MeriTurnMaintenance,
 ): MeriResearchService {
-  const service = new MeriResearchService(prisma, config, tools, aiCredentials, reviews);
+  const service = new MeriResearchService(prisma, config, tools, aiCredentials, reviews, v3Research, turnMaintenance);
   const internal = service as unknown as ResearchServiceInternals;
   const legacyClientContext = internal.clientContext.bind(service);
   const originalStreamPlan = service.streamPlan.bind(service);
@@ -73,7 +77,7 @@ export function createGovernedMeriResearchService(
     return legacyClientContext(ctx, clientId);
   };
 
-  internal.streamPlan = (async (ctx, id, sse) => {
+  internal.streamPlan = (async (ctx, id, sse, auth = {}) => {
     const governed = await resolveSessionContext(
       prisma,
       contextPlane,
@@ -81,10 +85,10 @@ export function createGovernedMeriResearchService(
       id,
       'meri.research',
     );
-    return governedResearch.run(governed, () => originalStreamPlan(ctx, id, sse));
+    return governedResearch.run(governed, () => originalStreamPlan(ctx, id, sse, { ...auth, governedContext: governed }));
   }) as StreamPlan;
 
-  internal.streamResearch = (async (ctx, id, sse) => {
+  internal.streamResearch = (async (ctx, id, sse, auth = {}) => {
     const governed = await resolveSessionContext(
       prisma,
       contextPlane,
@@ -102,7 +106,7 @@ export function createGovernedMeriResearchService(
     // a real replay later is a pure additive follow-up: this decision path
     // and its sampling key are already live.
     void considerMeriResearchEvaluation(evaluation, ctx, id, governed).catch(() => undefined);
-    return governedResearch.run(governed, () => originalStreamResearch(ctx, id, sse));
+    return governedResearch.run(governed, () => originalStreamResearch(ctx, id, sse, { ...auth, governedContext: governed }));
   }) as StreamResearch;
 
   return service;
@@ -171,12 +175,16 @@ async function resolveSessionContext(
   sessionId: string,
   operationId: 'meri.research' | 'research.generate-report',
 ): Promise<MeriGovernedTurnContext> {
-  const session = await prisma.withTenant(ctx.tenantId, (tx) =>
-    tx.clioResearchSession.findFirst({
+  const session = await prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const session = await tx.clioResearchSession.findFirst({
       where: { id: sessionId, tenantId: ctx.tenantId, userId: ctx.userId },
       select: { topic: true, clientId: true },
-    }),
-  );
+    });
+    if (session?.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))) {
+      throw new Error('meri_context_plane_research_session_not_found');
+    }
+    return session;
+  });
   if (!session) throw new Error('meri_context_plane_research_session_not_found');
   return contextPlane.resolveResearch(ctx, {
     task: session.topic,

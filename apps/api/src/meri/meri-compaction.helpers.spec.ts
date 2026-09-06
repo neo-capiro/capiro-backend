@@ -43,6 +43,42 @@ describe('planCompaction', () => {
     expect(plan.compact).toBe(false);
   });
 
+  test('preserves an early material constraint through more than 40 short messages', () => {
+    const constraint = 'Never recommend FY2027 requested amounts as enacted funding.';
+    const messages = Array.from({ length: 60 }, (_, i) => ({
+      id: `m${i}`,
+      role: i % 2 ? 'assistant' : 'user',
+      body: i === 0 ? constraint : `Short exchange ${i}`,
+    }));
+    // The default 5,000-token trigger is never reached by this entire thread.
+    const first = planCompaction({
+      ...base,
+      triggerTokens: 5000,
+      messages: messages.slice(0, 38),
+    });
+    expect(first.compact).toBe(true);
+    expect(first.toSummarize[0]?.body).toBe(constraint);
+    const prompt = buildCompactionPrompt({
+      existingSummary: null,
+      turns: first.toSummarize,
+    });
+    expect(prompt.user).toContain(constraint);
+    // Simulated provider summary: the test proves transport/retention, not model quality.
+    const summary = `Decisions & preferences: ${constraint}`;
+    const remaining = messages.slice(first.toSummarize.length);
+    const next = planCompaction({
+      ...base,
+      triggerTokens: 5000,
+      existingSummary: summary,
+      messages: remaining,
+    });
+    expect(next.compact).toBe(false);
+    const replay = `${formatSummaryBlockForPrompt(summary)}\n${remaining.map((m) => m.body).join('\n')}`;
+    expect(replay).toContain(constraint);
+    expect(remaining).toHaveLength(34);
+    expect(replay).toContain('Short exchange 59');
+  });
+
   test('compacts the oldest messages once beyond-tail text reaches the trigger', () => {
     // 18 messages, 6 beyond the tail at 1000 chars (250 tokens) each = 1500 tokens.
     const messages = Array.from({ length: 18 }, (_, i) =>
@@ -56,7 +92,11 @@ describe('planCompaction', () => {
 
   test('respects minMessagesToSummarize even when tokens are huge', () => {
     const messages = Array.from({ length: 14 }, (_, i) => msg(`m${i}`, 'user', 50_000));
-    const plan = planCompaction({ ...base, messages, minMessagesToSummarize: 4 });
+    const plan = planCompaction({
+      ...base,
+      messages,
+      minMessagesToSummarize: 4,
+    });
     // 2 beyond the tail < 4 minimum.
     expect(plan.compact).toBe(false);
   });
@@ -92,6 +132,46 @@ describe('planCompaction', () => {
 });
 
 describe('buildCompactionPrompt', () => {
+  test('keeps client scope, evidence identities and unresolved decisions without arbitrary metadata', () => {
+    const prompt = buildCompactionPrompt({
+      existingSummary: 'Open threads: verify the enacted amount before sending.',
+      clientId: 'client-1',
+      turns: [
+        {
+          id: 'message-1',
+          role: 'assistant',
+          body: 'Requested amount is $10M [1].',
+          clientId: 'client-1',
+          metadata: {
+            citations: [
+              {
+                index: 1,
+                sourceId: 'source-1',
+                url: 'https://example.gov/budget',
+                secret: 'must-not-enter',
+              },
+            ],
+            attachments: [{ id: 'attachment-1', filename: 'budget.pdf' }],
+            contextPacketId: 'packet-1',
+            arbitrary: 'must-not-enter',
+          },
+        },
+      ],
+    });
+    expect(prompt.user).toContain('Current client scope: client-1');
+    expect(prompt.user).toContain('verify the enacted amount before sending');
+    for (const reference of [
+      'message-1',
+      'source-1',
+      'https://example.gov/budget',
+      'attachment-1',
+      'packet-1',
+    ]) {
+      expect(prompt.user).toContain(reference);
+    }
+    expect(prompt.user).not.toContain('must-not-enter');
+    expect(prompt.system).toContain('Citation numbers are local');
+  });
   test('includes the old summary and the new turns, labeled by speaker', () => {
     const prompt = buildCompactionPrompt({
       existingSummary: 'Facts & context: client is Acme Defense.',
@@ -113,6 +193,29 @@ describe('buildCompactionPrompt', () => {
       turns: [{ role: 'user', body: 'hello' }],
     });
     expect(prompt.user).toContain('(none yet)');
+  });
+
+  test('bounds reference metadata and reports omitted references for later history lookup', () => {
+    const prompt = buildCompactionPrompt({
+      existingSummary: null,
+      turns: [
+        {
+          id: 'source-message',
+          role: 'assistant',
+          body: 'Budget evidence.',
+          metadata: {
+            citations: Array.from({ length: 100 }, (_, i) => ({
+              sourceId: `source-${i}`,
+              title: 'Long title '.repeat(100),
+              url: 'https://example.gov/budget',
+            })),
+          },
+        },
+      ],
+    });
+    expect(prompt.user.length).toBeLessThan(4000);
+    expect(prompt.user).toContain('source-message');
+    expect(prompt.user).toContain('citationsOmittedCount');
   });
 
   test('structural guarantee: only the provided turn bodies enter the prompt', () => {

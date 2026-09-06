@@ -13,6 +13,7 @@ import {
 } from './types';
 import { toolExecutionMetadataFor, type ToolExecutionMetadata } from './tool-execution-metadata';
 import { DefaultScopingWrapper, type ScopingWrapper } from '../scoping/scoping-wrapper';
+import { assertToolExecutionActive, type ToolExecutionControl } from './tool-execution-control';
 
 export interface ToolRegistryOptions {
   scoping?: ScopingWrapper;
@@ -51,7 +52,13 @@ export class InMemoryToolRegistry implements ToolRegistry {
     return this.tools.get(name)?.execution;
   }
 
-  async invoke<O>(name: string, input: unknown, ctx: MeriContext): Promise<O> {
+  async invoke<O>(
+    name: string,
+    input: unknown,
+    ctx: MeriContext,
+    control?: ToolExecutionControl,
+  ): Promise<O> {
+    assertToolExecutionActive(control);
     const definition = this.tools.get(name);
     if (!definition) throw new ToolNotFoundError(name);
 
@@ -64,7 +71,8 @@ export class InMemoryToolRegistry implements ToolRegistry {
         if (!this.approvalGate) throw new ApprovalRequiredError(name);
         await this.approvalGate.check(name, validInput, ctx);
       }
-      return (await definition.handler(validInput, ctx)) as O;
+      assertToolExecutionActive(control);
+      return (await definition.handler(validInput, ctx, control)) as O;
     });
   }
 }

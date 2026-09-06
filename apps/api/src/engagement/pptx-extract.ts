@@ -34,7 +34,7 @@ function slideIndex(path: string): number {
  * repeated runs, and nested objects for the surrounding shapes — handle all
  * three by recursing over every value.
  */
-function collectTextRuns(node: unknown, out: string[]): void {
+export function collectTextRuns(node: unknown, out: string[]): void {
   if (node == null) return;
   if (typeof node === 'string') return;
   if (Array.isArray(node)) {

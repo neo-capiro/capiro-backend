@@ -98,6 +98,9 @@ export interface ChatMessageRetrieval {
 }
 
 export interface ChatMessage {
+  runtimeStatus?: import('./meri-runtime-status.js').MeriRuntimeStatus;
+  /** Persisted Deep Research report; keeps export actions available on reload. */
+  researchSessionId?: string;
   id: string;
   role: 'user' | 'assistant';
   content: string;
@@ -291,6 +294,11 @@ export function updateChatMessage(id: string, content: string): void {
 export function setChatMessageCitations(id: string, citations: MeriCitation[]): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, citations } : m));
   state = { ...state, messages };
+  notify();
+}
+
+export function setChatMessageRuntimeStatus(id: string, runtimeStatus: import('./meri-runtime-status.js').MeriRuntimeStatus): void {
+  state = { ...state, messages: state.messages.map((message) => message.id === id ? { ...message, runtimeStatus } : message) };
   notify();
 }
 

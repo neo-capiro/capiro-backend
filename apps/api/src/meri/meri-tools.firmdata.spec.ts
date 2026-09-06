@@ -1,6 +1,34 @@
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
+import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
+
+// This suite supplies the engagement port below. Loading its entire mail and
+// generation dependency graph is unrelated to testing Meri's tool dispatch.
+jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+jest.mock('../intelligence/intelligence.service.js', () => ({ IntelligenceService: jest.fn() }));
+jest.mock('../intelligence/actions/action-recommendation-read.service.js', () => ({ ActionRecommendationReadService: jest.fn() }));
+jest.mock('../clients/client-capabilities.service.js', () => ({ ClientCapabilitiesService: jest.fn() }));
+jest.mock('../clients/client-people.service.js', () => ({ ClientPeopleService: jest.fn() }));
+jest.mock('../clients/client-facilities.service.js', () => ({ ClientFacilitiesService: jest.fn() }));
+jest.mock('../clients/clients.service.js', () => ({ ClientsService: jest.fn() }));
+jest.mock('../clients/representation-resolver.service.js', () => ({ RepresentationResolverService: jest.fn() }));
+jest.mock('../regulatory-docket/regulatory-docket.service.js', () => ({ RegulatoryDocketService: jest.fn() }));
+jest.mock('../engagement/mail-sender.service.js', () => ({ EngagementMailSender: jest.fn() }));
+jest.mock('../lda-intel/lda-intel.service.js', () => ({ LdaIntelService: jest.fn() }));
+jest.mock('./analytics/analytics-db.service.js', () => ({ AnalyticsDbService: jest.fn() }));
+jest.mock('../lobby-intel/lobby-intel.service.js', () => ({ LobbyIntelService: jest.fn() }));
+jest.mock('../federal-spending/federal-spending.service.js', () => ({ FederalSpendingService: jest.fn() }));
+jest.mock('../program-element/program-element-read.service.js', () => ({ ProgramElementReadService: jest.fn() }));
+jest.mock('../acquisition-personnel/acquisition-personnel-read.service.js', () => ({ AcquisitionPersonnelReadService: jest.fn() }));
+jest.mock('./meri-docgen.service.js', () => ({ MeriDocgenService: jest.fn() }));
+jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: jest.fn() }));
+jest.mock('../funding-opportunities/meri-opportunity-tools.adapter.js', () => ({ MeriOpportunityToolsAdapter: jest.fn() }));
+jest.mock('./meri-context-plane.service.js', () => ({ MeriContextPlaneService: jest.fn() }));
+jest.mock('../retrieval/retrieval-v2.service.js', () => ({ RetrievalV2Service: jest.fn() }));
+jest.mock('../memory/memory-ingest.service.js', () => ({ MemoryIngestService: jest.fn() }));
+jest.mock('../memory/memory-candidate.service.js', () => ({ MemoryCandidateService: jest.fn() }));
+jest.mock('../memory/memory-store.service.js', () => ({ MemoryStoreService: jest.fn() }));
 
 /**
  * Wiring/shape tests for the firm-operational-data tools (tool-coverage
@@ -12,9 +40,22 @@ import { MeriToolsService } from './meri-tools.service.js';
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
 
-function makeMocks() {
+function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } = {}) {
+  const findClient = jest.fn().mockResolvedValue({ id: 'client-1' });
   const tx = {
-    client: { findFirst: jest.fn().mockResolvedValue({ id: 'client-1' }) },
+    client: {
+      findFirst: findClient,
+      // These older fixtures use readable names; production resolves UUIDs or
+      // exact names through the same visibility gate.
+      findMany: jest.fn(async () => {
+        const client = await findClient();
+        return client ? [client] : [];
+      }),
+    },
+    $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+    clientFacility: { findMany: jest.fn().mockResolvedValue([]) },
+    clientCapability: { findMany: jest.fn().mockResolvedValue([]) },
+    clientPerson: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null) },
     clioConversation: {
       findFirst: jest.fn().mockResolvedValue({ id: 'conv-1', clientId: 'client-1' }),
     },
@@ -27,11 +68,14 @@ function makeMocks() {
   };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (t: typeof tx) => unknown) => fn(tx)),
+    withTenantUser: jest.fn(async (_tenantId: string, _userId: string, fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const engagement = {
     clientContext: jest.fn().mockResolvedValue({ client: { id: 'client-1', name: 'Acme' } }),
     listTasks: jest.fn().mockResolvedValue([]),
     listClientDebriefs: jest.fn().mockResolvedValue([]),
+    listAttachments: jest.fn().mockResolvedValue([]),
+    extractAttachmentText: jest.fn(),
     listCampaigns: jest.fn().mockResolvedValue([]),
     getOutreachRecord: jest.fn(),
     createTask: jest.fn(),
@@ -63,6 +107,10 @@ function makeMocks() {
     createPerson: jest.fn(async (_ctx: unknown, _clientId: string, input: { name: string }) => ({
       id: 'person-1',
       name: input.name,
+    })),
+    upsertPersonForImport: jest.fn(async (_ctx: unknown, _clientId: string, input: { name: string }) => ({
+      person: { id: 'person-1', name: input.name },
+      created: true,
     })),
   };
   const clientFacilities = {
@@ -115,6 +163,8 @@ function makeMocks() {
     // double is honest here — a stub that returned a plausible envelope would
     // be a second implementation nobody keeps in step with the real one.
     {} as never, // opportunityTools
+    extra.sharedRetrieval as never,
+    extra.contextPlane as never,
   );
 
   return {
@@ -515,7 +565,7 @@ describe('update_client_profile (Meri writes to the web app)', () => {
     const m = makeMocks();
     m.tx.client.findFirst.mockResolvedValue(null);
     await expect(
-      m.service.execute(ctx, 'update_client_profile', { clientId: 'other', name: 'X' }),
+      m.service.execute(ctx, 'update_client_profile', { clientId: '22222222-2222-4222-8222-222222222222', name: 'X' }),
     ).rejects.toThrow('Client not found');
     expect(m.clients.update).not.toHaveBeenCalled();
   });
@@ -588,8 +638,8 @@ describe('update_client_profile (Meri writes to the web app)', () => {
 
     // Scalar update skipped (no scalar fields), person row appended.
     expect(m.clients.update).not.toHaveBeenCalled();
-    expect(m.clientPeople.createPerson).toHaveBeenCalledTimes(1);
-    const [, personClientId, personInput] = m.clientPeople.createPerson.mock.calls[0] as [
+    expect(m.clientPeople.upsertPersonForImport).toHaveBeenCalledTimes(1);
+    const [, personClientId, personInput] = m.clientPeople.upsertPersonForImport.mock.calls[0] as [
       unknown,
       string,
       Record<string, unknown>,
@@ -617,7 +667,7 @@ describe('update_client_profile (Meri writes to the web app)', () => {
     })) as { facilitiesCreated: string[]; peopleCreated: string[]; fieldsWritten: string[] };
     expect(m.clients.update).toHaveBeenCalledTimes(1);
     expect(m.clientFacilities.createFacility).toHaveBeenCalledTimes(1);
-    expect(m.clientPeople.createPerson).toHaveBeenCalledTimes(1);
+    expect(m.clientPeople.upsertPersonForImport).toHaveBeenCalledTimes(1);
     expect(result.fieldsWritten).toEqual(['sectorTag']);
     expect(result.facilitiesCreated).toEqual(['Plant 2']);
     expect(result.peopleCreated).toEqual(['John Roe']);
@@ -643,9 +693,324 @@ describe('client visibility gate', () => {
   it('rejects when the client is not visible in the tenant', async () => {
     const m = makeMocks();
     m.tx.client.findFirst.mockResolvedValue(null);
-    await expect(m.service.execute(ctx, 'query_tasks', { clientId: 'client-x' })).rejects.toThrow(
+    await expect(m.service.execute(ctx, 'query_tasks', { clientId: '22222222-2222-4222-8222-222222222222' })).rejects.toThrow(
       'Client not found',
     );
     expect(m.engagement.listTasks).not.toHaveBeenCalled();
+  });
+});
+
+describe('get_client_context canonical rich profile', () => {
+  const clientId = '11111111-1111-4111-8111-111111111111';
+  function makeContextMocks() {
+    const m = makeMocks();
+    m.tx.client.findFirst.mockResolvedValue({ id: clientId });
+    const wallRead = jest.fn().mockResolvedValue([]);
+    const withTenantUser = jest.fn(async (_tenantId: string, _userId: string, fn: (tx: unknown) => unknown) => fn({ $queryRawUnsafe: wallRead }));
+    Object.assign(m.prisma, { withTenantUser });
+    return { ...m, wallRead, withTenantUser };
+  }
+
+  it('loads all four authorized sections with complete counts and keeps engagement context', async () => {
+    const m = makeContextMocks();
+    const history = Array.from({ length: 63 }, (_, i) => ({ id: `history-${String(i).padStart(3, '0')}`, title: `Ask ${i}`, outcome: 'Full history' }));
+    m.clientCapabilities.listClientHistory.mockResolvedValue(history);
+    m.clientCapabilities.listCapabilities.mockResolvedValue([{ id: 'cap-1', name: 'Robotics', description: 'Evidence' }]);
+    m.clientPeople.listPeople.mockResolvedValue([{ id: 'person-1', name: 'Director' }]);
+    m.clientFacilities.listFacilities.mockResolvedValue([{ id: 'facility-1', city: 'Seattle' }]);
+    const result = await m.service.execute(ctx, 'get_client_context', { clientId }) as any;
+    expect(m.withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function));
+    expect(m.wallRead).toHaveBeenCalledWith(expect.any(String), ctx.tenantId, ctx.userId);
+    expect(m.engagement.clientContext).toHaveBeenCalledWith(ctx, clientId);
+    expect(m.clientCapabilities.listClientHistory).toHaveBeenCalledWith(ctx, clientId, null);
+    expect(m.clientCapabilities.listCapabilities).toHaveBeenCalledWith(ctx, clientId);
+    expect(m.clientPeople.listPeople).toHaveBeenCalledWith(ctx, clientId);
+    expect(m.clientFacilities.listFacilities).toHaveBeenCalledWith(ctx, clientId);
+    expect(result.context.client.name).toBe('Acme');
+    expect(result.profile.capabilities[0].name).toBe('Robotics');
+    expect(result.profileSections.submissionHistory).toMatchObject({ status: 'partial', total: 63, returned: 25, truncated: true });
+    const second = await m.service.execute(ctx, 'get_client_context', {
+      clientId, section: 'submissionHistory', cursor: result.profileSections.submissionHistory.nextCursor, limit: 50,
+    }) as any;
+    expect(second.profile.submissionHistory).toHaveLength(38);
+    expect(second.profileSections.submissionHistory).toMatchObject({ status: 'complete', total: 63, nextCursor: null });
+    expect(second.profileSections.capabilities.status).toBe('not_requested');
+    expect(m.clientCapabilities.listCapabilities).toHaveBeenCalledTimes(1);
+  });
+
+  it('distinguishes section failures from a client with no records', async () => {
+    const m = makeContextMocks();
+    m.clientPeople.listPeople.mockRejectedValue(new Error('Database unavailable'));
+    const result = await m.service.execute(ctx, 'get_client_context', { clientId }) as any;
+    expect(result.profileSections.people).toMatchObject({ status: 'unavailable', total: null });
+    expect(result.profileSections.facilities).toMatchObject({ status: 'complete', total: 0 });
+    expect(result.context.client).toBeDefined();
+  });
+
+  it('withholds every section when the ethical wall denies the caller', async () => {
+    const m = makeContextMocks();
+    m.wallRead.mockResolvedValue([{ id: clientId }]);
+    await expect(m.service.execute(ctx, 'get_client_context', { clientId })).rejects.toThrow('Client not found');
+    expect(m.engagement.clientContext).not.toHaveBeenCalled();
+    expect(m.clientCapabilities.listCapabilities).not.toHaveBeenCalled();
+    expect(m.clientPeople.listPeople).not.toHaveBeenCalled();
+    expect(m.clientFacilities.listFacilities).not.toHaveBeenCalled();
+  });
+
+  it('fails closed if the wall cannot be checked', async () => {
+    const m = makeContextMocks();
+    m.wallRead.mockRejectedValue(new Error('Wall check unavailable'));
+    await expect(m.service.execute(ctx, 'get_client_context', { clientId })).rejects.toThrow('Wall check unavailable');
+    expect(m.engagement.clientContext).not.toHaveBeenCalled();
+  });
+
+  it('keeps all four section cursors visible before large records in the model prompt', async () => {
+    const m = makeContextMocks();
+    const rows = Array.from({ length: 30 }, (_, i) => ({
+      id: `row-${i}`, name: 'x'.repeat(30000), description: 'y'.repeat(30000),
+    }));
+    m.clientCapabilities.listCapabilities.mockResolvedValue(rows);
+    m.clientPeople.listPeople.mockResolvedValue(rows);
+    m.clientFacilities.listFacilities.mockResolvedValue(rows);
+    m.clientCapabilities.listClientHistory.mockResolvedValue(rows);
+    const result = await m.service.execute(ctx, 'get_client_context', { clientId }) as any;
+    const prompt = wrapToolResultForPrompt('get_client_context', result, 12000);
+    for (const section of ['capabilities', 'people', 'facilities', 'submissionHistory']) {
+      expect(result.profileSections[section].sourceReferences).toBeUndefined();
+      expect(result.profileSources[section]).toHaveLength(25);
+      expect(prompt).toContain(result.profileSections[section].nextCursor);
+    }
+    expect(prompt).toContain('Unavailable or unrequested sections are not empty');
+    expect(prompt).toContain('[truncated tool result]');
+  });
+});
+
+describe('search_capiro_data canonical dispatch', () => {
+  const clientId = '11111111-1111-4111-8111-111111111111';
+
+  it('advertises the callable schema and dispatches through the authorized shared retrieval plane', async () => {
+    const coverage = { complete: false, sources: [{ domain: 'strategies_work', nextCursor: 'next-strategy' }] };
+    const retrieve = jest.fn().mockResolvedValue({ records: [], coverage });
+    const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const schema = m.service.anthropicToolSchemas().find((tool) => tool.name === 'search_capiro_data');
+    expect(schema?.input_schema.required).toEqual(['query', 'domains']);
+    const result = await m.service.executeFromAuthenticatedUser(ctx, 'search_capiro_data', {
+      query: 'client strategy', domains: ['strategies_work'], clientId,
+    }) as any;
+    expect(securityEnvelope).toHaveBeenCalledWith(ctx);
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ caller: {
+      tenantId: ctx.tenantId, userId: ctx.userId, clientIds: [clientId],
+      authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [],
+    } }));
+    expect(result.coverage).toBe(coverage);
+  });
+
+  it('rejects unauthorized client scopes before invoking any retrieval adapter', async () => {
+    const retrieve = jest.fn();
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: {
+      securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] }),
+    } });
+    await expect(m.service.executeFromAuthenticatedUser(ctx, 'search_capiro_data', {
+      query: 'strategy', domains: ['strategies_work'], clientId,
+    })).rejects.toThrow('Client not found');
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  it('reports missing runtime wiring as unavailable, never as an empty successful search', async () => {
+    const m = makeMocks();
+    await expect(m.service.executeFromAuthenticatedUser(ctx, 'search_capiro_data', {
+      query: 'strategy', domains: ['strategies_work'],
+    })).rejects.toThrow('Shared retrieval is unavailable');
+  });
+});
+
+describe('get_research_evidence canonical dispatch', () => {
+  const sessionId = '11111111-1111-4111-8111-111111111111';
+  const clientId = '22222222-2222-4222-8222-222222222222';
+
+  it('advertises and executes the server-owned research evidence read', async () => {
+    const m = makeMocks();
+    const findSession = jest.fn().mockResolvedValue({ id: sessionId, clientId, metadata: {
+      handoff: { version: 1, clientId, conversationId: null, capturedAt: '2026-09-06T00:00:00Z', attachments: [] },
+    } });
+    Object.assign(m.tx, { clioResearchSession: { findFirst: findSession } });
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ allowed: true }]);
+    const schema = m.service.anthropicToolSchemas().find((tool) => tool.name === 'get_research_evidence');
+    expect(schema?.input_schema.required).toEqual(['sessionId']);
+    const result = await m.service.executeFromAuthenticatedUser(ctx, 'get_research_evidence', { sessionId, clientId }) as any;
+    expect(findSession).toHaveBeenCalledWith(expect.objectContaining({ where: { id: sessionId, tenantId: ctx.tenantId, userId: ctx.userId } }));
+    expect(result).toMatchObject({ tool: 'get_research_evidence', coverage: { total: 0, complete: true }, records: [] });
+  });
+});
+
+
+describe('search_memory canonical recall dispatch', () => {
+  const clientId = '11111111-1111-4111-8111-111111111111';
+  const fullBody = 'Client approved funding constraint. '.repeat(1000);
+  const record = { domain: 'institutional_knowledge', recordId: '22222222-2222-4222-8222-222222222222',
+    payload: { memoryItemId: '22222222-2222-4222-8222-222222222222', title: 'Funding constraint', value: fullBody,
+      sections: [{ key: 'constraint', heading: 'Constraint', body: fullBody }],
+      governance: { status: 'active', approvedByUserId: 'reviewer-1' } },
+    provenance: { source: 'memory_items', recordId: '22222222-2222-4222-8222-222222222222', contentHash: 'source-hash' },
+  };
+
+  it('returns approved fact bodies, source references and coverage from the same shared recall plane', async () => {
+    const coverage = { complete: false, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'degraded', nextCursor: 'memory:8' }] };
+    const retrieve = jest.fn().mockResolvedValue({ records: [record], coverage });
+    const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const result = await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', {
+      query: 'What do you remember about this client?', clientId, cursor: 'memory:3', k: 5,
+    }) as any;
+    expect(securityEnvelope).toHaveBeenCalledWith(ctx);
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({
+      queryClass: 'semantic_recall', requestedDomains: ['institutional_knowledge'], pageSize: 3,
+      cursors: { institutional_knowledge: 'memory:3' }, caller: expect.objectContaining({ clientIds: [clientId], authorizedClientIds: [clientId] }),
+    }));
+    expect(result.coverage).toBe(coverage);
+    expect(result.nextCursor).toBe('memory:8');
+    expect(result.records[0].payload.value).toBe(fullBody.slice(0, 500));
+    expect(result.records[0].payload.content).toMatchObject({ totalCharacters: fullBody.length, truncated: true });
+    expect(result.records[0].provenance.contentHash).toBe('source-hash');
+    expect(result.results[0]).toMatchObject({ memoryItemId: '22222222-2222-4222-8222-222222222222' });
+    expect(result.results[0]).not.toHaveProperty('value');
+    const schema = m.service.anthropicToolSchemas().find((tool) => tool.name === 'search_memory')!;
+    expect(schema.input_schema.properties).toHaveProperty('cursor');
+    expect(schema.input_schema.properties).toHaveProperty('clientId');
+  });
+
+  it('rejects a client that is no longer in the current authorization envelope', async () => {
+    const retrieve = jest.fn();
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] }) } });
+    await expect(m.service.executeFromAuthenticatedUser(ctx, 'search_memory', { query: 'funding', clientId })).rejects.toThrow('Client not found');
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  it('does not turn unavailable canonical recall into a successful empty result', async () => {
+    const m = makeMocks();
+    await expect(m.service.executeFromAuthenticatedUser(ctx, 'search_memory', { query: 'funding' })).rejects.toThrow('Shared retrieval is unavailable');
+  });
+  it('reads a long fact completely through targeted pages and withholds it after revocation', async () => {
+    let eligible = true;
+    const coverage = { complete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy' }] };
+    const retrieve = jest.fn(async () => ({ records: eligible ? [record] : [], coverage }));
+    const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    let args: Record<string, unknown> = { query: 'Read approved funding constraint', memoryItemId: record.recordId, clientId };
+    let recovered = '';
+    let pages = 0;
+    let continuation: Record<string, unknown> | null = null;
+    do {
+      const page = await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', args) as any;
+      const prompt = wrapToolResultForPrompt('search_memory', page, 12000);
+      expect(prompt).not.toContain('[truncated tool result]');
+      recovered += page.records[0].payload.value;
+      pages += 1;
+      continuation = page.records[0].payload.content.nextRead;
+      if (!continuation) break;
+      args = continuation;
+      expect(pages).toBeLessThan(30);
+    } while (true);
+    expect(recovered).toBe(fullBody);
+    expect(pages).toBeGreaterThan(2);
+    expect(retrieve).toHaveBeenLastCalledWith(expect.objectContaining({ memoryItemId: record.recordId, queryClass: 'lookup', pageSize: 1 }));
+    expect(securityEnvelope).toHaveBeenCalledTimes(pages);
+    eligible = false;
+    const revoked = await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', args) as any;
+    expect(revoked.records).toEqual([]);
+    expect(revoked.contentStatus).toBe('unavailable_or_ineligible');
+  });
+
+  it('re-reads the same source cursor with a smaller page when provenance needs more room', async () => {
+    const heavy = { ...record, payload: { ...record.payload, title: 'T'.repeat(160), governance: {
+      memoryClass: 'client_steering', authority: 'client_approved', status: 'active', conflictStatus: null,
+      controllingItemId: null, approvedByUserId: record.recordId, approvedAt: '2026-08-20T00:00:00Z',
+      asOf: '2026-08-20T00:00:00Z', effectiveFrom: '2026-08-20T00:00:00Z', validUntil: null,
+      expiresAt: null, lastConfirmedAt: '2026-08-20T00:00:00Z', reviewDueAt: null, stale: false, instructionsAllowed: false,
+    } }, provenance: { ...record.provenance, sourceId: 's'.repeat(200), sourceRef: 'r'.repeat(600), sourceVersion: 'v'.repeat(200) } };
+    const retrieve = jest.fn(async (request: { pageSize: number }) => ({ records: Array.from({ length: request.pageSize }, () => heavy),
+      coverage: { complete: false, sources: [{ domain: 'institutional_knowledge', nextCursor: `memory:${3 + request.pageSize}` }] } }));
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] }) } });
+    const page = await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', { query: 'funding', clientId, cursor: 'memory:3' }) as any;
+    expect(retrieve).toHaveBeenCalledTimes(2);
+    expect(retrieve).toHaveBeenLastCalledWith(expect.objectContaining({ pageSize: 1, cursors: { institutional_knowledge: 'memory:3' } }));
+    expect(page.effectivePageSize).toBe(1);
+    expect(page.nextCursor).toBe('memory:4');
+    expect(wrapToolResultForPrompt('search_memory', page, 12000)).not.toContain('[truncated tool result]');
+  });
+
+});
+
+describe('read_client_documents canonical evidence reads', () => {
+  it('binds each section read to the selected client and exposes continuation before evidence', async () => {
+    const m = makeMocks();
+    m.engagement.extractAttachmentText.mockResolvedValue({ attachmentId: 'doc-1', fileName: 'Evidence.pdf', contentType: 'application/pdf',
+      contentHash: 'a'.repeat(64), text: 'Evidence '.repeat(2000), source: 'pdf', section: 2, sectionCount: 5,
+      sectionKind: 'page', sectionLabel: 'Page 2', disclosure: 'Unscanned source', extractionMetadata: { truncated: false } });
+    const result = await m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', documentId: 'doc-1', section: 2 }) as any;
+    expect(m.engagement.extractAttachmentText).toHaveBeenCalledWith(ctx, 'doc-1', { clientId: 'client-1', section: 2 });
+    expect(result.coverage).toMatchObject({ section: 2, sectionCount: 5, complete: false, disclosure: 'Unscanned source' });
+    expect(result.coverage.nextCursor).toBeTruthy();
+    expect(result.records[0].provenance).toMatchObject({ sourceRecordId: 'doc-1', clientId: 'client-1', section: 2 });
+  });
+
+  it('propagates an ACL or readiness failure instead of returning a successful empty document', async () => {
+    const m = makeMocks();
+    m.engagement.extractAttachmentText.mockRejectedValue(new Error('Attachment not found'));
+    await expect(m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', documentId: 'restricted' })).rejects.toThrow('Attachment not found');
+  });
+
+  it('pages file listings and retains readiness/disclosure metadata', async () => {
+    const m = makeMocks();
+    m.engagement.listAttachments.mockResolvedValue([
+      { id: 'doc-a', fileName: 'A.txt', usable: false, blockedReason: 'ATTACHMENT_SCAN_PENDING', scanDisclosure: 'Scan pending' },
+      { id: 'doc-b', fileName: 'B.txt', usable: true },
+    ]);
+    const result = await m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', limit: 1 }) as any;
+    expect(result.coverage).toMatchObject({ total: 2, returned: 1, nextCursor: 'documents:doc-a', truncated: true });
+    expect(result.documents[0]).toMatchObject({ usable: false, blockedReason: 'ATTACHMENT_SCAN_PENDING', disclosure: 'Scan pending' });
+    const next = await m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', limit: 1, cursor: result.coverage.nextCursor }) as any;
+    expect(next.documents[0].id).toBe('doc-b');
+  });
+});
+
+describe('search_committee_hearings canonical transcript reads', () => {
+  it('calls the shared hearing reader with current security and exact hearing filters', async () => {
+    const records = [{ recordId: 'official:source:0000000002', payload: { text: 'Late transcript evidence' }, provenance: { sourceRecordId: 'source' } }];
+    const coverage = { complete: false, sources: [{ domain: 'hearings', nextCursor: 'official:source:0000000002' }] };
+    const retrieve = jest.fn().mockResolvedValue({ coverage, records });
+    const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: ['client-1'], authorizedMailboxConnectionIds: [] });
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const result = await m.service.execute(ctx, 'search_committee_hearings', {
+      hearingId: 'hearing-1', clientId: 'client-1', chamber: 'House', committeeName: 'Appropriations', cursor: 'official:source:0000000001',
+    }) as any;
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ requestedDomains: ['hearings'], pageSize: 1,
+      hearingFilters: { hearingId: 'hearing-1', chamber: 'House', committeeName: 'Appropriations' },
+      cursors: { hearings: 'official:source:0000000001' },
+      caller: expect.objectContaining({ tenantId: ctx.tenantId, userId: ctx.userId, clientIds: ['client-1'], authorizedClientIds: ['client-1'] }) }));
+    expect(result.records).toEqual(records);
+    expect(result.coverage).toBe(coverage);
+  });
+});
+
+describe('document ethical-wall enforcement', () => {
+  it.each([{}, { documentId: 'doc-1' }])('denies wall-restricted listing/read before any evidence is loaded: %j', async (selection) => {
+    const m = makeMocks();
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ id: 'client-1' }]);
+    await expect(m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', ...selection })).rejects.toThrow('Client not found');
+    expect(m.engagement.extractAttachmentText).not.toHaveBeenCalled();
+    expect(m.engagement.listAttachments).not.toHaveBeenCalled();
+  });
+
+  it('rechecks a wall revocation before honoring a continuation cursor', async () => {
+    const m = makeMocks();
+    m.engagement.extractAttachmentText.mockResolvedValue({ attachmentId: 'doc-1', fileName: 'Evidence.txt', contentType: 'text/plain',
+      contentHash: 'a'.repeat(64), text: 'Evidence '.repeat(2000), source: 'text', section: 1, sectionCount: 1 });
+    const first = await m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', documentId: 'doc-1' }) as any;
+    expect(first.coverage.nextCursor).toBeTruthy();
+    m.tx.$queryRawUnsafe.mockResolvedValue([{ id: 'client-1' }]);
+    await expect(m.service.execute(ctx, 'read_client_documents', { clientId: 'client-1', documentId: 'doc-1', cursor: first.coverage.nextCursor })).rejects.toThrow('Client not found');
+    expect(m.engagement.extractAttachmentText).toHaveBeenCalledTimes(1);
   });
 });

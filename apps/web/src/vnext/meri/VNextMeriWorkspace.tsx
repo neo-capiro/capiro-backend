@@ -1,15 +1,9 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { config } from '../../env.js';
+import { meriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
 import { useMe } from '../../lib/me.js';
 import { useClientFilter } from '../../state/client-filter.js';
 import { useImpersonation } from '../../state/impersonation.js';
@@ -34,6 +28,8 @@ import {
 } from '../../components/chat/useMeriChatController.js';
 import { VNextMeriIntegrations } from './VNextMeriIntegrations.js';
 import { VNextMeriShell } from './VNextMeriShell.js';
+import { readDraftReasoningMode } from './meri-reasoning-state.js';
+import { moveMeriComposerDraft, restoreMeriComposerDraft } from './meri-composer-drafts.js';
 import {
   mayApplyIdentityResult,
   mayApplyRecordFreeCreation,
@@ -52,6 +48,7 @@ import {
   mapPersistedGroundingCaveat,
   mapPersistedRetrieval,
   mapPersistedVerification,
+  mapPersistedWorkPerformed,
   meriContextRequest,
   newestConversation,
   normalizeConversation,
@@ -86,6 +83,8 @@ function historyMessage(value: unknown): ChatMessage | null {
     role: message.role === 'user' ? 'user' : 'assistant',
     content: message.body || '',
     createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
+    runtimeStatus: meriRuntimeStatus(message.metadata),
+    ...mapPersistedWorkPerformed(message),
     ...(attachments.length ? { attachments } : {}),
     ...(chartArtifacts.length ? { chartArtifacts } : {}),
     ...(citations.length ? { citations } : {}),
@@ -94,6 +93,10 @@ function historyMessage(value: unknown): ChatMessage | null {
     ...(contextPacketId ? { contextPacketId } : {}),
     ...(retrieval ? { retrieval } : {}),
     ...(groundingStatement ? { groundingStatement } : {}),
+    ...(message.metadata?.researchReport === true &&
+    typeof message.metadata.researchSessionId === 'string'
+      ? { researchSessionId: message.metadata.researchSessionId }
+      : {}),
   };
 }
 
@@ -300,7 +303,9 @@ export function VNextMeriWorkspace() {
     if (!Array.isArray(body)) {
       throw new Error('Conversation history returned an unexpected response.');
     }
-    return body.map(normalizeConversation).filter((item): item is MeriConversation => Boolean(item));
+    return body
+      .map(normalizeConversation)
+      .filter((item): item is MeriConversation => Boolean(item));
   }, [authHeaders]);
 
   /**
@@ -339,7 +344,9 @@ export function VNextMeriWorkspace() {
       if (!Array.isArray(body)) {
         throw new Error('This Meri thread returned an unexpected response.');
       }
-      const hydrated = body.map(historyMessage).filter((item): item is ChatMessage => Boolean(item));
+      const hydrated = body
+        .map(historyMessage)
+        .filter((item): item is ChatMessage => Boolean(item));
 
       // The request may complete after a newer Back/Forward or rail navigation.
       // Validate immediately before the shared-store commit: cancelling the
@@ -376,98 +383,118 @@ export function VNextMeriWorkspace() {
    * as the controller while leaving the controller's staged payload intact for
    * its subsequent `sendMessage` call.
    */
-  const createRecordFreeSession = useCallback(async (token: FirstSendToken): Promise<string | null> => {
-    const firstSendEpoch = firstSendEpochRef.current;
-    // The body carries the app-wide selected client. Capture it with the
-    // identity: a switch during authHeaders() would otherwise create the new
-    // tenant's first durable thread scoped to the previous tenant's client.
-    const requestIdentityKey = identityKeyRef.current;
-    const requestClientId = selectedClientId || undefined;
-    const headers = await authHeaders();
-    if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
-    const response = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        clientId: requestClientId,
-        title: 'Chat session',
-      }),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(text || `Conversation creation failed (${response.status}).`);
-    }
-    const data = (await response.json()) as {
-      id?: unknown;
-      title?: unknown;
-      clientId?: unknown;
-      updatedAt?: unknown;
-    };
-    if (typeof data.id !== 'string' || !data.id) {
-      throw new Error('Conversation creation returned an unexpected response.');
-    }
+  const createRecordFreeSession = useCallback(
+    async (token: FirstSendToken): Promise<string | null> => {
+      const firstSendEpoch = firstSendEpochRef.current;
+      // The body carries the app-wide selected client. Capture it with the
+      // identity: a switch during authHeaders() would otherwise create the new
+      // tenant's first durable thread scoped to the previous tenant's client.
+      const requestIdentityKey = identityKeyRef.current;
+      const requestClientId = selectedClientId || undefined;
+      const draftReasoningMode = readDraftReasoningMode(requestIdentityKey);
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
+      const response = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          clientId: requestClientId,
+          title: 'Chat session',
+        }),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(text || `Conversation creation failed (${response.status}).`);
+      }
+      const data = (await response.json()) as {
+        id?: unknown;
+        title?: unknown;
+        clientId?: unknown;
+        updatedAt?: unknown;
+      };
+      if (typeof data.id !== 'string' || !data.id) {
+        throw new Error('Conversation creation returned an unexpected response.');
+      }
 
-    // Creation can complete after the user has selected another thread or
-    // backed out of `/meri/new`. The server row may exist, but this stale UI
-    // action must not select it, redirect to it, or send its pending prompt.
-    // Check BOTH the route epoch and the first-send token id: the token
-    // distinguishes A's stale continuation from C's active one even when
-    // both captured the same epoch value at different times.
-    if (
-      !mayApplyRecordFreeCreation(
-        firstSendEpoch,
-        firstSendEpochRef.current,
-        window.location.pathname,
-      ) ||
-      !ownsFirstSend(token, activeFirstSendTokenRef.current) ||
-      !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
-    ) {
-      return null;
-    }
+      // Creation can complete after the user has selected another thread or
+      // backed out of `/meri/new`. The server row may exist, but this stale UI
+      // action must not select it, redirect to it, or send its pending prompt.
+      // Check BOTH the route epoch and the first-send token id: the token
+      // distinguishes A's stale continuation from C's active one even when
+      // both captured the same epoch value at different times.
+      if (
+        !mayApplyRecordFreeCreation(
+          firstSendEpoch,
+          firstSendEpochRef.current,
+          window.location.pathname,
+        ) ||
+        !ownsFirstSend(token, activeFirstSendTokenRef.current) ||
+        !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+      ) {
+        return null;
+      }
 
-    const createdClientId = typeof data.clientId === 'string' ? data.clientId : null;
-    const availableClients = controller.clients.length > 0 ? controller.clients : routeClients;
-    const createdClient = createdClientId
-      ? (availableClients.find((client) => client.id === createdClientId) ?? null)
-      : null;
-    upsertConversation({
-      id: data.id,
-      title:
-        typeof data.title === 'string' && data.title.trim() ? data.title : 'Chat session',
-      clientId: createdClientId,
-      client: createdClient,
-      latestMessage: null,
-      updatedAt:
-        typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
-    });
-    pendingSendSessionIdRef.current = data.id;
-    setChatSession(data.id);
-    setActiveConversation(data.id);
-    // Apply any mode the user chose on the empty new-thread screen before
-    // the durable conversation existed. Fail soft — standard remains valid.
-    try {
-      const { isMeriReasoningMode, readDraftReasoningMode } = await import(
-        './VNextMeriReasoningControl.js'
-      );
-      const draftMode = readDraftReasoningMode();
-      if (isMeriReasoningMode(draftMode) && draftMode !== 'standard') {
+      // A newly created row has no reasoning override, so its mode is already
+      // Standard. That default also works for tenants without the V3 settings
+      // endpoint. EXISTING thread changes (including Standard) always PATCH via
+      // the shared reasoning store. Persist other draft choices before exposing
+      // this row to either control or dispatching its first message.
+      if (draftReasoningMode !== 'standard') {
         const modeHeaders = await authHeaders();
-        if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
-          await fetch(
-            `${config.apiBaseUrl}/api/clio/v3/conversations/${encodeURIComponent(data.id)}/reasoning-mode`,
-            {
-              method: 'PATCH',
-              headers: modeHeaders,
-              body: JSON.stringify({ reasoningMode: draftMode }),
-            },
-          );
+        if (
+          !mayApplyRecordFreeCreation(
+            firstSendEpoch,
+            firstSendEpochRef.current,
+            window.location.pathname,
+          ) ||
+          !ownsFirstSend(token, activeFirstSendTokenRef.current) ||
+          !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+        )
+          return null;
+        const modeResponse = await fetch(
+          `${config.apiBaseUrl}/api/clio/v3/conversations/${encodeURIComponent(data.id)}/reasoning-mode`,
+          {
+            method: 'PATCH',
+            headers: modeHeaders,
+            body: JSON.stringify({ reasoningMode: draftReasoningMode }),
+          },
+        );
+        if (!modeResponse.ok) {
+          throw new Error('The reasoning mode could not be saved. Your message has not been sent.');
         }
       }
-    } catch {
-      // Leave the conversation on the server default (standard).
-    }
-    return data.id;
-  }, [authHeaders, controller.clients, routeClients, selectedClientId]);
+      if (
+        !mayApplyRecordFreeCreation(
+          firstSendEpoch,
+          firstSendEpochRef.current,
+          window.location.pathname,
+        ) ||
+        !ownsFirstSend(token, activeFirstSendTokenRef.current) ||
+        !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+      )
+        return null;
+
+      const createdClientId = typeof data.clientId === 'string' ? data.clientId : null;
+      const availableClients = controller.clients.length > 0 ? controller.clients : routeClients;
+      const createdClient = createdClientId
+        ? (availableClients.find((client) => client.id === createdClientId) ?? null)
+        : null;
+      upsertConversation({
+        id: data.id,
+        title: typeof data.title === 'string' && data.title.trim() ? data.title : 'Chat session',
+        clientId: createdClientId,
+        client: createdClient,
+        latestMessage: null,
+        updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
+      });
+      moveMeriComposerDraft(requestIdentityKey, null, data.id);
+      pendingSendSessionIdRef.current = data.id;
+      setChatSession(data.id);
+      setActiveConversation(data.id);
+      return data.id;
+    },
+    [authHeaders, controller.clients, routeClients, selectedClientId],
+  );
 
   const prepareRecordFreeNewThread = useCallback(
     async (replace = false) => {
@@ -537,7 +564,10 @@ export function VNextMeriWorkspace() {
         ]);
         if (cancelled || sequence !== bootSequenceRef.current) return;
         if (historyResult.status === 'rejected') {
-          const message = errorMessage(historyResult.reason, 'Conversation history could not be loaded.');
+          const message = errorMessage(
+            historyResult.reason,
+            'Conversation history could not be loaded.',
+          );
           setHistoryError(message);
           setConversations([]);
           if (isNewRoute || isIntegrationsRoute) {
@@ -646,8 +676,7 @@ export function VNextMeriWorkspace() {
     async (...args: SendArgs) => {
       if (controller.sessionId) {
         setMeriSurfaceMode('undocked');
-        await controller.sendMessage(...args);
-        return;
+        return controller.sendMessage(...args);
       }
       if (pendingSendRef.current || isCreatingThread) {
         throw new Error('Meri is still creating this thread. Your message was not duplicated.');
@@ -675,20 +704,20 @@ export function VNextMeriWorkspace() {
         // minted a new token, A must be a complete no-op. Do not clear C's
         // pending send, epoch, or busy state.
         if (!ownsFirstSend(token, activeFirstSendTokenRef.current)) {
-          return;
+          return false;
         }
         if (!createdSessionId) {
           pendingSendRef.current = null;
           pendingSendEpochRef.current = null;
           pendingSendSessionIdRef.current = null;
           setIsCreatingThread(false);
-          return;
+          return false;
         }
       } catch (error) {
         // TOKEN CHECK: a stale A error must not clear C's refs or set C's
         // route error. Only the current token owner may mutate shared state.
         if (!ownsFirstSend(token, activeFirstSendTokenRef.current)) {
-          return;
+          return false;
         }
         pendingSendRef.current = null;
         pendingSendEpochRef.current = null;
@@ -701,7 +730,7 @@ export function VNextMeriWorkspace() {
 
       // TOKEN CHECK: a stale A success must not proceed against C's state.
       if (!ownsFirstSend(token, activeFirstSendTokenRef.current)) {
-        return;
+        return false;
       }
 
       if (!getChatStateSnapshot().sessionId) {
@@ -713,6 +742,9 @@ export function VNextMeriWorkspace() {
         setRouteError(message);
         throw new Error(message);
       }
+      // The owned pending send now belongs to the created thread. Its dispatch
+      // effect below restores that thread's draft if acceptance later fails.
+      return true;
     },
     [controller.sendMessage, controller.sessionId, createRecordFreeSession, isCreatingThread],
   );
@@ -744,9 +776,26 @@ export function VNextMeriWorkspace() {
     setMeriSurfaceMode('undocked');
     const target = `/meri/t/${encodeURIComponent(controller.sessionId)}`;
     if (location.pathname !== target) navigate(target, { replace: true });
-    void controller.sendMessage(...pending).catch((error) => {
-      setRouteError(errorMessage(error, 'Meri could not send this message.'));
-    });
+    const requestIdentityKey = identityKeyRef.current;
+    const requestSessionId = controller.sessionId;
+    const requestRouteEpoch = firstSendEpochRef.current;
+    void controller
+      .sendMessage(...pending)
+      .then((accepted) => {
+        if (accepted === false) {
+          restoreMeriComposerDraft(requestIdentityKey, requestSessionId, pending[0]);
+        }
+      })
+      .catch((error) => {
+        restoreMeriComposerDraft(requestIdentityKey, requestSessionId, pending[0]);
+        if (
+          mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+          requestRouteEpoch === firstSendEpochRef.current &&
+          getChatStateSnapshot().sessionId === requestSessionId
+        ) {
+          setRouteError(errorMessage(error, 'Meri could not send this message.'));
+        }
+      });
     setIsCreatingThread(false);
   }, [controller.sendMessage, controller.sessionId, location.pathname, navigate]);
 
@@ -911,7 +960,7 @@ export function VNextMeriWorkspace() {
   const changeSessionClient = useCallback(
     async (clientId: string) => {
       const currentConversation = activeConversationId
-        ? conversations.find((conversation) => conversation.id === activeConversationId) ?? null
+        ? (conversations.find((conversation) => conversation.id === activeConversationId) ?? null)
         : null;
       const currentClientId = activeConversationId
         ? controller.selectedClientValue || currentConversation?.clientId || null
@@ -1045,7 +1094,11 @@ export function VNextMeriWorkspace() {
 
   return (
     <>
-      {routeError ? <div className="vnext-meri__route-error" role="alert">{routeError}</div> : null}
+      {routeError ? (
+        <div className="vnext-meri__route-error" role="alert">
+          {routeError}
+        </div>
+      ) : null}
       <VNextMeriShell
         key={identityKey}
         controller={vnextController}

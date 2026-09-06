@@ -108,7 +108,7 @@ describe('StrategyWorkRetrievalAdapter', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: { in: [CLIENT] },
-          status: { not: 'archived' },
+          OR: expect.arrayContaining([{ memoryWall: false }]),
         }),
       }),
     );

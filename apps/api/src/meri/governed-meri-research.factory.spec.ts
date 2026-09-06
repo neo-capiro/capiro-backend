@@ -3,6 +3,13 @@ import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { createGovernedMeriResearchService } from './governed-meri-research.factory.js';
 import { MeriResearchService } from './meri-research.service.js';
 
+jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
+jest.mock('../reviews/reviews.service.js', () => ({ ReviewsService: class {} }));
+jest.mock('../engagement/ai-credential-resolver.service.js', () => ({ AiCredentialResolverService: class {} }));
+jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
+jest.mock('./meri-context-plane.service.js', () => ({ MeriContextPlaneService: class {} }));
+
 const ctx = {
   tenantId: 'tenant-1',
   userId: 'user-1',
@@ -78,6 +85,7 @@ function makeHarness(opts: { evaluation?: { recordDecision: jest.Mock } } = {}) 
     });
 
   const tx = {
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     clioResearchSession: {
       findFirst: jest.fn().mockResolvedValue({
         topic: 'RTX federal market strategy',
@@ -94,6 +102,7 @@ function makeHarness(opts: { evaluation?: { recordDecision: jest.Mock } } = {}) 
   };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (client: typeof tx) => unknown) => fn(tx)),
+    withTenantUser: jest.fn(async (_tenantId: string, _userId: string, fn: (client: typeof tx) => unknown) => fn(tx)),
   };
   const contextPlane = {
     resolveResearch: jest.fn(

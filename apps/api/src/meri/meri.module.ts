@@ -20,6 +20,7 @@ import { QualityTelemetryModule } from '../quality-telemetry/quality-telemetry.m
 import { EvaluationModule } from '../evaluation/evaluation.module.js';
 import { EvaluationCaptureService } from '../evaluation/evaluation-capture.service.js';
 import { ContextModule } from '../context/context.module.js';
+import { RetrievalModule } from '../retrieval/retrieval.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 import { MeriOpportunityAssessmentService } from '../funding-opportunities/meri-opportunity-assessment.service.js';
@@ -37,6 +38,7 @@ import { TenantCanariedMeriPolicyPackService } from './meri-policy-pack-rollout.
 import { MeriPolicyPackController } from './meri-policy-pack.controller.js';
 import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
+import { MERI_TURN_MAINTENANCE } from './meri-turn-maintenance.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import {
@@ -59,6 +61,7 @@ import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
 import { MeriV2ChatClient } from './meriv2-chat.client.js';
 import { MeriV3ChatClient } from './meriv3-chat.client.js';
+import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
@@ -86,6 +89,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     QualityTelemetryModule,
     EvaluationModule,
     ContextModule,
+    RetrievalModule,
     ReviewsModule,
     FundingOpportunitiesModule,
   ],
@@ -104,7 +108,9 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,
     { provide: RAW_MERI_SERVICE, useClass: MeriService },
+    { provide: MERI_TURN_MAINTENANCE, useExisting: RAW_MERI_SERVICE },
     MeriV3ChatClient,
+    MeriV3ResearchRunner,
     MeriV3ProxyService,
     {
       provide: MeriService,
@@ -134,6 +140,8 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
         ReviewsService,
         MeriContextPlaneService,
         EvaluationCaptureService,
+        MeriV3ResearchRunner,
+        MERI_TURN_MAINTENANCE,
       ],
     },
     MeriDocgenService,

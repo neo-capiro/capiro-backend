@@ -1,9 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { MeriContextPacketSummary } from '@capiro/meriv2-core';
+import { attestMeriGovernedContext } from '@capiro/meriv2-core';
+import type {
+  LedgerEntry,
+  MeriEvidenceManifest,
+  MeriContextPacketSummary,
+  MeriGovernedTurnContext,
+} from '@capiro/meriv2-core';
 import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
 
 export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as const;
 export type MeriV3ReasoningMode = (typeof MERIV3_REASONING_MODES)[number];
+
+/** Provider execution metadata, with no reasoning text or credentials. */
+export interface MeriV3ProviderTelemetry {
+  requestedModel: string;
+  effectiveModel: string | null;
+  requestedReasoningEffort: string;
+  effectiveReasoningEffort: string | null;
+  reasoningFallbackReasons: string[];
+  finishReason: string;
+  partial: boolean;
+}
 
 export interface MeriV3RetrievalStreamSummary {
   plan: {
@@ -71,7 +88,9 @@ export type MeriV3ChatStreamEvent =
       runtime: 'meriv3';
       model: string;
       reasoningMode: MeriV3ReasoningMode;
-      reasoningEffort: string;
+      reasoningEffort: string | null;
+      telemetry?: MeriV3ProviderTelemetry;
+      providerCalls?: MeriV3ProviderTelemetry[];
     }
   | { type: 'tool_call'; tool: string; label: string }
   | {
@@ -141,7 +160,10 @@ export type MeriV3ChatStreamEvent =
       runtime: 'meriv3';
       model: string;
       reasoningMode: MeriV3ReasoningMode;
-      reasoningEffort: string;
+      reasoningEffort: string | null;
+      telemetry?: MeriV3ProviderTelemetry;
+      providerCalls?: MeriV3ProviderTelemetry[];
+      evidenceManifest?: MeriEvidenceManifest;
       intent?: string;
       usage?: {
         inputTokens: number;
@@ -173,6 +195,8 @@ export type MeriV3ChatStreamEvent =
       contextPacket?: MeriContextPacketSummary;
       retrieval?: MeriV3RetrievalStreamSummary;
       aborted?: boolean;
+      ledgerEntries?: LedgerEntry[];
+      held?: boolean;
     }
   | { type: 'error'; message: string };
 
@@ -198,6 +222,8 @@ export class MeriV3ChatClient {
       pageWrite?: boolean;
       currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
       reasoningMode: MeriV3ReasoningMode;
+      toolPolicy?: 'none' | 'read-only';
+      governedContext?: MeriGovernedTurnContext;
     };
     aiProvider?: ResolvedAiForChatHeader;
     impersonateTenantId?: string;
@@ -220,7 +246,18 @@ export class MeriV3ChatClient {
           ? { 'x-capiro-impersonate-tenant': params.impersonateTenantId }
           : {}),
       },
-      body: JSON.stringify(params.input),
+      body: JSON.stringify({
+        ...params.input,
+        ...(params.input.governedContext
+          ? {
+              governedContext: attestMeriGovernedContext(
+                params.input.governedContext,
+                params.input,
+                process.env.INTERNAL_SERVICE_SECRET,
+              ),
+            }
+          : {}),
+      }),
       ...(params.signal ? { signal: params.signal } : {}),
     });
     if (!response.ok || !response.body) {

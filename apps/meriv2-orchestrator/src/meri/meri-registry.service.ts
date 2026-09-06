@@ -1,3 +1,4 @@
+import { assertMeriCapabilityHandlers } from '@capiro/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -105,20 +106,16 @@ export class MeriRegistryService {
       `Registered ${writeNames.length} delegated write tools (gated: B2 rules + B3/B4 approval store)`,
     );
 
-    // Workstream C4 substrate: the remaining read-only apps/api tools not in
-    // the in-editor allowlist (run_analysis, search_public_web, query_tasks,
-    // etc.) — closes the catalog gap toward a future full-chat surface. Same
-    // dormant registration as the write tools above: no live surface calls
-    // these yet (C4's streaming loop is not built), but the registry now has
-    // apps/api's COMPLETE 64-tool surface available (see
-    // full-chat-read-tools.catalog.spec.ts's combined-coverage assertion).
+    // Full chat's additional read capabilities derive from the same registry
+    // as the API schemas. Domain-owned tools (including Federal Market) use
+    // the existing authenticated executor rather than separate implementations.
     const fullChatReadNames = registerDelegatedTools(
       (def) => registry.register(def),
       FULL_CHAT_READ_TOOLS,
       toolExecutor,
     );
     this.logger.log(
-      `Registered ${fullChatReadNames.length} additional read-only tools (C4 substrate)`,
+      `Registered ${fullChatReadNames.length} additional read-only tools (full chat)`,
     );
 
     // BYOK2: LLM tools bind the request-scoped client, which prefers the
@@ -167,6 +164,7 @@ export class MeriRegistryService {
         `promptCacheEnabled=${promptCacheEnabled})`,
     );
 
+    assertMeriCapabilityHandlers(registry.list());
     this.registry = registry;
     this.llm = llm;
   }

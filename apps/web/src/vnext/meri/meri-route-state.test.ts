@@ -4,6 +4,7 @@ import {
   mapPersistedAttachments,
   mapPersistedCharts,
   mapPersistedContextPacketId,
+  mapPersistedWorkPerformed,
   meriContextRequest,
   newestConversation,
   normalizeConversation,
@@ -36,9 +37,9 @@ describe('vNext Meri route state', () => {
   });
 
   test('removes one-time context while retaining unrelated query state', () => {
-    expect(
-      withoutMeriContext('?meriPrompt=Analyze&meriClient=client-123&source=launcher'),
-    ).toBe('?source=launcher');
+    expect(withoutMeriContext('?meriPrompt=Analyze&meriClient=client-123&source=launcher')).toBe(
+      '?source=launcher',
+    );
     expect(withoutMeriContext('?meriPrompt=Analyze')).toBe('');
   });
 
@@ -89,9 +90,15 @@ describe('vNext Meri route state', () => {
   test('uses only UUID-shaped response-persisted context packet ids', () => {
     const packetId = 'de305d54-75b4-431b-adb2-eb6b9e546014';
     expect(mapPersistedContextPacketId({ metadata: { contextPacketId: packetId } })).toBe(packetId);
-    expect(mapPersistedContextPacketId({ metadata: { contextPacket: { packetId } } })).toBe(packetId);
-    expect(mapPersistedContextPacketId({ metadata: { contextPacketId: 'not-a-uuid' } })).toBeUndefined();
-    expect(mapPersistedContextPacketId({ metadata: { contextPacket: { packetId: 42 } } })).toBeUndefined();
+    expect(mapPersistedContextPacketId({ metadata: { contextPacket: { packetId } } })).toBe(
+      packetId,
+    );
+    expect(
+      mapPersistedContextPacketId({ metadata: { contextPacketId: 'not-a-uuid' } }),
+    ).toBeUndefined();
+    expect(
+      mapPersistedContextPacketId({ metadata: { contextPacket: { packetId: 42 } } }),
+    ).toBeUndefined();
     expect(mapPersistedContextPacketId({ metadata: {} })).toBeUndefined();
   });
 
@@ -111,8 +118,97 @@ describe('vNext Meri route state', () => {
     expect(mapPersistedAttachments(message)).toEqual([
       { id: 'att-1', filename: 'memo.pdf', kind: 'document', status: 'parsed' },
     ]);
-    expect(mapPersistedCharts(message)).toEqual([
-      { id: 'chart-1', title: 'Funding by year' },
+    expect(mapPersistedCharts(message)).toEqual([{ id: 'chart-1', title: 'Funding by year' }]);
+  });
+});
+
+describe('persisted Meri work receipts', () => {
+  test('rehydrates canonical work with public details and counts', () => {
+    expect(
+      mapPersistedWorkPerformed({
+        metadata: {
+          intent: 'client_brief',
+          tier: 'deep',
+          plan: ['Check client evidence'],
+          trustSteps: [
+            {
+              tool: 'search_memory',
+              label: 'Client memory',
+              status: 'done',
+              detail: 'Found three approved facts',
+              count: 3,
+              confidence: 'high',
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      orchestratorIntent: 'client_brief',
+      orchestratorTier: 'deep',
+      planSteps: ['Check client evidence'],
+      trustSteps: [
+        {
+          tool: 'search_memory',
+          label: 'Client memory',
+          status: 'done',
+          detail: 'Found three approved facts',
+          count: 3,
+          confidence: 'high',
+        },
+      ],
+    });
+  });
+
+  test('restores older V3 traces and held/blocked statuses without inventing success', () => {
+    const work = mapPersistedWorkPerformed({
+      metadata: {
+        runtime: 'meriv3',
+        reasoningMode: 'max',
+        trace: [
+          { tool: 'lookup', label: 'Lookup', status: 'done', detail: 'Found evidence' },
+          { tool: 'send', label: 'Send message', status: 'pending_approval' },
+          { tool: 'write', label: 'Write record', status: 'blocked', detail: 'Access denied' },
+        ],
+      },
+    });
+    expect(work.orchestratorTier).toBe('deep');
+    expect(work.trustSteps).toEqual([
+      { tool: 'lookup', label: 'Lookup', status: 'done', detail: 'Found evidence' },
+      { tool: 'send', label: 'Send message', status: 'error', detail: 'Held for your approval' },
+      { tool: 'write', label: 'Write record', status: 'error', detail: 'Access denied' },
     ]);
+  });
+
+  test('ignores malformed work and never hydrates private reasoning as public work', () => {
+    const work = mapPersistedWorkPerformed({
+      metadata: {
+        intent: 42,
+        tier: 'invented',
+        plan: ['Public plan', null, 42],
+        thinking: 'private thought',
+        reasoning: 'private reasoning',
+        trustSteps: [
+          null,
+          {},
+          { tool: 'lookup', label: 'Lookup', status: 'invented' },
+          {
+            tool: 'lookup',
+            label: 'Lookup',
+            status: 'done',
+            count: NaN,
+            confidence: 'invented',
+            detail: 42,
+            reasoning: 'private detail',
+          },
+        ],
+      },
+    });
+    expect(work).toEqual({
+      orchestratorIntent: null,
+      orchestratorTier: null,
+      planSteps: ['Public plan'],
+      trustSteps: [{ tool: 'lookup', label: 'Lookup', status: 'done' }],
+    });
+    expect(JSON.stringify(work)).not.toContain('private');
   });
 });

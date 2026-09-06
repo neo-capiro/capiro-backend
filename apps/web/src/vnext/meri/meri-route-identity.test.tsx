@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   claimMeriIdentity,
@@ -64,6 +64,9 @@ vi.mock('./VNextMeriShell.js', () => ({
 }));
 
 import { VNextMeriWorkspace } from './VNextMeriWorkspace.js';
+import { useMeriComposerDraft, restoreMeriComposerDraft } from './meri-composer-drafts.js';
+import { writeDraftReasoningMode } from './meri-reasoning-state.js';
+import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 
 let queryClient: QueryClient;
 
@@ -122,6 +125,8 @@ function stubFetch(handler: (url: string, init?: RequestInit) => unknown) {
 describe('vNext Meri route identity boundary', () => {
   beforeEach(() => {
     resetChatStoreForTests();
+    window.sessionStorage.clear();
+    window.history.replaceState({}, '', '/meri/t/thread-a');
     mocks.orgId = 'org-a';
     mocks.userId = 'user-a';
     mocks.impersonatedTenantSlug = null;
@@ -201,9 +206,7 @@ describe('vNext Meri route identity boundary', () => {
     // Real cache state, not a spy. The mounted query refetches straight after
     // eviction, so what matters is that tenant A's answer is no longer what
     // ['me'] holds — the shell can never paint "Tenant A" under tenant B.
-    const cachedMe = queryClient.getQueryData(['me']) as
-      | { tenant?: { name?: string } }
-      | undefined;
+    const cachedMe = queryClient.getQueryData(['me']) as { tenant?: { name?: string } } | undefined;
     expect(cachedMe?.tenant?.name).not.toBe('Tenant A');
   });
 
@@ -257,9 +260,7 @@ describe('vNext Meri route identity boundary', () => {
         }),
     );
 
-    const onArchiveThread = mocks.shellProps!.onArchiveThread as (
-      id: string,
-    ) => Promise<boolean>;
+    const onArchiveThread = mocks.shellProps!.onArchiveThread as (id: string) => Promise<boolean>;
     let archive: Promise<boolean> | null = null;
     await act(async () => {
       archive = onArchiveThread('thread-a');
@@ -358,9 +359,7 @@ describe('vNext Meri route identity boundary', () => {
     });
     await waitFor(() => expect(mocks.shellProps).not.toBeNull());
 
-    const onRestoreThread = mocks.shellProps!.onRestoreThread as (
-      id: string,
-    ) => Promise<boolean>;
+    const onRestoreThread = mocks.shellProps!.onRestoreThread as (id: string) => Promise<boolean>;
     let restore: Promise<boolean> | null = null;
     await act(async () => {
       restore = onRestoreThread('thread-a');
@@ -382,5 +381,77 @@ describe('vNext Meri route identity boundary', () => {
     // re-insertion of tenant A's row, and no history reload under tenant B.
     expect(restored).toBe(false);
     expect(getChatStateSnapshot().conversations).toEqual([]);
+  });
+
+  test('first Send retains its draft and dispatches no turn when the selected reasoning mode fails to save', async () => {
+    claimMeriIdentity('org-a:user-a');
+    mocks.pathname = '/meri/new';
+    window.history.replaceState({}, '', mocks.pathname);
+    writeDraftReasoningMode('deep', 'org-a:user-a');
+    restoreMeriComposerDraft('org-a:user-a', null, 'Early client constraint');
+    const draft = renderHook(() => useMeriComposerDraft('org-a:user-a', null));
+    const fetchMock = stubFetch((url, init) => {
+      if (url.endsWith('/api/clio/conversations') && init?.method === 'POST')
+        return ok({ id: 'created-thread' });
+      if (url.endsWith('/reasoning-mode')) return Promise.resolve({ ok: false, status: 503 });
+      return undefined;
+    });
+    await act(async () => {
+      renderRoute();
+    });
+    await waitFor(() => expect(mocks.shellProps).not.toBeNull());
+    let failure: unknown;
+    await act(async () => {
+      const restore = draft.result.current.clearForSubmission();
+      try {
+        await (mocks.shellProps!.controller as MeriChatController).sendMessage(
+          'Early client constraint',
+        );
+      } catch (error) {
+        failure = error;
+        restore();
+      }
+    });
+    expect(failure).toBeInstanceOf(Error);
+    expect(draft.result.current.draft).toBe('Early client constraint');
+    expect(getChatStateSnapshot().sessionId).toBeNull();
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/stream'))).toHaveLength(0);
+  });
+
+  test('a deferred first turn rejected by HTTP restores the created thread draft after navigation', async () => {
+    claimMeriIdentity('org-a:user-a');
+    mocks.pathname = '/meri/new';
+    window.history.replaceState({}, '', mocks.pathname);
+    writeDraftReasoningMode('deep', 'org-a:user-a');
+    const fetchMock = stubFetch((url, init) => {
+      if (url.endsWith('/api/clio/conversations') && init?.method === 'POST')
+        return ok({ id: 'created-thread' });
+      if (url.endsWith('/stream'))
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          statusText: 'Unavailable',
+          text: async () => 'Try again',
+        });
+      return undefined;
+    });
+    await act(async () => {
+      renderRoute();
+    });
+    await waitFor(() => expect(mocks.shellProps).not.toBeNull());
+    await act(async () => {
+      await (mocks.shellProps!.controller as MeriChatController).sendMessage(
+        'First prompt belongs here',
+      );
+    });
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/stream'))).toHaveLength(1),
+    );
+    const draft = renderHook(() => useMeriComposerDraft('org-a:user-a', 'created-thread'));
+    await waitFor(() => expect(draft.result.current.draft).toBe('First prompt belongs here'));
+    expect(getChatStateSnapshot().sessionId).toBe('created-thread');
+    expect(mocks.navigate).toHaveBeenCalledWith('/meri/t/created-thread', { replace: true });
+    const unusedDraft = renderHook(() => useMeriComposerDraft('org-a:user-a', null));
+    expect(unusedDraft.result.current.draft).toBe('');
   });
 });

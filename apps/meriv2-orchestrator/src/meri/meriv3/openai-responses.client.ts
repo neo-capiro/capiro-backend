@@ -5,6 +5,7 @@ import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import type {
   MeriV3ReasoningEffort,
   MeriV3ReasoningProfile,
+  MeriV3ProviderTelemetry,
   OpenAiResponsesFunctionCall,
   OpenAiResponsesFunctionTool,
   OpenAiResponsesOutputItem,
@@ -15,8 +16,32 @@ import type {
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const MAX_RETRIES = 2;
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const retryDelay = (attempt: number) => 300 * 2 ** attempt + Math.floor(Math.random() * 100);
+
+function waitForRetry(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+  });
+}
+
+/** Read only structured execution facts from a failed/cancelled provider request. */
+export function readOpenAiResponsesErrorTelemetry(
+  error: unknown,
+): MeriV3ProviderTelemetry | undefined {
+  return error instanceof Error || error instanceof DOMException
+    ? (error as Error & { telemetry?: MeriV3ProviderTelemetry }).telemetry
+    : undefined;
+}
 
 interface CompleteParams {
   profile: MeriV3ReasoningProfile;
@@ -25,6 +50,8 @@ interface CompleteParams {
   tools: OpenAiResponsesFunctionTool[];
   toolChoice?: OpenAiResponsesToolChoice;
   timeoutMs?: number;
+  /** Absolute turn deadline, shared with tool execution and all retries. */
+  deadlineAt?: number;
   signal?: AbortSignal;
   safetyIdentifier?: string;
 }
@@ -36,6 +63,7 @@ interface RawResponsesBody {
   output?: OpenAiResponsesOutputItem[];
   output_text?: string;
   incomplete_details?: { reason?: string | null } | null;
+  error?: { code?: string | null } | null;
   usage?: {
     input_tokens?: number;
     output_tokens?: number;
@@ -58,8 +86,7 @@ function combinedUsage(...values: ProviderUsage[]): ProviderUsage {
       inputTokens: total.inputTokens + value.inputTokens,
       outputTokens: total.outputTokens + value.outputTokens,
       cacheReadTokens: (total.cacheReadTokens ?? 0) + (value.cacheReadTokens ?? 0),
-      cacheCreationTokens:
-        (total.cacheCreationTokens ?? 0) + (value.cacheCreationTokens ?? 0),
+      cacheCreationTokens: (total.cacheCreationTokens ?? 0) + (value.cacheCreationTokens ?? 0),
     }),
     { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
   );
@@ -168,6 +195,10 @@ export class OpenAiResponsesClient {
 
   async complete(params: CompleteParams): Promise<OpenAiResponsesResult> {
     const requestStartedAt = Date.now();
+    const deadlineAt = Math.min(
+      params.deadlineAt ?? Number.POSITIVE_INFINITY,
+      requestStartedAt + (params.timeoutMs ?? params.profile.turnBudgetMs),
+    );
     const requestCredential = RequestCredentialsStore.get()?.aiProvider;
     const requestOpenAi = requestCredential?.provider === 'openai' ? requestCredential : undefined;
     // apps/api forwards either the tenant's OpenAI key OR Capiro's global key on
@@ -196,15 +227,39 @@ export class OpenAiResponsesClient {
     }
     const effectiveToolChoice: OpenAiResponsesToolChoice = forcedToolExists
       ? { type: 'function', name: forcedTool! }
-      : params.toolChoice ?? 'auto';
+      : (params.toolChoice ?? 'auto');
 
     let lastError: unknown;
     let reasoningUnsupported = false;
     let activeReasoningEffort: MeriV3ReasoningEffort = params.profile.effort;
+    const reasoningFallbackReasons: string[] = [];
+    const failedRequest = (error: unknown, finishReason: string): Error =>
+      Object.assign(
+        error instanceof Error || error instanceof DOMException ? error : new Error(String(error)),
+        {
+          telemetry: {
+            requestedModel: model,
+            effectiveModel: null,
+            requestedReasoningEffort: params.profile.effort,
+            effectiveReasoningEffort: null,
+            reasoningFallbackReasons: [...reasoningFallbackReasons],
+            finishReason,
+            partial: true,
+          } satisfies MeriV3ProviderTelemetry,
+        },
+      );
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-      if (params.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (params.signal?.aborted) {
+        throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
+      }
+      const timeoutMs = deadlineAt - Date.now();
+      if (timeoutMs <= 0) {
+        throw failedRequest(
+          new Error('OpenAI Responses turn deadline exceeded'),
+          'deadline_exceeded',
+        );
+      }
       const controller = new AbortController();
-      const timeoutMs = params.timeoutMs ?? params.profile.turnBudgetMs;
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       const abortFromCaller = () => controller.abort();
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
@@ -248,6 +303,12 @@ export class OpenAiResponsesClient {
         });
         status = response.status;
         const raw = await response.text();
+        if (params.signal?.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+        if (controller.signal.aborted || Date.now() >= deadlineAt) {
+          throw new DOMException('Timed out', 'AbortError');
+        }
         if (!response.ok) throw sanitizedProviderError(response.status, raw);
         const body = JSON.parse(raw) as RawResponsesBody;
         const output = Array.isArray(body.output) ? body.output : [];
@@ -255,16 +316,29 @@ export class OpenAiResponsesClient {
           typeof body.output_text === 'string'
             ? body.output_text.trim()
             : extractResponsesOutputText(output);
+        const responseStatus = String(body.status ?? 'unknown');
+        const incompleteReason = body.incomplete_details?.reason ?? null;
+        const telemetry: MeriV3ProviderTelemetry = {
+          requestedModel: model,
+          effectiveModel: String(body.model ?? model),
+          requestedReasoningEffort: params.profile.effort,
+          effectiveReasoningEffort: reasoningUnsupported ? null : activeReasoningEffort,
+          reasoningFallbackReasons: [...reasoningFallbackReasons],
+          finishReason: incompleteReason ?? body.error?.code ?? responseStatus,
+          partial: responseStatus !== 'completed' || incompleteReason !== null,
+        };
         const draft: OpenAiResponsesResult = {
           id: String(body.id ?? ''),
-          status: String(body.status ?? 'completed'),
+          status: responseStatus,
           output,
           outputText,
           functionCalls: extractResponsesFunctionCalls(output),
           usage: parseOpenAiResponsesUsage(body),
           model: String(body.model ?? model),
           usedTenantKey,
-          incompleteReason: body.incomplete_details?.reason ?? null,
+          incompleteReason,
+          telemetry,
+          providerCalls: [telemetry],
         };
 
         const researchFinalization = draft.functionCalls.length
@@ -272,13 +346,22 @@ export class OpenAiResponsesClient {
           : MeriV3ResearchRuntimeStore.beginFinalization();
         if (!researchFinalization) return draft;
 
-        const totalBudgetMs = params.timeoutMs ?? params.profile.turnBudgetMs;
-        const remainingBudgetMs = totalBudgetMs - (Date.now() - requestStartedAt);
+        const remainingBudgetMs = deadlineAt - Date.now();
         if (remainingBudgetMs < 30_000 || params.signal?.aborted) {
           this.logger.warn(
             `Research Director finalization skipped because only ${Math.max(0, remainingBudgetMs)}ms remained.`,
           );
-          return draft;
+          if (params.signal?.aborted) {
+            throw new DOMException('Aborted', 'AbortError');
+          }
+          return {
+            ...draft,
+            telemetry: {
+              ...draft.telemetry,
+              finishReason: 'research_finalization_skipped',
+              partial: true,
+            },
+          };
         }
 
         const criticBudgetMs = Math.max(
@@ -291,6 +374,7 @@ export class OpenAiResponsesClient {
           ...(draft.output as Array<Record<string, unknown>>),
         ];
 
+        let criticResult: OpenAiResponsesResult | undefined;
         try {
           const critic = await this.complete({
             profile: criticProfile(params.profile),
@@ -299,11 +383,11 @@ export class OpenAiResponsesClient {
             tools: [],
             toolChoice: 'none',
             timeoutMs: criticBudgetMs,
+            deadlineAt,
             ...(params.signal ? { signal: params.signal } : {}),
-            ...(params.safetyIdentifier
-              ? { safetyIdentifier: params.safetyIdentifier }
-              : {}),
+            ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
           });
+          criticResult = critic;
           const synthesisInput: Array<Record<string, unknown>> = [
             ...evidenceInput,
             {
@@ -320,18 +404,22 @@ export class OpenAiResponsesClient {
             tools: [],
             toolChoice: 'none',
             timeoutMs: synthesisBudgetMs,
+            deadlineAt,
             ...(params.signal ? { signal: params.signal } : {}),
-            ...(params.safetyIdentifier
-              ? { safetyIdentifier: params.safetyIdentifier }
-              : {}),
+            ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
           });
           return {
             ...synthesis,
             usage: combinedUsage(draft.usage, critic.usage, synthesis.usage),
-            usedTenantKey:
-              draft.usedTenantKey || critic.usedTenantKey || synthesis.usedTenantKey,
+            usedTenantKey: draft.usedTenantKey || critic.usedTenantKey || synthesis.usedTenantKey,
+            providerCalls: [
+              ...(draft.providerCalls ?? [draft.telemetry]),
+              ...(critic.providerCalls ?? [critic.telemetry]),
+              ...(synthesis.providerCalls ?? [synthesis.telemetry]),
+            ],
           };
         } catch (finalizationError) {
+          if (params.signal?.aborted) throw finalizationError;
           this.logger.warn(
             `Research Director critic/synthesis failed; releasing the grounded draft instead: ${
               finalizationError instanceof Error
@@ -339,13 +427,34 @@ export class OpenAiResponsesClient {
                 : String(finalizationError).slice(0, 240)
             }`,
           );
-          return draft;
+          return {
+            ...draft,
+            usage: criticResult ? combinedUsage(draft.usage, criticResult.usage) : draft.usage,
+            telemetry: {
+              ...draft.telemetry,
+              finishReason:
+                Date.now() >= deadlineAt ? 'deadline_exceeded' : 'research_finalization_failed',
+              partial: true,
+            },
+            providerCalls: [
+              ...(draft.providerCalls ?? [draft.telemetry]),
+              ...(criticResult?.providerCalls ?? (criticResult ? [criticResult.telemetry] : [])),
+              ...(readOpenAiResponsesErrorTelemetry(finalizationError)
+                ? [readOpenAiResponsesErrorTelemetry(finalizationError)!]
+                : []),
+            ],
+          };
         }
       } catch (error) {
         lastError = error;
-        if (params.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (params.signal?.aborted) {
+          throw failedRequest(new DOMException('Aborted', 'AbortError'), 'cancelled');
+        }
         if (error instanceof DOMException && error.name === 'AbortError') {
-          throw new Error(`OpenAI Responses request timed out after ${timeoutMs}ms`);
+          throw failedRequest(
+            new Error('OpenAI Responses turn deadline exceeded'),
+            'deadline_exceeded',
+          );
         }
         if (
           !reasoningUnsupported &&
@@ -353,6 +462,7 @@ export class OpenAiResponsesClient {
           isNamedEffortUnsupported(status, error, 'max')
         ) {
           activeReasoningEffort = 'xhigh';
+          reasoningFallbackReasons.push('max_unsupported');
           this.logger.warn(
             `MeriV3 model ${model} rejected max reasoning on this request; retrying the same turn with xhigh effort.`,
           );
@@ -365,6 +475,7 @@ export class OpenAiResponsesClient {
           isNamedEffortUnsupported(status, error, 'xhigh')
         ) {
           activeReasoningEffort = 'high';
+          reasoningFallbackReasons.push('xhigh_unsupported');
           this.logger.warn(
             `MeriV3 model ${model} rejected xhigh reasoning on this request; retrying the same turn with high effort.`,
           );
@@ -373,24 +484,37 @@ export class OpenAiResponsesClient {
         }
         if (!reasoningUnsupported && isReasoningEffortUnsupported(status, error)) {
           reasoningUnsupported = true;
+          reasoningFallbackReasons.push('reasoning_parameter_unsupported');
           this.logger.warn(
             `MeriV3 model ${model} rejected the reasoning parameter on this request; retrying the same turn without it.`,
           );
           attempt -= 1;
           continue;
         }
-        if (attempt >= MAX_RETRIES || !shouldRetry(status, error)) throw error;
+        if (attempt >= MAX_RETRIES || !shouldRetry(status, error)) {
+          throw failedRequest(error, status ? `provider_http_${status}` : 'provider_error');
+        }
         this.logger.warn(
           `MeriV3 OpenAI retry ${attempt + 1}/${MAX_RETRIES} after ${
             error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180)
           }`,
         );
-        await sleep(retryDelay(attempt));
+        try {
+          await waitForRetry(
+            Math.max(0, Math.min(retryDelay(attempt), deadlineAt - Date.now())),
+            params.signal,
+          );
+        } catch (retryError) {
+          throw failedRequest(retryError, params.signal?.aborted ? 'cancelled' : 'provider_error');
+        }
       } finally {
         clearTimeout(timer);
         params.signal?.removeEventListener('abort', abortFromCaller);
       }
     }
-    throw lastError instanceof Error ? lastError : new Error('OpenAI Responses request failed');
+    throw failedRequest(
+      lastError ?? new Error('OpenAI Responses request failed'),
+      'provider_error',
+    );
   }
 }

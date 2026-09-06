@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { MeriContext, ToolDefinition } from '../../registry/types';
+import type { ToolExecutionControl } from '../../registry/tool-execution-control';
 
 /**
  * Delegated tools (Workstream C, strangler-fig step).
@@ -21,7 +22,12 @@ import type { MeriContext, ToolDefinition } from '../../registry/types';
 
 /** Executes a named apps/api tool for the caller (the orchestrator binds a concrete impl). */
 export interface ToolExecutor {
-  execute(ctx: MeriContext, toolName: string, input: Record<string, unknown>): Promise<unknown>;
+  execute(
+    ctx: MeriContext,
+    toolName: string,
+    input: Record<string, unknown>,
+    control?: ToolExecutionControl,
+  ): Promise<unknown>;
 }
 
 export interface DelegatedToolSpec {
@@ -53,8 +59,8 @@ export function createDelegatedTool(
     description: spec.description,
     readOnly: spec.readOnly,
     inputSchema: passthroughInputSchema,
-    handler: (input: Record<string, unknown>, ctx: MeriContext) =>
-      executor.execute(ctx, spec.name, input),
+    handler: (input: Record<string, unknown>, ctx: MeriContext, control) =>
+      executor.execute(ctx, spec.name, input, control),
   };
 }
 

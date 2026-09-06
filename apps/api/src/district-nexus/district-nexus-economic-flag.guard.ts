@@ -53,6 +53,15 @@ export class DistrictNexusEconomicFlagGuard implements CanActivate {
       .switchToHttp()
       .getRequest<Request & { tenantContext?: TenantContext }>();
     const tenantId = request.tenantContext?.tenantId;
+
+    return this.assertEnabledForTenant(tenantId, feature);
+  }
+
+  /** Reuse the identical entitlement policy for authorized non-HTTP readers. */
+  async assertEnabledForTenant(
+    tenantId: string | undefined,
+    feature: DistrictNexusEconomicFeature,
+  ): Promise<boolean> {
     if (!tenantId) throw new NotFoundException();
     if (this.internalTenantId && tenantId === this.internalTenantId) return true;
 

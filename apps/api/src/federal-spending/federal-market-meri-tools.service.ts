@@ -1,36 +1,11 @@
+import { MERI_FEDERAL_MARKET_TOOL_DEFINITIONS } from '@capiro/shared';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { FederalMarketGeographyService } from './federal-market-geography.service.js';
 import { FederalMarketService } from './federal-market.service.js';
 import type { FederalMarketQuery } from './federal-market.types.js';
 
-export const FEDERAL_MARKET_MERI_TOOL_DEFINITIONS = [
-  {
-    name: 'search_federal_contract_awards',
-    description:
-      'Search Capiro’s locally synchronized federal contract awards. Returns recipient, UEI, awarding agency, obligated amount, action date, place-of-performance district, source freshness and USAspending provenance. Pass clientId to restrict results to that client’s reviewed federal identities. Read-only; never calls MakeGov.',
-  },
-  {
-    name: 'search_federal_subawards',
-    description:
-      'Search locally synchronized MakeGov/Tango individual subawards, keeping prime and subrecipient identities separate. Returns amount, agency/office, NAICS, action date, and source-backed place-of-performance. Congressional district remains unknown unless explicitly resolved; state/city/ZIP are never converted into a district by inference. Pass clientId to restrict results to reviewed client identities. Subaward amounts are never added to prime-award amounts. Read-only; never calls MakeGov.',
-  },
-  {
-    name: 'search_contract_vehicles',
-    description:
-      'Search locally synchronized federal contract vehicles and client vehicle positions. With clientId, returns only vehicles connected to reviewed client or parent identities and labels self vs parent access. Without clientId, searches the global Tango vehicle snapshot catalog. Vehicle metrics are acquisition context, not opportunity value or probability of win.',
-  },
-  {
-    name: 'search_procurement_forecasts',
-    description:
-      'Search locally synchronized agency procurement forecasts from MakeGov/Tango. Forecasts are early signals, not open solicitations, and have no inferred eligibility or response deadline. Returns agency/office, anticipated award date, NAICS/PSC, set-aside, vehicle text, place-of-performance text, source system and freshness.',
-  },
-  {
-    name: 'get_district_federal_market',
-    description:
-      'Get source-backed federal-market activity for a congressional geography. Contract obligations and explicitly district-resolved subawards are separate awarded-money rails. State-backed subawards that lack a district are returned separately and never attributed to the requested district. SAM opportunities and agency forecasts are future signals and never included in awarded totals. Optionally pass clientId to scope awarded activity to that client’s reviewed federal identities.',
-  },
-] as const;
+export const FEDERAL_MARKET_MERI_TOOL_DEFINITIONS = MERI_FEDERAL_MARKET_TOOL_DEFINITIONS;
 
 export type FederalMarketMeriToolName =
   (typeof FEDERAL_MARKET_MERI_TOOL_DEFINITIONS)[number]['name'];

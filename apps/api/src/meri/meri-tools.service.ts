@@ -1,9 +1,12 @@
+import { MERI_CAPABILITY_REGISTRY, MERI_CORE_TOOL_DEFINITIONS } from '@capiro/shared';
+import { assertMeriToolRequestActive, meriToolRequestControl } from './meri-tool-request-control.js';
 import {
   BadGatewayException,
   BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EngagementTaskStatus, Prisma } from '@prisma/client';
@@ -104,6 +107,19 @@ import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 import { ymdInZone } from '../intelligence/time-bounds.js';
 import { resolveStateName } from '../common/us-states.js';
 import { MeriOpportunityToolsAdapter } from '../funding-opportunities/meri-opportunity-tools.adapter.js';
+import {
+  CLIENT_PROFILE_SECTIONS,
+  clientProfileCoverageHeader,
+  parseClientProfileQuery,
+  readClientProfileSection,
+} from './meri-client-context.helpers.js';
+import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import { RetrievalV2Service } from '../retrieval/retrieval-v2.service.js';
+import { RETRIEVAL_DOMAINS } from '../retrieval/retrieval-v2.types.js';
+import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.helpers.js';
+import { projectMemoryContent } from './meri-memory-content.helpers.js';
+import { getResearchEvidence } from './meri-research-evidence.helpers.js';
+import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -134,438 +150,7 @@ function toolActor(ctx: TenantContext): { tenantId: string; userId: string; role
 // no clientId and keeps the firm-wide behaviour.
 
 // Exported for the tool-registration regression spec (meri-tools.registration.spec.ts).
-export const TOOL_DEFINITIONS = [
-  {
-    name: 'get_client_context',
-    description:
-      'Load authorized Capiro client context: recent meetings, threads, contacts, and tasks, plus the client profile (capabilities, key people, facilities, submission history).',
-  },
-  {
-    name: 'search_research_sources',
-    description: 'Search authorized Capiro clients, meetings, mail, notes, and directory notes.',
-  },
-  {
-    name: 'run_analysis',
-    description:
-      'Execute Python (pandas/numpy/matplotlib) in a locked-down sandbox for real computation: aggregations, year-over-year deltas, joins, and charts over data you already retrieved with other tools. Pass small datasets inline as rows; read them in code from ./data/<name>.csv. print() findings, assign a `results` dict/list/DataFrame for tables, and matplotlib figures are returned as chart artifacts. No network, no filesystem outside the working directory.',
-  },
-  {
-    name: 'search_client_knowledge',
-    description:
-      'Semantic search over one client\'s knowledge base: profile/overview facts, key people (titles, roles, contact history), facilities (locations, congressional districts, headcount), and uploaded document contents. Use this FIRST for questions about a specific client ("who at X handles Y", "summarize the uploaded doc", "which districts have X facilities"). Returns typed, citable knowledge-base entries.',
-  },
-  {
-    name: 'query_intelligence',
-    description:
-      'Query federal lobbying intelligence: surging LDA issues, trending topics, recent congressional bills, federal spending data, and counts of available intelligence data sources (SEC filings, FARA registrations, GAO reports, grants, hearings, state bills, CRS reports, news articles, economic data). Optionally filter by a client name for contractor spending.',
-  },
-  {
-    name: 'query_knowledge_graph',
-    description:
-      "Explore the firm's institutional-memory knowledge graph: the connected web of clients, bills, issues, people, offices, meetings, email threads, and memories. Use for relationship questions like \"what's our full history with this client/office\", \"what is everything connected to bill X\", or \"what do we know around issue Y\". Pass a seed node (e.g. 'client:<id>', 'bill:119-hr-1234', 'issue:SHIP') to get its neighborhood, or omit to get an overview. Edges are tagged fact (from firm data) vs mention (from analyst notes). Tenant + own-private scoped.",
-  },
-  {
-    name: 'find_path_to',
-    description:
-      "Find the warm-introduction routes from your clients to a target office or person in the knowledge graph (\"who do we already know near the Senate Defense Approps subcommittee?\"). Pass a target node id (e.g. 'office:<id>' or 'person:<id>'); returns the shortest connection paths so you can see which client/person gets you there. Tenant + own-private scoped.",
-  },
-  {
-    name: 'search_memory',
-    description:
-      'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items, each with a relevance score and a `memoryItemId` you can pass to confirm_memory / correct_memory / forget_memory. Tenant + own-private scoped.',
-  },
-  {
-    name: 'confirm_memory',
-    description:
-      'Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers ("yes, that\'s still right"). Pass the memoryItemId from search_memory. Does not change the content.',
-  },
-  {
-    name: 'correct_memory',
-    description:
-      'Correct a remembered fact: supersede it with new content while preserving the prior version as history. The old memory is retired from recall and the new one takes its place. Use when the user says a remembered fact is wrong or outdated ("actually it\'s X now"). Pass the memoryItemId from search_memory plus the corrected content.',
-  },
-  {
-    name: 'forget_memory',
-    description:
-      "Forget a remembered fact: stop recalling it immediately and remove it from Meri's memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.",
-  },
-  {
-    name: 'search_congress_bills',
-    description:
-      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
-  },
-  {
-    name: 'get_bill_status',
-    description:
-      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
-  },
-  {
-    name: 'search_floor_votes',
-    description:
-      "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",
-  },
-  {
-    name: 'search_cbo_cost_estimates',
-    description:
-      'Look up CBO cost estimates (budget scores) for congressional bills in the Capiro database. Filter by bill id ("119-hr-8800") or keyword. Returns the estimate title, publication date, and cbo.gov link. Explicitly reports when NO estimate exists for a bill — never guess a score.',
-  },
-  {
-    name: 'resolve_entity',
-    description:
-      'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
-  },
-  {
-    name: 'search_lda_filings',
-    description:
-      'Search LDA lobbying disclosure filings in the Capiro database. Filter by client name, registrant, issue area, or keyword.',
-  },
-  {
-    name: 'search_sec_filings',
-    description:
-      'Search SEC EDGAR filings (10-K, 10-Q, 8-K, DEF14A, S-1, etc.) in the Capiro database. Filter by company name, form type, CIK, or date range. Returns company, form type, filing date, and description.',
-  },
-  {
-    name: 'search_fara_registrations',
-    description:
-      'Search FARA (Foreign Agents Registration Act) registrations. Filter by registrant name, foreign principal, country, or status. Returns registrant, foreign principal, country, and status.',
-  },
-  {
-    name: 'search_federal_grants',
-    description:
-      'Search federal grant opportunities (NOFOs) from Grants.gov. Filter by agency, keyword, status (posted/closed/forecasted), or date range. Returns title, agency, funding amounts, eligibility, and deadlines.',
-  },
-  {
-    name: 'search_federal_awards',
-    description:
-      'Search federal contract awards/obligations (USAspending) the firm has synced. Filter by keyword, awarding agency, or Program Element (PE) code. Returns contractor, agency, amount, description, PE code, and place-of-performance — useful for defense-contracting and PE-linked questions.',
-  },
-  {
-    name: 'search_gao_reports',
-    description:
-      'Search GAO (Government Accountability Office) reports and testimonies. Filter by keyword, report type, topic, or agency. Returns title, report type, date, topics, and recommendations count.',
-  },
-  {
-    name: 'search_state_bills',
-    description:
-      'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
-  },
-  {
-    name: 'get_state_bill_status',
-    description:
-      'Get the authoritative legislative status of ONE state bill (by canonical id "tx-2025-hb1234" or a designation like "TX HB 1234" — state required if not embedded in the designation): its canonical status (introduced/committee/reported/floor/passed_chamber/resolving/to_governor/enacted/vetoed/veto_overridden/failed/dead_by_deadline), recent action timeline, roll-call votes, and companion-bill links with their status. Explicitly states when there is NO recorded vote (never infer passage) and when the bill is dead_by_deadline (session adjourned sine die — dead absent a special session).',
-  },
-  {
-    name: 'search_state_floor_votes',
-    description:
-      "Search state legislature roll-call votes. Filter by bill (canonical id or designation), keyword over the motion text, state, chamber, or limit. Returns each vote's motion, tally, passed/failed result, date, and source link. Member-level filtering is not yet available for state votes (crosswalk hardening in progress) — never promise a member-scoped result. Explicitly reports when NO matching vote exists.",
-  },
-  {
-    name: 'get_state_legislator',
-    description:
-      'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
-  },
-  {
-    name: 'get_committee_roster',
-    description:
-      'Get the full roster of ONE committee: chair, vice chair, ranking member, and every member (grouped by side/rank for federal; role for state — state chambers do not share a minority-leadership vocabulary). `jurisdiction` is required (federal and state committees are separate namespaces — never guessed from the committee string alone); `state` is required when jurisdiction=state. Matches by exact systemCode/committee id first, then by name — reports "committee referral unmatched" rather than guessing when the name matches zero or more than one committee.',
-  },
-  {
-    name: 'get_representation',
-    description:
-      "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
-  },
-  {
-    name: 'list_members',
-    description:
-      'List CURRENT members of Congress by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". `state` accepts a full name ("Virginia") or 2-letter code ("VA"); `chamber` is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. This is the authoritative federal member roster — use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. Explicitly reports when NO members match; never fabricate a member.',
-  },
-  {
-    name: 'get_state_rule_status',
-    description:
-      'Look up ONE rule/notice\'s status and lifecycle stage — state agency register or Federal Register, whichever matches. Accepts an exact id ("FL-31100933", or a Federal Register document number like "2026-01234") or a title keyword; `state` scopes a keyword search to that state\'s register (omit to also search federal + other states). Stage (notice/nprm/comment_closed/final/effective) is derived deterministically from the rule\'s type and comment/effective dates — never guessed. Explicitly reports ambiguous keyword matches (asks which one) and NO-match cases — never fabricates a rule\'s status.',
-  },
-  {
-    name: 'search_intel_articles',
-    description:
-      'Search aggregated policy news and intelligence articles from sources like Roll Call, The Hill, Axios, Politico, Brookings, and agency press. Filter by keyword, source, or topic.',
-  },
-  {
-    name: 'search_committee_hearings',
-    description:
-      'Search congressional committee hearings, markups, and meetings. Filter by committee name, chamber (House/Senate/Joint), keyword, or date range.',
-  },
-  {
-    name: 'search_crs_reports',
-    description:
-      'Search Congressional Research Service (CRS) reports and analyses. Filter by keyword, topic, or author.',
-  },
-  {
-    name: 'query_economic_data',
-    description:
-      'Query economic indicators from BLS (Bureau of Labor Statistics), Census (ACS district demographics), and BEA (Bureau of Economic Analysis GDP/industry data). Specify data source and parameters like state, district, series, or year.',
-  },
-  {
-    name: 'search_public_web',
-    description:
-      'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',
-  },
-  {
-    name: 'scrape_web_page',
-    description:
-      'Fetch and extract readable text from a public webpage or PDF URL for grounded analysis (gov sources are PDF-heavy). Blocks localhost/private-network targets.',
-  },
-  {
-    name: 'create_meeting_brief',
-    description:
-      'Create and persist a deterministic meeting brief artifact from authorized Capiro data.',
-  },
-  {
-    name: 'draft_policy_memo',
-    description: 'Create and persist a policy memo artifact from authorized Capiro client context.',
-  },
-  {
-    name: 'save_note',
-    description: 'Save a user-scoped Meri note and optionally an encrypted Capiro meeting note.',
-  },
-  {
-    name: 'send_email',
-    description:
-      "Send an email via the tenant's connected Microsoft 365 account on behalf of Meri.",
-  },
-  {
-    name: 'list_emails',
-    description:
-      "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
-  },
-  {
-    name: 'search_emails',
-    description:
-      "Search the user's synced email (Microsoft 365/Google) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). Matching is an exact, case-insensitive substring — there is NO fuzzy or typo tolerance, so a real company or person's name that is spelled even slightly differently (plural vs singular, a hyphen, an abbreviation, a missing/extra word) will not match. If a full name or phrase returns zero results, retry with just its single most distinctive word before concluding the person or company is absent, and treat any hit on that broader term as a possible naming variant worth surfacing to the user rather than a false lead to discard. IMPORTANT: bodies are stored as short previews and junk/spam, deleted/trash, and drafts folders never sync, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
-  },
-  {
-    name: 'list_upcoming_meetings',
-    description:
-      "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
-  },
-  {
-    name: 'reply_email',
-    description:
-      "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
-  },
-  {
-    name: 'save_memory',
-    description:
-      "Persist a durable fact or preference the user shares (a nickname, reporting style, ongoing priority, etc.) to Meri's long-term memory so it is recalled in future conversations. Use this whenever the user asks you to remember something.",
-  },
-  {
-    name: 'search_program_elements',
-    description:
-      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1/R-2 RDT&E Program Elements AND P-1/P-40 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
-  },
-  {
-    name: 'get_program_element',
-    description:
-      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1/P-40 procurement line item vs R-1/R-2 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
-  },
-  {
-    name: 'get_pe_budget_timeline',
-    description:
-      "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
-  },
-  {
-    name: 'get_pe_contractors',
-    description:
-      'Get the top contractors linked to a Program Element over the last ~24 months, by direct PE tag or DoD acquisition-program code. Note: PE-to-contractor linkage is sparse — many PEs return no contractors.',
-  },
-  {
-    name: 'get_pe_bills',
-    description:
-      'Get congressional bills that reference a Program Element (by PE code), with sponsor, lead committee, and latest action.',
-  },
-  {
-    name: 'get_pe_report_language',
-    description:
-      "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
-  },
-  {
-    name: 'search_acquisition_personnel',
-    description:
-      'Search DoD acquisition personnel — the program managers, contracting officers, PEOs, and program leads who run defense programs. Filter by name (query), military service, organization, role, or linked Program Element (peCode). Returns name, service, organization, title, role, linked PE(s), and source count.',
-  },
-  {
-    name: 'get_acquisition_person',
-    description:
-      "Get a single DoD acquisition person's full detail by id: name, service, organization, title, role, program of record, linked Program Elements, public profile, and the source citations behind each fact.",
-  },
-  {
-    name: 'find_contacts',
-    description:
-      "Find REAL people the firm actually corresponds with, harvested from the connected Outlook/Gmail mailboxes and calendars — name, email address, organization, when they were last in contact, and how many messages. Use this INSTEAD of reading names out of list_emails / search_emails previews when you need contacts for a client profile: those previews give you display names with no addresses and no history, which is guesswork. Filter by `clientId` (returns everyone whose email domain matches that client's website, plus anyone already linked to them), by `domain`, or by `query` (name/email substring). `onProfile` tells you who is ALREADY on the client's People tab, so you only propose the ones who are missing. Read-only.",
-  },
-  {
-    name: 'create_word',
-    description:
-      'Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.',
-  },
-  {
-    name: 'create_excel',
-    description:
-      'Generate a downloadable Microsoft Excel (.xlsx) workbook from a structured spec (one or more sheets, each with headers and rows). Use when the user asks for a spreadsheet, data export, or table as a file. Numeric-looking cells are stored as numbers.',
-  },
-  {
-    name: 'create_powerpoint',
-    description:
-      'Generate a downloadable Microsoft PowerPoint (.pptx) deck from a structured spec (title slide plus content slides with bullets and an optional table per slide). Use when the user asks for a slide deck or presentation.',
-  },
-  {
-    name: 'schedule_task',
-    description:
-      'Schedule a recurring task for Meri to run automatically on a cadence (e.g. a weekly research brief). Requires a name, an instruction prompt, and intervalMinutes (>=60). Scheduled runs are READ-ONLY research only — they cannot send email or write data. Use when the user asks Meri to do something "every week / daily / on a schedule".',
-  },
-  {
-    name: 'list_scheduled_tasks',
-    description:
-      "List the caller's recurring scheduled Meri tasks (name, cadence, next run, enabled state).",
-  },
-  {
-    name: 'cancel_scheduled_task',
-    description: 'Cancel (disable) a recurring scheduled Meri task by its id.',
-  },
-  {
-    name: 'query_tasks',
-    description:
-      'List engagement tasks/to-dos for the firm or a client — filter by status and due date. Use for "what is due, overdue, or open".',
-  },
-  {
-    name: 'query_action_items',
-    description:
-      'List the firm\'s "Needs Attention" action recommendations for a client or across all clients — each card says what changed, why it matters, and the recommended action with deadline and priority.',
-  },
-  {
-    name: 'search_tracked_bills',
-    description:
-      "List the bills the firm is actively tracking for a client, with each bill's latest status and the note attached when it was pinned.",
-  },
-  {
-    name: 'query_regulatory_dockets',
-    description:
-      'List regulatory dockets / rulemaking documents from Regulations.gov, or upcoming open comment-period deadlines. Filter by agency or document type. Use for "what comment periods are closing soon".',
-  },
-  {
-    name: 'search_sam_opportunities',
-    description:
-      'Search SAM.gov federal contract opportunities (solicitations, sources sought, presolicitations) by keyword or NAICS code. Active notices by default, newest first, with response deadlines and points of contact.',
-  },
-  {
-    name: 'query_debriefs',
-    description:
-      'List post-meeting debriefs for a client — outcomes, follow-ups, and commitments captured after meetings. Restricted (confidential) debrief bodies are withheld.',
-  },
-  {
-    name: 'query_outreach',
-    description:
-      "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",
-  },
-  {
-    name: 'read_client_documents',
-    description:
-      'List the documents uploaded in a client\'s Documents tab, and (when documentId is given) extract and return the text content of one document so you can read, summarize, or quote it. Supports .txt, .csv, .docx, .pdf, .xlsx, .pptx, and audio/video transcription. Use when the user references "the document/file I uploaded", a contract, a brief, a deck, or asks you to read/summarize an attached file for a client.',
-  },
-  {
-    name: 'lookup_client_registry',
-    description:
-      "Pre-create check for a prospective client name — ALWAYS call this BEFORE proposing create_client. Reports (1) whether a client with that name already exists in the firm's book of business, (2) the LDA lobbying-disclosure registry's exact match if any (create_client will link it automatically), and (3) close LDA candidates otherwise — relay those to the user and ask which registered entity applies (pass the chosen id as create_client's `ldaClientId`) or none (`skipLdaCheck: true`). Read-only; creates nothing.",
-  },
-  {
-    name: 'create_client',
-    description:
-      "Create a NEW client record in the firm's book of business. Requires user approval. Call lookup_client_registry FIRST and resolve its findings with the user, then propose this with the resolved inputs: `ldaClientId` for a confirmed LDA registry entity, `skipLdaCheck: true` if the user said none apply, or neither when the name matched exactly / wasn't in the registry. The same checks are re-enforced here as backstops — the action FAILS VISIBLY (creating nothing) on a duplicate client, an unresolved close-match LDA ambiguity, an unknown `ldaClientId`, or the plan's client-slot limit. Required: `name`. Optional: `website`, `description`, `sectorTag`, `primaryContactName`/`primaryContactEmail`/`primaryContactPhone`. When you propose it, ask IN THE SAME MESSAGE whether — once approved — the user also wants the full profile filled via web research and internal data (their website via scrape_web_page, LDA filings, federal awards → update_client_profile).",
-  },
-  {
-    name: 'create_task',
-    description:
-      'Create an engagement task/follow-up (title, optional client, due date, description). Requires user approval.',
-  },
-  {
-    name: 'update_task',
-    description:
-      "Update an engagement task's status, due date, or title (e.g. mark done). Requires user approval.",
-  },
-  {
-    name: 'update_client_profile',
-    description:
-      'Write approved values into a client profile (the Documents/Overview tab fields): ' +
-      'name, website, description, productDescription, primaryContactName, primaryContactEmail, ' +
-      'primaryContactPhone, sectorTag, issueCodes, uei, cageCode, naicsCodes, pscCodes. ' +
-      'You may ALSO append facilities (locations: name, address, city, state, ZIP, ' +
-      'congressionalDistrict, employeeCount), capabilities (products/technologies the ' +
-      'organization offers: name, type, description, sector), and people (key contacts / ' +
-      'personnel: name, title, email, phone, role, lastContact, notes) discovered on the ' +
-      "client's website or in filings -- pass them as the facilities[], capabilities[], and " +
-      'people[] arrays. These arrays are MERGED, never used to delete existing rows: a person ' +
-      'already on the profile (matched on email, else exact name) is updated in place — blank ' +
-      'fields are filled and lastContact advances, but values already there are left alone — ' +
-      'and a facility/capability whose name is already present is skipped. Re-running enrichment ' +
-      'is therefore safe and will NOT duplicate rows; the result reports peopleCreated, ' +
-      'peopleUpdated, and skipped separately, so report what actually changed rather than ' +
-      'assuming every row you sent was new. Only call this AFTER you have shown the user the ' +
-      'proposed values (ideally ' +
-      'with a source for each, e.g. from search_public_web / scrape_web_page / LDA filings) and ' +
-      'they have approved them. Pass only the fields/rows you are changing. Requires user approval.',
-  },
-  // ── Funding Opportunities (P37) ─────────────────────────────────────────
-  // Six READ-ONLY tools over Capiro's own normalized tables. Implemented in
-  // apps/api/src/funding-opportunities/meri-opportunity-tools.adapter.ts, not
-  // here: this module imports FundingOpportunitiesModule, and the reverse would
-  // be a cycle. None of them can reach MakeGov/Tango — the adapter holds no
-  // gateway — so "Capiro has not synced this" is an answer they can give and
-  // "let me check the provider" is not.
-  //
-  // Every one takes `clientId`, deliberately: the chat loop's client-scope
-  // enforcement keys on that field, so a tool without it would read across a
-  // scoped session's boundary. meri-opportunity-tools.spec.ts asserts all six
-  // declare it as REQUIRED.
-  {
-    name: 'get_funding_opportunity',
-    description:
-      "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
-  },
-  {
-    name: 'explain_opportunity_match',
-    description:
-      'Explain WHY an opportunity matched a client: every matched signal with its strength and the exact value it matched on, the overall fit band, and the four separate judgements Capiro keeps apart — relevance (capability/agency fit), eligibility (can they bid), the machine recommendation (pursue/monitor/pass/needs_review), and the human decision if one has been made. Use this instead of guessing from a score. Also names the client profile fields Capiro is missing, so a weak match can be reported as unassessable rather than as a poor fit.',
-  },
-  {
-    name: 'get_opportunity_client_context',
-    description:
-      "Load one client's federal-opportunity posture: counts by rail, the next deadline, top-ranked grants and contracts, per-source data freshness, and — importantly — which client profile fields Capiro is missing. Use this FIRST when asked how a client is doing on federal opportunities, and to distinguish 'no matches' from 'the catalog has not synced' from 'the profile is too thin to score'.",
-  },
-  {
-    name: 'get_opportunity_government_landscape',
-    description:
-      'Load the government-affairs context Capiro can evidence for a SAM.gov contract opportunity: reviewed Program Element links (only an ACCEPTED review counts as source-backed; an unreviewed match is labelled inferred and is not evidence of a link), the client’s recorded facilities, and state-level place-of-performance overlap. Reports coverage and which context sources are not yet wired — an unwired source means Capiro cannot look, never that nothing is there. SAM.gov only.',
-  },
-  {
-    name: 'compare_funding_opportunities',
-    description:
-      'Compare two to five opportunities side by side for one client, using local facts only: deadlines, activity, relevance, eligibility, recommendation and recorded decision. Pass `opportunities` as a list of {source, sourceRecordId}. Grant funding and contract value are reported separately and are never summed. A record Capiro cannot read is listed with its reason rather than silently dropped, so the comparison cannot look more complete than it is.',
-  },
-  {
-    name: 'build_opportunity_action_plan',
-    description:
-      'Get the deterministic, stage-aware action plan for an opportunity — what a capture team should do next given where the acquisition actually is (forecast, sources sought, presolicitation, solicitation, amendment, grant, or closed). Returns PROPOSALS ONLY: nothing is committed, no task is created, no workflow moves. A person accepts an action in Capiro, which then creates the task and records the decision in one transaction. A closed or informational notice never proposes a pursuit.',
-  },
-  {
-    name: 'list_global_datasets',
-    description:
-      'List the global (public-domain, non-tenant) reference datasets query_global_data can aggregate over — LDA lobbying registrations, SEC filings, FARA registrations, congressional and state bills, federal grants and contract opportunities, federal awards, GAO/CRS reports, FEC committees, and news. For each dataset: its queryable fields, their types, and whether they can be filtered/grouped/aggregated. Call this BEFORE query_global_data if you are not already certain of a dataset\'s exact field names — do not guess them.',
-  },
-  {
-    name: 'query_global_data',
-    description:
-      "Run an aggregate query (counts, distinct counts, sums, group-bys) over one global reference dataset — the tool for questions like \"how many active LDA registrations do we have\" or \"which agency posted the most grants this year\" that a fixed search_X tool cannot answer. Structured only: pick a dataset from list_global_datasets, a `select` list of raw fields and/or aggregates (count, count_distinct, sum, avg, min, max — max 12 entries), optional `filters`, `groupBy`, `orderBy`, and `limit`. Every field name must come from that dataset's field list; unknown fields are rejected before anything runs. `lda_registrations` additionally accepts `asOfDate` (default: now) to ask what registration status looked like as of a given date, e.g. year-end. This tool never writes anything and never touches tenant-private data — it only reaches the reviewed global-dataset allowlist.",
-  },
-] as const;
+export const TOOL_DEFINITIONS = MERI_CORE_TOOL_DEFINITIONS;
 
 type MeriToolName = (typeof TOOL_DEFINITIONS)[number]['name'];
 
@@ -574,26 +159,9 @@ type MeriToolName = (typeof TOOL_DEFINITIONS)[number]['name'];
  * round so two mutations never race; every other (read-only) tool may run
  * concurrently (P0-2).
  */
-const SIDE_EFFECTING_TOOLS: ReadonlySet<string> = new Set<string>([
-  'create_meeting_brief',
-  'draft_policy_memo',
-  'save_note',
-  'send_email',
-  'reply_email',
-  'save_memory',
-  'confirm_memory',
-  'correct_memory',
-  'forget_memory',
-  'create_word',
-  'create_excel',
-  'create_powerpoint',
-  'schedule_task',
-  'cancel_scheduled_task',
-  'create_task',
-  'update_task',
-  'create_client',
-  'update_client_profile',
-]);
+const SIDE_EFFECTING_TOOLS: ReadonlySet<string> = new Set(
+  MERI_CAPABILITY_REGISTRY.filter((tool) => !tool.readOnly).map((tool) => tool.name),
+);
 
 interface ToolArtifactInput {
   conversationId?: string | null;
@@ -655,6 +223,8 @@ export class MeriToolsService {
     // MeriModule's import of it. The dependency runs one way only — see the
     // adapter's docblock for why the reverse would be a bootstrap cycle.
     private readonly opportunityTools: MeriOpportunityToolsAdapter,
+    @Optional() private readonly sharedRetrieval?: RetrievalV2Service,
+    @Optional() private readonly contextPlane?: MeriContextPlaneService,
   ) {}
 
   manifest() {
@@ -686,7 +256,29 @@ export class MeriToolsService {
       description ? { type: 'integer', description } : { type: 'integer' };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
-      get_client_context: obj({ clientId: str('Client UUID') }, ['clientId']),
+      get_research_evidence: obj({
+        sessionId: str('Research session UUID whose immutable attachment snapshot should be read'),
+        attachmentIds: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'string', format: 'uuid' }, description: 'Optional original attachment IDs to read; omit to page through all snapshot evidence' },
+        clientId: str('Optional client UUID; must match the research session and authorized conversation scope'),
+        cursor: str('Opaque nextCursor returned for the same session and attachment selection'),
+        limit: { type: 'integer', minimum: 1, maximum: 10, description: 'Attachments per page (default 5)' },
+      }, ['sessionId']),
+      search_capiro_data: obj({
+        query: { type: 'string', maxLength: 4000, description: 'Use an empty string to enumerate the selected authorized domains/client; use keywords to filter' },
+        domains: { type: 'array', minItems: 1, maxItems: RETRIEVAL_DOMAINS.length, items: { type: 'string', enum: [...RETRIEVAL_DOMAINS] } },
+        clientId: str('Optional client UUID; authorization is resolved server-side'),
+        queryClass: { type: 'string', enum: [...MERI_DATA_QUERY_CLASSES], description: 'Defaults to lookup; unsupported domain/query combinations are reported in coverage' },
+        windowStart: str('Inclusive start of requested time window, ISO timestamp with timezone'),
+        windowEnd: str('End of requested time window, ISO timestamp with timezone'),
+        pageSize: { type: 'integer', minimum: 1, maximum: 100, description: 'Records per domain page (default 50)' },
+        cursors: { type: 'object', properties: Object.fromEntries(RETRIEVAL_DOMAINS.map((domain) => [domain, str('Opaque cursor from this domain in the preceding response')])), additionalProperties: false },
+      }, ['query', 'domains']),
+      get_client_context: obj({
+        clientId: str('Client UUID'),
+        section: { type: 'string', enum: [...CLIENT_PROFILE_SECTIONS], description: 'Read complete records for one profile section; omit for a concise overview of all sections' },
+        cursor: str('nextCursor returned for this client and section; omit for the first page'),
+        limit: { type: 'integer', minimum: 1, maximum: 50, description: 'Records per section (default 25)' },
+      }, ['clientId']),
       search_research_sources: obj(
         {
           query: str('Free-text search across clients, meetings, mail, notes'),
@@ -752,8 +344,12 @@ export class MeriToolsService {
       ),
       search_memory: obj(
         {
-          query: str('What to look for in firm memory (natural language)'),
-          k: int('Max results (1-15, default 8)'),
+          query: str('What to look for in governed memory (natural language)'),
+          clientId: str('Optional selected client UUID; only this client plus authorized firm/private memory is recalled'),
+          cursor: str('Opaque nextCursor from the previous search_memory results page'),
+          memoryItemId: str('Exact canonical UUID to read; use content.nextRead for complete long memory content'),
+          contentCursor: str('Opaque contentCursor from content.nextRead; requires the same memoryItemId and client scope'),
+          k: int('Requested results (1-15, default 8); at most3 are returned per bounded preview page, with nextCursor'),
         },
         ['query'],
       ),
@@ -969,10 +565,13 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
       }),
       search_committee_hearings: obj({
-        query: str('Keyword search'),
+        query: str('Literal keyword search across hearing metadata, official transcript chunks, machine transcript segments and intelligence. Omit to read all records for hearingId.'),
+        hearingId: str('Optional exact hearing ID to read its full evidence; repeat it on continuation calls.'),
+        clientId: str('Optional authorized client scope for followed/relevant hearings.'),
         chamber: str('House | Senate | Joint'),
         committeeName: str('Committee name filter'),
-        limit: int('Max results (1-50)'),
+        cursor: str('Opaque coverage.sources hearings nextCursor; repeat the same filters to continue.'),
+        limit: int('Legacy result limit accepted; full evidence reads return one record per page to keep transcript chunks intact.'),
       }),
       search_crs_reports: obj({
         query: str('Keyword search across title/summary/topics/authors'),
@@ -1265,8 +864,13 @@ export class MeriToolsService {
         {
           clientId: str('Client UUID whose Documents-tab files to list/read'),
           documentId: str(
-            "Optional attachment UUID. When provided, extract and return that document's text content instead of just listing.",
+            "Optional attachment UUID. When provided, read a searchable section of that document. Follow coverage.nextCursor until all evidence needed has been read.",
           ),
+          query: str('Optional literal text search inside the selected document section; without documentId, filters file names. Follow cursor to search later sections.'),
+          section: int('1-based PDF page, PowerPoint slide, workbook sheet/1000-row section, or 1 for a text document. Defaults to 1.'),
+          characterOffset: int('0-based character offset inside the selected section for a full surrounding-text read.'),
+          cursor: str('Opaque coverage.nextCursor from the preceding read. Repeat the same clientId, documentId, and query.'),
+          limit: int('Maximum characters per document read (1-6000, default 5000), or files per list (1-50, default 25).'),
         },
         ['clientId'],
       ),
@@ -1498,7 +1102,7 @@ export class MeriToolsService {
     return TOOL_DEFINITIONS.map((tool) => ({
       name: tool.name,
       description: tool.description,
-      input_schema: schemas[tool.name] ?? obj({}),
+      input_schema: requiredToolSchema(tool.name, schemas),
     }));
   }
 
@@ -1662,6 +1266,8 @@ export class MeriToolsService {
     let outcome: SandboxOutcome | null = null;
     let failure: string | null = null;
     try {
+      assertMeriToolRequestActive();
+      const requestSignal = meriToolRequestControl()?.signal;
       const res = await fetch(`${url}/run`, {
         method: 'POST',
         headers: {
@@ -1669,7 +1275,9 @@ export class MeriToolsService {
           ...(token ? { authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ code, datasets }),
-        signal: AbortSignal.timeout(45_000),
+        signal: requestSignal
+          ? AbortSignal.any([requestSignal, AbortSignal.timeout(45_000)])
+          : AbortSignal.timeout(45_000),
       });
       if (!res.ok) {
         failure = `sandbox HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`;
@@ -1735,6 +1343,7 @@ export class MeriToolsService {
   }
 
   executeFromAuthenticatedUser(ctx: TenantContext, rawName: string, rawInput: unknown) {
+    assertMeriToolRequestActive();
     const name = normalizeToolName(rawName);
     const input = this.isSideEffecting(name)
       ? this.validateSideEffectingInput(name, rawInput)
@@ -1768,7 +1377,13 @@ export class MeriToolsService {
   }
 
   async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
+    assertMeriToolRequestActive();
     switch (name) {
+      case 'get_research_evidence':
+        return getResearchEvidence(ctx, input, this.prisma);
+      case 'search_capiro_data':
+        return searchCapiroData(ctx, input, this.sharedRetrieval,
+          this.contextPlane ? (actor) => this.contextPlane!.securityEnvelope(actor) : undefined);
       case 'get_client_context':
         return this.getClientContext(ctx, input);
       case 'search_research_sources':
@@ -1830,7 +1445,7 @@ export class MeriToolsService {
       case 'search_intel_articles':
         return this.searchIntelArticles(input);
       case 'search_committee_hearings':
-        return this.searchCommitteeHearings(input);
+        return this.searchCommitteeHearings(ctx, input);
       case 'search_crs_reports':
         return this.searchCrsReports(input);
       case 'query_economic_data':
@@ -2100,22 +1715,20 @@ export class MeriToolsService {
   private async getClientContext(ctx: TenantContext, input: Record<string, unknown>) {
     let clientId = requiredString(input, 'clientId', 80);
     clientId = await this.ensureClientVisible(ctx, clientId);
-    // Profile depth (capabilities/people/facilities/submission history) is
-    // additive and best-effort — a failure there never blocks the engagement
-    // context that existing consumers (briefs, memos, research) depend on.
+    const deniedClientIds = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId),
+    );
+    if (deniedClientIds.includes(clientId)) throw new NotFoundException('Client not found');
+    const query = parseClientProfileQuery(input, clientId);
+    // One canonical context handler for API and native Meri tools. Each section
+    // reports a full count or explicit unavailability; paging reads reuse the
+    // scoped domain services and return full records instead of clipped text.
     const [context, capabilities, people, facilities, submissionHistory] = await Promise.all([
       this.engagement.clientContext(ctx, clientId),
-      this.clientCapabilities.listCapabilities(ctx, clientId).catch(() => []),
-      this.clientPeople.listPeople(ctx, clientId).catch(() => []),
-      this.clientFacilities.listFacilities(ctx, clientId).catch(() => []),
-      this.clientCapabilities.listClientHistory(ctx, clientId).catch(() => []),
-    ]);
-    return {
-      tool: 'get_client_context',
-      generatedAt: new Date().toISOString(),
-      context,
-      profile: {
-        capabilities: capabilities.slice(0, 25).map((cap) => ({
+      readClientProfileSection({
+        clientId, section: 'capabilities', query,
+        load: () => this.clientCapabilities.listCapabilities(ctx, clientId),
+        summarize: (cap) => ({
           id: cap.id,
           name: cap.name,
           type: cap.type,
@@ -2130,8 +1743,12 @@ export class MeriToolsService {
           fundingAsk: cap.fundingAsk,
           fundingAskLabel: cap.fundingAskLabel,
           districtNexus: summarizeText(cap.districtNexus, 200),
-        })),
-        people: people.slice(0, 25).map((person) => ({
+        }),
+      }),
+      readClientProfileSection({
+        clientId, section: 'people', query,
+        load: () => this.clientPeople.listPeople(ctx, clientId),
+        summarize: (person) => ({
           id: person.id,
           name: person.name,
           title: person.title,
@@ -2139,24 +1756,58 @@ export class MeriToolsService {
           phone: person.phone,
           role: person.role,
           lastContact: person.lastContact,
-        })),
-        facilities: facilities.slice(0, 25).map((facility) => ({
+        }),
+      }),
+      readClientProfileSection({
+        clientId, section: 'facilities', query,
+        load: () => this.clientFacilities.listFacilities(ctx, clientId),
+        summarize: (facility) => ({
           id: facility.id,
           name: facility.name,
           city: facility.city,
           state: facility.state,
           congressionalDistrict: facility.congressionalDistrict,
           employeeCount: facility.employeeCount,
-        })),
-        submissionHistory: submissionHistory.slice(0, 25).map((entry) => ({
+        }),
+      }),
+      readClientProfileSection({
+        clientId, section: 'submissionHistory', query,
+        load: () => this.clientCapabilities.listClientHistory(ctx, clientId, null),
+        summarize: (entry) => ({
           id: entry.id,
           capabilityId: entry.capabilityId,
           fiscalYear: entry.fiscalYear,
           title: entry.title,
           outcomeType: entry.outcomeType,
           outcome: summarizeText(entry.outcome, 240),
-        })),
+        }),
+      }),
+    ]);
+    return {
+      tool: 'get_client_context',
+      generatedAt: new Date().toISOString(),
+      // The prompt wrapper has a bounded text budget. Put compact coverage and
+      // cursors before any record that could consume that budget.
+      profileSections: {
+        capabilities: clientProfileCoverageHeader(capabilities.coverage),
+        people: clientProfileCoverageHeader(people.coverage),
+        facilities: clientProfileCoverageHeader(facilities.coverage),
+        submissionHistory: clientProfileCoverageHeader(submissionHistory.coverage),
       },
+      coverageNote: 'Profile counts cover the complete authorized section at read time. Summary records omit fields; request a section for full records and follow nextCursor until complete. Unavailable or unrequested sections are not empty. Engagement context contains recent items only.',
+      profile: {
+        capabilities: capabilities.items,
+        people: people.items,
+        facilities: facilities.items,
+        submissionHistory: submissionHistory.items,
+      },
+      profileSources: {
+        capabilities: capabilities.coverage.sourceReferences,
+        people: people.coverage.sourceReferences,
+        facilities: facilities.coverage.sourceReferences,
+        submissionHistory: submissionHistory.coverage.sourceReferences,
+      },
+      context,
     };
   }
 
@@ -2408,114 +2059,69 @@ export class MeriToolsService {
   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 400);
     if (!query) return { error: 'Provide a search query.' };
-    // Session client scope: meri.service.ts pins the conversation's client onto
-    // every tool input. This read used to ignore it and return ANY active memory
-    // item in the tenant — so a session assigned to one client recalled other
-    // clients' facts, while the automatic recall path (projectionRecall) had
-    // filtered on client_id all along. Same predicate here, same fail-closed
-    // shape: firm-wide items (client_id NULL) stay visible in both cases.
-    const scopeClientId = optionalString(input, 'clientId', 80);
-    if (scopeClientId && !CLIENT_ID_UUID_RE.test(scopeClientId)) {
+    const clientId = optionalString(input, 'clientId', 80);
+    if (clientId && !CLIENT_ID_UUID_RE.test(clientId)) {
       return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
     }
     const kRaw = typeof input.k === 'number' ? input.k : parseInt(String(input.k ?? ''), 10);
-    const k = Number.isFinite(kRaw) ? Math.min(15, Math.max(1, kRaw)) : 8;
-    let literal: string;
+    const k = Number.isFinite(kRaw) ? Math.min(15, Math.max(1, Math.floor(kRaw))) : 8;
+    const cursor = optionalString(input, 'cursor', 8192);
+    const memoryItemId = optionalString(input, 'memoryItemId', 80);
+    const contentCursor = optionalString(input, 'contentCursor', 1024);
+    if (contentCursor && !memoryItemId) throw new BadRequestException('contentCursor requires memoryItemId');
+    if (memoryItemId && cursor) throw new BadRequestException('Use contentCursor for an exact memory read');
+    let pageSize = memoryItemId ? 1 : Math.min(k, 3);
+    // One canonical recall path for automatic context and explicit search. The
+    // shared adapter reads approved memory_items content and checks the current
+    // tenant/user/client wall on every page, including when embeddings are down.
+    const readPage = () => searchCapiroData(ctx, {
+      query,
+      domains: ['institutional_knowledge'],
+      queryClass: memoryItemId ? 'lookup' : 'semantic_recall',
+      pageSize,
+      ...(memoryItemId ? { memoryItemId } : {}),
+      ...(clientId ? { clientId } : {}),
+      ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
+    }, this.sharedRetrieval,
+    this.contextPlane ? (actor) => this.contextPlane!.securityEnvelope(actor) : undefined);
+    let evidence = await readPage();
+    const project = () => evidence.records.map((record) => projectMemoryContent(ctx, record, {
+      clientId: clientId ?? undefined, memoryItemId: memoryItemId ?? undefined,
+      contentCursor: contentCursor ?? undefined,
+      maxJsonChars: memoryItemId ? 6000 : Math.floor(7200 / Math.max(1, evidence.records.length)),
+    }));
+    let records;
     try {
-      literal = vectorLiteral(await embedText(normalize(query)));
-    } catch (err) {
-      this.logger.warn(`search_memory embed failed: ${(err as Error).message}`);
-      return {
-        summary: 'Memory search is temporarily unavailable (embedding service error).',
-        results: [],
-      };
+      records = project();
+    } catch (error) {
+      if (pageSize <= 1 || !(error instanceof BadRequestException) ||
+          error.message !== 'Memory metadata exceeds the safe content-page budget') throw error;
+      // A metadata-heavy page must not skip rows when it is narrowed. Read the
+      // SAME source cursor again with one item so the adapter issues the correct
+      // nextCursor and rechecks current authorization.
+      pageSize = 1;
+      evidence = await readPage();
+      records = project();
     }
-    type MemoryHit = {
-      id: string;
-      type: string;
-      slug: string;
-      title: string;
-      client_id: string | null;
-      score: number;
-    };
-    let rows: MemoryHit[];
-    try {
-      rows = await this.prisma.withTenantUser(
-        ctx.tenantId,
-        ctx.userId,
-        async (tx) => {
-          // Ethical wall: results for walled clients this user is not granted are
-          // excluded (fail-closed; an empty denied set appends no SQL).
-          const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
-          return tx.$queryRawUnsafe<MemoryHit[]>(
-            // Recall surfaces only ACTIVE memory (excludes superseded corrections
-            // and revoked/forgotten items — Phase 1, 1C/1D) and only UNEXPIRED
-            // memory (G2 ephemeral class). owner + expiry filters stay as
-            // defense-in-depth alongside the RLS predicates.
-            //
-            // mi.tenant_id is filtered EXPLICITLY as well as ce.tenant_id: without
-            // it the join's index scan matches every tenant's memory_items rows and
-            // discards the rest, leaning on RLS alone for correctness. Naming the
-            // tenant on both sides is both defense-in-depth and a large planner win.
-            `SELECT mi.id, mi.type, mi.slug, mi.title, mi.client_id,
-                1 - (ce.embedding <=> '${literal}'::vector) AS score
-           FROM context_embeddings ce
-           JOIN memory_items mi ON mi.id::text = ce.source_id
-          WHERE ce.source_type = 'memory_item'
-            AND ce.tenant_id = $1::uuid
-            AND mi.tenant_id = $1::uuid
-            AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
-            AND mi.status = 'active'
-            AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            -- Four INDEPENDENT recall filters, all required; the merge of #690 and
-            -- this branch had each side adding one the other lacked.
-            --   $3 client scope (#690): a client-scoped session must not recall
-            --     another client's memory. NULL client_id = firm-wide, still visible.
-            --   wallExclusionSql: ethical wall — clients this user holds no grant for.
-            --   governedRecallSuppressionSql: governed lifecycle status (pending,
-            --     superseded, revoked, conflicted) once the flag is armed.
-            AND ($3::uuid IS NULL OR mi.client_id IS NULL OR mi.client_id = $3::uuid)${wallExclusionSql(denied, 'mi.client_id')}${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
-          ORDER BY ce.embedding <=> '${literal}'::vector
-          LIMIT ${k}`,
-            ctx.tenantId,
-            ctx.userId,
-            scopeClientId ?? null,
-          );
-        },
-        // A cold 1024-dim ANN scan over context_embeddings measured 10.3s live and
-        // blew Prisma's DEFAULT 5s interactive-transaction cap -> P2028, which the
-        // exception filter does not map, so a READ tool returned HTTP 500 and the
-        // Strategy context pack silently dropped a whole grounding section.
-        // prisma.service documents passing a higher budget for known-slow paths.
-        { timeoutMs: 20_000 },
-      );
-    } catch (err) {
-      // A recall tool must DEGRADE, never 5xx: the embed path above already fails
-      // soft this way, and the caller (Meri / the Strategy context pack) treats an
-      // empty result as a missing section rather than an error.
-      this.logger.warn(`search_memory query failed: ${(err as Error).message}`);
-      return {
-        summary: 'Memory search is temporarily unavailable.',
-        results: [],
-      };
-    }
-    if (!rows.length) {
-      return {
-        summary:
-          'No memory matched — the graph may not be populated yet (run "Populate graph" on the Knowledge Graph page).',
-        results: [],
-      };
-    }
+    const source = evidence.coverage.sources.find((entry) => entry.domain === 'institutional_knowledge');
+    const { records: _fullRecords, ...envelope } = evidence;
     return {
-      summary: `${rows.length} memory item(s) most relevant to "${query}":`,
-      results: rows.map((r) => ({
-        id: `${r.type}:${r.slug}`,
-        memoryItemId: r.id,
-        type: r.type,
-        title: r.title,
-        clientId: r.client_id,
-        relevance: Math.round(r.score * 100) / 100,
+      ...envelope,
+      tool: 'search_memory',
+      summary: records.length
+        ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`
+        : 'No eligible memory was returned. Coverage distinguishes an empty result from unavailable recall.',
+      requestedPageSize: k,
+      effectivePageSize: pageSize,
+      nextCursor: source?.nextCursor ?? null,
+      contentStatus: records.length ? 'available' : memoryItemId ? 'unavailable_or_ineligible' : source?.sourceStatus === 'healthy' ? 'empty' : 'unavailable',
+      contentTruncated: records.some((record) => (record.payload.content as { truncated?: boolean } | undefined)?.truncated === true),
+      results: records.map((record) => ({
+        id: record.recordId, memoryItemId: record.recordId,
+        title: record.payload.title, type: record.payload.type, clientId: record.payload.clientId,
+        relevance: record.retrievalSignals?.semanticSimilarity ?? null,
       })),
+      records,
     };
   }
 
@@ -4891,52 +4497,30 @@ export class MeriToolsService {
     };
   }
 
-  private async searchCommitteeHearings(input: Record<string, unknown>) {
-    const query = optionalString(input, 'query', 240);
-    const chamber = optionalString(input, 'chamber', 20);
-    const committeeName =
-      optionalString(input, 'committeeName', 200) ?? optionalString(input, 'committee', 200);
-    const limit = clampInt(input.limit, 1, 50, 20);
-
-    const where: Record<string, unknown> = {};
-    if (query) {
-      where.OR = [
-        { title: { contains: query, mode: 'insensitive' } },
-        { committeeName: { contains: query, mode: 'insensitive' } },
-      ];
+  private async searchCommitteeHearings(ctx: TenantContext, input: Record<string, unknown>) {
+    if (!this.sharedRetrieval || !this.contextPlane) {
+      throw new BadGatewayException('Hearing retrieval is unavailable; no evidence was searched');
     }
-    if (chamber) where.chamber = chamber;
-    if (committeeName) where.committeeName = { contains: committeeName, mode: 'insensitive' };
-
-    const [data, total] = await Promise.all([
-      this.prisma.withSystem((tx) =>
-        tx.committeeHearing.findMany({
-          where,
-          orderBy: { date: 'desc' },
-          take: limit,
-        }),
-      ),
-      this.prisma.withSystem((tx) => tx.committeeHearing.count({ where })),
-    ]);
-
-    return {
-      tool: 'search_committee_hearings',
-      generatedAt: new Date().toISOString(),
-      total,
-      data: data.map((h) => ({
-        id: h.id,
-        chamber: h.chamber,
-        committeeName: h.committeeName,
-        committeeCode: h.committeeCode,
-        title: summarizeText(h.title, 240),
-        date: h.date,
-        time: h.time,
-        location: h.location,
-        type: h.type,
-        witnesses: h.witnesses,
-        url: h.url,
-      })),
-    };
+    const query = optionalString(input, 'query', 240);
+    const hearingId = optionalString(input, 'hearingId', 200);
+    const chamber = optionalString(input, 'chamber', 20);
+    const committeeName = optionalString(input, 'committeeName', 200) ?? optionalString(input, 'committee', 200);
+    const cursor = optionalString(input, 'cursor', 1024);
+    const requestedClient = optionalString(input, 'clientId', 80);
+    const clientId = requestedClient ? await this.ensureClientVisible(ctx, requestedClient) : undefined;
+    const security = await this.contextPlane.securityEnvelope(ctx);
+    if (clientId && !security.authorizedClientIds.includes(clientId)) throw new NotFoundException('Client not found');
+    const result = await this.sharedRetrieval.retrieve({
+      queryClass: 'lookup', requestedDomains: ['hearings'], query: query ?? undefined,
+      hearingFilters: { hearingId: hearingId ?? undefined, chamber: chamber ?? undefined, committeeName: committeeName ?? undefined },
+      pageSize: 1, ...(cursor ? { cursors: { hearings: cursor } } : {}),
+      caller: { tenantId: ctx.tenantId, userId: ctx.userId, ...security,
+        ...(clientId ? { clientIds: [clientId] } : {}) },
+    });
+    const { coverage, ...data } = result;
+    return { tool: 'search_committee_hearings', coverage,
+      note: 'One complete evidence chunk per page. Follow the hearings nextCursor for remaining official transcript chunks, machine segments and intelligence. Coverage reports unsupported browser-session material; search results never imply a complete transcript.',
+      ...data };
   }
 
   private async searchCrsReports(input: Record<string, unknown>) {
@@ -6511,56 +6095,38 @@ export class MeriToolsService {
     };
   }
 
-  /**
-   * Read a client's Documents-tab files. Without documentId: lists the client's
-   * attachments (id, filename, type, size, when). With documentId: extracts and
-   * returns that document's text so Meri can read/summarize/quote it. Reuses the
-   * tenant-scoped engagement attachment service (RLS-safe).
-   */
+  /** Canonical, currently authorized section reads with resumable evidence. */
   private async readClientDocuments(ctx: TenantContext, input: Record<string, unknown>) {
-    let clientId = requiredString(input, 'clientId', 80);
-    clientId = await this.ensureClientVisible(ctx, clientId);
-    const documentId = optionalString(input, 'documentId', 80);
-
-    if (documentId) {
-      try {
-        const extracted = await this.engagement.extractAttachmentText(ctx, documentId);
-        return {
-          tool: 'read_client_documents',
-          generatedAt: new Date().toISOString(),
-          clientId,
-          document: {
-            id: extracted.attachmentId,
-            fileName: extracted.fileName,
-            contentType: extracted.contentType,
-            source: extracted.source,
-            text: summarizeText(extracted.text, 12000),
-          },
-        };
-      } catch (err) {
-        return {
-          tool: 'read_client_documents',
-          clientId,
-          documentId,
-          error: err instanceof Error ? err.message : 'Could not read this document',
-        };
-      }
+    const clientId = await this.ensureClientVisible(ctx, requiredString(input, 'clientId', 80));
+    const deniedClientIds = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId),
+    );
+    if (deniedClientIds.includes(clientId)) throw new NotFoundException('Client not found');
+    const selection = parseDocumentReadInput(input, clientId);
+    if (selection.documentId) {
+      // The engagement service binds the attachment to this client, checks its
+      // current viewer ACL/parent permissions and readiness before reading bytes.
+      const extracted = await this.engagement.extractAttachmentText(ctx, selection.documentId, {
+        clientId, section: selection.section,
+        ...(meriToolRequestControl()?.signal ? { signal: meriToolRequestControl()!.signal } : {}),
+      });
+      return buildDocumentReadPage(clientId, selection, extracted);
     }
-
-    const attachments = await this.engagement.listAttachments(ctx, { clientId });
+    const attachments = (await this.engagement.listAttachments(ctx, { clientId }))
+      .filter((row) => !selection.query || row.fileName.toLowerCase().includes(selection.query.toLowerCase()))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    const eligible = selection.listAfter ? attachments.filter((row) => row.id > selection.listAfter!) : attachments;
+    const page = eligible.slice(0, selection.limit);
+    const hasMore = eligible.length > page.length;
     return {
-      tool: 'read_client_documents',
-      generatedAt: new Date().toISOString(),
-      clientId,
-      total: attachments.length,
-      note: "Pass a documentId to read a specific file's contents.",
-      documents: attachments.map((a) => ({
-        id: a.id,
-        fileName: a.fileName,
-        contentType: a.contentType,
-        byteSize: a.byteSize,
-        createdAt: a.createdAt,
-      })),
+      tool: 'read_client_documents', generatedAt: new Date().toISOString(), clientId,
+      coverage: { total: attachments.length, returned: page.length, truncated: hasMore,
+        nextCursor: hasMore ? `documents:${page[page.length - 1]!.id}` : null,
+        complete: !selection.listAfter && !hasMore, paginationComplete: !hasMore, query: selection.query || null, queryAppliesTo: 'fileName' },
+      note: 'Pass documentId to read full text sections or search document content. A file listing is not evidence that its contents have been read.',
+      documents: page.map((row) => ({ id: row.id, fileName: row.fileName,
+        contentType: row.contentType, byteSize: row.byteSize, createdAt: row.createdAt,
+        usable: row.usable, blockedReason: row.blockedReason ?? null, disclosure: row.scanDisclosure ?? null })),
     };
   }
 
@@ -8054,4 +7620,10 @@ function dateMillis(value: Date | null): number {
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled Meri tool: ${value}`);
+}
+
+function requiredToolSchema<T>(name: string, schemas: Record<string, T>): T {
+  const schema = schemas[name];
+  if (!schema) throw new Error(`Meri capability has no input schema: ${name}`);
+  return schema;
 }

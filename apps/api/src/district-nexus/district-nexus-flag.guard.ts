@@ -53,6 +53,12 @@ export class DistrictNexusFlagGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request & { tenantContext?: TenantContext }>();
     const tenantId = req.tenantContext?.tenantId;
 
+    return this.assertEnabledForTenant(tenantId);
+  }
+
+  /** Reuse the identical entitlement policy for authorized non-HTTP readers. */
+  async assertEnabledForTenant(tenantId: string | undefined): Promise<boolean> {
+
     // No tenant context means auth middleware didn't run. Fail closed, and use
     // the same 404 as a disabled flag so this path leaks nothing either.
     if (!tenantId) throw new NotFoundException();

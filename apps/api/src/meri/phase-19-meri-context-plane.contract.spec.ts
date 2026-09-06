@@ -91,9 +91,11 @@ describe('Knowledge Plane Phase 19 Meri adoption contract', () => {
       join(API_ROOT, 'src/retrieval/data-catalog/semantic-data-catalog.service.ts'),
     );
 
-    expect(adapter).toContain('clioMemory.findMany');
+    expect(adapter).toContain('FROM memory_items mi');
+    expect(adapter).not.toContain('clioMemory.findMany');
     expect(adapter).toContain('clientMemoryAllowed');
-    expect(adapter).toContain('governedRecallSuppressionEnabled');
+    expect(adapter).toContain('governedRecallEligibilitySql');
+    expect(adapter).toContain('filterGovernedMemory');
     expect(catalog).toContain("'semantic_recall'");
     expect(catalog).toContain("'governed_memory'");
   });

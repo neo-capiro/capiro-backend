@@ -9,6 +9,13 @@ import { SemanticDataCatalogService } from '../data-catalog/semantic-data-catalo
 import type { RetrievalRequest } from '../retrieval-v2.types.js';
 import { InstitutionalKnowledgeRetrievalAdapter } from './institutional-knowledge-retrieval.adapter.js';
 
+// These tests supply the graph/transaction ports; their unrelated service
+// dependency graphs are not part of the canonical recall contract.
+jest.mock('../../knowledge/graph/temporal-knowledge-graph.service.js', () => ({
+  TemporalKnowledgeGraphService: jest.fn(),
+}));
+jest.mock('../../prisma/prisma.service.js', () => ({ PrismaService: jest.fn() }));
+
 const partition: TemporalKnowledgeGraphPartition = {
   sensitivity: 'client_confidential',
   accessScope: { kind: 'client' },
@@ -66,45 +73,76 @@ const memoryRequest = (overrides: Partial<RetrievalRequest> = {}): RetrievalRequ
   ...overrides,
 });
 
-function setup(options: {
-  memories?: Array<{
-    id: string;
-    key: string;
-    value: string;
-    scope: string;
-    clientId: string | null;
-    ownerUserId: string | null;
-    updatedAt: Date;
-  }>;
-  wallAllowed?: boolean;
-  embed?: () => Promise<number[]>;
-} = {}) {
+function setup(
+  options: {
+    memories?: Array<{
+      id: string;
+      key: string;
+      value: string;
+      scope: string;
+      clientId: string | null;
+      ownerUserId: string | null;
+      updatedAt: Date;
+    }>;
+    governed?: Array<Record<string, unknown>>;
+    semanticScores?: Array<{ id: string; score: number }>;
+    wallAllowed?: boolean;
+    embed?: () => Promise<number[]>;
+  } = {},
+) {
   const walkAsOf = jest.fn().mockResolvedValue([edge]);
   const relationHistory = jest.fn().mockResolvedValue([edge]);
   const graph = { walkAsOf, relationHistory } as unknown as TemporalKnowledgeGraphService;
   const clioMemoryFindMany = jest.fn().mockResolvedValue(options.memories ?? []);
-  const queryRawUnsafe = jest
-    .fn()
-    .mockResolvedValue([{ allowed: options.wallAllowed !== false }]);
-  const queryRaw = jest.fn().mockResolvedValue([]);
+  const queryRawUnsafe = jest.fn().mockResolvedValue([{ allowed: options.wallAllowed !== false }]);
+  const canonical =
+    options.governed ??
+    (options.memories ?? []).map((row) => ({
+      ...row,
+      tenantId: 'tenant-1',
+      type: 'user-profile',
+      slug: `canonical:${row.id}`,
+      sections: [{ key: 'memory', heading: 'Memory', body: row.value }],
+      visibility: row.scope === 'user_private' ? 'user' : 'tenant',
+      memoryClass:
+        row.scope === 'client'
+          ? 'client_steering'
+          : row.scope === 'firm'
+            ? 'institutional_authoritative'
+            : 'user_preference',
+      authority:
+        row.scope === 'client'
+          ? 'client_approved'
+          : row.scope === 'firm'
+            ? 'firm_approved'
+            : 'user_asserted',
+      status: 'active',
+      legacyStatus: 'active',
+      sourceType: 'user_message',
+      sourceId: 'message-1',
+      sourceContentHash: 'canonical-hash',
+      sourceVersion: 'candidate:approved',
+      approvedByUserId: 'reviewer-1',
+      approvedAt: new Date('2026-08-18T09:00:00Z'),
+    }));
+  const queryRaw = jest.fn(async (query: { text?: string }) =>
+    query.text?.includes('mi.sections_jsonb AS sections')
+      ? canonical
+      : (options.semanticScores ?? []),
+  );
   const tx = {
     clioMemory: { findMany: clioMemoryFindMany },
     $queryRawUnsafe: queryRawUnsafe,
     $queryRaw: queryRaw,
   };
   const withTenantUser = jest.fn(
-    async (_tenantId: string, _userId: string, fn: (value: unknown) => Promise<unknown>) =>
-      fn(tx),
+    async (_tenantId: string, _userId: string, fn: (value: unknown) => Promise<unknown>) => fn(tx),
   );
   const prisma = { withTenantUser } as unknown as PrismaService;
   const embeddingProvider = {
     embed: jest.fn(options.embed ?? (async () => [0.1, 0.2, 0.3])),
   } as unknown as EmbeddingProvider;
-  const adapter = new InstitutionalKnowledgeRetrievalAdapter(
-    graph,
-    prisma,
-    embeddingProvider,
-  );
+  const adapter = new InstitutionalKnowledgeRetrievalAdapter(graph, prisma, embeddingProvider);
   const dataset = new SemanticDataCatalogService().get('institutional_knowledge');
   return {
     adapter,
@@ -227,11 +265,12 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
   });
 
   it('can prove a healthy empty governed-memory scan complete', async () => {
-    const { adapter, dataset, clioMemoryFindMany } = setup({ memories: [] });
+    const { adapter, dataset, clioMemoryFindMany, queryRaw } = setup({ memories: [] });
 
     const result = await adapter.retrieve(dataset, memoryRequest());
 
-    expect(clioMemoryFindMany).toHaveBeenCalled();
+    expect(clioMemoryFindMany).not.toHaveBeenCalled();
+    expect(queryRaw).toHaveBeenCalled();
     expect(result).toMatchObject({
       records: [],
       returned: 0,
@@ -268,7 +307,12 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
         value: 'Neo prefers to be called Neo',
         scope: 'user_private',
       },
-      provenance: { source: 'clio_memory', recordId: 'memory-1' },
+      provenance: {
+        source: 'memory_items',
+        recordId: 'memory-1',
+        contentHash: 'canonical-hash',
+        sourceVersion: 'candidate:approved',
+      },
     });
     expect(result.coverageComplete).toBe(true);
   });
@@ -357,7 +401,8 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
   // degrading the source and blocking Outreach V3 draft generation
   // (MESSAGE_PLAN_INVALID on a CONTEXT_PLANE_INCOMPLETE packet).
   it('does not degrade coverage when only a sparse row lacks a semantic embedding', async () => {
-    const { adapter, dataset, queryRaw } = setup({
+    const { adapter, dataset } = setup({
+      semanticScores: [{ id: 'memory-1', score: 0.92 }],
       memories: [
         {
           id: 'memory-1',
@@ -382,7 +427,6 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
       embed: async () => [0.1, 0.2, 0.3],
     });
     // Only memory-1 has an embedding score; memory-2 has none.
-    queryRaw.mockResolvedValue([{ slug: 'clio:memory-1', score: 0.92 }]);
 
     const result = await adapter.retrieve(
       dataset,
@@ -395,5 +439,203 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
       coverageComplete: true,
       stopReason: 'governed_memory_scan_complete',
     });
+  });
+});
+
+function approved(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'memory-approved',
+    tenantId: 'tenant-1',
+    key: 'Government funding constraint',
+    sections: [
+      {
+        key: 'constraint',
+        heading: 'Constraint',
+        body: 'Do not pursue earmarks before client approval.',
+      },
+    ],
+    type: 'client-compass',
+    slug: 'canonical-memory',
+    visibility: 'tenant',
+    clientId: 'client-1',
+    ownerUserId: null,
+    scope: 'client',
+    memoryClass: 'client_steering',
+    authority: 'client_approved',
+    status: 'active',
+    legacyStatus: 'active',
+    sourceType: 'approved_document_edit',
+    sourceId: 'source-1',
+    sourceContentHash: 'hash-1',
+    sourceVersion: 'candidate:1',
+    approvedByUserId: 'reviewer-1',
+    approvedAt: new Date('2026-08-20T10:00:00Z'),
+    updatedAt: new Date('2026-08-20T10:00:00Z'),
+    ...overrides,
+  };
+}
+
+const selectedClientRequest = () =>
+  memoryRequest({
+    caller: {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      clientIds: ['client-1'],
+      authorizedClientIds: ['client-1'],
+    },
+  });
+
+describe('canonical institutional recall governance', () => {
+  it('reads canonical approved content without a Clio projection or embedding', async () => {
+    const { adapter, dataset, clioMemoryFindMany, queryRaw } = setup({ governed: [approved()] });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(clioMemoryFindMany).not.toHaveBeenCalled();
+    expect(queryRaw.mock.calls[0]![0].text).toContain('FROM memory_items mi');
+    expect(queryRaw.mock.calls[0]![0].text).toContain("mi.status = 'active'");
+    expect(queryRaw.mock.calls[0]![0].text).toContain(
+      "mi.visibility = 'tenant' OR mi.owner_user_id",
+    );
+    expect(result.records[0]).toMatchObject({
+      recordId: 'memory-approved',
+      payload: {
+        value: 'Do not pursue earmarks before client approval.',
+        sections: [
+          {
+            key: 'constraint',
+            heading: 'Constraint',
+            characters: 'Do not pursue earmarks before client approval.'.length,
+          },
+        ],
+        governance: { authority: 'client_approved', approvedByUserId: 'reviewer-1' },
+      },
+      provenance: {
+        source: 'memory_items',
+        sourceId: 'source-1',
+        contentHash: 'hash-1',
+        sourceVersion: 'candidate:1',
+      },
+    });
+  });
+
+  it.each([
+    { status: 'revoked' },
+    { status: 'superseded' },
+    { status: 'pending_review' },
+    { legacyStatus: 'revoked' },
+    { approvedByUserId: null },
+    { memoryClass: 'legacy_unclassified' },
+    { memoryClass: 'unknown' },
+    { tenantId: 'other-tenant' },
+    { clientId: 'other-client' },
+    { visibility: 'user', ownerUserId: 'other-user' },
+    { scope: 'user_private', ownerUserId: 'other-user' },
+    { validUntil: new Date('2020-01-01') },
+    { expiresAt: new Date('2020-01-01') },
+    { effectiveFrom: new Date('2999-01-01') },
+    { sensitivity: 'restricted' },
+    { status: 'conflicted', conflictStatus: 'open', controllingItemId: 'other-memory' },
+  ])('withholds ineligible canonical content %j', async (override) => {
+    const { adapter, dataset } = setup({ governed: [approved(override)] });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result.records).toEqual([]);
+  });
+
+  it('retains stale approved facts with explicit review metadata', async () => {
+    const { adapter, dataset } = setup({
+      governed: [approved({ status: 'stale', reviewDueAt: new Date('2020-01-01') })],
+    });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result.records[0]?.payload.governance).toMatchObject({ status: 'stale', stale: true });
+  });
+
+  it('admits only the designated controlling claim of an unresolved conflict', async () => {
+    const { adapter, dataset } = setup({
+      governed: [
+        approved({
+          status: 'conflicted',
+          conflictStatus: 'controlling',
+          controllingItemId: 'memory-approved',
+        }),
+      ],
+    });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result.records[0]?.payload.governance).toMatchObject({
+      status: 'conflicted',
+      controllingItemId: 'memory-approved',
+    });
+  });
+
+  it('rechecks revocation and the ethical wall when a continuation is read', async () => {
+    const { adapter, dataset, queryRaw, queryRawUnsafe } = setup({
+      governed: [approved(), approved({ id: 'memory-next' })],
+    });
+    const request = { ...selectedClientRequest(), pageSize: 1 };
+    const first = await adapter.retrieve(dataset, request);
+    expect(first.nextCursor).toBe('memory:1');
+    queryRaw.mockResolvedValue([
+      approved({ status: 'revoked' }),
+      approved({ id: 'memory-next', status: 'revoked' }),
+    ]);
+    const revoked = await adapter.retrieve(dataset, request, first.nextCursor);
+    expect(revoked.records).toEqual([]);
+    queryRawUnsafe.mockResolvedValue([{ allowed: false }]);
+    const denied = await adapter.retrieve(dataset, request, first.nextCursor);
+    expect(denied.sourceStatus).toBe('unauthorized');
+    expect(denied.records).toEqual([]);
+  });
+
+  it('marks the safety cap incomplete instead of claiming all memory was searched', async () => {
+    const { adapter, dataset } = setup({
+      governed: Array.from({ length: 501 }, (_, i) => approved({ id: `memory-${i}` })),
+    });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result).toMatchObject({
+      truncated: true,
+      coverageComplete: false,
+      sourceStatus: 'degraded',
+      stopReason: 'governed_memory_safety_cap_reached',
+    });
+  });
+});
+
+describe('canonical memory semantic fallback status', () => {
+  it('reports query-wide embedding-index failure as degraded, while retaining approved lexical evidence', async () => {
+    const { adapter, dataset, queryRaw } = setup({ governed: [approved()] });
+    queryRaw.mockImplementation(async (query) => {
+      if (query.text?.includes('mi.sections_jsonb AS sections')) return [approved()];
+      throw new Error('embedding index unavailable');
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(result.records).toHaveLength(1);
+    expect(result).toMatchObject({
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      stopReason: 'governed_memory_semantic_projection_incomplete',
+    });
+  });
+
+  it('treats an empty provider vector as unavailable semantic projection', async () => {
+    const { adapter, dataset } = setup({ governed: [approved()], embed: async () => [] });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(result.records).toHaveLength(1);
+    expect(result.sourceStatus).toBe('degraded');
+  });
+});
+
+describe('canonical memory exact row narrowing', () => {
+  it('uses the canonical UUID in the same governed/wall-filtered SQL before the row cap', async () => {
+    const { adapter, dataset, queryRaw } = setup({ governed: [approved()] });
+    const itemId = '11111111-1111-4111-8111-111111111111';
+    await adapter.retrieve(dataset, { ...selectedClientRequest(), memoryItemId: itemId });
+    const sql = queryRaw.mock.calls[0]![0] as { text: string; values: unknown[] };
+    expect(sql.text).toContain('AND mi.id =');
+    expect(sql.text).toContain('mi.governed_status');
+    expect(sql.values).toContain(itemId);
   });
 });

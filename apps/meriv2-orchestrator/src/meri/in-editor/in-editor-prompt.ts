@@ -1,3 +1,4 @@
+import { meriCapabilitiesForSurface } from '@capiro/shared';
 import {
   MERI_GROUNDING_INVARIANT,
   meriGroundingSurfaceBlock,
@@ -60,32 +61,9 @@ export interface AssistantResult {
  * curated allowlist (not a denylist) identical to apps/api ASSISTANT_TOOLS, so a
  * new Meri tool never silently leaks in. Matches IN_EDITOR_DELEGATED_TOOLS.
  */
-export const ASSISTANT_TOOLS: ReadonlySet<string> = new Set<string>([
-  'get_client_context',
-  'search_client_knowledge',
-  'search_research_sources',
-  'read_client_documents',
-  'query_intelligence',
-  'query_knowledge_graph',
-  'find_path_to',
-  'search_intel_articles',
-  'search_congress_bills',
-  'search_tracked_bills',
-  'search_lda_filings',
-  'search_committee_hearings',
-  'search_crs_reports',
-  'search_gao_reports',
-  'query_regulatory_dockets',
-  'search_federal_awards',
-  'search_program_elements',
-  'get_program_element',
-  'get_pe_budget_timeline',
-  'get_pe_contractors',
-  'get_pe_bills',
-  'search_acquisition_personnel',
-  'get_acquisition_person',
-  'query_economic_data',
-]);
+export const ASSISTANT_TOOLS: ReadonlySet<string> = new Set(
+  meriCapabilitiesForSurface('in_editor').map((tool) => tool.name),
+);
 
 const TOOL_LABELS: Record<string, string> = {
   get_client_context: 'Reviewed client context',

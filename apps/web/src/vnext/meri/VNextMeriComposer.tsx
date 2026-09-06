@@ -21,13 +21,8 @@ import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { ConnectorMark } from './meri-connector-logos.js';
-import {
-  MERI_REASONING_MODES,
-  applyReasoningModeToConversation,
-  readDraftReasoningMode,
-  writeDraftReasoningMode,
-  type MeriReasoningMode,
-} from './VNextMeriReasoningControl.js';
+import { useMeriComposerDraft } from './meri-composer-drafts.js';
+import { MERI_REASONING_MODES, useMeriReasoningMode } from './meri-reasoning-state.js';
 import { meriStartWorkCards } from './meri-start-work.js';
 import {
   deleteMeriSavedPrompt,
@@ -35,7 +30,6 @@ import {
   type MeriSavedPrompt,
 } from './meri-vnext-api.js';
 import {
-  mayApplyWorkspaceImportResponse,
   workspaceDocumentComposerText,
   workspaceImportDocumentsResponse,
   workspaceImportDraftsResponse,
@@ -67,6 +61,7 @@ interface MeriLibraryPaneItem {
   badgeBg?: string;
   badgeFg?: string;
   canDel: boolean;
+  disabled?: boolean;
   delLabel?: string;
   run: () => void;
   del?: () => void;
@@ -109,9 +104,6 @@ export function VNextMeriComposer({
   const { orgId, userId } = useAuth();
   const { actAsTenantSlug } = useImpersonation();
   const workspaceIdentityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
-  const workspaceIdentityKeyRef = useRef(workspaceIdentityKey);
-  workspaceIdentityKeyRef.current = workspaceIdentityKey;
-  const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -123,9 +115,15 @@ export function VNextMeriComposer({
   const [workspaceImportLoading, setWorkspaceImportLoading] = useState(false);
   const [workspaceImportError, setWorkspaceImportError] = useState<string | null>(null);
   const [workspaceDocuments, setWorkspaceDocuments] = useState<
-    Record<string, Array<{ id: string; name: string }> | null>
+    Record<string, Array<{ id: string; name: string }>>
   >({});
-  const [workspaceDocumentLoading, setWorkspaceDocumentLoading] = useState<string | null>(null);
+  const [workspaceExpanded, setWorkspaceExpanded] = useState<Record<string, boolean>>({});
+  const [workspaceDraftLoading, setWorkspaceDraftLoading] = useState<Record<string, boolean>>({});
+  const [workspaceDocumentLoading, setWorkspaceDocumentLoading] = useState<Record<string, boolean>>(
+    {},
+  );
+  const workspaceDraftRequestsRef = useRef(new Set<string>());
+  const workspaceDocumentRequestsRef = useRef(new Set<string>());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLDivElement>(null);
@@ -143,6 +141,36 @@ export function VNextMeriComposer({
     handleStop,
     scopePersistStatus,
   } = controller;
+  const { draft, setDraft, clearForSubmission } = useMeriComposerDraft(
+    workspaceIdentityKey,
+    activeConversationId,
+  );
+  const workspaceScopeKey = JSON.stringify([workspaceIdentityKey, activeConversationId]);
+  const workspaceScopeRef = useRef(workspaceScopeKey);
+  const workspaceRequestEpochRef = useRef(0);
+  const workspaceOpenRef = useRef(workspaceImportOpen);
+  const mountedRef = useRef(true);
+  if (workspaceScopeRef.current !== workspaceScopeKey) {
+    workspaceScopeRef.current = workspaceScopeKey;
+    workspaceRequestEpochRef.current += 1;
+  }
+  workspaceOpenRef.current = workspaceImportOpen;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const mayApplyWorkspaceRequest = useCallback(
+    (epoch: number) =>
+      mountedRef.current && workspaceOpenRef.current && epoch === workspaceRequestEpochRef.current,
+    [],
+  );
+  const closeWorkspaceImport = useCallback(() => {
+    workspaceRequestEpochRef.current += 1;
+    workspaceOpenRef.current = false;
+    setWorkspaceImportOpen(false);
+  }, []);
 
   // v6: Task Mode has no dedicated toolbar control — RESEARCH stays reachable
   // via the Landing "Deep research" skill card and inline research offers;
@@ -176,48 +204,13 @@ export function VNextMeriComposer({
     [promptsQuery.data, selectedClient?.name, skillsQuery.data],
   );
 
-  // LIBRARY: Reasoning depth. Mirrors VNextMeriReasoningControl's own
-  // load/save so the two surfaces (thread-header chip, landing card, this
-  // pane) never drift — same draft-vs-persisted split, same endpoint.
-  const [reasoningMode, setReasoningModeState] = useState<MeriReasoningMode>(() =>
-    activeConversationId ? 'standard' : readDraftReasoningMode(),
-  );
-  useEffect(() => {
-    let cancelled = false;
-    if (!activeConversationId) {
-      setReasoningModeState(readDraftReasoningMode());
-      return () => {
-        cancelled = true;
-      };
-    }
-    void api
-      .get<{ reasoningMode?: unknown }>(
-        `/api/clio/v3/conversations/${encodeURIComponent(activeConversationId)}/reasoning-mode`,
-      )
-      .then(({ data }) => {
-        if (cancelled) return;
-        const mode = MERI_REASONING_MODES.find((option) => option.mode === data.reasoningMode);
-        if (mode) setReasoningModeState(mode.mode);
-      })
-      .catch(() => {
-        // Standard remains the safe default when the saved preference cannot
-        // be read; a later choice from either surface stays persisted.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeConversationId, api]);
-  const setReasoningMode = useCallback(
-    (mode: MeriReasoningMode) => {
-      setReasoningModeState(mode);
-      if (!activeConversationId) {
-        writeDraftReasoningMode(mode);
-        return;
-      }
-      void applyReasoningModeToConversation(api, activeConversationId, mode);
-    },
-    [activeConversationId, api],
-  );
+  // Header, landing and Add menu subscribe to the same per-identity/thread state.
+  const {
+    mode: reasoningMode,
+    saving: reasoningSaving,
+    error: reasoningError,
+    chooseMode: setReasoningMode,
+  } = useMeriReasoningMode(activeConversationId);
   const currentReasoning =
     MERI_REASONING_MODES.find((option) => option.mode === reasoningMode) ?? MERI_REASONING_MODES[1];
 
@@ -225,7 +218,9 @@ export function VNextMeriComposer({
     async (promptId: string) => {
       try {
         await deleteMeriSavedPrompt(api, promptId);
-        await queryClient.invalidateQueries({ queryKey: ['meri-vnext', identityKey, 'saved-prompts'] });
+        await queryClient.invalidateQueries({
+          queryKey: ['meri-vnext', identityKey, 'saved-prompts'],
+        });
       } catch {
         toast.error('The saved prompt could not be deleted.');
       }
@@ -241,7 +236,7 @@ export function VNextMeriComposer({
       window.setTimeout(() => textareaRef.current?.focus(), 0);
       toast.success(notice);
     },
-    [toast],
+    [toast, setDraft],
   );
 
   const libraryPromptItems = useMemo<MeriLibraryPaneItem[]>(
@@ -278,7 +273,9 @@ export function VNextMeriComposer({
         canDel: false,
         run: () => {
           if (card.needsClient && !selectedClient) {
-            toast.success(`${card.title} needs a client in scope. Pick one from the scope chip first.`);
+            toast.success(
+              `${card.title} needs a client in scope. Pick one from the scope chip first.`,
+            );
             return;
           }
           fillFromLibrary(card.fill, `${card.title} filled the composer. Skills never auto-send.`);
@@ -290,7 +287,11 @@ export function VNextMeriComposer({
   const libraryConnectorItems = useMemo<MeriLibraryPaneItem[]>(
     () =>
       (managedApps?.apps ?? []).map((app) => {
-        const status = app.needsReauth ? 'NEEDS REAUTH' : app.connected ? 'CONNECTED' : 'NOT CONNECTED';
+        const status = app.needsReauth
+          ? 'NEEDS REAUTH'
+          : app.connected
+            ? 'CONNECTED'
+            : 'NOT CONNECTED';
         const tone = app.needsReauth
           ? { bg: '#FFFAEB', fg: '#B54708' }
           : app.connected
@@ -328,13 +329,15 @@ export function VNextMeriComposer({
         badgeBg: '#F2F4F7',
         badgeFg: '#475467',
         canDel: false,
+        disabled: reasoningSaving,
         run: () => {
-          setReasoningMode(mode.mode);
+          if (reasoningSaving) return;
+          void setReasoningMode(mode.mode);
           setAddOpen(false);
           setAddPane(null);
         },
       })),
-    [reasoningMode, setReasoningMode],
+    [reasoningMode, reasoningSaving, setReasoningMode],
   );
 
   const LIBRARY_PANES: Array<{
@@ -390,7 +393,7 @@ export function VNextMeriComposer({
         : 'HELD FOR THIS DRAFT AND APPLIED WHEN THE THREAD IS CREATED',
     },
   ];
-  const activePane = addPane ? LIBRARY_PANES.find((pane) => pane.id === addPane) ?? null : null;
+  const activePane = addPane ? (LIBRARY_PANES.find((pane) => pane.id === addPane) ?? null) : null;
 
   const uploadsInFlight = stagedAttachments.some((attachment) => attachment.status === 'uploading');
   const busy = isStreaming || submitting;
@@ -398,7 +401,7 @@ export function VNextMeriComposer({
   // enforced inside the send path. This predicate covers the remaining
   // durable-transition gate (scope persistence). Both the Send button and
   // the keyboard path (Enter / Cmd+Enter) use this same predicate.
-  const canSend = maySend(busy, scopePersistStatus) && !uploadsInFlight;
+  const canSend = maySend(busy, scopePersistStatus) && !uploadsInFlight && !reasoningSaving;
   // v6: the quiet "Context" label (with attachment count when files are
   // staged). Client scope is carried by the top-bar scope chip, not repeated
   // here per the prototype.
@@ -421,7 +424,7 @@ export function VNextMeriComposer({
     };
     window.addEventListener('meri-fill-draft', onFill);
     return () => window.removeEventListener('meri-fill-draft', onFill);
-  }, []);
+  }, [setDraft]);
 
   const workspaceRequest = useCallback(
     async (path: string) => {
@@ -431,111 +434,133 @@ export function VNextMeriComposer({
     [api],
   );
 
-  // Workspace drafts are tenant-private. Do not keep a prior tenant's list or
-  // selected document visible while the Clerk organization / admin impersonation
-  // changes; the next request is made only in the new authenticated context.
-  const previousWorkspaceIdentityKeyRef = useRef<string | null>(null);
+  // Every chooser response belongs to its originating identity AND thread.
+  // Switching routes closes it before paint; delayed results cannot fill the
+  // new thread, including after navigating away and back to the same thread.
+  const previousWorkspaceScopeRef = useRef(workspaceScopeKey);
   useLayoutEffect(() => {
-    if (previousWorkspaceIdentityKeyRef.current === null) {
-      previousWorkspaceIdentityKeyRef.current = workspaceIdentityKey;
-      return;
-    }
-    if (previousWorkspaceIdentityKeyRef.current === workspaceIdentityKey) return;
-    previousWorkspaceIdentityKeyRef.current = workspaceIdentityKey;
-    setDraft('');
-    setWorkspaceImportOpen(false);
+    if (previousWorkspaceScopeRef.current === workspaceScopeKey) return;
+    previousWorkspaceScopeRef.current = workspaceScopeKey;
+    closeWorkspaceImport();
     setWorkspaceDrafts([]);
     setWorkspaceDocuments({});
+    setWorkspaceExpanded({});
+    setWorkspaceDraftLoading({});
+    setWorkspaceDocumentLoading({});
+    workspaceDraftRequestsRef.current.clear();
+    workspaceDocumentRequestsRef.current.clear();
     setWorkspaceImportError(null);
     setWorkspaceImportLoading(false);
-    setWorkspaceDocumentLoading(null);
-  }, [workspaceIdentityKey]);
+  }, [workspaceScopeKey, closeWorkspaceImport]);
 
   useEffect(() => {
     if (!workspaceImportOpen) return;
-    let cancelled = false;
-    const requestIdentityKey = workspaceIdentityKey;
+    const epoch = ++workspaceRequestEpochRef.current;
+    workspaceDraftRequestsRef.current.clear();
+    workspaceDocumentRequestsRef.current.clear();
+    setWorkspaceDrafts([]);
+    setWorkspaceDocuments({});
+    setWorkspaceExpanded({});
+    setWorkspaceDraftLoading({});
+    setWorkspaceDocumentLoading({});
     setWorkspaceImportLoading(true);
     setWorkspaceImportError(null);
     void workspaceRequest('/workspace-api/drafts?scope=all')
       .then((data) => {
-        if (!mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current) || cancelled) return;
+        if (!mayApplyWorkspaceRequest(epoch)) return;
         setWorkspaceDrafts(workspaceImportDraftsResponse(data));
-        setWorkspaceDocuments({});
       })
       .catch(() => {
-        if (!cancelled) {
+        if (mayApplyWorkspaceRequest(epoch)) {
           setWorkspaceDrafts([]);
           setWorkspaceImportError('Workspace documents could not be loaded.');
         }
       })
       .finally(() => {
-        if (!cancelled && mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+        if (mayApplyWorkspaceRequest(epoch)) {
           setWorkspaceImportLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      workspaceRequestEpochRef.current += 1;
     };
-  }, [workspaceIdentityKey, workspaceImportOpen, workspaceRequest]);
+  }, [workspaceScopeKey, workspaceImportOpen, workspaceRequest, mayApplyWorkspaceRequest]);
 
   const loadWorkspaceDocument = useCallback(
     async (draftId: string, documentId: string) => {
-      const requestIdentityKey = workspaceIdentityKeyRef.current;
-      setWorkspaceDocumentLoading(documentId);
+      const epoch = workspaceRequestEpochRef.current;
+      const requestKey = JSON.stringify([draftId, documentId]);
+      if (workspaceDocumentRequestsRef.current.has(requestKey)) return;
+      workspaceDocumentRequestsRef.current.add(requestKey);
+      setWorkspaceDocumentLoading((current) => ({ ...current, [requestKey]: true }));
       setWorkspaceImportError(null);
       try {
         const data = await workspaceRequest(
           `/workspace-api/drafts/${encodeURIComponent(draftId)}/documents/${encodeURIComponent(documentId)}/meri-import`,
         );
-        if (!mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) return;
+        if (!mayApplyWorkspaceRequest(epoch)) return;
         const composerText = workspaceDocumentComposerText(data);
         if (!composerText) {
           setWorkspaceImportError('This workspace document has no readable text.');
           return;
         }
-        setDraft((current) => (current.trim() ? `${current.trim()}\n\n${composerText}` : composerText));
-        setWorkspaceImportOpen(false);
+        setDraft((current) =>
+          current.trim() ? `${current.trim()}\n\n${composerText}` : composerText,
+        );
+        closeWorkspaceImport();
         window.setTimeout(() => textareaRef.current?.focus(), 0);
       } catch {
-        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+        if (mayApplyWorkspaceRequest(epoch)) {
           setWorkspaceImportError('The workspace document could not be loaded.');
         }
       } finally {
-        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
-          setWorkspaceDocumentLoading(null);
+        if (mayApplyWorkspaceRequest(epoch)) {
+          workspaceDocumentRequestsRef.current.delete(requestKey);
+          setWorkspaceDocumentLoading((current) => ({ ...current, [requestKey]: false }));
         }
       }
     },
-    [workspaceRequest],
+    [workspaceRequest, mayApplyWorkspaceRequest, closeWorkspaceImport, setDraft],
   );
 
   const loadWorkspaceDraftDocuments = useCallback(
     async (draftId: string) => {
-      if (workspaceDocuments[draftId] !== undefined) {
-        setWorkspaceDocuments((current) => ({ ...current, [draftId]: null }));
+      if (workspaceExpanded[draftId]) {
+        setWorkspaceExpanded((current) => ({ ...current, [draftId]: false }));
         return;
       }
-      const requestIdentityKey = workspaceIdentityKeyRef.current;
-      setWorkspaceDocumentLoading(draftId);
+      setWorkspaceExpanded((current) => ({ ...current, [draftId]: true }));
+      if (
+        workspaceDocuments[draftId] !== undefined ||
+        workspaceDraftRequestsRef.current.has(draftId)
+      )
+        return;
+      const epoch = workspaceRequestEpochRef.current;
+      workspaceDraftRequestsRef.current.add(draftId);
+      setWorkspaceDraftLoading((current) => ({ ...current, [draftId]: true }));
       setWorkspaceImportError(null);
       try {
-        const data = await workspaceRequest(`/workspace-api/drafts/${encodeURIComponent(draftId)}/documents/meri-import`);
-        if (!mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) return;
+        const data = await workspaceRequest(
+          `/workspace-api/drafts/${encodeURIComponent(draftId)}/documents/meri-import`,
+        );
+        if (!mayApplyWorkspaceRequest(epoch)) return;
         const documents = workspaceImportDocumentsResponse(data);
         setWorkspaceDocuments((current) => ({ ...current, [draftId]: documents }));
-        if (!documents.length) setWorkspaceImportError('This workspace draft has no readable documents.');
+        if (!documents.length)
+          setWorkspaceImportError('This workspace draft has no readable documents.');
       } catch {
-        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+        if (mayApplyWorkspaceRequest(epoch)) {
+          setWorkspaceExpanded((current) => ({ ...current, [draftId]: false }));
           setWorkspaceImportError('The workspace draft could not be loaded.');
         }
       } finally {
-        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
-          setWorkspaceDocumentLoading(null);
+        if (mayApplyWorkspaceRequest(epoch)) {
+          workspaceDraftRequestsRef.current.delete(draftId);
+          setWorkspaceDraftLoading((current) => ({ ...current, [draftId]: false }));
         }
       }
     },
-    [workspaceDocuments, workspaceRequest],
+    [workspaceDocuments, workspaceExpanded, workspaceRequest, mayApplyWorkspaceRequest],
   );
 
   useEffect(() => {
@@ -565,7 +590,7 @@ export function VNextMeriComposer({
     async (forced?: string) => {
       const content = (forced ?? draft).trim();
       // Unified send gate: same predicate as the Send button and keyboard path.
-      if (!maySend(busy, scopePersistStatus) || uploadsInFlight) return;
+      if (!maySend(busy, scopePersistStatus) || uploadsInFlight || reasoningSaving) return;
       if (!content) {
         toast.success('Write a message, then press Send.');
         return;
@@ -575,18 +600,28 @@ export function VNextMeriComposer({
       // the exact text when route-level creation rejects the send. The old
       // composer discarded the user's first prompt even when no thread existed.
       setSubmitting(true);
-      setDraft('');
+      const restoreDraft = clearForSubmission();
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
       try {
-        await sendMessage(content);
+        const accepted = await sendMessage(content);
+        if (accepted === false) restoreDraft();
       } catch {
-        setDraft((current) => current || content);
+        restoreDraft();
         window.setTimeout(() => textareaRef.current?.focus(), 0);
       } finally {
         setSubmitting(false);
       }
     },
-    [busy, draft, sendMessage, toast, uploadsInFlight, scopePersistStatus],
+    [
+      busy,
+      draft,
+      sendMessage,
+      toast,
+      uploadsInFlight,
+      reasoningSaving,
+      scopePersistStatus,
+      clearForSubmission,
+    ],
   );
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
@@ -635,138 +670,150 @@ export function VNextMeriComposer({
         <div className="vnext-meri__add-popover" role="menu" aria-label="Add to conversation">
           {!activePane ? (
             <>
-          <div className="vnext-meri__add-popover-eyebrow">ADD TO CONVERSATION</div>
-          <button
-            type="button"
-            role="menuitem"
-            className="vnext-meri__add-popover-item"
-            onClick={() => {
-              setAddOpen(false);
-              fileInputRef.current?.click();
-            }}
-          >
-            <span className="vnext-meri__add-popover-tile">
-              <MeriIcon name="Plus" size={13} color="var(--m-gray-600)" />
-            </span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Upload file</span>
-              <span className="vnext-meri__add-popover-item-desc">
-                ATTACH DOCUMENTS, DATA, OR IMAGES
-              </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="vnext-meri__add-popover-item"
-            onClick={() => {
-              setAddOpen(false);
-              setDraft((current) => (current ? `${current}\n\nNote: ` : 'Note: '));
-              window.setTimeout(() => textareaRef.current?.focus(), 0);
-            }}
-          >
-            <span className="vnext-meri__add-popover-tile">
-              <MeriIcon name="Edit01" size={13} color="var(--m-gray-600)" />
-            </span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Add note</span>
-              <span className="vnext-meri__add-popover-item-desc">ADDS EDITABLE TEXT TO THIS MESSAGE</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="vnext-meri__add-popover-item"
-            onClick={() => {
-              setAddOpen(false);
-              onOpenIntegrations();
-            }}
-          >
-            <span className="vnext-meri__add-popover-tile"><ConnectorMark id="hubspot" size={15} /></span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Connect HubSpot</span>
-              <span className="vnext-meri__add-popover-item-desc">PULL CRM RECORDS</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="vnext-meri__add-popover-item"
-            onClick={() => {
-              setAddOpen(false);
-              toast.error('SharePoint is not connectable yet. Open Integrations to see supported sources.');
-              onOpenIntegrations();
-            }}
-            aria-label="Connect SharePoint — not connectable yet"
-          >
-            <span className="vnext-meri__add-popover-tile"><ConnectorMark id="sharepoint" size={15} /></span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Connect SharePoint</span>
-              <span className="vnext-meri__add-popover-item-desc">NOT CONNECTABLE YET</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="vnext-meri__add-popover-item"
-            onClick={() => {
-              setAddOpen(false);
-              onOpenIntegrations();
-            }}
-          >
-            <span className="vnext-meri__add-popover-tile"><ConnectorMark id="airtable" size={15} /></span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Connect Airtable</span>
-              <span className="vnext-meri__add-popover-item-desc">ATTACH BASE CONTEXT</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="vnext-meri__add-popover-item"
-            onClick={() => {
-              setAddOpen(false);
-              setWorkspaceImportOpen(true);
-            }}
-          >
-            <span className="vnext-meri__add-popover-tile">
-              <MeriIcon name="LayersThree01" size={13} color="var(--m-gray-600)" />
-            </span>
-            <span className="vnext-meri__add-popover-item-body">
-              <span className="vnext-meri__add-popover-item-label">Import from workspace</span>
-              <span className="vnext-meri__add-popover-item-desc">REVIEW A DOCUMENT BEFORE ADDING IT TO THE DRAFT</span>
-            </span>
-          </button>
+              <div className="vnext-meri__add-popover-eyebrow">ADD TO CONVERSATION</div>
+              <button
+                type="button"
+                role="menuitem"
+                className="vnext-meri__add-popover-item"
+                onClick={() => {
+                  setAddOpen(false);
+                  fileInputRef.current?.click();
+                }}
+              >
+                <span className="vnext-meri__add-popover-tile">
+                  <MeriIcon name="Plus" size={13} color="var(--m-gray-600)" />
+                </span>
+                <span className="vnext-meri__add-popover-item-body">
+                  <span className="vnext-meri__add-popover-item-label">Upload file</span>
+                  <span className="vnext-meri__add-popover-item-desc">
+                    ATTACH DOCUMENTS, DATA, OR IMAGES
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="vnext-meri__add-popover-item"
+                onClick={() => {
+                  setAddOpen(false);
+                  setDraft((current) => (current ? `${current}\n\nNote: ` : 'Note: '));
+                  window.setTimeout(() => textareaRef.current?.focus(), 0);
+                }}
+              >
+                <span className="vnext-meri__add-popover-tile">
+                  <MeriIcon name="Edit01" size={13} color="var(--m-gray-600)" />
+                </span>
+                <span className="vnext-meri__add-popover-item-body">
+                  <span className="vnext-meri__add-popover-item-label">Add note</span>
+                  <span className="vnext-meri__add-popover-item-desc">
+                    ADDS EDITABLE TEXT TO THIS MESSAGE
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="vnext-meri__add-popover-item"
+                onClick={() => {
+                  setAddOpen(false);
+                  onOpenIntegrations();
+                }}
+              >
+                <span className="vnext-meri__add-popover-tile">
+                  <ConnectorMark id="hubspot" size={15} />
+                </span>
+                <span className="vnext-meri__add-popover-item-body">
+                  <span className="vnext-meri__add-popover-item-label">Connect HubSpot</span>
+                  <span className="vnext-meri__add-popover-item-desc">PULL CRM RECORDS</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="vnext-meri__add-popover-item"
+                onClick={() => {
+                  setAddOpen(false);
+                  toast.error(
+                    'SharePoint is not connectable yet. Open Integrations to see supported sources.',
+                  );
+                  onOpenIntegrations();
+                }}
+                aria-label="Connect SharePoint — not connectable yet"
+              >
+                <span className="vnext-meri__add-popover-tile">
+                  <ConnectorMark id="sharepoint" size={15} />
+                </span>
+                <span className="vnext-meri__add-popover-item-body">
+                  <span className="vnext-meri__add-popover-item-label">Connect SharePoint</span>
+                  <span className="vnext-meri__add-popover-item-desc">NOT CONNECTABLE YET</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="vnext-meri__add-popover-item"
+                onClick={() => {
+                  setAddOpen(false);
+                  onOpenIntegrations();
+                }}
+              >
+                <span className="vnext-meri__add-popover-tile">
+                  <ConnectorMark id="airtable" size={15} />
+                </span>
+                <span className="vnext-meri__add-popover-item-body">
+                  <span className="vnext-meri__add-popover-item-label">Connect Airtable</span>
+                  <span className="vnext-meri__add-popover-item-desc">ATTACH BASE CONTEXT</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="vnext-meri__add-popover-item"
+                onClick={() => {
+                  setAddOpen(false);
+                  setWorkspaceImportOpen(true);
+                }}
+              >
+                <span className="vnext-meri__add-popover-tile">
+                  <MeriIcon name="LayersThree01" size={13} color="var(--m-gray-600)" />
+                </span>
+                <span className="vnext-meri__add-popover-item-body">
+                  <span className="vnext-meri__add-popover-item-label">Import from workspace</span>
+                  <span className="vnext-meri__add-popover-item-desc">
+                    REVIEW A DOCUMENT BEFORE ADDING IT TO THE DRAFT
+                  </span>
+                </span>
+              </button>
 
-          <div className="vnext-meri__add-popover-separator" />
-          <div className="vnext-meri__add-popover-eyebrow">LIBRARY</div>
-          {LIBRARY_PANES.map((pane) => (
-            <button
-              key={pane.id}
-              type="button"
-              role="menuitem"
-              aria-haspopup="menu"
-              className="vnext-meri__add-popover-pane-trigger"
-              onClick={() => setAddPane(pane.id)}
-            >
-              <span className="vnext-meri__add-popover-tile">
-                <MeriIcon name={pane.icon} size={15} color="var(--m-gray-600)" />
-              </span>
-              <span className="vnext-meri__add-popover-item-body">
-                <span className="vnext-meri__add-popover-item-label">{pane.label}</span>
-                <span className="vnext-meri__add-popover-item-desc">{pane.desc}</span>
-              </span>
-              <span className="vnext-meri__add-popover-pane-meta">
-                <span className="vnext-meri__add-popover-pane-count">{pane.count}</span>
-                <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
-              </span>
-            </button>
-          ))}
+              <div className="vnext-meri__add-popover-separator" />
+              <div className="vnext-meri__add-popover-eyebrow">LIBRARY</div>
+              {LIBRARY_PANES.map((pane) => (
+                <button
+                  key={pane.id}
+                  type="button"
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  className="vnext-meri__add-popover-pane-trigger"
+                  onClick={() => setAddPane(pane.id)}
+                >
+                  <span className="vnext-meri__add-popover-tile">
+                    <MeriIcon name={pane.icon} size={15} color="var(--m-gray-600)" />
+                  </span>
+                  <span className="vnext-meri__add-popover-item-body">
+                    <span className="vnext-meri__add-popover-item-label">{pane.label}</span>
+                    <span className="vnext-meri__add-popover-item-desc">{pane.desc}</span>
+                  </span>
+                  <span className="vnext-meri__add-popover-pane-meta">
+                    <span className="vnext-meri__add-popover-pane-count">{pane.count}</span>
+                    <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
+                  </span>
+                </button>
+              ))}
 
-          <div className="vnext-meri__add-popover-separator" />
-          <div className="vnext-meri__add-popover-footer">
-            EVERYTHING ADDED HERE IS SCOPED TO THIS THREAD AND LOGGED
-          </div>
+              <div className="vnext-meri__add-popover-separator" />
+              <div className="vnext-meri__add-popover-footer">
+                EVERYTHING ADDED HERE IS SCOPED TO THIS THREAD AND LOGGED
+              </div>
             </>
           ) : (
             <>
@@ -779,7 +826,9 @@ export function VNextMeriComposer({
                 >
                   <MeriIcon name="ChevronLeft" size={15} color="#667085" />
                 </button>
-                <span className="vnext-meri__add-popover-eyebrow">{activePane.label.toUpperCase()}</span>
+                <span className="vnext-meri__add-popover-eyebrow">
+                  {activePane.label.toUpperCase()}
+                </span>
               </div>
               <div className="vnext-meri__add-popover-pane-body">
                 {activePane.items.map((item) => (
@@ -789,6 +838,7 @@ export function VNextMeriComposer({
                       role="menuitem"
                       className="vnext-meri__add-popover-pane-item"
                       onClick={item.run}
+                      disabled={item.disabled}
                     >
                       <span className="vnext-meri__add-popover-tile">
                         <MeriIcon name={item.icon} size={15} color="var(--m-gray-600)" />
@@ -834,6 +884,12 @@ export function VNextMeriComposer({
         </div>
       ) : null}
 
+      {reasoningError ? (
+        <div className="vnext-meri__reasoning-error" role="alert">
+          {reasoningError}
+        </div>
+      ) : null}
+
       <input
         ref={fileInputRef}
         type="file"
@@ -866,7 +922,10 @@ export function VNextMeriComposer({
                   key={attachment.localId}
                   className={`vnext-meri__attachment${failed ? ' is-error' : truncated ? ' is-truncated' : ' is-ready'}`}
                 >
-                  <span aria-hidden="true" style={{ display: 'flex', color: failed ? '#B42318' : '#98A2B3' }}>
+                  <span
+                    aria-hidden="true"
+                    style={{ display: 'flex', color: failed ? '#B42318' : '#98A2B3' }}
+                  >
                     <MeriIcon name={stagedAttachmentIconName(attachment.kind)} size={14} />
                   </span>
                   <span title={attachment.filename} className="vnext-meri__attachment-name">
@@ -911,8 +970,8 @@ export function VNextMeriComposer({
               isStreaming
                 ? 'Meri is still researching. You can stop or add guidance…'
                 : hasThread
-                ? 'Ask about this thread, or draft an action…'
-                : 'Ask across your clients, or start a piece of work…'
+                  ? 'Ask about this thread, or draft an action…'
+                  : 'Ask across your clients, or start a piece of work…'
             }
             aria-label="Message Meri"
             onFocus={() => {
@@ -978,9 +1037,11 @@ export function VNextMeriComposer({
                 ? 'SAVING CLIENT SCOPE…'
                 : scopePersistStatus === 'error'
                   ? 'SCOPE ERROR'
-                  : submitting
-                    ? 'STARTING…'
-                    : 'SEND'}
+                  : reasoningSaving
+                    ? 'SAVING REASONING…'
+                    : submitting
+                      ? 'STARTING…'
+                      : 'SEND'}
           </span>
 
           {isStreaming ? (
@@ -1020,24 +1081,31 @@ export function VNextMeriComposer({
           Import from workspace
         </div>
         <div className="vnext-meri__confirm-body">
-          Select a document to add as editable text. It stays in this draft until you review and send it.
+          Select a document to add as editable text. It stays in this draft until you review and
+          send it.
         </div>
-        {workspaceImportLoading ? <div className="vnext-meri__ctx-empty">Loading workspace documents…</div> : null}
-        {workspaceImportError ? <div className="vnext-meri__ctx-empty">{workspaceImportError}</div> : null}
+        {workspaceImportLoading ? (
+          <div className="vnext-meri__ctx-empty">Loading workspace documents…</div>
+        ) : null}
+        {workspaceImportError ? (
+          <div className="vnext-meri__ctx-empty">{workspaceImportError}</div>
+        ) : null}
         {!workspaceImportLoading && !workspaceImportError && workspaceDrafts.length === 0 ? (
           <div className="vnext-meri__ctx-empty">No workspace documents are available.</div>
         ) : null}
         <div className="vnext-meri__move-workspace-list">
           {workspaceDrafts.map((workspaceDraft) => {
-            const documents = workspaceDocuments[workspaceDraft.id];
-            const loading = workspaceDocumentLoading === workspaceDraft.id;
+            const documents = workspaceExpanded[workspaceDraft.id]
+              ? workspaceDocuments[workspaceDraft.id]
+              : undefined;
+            const loading = workspaceDraftLoading[workspaceDraft.id];
             return (
               <div key={workspaceDraft.id} className="vnext-meri__workspace-draft">
                 <button
                   type="button"
                   className="vnext-meri__workspace-item"
                   onClick={() => void loadWorkspaceDraftDocuments(workspaceDraft.id)}
-                  aria-expanded={documents !== undefined && documents !== null}
+                  aria-expanded={Boolean(workspaceExpanded[workspaceDraft.id])}
                 >
                   <span className="vnext-meri__workspace-copy">
                     <span className="vnext-meri__workspace-name">{workspaceDraft.docTitle}</span>
@@ -1045,14 +1113,18 @@ export function VNextMeriComposer({
                       {workspaceDraft.clientName ?? 'Workspace draft'}
                     </span>
                   </span>
-                  <span className="vnext-meri__workspace-meta">{loading ? 'LOADING…' : 'VIEW DOCUMENTS'}</span>
+                  <span className="vnext-meri__workspace-meta">
+                    {loading ? 'LOADING…' : 'VIEW DOCUMENTS'}
+                  </span>
                 </button>
                 {documents?.map((document) => (
                   <button
                     key={document.id}
                     type="button"
                     className="vnext-meri__workspace-item vnext-meri__workspace-document"
-                    disabled={workspaceDocumentLoading === document.id}
+                    disabled={
+                      workspaceDocumentLoading[JSON.stringify([workspaceDraft.id, document.id])]
+                    }
                     onClick={() => void loadWorkspaceDocument(workspaceDraft.id, document.id)}
                   >
                     <span className="vnext-meri__workspace-copy">
@@ -1069,7 +1141,7 @@ export function VNextMeriComposer({
           <button
             type="button"
             className="vnext-meri__confirm-cancel"
-            onClick={() => setWorkspaceImportOpen(false)}
+            onClick={closeWorkspaceImport}
           >
             Cancel
           </button>

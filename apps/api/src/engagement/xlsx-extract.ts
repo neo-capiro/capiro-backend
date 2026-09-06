@@ -11,7 +11,7 @@ export function isSpreadsheetAttachment(fileName: string, contentType: string): 
 }
 
 /** exceljs cell value → text (handles formula results, hyperlinks, rich text, dates). */
-function xlsxCellToText(v: unknown): string {
+export function xlsxCellToText(v: unknown): string {
   if (v == null) return '';
   if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
   if (v instanceof Date) return v.toISOString().slice(0, 10);
@@ -33,7 +33,7 @@ function xlsxCellToText(v: unknown): string {
  */
 export async function extractXlsxText(buffer: Buffer): Promise<string> {
   const ExcelJS = await import('exceljs');
-  const wb = new ExcelJS.Workbook();
+  const wb = new (ExcelJS.default ?? ExcelJS).Workbook();
   // @types/node's generic Buffer<ArrayBufferLike> isn't assignable to exceljs's
   // stricter load() param; cast to exactly the type xlsx.load declares.
   await wb.xlsx.load(buffer as unknown as Parameters<typeof wb.xlsx.load>[0]);

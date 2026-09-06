@@ -1,4 +1,5 @@
 import type { ProviderUsage } from '@capiro/shared';
+import type { LedgerEntry, MeriEvidenceManifest } from '@capiro/meriv2-core';
 import type { ChatInput, ChatResult, ChatStreamEvent } from '../chat/chat-prompt.js';
 import type { MeriCoverageManifest } from '../retrieval/meri-retrieval-coverage.js';
 import type { MeriRetrievalTrace } from '../retrieval/meri-retrieval-coordinator.js';
@@ -16,6 +17,18 @@ export type MeriV3ReasoningMode = (typeof MERIV3_REASONING_MODES)[number];
 /** Responses API reasoning effort used by the configured model. */
 export type MeriV3ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
+/** Provider execution facts; never contains provider reasoning or raw errors. */
+export interface MeriV3ProviderTelemetry {
+  requestedModel: string;
+  effectiveModel: string | null;
+  requestedReasoningEffort: MeriV3ReasoningEffort;
+  /** Null means omitted/unknown, not that the model performed no reasoning. */
+  effectiveReasoningEffort: MeriV3ReasoningEffort | null;
+  reasoningFallbackReasons: string[];
+  finishReason: string;
+  partial: boolean;
+}
+
 export interface MeriV3ReasoningProfile {
   mode: MeriV3ReasoningMode;
   label: string;
@@ -29,6 +42,8 @@ export interface MeriV3ReasoningProfile {
 
 export interface MeriV3ChatInput extends ChatInput {
   reasoningMode?: MeriV3ReasoningMode;
+  /** A caller may only narrow the normal governed full-chat capabilities. */
+  toolPolicy?: 'none' | 'read-only';
 }
 
 export interface MeriV3RetrievalSummary {
@@ -47,10 +62,16 @@ export interface MeriV3RetrievalSummary {
 }
 
 export interface MeriV3ChatResult extends ChatResult {
+  evidenceManifest?: MeriEvidenceManifest;
+  providerCalls?: MeriV3ProviderTelemetry[];
+  /** Tool evidence for the API research auditor; never provider reasoning. */
+  ledgerEntries?: LedgerEntry[];
+  held?: boolean;
   runtime: 'meriv3';
   model: string;
   reasoningMode: MeriV3ReasoningMode;
-  reasoningEffort: MeriV3ReasoningEffort;
+  reasoningEffort: MeriV3ReasoningEffort | null;
+  telemetry?: MeriV3ProviderTelemetry;
   retrieval?: MeriV3RetrievalSummary;
 }
 
@@ -61,7 +82,9 @@ export type MeriV3ChatStreamEvent =
       runtime: 'meriv3';
       model: string;
       reasoningMode: MeriV3ReasoningMode;
-      reasoningEffort: MeriV3ReasoningEffort;
+      reasoningEffort: MeriV3ReasoningEffort | null;
+      telemetry?: MeriV3ProviderTelemetry;
+      providerCalls?: MeriV3ProviderTelemetry[];
     };
 
 export interface OpenAiResponsesFunctionTool {
@@ -120,4 +143,7 @@ export interface OpenAiResponsesResult {
   model: string;
   usedTenantKey: boolean;
   incompleteReason?: string | null;
+  telemetry: MeriV3ProviderTelemetry;
+  /** Includes hidden critic/synthesis calls when the research runtime invokes them. */
+  providerCalls?: MeriV3ProviderTelemetry[];
 }

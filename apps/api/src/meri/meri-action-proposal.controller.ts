@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -17,6 +18,8 @@ import {
   Length,
 } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
+import type { Request } from 'express';
+import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -61,8 +64,12 @@ export class MeriActionProposalController {
   /** Orchestrator-only: user JWT + internal service identity are both required. */
   @Post()
   @UseGuards(ToolServiceSecretGuard)
-  create(@CurrentTenant() ctx: TenantContext, @Body() body: CreateMeriActionProposalDto) {
-    return this.proposals.create(ctx, body);
+  create(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: CreateMeriActionProposalDto,
+    @Req() req: Request,
+  ) {
+    return withMeriToolRequestControl(req, () => this.proposals.create(ctx, body));
   }
 
   /** Browser-safe recovery surface. Only the current user's tenant-scoped rows return. */

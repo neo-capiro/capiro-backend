@@ -1,3 +1,4 @@
+import { selectMeriCapabilitySchemas } from '@capiro/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -682,9 +683,7 @@ export class ChatAssistantService {
     // write 400 with "input.conversationId: is not an allowed property" the
     // moment a chat session had a real (persisted) conversationId — i.e.
     // always, outside of throwaway unsaved turns.
-    const properties = toolSchema?.input_schema?.properties as
-      | Record<string, unknown>
-      | undefined;
+    const properties = toolSchema?.input_schema?.properties as Record<string, unknown> | undefined;
     if (dto.conversationId && out.conversationId === undefined && properties?.conversationId) {
       out.conversationId = dto.conversationId;
     }
@@ -867,8 +866,7 @@ export class ChatAssistantService {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as { schemas?: AnthropicToolSchema[] };
-      const known = new Set(this.registry.list());
-      return (body.schemas ?? []).filter((s) => known.has(s.name));
+      return selectMeriCapabilitySchemas(body.schemas ?? [], 'full_chat', this.registry.list());
     } catch (e) {
       this.logger.warn(`chat: tool-schema fetch failed (${(e as Error).message})`);
       return [];

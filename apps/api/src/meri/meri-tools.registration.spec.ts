@@ -1,3 +1,47 @@
+jest.mock('../clients/client-capabilities.service.js', () => ({
+  ClientCapabilitiesService: jest.fn(),
+}));
+jest.mock('../clients/client-people.service.js', () => ({ ClientPeopleService: jest.fn() }));
+jest.mock('../clients/client-facilities.service.js', () => ({
+  ClientFacilitiesService: jest.fn(),
+}));
+jest.mock('../engagement/mail-sender.service.js', () => ({ EngagementMailSender: jest.fn() }));
+jest.mock('../regulatory-docket/regulatory-docket.service.js', () => ({
+  RegulatoryDocketService: jest.fn(),
+}));
+jest.mock('../lda-intel/lda-intel.service.js', () => ({ LdaIntelService: jest.fn() }));
+jest.mock('../lobby-intel/lobby-intel.service.js', () => ({ LobbyIntelService: jest.fn() }));
+jest.mock('../federal-spending/federal-spending.service.js', () => ({
+  FederalSpendingService: jest.fn(),
+}));
+jest.mock('./analytics/analytics-db.service.js', () => ({ AnalyticsDbService: jest.fn() }));
+jest.mock('../intelligence/actions/action-recommendation-read.service.js', () => ({
+  ActionRecommendationReadService: jest.fn(),
+}));
+jest.mock('../intelligence/intelligence.service.js', () => ({ IntelligenceService: jest.fn() }));
+jest.mock('../clients/clients.service.js', () => ({ ClientsService: jest.fn() }));
+jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: jest.fn() }));
+jest.mock('../program-element/program-element-read.service.js', () => ({
+  ProgramElementReadService: jest.fn(),
+}));
+jest.mock('../acquisition-personnel/acquisition-personnel-read.service.js', () => ({
+  AcquisitionPersonnelReadService: jest.fn(),
+}));
+jest.mock('../memory/memory-candidate.service.js', () => ({ MemoryCandidateService: jest.fn() }));
+jest.mock('../memory/memory-ingest.service.js', () => ({ MemoryIngestService: jest.fn() }));
+jest.mock('../memory/memory-store.service.js', () => ({ MemoryStoreService: jest.fn() }));
+jest.mock('../clients/representation-resolver.service.js', () => ({
+  RepresentationResolverService: jest.fn(),
+}));
+jest.mock('./meri-docgen.service.js', () => ({ MeriDocgenService: jest.fn() }));
+jest.mock('./meri-context-plane.service.js', () => ({ MeriContextPlaneService: jest.fn() }));
+jest.mock('../retrieval/retrieval-v2.service.js', () => ({ RetrievalV2Service: jest.fn() }));
+jest.mock('../funding-opportunities/meri-opportunity-tools.adapter.js', () => ({
+  MeriOpportunityToolsAdapter: jest.fn(),
+}));
+// These contracts stub the domain ports; loading the unrelated mail/generation graph is unnecessary.
+jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 
 /**
@@ -10,6 +54,8 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 const EXPECTED_TOOLS = [
   // Engagement + research
   'get_client_context',
+  'search_capiro_data',
+  'get_research_evidence',
   'search_research_sources',
   // Client knowledge base (assistant-parity F5)
   'search_client_knowledge',
@@ -118,6 +164,8 @@ const EXPECTED_TOOLS = [
 /** Tools whose schema must enforce required inputs, and exactly which. */
 const REQUIRED_INPUTS: Record<string, string[]> = {
   get_client_context: ['clientId'],
+  search_capiro_data: ['query', 'domains'],
+  get_research_evidence: ['sessionId'],
   search_research_sources: ['query'],
   search_client_knowledge: ['query'],
   run_analysis: ['code'],
@@ -180,6 +228,79 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it('every advertised core schema dispatches to an existing callable handler', async () => {
+    const sentinel = { dispatched: true };
+    const calls: string[] = [];
+    const opportunityMethods = new Set([
+      'getFundingOpportunity',
+      'explainOpportunityMatch',
+      'getOpportunityClientContext',
+      'getOpportunityGovernmentLandscape',
+      'compareFundingOpportunities',
+      'buildOpportunityActionPlan',
+    ]);
+    const dispatchOnly = new Proxy(Object.create(MeriToolsService.prototype), {
+      get(target, property) {
+        if (property === 'prisma')
+          return {
+            withTenantUser: async () => {
+              calls.push('withTenantUser');
+              return sentinel;
+            },
+          };
+        if (property === 'contextPlane')
+          return {
+            securityEnvelope: async () => ({
+              authorizedClientIds: [],
+              authorizedMailboxConnectionIds: [],
+            }),
+          };
+        if (property === 'sharedRetrieval')
+          return {
+            retrieve: async () => {
+              calls.push('retrieve');
+              return sentinel;
+            },
+          };
+        if (property === 'opportunityTools') {
+          return new Proxy(
+            {},
+            {
+              get(_target, method) {
+                if (!opportunityMethods.has(String(method))) return undefined;
+                return () => {
+                  calls.push(String(method));
+                  return sentinel;
+                };
+              },
+            },
+          );
+        }
+        const actual = Reflect.get(target, property);
+        if (typeof actual !== 'function') return actual;
+        return () => {
+          calls.push(String(property));
+          return sentinel;
+        };
+      },
+    });
+    for (const schema of TOOL_DEFINITIONS) {
+      calls.length = 0;
+      const result = await MeriToolsService.prototype.execute.call(
+        dispatchOnly,
+        { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as never,
+        schema.name,
+        schema.name === 'search_capiro_data'
+          ? { query: 'strategy', domains: ['strategies_work'] }
+          : schema.name === 'get_research_evidence'
+            ? { sessionId: '11111111-1111-4111-8111-111111111111' }
+            : {},
+      );
+      expect(result).toMatchObject(sentinel);
+      expect(calls).toHaveLength(1);
+    }
+  });
+
   it('registers exactly the expected tool surface (drop/rename fails loudly)', () => {
     const definedNames = TOOL_DEFINITIONS.map((tool) => tool.name);
     expect([...definedNames].sort()).toEqual([...EXPECTED_TOOLS].sort());

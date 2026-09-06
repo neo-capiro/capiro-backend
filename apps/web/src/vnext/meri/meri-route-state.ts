@@ -1,10 +1,12 @@
 import type {
+  ChatMessage,
   ChatMessageRetrieval,
   GroundingCaveat,
   MeriCitation,
   MeriConversation,
   MeriVerification,
 } from '../../components/chat/chat-store.js';
+import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 import {
   MERI_WINDOW_CLIENT_QUERY,
   MERI_WINDOW_PROMPT_QUERY,
@@ -95,8 +97,7 @@ export function mapPersistedAttachments(message: PersistedMessage): PersistedAtt
   const raw = Array.isArray(message.metadata?.attachments) ? message.metadata.attachments : [];
   return raw
     .filter(
-      (item: unknown): item is Record<string, unknown> =>
-        Boolean(item) && typeof item === 'object',
+      (item: unknown): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
     )
     .map((item) => ({
       id: String(item.id ?? ''),
@@ -118,7 +119,10 @@ export function mapPersistedCitations(message: PersistedMessage): MeriCitation[]
   return raw
     .map(asRecord)
     .filter((item): item is Record<string, unknown> => Boolean(item))
-    .filter((item) => typeof item.n === 'number' && typeof item.id === 'string' && typeof item.title === 'string')
+    .filter(
+      (item) =>
+        typeof item.n === 'number' && typeof item.id === 'string' && typeof item.title === 'string',
+    )
     .map((item) => ({
       n: Number(item.n),
       type: typeof item.type === 'string' ? item.type : 'source',
@@ -130,9 +134,71 @@ export function mapPersistedCitations(message: PersistedMessage): MeriCitation[]
     }));
 }
 
+/** Hydrate only the public work log, never raw provider thinking/reasoning. */
+export function mapPersistedWorkPerformed(
+  message: PersistedMessage,
+): Pick<ChatMessage, 'orchestratorIntent' | 'orchestratorTier' | 'planSteps' | 'trustSteps'> {
+  const meta = message.metadata ?? {};
+  const plan = Array.isArray(meta.plan)
+    ? meta.plan
+    : Array.isArray(meta.planSteps)
+      ? meta.planSteps
+      : [];
+  // V3 previously persisted its public tool steps as `trace`; older runtimes
+  // use `trustSteps`. Support those existing rows without a data migration.
+  const steps = Array.isArray(meta.trustSteps)
+    ? meta.trustSteps
+    : Array.isArray(meta.trace)
+      ? meta.trace
+      : [];
+  const trustSteps = steps.flatMap((value): TrustStep[] => {
+    const row = asRecord(value);
+    if (!row || typeof row.tool !== 'string' || typeof row.label !== 'string') return [];
+    const status = row.status;
+    if (!['done', 'error', 'running', 'pending_approval', 'blocked'].includes(String(status)))
+      return [];
+    const held = status === 'pending_approval';
+    const blocked = status === 'blocked';
+    return [
+      {
+        tool: row.tool,
+        label: row.label,
+        status: status === 'done' ? 'done' : status === 'running' ? 'running' : 'error',
+        ...(typeof row.detail === 'string'
+          ? { detail: row.detail }
+          : held
+            ? { detail: 'Held for your approval' }
+            : blocked
+              ? { detail: 'Blocked' }
+              : {}),
+        ...(typeof row.count === 'number' && Number.isFinite(row.count)
+          ? { count: row.count }
+          : {}),
+        ...(row.confidence === 'high' || row.confidence === 'medium' || row.confidence === 'low'
+          ? { confidence: row.confidence }
+          : {}),
+      },
+    ];
+  });
+  return {
+    orchestratorIntent: typeof meta.intent === 'string' ? meta.intent : null,
+    orchestratorTier:
+      meta.tier === 'fast' || meta.tier === 'deep'
+        ? meta.tier
+        : meta.runtime === 'meriv3' && typeof meta.reasoningMode === 'string'
+          ? meta.reasoningMode === 'fast'
+            ? 'fast'
+            : 'deep'
+          : null,
+    planSteps: plan.filter((step): step is string => typeof step === 'string'),
+    trustSteps,
+  };
+}
+
 export function mapPersistedVerification(message: PersistedMessage): MeriVerification | undefined {
   const raw = asRecord(message.metadata?.verification);
-  if (!raw || typeof raw.totalCount !== 'number' || typeof raw.unsupportedCount !== 'number') return undefined;
+  if (!raw || typeof raw.totalCount !== 'number' || typeof raw.unsupportedCount !== 'number')
+    return undefined;
   const claims = Array.isArray(raw.claims)
     ? raw.claims
         .map(asRecord)
@@ -152,15 +218,21 @@ export function mapPersistedVerification(message: PersistedMessage): MeriVerific
     claims,
     totalCount,
     unsupportedCount,
-    unsupportedRatio: typeof raw.unsupportedRatio === 'number'
-      ? raw.unsupportedRatio
-      : totalCount > 0 ? unsupportedCount / totalCount : 0,
+    unsupportedRatio:
+      typeof raw.unsupportedRatio === 'number'
+        ? raw.unsupportedRatio
+        : totalCount > 0
+          ? unsupportedCount / totalCount
+          : 0,
     lowConfidence: Boolean(raw.lowConfidence),
   };
 }
 
 function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  );
 }
 
 export function mapPersistedContextPacketId(message: PersistedMessage): string | undefined {
@@ -170,23 +242,42 @@ export function mapPersistedContextPacketId(message: PersistedMessage): string |
   return isUuid(packet?.packetId) ? packet.packetId : undefined;
 }
 
-export function mapPersistedGroundingCaveat(message: PersistedMessage): GroundingCaveat | undefined {
+export function mapPersistedGroundingCaveat(
+  message: PersistedMessage,
+): GroundingCaveat | undefined {
   const raw = asRecord(message.metadata?.groundingCaveat);
   const findings = Array.isArray(raw?.findings)
     ? raw.findings
         .map(asRecord)
         .filter((finding): finding is Record<string, unknown> => Boolean(finding))
-        .filter((finding) => typeof finding.check === 'string' && typeof finding.severity === 'string' && typeof finding.detail === 'string')
-        .map((finding) => ({ check: String(finding.check), severity: String(finding.severity), detail: String(finding.detail) }))
+        .filter(
+          (finding) =>
+            typeof finding.check === 'string' &&
+            typeof finding.severity === 'string' &&
+            typeof finding.detail === 'string',
+        )
+        .map((finding) => ({
+          check: String(finding.check),
+          severity: String(finding.severity),
+          detail: String(finding.detail),
+        }))
     : [];
-  return findings.length ? { topSeverity: typeof raw?.topSeverity === 'string' ? raw.topSeverity : null, findings } : undefined;
+  return findings.length
+    ? { topSeverity: typeof raw?.topSeverity === 'string' ? raw.topSeverity : null, findings }
+    : undefined;
 }
 
 export function mapPersistedRetrieval(message: PersistedMessage): ChatMessageRetrieval | undefined {
   const raw = asRecord(message.metadata?.retrieval);
   const plan = asRecord(raw?.plan);
   const coverage = asRecord(raw?.coverage);
-  if (!plan || !coverage || typeof plan.subjectScope !== 'string' || typeof coverage.complete !== 'boolean') return undefined;
+  if (
+    !plan ||
+    !coverage ||
+    typeof plan.subjectScope !== 'string' ||
+    typeof coverage.complete !== 'boolean'
+  )
+    return undefined;
   return {
     plan: {
       subjectScope: plan.subjectScope,
@@ -205,8 +296,7 @@ export function mapPersistedCharts(message: PersistedMessage): PersistedChartArt
   const raw = Array.isArray(message.artifacts) ? message.artifacts : [];
   return raw
     .filter(
-      (item: unknown): item is Record<string, unknown> =>
-        Boolean(item) && typeof item === 'object',
+      (item: unknown): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
     )
     .filter((item) => item.kind === 'analysis_chart' && typeof item.id === 'string')
     .map((item) => ({
@@ -244,16 +334,18 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
     latestMessage,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
     ...(typeof raw.workspaceId === 'string' ? { workspaceId: raw.workspaceId } : {}),
-    ...(raw.workspace && typeof raw.workspace === 'object' &&
+    ...(raw.workspace &&
+    typeof raw.workspace === 'object' &&
     typeof (raw.workspace as Record<string, unknown>).id === 'string' &&
     typeof (raw.workspace as Record<string, unknown>).name === 'string'
       ? {
           workspace: {
             id: String((raw.workspace as Record<string, unknown>).id),
             name: String((raw.workspace as Record<string, unknown>).name),
-            clientId: typeof (raw.workspace as Record<string, unknown>).clientId === 'string'
-              ? String((raw.workspace as Record<string, unknown>).clientId)
-              : null,
+            clientId:
+              typeof (raw.workspace as Record<string, unknown>).clientId === 'string'
+                ? String((raw.workspace as Record<string, unknown>).clientId)
+                : null,
           },
         }
       : {}),

@@ -6610,12 +6610,26 @@ export class EngagementService {
     );
   }
 
-  async extractAttachmentText(ctx: TenantContext, id: string) {
+  async extractAttachmentText(
+    ctx: TenantContext,
+    id: string,
+    options: { clientId?: string; section?: number; signal?: AbortSignal } = {},
+  ) {
+    options.signal?.throwIfAborted();
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
 
     const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
-        where: { id, tenantId: ctx.tenantId },
+        where: {
+          id, tenantId: ctx.tenantId,
+          ...(options.clientId ? { clientId: options.clientId } : {}),
+          supersededByAttachmentId: null,
+          OR: [
+            { viewerMode: 'all' },
+            { viewerMode: 'restricted', viewerUserIds: { has: ctx.userId } },
+            { uploadedByUserId: ctx.userId },
+          ],
+        },
       }),
     );
     if (!attachment) throw new NotFoundException('Attachment not found');
@@ -6633,14 +6647,21 @@ export class EngagementService {
     // Phase 1 §3.h1 — readiness gate BEFORE the bytes are read at all.
     const { disclosure } = this.assertAttachmentUsable(attachment);
 
-    const bytes = await this.readAttachmentBytes(attachment.s3Key);
+    options.signal?.throwIfAborted();
+    const bytes = await this.readAttachmentBytes(attachment.s3Key, options.signal);
+    options.signal?.throwIfAborted();
+    const contentHash = this.attachmentContent.sha256(bytes);
     const contentType = attachment.contentType || 'application/octet-stream';
     const fileName = attachment.fileName || 'attachment';
 
     // Audio/video transcription stays here: it needs the OpenAI key this service
     // holds, and it is not a document-extraction path.
     if (isTranscribableAttachment(fileName, contentType)) {
-      const text = await this.transcribeAttachmentWithOpenAi(bytes, fileName, contentType);
+      if (options.section !== undefined && options.section !== 1) {
+        throw new BadRequestException('Transcriptions have one text section');
+      }
+      const text = await this.transcribeAttachmentWithOpenAi(bytes, fileName, contentType, options.signal);
+      options.signal?.throwIfAborted();
       if (!text.trim()) {
         throw new BadRequestException('No usable text could be extracted from this attachment');
       }
@@ -6654,6 +6675,23 @@ export class EngagementService {
         contentType,
         source: 'transcription' as const,
         text,
+        contentHash,
+        ...(options.section !== undefined ? {
+          section: 1, sectionCount: 1, sectionKind: 'document' as const, sectionLabel: 'Transcription',
+        } : {}),
+        ...(disclosure ? { disclosure } : {}),
+      };
+    }
+
+    if (options.section !== undefined) {
+      const extracted = await this.attachmentContent.extractSection(bytes, fileName, contentType, options.section, options.signal);
+      options.signal?.throwIfAborted();
+      return {
+        attachmentId: attachment.id, fileName, contentType, contentHash,
+        ...extracted,
+        truncated: false,
+        extractionMetadata: { chars: extracted.text.length, truncated: false, sectionRead: true,
+          emptySection: !extracted.text.trim(), section: extracted.section, sectionCount: extracted.sectionCount },
         ...(disclosure ? { disclosure } : {}),
       };
     }
@@ -6675,6 +6713,7 @@ export class EngagementService {
       contentType,
       source: extraction.source,
       text: extraction.text,
+      contentHash,
       truncated: extraction.metadata.truncated,
       extractionMetadata: extraction.metadata,
       ...(disclosure ? { disclosure } : {}),
@@ -7110,21 +7149,26 @@ export class EngagementService {
   }
 
   /** PUBLIC so the send-intent service can size-check attachments pre-flight. */
-  async readAttachmentBytes(s3Key: string): Promise<Buffer> {
+  async readAttachmentBytes(s3Key: string, signal?: AbortSignal): Promise<Buffer> {
+    signal?.throwIfAborted();
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
-    const object = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }));
+    const object = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), { abortSignal: signal });
     const body = object.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
     if (!body?.transformToByteArray) {
       throw new BadRequestException('Could not read uploaded attachment from S3');
     }
-    return Buffer.from(await body.transformToByteArray());
+    const bytes = await body.transformToByteArray();
+    signal?.throwIfAborted();
+    return Buffer.from(bytes);
   }
 
   private async transcribeAttachmentWithOpenAi(
     bytes: Buffer,
     fileName: string,
     contentType: string,
+    signal?: AbortSignal,
   ): Promise<string> {
+    signal?.throwIfAborted();
     if (!this.openAiApiKey) {
       throw new ServiceUnavailableException(
         'OPENAI_API_KEY is required to transcribe audio and video debrief sources',
@@ -7147,6 +7191,7 @@ export class EngagementService {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.openAiApiKey}` },
       body: form,
+      signal,
     });
     const payload = (await response.json().catch(() => ({}))) as {
       text?: unknown;

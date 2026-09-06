@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { MeriContext } from '@capiro/meriv2-core';
+import {
+  assertToolExecutionActive,
+  type MeriContext,
+  type ToolExecutionControl,
+} from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
-import {
-  toolLabel,
-  type ChatArtifact,
-  type ChatStep,
-} from '../chat/chat-prompt.js';
+import { toolLabel, type ChatArtifact, type ChatStep } from '../chat/chat-prompt.js';
 import {
   buildMeriResearchDirectorPlan,
   elevateMeriResearchReasoningMode,
@@ -44,11 +44,7 @@ import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { MeriV3SemanticCompatibilityTools } from './meriv3-semantic-compatibility-tools.js';
 import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
-import type {
-  MeriV3ChatInput,
-  MeriV3ChatResult,
-  MeriV3ChatStreamEvent,
-} from './meriv3.types.js';
+import type { MeriV3ChatInput, MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
 interface ToolSchema {
   name: string;
@@ -68,10 +64,11 @@ interface InvokeArgs {
   prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
   noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
   scopeViolation?: string;
+  control?: ToolExecutionControl;
 }
 
 interface AssistantInternals {
-  fetchToolSchemas: () => Promise<ToolSchema[]>;
+  fetchToolSchemas: (control?: ToolExecutionControl) => Promise<ToolSchema[]>;
   invokeTool: (args: InvokeArgs) => Promise<unknown>;
 }
 
@@ -125,8 +122,7 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
   if (schema.name === 'resolve_entity') {
     return {
       ...schema,
-      description:
-        `${schema.description} For a company or organization that is not a client, call it with the best available name/domain: Meri automatically falls back to the client registry, internal research, LDA, SEC, federal awards, and public web identity signals. Do not stop merely because the organization is not a client.`,
+      description: `${schema.description} For a company or organization that is not a client, call it with the best available name/domain: Meri automatically falls back to the client registry, internal research, LDA, SEC, federal awards, and public web identity signals. Do not stop merely because the organization is not a client.`,
     };
   }
   if (schema.name === 'search_research_sources') {
@@ -139,8 +135,7 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
   if (schema.name === 'search_emails') {
     return {
       ...schema,
-      description:
-        `${schema.description} The result includes totalMatches, returned, hasMore, and searchedMailboxes coverage. Treat the search as incomplete when hasMore is true or any mailbox is unavailable.`,
+      description: `${schema.description} The result includes totalMatches, returned, hasMore, and searchedMailboxes coverage. Treat the search as incomplete when hasMore is true or any mailbox is unavailable.`,
     };
   }
   return schema;
@@ -171,15 +166,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     visualAnalysis: ApiVisualAnalysisRepo,
     private readonly retrieval: MeriRetrievalCoordinator,
   ) {
-    super(
-      registryService,
-      openai,
-      actionProposals,
-      prisma,
-      config,
-      managedMcp,
-      visualAnalysis,
-    );
+    super(registryService, openai, actionProposals, prisma, config, managedMcp, visualAnalysis);
     this.semanticGateway = new MeriSemanticToolGateway(config);
     this.semanticCompatibility = new MeriV3SemanticCompatibilityTools(config);
 
@@ -187,8 +174,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     const nativeFetch = internals.fetchToolSchemas.bind(this);
     const nativeInvoke = internals.invokeTool.bind(this);
 
-    internals.fetchToolSchemas = async (): Promise<ToolSchema[]> => {
-      const native = (await nativeFetch()).map(enhancedDescription);
+    internals.fetchToolSchemas = async (control): Promise<ToolSchema[]> => {
+      const native = (await nativeFetch(control)).map(enhancedDescription);
       const seen = new Set(native.map((schema) => schema.name));
       // Phase 19 governed turns already ran Retrieval V2 upstream. Do not expose
       // the V3 recipe tools, otherwise the model can start a second retrieval
@@ -221,7 +208,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       return result;
     };
 
-    const invokeUnderlying = (args: InvokeArgs) =>
+    const invokeUnderlying =
+      (args: InvokeArgs) =>
       async (name: string, input: Record<string, unknown>): Promise<unknown> =>
         invokeObserved({
           ...args,
@@ -234,6 +222,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
         });
 
     internals.invokeTool = async (args: InvokeArgs): Promise<unknown> => {
+      assertToolExecutionActive(args.control);
       const plan = this.retrieval.currentPlan();
       this.retrieval.recordModelTool(args.name);
 
@@ -299,12 +288,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
             detail: args.scopeViolation,
           });
           const blocked = { error: args.scopeViolation, blocked: true };
-          this.retrieval.observe(
-            args.name,
-            args.input,
-            blocked,
-            Date.now() - recipeStartedAt,
-          );
+          this.retrieval.observe(args.name, args.input, blocked, Date.now() - recipeStartedAt);
           return blocked;
         }
         try {
@@ -314,12 +298,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
             invoke: invokeUnderlying(args),
           });
           const result = compactMeriRetrievalRecipeResult(rawResult);
-          this.retrieval.observe(
-            args.name,
-            args.input,
-            result,
-            Date.now() - recipeStartedAt,
-          );
+          this.retrieval.observe(args.name, args.input, result, Date.now() - recipeStartedAt);
           args.steps.push({ tool: args.name, label, status: 'done' });
           args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
           return result;
@@ -327,12 +306,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           const detail =
             error instanceof Error ? error.message.slice(0, 240) : 'Retrieval recipe failed';
           const failed = { error: detail };
-          this.retrieval.observe(
-            args.name,
-            args.input,
-            failed,
-            Date.now() - recipeStartedAt,
-          );
+          this.retrieval.observe(args.name, args.input, failed, Date.now() - recipeStartedAt);
           args.steps.push({ tool: args.name, label, status: 'error', detail });
           args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
           return failed;
@@ -369,11 +343,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       // ctx.contextPacket to the upstream body-free packet summary. Calling the
       // parent directly preserves native reasoning/actions while skipping this
       // class's classifier, recipes, research director and coverage engine.
-      const result = await super.run(
-        { ...ctx, contextPacket: governed.contextPacket },
-        dto,
-        opts,
-      );
+      const result = await super.run({ ...ctx, contextPacket: governed.contextPacket }, dto, opts);
       return { ...result, retrieval: undefined };
     }
 
@@ -390,8 +360,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       baseRetrievalPlan,
       this.semanticGateway.canonicalResearchDirectorEnabled(ctx.tenantId),
     );
-    const comprehensiveResearch =
-      retrievalPlan.recipeTool === 'research_federal_market_strategy';
+    const comprehensiveResearch = retrievalPlan.recipeTool === 'research_federal_market_strategy';
     const researchDirectorPlan = comprehensiveResearch
       ? buildMeriResearchDirectorPlan(request, retrievalPlan.targetHint)
       : null;
@@ -441,9 +410,7 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
               {
                 ...scopedDto,
                 reasoningMode: effectiveReasoningMode,
-                skillAddendum: [dto.skillAddendum, retrievalSteering]
-                  .filter(Boolean)
-                  .join('\n\n'),
+                skillAddendum: [dto.skillAddendum, retrievalSteering].filter(Boolean).join('\n\n'),
               },
               {
                 ...opts,

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -26,9 +26,14 @@ import { detectDeliverableReportRequest } from './meri-research-promote.helpers.
 import { planTurnRerun } from './meri-turn.helpers.js';
 import { meriProviderConfigurationError } from './meri-stream-preflight.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
-import { MeriV3ChatClient, type MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
+import {
+  MeriV3ChatClient,
+  type MeriV3ChatStreamEvent,
+  type MeriV3ProviderTelemetry,
+} from './meriv3-chat.client.js';
 import { reasoningModeFromConversationMetadata } from './meriv3-conversation.helpers.js';
 import { buildMeriGroundingStatement } from './meri-grounding-statement.js';
+import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -53,6 +58,7 @@ export class MeriV3ProxyService {
     private readonly aiCredentials: AiCredentialResolverService,
     private readonly clientKb: ClientKbService,
     private readonly firmSkills: MeriFirmSkillsService,
+    @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
   ) {}
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
@@ -75,6 +81,7 @@ export class MeriV3ProxyService {
     if (!this.client.configured) {
       emit({
         type: 'error',
+        accepted: false,
         message: 'MeriV3 is enabled but its isolated runtime URL is missing.',
       });
       emit({ type: 'done' });
@@ -83,6 +90,7 @@ export class MeriV3ProxyService {
     if (!bearerToken) {
       emit({
         type: 'error',
+        accepted: false,
         message: 'MeriV3 could not authenticate this turn. No model or tool call was made.',
       });
       emit({ type: 'done' });
@@ -167,8 +175,12 @@ export class MeriV3ProxyService {
       }
     }
 
+    const reasoningMode = reasoningModeFromConversationMetadata(conversation.metadata);
     const reportRequest =
-      mode === 'new' && process.env.MERI_RESEARCH_PROMOTE !== 'false'
+      mode === 'new' &&
+      reasoningMode !== 'deep' &&
+      reasoningMode !== 'max' &&
+      process.env.MERI_RESEARCH_PROMOTE !== 'false'
         ? detectDeliverableReportRequest(content)
         : null;
     if (reportRequest && (await this.flags.isEnabled(ctx.tenantId, 'deepResearchPromote', true))) {
@@ -198,7 +210,6 @@ export class MeriV3ProxyService {
       conversationId,
       conversation.summaryUpToMessageId ?? null,
     );
-    const reasoningMode = reasoningModeFromConversationMetadata(conversation.metadata);
     let aiProvider: Awaited<ReturnType<AiCredentialResolverService['resolveProvider']>>;
     try {
       aiProvider = await this.aiCredentials.resolveProvider(ctx, 'openai');
@@ -242,9 +253,14 @@ export class MeriV3ProxyService {
     // Effort is only known once the runtime/done frame reports it. Seeding this
     // with the reasoning *mode* recorded a mode label ('deep') in the
     // reasoningEffort metadata whenever a turn failed before the first frame.
-    let runtimeEffort = 'unknown';
+    let runtimeEffort: string | null = null;
+    let runtimeTelemetry: MeriV3ProviderTelemetry | null = null;
+    let providerCalls: MeriV3ProviderTelemetry[] = [];
     let doneFrame: Extract<MeriV3ChatStreamEvent, { type: 'done' }> | null = null;
-    let groundingCaveat: { topSeverity: string | null; findings: Array<{ check: string; severity: string; detail: string }> } | null = null;
+    let groundingCaveat: {
+      topSeverity: string | null;
+      findings: Array<{ check: string; severity: string; detail: string }>;
+    } | null = null;
     const steps: Array<{
       tool: string;
       label: string;
@@ -261,6 +277,8 @@ export class MeriV3ProxyService {
         case 'runtime':
           runtimeModel = event.model;
           runtimeEffort = event.reasoningEffort;
+          runtimeTelemetry = event.telemetry ?? runtimeTelemetry;
+          providerCalls = event.providerCalls ?? providerCalls;
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'tool_call':
@@ -270,7 +288,7 @@ export class MeriV3ProxyService {
           steps.push(event);
           const summary =
             event.status === 'done'
-              ? 'Completed'
+              ? (event.detail ?? 'Completed')
               : event.status === 'pending_approval'
                 ? 'Held for your approval'
                 : (event.detail ?? (event.status === 'blocked' ? 'Blocked' : 'Errored'));
@@ -314,6 +332,8 @@ export class MeriV3ProxyService {
           doneFrame = event;
           runtimeModel = event.model;
           runtimeEffort = event.reasoningEffort;
+          runtimeTelemetry = event.telemetry ?? runtimeTelemetry;
+          providerCalls = event.providerCalls ?? providerCalls;
           return;
         case 'error':
           errorMessage = event.message;
@@ -346,7 +366,7 @@ export class MeriV3ProxyService {
           messages: replay.history,
           ...(conversation.clientId ? { clientId: conversation.clientId } : {}),
           conversationId,
-          ...(conversation.summary && conversation.summaryUpToMessageId
+          ...(conversation.summary && replay.hasSummaryBoundary
             ? { conversationSummary: conversation.summary }
             : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
@@ -377,6 +397,24 @@ export class MeriV3ProxyService {
 
     const aborted = Boolean(clientSignal?.aborted);
     const frame = doneFrame as Extract<MeriV3ChatStreamEvent, { type: 'done' }> | null;
+    // A disconnected/truncated stream is not a successful stop, even if it
+    // supplied text or completed a provider round before disconnecting.
+    const finishReason = aborted
+      ? clientSignal?.reason?.name === 'TimeoutError'
+        ? 'deadline_exceeded'
+        : 'aborted'
+      : errorMessage
+        ? 'error'
+        : (frame?.telemetry?.finishReason ??
+          (frame?.aborted ? 'aborted' : frame ? 'stop' : 'stream_interrupted'));
+    const partial =
+      aborted ||
+      Boolean(frame?.aborted) ||
+      Boolean(errorMessage) ||
+      !frame ||
+      Boolean(frame.telemetry?.partial);
+    const reportedTelemetry = runtimeTelemetry as MeriV3ProviderTelemetry | null;
+    const telemetry = reportedTelemetry ? { ...reportedTelemetry, finishReason, partial } : null;
     const assistantContent = (accumulated.trim() || frame?.reply || '').trim();
     if (!accumulated.trim() && assistantContent && !aborted && !errorMessage) {
       emit({ type: 'text', text: assistantContent });
@@ -395,6 +433,24 @@ export class MeriV3ProxyService {
       emit({ type: 'exec_trace', trace: steps });
     }
 
+    // Persist the same public tool receipt shown live. No provider reasoning
+    // content is copied into this user-visible contract.
+    const trustSteps = steps.map((step) => ({
+      tool: step.tool,
+      label: step.label,
+      status: step.status === 'done' ? 'done' : 'error',
+      detail:
+        step.status === 'pending_approval'
+          ? 'Held for your approval'
+          : (step.detail ??
+            (step.status === 'done'
+              ? 'Completed'
+              : step.status === 'blocked'
+                ? 'Blocked'
+                : 'Errored')),
+      confidence: step.status === 'done' ? 'high' : 'low',
+    }));
+
     let assistantMessageId: string | null = null;
     if (assistantContent || steps.length || errorMessage) {
       const message = await this.persistAssistantMessage(
@@ -404,11 +460,16 @@ export class MeriV3ProxyService {
         assistantContent || 'MeriV3 could not complete this turn. Please try again.',
         {
           intent: frame?.intent ?? 'general',
+          tier: reasoningMode === 'fast' ? 'fast' : 'deep',
+          trustSteps,
           model: runtimeModel,
           runtime: 'meriv3',
           servedBy: 'meriv3',
           reasoningMode,
           reasoningEffort: runtimeEffort,
+          ...(telemetry ? { telemetry } : {}),
+          ...(providerCalls.length ? { providerCalls } : {}),
+          ...(frame?.evidenceManifest ? { evidenceManifest: frame.evidenceManifest } : {}),
           toolsUsed: steps.map((step) => step.tool),
           usage: frame?.usage ?? {},
           citations: (frame?.citations ?? []) as unknown as Prisma.InputJsonValue,
@@ -419,13 +480,16 @@ export class MeriV3ProxyService {
           ...(frame?.contextPacket
             ? {
                 contextPacket: frame.contextPacket as unknown as Prisma.InputJsonValue,
-                ...(frame.contextPacket.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
+                ...(frame.contextPacket.packetId
+                  ? { contextPacketId: frame.contextPacket.packetId }
+                  : {}),
               }
             : {}),
           ...(frame?.retrieval
             ? { retrieval: frame.retrieval as unknown as Prisma.InputJsonValue }
             : {}),
-          finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
+          finishReason,
+          partial,
           trace: steps as unknown as Prisma.InputJsonValue,
           actions: steps
             .filter((step) => step.status === 'done' && isSideEffectingTool(step.tool))
@@ -460,6 +524,13 @@ export class MeriV3ProxyService {
     }
     emit({
       type: 'done',
+      model: runtimeModel,
+      reasoningMode,
+      reasoningEffort: runtimeEffort,
+      finishReason,
+      partial,
+      ...(telemetry ? { telemetry } : {}),
+      ...(frame?.evidenceManifest ? { evidenceManifest: frame.evidenceManifest } : {}),
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(frame?.contextPacket?.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
@@ -558,10 +629,19 @@ export class MeriV3ProxyService {
         where: {
           conversationId,
           role: { in: ['user', 'assistant'] },
-          ...(boundary ? { createdAt: { gt: boundary.createdAt } } : {}),
+          ...(boundary
+            ? {
+                OR: [
+                  { createdAt: { gt: boundary.createdAt } },
+                  { createdAt: boundary.createdAt, id: { gt: summaryUpToMessageId! } },
+                ],
+              }
+            : {}),
         },
-        orderBy: { createdAt: 'desc' },
-        take: boundary ? 80 : 40,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        // Maintenance starts before 40 messages; leave headroom while its
+        // provider call is in flight. The boundary remains the only compaction.
+        take: 80,
         select: { id: true, role: true, body: true, metadata: true },
       }),
     );
@@ -622,7 +702,7 @@ export class MeriV3ProxyService {
         text: parts.join('\n\n'),
       };
     });
-    return { history, currentTurnImages };
+    return { history, currentTurnImages, hasSummaryBoundary: Boolean(boundary) };
   }
 
   private async persistAssistantMessage(
@@ -632,7 +712,7 @@ export class MeriV3ProxyService {
     body: string,
     metadata: Record<string, unknown>,
   ): Promise<{ id: string }> {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMessage.create({
         data: {
           tenantId: ctx.tenantId,
@@ -646,6 +726,8 @@ export class MeriV3ProxyService {
         select: { id: true },
       }),
     );
+    this.maintenance.scheduleAfterTurnMaintenance(ctx, conversationId);
+    return message;
   }
 }
 

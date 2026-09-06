@@ -7,6 +7,13 @@ import { RERANKING_PROVIDER } from '../reranking/reranking-provider.js';
 import { CorePrismaRetrievalAdapter } from './adapters/core-prisma-retrieval.adapter.js';
 import { InstitutionalKnowledgeRetrievalAdapter } from './adapters/institutional-knowledge-retrieval.adapter.js';
 import { StrategyWorkRetrievalAdapter } from './adapters/strategy-work-retrieval.adapter.js';
+import { ActionRecommendationsRetrievalAdapter } from './adapters/action-recommendations-retrieval.adapter.js';
+import { HearingsRetrievalAdapter } from './adapters/hearings-retrieval.adapter.js';
+import { DistrictNexusRetrievalAdapter } from './adapters/district-nexus-retrieval.adapter.js';
+import { PublicDomainRetrievalAdapter } from './adapters/public-domain-retrieval.adapter.js';
+import { PublicBillReadService } from './adapters/public-bill-read.service.js';
+import { GovernmentWorkRetrievalModule } from './government-work-retrieval.module.js';
+import { validateRetrievalAdapterRegistry } from './retrieval-adapter-registry.js';
 import { SemanticDataCatalogService } from './data-catalog/semantic-data-catalog.service.js';
 import { ExactLexicalRetrievalService } from './exact-lexical-retrieval.service.js';
 import { RetrievalPlannerV2Service } from './retrieval-planner-v2.service.js';
@@ -23,7 +30,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
  * separate indexes, vector stores, graphs or feature RAGs.
  */
 @Module({
-  imports: [PrismaModule, KnowledgeModule, EmbeddingsModule],
+  imports: [PrismaModule, KnowledgeModule, EmbeddingsModule, GovernmentWorkRetrievalModule],
   providers: [
     SemanticDataCatalogService,
     RetrievalPlannerV2Service,
@@ -37,17 +44,29 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
     CorePrismaRetrievalAdapter,
     InstitutionalKnowledgeRetrievalAdapter,
     StrategyWorkRetrievalAdapter,
+    PublicBillReadService,
+    PublicDomainRetrievalAdapter,
     {
       provide: RETRIEVAL_SOURCE_ADAPTERS,
       useFactory: (
         core: CorePrismaRetrievalAdapter,
         institutional: InstitutionalKnowledgeRetrievalAdapter,
         strategyWork: StrategyWorkRetrievalAdapter,
-      ) => [core, institutional, strategyWork],
+        publicDomains: PublicDomainRetrievalAdapter,
+        actions: ActionRecommendationsRetrievalAdapter,
+        hearings: HearingsRetrievalAdapter,
+        nexus: DistrictNexusRetrievalAdapter,
+        catalog: SemanticDataCatalogService,
+      ) => validateRetrievalAdapterRegistry(catalog.list(), [core, institutional, strategyWork, publicDomains, actions, hearings, nexus]),
       inject: [
         CorePrismaRetrievalAdapter,
         InstitutionalKnowledgeRetrievalAdapter,
         StrategyWorkRetrievalAdapter,
+        PublicDomainRetrievalAdapter,
+        ActionRecommendationsRetrievalAdapter,
+        HearingsRetrievalAdapter,
+        DistrictNexusRetrievalAdapter,
+        SemanticDataCatalogService,
       ],
     },
     RetrievalV2Service,

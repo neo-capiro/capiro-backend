@@ -1,6 +1,24 @@
+jest.mock('../context/context-plane-gateway.service.js', () => ({ ContextPlaneGatewayService: class ContextPlaneGatewayService {} }));
+jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaService {} }));
+
 import { planMeriTurn } from './meri-context-plane.service.js';
 
 describe('MeriContextPlaneService Phase 19 planning', () => {
+  test('selected-client strategies are retrieved without requiring the client name in their bodies', () => {
+    const plan = planMeriTurn({ task: 'Review our strategies and unresolved work', uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+    expect(plan.subjectScope).toBe('client');
+    expect(plan.requestedDomains).toContain('strategies_work');
+    expect(plan.query).toBeUndefined();
+  });
+
+  test('client briefings and recent changes include strategy work', () => {
+    for (const task of ['Prepare a briefing', 'What changed recently?']) {
+      const plan = planMeriTurn({ task, uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+      expect(plan.requestedDomains).toContain('strategies_work');
+      expect(plan.query).toBeUndefined();
+    }
+  });
+
   test('named external entity wins over an unrelated selected client', () => {
     const plan = planMeriTurn({
       task: 'Tell me everything we know about RTX',
@@ -45,7 +63,17 @@ describe('MeriContextPlaneService Phase 19 planning', () => {
       queryClass: 'portfolio_scan',
       requireComplete: true,
     });
-    expect(plan.requestedDomains).toEqual(['clients', 'contacts', 'tasks', 'outreach']);
+    expect(plan.requestedDomains).toEqual(['clients', 'contacts', 'tasks', 'outreach', 'strategies_work']);
+  });
+
+  test('a client memory question preserves the selected client subject', () => {
+    const plan = planMeriTurn({ task: 'What do you remember about this client?', uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+    expect(plan).toMatchObject({ subjectScope: 'client', targetHint: null, queryClass: 'semantic_recall', requestedDomains: ['institutional_knowledge'] });
+  });
+
+  test('explicit external memory questions are not silently attributed to the selected client', () => {
+    const plan = planMeriTurn({ task: 'What do you remember about RTX?', uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+    expect(plan).toMatchObject({ subjectScope: 'external_entity', targetHint: 'RTX', queryClass: 'semantic_recall' });
   });
 
   test('personal recall is routed through governed institutional knowledge', () => {

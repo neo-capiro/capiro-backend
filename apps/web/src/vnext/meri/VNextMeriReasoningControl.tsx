@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useApi } from '../../lib/use-api.js';
+import {
+  MERI_REASONING_MODES,
+  useMeriReasoningMode,
+  type MeriReasoningMode,
+} from './meri-reasoning-state.js';
 import { MeriIcon } from './meri-icons.js';
 
 /**
@@ -10,65 +14,14 @@ import { MeriIcon } from './meri-icons.js';
  * different concept from the composer's Task Mode (README §Task Mode vs
  * Reasoning Depth): depth is durable and per-thread, task mode is per-message.
  */
-export const MERI_REASONING_MODES = [
-  {
-    mode: 'fast',
-    label: 'Fast',
-    description: 'Quick answers and direct lookups.',
-  },
-  {
-    mode: 'standard',
-    label: 'Standard',
-    description: 'Balanced everyday reasoning.',
-  },
-  {
-    mode: 'deep',
-    label: 'Deep',
-    description: 'More investigation for strategic work.',
-  },
-  {
-    mode: 'max',
-    label: 'Max',
-    description: 'Highest configured reasoning tier.',
-  },
-] as const;
-
-export type MeriReasoningMode = (typeof MERI_REASONING_MODES)[number]['mode'];
-
-const DRAFT_REASONING_MODE_KEY = 'meri.vnext.draftReasoningMode';
-
-export function isMeriReasoningMode(value: unknown): value is MeriReasoningMode {
-  return MERI_REASONING_MODES.some((option) => option.mode === value);
-}
-
-export function readDraftReasoningMode(): MeriReasoningMode {
-  try {
-    const raw = window.sessionStorage.getItem(DRAFT_REASONING_MODE_KEY);
-    if (isMeriReasoningMode(raw)) return raw;
-  } catch {
-    // sessionStorage can throw in private mode; fall through to default.
-  }
-  return 'standard';
-}
-
-export function writeDraftReasoningMode(mode: MeriReasoningMode): void {
-  try {
-    window.sessionStorage.setItem(DRAFT_REASONING_MODE_KEY, mode);
-  } catch {
-    // Best-effort only — the in-memory control state still works for this page.
-  }
-}
-
-export async function applyReasoningModeToConversation(
-  api: { patch: (url: string, body: unknown) => Promise<unknown> },
-  conversationId: string,
-  mode: MeriReasoningMode,
-): Promise<void> {
-  if (!conversationId || mode === 'standard') return;
-  await api.patch(`/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`, {
-    reasoningMode: mode,
-  });
-}
+export {
+  MERI_REASONING_MODES,
+  applyReasoningModeToConversation,
+  isMeriReasoningMode,
+  readDraftReasoningMode,
+  writeDraftReasoningMode,
+} from './meri-reasoning-state.js';
+export type { MeriReasoningMode } from './meri-reasoning-state.js';
 
 interface VNextMeriReasoningControlProps {
   /**
@@ -87,52 +40,18 @@ export function VNextMeriReasoningControl({
   onModeChange,
   className,
 }: VNextMeriReasoningControlProps) {
-  const api = useApi();
-  const [mode, setMode] = useState<MeriReasoningMode>(() =>
-    conversationId ? 'standard' : readDraftReasoningMode(),
-  );
+  const { mode, saving, error, chooseMode: saveMode } = useMeriReasoningMode(conversationId);
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const controlRef = useRef<HTMLDivElement>(null);
+  const onModeChangeRef = useRef(onModeChange);
+  onModeChangeRef.current = onModeChange;
 
   useEffect(() => {
-    let cancelled = false;
     setOpen(false);
-    setSaving(false);
-    setError(null);
-
-    if (!conversationId) {
-      const draft = readDraftReasoningMode();
-      setMode(draft);
-      onModeChange?.(draft);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setMode('standard');
-    void api
-      .get<{ reasoningMode?: unknown }>(
-        `/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`,
-      )
-      .then(({ data }) => {
-        if (!cancelled && isMeriReasoningMode(data.reasoningMode)) {
-          setMode(data.reasoningMode);
-          onModeChange?.(data.reasoningMode);
-        }
-      })
-      .catch(() => {
-        // Standard is the established safe default when the saved preference
-        // cannot be read. A later choice remains explicit and is persisted.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // onModeChange is intentionally excluded — parents pass inline lambdas.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, conversationId]);
+  }, [conversationId]);
+  useEffect(() => {
+    onModeChangeRef.current?.(mode);
+  }, [mode]);
 
   useEffect(() => {
     if (!open) return;
@@ -151,38 +70,11 @@ export function VNextMeriReasoningControl({
   }, [open]);
 
   const chooseMode = useCallback(
-    async (next: MeriReasoningMode) => {
-      if (saving || next === mode) {
-        setOpen(false);
-        return;
-      }
-      const previous = mode;
-      setMode(next);
-      setSaving(true);
-      setError(null);
+    (next: MeriReasoningMode) => {
       setOpen(false);
-
-      if (!conversationId) {
-        writeDraftReasoningMode(next);
-        onModeChange?.(next);
-        setSaving(false);
-        return;
-      }
-
-      try {
-        await api.patch(
-          `/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`,
-          { reasoningMode: next },
-        );
-        onModeChange?.(next);
-      } catch {
-        setMode(previous);
-        setError('The reasoning mode could not be saved.');
-      } finally {
-        setSaving(false);
-      }
+      void saveMode(next);
     },
-    [api, conversationId, mode, onModeChange, saving],
+    [saveMode],
   );
 
   const selected =

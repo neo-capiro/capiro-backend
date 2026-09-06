@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { MeriContext, ToolExecutor } from '@capiro/meriv2-core';
+import type { MeriContext, ToolExecutor, ToolExecutionControl } from '@capiro/meriv2-core';
+import { createMeriExecutionControl } from './meri-execution-control.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 
 /**
@@ -40,14 +41,15 @@ export class ApiToolExecutorRepo implements ToolExecutor {
     _ctx: MeriContext,
     toolName: string,
     input: Record<string, unknown>,
+    control?: ToolExecutionControl,
   ): Promise<unknown> {
     const creds = RequestCredentialsStore.get();
     if (!creds?.bearerToken) {
       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
     }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const execution = createMeriExecutionControl(control, this.timeoutMs);
     try {
+      execution.assertActive();
       const url = `${this.apiBaseUrl}/api/clio/tools/${encodeURIComponent(toolName)}`;
       const res = await fetch(url, {
         method: 'POST',
@@ -55,6 +57,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           authorization: `Bearer ${creds.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
           // Service identity: proves this call came from the orchestrator (after
           // its compliance gate), so apps/api can reject a rogue user hitting the
           // raw tool endpoint directly. See ToolServiceSecretGuard.
@@ -67,7 +70,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
             : {}),
         },
         body: JSON.stringify(input),
-        signal: controller.signal,
+        signal: execution.signal,
       });
       if (!res.ok) {
         const body = await res.text().catch(() => '');
@@ -78,7 +81,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       }
       return (await res.json()) as unknown;
     } finally {
-      clearTimeout(timer);
+      execution.dispose();
     }
   }
 }

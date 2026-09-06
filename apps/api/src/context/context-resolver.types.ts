@@ -73,7 +73,8 @@ export interface ContextCurrentObject {
 export interface ContextRetrievalDirective {
   queryClass: RetrievalQueryClass;
   requestedDomains: readonly RetrievalDomain[];
-  query?: string;
+  /** Null requests an unfiltered scoped read; omission keeps the legacy task-text fallback. */
+  query?: string | null;
   exactLexical?: ExactLexicalQuery;
   asOf?: Date;
   windowStart?: Date;

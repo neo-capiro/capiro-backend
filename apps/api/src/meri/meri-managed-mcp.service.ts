@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
@@ -229,6 +230,7 @@ export class MeriManagedMcpService {
     toolName: string,
     input: Record<string, unknown>,
   ): Promise<unknown> {
+    assertMeriToolRequestActive();
     const schemas = await this.schemasForMeriV3(ctx);
     if (!schemas.some((schema) => schema.name === toolName)) {
       throw new BadRequestException('Connected-app tool is unavailable or not read-only.');
@@ -236,6 +238,7 @@ export class MeriManagedMcpService {
     if (!this.mcp.isBridgedToolReadOnly(ctx, toolName)) {
       throw new BadRequestException('Connected-app writes are not enabled in MeriV3.');
     }
+    assertMeriToolRequestActive();
     return this.mcp.executeBridged(ctx, toolName, input);
   }
 

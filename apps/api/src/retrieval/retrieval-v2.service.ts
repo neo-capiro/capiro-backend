@@ -202,10 +202,12 @@ export class RetrievalV2Service {
       (worst, page) => (statusRank[page.sourceStatus] > statusRank[worst] ? page.sourceStatus : worst),
       'healthy',
     );
-    const lastSyncAt = pages.reduce<Date | undefined>((latest, page) => {
-      if (!page.lastSyncAt) return latest;
-      return !latest || page.lastSyncAt > latest ? page.lastSyncAt : latest;
-    }, undefined);
+    // A domain may page across independently synced source families. A fresh
+    // page must not conceal a stale sibling; unknown stays unknown.
+    const syncDates = pages.map((page) => page.lastSyncAt);
+    const lastSyncAt = syncDates.every((date) => date && Number.isFinite(date.getTime()))
+      ? new Date(Math.min(...syncDates.map((date) => date!.getTime())))
+      : undefined;
     const unpagedTruncation = pages.some((page) => page.truncated && !page.nextCursor);
     const sourceCoverageComplete =
       last.coverageComplete &&

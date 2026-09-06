@@ -12,6 +12,8 @@ import { MeriV3AssistantService, type MeriV3RunOptions } from './meriv3-assistan
 import { classifyMeriV3VisualIntent, meriV3VisualIntentPrompt } from './meriv3-visual-intent.js';
 import type { MeriV3ChatInput, MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
+import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
+
 interface ToolSchema {
   name: string;
   description: string;
@@ -30,10 +32,11 @@ interface InvokeArgs {
   prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
   noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
   scopeViolation?: string;
+  control?: ToolExecutionControl;
 }
 
 interface AssistantInternals {
-  fetchToolSchemas: () => Promise<ToolSchema[]>;
+  fetchToolSchemas: (control?: ToolExecutionControl) => Promise<ToolSchema[]>;
   invokeTool: (args: InvokeArgs) => Promise<unknown>;
   augmentToolInput: (
     dto: MeriV3ChatInput,
@@ -154,11 +157,11 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     const nativeInvoke = internals.invokeTool.bind(this);
     const nativeAugment = internals.augmentToolInput.bind(this);
 
-    internals.fetchToolSchemas = async (): Promise<ToolSchema[]> => {
+    internals.fetchToolSchemas = async (control): Promise<ToolSchema[]> => {
       const [nativeRaw, managed, analysisAvailable] = await Promise.all([
-        nativeFetch(),
-        managedMcp.schemas(),
-        visualAnalysis.available(),
+        nativeFetch(control),
+        managedMcp.schemas(control),
+        visualAnalysis.available(control),
       ]);
       const native = nativeRaw
         .filter((schema) => schema.name !== 'run_analysis' || analysisAvailable)
@@ -195,6 +198,7 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     };
 
     internals.invokeTool = async (args: InvokeArgs): Promise<unknown> => {
+      assertToolExecutionActive(args.control);
       if (args.name === 'run_analysis') {
         const label = analysisWorkLabel(args.input);
         // The browser sees the work, not the implementation primitive.
@@ -222,10 +226,13 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
           return { error: detail };
         }
         try {
-          const result = await visualAnalysis.execute({
-            ...args.input,
-            conversationId: args.conversationId,
-          });
+          const result = await visualAnalysis.execute(
+            {
+              ...args.input,
+              conversationId: args.conversationId,
+            },
+            args.control,
+          );
           for (const artifact of analysisArtifacts(result)) {
             args.artifacts.push(artifact);
             args.emit({ type: 'artifact', artifact });
@@ -234,6 +241,7 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
           args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
           return result;
         } catch (error) {
+          assertToolExecutionActive(args.control);
           const detail = error instanceof Error ? error.message.slice(0, 180) : 'Analysis failed';
           args.steps.push({ tool: args.name, label, status: 'error', detail });
           args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
@@ -245,11 +253,12 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       const label = managedLabel(args.name) || toolLabel(args.name);
       args.emit({ type: 'tool_call', tool: label, label });
       try {
-        const result = await managedMcp.executeRead(args.name, args.input);
+        const result = await managedMcp.executeRead(args.name, args.input, args.control);
         args.steps.push({ tool: args.name, label, status: 'done' });
         args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
         return result;
       } catch (error) {
+        assertToolExecutionActive(args.control);
         const detail =
           error instanceof Error ? error.message.slice(0, 180) : 'Connected app failed';
         args.steps.push({ tool: args.name, label, status: 'error', detail });

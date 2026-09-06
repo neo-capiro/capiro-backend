@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import type { MeriContext, ToolDefinition } from '../../registry/types';
+import type { ToolExecutionControl } from '../../registry/tool-execution-control';
 
 /**
  * Rich client-context payload. The AUTHORITATIVE shape is owned by the api's
- * `engagement.clientContext` (recent meetings, threads, contacts, tasks, the
- * client profile, derived stakeholders). The tool passes it through unchanged
- * so MeriV2 returns exactly what current Meri returns for the same caller
- * (SC0.7); hence the open-ended index signature.
+ * canonical get_client_context handler: engagement plus structured profile
+ * sections and explicit coverage/paging metadata. The bridge preserves the
+ * established top-level engagement fields for existing native consumers.
  */
 export interface ClientContextResult {
   client: { id: string; name: string } & Record<string, unknown>;
@@ -15,20 +15,30 @@ export interface ClientContextResult {
 
 /**
  * Data port for `get_client_context`. The orchestrator binds a concrete
- * implementation; in Phase 0 it delegates to the api's existing authenticated
- * `/api/engagement/context/:clientId` endpoint — one query, no SQL duplicated,
- * no scoping drift (the bridge that makes SC0.7 true by construction).
+ * implementation delegates to the API's authenticated canonical tool executor,
+ * reusing its domain services and tenant/client visibility checks.
  */
 export interface ClientContextRepo {
-  loadClientContext(ctx: MeriContext, clientId: string): Promise<ClientContextResult>;
+  loadClientContext(
+    ctx: MeriContext,
+    clientId: string,
+    options?: Omit<GetClientContextInput, 'clientId'>,
+    control?: ToolExecutionControl,
+  ): Promise<ClientContextResult>;
 }
 
 export interface GetClientContextInput {
   clientId: string;
+  section?: 'capabilities' | 'people' | 'facilities' | 'submissionHistory';
+  cursor?: string;
+  limit?: number;
 }
 
 export const getClientContextInputSchema = z.object({
   clientId: z.string().uuid('clientId must be a client UUID'),
+  section: z.enum(['capabilities', 'people', 'facilities', 'submissionHistory']).optional(),
+  cursor: z.string().min(1).max(1024).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
 });
 
 /**
@@ -42,10 +52,12 @@ export function createGetClientContextTool(
   return {
     name: 'get_client_context',
     description:
-      'Load authorized Capiro client context: recent meetings, threads, contacts, and tasks, ' +
-      'plus the client profile (capabilities, key people, facilities, submission history).',
+      'Load authorized client context and profile capabilities, people, facilities and submission history. ' +
+      'Inspect profileSections for exact counts, availability and nextCursor; request a section with its cursor to read more. ' +
+      'A missing or unavailable section is not evidence that the client lacks it.',
     readOnly: true,
     inputSchema: getClientContextInputSchema,
-    handler: (input, ctx) => repo.loadClientContext(ctx, input.clientId),
+    handler: ({ clientId, ...options }, ctx, control) =>
+      repo.loadClientContext(ctx, clientId, options, control),
   };
 }

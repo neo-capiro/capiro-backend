@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { currentReadError } from './government-work-retrieval.helpers.js';
 import type { RetrievalSourceAdapter } from '../retrieval-source.adapter.js';
 import type {
   RetrievalRecord,
@@ -50,11 +51,12 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
     request: RetrievalRequest,
     cursor?: string,
   ): Promise<RetrievalSourceResult> {
-    if (dataset.domain !== DOMAIN || !SUPPORTED_QUERY_CLASSES.has(request.queryClass)) {
+    const unsupportedRead = currentReadError(request);
+    if (dataset.domain !== DOMAIN || !SUPPORTED_QUERY_CLASSES.has(request.queryClass) || unsupportedRead) {
       return result({
         sourceStatus: 'unsupported',
         requestedEntityCount: request.caller.clientIds?.length ?? 0,
-        stopReason: 'query_class_not_supported',
+        stopReason: unsupportedRead ?? 'query_class_not_supported',
       });
     }
 
@@ -89,22 +91,32 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
           where: {
             tenantId: request.caller.tenantId,
             id: { in: requestedClientIds },
-            status: { not: 'archived' },
             OR: [
               { memoryWall: false },
               { memoryAccessGrants: { some: { userId: request.caller.userId } } },
             ],
           },
-          select: { id: true },
+          select: { id: true, status: true },
           orderBy: { id: 'asc' },
         });
-        const clientIds = visibleClients.map((client) => client.id);
-        if (clientIds.length !== requestedClientIds.length) {
+        if (visibleClients.length !== requestedClientIds.length) {
           return result({
             sourceStatus: 'unauthorized',
             requestedEntityCount: requestedClientIds.length,
-            searchedEntityCount: clientIds.length,
+            searchedEntityCount: visibleClients.length,
             stopReason: 'client_wall_or_status_denied',
+          });
+        }
+        // Archived subjects are authorized but outside this current-work
+        // projection. Preserve useful active-portfolio results and report the
+        // excluded subjects, while actual wall/missing-client failures remain closed.
+        const clientIds = visibleClients.filter((client) => client.status !== 'archived').map((client) => client.id);
+        const archivedSubjectsExcluded = clientIds.length !== requestedClientIds.length;
+        if (clientIds.length === 0) {
+          return result({
+            sourceStatus: 'unsupported',
+            requestedEntityCount: requestedClientIds.length,
+            stopReason: 'archived_client_subjects_excluded',
           });
         }
 
@@ -114,6 +126,12 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
           : Prisma.empty;
         const queryClause = queryPattern
           ? Prisma.sql`AND combined.payload::text ILIKE ${queryPattern} ESCAPE '\\'`
+          : Prisma.empty;
+        const changedSinceClause = request.windowStart
+          ? Prisma.sql`AND combined.updated_at >= ${request.windowStart}`
+          : Prisma.empty;
+        const changedThroughClause = request.windowEnd
+          ? Prisma.sql`AND combined.updated_at < ${request.windowEnd}`
           : Prisma.empty;
 
         const rows = await tx.$queryRaw<StrategyWorkRow[]>(Prisma.sql`
@@ -264,6 +282,8 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
           WHERE TRUE
             ${cursorClause}
             ${queryClause}
+            ${changedSinceClause}
+            ${changedThroughClause}
           ORDER BY combined.record_key ASC
           LIMIT ${pageSize + 1}
         `);
@@ -301,15 +321,15 @@ export class StrategyWorkRetrievalAdapter implements RetrievalSourceAdapter {
             ? { nextCursor: page[page.length - 1]!.recordKey }
             : {}),
           truncated: hasMore,
-          sourceStatus: 'healthy',
+          sourceStatus: archivedSubjectsExcluded ? 'degraded' : 'healthy',
           ...(lastSyncAt ? { lastSyncAt } : {}),
           recordsEvaluated: page.length + (hasMore ? 1 : 0),
           requestedEntityCount: requestedClientIds.length,
           searchedEntityCount: clientIds.length,
           pagesRead: 1,
           paginationComplete: !hasMore,
-          coverageComplete: !hasMore,
-          stopReason: hasMore ? 'page_limit_reached' : 'complete',
+          coverageComplete: !hasMore && !archivedSubjectsExcluded,
+          stopReason: archivedSubjectsExcluded ? 'archived_client_subjects_excluded' : hasMore ? 'page_limit_reached' : 'complete',
         };
       },
     );

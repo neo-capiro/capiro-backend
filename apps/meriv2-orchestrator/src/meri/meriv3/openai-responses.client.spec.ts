@@ -5,6 +5,7 @@ import {
   extractResponsesFunctionCalls,
   extractResponsesOutputText,
   parseOpenAiResponsesUsage,
+  readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 
@@ -42,6 +43,7 @@ describe('OpenAiResponsesClient', () => {
     if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = originalKey;
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   test('parses text, function calls and usage without exposing reasoning text', () => {
@@ -106,12 +108,15 @@ describe('OpenAiResponsesClient', () => {
     });
     expect(result.outputText).toBe('Grounded answer.');
     expect(result.usedTenantKey).toBe(false);
+    expect(result.telemetry.effectiveReasoningEffort).toBe('high');
   });
 
   test('retries once without reasoning when the provider rejects reasoning.effort, then succeeds', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const rejection = JSON.stringify({
-      error: { message: "Unsupported parameter: 'reasoning.effort' is not supported with this model." },
+      error: {
+        message: "Unsupported parameter: 'reasoning.effort' is not supported with this model.",
+      },
     });
     const fetchMock = jest
       .fn<Promise<Response>, Parameters<typeof fetch>>()
@@ -137,16 +142,22 @@ describe('OpenAiResponsesClient', () => {
     expect(firstSent).toHaveProperty('reasoning');
     expect(secondSent).not.toHaveProperty('reasoning');
     expect(result.outputText).toBe('Grounded answer.');
+    expect(result.telemetry).toMatchObject({
+      requestedReasoningEffort: 'medium',
+      effectiveReasoningEffort: null,
+      effectiveModel: 'gpt-5.6-terra',
+      reasoningFallbackReasons: ['reasoning_parameter_unsupported'],
+    });
   });
 
   test('does not retry indefinitely if the provider keeps rejecting reasoning.effort', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const rejection = JSON.stringify({
-      error: { message: "Unsupported parameter: 'reasoning.effort' is not supported with this model." },
+      error: {
+        message: "Unsupported parameter: 'reasoning.effort' is not supported with this model.",
+      },
     });
-    const fetchMock = jest.fn(
-      async () => new Response(rejection, { status: 400 }),
-    );
+    const fetchMock = jest.fn(async () => new Response(rejection, { status: 400 }));
     global.fetch = fetchMock as typeof fetch;
     const client = new OpenAiResponsesClient();
     await expect(
@@ -197,7 +208,7 @@ describe('OpenAiResponsesClient', () => {
     const client = new OpenAiResponsesClient();
     const profile = resolveMeriV3ReasoningProfile('standard', { MERIV3_MODEL: 'capiro-model' });
 
-    await RequestCredentialsStore.run(
+    const defaultResult = await RequestCredentialsStore.run(
       {
         bearerToken: 'token',
         aiProvider: {
@@ -216,7 +227,7 @@ describe('OpenAiResponsesClient', () => {
           tools: [],
         }),
     );
-    await RequestCredentialsStore.run(
+    const overrideResult = await RequestCredentialsStore.run(
       {
         bearerToken: 'token',
         aiProvider: {
@@ -236,5 +247,102 @@ describe('OpenAiResponsesClient', () => {
         }),
     );
     expect(seenModels).toEqual(['capiro-model', 'tenant-selected-model']);
+    expect(defaultResult.telemetry.requestedModel).toBe('capiro-model');
+    expect(overrideResult.telemetry).toMatchObject({
+      requestedModel: 'tenant-selected-model',
+      effectiveModel: 'gpt-5.6',
+    });
+  });
+
+  test.each([
+    ['incomplete', 'max_output_tokens', true],
+    ['failed', null, true],
+    ['completed', null, false],
+  ])('reports provider finish status %s truthfully', async (status, reason, partial) => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ...responseBody,
+            status,
+            incomplete_details: reason ? { reason } : null,
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    const result = await new OpenAiResponsesClient().complete({
+      profile: resolveMeriV3ReasoningProfile('deep', {}),
+      instructions: 'Answer.',
+      input: [],
+      tools: [],
+    });
+    expect(result.telemetry).toMatchObject({ finishReason: reason ?? status, partial });
+  });
+
+  test('does not reset the deadline for a provider reasoning correction', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    let clock = 1_000;
+    jest.spyOn(Date, 'now').mockImplementation(() => clock);
+    const rejection = JSON.stringify({
+      error: { message: "Unsupported value 'max' for reasoning effort." },
+    });
+    global.fetch = jest.fn(
+      async () =>
+        ({
+          ok: false,
+          status: 400,
+          text: async () => rejection,
+        }) as Response,
+    ) as typeof fetch;
+    // The first attempt finishes just before the deadline; processing consumes
+    // the remaining budget. A correction must not start a fresh timeout window.
+    jest.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+      clock = 1_101;
+      return { error: { message: "Unsupported value 'max' for reasoning effort." } };
+    });
+    let failure: unknown;
+    try {
+      await new OpenAiResponsesClient().complete({
+        profile: resolveMeriV3ReasoningProfile('max', {}),
+        instructions: 'Answer.',
+        input: [],
+        tools: [],
+        deadlineAt: 1_100,
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(readOpenAiResponsesErrorTelemetry(failure)).toMatchObject({
+      reasoningFallbackReasons: ['max_unsupported'],
+      finishReason: 'deadline_exceeded',
+      partial: true,
+    });
+  });
+
+  test('cancels retry backoff immediately and does not start another request', async () => {
+    jest.useFakeTimers();
+    process.env.OPENAI_API_KEY = 'test-key';
+    const controller = new AbortController();
+    global.fetch = jest.fn(
+      async () => new Response('Temporary failure', { status: 503 }),
+    ) as typeof fetch;
+    const result = new OpenAiResponsesClient().complete({
+      profile: resolveMeriV3ReasoningProfile('deep', {}),
+      instructions: 'Answer.',
+      input: [],
+      tools: [],
+      signal: controller.signal,
+    });
+    const rejection = expect(result).rejects.toMatchObject({
+      name: 'AbortError',
+      telemetry: { finishReason: 'cancelled', partial: true },
+    });
+    await jest.advanceTimersByTimeAsync(1);
+    controller.abort();
+    await rejection;
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
   });
 });

@@ -6,11 +6,17 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IsIn } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
+import type { Request } from 'express';
+import {
+  withMeriToolRequestControl,
+  assertMeriToolRequestActive,
+} from './meri-tool-request-control.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -114,9 +120,13 @@ export class MeriV3SettingsController {
     @CurrentTenant() ctx: TenantContext,
     @Param('toolName') toolName: string,
     @Body() body: Record<string, unknown>,
+    @Req() req: Request,
   ) {
-    await this.assertEnabled(ctx);
-    return this.managedMcp.executeRead(ctx, toolName, body ?? {});
+    return withMeriToolRequestControl(req, async () => {
+      await this.assertEnabled(ctx);
+      assertMeriToolRequestActive();
+      return this.managedMcp.executeRead(ctx, toolName, body ?? {});
+    });
   }
 
   /**
@@ -130,9 +140,13 @@ export class MeriV3SettingsController {
   async executeVisualAnalysis(
     @CurrentTenant() ctx: TenantContext,
     @Body() body: Record<string, unknown>,
+    @Req() req: Request,
   ) {
-    await this.assertEnabled(ctx);
-    return this.visualAnalysis.run(ctx, body ?? {});
+    return withMeriToolRequestControl(req, async () => {
+      await this.assertEnabled(ctx);
+      assertMeriToolRequestActive();
+      return this.visualAnalysis.run(ctx, body ?? {});
+    });
   }
 
   /** Assurance-held visuals are deleted immediately; the TTL sweep is crash recovery only. */

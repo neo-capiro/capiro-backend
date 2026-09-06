@@ -47,6 +47,7 @@ import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
+import { withMeriToolRequestControl } from './meri-tool-request-control.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -97,6 +98,20 @@ class CreateResearchSessionDto {
   @IsString()
   @Length(1, 4_000)
   topic!: string;
+
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsUUID(undefined, { each: true })
+  attachmentIds?: string[];
+
+  @IsOptional()
+  @IsIn(['fast', 'standard', 'deep', 'max'])
+  reasoningMode?: 'fast' | 'standard' | 'deep' | 'max';
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
@@ -265,10 +280,14 @@ export class MeriController {
     // Cancel the model stream when the client disconnects or hits Stop, so we
     // stop burning tokens for an answer no one is reading (P0-4).
     const abort = new AbortController();
-    req.on('close', () => abort.abort());
-    res.on('error', () => {
-      /* swallow socket errors on client disconnect */
-    });
+    const onAbort = () => abort.abort(new DOMException('Client disconnected', 'AbortError'));
+    const onClose = () => {
+      if (!res.writableEnded) onAbort();
+    };
+    req.once('aborted', onAbort);
+    res.once('close', onClose);
+    res.once('error', onAbort);
+    if (req.aborted || res.destroyed) onAbort();
     // The raw bearer rides along for the MeriV2 full-chat proxy branch only
     // (delegated tool execution + action-proposal creation re-authenticate
     // with it); the legacy in-process path ignores it.
@@ -291,29 +310,35 @@ export class MeriController {
     // (provider credentials, conversation-store mismatch) must remain a
     // classified JSON response — not Nest's generic HTTP 500 after the
     // response has already been promoted to text/event-stream.
-    await runMeriStreamWithSetupGuard({
-      res,
-      stream: (sse) =>
-        this.service.streamMessage(
-          ctx,
-          id,
-          body.body,
-          sse,
-          abort.signal,
-          body.mode ?? 'new',
-          body.attachmentIds ?? [],
-          bearerToken,
-          impersonateTenantId,
-        ),
-      onError: (classified, err) => {
-        this.logger.error(
-          `Meri stream setup failed [${classified.code}] conversation=${id}: ${
-            err instanceof Error ? err.message : classified.message
-          }`,
-          err instanceof Error ? err.stack : undefined,
-        );
-      },
-    });
+    try {
+      await runMeriStreamWithSetupGuard({
+        res,
+        stream: (sse) =>
+          this.service.streamMessage(
+            ctx,
+            id,
+            body.body,
+            sse,
+            abort.signal,
+            body.mode ?? 'new',
+            body.attachmentIds ?? [],
+            bearerToken,
+            impersonateTenantId,
+          ),
+        onError: (classified, err) => {
+          this.logger.error(
+            `Meri stream setup failed [${classified.code}] conversation=${id}: ${
+              err instanceof Error ? err.message : classified.message
+            }`,
+            err instanceof Error ? err.stack : undefined,
+          );
+        },
+      });
+    } finally {
+      req.removeListener('aborted', onAbort);
+      res.removeListener('close', onClose);
+      res.removeListener('error', onAbort);
+    }
   }
 
   @Get('tools')
@@ -344,8 +369,11 @@ export class MeriController {
     @CurrentTenant() ctx: TenantContext,
     @Param('name') name: string,
     @Body() body: Record<string, unknown>,
+    @Req() req: Request,
   ) {
-    return this.tools.executeFromAuthenticatedUser(ctx, name, body);
+    return withMeriToolRequestControl(req, () =>
+      this.tools.executeFromAuthenticatedUser(ctx, name, body),
+    );
   }
 
   // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──
@@ -809,14 +837,14 @@ export class MeriController {
   async streamResearchPlan(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Req() _req: Request,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    await this.research.streamPlan(ctx, id, res);
+    await this.research.streamPlan(ctx, id, res, researchRuntimeAuth(req, res));
     res.end();
   }
 
@@ -824,16 +852,30 @@ export class MeriController {
   async streamResearchRun(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Req() _req: Request,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    await this.research.streamResearch(ctx, id, res);
+    await this.research.streamResearch(ctx, id, res, researchRuntimeAuth(req, res));
     res.end();
   }
+}
+
+function researchRuntimeAuth(req: Request, res: Response) {
+  const abort = new AbortController();
+  req.once('aborted', () => abort.abort());
+  res.once('close', () => { if (!res.writableEnded) abort.abort(); });
+  res.once('error', () => abort.abort());
+  const bearerToken = (req.headers.authorization ?? '').match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  const impersonate = req.headers['x-capiro-impersonate-tenant'];
+  return {
+    bearerToken,
+    signal: abort.signal,
+    impersonateTenantId: typeof impersonate === 'string' ? impersonate.trim() || undefined : undefined,
+  };
 }
 
 /** Filesystem-safe slug for a download filename. */

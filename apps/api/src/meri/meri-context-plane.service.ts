@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type {
   ContextRequest,
   MeriContextPacketItem,
   MeriContextPacketSummary,
+  MeriContextEvidenceRecord,
   MeriGovernedTurnContext,
 } from '@capiro/meriv2-core';
 import { ContextPlaneGatewayService } from '../context/context-plane-gateway.service.js';
@@ -164,10 +166,17 @@ export class MeriContextPlaneService {
             retrieval: {
               queryClass: plan.queryClass,
               requestedDomains: plan.requestedDomains,
-              ...(plan.query ? { query: plan.query } : {}),
+              // Null explicitly disables the resolver's task-text fallback for
+              // scoped enumeration (e.g. strategies need not repeat this request).
+              query: plan.query ?? null,
               ...(plan.windowStart ? { windowStart: plan.windowStart } : {}),
               ...(plan.windowEnd ? { windowEnd: plan.windowEnd } : {}),
-              ...(plan.observedThrough ? { observedThrough: plan.observedThrough } : {}),
+              // Observation-time snapshots belong to the knowledge plane. A
+              // recent-change window over current CRM/work rows is not a
+              // historical snapshot and must not request one from those adapters.
+              ...(plan.observedThrough && plan.requestedDomains.includes('institutional_knowledge')
+                ? { observedThrough: plan.observedThrough }
+                : {}),
               pageSize: 50,
               requireComplete: plan.requireComplete,
             },
@@ -209,18 +218,21 @@ export class MeriContextPlaneService {
     }
 
     const projection = buildModelContextProjection(result.context.retrieval?.records ?? []);
+    const steeringEvidence = buildSteeringEvidenceProjection(result.packet);
     const packetSummary = toMeriContextPacketSummary(result.packet, result.kind);
     const retrieval = toMeriRetrievalProjection({
       plan,
       context: result.context,
       packet: result.packet,
-      projectionTruncated: projection.truncated,
+      projectionTruncated:
+        projection.truncated || steeringEvidence.some((record) => record.projection.truncated),
     });
     const prompt = buildMeriContextPrompt({
       packet: result.packet,
       packetSummary,
       context: result.context,
       evidenceText: projection.text,
+      steeringEvidence,
       retrieval,
       releaseSwitchRollback: result.kind === 'release_switch_rollback',
     });
@@ -229,6 +241,18 @@ export class MeriContextPlaneService {
       version: 1,
       operationId: input.operationId,
       prompt,
+      evidence: {
+        version: 1,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        packetId: packetSummary.packetId ?? null,
+        sourceRecordCount: (result.context.retrieval?.records.length ?? 0) + steeringEvidence.length,
+        projectedRecordCount: projection.records.length + steeringEvidence.length,
+        truncated:
+          retrieval.coverage.truncated ||
+          steeringEvidence.some((record) => record.projection.truncated),
+        records: [...steeringEvidence, ...projection.records],
+      },
       contextPacket: packetSummary,
       retrieval,
     };
@@ -267,7 +291,9 @@ export class MeriContextPlaneService {
     );
   }
 
-  private async securityEnvelope(ctx: TenantContext): Promise<SecurityEnvelope> {
+  /** Server-only access resolver, shared by automatic context and on-demand
+   * retrieval tools. Model/browser input must never supply this envelope. */
+  async securityEnvelope(ctx: TenantContext): Promise<SecurityEnvelope> {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const [clients, mailboxes] = await Promise.all([
         tx.client.findMany({
@@ -318,20 +344,8 @@ export function planMeriTurn(input: {
       subjectScope: 'portfolio',
       targetHint: null,
       queryClass: 'portfolio_scan',
-      requestedDomains: ['clients', 'contacts', 'tasks', 'outreach'],
+      requestedDomains: ['clients', 'contacts', 'tasks', 'outreach', 'strategies_work'],
       query: undefined,
-      requireComplete: true,
-      timeWindow: null,
-    };
-  }
-
-  if (PERSONAL_MEMORY_RE.test(lower)) {
-    return {
-      subjectScope: 'general',
-      targetHint: null,
-      queryClass: 'semantic_recall',
-      requestedDomains: ['institutional_knowledge'],
-      query: task,
       requireComplete: true,
       timeWindow: null,
     };
@@ -350,6 +364,18 @@ export function planMeriTurn(input: {
       ? 'client'
       : 'general';
   const targetHint = subjectScope === 'external_entity' ? explicitTarget : null;
+
+  if (PERSONAL_MEMORY_RE.test(lower)) {
+    return {
+      subjectScope,
+      targetHint,
+      queryClass: 'semantic_recall',
+      requestedDomains: ['institutional_knowledge'],
+      query: task,
+      requireComplete: true,
+      timeWindow: null,
+    };
+  }
 
   if (RELATIONSHIP_RE.test(lower)) {
     const window = inferWindow(task, now, 'available history');
@@ -370,7 +396,7 @@ export function planMeriTurn(input: {
       subjectScope,
       targetHint,
       queryClass: 'change_detection',
-      requestedDomains: ['clients', 'mail', 'meetings', 'tasks', 'outreach'],
+      requestedDomains: ['clients', 'mail', 'meetings', 'tasks', 'outreach', 'strategies_work'],
       query: subjectScope === 'external_entity' ? targetHint ?? task : undefined,
       requireComplete: true,
       ...window,
@@ -386,7 +412,7 @@ export function planMeriTurn(input: {
       requestedDomains: explicitDomains,
       query:
         subjectScope === 'client'
-          ? input.uiClientName ?? task
+          ? undefined
           : targetHint ?? task,
       requireComplete: false,
       timeWindow: null,
@@ -398,8 +424,10 @@ export function planMeriTurn(input: {
       subjectScope,
       targetHint: null,
       queryClass: 'lookup',
-      requestedDomains: ['clients', 'contacts', 'institutional_knowledge'],
-      query: input.uiClientName ?? undefined,
+      requestedDomains: ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'],
+      // Client IDs already constrain these reads. Requiring the client's name
+      // inside every strategy/task body incorrectly hides otherwise relevant work.
+      query: undefined,
       requireComplete: false,
       timeWindow: null,
     };
@@ -439,6 +467,7 @@ function taskDomains(lower: string): RetrievalDomain[] {
   if (/\b(outreach|campaign|recipient|recipients)\b/.test(lower)) domains.push('outreach');
   if (/\b(contact|contacts|person|people|stakeholder|stakeholders)\b/.test(lower)) domains.push('contacts');
   if (/\b(client|clients|account|accounts|portfolio)\b/.test(lower)) domains.push('clients');
+  if (/\b(strateg(?:y|ies|ic)|workstreams?|work products?|client work)\b/.test(lower)) domains.push('strategies_work');
   if (/\b(remember|memory|knowledge|history)\b/.test(lower)) domains.push('institutional_knowledge');
   return uniqueDomains(domains);
 }
@@ -495,28 +524,99 @@ function noRetrievalPlan(subjectScope: ContextSubjectScope): ResolvedTurnPlan {
   };
 }
 
-function buildModelContextProjection(records: RetrievalRecord[]): {
+/** Only bodies actually admitted/rendered by the canonical packet compiler. */
+export function buildSteeringEvidenceProjection(packet: unknown): MeriContextEvidenceRecord[] {
+  const value = packetRecord(packet);
+  const items = new Map((Array.isArray(value.items) ? value.items : []).map((raw) => {
+    const item = packetRecord(raw);
+    return [item.id, item] as const;
+  }));
+  return (Array.isArray(value.rendered) ? value.rendered : []).flatMap((raw) => {
+    const rendered = packetRecord(raw);
+    if (typeof rendered.id !== 'string' || typeof rendered.body !== 'string' || !rendered.body.trim()) return [];
+    const item = items.get(rendered.id);
+    if (!item) return [];
+    const body = rendered.body.trim();
+    const omittedSections = Array.isArray(item.omittedSections) ? item.omittedSections.filter(isString) : [];
+    return [{
+      domain: 'institutional_knowledge',
+      recordId: `steering:${rendered.id}`,
+      payload: {
+        title: typeof rendered.title === 'string' ? rendered.title : String(rendered.type ?? 'Governed context'),
+        textContent: body,
+        layer: rendered.layer ?? null,
+        authority: item.authority ?? 'unknown',
+      },
+      provenance: {
+        memoryItemId: rendered.id,
+        sourceRef: item.sourceRef ?? null,
+        sourceUrl: typeof item.sourceRef === 'string' && /^https?:\/\//i.test(item.sourceRef) ? item.sourceRef : null,
+        sourceContentHash: item.sourceContentHash ?? null,
+        renderedContentHash: rendered.contentHash ?? null,
+        status: item.status ?? null,
+        humanApproved: item.humanApproved ?? null,
+        omittedSections,
+      },
+      projection: {
+        truncated: omittedSections.length > 0,
+        originalCharacters: typeof item.chars === 'number' ? Math.max(item.chars, body.length) : body.length,
+        returnedCharacters: body.length,
+      },
+    }];
+  });
+}
+
+export function buildModelContextProjection(records: RetrievalRecord[]): {
   text: string;
   truncated: boolean;
+  records: MeriContextEvidenceRecord[];
 } {
-  if (records.length === 0) return { text: '(no retrieval records returned)', truncated: false };
+  if (records.length === 0) return { text: '(no retrieval records returned)', truncated: false, records: [] };
   const blocks: string[] = [];
+  const projected: MeriContextEvidenceRecord[] = [];
   let used = 0;
   let truncated = false;
   for (const record of records) {
-    const payload = boundedJson(record.payload, MODEL_RECORD_CHAR_BUDGET);
-    const provenance = record.provenance
-      ? `\nprovenance=${boundedJson(record.provenance, 800)}`
-      : '';
-    const block = `[${record.domain}:${record.recordId}]\n${payload}${provenance}`;
+    const rawPayload = JSON.stringify(record.payload);
+    const rawProvenance = record.provenance ? JSON.stringify(record.provenance) : '';
+    const recordTruncated = rawPayload.length > MODEL_RECORD_CHAR_BUDGET || rawProvenance.length > 800;
+    // The ledger receives precisely this bounded projection, never unseen full
+    // text that could make an unsupported claim look grounded.
+    const payload = rawPayload.length > MODEL_RECORD_CHAR_BUDGET
+      ? {
+          title: typeof record.payload.title === 'string' ? record.payload.title.slice(0, 200) : `${record.domain}: ${record.recordId}`,
+          excerpt: boundedJson(record.payload, MODEL_RECORD_CHAR_BUDGET),
+          contentTruncated: true,
+        }
+      : record.payload;
+    const provenance = rawProvenance.length > 800
+      ? { excerpt: boundedJson(record.provenance, 800), contentTruncated: true }
+      : record.provenance;
+    const source: MeriContextEvidenceRecord = {
+      domain: record.domain,
+      recordId: /^[^\]\s]{1,80}$/.test(record.recordId)
+        ? record.recordId
+        : `evidence:${createHash('sha256').update(`${record.domain}:${record.recordId}`).digest('hex').slice(0, 40)}`,
+      sourceRecordId: record.recordId,
+      payload,
+      ...(provenance ? { provenance } : {}),
+      projection: {
+        truncated: recordTruncated,
+        originalCharacters: rawPayload.length + rawProvenance.length,
+        returnedCharacters: JSON.stringify(payload).length + (provenance ? JSON.stringify(provenance).length : 0),
+      },
+    };
+    const block = `[S:context_plane:${source.recordId}]\n${JSON.stringify(source)}`;
     if (used + block.length > MODEL_CONTEXT_CHAR_BUDGET) {
       truncated = true;
       break;
     }
     blocks.push(block);
+    projected.push(source);
+    truncated ||= recordTruncated;
     used += block.length;
   }
-  return { text: blocks.join('\n\n'), truncated };
+  return { text: blocks.join('\n\n'), truncated, records: projected };
 }
 
 function toMeriContextPacketSummary(
@@ -801,21 +901,13 @@ function buildMeriContextPrompt(input: {
     };
   };
   evidenceText: string;
+  steeringEvidence: MeriContextEvidenceRecord[];
   retrieval: MeriGovernedTurnContext['retrieval'];
   releaseSwitchRollback: boolean;
 }): string {
-  const packet = packetRecord(input.packet);
-  const rendered = Array.isArray(packet.rendered)
-    ? packet.rendered
-        .map((raw) => {
-          const item = packetRecord(raw);
-          return typeof item.body === 'string' && item.body.trim()
-            ? `[${String(item.layer ?? 'steering')}:${String(item.type ?? 'context')}]\n${item.body.trim()}`
-            : '';
-        })
-        .filter(Boolean)
-        .join('\n\n')
-    : '';
+  const rendered = input.steeringEvidence
+    .map((source) => `[S:context_plane:${source.recordId}]\n${JSON.stringify(source)}`)
+    .join('\n\n');
   const c = input.retrieval.coverage;
   const subject = input.context.resolution.subjectEntity;
   return [

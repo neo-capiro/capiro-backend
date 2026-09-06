@@ -13,7 +13,12 @@ import { MeriAnalysisChartCard } from './MeriAnalysisChartCard.js';
 import { MeriMessageFeedback } from './MeriMessageFeedback.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { visibleMarkdown } from './meri-presentation.js';
-import type { MeriEvidenceClaim, MeriEvidenceSource, MeriEvidenceStat } from './MeriEvidenceTray.js';
+import { meriRuntimeStatusText } from '../../components/chat/meri-runtime-status.js';
+import type {
+  MeriEvidenceClaim,
+  MeriEvidenceSource,
+  MeriEvidenceStat,
+} from './MeriEvidenceTray.js';
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
 import { MeriWorkPerformed } from './MeriWorkPerformed.js';
 import { MeriResearchProgress } from './MeriResearchProgress.js';
@@ -86,7 +91,8 @@ export function VNextMeriMessage({
               <span
                 style={{
                   flex: 1,
-                  fontFamily: "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
+                  fontFamily:
+                    "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
                   fontSize: 9,
                   fontWeight: 500,
                   letterSpacing: '.08em',
@@ -98,7 +104,16 @@ export function VNextMeriMessage({
               <button
                 type="button"
                 onClick={() => controller.setEditingMessageId(null)}
-                style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid #D0D5DD', fontSize: 13, fontWeight: 600, color: '#344054', background: 'transparent' }}
+                style={{
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 8,
+                  border: '1px solid #D0D5DD',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#344054',
+                  background: 'transparent',
+                }}
               >
                 Cancel
               </button>
@@ -111,7 +126,8 @@ export function VNextMeriMessage({
                   padding: '0 13px',
                   borderRadius: 8,
                   border: 0,
-                  background: 'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))',
+                  background:
+                    'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.14)',
                   fontSize: 13,
                   fontWeight: 600,
@@ -133,7 +149,10 @@ export function VNextMeriMessage({
           {message.content}
         </div>
         <AttachmentList attachments={message.attachments} />
-        <div className="vnext-meri__user-meta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          className="vnext-meri__user-meta"
+          style={{ display: 'flex', alignItems: 'center', gap: 10 }}
+        >
           {canEdit ? (
             <button
               type="button"
@@ -149,7 +168,8 @@ export function VNextMeriMessage({
                 border: 0,
                 background: 'transparent',
                 padding: 0,
-                fontFamily: "var(--meri-font-sans, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
+                fontFamily:
+                  "var(--meri-font-sans, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)",
                 fontSize: 11.5,
                 fontWeight: 500,
                 color: '#98A2B3',
@@ -201,20 +221,29 @@ function VNextMeriAssistantMessage({
   const [deletedResearch, setDeletedResearch] = useState(false);
   const [activeCitation, setActiveCitation] = useState<MeriCitation | null>(null);
   const citations = message.citations ?? [];
-  const researchReport = controller.researchReports[message.id];
+  const researchReport = controller.researchReports[message.id] ?? message.researchSessionId;
   const researchOffer = controller.researchOffers[message.id];
   const messageIsStreaming = isStreaming && isLastAssistant;
+  // Only the active turn owns the controller's transient work state. Completed
+  // turns keep their own saved work across later turns and history reloads.
+  const workPlanSteps = messageIsStreaming ? controller.planSteps : (message.planSteps ?? []);
+  const workTrustSteps = messageIsStreaming ? controller.trustSteps : (message.trustSteps ?? []);
+  const workIntent = messageIsStreaming
+    ? controller.orchestratorIntent
+    : (message.orchestratorIntent ?? null);
+  const workTier = messageIsStreaming
+    ? controller.orchestratorTier
+    : (message.orchestratorTier ?? null);
   // Deep research and the ordinary tool loop both stream into trustSteps, but
   // only research has a real elapsed/budget time — so it gets the dedicated
   // MeriResearchProgress hero instead of MeriWorkPerformed's step-count one.
   const showResearchProgress = isLastAssistant && controller.isResearchStreaming;
   const showExecutionEvidence =
-    isLastAssistant &&
     !showResearchProgress &&
     (messageIsStreaming ||
-      controller.planSteps.length > 0 ||
-      controller.trustSteps.length > 0 ||
-      Boolean(controller.orchestratorIntent));
+      workPlanSteps.length > 0 ||
+      workTrustSteps.length > 0 ||
+      Boolean(workIntent));
 
   const citationMap = useMemo(() => {
     const map = new Map<number, MeriCitation>();
@@ -227,6 +256,7 @@ function VNextMeriAssistantMessage({
   );
 
   const markdownSource = visibleMarkdown(message.content, messageIsStreaming);
+  const runtimeStatusText = meriRuntimeStatusText(message.runtimeStatus);
 
   const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
     icon: 'File05',
@@ -243,7 +273,10 @@ function VNextMeriAssistantMessage({
   const evidenceStats: MeriEvidenceStat[] = message.verification?.totalCount
     ? [
         { label: `CLAIMS CHECKED · ${message.verification.totalCount}`, tone: 'n' },
-        { label: `UNSUPPORTED · ${message.verification.unsupportedCount}`, tone: message.verification.unsupportedCount ? 'w' : 'g' },
+        {
+          label: `UNSUPPORTED · ${message.verification.unsupportedCount}`,
+          tone: message.verification.unsupportedCount ? 'w' : 'g',
+        },
       ]
     : [];
 
@@ -259,12 +292,13 @@ function VNextMeriAssistantMessage({
    * not an error.
    */
   const thinkingData: MeriThinkingTabProps = {
-    plan: (isLastAssistant ? controller.planSteps : (message.planSteps ?? [])).join(' '),
-    steps: isLastAssistant ? controller.trustSteps : (message.trustSteps ?? []),
-    intent: isLastAssistant ? controller.orchestratorIntent : (message.orchestratorIntent ?? null),
-    tier: isLastAssistant ? controller.orchestratorTier : (message.orchestratorTier ?? null),
+    plan: workPlanSteps.join(' '),
+    steps: workTrustSteps,
+    intent: workIntent,
+    tier: workTier,
   };
-  const hasThinkingData = thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent);
+  const hasThinkingData =
+    thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent);
   const evidenceTabData: MeriEvidenceTabProps = {
     sources: evidenceSources,
     verifyStats: evidenceStats,
@@ -275,7 +309,12 @@ function VNextMeriAssistantMessage({
   };
   const openThisTurnInspector = (tab: MeriTurnInspectorTab) =>
     onOpenTurnInspector(
-      { turnId: message.id, thinking: thinkingData, evidence: evidenceTabData, approvals: controller.pendingApprovals },
+      {
+        turnId: message.id,
+        thinking: thinkingData,
+        evidence: evidenceTabData,
+        approvals: controller.pendingApprovals,
+      },
       tab,
     );
 
@@ -300,6 +339,8 @@ function VNextMeriAssistantMessage({
           {messageIsStreaming ? <ComposingCursor /> : null}
         </div>
 
+        {runtimeStatusText && !messageIsStreaming ? <p role="status">{runtimeStatusText}</p> : null}
+
         {showResearchProgress ? (
           <MeriResearchProgress
             isStreaming={controller.isResearchStreaming}
@@ -322,24 +363,44 @@ function VNextMeriAssistantMessage({
           turn inspector's Thinking tab — never raw model chain-of-thought,
           which this app deliberately never retains in browser state.
         */}
-        {showExecutionEvidence && controller.trustSteps.length > 0 ? (
+        {showExecutionEvidence && workTrustSteps.length > 0 ? (
           <>
             <div className="vnext-meri__trace" aria-label="Work performed">
-              {controller.trustSteps.map((step, index) => {
-                const running = messageIsStreaming && index === controller.trustSteps.length - 1;
+              {workTrustSteps.map((step, index) => {
+                const running = messageIsStreaming && step.status === 'running';
+                const statusLabel = running
+                  ? 'Running'
+                  : step.status === 'done'
+                    ? 'Completed'
+                    : step.status === 'error'
+                      ? 'Not completed'
+                      : 'Incomplete';
                 return (
                   <div key={`${step.tool}-${index}`} className="vnext-meri__trace-line">
                     <MeriIcon
-                      name={running ? 'Loading01' : 'CheckCircle'}
+                      name={
+                        running
+                          ? 'Loading01'
+                          : step.status === 'done'
+                            ? 'CheckCircle'
+                            : step.status === 'error'
+                              ? 'AlertCircle'
+                              : 'Clock'
+                      }
                       size={12}
                       color={running ? '#98A2B3' : '#D0D5DD'}
                     />
-                    <span className="vnext-meri__trace-text">{step.label}</span>
+                    <span
+                      className="vnext-meri__trace-text"
+                      title={step.detail ? `${statusLabel}: ${step.detail}` : statusLabel}
+                    >
+                      {step.label}
+                    </span>
                   </div>
                 );
               })}
             </div>
-            {!messageIsStreaming && controller.planSteps.length > 0 ? (
+            {!messageIsStreaming && workPlanSteps.length > 0 ? (
               <>
                 <button
                   type="button"
@@ -352,21 +413,21 @@ function VNextMeriAssistantMessage({
                 </button>
                 {reasoningExpanded ? (
                   <div className="vnext-meri__reasoning-disclosure-body">
-                    {controller.planSteps.join(' ')}
+                    {workPlanSteps.join(' ')}
                   </div>
                 ) : null}
               </>
             ) : null}
           </>
-        ) : showExecutionEvidence && controller.planSteps.length > 0 ? (
+        ) : showExecutionEvidence && workPlanSteps.length > 0 ? (
           /* A turn that announced a plan but has no tool steps yet still owes
              the user its run state — the hero renders the plan honestly here,
              and the trace lines take over as soon as the first step lands. */
           <MeriWorkPerformed
-            intent={controller.orchestratorIntent}
-            tier={controller.orchestratorTier}
-            steps={controller.trustSteps}
-            planSteps={controller.planSteps}
+            intent={workIntent}
+            tier={workTier}
+            steps={workTrustSteps}
+            planSteps={workPlanSteps}
             isStreaming={messageIsStreaming}
           />
         ) : null}
@@ -420,7 +481,12 @@ function VNextMeriAssistantMessage({
               type="button"
               className="vnext-meri__inline-action-btn"
               onClick={() => {
-                if (!window.confirm('Remove this research session? Its report will no longer be available for export.')) return;
+                if (
+                  !window.confirm(
+                    'Remove this research session? Its report will no longer be available for export.',
+                  )
+                )
+                  return;
                 void deleteMeriResearch(api, researchReport)
                   .then(() => setDeletedResearch(true))
                   .catch(() => undefined);
@@ -445,9 +511,7 @@ function VNextMeriAssistantMessage({
                   className="vnext-meri__followup-chip"
                   disabled={isStreaming}
                   onClick={() =>
-                    window.dispatchEvent(
-                      new CustomEvent('meri-fill-draft', { detail: suggestion }),
-                    )
+                    window.dispatchEvent(new CustomEvent('meri-fill-draft', { detail: suggestion }))
                   }
                 >
                   <MeriIcon name="CornerDownRight" size={12} color="#98A2B3" />
@@ -489,7 +553,9 @@ function VNextMeriAssistantMessage({
                 type="button"
                 className="vnext-meri__source-more"
                 onClick={() => {
-                  const index = citations.findIndex((c) => c.id === activeCitation.id && c.n === activeCitation.n);
+                  const index = citations.findIndex(
+                    (c) => c.id === activeCitation.id && c.n === activeCitation.n,
+                  );
                   onOpenSourceDetail(citations, index >= 0 ? index : 0);
                 }}
               >
@@ -684,7 +750,9 @@ function buildMarkdownComponents(
     ),
     th: ({ children }) => <th>{withCitations(children)}</th>,
     td: ({ children }) => <td>{withCitations(children)}</td>,
-    strong: ({ children }) => <strong className="vnext-meri-md__strong">{withCitations(children)}</strong>,
+    strong: ({ children }) => (
+      <strong className="vnext-meri-md__strong">{withCitations(children)}</strong>
+    ),
     em: ({ children }) => <em className="vnext-meri-md__em">{withCitations(children)}</em>,
   };
 }

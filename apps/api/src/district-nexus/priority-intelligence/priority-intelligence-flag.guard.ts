@@ -59,6 +59,12 @@ export class DistrictNexusPriorityIntelligenceFlagGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request & { tenantContext?: TenantContext }>();
     const tenantId = req.tenantContext?.tenantId;
+
+    return this.assertEnabledForTenant(tenantId);
+  }
+
+  /** Reuse the identical entitlement policy for authorized non-HTTP readers. */
+  async assertEnabledForTenant(tenantId: string | undefined): Promise<boolean> {
     if (!tenantId) throw new NotFoundException();
 
     const isConfiguredInternalTenant = Boolean(

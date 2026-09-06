@@ -45,6 +45,22 @@ function serviceWith(market = marketMock(), geography = geographyMock()) {
 }
 
 describe('FederalMarketMeriToolsService', () => {
+  it.each([
+    ['search_federal_contract_awards', 'listContracts'],
+    ['search_federal_subawards', 'listSubawards'],
+    ['search_contract_vehicles', 'listVehicles'],
+    ['search_procurement_forecasts', 'listForecasts'],
+    ['get_district_federal_market', 'geography'],
+  ] as const)('advertised %s schema dispatches to its existing domain handler', async (name, method) => {
+    const { service, market, geography } = serviceWith();
+    expect(service.anthropicSchemas().some((schema) => schema.name === name)).toBe(true);
+    expect(service.has(name)).toBe(true);
+    const result = await service.execute(ctx, name, { state: 'VA', district: '10', query: 'autonomy' });
+    const handler = method === 'geography' ? geography.geography : market[method];
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(result.tool).toBe(name);
+  });
+
   it('registers five bounded read-only local tools', () => {
     const { service } = serviceWith();
     const schemas = service.anthropicSchemas();

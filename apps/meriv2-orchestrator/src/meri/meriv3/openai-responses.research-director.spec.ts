@@ -53,11 +53,12 @@ describe('OpenAI Responses Research Director runtime', () => {
 
   test('forces the exact high-level research recipe on the first tools-bearing request', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify(toolResponse()), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(JSON.stringify(toolResponse()), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as typeof fetch;
     const client = new OpenAiResponsesClient();
@@ -103,11 +104,12 @@ describe('OpenAI Responses Research Director runtime', () => {
       ),
       messageResponse('Final comprehensive strategy.', 'resp-final'),
     ];
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify(responses.shift()), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(JSON.stringify(responses.shift()), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as typeof fetch;
     const client = new OpenAiResponsesClient();
@@ -163,6 +165,90 @@ describe('OpenAI Responses Research Director runtime', () => {
       outputTokens: 15,
       cacheReadTokens: 3,
       cacheCreationTokens: 0,
+    });
+    expect(result.providerCalls).toHaveLength(3);
+    expect(result.providerCalls?.every((call) => call.finishReason === 'completed')).toBe(true);
+    expect(result.telemetry).toMatchObject({ finishReason: 'completed', partial: false });
+  });
+
+  test('does not release the draft as a completed answer when Stop interrupts finalization', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    const controller = new AbortController();
+    const fetchMock = jest
+      .fn<Promise<Response>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(messageResponse('Draft.', 'draft')), { status: 200 }),
+      )
+      .mockImplementationOnce(async () => {
+        controller.abort();
+        throw new DOMException('Aborted', 'AbortError');
+      });
+    global.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      MeriV3ResearchRuntimeStore.run(
+        {
+          forcedFirstTool: 'research_federal_market_strategy',
+          criticInstructions: 'Review.',
+          synthesisInstructions: 'Synthesize.',
+        },
+        () =>
+          new OpenAiResponsesClient().complete({
+            profile: resolveMeriV3ReasoningProfile('deep', {}),
+            instructions: 'Research.',
+            input: [],
+            tools: [],
+            timeoutMs: 120_000,
+            signal: controller.signal,
+          }),
+      ),
+    ).rejects.toMatchObject({
+      name: 'AbortError',
+      telemetry: { finishReason: 'cancelled', partial: true },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('marks a released draft partial and keeps critic usage when final synthesis fails', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    global.fetch = jest
+      .fn<Promise<Response>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(messageResponse('Draft.', 'draft')), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(messageResponse('Review.', 'critic')), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { message: 'Invalid synthesis.' } }), { status: 400 }),
+      ) as typeof fetch;
+
+    const result = await MeriV3ResearchRuntimeStore.run(
+      {
+        forcedFirstTool: 'research_federal_market_strategy',
+        criticInstructions: 'Review.',
+        synthesisInstructions: 'Synthesize.',
+      },
+      () =>
+        new OpenAiResponsesClient().complete({
+          profile: resolveMeriV3ReasoningProfile('deep', {}),
+          instructions: 'Research.',
+          input: [],
+          tools: [],
+          timeoutMs: 120_000,
+        }),
+    );
+    expect(result.outputText).toBe('Draft.');
+    expect(result.telemetry).toMatchObject({
+      finishReason: 'research_finalization_failed',
+      partial: true,
+    });
+    expect(result.usage).toMatchObject({ inputTokens: 20, outputTokens: 10 });
+    expect(result.providerCalls).toHaveLength(3);
+    expect(result.providerCalls?.[2]).toMatchObject({
+      finishReason: 'provider_http_400',
+      effectiveReasoningEffort: null,
+      partial: true,
     });
   });
 });

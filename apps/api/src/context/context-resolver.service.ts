@@ -403,7 +403,7 @@ export class ContextResolverService {
       queryClass: directive.queryClass,
       requestedDomains,
       caller,
-      query: directive.query?.trim() || request.task.trim(),
+      query: directive.query === null ? undefined : directive.query?.trim() || request.task.trim(),
       ...(directive.exactLexical
         ? { exactLexical: directive.exactLexical }
         : {}),

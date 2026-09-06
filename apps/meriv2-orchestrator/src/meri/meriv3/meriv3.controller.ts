@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   NotFoundException,
   Post,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { verifyMeriGovernedContext } from '@capiro/meriv2-core';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
@@ -25,6 +27,7 @@ import { MeriV3AccessService } from './meriv3-access.service.js';
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { listMeriV3ReasoningProfiles } from './meriv3-reasoning.js';
 import type { MeriV3ChatInput } from './meriv3.types.js';
+import { meriEvidenceManifest } from './meriv3-context-evidence.js';
 
 type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -64,6 +67,7 @@ export class MeriV3Controller {
     const execute = async () => {
       const governed = requireGovernedContext(dto);
       const meriContext = await this.resolver.resolveIdentity(tenant);
+      authenticateGovernedContext(governed, dto, meriContext);
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
@@ -75,6 +79,8 @@ export class MeriV3Controller {
         ...result,
         contextPacket: governed.contextPacket,
         retrieval: governed.retrieval,
+        evidenceManifest:
+          result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
       };
     };
     return this.withRequestCredentials(req, execute);
@@ -88,15 +94,23 @@ export class MeriV3Controller {
     @Res() res: Response,
   ): Promise<void> {
     await this.assertAllowed(tenant.tenantId);
+    // Reject forged context before opening SSE or starting its keep-alive.
+    const governed = requireGovernedContext(dto);
+    const meriContext = await this.resolver.resolveIdentity(tenant);
+    authenticateGovernedContext(governed, dto, meriContext);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     const abort = new AbortController();
-    req.on('close', () => abort.abort());
-    res.on('error', () => {
-      /* client disconnects are expected */
-    });
+    const onAbort = () => abort.abort(new DOMException('Client disconnected', 'AbortError'));
+    const onClose = () => {
+      if (!res.writableEnded) onAbort();
+    };
+    req.once('aborted', onAbort);
+    res.once('close', onClose);
+    res.once('error', onAbort);
+    if (req.aborted || res.destroyed) onAbort();
     const frame = (event: unknown) => {
       if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
@@ -113,8 +127,6 @@ export class MeriV3Controller {
     }, 20_000);
 
     const execute = async () => {
-      const governed = requireGovernedContext(dto);
-      const meriContext = await this.resolver.resolveIdentity(tenant);
       meriContext.contextPacket = governed.contextPacket;
       const effectiveDto = {
         ...dto,
@@ -139,13 +151,19 @@ export class MeriV3Controller {
           model: result.model,
           reasoningMode: result.reasoningMode,
           reasoningEffort: result.reasoningEffort,
+          ...(result.telemetry ? { telemetry: result.telemetry } : {}),
+          ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
           steps: result.steps ?? [],
           ...(result.intent ? { intent: result.intent } : {}),
           ...(result.usage ? { usage: result.usage } : {}),
           ...(result.citations?.length ? { citations: result.citations } : {}),
           ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
+          ...(dto.toolPolicy ? { held: result.held ?? false } : {}),
+          ...(dto.toolPolicy === 'read-only' ? { ledgerEntries: result.ledgerEntries ?? [] } : {}),
           retrieval: governed.retrieval,
           contextPacket: governed.contextPacket,
+          evidenceManifest:
+            result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
           aborted: abort.signal.aborted,
         });
       } catch (error) {
@@ -158,6 +176,9 @@ export class MeriV3Controller {
         });
       } finally {
         clearInterval(keepAlive);
+        req.removeListener('aborted', onAbort);
+        res.removeListener('close', onClose);
+        res.removeListener('error', onAbort);
         if (!res.writableEnded) res.end();
       }
     };
@@ -199,6 +220,22 @@ function requireGovernedContext(dto: GovernedMeriV3ChatInput): MeriGovernedTurnC
     });
   }
   return dto.governedContext;
+}
+
+function authenticateGovernedContext(
+  governed: MeriGovernedTurnContext,
+  dto: MeriV3ChatInput,
+  identity: { tenantId: string; userId: string },
+): void {
+  try {
+    verifyMeriGovernedContext(governed, dto, identity, process.env.INTERNAL_SERVICE_SECRET);
+  } catch {
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Authenticated Context Plane input required',
+      code: 'meri_governed_context_authentication_failed',
+    });
+  }
 }
 
 function extractBearerToken(req: Request): string | null {

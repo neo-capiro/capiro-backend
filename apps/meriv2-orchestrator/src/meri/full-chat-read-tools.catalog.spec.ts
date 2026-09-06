@@ -13,9 +13,13 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
 const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
-  it('matches the expected 28-tool set, all read-only', () => {
+  it('matches the intended full-chat read tool set', () => {
     const expected = [
       'run_analysis',
+      'search_state_bills',
+      'get_state_bill_status',
+      'search_capiro_data',
+      'get_research_evidence',
       'search_memory',
       // Global-data analytics (structured aggregate queries over the
       // ingested reference datasets — LDA, grants, SAM/USAspending, SEC,
@@ -57,9 +61,14 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'get_opportunity_government_landscape',
       'compare_funding_opportunities',
       'build_opportunity_action_plan',
+      'search_federal_contract_awards',
+      'search_federal_subawards',
+      'search_contract_vehicles',
+      'search_procurement_forecasts',
+      'get_district_federal_market',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(37);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(46);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -79,7 +88,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(81); // +2 global-data analytics tools
+    expect(combined).toHaveLength(88);
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

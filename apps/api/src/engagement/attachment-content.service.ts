@@ -32,6 +32,7 @@ import {
 } from './generation/evidence-packet.types.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
+import { extractAttachmentSection } from './attachment-section-extract.js';
 import {
   isUsableScanStatus,
   scanStatusDisclosure,
@@ -379,6 +380,22 @@ export class AttachmentContentService {
       status: meta.truncated ? 'truncated' : 'extracted',
       metadata: meta,
     };
+  }
+
+  /** Selected-section reader used for follow-up evidence. Keeps the same
+   * format predicates and extraction timeout as the canonical summary reader. */
+  async extractSection(bytes: Buffer, fileName: string, contentType: string, section = 1, signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    const source = isPlainTextAttachment(fileName, contentType) ? 'text'
+      : isDocAttachment(fileName, contentType) || isDocxAttachment(fileName, contentType) ? 'docx'
+      : isPdfAttachment(fileName, contentType) ? 'pdf'
+      : isSpreadsheetAttachment(fileName, contentType) ? 'spreadsheet'
+      : isPowerPointAttachment(fileName, contentType) ? 'pptx' : null;
+    if (!source) throw new BadRequestException('Section reads support .txt, .csv, .pdf, .doc, .docx, .xlsx, and .pptx.');
+    return this.withTimeout(
+      extractAttachmentSection(bytes, source, section, isDocAttachment(fileName, contentType), signal),
+      { timedOut: false },
+    );
   }
 
   /** Race a promise against the extraction timeout, flagging the metadata. */

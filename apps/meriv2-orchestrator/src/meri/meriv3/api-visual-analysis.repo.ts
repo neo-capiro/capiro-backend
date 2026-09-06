@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import type { ToolExecutionControl } from '@capiro/meriv2-core';
+import { createMeriExecutionControl } from '../meri-execution-control.js';
 
 @Injectable()
 export class ApiVisualAnalysisRepo {
@@ -22,12 +24,12 @@ export class ApiVisualAnalysisRepo {
    * currently usable. Any auth/network/config failure removes run_analysis from
    * the model surface for that turn instead of advertising a doomed tool.
    */
-  async available(): Promise<boolean> {
+  async available(control?: ToolExecutionControl): Promise<boolean> {
     const credentials = RequestCredentialsStore.get();
     if (!credentials?.bearerToken) return false;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Math.min(this.timeoutMs, 10_000));
+    const execution = createMeriExecutionControl(control, Math.min(this.timeoutMs, 10_000));
     try {
+      execution.assertActive();
       const response = await fetch(`${this.apiBaseUrl}/api/clio/v3/capabilities`, {
         headers: {
           authorization: `Bearer ${credentials.bearerToken}`,
@@ -36,7 +38,7 @@ export class ApiVisualAnalysisRepo {
             ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
             : {}),
         },
-        signal: controller.signal,
+        signal: execution.signal,
       });
       if (!response.ok) return false;
       const body = (await response.json()) as { visualAnalysis?: { enabled?: unknown } };
@@ -49,12 +51,12 @@ export class ApiVisualAnalysisRepo {
       );
       return false;
     } finally {
-      clearTimeout(timer);
+      execution.dispose();
     }
   }
 
-  async execute(input: Record<string, unknown>): Promise<unknown> {
-    return this.postInternal('/api/clio/v3/visual-analysis', input, 'Visual analysis');
+  async execute(input: Record<string, unknown>, control?: ToolExecutionControl): Promise<unknown> {
+    return this.postInternal('/api/clio/v3/visual-analysis', input, 'Visual analysis', control);
   }
 
   async discard(artifactIds: string[]): Promise<{ deleted: number }> {
@@ -69,6 +71,7 @@ export class ApiVisualAnalysisRepo {
     path: string,
     input: Record<string, unknown>,
     operation: string,
+    control?: ToolExecutionControl,
   ): Promise<unknown> {
     const credentials = RequestCredentialsStore.get();
     if (!credentials?.bearerToken) {
@@ -77,22 +80,23 @@ export class ApiVisualAnalysisRepo {
     if (!this.serviceSecret) {
       throw new Error('MeriV3 internal service identity is not configured');
     }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const execution = createMeriExecutionControl(control, this.timeoutMs);
     try {
+      execution.assertActive();
       const response = await fetch(`${this.apiBaseUrl}${path}`, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${credentials.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          ...(execution.deadlineAt ? { 'x-meri-deadline-at': String(execution.deadlineAt) } : {}),
           'x-internal-service-secret': this.serviceSecret,
           ...(credentials.impersonateTenantId
             ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
             : {}),
         },
         body: JSON.stringify(input),
-        signal: controller.signal,
+        signal: execution.signal,
       });
       if (!response.ok) {
         const body = await response.text().catch(() => '');
@@ -102,7 +106,7 @@ export class ApiVisualAnalysisRepo {
       }
       return (await response.json()) as unknown;
     } finally {
-      clearTimeout(timer);
+      execution.dispose();
     }
   }
 }

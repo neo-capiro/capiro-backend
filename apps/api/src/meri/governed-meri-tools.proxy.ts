@@ -1,3 +1,4 @@
+import { MERI_FEDERAL_MARKET_TOOL_DEFINITIONS } from '@capiro/shared';
 import { BadRequestException, HttpException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -146,6 +147,12 @@ export function createGovernedMeriToolsService(
 
   return new Proxy(raw, {
     get(target, property) {
+      if (property === 'manifest') {
+        return () => {
+          const manifest = target.manifest();
+          return { ...manifest, tools: [...manifest.tools, ...MERI_FEDERAL_MARKET_TOOL_DEFINITIONS] };
+        };
+      }
       if (property === 'anthropicToolSchemas') {
         return () => [
           ...target.anthropicToolSchemas(),

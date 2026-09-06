@@ -29,6 +29,15 @@ function response(overrides: Record<string, unknown> = {}) {
     model: 'gpt-5.1',
     usedTenantKey: false,
     incompleteReason: null,
+    telemetry: {
+      requestedModel: 'gpt-5.1',
+      effectiveModel: 'gpt-5.1',
+      requestedReasoningEffort: 'medium',
+      effectiveReasoningEffort: 'medium',
+      reasoningFallbackReasons: [],
+      finishReason: 'completed',
+      partial: false,
+    },
     ...overrides,
   };
 }
@@ -73,6 +82,212 @@ describe('MeriV3AssistantService', () => {
     jest.restoreAllMocks();
   });
 
+  test('uses only the model-visible tool projection for citation and grounding evidence', async () => {
+    const call = {
+      type: 'function_call',
+      call_id: 'memory-call',
+      name: 'search_memory',
+      arguments: '{"query":"client","k":8}',
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'The first preference applies [1].' }));
+    const records = Array.from({ length: 8 }, (_, index) => ({
+      id: `memory-${index}`,
+      title: `Preference ${index}`,
+      text: 'Approved fact '.repeat(300) + `unseen-tail-${index}`,
+    }));
+    const invoke = jest.fn().mockResolvedValue({ data: records, total: 8, nextCursor: 'offset:8' });
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Search approved memory',
+                input_schema: {
+                  type: 'object',
+                  properties: { query: { type: 'string' }, k: { type: 'number' } },
+                },
+              },
+            ],
+          }),
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Retrieve the client preferences.' }],
+        toolPolicy: 'read-only',
+      }),
+    );
+    expect(complete).toHaveBeenCalledTimes(2);
+    const modelInput = JSON.stringify(complete.mock.calls[1]![0].input);
+    expect(modelInput).toContain('model_tool_evidence_budget');
+    expect(modelInput).not.toContain('unseen-tail-7');
+    expect(JSON.stringify(result.ledgerEntries)).not.toContain('unseen-tail-7');
+    expect(result.citations?.some((citation) => citation.id === 'memory-7')).not.toBe(true);
+    expect(result.evidenceManifest).toMatchObject({
+      truncated: true,
+      sources: [expect.objectContaining({ tool: 'search_memory', truncated: true })],
+    });
+    expect((result.ledgerEntries?.[0]?.result as Record<string, unknown>).nextCursor).toBeNull();
+  });
+
+  test('stops the remaining tool batch and synthesis after cancellation', async () => {
+    const abort = new AbortController();
+    const calls = ['search_memory', 'send_email'].map((name, i) => ({
+      type: 'function_call',
+      call_id: `call-${i}`,
+      name,
+      arguments: '{}',
+    }));
+    const complete = jest
+      .fn()
+      .mockResolvedValue(response({ output: calls, outputText: '', functionCalls: calls }));
+    const invoke = jest.fn(async (_name, _input, _ctx, control) => {
+      expect(control.signal).toBe(complete.mock.calls[0][0].signal);
+      expect(control.deadlineAt).toBe(complete.mock.calls[0][0].deadlineAt);
+      abort.abort();
+      return { records: [] };
+    });
+    const proposals = jest.fn();
+    const assistant = build(
+      registry(
+        [
+          { name: 'search_memory', readOnly: true },
+          { name: 'send_email', readOnly: false },
+        ],
+        invoke,
+      ),
+      complete,
+      proposals,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: calls.map((call) => ({
+              name: call.name,
+              description: call.name,
+              input_schema: { type: 'object', properties: {} },
+            })),
+          }),
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(
+        context,
+        { messages: [{ role: 'user', text: 'Review memory and prepare outreach.' }] },
+        { signal: abort.signal },
+      ),
+    );
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(proposals).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.reply).toBe('');
+    expect(result.telemetry).toMatchObject({ finishReason: 'cancelled', partial: true });
+  });
+
+  test('expired deadline schedules neither a provider request nor a tool', async () => {
+    const complete = jest.fn();
+    const invoke = jest.fn();
+    const result = await build(registry([], invoke), complete).run(
+      context,
+      { messages: [{ role: 'user', text: 'Read the brief.' }], toolPolicy: 'none' },
+      { deadlineAt: Date.now() - 1 },
+    );
+    expect(complete).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.telemetry).toMatchObject({
+      finishReason: 'deadline_exceeded',
+      partial: true,
+      effectiveModel: null,
+    });
+  });
+
+  test('records effective effort and retains fallback history across rounds', async () => {
+    const call = { type: 'function_call', call_id: 'one', name: 'search_memory', arguments: '{}' };
+    const first = {
+      requestedModel: 'requested',
+      effectiveModel: 'actual',
+      requestedReasoningEffort: 'max',
+      effectiveReasoningEffort: 'high',
+      reasoningFallbackReasons: ['max_rejected', 'xhigh_rejected'],
+      finishReason: 'completed',
+      partial: false,
+    };
+    const second = {
+      ...first,
+      effectiveReasoningEffort: null,
+      reasoningFallbackReasons: ['reasoning_unsupported'],
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        response({
+          model: 'actual',
+          telemetry: first,
+          output: [call],
+          functionCalls: [call],
+          outputText: '',
+        }),
+      )
+      .mockResolvedValueOnce(response({ model: 'actual', telemetry: second }));
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: call.name,
+                description: call.name,
+                input_schema: { type: 'object', properties: {} },
+              },
+            ],
+          }),
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      build(
+        registry(
+          [{ name: 'search_memory', readOnly: true }],
+          jest.fn(async () => ({ records: [] })),
+        ),
+        complete,
+      ).run(context, { messages: [{ role: 'user', text: 'Read memory.' }], reasoningMode: 'max' }),
+    );
+    expect(result.model).toBe('actual');
+    expect(result.reasoningMode).toBe('max');
+    expect(result.reasoningEffort).toBeNull();
+    expect(result.providerCalls).toEqual([first, second]);
+    expect(result.telemetry).toMatchObject({
+      effectiveReasoningEffort: null,
+      reasoningFallbackReasons: ['max_rejected', 'xhigh_rejected', 'reasoning_unsupported'],
+    });
+  });
+
+  test('preserves a partial finalization even when the completed draft is usable', async () => {
+    const completed = response().telemetry;
+    const complete = jest.fn().mockResolvedValue(
+      response({
+        telemetry: { ...completed, partial: true, finishReason: 'finalization_skipped' },
+        providerCalls: [completed],
+      }),
+    );
+    const result = await build(registry([]), complete).run(context, {
+      messages: [{ role: 'user', text: 'Prepare a report.' }],
+      toolPolicy: 'none',
+    });
+    expect(result.reply).toBe('Final answer.');
+    expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'finalization_skipped' });
+  });
+
   test('returns a reasoned answer without exposing provider reasoning items', async () => {
     const complete = jest.fn(async () =>
       response({
@@ -94,6 +309,74 @@ describe('MeriV3AssistantService', () => {
     );
     expect(JSON.stringify(events)).not.toContain('private');
   });
+
+  test('passes all API-selected unsummarized messages beyond forty into the provider', async () => {
+    const complete = jest.fn(async (_params: { input: Array<Record<string, unknown>> }) =>
+      response(),
+    );
+    const assistant = build(registry([]), complete);
+    const constraint = 'Treat the FY2027 request as proposed funding, never enacted.';
+    const messages = Array.from({ length: 61 }, (_, index) => ({
+      role: index % 2 ? ('assistant' as const) : ('user' as const),
+      text: index === 0 ? constraint : `Short exchange ${index}`,
+    }));
+    await assistant.run(context, {
+      messages,
+      conversationSummary: 'Client scope: Acme. Open work: prepare the briefing.',
+    });
+    const providerInput = complete.mock.calls[0]?.[0].input as Array<Record<string, unknown>>;
+    expect(providerInput).toHaveLength(61);
+    expect(providerInput[0]).toMatchObject({ role: 'user', content: constraint });
+    expect(providerInput.at(-1)).toMatchObject({ content: 'Short exchange 60' });
+  });
+
+  test.each([
+    { toolPolicy: 'read-only' as const, name: 'send_email', readOnly: false },
+    { toolPolicy: 'none' as const, name: 'search_memory', readOnly: true },
+    { toolPolicy: undefined, name: 'unreviewed_api_write', readOnly: false },
+  ])(
+    'blocks unadvertised $name under $toolPolicy before any execution or approval',
+    async ({ toolPolicy, name, readOnly }) => {
+      const call = { type: 'function_call', call_id: 'unadvertised-call', name, arguments: '{}' };
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(response({ outputText: 'The operation was blocked.' }));
+      const invoke = jest.fn();
+      const proposal = jest.fn();
+      const assistant = build(registry([{ name, readOnly }], invoke), complete, proposal);
+      global.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              schemas: [
+                {
+                  name,
+                  description: 'Test tool',
+                  input_schema: { type: 'object', properties: {} },
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+      ) as typeof fetch;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'Summarize the notes.' }],
+          toolPolicy,
+        }),
+      );
+      expect(complete.mock.calls[0]?.[0].tools).toEqual([]);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(proposal).not.toHaveBeenCalled();
+      expect(result.steps).toEqual(
+        expect.arrayContaining([expect.objectContaining({ tool: name, status: 'blocked' })]),
+      );
+      expect(JSON.stringify(complete.mock.calls[1]?.[0].input)).toContain(
+        'not available for this operation',
+      );
+    },
+  );
 
   test('continues after a read-tool call and feeds the exact result back', async () => {
     const call = {
@@ -135,7 +418,12 @@ describe('MeriV3AssistantService', () => {
         messages: [{ role: 'user', text: 'What nickname do you remember?' }],
       }),
     );
-    expect(invoke).toHaveBeenCalledWith('search_memory', { query: 'Kestrel' }, context);
+    expect(invoke).toHaveBeenCalledWith(
+      'search_memory',
+      { query: 'Kestrel' },
+      context,
+      expect.objectContaining({ signal: expect.any(AbortSignal), deadlineAt: expect.any(Number) }),
+    );
     const secondInput = complete.mock.calls[1]?.[0].input as Array<Record<string, unknown>>;
     expect(secondInput).toEqual(
       expect.arrayContaining([

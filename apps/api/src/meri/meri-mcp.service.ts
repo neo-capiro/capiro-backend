@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma, type ClioMcpServer } from '@prisma/client';
 import { isTenantAdmin, type TenantContext } from '@capiro/shared';
+import { assertMeriToolRequestActive } from './meri-tool-request-control.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decryptSecret, encryptSecret, parseAesKey } from '../common/secret-crypto.js';
@@ -562,6 +563,7 @@ export class MeriMcpService {
 
     try {
       const client = this.clientFor(server);
+      assertMeriToolRequestActive();
       const result = await client.callTool(entry.toolName, input);
       this.breaker.recordSuccess(breakerKey);
       return {

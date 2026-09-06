@@ -46,6 +46,19 @@ function service(adapters: readonly RetrievalSourceAdapter[]): RetrievalV2Servic
 }
 
 describe('RetrievalV2Service', () => {
+  it.each([true, false])('uses oldest source sync across pages and preserves unknown freshness (allKnown=%s)', async (allKnown) => {
+    const older = new Date('2026-01-01');
+    const newer = new Date('2026-09-01');
+    const adapter: RetrievalSourceAdapter = {
+      key: 'core-prisma', domains: ['clients'], retrieve: jest.fn()
+        .mockResolvedValueOnce(page({ hasMore: true, nextCursor: 'next', coverageComplete: false, paginationComplete: false, lastSyncAt: allKnown ? older : undefined }))
+        .mockResolvedValueOnce(page({ lastSyncAt: newer })),
+    };
+    const response = await service([adapter]).retrieve(baseRequest({ queryClass: 'exhaustive_search' }));
+    expect(response.coverage.sources[0]!.lastSyncAt).toEqual(allKnown ? older : undefined);
+    expect(response.observability.freshnessByDomain.clients).toEqual(allKnown ? older : null);
+  });
+
   it('makes a missing domain adapter explicit in coverage instead of silently omitting it', async () => {
     const response = await service([]).retrieve(
       baseRequest({ queryClass: 'exhaustive_search', requestedDomains: ['grants'] }),
@@ -58,7 +71,7 @@ describe('RetrievalV2Service', () => {
       domain: 'grants',
       sourceStatus: 'unavailable',
       coverageComplete: false,
-      stopReason: 'adapter_not_registered:grants',
+      stopReason: 'adapter_not_registered:public-domain-services',
     });
   });
 

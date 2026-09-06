@@ -2,6 +2,7 @@ import {
   createGetClientContextTool,
   type ClientContextRepo,
   type ClientContextResult,
+  type GetClientContextInput,
 } from './get-client-context';
 import { InMemoryToolRegistry } from '../../registry/tool-registry';
 import { ToolInputValidationError, type MeriContext } from '../../registry/types';
@@ -17,10 +18,14 @@ const ctx: MeriContext = {
 const VALID_CLIENT_ID = '11111111-1111-4111-8111-111111111111';
 
 function fakeRepo() {
-  const seen: { ctx: MeriContext; clientId: string }[] = [];
+  const seen: {
+    ctx: MeriContext;
+    clientId: string;
+    options?: Omit<GetClientContextInput, 'clientId'>;
+  }[] = [];
   const repo: ClientContextRepo = {
-    async loadClientContext(c, clientId) {
-      seen.push({ ctx: c, clientId });
+    async loadClientContext(c, clientId, options) {
+      seen.push({ ctx: c, clientId, options });
       const result: ClientContextResult = { client: { id: clientId, name: 'Acme' } };
       return result;
     },
@@ -76,4 +81,38 @@ describe('get_client_context tool', () => {
     const { repo } = fakeRepo();
     expect(createGetClientContextTool(repo).readOnly).toBe(true);
   });
+
+  it('preserves pagination options through the native registry', async () => {
+    const { repo, seen } = fakeRepo();
+    const registry = new InMemoryToolRegistry();
+    registry.register(createGetClientContextTool(repo));
+    await registry.invoke(
+      'get_client_context',
+      {
+        clientId: VALID_CLIENT_ID,
+        section: 'submissionHistory',
+        cursor: 'next-page',
+        limit: 50,
+      },
+      ctx,
+    );
+    expect(seen[0]?.options).toEqual({
+      section: 'submissionHistory',
+      cursor: 'next-page',
+      limit: 50,
+    });
+  });
+
+  it.each([{ section: 'secrets' }, { limit: 51 }, { limit: 0 }, { limit: 1.5 }])(
+    'rejects unsupported profile options %p',
+    async (options) => {
+      const { repo, seen } = fakeRepo();
+      const registry = new InMemoryToolRegistry();
+      registry.register(createGetClientContextTool(repo));
+      await expect(
+        registry.invoke('get_client_context', { clientId: VALID_CLIENT_ID, ...options }, ctx),
+      ).rejects.toBeInstanceOf(ToolInputValidationError);
+      expect(seen).toHaveLength(0);
+    },
+  );
 });
