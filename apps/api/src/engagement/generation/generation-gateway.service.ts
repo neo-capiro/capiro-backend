@@ -892,10 +892,24 @@ export class GenerationGatewayService {
       });
     };
 
-    // In revision mode the freeform instruction IS the objective.
+    // In revision mode the freeform instruction IS the objective — the main
+    // idea and template are both superseded by "fix this specific thing",
+    // same as before this field existed.
     if (request.existingBody?.trim() && request.reviseInstruction?.trim()) {
       push('objective', request.reviseInstruction, 'objective:revise');
     } else {
+      // The main idea (Context Plan step 4) is the PRIMARY driver of what this
+      // campaign is about when the user wrote one — pushed as its own
+      // 'main_idea' directive so the prompt can give it distinct, stronger
+      // framing (see GATEWAY_PRECEDENCE_LADDER's "MAIN IDEA RULE") rather than
+      // being indistinguishable from the template's own instruction. The
+      // template's prompt still rides as 'objective' alongside it — a
+      // secondary "how to shape it" instruction, not replaced. Absent a main
+      // idea (the default), nothing changes: the template's prompt alone is
+      // the objective, exactly as before this field existed.
+      if (request.mainIdea?.trim()) {
+        push('main_idea', request.mainIdea, 'objective:main-idea');
+      }
       push('objective', request.objective ?? request.templatePrompt, 'objective:template');
     }
     push('template', request.templateId, 'template:id');

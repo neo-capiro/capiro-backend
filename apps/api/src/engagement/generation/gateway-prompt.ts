@@ -175,6 +175,18 @@ export function buildGatewaySystemPrompt(policy: GaPolicy, mode?: { skeleton?: b
     GATEWAY_PRECEDENCE_LADDER,
     HONEST_FALLBACK,
     INJECTION_RULE,
+    // A [main_idea] directive names what the whole campaign is fundamentally
+    // about; every other directive (template structure, tone, and any
+    // recipient-specific personalized note) must be satisfied ALONGSIDE it,
+    // never instead of it. Without this rule a short, specific per-recipient
+    // note ("lead with this", "omit the deadline language") reads to the
+    // model as though it WERE the entire point of the message, since it is
+    // the most recent and most specific instruction the model sees -- the
+    // main idea and the surrounding evidence then go unexpressed.
+    [
+      'MAIN IDEA RULE:',
+      'When a [main_idea] directive is present, it is the core subject this message must convey -- the primary thing every recipient should come away understanding. A [custom_note] or [item_instruction] directive scoped to one recipient REFINES how the main idea is delivered to that person (what to emphasize, lead with, or omit) -- it never replaces the main idea, and the main idea must still come through clearly even when a recipient-specific note is present. Do not let a short personalized note become the entire content of the message.',
+    ].join('\n'),
     // The plan is the spine: the draft may not introduce claims the plan did not
     // commit to, because only the plan's claims were validated against evidence.
     [
@@ -320,7 +332,10 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
     input.recipientBrief
       ? `RECIPIENT (server-resolved identity):\n${SPOTLIGHT_OPEN} source="directory">>>\n${input.recipientBrief}\n${SPOTLIGHT_CLOSE}`
       : null,
-    directiveBlock('USER DIRECTIVES FOR THIS RECIPIENT (authoritative):', scoped),
+    directiveBlock(
+      'USER DIRECTIVES FOR THIS RECIPIENT (authoritative -- IN ADDITION TO the campaign-wide directives above, including any [main_idea]; they refine delivery for this one recipient, they do not replace the main idea or objective):',
+      scoped,
+    ),
     renderEvidenceSection(
       'EVIDENCE FOR THIS RECIPIENT',
       packet.evidence.filter(

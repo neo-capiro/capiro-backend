@@ -1008,6 +1008,12 @@ export function NewOutreachWizard({
     templateId: state.templateId,
     tone: state.tone,
     direction: state.direction,
+    // Context Plan step 4's "what is this outreach about" free text — the
+    // PRIMARY driver of what the plan and draft are about server-side (see
+    // GenerationRequest.mainIdea / buildRequestDirectives). Omitted when
+    // blank rather than sent as an empty string, matching every other
+    // optional field here.
+    ...(state.mainIdea.trim() ? { mainIdea: state.mainIdea.trim() } : {}),
     // Phase 1 §3.b1: IDs + the user's own words only. `title`/`body` are NOT
     // sent — the server rehydrates every server-backed source by id, and a body
     // the browser supplied could never be authoritative anyway.

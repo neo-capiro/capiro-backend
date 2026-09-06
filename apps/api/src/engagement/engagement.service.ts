@@ -502,6 +502,15 @@ export interface GenerateBatchEmailInput {
   additionalContext?: string;
   /** Freeform objective, when the caller supplies one instead of a template. */
   objective?: string;
+  /**
+   * Context Plan step 4's "what is this outreach about" free text. The
+   * PRIMARY driver of what the plan and draft are about when present -- see
+   * GenerationRequest.mainIdea and buildRequestDirectives for how it combines
+   * with the template's own prompt. Absent (every draft made before this
+   * field existed, or a campaign where the user left it blank) changes
+   * nothing.
+   */
+  mainIdea?: string;
   tone?: string;
   // v2 wizard additions, older callers that omit these are unaffected.
   direction?: 'on-behalf' | 'to-clients';
@@ -3470,6 +3479,7 @@ export class EngagementService {
       templateId,
       insights,
       additionalContext,
+      mainIdea,
       tone,
       clientId,
       contextItems,
@@ -3721,6 +3731,7 @@ export class EngagementService {
       templateId: input.templateId,
       templatePrompt: o.templatePrompt,
       ...(input.objective ? { objective: input.objective } : {}),
+      ...(input.mainIdea?.trim() ? { mainIdea: input.mainIdea } : {}),
       tone: normalizeGatewayTone(input.tone),
       length: null,
       direction: input.direction ?? null,

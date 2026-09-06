@@ -1398,6 +1398,13 @@ export class GenerateBatchEmailDto {
   @IsString()
   additionalContext?: string;
 
+  /** Context Plan step 4's "what is this outreach about" free text — see
+   *  GenerateBatchEmailInput.mainIdea. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 4000)
+  mainIdea?: string;
+
   @IsOptional()
   @IsString()
   tone?: string;

@@ -28,6 +28,17 @@ export interface GenerationRequest {
   templatePrompt: string;
   /** Freeform objective, when the caller supplies one instead of a template. */
   objective?: string | null;
+  /**
+   * The campaign-wide "what is this outreach about" the user wrote on the
+   * Context Plan step. When present, this is the PRIMARY driver of what the
+   * plan and draft are about — the template's prompt still applies (via
+   * `objective`/`templatePrompt`) but as a secondary structural instruction
+   * alongside it, not a replacement. See buildRequestDirectives and
+   * GATEWAY_PRECEDENCE_LADDER's "MAIN IDEA RULE" for how the two combine.
+   * Absent (the default, and every draft made before this field existed)
+   * changes nothing: the template's prompt alone remains the objective.
+   */
+  mainIdea?: string | null;
   tone: 'professional' | 'friendly' | 'formal' | 'concise';
   length?: 'short' | 'standard' | 'long' | null;
   direction?: 'on-behalf' | 'to-clients' | null;

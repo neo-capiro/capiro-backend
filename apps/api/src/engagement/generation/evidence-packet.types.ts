@@ -82,7 +82,7 @@ export interface EvidenceItem {
  */
 export interface AuthenticatedDirective {
   id: string;
-  kind: 'objective' | 'template' | 'tone' | 'length' | 'item_instruction' | 'custom_note';
+  kind: 'objective' | 'main_idea' | 'template' | 'tone' | 'length' | 'item_instruction' | 'custom_note';
   text: string;
   scope: 'all' | string;
   /** The user whose session supplied it. Never a value read out of evidence. */
@@ -271,12 +271,13 @@ export function compareEvidence(a: EvidenceItem, b: EvidenceItem): number {
 
 /** Deterministic directive ordering: kind, then scope, then id. */
 const DIRECTIVE_KIND_ORDER: Record<AuthenticatedDirective['kind'], number> = {
-  objective: 0,
-  template: 1,
-  tone: 2,
-  length: 3,
-  item_instruction: 4,
-  custom_note: 5,
+  main_idea: 0,
+  objective: 1,
+  template: 2,
+  tone: 3,
+  length: 4,
+  item_instruction: 5,
+  custom_note: 6,
 };
 
 export function compareDirectives(a: AuthenticatedDirective, b: AuthenticatedDirective): number {
