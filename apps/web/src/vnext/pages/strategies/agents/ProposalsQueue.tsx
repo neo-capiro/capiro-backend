@@ -35,6 +35,7 @@ import {
   useStrategies,
   useStrategy,
   useTenantMembers,
+  useTransitionRun,
   useUndoChangeSet,
 } from '../strategies-api.js';
 import {
@@ -384,10 +385,8 @@ export function ProposalsQueue() {
 /*
  * Firm-level Watcher runs (calendar baseline · firm phase model · outreach
  * guardrails) carry the review obligation on the RUN — there is no change-set,
- * so the queue below can never surface them. GAP (logged): the mark-reviewed
- * transition hook (POST /agents/runs/:id/transition) is not yet in
- * ../strategies-api.js, so this section is read-only until it lands; a check in
- * review stays visible rather than being drained without its control.
+ * so the queue below can never surface them. A human acknowledges the findings
+ * through the existing ready_for_review → completed transition.
  */
 function FirmChecks({ runs }: { runs: ReturnType<typeof useFirmReviewRuns> }) {
   const state = staleOrError(runs);
@@ -451,6 +450,7 @@ function FirmChecks({ runs }: { runs: ReturnType<typeof useFirmReviewRuns> }) {
                   ) : (
                     <p className="st-agents__meta">This run reported no findings.</p>
                   )}
+                  <AcknowledgeFirmCheck runId={run.id} />
                 </div>
               </div>
             );
@@ -458,6 +458,26 @@ function FirmChecks({ runs }: { runs: ReturnType<typeof useFirmReviewRuns> }) {
         </div>
       )}
     </div>
+  );
+}
+
+function AcknowledgeFirmCheck({ runId }: { runId: string }) {
+  const transition = useTransitionRun();
+  const [actionError, setActionError] = useState<string | null>(null);
+  return (
+    <>
+      {actionError && <p className="st-agents__error-box" role="alert">{actionError}</p>}
+      <CapiroButton
+        size="compact"
+        disabled={transition.isPending}
+        onClick={() => transition.mutate({ id: runId, to: 'completed' }, {
+          onSuccess: () => setActionError(null),
+          onError: (error) => setActionError(errorMessage(error, 'Could not mark the check reviewed.')),
+        })}
+      >
+        {transition.isPending ? 'Recording review…' : 'Mark reviewed'}
+      </CapiroButton>
+    </>
   );
 }
 

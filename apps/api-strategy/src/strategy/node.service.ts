@@ -5,6 +5,7 @@ import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
 import { loadStrategyDetail } from './detail.js';
 import { LIVE_NODE_WHERE } from './live-node.js';
+import { lockStrategyForMutation } from './mutation-lock.js';
 import type { CreateNodeDto, UpdateNodeDto } from './dto/node.dto.js';
 import type { CreateArtifactDto } from './dto/artifact.dto.js';
 
@@ -30,6 +31,7 @@ export class NodeService {
     }
 
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       const strat = await tx.spStrategy.findFirst({
         where: { id: strategyId },
         select: { id: true },
@@ -88,6 +90,7 @@ export class NodeService {
     dto: UpdateNodeDto,
   ) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       // P0-1: LIVE_NODE_WHERE — a node archived by a restore is history, not an
       // editable step; it 404s here rather than being silently resurrected.
       const node = await tx.spNode.findFirst({
@@ -134,7 +137,7 @@ export class NodeService {
       // "Ongoing" is risk-only: converting a node away from risk clears the flag
       // so it isn't stuck "Ongoing" with a permanently-disabled end date.
       const resultingKind = dto.kind ?? node.kind;
-      if (resultingKind !== 'risk' && node.openEnded && data.openEnded === undefined) {
+      if (resultingKind !== 'risk' && (node.openEnded || dto.openEnded !== undefined)) {
         set('openEnded', false, node.openEnded);
       }
 
@@ -176,13 +179,26 @@ export class NodeService {
 
   async remove(tenantId: string, clerkUserId: string, strategyId: string, nodeId: string) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       // P0-1: an already-archived node cannot be deleted again (404) — see update().
       const node = await tx.spNode.findFirst({
         where: { id: nodeId, strategyId, ...LIVE_NODE_WHERE },
       });
       if (!node) throw new NotFoundException('Node not found');
 
-      await tx.spNode.delete({ where: { id: nodeId } });
+      // A removed step can already have drafts, outreach records, provenance
+      // and execution history. Keep its stable identity just as restore does;
+      // deleting the row would cascade away its artifact back-links.
+      const archivedAt = new Date();
+      const archivedReason = 'Removed from strategy';
+      await tx.spNode.update({
+        where: { id: nodeId },
+        data: { archivedAt, archivedByUserId: clerkUserId, archivedReason },
+      });
+      await tx.spNodeArtifact.updateMany({
+        where: { strategyId, nodeId, detachedAt: null },
+        data: { detachedAt: archivedAt, detachedReason: archivedReason },
+      });
       // A2: strip the deleted id from every sibling's dependency edges, in the
       // same tx and BEFORE the snapshot. Raw UPDATE (Prisma has no atomic
       // scalar-list remove); capiro_app bypasses RLS, so the tenant filter is
@@ -192,6 +208,7 @@ export class NodeService {
            SET depends_on_ids = array_remove(depends_on_ids, ${nodeId}::uuid)
          WHERE strategy_id = ${strategyId}::uuid
            AND tenant_id = ${tenantId}::uuid
+           AND archived_at IS NULL
            AND ${nodeId}::uuid = ANY (depends_on_ids)`;
       await this.bump(tx, strategyId, clerkUserId);
       await this.versioning.cutVersion(tx, {
@@ -212,10 +229,8 @@ export class NodeService {
         action: 'node.deleted',
         entityType: 'node',
         entityId: nodeId,
-        // The sp_node row was deleted above IN THIS TX, so the F2 outbox
-        // consumer's node -> strategy resolution finds nothing at drain time;
-        // carry the strategy explicitly so node.deleted actually wakes the
-        // strategy's watcher missions within one poll.
+        // Carry the strategy explicitly: the node has left the live plan, so
+        // consumers must not rely on a live-node lookup to resolve this event.
         strategyId,
         before: { title: node.title, kind: node.kind },
       });
@@ -239,6 +254,7 @@ export class NodeService {
     dto: CreateArtifactDto,
   ) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       // P0-1: never attach a NEW artifact to an archived node.
       const node = await tx.spNode.findFirst({
         where: { id: nodeId, strategyId, ...LIVE_NODE_WHERE },

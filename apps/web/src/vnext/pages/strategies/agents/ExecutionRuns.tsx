@@ -30,6 +30,7 @@ import {
   useExecuteRun,
   useExecutionRuns,
   useResumeRun,
+  useRetryRun,
   useStrategies,
 } from '../strategies-api.js';
 import {
@@ -81,7 +82,7 @@ const RUN_STATE_MODEL: ReadonlyArray<{ token: string; note: string }> = [
   { token: 'approved', note: 'Plan approved by a person; execution has not started.' },
   { token: 'executing', note: 'Tasks are being staged.' },
   { token: 'completed', note: 'Every task finished.' },
-  { token: 'recoverable', note: 'Failed in a repairable way — Resume is available.' },
+  { token: 'recoverable', note: 'Failed in a repairable way — Retry is available.' },
   { token: 'failed', note: 'Terminal failure; the reason stays visible.' },
   { token: 'canceled', note: 'Stopped by a person.' },
   { token: 'superseded', note: 'Replaced by a newer attempt.' },
@@ -153,18 +154,14 @@ export function ExecutionRuns() {
   const [params, setParams] = useSearchParams();
   /* The filter is a URL (?strategyId=…) — back/forward works (§6). */
   const strategyFilter = params.get('strategyId');
-  /* Stage-H criteria deep link: ?stage-h=1 auto-opens the criteria modal so
-   * the security card's handoff link is a shareable, bookmarkable target
-   * rather than a click-only affordance. The param is consumed once on mount. */
-  const [stageHOpen, setStageHOpen] = useState(params.get('stage-h') === '1');
+  /* The criteria modal follows its URL param on direct loads and navigation. */
+  const stageHOpen = params.get('stage-h') === '1';
   const openStageH = () => {
-    setStageHOpen(true);
     const next = new URLSearchParams(params);
     next.set('stage-h', '1');
     setParams(next, { replace: true });
   };
   const closeStageH = () => {
-    setStageHOpen(false);
     const next = new URLSearchParams(params);
     next.delete('stage-h');
     setParams(next, { replace: true });
@@ -408,7 +405,7 @@ function triggerLabel(trigger: string): string {
  * the blocked/failed reasons, and the state-appropriate affordances. Actions
  * per state: ready ⇒ Execute plan (STAGES artifacts — never sends) + Edit
  * plan + Cancel; waiting ⇒ Resume (recoverable blockers) + Cancel; recoverable
- * failure ⇒ Resume + Cancel; in-flight ⇒ Cancel; terminal ⇒ none. NO send
+ * failure ⇒ Retry + Cancel; in-flight ⇒ Cancel; terminal ⇒ none. NO send
  * control exists anywhere below (rule 7).
  */
 function RunCard({
@@ -421,6 +418,7 @@ function RunCard({
   const navigate = useNavigate();
   const execute = useExecuteRun();
   const resume = useResumeRun();
+  const retry = useRetryRun();
   const cancel = useCancelRun();
   const [confirm, setConfirm] = useState<'cancel' | 'edit' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -433,7 +431,7 @@ function RunCard({
       : null;
   const failed =
     run.state === 'failed' || run.state === 'failed_recoverable' || run.state === 'failed_terminal';
-  const busy = execute.isPending || resume.isPending || cancel.isPending;
+  const busy = execute.isPending || resume.isPending || retry.isPending || cancel.isPending;
 
   const onExecute = () => {
     execute.mutate(
@@ -463,6 +461,13 @@ function RunCard({
         onError: (err) => setActionError(errorMessage(err, 'Could not cancel the run.')),
       },
     );
+  };
+
+  const onRetry = () => {
+    retry.mutate({ id: run.id }, {
+      onSuccess: () => setActionError(null),
+      onError: (err) => setActionError(errorMessage(err, 'Could not retry the run.')),
+    });
   };
 
   return (
@@ -513,7 +518,7 @@ function RunCard({
           <div className="st-agents__error-box" role="alert">
             {run.error ??
               (run.state === 'failed_recoverable'
-                ? 'This run failed in a recoverable way — Resume picks it up against the current plan.'
+                ? 'This run failed in a recoverable way — Retry prepares a new attempt against the current plan for review.'
                 : 'This run failed terminally. No further reason was reported by the server.')}
           </div>
         )}
@@ -611,7 +616,7 @@ function RunCard({
           run.state === 'planning' ||
           run.state === 'executing' ||
           run.state === 'approved' ||
-          (run.state === 'waiting_for_input' && !awaitingSend)) && (
+          run.state === 'waiting_for_input') && (
           <div className="st-agents__run-actions">
             <CapiroButton variant="quiet" size="compact" disabled={busy} onClick={() => setConfirm('cancel')}>
               Cancel
@@ -620,7 +625,7 @@ function RunCard({
               <>
                 <CapiroButton
                   size="compact"
-                  disabled={busy || !run.strategyId}
+                  disabled={busy || !run.strategyId || !UUID_RE.test(run.strategyId)}
                   onClick={() => setConfirm('edit')}
                 >
                   Edit plan
@@ -628,7 +633,7 @@ function RunCard({
                 <span className="st-agents__meta">Editing the plan invalidates prior approval.</span>
               </>
             )}
-            {run.state === 'ready_for_review' && (
+            {(run.state === 'ready_for_review' || run.state === 'approved') && (
               <CapiroButton
                 variant="primary"
                 size="compact"
@@ -645,9 +650,9 @@ function RunCard({
                 size="compact"
                 className="st-agents__run-actions-primary"
                 disabled={busy}
-                onClick={onResume}
+                onClick={onRetry}
               >
-                {resume.isPending ? 'Resuming…' : 'Resume run'}
+                {retry.isPending ? 'Retrying…' : 'Retry run'}
               </CapiroButton>
             )}
           </div>

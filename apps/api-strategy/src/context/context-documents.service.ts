@@ -273,6 +273,12 @@ export class ContextDocumentsService {
           ...(opts.clientId ? { clientId: opts.clientId } : {}),
           ...(opts.templateKey ? { templateKey: opts.templateKey } : {}),
           ...(opts.state ? { state: opts.state as SpContextDocState } : {}),
+          ...(!opts.includeStale ? {
+            OR: [
+              { validUntil: null },
+              { validUntil: { gte: new Date(new Date().toISOString().slice(0, 10)) } },
+            ],
+          } : {}),
         },
         orderBy: { createdAt: 'desc' },
         take: 200,

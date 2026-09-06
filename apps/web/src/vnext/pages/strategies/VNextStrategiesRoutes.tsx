@@ -107,6 +107,17 @@ export function VNextStrategiesRoutes() {
       </div>
     );
   }
+  if (me.isError && !me.data) {
+    return (
+      <div className="capiro-strategies st-page">
+        <CapiroErrorState
+          title="Strategies access could not be checked"
+          description="Reload your account details to open Strategies."
+          onRetry={() => void me.refetch()}
+        />
+      </div>
+    );
+  }
   if (!me.data?.features.strategyPlanner) return <Navigate to="/" replace />;
   const agentic = Boolean(me.data.features.agenticMeri);
 

@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -54,12 +55,12 @@ export class ContextController {
   }
 
   @Get('documents/:id')
-  byId(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+  byId(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.documents.get(tc.tenantId, id);
   }
 
   @Post('documents/:id/archive')
-  archive(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+  archive(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.documents.archive(
       tc.tenantId,
       { clerkUserId: tc.clerkUserId, role: tc.role },
@@ -68,14 +69,14 @@ export class ContextController {
   }
 
   @Get('documents/:id/sections')
-  sections(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+  sections(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.documents.sections(tc.tenantId, id);
   }
 
   @Get('documents/:id/locate')
   locate(
     @CurrentTenant() tc: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Query('ref') ref?: string,
   ) {
     if (!ref) throw new BadRequestException('ref query parameter is required');
@@ -86,7 +87,7 @@ export class ContextController {
   @Get('strategies/:strategyId/current-plan')
   exportCurrentPlan(
     @CurrentTenant() tc: AuthTenantContext,
-    @Param('strategyId') strategyId: string,
+    @Param('strategyId', new ParseUUIDPipe()) strategyId: string,
   ) {
     return this.currentPlan.exportCurrentPlan(tc.tenantId, strategyId);
   }

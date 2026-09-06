@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WatcherSchedulerService, fingerprintCalendars } from './watcher-scheduler.service.js';
+import { assertTransition } from './run-state.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ReferenceCalendars, ReferenceRow } from '../reference/reference.service.js';
 
@@ -138,8 +139,15 @@ function makeHarness() {
       ({ id: 'R-firm', state: 'queued' }) as unknown,
   );
   const transition = jest.fn(
-    async (_tenantId: string, _userId: string | null, _runId: string, _dto: unknown) =>
-      undefined as unknown,
+    async (_tenantId: string, _userId: string | null, runId: string, dto: unknown) => {
+      const run = runs.find((r) => r.id === runId);
+      if (run) {
+        const to = (dto as { to: string }).to;
+        assertTransition(run.state, to);
+        run.state = to;
+      }
+      return undefined as unknown;
+    },
   );
   const isAgenticFlagEnabled = jest.fn(async (_tenantId: string, _flag: string) => true);
   // Merged reference calendars (ReferenceService.getCalendars) — empty
@@ -719,13 +727,14 @@ describe('WatcherSchedulerService — poisoned-mission isolation', () => {
     expect(res).toEqual({ claimed: 2, succeeded: 1, failed: 1, skipped: 0 });
     // M2 still ran despite M1 exploding first (earlier dueAt => claimed first).
     expect(h.runCheckNow).toHaveBeenCalledWith(T, null, 'M2', expect.anything());
-    // The stranded non-terminal run was transitioned to failed with the error.
+    // Exercise the real lifecycle guard: legacy 'failed' is no longer legal.
+    expect(h.runs.find((r) => r.id === 'R1')!.state).toBe('failed_terminal');
     expect(h.transition).toHaveBeenCalledTimes(1);
     expect(h.transition).toHaveBeenCalledWith(
       T,
       null,
       'R1',
-      expect.objectContaining({ to: 'failed', error: expect.stringContaining('poisoned mission') }),
+      expect.objectContaining({ to: 'failed_terminal', error: expect.stringContaining('poisoned mission') }),
     );
   });
 
@@ -863,3 +872,4 @@ describe('WatcherSchedulerService — env gates (dark by default)', () => {
     expect(spy).toHaveBeenCalledWith(expect.any(Function), 15_000);
   });
 });
+

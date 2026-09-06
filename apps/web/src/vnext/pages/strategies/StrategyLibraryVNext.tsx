@@ -49,7 +49,7 @@ export const TYPE_LABEL: Record<string, string> = {
   earmark: 'Earmark',
 };
 
-type SortKey = 'recent' | 'health' | 'gate';
+type SortKey = 'recent' | 'steps';
 
 /*
  * Local glyphs (design handoff, "Assets" section: LayersThree01 / Stars02 /
@@ -94,7 +94,7 @@ function ContextLibraryGlyph() {
 function firmPhaseFyRange(phases: FirmPhase[]): string | null {
   if (phases.length === 0) return null;
   const startFy = Math.min(...phases.map((p) => p.startFy));
-  const endFy = Math.max(...phases.map((p) => p.endFy));
+  const endFy = Math.max(...phases.map((p) => p.endQ === 1 ? p.endFy - 1 : p.endFy));
   return startFy === endFy ? `FY${startFy}` : `FY${startFy}–FY${endFy}`;
 }
 
@@ -117,6 +117,7 @@ export function StrategyLibraryVNext() {
 
   const rows = strategies.data ?? [];
   const counts = watchCounts.data ?? {};
+  const watchAvailable = Boolean(watchCounts.data) && !watchCounts.isError;
   const fyRange = useMemo(() => firmPhaseFyRange(firmPhases.data ?? []), [firmPhases.data]);
   const selectedClientId = clientContext.selectedClientId;
 
@@ -152,17 +153,15 @@ export function StrategyLibraryVNext() {
     if (sort === 'recent') {
       sorted.sort((a, b) => (b.lastEditedAt ?? b.createdAt).localeCompare(a.lastEditedAt ?? a.createdAt));
     } else {
-      // Plan-health sort: the list endpoint carries `nodeCount` (total steps)
-      // but not per-node detail (owners/gates/due-dates). Use nodeCount as a
-      // plan-complexity proxy — plans with more steps surface first — until a
-      // server-side fleet health aggregate endpoint lands.
+      // The library has step counts, not per-plan health or gate dates.
       sorted.sort((a, b) => (b.nodeCount ?? 0) - (a.nodeCount ?? 0));
     }
     return sorted;
   }, [rows, ownerFilter, sort, selectedClientId]);
 
-  const activeCount = selectedClientId ? filtered.length : rows.length;
-  const clientCount = useMemo(() => new Set(rows.map((r) => r.clientId)).size, [rows]);
+  const scopedRows = selectedClientId ? rows.filter((r) => r.clientId === selectedClientId) : rows;
+  const activeCount = scopedRows.length;
+  const clientCount = useMemo(() => new Set(scopedRows.map((r) => r.clientId)).size, [scopedRows]);
   const needsReview = useMemo(
     () => Object.values(counts).reduce((n, c) => n + (c ?? 0), 0),
     [counts],
@@ -317,9 +316,9 @@ export function StrategyLibraryVNext() {
             <p className="st-stat__hint">Across {clientCount} {clientCount === 1 ? 'client' : 'clients'}</p>
           </button>
           <button type="button" className={needsReview > 0 ? 'st-stat st-stat--attention' : 'st-stat'} onClick={() => navigate('/strategies/agents/proposals')}>
-            <p className="st-stat__value">{needsReview}</p>
+            <p className="st-stat__value">{watchAvailable ? needsReview : '—'}</p>
             <p className="st-stat__label">Needs review</p>
-            <p className="st-stat__hint">Watcher proposals</p>
+            <p className="st-stat__hint">{watchAvailable ? 'Watcher proposals' : 'Watch status unavailable'}</p>
           </button>
           {/* Approaching gates: the list endpoint carries `nodeCount` but not
               gate nodes or due dates (those live on StrategyDetail.nodes).
@@ -366,8 +365,7 @@ export function StrategyLibraryVNext() {
             <span className="st-library-sortlabel">Sort</span>
             <div className="st-segmented" role="group" aria-label="Sort">
               <button aria-pressed={sort === 'recent'} onClick={() => setSort('recent')}>Recently updated</button>
-              <button aria-pressed={sort === 'health'} onClick={() => setSort('health')}>Plan health</button>
-              <button aria-pressed={sort === 'gate'} onClick={() => setSort('gate')}>Next gate</button>
+              <button aria-pressed={sort === 'steps'} onClick={() => setSort('steps')}>Most steps</button>
             </div>
           </div>
         </div>
@@ -422,11 +420,12 @@ export function StrategyLibraryVNext() {
                         strategy={s}
                         client={clientName(clients.data, s.clientId)}
                         owner={memberName(members.data, s.ownerUserId)}
-                        watchCount={counts[s.id] ?? 0}
+                        watchCount={watchAvailable ? counts[s.id] ?? 0 : null}
                         confirmingDelete={pendingDeleteId === s.id}
-                        onRequestDelete={() => setPendingDeleteId(s.id)}
+                        onRequestDelete={() => { if (!deleteStrategy.isPending) setPendingDeleteId(s.id); }}
                         onCancelDelete={() => setPendingDeleteId(null)}
                         onConfirmDelete={() => {
+                          if (deleteStrategy.isPending) return;
                           deleteStrategy.mutate(s.id, {
                             onSettled: () => setPendingDeleteId(null),
                           });
@@ -485,7 +484,7 @@ function StrategyRow({
   strategy: StrategyListItem;
   client: string;
   owner: string;
-  watchCount: number;
+  watchCount: number | null;
   onOpen: () => void;
   confirmingDelete: boolean;
   deleting: boolean;
@@ -499,7 +498,7 @@ function StrategyRow({
       className="st-library-row"
       onClick={onOpen}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
           onOpen();
         }
@@ -521,10 +520,12 @@ function StrategyRow({
           <IdentityMark kind="person" name={owner} size="sm" />
           <div>
             <div className="st-library-ownername">{owner}</div>
-            {watchCount > 0 ? (
+            {watchCount === null ? (
+              <span className="st-pill">Watch status unavailable</span>
+            ) : watchCount > 0 ? (
               <span className="st-pill st-pill--warning">{watchCount} watch {watchCount === 1 ? 'note' : 'notes'}</span>
             ) : (
-              <span className="st-pill st-pill--success">On track</span>
+              <span className="st-pill st-pill--success">No watch notes</span>
             )}
           </div>
         </div>
@@ -583,3 +584,4 @@ function relativeTime(iso: string): string {
   if (days < 7) return days === 1 ? 'Yesterday' : `${days} days ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+

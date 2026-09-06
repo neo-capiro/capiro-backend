@@ -15,6 +15,8 @@ import {
   type ChatOpenNodeAction,
 } from '../meri/strategy-conversation.service.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
+import { isoDate } from '../strategy/versioning.js';
+import { RUN_TERMINAL_STATES } from './run-state.js';
 import { WatcherService } from './watcher.service.js';
 import { findingKey, type Finding, type FindingCategory } from './watcher-checks.js';
 import { orderBatchOps } from './watch-batch-order.js';
@@ -167,7 +169,7 @@ export class WatchReviewService {
         ? await tx.spAgentRun.findFirst({
             where: { missionId: mission.id },
             orderBy: [{ createdAt: 'desc' }],
-            select: { id: true, createdAt: true },
+            select: { id: true, createdAt: true, state: true, findings: true },
           })
         : null;
       return {
@@ -181,7 +183,12 @@ export class WatchReviewService {
 
     const { headId, mission, openProposals, latestRun, lastEditedAt } = snapshot;
     const allCurrentHead = openProposals.every((p) => p.strategyVersionId === headId);
-    const runIsFresh = !!latestRun && (!lastEditedAt || latestRun.createdAt > lastEditedAt);
+    const checkedAt = successfulCheckTime(latestRun);
+    const today = isoDate(new Date())!;
+    const runIsFresh =
+      checkedAt !== null &&
+      isoDate(checkedAt) === today &&
+      (!lastEditedAt || checkedAt > lastEditedAt);
 
     if (!mission || (allCurrentHead && runIsFresh)) {
       this.logger.log(
@@ -207,7 +214,14 @@ export class WatchReviewService {
     let recheckFailed = false;
     try {
       await this.watcher.runCheckNow(tenantId, userId, mission.id, {
-        idempotencyKey: `recheck:${mission.id}:${headId}`,
+        // A failed attempt cannot be re-driven with its terminal run's key.
+        // Include the observation date/edit clock, then retry lineage when
+        // needed, while concurrent attempts still share the same key.
+        idempotencyKey: `recheck:${mission.id}:${headId}:${today}:${lastEditedAt?.getTime() ?? 0}${
+          latestRun && RUN_TERMINAL_STATES.has(latestRun.state)
+            ? `:retry:${latestRun.id}`
+            : ''
+        }`,
         trigger: 'manual',
       });
     } catch (err) {
@@ -272,6 +286,20 @@ export class WatchReviewService {
       ops: unknown;
     }>,
   ): Promise<Omit<WatchRecheckResult, 'elapsedMs'>> {
+    // Reconciliation also updates existing proposals. Take their locks before
+    // the strategy lock, matching accept/apply; the opposite order deadlocks
+    // against a reviewer holding a proposal while waiting for this strategy.
+    const candidates = await tx.spChangeSet.findMany({
+      where: { strategyId, status: 'proposed', watchKey: { not: null } },
+      select: { id: true },
+    });
+    const lockedIds = new Set([...preProposals.map((p) => p.id), ...candidates.map((p) => p.id)]);
+    for (const id of [...lockedIds].sort()) {
+      await tx.$queryRaw`
+        SELECT id FROM sp_change_set
+        WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
+        FOR UPDATE`;
+    }
     await tx.$queryRaw`
       SELECT id FROM sp_strategy
       WHERE id = ${strategyId}::uuid AND tenant_id = ${tenantId}::uuid
@@ -293,6 +321,12 @@ export class WatchReviewService {
       },
       select: { id: true, watchKey: true, ops: true },
     });
+    // A concurrent check can insert a proposal before our strategy lock.
+    // Do not acquire new proposal locks while holding that lock, and do not
+    // describe an unexamined version as resolved. A later recheck retries.
+    if (newHeadId !== preHeadId || freshRows.some((row) => !lockedIds.has(row.id))) {
+      return { state: 'failed', unchanged: [], updated: [], dropped: [] };
+    }
     const freshByKey = new Map(freshRows.filter((r) => r.watchKey).map((r) => [r.watchKey!, r]));
 
     const liveIds = new Set(
@@ -406,6 +440,13 @@ export class WatchReviewService {
         );
       }
 
+      // Serialize the permanent dismissal with the watcher's proposal/dedup
+      // read. Otherwise a concurrent check can reissue the finding after this
+      // transaction records that it must never be proposed again.
+      await tx.$queryRaw`
+        SELECT id FROM sp_strategy
+        WHERE id = ${cs.strategyId}::uuid AND tenant_id = ${tenantId}::uuid
+        FOR UPDATE`;
       await tx.spWatchDismissal.upsert({
         where: {
           tenantId_strategyId_watchKey: {
@@ -828,7 +869,7 @@ export class WatchReviewService {
       ? await tx.spAgentRun.findFirst({
           where: { missionId: mission.id },
           orderBy: [{ createdAt: 'desc' }],
-          select: { createdAt: true, findings: true },
+          select: { createdAt: true, state: true, findings: true },
         })
       : null;
     const findingsByKey = extractFindingsByKey(latestRun?.findings);
@@ -899,7 +940,9 @@ export class WatchReviewService {
             id: mission.id,
             state: mission.state,
             cadence: mission.cadence,
-            lastRunAt: latestRun ? latestRun.createdAt.toISOString() : null,
+            lastRunAt: latestRun
+              ? (successfulCheckTime(latestRun) ?? latestRun.createdAt).toISOString()
+              : null,
             nextRunAt: mission.nextRunAt ? mission.nextRunAt.toISOString() : null,
           }
         : null,
@@ -908,6 +951,21 @@ export class WatchReviewService {
       lastRecheck: lastRecheck ?? null,
     };
   }
+}
+
+/** A run's creation (or an unrelated metrics write) is not proof of a check. */
+function successfulCheckTime(
+  run: { state: string; createdAt: Date; findings: unknown } | null,
+): Date | null {
+  if (!run || (run.state !== 'ready_for_review' && run.state !== 'completed')) return null;
+  const payload = run.findings;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const { findings, checkedOn, checkedAt } = payload as Record<string, unknown>;
+  if (!Array.isArray(findings) || typeof checkedOn !== 'string') return null;
+  // Older watcher rows did not store checkedAt; their creation time is a
+  // conservative fallback. A successful refresh now records its own clock.
+  const at = typeof checkedAt === 'string' ? new Date(checkedAt) : run.createdAt;
+  return Number.isFinite(at.getTime()) && isoDate(at) === checkedOn ? at : null;
 }
 
 // ---- public response types (plan §5) ------------------------------------------
@@ -1068,3 +1126,4 @@ function stableJson(v: unknown): string {
       : val,
   );
 }
+

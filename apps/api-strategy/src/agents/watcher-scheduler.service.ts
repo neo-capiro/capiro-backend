@@ -356,7 +356,7 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
   /**
    * After a check throws, the run it created (if it got that far — the
    * idempotency key finds it) may be stranded in a non-terminal state.
-   * Transition it to failed (or canceled from 'queued', the only pre-start
+   * Transition it to failed_terminal (or canceled from 'queued', the only pre-start
    * state, which cannot legally move to failed) so it never reads as live.
    * ready_for_review is left ALONE: with day-bucketed keys the lookup can
    * resolve to the day's already-reviewable run (a later same-day refresh
@@ -374,7 +374,7 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
         tx.spAgentRun.findFirst({ where: { idempotencyKey } }),
       );
       if (!run || RUN_TERMINAL_STATES.has(run.state) || run.state === 'ready_for_review') return;
-      const to = run.state === 'queued' ? 'canceled' : 'failed';
+      const to = run.state === 'queued' ? 'canceled' : 'failed_terminal';
       await this.runs.transition(tenantId, null, run.id, {
         to,
         error: ((err as Error)?.message ?? 'scheduled watcher check failed').slice(0, 4000),
@@ -409,3 +409,4 @@ export function fingerprintCalendars(cal: ReferenceCalendars): string {
     )
     .digest('hex');
 }
+

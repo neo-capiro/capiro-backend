@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Req,
@@ -43,7 +44,7 @@ export class StewardController {
   extract(
     @CurrentTenant() tc: AuthTenantContext,
     @Req() req: Request,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.steward.extract(
       tc.tenantId,
@@ -68,7 +69,7 @@ export class StewardController {
   }
 
   @Post('facts/:id/reject')
-  rejectFact(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+  rejectFact(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.steward.rejectFact(
       tc.tenantId,
       { clerkUserId: tc.clerkUserId, role: tc.role },
@@ -91,7 +92,7 @@ export class StewardController {
   @Post('conflicts/:id/resolve')
   resolveConflict(
     @CurrentTenant() tc: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: ResolveConflictDto,
   ) {
     return this.steward.resolveConflict(
@@ -103,7 +104,7 @@ export class StewardController {
   }
 
   @Post('conflicts/:id/dismiss')
-  dismissConflict(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+  dismissConflict(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.steward.dismissConflict(
       tc.tenantId,
       { clerkUserId: tc.clerkUserId, role: tc.role },

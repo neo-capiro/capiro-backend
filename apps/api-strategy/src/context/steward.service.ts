@@ -143,21 +143,46 @@ export class StewardService {
     const rawFacts = Array.isArray(resp.facts) ? resp.facts : [];
     const rawConflicts = Array.isArray(resp.conflicts) ? resp.conflicts : [];
 
+    // Validate before retiring prior facts. A model response whose entire
+    // output has invalid provenance is as unusable as an empty response.
+    const validatedFacts = rawFacts.flatMap((f, rawIndex) => {
+      const factText = typeof f?.fact === 'string' ? f.fact.trim() : '';
+      const sourceRef = typeof f?.sourceRef === 'string' ? f.sourceRef : '';
+      return factText && sourceRef && locate(doc.content, sourceRef) !== null
+        ? [{ f, rawIndex, factText, sourceRef }]
+        : [];
+    });
+    const droppedRefs = rawFacts.length - validatedFacts.length;
+
     // FAIL-SOFT NO-OP: the orchestrator returns facts: [] with a diagnostic
     // summary when its model call fails (its documented contract: api-strategy
     // treats empty facts as a no-op). Honor it BEFORE the reprocess supersede —
     // an empty extraction must never retire the document's prior active facts,
     // or a transient LLM error would silently wipe the grounding corpus.
-    if (rawFacts.length === 0) {
+    if (validatedFacts.length === 0) {
       return {
         inserted: 0,
-        droppedRefs: 0,
+        droppedRefs,
         conflicts: 0,
         summary: typeof resp.summary === 'string' ? resp.summary : '',
       };
     }
 
     return this.prisma.withTenantUser(tenantId, user.clerkUserId, async (tx) => {
+      // The model call happens outside the transaction. Lock the source row
+      // so an archive/supersession cannot race new active facts into a retired
+      // document, then verify that this is still the source we extracted.
+      await tx.$queryRaw`
+        SELECT id FROM sp_context_document
+        WHERE id = ${documentId}::uuid AND tenant_id = ${tenantId}::uuid
+        FOR UPDATE
+      `;
+      const currentDoc = await tx.spContextDocument.findFirst({ where: { id: documentId } });
+      if (!currentDoc) throw new NotFoundException('Context document not found');
+      if (currentDoc.state !== 'active' || currentDoc.checksum !== doc.checksum) {
+        throw new ConflictException('Context document changed during extraction — refresh and try again');
+      }
+
       // REPROCESS: retire this document's prior active facts first — the new
       // surviving set replaces them (retained as history, never deleted).
       await tx.spContextFact.updateMany({
@@ -168,16 +193,8 @@ export class StewardService {
       // Persist only facts whose sourceRef resolves against the STORED content
       // (never fabricate provenance). Track surviving rows by their ORIGINAL
       // index so conflict newFactIndex remapping works after drops.
-      let droppedRefs = 0;
       const insertedByRawIndex = new Map<number, SpContextFact>();
-      for (let i = 0; i < rawFacts.length; i++) {
-        const f = rawFacts[i]!;
-        const factText = typeof f?.fact === 'string' ? f.fact.trim() : '';
-        const sourceRef = typeof f?.sourceRef === 'string' ? f.sourceRef : '';
-        if (!factText || !sourceRef || locate(doc.content, sourceRef) === null) {
-          droppedRefs++;
-          continue;
-        }
+      for (const { f, rawIndex, factText, sourceRef } of validatedFacts) {
         const row = await tx.spContextFact.create({
           data: {
             tenantId,
@@ -195,7 +212,7 @@ export class StewardService {
             citation: typeof f.citation === 'string' ? f.citation : null,
           },
         });
-        insertedByRawIndex.set(i, row);
+        insertedByRawIndex.set(rawIndex, row);
       }
 
       // Conflict validation: ONE tenant-scoped findMany resolves every claimed
@@ -338,8 +355,20 @@ export class StewardService {
       throw new BadRequestException(`Invalid clientId '${opts.clientId}' — expected a UUID`);
     }
     return this.prisma.withTenant(tenantId, async (tx) => {
+      const clientFactIds = opts.clientId
+        ? (await tx.spContextFact.findMany({
+            where: { clientId: opts.clientId },
+            select: { id: true },
+          })).map((fact) => fact.id)
+        : null;
+      if (clientFactIds?.length === 0) return [];
       const conflicts = await tx.spContextConflict.findMany({
-        where: { ...(opts.state ? { state: opts.state as SpConflictState } : {}) },
+        where: {
+          ...(opts.state ? { state: opts.state as SpConflictState } : {}),
+          ...(clientFactIds ? {
+            OR: [{ factAId: { in: clientFactIds } }, { factBId: { in: clientFactIds } }],
+          } : {}),
+        },
         orderBy: { createdAt: 'desc' },
         take: 200,
       });
@@ -412,6 +441,10 @@ export class StewardService {
           throw new BadRequestException(
             'controllingFactId must be one of the conflicting facts (factAId or factBId)',
           );
+        }
+        const controlling = await tx.spContextFact.findFirst({ where: { id: opts.controllingFactId } });
+        if (!controlling || controlling.state !== 'active') {
+          throw new ConflictException('The controlling fact is no longer active — refresh the conflict before resolving');
         }
         rejectedFactId =
           opts.controllingFactId === conflict.factAId ? conflict.factBId : conflict.factAId;
@@ -501,7 +534,7 @@ export class StewardService {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const factStates = await tx.spContextFact.findMany({
         where: clientScope(clientId),
-        select: { state: true },
+        select: { id: true, state: true },
       });
       const factCounts: Record<SpFactState, number> = {
         active: 0,
@@ -512,11 +545,16 @@ export class StewardService {
       for (const f of factStates) factCounts[f.state]++;
 
       // Open conflicts, scoped via their facts (conflict rows carry no clientId).
-      const open = await tx.spContextConflict.findMany({
-        where: { state: 'open' },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      });
+      const scopedFactIds = factStates.filter((fact) => fact.state === 'active').map((fact) => fact.id);
+      const open = scopedFactIds.length > 0
+        ? await tx.spContextConflict.findMany({
+            where: {
+              state: 'open',
+              OR: [{ factAId: { in: scopedFactIds } }, { factBId: { in: scopedFactIds } }],
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [];
       const conflictFactIds = [...new Set(open.flatMap((c) => [c.factAId, c.factBId]))];
       const conflictFacts = conflictFactIds.length
         ? await tx.spContextFact.findMany({ where: { id: { in: conflictFactIds } } })
@@ -591,9 +629,23 @@ export class StewardService {
    * joined with their document's title + templateKey.
    */
   async factsForOrchestrator(tenantId: string, clientId: string | null): Promise<StewardFactLine[]> {
+    const today = new Date(new Date().toISOString().slice(0, 10));
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spContextFact.findMany({
-        where: { ...clientScope(clientId), state: 'active' },
+        where: {
+          ...clientScope(clientId),
+          state: 'active',
+          // Time alone can expire a source; no mutation flips its fact states.
+          // Filter before the row limit so stale sources neither ground Meri
+          // nor crowd current evidence out of the packet.
+          document: {
+            is: {
+              tenantId,
+              state: 'active',
+              OR: [{ validUntil: null }, { validUntil: { gte: today } }],
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         take: 120,
         include: { document: { select: { title: true, templateKey: true } } },

@@ -55,6 +55,7 @@ export class NodeTargetRefDto {
   clientTargetId?: string;
 
   @IsString()
+  @Matches(/\S/, { message: 'memberId must not be blank' })
   @MaxLength(128)
   memberId!: string;
 
@@ -101,6 +102,7 @@ export class CreateNodeDto {
   subject!: NodeSubjectValue;
 
   @IsString()
+  @Matches(/\S/, { message: 'title must not be blank' })
   @MaxLength(300)
   title!: string;
 
@@ -114,7 +116,7 @@ export class CreateNodeDto {
   @MaxLength(120)
   ownerUserId?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsIn(NODE_STATUSES)
   status?: NodeStatusValue;
 
@@ -126,13 +128,13 @@ export class CreateNodeDto {
   @Matches(DATE_RE, { message: 'endsOn must be YYYY-MM-DD' })
   endsOn?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsBoolean()
   openEnded?: boolean;
 
   /** Phase 2 (A2): sibling node ids that must complete before this step.
    *  Intra-strategy references; existence + self-reference are enforced server-side. */
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsArray()
   @ArrayMaxSize(20)
   @IsUUID(undefined, { each: true })
@@ -152,16 +154,17 @@ export class CreateNodeDto {
  * `changeNote` is the human-facing version/flash label for this edit.
  */
 export class UpdateNodeDto {
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsIn(NODE_KINDS)
   kind?: NodeKindValue;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsIn(NODE_SUBJECTS)
   subject?: NodeSubjectValue;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsString()
+  @Matches(/\S/, { message: 'title must not be blank' })
   @MaxLength(300)
   title?: string;
 
@@ -175,11 +178,11 @@ export class UpdateNodeDto {
   @MaxLength(120)
   ownerUserId?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsIn(NODE_STATUSES)
   status?: NodeStatusValue;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @Matches(DATE_RE, { message: 'startsOn must be YYYY-MM-DD' })
   startsOn?: string;
 
@@ -187,12 +190,12 @@ export class UpdateNodeDto {
   @Matches(DATE_RE, { message: 'endsOn must be YYYY-MM-DD' })
   endsOn?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsBoolean()
   openEnded?: boolean;
 
   /** Phase 2 (A2): replace this step's dependency edges (full set, not a delta). */
-  @IsOptional()
+  @ValidateIf((_o, value) => value !== undefined)
   @IsArray()
   @ArrayMaxSize(20)
   @IsUUID(undefined, { each: true })
@@ -210,3 +213,4 @@ export class UpdateNodeDto {
   @MaxLength(200)
   changeNote?: string;
 }
+

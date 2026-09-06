@@ -10,6 +10,7 @@ import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
 import { loadStrategyDetail } from './detail.js';
 import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from './live-node.js';
+import { lockStrategyForMutation } from './mutation-lock.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
 import type { PatchStrategyDto } from './dto/patch-strategy.dto.js';
 
@@ -151,6 +152,7 @@ export class StrategyService {
     dto: PatchStrategyDto,
   ) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       const strat = await tx.spStrategy.findFirst({ where: { id: strategyId } });
       if (!strat) throw new NotFoundException('Strategy not found');
 
@@ -219,6 +221,7 @@ export class StrategyService {
    */
   async archive(tenantId: string, clerkUserId: string, strategyId: string) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       const strat = await tx.spStrategy.findFirst({
         where: { id: strategyId },
         select: { id: true, title: true, archivedAt: true },

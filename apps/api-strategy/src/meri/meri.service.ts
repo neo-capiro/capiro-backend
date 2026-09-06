@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -19,6 +20,7 @@ import { parseDbDate } from '../strategy/dates.js';
 import { loadStrategyDetail } from '../strategy/detail.js';
 import { isoDate } from '../strategy/versioning.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
+import { lockStrategyForMutation } from '../strategy/mutation-lock.js';
 import { fyOf } from '../fiscal/fiscal.js';
 import { withContextRetry } from './context-load.js';
 import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.dto.js';
@@ -411,9 +413,13 @@ export class MeriService {
         },
       }),
     );
-    if (!strategy) throw new NotFoundException('Strategy not found');
+    if (!strategy || strategy.archivedAt) throw new NotFoundException('Strategy not found');
+    const strategySnapshot = serializeStrategy(strategy);
     if (dto.scope === 'node' && !dto.nodeId) {
       throw new BadRequestException('nodeId is required for node-scope assist');
+    }
+    if (dto.scope === 'node' && !strategy.nodes.some((node) => node.id === dto.nodeId)) {
+      throw new NotFoundException('Step not found on this strategy');
     }
 
     // Phase 2: which conversation this send belongs to. A node-scoped send lives
@@ -431,7 +437,7 @@ export class MeriService {
       body: dto.instruction,
       attachments: snapshotAttachments(dto),
       clientMessageId: dto.clientMessageId,
-    });
+    }, { rejectReplay: true });
 
     // Declared out here because the post-apply verifier (`ground`) and the
     // version note (`docs.length`) both need them AFTER the try block.
@@ -455,7 +461,7 @@ export class MeriService {
           attachmentIds: dto.attachmentIds ?? [],
           attachments: docs,
           clientId: strategy.clientId,
-          strategy: serializeStrategy(strategy),
+          strategy: strategySnapshot,
           ...ground,
           ...stewardCtx,
         },
@@ -477,6 +483,7 @@ export class MeriService {
     // per applied set). Return the reply against the current, unchanged state.
     if (edits.length === 0) {
       const { current, meriMessage } = await this.prisma.withTenant(tenantId, async (tx) => {
+        await this.assertAssistantSnapshot(tx, tenantId, strategyId, strategy.lastEditedAt, strategySnapshot);
         const loaded = await loadStrategyDetail(tx, strategyId);
         // Phase 5 §5/§6: a pure question can still be the turn that resolves a
         // gap — e.g. the user attaches the missing document and asks a question
@@ -512,7 +519,10 @@ export class MeriService {
           kind: 'message',
           body: replyBody(resp.reply, dto.scope, 0),
         });
-        return { current: loaded, meriMessage: msg };
+        return { current: await loadStrategyDetail(tx, strategyId), meriMessage: msg };
+      }).catch(async (err: unknown) => {
+        await this.recordAssistantError(tenantId, strategyId, contextNodeId, err);
+        throw err;
       });
       // Phase 6 §6 ("conversation send success"). Counts and ids only — never
       // the instruction, the reply, or any source text.
@@ -533,6 +543,7 @@ export class MeriService {
     const beforeNodeIds = new Set(strategy.nodes.map((n) => n.id));
 
     const { detail, violations, meriMessage } = await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await this.assertAssistantSnapshot(tx, tenantId, strategyId, strategy.lastEditedAt, strategySnapshot);
       for (const edit of edits) {
         await this.applyEdit(tx, tenantId, strategyId, clerkUserId, edit);
       }
@@ -617,7 +628,10 @@ export class MeriService {
         // phase does not have, and picking one arbitrarily would be a guess.
         action: openNodeAction(created),
       });
-      return { detail: d, violations: v, meriMessage: msg };
+      return { detail: await loadStrategyDetail(tx, strategyId), violations: v, meriMessage: msg };
+    }).catch(async (err: unknown) => {
+      await this.recordAssistantError(tenantId, strategyId, contextNodeId, err);
+      throw err;
     });
 
     this.logger.log(
@@ -631,6 +645,28 @@ export class MeriService {
       strategy: { ...detail, violations, groundingHealth: resp.groundingHealth },
       messages: [userMessage, meriMessage],
     };
+  }
+
+  /** A slow model response must never overwrite a plan edited in the meantime. */
+  private async assertAssistantSnapshot(
+    tx: Tx,
+    tenantId: string,
+    strategyId: string,
+    expectedLastEditedAt: Date | null,
+    expectedSnapshot: ReturnType<typeof serializeStrategy>,
+  ): Promise<void> {
+    await lockStrategyForMutation(tx, tenantId, strategyId);
+    const current = await tx.spStrategy.findFirst({
+      where: { id: strategyId },
+      include: { nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] } },
+    });
+    if (!current || current.archivedAt) throw new NotFoundException('Strategy not found');
+    if (
+      current.lastEditedAt?.getTime() !== expectedLastEditedAt?.getTime() ||
+      JSON.stringify(serializeStrategy(current)) !== JSON.stringify(expectedSnapshot)
+    ) {
+      throw new ConflictException('The strategy changed while Meri was working. Review the current plan and try again.');
+    }
   }
 
   /**
@@ -800,13 +836,23 @@ export class MeriService {
       throw new BadRequestException(`Meri referenced an unknown node ${edit.nodeId}`);
     }
     if (edit.op === 'remove') {
-      await tx.spNode.delete({ where: { id: edit.nodeId } });
+      const archivedAt = new Date();
+      const archivedReason = 'Removed from strategy by Meri';
+      await tx.spNode.update({
+        where: { id: edit.nodeId },
+        data: { archivedAt, archivedByUserId: clerkUserId, archivedReason },
+      });
+      await tx.spNodeArtifact.updateMany({
+        where: { strategyId, nodeId: edit.nodeId, detachedAt: null },
+        data: { detachedAt: archivedAt, detachedReason: archivedReason },
+      });
       // Strip the removed id from sibling edges (parity with NodeService.remove).
       await tx.$executeRaw`
         UPDATE sp_node
            SET depends_on_ids = array_remove(depends_on_ids, ${edit.nodeId}::uuid)
          WHERE strategy_id = ${strategyId}::uuid
            AND tenant_id = ${tenantId}::uuid
+           AND archived_at IS NULL
            AND ${edit.nodeId}::uuid = ANY (depends_on_ids)`;
       return;
     }

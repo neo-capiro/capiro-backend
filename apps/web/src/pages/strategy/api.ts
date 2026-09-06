@@ -1008,6 +1008,9 @@ export function useExecutionRuns(strategyId?: string | null, enabled = true) {
     queryFn: async () =>
       normalizeExecutionRuns((await api.get<unknown>(`${BASE}/agents/execution/runs${suffix}`)).data),
     staleTime: 15_000,
+    refetchInterval: (query) => query.state.data?.some((run) =>
+      run.state === 'queued' || run.state === 'planning' || run.state === 'executing',
+    ) ? 3_000 : false,
   });
 }
 

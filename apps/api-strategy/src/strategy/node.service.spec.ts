@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { NodeService } from './node.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { VersioningService } from './versioning.service.js';
@@ -35,11 +35,13 @@ interface NodeSeed {
   dependsOnIds?: string[];
   note?: string | null;
   ownerUserId?: string | null;
+  archivedAt?: Date | null;
 }
 
 function makeStore() {
   const strategies = new Map<string, Rec>();
   const nodes = new Map<string, Rec>();
+  const artifacts = new Map<string, Rec>();
   const nodesFor = (sid: string) =>
     [...nodes.values()]
       .filter((n) => n.strategyId === sid)
@@ -49,7 +51,7 @@ function makeStore() {
         if (sa !== sb) return sa - sb;
         return (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime();
       });
-  return { strategies, nodes, nodesFor };
+  return { strategies, nodes, artifacts, nodesFor };
 }
 type Store = ReturnType<typeof makeStore>;
 
@@ -75,6 +77,7 @@ function seedStrategy(store: Store, nodeSeeds: NodeSeed[] = [], sid = 'S1'): str
       endsOn: null,
       openEnded: false,
       dependsOnIds: [],
+      archivedAt: null,
       meriAuthored: false,
       createdByUserId: U,
       createdAt: new Date('2027-01-01T00:00:00.000Z'),
@@ -90,21 +93,23 @@ function makeTx(store: Store) {
   const spNode = {
     create: jest.fn(async ({ data }: { data: Rec }) => {
       const id = `node-${store.nodes.size + 1}`;
-      const rec: Rec = { ...data, id, createdAt: now, updatedAt: now };
+      const rec: Rec = { archivedAt: null, ...data, id, createdAt: now, updatedAt: now };
       store.nodes.set(id, rec);
       return rec;
     }),
-    findFirst: jest.fn(async ({ where }: { where: { id: string; strategyId?: string } }) => {
+    findFirst: jest.fn(async ({ where }: { where: { id: string; strategyId?: string; archivedAt?: null } }) => {
       const rec = store.nodes.get(where.id);
       if (!rec) return null;
       if (where.strategyId && rec.strategyId !== where.strategyId) return null;
+      if (where.archivedAt === null && rec.archivedAt != null) return null;
       return rec;
     }),
     findMany: jest.fn(
-      async ({ where }: { where: { strategyId: string; id: { in: string[] } } }) => {
+      async ({ where }: { where: { strategyId: string; id: { in: string[] }; archivedAt?: null } }) => {
         const ids = new Set(where.id.in);
         return [...store.nodes.values()].filter(
-          (n) => n.strategyId === where.strategyId && ids.has(n.id),
+          (n) => n.strategyId === where.strategyId && ids.has(n.id) &&
+            (where.archivedAt !== null || n.archivedAt == null),
         );
       },
     ),
@@ -121,7 +126,26 @@ function makeTx(store: Store) {
       return rec ?? null;
     }),
   };
-  const attach = (rec: Rec) => ({ ...rec, nodes: store.nodesFor(rec.id), artifacts: [] });
+  const attach = (rec: Rec) => ({
+    ...rec,
+    nodes: store.nodesFor(rec.id).filter((n) => n.archivedAt == null),
+    artifacts: [...store.artifacts.values()].filter((a) => a.strategyId === rec.id && a.detachedAt == null),
+  });
+  const spNodeArtifact = {
+    updateMany: jest.fn(async ({ where, data }: {
+      where: { strategyId: string; nodeId: string; detachedAt: null };
+      data: Record<string, unknown>;
+    }) => {
+      let count = 0;
+      for (const artifact of store.artifacts.values()) {
+        if (artifact.strategyId !== where.strategyId || artifact.nodeId !== where.nodeId ||
+            artifact.detachedAt != null) continue;
+        Object.assign(artifact, data);
+        count++;
+      }
+      return { count };
+    }),
+  };
   const spStrategy = {
     findFirst: jest.fn(async ({ where }: { where: { id: string } }) => store.strategies.get(where.id) ?? null),
     findFirstOrThrow: jest.fn(async ({ where }: { where: { id: string } }) => {
@@ -145,7 +169,7 @@ function makeTx(store: Store) {
     const [removeId, strategyId, tenantId] = values as [string, string, string];
     let count = 0;
     for (const rec of store.nodes.values()) {
-      if (rec.strategyId !== strategyId || rec.tenantId !== tenantId) continue;
+      if (rec.strategyId !== strategyId || rec.tenantId !== tenantId || rec.archivedAt != null) continue;
       const deps = (rec.dependsOnIds as string[] | undefined) ?? [];
       if (deps.includes(removeId)) {
         rec.dependsOnIds = deps.filter((d) => d !== removeId);
@@ -157,7 +181,12 @@ function makeTx(store: Store) {
   // Stage C: VersioningService.logActivity unconditionally emits a
   // transactional-outbox row in the same tx — the fake tx must accept it.
   const spEventOutbox = { create: jest.fn(async () => undefined) };
-  return { spNode, spStrategy, $executeRaw, spEventOutbox };
+  const $queryRaw = jest.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+    const [id, tenantId] = values as [string, string];
+    const strategy = store.strategies.get(id);
+    return strategy?.tenantId === tenantId ? [{ id }] : [];
+  });
+  return { spNode, spNodeArtifact, spStrategy, $executeRaw, $queryRaw, spEventOutbox };
 }
 type Tx = ReturnType<typeof makeTx>;
 
@@ -295,6 +324,40 @@ describe('NodeService.resolveDependsOn (private — exercised directly for edge 
 });
 
 describe('NodeService.remove', () => {
+  it('preserves artifact links and node identity, detaches only its live links, and rejects repeat removal', async () => {
+    const store = makeStore();
+    const sid = seedStrategy(store, [
+      { id: 'N1', title: 'Staged step', startsOn: '2027-02-01' },
+      { id: 'N2', title: 'Another step', startsOn: '2027-03-01' },
+      { id: 'N3', title: 'Historical step', startsOn: '2027-03-01',
+        archivedAt: new Date('2027-04-01'), dependsOnIds: ['N1'] },
+    ]);
+    const originalDetach = new Date('2027-04-02');
+    for (const [id, nodeId, detachedAt] of [
+      ['A1', 'N1', null], ['A2', 'N1', null], ['A3', 'N2', null],
+      ['A4', 'N1', originalDetach],
+    ] as const) {
+      store.artifacts.set(id, { id, nodeId, strategyId: sid, detachedAt,
+        artifactRef: `draft-${id}`, artifactType: id === 'A2' ? 'outreach_record' : 'workspace_draft' });
+    }
+    const { svc, getLastTx } = makeService(store);
+
+    const detail = await svc.remove(T, U, sid, 'N1');
+
+    expect(store.nodes.get('N1')!.archivedByUserId).toBe(U);
+    expect(store.artifacts.size).toBe(4);
+    expect(store.artifacts.get('A1')!.detachedAt).toBeInstanceOf(Date);
+    expect(store.artifacts.get('A2')!.detachedAt).toBeInstanceOf(Date);
+    expect(store.artifacts.get('A3')!.detachedAt).toBeNull();
+    expect(store.artifacts.get('A4')!.detachedAt).toBe(originalDetach);
+    expect(store.nodes.get('N3')!.dependsOnIds).toEqual(['N1']);
+    expect(detail.nodes.map((n) => n.id)).toEqual(['N2']);
+    expect(detail.artifacts.map((a) => a.id)).toEqual(['A3']);
+    expect(getLastTx().spNode.delete).not.toHaveBeenCalled();
+    await expect(svc.remove(T, U, sid, 'N1')).rejects.toThrow(NotFoundException);
+    await expect(svc.update(T, U, sid, 'N1', { title: 'Changed' })).rejects.toThrow(NotFoundException);
+  });
+
   it("strips the deleted node's id from every OTHER node's dependsOnIds in the same strategy", async () => {
     const store = makeStore();
     const sid = seedStrategy(store, [
@@ -306,7 +369,7 @@ describe('NodeService.remove', () => {
 
     await svc.remove(T, U, sid, 'N1');
 
-    expect(store.nodes.has('N1')).toBe(false);
+    expect(store.nodes.get('N1')!.archivedAt).toBeInstanceOf(Date);
     expect(store.nodes.get('N2')!.dependsOnIds).toEqual([]);
     // N3 depended on both N1 and N2 — only the deleted id (N1) is stripped.
     expect(store.nodes.get('N3')!.dependsOnIds).toEqual(['N2']);
@@ -328,7 +391,7 @@ describe('NodeService.remove', () => {
     expect(store.nodes.get('X1')!.dependsOnIds).toEqual(['N1']);
   });
 
-  it("emits node.deleted with an explicit strategyId (row is gone in the same tx, so the outbox consumer can't resolve node -> strategy)", async () => {
+  it("emits node.deleted with an explicit strategyId after the node leaves the live plan", async () => {
     const store = makeStore();
     const sid = seedStrategy(store, [{ id: 'N1', title: 'Node one', startsOn: '2027-02-01' }]);
     const { svc, versioning } = makeService(store);
@@ -378,6 +441,13 @@ describe('NodeService.remove', () => {
 });
 
 describe('NodeService.update', () => {
+  it('cannot make an action ongoing by explicitly setting openEnded', async () => {
+    const store = makeStore();
+    const sid = seedStrategy(store, [{ id: 'N1', title: 'Action', startsOn: '2027-02-01' }]);
+    const { svc } = makeService(store);
+    await svc.update(T, U, sid, 'N1', { openEnded: true });
+    expect(store.nodes.get('N1')!.openEnded).toBe(false);
+  });
   it('clears openEnded when converting a node away from risk without the caller explicitly setting it', async () => {
     const store = makeStore();
     const sid = seedStrategy(store, [
@@ -404,7 +474,7 @@ describe('NodeService.update', () => {
     expect(store.nodes.get('N1')!.openEnded).toBe(true);
   });
 
-  it('respects an explicit openEnded value even while converting away from risk', async () => {
+  it('clears an explicit openEnded value while converting away from risk', async () => {
     const store = makeStore();
     const sid = seedStrategy(store, [
       { id: 'N1', title: 'CR risk', startsOn: '2027-02-01', kind: 'risk', openEnded: true },
@@ -413,9 +483,7 @@ describe('NodeService.update', () => {
 
     await svc.update(T, U, sid, 'N1', { kind: 'milestone', openEnded: true } as UpdateNodeDto);
 
-    // Caller explicitly set it — the auto-clear only fires when the field was
-    // NOT provided in the dto.
-    expect(store.nodes.get('N1')!.openEnded).toBe(true);
+    expect(store.nodes.get('N1')!.openEnded).toBe(false);
   });
 
   it('rejects a partial date change that leaves endsOn earlier than the (possibly unchanged) startsOn', async () => {

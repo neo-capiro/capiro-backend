@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -122,10 +122,12 @@ export class StrategyConversationService {
       where: { strategyId, nodeId },
       // id is the tiebreaker because createdAt is millisecond-resolution and a
       // user message + its reply can commit inside the same millisecond.
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_MESSAGES,
     });
-    return rows.map(toPublic);
+    // Fetch the newest bounded window, then display it chronologically. An
+    // ascending LIMIT permanently hid new replies once a thread reached 500.
+    return rows.reverse().map(toPublic);
   }
 
   /**
@@ -147,10 +149,11 @@ export class StrategyConversationService {
       attachments?: ChatAttachmentSnapshot[];
       clientMessageId: string;
     },
+    options: { rejectReplay?: boolean } = {},
   ): Promise<PublicChatMessage> {
-    return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
-      await this.assertContext(tx, input.strategyId, input.nodeId);
-      try {
+    try {
+      return await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+        await this.assertContext(tx, input.strategyId, input.nodeId);
         return await this.appendIn(tx, tenantId, {
           strategyId: input.strategyId,
           nodeId: input.nodeId,
@@ -161,8 +164,12 @@ export class StrategyConversationService {
           clientMessageId: input.clientMessageId,
           createdByUserId: clerkUserId,
         });
-      } catch (err) {
-        if (!isUniqueViolation(err)) throw err;
+      });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      // PostgreSQL aborts the transaction after a unique violation. Read the
+      // winning message in a fresh tenant-scoped transaction after rollback.
+      return this.prisma.withTenant(tenantId, async (tx) => {
         // The retry lost the race (or is a genuine re-send): the stored row is
         // authoritative. findFirst, not findUnique — the tenant-scope hook
         // injects a top-level where.tenantId, which findUnique's compound-unique
@@ -171,6 +178,21 @@ export class StrategyConversationService {
           where: { clientMessageId: input.clientMessageId },
         });
         if (!existing) throw err;
+        if (
+          existing.strategyId !== input.strategyId ||
+          existing.nodeId !== input.nodeId ||
+          existing.createdByUserId !== clerkUserId ||
+          existing.body !== normalizeBody(input.body) ||
+          JSON.stringify(readAttachments(existing.attachmentRefs)) !==
+            JSON.stringify(readAttachments(normalizeAttachments(input.attachments)))
+        ) {
+          throw new ConflictException('This message id was already used for a different request');
+        }
+        // A saved user bubble is the claim on an assistant request. Reusing it
+        // must not invoke the model and apply its plan edits a second time.
+        if (options.rejectReplay) {
+          throw new ConflictException('This message was already submitted. Refresh the conversation before sending again.');
+        }
         // Phase 6 §6 ("conversation send success/failure/idempotent replay"):
         // a replay is a SUCCESS that did no work — invisible in request logs
         // otherwise, and the number that tells you whether clients are
@@ -179,8 +201,8 @@ export class StrategyConversationService {
           `[strategy:${input.strategyId}] conversation send replayed idempotently (message ${existing.id})`,
         );
         return toPublic(existing);
-      }
-    });
+      });
+    }
   }
 
   /**

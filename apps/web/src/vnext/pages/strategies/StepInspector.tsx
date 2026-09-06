@@ -11,7 +11,7 @@
  *    sends anything externally (Stage H gates the send path — §7.9).
  *  - Dismiss suppresses a suggestion until the step changes.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
 import { CapiroInput } from '../../components/fields/index.js';
@@ -20,13 +20,17 @@ import {
   memberName,
   useAddNode,
   useAssistant,
+  useCreateMission,
+  useMissions,
+  usePlanExecution,
+  useUpdateMission,
   useDismissContextGap,
   useRecordArtifact,
-  useStrategy,
   useStrategyConversation,
   useTenantMembers,
   useUpdateNode,
 } from './strategies-api.js';
+import { EXECUTION_MISSION_NAME, findExecutionMission } from '../../../pages/strategy/agents/agent-utils.js';
 import type { ArtifactType, StrategyNode } from '../../../pages/strategy/types.js';
 import {
   CLIENT_EXPORT_READY_STATUSES,
@@ -126,17 +130,17 @@ export function StepInspector({
   strategyId,
   step,
   isNew,
-  initialTab,
+  tab,
+  onTabChange,
   onClose,
 }: {
   strategyId: string;
   step: StrategyNode | null;
   isNew: boolean;
-  initialTab: 'step' | 'meri';
+  tab: 'step' | 'meri';
+  onTabChange: (tab: 'step' | 'meri') => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<'step' | 'meri'>(initialTab);
-  const strategy = useStrategy(strategyId);
   const members = useTenantMembers();
 
   // Composer (input + send + its draft state), lifted out of MeriTab so it
@@ -147,25 +151,33 @@ export function StepInspector({
   const nodeId = step?.id ?? null;
   const assistant = useAssistant(strategyId);
   const [draft, setDraft] = useState('');
+  const sending = useRef(false);
 
   const send = (text?: string) => {
     const instruction = (text ?? draft).trim();
-    if (!instruction) return;
+    if (!instruction || assistant.isPending || sending.current) return;
+    sending.current = true;
+    onTabChange('meri');
     assistant.mutate({
       scope: nodeId ? 'node' : 'strategy',
       nodeId: nodeId ?? undefined,
       instruction,
       clientMessageId: `vnext-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    }, {
+      onSuccess: () => {
+        // Preserve text typed while a request was in flight and keep failed drafts retryable.
+        if (text === undefined) setDraft((current) => current.trim() === instruction ? '' : current);
+      },
+      onSettled: () => { sending.current = false; },
     });
-    setDraft('');
   };
 
   return (
     <aside className="st-inspector" aria-label="Step inspector">
       <div className="st-inspector__head">
         <div>
-          <p className="st-eyebrow">{isNew ? 'New step' : 'Selected step'}</p>
-          <h2 className="st-inspector__title">{isNew ? 'Add a step' : step?.title ?? 'Step'}</h2>
+          <p className="st-eyebrow">{isNew ? 'New step' : step ? 'Selected step' : 'Strategy assistant'}</p>
+          <h2 className="st-inspector__title">{isNew ? 'Add a step' : step?.title ?? 'Ask Meri'}</h2>
         </div>
         <button type="button" className="st-inspector__close" aria-label="Close inspector" onClick={onClose}>
           ×
@@ -177,7 +189,8 @@ export function StepInspector({
           role="tab"
           aria-selected={tab === 'step'}
           className={tab === 'step' ? 'is-active' : ''}
-          onClick={() => setTab('step')}
+          onClick={() => onTabChange('step')}
+          disabled={!step && !isNew}
         >
           Step
         </button>
@@ -185,22 +198,23 @@ export function StepInspector({
           role="tab"
           aria-selected={tab === 'meri'}
           className={tab === 'meri' ? 'is-active' : ''}
-          onClick={() => setTab('meri')}
+          onClick={() => onTabChange('meri')}
         >
           Meri
         </button>
       </div>
 
-      {tab === 'step' ? (
-        <StepTab
-          strategyId={strategyId}
-          step={step}
-          isNew={isNew}
-          ownerName={step ? memberName(members.data, step.ownerUserId) : 'Unassigned'}
-        />
-      ) : (
-        <MeriTab strategyId={strategyId} step={step} />
-      )}
+      {step || isNew ? (
+        <div hidden={tab !== 'step'}>
+          <StepTab
+            strategyId={strategyId}
+            step={step}
+            isNew={isNew}
+            ownerName={step ? memberName(members.data, step.ownerUserId) : 'Unassigned'}
+          />
+        </div>
+      ) : null}
+      {tab === 'meri' ? <MeriTab strategyId={strategyId} step={step} /> : null}
 
       {/* Composer pinned across tabs: rendered once, outside the tab ternary
           above, so it never unmounts on a tab switch. Sticky to the bottom of
@@ -242,6 +256,11 @@ export function StepInspector({
             aria-busy={assistant.isPending || undefined}
           />
         </div>
+        {assistant.isError ? (
+          <p className="st-modal__alert" role="alert">
+            Meri could not respond. {(assistant.error as Error)?.message || 'Please try again.'}
+          </p>
+        ) : null}
         <p className="st-meri-hint">
           Meri can update the working plan. Review changed steps here, then mark
           them In progress or Active when they are ready for client reports.
@@ -427,10 +446,7 @@ function StepTab({
         </ul>
       )}
 
-      <div className="st-inspector__actions">
-        <PrepareWorkspaceButton strategyId={strategyId} step={step} />
-        <StageOutreachButton strategyId={strategyId} step={step} />
-      </div>
+      <ExecutionActions strategyId={strategyId} step={step} />
 
       <RecordArtifactSection strategyId={strategyId} step={step} />
 
@@ -441,38 +457,56 @@ function StepTab({
 
 /* ------------------------------------------------------- Workspace / outreach */
 
-function PrepareWorkspaceButton({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
-  const [state, setState] = useState<'idle' | 'working' | 'done'>('idle');
-  // Prepare-in-Workspace stages a Workspace draft linked to this step (§7.4). The
-  // execution plan endpoint is the staging path; the artifact back-link is recorded
-  // on the node. Nothing sends.
-  return (
-    <CapiroButton
-      disabled={state !== 'idle'}
-      onClick={() => {
-        setState('working');
-        // Staging is performed by the Execution plan surface; deep-link there so the
-        // operator reviews the staged plan rather than firing an implicit write here.
-        window.location.assign(`/strategies/agents/runs?strategyId=${strategyId}&nodeId=${step.id}`);
-      }}
-    >
-      {state === 'idle' ? 'Prepare in Workspace' : 'Opening…'}
-    </CapiroButton>
-  );
-}
+function ExecutionActions({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
+  const navigate = useNavigate();
+  const missions = useMissions(strategyId, false);
+  const createMission = useCreateMission();
+  const updateMission = useUpdateMission();
+  const plan = usePlanExecution();
+  const stagingRef = useRef(false);
+  const [staging, setStaging] = useState<'workspace' | 'outreach' | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-function StageOutreachButton({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
-  // Stage outreach creates STAGED records only (§7.9); the external send stays
-  // disabled until Stage H. Route to the execution surface to stage + review.
-  return (
-    <CapiroButton
-      variant="primary"
-      onClick={() =>
-        window.location.assign(`/strategies/agents/runs?strategyId=${strategyId}&nodeId=${step.id}&intent=outreach`)
+  const stage = async (kind: 'workspace' | 'outreach') => {
+    if (stagingRef.current) return;
+    stagingRef.current = true;
+    setStaging(kind);
+    setError(null);
+    try {
+      // Always check current missions before creating one. A failed list is not an empty list.
+      const result = await missions.refetch();
+      if (result.isError || !result.data) throw result.error ?? new Error('Execution missions could not be loaded.');
+      const mission = findExecutionMission(result.data, strategyId)
+        ?? await createMission.mutateAsync({ strategyId, name: EXECUTION_MISSION_NAME });
+      if (!mission) throw new Error('Could not prepare an execution mission.');
+      if (mission.state !== 'active') {
+        const activated = await updateMission.mutateAsync({ id: mission.id, input: { state: 'active' } });
+        if (activated?.state !== 'active') throw new Error('The execution mission could not be activated.');
       }
-    >
-      Stage outreach
-    </CapiroButton>
+      const run = await plan.mutateAsync({ missionId: mission.id, strategyId, nodeId: step.id, kind });
+      if (!run) throw new Error('No execution plan was returned. Please try again.');
+      // This only prepares the existing execution plan. Its review page shows any waiting reason.
+      navigate(`/strategies/agents/runs?strategyId=${encodeURIComponent(strategyId)}`);
+    } catch (err) {
+      setError((err as Error)?.message || 'The execution plan could not be prepared. Please try again.');
+    } finally {
+      stagingRef.current = false;
+      setStaging(null);
+    }
+  };
+
+  return (
+    <>
+      <div className="st-inspector__actions">
+        <CapiroButton disabled={staging !== null} loading={staging === 'workspace'} onClick={() => void stage('workspace')}>
+          Prepare in Workspace
+        </CapiroButton>
+        <CapiroButton variant="primary" disabled={staging !== null} loading={staging === 'outreach'} onClick={() => void stage('outreach')}>
+          Stage outreach
+        </CapiroButton>
+      </div>
+      {error ? <p className="st-modal__alert" role="alert">{error}</p> : null}
+    </>
   );
 }
 
@@ -487,6 +521,7 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
   const submit = () => {
     const ref = artifactRef.trim();
     if (!ref || recordArtifact.isPending) return;
+    setRecorded(false);
     recordArtifact.mutate(
       { nodeId: step.id, input: { artifactType, artifactRef: ref } },
       {
@@ -509,7 +544,8 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
           Type
           <select
             value={artifactType}
-            onChange={(e) => setArtifactType(e.target.value as ArtifactType)}
+            onChange={(e) => { setArtifactType(e.target.value as ArtifactType); setRecorded(false); }}
+            disabled={recordArtifact.isPending}
             style={{ fontSize: 12 }}
           >
             <option value="workspace_draft">Workspace draft</option>
@@ -520,7 +556,8 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
           Reference
           <input
             value={artifactRef}
-            onChange={(e) => setArtifactRef(e.target.value)}
+            onChange={(e) => { setArtifactRef(e.target.value); setRecorded(false); }}
+            disabled={recordArtifact.isPending}
             placeholder="Artifact reference id"
             style={{ fontSize: 12 }}
           />
@@ -585,6 +622,11 @@ function MeriTab({ strategyId, step }: { strategyId: string; step: StrategyNode 
       <div className="st-meri-thread" aria-live="polite">
         {conversation.isLoading ? (
           <CapiroSkeleton height={160} />
+        ) : conversation.isError ? (
+          <div role="alert">
+            <p>The conversation could not be loaded.</p>
+            <CapiroButton onClick={() => void conversation.refetch()}>Retry conversation</CapiroButton>
+          </div>
         ) : messages.length === 0 ? (
           <p className="st-inspector__empty">
             No thread yet. Ask Meri about this {nodeId ? 'step' : 'strategy'} — answers state their
@@ -639,7 +681,7 @@ function NewStepForm({ strategyId }: { strategyId: string }) {
         className="st-newstep"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!valid) return;
+          if (!valid || addNode.isPending) return;
           addNode.mutate(
             { kind, subject: 'deliverable', title: title.trim(), startsOn },
             { onSuccess: () => navigate(`/strategies/${strategyId}`) },
@@ -648,7 +690,7 @@ function NewStepForm({ strategyId }: { strategyId: string }) {
       >
         <label>
           Kind
-          <select value={kind} onChange={(e) => setKind(e.target.value as StrategyNode['kind'])}>
+          <select disabled={addNode.isPending} value={kind} onChange={(e) => setKind(e.target.value as StrategyNode['kind'])}>
             <option value="action">Action</option>
             <option value="gate">Gate</option>
             <option value="milestone">Milestone</option>
@@ -658,15 +700,20 @@ function NewStepForm({ strategyId }: { strategyId: string }) {
         </label>
         <label>
           Title
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Step title" />
+          <input disabled={addNode.isPending} maxLength={300} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Step title" />
         </label>
         <label>
           Start date
-          <input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
+          <input type="date" disabled={addNode.isPending} value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
         </label>
-        <CapiroButton variant="primary" disabled={!valid} loading={addNode.isPending}>
+        <CapiroButton type="submit" variant="primary" disabled={!valid || addNode.isPending} loading={addNode.isPending}>
           Add step
         </CapiroButton>
+        {addNode.isError ? (
+          <p className="st-modal__alert" role="alert">
+            The step could not be added. {(addNode.error as Error)?.message || 'Please try again.'}
+          </p>
+        ) : null}
       </form>
     </div>
   );
@@ -675,5 +722,6 @@ function NewStepForm({ strategyId }: { strategyId: string }) {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
+

@@ -40,6 +40,19 @@ describe('CreateNodeDto', () => {
     expect(await errorsFor(CreateNodeDto, rest)).toContain('title');
   });
 
+  it.each(['', '   '])('rejects a blank title (%j)', async (title) => {
+    expect(await errorsFor(CreateNodeDto, { ...valid, title })).toContain('title');
+  });
+
+  it('rejects a blank memberId on an otherwise valid target', async () => {
+    expect(await errorsFor(CreateNodeDto, { ...valid, targetRef: { memberId: ' ' } }))
+      .toContain('targetRef');
+  });
+
+  it.each(['status', 'openEnded', 'dependsOnIds'])('rejects explicit null for %s', async (field) => {
+    expect(await errorsFor(CreateNodeDto, { ...valid, [field]: null })).toContain(field);
+  });
+
   describe('dependsOnIds (A2)', () => {
     const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
@@ -111,6 +124,15 @@ describe('CreateNodeDto', () => {
 });
 
 describe('UpdateNodeDto', () => {
+  it.each(['kind', 'subject', 'title', 'status', 'startsOn', 'openEnded', 'dependsOnIds'])(
+    'rejects null for non-nullable %s before persistence', async (field) => {
+      expect(await errorsFor(UpdateNodeDto, { [field]: null })).toContain(field);
+    },
+  );
+
+  it.each(['', '   '])('rejects a blank title (%j)', async (title) => {
+    expect(await errorsFor(UpdateNodeDto, { title })).toContain('title');
+  });
   it('accepts a changeNote-only patch', async () => {
     expect(await errorsFor(UpdateNodeDto, { changeNote: 'Pushed one quarter.' })).toEqual([]);
   });

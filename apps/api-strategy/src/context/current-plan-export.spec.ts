@@ -79,6 +79,18 @@ describe('CurrentPlanExportService.exportCurrentPlan', () => {
     expect(err).toBeInstanceOf(NotFoundException);
   });
 
+  it('does not export an archived strategy as the live current plan', async () => {
+    const findFirst = jest.fn(async ({ where }: { where: { archivedAt?: null } }) =>
+      where.archivedAt === null ? null : { id: SID, clientId: CID, nodes: [] },
+    );
+    const svc = new CurrentPlanExportService({
+      withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
+        fn({ spStrategy: { findFirst } }),
+    } as unknown as PrismaService);
+
+    await expect(svc.exportCurrentPlan(T, SID)).rejects.toThrow(NotFoundException);
+  });
+
   it('renders the node table with FY-quarter derivation, escaped pipes, joined dependencies and artifact links', async () => {
     const svc = makeService([
       node({
@@ -189,9 +201,9 @@ describe('CurrentPlanExportService.exportCurrentPlan', () => {
 
     expect(markdown).toContain('- Unowned nodes: 1');
     expect(markdown).toContain('- Overdue nodes: 2');
-    expect(markdown).toContain('- Nodes blocked by unresolved context: 0'); // Stage E wires real conflicts
+    expect(markdown).toContain('- Nodes blocked by unresolved context: Not evaluated');
     expect(markdown).toContain('- Gates missing prerequisites: 1');
-    expect(markdown).toContain('- Execution-ready nodes: 0'); // Stage G wires eligibility
+    expect(markdown).toContain('- Execution-ready nodes: Not evaluated');
   });
 
   it('the generated document passes this module\'s OWN frontmatter validator and locates cleanly', async () => {

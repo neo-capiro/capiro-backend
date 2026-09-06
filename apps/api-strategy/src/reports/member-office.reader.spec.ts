@@ -167,6 +167,50 @@ describe("DirectoryMemberOfficeReader", () => {
     expect(noBearer!.resolved).toBe(false);
   });
 
+  it("does not share cached Directory authorization or reference fallbacks between callers", async () => {
+    const fetchMock = jest.fn(async (_url: unknown, init?: RequestInit) => {
+      const token = (init?.headers as Record<string, string>).authorization;
+      return {
+        ok: token === "Bearer allowed", status: token === "Bearer allowed" ? 200 : 403,
+        json: async () => detailPayload,
+      };
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const instance = reader();
+
+    const [first] = await instance.resolve({ bearer: "denied", members: [member] });
+    const [second] = await instance.resolve({ bearer: "allowed", members: [member] });
+    const [third] = await instance.resolve({ bearer: "different-denied", members: [member] });
+    const [differentReference] = await instance.resolve({
+      bearer: "allowed", members: [{ ...member, committee: "Armed Services" }],
+    });
+
+    expect(first!.resolved).toBe(false);
+    expect(second!.resolved).toBe(true);
+    expect(third!.resolved).toBe(false);
+    expect(differentReference!.committees).toEqual(["Armed Services"]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it.each([null, "12"])("stops oversized portrait streams even when Content-Length is %s", async (declared) => {
+    const cancel = jest.fn(() => undefined);
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(new Uint8Array(1024 * 1024));
+      },
+      cancel,
+    }, { highWaterMark: 0 });
+    const headers = new Headers();
+    if (declared !== null) headers.set("content-length", declared);
+    global.fetch = jest.fn(async () => new Response(stream, { headers })) as unknown as typeof fetch;
+
+    await expect(reader().photo("https://img.legistorm.com/people/large.jpg")).resolves.toBeNull();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(pulled).toBe(3);
+  });
+
   it("never fetches state legislators from the congressional directory", async () => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -179,11 +223,10 @@ describe("DirectoryMemberOfficeReader", () => {
   });
 
   it("refuses portraits that are not PNG/JPEG bytes from an allow-listed host", async () => {
-    const fetchMock = jest.fn(async () => ({
-      ok: true,
-      headers: new Headers({ "content-length": "4" }),
-      arrayBuffer: async () => new Uint8Array([0x47, 0x49, 0x46, 0x38]).buffer,
-    }));
+    const fetchMock = jest.fn(async () => new Response(
+      new Uint8Array([0x47, 0x49, 0x46, 0x38]),
+      { headers: { "content-length": "4" } },
+    ));
     global.fetch = fetchMock as unknown as typeof fetch;
     const instance = reader();
 

@@ -155,24 +155,28 @@ export function detectRecovery(input: RecoveryInput): RecoveryFinding[] {
   }
 
   // (4) The artifact EXISTS and is linked, but the run never advanced to say so.
-  // This is the "artifact created but run not completed" repair — and the reason
-  // the audit wants reconciliation to "finish steps 3-5 after partial failure".
+  // A staged Workspace run can also have died before its final completion
+  // transition. Human-input parks must stay parked: outreach legitimately has
+  // a linked artifact while awaiting send approval, and workspace may be held
+  // on a rejected or drifted approval. A linked artifact never overrides that.
   if (
     hasRealArtifact &&
     !isTerminal &&
     input.nodeLive &&
     (run.state === 'executing' ||
       run.state === 'failed_recoverable' ||
-      run.state === 'waiting_for_input')
+      (run.state === 'staged' && execution?.kind === 'workspace'))
   ) {
     findings.push({
       code: 'ARTIFACT_NOT_ADVANCED',
       severity: 'auto',
-      detail: `The ${
+      detail: run.state === 'staged'
+        ? 'The Workspace draft is created and linked, but the run did not record its final completion. Nothing was sent.'
+        : `The ${
         execution?.kind === 'outreach' ? 'Outreach record' : 'Workspace draft'
       } was created and linked to the step, but the run never recorded it. Nothing was sent.`,
       transition: {
-        to: 'staged',
+        to: run.state === 'staged' ? 'completed' : 'staged',
         reason: 'reconciliation found the created artifact already linked to the step',
       },
     });

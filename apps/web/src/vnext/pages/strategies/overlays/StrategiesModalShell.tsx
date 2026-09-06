@@ -126,12 +126,13 @@ export function StrategiesModalShell({
   }, [navigate, closeTo]);
 
   const requestClose = useCallback(() => {
+    if (primaryBusy) return;
     if (dirty) {
       setConfirming(true);
       return;
     }
     close();
-  }, [dirty, close]);
+  }, [dirty, close, primaryBusy]);
 
   /* A successful save/clear resets the guard without a navigation. */
   useEffect(() => {
@@ -209,7 +210,7 @@ export function StrategiesModalShell({
           </div>
           <div className="st-modal__header-side">
             {headerMeta}
-            <CapiroIconButton label="Close" icon={<CloseGlyph size={18} />} onClick={requestClose} />
+            <CapiroIconButton label="Close" icon={<CloseGlyph size={18} />} disabled={primaryBusy} onClick={requestClose} />
           </div>
         </header>
 
@@ -224,7 +225,7 @@ export function StrategiesModalShell({
               <CapiroButton size="compact" variant="secondary" onClick={() => setConfirming(false)}>
                 Keep editing
               </CapiroButton>
-              <CapiroButton size="compact" variant="primary" onClick={close}>
+              <CapiroButton size="compact" variant="primary" disabled={primaryBusy} onClick={close}>
                 Discard changes
               </CapiroButton>
             </span>
@@ -234,7 +235,7 @@ export function StrategiesModalShell({
         <footer className="st-modal__footer">
           <div className="st-modal__footer-note">{footerNote}</div>
           <div className="st-modal__footer-actions">
-            <CapiroButton variant="quiet" onClick={requestClose}>
+            <CapiroButton variant="quiet" disabled={primaryBusy} onClick={requestClose}>
               {cancelLabel}
             </CapiroButton>
             {onPrimary ? (
@@ -254,3 +255,4 @@ export function StrategiesModalShell({
     </div>
   );
 }
+

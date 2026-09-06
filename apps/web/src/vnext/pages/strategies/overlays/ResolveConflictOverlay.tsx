@@ -8,7 +8,7 @@
  * citation / documentId the embedded ContextConflictFact view lacks, and
  * useContextLocate(documentId, sourceRef) resolves the 1-based source lines
  * the decision record cites. The steward picks the controlling fact (A or B)
- * and writes a REQUIRED note; useResolveContextConflict supersedes the losing
+ * and writes a REQUIRED note; useResolveContextConflict rejects the losing active
  * fact server-side. Dismiss is a SEPARATE explicit action
  * (useDismissContextConflict) for "not a real conflict". No source document
  * is edited anywhere on this surface (governance §1).
@@ -16,7 +16,7 @@
  * Rendered after the canonical StewardReview resolve modal (same decision
  * shape). Focus trap / Escape / dirty guard / route sync live in the shell.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
@@ -33,6 +33,7 @@ import {
   useResolveContextConflict,
 } from '../strategies-api.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
+import { errorMessage } from '../../../../lib/error-message.js';
 
 function metaLine(fact: ContextConflictFact | null): string {
   if (!fact) return '';
@@ -54,13 +55,16 @@ function FactEvidence({ factId }: { factId: string | null }) {
   if (full?.citation) {
     return <div className="st-quote st-mono">{full.citation}</div>;
   }
-  if (locate.isLoading) {
+  if (facts.isLoading || locate.isLoading) {
     return (
       <div className="st-skel-stack" style={{ marginTop: 8 }}>
         <CapiroSkeleton height={14} />
         <CapiroSkeleton height={14} width="80%" />
       </div>
     );
+  }
+  if (facts.isError || locate.isError) {
+    return <div className="st-quote" role="status">Source evidence could not be loaded.</div>;
   }
   if (locate.data?.lines?.length) {
     const { startLine, lines } = locate.data;
@@ -86,6 +90,7 @@ export function ResolveConflictOverlay() {
   const { conflictId } = useParams<{ conflictId: string }>();
   const navigate = useNavigate();
   const conflicts = useContextConflicts();
+  const facts = useContextFacts();
   const resolve = useResolveContextConflict();
   const dismiss = useDismissContextConflict();
 
@@ -97,6 +102,11 @@ export function ResolveConflictOverlay() {
   const [pick, setPick] = useState<'A' | 'B' | null>(null);
   const [note, setNote] = useState('');
   const [confirmingDismiss, setConfirmingDismiss] = useState(false);
+  useEffect(() => {
+    setPick(null);
+    setNote('');
+    setConfirmingDismiss(false);
+  }, [conflictId]);
 
   const isOpen = conflict?.state === 'open';
   const controllingFactId =
@@ -107,6 +117,8 @@ export function ResolveConflictOverlay() {
         : '';
   const canSubmit =
     Boolean(conflict && isOpen && pick && controllingFactId && note.trim().length > 0) &&
+    !conflicts.isError &&
+    !facts.data?.some((fact) => fact.id === controllingFactId && fact.state !== 'active') &&
     !resolve.isPending &&
     !dismiss.isPending;
 
@@ -115,6 +127,8 @@ export function ResolveConflictOverlay() {
    * of what resolving now would do, not a fabricated one. */
   const pickedFact = pick === 'A' ? conflict?.factA ?? null : pick === 'B' ? conflict?.factB ?? null : null;
   const otherFact = pick === 'A' ? conflict?.factB ?? null : pick === 'B' ? conflict?.factA ?? null : null;
+  const losingState = facts.data?.find((fact) => fact.id === otherFact?.id)?.state;
+  const resultingLosingState = losingState && losingState !== 'active' ? losingState : 'rejected';
 
   const submit = () => {
     if (!canSubmit || !conflict) return;
@@ -125,7 +139,7 @@ export function ResolveConflictOverlay() {
   };
 
   const doDismiss = () => {
-    if (!conflict || dismiss.isPending || resolve.isPending) return;
+    if (!conflict || !isOpen || conflicts.isError || dismiss.isPending || resolve.isPending) return;
     dismiss.mutate(conflict.id, { onSuccess: () => navigate('/strategies/context/steward') });
   };
 
@@ -136,7 +150,7 @@ export function ResolveConflictOverlay() {
       type="button"
       className={`st-option-card${pick === key ? ' is-selected' : ''}`}
       aria-pressed={pick === key}
-      disabled={!isOpen || busy}
+      disabled={!isOpen || busy || !fact || facts.data?.some((row) => row.id === factId && row.state !== 'active')}
       onClick={() => setPick(key)}
       style={{ textAlign: 'left' }}
     >
@@ -156,14 +170,14 @@ export function ResolveConflictOverlay() {
     <StrategiesModalShell
       eyebrow="Steward review"
       title="Resolve the conflict"
-      subtitle="Pick the fact that controls going forward and say why. The losing fact is superseded — no source document is edited."
+      subtitle="Pick the fact that controls going forward and say why. An active losing fact is rejected — no source document is edited."
       closeTo="/strategies/context/steward"
       maxWidth={900}
       dirty={Boolean((pick || note.trim()) && !busy)}
       primaryLabel="Resolve conflict"
       onPrimary={isOpen ? submit : undefined}
       primaryDisabled={!canSubmit}
-      primaryBusy={resolve.isPending}
+      primaryBusy={busy}
       primaryDanger
       cancelLabel={isOpen ? 'Cancel' : 'Close'}
       footerNote={
@@ -193,12 +207,12 @@ export function ResolveConflictOverlay() {
         <>
           {resolve.isError ? (
             <p className="st-modal__alert" role="alert">
-              Could not resolve the conflict. {(resolve.error as Error)?.message || 'Please try again.'}
+              {errorMessage(resolve.error, 'Could not resolve the conflict. Please try again.')}
             </p>
           ) : null}
           {dismiss.isError ? (
             <p className="st-modal__alert" role="alert">
-              Could not dismiss the conflict. {(dismiss.error as Error)?.message || 'Please try again.'}
+              {errorMessage(dismiss.error, 'Could not dismiss the conflict. Please try again.')}
             </p>
           ) : null}
 
@@ -256,9 +270,9 @@ export function ResolveConflictOverlay() {
                       </p>
                       <span className="st-pill st-pill--success">Active</span>
                       <p className="st-dark-panel__text" style={{ margin: '6px 0 12px' }}>
-                        This fact becomes controlling for every strategy and agent that cites it.
+                        This fact remains active as the controlling source for this conflict.
                       </p>
-                      <span className="st-pill st-pill--danger">Superseded</span>
+                      <span className="st-pill st-pill--danger">{resultingLosingState.charAt(0).toUpperCase() + resultingLosingState.slice(1)}</span>
                       <p className="st-dark-panel__text" style={{ margin: '6px 0 0' }}>
                         {otherFact
                           ? `"${otherFact.fact}" remains queryable in history.`
@@ -279,7 +293,7 @@ export function ResolveConflictOverlay() {
                   <strong style={{ display: 'block', marginBottom: 4 }}>
                     This decision creates a durable steward record.
                   </strong>
-                  Resolving supersedes the losing fact across every strategy that cites it.{' '}
+                  Resolving rejects the losing fact if it is active; retired facts retain their existing state.{' '}
                   <strong>No source document is edited</strong> — the decision is recorded on the
                   conflict itself.
                 </span>

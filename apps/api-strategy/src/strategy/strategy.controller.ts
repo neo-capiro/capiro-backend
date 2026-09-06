@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -62,7 +63,7 @@ export class StrategyController {
   @Get(':id/reports/preflight')
   reportPreflight(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Query() query: ReportPreflightDto,
     @Req() req: Request,
   ) {
@@ -75,7 +76,7 @@ export class StrategyController {
   @Post(':id/reports/export')
   async exportReport(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: ReportExportDto,
     @Req() req: Request,
     @Res({ passthrough: true }) response: Response,
@@ -124,14 +125,14 @@ export class StrategyController {
   }
 
   @Get(':id')
-  byId(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
+  byId(@CurrentTenant() ctx: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.strategies.byId(ctx.tenantId, id);
   }
 
   @Patch(':id')
   patch(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: PatchStrategyDto,
   ) {
     return this.strategies.patchMeta(ctx.tenantId, ctx.clerkUserId, id, dto);
@@ -142,7 +143,7 @@ export class StrategyController {
    * Declared before the node routes so the `:id` param shape is unambiguous.
    */
   @Delete(':id')
-  remove(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
+  remove(@CurrentTenant() ctx: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.strategies.archive(ctx.tenantId, ctx.clerkUserId, id);
   }
 
@@ -150,7 +151,7 @@ export class StrategyController {
   @Post(':id/nodes')
   addNode(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CreateNodeDto,
   ) {
     return this.nodes.add(ctx.tenantId, ctx.clerkUserId, id, dto);
@@ -159,8 +160,8 @@ export class StrategyController {
   @Patch(':id/nodes/:nodeId')
   updateNode(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Param('nodeId') nodeId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('nodeId', new ParseUUIDPipe()) nodeId: string,
     @Body() dto: UpdateNodeDto,
   ) {
     return this.nodes.update(ctx.tenantId, ctx.clerkUserId, id, nodeId, dto);
@@ -169,8 +170,8 @@ export class StrategyController {
   @Delete(':id/nodes/:nodeId')
   deleteNode(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Param('nodeId') nodeId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('nodeId', new ParseUUIDPipe()) nodeId: string,
   ) {
     return this.nodes.remove(ctx.tenantId, ctx.clerkUserId, id, nodeId);
   }
@@ -179,8 +180,8 @@ export class StrategyController {
   @Post(':id/nodes/:nodeId/artifacts')
   addArtifact(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Param('nodeId') nodeId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('nodeId', new ParseUUIDPipe()) nodeId: string,
     @Body() dto: CreateArtifactDto,
   ) {
     return this.nodes.linkArtifact(
@@ -196,7 +197,7 @@ export class StrategyController {
   @Get(':id/versions')
   listVersions(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Query('take') take?: string,
     @Query('cursor') cursor?: string,
   ) {
@@ -216,8 +217,8 @@ export class StrategyController {
   @Get(':id/versions/:versionId/restore-impact')
   restoreImpact(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Param('versionId') versionId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('versionId', new ParseUUIDPipe()) versionId: string,
   ) {
     return this.versions.restoreImpact(ctx.tenantId, id, versionId);
   }
@@ -230,7 +231,7 @@ export class StrategyController {
   @Get(':id/detached')
   listDetached(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.versions.listDetached(ctx.tenantId, id);
   }
@@ -244,8 +245,8 @@ export class StrategyController {
   @Post(':id/versions/:versionId/restore')
   restoreVersion(
     @CurrentTenant() ctx: AuthTenantContext,
-    @Param('id') id: string,
-    @Param('versionId') versionId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('versionId', new ParseUUIDPipe()) versionId: string,
   ) {
     return this.versions.restore(ctx.tenantId, ctx.clerkUserId, id, versionId);
   }
@@ -257,3 +258,4 @@ function bearerFrom(req: Request): string | undefined {
   const match = typeof header === 'string' ? /^Bearer\s+(.+)$/i.exec(header) : null;
   return match?.[1]?.trim() || undefined;
 }
+

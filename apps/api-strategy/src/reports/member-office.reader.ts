@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import { sniffRasterContentType } from "./client-logo.reader.js";
 import { sanitizeRasterAsset } from "./report-image.js";
@@ -27,6 +28,7 @@ const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 const MAX_CONCURRENT_LOOKUPS = 4;
 const DETAIL_CACHE_MS = 30 * 60 * 1000;
 const DETAIL_FAILURE_CACHE_MS = 2 * 60 * 1000;
+const DETAIL_CACHE_ENTRIES = 256;
 const PHOTO_CACHE_MS = 30 * 60 * 1000;
 const PHOTO_CACHE_ENTRIES = 64;
 const DEFAULT_PHOTO_HOSTS = "img.legistorm.com";
@@ -107,7 +109,14 @@ export class DirectoryMemberOfficeReader implements MemberOfficeReader {
     if ((member.sourceDirectory ?? "congress") !== "congress" || !bearer) {
       return fallbackDetail(member);
     }
-    const cached = this.detailCache.get(member.memberId);
+    // Directory access is checked under this caller's bearer, and mapping can
+    // fall back to this strategy's stored reference fields. Neither a success
+    // nor an authorization failure may be reused for a different caller or
+    // reference. Hash the key so credentials never remain in cache keys.
+    const cacheKey = createHash("sha256")
+      .update(JSON.stringify([bearer, member]))
+      .digest("hex");
+    const cached = this.detailCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.value ?? fallbackDetail(member);
     }
@@ -135,7 +144,7 @@ export class DirectoryMemberOfficeReader implements MemberOfficeReader {
         (await response.json()) as unknown,
         this.photoHosts,
       );
-      this.detailCache.set(member.memberId, {
+      this.cacheDetail(cacheKey, {
         value: detail,
         expiresAt: Date.now() + DETAIL_CACHE_MS,
       });
@@ -147,7 +156,7 @@ export class DirectoryMemberOfficeReader implements MemberOfficeReader {
           error instanceof Error ? error.name : "unknown error"
         }`,
       );
-      this.detailCache.set(member.memberId, {
+      this.cacheDetail(cacheKey, {
         value: null,
         expiresAt: Date.now() + DETAIL_FAILURE_CACHE_MS,
       });
@@ -155,6 +164,14 @@ export class DirectoryMemberOfficeReader implements MemberOfficeReader {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private cacheDetail(key: string, entry: CacheEntry<ReportMemberDetail | null>): void {
+    if (this.detailCache.size >= DETAIL_CACHE_ENTRIES && !this.detailCache.has(key)) {
+      const oldest = this.detailCache.keys().next().value;
+      if (oldest !== undefined) this.detailCache.delete(oldest);
+    }
+    this.detailCache.set(key, entry);
   }
 
   async photo(url: string): Promise<ReportRasterAsset | null> {
@@ -173,8 +190,27 @@ export class DirectoryMemberOfficeReader implements MemberOfficeReader {
         headers: { accept: "image/png,image/jpeg" },
       });
       const declared = Number(response.headers.get("content-length") ?? "0");
-      if (response.ok && declared <= MAX_PHOTO_BYTES) {
-        const bytes = Buffer.from(await response.arrayBuffer());
+      if (response.ok && declared <= MAX_PHOTO_BYTES && response.body) {
+        // Content-Length may be absent or false. Bound the bytes while reading
+        // so a chunked oversized response cannot exhaust the report process.
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > MAX_PHOTO_BYTES) {
+              await reader.cancel();
+              return null;
+            }
+            chunks.push(value);
+          }
+        } finally {
+          reader.releaseLock();
+        }
+        const bytes = Buffer.concat(chunks, size);
         const contentType = sniffRasterContentType(bytes);
         if (
           bytes.length > 0 &&
@@ -183,6 +219,8 @@ export class DirectoryMemberOfficeReader implements MemberOfficeReader {
         ) {
           asset = sanitizeRasterAsset({ bytes, contentType });
         }
+      } else {
+        await response.body?.cancel();
       }
     } catch (error) {
       this.logger.warn(

@@ -133,7 +133,8 @@ export function StewardReviewVNext() {
   const dismiss = useDismissContextConflict();
 
   const clientFilter = searchParams.get('client') ?? 'all';
-  const stateFilter = (searchParams.get('state') ?? 'active') as ContextFactState;
+  const requestedState = searchParams.get('state');
+  const stateFilter = FACT_STATES.find((state) => state.id === requestedState)?.id ?? 'active';
   const query = searchParams.get('q') ?? '';
 
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -192,7 +193,12 @@ export function StewardReviewVNext() {
   const consumedFactParam = useRef<string | null>(null);
   useEffect(() => {
     const param = searchParams.get('fact');
-    if (!param || !facts.data || consumedFactParam.current === param) return;
+    if (!param) {
+      consumedFactParam.current = null;
+      setHighlightId(null);
+      return;
+    }
+    if (!facts.data || consumedFactParam.current === param) return;
     consumedFactParam.current = param;
     const hit = facts.data.find((fact) => fact.id === param);
     if (!hit) {
@@ -200,8 +206,16 @@ export function StewardReviewVNext() {
       return;
     }
     setHighlightId(hit.id);
-    setParam('state', hit.state);
-    setParam('client', 'all'); // never let the client filter hide the deep-linked row
+    // React Router does not queue functional search-param updates. Apply all
+    // visibility changes together so the state tab is not lost to the client reset.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (hit.state === 'active') next.delete('state');
+      else next.set('state', hit.state);
+      next.delete('client');
+      next.delete('q');
+      return next;
+    }, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, facts.data]);
 
@@ -507,7 +521,7 @@ export function StewardReviewVNext() {
                 </div>
               ))}
             </div>
-          ) : conflicts.isError ? (
+          ) : conflicts.isError && (!conflicts.data || isForbidden(conflicts.error)) ? (
             isForbidden(conflicts.error) ? (
               <CapiroEmptyState
                 title="You don't have access to steward conflicts"
@@ -612,7 +626,7 @@ export function StewardReviewVNext() {
                 </CapiroTableBody>
               </CapiroTable>
             </CapiroTableWrap>
-          ) : facts.isError ? (
+          ) : facts.isError && (!facts.data || isForbidden(facts.error)) ? (
             isForbidden(facts.error) ? (
               <CapiroEmptyState
                 title="You don't have access to the fact ledger"

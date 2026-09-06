@@ -177,7 +177,8 @@ export function ContextLibraryVNext() {
   const health = useContextHealth(scopeClientId);
 
   const clientFilter = searchParams.get('client') ?? 'all';
-  const stateFilter = (searchParams.get('state') ?? 'active') as StateFilter;
+  const requestedState = searchParams.get('state');
+  const stateFilter = STATE_FILTERS.find((filter) => filter.id === requestedState)?.id ?? 'active';
   const query = searchParams.get('q') ?? '';
 
   const setParam = (key: string, value: string | null) => {
@@ -213,11 +214,6 @@ export function ContextLibraryVNext() {
   const healthMissingRequired = health.data?.missingRequired.length;
   const healthOpenConflicts = health.data?.openMaterialConflicts.length;
 
-  /* Scoped fact count backing the ScopeBar pill — active facts for the
-   * selected client only, never a cross-client sum. */
-  const scopedActiveFactCount = (facts.data ?? []).filter(
-    (fact) => fact.clientId === scopeClientId && fact.state === 'active',
-  ).length;
   const scopeStatus: ScopeBarStatus = !scopeClientId
     ? { tone: 'gray', label: 'Select a client to see context health' }
     : health.isLoading
@@ -231,13 +227,12 @@ export function ContextLibraryVNext() {
                 : health.data.status === 'degraded'
                   ? 'warning'
                   : 'error',
-            label: `${
+            label:
               health.data.status === 'ok'
                 ? 'Healthy'
                 : health.data.status === 'degraded'
                   ? 'Degraded'
-                  : 'Conflicted'
-            } · ${scopedActiveFactCount} fact${scopedActiveFactCount === 1 ? '' : 's'}`,
+                  : 'Conflicted',
           };
 
   const clientOptions = useMemo(
@@ -441,7 +436,7 @@ export function ContextLibraryVNext() {
                   </div>
                 ))}
               </div>
-            ) : docs.isError ? (
+            ) : docs.isError && (!docs.data || isForbidden(docs.error)) ? (
               isForbidden(docs.error) ? (
                 <CapiroEmptyState
                   title="You don't have access to the context library"

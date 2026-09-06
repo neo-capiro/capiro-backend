@@ -69,15 +69,21 @@ type Store = ReturnType<typeof makeStore>;
 /** Prisma-ish where matcher: scalars, { not }, { in }, and top-level OR. */
 function matches(rec: Rec, where: Record<string, unknown>): boolean {
   for (const [k, v] of Object.entries(where)) {
+    if (k === 'document') {
+      const document = rec.document as Rec | undefined;
+      if (!document || !matches(document, (v as { is: Record<string, unknown> }).is)) return false;
+      continue;
+    }
     if (k === 'OR') {
       const branches = v as Array<Record<string, unknown>>;
       if (!branches.some((b) => matches(rec, b))) return false;
       continue;
     }
     if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-      const op = v as { not?: unknown; in?: unknown[] };
+      const op = v as { not?: unknown; in?: unknown[]; gte?: Date };
       if ('not' in op && rec[k] === op.not) return false;
       if ('in' in op && !op.in!.includes(rec[k])) return false;
+      if ('gte' in op && (!(rec[k] instanceof Date) || (rec[k] as Date) < op.gte!)) return false;
       continue;
     }
     if (rec[k] !== v) return false;
@@ -101,6 +107,7 @@ function makeTx(store: Store) {
   const attachDocument = (rec: Rec) => ({
     ...rec,
     document: {
+      ...store.docs.get(rec.documentId as string),
       title: (store.docs.get(rec.documentId as string)?.title as string) ?? '(unknown)',
       templateKey: (store.docs.get(rec.documentId as string)?.templateKey as string) ?? '(unknown)',
     },
@@ -143,7 +150,7 @@ function makeTx(store: Store) {
       include?: { document?: unknown };
     }) => {
       const rows = sortedDesc(store.facts)
-        .filter((r) => matches(r, scoped(where)))
+        .filter((r) => matches(attachDocument(r), scoped(where)))
         .slice(0, take ?? Infinity);
       return include?.document ? rows.map(attachDocument) : rows;
     },
@@ -204,6 +211,7 @@ function makeTx(store: Store) {
     },
   };
   return {
+    $queryRaw: async () => [], // Source-row lock; state is re-read through the scoped model.
     spContextDocument,
     spContextFact,
     spContextConflict,
@@ -405,6 +413,54 @@ describe('StewardService.extract — gating + wire contract', () => {
 });
 
 describe('StewardService.extract — persistence', () => {
+  it('preserves the prior corpus when every returned fact has invalid provenance', async () => {
+    const store = makeStore();
+    seedDoc(store);
+    const prior = seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID });
+    const { svc, withTenantUser } = makeService(store, {
+      facts: [goodFact({ sourceRef: 'heading:Invented section' }), goodFact({ fact: '   ' })],
+      conflicts: [],
+      summary: 'No valid evidence.',
+    });
+
+    await expect(svc.extract(T, USER, DOC_ID, 'bearer')).resolves.toEqual({
+      inserted: 0, droppedRefs: 2, conflicts: 0, summary: 'No valid evidence.',
+    });
+    expect(store.facts.get(prior.id)!.state).toBe('active');
+    expect(withTenantUser).not.toHaveBeenCalled();
+    expect(store.activity).toHaveLength(0);
+  });
+
+  it.each(['archived', 'superseded'])('rejects results when the document is %s during the model call', async (state) => {
+    const store = makeStore();
+    const doc = seedDoc(store);
+    const prior = seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, state: 'stale' });
+    const { svc, stewardExtract } = makeService(store);
+    stewardExtract.mockImplementationOnce(async () => {
+      store.docs.set(DOC_ID, { ...doc, state });
+      return { facts: [goodFact()], conflicts: [], summary: 'Extracted.' };
+    });
+
+    await expect(svc.extract(T, USER, DOC_ID, 'bearer')).rejects.toThrow(ConflictException);
+    expect(store.facts.size).toBe(1);
+    expect(store.facts.get(prior.id)!.state).toBe('stale');
+    expect(store.activity).toHaveLength(0);
+  });
+
+  it('rejects results when source content changes during the model call', async () => {
+    const store = makeStore();
+    const doc = seedDoc(store, { checksum: 'original' });
+    const { svc, stewardExtract } = makeService(store);
+    stewardExtract.mockImplementationOnce(async () => {
+      store.docs.set(DOC_ID, { ...doc, checksum: 'changed' });
+      return { facts: [goodFact()], conflicts: [], summary: 'Extracted.' };
+    });
+
+    await expect(svc.extract(T, USER, DOC_ID, 'bearer')).rejects.toThrow(ConflictException);
+    expect(store.facts.size).toBe(0);
+    expect(store.activity).toHaveLength(0);
+  });
+
   it('persists only facts whose sourceRef RESOLVES; a fabricated ref is dropped and counted', async () => {
     const store = makeStore();
     seedDoc(store);
@@ -698,6 +754,20 @@ describe('StewardService conflicts — resolve / dismiss', () => {
     });
   });
 
+  it.each(['superseded', 'stale', 'rejected'])('cannot reject a live fact by selecting a %s controlling fact', async (state) => {
+    const store = makeStore();
+    const { conflict, factA, factB } = seedConflict(store);
+    store.facts.set(factA.id, { ...factA, state });
+    const { svc } = makeService(store);
+
+    await expect(svc.resolveConflict(T, USER, conflict.id, {
+      note: 'Select the former assertion.', controllingFactId: factA.id,
+    })).rejects.toThrow(ConflictException);
+    expect(store.facts.get(factB.id)!.state).toBe('active');
+    expect(store.conflicts.get(conflict.id)!.state).toBe('open');
+    expect(store.activity).toHaveLength(0);
+  });
+
   it("resolveConflict NEVER rewrites a retired losing fact — 'rejected' is a verdict on a LIVE fact only", async () => {
     for (const retired of ['superseded', 'stale', 'rejected'] as const) {
       const store = makeStore();
@@ -848,6 +918,23 @@ describe('StewardService conflicts — resolve / dismiss', () => {
 
     await expect(svc.listConflicts(T, { state: 'bogus' })).rejects.toThrow(/Invalid state/);
   });
+
+  it('filters conflicts by client before limiting results', async () => {
+    const store = makeStore();
+    seedDoc(store, { id: OTHER_DOC_ID });
+    const { conflict } = seedConflict(store);
+    for (let i = 0; i < 201; i++) {
+      store.conflicts.set(`unrelated-${i}`, {
+        id: `unrelated-${i}`, tenantId: T, factAId: `unrelated-fact-${i}`, factBId: `other-${i}`,
+        state: 'open', material: true, createdAt: new Date('2026-09-01'),
+      });
+    }
+    const { svc } = makeService(store);
+
+    const rows = await svc.listConflicts(T, { clientId: CLIENT_ID, state: 'open' });
+
+    expect(rows.map((row) => row.id)).toEqual([conflict.id]);
+  });
 });
 
 describe('StewardService.listFacts', () => {
@@ -871,6 +958,29 @@ describe('StewardService.listFacts', () => {
 });
 
 describe('StewardService.health — fact-level grounding health (A8 upgrade)', () => {
+  it('finds a material client conflict even behind 200 newer unrelated conflicts', async () => {
+    const store = makeStore();
+    seedFact(store, { id: EXISTING_FACT_ID });
+    seedFact(store, { id: REJECTED_FACT_ID });
+    store.conflicts.set('relevant', {
+      id: 'relevant', tenantId: T, factAId: EXISTING_FACT_ID, factBId: REJECTED_FACT_ID,
+      state: 'open', material: true, createdAt: new Date('2026-01-01'),
+    });
+    for (let i = 0; i < 201; i++) {
+      store.conflicts.set(`unrelated-${i}`, {
+        id: `unrelated-${i}`, tenantId: T, factAId: `foreign-a-${i}`, factBId: `foreign-b-${i}`,
+        state: 'open', material: true, createdAt: new Date('2026-09-01'),
+      });
+    }
+    const { svc } = makeService(store);
+
+    const health = await svc.health(T, CLIENT_ID);
+
+    expect(health.status).toBe('conflicted');
+    expect(health.openConflicts).toBe(1);
+    expect(health.openMaterialConflicts.map((conflict) => conflict.id)).toEqual(['relevant']);
+  });
+
   const REQUIRED_DOCS: Array<[string, string]> = [
     ['01_strategy_brief', 'r-doc-1'],
     ['02_client_constraints', 'r-doc-2'],
@@ -1095,6 +1205,22 @@ describe('StewardService.health — fact-level grounding health (A8 upgrade)', (
 });
 
 describe('StewardService.factsForOrchestrator (wire-contract 2 pack lines)', () => {
+  it('excludes expired or retired documents while retaining a source valid through today', async () => {
+    const store = makeStore();
+    const today = new Date(new Date().toISOString().slice(0, 10));
+    seedDoc(store, { id: DOC_ID, validUntil: today });
+    seedDoc(store, { id: OTHER_DOC_ID, validUntil: new Date(today.getTime() - 86_400_000) });
+    seedDoc(store, { id: 'archived-doc', state: 'archived' });
+    seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Current evidence.' });
+    seedFact(store, { id: OTHER_CLIENT_FACT_ID, documentId: OTHER_DOC_ID, fact: 'Expired evidence.' });
+    seedFact(store, { id: REJECTED_FACT_ID, documentId: 'archived-doc', fact: 'Retired evidence.' });
+    const { svc } = makeService(store);
+
+    const lines = await svc.factsForOrchestrator(T, CLIENT_ID);
+
+    expect(lines.map((line) => line.fact)).toEqual(['Current evidence.']);
+  });
+
   it('returns ACTIVE facts in client scope (client + firm-null) shaped with documentTitle/templateKey', async () => {
     const store = makeStore();
     seedDoc(store);

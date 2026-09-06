@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { WatcherService, computeArtifactMismatches } from './watcher.service.js';
 import { RunsService } from './runs.service.js';
@@ -461,6 +461,28 @@ function transitions(store: Store): Array<[string, string]> {
 }
 
 describe('WatcherService.runCheckNow — deterministic check run', () => {
+  it('does not pin stale check operations to a plan edited while the check was running', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7) });
+    const { svc, health, healthValue } = makeService(store);
+    health.mockImplementationOnce(async () => {
+      // Steward loading is between the check snapshot and proposal locking.
+      // A human resolves the overdue step and creates a new head in that gap.
+      store.nodes.set('N1', { ...store.nodes.get('N1')!, startsOn: daysFromToday(3), endsOn: daysFromToday(7) });
+      store.strategies.set(SID, { ...store.strategies.get(SID)!, lastEditedAt: new Date() });
+      store.versions.set('v2', { ...store.versions.get('v1')!, id: 'v2', createdAt: new Date() });
+      return healthValue;
+    });
+
+    await expect(svc.runCheckNow(T, U, MID)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(store.changeSets.size).toBe(0);
+    expect(store.nodes.get('N1')!.startsOn).toBe(daysFromToday(3));
+    expect([...store.runs.values()][0]!.state).toBe('failed_terminal');
+  });
+
   it('drives queued->planning->ready_for_review with ZERO LLM, persists findings, and proposes ONE change-set per actionable finding', async () => {
     const store = makeStore();
     seedStrategy(store);
@@ -1077,3 +1099,4 @@ describe('Phase 3 — permanent Watch dismissals', () => {
     expect(cs.watchKey).toBe('overdue:N1');
   });
 });
+

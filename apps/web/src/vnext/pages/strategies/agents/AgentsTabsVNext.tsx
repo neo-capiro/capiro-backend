@@ -11,7 +11,7 @@
 import { useNavigate } from 'react-router-dom';
 import { CapiroTabs, type CapiroTabItem } from '../../../components/menus/index.js';
 import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
-import { useChangeSets, useExecutionRuns } from '../strategies-api.js';
+import { useChangeSets, useExecutionRuns, useFirmReviewRuns } from '../strategies-api.js';
 import { ProposalsQueue } from './ProposalsQueue.js';
 import { ExecutionRuns } from './ExecutionRuns.js';
 import './agents.css';
@@ -53,14 +53,15 @@ const TAB_COPY: Record<AgentsTab, { h1: string; description: string }> = {
 function useAgentScopeStatus(
   proposed: ReturnType<typeof useChangeSets>,
   approved: ReturnType<typeof useChangeSets>,
+  firm: ReturnType<typeof useFirmReviewRuns>,
 ): ScopeBarStatus {
-  if (proposed.isLoading || approved.isLoading) {
+  if (proposed.isLoading || approved.isLoading || firm.isLoading) {
     return { tone: 'gray', label: 'Checking approval status…' };
   }
-  if (proposed.isError || approved.isError) {
+  if (proposed.isError || approved.isError || firm.isError) {
     return { tone: 'gray', label: 'Approval status unavailable' };
   }
-  const pending = (proposed.data?.length ?? 0) + (approved.data?.length ?? 0);
+  const pending = (proposed.data?.length ?? 0) + (approved.data?.length ?? 0) + (firm.data?.length ?? 0);
   return pending > 0
     ? { tone: 'warning', label: 'Human approval required' }
     : { tone: 'success', label: 'No pending review' };
@@ -70,14 +71,15 @@ export function AgentsTabsVNext({ tab }: { tab: AgentsTab }) {
   const navigate = useNavigate();
   const proposed = useChangeSets({ status: 'proposed' });
   const approved = useChangeSets({ status: 'approved' });
+  const firm = useFirmReviewRuns();
   /* Unfiltered — same queryKey ExecutionRuns.tsx itself uses whenever no
    * ?strategyId= scope is active, so react-query dedupes the fetch. */
   const runs = useExecutionRuns(null, true);
-  const scopeStatus = useAgentScopeStatus(proposed, approved);
+  const scopeStatus = useAgentScopeStatus(proposed, approved, firm);
 
   /*
    * Per-tab count badges (design handoff — a warning-toned pending count on
-   * the queue tab, a gray-toned needs-review count on the runs tab).
+ * the queue tab including firm review obligations, a gray-toned needs-review count on the runs tab).
    * Grounded in the SAME real queries the tab bodies themselves render from
    * — never a fabricated number, and never a bare "0" while still loading or
    * on error (badge stays absent, not zeroed, in that case). Hidden outright
@@ -85,8 +87,8 @@ export function AgentsTabsVNext({ tab }: { tab: AgentsTab }) {
    * count.
    */
   const pendingChangeSets =
-    proposed.isSuccess && approved.isSuccess
-      ? (proposed.data?.length ?? 0) + (approved.data?.length ?? 0)
+    proposed.isSuccess && approved.isSuccess && firm.isSuccess
+      ? (proposed.data?.length ?? 0) + (approved.data?.length ?? 0) + (firm.data?.length ?? 0)
       : null;
   const runsNeedingReview = runs.isSuccess
     ? (runs.data ?? []).filter((r) => r.state === 'ready_for_review' || r.state === 'failed_recoverable').length

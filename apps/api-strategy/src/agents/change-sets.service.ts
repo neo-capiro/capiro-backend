@@ -43,6 +43,16 @@ export class ChangeSetsService {
     });
   }
 
+  private async lockForReview(tx: Prisma.TransactionClient, tenantId: string, id: string) {
+    // Share apply's ordering lock so a delayed review action cannot overwrite
+    // a concurrently applied/rejected row after validating an old snapshot.
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM sp_change_set
+      WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
+      FOR UPDATE`;
+    if (locked.length === 0) throw new NotFoundException('Change-set not found');
+  }
+
   /**
    * opts.risk (F2): a caller-classified risk that OVERRIDES dto.risk — the F1
    * Watcher passes RiskRouter's output here so the persisted risk is the
@@ -224,6 +234,7 @@ export class ChangeSetsService {
 
   async approve(tenantId: string, userId: string, id: string, dto: ApproveChangeSetDto) {
     return this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      await this.lockForReview(tx, tenantId, id);
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
       if (cs.status !== 'proposed') {
@@ -278,6 +289,7 @@ export class ChangeSetsService {
 
   async reject(tenantId: string, userId: string, id: string) {
     return this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      await this.lockForReview(tx, tenantId, id);
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
       if (cs.status !== 'proposed' && cs.status !== 'approved') {
@@ -461,6 +473,7 @@ export class ChangeSetsService {
       userId,
       cs.strategyId,
       cs.strategyVersionId,
+      { expectedHeadVersionId: cs.appliedVersionId! },
     );
 
     await this.prisma.withTenantUser(tenantId, userId, async (tx) => {

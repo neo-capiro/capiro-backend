@@ -96,7 +96,7 @@ export type MissionStateValue = (typeof MISSION_STATES)[number];
  * terminal states truly terminal.
  */
 export const RUN_TRANSITIONS: Record<RunStateValue, readonly RunStateValue[]> = {
-  queued: ['planning', 'canceled'],
+  queued: ['planning', 'canceled', 'failed_recoverable', 'failed_terminal'],
   planning: [
     'executing',
     'ready_for_review',
@@ -245,7 +245,7 @@ export const RUN_STATE_POLICY: Record<RunStateValue, RunStatePolicy> = {
   queued: {
     terminal: false,
     timeoutMinutes: 15,
-    actions: ['cancel'],
+    actions: ['cancel', 'reconcile'],
     reason: 'Queued — waiting for an agent worker to pick it up.',
   },
   planning: {
@@ -293,7 +293,7 @@ export const RUN_STATE_POLICY: Record<RunStateValue, RunStatePolicy> = {
   staged: {
     terminal: false,
     timeoutMinutes: null,
-    actions: ['open_artifact', 'return_to_node', 'cancel'],
+    actions: ['open_artifact', 'return_to_node', 'reconcile', 'cancel'],
     reason:
       'Staged — the draft or record exists and is linked to the step. Nothing was sent. Confirm to finish.',
   },

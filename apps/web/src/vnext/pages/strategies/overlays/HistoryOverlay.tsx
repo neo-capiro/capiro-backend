@@ -65,7 +65,7 @@ export function HistoryOverlay() {
     () => (authorFilter === 'meri' ? items.filter((v) => v.authorKind === 'meri') : items),
     [items, authorFilter],
   );
-  const selected = items.find((v) => v.id === selectedId) ?? visibleItems[0] ?? items[0] ?? null;
+  const selected = visibleItems.find((v) => v.id === selectedId) ?? visibleItems[0] ?? null;
   const selectedIndex = selected ? items.findIndex((v) => v.id === selected.id) : -1;
   const isCurrent = selectedIndex === 0;
 
@@ -98,7 +98,7 @@ export function HistoryOverlay() {
       : memberName(members.data, version.authorUserId, 'A teammate');
 
   const doRestore = () => {
-    if (!selected || isCurrent || restore.isPending) return;
+    if (!selected || isCurrent || restore.isPending || !impact.data || impact.isError || impact.isFetching) return;
     restore.mutate(selected.id, {
       onSuccess: () => {
         setConfirming(false);
@@ -111,7 +111,7 @@ export function HistoryOverlay() {
   /* Never offer a blind restore: without the impact preview the user cannot
    * see what they are authorising (P0-1). */
   const restoreOffered = Boolean(
-    selected && !isCurrent && impact.data && !impact.isError && !restore.isPending,
+    selected && !isCurrent && impact.data && !impact.isError && !impact.isFetching && !restore.isPending,
   );
 
   return (
@@ -127,6 +127,7 @@ export function HistoryOverlay() {
         ) : null
       }
       primaryLabel="Compare to current"
+      primaryBusy={restore.isPending}
       onPrimary={compareAvailable ? scrollToChanges : undefined}
       cancelLabel="Close"
       footerNote="Meri's edits are logged for AI-use disclosure."
@@ -249,7 +250,7 @@ export function HistoryOverlay() {
                     <CapiroButton
                       variant="secondary"
                       size="compact"
-                      disabled={!restoreOffered && !confirming}
+                      disabled={!restoreOffered}
                       onClick={() => setConfirming(true)}
                     >
                       Restore as new version
@@ -508,3 +509,4 @@ function ImpactChangedList({ nodes }: { nodes: RestoreImpactChangedNode[] }) {
     </div>
   );
 }
+

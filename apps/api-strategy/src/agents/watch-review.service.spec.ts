@@ -985,6 +985,73 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
     expect(state.proposals).toHaveLength(1);
   });
 
+  it.each(['failed_terminal', 'planning', 'canceled'])(
+    'a recent %s run does not claim the Watch check is fresh',
+    async (state) => {
+      const store = makeStore();
+      const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
+      const run = [...store.runs.values()][0]!;
+      run.state = state;
+      const spy = jest.spyOn(watcher, 'runCheckNow');
+
+      const result = await svc.revalidate(T, U, SID, 'panel-open');
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(result.lastRecheck!.state).toBe('complete');
+    },
+  );
+
+  it('rechecks an unchanged plan on a later day so date-based findings stay current', async () => {
+    const store = makeStore();
+    const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
+    const run = [...store.runs.values()][0]!;
+    const yesterday = new Date(`${daysFromToday(-1)}T12:00:00.000Z`);
+    run.createdAt = yesterday;
+    run.findings = { ...(run.findings as object), checkedOn: daysFromToday(-1), checkedAt: yesterday.toISOString() };
+    const spy = jest.spyOn(watcher, 'runCheckNow');
+
+    const result = await svc.revalidate(T, U, SID, 'panel-open');
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(result.lastRecheck!.state).toBe('complete');
+  });
+
+  it('uses the successful refresh clock instead of a reused run creation time', async () => {
+    const store = makeStore();
+    const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
+    const run = [...store.runs.values()][0]!;
+    run.createdAt = new Date(`${daysFromToday(-1)}T12:00:00.000Z`);
+    store.strategies.get(SID)!.lastEditedAt = new Date(Date.now() - 1000);
+    await watcher.runCheckNow(T, U, MID);
+    const spy = jest.spyOn(watcher, 'runCheckNow');
+
+    const result = await svc.revalidate(T, U, SID, 'panel-open');
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(result.lastRecheck!.state).toBe('complete');
+    expect(result.mission!.lastRunAt!.slice(0, 10)).toBe(todayIso);
+  });
+
+  it('retries a failed recheck on the same head instead of being trapped by its terminal key', async () => {
+    const store = makeStore();
+    const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
+    seedVersion(store, 'v2', new Date());
+    const first = await svc.revalidate(T, U, SID, 'panel-open');
+    expect(first.lastRecheck!.state).toBe('complete');
+    const recheck = [...store.runs.values()].find((r) => String(r.idempotencyKey).startsWith('recheck:'))!;
+    recheck.state = 'failed_terminal';
+    recheck.createdAt = new Date(Date.now() + 1);
+    const spy = jest.spyOn(watcher, 'runCheckNow');
+
+    const result = await svc.revalidate(T, U, SID, 'panel-open');
+
+    expect(spy).toHaveBeenCalledWith(T, U, MID, expect.objectContaining({
+      idempotencyKey: expect.stringContaining(`:retry:${recheck.id}`),
+    }));
+    expect(result.lastRecheck!.state).toBe('complete');
+    expect(store.runs.size).toBe(3);
+  });
+
   it('DOES run a fresh check when a human edit moved the head since the last check', async () => {
     const store = makeStore();
     const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
@@ -1692,6 +1759,35 @@ describe('Phase 6 §4 — dismiss under concurrency', () => {
 });
 
 describe('Phase 6 §4 — revalidate under concurrency', () => {
+  it('a recheck waiting for a reviewer does not hold the strategy lock the reviewer needs', async () => {
+    const store = makeStore();
+    const { svc, watcher, csId } = await seedOneOpenProposal(store, { id: 'N1' });
+    seedVersion(store, 'v2', new Date());
+    jest.spyOn(watcher, 'runCheckNow').mockResolvedValue({ runId: 'checked', findings: [], changeSetsProposed: [] });
+
+    const held: Array<() => void> = [];
+    const reviewer = makeTx(store, held);
+    await reviewer.$queryRaw`SELECT id FROM sp_change_set WHERE id = ${csId} AND tenant_id = ${T} FOR UPDATE`;
+    const recheck = svc.revalidate(T, U, SID, 'panel-open');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // The reviewer already owns the proposal and must be able to take the
+      // strategy lock. The old reconciliation order held it while waiting on
+      // this proposal, producing a real lock cycle.
+      const acquired = await Promise.race([
+        reviewer.$queryRaw`SELECT id FROM sp_strategy WHERE id = ${SID} AND tenant_id = ${T} FOR UPDATE`.then(() => true),
+        new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), 100); }),
+      ]);
+      expect(acquired).toBe(true);
+    } finally {
+      if (timer) clearTimeout(timer);
+      for (const release of held) release();
+    }
+    expect((await recheck).lastRecheck!.state).toBe('complete');
+  });
+
   it('two concurrent revalidates never reissue the same finding twice: at most one open proposal per watch key survives, and the supersede is logged once', async () => {
     const store = makeStore();
     const { svc, csId, watchKey } = await seedOneOpenProposal(store, { id: 'N1' });
@@ -1905,3 +2001,4 @@ describe('Phase 6 §4 — tenant-crossing probes on the Watch write paths', () =
     expect(store.nodes.get('N1')!.startsOn).toBe(daysFromToday(-14));
   });
 });
+

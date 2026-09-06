@@ -16,7 +16,7 @@ export class CurrentPlanExportService {
   async exportCurrentPlan(tenantId: string, strategyId: string): Promise<{ markdown: string }> {
     const strategy = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spStrategy.findFirst({
-        where: { id: strategyId },
+        where: { id: strategyId, archivedAt: null },
         include: {
           // P0-1: the exported plan is the LIVE plan — nodes archived by a
           // restore (and artifact links detached with them) are excluded.
@@ -96,12 +96,11 @@ export class CurrentPlanExportService {
       '',
       `- Unowned nodes: ${unowned}`,
       `- Overdue nodes: ${overdue}`,
-      // Stage E wires real context-conflict detection; until then this is
-      // structurally 0 (no conflict source exists to block on).
-      '- Nodes blocked by unresolved context: 0',
+      // This projection does not evaluate node-level context or execution
+      // eligibility. Never claim zero findings from a check that did not run.
+      '- Nodes blocked by unresolved context: Not evaluated',
       `- Gates missing prerequisites: ${gatesMissingPrereqs}`,
-      // Stage G wires execution-eligibility; structurally 0 until then.
-      '- Execution-ready nodes: 0',
+      '- Execution-ready nodes: Not evaluated',
     ].join('\n');
 
     const markdown = [

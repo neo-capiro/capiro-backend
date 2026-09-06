@@ -126,7 +126,8 @@ export function ContextDocumentVNext() {
   const sections = useContextSections(documentId);
   const clients = useClientsLite();
   const documents = useContextDocuments();
-  const facts = useContextFacts();
+  const facts = useContextFacts({ documentId: documentId ?? undefined }, !!documentId);
+  const activeFacts = useContextFacts({ documentId: documentId ?? undefined, state: 'active' }, !!documentId);
   const archive = useArchiveContextDocument();
   const extract = useExtractContextFacts();
 
@@ -137,9 +138,6 @@ export function ContextDocumentVNext() {
   const clientContext = useShellClientContext();
   const scopeClientId = clientContext.selectedClientId;
   const health = useContextHealth(scopeClientId);
-  const scopedActiveFactCount = (facts.data ?? []).filter(
-    (fact) => fact.clientId === scopeClientId && fact.state === 'active',
-  ).length;
   const scopeStatus: ScopeBarStatus = !scopeClientId
     ? { tone: 'gray', label: 'Select a client to see context health' }
     : health.isLoading
@@ -153,13 +151,12 @@ export function ContextDocumentVNext() {
                 : health.data.status === 'degraded'
                   ? 'warning'
                   : 'error',
-            label: `${
+            label:
               health.data.status === 'ok'
                 ? 'Healthy'
                 : health.data.status === 'degraded'
                   ? 'Degraded'
-                  : 'Conflicted'
-            } · ${scopedActiveFactCount} fact${scopedActiveFactCount === 1 ? '' : 's'}`,
+                  : 'Conflicted',
           };
 
   /* §4.1 #8: selection is single-sourced from the outline and lives in the URL
@@ -168,6 +165,10 @@ export function ContextDocumentVNext() {
   const locate = useContextLocate(documentId, activeRef);
   const firstHitRef = useRef<HTMLDivElement | null>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
+
+  useEffect(() => {
+    setConfirmingArchive(false);
+  }, [documentId]);
 
   const setActiveRef = (ref: string | null) => {
     setSearchParams(
@@ -203,7 +204,7 @@ export function ContextDocumentVNext() {
     () => (facts.data ?? []).filter((fact) => fact.documentId === documentId),
     [facts.data, documentId],
   );
-  const activeFactCount = docFacts.filter((fact) => fact.state === 'active').length;
+  const activeFactCount = (activeFacts.data ?? []).filter((fact) => fact.documentId === documentId && fact.state === 'active').length;
   const factCounts = useMemo(() => {
     const counts = { active: 0, stale: 0, superseded: 0, rejected: 0 };
     for (const fact of docFacts) counts[fact.state] += 1;
@@ -269,7 +270,7 @@ export function ContextDocumentVNext() {
     );
   }
 
-  if (doc.isError || !doc.data) {
+  if (!doc.data || (doc.isError && isForbidden(doc.error))) {
     return (
       <div className="st-ctxdoc">
         <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
@@ -308,7 +309,9 @@ export function ContextDocumentVNext() {
    * scalar, so this is the authoritative derivation. */
   const showExtract = canExtractContextFacts(me.data?.features, d.state);
   const alreadyExtracted = facts.isSuccess && docFacts.length > 0;
-  const extractDisabledReason = alreadyExtracted
+  const extractDisabledReason = !facts.isSuccess
+    ? 'The fact ledger must load successfully before extracting. Retry the fact counts below.'
+    : alreadyExtracted
     ? `Already extracted — ${docFacts.length} fact${docFacts.length === 1 ? '' : 's'} from this document ${docFacts.length === 1 ? 'is' : 'are'} in the steward ledger.`
     : d.state === 'superseded'
       ? 'This document has been superseded — extract from the current version instead.'
@@ -318,10 +321,15 @@ export function ContextDocumentVNext() {
 
   /* §7.6 must-not: while active facts reference this document, archive needs a
    * steward decision — say so instead of archiving. */
-  const archiveBlockedByFacts = facts.isSuccess && activeFactCount > 0;
+  const archiveBlockedByFacts = activeFactCount > 0;
+  const archiveDisabledReason = !activeFacts.isSuccess
+    ? 'The active fact check must load successfully before archiving.'
+    : archiveBlockedByFacts
+      ? `${activeFactCount} active fact${activeFactCount === 1 ? '' : 's'} still reference${activeFactCount === 1 ? 's' : ''} this document — archiving needs a steward decision in Steward review.`
+      : null;
 
   const onExtract = () => {
-    if (extract.isPending) return;
+    if (extract.isPending || extractDisabledReason !== null) return;
     extract.mutate(d.id, {
       onSuccess: (result) => {
         const parts = [
@@ -343,7 +351,7 @@ export function ContextDocumentVNext() {
   };
 
   const onArchive = () => {
-    if (archive.isPending) return;
+    if (archive.isPending || archiveDisabledReason !== null) return;
     archive.mutate(d.id, {
       onSuccess: () => {
         setConfirmingArchive(false);
@@ -356,12 +364,14 @@ export function ContextDocumentVNext() {
     });
   };
 
-  const onCopySourceLink = () => {
+  const onCopySourceLink = async () => {
     const url = `${window.location.origin}/strategies/context/${d.id}${activeRef ? `?ref=${encodeURIComponent(activeRef)}` : ''}`;
-    void navigator.clipboard
-      .writeText(url)
-      .then(() => toast.success('Source link copied.'))
-      .catch(() => toast.error('Could not copy the source link.'));
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Source link copied.');
+    } catch {
+      toast.error('Could not copy the source link.');
+    }
   };
 
   return (
@@ -407,7 +417,7 @@ export function ContextDocumentVNext() {
               confirmingArchive ? (
                 <span className="st-ctxdoc__confirm" role="group" aria-label="Confirm archive">
                   <span className="st-ctxdoc__confirm-label">Archive this document?</span>
-                  <CapiroButton variant="primary" size="compact" loading={archive.isPending} onClick={onArchive}>
+                  <CapiroButton variant="primary" size="compact" disabled={archiveDisabledReason !== null} loading={archive.isPending} onClick={onArchive}>
                     Confirm archive
                   </CapiroButton>
                   <CapiroButton
@@ -422,16 +432,15 @@ export function ContextDocumentVNext() {
               ) : (
                 <CapiroTooltip
                   content={
-                    archiveBlockedByFacts
-                      ? `${activeFactCount} active fact${activeFactCount === 1 ? '' : 's'} still reference${activeFactCount === 1 ? 's' : ''} this document — archiving needs a steward decision in Steward review.`
-                      : 'Retire this document. It will no longer ground new agent work; its history is retained.'
+                    archiveDisabledReason ??
+                    'Retire this document. It will no longer ground new agent work; its history is retained.'
                   }
                 >
                   <span className="st-ctxdoc__action-wrap">
                     <CapiroButton
                       variant="secondary"
                       leadingIcon={<PackageGlyph size={18} color="var(--st-gray-500)" />}
-                      disabled={archiveBlockedByFacts}
+                      disabled={archiveDisabledReason !== null}
                       onClick={() => setConfirmingArchive(true)}
                     >
                       Archive
@@ -453,6 +462,14 @@ export function ContextDocumentVNext() {
             {activeFactCount} active fact{activeFactCount === 1 ? '' : 's'} still reference
             {activeFactCount === 1 ? 's' : ''} this document — archiving requires a steward decision.{' '}
             <Link to="/strategies/context/steward">Open steward review</Link>.
+          </div>
+        ) : null}
+        {activeFacts.isError ? (
+          <div className="st-ctxdoc__note is-warning" role="status">
+            Archive eligibility could not be checked.{' '}
+            <CapiroButton variant="quiet" size="compact" onClick={() => void activeFacts.refetch()}>
+              Retry archive check
+            </CapiroButton>
           </div>
         ) : null}
       </header>
@@ -638,11 +655,13 @@ export function ContextDocumentVNext() {
                   type="button"
                   className="st-ctxdoc__hash-copy"
                   aria-label="Copy the full document hash"
-                  onClick={() => {
-                    void navigator.clipboard
-                      .writeText(d.checksum)
-                      .then(() => toast.success('Document hash copied.'))
-                      .catch(() => toast.error('Could not copy the document hash.'));
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(d.checksum);
+                      toast.success('Document hash copied.');
+                    } catch {
+                      toast.error('Could not copy the document hash.');
+                    }
                   }}
                 >
                   <CapiroCopyIcon size={0.85} />
@@ -694,7 +713,7 @@ export function ContextDocumentVNext() {
             ) : facts.isError ? (
               <div className="st-ctxdoc__card-state" role="status">
                 <span>Fact counts unavailable — the steward ledger could not be loaded.</span>
-                <CapiroButton variant="quiet" size="compact" onClick={() => void facts.refetch()}>
+                <CapiroButton variant="quiet" size="compact" onClick={() => { void facts.refetch(); void activeFacts.refetch(); }}>
                   Retry
                 </CapiroButton>
               </div>

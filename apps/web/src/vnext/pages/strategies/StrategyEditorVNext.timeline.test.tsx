@@ -341,3 +341,21 @@ describe('Legislative calendar editing', () => {
     expect(rows).toHaveLength(CONGRESS.length - 1);
   });
 });
+
+
+
+describe('Calendar persistence and fiscal boundaries', () => {
+  it('draws firm phases through the last month before the exclusive end quarter', () => {
+    renderEditor();
+    const phase = screen.getByRole('button', { name: 'Strategy refresh' });
+    expect(phase.style.gridColumn).toBe('1 / span 3');
+  });
+
+  it('Done saves a modified calendar rather than discarding it', () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add milestone' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(forkMutate).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ label: 'New milestone' })]), expect.any(Object));
+  });
+});

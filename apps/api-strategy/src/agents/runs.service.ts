@@ -200,10 +200,34 @@ export class RunsService {
     }
   }
 
-  async transition(tenantId: string, userId: string | null, runId: string, dto: TransitionRunDto) {
+  async transition(
+    tenantId: string,
+    userId: string | null,
+    runId: string,
+    dto: TransitionRunDto,
+    opts: { reviewOnly?: boolean } = {},
+  ) {
     return this.inTx(tenantId, userId, async (tx) => {
       const run = await tx.spAgentRun.findFirst({ where: { id: runId } });
       if (!run) throw new NotFoundException('Run not found');
+
+      // The browser's generic transition route only acknowledges firm review
+      // findings. Execution metadata, approvals and progress belong to their
+      // dedicated services; accepting the runtime DTO here lets a caller forge
+      // those fields or claim a successful execution without any artifact.
+      if (opts.reviewOnly) {
+        const findings = run.findings as Record<string, unknown> | null;
+        if (
+          run.strategyId !== null ||
+          run.idempotencyKey.startsWith('exec:') ||
+          findings?.execution ||
+          run.state !== 'ready_for_review' ||
+          !['completed', 'canceled'].includes(dto.to) ||
+          Object.keys(dto).some((key) => key !== 'to')
+        ) {
+          throw new BadRequestException('Only firm review runs can be acknowledged here');
+        }
+      }
 
       try {
         assertTransition(run.state, dto.to);
@@ -339,11 +363,6 @@ export class RunsService {
    */
   async retry(tenantId: string, userId: string, runId: string) {
     const prior = await this.get(tenantId, runId);
-    if (!isActionAllowed(prior.state, 'retry')) {
-      throw new ConflictException(
-        `run is ${prior.state} — it cannot be retried (${reasonForState(prior.state)})`,
-      );
-    }
     const attempt = prior.attempt + 1;
     // Base key = the key with any prior `#n` suffix stripped, so attempt 4 keys
     // off the original node+kind rather than compounding suffixes.
@@ -351,6 +370,13 @@ export class RunsService {
     const idempotencyKey = `${baseKey}#${attempt}`;
 
     return this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      // Same mission gate and lock ordering as createRun: retry cannot mint new
+      // work after the mission was paused or canceled.
+      const [mission] = await tx.$queryRaw<Array<{ id: string; state: string }>>`
+        SELECT id, state FROM sp_agent_mission
+        WHERE id = ${prior.missionId}::uuid AND tenant_id = ${tenantId}::uuid
+        FOR UPDATE`;
+      if (!mission) throw new NotFoundException('Mission not found');
       // Re-read the prior run under the tx and CAS its state below, so two
       // concurrent retries cannot both supersede it and mint two attempts.
       const locked = await tx.$queryRaw<Array<{ id: string; state: string }>>`
@@ -359,17 +385,34 @@ export class RunsService {
         FOR UPDATE`;
       const lockedState = locked[0]?.state;
       if (!lockedState) throw new NotFoundException('Run not found');
+
+      const existing = await tx.spAgentRun.findFirst({ where: { idempotencyKey } });
+      if (existing) {
+        if (existing.retryOfRunId !== prior.id) {
+          throw new ConflictException('retry idempotency key belongs to another run');
+        }
+        // A double-click may arrive after the first retry superseded its
+        // parent. Return that same attempt before checking the parent's state.
+        return existing;
+      }
       if (!isActionAllowed(lockedState, 'retry')) {
         throw new ConflictException(
           `run is ${lockedState} — it cannot be retried (${reasonForState(lockedState)})`,
         );
       }
 
-      const existing = await tx.spAgentRun.findFirst({ where: { idempotencyKey } });
-      if (existing) {
-        // This attempt was already minted (double-click / replay) — return it
-        // rather than erroring or creating a third row.
-        return existing;
+      if (mission.state !== 'active') {
+        throw new BadRequestException('mission is not active');
+      }
+      const active = await tx.spAgentRun.count({
+        where: { state: { in: [...CONCURRENT_RUN_STATES] } },
+      });
+      // A waiting attempt is replaced, so subtract the worker slot it releases.
+      const replacedLoad = CONCURRENT_RUN_STATES.includes(lockedState as never) ? 1 : 0;
+      if (active - replacedLoad >= resolveConcurrentRunCap()) {
+        throw new ServiceUnavailableException(
+          'too many active agent runs for this tenant — try again shortly',
+        );
       }
 
       const next = await tx.spAgentRun.create({

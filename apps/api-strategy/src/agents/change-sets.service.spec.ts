@@ -456,6 +456,22 @@ describe('ChangeSetsService.list', () => {
 });
 
 describe('ChangeSetsService.approve', () => {
+  it('serializes competing approvals so an already reviewed subset cannot be replaced', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc } = makeService(store);
+    const cs = (await svc.create(T, U, createDto())) as Rec;
+    const results = await Promise.allSettled([
+      svc.approve(T, U, cs.id, { opIndexes: [0] }),
+      svc.approve(T, 'user-2', cs.id, { opIndexes: [1] }),
+    ]);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((result) => result.status === 'rejected') as PromiseRejectedResult;
+    expect(rejected.reason).toBeInstanceOf(ConflictException);
+    expect(rejected.reason.message).toMatch(/Change-set is approved/);
+  });
+
   it('opIndexes [1] stores approvedOps as exactly that subset', async () => {
     const store = makeStore();
     seedStrategy(store);
@@ -780,6 +796,30 @@ describe('ChangeSetsService.apply', () => {
     // the single replay are the load-bearing facts.)
   });
 
+  it('a rejection waiting on apply cannot overwrite the committed applied status', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc, applyEditSet } = makeService(store);
+    const cs = (await svc.create(T, U, createDto())) as Rec;
+    await svc.approve(T, U, cs.id, {});
+    let entered!: () => void;
+    const didEnter = new Promise<void>((resolve) => { entered = resolve; });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    applyEditSet.mockImplementationOnce(async () => { entered(); await gate; });
+    const applying = svc.apply(T, U, cs.id);
+    await didEnter;
+    const rejecting = svc.reject(T, 'user-2', cs.id).catch((err: unknown) => err);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await applying;
+    const error = await rejecting;
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as Error).message).toMatch(/Change-set is applied/);
+    expect(applyEditSet).toHaveBeenCalledTimes(1);
+  });
+
   it('serializes a CONCURRENT apply of a DIFFERENT change-set pinned to the same head on the strategy lock: loser goes stale', async () => {
     // Pre-lock bug: neither tx saw the other's uncommitted version cut, so
     // BOTH passed the stale-head check and the second applied onto a plan the
@@ -843,7 +883,9 @@ describe('ChangeSetsService.undo', () => {
     const detail = await svc.undo(T, U, cs.id);
 
     expect(restoreSpy).toHaveBeenCalledTimes(1);
-    expect(restoreSpy).toHaveBeenCalledWith(T, U, SID, 'v1');
+    expect(restoreSpy).toHaveBeenCalledWith(T, U, SID, 'v1', {
+      expectedHeadVersionId: applied.appliedVersionId,
+    });
     expect(store.changeSets.get(cs.id)!.status).toBe('undone');
     expect(store.changeSets.get(cs.id)!.undoneByUserId).toBe(U);
     expect(detail).toEqual({ id: SID, title: 'restored' });

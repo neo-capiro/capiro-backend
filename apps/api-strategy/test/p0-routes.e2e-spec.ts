@@ -37,6 +37,10 @@ import { APP_GUARD } from '@nestjs/core';
  * covered by the service-level specs.
  */
 
+const SID = '00000000-0000-4000-8000-000000000001';
+const VID = '00000000-0000-4000-8000-000000000002';
+const NID = '00000000-0000-4000-8000-000000000003';
+
 const TENANT_CTX = { tenantId: 't-1', clerkUserId: 'u-1', role: 'admin' };
 
 function allowGuard() {
@@ -69,6 +73,7 @@ describe('P0 route wiring (e2e)', () => {
     plan: fn(),
     execute: fn(),
     resume: fn(),
+    retry: fn(),
     cancel: fn(),
     approvalStatus: fn(),
     approve: fn(),
@@ -79,6 +84,8 @@ describe('P0 route wiring (e2e)', () => {
     resolveReservation: fn(),
     listDuplicateArtifactRefs: fn(),
   };
+  const strategies = { patchMeta: fn() };
+  const nodes = { add: fn(), update: fn() };
   const versions = {
     list: fn(),
     restore: fn(),
@@ -97,8 +104,8 @@ describe('P0 route wiring (e2e)', () => {
         { provide: WatchReviewService, useValue: {} },
         { provide: ExecutionService, useValue: execution },
         { provide: RunReconcilerService, useValue: reconciler },
-        { provide: StrategyService, useValue: {} },
-        { provide: NodeService, useValue: {} },
+        { provide: StrategyService, useValue: strategies },
+        { provide: NodeService, useValue: nodes },
         { provide: VersionService, useValue: versions },
         { provide: StrategyReportService, useValue: {} },
       ],
@@ -139,27 +146,59 @@ describe('P0 route wiring (e2e)', () => {
   test('GET /strategy-api/strategies/:id/versions/:versionId/restore-impact routes to VersionService.restoreImpact', async () => {
     versions.restoreImpact.mockResolvedValueOnce({ noOp: false });
     const res = await request(app.getHttpServer()).get(
-      '/strategy-api/strategies/S1/versions/V1/restore-impact',
+      `/strategy-api/strategies/${SID}/versions/${VID}/restore-impact`,
     );
     expect(res.status).toBe(200);
-    expect(versions.restoreImpact).toHaveBeenCalledWith('t-1', 'S1', 'V1');
+    expect(versions.restoreImpact).toHaveBeenCalledWith('t-1', SID, VID);
   });
 
   test('GET /strategy-api/strategies/:id/detached routes to VersionService.listDetached', async () => {
     versions.listDetached.mockResolvedValueOnce({ nodes: [], artifacts: [] });
-    const res = await request(app.getHttpServer()).get('/strategy-api/strategies/S1/detached');
+    const res = await request(app.getHttpServer()).get(`/strategy-api/strategies/${SID}/detached`);
     expect(res.status).toBe(200);
-    expect(versions.listDetached).toHaveBeenCalledWith('t-1', 'S1');
+    expect(versions.listDetached).toHaveBeenCalledWith('t-1', SID);
   });
 
   test('POST /strategy-api/strategies/:id/versions/:versionId/restore routes to VersionService.restore with the caller identity', async () => {
-    versions.restore.mockResolvedValueOnce({ id: 'S1' });
+    versions.restore.mockResolvedValueOnce({ id: SID });
     const res = await request(app.getHttpServer()).post(
-      '/strategy-api/strategies/S1/versions/V1/restore',
+      `/strategy-api/strategies/${SID}/versions/${VID}/restore`,
     );
     expect(res.status).toBe(201);
-    expect(versions.restore).toHaveBeenCalledWith('t-1', 'u-1', 'S1', 'V1');
+    expect(versions.restore).toHaveBeenCalledWith('t-1', 'u-1', SID, VID);
   });
+
+  test.each([
+    '/strategy-api/strategies/broken',
+    `/strategy-api/strategies/${SID}/versions/broken/restore-impact`,
+  ])('rejects malformed UUID path %s with 400', async (path) => {
+    expect((await request(app.getHttpServer()).get(path)).status).toBe(400);
+  });
+
+  test('rejects a malformed node UUID with 400 before mutation', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/strategy-api/strategies/${SID}/nodes/broken`).send({ title: 'Changed' });
+    expect(response.status).toBe(400);
+    expect(nodes.update).not.toHaveBeenCalled();
+  });
+
+  test.each(['title', 'type', 'ownerUserId'])(
+    'PATCH strategy rejects null %s through the actual validation pipe', async (field) => {
+      const response = await request(app.getHttpServer())
+        .patch(`/strategy-api/strategies/${SID}`).send({ [field]: null });
+      expect(response.status).toBe(400);
+      expect(strategies.patchMeta).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each(['kind', 'subject', 'title', 'status', 'startsOn', 'openEnded', 'dependsOnIds'])(
+    'PATCH node rejects null %s through the actual validation pipe', async (field) => {
+      const response = await request(app.getHttpServer())
+        .patch(`/strategy-api/strategies/${SID}/nodes/${NID}`).send({ [field]: null });
+      expect(response.status).toBe(400);
+      expect(nodes.update).not.toHaveBeenCalled();
+    },
+  );
 
   // ---- P0-2 --------------------------------------------------------------------
 
@@ -172,13 +211,31 @@ describe('P0 route wiring (e2e)', () => {
     expect(execution.cancel).toHaveBeenCalledWith('t-1', 'u-1', 'R1');
   });
 
-  test('POST /strategy-api/agents/execution/runs/:id/retry routes to RunsService.retry', async () => {
-    runs.retry.mockResolvedValueOnce({ id: 'R2', state: 'queued', attempt: 2 });
+  test('POST /strategy-api/agents/execution/runs/:id/retry prepares the new execution attempt for review', async () => {
+    execution.retry.mockResolvedValueOnce({ id: 'R2', state: 'ready_for_review', attempt: 2 });
     const res = await request(app.getHttpServer()).post(
       '/strategy-api/agents/execution/runs/R1/retry',
     );
     expect(res.status).toBe(201);
-    expect(runs.retry).toHaveBeenCalledWith('t-1', 'u-1', 'R1');
+    expect(execution.retry).toHaveBeenCalledWith('t-1', 'u-1', 'R1');
+    expect(res.body.state).toBe('ready_for_review');
+  });
+
+  test('public run transitions reject injected execution findings and approval states', async () => {
+    for (const body of [
+      { to: 'approved' },
+      { to: 'executing' },
+      { to: 'completed', findings: { approval: null, execution: {}, tasks: [] } },
+    ]) {
+      const response = await request(app.getHttpServer())
+        .post('/strategy-api/agents/runs/R1/transition').send(body);
+      expect(response.status).toBe(400);
+    }
+    runs.transition.mockResolvedValueOnce({ id: 'F1', state: 'completed' });
+    const acknowledged = await request(app.getHttpServer())
+      .post('/strategy-api/agents/runs/F1/transition').send({ to: 'completed' });
+    expect(acknowledged.status).toBe(201);
+    expect(runs.transition).toHaveBeenCalledWith('t-1', 'u-1', 'F1', { to: 'completed' }, { reviewOnly: true });
   });
 
   test('POST /strategy-api/agents/execution/runs/:id/mark-failed accepts an optional reason', async () => {

@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { isoDate } from '../strategy/versioning.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
+import { lockStrategyForMutation } from '../strategy/mutation-lock.js';
 import { MeriService, type Grounding } from '../meri/meri.service.js';
 import type {
   DocumentDraftSection,
@@ -748,6 +749,27 @@ export class ExecutionService {
 
   // ---- resume / cancel -----------------------------------------------------
 
+  /** Retry the execution intent and prepare the new attempt for human review.
+   *  RunsService only creates a queued row; there is no execution worker to
+   *  plan it later. Planning here makes the existing Retry control actionable
+   *  without staging artifacts or inheriting the prior attempt's approval. */
+  async retry(tenantId: string, userId: string, runId: string) {
+    const prior = await this.runs.get(tenantId, runId);
+    const meta = this.readExecutionMeta(prior);
+    await this.assertKindEnabled(tenantId, meta.kind);
+    await this.resolveTarget(tenantId, {
+      missionId: meta.missionId,
+      strategyId: meta.strategyId,
+      nodeId: meta.nodeId,
+      kind: meta.kind,
+    });
+    const next = await this.runs.retry(tenantId, userId, runId);
+    // Idempotent replay: never rewind a reviewed or already executing attempt.
+    if (next.state !== 'queued') return next;
+    await this.runs.transition(tenantId, userId, next.id, { to: 'planning' });
+    return this.runPlanning(tenantId, userId, next.id, this.readExecutionMeta(next));
+  }
+
   /**
    * Resume a parked (waiting_for_input) run. If it carries a reviewed plan
    * (findings.tasks), CONTINUE execution (requires the interactive bearer);
@@ -1142,7 +1164,6 @@ export class ExecutionService {
       stewardFactCount: number;
     },
   ): Promise<void> {
-    const advance = node.status === 'draft' || node.status === 'suggested';
     const refs = citedFactRefs(generation?.doc?.sections ?? []);
     // Gate on ACTUAL usable content, not doc truthiness — a degenerate/shape-
     // mismatched orchestrator response (e.g. {} or sections: []) must audit
@@ -1159,6 +1180,7 @@ export class ExecutionService {
         }
       : { generated: false };
     await this.inTx(tenantId, userId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       // Retire the write-ahead reservation so exactly one row remains for
       // (node, type) — the real ref below (idempotent: no-op if already retired).
       await tx.spNodeArtifact.deleteMany({
@@ -1180,8 +1202,25 @@ export class ExecutionService {
         },
         update: {},
       });
-      if (advance) {
-        await tx.spNode.update({ where: { id: node.id }, data: { status: 'in_progress' } });
+      // Generation and the upstream create can take time. Do not downgrade a
+      // node the reviewer advanced (or revive one a restore archived) while
+      // that work was in flight. The predicate is checked on the live row.
+      const advanced = await tx.spNode.updateMany({
+        where: {
+          id: node.id,
+          strategyId,
+          ...LIVE_NODE_WHERE,
+          status: { in: ['draft', 'suggested'] },
+        },
+        data: { status: 'in_progress' },
+      });
+      if (advanced.count > 0) {
+        // Meri's stale-plan check watches this clock. Staging changes the live
+        // node state even though it intentionally does not cut a new version.
+        await tx.spStrategy.update({
+          where: { id: strategyId },
+          data: { lastEditedAt: new Date(), lastEditedByUserId: userId },
+        });
       }
       await this.versioning.logActivity(tx, {
         tenantId,
@@ -1191,7 +1230,7 @@ export class ExecutionService {
         entityType: 'node',
         entityId: node.id,
         strategyId,
-        after: { runId, artifactType, artifactRef, nodeStatusAdvanced: advance, ...provenance },
+        after: { runId, artifactType, artifactRef, nodeStatusAdvanced: advanced.count > 0, ...provenance },
       });
     });
   }
@@ -1467,6 +1506,7 @@ export class ExecutionService {
           findings: {
             ...prevFindings,
             approval: record as unknown as Prisma.JsonObject,
+            approvalRejection: null,
             // Mirror the approved hash onto the send preview so the web's
             // changed-since-review comparison (approvedContentHash vs
             // contentHash) works without a second fetch.
@@ -1568,6 +1608,12 @@ export class ExecutionService {
     run: { findings: unknown },
     binding: ApprovalBinding,
   ): Promise<string | null> {
+    const rejection = asObject(asObject(run.findings)?.approvalRejection);
+    if (rejection) {
+      return typeof rejection.reason === 'string'
+        ? `approval rejected: ${rejection.reason}`
+        : 'approval rejected — review and approve the current content before continuing';
+    }
     const approval = this.readApproval(run);
     if (!approval) return null; // nothing approved => nothing to invalidate
     const verification: ApprovalVerification = verifyApproval(binding, approval);

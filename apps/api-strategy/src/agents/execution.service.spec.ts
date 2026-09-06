@@ -145,6 +145,16 @@ function makeTx(store: Store) {
   const now = new Date();
   const $queryRaw = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const sql = strings.join('?');
+    if (/FROM sp_agent_run/.test(sql)) {
+      const [runId, tenantId] = values as [string, string];
+      const run = store.runs.get(runId);
+      return run && run.tenantId === tenantId ? [{ id: run.id, state: run.state }] : [];
+    }
+    if (/FROM sp_strategy/.test(sql)) {
+      const [strategyId, tenantId] = values as [string, string];
+      const strategy = store.strategies.get(strategyId);
+      return strategy && strategy.tenantId === tenantId ? [{ id: strategy.id }] : [];
+    }
     if (/FROM sp_agent_mission/.test(sql)) {
       const [missionId, tenantId] = values as [string, string];
       const m = store.missions.get(missionId);
@@ -166,6 +176,12 @@ function makeTx(store: Store) {
     },
   };
   const spStrategy = {
+    update: async ({ where, data }: { where: { id: string }; data: Rec }) => {
+      const strategy = store.strategies.get(where.id)!;
+      const updated = { ...strategy, ...data };
+      store.strategies.set(where.id, updated);
+      return updated;
+    },
     findFirst: async ({
       where,
       include,
@@ -181,6 +197,12 @@ function makeTx(store: Store) {
     },
   };
   const spNode = {
+    updateMany: async ({ where, data }: { where: { id: string; strategyId: string; status: { in: string[] } }; data: Rec }) => {
+      const node = store.nodes.get(where.id);
+      if (!node || node.strategyId !== where.strategyId || node.archivedAt != null || !where.status.in.includes(String(node.status))) return { count: 0 };
+      store.nodes.set(node.id, { ...node, ...data });
+      return { count: 1 };
+    },
     findFirst: async ({ where }: { where: { id: string; strategyId?: string } }) => {
       const n = store.nodes.get(where.id);
       if (!n) return null;
@@ -219,6 +241,7 @@ function makeTx(store: Store) {
       const id = store.nextId('run');
       const rec: Rec = {
         state: 'queued',
+        attempt: 1,
         startedAt: null,
         finishedAt: null,
         findings: null,
@@ -532,6 +555,67 @@ const wsPlan = (over: Partial<ExecutionPlanDto> = {}): ExecutionPlanDto =>
   ({ missionId: MID, nodeId: NID, kind: 'workspace', ...over }) as ExecutionPlanDto;
 const outreachPlan = (over: Partial<ExecutionPlanDto> = {}): ExecutionPlanDto =>
   ({ missionId: MID, nodeId: NID, kind: 'outreach', ...over }) as ExecutionPlanDto;
+
+describe('ExecutionService.retry', () => {
+  it('plans a new attempt for review without staging or inheriting approval, and replays it once', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID });
+    const { svc, createWorkspaceDraft, createOutreachRecord } = makeService(store);
+    const prior = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const previousFindings = store.runs.get(prior.id)!.findings as Record<string, unknown>;
+    store.runs.set(prior.id, { ...store.runs.get(prior.id)!, findings: {
+      ...previousFindings, approval: { status: 'approved' }, results: { stale: true },
+    } });
+
+    const next = await svc.retry(T, U, prior.id);
+    expect(next.state).toBe('ready_for_review');
+    expect(next.attempt).toBe(2);
+    expect(next.retryOfRunId).toBe(prior.id);
+    expect((next.findings as Record<string, unknown>).tasks).toEqual(expect.any(Array));
+    expect((next.findings as Record<string, unknown>).approval).toBeUndefined();
+    expect((next.findings as Record<string, unknown>).results).toBeUndefined();
+    expect((await svc.retry(T, U, prior.id)).id).toBe(next.id);
+    expect(store.runs.size).toBe(2);
+    expect(createWorkspaceDraft).not.toHaveBeenCalled();
+    expect(createOutreachRecord).not.toHaveBeenCalled();
+  });
+
+  it('reruns eligibility and parks the retry when the node lost its owner', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID });
+    const { svc, createWorkspaceDraft } = makeService(store);
+    const prior = await svc.plan(T, U, 'bearer-x', wsPlan());
+    store.nodes.set(NID, { ...store.nodes.get(NID)!, ownerUserId: null });
+    const next = await svc.retry(T, U, prior.id);
+    expect(next.state).toBe('waiting_for_input');
+    expect(String(next.waitingReason)).toMatch(/owner/i);
+    expect(createWorkspaceDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe('ExecutionService staging status consistency', () => {
+  it('keeps a later reviewer status when artifact generation completes', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID });
+    const { svc, createWorkspaceDraft } = makeService(store);
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    createWorkspaceDraft.mockImplementationOnce(async () => {
+      store.nodes.set(NID, { ...store.nodes.get(NID)!, status: 'active' });
+      return { ref: 'ws-new' };
+    });
+    const completed = await svc.execute(T, U, 'bearer-x', planned.id);
+    expect(completed.state).toBe('completed');
+    expect(store.nodes.get(NID)!.status).toBe('active');
+    const activity = store.activity.find((row) => row.action === 'execution.artifact_staged');
+    expect((activity!.after as Record<string, unknown>).nodeStatusAdvanced).toBe(false);
+  });
+});
 
 describe('ExecutionService.listRuns', () => {
   it('returns only exec:-keyed runs, strategy-scoped, newest first', async () => {

@@ -150,7 +150,13 @@ export class WatcherService {
       // (a check run has no executing phase — nothing external ran). Replay
       // path: no legal self-transition, so merge findings in place (guarded on
       // the state we validated) and audit the recheck.
-      const payload: Record<string, unknown> = { checkedOn: today, findings };
+      const payload: Record<string, unknown> = {
+        checkedOn: today,
+        // Date the snapshot, not the later persistence: an edit made while a
+        // check is running must still make that check stale.
+        checkedAt: new Date(phaseStart).toISOString(),
+        findings,
+      };
       if (refresh) {
         await this.refreshFindings(tenantId, userId, run.id, payload);
       } else {
@@ -215,6 +221,7 @@ export class WatcherService {
     if (!strategy) {
       throw new NotFoundException('Mission strategy not found for this tenant');
     }
+    const expectedSnapshot = checkSnapshot(strategy);
     const stewardHealth = await this.steward.health(tenantId, strategy.clientId);
 
     const nodes: WatcherNode[] = strategy.nodes.map((n) => ({
@@ -251,6 +258,7 @@ export class WatcherService {
       runId,
       strategyId,
       findings,
+      expectedSnapshot,
     );
     return { findings, changeSetsProposed };
   }
@@ -331,6 +339,7 @@ export class WatcherService {
     runId: string,
     strategyId: string,
     findings: Finding[],
+    expectedSnapshot: string,
   ): Promise<string[]> {
     const actionable = findings.filter(
       (f) => Array.isArray(f.proposedOps) && f.proposedOps.length > 0,
@@ -358,6 +367,17 @@ export class WatcherService {
         FOR UPDATE`;
       if (locked.length === 0) {
         throw new NotFoundException('Mission strategy not found for this tenant');
+      }
+
+      // The check read its inputs before taking this lock. Re-read the live
+      // plan now, before pinning proposals to its head: a concurrent edit must
+      // never make an old calculation look approved for a newer version.
+      const current = await tx.spStrategy.findFirst({
+        where: { id: strategyId },
+        include: { nodes: { where: { ...LIVE_NODE_WHERE } }, artifacts: true },
+      });
+      if (!current || checkSnapshot(current) !== expectedSnapshot) {
+        throw new ConflictException('The plan changed during the Watch check. Run the check again.');
       }
 
       // Same head total order ChangeSetsService.headOf pins (and apply's stale
@@ -636,6 +656,29 @@ function parseWatchMarker(summary: string): string | null {
   return WATCH_MARKER_RE.exec(summary)?.[0] ?? null;
 }
 
+/** Exact plan inputs used by the deterministic check, independent of row order. */
+function checkSnapshot(strategy: {
+  id: string;
+  clientId: string | null;
+  type: string;
+  title: string;
+  lastEditedAt: Date | null;
+  nodes: Array<{ id: string }>;
+  artifacts: Array<{ id: string }>;
+}): string {
+  const byId = <T extends { id: string }>(rows: T[]) =>
+    [...rows].sort((a, b) => a.id.localeCompare(b.id));
+  return stableJson({
+    id: strategy.id,
+    clientId: strategy.clientId,
+    type: strategy.type,
+    title: strategy.title,
+    lastEditedAt: strategy.lastEditedAt,
+    nodes: byId(strategy.nodes),
+    artifacts: byId(strategy.artifacts),
+  });
+}
+
 /**
  * Key-order-independent JSON identity for the date-staleness ops comparison:
  * Postgres jsonb does NOT preserve object key order, so a stored op and its
@@ -682,3 +725,4 @@ export function computeArtifactMismatches(
   }
   return [...mismatched];
 }
+

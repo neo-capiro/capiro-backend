@@ -26,6 +26,7 @@ import {
 import { useApi } from '../../../lib/use-api.js';
 import type {
   AcceptAllWatchInput,
+  AgentMission,
   AgentRun,
   ApproveChangeSetInput,
   AssistantInput,
@@ -47,6 +48,7 @@ import type {
   ExtractFactsResult,
   FirmPhase,
   FirmPhaseInput,
+  PlanExecutionInput,
   ReferenceCalendars,
   RecordArtifactInput,
   ResolveConflictInput,
@@ -68,6 +70,8 @@ import {
   normalizeChangeSets,
   normalizeExecutionRuns,
   normalizeMission,
+  normalizeMissions,
+  normalizeRun,
   normalizeRunCheck,
   normalizeRuns,
 } from '../../../pages/strategy/agents/agent-utils.js';
@@ -227,12 +231,21 @@ export function useContextLocate(
 
 /* ------------------------------------------------------------- steward (E) */
 
-export function useContextFacts() {
+export function useContextFacts(
+  filter: { documentId?: string; clientId?: string; state?: ContextFact['state'] } = {},
+  enabled = true,
+) {
   const api = useApi();
+  const query = new URLSearchParams();
+  if (filter.documentId) query.set('documentId', filter.documentId);
+  if (filter.clientId) query.set('clientId', filter.clientId);
+  if (filter.state) query.set('state', filter.state);
+  const suffix = query.size ? `?${query.toString()}` : '';
   return useQuery<ContextFact[]>({
-    queryKey: ['strategy', 'context-facts'],
+    queryKey: suffix ? ['strategy', 'context-facts', filter] : ['strategy', 'context-facts'],
+    enabled,
     queryFn: async () =>
-      normalizeFacts((await api.get<unknown>(`${BASE}/context/facts`)).data),
+      normalizeFacts((await api.get<unknown>(`${BASE}/context/facts${suffix}`)).data),
     staleTime: 30_000,
   });
 }
@@ -293,6 +306,18 @@ export function useChangeSets(
   });
 }
 
+export function useMissions(strategyId?: string | null, enabled = true) {
+  const api = useApi();
+  const suffix = strategyId ? `?strategyId=${encodeURIComponent(strategyId)}` : '';
+  return useQuery<AgentMission[]>({
+    queryKey: ['strategy', 'missions', strategyId ?? 'all'],
+    enabled,
+    queryFn: async () =>
+      normalizeMissions((await api.get<unknown>(`${BASE}/agents/missions${suffix}`)).data),
+    staleTime: 15_000,
+  });
+}
+
 export function useFirmReviewRuns() {
   const api = useApi();
   return useQuery<AgentRun[]>({
@@ -302,6 +327,22 @@ export function useFirmReviewRuns() {
         (await api.get<unknown>(`${BASE}/agents/runs/firm-review`)).data,
       ),
     staleTime: 15_000,
+  });
+}
+
+/** Acknowledge a reviewed firm-level run using the existing state transition. */
+export function useTransitionRun() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; to: 'completed' | 'canceled' }) =>
+      normalizeRun(
+        (await api.post<unknown>(`${BASE}/agents/runs/${vars.id}/transition`, { to: vars.to })).data,
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['strategy', 'firm-review-runs'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
+    },
   });
 }
 
@@ -353,6 +394,9 @@ export function useExecutionRuns(strategyId?: string | null, enabled = true) {
         (await api.get<unknown>(`${BASE}/agents/execution/runs${suffix}`)).data,
       ),
     staleTime: 15_000,
+    refetchInterval: (query) => query.state.data?.some((run) =>
+      run.state === 'queued' || run.state === 'planning' || run.state === 'executing',
+    ) ? 3_000 : false,
   });
 }
 
@@ -774,6 +818,19 @@ function useExecutionInvalidate() {
   };
 }
 
+/** Prepare the existing node execution plan; execution remains a separate review action. */
+export function usePlanExecution() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (input: PlanExecutionInput): Promise<ExecutionRun | null> =>
+      normalizeExecutionRunsList(
+        (await api.post<unknown>(`${BASE}/agents/execution/plan`, input)).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
 export function useExecuteRun() {
   const api = useApi();
   const invalidate = useExecutionInvalidate();
@@ -818,6 +875,19 @@ export function useCancelRun() {
             `${BASE}/agents/execution/runs/${vars.id}/cancel`,
           )
         ).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** Retry a failed execution as a fresh planned attempt, ready for human review. */
+export function useRetryRun() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string }) =>
+      normalizeExecutionRunsList(
+        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/retry`)).data,
       ),
     onSuccess: invalidate,
   });

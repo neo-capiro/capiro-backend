@@ -146,6 +146,10 @@ function makeTx(store: Store) {
       const c = store.clients.get(values[0] as string);
       return c ? [{ name: c.name }] : [];
     }
+    if (/FROM sp_strategy/.test(sql)) {
+      const strategy = store.strategies.get(values[0] as string);
+      return strategy ? [{ id: strategy.id }] : [];
+    }
     return [];
   };
   return {
@@ -188,6 +192,12 @@ function makeTx(store: Store) {
       },
     },
     spStrategy: {
+      update: async ({ where, data }: { where: { id: string }; data: Rec }) => {
+        const strategy = store.strategies.get(where.id)!;
+        const updated = { ...strategy, ...data };
+        store.strategies.set(where.id, updated);
+        return updated;
+      },
       findFirst: async ({ where, include }: { where: { id: string }; include?: Rec }) => {
         const s = store.strategies.get(where.id);
         if (!s) return null;
@@ -200,6 +210,12 @@ function makeTx(store: Store) {
       },
     },
     spNode: {
+      updateMany: async ({ where, data }: { where: { id: string; strategyId: string; status: { in: string[] } }; data: Rec }) => {
+        const node = store.nodes.get(where.id);
+        if (!node || node.strategyId !== where.strategyId || node.archivedAt != null || !where.status.in.includes(String(node.status))) return { count: 0 };
+        store.nodes.set(node.id, { ...node, ...data });
+        return { count: 1 };
+      },
       findFirst: async ({ where }: { where: { id: string; archivedAt?: unknown } }) => {
         const n = store.nodes.get(where.id);
         if (!n) return null;
@@ -633,6 +649,28 @@ describe('invalidation blocks execution until reapproval (P0-3 acceptance)', () 
 });
 
 describe('rejectApproval (P0-3)', () => {
+  it('blocks execution after refusal even when the draft had never been approved', async () => {
+    const store = makeStore();
+    const { svc, runId } = await reviewedPlan(store);
+    await svc.rejectApproval(T, U, runId, 'needs corrections');
+    const blocked = await svc.execute(T, U, 'bearer-x', runId);
+    expect(blocked.state).toBe('waiting_for_input');
+    expect(String(blocked.waitingReason)).toMatch(/approval rejected: needs corrections/);
+    expect(store.artifacts.size).toBe(0);
+  });
+
+  it('allows a refused draft to proceed only after fresh approval of its current content', async () => {
+    const store = makeStore();
+    const { svc, runId } = await reviewedPlan(store);
+    await svc.rejectApproval(T, U, runId, 'review required');
+    await svc.execute(T, U, 'bearer-x', runId);
+    const status = await svc.approvalStatus(T, runId);
+    await svc.approve(T, U, runId, { contentHash: status.contentHash });
+    const completed = await svc.resume(T, U, 'bearer-x', runId);
+    expect(completed.state).toBe('completed');
+    expect(store.artifacts.size).toBeGreaterThan(0);
+  });
+
   it('invalidates the approval, records who and why, and audits it', async () => {
     const store = makeStore();
     const { svc, runId } = await stagedOutreach(store);

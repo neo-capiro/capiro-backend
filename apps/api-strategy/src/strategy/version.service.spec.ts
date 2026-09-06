@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { VersionService } from './version.service.js';
 import { VersioningService } from './versioning.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -427,6 +427,10 @@ function makeTx(store: Store) {
     create: async ({ data }: { data: Rec }) => ({ ...data, id: store.nextId('outbox') }),
   };
   return {
+    $queryRaw: async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+      const [id, tenantId] = values as [string, string];
+      return store.strategies.get(id)?.tenantId === tenantId ? [{ id }] : [];
+    },
     spNode,
     spNodeArtifact,
     spAgentRun,
@@ -800,6 +804,7 @@ describe('VersionService.restoreImpact', () => {
   it('flags a restore that would change nothing as noOp', async () => {
     const store = makeStore();
     seedStrategy(store);
+    Object.assign(store.strategies.get(STRATEGY_ID)!, baseSnapshot([]).meta);
     seedCurrentNode(store, 'n-same', {
       title: 'Snapshot node',
       startsOn: new Date('2027-03-01T00:00:00.000Z'),
@@ -833,5 +838,119 @@ describe('VersionService.restoreImpact', () => {
     expect(impact.nodes.added.map((n) => n.id)).toEqual(['n-never-existed']);
     // An already-archived node is never re-archived.
     expect(impact.nodes.removed).toEqual([]);
+  });
+});
+
+
+
+describe('VersionService restore preview accuracy', () => {
+  it.each(['title', 'goal', 'type', 'targetDate', 'ownerUserId', 'meriContext', 'meriSummary'] as const)(
+    'does not report a %s-only restore as a no-op', async (field) => {
+      const store = makeStore();
+      seedStrategy(store);
+      const snapshot = baseSnapshot([]);
+      Object.assign(store.strategies.get(STRATEGY_ID)!, snapshot.meta);
+      store.strategies.get(STRATEGY_ID)![field] = field === 'targetDate' ? new Date('2027-06-01') : 'different';
+      seedVersion(store, 'v1', snapshot);
+      const impact = await makeService(store).restoreImpact(T, STRATEGY_ID, 'v1');
+      expect(impact.noOp).toBe(false);
+    },
+  );
+
+  it('does not report a provenance-only restore as a no-op', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    Object.assign(store.strategies.get(STRATEGY_ID)!, baseSnapshot([]).meta);
+    seedCurrentNode(store, 'n-same', {
+      title: 'Snapshot node', startsOn: new Date('2027-03-01'),
+      provenance: { sources: ['newer-fact'] },
+    });
+    seedVersion(store, 'v1', baseSnapshot([snapNode({ id: 'n-same', provenance: { sources: ['older-fact'] } })]));
+    const impact = await makeService(store).restoreImpact(T, STRATEGY_ID, 'v1');
+    expect(impact.nodes.unchangedCount).toBe(1);
+    expect(impact.noOp).toBe(false);
+  });
+
+  it('only warns about recreated nodes whose snapshots lack provenance capture', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const oldNode = snapNode({ id: 'old' });
+    delete oldNode.provenance;
+    seedVersion(store, 'v1', baseSnapshot([
+      oldNode, snapNode({ id: 'grounded', provenance: { sources: ['fact'] } }),
+      snapNode({ id: 'captured-empty', provenance: null }),
+    ]));
+    const impact = await makeService(store).restoreImpact(T, STRATEGY_ID, 'v1');
+    expect(impact.nodes.added).toHaveLength(3);
+    expect(impact.provenance.nodesReCreatedWithoutProvenance).toBe(1);
+  });
+});
+
+describe('VersionService.list input validation', () => {
+  it.each([NaN, Infinity, -Infinity, 1.5])('rejects a non-integer take (%s) as 400', async (take) => {
+    const store = makeStore();
+    seedStrategy(store);
+    await expect(makeService(store).list(T, STRATEGY_ID, { take })).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects a malformed cursor as 400', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    await expect(makeService(store).list(T, STRATEGY_ID, { cursor: 'broken' }))
+      .rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects a valid cursor belonging to another strategy', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const cursor = '00000000-0000-4000-8000-000000000001';
+    seedVersion(store, cursor, baseSnapshot([]), { strategyId: 'other-strategy' });
+    await expect(makeService(store).list(T, STRATEGY_ID, { cursor })).rejects.toThrow(BadRequestException);
+  });
+
+  it('accepts a cursor belonging to the requested strategy', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const cursor = '00000000-0000-4000-8000-000000000001';
+    seedVersion(store, cursor, baseSnapshot([]));
+    await expect(makeService(store).list(T, STRATEGY_ID, { cursor })).resolves.toBeDefined();
+  });
+});
+
+
+describe('VersionService.restore guarded Undo', () => {
+  it('rejects a moved head within the restore transaction before changing anything', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedCurrentNode(store, 'n-current');
+    seedVersion(store, 'pre-apply', baseSnapshot([]));
+    seedVersion(store, 'intervening-edit', baseSnapshot([snapNode()]), {
+      createdAt: new Date('2027-05-01'),
+    });
+    const before = JSON.stringify({
+      strategy: [...store.strategies.values()], nodes: [...store.nodes.values()],
+      versions: [...store.versions.values()],
+    });
+    await expect(makeService(store).restore(T, U, STRATEGY_ID, 'pre-apply', {
+      expectedHeadVersionId: 'applied-version',
+    })).rejects.toThrow(ConflictException);
+    expect(JSON.stringify({
+      strategy: [...store.strategies.values()], nodes: [...store.nodes.values()],
+      versions: [...store.versions.values()],
+    })).toBe(before);
+    expect(store.changeSets.size).toBe(0);
+    expect(store.activity).toHaveLength(0);
+  });
+
+  it('restores when the head still matches the applied version', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'pre-apply', baseSnapshot([]));
+    seedVersion(store, 'applied-version', baseSnapshot([snapNode()]), {
+      createdAt: new Date('2027-05-01'),
+    });
+    await expect(makeService(store).restore(T, U, STRATEGY_ID, 'pre-apply', {
+      expectedHeadVersionId: 'applied-version',
+    })).resolves.toBeDefined();
   });
 });

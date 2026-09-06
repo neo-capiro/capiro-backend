@@ -8,6 +8,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import {
   MISSION_STATES,
@@ -57,11 +58,11 @@ export class CreateMissionDto {
  * clears — @IsOptional short-circuits null).
  */
 export class UpdateMissionDto {
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsIn(MISSION_STATES)
   state?: MissionStateValue;
 
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsString()
   @MaxLength(200)
   name?: string;
@@ -106,7 +107,13 @@ export class RunCheckDto {
   idempotencyKey?: string;
 }
 
-/** Move a run through the RUN_TRANSITIONS state machine. */
+/** Public review action. Internal lifecycle state and findings are server-owned. */
+export class ReviewRunDto {
+  @IsIn(['completed', 'canceled'])
+  to!: 'completed' | 'canceled';
+}
+
+/** Internal runtime transition; never accept findings or execution states from HTTP. */
 export class TransitionRunDto {
   @IsIn(RUN_STATES)
   to!: RunStateValue;
@@ -155,7 +162,7 @@ export class CreateChangeSetDto {
 
 /** Approve a change-set; opIndexes selects a SUBSET of ops (indexes into ops). */
 export class ApproveChangeSetDto {
-  @IsOptional()
+  @ValidateIf((_object, value) => value !== undefined)
   @IsArray()
   @IsInt({ each: true })
   opIndexes?: number[];

@@ -25,8 +25,8 @@ import {
   MarkRunFailedDto,
   RejectApprovalDto,
   ResolveReservationDto,
+  ReviewRunDto,
   RunCheckDto,
-  TransitionRunDto,
   UpdateMissionDto,
 } from './dto/agents.dto.js';
 
@@ -135,9 +135,9 @@ export class AgentsController {
   transitionRun(
     @CurrentTenant() tc: AuthTenantContext,
     @Param('id') id: string,
-    @Body() dto: TransitionRunDto,
+    @Body() dto: ReviewRunDto,
   ) {
-    return this.runs.transition(tc.tenantId, tc.clerkUserId, id, dto);
+    return this.runs.transition(tc.tenantId, tc.clerkUserId, id, dto, { reviewOnly: true });
   }
 
   // ---- execution agent (Stage G) ----
@@ -204,7 +204,7 @@ export class AgentsController {
   @Post('execution/runs/:id/retry')
   @UseGuards(ExecutionAgentGuard)
   retryRun(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.runs.retry(tc.tenantId, tc.clerkUserId, id);
+    return this.execution.retry(tc.tenantId, tc.clerkUserId, id);
   }
 
   /** Mark a recoverable-failed run as terminally failed. */

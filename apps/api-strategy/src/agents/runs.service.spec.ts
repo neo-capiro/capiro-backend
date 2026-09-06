@@ -74,7 +74,12 @@ function makeTx(store: Store) {
   // createRun's SELECT ... FOR UPDATE mission gate (raw SQL bypasses the model
   // hook, so the service passes tenant_id explicitly). Tagged-template args:
   // values = [missionId, tenantId]. Row locking is a no-op in-memory.
-  const $queryRaw = async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+  const $queryRaw = async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    if (/FROM sp_agent_run/.test(strings.join('?'))) {
+      const [runId, tenantId] = values as [string, string];
+      const run = store.runs.get(runId);
+      return run && run.tenantId === tenantId ? [{ id: run.id, state: run.state }] : [];
+    }
     const [missionId, tenantId] = values as [string, string];
     // Lock granted — the hook models a concurrent writer that committed while
     // we waited; the locked read below then sees the NEW committed row state.
@@ -113,6 +118,7 @@ function makeTx(store: Store) {
       const rec: Rec = {
         // Schema defaults the service relies on (sp_agent_run):
         state: 'queued',
+        attempt: 1,
         startedAt: null,
         finishedAt: null,
         findings: null,
@@ -521,6 +527,36 @@ describe('RunsService.createRun — per-tenant concurrent-run cap (Stage H)', ()
 });
 
 describe('RunsService.transition', () => {
+  it('acknowledges a firm review without accepting client-supplied execution state', async () => {
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+    const run = await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'firm' });
+    store.runs.set(run.id, { ...store.runs.get(run.id)!, strategyId: null, state: 'ready_for_review' });
+
+    for (const dto of [
+      { to: 'approved' },
+      { to: 'completed', findings: { execution: { kind: 'workspace' } } },
+    ]) {
+      await expect(svc.transition(T, U, run.id, dto as TransitionRunDto, { reviewOnly: true }))
+        .rejects.toBeInstanceOf(BadRequestException);
+      expect(store.runs.get(run.id)!.state).toBe('ready_for_review');
+    }
+    const acknowledged = await svc.transition(T, U, run.id, { to: 'completed' }, { reviewOnly: true });
+    expect(acknowledged.state).toBe('completed');
+  });
+
+  it('cannot report execution completed through the public firm-review action', async () => {
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+    const run = await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'exec:node:workspace' });
+    store.runs.set(run.id, { ...store.runs.get(run.id)!, state: 'ready_for_review' });
+    await expect(svc.transition(T, U, run.id, { to: 'completed' }, { reviewOnly: true }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(store.runs.get(run.id)!.state).toBe('ready_for_review');
+  });
+
   it('drives the full lifecycle queued->planning->executing->ready_for_review->completed with zero LLM calls, stamping startedAt/finishedAt', async () => {
     const store = makeStore();
     seedMission(store, 'M1', 'active');
@@ -826,6 +862,48 @@ describe('RunsService.transition', () => {
       findings: { conflicts: ['c1'] },
     } as TransitionRunDto);
     expect(retried.findings).toEqual({ stale_nodes: ['n1'], conflicts: ['c1'] });
+  });
+});
+
+describe('RunsService.retry', () => {
+  async function retryable() {
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+    const run = await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'exec:N1:workspace' });
+    store.runs.set(run.id, { ...store.runs.get(run.id)!, state: 'failed_recoverable', findings: {
+      execution: { kind: 'workspace', nodeId: 'N1', strategyId: 'S1', missionId: 'M1', pinnedVersionId: 'v-old' },
+      tasks: [{ type: 'workspace_draft' }], results: { artifactRef: 'old' }, approval: { status: 'approved' },
+    } });
+    return { store, svc, run };
+  }
+
+  it('replays the same retry after the prior attempt was superseded and drops reviewed results', async () => {
+    const { store, svc, run } = await retryable();
+    const next = await svc.retry(T, U, run.id);
+    expect(next.attempt).toBe(2);
+    expect(next.retryOfRunId).toBe(run.id);
+    expect(next.findings).toEqual({ execution: {
+      kind: 'workspace', nodeId: 'N1', strategyId: 'S1', missionId: 'M1', pinnedVersionId: null,
+    } });
+    expect(store.runs.get(run.id)!.state).toBe('superseded');
+    expect((await svc.retry(T, U, run.id)).id).toBe(next.id);
+    expect(store.runs.size).toBe(2);
+  });
+
+  it('does not create a retry on a paused mission', async () => {
+    const { store, svc, run } = await retryable();
+    store.missions.set('M1', { ...store.missions.get('M1')!, state: 'paused' });
+    await expect(svc.retry(T, U, run.id)).rejects.toThrow('mission is not active');
+    expect(store.runs.size).toBe(1);
+    expect(store.runs.get(run.id)!.state).toBe('failed_recoverable');
+  });
+
+  it('rejects a retry key collision instead of returning an unrelated attempt', async () => {
+    const { store, svc, run } = await retryable();
+    store.runs.set('unrelated', { ...store.runs.get(run.id)!, id: 'unrelated', idempotencyKey: 'exec:N1:workspace#2', retryOfRunId: 'someone-else' });
+    await expect(svc.retry(T, U, run.id)).rejects.toBeInstanceOf(ConflictException);
+    expect(store.runs.get(run.id)!.state).toBe('failed_recoverable');
   });
 });
 

@@ -11,6 +11,9 @@ import { BadRequestException } from '@nestjs/common';
  * only the calendar day, TZ-independent).
  */
 export function parseDbDate(value: string, field = 'date'): Date {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new BadRequestException(`${field} must be YYYY-MM-DD`);
+  }
   const d = new Date(value);
   if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value.slice(0, 10)) {
     throw new BadRequestException(`${field} is not a valid calendar date`);

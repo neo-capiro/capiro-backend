@@ -81,7 +81,7 @@ export class MeriController {
   assistant(
     @CurrentTenant() ctx: AuthTenantContext,
     @Req() req: Request,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: AssistantDto,
   ) {
     return this.meri.assistant(ctx.tenantId, ctx.clerkUserId, bearerFrom(req), id, dto);

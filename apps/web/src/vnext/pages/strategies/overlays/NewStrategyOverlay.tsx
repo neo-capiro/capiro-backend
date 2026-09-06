@@ -17,6 +17,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroSelect } from '../../../components/fields/index.js';
 import { CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
 import { OBJECTIVE_TYPES } from '../../../../pages/strategy/constants.js';
@@ -135,9 +136,13 @@ export function NewStrategyOverlay() {
             value={clientId}
             onChange={(event) => setClientId(event.target.value)}
             options={clientOptions}
-            error={clients.isError ? 'Clients could not be loaded — retry from the library.' : undefined}
+            error={clients.isError ? 'Clients could not be loaded.' : undefined}
+            disabled={busy || clients.isLoading}
           />
+          {clients.isError ? <CapiroButton onClick={() => void clients.refetch()}>Retry clients</CapiroButton> : null}
+          {members.isError ? <div role="alert">Owners could not be loaded. <CapiroButton onClick={() => void members.refetch()}>Retry owners</CapiroButton></div> : null}
           <CapiroSelect
+            disabled={busy}
             label="Objective type · Required"
             value={type}
             onChange={(event) => setType(event.target.value as StrategyType | '')}
@@ -148,6 +153,8 @@ export function NewStrategyOverlay() {
             <textarea
               className="st-textarea st-textarea--tall"
               value={goal}
+              maxLength={4000}
+              disabled={busy}
               onChange={(event) => setGoal(event.target.value)}
               placeholder="What outcome does this strategy have to produce?"
             />
@@ -156,6 +163,7 @@ export function NewStrategyOverlay() {
             <CapiroSelect
               label="Owner · Required"
               value={ownerUserId}
+              disabled={busy || members.isLoading}
               onChange={(event) => setOwnerUserId(event.target.value)}
               options={ownerOptions}
             />
@@ -165,6 +173,7 @@ export function NewStrategyOverlay() {
                 className="capiro-input"
                 type="date"
                 value={targetDate}
+                disabled={busy}
                 onChange={(event) => setTargetDate(event.target.value)}
               />
             </label>
@@ -174,6 +183,8 @@ export function NewStrategyOverlay() {
             <textarea
               className="st-textarea st-textarea--short"
               value={meriContext}
+              maxLength={8000}
+              disabled={busy}
               onChange={(event) => setMeriContext(event.target.value)}
               placeholder="Prioritize verified budget evidence, committee jurisdiction and client-approved proof points."
             />
@@ -183,7 +194,7 @@ export function NewStrategyOverlay() {
             <p className="st-panel__label">Grounding documents · Optional</p>
             <p className="st-ns__context-sub" style={{ margin: 0 }}>
               {clientId
-                ? `${clientDocuments.length} linked context document${clientDocuments.length === 1 ? '' : 's'} will already be available to Meri.`
+                ? `${clientDocuments.length} linked context document${clientDocuments.length === 1 ? '' : 's'} are available to Meri.`
                 : 'Select a client to see which context documents will ground the draft.'}{' '}
               Upload memos, bill text or prior plans via Context → Upload after the strategy is created.
             </p>
@@ -219,6 +230,7 @@ export function NewStrategyOverlay() {
             <button
               type="button"
               className="st-option-card"
+              disabled={busy}
               aria-pressed={startingPoint === 'empty'}
               onClick={() => setStartingPoint('empty')}
             >
@@ -236,6 +248,7 @@ export function NewStrategyOverlay() {
             <button
               type="button"
               className="st-option-card"
+              disabled={busy}
               aria-pressed={startingPoint === 'draft'}
               onClick={() => setStartingPoint('draft')}
             >
@@ -244,15 +257,14 @@ export function NewStrategyOverlay() {
                 {startingPoint === 'draft' ? <span aria-hidden="true">✓</span> : null}
               </span>
               <span className="st-option-card__desc">
-                Generate proposed phases, gates and actions from approved context. Nothing is applied
-                automatically.
+                Create suggested steps in the working plan from approved context. Review them before including them in client reports.
               </span>
               <span className="st-option-card__foot">
                 <span className="st-pill st-pill--warning">Review required</span>
               </span>
             </button>
             <p className="st-ns__note">
-              You can change the starting point later. Both options preserve the same strategy model.
+              Both options create a working plan you can edit after creation.
             </p>
           </div>
 
@@ -327,3 +339,4 @@ export function NewStrategyOverlay() {
     </StrategiesModalShell>
   );
 }
+

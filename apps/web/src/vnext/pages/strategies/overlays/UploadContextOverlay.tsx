@@ -17,7 +17,7 @@
  * supersedes BEFORE submitting. On success the overlay routes to the new
  * document. Focus trap / Escape / dirty guard / route sync live in the shell.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroIconButton } from '../../../components/actions/index.js';
 import { CapiroSelect } from '../../../components/fields/index.js';
@@ -442,8 +442,10 @@ export function UploadContextOverlay() {
   const upload = useUploadContextDocument();
 
   const [content, setContent] = useState('');
-  const [clientId, setClientId] = useState('');
   const [fileMeta, setFileMeta] = useState<SelectedFileMeta | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const fileReadVersion = useRef(0);
   const [dragOver, setDragOver] = useState(false);
   /** Item 12 — File / Paste segmented toggle; both write the same `content`. */
   const [activeTab, setActiveTab] = useState<'file' | 'paste'>('file');
@@ -452,7 +454,7 @@ export function UploadContextOverlay() {
   const failed = checks.filter((c) => c.status === 'fail');
   const documentType = parsed?.frontmatter?.document_type;
   const canUpload =
-    content.trim().length > 0 && checks.length > 0 && failed.length === 0 && !upload.isPending;
+    content.trim().length > 0 && checks.length > 0 && failed.length === 0 && !upload.isPending && !fileLoading;
   const lineCount = content ? content.split(/\r?\n/).length : 0;
 
   /* Item 15 — read a field straight off the already-parsed frontmatter (the
@@ -468,6 +470,9 @@ export function UploadContextOverlay() {
     return typeof value === 'boolean' ? String(value) : '';
   };
   const patchField = (key: string, rawValue: string) => {
+    fileReadVersion.current += 1;
+    setFileLoading(false);
+    setFileMeta(null);
     setContent((current) => {
       if (!rawValue) return removeFrontmatterField(current, key);
       const withField = upsertFrontmatterField(current, key, rawValue);
@@ -487,14 +492,23 @@ export function UploadContextOverlay() {
       ? `${failed.length} check${failed.length === 1 ? '' : 's'} need attention`
       : 'Ready to upload';
 
-  /* Supersession preview: existing documents of the same template type
-   * (templateKey is "NN_<document_type>"). */
+  const clientId = fmString('client_id');
+  const tooLarge = new Blob([JSON.stringify({ content, clientId: clientId || undefined })]).size > MAX_UPLOAD_MB * 1024 * 1024;
+
+  /* Mirror the actual supersession identity: one active row, selected by an
+   * explicit document_id pointer or the template/scope/client/scopeRef tuple. */
   const superseded = useMemo(() => {
-    if (typeof documentType !== 'string' || !DOCUMENT_TYPES.includes(documentType as never)) return [];
-    return (documents.data ?? []).filter(
-      (doc) => doc.templateKey.slice(3) === documentType && doc.state !== 'archived',
-    );
-  }, [documents.data, documentType]);
+    const frontmatter = parsed?.frontmatter;
+    if (typeof documentType !== 'string' || frontmatter?.state !== 'active') return [];
+    const scopeRef = frontmatter.scope === 'strategy' ? frontmatter.strategy_id ?? null
+      : frontmatter.scope === 'node' ? frontmatter.node_id ?? null : null;
+    const explicit = typeof frontmatter.supersedes === 'string' ? frontmatter.supersedes : null;
+    return (documents.data ?? []).filter((doc) =>
+      doc.templateKey.slice(3) === documentType && doc.state === 'active' &&
+      (explicit ? doc.frontmatter?.document_id === explicit :
+        doc.scope === frontmatter.scope && doc.clientId === (clientId || null) && doc.scopeRef === scopeRef),
+    ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 1);
+  }, [documents.data, documentType, parsed, clientId]);
 
   const serverError = useMemo(() => {
     if (!upload.isError) return null;
@@ -503,23 +517,49 @@ export function UploadContextOverlay() {
 
   const readFile = (file: File | undefined) => {
     if (!file) return;
+    const version = ++fileReadVersion.current;
+    setFileError(null);
+    setContent('');
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setFileMeta(null);
+      setFileLoading(false);
+      setFileError(`The upload must be smaller than ${MAX_UPLOAD_MB} MB.`);
+      return;
+    }
+    setFileLoading(true);
     setFileMeta({ name: file.name, size: file.size, hash: null });
-    void file.text().then(setContent);
+    void file.text().then((text) => {
+      if (fileReadVersion.current !== version) return;
+      setContent(text);
+      setFileLoading(false);
+    }).catch(() => {
+      if (fileReadVersion.current !== version) return;
+      setFileLoading(false);
+      setFileMeta(null);
+      setFileError('The selected file could not be read. Choose it again or paste its content.');
+    });
     // Real client-side hash of the actual bytes, filled in once ready — the
     // chip shows "Hashing…" (item 13) until then rather than a fabricated
     // placeholder value.
     void sha256Hex(file).then((hash) => {
-      setFileMeta((current) => (current && current.name === file.name && current.size === file.size ? { ...current, hash } : current));
+      if (fileReadVersion.current !== version) return;
+      setFileMeta((current) => current ? { ...current, hash } : current);
+    }).catch(() => {
+      if (fileReadVersion.current !== version) return;
+      setFileMeta((current) => current ? { ...current, hash: '' } : current);
     });
   };
 
   const clearFile = () => {
+    fileReadVersion.current += 1;
+    setFileLoading(false);
+    setFileError(null);
     setFileMeta(null);
     setContent('');
   };
 
   const submit = () => {
-    if (!canUpload) return;
+    if (!canUpload || tooLarge) return;
     upload.mutate(
       { content, clientId: clientId || undefined },
       {
@@ -543,10 +583,13 @@ export function UploadContextOverlay() {
       dirty={content.trim().length > 0 && !upload.isPending}
       primaryLabel="Upload document"
       onPrimary={submit}
-      primaryDisabled={!canUpload}
+      primaryDisabled={!canUpload || tooLarge}
       primaryBusy={upload.isPending}
       footerNote="The server re-validates on upload; a document that fails is not saved."
     >
+      {fileError || tooLarge ? (
+        <p className="st-modal__alert" role="alert">{tooLarge ? `The upload body must be smaller than ${MAX_UPLOAD_MB} MB.` : fileError}</p>
+      ) : null}
       {serverError ? (
         <div className="st-modal__alert" role="alert">
           <p style={{ margin: 0 }}>{serverError.general}</p>
@@ -621,7 +664,7 @@ export function UploadContextOverlay() {
                     </span>
                     <span className="st-filechip__meta st-mono" style={{ display: 'block' }}>
                       {formatBytes(fileMeta.size)} · {lineCount} line{lineCount === 1 ? '' : 's'} ·{' '}
-                      {fileMeta.hash ? `sha256:${fileMeta.hash.slice(0, 10)}…` : 'Hashing…'}
+                      {fileMeta.hash ? `sha256:${fileMeta.hash.slice(0, 10)}…` : fileMeta.hash === null ? 'Hashing…' : 'Hash unavailable'}
                     </span>
                   </span>
                   <CapiroIconButton label="Remove selected file" icon={<CloseGlyph size={14} />} onClick={clearFile} />
@@ -648,7 +691,13 @@ export function UploadContextOverlay() {
                 className="st-textarea st-mono"
                 style={{ minHeight: 220 }}
                 value={content}
-                onChange={(event) => setContent(event.target.value)}
+                onChange={(event) => {
+                  fileReadVersion.current += 1;
+                  setFileLoading(false);
+                  setFileMeta(null);
+                  setFileError(null);
+                  setContent(event.target.value);
+                }}
                 placeholder={'---\ndocument_type: strategy_brief\nschema_version: "1.0"\n…\n---\n'}
                 spellCheck={false}
               />
@@ -707,7 +756,7 @@ export function UploadContextOverlay() {
             <CapiroSelect
               label="Client · Optional"
               value={clientId}
-              onChange={(event) => setClientId(event.target.value)}
+              onChange={(event) => patchField('client_id', event.target.value || 'null')}
               options={clientOptions}
             />
           </div>
@@ -749,15 +798,20 @@ export function UploadContextOverlay() {
           <p className="st-panel__label">Supersession preview</p>
           {documents.isLoading ? (
             <span className="st-check__desc">Checking existing documents…</span>
+          ) : documents.isError ? (
+            <span className="st-check__desc">Existing documents could not be checked. The server will validate supersession on upload.</span>
+          ) : fmString('state') !== 'active' ? (
+            <span className="st-check__desc">This upload is not active and will not supersede an existing document.</span>
           ) : superseded.length === 0 ? (
             <span className="st-check__desc">
-              No existing <span className="st-mono">{documentType}</span> document — this upload adds
-              the first one.
+              {fmString('supersedes')
+                ? 'The explicit supersedes target was not found among the loaded active documents. The server will validate it on upload.'
+                : 'No active document matching this scope was found in the loaded library.'}
             </span>
           ) : (
             <>
               <span className="st-check__desc" style={{ display: 'block', marginBottom: 8 }}>
-                This upload supersedes {superseded.length} existing{' '}
+                If its content has changed, this active upload supersedes {superseded.length} existing{' '}
                 <span className="st-mono">{documentType}</span> document
                 {superseded.length === 1 ? '' : 's'}:
               </span>
@@ -780,7 +834,7 @@ export function UploadContextOverlay() {
                   <span className="st-mono" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--st-gray-600)' }}>
                     {doc.state}
                     <span aria-hidden="true">→</span>
-                    {fmString('state') || 'new'}
+                    superseded
                   </span>
                   <span style={{ fontSize: 12, color: 'var(--st-gray-500)' }}>
                     {clientName(clients.data, doc.clientId)}

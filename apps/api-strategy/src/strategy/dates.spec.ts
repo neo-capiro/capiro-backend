@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { BadRequestException } from '@nestjs/common';
 import { parseDbDate } from './dates.js';
 
 describe('parseDbDate', () => {
@@ -14,6 +15,16 @@ describe('parseDbDate', () => {
     'rejects the calendar-impossible date %s (rollover-safe)',
     (bad) => {
       expect(() => parseDbDate(bad)).toThrow();
+    },
+  );
+});
+
+
+
+describe('parseDbDate malformed input', () => {
+  it.each([null, undefined, 123, '2027-02-06T17:00:00Z', '2027-02-06 junk'])(
+    'rejects %j as a BadRequestException instead of a runtime error', (value) => {
+      expect(() => parseDbDate(value as string)).toThrow(BadRequestException);
     },
   );
 });

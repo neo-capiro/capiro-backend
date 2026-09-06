@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
+import { RUN_STATES, isLegalTransition } from './run-state.js';
 import {
   MAX_RECONCILE_ATTEMPTS,
   detectRecovery,
@@ -168,8 +169,8 @@ describe('detectRecovery — (4) artifact created but the run never advanced', (
     expect(f.detail).toMatch(/Nothing was sent/i);
   });
 
-  it('applies to a run already parked or recoverable-failed (the real stranded shapes)', () => {
-    for (const state of ['waiting_for_input', 'failed_recoverable']) {
+  it('advances a recoverable-failed or partially completed workspace run', () => {
+    for (const state of ['staged', 'failed_recoverable']) {
       expect(
         codes(
           input({
@@ -179,6 +180,24 @@ describe('detectRecovery — (4) artifact created but the run never advanced', (
         ),
       ).toContain('ARTIFACT_NOT_ADVANCED');
     }
+  });
+
+  it('preserves human input and approval parks even when an artifact already exists', () => {
+    for (const kind of ['workspace', 'outreach']) {
+      expect(codes(input({
+        run: { ...input().run, state: 'waiting_for_input' },
+        execution: { kind, nodeId: 'n1', pinnedVersionId: null },
+        artifacts: [{ artifactType: kind === 'workspace' ? 'workspace_draft' : 'outreach_record', artifactRef: 'artifact-1', detachedAt: null }],
+      }))).not.toContain('ARTIFACT_NOT_ADVANCED');
+    }
+  });
+
+  it('finishes a workspace run stranded between staging and completion', () => {
+    const finding = detectRecovery(input({
+      run: { ...input().run, state: 'staged' },
+      artifacts: [{ artifactType: 'workspace_draft', artifactRef: 'ws-1', detachedAt: null }],
+    })).find((row) => row.code === 'ARTIFACT_NOT_ADVANCED');
+    expect(finding?.transition?.to).toBe('completed');
   });
 
   it('matches the artifact type to the run KIND, not just any artifact on the node', () => {
@@ -201,6 +220,25 @@ describe('detectRecovery — (4) artifact created but the run never advanced', (
       }),
     ).find((x) => x.code === 'ARTIFACT_NOT_ADVANCED')!;
     expect(f.detail).toMatch(/Outreach record/);
+  });
+});
+
+describe('recovery and lifecycle agreement', () => {
+  it('only proposes transitions accepted by the real run state machine', () => {
+    for (const state of RUN_STATES) {
+      for (const nodeLive of [true, false]) {
+        for (const hasArtifact of [true, false]) {
+          const facts = input({
+            run: { ...input().run, state, heartbeatAt: minsAgo(60) },
+            nodeLive,
+            artifacts: hasArtifact ? [{ artifactType: 'workspace_draft', artifactRef: 'ws-1', detachedAt: null }] : [],
+          });
+          for (const finding of detectRecovery(facts)) {
+            if (finding.transition) expect(isLegalTransition(state, finding.transition.to)).toBe(true);
+          }
+        }
+      }
+    }
   });
 });
 

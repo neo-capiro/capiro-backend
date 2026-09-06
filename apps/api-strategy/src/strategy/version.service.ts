@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import {
   Prisma,
   SpNodeKind,
@@ -11,6 +12,7 @@ import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
 import { loadStrategyDetail } from './detail.js';
 import { ARCHIVED_NODE_WHERE, LIVE_NODE_WHERE } from './live-node.js';
+import { lockStrategyForMutation } from './mutation-lock.js';
 import {
   diffSnapshotAgainstCurrent,
   isNoOpRestore,
@@ -18,7 +20,7 @@ import {
   type ImpactCurrentNode,
   type ImpactSnapshotNode,
 } from './restore-impact.js';
-import type { StrategySnapshot } from './versioning.js';
+import { isoDate, type StrategySnapshot } from './versioning.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -60,12 +62,26 @@ export class VersionService {
   ) {}
 
   async list(tenantId: string, strategyId: string, opts?: { take?: number; cursor?: string }) {
+    if (opts?.take !== undefined && !Number.isSafeInteger(opts.take)) {
+      throw new BadRequestException('take must be an integer');
+    }
+    if (opts?.cursor && !isUUID(opts.cursor)) {
+      throw new BadRequestException('cursor must be a version UUID');
+    }
     return this.prisma.withTenant(tenantId, async (tx) => {
       const strat = await tx.spStrategy.findFirst({
         where: { id: strategyId },
         select: { id: true },
       });
       if (!strat) throw new NotFoundException('Strategy not found');
+
+      if (opts?.cursor) {
+        const cursor = await tx.spVersion.findFirst({
+          where: { id: opts.cursor, strategyId },
+          select: { id: true },
+        });
+        if (!cursor) throw new BadRequestException('Unknown version cursor for this strategy');
+      }
 
       const take = Math.min(Math.max(opts?.take ?? 50, 1), 100);
       const rows = await tx.spVersion.findMany({
@@ -116,6 +132,8 @@ export class VersionService {
       });
       if (!version) throw new NotFoundException('Version not found');
       const snap = version.snapshot as unknown as StrategySnapshot;
+      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId } });
+      if (!strategy) throw new NotFoundException('Strategy not found');
 
       // ALL rows, archived included — that is what separates `revived` from `added`.
       const current = await tx.spNode.findMany({
@@ -164,6 +182,17 @@ export class VersionService {
       const removedWithProvenance = current.filter(
         (n) => removedIds.includes(n.id) && n.provenance != null,
       );
+      const currentById = new Map(current.map((n) => [n.id, n]));
+      const provenanceChanges = (snap.nodes ?? []).some((n) => {
+        const cur = currentById.get(n.id);
+        return !!cur && provenanceDiffers(n, cur as unknown as ImpactCurrentNode);
+      });
+      // A restore rewrites metadata and grounding as well as step fields. A
+      // metadata-only version must never be described as changing nothing.
+      const metaChanged = (
+        ['title', 'type', 'goal', 'meriContext', 'meriSummary', 'ownerUserId'] as const
+      ).some((key) => (snap.meta[key] ?? null) !== (strategy[key] ?? null)) ||
+        (snap.meta.targetDate ?? null) !== isoDate(strategy.targetDate);
 
       return {
         versionId: version.id,
@@ -171,7 +200,7 @@ export class VersionService {
         versionCreatedAt: version.createdAt,
         versionAuthorKind: version.authorKind,
         versionAuthorUserId: version.authorUserId,
-        noOp: isNoOpRestore(diff),
+        noOp: isNoOpRestore(diff) && !metaChanged && !provenanceChanges,
         nodes: {
           added: diff.added,
           revived: diff.revived,
@@ -218,7 +247,9 @@ export class VersionService {
           snapshotCarriesProvenance: (snap.nodes ?? []).some(
             (n) => (n as unknown as ImpactSnapshotNode).provenance !== undefined,
           ),
-          nodesReCreatedWithoutProvenance: diff.added.length,
+          nodesReCreatedWithoutProvenance: diff.added.filter((ref) =>
+            (snap.nodes ?? []).find((n) => n.id === ref.id)?.provenance === undefined,
+          ).length,
         },
       };
     });
@@ -262,8 +293,15 @@ export class VersionService {
    * One withTenantUser tx: the node writes, the artifact detach/re-attach, the
    * version cut, the change-set row and the audit row all commit together.
    */
-  async restore(tenantId: string, clerkUserId: string, strategyId: string, versionId: string) {
+  async restore(
+    tenantId: string,
+    clerkUserId: string,
+    strategyId: string,
+    versionId: string,
+    opts?: { expectedHeadVersionId?: string },
+  ) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      await lockStrategyForMutation(tx, tenantId, strategyId);
       const version = await tx.spVersion.findFirst({ where: { id: versionId, strategyId } });
       if (!version) throw new NotFoundException('Version not found');
       const snap = version.snapshot as unknown as StrategySnapshot;
@@ -276,6 +314,11 @@ export class VersionService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: { id: true },
       });
+      if (opts?.expectedHeadVersionId !== undefined && preHead?.id !== opts.expectedHeadVersionId) {
+        throw new ConflictException(
+          'plan changed since this change-set was applied — restore from version history instead',
+        );
+      }
 
       // ALL rows, archived included (separates revive from create).
       const current = await tx.spNode.findMany({ where: { strategyId } });

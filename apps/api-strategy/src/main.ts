@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { json } from 'express';
 import { AppModule } from './app.module.js';
+import { buildStrategyAllowedOrigins } from './cors-origins.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -37,16 +38,7 @@ async function bootstrap() {
     }),
   );
 
-  const allowedOrigins = new Set(
-    [
-      ...(process.env.WEB_ORIGIN?.split(',') ?? ['http://localhost:5173']),
-      'https://app.capiro.ai',
-      'https://capiro.ai',
-      'https://www.capiro.ai',
-    ]
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
+  const allowedOrigins = buildStrategyAllowedOrigins(process.env.WEB_ORIGIN);
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -81,3 +73,4 @@ bootstrap().catch((err) => {
   console.error('Fatal bootstrap error', err);
   process.exit(1);
 });
+

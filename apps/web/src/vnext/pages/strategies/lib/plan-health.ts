@@ -38,11 +38,12 @@ function gateGrounded(n: StrategyNode) {
 }
 
 function isOverdue(n: StrategyNode, today: Date) {
-  if (n.status === 'active' || n.openEnded) return false;
+  // Active means accepted/published, not completed; accepted overdue work still counts.
+  if (n.openEnded) return false;
   const due = n.endsOn ?? n.startsOn;
   if (!due) return false;
   const d = new Date(due);
-  return !Number.isNaN(d.getTime()) && d.getTime() < today.getTime();
+  return !Number.isNaN(d.getTime()) && d.getTime() < Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
 }
 
 /**
@@ -73,7 +74,7 @@ export function computePlanHealth(
   const gates = nodes.filter(isGate);
   const totalGates = gates.length;
   const groundedGates = gates.filter(gateGrounded).length;
-  const dated = nodes.filter((n) => !!(n.endsOn ?? n.startsOn));
+  const dated = nodes.filter((n) => !n.openEnded && !Number.isNaN(new Date(n.endsOn ?? n.startsOn).getTime()));
   const datedSteps = dated.length;
   const overdueSteps = dated.filter((n) => isOverdue(n, today)).length;
 
@@ -116,3 +117,4 @@ export function planHealthFromSummary(nodeCount: number): PlanHealthSummary {
     score: null,
   };
 }
+

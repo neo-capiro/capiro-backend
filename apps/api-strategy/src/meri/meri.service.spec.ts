@@ -45,7 +45,7 @@ function makeStore() {
   const nextId = (p: string) => `${p}-${++seq}`;
   const nodesFor = (sid: string) =>
     [...nodes.values()]
-      .filter((n) => n.strategyId === sid)
+      .filter((n) => n.strategyId === sid && !n.archivedAt)
       .sort((a, b) => {
         const sa = (a.startsOn as Date).getTime();
         const sb = (b.startsOn as Date).getTime();
@@ -214,13 +214,13 @@ function makeTx(store: Store, scope: string) {
       store.chatMessages.set(id, rec);
       return rec;
     },
-    findMany: async ({ where }: { where: { strategyId: string; nodeId: string | null } }) =>
+    findMany: async ({ where, take }: { where: { strategyId: string; nodeId: string | null }; take: number }) =>
       [...store.chatMessages.values()]
         .filter((m) => mine(m) && m.strategyId === where.strategyId && (m.nodeId ?? null) === where.nodeId)
         .sort((a, b) => {
           const d = (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime();
-          return d !== 0 ? d : String(a.id).localeCompare(String(b.id));
-        }),
+          return d !== 0 ? -d : String(b.id).localeCompare(String(a.id));
+        }).slice(0, take),
     findFirst: async ({
       where,
     }: {
@@ -242,7 +242,8 @@ function makeTx(store: Store, scope: string) {
       return merged;
     },
   };
-  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox, spContextFact, spStrategyChatMessage } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
+  const spNodeArtifact = { updateMany: jest.fn(async () => ({ count: 0 })) };
+  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox, spContextFact, spStrategyChatMessage, spNodeArtifact } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
 }
 
 function makePrisma(store: Store) {
@@ -683,7 +684,8 @@ describe('MeriService.assistant', () => {
     const byId = new Map(out.strategy.nodes.map((n) => [n.id, n]));
     expect(byId.has(n2)).toBe(false);
     expect(byId.get(n1)!.title).toBe('Node one (revised)');
-    expect(store.nodes.size).toBe(3);
+    expect(store.nodes.size).toBe(4);
+    expect(store.nodes.get(n2)!.archivedAt).toBeInstanceOf(Date);
     const cut = (versioning.cutVersion as jest.Mock).mock.calls[0]![1] as { authorKind: string };
     expect(cut.authorKind).toBe('meri');
   });
@@ -915,23 +917,88 @@ describe('MeriService — Phase 2 durable Meri conversation', () => {
     expect(await conversations.list(T, 'S1', null)).toHaveLength(2);
   });
 
-  it('a retried send reuses the stored user message instead of posting it twice', async () => {
+  it('a retried send never runs the model or applies the same edits twice', async () => {
     const store = makeStore();
     seedStrategy(store);
-    const { svc, conversations } = makeService(noEdits('Noted.'), store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({ reply: 'Added.', edits: [
+        { op: 'add', kind: 'action', subject: 'deliverable', title: 'Letter', startsOn: '2027-05-01' },
+      ] })),
+    };
+    const { svc, conversations, versioning } = makeService(orchestrator, store);
 
     const first = (await svc.assistant(T, U, 'bearer', 'S1', strategyDto())) as {
       messages: Array<{ id: string; role: string }>;
     };
-    const retry = (await svc.assistant(T, U, 'bearer', 'S1', strategyDto())) as {
-      messages: Array<{ id: string; role: string }>;
-    };
+    await expect(svc.assistant(T, U, 'bearer', 'S1', strategyDto())).rejects.toThrow(/already submitted/);
 
-    // Same stored row returned both times...
-    expect(retry.messages[0]!.id).toBe(first.messages[0]!.id);
+    expect(first.messages[0]!.role).toBe('user');
+    expect(orchestrator.assistant).toHaveBeenCalledTimes(1);
+    expect(versioning.cutVersion).toHaveBeenCalledTimes(1);
+    expect(store.nodes.size).toBe(4);
     // ...and only ONE user bubble exists in the thread.
     const thread = await conversations.list(T, 'S1', null);
     expect(thread.filter((m) => m.role === 'user')).toHaveLength(1);
+    expect(thread.filter((m) => m.role === 'meri')).toHaveLength(1);
+  });
+
+  it('rejects a message id reused by another user, context, or instruction', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const orchestrator = noEdits('Noted.');
+    const { svc } = makeService(orchestrator, store);
+    await svc.assistant(T, U, 'bearer', 'S1', strategyDto());
+    await expect(svc.assistant(T, 'different-user', 'bearer', 'S1', strategyDto())).rejects.toThrow(/different request/);
+    await expect(svc.assistant(T, U, 'bearer', 'S1', nodeDto(n1))).rejects.toThrow(/different request/);
+    await expect(svc.assistant(T, U, 'bearer', 'S1', strategyDto(CMID, 'Different instruction'))).rejects.toThrow(/different request/);
+    expect(orchestrator.assistant).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses node assistance on an archived step while preserving its readable conversation', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const orchestrator = noEdits('Noted.');
+    const { svc, conversations } = makeService(orchestrator, store);
+    store.nodes.get(n1)!.archivedAt = new Date();
+    await expect(svc.assistant(T, U, 'bearer', 'S1', nodeDto(n1))).rejects.toThrow(/Step not found/);
+    expect(orchestrator.assistant).not.toHaveBeenCalled();
+    expect(await conversations.list(T, 'S1', n1)).toEqual([]);
+  });
+
+  it('rejects a stale model result after another editor changes the strategy', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    store.strategies.get('S1')!.lastEditedAt = new Date('2027-01-01T00:00:00Z');
+    const orchestrator = {
+      assistant: jest.fn(async () => {
+        store.strategies.set('S1', { ...store.strategies.get('S1')!, lastEditedAt: new Date('2027-01-02T00:00:00Z') });
+        store.nodes.set(n1, { ...store.nodes.get(n1)!, title: 'Newer human edit' });
+        return { reply: 'Renamed.', edits: [{ op: 'update', nodeId: n1, title: 'Stale model edit' }] };
+      }),
+    };
+    const { svc, conversations, versioning } = makeService(orchestrator, store);
+    await expect(svc.assistant(T, U, 'bearer', 'S1', strategyDto())).rejects.toThrow(/strategy changed/);
+    expect(store.nodes.get(n1)!.title).toBe('Newer human edit');
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
+    expect((await conversations.list(T, 'S1', null)).at(-1)!.kind).toBe('assistant_error');
+  });
+
+  it('returns the newest 500 conversation messages in chronological order', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const { conversations } = makeService(noEdits('Noted.'), store);
+    for (let i = 0; i < 502; i++) {
+      store.chatMessages.set(`long-${i}`, {
+        id: `long-${i}`, tenantId: T, strategyId: 'S1', nodeId: null,
+        role: 'meri', kind: 'message', body: `Message ${i}`, state: 'active',
+        attachmentRefs: null, action: null, createdByUserId: null,
+        createdAt: new Date(Date.UTC(2027, 0, 1) + i),
+      });
+    }
+    const thread = await conversations.list(T, 'S1', null);
+    expect(thread).toHaveLength(500);
+    expect(thread[0]!.body).toBe('Message 2');
+    expect(thread.at(-1)!.body).toBe('Message 501');
   });
 
   it("keeps the user's message and appends a plain error line when the model call fails", async () => {
@@ -998,7 +1065,8 @@ describe('MeriService — Phase 2 durable Meri conversation', () => {
     // own message survives (its own committed tx), Meri's reply does not.
     expect(store.nodes.get(n1)!.title).toBe('Node one');
     const thread = await conversations.list(T, 'S1', null);
-    expect(thread.map((m) => m.role)).toEqual(['user']);
+    expect(thread.map((m) => m.role)).toEqual(['user', 'meri']);
+    expect(thread[1]!.kind).toBe('assistant_error');
   });
 
   it('attaches one open_node action when the edit-set created exactly one step', async () => {

@@ -50,9 +50,14 @@ type Store = ReturnType<typeof makeStore>;
  */
 function matches(rec: Rec, where: Record<string, unknown>): boolean {
   for (const [k, v] of Object.entries(where)) {
+    if (k === 'OR') {
+      if (!(v as Record<string, unknown>[]).some((branch) => matches(rec, branch))) return false;
+      continue;
+    }
     if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-      const op = v as { not?: unknown; path?: unknown; equals?: unknown };
+      const op = v as { not?: unknown; path?: unknown; equals?: unknown; gte?: Date };
       if ('not' in op && rec[k] === op.not) return false;
+      if ('gte' in op && (!(rec[k] instanceof Date) || (rec[k] as Date) < op.gte!)) return false;
       if (Array.isArray(op.path)) {
         let cur: unknown = rec[k];
         for (const seg of op.path as string[]) {
@@ -937,6 +942,22 @@ describe('ContextDocumentsService staleness (derived, never stored)', () => {
     expect(all.map((r) => r.id).sort()).toEqual([stale.id, fresh.id].sort());
     expect(all.find((r) => r.id === stale.id)!.stale).toBe(true);
     expect(all.find((r) => r.id === fresh.id)!.stale).toBe(false);
+  });
+
+  it('applies staleness filtering before the list limit so fresh older documents remain visible', async () => {
+    const store = makeStore();
+    const { svc } = makeService(store);
+    const fresh = await uploadWithValidUntil(svc, 'null', STRATEGY_ID);
+    for (let i = 0; i < 201; i++) {
+      const id = `expired-${i}`;
+      store.docs.set(id, {
+        ...fresh, id, validUntil: new Date(isoDaysFromNow(-1)),
+        createdAt: new Date(Date.now() + 60_000 + i),
+      });
+    }
+
+    expect((await svc.list(T)).map((document) => document.id)).toEqual([fresh.id]);
+    expect(await svc.list(T, { includeStale: true })).toHaveLength(200);
   });
 
   it('list 400s an invalid state filter without opening a tx', async () => {

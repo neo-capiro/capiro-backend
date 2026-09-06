@@ -154,6 +154,8 @@ export function FirmPhasesOverlay() {
     if (rows.length < MIN_PHASES) out.push(`At least ${MIN_PHASES} firm phases are required.`);
     if (rows.length > MAX_PHASES) out.push(`No more than ${MAX_PHASES} firm phases are allowed.`);
     if (rows.some((r) => !r.label.trim())) out.push('Every phase needs a name.');
+    if (rows.some((r) => r.label.trim().length > 120)) out.push('Phase names must be 120 characters or fewer.');
+    if (rows.some((r) => spanQuarters(r) === null)) out.push('Every phase must end after it starts.');
     if (dupeKeys.size > 0) out.push('Phase names must be unique — highlighted rows are duplicates.');
     if (rows.some((r) => !Number.isInteger(r.startQ) || r.startQ < 1 || r.startQ > 4 || !Number.isInteger(r.endQ) || r.endQ < 1 || r.endQ > 4)) {
       out.push('Quarters run Q1–Q4.');
@@ -162,12 +164,12 @@ export function FirmPhasesOverlay() {
       rows.some(
         (r) =>
           !Number.isInteger(r.startFy) ||
-          String(Math.abs(r.startFy)).length !== 4 ||
+          r.startFy < 2000 || r.startFy > 2100 ||
           !Number.isInteger(r.endFy) ||
-          String(Math.abs(r.endFy)).length !== 4,
+          r.endFy < 2000 || r.endFy > 2100,
       )
     ) {
-      out.push('Fiscal years must be 4-digit years (e.g. 2027).');
+      out.push('Fiscal years must be between 2000 and 2100.');
     }
     return out;
   }, [rows, dupeKeys]);
@@ -185,8 +187,8 @@ export function FirmPhasesOverlay() {
     );
     const fyOk = list.every(
       (r) =>
-        Number.isInteger(r.startFy) && String(Math.abs(r.startFy)).length === 4 &&
-        Number.isInteger(r.endFy) && String(Math.abs(r.endFy)).length === 4,
+        Number.isInteger(r.startFy) && r.startFy >= 2000 && r.startFy <= 2100 &&
+        Number.isInteger(r.endFy) && r.endFy >= 2000 && r.endFy <= 2100,
     );
     return [
       { key: 'min', label: `At least ${MIN_PHASES} phases`, ok: list.length >= MIN_PHASES },
@@ -194,7 +196,8 @@ export function FirmPhasesOverlay() {
       { key: 'named', label: 'Every phase has a name', ok: list.every((r) => r.label.trim().length > 0) },
       { key: 'unique', label: 'Phase names are unique', ok: dupeKeys.size === 0 },
       { key: 'quarters', label: 'Quarters run Q1–Q4', ok: quartersOk },
-      { key: 'fy', label: 'Fiscal years are 4-digit', ok: fyOk },
+      { key: 'fy', label: 'Fiscal years are between 2000 and 2100', ok: fyOk },
+      { key: 'window', label: 'Every phase ends after it starts', ok: list.every((r) => spanQuarters(r) !== null) },
       { key: 'scope', label: 'Saving updates every existing strategy timeline', ok: true },
     ];
   }, [rows, dupeKeys]);
@@ -215,7 +218,7 @@ export function FirmPhasesOverlay() {
     );
   };
 
-  const parseQuarter = (value: string) => Number.parseInt(value, 10);
+  const parseQuarter = (value: string) => Number(value);
 
   const addRow = () => {
     setRows((current) => {
@@ -281,6 +284,7 @@ export function FirmPhasesOverlay() {
          spinner — the arrows are unusable at this size anyway and the field is
          keyboard/paste driven. */
       className="st-phase-row__input st-phase-row__input--fy"
+      disabled={put.isPending}
       type="number"
       inputMode="numeric"
       aria-label={`${row.label || 'Phase'} — ${label} fiscal year`}
@@ -294,6 +298,7 @@ export function FirmPhasesOverlay() {
   const qInput = (row: Row, field: 'startQ' | 'endQ', label: string) => (
     <input
       className="st-phase-row__input st-phase-row__input--q"
+      disabled={put.isPending}
       type="number"
       min={1}
       max={4}
@@ -338,19 +343,19 @@ export function FirmPhasesOverlay() {
         </p>
       ) : null}
 
-      {phases.isLoading || rows === null ? (
+      {phases.isError ? (
+        <CapiroErrorState
+          title="Firm phases could not be loaded"
+          description="The shared phase ladder is unavailable. Nothing here was changed."
+          onRetry={() => void phases.refetch()}
+        />
+      ) : phases.isLoading || rows === null ? (
         <div className="st-skel-stack">
           <CapiroSkeleton height={40} />
           <CapiroSkeleton height={40} />
           <CapiroSkeleton height={40} />
           <CapiroSkeleton height={40} width="70%" />
         </div>
-      ) : phases.isError ? (
-        <CapiroErrorState
-          title="Firm phases could not be loaded"
-          description="The shared phase ladder is unavailable. Nothing here was changed."
-          onRetry={() => void phases.refetch()}
-        />
       ) : (
         <div className="st-cols">
           <div style={{ minWidth: 0 }}>
@@ -379,6 +384,8 @@ export function FirmPhasesOverlay() {
                       aria-label={`Phase ${index + 1} name`}
                       placeholder="Phase name"
                       value={row.label}
+                      disabled={put.isPending}
+                      maxLength={120}
                       onChange={(event) => updateRow(row._key, { label: event.target.value })}
                     />
                     <span className="st-phase-row__editor">
@@ -395,19 +402,19 @@ export function FirmPhasesOverlay() {
                       <CapiroIconButton
                         label={`Move phase ${index + 1} up`}
                         icon={<ChevronUpGlyph size={14} />}
-                        disabled={index === 0}
+                        disabled={put.isPending || index === 0}
                         onClick={() => moveRow(row._key, -1)}
                       />
                       <CapiroIconButton
                         label={`Move phase ${index + 1} down`}
                         icon={<ChevronDownGlyph size={14} />}
-                        disabled={index === rows.length - 1}
+                        disabled={put.isPending || index === rows.length - 1}
                         onClick={() => moveRow(row._key, 1)}
                       />
                       <CapiroIconButton
                         label={`Remove phase ${index + 1}`}
                         icon={<CloseGlyph size={14} />}
-                        disabled={rows.length <= MIN_PHASES}
+                        disabled={put.isPending || rows.length <= MIN_PHASES}
                         onClick={() => removeRow(row._key)}
                       />
                     </span>
@@ -420,7 +427,7 @@ export function FirmPhasesOverlay() {
               <CapiroButton
                 variant="secondary"
                 size="compact"
-                disabled={rows.length >= MAX_PHASES}
+                disabled={put.isPending || rows.length >= MAX_PHASES}
                 onClick={addRow}
                 style={{ width: '100%' }}
                 leadingIcon={
@@ -486,3 +493,4 @@ export function FirmPhasesOverlay() {
     </StrategiesModalShell>
   );
 }
+

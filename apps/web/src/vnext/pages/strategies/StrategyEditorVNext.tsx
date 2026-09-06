@@ -243,7 +243,7 @@ export function StrategyEditorVNext() {
         horizon={{ value: horizon, onChange: setHorizon, startFy: axis.startFy }}
         status={{ tone: 'success', label: `Live · refreshed ${formatRelativeTime(strategy.dataUpdatedAt)}` }}
       />
-      <div className="st-editor">
+      <div className="st-editor" key={detail.id}>
       <div className="st-editor__col">
         {/* Header (§7.2) — a full-bleed white hero band, distinct from the
             gray canvas body below it (design handoff: every view draws these
@@ -303,10 +303,10 @@ export function StrategyEditorVNext() {
             <div className="st-editor-header__row">
               <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/export`)}>Export</CapiroButton>
               <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/history`)}>History</CapiroButton>
-              <SaveStamp updatedAt={detail.lastEditedAt} />
+              <SaveStamp updatedAt={detail.lastEditedAt ?? detail.createdAt} />
               <CapiroButton
                 variant="primary"
-                onClick={() => openInspector(openStepId ?? detail.nodes[0]?.id ?? '', 'meri')}
+                onClick={() => openInspector(openStep?.id ?? (openStepId === '__new__' ? '__new__' : '__strategy__'), 'meri')}
               >
                 Ask Meri
               </CapiroButton>
@@ -315,6 +315,15 @@ export function StrategyEditorVNext() {
         </header>
 
         <div className="st-editor__main">
+        {calendars.isError ? (
+          <div role="alert">Reference calendars could not be loaded. <CapiroButton onClick={() => void calendars.refetch()}>Retry calendars</CapiroButton></div>
+        ) : null}
+        {firmPhases.isError ? (
+          <div role="alert">Firm phases could not be loaded. <CapiroButton onClick={() => void firmPhases.refetch()}>Retry phases</CapiroButton></div>
+        ) : null}
+        {layers.watch && watchState.isError ? (
+          <div role="alert">Watch proposals could not be loaded. <CapiroButton onClick={() => void watchState.refetch()}>Retry proposals</CapiroButton></div>
+        ) : null}
         {/* Working timeline (§7.3). */}
         <section className="st-card st-timeline">
           <div className="st-timeline__head">
@@ -337,11 +346,13 @@ export function StrategyEditorVNext() {
             nodes={detail.nodes}
             firmPhases={firmPhases.data ?? []}
             congress={calendars.data?.congress ?? EMPTY_REFERENCE_ROWS}
+            calendarAvailable={Boolean(calendars.data) && !calendars.isError}
             congressIsFork={calendars.data?.source?.congress === 'override'}
             ppbe={calendars.data?.ppbeLanes ?? EMPTY_REFERENCE_ROWS}
             members={members.data}
             selectedStepId={openStepId}
             watchProposals={watchProposals}
+            watchAvailable={Boolean(watchState.data) && !watchState.isError}
             onStepClick={(id) => openInspector(id)}
             onWatchClick={() => navigate('/strategies/agents/proposals')}
             onPhaseClick={() => navigate('/strategies/phases')}
@@ -356,7 +367,7 @@ export function StrategyEditorVNext() {
         </div>
       </div>
 
-      {openStep || openStepId === '__new__' ? (
+      {openStep || openStepId === '__new__' || openStepId === '__strategy__' ? (
         <StepInspector
           // Keyed on the selected step so React remounts the whole subtree on
           // a step switch instead of re-rendering the same instance with a
@@ -371,7 +382,8 @@ export function StrategyEditorVNext() {
           strategyId={detail.id}
           step={openStep}
           isNew={openStepId === '__new__'}
-          initialTab={inspectorTab}
+          tab={inspectorTab}
+          onTabChange={(tab) => openInspector(openStepId ?? '__strategy__', tab)}
           onClose={closeInspector}
         />
       ) : null}
@@ -429,11 +441,11 @@ function NextThirtyDays({
   onOpen: (stepId: string) => void;
 }) {
   const next = useMemo(() => {
-    const now = Date.now();
+    const now = new Date().setUTCHours(0, 0, 0, 0);
     const in30 = now + 30 * 86400000;
     return (
       detail.nodes
-        .filter((n) => n.ownerUserId && n.status !== 'active')
+        .filter((n) => n.ownerUserId && !n.openEnded)
         .filter((n) => {
           const due = new Date(n.endsOn ?? n.startsOn).getTime();
           return !Number.isNaN(due) && due >= now && due <= in30;
@@ -558,10 +570,12 @@ interface TimelineProps {
   firmPhases: FirmPhase[];
   congress: ReferenceRow[];
   congressIsFork: boolean;
+  calendarAvailable: boolean;
   ppbe: ReferenceRow[];
   members: ReturnType<typeof useTenantMembers>['data'];
   selectedStepId: string | null;
   watchProposals: WatchProposalCard[];
+  watchAvailable: boolean;
   onStepClick: (id: string) => void;
   onWatchClick: () => void;
   onPhaseClick: () => void;
@@ -574,10 +588,12 @@ function Timeline({
   firmPhases,
   congress,
   congressIsFork,
+  calendarAvailable,
   ppbe,
   members,
   selectedStepId,
   watchProposals,
+  watchAvailable,
   onStepClick,
   onWatchClick,
   onPhaseClick,
@@ -644,7 +660,8 @@ function Timeline({
           type="button"
           className="st-tl__gutter-edit"
           aria-pressed={editingCalendar}
-          onClick={() => setEditingCalendar((v) => !v)}
+          disabled={!calendarAvailable || legislative.saving}
+          onClick={() => editingCalendar ? legislative.finish() : setEditingCalendar(true)}
         >
           {editingCalendar ? 'Done' : 'Edit'}
         </button>
@@ -772,7 +789,7 @@ function Timeline({
                   <TimelineBar
                     span={{ start: 0, span: Math.min(8, monthCount), clippedStart: false, clippedEnd: false, trueSpan: 1 }}
                     lane={0}
-                    label="No pending proposals — review queue"
+                    label={watchAvailable ? 'No pending proposals — review queue' : 'Watch status unavailable — review queue'}
                     tone="watch"
                     title="Open the agent review queue"
                     onClick={onWatchClick}
@@ -984,9 +1001,8 @@ function useFirmPhaseBand(axis: TimelineAxis, phases: FirmPhase[], colW: number)
       const span = columnSpan(
         axis,
         fyQuarterToDate(p.startFy, p.startQ).toISOString(),
-        // A phase that ENDS in FYnQm runs through that quarter, so the bar has
-        // to reach its last month, not stop on its first day.
-        fyQuarterEndDate(p.endFy, p.endQ).toISOString(),
+        // The API stores an EXCLUSIVE end quarter; draw through the prior day.
+        new Date(fyQuarterToDate(p.endFy, p.endQ).getTime() - 86400000).toISOString(),
         min,
       );
       if (!span) continue;
@@ -1113,6 +1129,7 @@ function useLegislativeBand({
   // Leaving edit mode drops any uncommitted drag state.
   useEffect(() => {
     if (!editing) {
+      dragRef.current = null;
       setDraft(null);
       setRenaming(null);
       setError(null);
@@ -1135,7 +1152,7 @@ function useLegislativeBand({
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLElement>, key: string, mode: DragMode) => {
-    if (!editing || event.button !== 0) return;
+    if (!editing || fork.isPending || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
@@ -1147,7 +1164,7 @@ function useLegislativeBand({
 
   const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
-    if (!drag) return;
+    if (!drag || fork.isPending) return;
     const months = Math.round((event.clientX - drag.originX) / colW);
     const delta = months - drag.applied;
     if (delta === 0) return;
@@ -1164,7 +1181,7 @@ function useLegislativeBand({
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>, key: string) => {
-    if (!editing) return;
+    if (!editing || fork.isPending) return;
     const step = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
     if (step !== 0) {
       event.preventDefault();
@@ -1193,6 +1210,7 @@ function useLegislativeBand({
   };
 
   const save = () => {
+    if (fork.isPending) return;
     const next = (draft ?? serverDraft).map(normalizeRow);
     const blank = next.find((r) => !r.label.trim());
     if (blank) {
@@ -1274,6 +1292,7 @@ function useLegislativeBand({
                 defaultValue={row.label}
                 maxLength={200}
                 aria-label="Milestone label"
+                disabled={fork.isPending}
                 /* Select the existing label on open: rename is a replace, and
                    without this the caret lands at the end and typing appends
                    ("Hearings" + "Posture hearings"). */
@@ -1335,6 +1354,7 @@ function useLegislativeBand({
               type="button"
               className="st-tl__bar-remove"
               aria-label={`Remove ${row.label}`}
+              disabled={fork.isPending}
               onClick={() => setDraft((prev) => (prev ?? serverDraft).filter((r) => r.key !== row.key))}
             >
               ×
@@ -1355,9 +1375,10 @@ function useLegislativeBand({
         {isFork ? ' Saving updates your firm’s calendar.' : ' Saving forks the Capiro baseline into your firm’s own calendar.'}
       </p>
       <div className="st-tl__editbar-actions">
-        <CapiroButton size="compact" onClick={addMilestone}>Add milestone</CapiroButton>
+        <CapiroButton size="compact" disabled={fork.isPending} onClick={addMilestone}>Add milestone</CapiroButton>
         <CapiroButton
           size="compact"
+          disabled={fork.isPending}
           onClick={() => {
             setDraft(null);
             onEditingChange(false);
@@ -1381,7 +1402,14 @@ function useLegislativeBand({
     </div>
   ) : null;
 
-  return { band, footer, height: model.height };
+  return {
+    band, footer, height: model.height, saving: fork.isPending,
+    finish: () => {
+      if (fork.isPending) return;
+      if (dirty) save();
+      else onEditingChange(false);
+    },
+  };
 }
 
 /* ------------------------------------------------------------------ utils */
@@ -1393,18 +1421,9 @@ function fyQuarterToDate(fy: number, q: number): Date {
   return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + monthIndex, 1));
 }
 
-/**
- * LAST day of a fiscal quarter. `fyQuarterToDate` returns the quarter's first
- * day, so using it for a phase's END made every firm phase stop on the first
- * day of its closing quarter and drew the band a full quarter short.
- */
-function fyQuarterEndDate(fy: number, q: number): Date {
-  const start = fyQuarterToDate(fy, q);
-  return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 3, 0));
-}
-
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
+
