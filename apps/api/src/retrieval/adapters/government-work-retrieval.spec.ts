@@ -154,7 +154,9 @@ describe('complete hearing evidence chunk continuation', () => {
   it('reconstructs oversized intelligence and escaped transcript payloads with stable source IDs', async () => {
     const { tx, prisma } = harness();
     const payload = { kind: 'hearing_intelligence', title: 'Funding advice', summary: 'Summary '.repeat(2000),
-      evidenceText: '\\"\n'.repeat(3000), entities: [{ name: 'Late evidence entity' }] };
+      evidenceText: '\\"\n'.repeat(3000), entities: [{ name: 'Late evidence entity' }],
+      speakerName: 'Witness A', startMs: 3_600_000, endMs: 3_610_000, preliminary: true,
+      derivedFromMachineTranscript: true };
     const row = { key: 'insight:source', sourceTable: 'public_hearing_insight', sourceId: 'source', hearingId: 'hearing',
       occurredAt: null, updatedAt: null, payload };
     tx.$queryRaw.mockResolvedValue([row]);
@@ -166,6 +168,8 @@ describe('complete hearing evidence chunk continuation', () => {
       expect(result.records).toHaveLength(1);
       const record = result.records[0]!;
       expect(record.provenance!.sourceRecordId).toBe('source');
+      expect(record.payload).toMatchObject({ speakerName: 'Witness A', startMs: 3_600_000,
+        endMs: 3_610_000, preliminary: true, derivedFromMachineTranscript: true });
       expect(JSON.stringify(record).length).toBeLessThan(6500);
       expect(record.recordId.length).toBeLessThanOrEqual(80);
       text.push(record.payload.text as string);

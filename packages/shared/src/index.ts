@@ -4044,9 +4044,25 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'search_funding_opportunities',
+    description:
+      'Discover paginated grants and contracts for the selected client using Funding Opportunities’ canonical eligibility and matching service. Returns applicant types, capability and geography evidence, deadlines, conditions, explicit eligibility disqualifiers, recommendation confidence, source freshness and scan limits. Use this for client funding recommendations; raw grant/SAM search does not assess client fit. pageSize is 1–5; follow nextPage and disclose totalIsCapped. Procurement forecasts use the separately gated search_procurement_forecasts tool and are never open solicitations.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_funding_opportunity_requirements',
+    description:
+      'Read the canonical extracted requirements from SAM.gov solicitation documents for one authorized client, with exact excerpts, attachment IDs, page/character spans, extraction confidence, supersession and the tenant’s review status. Requires the Funding Opportunities document capability. Follow pagination.nextOffset; pending, rejected or superseded extractions are not verified mandatory conditions. For Grants.gov use get_funding_opportunity and summaryOffset/summaryLimit to read the full held notice text.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'get_funding_opportunity',
     description:
-      "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
+      "Load one federal funding opportunity (Grants.gov NOFO or SAM.gov contract notice) as Capiro holds it, scored for one client: source facts, deadlines, NAICS/PSC, set-aside, place of performance, the deterministic recommendation, eligibility, and the team's own recorded decision. Grant funding and contract value are separate fields and must never be added together. Requires clientId, source ('grants_gov' or 'sam_gov') and sourceRecordId. Continue the held notice body using summaryOffset and summaryLimit (up to 12000 characters); summaryRead reports exact bounds and nextOffset. Reads local data only — it never calls an external provider, so an absent field means Capiro has not synced it, not that the notice lacks it.",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

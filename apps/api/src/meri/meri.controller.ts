@@ -521,10 +521,7 @@ export class MeriController {
 
   @Get('feedback/export')
   @Roles('user_admin')
-  exportFeedbackForEvaluation(
-    @CurrentTenant() ctx: TenantContext,
-    @Query('limit') limit?: string,
-  ) {
+  exportFeedbackForEvaluation(@CurrentTenant() ctx: TenantContext, @Query('limit') limit?: string) {
     const parsed = limit ? Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500) : 200;
     return this.service.exportFeedbackForEvaluation(ctx, parsed);
   }
@@ -741,8 +738,11 @@ export class MeriController {
   // POST /research/:id/stream (SSE: agentic gather + synthesized cited report).
 
   @Get('research')
-  listResearch(@CurrentTenant() ctx: TenantContext) {
-    return this.research.listSessions(ctx);
+  listResearch(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('conversationId') conversationId?: string,
+  ) {
+    return this.research.listSessions(ctx, conversationId);
   }
 
   @Post('research')
@@ -753,6 +753,20 @@ export class MeriController {
   @Get('research/:id')
   getResearch(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.research.getSession(ctx, id);
+  }
+
+  @Get('research/:id/runs/:runId/active')
+  researchRunActive(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+  ) {
+    return this.research.assertRunActive(ctx, id, runId);
+  }
+
+  @Post('research/:id/cancel')
+  cancelResearch(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.research.cancelRun(ctx, id);
   }
 
   @Delete('research/:id')
@@ -864,17 +878,16 @@ export class MeriController {
   }
 }
 
-function researchRuntimeAuth(req: Request, res: Response) {
-  const abort = new AbortController();
-  req.once('aborted', () => abort.abort());
-  res.once('close', () => { if (!res.writableEnded) abort.abort(); });
-  res.once('error', () => abort.abort());
+function researchRuntimeAuth(req: Request, _res: Response) {
+  // Browser disconnects detach from durable research; only /cancel stops the run.
   const bearerToken = (req.headers.authorization ?? '').match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
   const impersonate = req.headers['x-capiro-impersonate-tenant'];
+  const resumeRunId = req.headers['x-meri-research-resume-run'];
   return {
     bearerToken,
-    signal: abort.signal,
-    impersonateTenantId: typeof impersonate === 'string' ? impersonate.trim() || undefined : undefined,
+    ...(typeof resumeRunId === 'string' ? { resumeRunId } : {}),
+    impersonateTenantId:
+      typeof impersonate === 'string' ? impersonate.trim() || undefined : undefined,
   };
 }
 

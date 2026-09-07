@@ -1,3 +1,4 @@
+import { meriRetrievalMetadata } from './meri-retrieval-metadata.js';
 import { useEffect, useState } from 'react';
 import type { MeriRect } from './meri-geometry.js';
 import type { TrustStep } from './WorkPerformed.js';
@@ -94,6 +95,20 @@ export interface ChatMessageRetrieval {
     missingDomains?: string[];
     partialDomains?: string[];
     toolsInvoked?: string[];
+    requestedDomains?: string[];
+    requestedEntityCount?: number | null;
+    searchedEntityCount?: number | null;
+    recordsEvaluated?: number;
+    recordsReturned?: number;
+    paginationComplete?: boolean;
+    truncated?: boolean;
+    sourceHealth?: Array<{
+      source: string;
+      status: 'complete' | 'partial' | 'error' | 'unavailable';
+      lastSyncAt?: string;
+      detail?: string;
+    }>;
+    unavailableSources?: Array<{ source: string; reason: string }>;
   };
 }
 
@@ -297,8 +312,16 @@ export function setChatMessageCitations(id: string, citations: MeriCitation[]): 
   notify();
 }
 
-export function setChatMessageRuntimeStatus(id: string, runtimeStatus: import('./meri-runtime-status.js').MeriRuntimeStatus): void {
-  state = { ...state, messages: state.messages.map((message) => message.id === id ? { ...message, runtimeStatus } : message) };
+export function setChatMessageRuntimeStatus(
+  id: string,
+  runtimeStatus: import('./meri-runtime-status.js').MeriRuntimeStatus,
+): void {
+  state = {
+    ...state,
+    messages: state.messages.map((message) =>
+      message.id === id ? { ...message, runtimeStatus } : message,
+    ),
+  };
   notify();
 }
 
@@ -317,7 +340,10 @@ export function setChatMessageVerification(id: string, verification: MeriVerific
  */
 export function setChatMessageThinking(
   id: string,
-  thinking: Pick<ChatMessage, 'orchestratorIntent' | 'orchestratorTier' | 'planSteps' | 'trustSteps'>,
+  thinking: Pick<
+    ChatMessage,
+    'orchestratorIntent' | 'orchestratorTier' | 'planSteps' | 'trustSteps'
+  >,
 ): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, ...thinking } : m));
   state = { ...state, messages };
@@ -348,11 +374,10 @@ export function setChatMessageContextPacketId(id: string, contextPacketId: strin
  * assistant message. Absent on legacy turns that don't forward retrieval
  * metadata, so callers must treat `message.retrieval` as optional.
  */
-export function setChatMessageRetrieval(
-  id: string,
-  retrieval: ChatMessageRetrieval,
-): void {
-  const messages = state.messages.map((m) => (m.id === id ? { ...m, retrieval } : m));
+export function setChatMessageRetrieval(id: string, retrieval: ChatMessageRetrieval): void {
+  const messages = state.messages.map((m) =>
+    m.id === id ? { ...m, retrieval: meriRetrievalMetadata(retrieval) } : m,
+  );
   state = { ...state, messages };
   notify();
 }

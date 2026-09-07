@@ -22,6 +22,7 @@ import type {
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
 import { MeriWorkPerformed } from './MeriWorkPerformed.js';
 import { MeriResearchProgress } from './MeriResearchProgress.js';
+import { MeriResearchRecovery } from './MeriResearchRecovery.js';
 import { MeriMemoryCallout } from './MeriMemoryCallout.js';
 import { deleteMeriResearch } from './meri-vnext-api.js';
 import { INTENT_LABELS } from '../../components/chat/work-performed-shared.js';
@@ -346,6 +347,16 @@ function VNextMeriAssistantMessage({
             isStreaming={controller.isResearchStreaming}
             progress={controller.researchProgress}
             steps={controller.trustSteps}
+          />
+        ) : null}
+
+        {isLastAssistant && !controller.isResearchStreaming ? (
+          <MeriResearchRecovery
+            research={controller.researchRecovery}
+            error={controller.researchRecoveryError}
+            busy={isStreaming}
+            onResume={() => void controller.resumeResearch()}
+            onStop={controller.handleStop}
           />
         ) : null}
 

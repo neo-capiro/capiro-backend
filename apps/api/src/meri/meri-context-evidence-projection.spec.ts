@@ -18,6 +18,68 @@ const record = (body: string): RetrievalRecord => ({
 });
 
 describe('governed model evidence projection', () => {
+  it('admits task evidence when a large client/strategy rail would otherwise exhaust the packet first', () => {
+    const strategies: RetrievalRecord[] = Array.from({ length: 60 }, (_, index) => ({
+      domain: 'strategies_work', recordId: `strategy:${index}`,
+      payload: { title: `Strategy ${index}`, body: 'Long source work. '.repeat(300) },
+    }));
+    const sources: RetrievalRecord[] = [
+      ...strategies,
+      { domain: 'meetings', recordId: 'meeting:commitment', payload: { body: 'The client committed to provide technical data by Friday.' } },
+      { domain: 'hearings', recordId: 'segment:relevant', payload: { text: 'The pilot remains proposed.', speakerLabel: 'Witness', startMs: 120000 } },
+    ];
+    const result = buildModelContextProjection(sources);
+    expect(result.truncated).toBe(true);
+    expect(result.records.map((row) => row.recordId)).toEqual(expect.arrayContaining(['strategy:0', 'meeting:commitment', 'segment:relevant']));
+    expect(result.text).toContain('provide technical data by Friday');
+    expect(result.text).toContain('The pilot remains proposed');
+    const keptStrategies = result.records.filter((row) => row.domain === 'strategies_work');
+    expect(keptStrategies.map((row) => row.recordId)).toEqual(strategies.slice(0, keptStrategies.length).map((row) => row.recordId));
+    expect(result.text.length).toBeLessThanOrEqual(72_000);
+  });
+
+  it('preserves hearing attribution after a long transcript and distinguishes event, update and observation dates', () => {
+    const result = buildModelContextProjection([{
+      domain: 'hearings', recordId: 'segment:one',
+      occurredAt: new Date('2026-09-01T12:00:00Z'), updatedAt: new Date('2026-09-02T10:00:00Z'),
+      payload: {
+        text: 'The department proposes a pilot. '.repeat(300),
+        speakerLabel: 'Witness A', startMs: 3_600_000, endMs: 3_610_000,
+        isOfficialTranscript: false, transcriptionConfidence: 0.91,
+        sourceUrl: 'https://committee.house.gov/hearing/one', fetchedAt: '2026-09-02T11:00:00Z',
+      },
+      provenance: { sourceRecordId: 'one', sourceTable: 'public_hearing_transcript_segment' },
+    }]);
+    expect(result.records[0]).toMatchObject({
+      payload: {
+        speakerLabel: 'Witness A', startMs: 3_600_000, endMs: 3_610_000,
+        isOfficialTranscript: false, sourceUrl: 'https://committee.house.gov/hearing/one',
+        fetchedAt: '2026-09-02T11:00:00Z', contentTruncated: true,
+        excerpts: { text: expect.stringContaining('department proposes') },
+      },
+      provenance: {
+        recordOccurredAt: '2026-09-01T12:00:00.000Z', recordUpdatedAt: '2026-09-02T10:00:00.000Z',
+      },
+    });
+    expect(result.records[0]?.provenance).not.toHaveProperty('observedAt');
+    expect(result.records[0]?.provenance).not.toHaveProperty('retrievedAt');
+    expect(JSON.stringify(result.records[0]!.payload).length).toBeLessThanOrEqual(3_000);
+    expect(result.text).toContain(JSON.stringify(result.records[0]));
+  });
+
+  it('retains canonical funding claims, FY, units and document section instead of a JSON prefix', () => {
+    const claim = { amount: 12.5, fiscalYear: 2027, units: 'millions_usd', stage: 'HAC-D', track: 'appropriation', isProjection: false };
+    const source = {
+      domain: 'program_elements' as const, recordId: '0605053A',
+      payload: { description: 'Long program narrative. '.repeat(300), peCode: '0605053A', projectId: 'J001', currentClaim: claim },
+      provenance: { details: 'Long source background. '.repeat(200), sourceUrl: 'https://example.gov/budget.pdf', documentSection: 'R-2A, project J001', page: 42, observedAt: '2026-09-01T00:00:00Z' },
+    };
+    const result = buildModelContextProjection([source]);
+    expect(result.records[0]?.payload).toMatchObject({ peCode: '0605053A', projectId: 'J001', currentClaim: claim });
+    expect(result.records[0]?.provenance).toMatchObject({ sourceUrl: 'https://example.gov/budget.pdf', documentSection: 'R-2A, project J001', page: 42, observedAt: '2026-09-01T00:00:00Z', contentTruncated: true });
+    expect(JSON.stringify(result.records[0]!.provenance).length).toBeLessThanOrEqual(800);
+  });
+
   it('uses stable citable aliases for long temporal graph composite IDs while preserving canonical identity', () => {
     const sourceRecordId =
       '12345678-1234-1234-1234-123456789012:23456789-2345-2345-2345-234567890123:34567890-3456-3456-3456-345678901234';

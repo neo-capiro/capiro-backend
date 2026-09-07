@@ -1,3 +1,4 @@
+import { meriRetrievalMetadata } from '../../components/chat/meri-retrieval-metadata.js';
 import type {
   ChatMessage,
   ChatMessageRetrieval,
@@ -268,28 +269,7 @@ export function mapPersistedGroundingCaveat(
 }
 
 export function mapPersistedRetrieval(message: PersistedMessage): ChatMessageRetrieval | undefined {
-  const raw = asRecord(message.metadata?.retrieval);
-  const plan = asRecord(raw?.plan);
-  const coverage = asRecord(raw?.coverage);
-  if (
-    !plan ||
-    !coverage ||
-    typeof plan.subjectScope !== 'string' ||
-    typeof coverage.complete !== 'boolean'
-  )
-    return undefined;
-  return {
-    plan: {
-      subjectScope: plan.subjectScope,
-      targetHint: typeof plan.targetHint === 'string' ? plan.targetHint : null,
-      recipeTool: typeof plan.recipeTool === 'string' ? plan.recipeTool : null,
-      queryClass: typeof plan.queryClass === 'string' ? plan.queryClass : 'unknown',
-    },
-    coverage: {
-      complete: coverage.complete,
-      stopReason: typeof coverage.stopReason === 'string' ? coverage.stopReason : 'unknown',
-    },
-  };
+  return meriRetrievalMetadata(message.metadata?.retrieval);
 }
 
 export function mapPersistedCharts(message: PersistedMessage): PersistedChartArtifact[] {

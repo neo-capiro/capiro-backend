@@ -1,10 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { assertRequestSourceRecordId } from '../funding-opportunity-identity.js';
-import {
-  describeTextAvailability,
-  type TextStatus,
-} from '../opportunity-document-text.service.js';
+import { describeTextAvailability, type TextStatus } from '../opportunity-document-text.service.js';
 import type { RequirementReviewStatus } from './opportunity-requirement.schema.js';
 
 /**
@@ -43,6 +40,7 @@ import type { RequirementReviewStatus } from './opportunity-requirement.schema.j
 
 export interface RequirementView {
   id: string;
+  attachmentId: string | null;
   requirementType: string;
   statement: string;
   sourceExcerpt: string;
@@ -65,13 +63,29 @@ export interface RequirementsResponse {
   coverageExplanation: string;
   documentTextStatus: Array<{ fileName: string | null; status: string; explanation: string }>;
   generatedAt: string;
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number | null;
+    hasMore: boolean;
+    nextOffset: number | null;
+  };
+}
+
+export interface RequirementPage {
+  offset: number;
+  limit: number;
 }
 
 export interface RequirementPort {
   /** Requirements bound to any CURRENTLY-archived document of this solicitation. */
-  readRequirements(samOpportunityId: string): Promise<
+  readRequirements(
+    samOpportunityId: string,
+    page?: RequirementPage,
+  ): Promise<
     Array<{
       id: string;
+      attachmentId?: string | null;
       requirementType: string;
       statement: string;
       sourceExcerpt: string;
@@ -85,8 +99,12 @@ export interface RequirementPort {
       supersededAt: Date | null;
     }>
   >;
+  countRequirements?(samOpportunityId: string): Promise<number>;
   /** THIS tenant's review status per requirement id. */
-  readReviews(tenantId: string, requirementIds: string[]): Promise<Map<string, RequirementReviewStatus>>;
+  readReviews(
+    tenantId: string,
+    requirementIds: string[],
+  ): Promise<Map<string, RequirementReviewStatus>>;
   /** How many documents are archived for this solicitation. */
   countArchivedDocuments(samOpportunityId: string): Promise<number>;
   /** P30's per-document text status. */
@@ -114,6 +132,7 @@ export class OpportunityRequirementService {
     source: string,
     sourceRecordId: string,
     asOf: Date = new Date(),
+    page: Partial<RequirementPage> = {},
   ): Promise<RequirementsResponse> {
     if (source !== 'sam_gov') {
       // Grants.gov publishes its terms in the notice body, not as separate
@@ -125,7 +144,36 @@ export class OpportunityRequirementService {
     }
     assertRequestSourceRecordId(source, sourceRecordId);
 
-    const rows = await this.port.readRequirements(sourceRecordId);
+    const offset = page.offset ?? 0;
+    const limit = page.limit ?? 500;
+    if (
+      !Number.isInteger(offset) ||
+      offset < 0 ||
+      offset > 1_000_000 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 500
+    ) {
+      throw new BadRequestException('Requirements pagination needs offset >= 0 and limit 1–500.');
+    }
+    const fetched = await this.port.readRequirements(sourceRecordId, { offset, limit: limit + 1 });
+    const rows = fetched.slice(0, limit);
+    const total = this.port.countRequirements
+      ? await this.port.countRequirements(sourceRecordId)
+      : offset === 0 && fetched.length <= limit
+        ? fetched.length
+        : null;
+    // Extraction can append rows between the page and count reads. Either
+    // observation can establish another page; do not hide a newly counted row.
+    const hasMore =
+      fetched.length > limit || (rows.length > 0 && total != null && offset + rows.length < total);
+    const pagination = {
+      offset,
+      limit,
+      total,
+      hasMore,
+      nextOffset: hasMore ? offset + rows.length : null,
+    };
     const reviews = await this.port.readReviews(
       tenantId,
       rows.map((r) => r.id),
@@ -133,6 +181,7 @@ export class OpportunityRequirementService {
 
     const requirements: RequirementView[] = rows.map((row) => ({
       id: row.id,
+      attachmentId: row.attachmentId ?? null,
       requirementType: row.requirementType,
       statement: row.statement,
       sourceExcerpt: row.sourceExcerpt,
@@ -159,15 +208,16 @@ export class OpportunityRequirementService {
       explanation: describeTextAvailability({ status: d.status }),
     }));
 
-    if (requirements.length > 0) {
+    if (requirements.length > 0 || (total != null && total > 0)) {
       return {
         source: 'sam_gov',
         sourceRecordId,
         requirements,
         coverage: 'available',
-        coverageExplanation: `${requirements.length} requirement${requirements.length === 1 ? '' : 's'} extracted, each quoting the document it came from.`,
+        coverageExplanation: `${requirements.length} requirement${requirements.length === 1 ? '' : 's'} returned${total == null ? '' : ` of ${total}`}, each quoting the document it came from. Review status and supersession must be checked before treating an extraction as a verified condition.`,
         documentTextStatus,
         generatedAt: asOf.toISOString(),
+        pagination,
       };
     }
 
@@ -198,6 +248,7 @@ export class OpportunityRequirementService {
       coverageExplanation: explanation,
       documentTextStatus,
       generatedAt: asOf.toISOString(),
+      pagination,
     };
   }
 
@@ -206,37 +257,40 @@ export class OpportunityRequirementService {
       // tenant-scope-exempt: opportunity_requirement, opportunity_attachment and
       // opportunity_document_text are GLOBAL provider/source tables with no
       // tenant_id and no RLS.
-      readRequirements: async (samOpportunityId) => {
-        const rows = await this.prisma.withSystem((tx) =>
-          tx.$queryRaw<
-            Array<{
-              id: string;
-              requirement_type: string;
-              statement: string;
-              source_excerpt: string;
-              excerpt_start: number;
-              excerpt_end: number;
-              source_page: number | null;
-              file_name: string | null;
-              extraction_method: string;
-              extraction_model: string;
-              confidence: string;
-              superseded_at: Date | null;
-            }>
-          >`
-            SELECT r.id::text AS id, r.requirement_type, r.statement, r.source_excerpt,
+      readRequirements: async (samOpportunityId, page = { offset: 0, limit: 501 }) => {
+        const rows = await this.prisma.withSystem(
+          (tx) =>
+            tx.$queryRaw<
+              Array<{
+                id: string;
+                attachment_id: string;
+                requirement_type: string;
+                statement: string;
+                source_excerpt: string;
+                excerpt_start: number;
+                excerpt_end: number;
+                source_page: number | null;
+                file_name: string | null;
+                extraction_method: string;
+                extraction_model: string;
+                confidence: string;
+                superseded_at: Date | null;
+              }>
+            >`
+            SELECT r.id::text AS id, a.id::text AS attachment_id, r.requirement_type, r.statement, r.source_excerpt,
                    r.excerpt_start, r.excerpt_end, r.source_page,
                    a.file_name, r.extraction_method, r.extraction_model, r.confidence,
                    r.superseded_at
             FROM opportunity_requirement r
             JOIN opportunity_attachment a ON a.id = r.attachment_id
             WHERE r.sam_opportunity_id = ${samOpportunityId}::uuid
-            ORDER BY r.requirement_type ASC, r.excerpt_start ASC
-            LIMIT 500
+            ORDER BY r.requirement_type ASC, r.excerpt_start ASC, r.id ASC
+            LIMIT ${page.limit} OFFSET ${page.offset}
           `,
         );
         return rows.map((r) => ({
           id: r.id,
+          attachmentId: r.attachment_id,
           requirementType: r.requirement_type,
           statement: r.statement,
           sourceExcerpt: r.source_excerpt,
@@ -250,6 +304,18 @@ export class OpportunityRequirementService {
           supersededAt: r.superseded_at,
         }));
       },
+
+      // Global public-source rows; count exactly the same join as the page read.
+      countRequirements: (samOpportunityId) =>
+        this.prisma.withSystem(async (tx) => {
+          const rows = await tx.$queryRaw<Array<{ total: bigint }>>`
+          SELECT COUNT(*)::bigint AS total
+          FROM opportunity_requirement r
+          JOIN opportunity_attachment a ON a.id = r.attachment_id
+          WHERE r.sam_opportunity_id = ${samOpportunityId}::uuid
+        `;
+          return Number(rows[0]?.total ?? 0);
+        }),
 
       // withTenant, because the review IS tenant data and RLS is FORCED on it.
       readReviews: async (tenantId, requirementIds) => {
@@ -271,8 +337,9 @@ export class OpportunityRequirementService {
         ),
 
       readTextStatus: async (samOpportunityId) => {
-        const rows = await this.prisma.withSystem((tx) =>
-          tx.$queryRaw<Array<{ file_name: string | null; status: string }>>`
+        const rows = await this.prisma.withSystem(
+          (tx) =>
+            tx.$queryRaw<Array<{ file_name: string | null; status: string }>>`
             SELECT a.file_name, t.status
             FROM opportunity_document_text t
             JOIN opportunity_attachment a ON a.id = t.attachment_id

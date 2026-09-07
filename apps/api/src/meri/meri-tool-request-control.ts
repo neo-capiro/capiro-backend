@@ -13,6 +13,16 @@ export function meriToolRequestControl(): ToolExecutionControl | undefined {
   return execution.getStore();
 }
 
+export async function withMeriToolExecutionControl<T>(
+  control: ToolExecutionControl,
+  run: () => Promise<T>,
+): Promise<T> {
+  return execution.run(control, async () => {
+    assertMeriToolRequestActive();
+    return run();
+  });
+}
+
 export async function withMeriToolRequestControl<T>(
   req: Request,
   run: () => Promise<T>,

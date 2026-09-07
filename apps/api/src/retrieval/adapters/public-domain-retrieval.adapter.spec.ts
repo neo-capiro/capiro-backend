@@ -160,6 +160,33 @@ function setup() {
 }
 
 describe('public source retrieval through canonical read services', () => {
+  it('does not report a dated subset as the freshness of a mixed budget page', async () => {
+    const { adapter, pe } = setup();
+    pe.listProgramElements.mockResolvedValue({
+      data: [
+        { peCode: '0601102A', lastSyncedAt: new Date(sync) },
+        { peCode: '0601103A', lastSyncedAt: null },
+      ], total: 2,
+    });
+    const result = await adapter.retrieve(dataset('program_elements'), request('program_elements'));
+    expect(result).toMatchObject({ returned: 2, sourceStatus: 'degraded', coverageComplete: false });
+    expect(result.lastSyncAt).toBeUndefined();
+    expect(result.records[0]?.payload.lastSyncedAt).toBe(sync);
+  });
+
+  it.each([null, 'not-a-date'])('does not claim complete budget coverage with missing source freshness: %s', async (lastSyncedAt) => {
+    const { adapter, pe } = setup();
+    pe.listProgramElements.mockResolvedValue({
+      data: [{ peCode: '0601102A', title: 'Research', lastSyncedAt, currentClaim: { fiscalYear: 2027, stage: 'request', value: 15 } }],
+      total: 1,
+    });
+    const result = await adapter.retrieve(dataset('program_elements'), request('program_elements'));
+    expect(result).toMatchObject({ returned: 1, paginationComplete: true, coverageComplete: false,
+      sourceStatus: 'degraded', stopReason: 'program_element_source_freshness_unavailable' });
+    expect(result.lastSyncAt).toBeUndefined();
+    expect(result.records[0]?.payload.currentClaim).toEqual({ fiscalYear: 2027, stage: 'request', value: 15 });
+  });
+
   it('resolves the explicit production service class tokens across sibling Nest modules', async () => {
     const { prisma, bills, moduleRef } = setup();
     class DomainReadsModule {}

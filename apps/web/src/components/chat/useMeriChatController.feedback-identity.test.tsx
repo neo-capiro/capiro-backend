@@ -657,3 +657,74 @@ describe('Meri canonical work receipt and send acceptance', () => {
     ).toBe(true);
   });
 });
+
+describe('Meri live coverage normalization', () => {
+  beforeEach(() => {
+    resetChatStoreForTests();
+    setChatSession('conversation-1');
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+  test('uses the same complete coverage metadata for the header and saved message', async () => {
+    const retrieval = {
+      plan: {
+        subjectScope: 'client',
+        queryClass: 'lookup',
+        targetHint: null,
+        recipeTool: null,
+        requiredDomains: ['hearings'],
+      },
+      coverage: {
+        complete: false,
+        stopReason: 'pagination_incomplete',
+        recordsReturned: 3,
+        recordsEvaluated: 8,
+        paginationComplete: false,
+        truncated: true,
+        sourceHealth: [
+          { source: 'hearings', status: 'partial', lastSyncAt: '2026-08-30T10:00:00Z' },
+        ],
+      },
+    };
+    installFetchMock({
+      streamEvents: [
+        { type: 'text', text: 'Brief.' },
+        { type: 'done', messageId: 'coverage-id', retrieval },
+      ],
+    });
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.sendMessage('Brief this hearing');
+    });
+    expect(result.current.lastRetrieval).toEqual(retrieval);
+    expect(
+      result.current.messages.find((message) => message.id === 'coverage-id')?.retrieval,
+    ).toEqual(retrieval);
+  });
+  test('does not install malformed retrieval into the thread header or saved message', async () => {
+    installFetchMock({
+      streamEvents: [
+        { type: 'text', text: 'Brief.' },
+        {
+          type: 'done',
+          messageId: 'malformed-coverage',
+          retrieval: { coverage: { complete: true } },
+        },
+      ],
+    });
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.sendMessage('Brief this hearing');
+    });
+    expect(result.current.lastRetrieval).toBeNull();
+    expect(
+      result.current.messages.find((message) => message.id === 'malformed-coverage')?.retrieval,
+    ).toBeUndefined();
+  });
+});

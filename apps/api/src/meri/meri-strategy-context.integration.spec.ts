@@ -88,6 +88,38 @@ function setup(archivedClientIds: string[] = []) {
 }
 
 describe('Meri strategy context from chat scope through source adapter', () => {
+  it('reports a healthy but unfinished source page as partial in both model and UI coverage', async () => {
+    const { meri, sqlRead } = setup();
+    sqlRead.mockResolvedValue(Array.from({ length: 51 }, (_, index) => ({
+      recordKey: `strategy:plan-${index}`, recordId: `plan-${index}`, recordKind: 'strategy',
+      clientId: 'client-a', updatedAt: new Date('2026-09-01'),
+      payload: { title: 'Secure committee language', goal: 'Obtain report language' },
+    })));
+    const result = await meri.resolveChat(ctx, { conversationId: 'conversation-1', task: 'Review our strategies' });
+    expect(result.retrieval.coverage.sourceHealth).toContainEqual(expect.objectContaining({
+      source: 'strategies_work', status: 'partial',
+    }));
+    expect(result.retrieval.coverage.paginationComplete).toBe(false);
+    expect(result.prompt).toContain('paginationComplete=false');
+    expect(result.prompt).toContain('"source":"strategies_work","status":"partial"');
+  });
+
+  it('feeds meeting preparation the same client strategy even without the word strategy in the request', async () => {
+    const { meri, retrieve } = setup();
+    const result = await meri.resolveChat(ctx, { conversationId: 'conversation-1', task: 'Prepare a meeting briefing for HASC staff' });
+    expect(retrieve.mock.calls[0]![0]).toMatchObject({
+      queryClass: 'lookup', caller: { clientIds: ['client-a'] },
+      requestedDomains: expect.arrayContaining(['clients', 'contacts', 'meetings', 'strategies_work']),
+    });
+    expect(result.prompt).toContain('Secure committee language');
+    // This fixture executes only strategies. Coverage must disclose the missing
+    // client/meeting sources in the model prompt, rather than imply completeness.
+    expect(result.prompt).toContain(`sourceHealth=${JSON.stringify(result.retrieval.coverage.sourceHealth)}`);
+    expect(result.prompt).toContain(`unavailableSources=${JSON.stringify(result.retrieval.coverage.unavailableSources)}`);
+    expect(result.retrieval.coverage.complete).toBe(false);
+    expect(result.prompt).toContain('Missing timestamps mean freshness is unknown');
+  });
+
   it('retrieves a selected-client strategy even when neither its body nor title names the client or request', async () => {
     const { meri, gateway, retrieve, sqlRead } = setup();
     const result = await meri.resolveChat(ctx, {

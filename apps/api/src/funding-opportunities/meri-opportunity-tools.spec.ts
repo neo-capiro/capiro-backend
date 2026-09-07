@@ -16,6 +16,12 @@ import {
 } from './meri-opportunity-tools.adapter.js';
 import type { FundingOpportunity, MissingProfileField } from './funding-opportunities.types.js';
 import type { TenantRole } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
+import { Test } from '@nestjs/testing';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { FundingOpportunitiesService } from './funding-opportunities.service.js';
+import { GovernmentLandscapeService } from './government-landscape.service.js';
+import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 
 /**
  * Typed local Meri opportunity tools (P37).
@@ -157,15 +163,27 @@ function makeAdapter(
   over: {
     flagEnabled?: boolean;
     masterEnabled?: boolean;
+    documentsEnabled?: boolean;
     flagThrows?: boolean;
     visibleClientIds?: string[];
     getOpportunity?: (...args: unknown[]) => Promise<FundingOpportunity>;
+    listClientOpportunities?: (...args: unknown[]) => Promise<unknown>;
+    getRequirements?: (...args: unknown[]) => Promise<unknown>;
     getClientSummary?: () => Promise<unknown>;
     compose?: (...args: unknown[]) => Promise<unknown>;
     composeActionPlan?: (...args: unknown[]) => Promise<unknown>;
   } = {},
 ) {
-  const calls = { flag: 0, wall: 0, getOpportunity: 0, summary: 0, compose: 0, plan: 0 };
+  const calls = {
+    flag: 0,
+    wall: 0,
+    getOpportunity: 0,
+    summary: 0,
+    compose: 0,
+    plan: 0,
+    list: 0,
+    requirements: 0,
+  };
   const flagEnabled = over.flagEnabled ?? true;
   const visible = over.visibleClientIds ?? [CLIENT];
 
@@ -175,9 +193,11 @@ function makeAdapter(
       if (over.flagThrows) throw new Error('42883 operator does not exist: text = uuid');
       return fn({
         $queryRaw: async (_query: TemplateStringsArray, ...values: unknown[]) => {
-          const enabled = values.includes('funding_opportunities')
-            ? (over.masterEnabled ?? true)
-            : flagEnabled;
+          const enabled = values.includes('funding_opportunities_documents')
+            ? (over.documentsEnabled ?? true)
+            : values.includes('funding_opportunities')
+              ? (over.masterEnabled ?? true)
+              : flagEnabled;
           return enabled ? [{ ok: 1 }] : [];
         },
       });
@@ -194,6 +214,23 @@ function makeAdapter(
   };
 
   const opportunities = {
+    listClientOpportunities: async (...args: unknown[]) => {
+      calls.list += 1;
+      if (over.listClientOpportunities) return over.listClientOpportunities(...args);
+      return {
+        opportunities: [opportunity()],
+        total: 1,
+        totalIsCapped: false,
+        page: 1,
+        pageSize: 5,
+        counts: {},
+        freshness: [],
+        emptyReason: null,
+        emptyExplanation: null,
+        missingProfileFields: [MISSING_CERTIFICATIONS],
+        generatedAt: AS_OF.toISOString(),
+      };
+    },
     getOpportunity: async (...args: unknown[]) => {
       calls.getOpportunity += 1;
       if (over.getOpportunity) return over.getOpportunity(...args);
@@ -252,17 +289,40 @@ function makeAdapter(
     },
   };
 
+  const requirements = {
+    getRequirements: async (...args: unknown[]) => {
+      calls.requirements += 1;
+      if (over.getRequirements) return over.getRequirements(...args);
+      return {
+        source: 'sam_gov',
+        sourceRecordId: SAM_ID,
+        requirements: [],
+        coverage: 'no_documents',
+        coverageExplanation: 'No documents archived; nothing has been read.',
+        documentTextStatus: [],
+        generatedAt: AS_OF.toISOString(),
+        pagination: { offset: 0, limit: 10, total: 0, hasMore: false, nextOffset: null },
+      };
+    },
+  };
   const adapter = new MeriOpportunityToolsAdapter(
     prisma as never,
     opportunities as never,
     landscape as never,
+    requirements as never,
   );
   return { adapter, calls };
 }
 
-/** Every tool, called with its own required inputs. One list, six call sites. */
+/** Every tool, called with its own required inputs. One list, all call sites. */
 function invokeAll(adapter: MeriOpportunityToolsAdapter, actor: Actor, clientId = CLIENT) {
   return [
+    adapter.searchFundingOpportunities(actor, { clientId }, AS_OF),
+    adapter.getFundingOpportunityRequirements(
+      actor,
+      { clientId, source: 'sam_gov', sourceRecordId: SAM_ID },
+      AS_OF,
+    ),
     adapter.getFundingOpportunity(
       actor,
       { clientId, source: 'sam_gov', sourceRecordId: SAM_ID },
@@ -460,13 +520,13 @@ describe('P37 — no tool can call Tango or retrieve a credential', () => {
     expect(code).not.toContain('HttpService');
   });
 
-  it('the constructor takes exactly three local collaborators', () => {
-    // A fourth would be the moment a provider dependency could arrive without
-    // anyone noticing. Named explicitly so adding one is a deliberate edit here.
-    expect(MeriOpportunityToolsAdapter.length).toBe(3);
+  it('the constructor takes four canonical local collaborators', () => {
+    // Name every local dependency so an external provider cannot arrive unnoticed.
+    expect(MeriOpportunityToolsAdapter.length).toBe(4);
     expect(code).toContain('private readonly prisma: PrismaService');
     expect(code).toContain('private readonly opportunities: FundingOpportunitiesService');
     expect(code).toContain('private readonly landscape: GovernmentLandscapeService');
+    expect(code).toContain('private readonly requirements: OpportunityRequirementService');
   });
 });
 
@@ -500,14 +560,18 @@ describe('P37 — Funding Opportunities does not import Meri', () => {
     expect(exportsBlock).toContain('MeriOpportunityToolsAdapter');
   });
 
-  it('Meri registers exactly these six tools, and the two lists cannot drift', () => {
+  it('Meri registers all funding tools, and the two lists cannot drift', () => {
     const meriDir = join(dir, '..', 'meri');
     const toolsText = readFileSync(join(meriDir, 'meri-tools.service.ts'), 'utf8');
     for (const tool of MERI_OPPORTUNITY_TOOLS) {
       // Declared in TOOL_DEFINITIONS, given a schema, and dispatched. All three
       // or the tool is half-registered — which is exactly how a tool ends up
       // advertised to the model and then throwing when selected.
-      expect(toolsText).toContain(`name: '${tool}'`);
+      expect(MERI_CAPABILITY_REGISTRY.find((entry) => entry.name === tool)).toMatchObject({
+        backend: 'meri',
+        readOnly: true,
+        surfaces: ['full_chat'],
+      });
       expect(toolsText).toContain(`case '${tool}':`);
       expect(toolsText).toMatch(new RegExp(`\\b${tool}:\\s*(obj\\(|\\{)`));
     }
@@ -850,9 +914,258 @@ describe('P37 — output is bounded, and a shortened result says so', () => {
 
 // ── Vocabulary and pure helpers ─────────────────────────────────────────────
 
+describe('government-affairs funding evidence contract', () => {
+  it('resolves the canonical matching and requirement providers through Nest injection', async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        MeriOpportunityToolsAdapter,
+        { provide: PrismaService, useValue: {} },
+        { provide: FundingOpportunitiesService, useValue: {} },
+        { provide: GovernmentLandscapeService, useValue: {} },
+        { provide: OpportunityRequirementService, useValue: {} },
+      ],
+    }).compile();
+    expect(module.get(MeriOpportunityToolsAdapter)).toBeInstanceOf(MeriOpportunityToolsAdapter);
+    await module.close();
+  });
+
+  it('delegates paginated discovery to the workspace matching service without rescoring or hiding scan limits', async () => {
+    const record = opportunity({
+      relevanceScore: 92,
+      eligibility: {
+        state: 'ineligible',
+        reason: 'Notice requires an applicant type absent from the verified client profile.',
+      },
+      eligibleApplicantTypes: ['Public and State controlled institutions of higher education'],
+      status: 'forecasted',
+    });
+    const canonical = {
+      opportunities: [record],
+      total: 11,
+      totalIsCapped: true,
+      page: 2,
+      pageSize: 5,
+      counts: { activeGrants: 4 },
+      freshness: [
+        { source: 'sam_gov', lastRunDegraded: true, lastSyncedAt: '2026-08-01T00:00:00Z' },
+      ],
+      missingProfileFields: [MISSING_CERTIFICATIONS],
+      emptyReason: null,
+      emptyExplanation: null,
+      generatedAt: AS_OF.toISOString(),
+    };
+    const listClientOpportunities = jest.fn(async () => canonical);
+    const { adapter } = makeAdapter({ listClientOpportunities });
+    const result = await adapter.searchFundingOpportunities(
+      STANDARD,
+      { clientId: CLIENT, source: 'sam_gov', query: 'power conversion', page: 2, pageSize: 5 },
+      AS_OF,
+    );
+    expect(listClientOpportunities).toHaveBeenCalledWith(TENANT, CLIENT, {
+      source: 'sam_gov',
+      q: 'power conversion',
+      page: 2,
+      pageSize: 5,
+      activeState: 'active',
+    });
+    expect(result.state).toBe('available');
+    expect(result.data).toMatchObject({
+      total: 11,
+      totalIsCapped: true,
+      page: 2,
+      nextPage: 3,
+      hasMore: true,
+      freshness: canonical.freshness,
+      coverage: {
+        pageCoversMatchedResults: false,
+        procurementForecasts: { tool: 'search_procurement_forecasts' },
+      },
+    });
+    const returned = result.data!.opportunities[0]!;
+    expect(returned.relevanceScore).toBe(92);
+    expect(returned.eligibility).toBe(record.eligibility);
+    expect(returned.matchedSignals).toBe(record.matchedSignals);
+    expect(returned.recommendation).toBe(record.recommendation);
+    expect(returned.eligibleApplicantTypes).toEqual(record.eligibleApplicantTypes);
+    expect(returned.status).toBe('forecasted');
+    expect(returned.evidence.disqualifiers).toEqual([
+      { basis: 'canonical_eligibility', reason: record.eligibility.reason },
+    ]);
+    expect(returned.evidence.recommendationConfidence).toBe('medium');
+    expect(returned.evidence.recordRef).toBe(record.id);
+  });
+
+  it('reports an empty canonical result and profile gaps as unknown coverage, not no opportunities', async () => {
+    const listClientOpportunities = jest.fn(async () => ({
+      opportunities: [],
+      total: 0,
+      totalIsCapped: false,
+      page: 1,
+      pageSize: 5,
+      counts: {},
+      freshness: [{ source: 'grants_gov', neverSynced: true }],
+      missingProfileFields: [MISSING_CERTIFICATIONS],
+      emptyReason: 'source_never_synced',
+      emptyExplanation: 'Nothing can be said about matches until the source sync runs.',
+      generatedAt: AS_OF.toISOString(),
+    }));
+    const { adapter } = makeAdapter({ listClientOpportunities });
+    const result = await adapter.searchFundingOpportunities(STANDARD, { clientId: CLIENT }, AS_OF);
+    expect(result.data).toMatchObject({
+      nextPage: null,
+      hasMore: false,
+      emptyReason: 'source_never_synced',
+      missingProfileFields: [MISSING_CERTIFICATIONS],
+      freshness: [{ neverSynced: true }],
+    });
+    expect(result.data!.coverage.explanation).toContain(
+      'no matching result does not prove no opportunity exists',
+    );
+  });
+
+  it.each([
+    { page: 0 },
+    { pageSize: 6 },
+    { page: 1.5 },
+    { activeState: 'open' },
+    { query: 'x'.repeat(501) },
+  ])('rejects invalid discovery input before calling matching: %j', async (invalid) => {
+    const { adapter, calls } = makeAdapter();
+    expect(
+      (await adapter.searchFundingOpportunities(STANDARD, { clientId: CLIENT, ...invalid }, AS_OF))
+        .state,
+    ).toBe('invalid_request');
+    expect(calls.list).toBe(0);
+  });
+
+  it('keeps agency procurement forecasts out of the canonical open opportunity vocabulary', async () => {
+    const { adapter, calls } = makeAdapter();
+    expect(
+      (
+        await adapter.searchFundingOpportunities(
+          STANDARD,
+          { clientId: CLIENT, source: 'agency_forecast' },
+          AS_OF,
+        )
+      ).state,
+    ).toBe('unsupported_source');
+    expect(calls.list).toBe(0);
+  });
+
+  it('reads every held notice character across continuation pages with exact source and truncation information', async () => {
+    const text = 'Eligibility and conditions. '.repeat(1000);
+    const { adapter } = makeAdapter({
+      getOpportunity: async () => opportunity({ source: 'grants_gov', summary: text }),
+    });
+    let collected = '',
+      offset = 0;
+    do {
+      const result = await adapter.getFundingOpportunity(
+        STANDARD,
+        {
+          clientId: CLIENT,
+          source: 'grants_gov',
+          sourceRecordId: 'GRANT-1',
+          summaryOffset: offset,
+          summaryLimit: 4000,
+        },
+        AS_OF,
+      );
+      expect(result.state).toBe('available');
+      const facts = result.data!;
+      expect(facts.summaryRead).toMatchObject({
+        offset,
+        totalCharacters: text.length,
+        sourceUpdatedAt: '2026-08-06T00:00:00.000Z',
+      });
+      collected += facts.summary;
+      if (facts.summaryRead.nextOffset == null) break;
+      expect(facts.summaryRead.truncated).toBe(true);
+      offset = facts.summaryRead.nextOffset;
+    } while (offset < text.length);
+    expect(collected).toBe(text);
+  });
+
+  it('requires the document flag before any mandatory-condition read', async () => {
+    const { adapter, calls } = makeAdapter({ documentsEnabled: false });
+    const result = await adapter.getFundingOpportunityRequirements(
+      STANDARD,
+      { clientId: CLIENT, source: 'sam_gov', sourceRecordId: SAM_ID },
+      AS_OF,
+    );
+    expect(result.state).toBe('disabled');
+    expect(calls.getOpportunity).toBe(0);
+    expect(calls.requirements).toBe(0);
+  });
+
+  it('preserves canonical requirement citations, pending reviews, supersession and continuation', async () => {
+    const evidence = {
+      requirements: [
+        {
+          id: 'req-1',
+          attachmentId: 'doc-1',
+          sourcePage: 7,
+          excerptStart: 500,
+          excerptEnd: 523,
+          sourceExcerpt: 'Offerors must register.',
+          statement: 'Register before bidding',
+          confidence: 'high',
+          reviewStatus: 'pending',
+          supersededAt: '2026-08-05T00:00:00Z',
+        },
+      ],
+      coverage: 'available',
+      generatedAt: AS_OF.toISOString(),
+      documentTextStatus: [],
+      pagination: { offset: 20, limit: 10, total: 42, hasMore: true, nextOffset: 30 },
+    };
+    const getRequirements = jest.fn(async () => evidence);
+    const { adapter } = makeAdapter({ getRequirements });
+    const result = await adapter.getFundingOpportunityRequirements(
+      STANDARD,
+      { clientId: CLIENT, source: 'sam_gov', sourceRecordId: SAM_ID, offset: 20, limit: 10 },
+      AS_OF,
+    );
+    expect(getRequirements).toHaveBeenCalledWith(TENANT, 'sam_gov', SAM_ID, AS_OF, {
+      offset: 20,
+      limit: 10,
+    });
+    expect(result.data).toBe(evidence);
+    expect(result.explanation).toContain('not verified mandatory conditions');
+  });
+
+  it('does not turn unassessed eligibility or absent source fields into disqualifiers', () => {
+    const facts = toFacts(
+      opportunity({
+        source: 'grants_gov',
+        eligibility: { state: 'unknown', reason: 'Applicant types unrecorded.' },
+        sourceUrl: null,
+        sourceUpdatedAt: null,
+        placeOfPerformance: null,
+        responseDeadline: null,
+        summary: null,
+      }),
+    );
+    expect(facts.evidence.disqualifiers).toEqual([]);
+    expect(facts.evidence.missingFields).toEqual(
+      expect.arrayContaining([
+        'sourceUrl',
+        'sourceUpdatedAt',
+        'placeOfPerformance',
+        'responseDeadline',
+        'eligibleApplicantTypes',
+        'noticeText',
+      ]),
+    );
+    expect(facts.summaryRead.state).toBe('missing');
+  });
+});
+
 describe('P37 — vocabulary', () => {
-  it('the tool list is the six the plan names, with no duplicates', () => {
+  it('the tool list is the canonical funding tools, with no duplicates', () => {
     expect([...MERI_OPPORTUNITY_TOOLS]).toEqual([
+      'search_funding_opportunities',
+      'get_funding_opportunity_requirements',
       'get_funding_opportunity',
       'explain_opportunity_match',
       'get_opportunity_client_context',

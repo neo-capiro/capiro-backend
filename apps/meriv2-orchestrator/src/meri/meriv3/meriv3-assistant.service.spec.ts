@@ -1,4 +1,5 @@
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
+import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 
@@ -80,6 +81,36 @@ describe('MeriV3AssistantService', () => {
     delete process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_RELEASE_GATE;
     jest.restoreAllMocks();
+  });
+
+  test('retains the professional answer contract and client constraints in forced synthesis', async () => {
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ outputText: '' }))
+      .mockResolvedValueOnce(
+        response({ outputText: 'The source gap prevents a verified recommendation.' }),
+      );
+    const assistant = build(registry([]), complete);
+    await assistant.run(context, {
+      clientId: 'client-1',
+      messages: [{ role: 'user', text: 'Prepare a decision briefing.' }],
+      conversationSummary: 'The client cannot meet a mandatory domestic production condition.',
+      toolPolicy: 'none',
+    });
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    for (const [request] of complete.mock.calls) {
+      expect(request.instructions).toContain(MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT);
+      expect(request.instructions).toContain('client-1');
+      expect(request.instructions).toContain(
+        'cannot meet a mandatory domestic production condition',
+      );
+    }
+    const synthesis = complete.mock.calls[1][0];
+    expect(synthesis.toolChoice).toBe('none');
+    expect(synthesis.instructions).toContain('admitted governed context evidence');
+    expect(synthesis.instructions).toContain('Preserve their source references');
+    expect(synthesis.instructions).toContain('label any remaining material gap');
   });
 
   test('uses only the model-visible tool projection for citation and grounding evidence', async () => {
@@ -557,4 +588,114 @@ describe('MeriV3AssistantService', () => {
       expect.objectContaining({ tool: 'get_client_context', status: 'blocked' }),
     ]);
   });
+});
+
+describe('Durable research cancellation across API replicas', () => {
+  const savedFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = savedFetch;
+  });
+
+  test('checks the authenticated run before each tool and stops the batch after durable cancellation', async () => {
+    let active = true;
+    const calls = ['search_memory', 'search_memory'].map((name, i) => ({
+      type: 'function_call',
+      call_id: `call-${i}`,
+      name,
+      arguments: '{}',
+    }));
+    const complete = jest
+      .fn()
+      .mockResolvedValue(response({ output: calls, outputText: '', functionCalls: calls }));
+    const invoke = jest.fn(async () => {
+      active = false;
+      return { records: [] };
+    });
+    const assistant = build(
+      registry([{ name: 'search_memory', readOnly: true }], invoke),
+      complete,
+    );
+    const checks: any[] = [];
+    global.fetch = jest.fn(async (url, init) => {
+      if (String(url).includes('/runs/')) {
+        checks.push({ url, headers: init?.headers });
+        return new Response(JSON.stringify({ active }), { status: active ? 200 : 409 });
+      }
+      return new Response(
+        JSON.stringify({
+          schemas: [
+            {
+              name: 'search_memory',
+              description: 'Memory',
+              input_schema: { type: 'object', properties: {} },
+            },
+          ],
+        }),
+      );
+    }) as typeof fetch;
+    const result = await RequestCredentialsStore.run(
+      { bearerToken: 'user-token', impersonateTenantId: 'effective-tenant' },
+      () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'Research the client' }],
+          toolPolicy: 'read-only',
+          researchRun: { sessionId: 'session-a', runId: 'run-a' },
+        }),
+    );
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(checks).toHaveLength(3); // provider round + first and second dispatch
+    expect(checks[0]).toMatchObject({
+      url: 'http://api.test/api/clio/research/session-a/runs/run-a/active',
+      headers: {
+        authorization: 'Bearer user-token',
+        'x-capiro-impersonate-tenant': 'effective-tenant',
+      },
+    });
+    expect(result.telemetry).toMatchObject({ finishReason: 'cancelled', partial: true });
+    expect(result.reply).toBe('');
+  });
+
+  test('a missing or revoked run schedules no provider request', async () => {
+    const complete = jest.fn();
+    const invoke = jest.fn();
+    const assistant = build(registry([], invoke), complete);
+    global.fetch = jest.fn(
+      async (url) =>
+        new Response(JSON.stringify(String(url).includes('/runs/') ? {} : { schemas: [] }), {
+          status: String(url).includes('/runs/') ? 404 : 200,
+        }),
+    ) as typeof fetch;
+    await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research' }],
+        toolPolicy: 'read-only',
+        researchRun: { sessionId: 'other-user-session', runId: 'run-a' },
+      }),
+    );
+    expect(complete).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  test.each([401, 503])(
+    'run-status HTTP %s stays a runtime error rather than reporting a user cancellation',
+    async (status) => {
+      const complete = jest.fn();
+      const assistant = build(registry([]), complete);
+      global.fetch = jest.fn(
+        async (url) =>
+          new Response(JSON.stringify(String(url).includes('/runs/') ? {} : { schemas: [] }), {
+            status: String(url).includes('/runs/') ? status : 200,
+          }),
+      ) as typeof fetch;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+        assistant.run(context, {
+          messages: [{ role: 'user', text: 'Research' }],
+          toolPolicy: 'read-only',
+          researchRun: { sessionId: 'session-a', runId: 'run-a' },
+        }),
+      );
+      expect(complete).not.toHaveBeenCalled();
+      expect(result.telemetry).toMatchObject({ finishReason: 'runtime_error', partial: true });
+    },
+  );
 });

@@ -117,6 +117,10 @@ jobs:
           --runInBand --forceExit
           src/meri/meriv3
           src/meri/api-tool-executor-cancellation.spec.ts
+          src/meri/meri-capability-contract.spec.ts
+          src/meri/full-chat-read-tools.catalog.spec.ts
+          src/meri/api-client-context.repo.spec.ts
+          src/meri/chat/chat-prompt.spec.ts
 
       - name: Test API routing, flags, transport and managed apps
         run: >
@@ -138,6 +142,10 @@ jobs:
           src/meri/meri-tool-manifest.parity.spec.ts
           src/meri/meri-tools.firmdata.spec.ts
           src/meri/meri-client-context.helpers.spec.ts
+          src/meri/evals/government-affairs-grader.spec.ts
+          src/funding-opportunities/meri-opportunity-tools.spec.ts
+          src/funding-opportunities/requirements/opportunity-requirement.spec.ts
+          src/funding-opportunities/requirements/opportunity-requirement-pagination.spec.ts
           src/meri/meri-data-search.helpers.spec.ts
           src/meri/meri-research
           src/meri/governed-meri-research.factory.spec.ts
@@ -190,6 +198,9 @@ jobs:
           src/components/chat/ManagedComposerPlus.test.tsx
           src/components/chat/managed-mcp-apps.test.tsx
           src/components/chat/useMeriChatController.feedback-identity.test.tsx
+          src/components/chat/useMeriChatController.research-recovery.test.tsx
+          src/vnext/meri/MeriEvidenceTab.coverage.test.tsx
+          src/vnext/meri/MeriResearchRecovery.test.tsx
           src/vnext/meri/VNextMeriReasoningControl.test.tsx
           src/components/chat/useMeriChatController.rename-persistence.test.tsx
           src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx

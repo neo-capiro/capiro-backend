@@ -35,6 +35,8 @@ describe('MeriV3SemanticCompatibilityTools', () => {
     const prepared = tools.prepareSchemas(
       [
         schema('get_funding_opportunity'),
+        schema('search_funding_opportunities'),
+        schema('get_funding_opportunity_requirements'),
         schema('explain_opportunity_match'),
         schema('get_opportunity_client_context'),
         schema('get_opportunity_government_landscape'),
@@ -46,6 +48,8 @@ describe('MeriV3SemanticCompatibilityTools', () => {
     const names = prepared.map((item) => item.name);
 
     expect(names).toContain('get_funding_opportunity');
+    expect(names).toContain('search_funding_opportunities');
+    expect(names).toContain('get_funding_opportunity_requirements');
     expect(names).toContain('analyze_funding_opportunity');
     expect(names).not.toContain('compare_funding_opportunities');
     expect(names).not.toContain('build_opportunity_action_plan');
@@ -76,6 +80,7 @@ describe('MeriV3SemanticCompatibilityTools', () => {
       'get_opportunity_client_context',
       'explain_opportunity_match',
       'get_opportunity_government_landscape',
+      'get_funding_opportunity_requirements',
     ]);
     expect(result).toEqual(
       expect.objectContaining({

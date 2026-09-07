@@ -273,6 +273,14 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
     );
     const more = position.page * size < page.total;
     const partial = Boolean(request.caller.clientIds?.length);
+    const freshness = oldestSourceDate(
+      page.data.map((row) => ('lastSyncedAt' in row ? row.lastSyncedAt : undefined)),
+    );
+    // A successful catalog query is not a freshness check. If even one returned
+    // row lacks its observation date, do not label the whole page current.
+    const sourceMissing = !freshness || page.data.some(
+      (row) => !sourceDate('lastSyncedAt' in row ? row.lastSyncedAt : undefined),
+    );
     return publicResult(domain, request, {
       records,
       returned: records.length,
@@ -290,16 +298,18 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
         : {}),
       truncated: more,
       paginationComplete: !more,
-      coverageComplete: !more && !partial,
-      sourceStatus: partial ? 'degraded' : 'healthy',
-      lastSyncAt: oldestSourceDate(
-        page.data.map((row) => ('lastSyncedAt' in row ? row.lastSyncedAt : undefined)),
-      ),
-      stopReason: partial
-        ? 'public_catalog_only:client_subject_not_filtered'
-        : more
-          ? 'page_limit_reached'
-          : 'complete_ingested_catalog',
+      coverageComplete: !more && !partial && !sourceMissing,
+      sourceStatus: partial || sourceMissing ? 'degraded' : 'healthy',
+      // Individual known observation dates remain on each source record; a
+      // dated subset cannot establish the observation date of the whole page.
+      lastSyncAt: sourceMissing ? undefined : freshness,
+      stopReason: sourceMissing
+        ? 'program_element_source_freshness_unavailable'
+        : partial
+          ? 'public_catalog_only:client_subject_not_filtered'
+          : more
+            ? 'page_limit_reached'
+            : 'complete_ingested_catalog',
     });
   }
 

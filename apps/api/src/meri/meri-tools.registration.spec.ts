@@ -151,9 +151,11 @@ const EXPECTED_TOOLS = [
   'create_task',
   'update_task',
   'update_client_profile',
-  // Funding Opportunities (P37) — six READ-ONLY local tools. None is
-  // side-effecting, so all six survive the read-only chat surface below.
+  // Funding Opportunities (P37) — READ-ONLY local tools. None is
+  // side-effecting, so all survive the read-only chat surface below.
   'get_funding_opportunity',
+  'search_funding_opportunities',
+  'get_funding_opportunity_requirements',
   'explain_opportunity_match',
   'get_opportunity_client_context',
   'get_opportunity_government_landscape',
@@ -209,10 +211,12 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   create_task: ['title'],
   update_task: ['taskId'],
   update_client_profile: ['clientId'],
-  // P37. `clientId` is required on all six — see the schema block's own note:
+  // P37. `clientId` is required on every funding tool — see the schema block's own note:
   // the chat loop's client-scope refusal keys on that field, so a tool without
   // it would read straight past a scoped session's boundary.
   get_funding_opportunity: ['clientId', 'source', 'sourceRecordId'],
+  search_funding_opportunities: ['clientId'],
+  get_funding_opportunity_requirements: ['clientId', 'source', 'sourceRecordId'],
   explain_opportunity_match: ['clientId', 'source', 'sourceRecordId'],
   get_opportunity_client_context: ['clientId'],
   get_opportunity_government_landscape: ['clientId', 'source', 'sourceRecordId'],
@@ -228,6 +232,25 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it('passes authorized actor, client and continuation parameters to canonical funding handlers', async () => {
+    const actor = { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as const;
+    const opportunityTools = {
+      searchFundingOpportunities: jest.fn(async () => ({ state: 'available' })),
+      getFundingOpportunityRequirements: jest.fn(async () => ({ state: 'available' })),
+      getFundingOpportunity: jest.fn(async () => ({ state: 'available' })),
+    };
+    const service = Object.assign(Object.create(MeriToolsService.prototype), { opportunityTools }) as MeriToolsService;
+    const discovery = { clientId: 'client-1', source: 'sam_gov', query: 'power conversion', page: 2, pageSize: 3, activeState: 'all' };
+    await service.execute(actor as never, 'search_funding_opportunities', discovery);
+    expect(opportunityTools.searchFundingOpportunities).toHaveBeenCalledWith(actor, discovery);
+    const requirements = { clientId: 'client-1', source: 'sam_gov', sourceRecordId: 'notice-1', offset: 25, limit: 10 };
+    await service.execute(actor as never, 'get_funding_opportunity_requirements', requirements);
+    expect(opportunityTools.getFundingOpportunityRequirements).toHaveBeenCalledWith(actor, requirements);
+    const body = { clientId: 'client-1', source: 'grants_gov', sourceRecordId: 'grant-1', summaryOffset: 1200, summaryLimit: 4000 };
+    await service.execute(actor as never, 'get_funding_opportunity', body);
+    expect(opportunityTools.getFundingOpportunity).toHaveBeenCalledWith(actor, body);
+  });
+
   it('every advertised core schema dispatches to an existing callable handler', async () => {
     const sentinel = { dispatched: true };
     const calls: string[] = [];
@@ -235,6 +258,8 @@ describe('Meri tool registration', () => {
       'getFundingOpportunity',
       'explainOpportunityMatch',
       'getOpportunityClientContext',
+      'searchFundingOpportunities',
+      'getFundingOpportunityRequirements',
       'getOpportunityGovernmentLandscape',
       'compareFundingOpportunities',
       'buildOpportunityActionPlan',

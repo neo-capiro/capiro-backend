@@ -312,6 +312,8 @@ export const MERI_DATASET_CATALOG: MeriDatasetDefinition[] = [
     domains: ['opportunities'],
     entities: ['opportunity', 'grant', 'client', 'program_element'],
     tools: [
+      'search_funding_opportunities',
+      'get_funding_opportunity_requirements',
       'get_funding_opportunity',
       'explain_opportunity_match',
       'get_opportunity_client_context',

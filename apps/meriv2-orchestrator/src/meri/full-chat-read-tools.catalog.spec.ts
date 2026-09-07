@@ -56,6 +56,8 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       // Funding Opportunities (P37). Read-only, and delegated to full chat
       // rather than in-editor for the same reason search_sam_opportunities is.
       'get_funding_opportunity',
+      'search_funding_opportunities',
+      'get_funding_opportunity_requirements',
       'explain_opportunity_match',
       'get_opportunity_client_context',
       'get_opportunity_government_landscape',
@@ -68,7 +70,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'get_district_federal_market',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(46);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(48);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -88,7 +90,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(88);
+    expect(combined).toHaveLength(90);
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

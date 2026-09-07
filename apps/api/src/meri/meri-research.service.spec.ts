@@ -7,7 +7,9 @@ import { MeriResearchService } from './meri-research.service.js';
 jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('../reviews/reviews.service.js', () => ({ ReviewsService: class {} }));
-jest.mock('../engagement/ai-credential-resolver.service.js', () => ({ AiCredentialResolverService: class {} }));
+jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
+  AiCredentialResolverService: class {},
+}));
 jest.mock('./meri-v3-research-runner.js', () => ({ MeriV3ResearchRunner: class {} }));
 
 /**
@@ -170,10 +172,15 @@ function makeAiCredentials() {
  * create returns ids; update is a no-op.
  */
 function makePrisma() {
+  let session = { ...SESSION };
   const tx = {
     clioResearchSession: {
-      findFirst: async () => SESSION,
-      update: async () => SESSION,
+      findFirst: async () => session,
+      update: async ({ data }: any) => (session = { ...session, ...data }),
+      updateMany: async ({ data }: any) => {
+        session = { ...session, ...data };
+        return { count: 1 };
+      },
     },
     clioConversation: {
       create: async () => ({ id: 'conv-1' }),
@@ -305,7 +312,7 @@ describe('MeriResearchService — forced synthesis', () => {
     const synthBody = toolless[0] ?? {};
     const synthMsgs = (synthBody.messages as Array<{ role: string; content: unknown }>) ?? [];
     const lastMsg = synthMsgs[synthMsgs.length - 1];
-    expect(String(lastMsg?.content ?? '')).toMatch(/write the full.*report now/i);
+    expect(String(lastMsg?.content ?? '')).toMatch(/write the decision-grade.*report now/i);
 
     // 3. Report prose surfaced as `text` SSE events during synthesis.
     const textEvents = events.filter((e) => e.type === 'text');

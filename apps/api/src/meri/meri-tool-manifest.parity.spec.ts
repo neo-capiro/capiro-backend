@@ -72,7 +72,7 @@ describe('complete native API capability manifest', () => {
     );
     expect(actual).toEqual(MERI_TOOL_MANIFEST);
     expect(Object.keys(actual)).toHaveLength(definitions.length);
-    expect(TOOL_DEFINITIONS).toHaveLength(83);
+    expect(TOOL_DEFINITIONS).toHaveLength(85);
     expect(FEDERAL_MARKET_MERI_TOOL_DEFINITIONS).toHaveLength(5);
   });
 });

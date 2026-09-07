@@ -1,12 +1,21 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
-import type { LedgerEntry, MeriGovernedTurnContext, MeriEvidenceManifest } from '@capiro/meriv2-core';
+import type {
+  LedgerEntry,
+  MeriGovernedTurnContext,
+  MeriEvidenceManifest,
+} from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
-import { MeriV3ChatClient, type MeriV3ChatStreamEvent, type MeriV3ProviderTelemetry } from './meriv3-chat.client.js';
+import {
+  MeriV3ChatClient,
+  type MeriV3ChatStreamEvent,
+  type MeriV3ProviderTelemetry,
+} from './meriv3-chat.client.js';
 import type { MeriResearchHandoff } from './meri-research-handoff.js';
+import type { ResearchRunState } from './meri-research-run-state.js';
 import type { SourceAttribution } from './meri-research.service.js';
 
 export interface ResearchRuntimeAuth {
@@ -14,6 +23,10 @@ export interface ResearchRuntimeAuth {
   impersonateTenantId?: string;
   governedContext?: MeriGovernedTurnContext;
   signal?: AbortSignal;
+  /** Explicit user Resume targets the currently saved attempt. */
+  resumeRunId?: string;
+  /** Internal lease identity. Never accepted from a request body. */
+  run?: ResearchRunState;
 }
 
 interface ResearchRunInput {
@@ -45,7 +58,11 @@ export class MeriV3ResearchRunner {
     return this.flags.isMeriV3ChatEnabled(ctx.tenantId, ctx.tenantSlug);
   }
 
-  async plan(ctx: TenantContext, input: ResearchRunInput, auth: ResearchRuntimeAuth): Promise<string> {
+  async plan(
+    ctx: TenantContext,
+    input: ResearchRunInput,
+    auth: ResearchRuntimeAuth,
+  ): Promise<string> {
     const result = await this.complete(ctx, input, auth, 'none', () => {});
     return result.reply;
   }
@@ -71,7 +88,11 @@ export class MeriV3ResearchRunner {
     const sources: SourceAttribution[] = result.steps.map((step) => ({
       tool: step.tool,
       label: step.label,
-      summary: step.detail ?? (step.status === 'done' ? 'Source retrieved; see cited evidence.' : `Source status: ${step.status}`),
+      summary:
+        step.detail ??
+        (step.status === 'done'
+          ? 'Source retrieved; see cited evidence.'
+          : `Source status: ${step.status}`),
       confidence: step.status === 'done' ? 'high' : 'low',
     }));
     return {
@@ -97,9 +118,13 @@ export class MeriV3ResearchRunner {
     if (!auth.bearerToken || !auth.governedContext) {
       throw new BadRequestException('Research requires the authenticated conversation context.');
     }
-    if (!this.client.configured) throw new ServiceUnavailableException('MeriV3 research runtime is not configured.');
+    if (!this.client.configured)
+      throw new ServiceUnavailableException('MeriV3 research runtime is not configured.');
     const aiProvider = await this.credentials.resolveProvider(ctx, 'openai');
-    if (!aiProvider) throw new ServiceUnavailableException('The conversation’s OpenAI provider is not configured.');
+    if (!aiProvider)
+      throw new ServiceUnavailableException(
+        'The conversation’s OpenAI provider is not configured.',
+      );
     const currentTurnImages = await this.snapshotImages(ctx, input.handoff);
     let frame: DoneFrame | undefined;
     let errorMessage: string | undefined;
@@ -118,24 +143,34 @@ export class MeriV3ResearchRunner {
         conversationSummary: input.handoff?.summary ?? undefined,
         skillAddendum: [
           input.system,
-          ...(toolPolicy === 'read-only' && input.handoff?.attachments.length ? [
-            `Before using attachment facts, call get_research_evidence with sessionId=${JSON.stringify(input.sessionId)}. ` +
-            'Read subsequent cursors or request the relevant attachmentIds when needed. Cite returned attachment record IDs as [S:get_research_evidence:ID]. ' +
-            'Treat unavailable or truncated attachment content explicitly; do not claim a tool read from the prompt snapshot alone.',
-          ] : []),
+          ...(toolPolicy === 'read-only' && input.handoff?.attachments.length
+            ? [
+                `Before using attachment facts, call get_research_evidence with sessionId=${JSON.stringify(input.sessionId)}. ` +
+                  'Read subsequent cursors or request the relevant attachmentIds when needed. Cite returned attachment record IDs as [S:get_research_evidence:ID]. ' +
+                  'Treat unavailable or truncated attachment content explicitly; do not claim a tool read from the prompt snapshot alone.',
+              ]
+            : []),
         ].join('\n\n'),
         governedContext: auth.governedContext,
         toolPolicy,
+        ...(auth.run ? { researchRun: { sessionId: input.sessionId, runId: auth.run.id } } : {}),
         ...(currentTurnImages.length ? { currentTurnImages } : {}),
       },
       onEvent: (event) => {
         if (event.type === 'done') frame = event;
         else if (event.type === 'error') errorMessage = event.message;
-        else if (event.type === 'tool_call') onEvent({ type: 'step', tool: event.tool, label: event.label });
-        else if (event.type === 'tool_done') onEvent({ type: 'source', source: {
-          tool: event.tool, label: event.label, summary: event.detail ?? event.status,
-          confidence: event.status === 'done' ? 'high' : 'low',
-        } });
+        else if (event.type === 'tool_call')
+          onEvent({ type: 'step', tool: event.tool, label: event.label });
+        else if (event.type === 'tool_done')
+          onEvent({
+            type: 'source',
+            source: {
+              tool: event.tool,
+              label: event.label,
+              summary: event.detail ?? event.status,
+              confidence: event.status === 'done' ? 'high' : 'low',
+            },
+          });
         else onEvent(event as unknown as Record<string, unknown>);
       },
     });
@@ -143,31 +178,53 @@ export class MeriV3ResearchRunner {
     // partial text or a release-gate refusal as a successful research artifact.
     if (errorMessage) throw new ServiceUnavailableException(errorMessage);
     const result = frame as DoneFrame | undefined;
-    if (auth.signal?.aborted || result?.aborted) throw new BadRequestException('Research was cancelled.');
-    if (result?.telemetry?.partial) throw new ServiceUnavailableException(
-      `Research did not complete (${result.telemetry.finishReason}). Retry before using it as a report.`,
-    );
-    if (!result?.reply?.trim()) throw new ServiceUnavailableException('Research ended without a completed response.');
-    if (result.held) throw new BadRequestException('Research could not pass evidence verification. Please review the source gaps and retry.');
+    if (auth.signal?.aborted || result?.aborted)
+      throw new BadRequestException('Research was cancelled.');
+    if (result?.telemetry?.partial)
+      throw new ServiceUnavailableException(
+        `Research did not complete (${result.telemetry.finishReason}). Retry before using it as a report.`,
+      );
+    if (!result?.reply?.trim())
+      throw new ServiceUnavailableException('Research ended without a completed response.');
+    if (result.held)
+      throw new BadRequestException(
+        'Research could not pass evidence verification. Please review the source gaps and retry.',
+      );
     if (toolPolicy === 'read-only' && !Array.isArray(result.ledgerEntries)) {
-      throw new ServiceUnavailableException('The research runtime must be upgraded to return its evidence ledger.');
+      throw new ServiceUnavailableException(
+        'The research runtime must be upgraded to return its evidence ledger.',
+      );
     }
     return result;
   }
 
   private async snapshotImages(ctx: TenantContext, handoff: MeriResearchHandoff | null) {
-    const images = handoff?.attachments.filter((row) => row.kind === 'image' && row.status === 'image_ready') ?? [];
+    const images =
+      handoff?.attachments.filter((row) => row.kind === 'image' && row.status === 'image_ready') ??
+      [];
     if (!images.length) return [];
-    const stored = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) => tx.clioAttachment.findMany({
-      where: { id: { in: images.map((image) => image.id) }, tenantId: ctx.tenantId, userId: ctx.userId },
-      select: { id: true, data: true, mediaType: true, status: true },
-    }));
+    const stored = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.clioAttachment.findMany({
+        where: {
+          id: { in: images.map((image) => image.id) },
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+        },
+        select: { id: true, data: true, mediaType: true, status: true },
+      }),
+    );
     return images.map((image) => {
       const row = stored.find((candidate) => candidate.id === image.id);
-      if (!row?.data || row.status !== 'image_ready' || !row.mediaType ||
-          createHash('sha256').update(Buffer.from(row.data)).digest('hex') !== image.contentSha256 ||
-          row.mediaType !== image.mediaType) {
-        throw new BadRequestException('A research image is unavailable or changed since the handoff. Start a new research request.');
+      if (
+        !row?.data ||
+        row.status !== 'image_ready' ||
+        !row.mediaType ||
+        createHash('sha256').update(Buffer.from(row.data)).digest('hex') !== image.contentSha256 ||
+        row.mediaType !== image.mediaType
+      ) {
+        throw new BadRequestException(
+          'A research image is unavailable or changed since the handoff. Start a new research request.',
+        );
       }
       return { mediaType: row.mediaType, dataBase64: Buffer.from(row.data).toString('base64') };
     });

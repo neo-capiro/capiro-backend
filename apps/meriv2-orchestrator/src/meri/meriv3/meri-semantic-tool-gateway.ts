@@ -1,8 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import type {
-  MeriRetrievalDomain,
-  MeriRetrievalPlan,
-} from '../retrieval/meri-retrieval-plan.js';
+import type { MeriRetrievalDomain, MeriRetrievalPlan } from '../retrieval/meri-retrieval-plan.js';
 import type {
   MeriSemanticGatewayDecision,
   MeriSemanticGatewayMode,
@@ -111,9 +108,15 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = 
   intelligence: ['query_intelligence', 'search_intel_articles'],
   economic: ['query_economic_data'],
   budget: ['search_program_elements', 'get_program_element', 'get_pe_budget_timeline'],
-  opportunities: ['search_sam_opportunities', 'get_funding_opportunity'],
+  opportunities: [
+    'search_funding_opportunities',
+    'get_funding_opportunity',
+    'get_funding_opportunity_requirements',
+    'search_procurement_forecasts',
+    'search_sam_opportunities',
+  ],
   awards: ['search_federal_awards'],
-  grants: ['search_federal_grants', 'get_funding_opportunity'],
+  grants: ['search_funding_opportunities', 'get_funding_opportunity', 'search_federal_grants'],
   registries: ['search_lda_filings', 'search_sec_filings', 'search_fara_registrations'],
   public_web: ['search_public_web', 'scrape_web_page'],
 };
@@ -140,7 +143,8 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
     tools: ['list_upcoming_meetings', 'create_artifact', 'create_meeting_brief'],
   },
   {
-    pattern: /\b(?:create|add|update|complete|close|mark|schedule|cancel)\b.{0,30}\b(?:task|follow[- ]?up|to[- ]?do)\b|\b(?:task|follow[- ]?up|to[- ]?do)\b.{0,30}\b(?:create|add|update|complete|close|mark|schedule|cancel)\b/i,
+    pattern:
+      /\b(?:create|add|update|complete|close|mark|schedule|cancel)\b.{0,30}\b(?:task|follow[- ]?up|to[- ]?do)\b|\b(?:task|follow[- ]?up|to[- ]?do)\b.{0,30}\b(?:create|add|update|complete|close|mark|schedule|cancel)\b/i,
     tools: [
       'query_tasks',
       'list_scheduled_tasks',
@@ -170,8 +174,12 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
 
 const TOPIC_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }> = [
   {
-    pattern: /\b(?:funding|grant|nofo|opportunit|solicitation|sam\.gov|sources\s+sought)\b/i,
+    pattern:
+      /\b(?:funding|grants?|nofo|opportunit(?:y|ies)|solicitations?|sam\.gov|sources\s+sought|procurement|forecasts?)\b/i,
     tools: [
+      'search_funding_opportunities',
+      'get_funding_opportunity_requirements',
+      'search_procurement_forecasts',
       'search_federal_grants',
       'search_sam_opportunities',
       'get_funding_opportunity',
@@ -179,7 +187,8 @@ const TOPIC_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }> 
     ],
   },
   {
-    pattern: /\b(?:program\s+element|procurement\s+line|budget\s+line|r-?1|r-?2|p-?1|p-?40|fy\d{2})\b/i,
+    pattern:
+      /\b(?:program\s+element|procurement\s+line|budget\s+line|r-?1|r-?2|p-?1|p-?40|fy\d{2})\b/i,
     tools: [
       'search_program_elements',
       'get_program_element',
@@ -309,7 +318,11 @@ export class MeriSemanticToolGateway {
       } else if (input.plan.subjectScope === 'portfolio') {
         addAvailable(support, ['search_research_sources', 'query_intelligence'], available);
       } else if (input.plan.subjectScope === 'external_entity') {
-        addAvailable(support, ['resolve_entity', 'search_public_web', 'scrape_web_page'], available);
+        addAvailable(
+          support,
+          ['resolve_entity', 'search_public_web', 'scrape_web_page'],
+          available,
+        );
       } else {
         addAvailable(
           support,
@@ -336,7 +349,8 @@ export class MeriSemanticToolGateway {
 
     if (canonicalResearchDirector) {
       const oldIndex = critical.indexOf('research_external_company');
-      if (oldIndex >= 0 && recipe === 'research_federal_market_strategy') critical.splice(oldIndex, 1);
+      if (oldIndex >= 0 && recipe === 'research_federal_market_strategy')
+        critical.splice(oldIndex, 1);
       const supportIndex = support.indexOf('research_external_company');
       if (supportIndex >= 0 && recipe === 'research_federal_market_strategy') {
         support.splice(supportIndex, 1);
@@ -349,7 +363,8 @@ export class MeriSemanticToolGateway {
       .map((name) => schemaByName.get(name))
       .filter((schema): schema is MeriSemanticToolSchema => Boolean(schema));
 
-    const fallbackToLegacy = mode === 'enabled' && proposedSchemas.length === 0 && input.schemas.length > 0;
+    const fallbackToLegacy =
+      mode === 'enabled' && proposedSchemas.length === 0 && input.schemas.length > 0;
     const fallbackReason = fallbackToLegacy
       ? 'The semantic router selected no registered schema, so the governed legacy surface was retained.'
       : null;

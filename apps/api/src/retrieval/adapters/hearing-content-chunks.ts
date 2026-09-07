@@ -42,11 +42,26 @@ export function hearingContentChunks(payload: KnowledgeJsonObject) {
   if (content.length <= 6500) return { hash, chunks: [payload] };
   const chunkCount = Math.ceil(content.length / 2000);
   const chunks: KnowledgeJsonObject[] = [];
+  // Repeat exact compact attribution on each page. Otherwise a transcript's
+  // first fragment can contain a statement while its speaker/time is several
+  // pages later in the serialized JSON, making the excerpt unsafe to attribute.
+  const attribution: KnowledgeJsonObject = {};
+  for (const key of [
+    'id', 'hearingId', 'captureId', 'segmentId', 'sequence', 'startMs', 'endMs',
+    'speakerLabel', 'speakerName', 'speakerConfidence', 'transcriptionConfidence',
+    'confidence', 'preliminary', 'isOfficialTranscript', 'derivedFromMachineTranscript',
+    'hasGapBefore', 'revision', 'date', 'publishedAt', 'fetchedAt', 'syncedAt',
+  ]) {
+    const value = payload[key];
+    if (value === null || typeof value === 'number' || typeof value === 'boolean'
+      || (typeof value === 'string' && value.length <= 240)) attribution[key] = value;
+  }
   for (let part = 0; part < chunkCount; part += 1) {
     const start = part * 2000;
     chunks.push({
       kind: 'hearing_evidence_json_chunk',
       originalKind: typeof payload.kind === 'string' ? payload.kind.slice(0, 80) : null,
+      ...attribution,
       title: typeof payload.title === 'string' ? payload.title.slice(0, 240) : 'Hearing evidence',
       sourceUrl:
         typeof payload.sourceUrl === 'string' && payload.sourceUrl.length <= 1000

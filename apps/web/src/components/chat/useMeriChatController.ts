@@ -1,3 +1,4 @@
+import { meriRetrievalMetadata } from './meri-retrieval-metadata.js';
 import {
   useCallback,
   useEffect,
@@ -63,6 +64,13 @@ import {
 } from './meri-route-guards.js';
 import { formatMeriHttpError } from './meri-http-error.js';
 import { meriRuntimeStatus, type MeriRuntimeStatus } from './meri-runtime-status.js';
+import {
+  readRecoveredResearch,
+  readResearchRun,
+  mayResumeResearch,
+  type MeriRecoveredResearch,
+  type MeriResearchRun,
+} from './meri-research-recovery.js';
 // UI-free shared modules — NOT the antd components. This controller is
 // mounted on the vNext surface (vnext/meri/**), so a value import of
 // ChatInput/WorkPerformed here would drag antd + legacy CSS into the
@@ -158,27 +166,7 @@ type SseEvent =
       // instead of 400ing on the optimistic id.
       messageId?: string;
       contextPacketId?: string;
-      retrieval?: {
-        plan: {
-          subjectScope: string;
-          targetHint: string | null;
-          recipeTool: string | null;
-          queryClass: string;
-          requireCompleteCoverage: boolean;
-          requiredDomains: string[];
-          timeWindow: { expression: string; withinDays: number } | null;
-          version: 1;
-        };
-        coverage: {
-          complete: boolean;
-          stopReason: string;
-          searchedDomains: string[];
-          missingDomains: string[];
-          partialDomains: string[];
-          toolsInvoked: string[];
-          version: 1;
-        };
-      };
+      retrieval?: ChatMessageRetrieval;
     }
   | { type: 'error'; message: string; accepted?: false }
   | {
@@ -205,6 +193,7 @@ type SseEvent =
 
 // Deep Research SSE events (from /api/clio/research/:id/plan|stream).
 type ResearchSseEvent =
+  | { type: 'run'; run: MeriResearchRun }
   | { type: 'phase'; phase: 'plan' | 'clarify' | 'gather' | 'synthesize' | 'done' | 'error' }
   | { type: 'title'; title: string }
   | { type: 'plan'; plan: string[] }
@@ -491,6 +480,20 @@ export function useMeriChatController({
   // research and streams a cited report into the conversation).
   const [researchMode, setResearchMode] = useState(false);
   const researchSessionRef = useRef<string | null>(null);
+  const [researchRecovery, setResearchRecovery] = useState<MeriRecoveredResearch | null>(null);
+  const [researchRecoveryError, setResearchRecoveryError] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    setResearchRecovery(null);
+    setResearchRecoveryError(null);
+  }, [identityKey, sessionId]);
+  const [researchRecoveryVersion, refreshResearchRecovery] = useState(0);
+  const researchStoppedRef = useRef(false);
+  const researchMessageRef = useRef<{
+    sessionId: string;
+    messageId: string;
+    phase: 'plan' | 'research';
+  } | null>(null);
+  const researchStreamActiveRef = useRef(false);
   const [researchAwaitingAnswers, setResearchAwaitingAnswers] = useState(false);
   // Clarifying questions Meri asked, rendered as an inline answer form (Claude-style).
   const [researchQuestions, setResearchQuestions] = useState<string[]>([]);
@@ -508,10 +511,9 @@ export function useMeriChatController({
   // for an ordinary chat reply. Lets the UI show research-specific progress
   // instead of the generic agent-run card.
   const [isResearchStreaming, setIsResearchStreaming] = useState(false);
-  // The research 'progress' heartbeat carries real elapsedMs/budgetMs from the
-  // server; previously this was only ever composed into the message body as
-  // text and then discarded. Captured here so a progress bar can show real
-  // elapsed-against-budget instead of a step-count guess.
+  researchStreamActiveRef.current = isResearchStreaming;
+  // Preserve server heartbeat elapsed time and stage. A time budget is not a
+  // completion estimate; the progress display stays indeterminate.
   const [researchProgress, setResearchProgress] = useState<{
     note: string;
     elapsedMs: number;
@@ -619,7 +621,10 @@ export function useMeriChatController({
     const headers = await authHeaders();
     await Promise.allSettled(
       toClear.map((id) =>
-        fetch(`${config.apiBaseUrl}/api/clio/alerts/${id}/dismiss`, { method: 'POST', headers }),
+        fetch(`${config.apiBaseUrl}/api/clio/alerts/${id}/dismiss`, {
+          method: 'POST',
+          headers,
+        }),
       ),
     );
   }, [alerts, authHeaders]);
@@ -839,7 +844,11 @@ export function useMeriChatController({
           (row) => row.id === activeConversationId,
         );
         if (!current) return;
-        upsertConversation({ ...current, clientId: nextClientId, client: updated.client ?? null });
+        upsertConversation({
+          ...current,
+          clientId: nextClientId,
+          client: updated.client ?? null,
+        });
         setPersistedClientId(nextClientId);
         setScopePersistStatus('idle');
       } catch (err) {
@@ -1018,7 +1027,11 @@ export function useMeriChatController({
         setStagedAttachments((prev) =>
           prev.map((att) =>
             att.localId === localId
-              ? { ...att, status: 'error', reason: serverMessage || 'Upload failed — try again.' }
+              ? {
+                  ...att,
+                  status: 'error',
+                  reason: serverMessage || 'Upload failed — try again.',
+                }
               : att,
           ),
         );
@@ -1105,6 +1118,7 @@ export function useMeriChatController({
       controller: AbortController,
       onEvent: (e: ResearchSseEvent) => void,
       streamEpoch = streamEpochRef.current,
+      resumeRunId?: string,
     ) => {
       const requestIdentityKey = identityKeyRef.current;
       const headers = await authHeaders();
@@ -1113,7 +1127,10 @@ export function useMeriChatController({
       if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
       const res = await fetch(`${config.apiBaseUrl}${path}`, {
         method: 'POST',
-        headers,
+        headers: {
+          ...headers,
+          ...(resumeRunId ? { 'x-meri-research-resume-run': resumeRunId } : {}),
+        },
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -1123,6 +1140,7 @@ export function useMeriChatController({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let completed = false;
       outer: while (true) {
         // Watchdog: race each read against the stall window. The server sends a
         // `progress` heartbeat every few seconds, so silence past
@@ -1159,7 +1177,7 @@ export function useMeriChatController({
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
-          if (streamEpoch !== streamEpochRef.current) break outer;
+          if (streamEpoch !== streamEpochRef.current || controller.signal.aborted) break outer;
           if (!line.startsWith('data: ')) continue;
           const jsonStr = line.slice(6).trim();
           if (!jsonStr) continue;
@@ -1170,18 +1188,113 @@ export function useMeriChatController({
             continue;
           }
           onEvent(event);
-          if (event.type === 'done') break outer;
+          if (event.type === 'done') {
+            completed = true;
+            break outer;
+          }
         }
       }
-      if (streamEpoch !== streamEpochRef.current) {
+      await reader.cancel().catch(() => {});
+      if (streamEpoch !== streamEpochRef.current || controller.signal.aborted) {
         throw new DOMException('Meri route changed', 'AbortError');
       }
+      if (!completed) throw new Error('The research connection ended before a completion receipt.');
     },
     [authHeaders],
   );
 
+  const executeResearchPlan = useCallback(
+    async (
+      id: string,
+      controller: AbortController,
+      initialAssistantId: string,
+      streamEpoch: number,
+      resumeRunId?: string,
+    ) => {
+      let assistantId = initialAssistantId;
+      researchMessageRef.current = { sessionId: id, messageId: assistantId, phase: 'plan' };
+      let planText = '';
+      let questions: string[] = [];
+      let runAnnounced = false;
+      let planError: string | null = null;
+      setIsResearchStreaming(true);
+      setResearchProgress(null);
+      await consumeResearchStream(
+        `/api/clio/research/${id}/plan/stream`,
+        controller,
+        (e) => {
+          if (e.type === 'run') {
+            runAnnounced = readResearchRun(e.run) !== null;
+          } else if (e.type === 'progress') {
+            // Only until the plan itself starts arriving.
+            if (!planText) {
+              const elapsed =
+                typeof e.elapsedMs === 'number' ? ` · ${formatElapsed(e.elapsedMs)} elapsed` : '';
+              updateChatMessage(assistantId, `_${e.note}${elapsed}_`);
+              setResearchProgress({
+                note: e.note,
+                elapsedMs: e.elapsedMs ?? 0,
+                budgetMs: e.budgetMs,
+              });
+            }
+          } else if (e.type === 'title') {
+            planText = `**Research plan — ${e.title}**\n\n`;
+            updateChatMessage(assistantId, planText);
+          } else if (e.type === 'plan') {
+            planText += e.plan.map((p, idx) => `${idx + 1}. ${p}`).join('\n');
+            updateChatMessage(assistantId, planText);
+          } else if (e.type === 'clarify') {
+            questions = e.questions;
+          } else if (e.type === 'thinking') {
+            // Raw research reasoning is discarded rather than buffered; the
+            // visible trace is built from step and source events instead.
+          } else if (
+            e.type === 'done' &&
+            typeof e.messageId === 'string' &&
+            e.messageId !== assistantId
+          ) {
+            replaceChatMessageId(assistantId, e.messageId);
+            assistantId = e.messageId;
+            researchMessageRef.current = { sessionId: id, messageId: assistantId, phase: 'plan' };
+          } else if (e.type === 'error') {
+            planError = e.message;
+            updateChatMessage(assistantId, `Error: ${e.message}`);
+          }
+        },
+        streamEpoch,
+        resumeRunId,
+      );
+      setIsResearchStreaming(false);
+      setResearchProgress(null);
+      if (planError) throw new Error(planError);
+      // Render clarifying questions as an inline answer form (Claude-style),
+      // not as text the user has to reply to free-form.
+      if (runAnnounced && !planText) {
+        refreshResearchRecovery((version) => version + 1);
+        return;
+      }
+      setResearchQuestions(questions);
+      setResearchAwaitingAnswers(questions.length > 0);
+      refreshResearchRecovery((version) => version + 1);
+      if (questions.length === 0) {
+        // No questions — go straight to the run.
+        await executeResearchRun(controller, undefined, streamEpoch);
+      }
+    },
+    [consumeResearchStream],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
+
   const runResearch = useCallback(
     async (content: string): Promise<boolean> => {
+      if (researchSessionRef.current && !researchAwaitingAnswers) {
+        // Resume keeps the saved request. A new topic after a terminal or
+        // interrupted run is a separate, explicit request and may start fresh.
+        const saved = researchRecovery;
+        if (!saved || saved.id !== researchSessionRef.current || !mayResumeResearch(saved.run))
+          return false;
+        researchSessionRef.current = null;
+        setResearchRecovery(null);
+      }
       const requestIdentityKey = identityKeyRef.current;
       const existingConversationId = currentSessionRef.current;
       const conversationId = existingConversationId ?? (await doCreateSession());
@@ -1208,12 +1321,19 @@ export function useMeriChatController({
           : {}),
       });
       let assistantId = generateId();
-      appendChatMessage({ id: assistantId, role: 'assistant', content: '', createdAt: new Date() });
+      appendChatMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date(),
+      });
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
       const streamEpoch = ++streamEpochRef.current;
       let accepted = false;
+      researchStoppedRef.current = false;
+      setResearchRecoveryError(null);
 
       try {
         if (!researchSessionRef.current) {
@@ -1251,72 +1371,14 @@ export function useMeriChatController({
           // A route change may happen while research creation is awaiting the
           // server. Do not start its plan stream or write a session id into the
           // destination thread once that request's epoch has been invalidated.
-          if (streamEpoch !== streamEpochRef.current) return accepted;
+          if (streamEpoch !== streamEpochRef.current || controller.signal.aborted) return accepted;
           researchSessionRef.current = id;
           const consumedIds = new Set(turnAttachments.map((attachment) => attachment.localId));
           setStagedAttachments((previous) =>
             previous.filter((attachment) => !consumedIds.has(attachment.localId)),
           );
 
-          let planText = '';
-          let questions: string[] = [];
-          let planError: string | null = null;
-          setIsResearchStreaming(true);
-          setResearchProgress(null);
-          await consumeResearchStream(
-            `/api/clio/research/${id}/plan/stream`,
-            controller,
-            (e) => {
-              if (e.type === 'progress') {
-                // Only until the plan itself starts arriving.
-                if (!planText) {
-                  const elapsed =
-                    typeof e.elapsedMs === 'number'
-                      ? ` · ${formatElapsed(e.elapsedMs)} elapsed`
-                      : '';
-                  updateChatMessage(assistantId, `_${e.note}${elapsed}_`);
-                  setResearchProgress({
-                    note: e.note,
-                    elapsedMs: e.elapsedMs ?? 0,
-                    budgetMs: e.budgetMs,
-                  });
-                }
-              } else if (e.type === 'title') {
-                planText = `**Research plan — ${e.title}**\n\n`;
-                updateChatMessage(assistantId, planText);
-              } else if (e.type === 'plan') {
-                planText += e.plan.map((p, idx) => `${idx + 1}. ${p}`).join('\n');
-                updateChatMessage(assistantId, planText);
-              } else if (e.type === 'clarify') {
-                questions = e.questions;
-              } else if (e.type === 'thinking') {
-                // Raw research reasoning is discarded rather than buffered; the
-                // visible trace is built from step and source events instead.
-              } else if (
-                e.type === 'done' &&
-                typeof e.messageId === 'string' &&
-                e.messageId !== assistantId
-              ) {
-                replaceChatMessageId(assistantId, e.messageId);
-                assistantId = e.messageId;
-              } else if (e.type === 'error') {
-                planError = e.message;
-                updateChatMessage(assistantId, `Error: ${e.message}`);
-              }
-            },
-            streamEpoch,
-          );
-          setIsResearchStreaming(false);
-          setResearchProgress(null);
-          if (planError) throw new Error(planError);
-          // Render clarifying questions as an inline answer form (Claude-style),
-          // not as text the user has to reply to free-form.
-          setResearchQuestions(questions);
-          setResearchAwaitingAnswers(questions.length > 0);
-          if (questions.length === 0) {
-            // No questions — go straight to the run.
-            await executeResearchRun(controller, undefined, streamEpoch);
-          }
+          await executeResearchPlan(id, controller, assistantId, streamEpoch);
           return accepted;
         }
 
@@ -1345,14 +1407,14 @@ export function useMeriChatController({
         await executeResearchRun(controller, assistantId, streamEpoch);
       } catch (err) {
         if (streamEpoch !== streamEpochRef.current) return accepted;
-        const stopped = err instanceof Error && err.name === 'AbortError';
+        const stopped = researchStoppedRef.current;
         updateChatMessage(
           assistantId,
           stopped
             ? '_Research stopped._'
-            : `Research failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+            : '_The research connection was interrupted. Checking the saved run…_',
         );
-        researchSessionRef.current = null;
+        refreshResearchRecovery((version) => version + 1);
         setResearchAwaitingAnswers(false);
         setResearchQuestions([]);
       } finally {
@@ -1365,7 +1427,14 @@ export function useMeriChatController({
       return accepted;
     },
     // executeResearchRun is stable via useCallback below; deps kept minimal.
-    [authHeaders, consumeResearchStream, doCreateSession, stagedAttachments], // eslint-disable-line react-hooks/exhaustive-deps
+    [
+      authHeaders,
+      executeResearchPlan,
+      doCreateSession,
+      stagedAttachments,
+      researchAwaitingAnswers,
+      researchRecovery,
+    ], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Accept a server-emitted "Run as Deep Research" offer: clear the offer card,
@@ -1393,11 +1462,13 @@ export function useMeriChatController({
       controller: AbortController,
       existingAssistantId?: string,
       streamEpoch = streamEpochRef.current,
+      resumeRunId?: string,
     ) => {
       if (streamEpoch !== streamEpochRef.current) return;
       const id = researchSessionRef.current;
       if (!id) return;
       let assistantId = existingAssistantId ?? generateId();
+      researchMessageRef.current = { sessionId: id, messageId: assistantId, phase: 'research' };
       if (!existingAssistantId) {
         appendChatMessage({
           id: assistantId,
@@ -1426,7 +1497,9 @@ export function useMeriChatController({
           `/api/clio/research/${id}/stream`,
           controller,
           (e) => {
-            if (e.type === 'step') {
+            if (e.type === 'run') {
+              refreshResearchRecovery((version) => version + 1);
+            } else if (e.type === 'step') {
               const label = e.label || e.tool;
               setTrustSteps((prev) => [
                 ...prev,
@@ -1476,12 +1549,18 @@ export function useMeriChatController({
               if (typeof e.messageId === 'string' && e.messageId !== assistantId) {
                 replaceChatMessageId(assistantId, e.messageId);
                 assistantId = e.messageId;
+                researchMessageRef.current = {
+                  sessionId: id,
+                  messageId: assistantId,
+                  phase: 'research',
+                };
               }
             } else if (e.type === 'error') {
               updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
             }
           },
           streamEpoch,
+          resumeRunId,
         );
       } catch (err) {
         // A stalled or dropped stream must end as a readable failure, not as a
@@ -1489,8 +1568,14 @@ export function useMeriChatController({
         // whatever streamed so far and is not an error.
         if (streamEpoch !== streamEpochRef.current) return;
         if (err instanceof Error && err.name === 'AbortError') {
-          if (!report) updateChatMessage(assistantId, '_Research stopped._');
-          researchSessionRef.current = null;
+          if (!report)
+            updateChatMessage(
+              assistantId,
+              researchStoppedRef.current
+                ? '_Research stopped._'
+                : '_Research continues on the server. Checking its saved status…_',
+            );
+          refreshResearchRecovery((version) => version + 1);
           return;
         }
         const message = err instanceof Error ? err.message : 'unknown error';
@@ -1500,7 +1585,7 @@ export function useMeriChatController({
             ? `${report}\n\n_Research interrupted: ${message}_`
             : `_Research failed: ${message}_`,
         );
-        researchSessionRef.current = null;
+        refreshResearchRecovery((version) => version + 1);
         return;
       } finally {
         if (streamEpoch === streamEpochRef.current) {
@@ -1514,16 +1599,224 @@ export function useMeriChatController({
       if (finishedId && completedReport)
         setResearchReports((prev) => ({ ...prev, [assistantId]: finishedId }));
       // Reset for the next research request in this conversation.
-      researchSessionRef.current = null;
+      if (completedReport) researchSessionRef.current = null;
+      refreshResearchRecovery((version) => version + 1);
     },
     [consumeResearchStream],
   );
+
+  // Reopen only this identity's saved request. Reads never restart provider work.
+  useEffect(() => {
+    const conversationId = sessionId;
+    if (!conversationId || !identityKey || isStreaming || isResearchStreaming) return;
+    const requestIdentityKey = identityKey;
+    const requestEpoch = streamEpochRef.current;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    const current = () =>
+      !cancelled &&
+      !researchStreamActiveRef.current &&
+      requestEpoch === streamEpochRef.current &&
+      currentSessionRef.current === conversationId &&
+      mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current);
+    const restore = async () => {
+      try {
+        const headers = await authHeaders();
+        if (!current()) return;
+        const listed = await fetch(
+          `${config.apiBaseUrl}/api/clio/research?conversationId=${encodeURIComponent(conversationId)}`,
+          {
+            headers,
+            signal: controller.signal,
+          },
+        );
+        if (!listed.ok) throw new Error('Saved research status is unavailable.');
+        const rows: unknown = await listed.json();
+        if (!current() || !Array.isArray(rows)) return;
+        const latest = rows.map((row) => readRecoveredResearch(row, conversationId)).find(Boolean);
+        if (!latest) return;
+        const response = await fetch(
+          `${config.apiBaseUrl}/api/clio/research/${encodeURIComponent(latest.id)}`,
+          {
+            headers,
+            signal: controller.signal,
+          },
+        );
+        if (!response.ok) throw new Error('Saved research status is unavailable.');
+        const recovered = readRecoveredResearch(await response.json(), conversationId);
+        if (!current() || !recovered) return;
+        setResearchRecoveryError((previous) =>
+          previous?.startsWith('Stop was not confirmed') && recovered.run.status === 'running'
+            ? previous
+            : null,
+        );
+        setResearchRecovery(recovered);
+        const finished = recovered.run.phase === 'research' && recovered.run.status === 'complete';
+        researchSessionRef.current =
+          finished || recovered.run.status === 'cancelled' ? null : recovered.id;
+        const awaiting = recovered.run.status === 'awaiting_clarification';
+        setResearchQuestions(awaiting ? recovered.questions : []);
+        setResearchAwaitingAnswers(awaiting && recovered.questions.length > 0);
+        const messagesNow = getChatStateSnapshot().messages;
+        if (recovered.reportMessageId && recovered.report !== null) {
+          if (!messagesNow.some((message) => message.id === recovered.reportMessageId)) {
+            const pendingId =
+              researchMessageRef.current?.sessionId === recovered.id &&
+              researchMessageRef.current.phase === 'research'
+                ? researchMessageRef.current.messageId
+                : `research-recovery-${recovered.id}`;
+            if (messagesNow.some((message) => message.id === pendingId))
+              replaceChatMessageId(pendingId, recovered.reportMessageId);
+            else
+              appendChatMessage({
+                id: recovered.reportMessageId,
+                role: 'assistant',
+                content: recovered.report,
+                createdAt: new Date(),
+              });
+          }
+          updateChatMessage(recovered.reportMessageId, recovered.report);
+          if (recovered.reportEvidence) {
+            const evidence = recovered.reportEvidence;
+            setChatMessageCitations(recovered.reportMessageId, evidence.citations ?? []);
+            setChatMessageThinking(recovered.reportMessageId, {
+              orchestratorIntent: evidence.orchestratorIntent,
+              orchestratorTier: evidence.orchestratorTier,
+              planSteps: evidence.planSteps,
+              trustSteps: evidence.trustSteps,
+            });
+            if (evidence.contextPacketId)
+              setChatMessageContextPacketId(recovered.reportMessageId, evidence.contextPacketId);
+            if (evidence.retrieval)
+              setChatMessageRetrieval(recovered.reportMessageId, evidence.retrieval);
+            if (evidence.verification)
+              setChatMessageVerification(recovered.reportMessageId, evidence.verification);
+            if (evidence.groundingCaveat)
+              setChatMessageGroundingCaveat(recovered.reportMessageId, evidence.groundingCaveat);
+            if (evidence.groundingStatement)
+              setChatMessageGroundingStatement(
+                recovered.reportMessageId,
+                evidence.groundingStatement,
+              );
+            if (evidence.runtimeStatus)
+              setChatMessageRuntimeStatus(recovered.reportMessageId, evidence.runtimeStatus);
+          }
+          setResearchReports((previous) => ({
+            ...previous,
+            [recovered.reportMessageId!]: recovered.id,
+          }));
+        } else if (recovered.planMessageId && recovered.plan.length) {
+          const planBody = `**Research plan — ${recovered.title}**\n\n${recovered.plan.map((step, index) => `${index + 1}. ${step}`).join('\n')}`;
+          if (!messagesNow.some((message) => message.id === recovered.planMessageId)) {
+            const pendingId =
+              researchMessageRef.current?.sessionId === recovered.id &&
+              researchMessageRef.current.phase === 'plan'
+                ? researchMessageRef.current.messageId
+                : null;
+            if (pendingId && messagesNow.some((message) => message.id === pendingId))
+              replaceChatMessageId(pendingId, recovered.planMessageId);
+            else
+              appendChatMessage({
+                id: recovered.planMessageId,
+                role: 'assistant',
+                content: planBody,
+                createdAt: new Date(),
+              });
+          }
+          updateChatMessage(recovered.planMessageId, planBody);
+        } else if (!messagesNow.some((message) => message.role === 'assistant')) {
+          appendChatMessage({
+            id: `research-recovery-${recovered.id}`,
+            role: 'assistant',
+            createdAt: new Date(),
+            content: `**${recovered.title}**`,
+          });
+        }
+        if (recovered.run.status === 'running') timer = setTimeout(() => void restore(), 5_000);
+      } catch (error) {
+        if (!current() || controller.signal.aborted) return;
+        if (researchSessionRef.current)
+          setResearchRecoveryError('Could not verify research status. Retrying…');
+        timer = setTimeout(() => void restore(), 10_000);
+      }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (timer) clearTimeout(timer);
+    };
+  }, [
+    authHeaders,
+    identityKey,
+    isStreaming,
+    isResearchStreaming,
+    sessionId,
+    researchRecoveryVersion,
+  ]);
+
+  const resumeResearch = useCallback(async () => {
+    const saved = researchRecovery;
+    if (
+      !saved ||
+      isStreaming ||
+      currentSessionRef.current !== saved.conversationId ||
+      (!mayResumeResearch(saved.run) &&
+        !(saved.run.status === 'awaiting_clarification' && saved.questions.length === 0))
+    )
+      return;
+    researchSessionRef.current = saved.id;
+    researchStoppedRef.current = false;
+    setResearchRecoveryError(null);
+    setResearchRecovery(null);
+    setStreaming(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const streamEpoch = ++streamEpochRef.current;
+    const existing = getChatStateSnapshot().messages;
+    const assistantId =
+      saved.run.phase === 'plan'
+        ? (saved.planMessageId ?? `research-recovery-${saved.id}`)
+        : `research-recovery-${saved.id}`;
+    if (!existing.some((message) => message.id === assistantId))
+      appendChatMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date(),
+      });
+    try {
+      if (
+        saved.run.phase === 'plan' &&
+        saved.run.status !== 'awaiting_clarification' &&
+        saved.run.status !== 'complete'
+      ) {
+        await executeResearchPlan(saved.id, controller, assistantId, streamEpoch, saved.run.id);
+      } else {
+        await executeResearchRun(controller, assistantId, streamEpoch, saved.run.id);
+      }
+    } catch (error) {
+      if (streamEpoch === streamEpochRef.current)
+        updateChatMessage(
+          assistantId,
+          '_Research connection interrupted. Checking the saved run…_',
+        );
+    } finally {
+      if (streamEpoch === streamEpochRef.current) {
+        setStreaming(false);
+        setIsResearchStreaming(false);
+        refreshResearchRecovery((version) => version + 1);
+      }
+    }
+  }, [executeResearchPlan, executeResearchRun, isStreaming, researchRecovery]);
 
   // Submit per-question answers from the inline clarify form, then run research.
   const submitResearchAnswers = useCallback(
     async (answers: Record<string, string>, skipped: boolean) => {
       const id = researchSessionRef.current;
       if (!id || isStreaming) return;
+      researchStoppedRef.current = false;
       setResearchAwaitingAnswers(false);
       setResearchQuestions([]);
       setStreaming(true);
@@ -1550,7 +1843,7 @@ export function useMeriChatController({
         await executeResearchRun(controller, undefined, streamEpoch);
       } catch (err) {
         if (streamEpoch !== streamEpochRef.current) return;
-        researchSessionRef.current = null;
+        refreshResearchRecovery((version) => version + 1);
         if (!(err instanceof Error && err.name === 'AbortError'))
           appendChatMessage({
             id: generateId(),
@@ -1669,7 +1962,12 @@ export function useMeriChatController({
 
       const assistantId = generateId();
       let canonicalAssistantId = assistantId;
-      appendChatMessage({ id: assistantId, role: 'assistant', content: '', createdAt: new Date() });
+      appendChatMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date(),
+      });
 
       setStreaming(true);
       const controller = new AbortController();
@@ -1926,9 +2224,10 @@ export function useMeriChatController({
               // Capture the backend retrieval plan (subjectScope, coverage)
               // so the thread scope label reflects the actual retrieval scope
               // instead of always printing "Client context · <client>".
-              if (event.retrieval) {
-                setChatMessageRetrieval(assistantId, event.retrieval);
-                setLastRetrieval(event.retrieval);
+              const retrieval = meriRetrievalMetadata(event.retrieval);
+              if (retrieval) {
+                setChatMessageRetrieval(assistantId, retrieval);
+                setLastRetrieval(retrieval);
               }
               // Reconcile the optimistic id LAST, after every mutation above
               // that still needs to match by the id this message was created
@@ -2127,6 +2426,9 @@ export function useMeriChatController({
     setIsResearchStreaming(false);
     setResearchProgress(null);
     researchSessionRef.current = null;
+    setResearchRecovery(null);
+    setResearchRecoveryError(null);
+    refreshResearchRecovery((version) => version + 1);
   }, []);
 
   const discardRouteState = useCallback(() => {
@@ -2189,14 +2491,50 @@ export function useMeriChatController({
   }, [discardRouteState, identityKey]);
 
   const handleStop = useCallback(() => {
+    const researchId =
+      researchSessionRef.current ??
+      (researchRecovery?.run.status === 'running' ? researchRecovery.id : null);
+    const requestIdentityKey = identityKeyRef.current;
+    const requestConversationId = currentSessionRef.current;
+    researchStoppedRef.current = true;
+    researchSessionRef.current = null;
     abortRef.current?.abort();
     setStreaming(false);
-    researchSessionRef.current = null;
     setResearchAwaitingAnswers(false);
     setResearchQuestions([]);
     setIsResearchStreaming(false);
     setResearchProgress(null);
-  }, []);
+    if (!researchId) return;
+    // Closing a browser stream detaches it. Stop is an explicit durable cancel.
+    void (async () => {
+      try {
+        const headers = await authHeaders();
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
+        const response = await fetch(
+          `${config.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchId)}/cancel`,
+          {
+            method: 'POST',
+            headers,
+          },
+        );
+        if (!response.ok) throw new Error('Research cancellation was not confirmed.');
+      } catch {
+        if (
+          mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+          requestConversationId === currentSessionRef.current
+        )
+          setResearchRecoveryError(
+            'Stop was not confirmed. Research may still be running; try Stop again.',
+          );
+      } finally {
+        if (
+          mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+          requestConversationId === currentSessionRef.current
+        )
+          refreshResearchRecovery((version) => version + 1);
+      }
+    })();
+  }, [authHeaders, researchRecovery]);
 
   // Regenerate the last assistant answer, or edit-and-resend the last user
   // message (P0-4). Both trim the local thread, then re-run via sendMessage.
@@ -2796,6 +3134,9 @@ export function useMeriChatController({
     researchOffers,
     isResearchStreaming,
     researchProgress,
+    researchRecovery,
+    researchRecoveryError,
+    resumeResearch,
     handleRunResearchOffer,
     lastRetrieval,
     lastUserMessageId,

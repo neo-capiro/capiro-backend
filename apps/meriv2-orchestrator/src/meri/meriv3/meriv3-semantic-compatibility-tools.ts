@@ -7,9 +7,7 @@ export interface MeriSemanticCompatibilitySchema {
   input_schema: Record<string, unknown>;
 }
 
-export type MeriSemanticCompatibilityToolName =
-  | 'analyze_funding_opportunity'
-  | 'create_artifact';
+export type MeriSemanticCompatibilityToolName = 'analyze_funding_opportunity' | 'create_artifact';
 
 export type MeriSemanticToolInvoker = (
   name: string,
@@ -40,12 +38,7 @@ const ARTIFACT_TOOL_BY_TYPE: Record<string, string> = {
   policy_memo: 'draft_policy_memo',
 };
 
-const CLIENT_AWARE_ARTIFACT_TYPES = new Set([
-  'word',
-  'spreadsheet',
-  'presentation',
-  'policy_memo',
-]);
+const CLIENT_AWARE_ARTIFACT_TYPES = new Set(['word', 'spreadsheet', 'presentation', 'policy_memo']);
 
 const ANALYZE_FUNDING_OPPORTUNITY_SCHEMA: MeriSemanticCompatibilitySchema = {
   name: 'analyze_funding_opportunity',
@@ -209,8 +202,7 @@ export class MeriV3SemanticCompatibilityTools {
   ): Promise<unknown> {
     const clientId = typeof input.clientId === 'string' ? input.clientId : '';
     const source = typeof input.source === 'string' ? input.source : '';
-    const sourceRecordId =
-      typeof input.sourceRecordId === 'string' ? input.sourceRecordId : '';
+    const sourceRecordId = typeof input.sourceRecordId === 'string' ? input.sourceRecordId : '';
     const opportunityInput = { clientId, source, sourceRecordId };
 
     const opportunity = await invoke('get_funding_opportunity', opportunityInput);
@@ -220,6 +212,14 @@ export class MeriV3SemanticCompatibilityTools {
       'get_opportunity_government_landscape',
       opportunityInput,
     );
+    const requirements =
+      source === 'sam_gov'
+        ? await invoke('get_funding_opportunity_requirements', opportunityInput)
+        : {
+            state: 'notice_body',
+            explanation:
+              'Read Grants.gov notice terms in opportunity.data.summary and continue summaryRead.nextOffset when present.',
+          };
 
     return {
       kind: 'funding_opportunity_evidence',
@@ -228,18 +228,21 @@ export class MeriV3SemanticCompatibilityTools {
       clientEvidence,
       matchEvidence,
       governmentLandscape,
+      requirements,
       coverage: {
         requestedDomains: [
           'opportunity_facts',
           'client_evidence',
           'match_evidence',
           'government_landscape',
+          'mandatory_conditions',
         ],
         toolsInvoked: [
           'get_funding_opportunity',
           'get_opportunity_client_context',
           'explain_opportunity_match',
           'get_opportunity_government_landscape',
+          ...(source === 'sam_gov' ? ['get_funding_opportunity_requirements'] : []),
         ],
       },
     };

@@ -1035,18 +1035,41 @@ export class MeriToolsService {
       ),
 
       // ── Funding Opportunities (P37) ───────────────────────────────────
-      // `clientId` is REQUIRED on all six. Two reasons, and the second is the
+      // `clientId` is REQUIRED on every funding tool. Two reasons, and the second is the
       // load-bearing one: every answer is scored relative to a client, so a
       // client-less call has nothing to be right about; and the chat loop's
       // client-scope enforcement (meri-client-scope-fail-closed.spec.ts)
       // refuses a `clientId` that is not the conversation's — a tool that
       // omitted the field would sail past that check and read across the
       // boundary the session exists to draw.
+      search_funding_opportunities: obj(
+        {
+          clientId: str('Authorized client UUID used by canonical Funding Opportunities matching'),
+          source: str("Optional grants_gov or sam_gov; procurement forecasts have a separate tool"),
+          query: str('Optional keyword filter; up to 500 characters'),
+          page: { type: 'integer', minimum: 1, maximum: 100000 },
+          pageSize: { type: 'integer', minimum: 1, maximum: 5 },
+          activeState: { type: 'string', enum: ['active', 'closed', 'all'] },
+        },
+        ['clientId'],
+      ),
+      get_funding_opportunity_requirements: obj(
+        {
+          clientId: str('Authorized client UUID'),
+          source: { type: 'string', enum: ['sam_gov'] },
+          sourceRecordId: str('SAM opportunity row UUID'),
+          offset: { type: 'integer', minimum: 0, maximum: 1000000 },
+          limit: { type: 'integer', minimum: 1, maximum: 25 },
+        },
+        ['clientId', 'source', 'sourceRecordId'],
+      ),
       get_funding_opportunity: obj(
         {
           clientId: str('Client UUID the opportunity is scored against'),
           source: str("'grants_gov' or 'sam_gov'"),
           sourceRecordId: str("The source's own record id (Grants.gov opportunity id, or SAM row uuid)"),
+          summaryOffset: { type: 'integer', minimum: 0, maximum: 100000000 },
+          summaryLimit: { type: 'integer', minimum: 1, maximum: 12000 },
         },
         ['clientId', 'source', 'sourceRecordId'],
       ),
@@ -1539,11 +1562,30 @@ export class MeriToolsService {
       // here: the adapter owns the flag read, the role bar and the ethical wall,
       // in that order, so there is exactly ONE place those three can be wrong.
       // A second copy in this file would be a second thing to keep in step.
+      case 'search_funding_opportunities':
+        return this.opportunityTools.searchFundingOpportunities(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: input.source as string | undefined,
+          query: input.query as string | undefined,
+          page: input.page as number | undefined,
+          pageSize: input.pageSize as number | undefined,
+          activeState: input.activeState as string | undefined,
+        });
+      case 'get_funding_opportunity_requirements':
+        return this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+          offset: input.offset as number | undefined,
+          limit: input.limit as number | undefined,
+        });
       case 'get_funding_opportunity':
         return this.opportunityTools.getFundingOpportunity(toolActor(ctx), {
           clientId: String(input.clientId ?? ''),
           source: String(input.source ?? ''),
           sourceRecordId: String(input.sourceRecordId ?? ''),
+          summaryOffset: input.summaryOffset as number | undefined,
+          summaryLimit: input.summaryLimit as number | undefined,
         });
       case 'explain_opportunity_match':
         return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {

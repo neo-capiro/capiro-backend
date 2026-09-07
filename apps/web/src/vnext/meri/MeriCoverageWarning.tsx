@@ -1,3 +1,4 @@
+import { meriCoverageReason } from '../../components/chat/meri-retrieval-metadata.js';
 import type { ChatMessageRetrieval } from '../../components/chat/chat-store.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 
@@ -26,8 +27,20 @@ interface Tone {
 }
 
 const TONE: Record<'missing' | 'partial', Tone> = {
-  missing: { label: 'REQUIRED SOURCE MISSING', icon: 'AlertCircle', bg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
-  partial: { label: 'PARTIAL COVERAGE', icon: 'AlertTriangle', bg: '#FFFAEB', ring: '#FEDF89', fg: '#B54708' },
+  missing: {
+    label: 'REQUIRED SOURCE MISSING',
+    icon: 'AlertCircle',
+    bg: '#FEF3F2',
+    ring: '#FECDCA',
+    fg: '#B42318',
+  },
+  partial: {
+    label: 'PARTIAL COVERAGE',
+    icon: 'AlertTriangle',
+    bg: '#FFFAEB',
+    ring: '#FEDF89',
+    fg: '#B54708',
+  },
 };
 
 function domainLabel(domain: string): string {
@@ -40,10 +53,7 @@ function domainLabel(domain: string): string {
  * raw code.
  */
 function stopReasonCopy(stopReason: string): string | null {
-  if (stopReason === 'partial') {
-    return 'Meri stopped retrieving before covering every domain the plan required.';
-  }
-  return null;
+  return stopReason === 'complete' ? null : meriCoverageReason(stopReason);
 }
 
 /** Null when coverage is complete and every required domain was searched — nothing to warn about. */
@@ -53,7 +63,16 @@ export function coverageWarningTone(retrieval: ChatMessageRetrieval): 'missing' 
   const partial = retrieval.coverage.partialDomains ?? [];
   const missingRequired = required.some((domain) => missing.includes(domain));
   if (missingRequired) return 'missing';
-  if (!retrieval.coverage.complete || partial.length > 0 || missing.length > 0) return 'partial';
+  if (
+    !retrieval.coverage.complete ||
+    partial.length > 0 ||
+    missing.length > 0 ||
+    retrieval.coverage.truncated ||
+    retrieval.coverage.paginationComplete === false ||
+    retrieval.coverage.sourceHealth?.some((source) => source.status !== 'complete') ||
+    (retrieval.coverage.unavailableSources?.length ?? 0) > 0
+  )
+    return 'partial';
   return null;
 }
 
@@ -97,7 +116,14 @@ export function MeriCoverageWarning({ retrieval }: { retrieval: ChatMessageRetri
         </div>
       ) : null}
       {partial.length ? (
-        <div style={{ marginTop: missing.length ? 4 : 9, fontSize: 13, lineHeight: '19px', color: '#344054' }}>
+        <div
+          style={{
+            marginTop: missing.length ? 4 : 9,
+            fontSize: 13,
+            lineHeight: '19px',
+            color: '#344054',
+          }}
+        >
           Incomplete results: {partial.map(domainLabel).join(', ')}.
         </div>
       ) : null}

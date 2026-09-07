@@ -4,6 +4,43 @@ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaSer
 import { planMeriTurn } from './meri-context-plane.service.js';
 
 describe('MeriContextPlaneService Phase 19 planning', () => {
+  test.each([
+    ['Research RTX', 'RTX'],
+    ['Research "RTX"', 'RTX'],
+    ['RESEARCH RTX', 'RTX'],
+    ['Research RTX instead of this client', 'RTX'],
+    ['Do not use this client; Research RTX', 'RTX'],
+    ['Compare RTX and LMT', 'RTX'],
+    ['Tell me about SAC Capital', 'SAC Capital'],
+    ['Tell me about PE Systems', 'PE Systems'],
+  ])('preserves an explicitly requested external organization: %s', (task, targetHint) => {
+    const plan = planMeriTurn({ task, uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+    expect(plan).toMatchObject({ subjectScope: 'external_entity', targetHint, query: targetHint });
+  });
+
+  test.each([
+    'Analyze FY27 appropriations for this client',
+    'Find eligible grant funding for this client',
+    'Check NIH grants for this client',
+    'Compare FY 2027 and FY 2026 for this client',
+    'Compare RTX and LMT for this client',
+    'Prepare a meeting briefing for HASC staff',
+    'Prepare hearing intelligence on FY27 appropriations',
+    'Analyze NDAA implementation implications for this client',
+    'Prepare an executive briefing with the constraint "Enacted only"',
+  ])('keeps the selected client and strategy inputs for professional work: %s', (task) => {
+    const plan = planMeriTurn({ task, uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+    expect(plan.subjectScope).toBe('client');
+    expect(plan.requestedDomains).toEqual(expect.arrayContaining(['clients', 'contacts', 'strategies_work', 'institutional_knowledge']));
+    expect(plan.query).toBeUndefined();
+  });
+
+  test('meeting preparation keeps the meeting rail as well as client strategy', () => {
+    const plan = planMeriTurn({ task: 'Prepare a meeting briefing', uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
+    expect(plan.requestedDomains).toContain('meetings');
+    expect(plan.requestedDomains).toContain('strategies_work');
+  });
+
   test('selected-client strategies are retrieved without requiring the client name in their bodies', () => {
     const plan = planMeriTurn({ task: 'Review our strategies and unresolved work', uiClientId: 'client-acme', uiClientName: 'Acme Defense' });
     expect(plan.subjectScope).toBe('client');

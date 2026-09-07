@@ -44,6 +44,8 @@ const TOOL_DOMAIN_OVERRIDES: Record<string, MeriRetrievalDomain[]> = {
   get_pe_bills: ['budget', 'legislation'],
   search_sam_opportunities: ['opportunities'],
   get_funding_opportunity: ['opportunities'],
+  search_funding_opportunities: ['opportunities', 'grants'],
+  get_funding_opportunity_requirements: ['opportunities', 'documents'],
   explain_opportunity_match: ['opportunities'],
   get_opportunity_client_context: ['opportunities'],
   get_opportunity_government_landscape: ['opportunities', 'budget'],
@@ -87,12 +89,6 @@ const EXHAUSTIVE_TOOLS = new Set([
   'get_pe_bills',
   'get_acquisition_person',
   'get_state_rule_status',
-  'get_funding_opportunity',
-  'explain_opportunity_match',
-  'get_opportunity_client_context',
-  'get_opportunity_government_landscape',
-  'compare_funding_opportunities',
-  'build_opportunity_action_plan',
   'scrape_web_page',
 ]);
 
@@ -102,6 +98,15 @@ const EXHAUSTIVE_TOOLS = new Set([
  * exhaustive coverage before the APIs expose real cursors/totals.
  */
 const NON_EXHAUSTIVE_TOOLS = new Set([
+  'get_funding_opportunity',
+  'explain_opportunity_match',
+  'get_opportunity_client_context',
+  'get_opportunity_government_landscape',
+  'compare_funding_opportunities',
+  'build_opportunity_action_plan',
+
+  'search_funding_opportunities',
+  'get_funding_opportunity_requirements',
   'get_client_context',
   'search_client_knowledge',
   'read_client_documents',

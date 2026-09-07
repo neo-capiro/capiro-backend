@@ -1,18 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { hasAtLeast, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { FundingOpportunitiesService } from './funding-opportunities.service.js';
+import {
+  FundingOpportunitiesService,
+  type OpportunityQuery,
+} from './funding-opportunities.service.js';
+import {
+  OpportunityRequirementService,
+  type RequirementsResponse,
+} from './requirements/opportunity-requirement.service.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
 import {
   FUNDING_OPPORTUNITIES_FEATURE,
   FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
+  FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE,
   isFundingOpportunitiesFeatureEnabled,
 } from './funding-opportunities-flag.guard.js';
 import { explainOpportunity } from './opportunity-explanation.js';
 import {
   OPPORTUNITY_SOURCES,
   type FundingOpportunity,
+  type FundingOpportunityListResponse,
   type OpportunitySource,
 } from './funding-opportunities.types.js';
 
@@ -34,7 +43,7 @@ import {
  * ── Local data ONLY ──────────────────────────────────────────────────────────
  *
  * Nothing here reaches MakeGov/Tango, and nothing here can. The adapter's whole
- * dependency set is PrismaService and two sibling services that read Capiro's
+ * dependency set is PrismaService and three sibling services that read Capiro's
  * own normalized tables; there is no gateway, no client, no config read for a
  * key. That is plan §4.1's "normal product reads never depend on a live MakeGov
  * request", applied to the surface most likely to be tempted — a model asking a
@@ -71,13 +80,15 @@ import {
 export { FUNDING_OPPORTUNITIES_MERI_V2_FEATURE };
 
 /**
- * The six tools, as a closed list.
+ * The funding tools, as a closed list.
  *
  * Exported so the registration spec can assert the Meri-side surface matches
  * this one exactly. A tool added here and not wired into `meri-tools.service.ts`
  * — or the reverse — fails that spec rather than shipping half-registered.
  */
 export const MERI_OPPORTUNITY_TOOLS = [
+  'search_funding_opportunities',
+  'get_funding_opportunity_requirements',
   'get_funding_opportunity',
   'explain_opportunity_match',
   'get_opportunity_client_context',
@@ -171,6 +182,7 @@ export class MeriOpportunityToolsAdapter {
     private readonly prisma: PrismaService,
     private readonly opportunities: FundingOpportunitiesService,
     private readonly landscape: GovernmentLandscapeService,
+    private readonly requirements: OpportunityRequirementService,
   ) {}
 
   // ── Gates, shared by every tool ───────────────────────────────────────────
@@ -256,14 +268,174 @@ export class MeriOpportunityToolsAdapter {
 
   // ── 1. get_funding_opportunity ────────────────────────────────────────────
 
+  /** The same client matching, eligibility, ordering and coverage as the workspace. */
+  async searchFundingOpportunities(
+    actor: ToolActor,
+    input: {
+      clientId: string;
+      source?: string;
+      query?: string;
+      page?: number;
+      pageSize?: number;
+      activeState?: string;
+    },
+    asOf: Date = new Date(),
+  ): Promise<MeriToolEnvelope<OpportunitySearch>> {
+    const tool: MeriOpportunityTool = 'search_funding_opportunities';
+    const refusal = await this.gate<OpportunitySearch>(tool, actor, input.clientId, asOf);
+    if (refusal) return refusal;
+    const source = input.source == null ? undefined : asOpportunitySource(input.source);
+    if (source === null)
+      return envelope(tool, 'unsupported_source', asOf, unsupportedSource(input.source));
+    if (
+      !validInteger(input.page, 1, 100_000) ||
+      !validInteger(input.pageSize, 1, 5) ||
+      (input.activeState != null && !['active', 'closed', 'all'].includes(input.activeState)) ||
+      (input.query != null && (typeof input.query !== 'string' || input.query.length > 500))
+    ) {
+      return envelope(
+        tool,
+        'invalid_request',
+        asOf,
+        'Use page >= 1, pageSize 1–5, a query up to 500 characters, and activeState active, closed or all.',
+      );
+    }
+    const query: OpportunityQuery = {
+      source,
+      q: input.query,
+      page: input.page ?? 1,
+      pageSize: input.pageSize ?? 5,
+      activeState: (input.activeState ?? 'active') as OpportunityQuery['activeState'],
+    };
+    const result = await this.opportunities.listClientOpportunities(
+      actor.tenantId,
+      input.clientId,
+      query,
+    );
+    const hasMore = result.page * result.pageSize < result.total;
+    return cap(
+      envelope(
+        tool,
+        'available',
+        asOf,
+        'Canonical Funding Opportunities matching and eligibility. Relevance is not eligibility; confidence describes evidence quality, not likelihood of award. A forecast or advance notice is not an open solicitation.',
+        {
+          ...result,
+          opportunities: result.opportunities.map((row) => toFacts(row)),
+          clientId: input.clientId,
+          hasMore,
+          nextPage: hasMore ? result.page + 1 : null,
+          coverage: {
+            sources: source ? [source] : [...OPPORTUNITY_SOURCES],
+            pageCoversMatchedResults: !hasMore && result.page === 1 && !result.totalIsCapped,
+            totalIsCapped: result.totalIsCapped,
+            explanation: result.totalIsCapped
+              ? 'The canonical source scan reached its bound. Page through these results and narrow the search; this is not the complete opportunity universe.'
+              : 'Pagination covers the canonical matched results. Source freshness and profile gaps limit conclusions; no matching result does not prove no opportunity exists.',
+            procurementForecasts: { state: 'separate_tool', tool: 'search_procurement_forecasts' },
+          },
+        },
+      ),
+    );
+  }
+
+  async getFundingOpportunityRequirements(
+    actor: ToolActor,
+    input: {
+      clientId: string;
+      source: string;
+      sourceRecordId: string;
+      offset?: number;
+      limit?: number;
+    },
+    asOf: Date = new Date(),
+  ): Promise<MeriToolEnvelope<RequirementsResponse>> {
+    const tool: MeriOpportunityTool = 'get_funding_opportunity_requirements';
+    const refusal = await this.gate<RequirementsResponse>(tool, actor, input.clientId, asOf);
+    if (refusal) return refusal;
+    if (input.source !== 'sam_gov') {
+      return envelope(
+        tool,
+        'unsupported_source',
+        asOf,
+        'Extracted requirements are available for SAM.gov documents. For Grants.gov, read get_funding_opportunity and continue its summaryRead; missing terms are not evidence of no conditions.',
+      );
+    }
+    if (
+      !isUuid(input.sourceRecordId) ||
+      !validInteger(input.offset, 0, 1_000_000) ||
+      !validInteger(input.limit, 1, 25)
+    ) {
+      return envelope(
+        tool,
+        'invalid_request',
+        asOf,
+        'Use a SAM opportunity UUID, offset >= 0 and limit 1–25.',
+      );
+    }
+    let documentsEnabled = false;
+    try {
+      documentsEnabled = await isFundingOpportunitiesFeatureEnabled(
+        this.prisma,
+        actor.tenantId,
+        FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE,
+      );
+    } catch {
+      /* Same fail-closed capability boundary as the document route. */
+    }
+    if (!documentsEnabled)
+      return envelope(
+        tool,
+        'disabled',
+        asOf,
+        'Funding opportunity document access is not enabled. No claim about mandatory conditions can be made from this unavailable source.',
+      );
+    const row = await this.readOne(actor, 'sam_gov', input.sourceRecordId, input.clientId);
+    if (!row) return envelope(tool, 'not_found', asOf, NOT_FOUND_EXPLANATION);
+    const result = await this.requirements.getRequirements(
+      actor.tenantId,
+      'sam_gov',
+      input.sourceRecordId,
+      asOf,
+      { offset: input.offset ?? 0, limit: input.limit ?? 10 },
+    );
+    return cap(
+      envelope(
+        tool,
+        'available',
+        asOf,
+        'Canonical solicitation requirements with source excerpts, page/span, extraction confidence and this tenant’s review status. Pending, rejected and superseded extractions are not verified mandatory conditions; inspect the quoted current source before relying on them.',
+        result,
+      ),
+    );
+  }
+
   async getFundingOpportunity(
     actor: ToolActor,
-    input: { clientId: string; source: string; sourceRecordId: string },
+    input: {
+      clientId: string;
+      source: string;
+      sourceRecordId: string;
+      summaryOffset?: number;
+      summaryLimit?: number;
+    },
     asOf: Date = new Date(),
   ): Promise<MeriToolEnvelope<OpportunityFacts>> {
     const tool: MeriOpportunityTool = 'get_funding_opportunity';
     const refusal = await this.gate<OpportunityFacts>(tool, actor, input.clientId, asOf);
     if (refusal) return refusal;
+
+    if (
+      !validInteger(input.summaryOffset, 0, 100_000_000) ||
+      !validInteger(input.summaryLimit, 1, 12_000)
+    ) {
+      return envelope(
+        tool,
+        'invalid_request',
+        asOf,
+        'Use summaryOffset >= 0 and summaryLimit 1–12000 to read the notice body.',
+      );
+    }
 
     const source = asOpportunitySource(input.source);
     if (!source) return envelope(tool, 'unsupported_source', asOf, unsupportedSource(input.source));
@@ -277,7 +449,7 @@ export class MeriOpportunityToolsAdapter {
         'available',
         asOf,
         'Local Capiro record. No provider call was made.',
-        toFacts(row),
+        toFacts(row, { offset: input.summaryOffset, limit: input.summaryLimit }),
       ),
     );
   }
@@ -330,6 +502,7 @@ export class MeriOpportunityToolsAdapter {
         signal: s.signal,
       })),
       missingProfileFields: row.missingProfileFields,
+      facts: toFacts(row),
     };
 
     const out = envelope(tool, 'available', asOf, EXPLANATION_NOTE, data);
@@ -501,7 +674,7 @@ export class MeriOpportunityToolsAdapter {
               requested: { source: ref.source, sourceRecordId: ref.sourceRecordId },
               state: 'available',
               explanation: 'Local Capiro record.',
-              facts: toBrief(row),
+              facts: toFacts(row),
             }
           : {
               requested: { source: ref.source, sourceRecordId: ref.sourceRecordId },
@@ -645,17 +818,24 @@ export interface OpportunityBrief {
 }
 
 export interface OpportunityFacts extends OpportunityBrief {
+  clientId: string | null;
   sourceReference: string | null;
   subAgency: string | null;
   office: string | null;
   status: string | null;
+  kindRaw: FundingOpportunity['kindRaw'];
+  baseKind: FundingOpportunity['baseKind'];
+  closeOrArchiveDate: string | null;
   postedDate: string | null;
   summary: string | null;
   summaryIsLink: boolean;
   naicsCodes: string[];
   pscCodes: string[];
   setAside: string | null;
+  setAsideCode: string | null;
   eligibleApplicantTypes: string[];
+  fundingInstrument: string | null;
+  category: string | null;
   assistanceListings: string[];
   /**
    * Grant funding and contract value stay in SEPARATE fields and are never
@@ -667,9 +847,46 @@ export interface OpportunityFacts extends OpportunityBrief {
   placeOfPerformance: FundingOpportunity['placeOfPerformance'];
   acquisitionPosition: FundingOpportunity['acquisitionPosition'];
   missingProfileFields: FundingOpportunity['missingProfileFields'];
+  matchedSignals: FundingOpportunity['matchedSignals'];
+  districtKey: FundingOpportunity['districtKey'];
+  districtBasis: FundingOpportunity['districtBasis'];
+  evidence: {
+    recordRef: string;
+    recommendationConfidence:
+      | NonNullable<FundingOpportunity['recommendation']>['recommendationConfidence']
+      | null;
+    confidenceMeaning: string;
+    disqualifiers: Array<{ basis: 'canonical_eligibility'; reason: string }>;
+    missingFields: string[];
+    requirements: { state: 'not_requested' | 'notice_body'; tool: string };
+  };
+  summaryRead: {
+    state: 'available' | 'missing' | 'link_only';
+    offset: number;
+    totalCharacters: number;
+    returnedCharacters: number;
+    truncated: boolean;
+    nextOffset: number | null;
+    sourceUpdatedAt: string | null;
+  };
+}
+
+export interface OpportunitySearch extends Omit<FundingOpportunityListResponse, 'opportunities'> {
+  clientId: string;
+  opportunities: OpportunityFacts[];
+  hasMore: boolean;
+  nextPage: number | null;
+  coverage: {
+    sources: OpportunitySource[];
+    pageCoversMatchedResults: boolean;
+    totalIsCapped: boolean;
+    explanation: string;
+    procurementForecasts: { state: 'separate_tool'; tool: 'search_procurement_forecasts' };
+  };
 }
 
 export interface MatchExplanation {
+  facts: OpportunityFacts;
   ref: OpportunityRef;
   title: string;
   relevanceScore: number;
@@ -713,7 +930,7 @@ export interface ComparisonRow {
   requested: { source: string; sourceRecordId: string };
   state: Extract<MeriToolState, 'available' | 'not_found' | 'unsupported_source'>;
   explanation: string;
-  facts: OpportunityBrief | null;
+  facts: OpportunityFacts | null;
 }
 
 export interface Comparison {
@@ -847,27 +1064,83 @@ export function toBrief(row: FundingOpportunity): OpportunityBrief {
   };
 }
 
-export function toFacts(row: FundingOpportunity): OpportunityFacts {
+export function toFacts(
+  row: FundingOpportunity,
+  page: { offset?: number; limit?: number } = {},
+): OpportunityFacts {
+  const text = row.summary ?? '';
+  const offset = Math.min(page.offset ?? 0, text.length);
+  const end = Math.min(offset + (page.limit ?? MERI_TOOL_CAPS.summaryChars), text.length);
   return {
     ...toBrief(row),
+    clientId: row.clientId,
     sourceReference: row.sourceReference,
     subAgency: row.subAgency,
     office: row.office,
     status: row.status,
+    kindRaw: row.kindRaw,
+    baseKind: row.baseKind,
+    closeOrArchiveDate: row.closeOrArchiveDate,
     postedDate: row.postedDate,
-    summary: clampText(row.summary, MERI_TOOL_CAPS.summaryChars),
+    summary: row.summary == null ? null : text.slice(offset, end),
+    summaryRead: {
+      state: row.summaryIsLink ? 'link_only' : text ? 'available' : 'missing',
+      offset,
+      totalCharacters: text.length,
+      returnedCharacters: end - offset,
+      truncated: offset > 0 || end < text.length,
+      nextOffset: end < text.length ? end : null,
+      sourceUpdatedAt: row.sourceUpdatedAt,
+    },
     summaryIsLink: row.summaryIsLink,
     naicsCodes: row.naicsCodes,
     pscCodes: row.pscCodes,
     setAside: row.setAside,
+    setAsideCode: row.setAsideCode,
     eligibleApplicantTypes: row.eligibleApplicantTypes,
     assistanceListings: row.assistanceListings,
+    fundingInstrument: row.fundingInstrument,
+    category: row.category,
     grantFunding: row.grantFunding,
     contractValue: row.contractValue,
     placeOfPerformance: row.placeOfPerformance,
+    districtKey: row.districtKey,
+    districtBasis: row.districtBasis,
+    matchedSignals: row.matchedSignals,
     acquisitionPosition: row.acquisitionPosition,
     missingProfileFields: row.missingProfileFields,
+    evidence: {
+      recordRef: row.id,
+      recommendationConfidence: row.recommendation?.recommendationConfidence ?? null,
+      confidenceMeaning:
+        'Canonical recommendation evidence quality, not likelihood of winning or verified eligibility.',
+      disqualifiers:
+        row.eligibility.state === 'ineligible'
+          ? [{ basis: 'canonical_eligibility', reason: row.eligibility.reason }]
+          : [],
+      missingFields: [
+        ...(!row.sourceUrl ? ['sourceUrl'] : []),
+        ...(!row.sourceUpdatedAt ? ['sourceUpdatedAt'] : []),
+        ...(!row.responseDeadline && !row.responseDeadlineNote ? ['responseDeadline'] : []),
+        ...(!row.placeOfPerformance ? ['placeOfPerformance'] : []),
+        ...(row.source === 'grants_gov' && !row.eligibleApplicantTypes.length
+          ? ['eligibleApplicantTypes']
+          : []),
+        ...(!text || row.summaryIsLink ? ['noticeText'] : []),
+      ],
+      requirements:
+        row.source === 'sam_gov'
+          ? { state: 'not_requested', tool: 'get_funding_opportunity_requirements' }
+          : { state: 'notice_body', tool: 'get_funding_opportunity' },
+    },
   };
+}
+
+function validInteger(value: unknown, min: number, max: number): boolean {
+  return (
+    value === undefined ||
+    (typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max)
+  );
 }
 
 /**
@@ -897,7 +1170,7 @@ export function cap<T>(out: MeriToolEnvelope<T>): MeriToolEnvelope<T> {
   return {
     tool: out.tool,
     state: 'invalid_request',
-    explanation: `This result is ${size} characters, over Capiro’s ${MERI_TOOL_MAX_CHARS}-character tool limit. Narrow the request — ask about one opportunity rather than a comparison, or read the record in Capiro.`,
+    explanation: `This result is ${size} characters, over Capiro’s ${MERI_TOOL_MAX_CHARS}-character tool limit. Narrow the request: reduce pageSize, limit or summaryLimit, ask about one opportunity, or read the record in Capiro.`,
     asOf: out.asOf,
     data: null,
   };

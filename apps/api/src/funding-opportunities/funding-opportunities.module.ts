@@ -106,7 +106,7 @@ import {
     // resolvable here — see the note above) and ClientProfileEnrichmentService
     // (a sibling provider in this SAME module) — no new import needed.
     FederalBusinessProfileService,
-    // P37. Depends on PrismaService and two SIBLING providers in this module —
+    // Funding tools depend on PrismaService and three SIBLING providers in this module —
     // no new import, and deliberately no dependency on Meri. MeriModule imports
     // THIS module to reach the adapter; the reverse would be a cycle, since
     // MeriModule already imports eleven feature modules. See the adapter's own

@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import {
   assembleReportArtifact,
   buildPlanSystemPrompt,
@@ -76,7 +77,7 @@ describe('clio-research helpers', () => {
       const out = parsePlanProposal('not json at all', 'My Topic');
       expect(out.title).toBe('My Topic');
       expect(out.plan.length).toBeGreaterThan(0);
-      expect(out.clarifyingQuestions.length).toBeGreaterThan(0);
+      expect(out.clarifyingQuestions).toEqual([]);
     });
     it('falls back fields individually when partially present', () => {
       const raw = JSON.stringify({ title: '', plan: [], clarifyingQuestions: ['only q'] });
@@ -84,6 +85,21 @@ describe('clio-research helpers', () => {
       expect(out.title).toBe('Topic X'); // empty title -> fallback
       expect(out.plan.length).toBeGreaterThan(0); // empty plan -> fallback
       expect(out.clarifyingQuestions).toEqual(['only q']);
+    });
+    it('preserves an explicit empty clarification list for a context-complete request', () => {
+      const out = parsePlanProposal(JSON.stringify({
+        title: 'Client board briefing',
+        plan: ['Use the selected strategy and earlier attachment to recommend the next step'],
+        clarifyingQuestions: [],
+      }), 'Prepare the agreed briefing');
+      expect(out.clarifyingQuestions).toEqual([]);
+      expect(out.plan).toEqual(['Use the selected strategy and earlier attachment to recommend the next step']);
+    });
+    it('does not manufacture missing client or scope questions from an invalid list', () => {
+      const out = parsePlanProposal(JSON.stringify({
+        title: 'Briefing', plan: ['Verify the current source'], clarifyingQuestions: [null, 12, '  '],
+      }), 'Prepare the agreed briefing');
+      expect(out.clarifyingQuestions).toEqual([]);
     });
     it('tolerates JSON wrapped in prose + fences', () => {
       const raw = 'Sure!\n```json\n{"title":"T","plan":["a","b","c","d"],"clarifyingQuestions":["x","y","z"]}\n```';
@@ -158,6 +174,9 @@ describe('clio-research helpers', () => {
       expect(p).toContain('Meri');
       expect(p).toContain('clarifyingQuestions');
       expect(p).toContain('JSON');
+      expect(p).toContain('0-6 material questions');
+      expect(p).toContain('Put retrievable');
+      expect(p).not.toContain('3-6 questions');
     });
     it('plan user prompt includes topic and optional client context', () => {
       expect(buildPlanUserPrompt('topic A', null)).toContain('topic A');
@@ -169,6 +188,13 @@ describe('clio-research helpers', () => {
       expect(p.toLowerCase()).toContain('cite');
       expect(p.toLowerCase()).toContain('internal data tools first');
       expect(p).toContain('Recommended Actions');
+      expect(p).toContain(MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT);
+      expect(p).toContain('admitted in its governed context');
+      const chatAddendum = buildResearchSystemPrompt('Meri', { inheritChatOutputContract: true });
+      expect(chatAddendum).not.toContain(MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT);
+      expect(chatAddendum).toContain('REPORT REQUIREMENTS:');
+      expect(chatAddendum).toContain('Recommended Actions');
+      expect(chatAddendum).toContain('admitted in its governed context');
     });
     it('research user prompt threads plan + clarifications', () => {
       const u = buildResearchUserPrompt({

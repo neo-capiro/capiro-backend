@@ -1,9 +1,22 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { validateFormBCitations } from '@capiro/shared';
-import { runAuditor, ledgerToToolResultMap, type LedgerEntry, type MeriEvidenceManifest } from '@capiro/meriv2-core';
+import {
+  runAuditor,
+  ledgerToToolResultMap,
+  type LedgerEntry,
+  type MeriEvidenceManifest,
+} from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -34,7 +47,9 @@ import {
 } from './meri-thinking.helpers.js';
 
 import {
-  captureResearchHandoff, readResearchHandoff, researchHandoffPrompt,
+  captureResearchHandoff,
+  readResearchHandoff,
+  researchHandoffPrompt,
   type ResearchHandoffInput,
 } from './meri-research-handoff.js';
 import { attachmentMetaRef } from './meri-attachment.helpers.js';
@@ -42,6 +57,16 @@ import { MeriV3ResearchRunner, type ResearchRuntimeAuth } from './meri-v3-resear
 import type { MeriV3ProviderTelemetry } from './meriv3-chat.client.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
+
+import { randomUUID } from 'node:crypto';
+import { withMeriToolExecutionControl } from './meri-tool-request-control.js';
+import {
+  readResearchRun,
+  researchMetadata,
+  terminalResearchRun,
+  type ResearchRunState,
+  type ResearchRunPhase,
+} from './meri-research-run-state.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -78,6 +103,7 @@ interface SseSink {
 @Injectable()
 export class MeriResearchService {
   private readonly logger = new Logger(MeriResearchService.name);
+  private readonly activeRuns = new Map<string, AbortController>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -86,15 +112,23 @@ export class MeriResearchService {
     private readonly aiCredentials: AiCredentialResolverService,
     private readonly reviews: ReviewsService,
     @Optional() private readonly v3Research?: MeriV3ResearchRunner,
-    @Optional() @Inject(MERI_TURN_MAINTENANCE) private readonly turnMaintenance?: MeriTurnMaintenance,
+    @Optional()
+    @Inject(MERI_TURN_MAINTENANCE)
+    private readonly turnMaintenance?: MeriTurnMaintenance,
   ) {}
 
   // ── Session CRUD ─────────────────────────────────────────────────────────
 
-  async listSessions(ctx: TenantContext) {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+  async listSessions(ctx: TenantContext, conversationId?: string) {
+    const sessions = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioResearchSession.findMany({
-        where: { tenantId: ctx.tenantId, userId: ctx.userId },
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          ...(conversationId
+            ? { metadata: { path: ['handoff', 'conversationId'], equals: conversationId } }
+            : {}),
+        },
         orderBy: { updatedAt: 'desc' },
         take: 50,
         select: {
@@ -104,27 +138,94 @@ export class MeriResearchService {
           status: true,
           clientId: true,
           reportArtifactId: true,
+          metadata: true,
           createdAt: true,
           updatedAt: true,
         },
       }),
     );
+    const visible = await Promise.all(
+      sessions.map(async (session) => {
+        try {
+          await this.ensureSession(ctx, session.id);
+          const metadata = researchMetadata(session.metadata);
+          return {
+            ...session,
+            metadata: {
+              handoff: {
+                conversationId: readResearchHandoff(session.metadata)?.conversationId ?? null,
+              },
+              planMessageId: metadata.planMessageId,
+              reportMessageId: metadata.reportMessageId,
+            },
+            run: readResearchRun(session.metadata),
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return visible.filter((session) => session !== null);
   }
 
   async getSession(ctx: TenantContext, id: string) {
     const session = await this.ensureSession(ctx, id);
 
     // Attach the report artifact body when complete.
-    let report: { id: string; title: string; bodyText: string | null } | null = null;
+    let report: { id: string; title: string; bodyText: string | null; metadata?: unknown } | null =
+      null;
     if (session.reportArtifactId) {
       report = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioArtifact.findFirst({
           where: { id: session.reportArtifactId ?? undefined, tenantId: ctx.tenantId },
-          select: { id: true, title: true, bodyText: true },
+          select: { id: true, title: true, bodyText: true, metadata: true },
         }),
       );
     }
-    return { ...session, report };
+    // A held artifact is never released by reconnection or export.
+    if (report && researchMetadata(report.metadata).heldForReview === true)
+      report = {
+        ...report,
+        bodyText: 'Report held for review. Open Reviews before using this deliverable.',
+      };
+    let reportMetadata: Record<string, unknown> = {};
+    const reportMessageId = researchMetadata(session.metadata).reportMessageId;
+    if (report && typeof reportMessageId === 'string') {
+      const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioMessage.findFirst({
+          where: {
+            id: reportMessageId,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: session.clientId,
+            role: 'assistant',
+          },
+          select: { metadata: true },
+        }),
+      );
+      const metadata = researchMetadata(message?.metadata);
+      reportMetadata = Object.fromEntries(
+        [
+          'citations',
+          'trustSteps',
+          'trace',
+          'intent',
+          'tier',
+          'plan',
+          'contextPacketId',
+          'retrieval',
+          'verification',
+          'groundingCaveat',
+          'groundingStatement',
+          'telemetry',
+          'reasoningMode',
+          'evidenceManifest',
+        ]
+          .filter((key) => key in metadata)
+          .map((key) => [key, metadata[key]]),
+      );
+    }
+    return { ...session, run: readResearchRun(session.metadata), report, reportMetadata };
   }
 
   async createSession(ctx: TenantContext, input: ResearchHandoffInput) {
@@ -140,37 +241,76 @@ export class MeriResearchService {
           title: clampTitle(input.title?.trim() || topic),
           topic,
           status: 'plan',
-          metadata: { handoff } as unknown as Prisma.InputJsonObject,
+          metadata: {
+            handoff,
+            run: {
+              id: randomUUID(),
+              phase: 'plan',
+              status: 'interrupted',
+              readyToStart: true,
+              stage: 'Research request saved; planning has not started',
+              startedAt: new Date().toISOString(),
+              heartbeatAt: new Date().toISOString(),
+            },
+          } as unknown as Prisma.InputJsonObject,
         },
-        select: { id: true, title: true, topic: true, status: true, clientId: true, createdAt: true },
+        select: {
+          id: true,
+          title: true,
+          topic: true,
+          status: true,
+          clientId: true,
+          createdAt: true,
+        },
       });
       if (handoff.conversationId) {
         const staged = new Set(input.attachmentIds ?? []);
         const message = await tx.clioMessage.create({
           data: {
-            tenantId: ctx.tenantId, userId: ctx.userId, clientId: handoff.clientId,
-            conversationId: handoff.conversationId, role: 'user', body: topic,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: handoff.clientId,
+            conversationId: handoff.conversationId,
+            role: 'user',
+            body: topic,
             metadata: {
               researchSessionId: session.id,
-              attachments: handoff.attachments.filter((row) => staged.has(row.id)).map(attachmentMetaRef),
+              attachments: handoff.attachments
+                .filter((row) => staged.has(row.id))
+                .map(attachmentMetaRef),
             } as unknown as Prisma.InputJsonObject,
           },
           select: { id: true },
         });
         // Only claim unconsumed uploads. Existing evidence stays linked to its original turn.
         if (staged.size) {
-          const unconsumed = handoff.attachments.filter((row) => staged.has(row.id) && !row.sourceMessageId);
+          const unconsumed = handoff.attachments.filter(
+            (row) => staged.has(row.id) && !row.sourceMessageId,
+          );
           const claimed = await tx.clioAttachment.updateMany({
-            where: { id: { in: unconsumed.map((row) => row.id) }, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null },
+            where: {
+              id: { in: unconsumed.map((row) => row.id) },
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              messageId: null,
+            },
             data: { messageId: message.id },
           });
-          if (claimed.count !== unconsumed.length) throw new BadRequestException('A staged attachment was consumed by another conversation; retry research');
+          if (claimed.count !== unconsumed.length)
+            throw new BadRequestException(
+              'A staged attachment was consumed by another conversation; retry research',
+            );
         }
         await tx.clioConversation.update({
-          where: { id: handoff.conversationId }, data: { updatedAt: new Date() },
+          where: { id: handoff.conversationId },
+          data: { updatedAt: new Date() },
         });
       }
-      return { ...session, conversationId: handoff.conversationId, reasoningMode: handoff.reasoningMode };
+      return {
+        ...session,
+        conversationId: handoff.conversationId,
+        reasoningMode: handoff.reasoningMode,
+      };
     });
   }
 
@@ -198,10 +338,12 @@ export class MeriResearchService {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: { id: session.reportArtifactId ?? undefined, tenantId: ctx.tenantId },
-        select: { title: true, bodyText: true },
+        select: { title: true, bodyText: true, metadata: true },
       }),
     );
     if (!artifact) throw new NotFoundException('Report artifact not found');
+    if (researchMetadata(artifact.metadata).heldForReview === true)
+      throw new BadRequestException('This research report is held for review');
     return { title: artifact.title, markdown: artifact.bodyText ?? '' };
   }
 
@@ -212,26 +354,404 @@ export class MeriResearchService {
     for (const [k, v] of Object.entries(answers ?? {})) {
       if (typeof v === 'string' && v.trim()) clean[String(k)] = v.trim();
     }
+    if (
+      JSON.stringify(asStringRecord(session.clarifyingAnswers)) === JSON.stringify(clean) &&
+      session.status === 'researching'
+    )
+      return { ok: true };
+    if (session.reportArtifactId || readResearchRun(session.metadata)?.status === 'running')
+      throw new ConflictException(
+        'Research has already started; its clarification answers cannot change.',
+      );
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.clioResearchSession.update({
-        where: { id: session.id },
+      const changed = await tx.clioResearchSession.updateMany({
+        where: {
+          id: session.id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          metadata: { equals: session.metadata ?? {} },
+          reportArtifactId: null,
+        },
         data: {
           clarifyingAnswers: clean as Prisma.InputJsonValue,
+          metadata: {
+            ...researchMetadata(session.metadata),
+            answersRevision: randomUUID(),
+            run: {
+              id: randomUUID(),
+              phase: 'research',
+              status: 'interrupted',
+              readyToStart: true,
+              stage: 'Clarifications saved; research has not started',
+              startedAt: new Date().toISOString(),
+              heartbeatAt: new Date().toISOString(),
+            },
+          } as unknown as Prisma.InputJsonObject,
           status: 'researching',
           updatedAt: new Date(),
         },
       });
+      if (!changed.count)
+        throw new ConflictException('Research changed while saving answers; refresh its status.');
       const handoff = readResearchHandoff(session.metadata);
-      if (handoff?.conversationId) await tx.clioMessage.create({
-        data: {
-          tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId,
-          conversationId: handoff.conversationId, role: 'user',
-          body: `Research clarification answers:\n${JSON.stringify(clean)}`,
-          metadata: { researchSessionId: session.id },
-        },
-      });
+      if (handoff?.conversationId)
+        await tx.clioMessage.create({
+          data: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: session.clientId,
+            conversationId: handoff.conversationId,
+            role: 'user',
+            body: `Research clarification answers:\n${JSON.stringify(clean)}`,
+            metadata: { researchSessionId: session.id },
+          },
+        });
     });
     return { ok: true };
+  }
+
+  async streamPlan(ctx: TenantContext, id: string, sse: SseSink, auth: ResearchRuntimeAuth = {}) {
+    return this.withResearchRun(ctx, id, 'plan', sse, auth, (sink, runAuth) =>
+      this.runPlanStream(ctx, id, sink, runAuth),
+    );
+  }
+
+  async streamResearch(
+    ctx: TenantContext,
+    id: string,
+    sse: SseSink,
+    auth: ResearchRuntimeAuth = {},
+  ) {
+    return this.withResearchRun(ctx, id, 'research', sse, auth, (sink, runAuth) =>
+      this.runClaimedResearch(ctx, id, sink, runAuth),
+    );
+  }
+
+  async assertRunActive(ctx: TenantContext, id: string, runId: string) {
+    const session = await this.ensureSession(ctx, id);
+    const run = readResearchRun(session.metadata);
+    if (run?.id !== runId || run.status !== 'running')
+      throw new ConflictException('Research is no longer running.');
+    return { active: true };
+  }
+
+  /** Cancelling is an explicit action; a disconnected browser only detaches. */
+  async cancelRun(ctx: TenantContext, id: string) {
+    const session = await this.ensureSession(ctx, id);
+    const run = readResearchRun(session.metadata);
+    if (!run || !['running', 'interrupted'].includes(run.status)) return { ok: true, run };
+    const cancelled = terminalResearchRun(run, 'cancelled', 'Research stopped at your request');
+    const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioResearchSession.updateMany({
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          metadata: { equals: session.metadata ?? {} },
+        },
+        data: {
+          status: 'cancelled',
+          metadata: {
+            ...researchMetadata(session.metadata),
+            run: cancelled,
+          } as unknown as Prisma.InputJsonObject,
+          updatedAt: new Date(),
+        },
+      }),
+    );
+    if (!changed.count)
+      throw new ConflictException(
+        'Research changed while cancelling; refresh its status and retry.',
+      );
+    this.activeRuns.get(`${ctx.tenantId}:${ctx.userId}:${id}`)?.abort();
+    return { ok: true, run: cancelled };
+  }
+
+  private async withResearchRun(
+    ctx: TenantContext,
+    id: string,
+    phase: ResearchRunPhase,
+    output: SseSink,
+    auth: ResearchRuntimeAuth,
+    execute: (sink: SseSink, auth: ResearchRuntimeAuth) => Promise<void>,
+  ) {
+    // Suppress writes to a detached response; the run still persists its result.
+    const safeWrite = (data: string) => {
+      try {
+        output.write(data);
+      } catch {
+        /* detached */
+      }
+    };
+    let claimed: ResearchRunState | undefined;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let pending = Promise.resolve();
+    let stopping = false;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    auth.signal?.addEventListener('abort', abort, { once: true });
+    if (auth.signal?.aborted) controller.abort();
+    const key = `${ctx.tenantId}:${ctx.userId}:${id}`;
+    try {
+      const session = await this.ensureSession(ctx, id);
+      const previous = readResearchRun(session.metadata);
+      if (
+        session.reportArtifactId ||
+        (phase === 'plan' && asStringArray(session.plan).length > 0)
+      ) {
+        await this.replaySession(ctx, id, { write: safeWrite }, phase);
+        return;
+      }
+      if (previous?.status === 'running') {
+        safeWrite(sseEvent({ type: 'run', run: previous }));
+        safeWrite(sseEvent({ type: 'done' }));
+        return;
+      }
+      // A delayed pre-Stop POST cannot restart a cancelled or abandoned attempt.
+      // Only the explicit Resume control targets an existing attempt ID.
+      if (
+        previous &&
+        ['cancelled', 'failed', 'partial', 'interrupted'].includes(previous.status) &&
+        !(previous.status === 'interrupted' && previous.readyToStart === true) &&
+        auth.resumeRunId !== previous.id
+      ) {
+        safeWrite(sseEvent({ type: 'run', run: previous }));
+        safeWrite(sseEvent({ type: 'done' }));
+        return;
+      }
+      if (controller.signal.aborted) throw new BadRequestException('Research was cancelled.');
+      const now = new Date();
+      claimed = {
+        id: randomUUID(),
+        phase,
+        status: 'running',
+        stage: phase === 'plan' ? 'Planning the research' : 'Gathering evidence',
+        startedAt: now.toISOString(),
+        heartbeatAt: now.toISOString(),
+      };
+      const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioResearchSession.updateMany({
+          // Optimistic compare-and-swap: two API replicas cannot both own a run.
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            metadata: { equals: session.metadata ?? {} },
+            reportArtifactId: null,
+          },
+          data: {
+            status: phase === 'plan' ? 'plan' : 'researching',
+            metadata: {
+              ...researchMetadata(session.metadata),
+              run: claimed,
+            } as unknown as Prisma.InputJsonObject,
+            updatedAt: now,
+          },
+        }),
+      );
+      if (!result.count) {
+        const current = await this.ensureSession(ctx, id);
+        safeWrite(sseEvent({ type: 'run', run: readResearchRun(current.metadata) }));
+        safeWrite(sseEvent({ type: 'done' }));
+        return;
+      }
+      const run = claimed;
+      this.activeRuns.set(key, controller);
+      safeWrite(sseEvent({ type: 'run', run }));
+      const heartbeat = () => {
+        if (stopping) return;
+        pending = pending
+          .then(async () => {
+            if (stopping) return;
+            const current = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+              tx.clioResearchSession.findFirst({
+                where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+              }),
+            );
+            const stored = readResearchRun(current?.metadata);
+            if (!current || stored?.id !== run.id || stored.status !== 'running') {
+              controller.abort(researchLeaseError('Research lease is no longer active.'));
+              return;
+            }
+            const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+              tx.clioResearchSession.updateMany({
+                where: {
+                  id,
+                  tenantId: ctx.tenantId,
+                  userId: ctx.userId,
+                  metadata: { equals: current.metadata ?? {} },
+                },
+                data: {
+                  metadata: {
+                    ...researchMetadata(current.metadata),
+                    run: { ...run, heartbeatAt: new Date().toISOString() },
+                  } as unknown as Prisma.InputJsonObject,
+                  updatedAt: new Date(),
+                },
+              }),
+            );
+            if (!updated.count)
+              controller.abort(
+                researchLeaseError('Research lease changed while reporting progress.'),
+              );
+          })
+          .catch((error) => {
+            this.logger.warn(
+              `Research heartbeat failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+            );
+            controller.abort(
+              researchLeaseError('The worker could not confirm its research lease.'),
+            );
+          });
+      };
+      timer = setInterval(heartbeat, 10_000);
+      timer.unref?.();
+      const sink = {
+        write: (data: string) => {
+          try {
+            const event = JSON.parse(data.replace(/^data: /, '').trim()) as Record<string, unknown>;
+            if (event.type === 'progress' && typeof event.note === 'string') run.stage = event.note;
+            if (event.type === 'step' && typeof event.label === 'string')
+              run.stage = `Reading ${event.label}`;
+            // Stage-only records: elapsed time is not a completion percentage.
+          } catch {
+            /* non-data heartbeat */
+          }
+          safeWrite(data);
+        },
+      };
+      await execute(sink, { ...auth, run, signal: controller.signal });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Research failed';
+      if (claimed)
+        await this.markFailed(
+          ctx,
+          id,
+          { ...auth, run: claimed, signal: controller.signal },
+          message,
+        );
+      safeWrite(sseEvent({ type: 'error', message }));
+      safeWrite(sseEvent({ type: 'done' }));
+    } finally {
+      stopping = true;
+      if (timer) clearInterval(timer);
+      await pending;
+      auth.signal?.removeEventListener('abort', abort);
+      if (this.activeRuns.get(key) === controller) this.activeRuns.delete(key);
+    }
+  }
+
+  private async replaySession(
+    ctx: TenantContext,
+    id: string,
+    sse: SseSink,
+    phase: ResearchRunPhase,
+  ) {
+    const session = await this.getSession(ctx, id);
+    const metadata = researchMetadata(session.metadata);
+    sse.write(sseEvent({ type: 'run', run: session.run }));
+    if (session.report) {
+      sse.write(
+        sseEvent({
+          type: 'report',
+          artifactId: session.report.id,
+          body: session.report.bodyText ?? '',
+          messageId: metadata.reportMessageId,
+          conversationId:
+            readResearchHandoff(session.metadata)?.conversationId ?? metadata.backingConversationId,
+        }),
+      );
+    } else if (phase === 'plan') {
+      sse.write(sseEvent({ type: 'title', title: session.title }));
+      sse.write(sseEvent({ type: 'plan', plan: asStringArray(session.plan) }));
+      sse.write(
+        sseEvent({ type: 'clarify', questions: asStringArray(session.clarifyingQuestions) }),
+      );
+    }
+    sse.write(
+      sseEvent({
+        type: 'done',
+        ...(phase === 'plan' && typeof metadata.planMessageId === 'string'
+          ? { messageId: metadata.planMessageId }
+          : {}),
+      }),
+    );
+  }
+
+  /** Row update locks the lease inside the same transaction as the artifact write. */
+  private async fenceRun(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    id: string,
+    auth: ResearchRuntimeAuth,
+  ) {
+    if (!auth.run || auth.signal?.aborted)
+      throw new ConflictException('Research stopped before its result could be saved.');
+    const lock = await tx.clioResearchSession.updateMany({
+      where: {
+        id,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        metadata: { path: ['run', 'id'], equals: auth.run.id },
+        status: auth.run.phase === 'plan' ? 'plan' : 'researching',
+      },
+      data: { updatedAt: new Date() },
+    });
+    if (!lock.count)
+      throw new ConflictException(
+        'This research attempt no longer owns the run. Refresh to recover its current status.',
+      );
+  }
+
+  private async markFailed(
+    ctx: TenantContext,
+    id: string,
+    auth: ResearchRuntimeAuth,
+    failureReason = 'Research did not complete',
+  ) {
+    if (!auth.run) return;
+    try {
+      const current = await this.ensureSession(ctx, id);
+      if (readResearchRun(current.metadata)?.id !== auth.run.id || current.status === 'complete')
+        return;
+      const leaseLost =
+        auth.signal?.reason instanceof Error && auth.signal.reason.name === 'ResearchLeaseError';
+      if (leaseLost) failureReason = auth.signal!.reason.message;
+      const status = leaseLost
+        ? 'interrupted'
+        : auth.signal?.aborted
+          ? 'cancelled'
+          : /partial|did not complete|without a completed/i.test(failureReason)
+            ? 'partial'
+            : 'failed';
+      const run = {
+        ...terminalResearchRun(auth.run, status, failureReason),
+        failureReason: failureReason.slice(0, 500),
+      };
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioResearchSession.updateMany({
+          where: {
+            id,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            status: { in: ['plan', 'researching'] },
+            metadata: { equals: current.metadata ?? {} },
+          },
+          data: {
+            status: status === 'cancelled' ? 'cancelled' : 'failed',
+            metadata: {
+              ...researchMetadata(current.metadata),
+              run,
+            } as unknown as Prisma.InputJsonObject,
+            updatedAt: new Date(),
+          },
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Could not persist research failure: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+    }
   }
 
   // ── Phase 1: PLAN (streamed) ───────────────────────────────────────────────
@@ -241,14 +761,24 @@ export class MeriResearchService {
    * questions. Persists them on the session and emits a `clarify` SSE event the
    * UI renders as an answer form.
    */
-  async streamPlan(ctx: TenantContext, id: string, sse: SseSink, auth: ResearchRuntimeAuth = {}) {
+  private async runPlanStream(
+    ctx: TenantContext,
+    id: string,
+    sse: SseSink,
+    auth: ResearchRuntimeAuth = {},
+  ) {
     const session = await this.ensureSession(ctx, id);
     sse.write(sseEvent({ type: 'phase', phase: 'plan' }));
 
     const clientContext = await this.clientContext(ctx, session.clientId);
     const system = buildPlanSystemPrompt(PRODUCT_NAME);
     const handoff = readResearchHandoff(session.metadata);
-    const user = [buildPlanUserPrompt(session.topic, clientContext), researchHandoffPrompt(handoff, session.id)].filter(Boolean).join('\n\n');
+    const user = [
+      buildPlanUserPrompt(session.topic, clientContext),
+      researchHandoffPrompt(handoff, session.id),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
     // The planning call emits nothing until it returns, and it may take as long
     // as CLIO_REQUEST_TIMEOUT_MS — which would otherwise be silence long enough
@@ -266,33 +796,58 @@ export class MeriResearchService {
     progress.set('Planning the research…');
 
     let proposal: PlanProposal;
-    const useV3 = this.v3Research && await this.v3Research.enabled(ctx);
+    const useV3 = this.v3Research && (await this.v3Research.enabled(ctx));
     try {
       const raw = useV3
-        ? await this.v3Research!.plan(ctx, {
-            sessionId: session.id, topic: session.topic, clientId: session.clientId,
-            system, user, handoff,
-          }, auth)
-        : await this.anthropicComplete(ctx.tenantId, system, user);
+        ? await this.v3Research!.plan(
+            ctx,
+            {
+              sessionId: session.id,
+              topic: session.topic,
+              clientId: session.clientId,
+              system,
+              user,
+              handoff,
+            },
+            auth,
+          )
+        : await this.anthropicComplete(ctx.tenantId, system, user, auth.signal);
       proposal = parsePlanProposal(raw, session.topic);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Planning failed';
       this.logger.warn(`Research plan failed: ${msg}`);
-      if (useV3) {
-        // A failed configured provider must remain a visible failure; do not
-        // label a deterministic substitute as its completed research plan.
-        await this.markFailed(ctx, session.id);
-        sse.write(sseEvent({ type: 'error', message: msg }));
-        sse.write(sseEvent({ type: 'done' }));
-        return;
-      }
-      // Fall back to a safe deterministic plan so the lobbyist is never stuck.
-      proposal = parsePlanProposal('', session.topic);
+      // A failed provider is a recoverable failed attempt, never a fabricated plan.
+      await this.markFailed(ctx, session.id, auth, msg);
+      sse.write(sseEvent({ type: 'error', message: msg }));
+      sse.write(sseEvent({ type: 'done' }));
+      return;
     } finally {
       progress.stop();
     }
 
     const planMessageId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.fenceRun(tx, ctx, session.id, auth);
+      if (
+        session.clientId &&
+        !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))
+      )
+        throw new NotFoundException('Research session not found');
+      if (
+        handoff?.conversationId &&
+        !(await tx.clioConversation.findFirst({
+          where: {
+            id: handoff.conversationId,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: session.clientId,
+            archivedAt: null,
+          },
+          select: { id: true },
+        }))
+      )
+        throw new BadRequestException(
+          'The originating conversation is no longer available in this client scope',
+        );
       await tx.clioResearchSession.update({
         where: { id: session.id },
         data: {
@@ -300,19 +855,48 @@ export class MeriResearchService {
           plan: proposal.plan as Prisma.InputJsonValue,
           clarifyingQuestions: proposal.clarifyingQuestions as Prisma.InputJsonValue,
           status: 'awaiting_clarification',
+          metadata: {
+            ...researchMetadata(session.metadata),
+            run: terminalResearchRun(
+              auth.run!,
+              'awaiting_clarification',
+              proposal.clarifyingQuestions.length
+                ? 'Waiting for your clarification answers'
+                : 'Plan ready; research can begin',
+            ),
+          } as unknown as Prisma.InputJsonObject,
           updatedAt: new Date(),
         },
       });
-      const planMessage = handoff?.conversationId ? await tx.clioMessage.create({
-        data: {
-          tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId,
-          conversationId: handoff.conversationId, role: 'assistant',
-          body: `Research plan — ${proposal.title}\n\n${proposal.plan.map((step, index) => `${index + 1}. ${step}`).join('\n')}` +
-            (proposal.clarifyingQuestions.length ? `\n\nClarifying questions:\n${proposal.clarifyingQuestions.join('\n')}` : ''),
-          metadata: { researchSessionId: session.id },
-        },
-        select: { id: true },
-      }) : null;
+      const planMessage = handoff?.conversationId
+        ? await tx.clioMessage.create({
+            data: {
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              clientId: session.clientId,
+              conversationId: handoff.conversationId,
+              role: 'assistant',
+              body:
+                `Research plan — ${proposal.title}\n\n${proposal.plan.map((step, index) => `${index + 1}. ${step}`).join('\n')}` +
+                (proposal.clarifyingQuestions.length
+                  ? `\n\nClarifying questions:\n${proposal.clarifyingQuestions.join('\n')}`
+                  : ''),
+              metadata: { researchSessionId: session.id },
+            },
+            select: { id: true },
+          })
+        : null;
+      if (planMessage)
+        await tx.clioResearchSession.update({
+          where: { id: session.id },
+          data: {
+            metadata: {
+              ...researchMetadata(session.metadata),
+              run: terminalResearchRun(auth.run!, 'awaiting_clarification', 'Plan ready'),
+              planMessageId: planMessage.id,
+            } as unknown as Prisma.InputJsonObject,
+          },
+        });
       return planMessage?.id ?? null;
     });
 
@@ -328,7 +912,12 @@ export class MeriResearchService {
    * Run the selected provider with read-only research tools. Both runtimes share
    * evidence checks and report persistence in the originating conversation.
    */
-  async streamResearch(ctx: TenantContext, id: string, sse: SseSink, auth: ResearchRuntimeAuth = {}) {
+  private async runClaimedResearch(
+    ctx: TenantContext,
+    id: string,
+    sse: SseSink,
+    auth: ResearchRuntimeAuth = {},
+  ) {
     // A research run is minutes long and — under MERI_AUDITOR_MODE=enforce — emits
     // NO report text until the post-hoc audit clears it (see bufferReport below).
     // Without a heartbeat the reader stares at an empty assistant bubble for the
@@ -350,7 +939,7 @@ export class MeriResearchService {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Research failed';
       this.logger.warn(`Research run failed: ${message}`);
-      await this.markFailed(ctx, id);
+      await this.markFailed(ctx, id, auth, message);
       sse.write(sseEvent({ type: 'error', message }));
       sse.write(sseEvent({ type: 'done' }));
     } finally {
@@ -373,36 +962,58 @@ export class MeriResearchService {
     const clientContext = await this.clientContext(ctx, session.clientId);
 
     const handoff = readResearchHandoff(session.metadata);
-    const user = [buildResearchUserPrompt({
-      topic: session.topic, plan, clarifyingQuestions, clarifyingAnswers, clientContext,
-    }), researchHandoffPrompt(handoff, session.id)].filter(Boolean).join('\n\n');
+    const user = [
+      buildResearchUserPrompt({
+        topic: session.topic,
+        plan,
+        clarifyingQuestions,
+        clarifyingAnswers,
+        clientContext,
+      }),
+      researchHandoffPrompt(handoff, session.id),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
     sse.write(sseEvent({ type: 'phase', phase: 'gather' }));
-    if (this.v3Research && await this.v3Research.enabled(ctx)) {
+    if (this.v3Research && (await this.v3Research.enabled(ctx))) {
       progress.set('Researching with the conversation’s selected reasoning mode…');
-      const result = await this.v3Research.run(ctx, {
-        sessionId: session.id, conversationId: handoff?.conversationId ?? null,
-        clientId: session.clientId, system: buildResearchSystemPrompt(PRODUCT_NAME),
-        user, handoff, clientContext,
-      }, auth, (event) => {
-        // The shared report/audit tail delivers text after evidence checks.
-        if (event.type !== 'text' && event.type !== 'done') sse.write(sseEvent(event));
-      });
+      const result = await this.v3Research.run(
+        ctx,
+        {
+          sessionId: session.id,
+          conversationId: handoff?.conversationId ?? null,
+          clientId: session.clientId,
+          system: buildResearchSystemPrompt(PRODUCT_NAME, { inheritChatOutputContract: true }),
+          user,
+          handoff,
+          clientContext,
+        },
+        auth,
+        (event) => {
+          // Progress follows observed provider/tool events, never an elapsed-time percentage.
+          if (event.type === 'step' && typeof event.label === 'string')
+            progress.set(`Reading ${event.label}…`);
+          else if (event.type === 'source')
+            progress.set('Reviewing the retrieved evidence for the report…');
+          // The shared report/audit tail delivers text after evidence checks.
+          if (event.type !== 'text' && event.type !== 'done') sse.write(sseEvent(event));
+        },
+      );
       await this.finishResearch(ctx, session, sse, progress, {
-        ...result, auditorMode: await resolveTenantAuditorMode(this.prisma, ctx.tenantId),
+        ...result,
+        runAuth: auth,
+        auditorMode: await resolveTenantAuditorMode(this.prisma, ctx.tenantId),
         bufferReport: true,
       });
       return;
     }
 
-
     // BYOK: run Deep Research gather on the tenant's own key when set, else the
     // global fallback (resolver). Model stays CLIO_RESEARCH_MODEL.
     const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
     if (!resolved) {
-      sse.write(sseEvent({ type: 'error', message: 'ANTHROPIC_API_KEY not configured' }));
-      sse.write(sseEvent({ type: 'done' }));
-      return;
+      throw new BadRequestException('ANTHROPIC_API_KEY not configured');
     }
     const anthropicKey = resolved.apiKey;
 
@@ -515,6 +1126,8 @@ export class MeriResearchService {
 
     try {
       for (let round = 0; round < maxRounds; round += 1) {
+        if (auth.run) await this.assertRunActive(ctx, id, auth.run.id);
+        if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
         // Budget gate: stop opening new gather rounds once the reserve is all
         // that's left. Falling out here leaves endedCleanly === false, so the
         // forced-synthesis pass below still writes a report from the evidence
@@ -559,7 +1172,9 @@ export class MeriResearchService {
               tools: toolSchemas,
               messages,
             }),
-            signal: controller.signal,
+            signal: auth.signal
+              ? AbortSignal.any([controller.signal, auth.signal])
+              : controller.signal,
           });
 
           if (!response.ok || !response.body) {
@@ -641,7 +1256,7 @@ export class MeriResearchService {
 
         // If the model did not request tools, it wrote its final report.
         if (stopReason !== 'tool_use' || toolUseById.size === 0) {
-          endedCleanly = true;
+          endedCleanly = stopReason === 'end_turn';
           break;
         }
 
@@ -655,6 +1270,8 @@ export class MeriResearchService {
           ...thinkingReplayBlocks(thinkingState),
         ];
         for (const t of orderedTools) {
+          if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
+          if (auth.run) await this.assertRunActive(ctx, id, auth.run.id);
           let parsedInput: Record<string, unknown> = {};
           const raw = t.jsonParts.join('');
           if (raw.trim()) {
@@ -670,6 +1287,8 @@ export class MeriResearchService {
 
         const toolResultBlocks: Array<Record<string, unknown>> = [];
         for (const t of orderedTools) {
+          if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
+          if (auth.run) await this.assertRunActive(ctx, id, auth.run.id);
           let parsedInput: Record<string, unknown> = {};
           const raw = t.jsonParts.join('');
           if (raw.trim()) {
@@ -724,7 +1343,10 @@ export class MeriResearchService {
             );
           } else {
             try {
-              resultPayload = await this.tools.execute(ctx, t.name as never, parsedInput);
+              resultPayload = await withMeriToolExecutionControl(
+                { signal: auth.signal, deadlineAt },
+                () => this.tools.execute(ctx, t.name as never, parsedInput),
+              );
             } catch (err) {
               isError = true;
               resultPayload = {
@@ -776,13 +1398,16 @@ export class MeriResearchService {
       // cleanly but produced no prose. Make one final NO-TOOLS call so the model
       // must produce the report from the evidence it already gathered.
       if (!endedCleanly || !reportBody.trim()) {
+        if (auth.run) await this.assertRunActive(ctx, id, auth.run.id);
+        if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
+        endedCleanly = false;
         // Discard gather-phase narration so the forced pass writes a clean
         // report instead of appending it to the narration.
         if (!endedCleanly) reportBody = '';
         messages.push({
           role: 'user',
           content:
-            'You have gathered enough. Do NOT call any more tools. Write the full, decision-grade ' +
+            'The research budget is ending. Do NOT call any more tools. Clearly identify missing evidence and material uncertainty. Write the decision-grade ' +
             'research report NOW, in markdown, following the report requirements: Executive Summary, ' +
             'plan-driven sections with inline source citations, Recommended Actions, and Open Questions.',
         });
@@ -823,7 +1448,9 @@ export class MeriResearchService {
               // No `tools` key → the model cannot call tools and must answer.
               messages,
             }),
-            signal: controller.signal,
+            signal: auth.signal
+              ? AbortSignal.any([controller.signal, auth.signal])
+              : controller.signal,
           });
           if (!response.ok || !response.body) {
             const errText = await response.text().catch(() => '');
@@ -848,6 +1475,8 @@ export class MeriResearchService {
               if (!payload || payload === '[DONE]') continue;
               try {
                 const evt = JSON.parse(payload);
+                if (evt.type === 'message_delta' && evt.delta?.stop_reason === 'end_turn')
+                  endedCleanly = true;
                 if (
                   evt.type === 'content_block_delta' &&
                   evt.delta?.type === 'thinking_delta' &&
@@ -889,8 +1518,20 @@ export class MeriResearchService {
       sse.write(sseEvent({ type: 'error', message: msg }));
     }
 
+    if (auth.signal?.aborted) throw new BadRequestException('Research was cancelled.');
+    if (!endedCleanly)
+      throw new BadRequestException(
+        'Research did not complete; partial provider output has not been released as a report.',
+      );
     await this.finishResearch(ctx, session, sse, progress, {
-      reportBody, sources, toolsUsed, ledgerEntries, model, auditorMode, bufferReport,
+      reportBody,
+      sources,
+      toolsUsed,
+      ledgerEntries,
+      model,
+      auditorMode,
+      bufferReport,
+      runAuth: auth,
     });
   }
 
@@ -900,6 +1541,7 @@ export class MeriResearchService {
     sse: SseSink,
     progress: ProgressReporter,
     result: {
+      runAuth: ResearchRuntimeAuth;
       reportBody: string;
       sources: SourceAttribution[];
       toolsUsed: string[];
@@ -917,7 +1559,8 @@ export class MeriResearchService {
     const { sources, toolsUsed, ledgerEntries, model, auditorMode, bufferReport } = result;
     const plan = asStringArray(session.plan);
     const handoff = readResearchHandoff(session.metadata);
-    if (!reportBody.trim()) throw new BadRequestException('Research did not produce a report. Please retry.');
+    if (!reportBody.trim())
+      throw new BadRequestException('Research did not produce a report. Please retry.');
     // Strip unresolved FORM B [S:tool:record_id] tokens from the report BEFORE
     // the auditor + persist. The research prompt instructs a FORM-B token on
     // every material claim, so a token whose tool wasn't called this turn (or
@@ -1020,7 +1663,6 @@ export class MeriResearchService {
       `the content is released; the saved report is marked *held for review*.` +
       (heldReason ? `\n>\n> ${heldReason.slice(0, 500)}` : '');
 
-
     // Persist the report artifact + link it to the session.
     progress.set('Saving the report…');
     const artifactBody = assembleReportArtifact({
@@ -1033,7 +1675,11 @@ export class MeriResearchService {
     });
 
     const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (session.clientId && !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))) {
+      await this.fenceRun(tx, ctx, session.id, result.runAuth);
+      if (
+        session.clientId &&
+        !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))
+      ) {
         throw new NotFoundException('Research session not found');
       }
       // Research started in chat stays in that thread. Standalone/older sessions
@@ -1042,13 +1688,23 @@ export class MeriResearchService {
         session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
           ? (session.metadata as Record<string, unknown>).backingConversationId
           : undefined;
-      let conversationId = handoff?.conversationId ?? (typeof existing === 'string' ? existing : null);
+      let conversationId =
+        handoff?.conversationId ?? (typeof existing === 'string' ? existing : null);
       if (handoff?.conversationId) {
         const origin = await tx.clioConversation.findFirst({
-          where: { id: handoff.conversationId, tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId, archivedAt: null },
+          where: {
+            id: handoff.conversationId,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: session.clientId,
+            archivedAt: null,
+          },
           select: { id: true },
         });
-        if (!origin) throw new BadRequestException('The originating conversation is no longer available in this client scope');
+        if (!origin)
+          throw new BadRequestException(
+            'The originating conversation is no longer available in this client scope',
+          );
       }
       if (!conversationId) {
         const conversation = await tx.clioConversation.create({
@@ -1065,27 +1721,54 @@ export class MeriResearchService {
         conversationId = conversation.id;
       }
 
-      const reportMessage = handoff?.conversationId ? await tx.clioMessage.create({
-        data: {
-          tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId,
-          conversationId, role: 'assistant', body: held ? heldNotice : artifactBody,
-          metadata: {
-            researchSessionId: session.id, researchReport: true, model,
-            reasoningMode: handoff.reasoningMode,
-            ...(result.telemetry ? {
-              telemetry: result.telemetry,
-              reasoningEffort: result.telemetry.effectiveReasoningEffort,
-              finishReason: result.telemetry.finishReason,
-              partial: result.telemetry.partial,
-            } : {}),
-            ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
-            ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
-            ...(result.citations ? { citations: result.citations } : {}),
-            ...(held ? { heldForReview: true } : {}),
-          } as unknown as Prisma.InputJsonObject,
-        },
-        select: { id: true },
-      }) : null;
+      const reportMessage = handoff?.conversationId
+        ? await tx.clioMessage.create({
+            data: {
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              clientId: session.clientId,
+              conversationId,
+              role: 'assistant',
+              body: held ? heldNotice : artifactBody,
+              metadata: {
+                researchSessionId: session.id,
+                researchReport: true,
+                model,
+                intent: 'deep_research',
+                tier: handoff.reasoningMode === 'fast' ? 'fast' : 'deep',
+                plan,
+                trustSteps: sources.map((source) => ({
+                  tool: source.tool,
+                  label: source.label,
+                  detail: source.summary,
+                  count: source.count,
+                  confidence: source.confidence,
+                  status: source.confidence === 'low' ? 'error' : 'done',
+                })),
+                ...(result.runAuth.governedContext
+                  ? {
+                      contextPacketId: result.runAuth.governedContext.contextPacket.packetId,
+                      retrieval: result.runAuth.governedContext.retrieval,
+                    }
+                  : {}),
+                reasoningMode: handoff.reasoningMode,
+                ...(result.telemetry
+                  ? {
+                      telemetry: result.telemetry,
+                      reasoningEffort: result.telemetry.effectiveReasoningEffort,
+                      finishReason: result.telemetry.finishReason,
+                      partial: result.telemetry.partial,
+                    }
+                  : {}),
+                ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
+                ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
+                ...(result.citations ? { citations: result.citations } : {}),
+                ...(held ? { heldForReview: true } : {}),
+              } as unknown as Prisma.InputJsonObject,
+            },
+            select: { id: true },
+          })
+        : null;
       const artifact = await tx.clioArtifact.create({
         data: {
           tenantId: ctx.tenantId,
@@ -1107,7 +1790,12 @@ export class MeriResearchService {
             ...(result.telemetry ? { telemetry: result.telemetry } : {}),
             ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
             ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
-            ...(handoff ? { reasoningMode: handoff.reasoningMode, originatingConversationId: handoff.conversationId } : {}),
+            ...(handoff
+              ? {
+                  reasoningMode: handoff.reasoningMode,
+                  originatingConversationId: handoff.conversationId,
+                }
+              : {}),
             // Phase 2.5-1: set only under enforce+finding; consumers/UI treat a
             // held report as not-yet-cleared (its body carries the banner too).
             ...(held ? { heldForReview: true } : {}),
@@ -1122,8 +1810,19 @@ export class MeriResearchService {
           reportArtifactId: artifact.id,
           sources: sources as unknown as Prisma.InputJsonValue,
           metadata: {
-            ...(session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata) ? session.metadata : {}),
+            ...(session.metadata &&
+            typeof session.metadata === 'object' &&
+            !Array.isArray(session.metadata)
+              ? session.metadata
+              : {}),
             backingConversationId: conversationId,
+            ...(result.citations ? { citations: result.citations } : {}),
+            run: terminalResearchRun(
+              result.runAuth.run!,
+              'complete',
+              held ? 'Report held for review' : 'Report saved',
+            ),
+            heldForReview: held,
             ...(result.telemetry ? { telemetry: result.telemetry } : {}),
             ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
             ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
@@ -1132,9 +1831,11 @@ export class MeriResearchService {
           updatedAt: new Date(),
         },
       });
-      if (handoff?.conversationId) await tx.clioConversation.update({
-        where: { id: conversationId }, data: { updatedAt: new Date() },
-      });
+      if (handoff?.conversationId)
+        await tx.clioConversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
       return { artifactId: artifact.id, messageId: reportMessage?.id ?? null, conversationId };
     });
     const artifactId = persisted.artifactId;
@@ -1143,7 +1844,9 @@ export class MeriResearchService {
       try {
         this.turnMaintenance?.scheduleAfterTurnMaintenance(ctx, handoff.conversationId);
       } catch (error) {
-        this.logger.warn(`Research conversation maintenance could not be scheduled: ${error instanceof Error ? error.message : 'unknown error'}`);
+        this.logger.warn(
+          `Research conversation maintenance could not be scheduled: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
       }
     }
 
@@ -1172,25 +1875,19 @@ export class MeriResearchService {
     // The report event REPLACES the whole chat message client-side — when held
     // (enforce only) it must carry the hold notice, never the report body, or
     // the buffering above would be undone at the finish line.
-    sse.write(sseEvent({
-      type: 'report', artifactId, messageId: persisted.messageId,
-      conversationId: persisted.conversationId, body: held ? heldNotice : artifactBody,
-    }));
+    sse.write(
+      sseEvent({
+        type: 'report',
+        artifactId,
+        messageId: persisted.messageId,
+        conversationId: persisted.conversationId,
+        body: held ? heldNotice : artifactBody,
+      }),
+    );
     sse.write(sseEvent({ type: 'done' }));
   }
 
   // ── internals ───────────────────────────────────────────────────────────
-
-  private async markFailed(ctx: TenantContext, id: string): Promise<void> {
-    try {
-      await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioResearchSession.updateMany({
-        where: { id, tenantId: ctx.tenantId, userId: ctx.userId, status: { not: 'complete' } },
-        data: { status: 'failed', updatedAt: new Date() },
-      }));
-    } catch (error) {
-      this.logger.warn(`Could not persist research failure: ${error instanceof Error ? error.message : 'unknown error'}`);
-    }
-  }
 
   private async ensureSession(ctx: TenantContext, id: string) {
     const session = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1199,17 +1896,32 @@ export class MeriResearchService {
       }),
     );
     if (!session) throw new NotFoundException('Research session not found');
-    if (session.clientId && !(await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId as string),
-    ))) throw new NotFoundException('Research session not found');
+    if (
+      session.clientId &&
+      !(await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId as string),
+      ))
+    )
+      throw new NotFoundException('Research session not found');
     const handoff = readResearchHandoff(session.metadata);
     if (handoff?.conversationId) {
       const originatingConversationId = handoff.conversationId;
-      const origin = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioConversation.findFirst({
-        where: { id: originatingConversationId, tenantId: ctx.tenantId, userId: ctx.userId, clientId: session.clientId, archivedAt: null },
-        select: { id: true },
-      }));
-      if (!origin || handoff.clientId !== session.clientId) throw new BadRequestException('The originating conversation is no longer available in this client scope');
+      const origin = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioConversation.findFirst({
+          where: {
+            id: originatingConversationId,
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: session.clientId,
+            archivedAt: null,
+          },
+          select: { id: true },
+        }),
+      );
+      if (!origin || handoff.clientId !== session.clientId)
+        throw new BadRequestException(
+          'The originating conversation is no longer available in this client scope',
+        );
     }
     return session;
   }
@@ -1234,7 +1946,12 @@ export class MeriResearchService {
   }
 
   /** Single non-streaming Anthropic completion (used for the PLAN phase). */
-  private async anthropicComplete(tenantId: string, system: string, user: string): Promise<string> {
+  private async anthropicComplete(
+    tenantId: string,
+    system: string,
+    user: string,
+    signal?: AbortSignal,
+  ): Promise<string> {
     // BYOK: tenant key (or global fallback) via resolver; model unchanged.
     const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
     if (!resolved) throw new Error('ANTHROPIC_API_KEY not configured');
@@ -1258,7 +1975,7 @@ export class MeriResearchService {
           system,
           messages: [{ role: 'user', content: user }],
         }),
-        signal: controller.signal,
+        signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
       });
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
@@ -1278,6 +1995,12 @@ export class MeriResearchService {
 }
 
 /* ── module-private pure helpers ─────────────────────────────────────────── */
+
+function researchLeaseError(message: string): Error {
+  const error = new Error(message);
+  error.name = 'ResearchLeaseError';
+  return error;
+}
 
 function sseEvent(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`;

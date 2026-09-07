@@ -45,6 +45,7 @@ export * from './llm/llm-client';
 export * from './tools/client/get-client-context';
 export * from './tools/delegated/delegated-tool';
 export * from './domain/domain-primer';
+export * from './domain/government-affairs-output';
 export * from './tools/hearing/tag-live-policy-mentions';
 export * from './tools/hearing/generate-post-hearing-summary';
 export * from './verifier/confidence';

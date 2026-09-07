@@ -1,5 +1,5 @@
-import { buildChatSystemPrompt } from './chat-prompt';
-import { KeywordIntentRouter } from '@capiro/meriv2-core';
+import { buildChatSystemPrompt, composeChatSystemPrompt } from './chat-prompt';
+import { KeywordIntentRouter, MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
 
 const ctx: MeriContext = {
@@ -10,6 +10,18 @@ const ctx: MeriContext = {
 };
 
 describe('buildChatSystemPrompt', () => {
+  it('gives both chat runtimes the shared professional contract in the cached base', () => {
+    const parts = composeChatSystemPrompt({ clientId: 'c1' }, ctx);
+    expect(parts.base).toContain(MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT);
+    expect(parts.dynamic).not.toContain(MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT);
+    expect(buildChatSystemPrompt({ clientId: 'c1' }, ctx)).toContain(parts.base);
+    // Prefetched governed evidence must remain usable without an unnecessary
+    // repeat lookup, and visible judgment must never request hidden reasoning.
+    expect(parts.base).toContain('admitted context evidence or a tool result');
+    expect(parts.base).not.toContain('show the chain');
+    expect(parts.base).not.toContain('trace to a tool result you retrieved this turn');
+  });
+
   it('injects pre-warmed memories so personal facts answer without a tool round (canary regression)', () => {
     const prompt = buildChatSystemPrompt(
       {

@@ -351,7 +351,7 @@ export function planMeriTurn(input: {
     };
   }
 
-  const explicitTarget = extractTargetHint(task);
+  const explicitTarget = extractTargetHint(task, Boolean(input.uiClientId));
   const targetIsUiClient =
     !!explicitTarget &&
     !!input.uiClientName &&
@@ -409,7 +409,12 @@ export function planMeriTurn(input: {
       subjectScope,
       targetHint,
       queryClass: 'lookup',
-      requestedDomains: explicitDomains,
+      // Selecting a task-specific rail must not hide the client's objectives,
+      // current strategy, relationships or governed constraints. These are
+      // inputs to the provider's analysis, not a second reasoning workflow.
+      requestedDomains: subjectScope === 'client'
+        ? uniqueDomains([...CLIENT_ANALYSIS_DOMAINS, ...explicitDomains])
+        : explicitDomains,
       query:
         subjectScope === 'client'
           ? undefined
@@ -424,7 +429,7 @@ export function planMeriTurn(input: {
       subjectScope,
       targetHint: null,
       queryClass: 'lookup',
-      requestedDomains: ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'],
+      requestedDomains: [...CLIENT_ANALYSIS_DOMAINS],
       // Client IDs already constrain these reads. Requiring the client's name
       // inside every strategy/task body incorrectly hides otherwise relevant work.
       query: undefined,
@@ -576,22 +581,26 @@ export function buildModelContextProjection(records: RetrievalRecord[]): {
   const projected: MeriContextEvidenceRecord[] = [];
   let used = 0;
   let truncated = false;
-  for (const record of records) {
+  // A large strategy/contact rail must not consume the packet before the
+  // meeting, hearing or other task evidence gets even one record. This changes
+  // only budget admission; source ordering within each domain stays intact.
+  for (const record of interleaveEvidenceDomains(records)) {
     const rawPayload = JSON.stringify(record.payload);
-    const rawProvenance = record.provenance ? JSON.stringify(record.provenance) : '';
+    // Event time and source-record update time are not the time of this read.
+    // Preserve both under their original semantics; never invent observedAt.
+    const sourceProvenance = {
+      ...record.provenance,
+      ...(validEvidenceDate(record.occurredAt) ? { recordOccurredAt: validEvidenceDate(record.occurredAt) } : {}),
+      ...(validEvidenceDate(record.updatedAt) ? { recordUpdatedAt: validEvidenceDate(record.updatedAt) } : {}),
+    };
+    const rawProvenance = Object.keys(sourceProvenance).length ? JSON.stringify(sourceProvenance) : '';
     const recordTruncated = rawPayload.length > MODEL_RECORD_CHAR_BUDGET || rawProvenance.length > 800;
     // The ledger receives precisely this bounded projection, never unseen full
     // text that could make an unsupported claim look grounded.
-    const payload = rawPayload.length > MODEL_RECORD_CHAR_BUDGET
-      ? {
-          title: typeof record.payload.title === 'string' ? record.payload.title.slice(0, 200) : `${record.domain}: ${record.recordId}`,
-          excerpt: boundedJson(record.payload, MODEL_RECORD_CHAR_BUDGET),
-          contentTruncated: true,
-        }
-      : record.payload;
+    const payload = projectEvidenceObject(record.payload, MODEL_RECORD_CHAR_BUDGET);
     const provenance = rawProvenance.length > 800
-      ? { excerpt: boundedJson(record.provenance, 800), contentTruncated: true }
-      : record.provenance;
+      ? projectEvidenceObject(sourceProvenance, 800)
+      : rawProvenance ? sourceProvenance : undefined;
     const source: MeriContextEvidenceRecord = {
       domain: record.domain,
       recordId: /^[^\]\s]{1,80}$/.test(record.recordId)
@@ -609,7 +618,7 @@ export function buildModelContextProjection(records: RetrievalRecord[]): {
     const block = `[S:context_plane:${source.recordId}]\n${JSON.stringify(source)}`;
     if (used + block.length > MODEL_CONTEXT_CHAR_BUDGET) {
       truncated = true;
-      break;
+      continue;
     }
     blocks.push(block);
     projected.push(source);
@@ -617,6 +626,26 @@ export function buildModelContextProjection(records: RetrievalRecord[]): {
     used += block.length;
   }
   return { text: blocks.join('\n\n'), truncated, records: projected };
+}
+
+function* interleaveEvidenceDomains(records: RetrievalRecord[]): Generator<RetrievalRecord> {
+  const groups = new Map<string, RetrievalRecord[]>();
+  for (const record of records) {
+    const group = groups.get(record.domain) ?? [];
+    group.push(record);
+    groups.set(record.domain, group);
+  }
+  let index = 0;
+  let hasMore = true;
+  while (hasMore) {
+    hasMore = false;
+    for (const group of groups.values()) {
+      if (index >= group.length) continue;
+      yield group[index]!;
+      hasMore = true;
+    }
+    index += 1;
+  }
 }
 
 function toMeriContextPacketSummary(
@@ -870,7 +899,10 @@ function toMeriRetrievalProjection(input: {
         input.projectionTruncated || coverage.sources.some((source) => source.truncated),
       sourceHealth: coverage.sources.map((source) => ({
         source: source.domain,
-        status: compatibilitySourceStatus(source.sourceStatus),
+        status: source.sourceStatus === 'healthy' &&
+          (!source.coverageComplete || !source.paginationComplete || source.truncated)
+          ? 'partial' as const
+          : compatibilitySourceStatus(source.sourceStatus),
         ...(source.lastSyncAt ? { lastSyncAt: source.lastSyncAt.toISOString() } : {}),
         ...(source.stopReason ? { detail: source.stopReason } : {}),
       })),
@@ -936,6 +968,11 @@ function buildMeriContextPrompt(input: {
     `partialDomains=${c.partialDomains.join(',') || '(none)'}`,
     `recordsEvaluated=${c.recordsEvaluated}`,
     `recordsReturned=${c.recordsReturned}`,
+    `paginationComplete=${c.paginationComplete}`,
+    `truncated=${c.truncated}`,
+    `sourceHealth=${JSON.stringify(c.sourceHealth)}`,
+    `unavailableSources=${JSON.stringify(c.unavailableSources)}`,
+    'Source sync time, record update time and event time are distinct; none implies verification at response time. Missing timestamps mean freshness is unknown. Retrieve current authoritative detail before a time-sensitive recommendation.',
     '',
     'GOVERNED STEERING:',
     rendered || '(no steering items selected)',
@@ -948,16 +985,44 @@ function buildMeriContextPrompt(input: {
     .join('\n');
 }
 
-function extractTargetHint(task: string): string | null {
-  const quoted = /["“]([^"”]{2,100})["”]/.exec(task)?.[1]?.trim();
-  if (quoted) return quoted;
-  const organization = /\b(?:about|research|regarding|on)\s+([A-Z][A-Za-z0-9&.' -]{1,100}?)(?=[?.!,;]|$)/.exec(task)?.[1]?.trim();
-  if (organization) return organization;
+function extractTargetHint(task: string, hasSelectedClient: boolean): string | null {
+  // A quoted constraint or an FY/committee identifier is not a request to
+  // replace the selected client with an external organization.
+  const clientCue = /\bfor (?:this|our|my|the selected) client\b/i.exec(task);
+  if (hasSelectedClient && clientCue && !/\b(?:not|except)\s*$/i.test(task.slice(0, clientCue.index))) return null;
+  for (const cue of task.matchAll(/\b(?:about|research|regarding|on)\s+/gi)) {
+    const rest = task.slice(cue.index! + cue[0].length);
+    const quoted = /^["“]([^"”]{2,100})["”]/.exec(rest)?.[1]?.trim();
+    if (quoted && !isGovernmentReference(quoted)) return quoted;
+    // Inspect the complete bill identifier before punctuation splits H.R. into H.
+    if (/^(?:H\.?\s*R\.?|S\.?|H\.?\s*J\.?\s*Res\.?|S\.?\s*J\.?\s*Res\.?)\s*\d+/i.test(rest)) continue;
+    const organization = /^([A-Z][A-Za-z0-9&.' -]{1,100}?)(?=[?.!,;]|$)/.exec(rest)?.[1]
+      ?.replace(/\s+(?:instead of|rather than|not for)\b.*$/i, '').trim();
+    if (organization && !isGovernmentReference(organization)) return organization;
+  }
+  // Preserve explicit external comparisons/analysis while rejecting incidental
+  // uppercase tokens elsewhere in a client-specific request.
+  const analysisCue = /^\s*(?:compare|assess|analy[sz]e|evaluate|investigate)\s+/i.exec(task);
+  const analysisTarget = analysisCue
+    ? /^([A-Z][A-Z0-9&.-]{1,11})\b/.exec(task.slice(analysisCue[0].length))?.[1]
+    : undefined;
+  if (analysisTarget && !TARGET_STOP_WORDS.has(analysisTarget) && !isGovernmentReference(analysisTarget)) return analysisTarget;
+  // Incidental acronyms (agency, bill, aircraft, program) are not an explicit
+  // instruction to discard the conversation's client. The provider can still
+  // investigate them using the normal tools with that client context intact.
+  if (hasSelectedClient) return null;
   const acronyms = task.match(/\b[A-Z][A-Z0-9&.-]{1,11}\b/g) ?? [];
   for (const acronym of acronyms) {
-    if (!TARGET_STOP_WORDS.has(acronym)) return acronym;
+    if (!TARGET_STOP_WORDS.has(acronym) && !isGovernmentReference(acronym)) return acronym;
   }
   return null;
+}
+
+function isGovernmentReference(value: string): boolean {
+  return /^FY\s*\d{2,4}(?:\b|$)/i.test(value)
+    || /^PE(?:\s*\d+[A-Z]?)?$/i.test(value)
+    || /^(?:HASC|SASC|HAC(?:-D)?|SAC(?:-D)?|NDAA|RDTE|RDT&E|USD)(?:$|\s+(?:staff|funding|appropriations|budget|mark|implementation|provisions|hearing)\b)/i.test(value)
+    || /^(?:H\.?\s*R\.?|S\.?|H\.?\s*J\.?\s*Res\.?|S\.?\s*J\.?\s*Res\.?)\s*\d+/i.test(value);
 }
 
 function normalizeEntityName(value: string): string {
@@ -977,15 +1042,39 @@ function isMissingStatus(status: RetrievalSourceStatus): boolean {
   return ['unavailable', 'unauthorized', 'unsupported', 'error'].includes(status);
 }
 
-function boundedJson(value: unknown, maxChars: number): string {
-  let text: string;
-  try {
-    text = JSON.stringify(value);
-  } catch {
-    text = String(value);
+/** Keep exact source qualifiers before excerpting long content. A JSON prefix
+ * could cut off a speaker, timestamp, URL or funding claim after a long body.
+ * Never truncate a number, identifier, URL or structured claim into a new fact. */
+function projectEvidenceObject(value: Record<string, unknown>, budget: number): Record<string, unknown> {
+  if (JSON.stringify(value).length <= budget) return value;
+  const result: Record<string, unknown> = { contentTruncated: true };
+  const entries = Object.entries(value).filter(([key]) => key !== 'contentTruncated');
+  const priority = (key: string) => /(?:claim|provenance|source|fiscal|stage|unit|currency|speaker|timestamp|startMs|endMs|occurredAt|updatedAt|observedAt|fetchedAt|syncedAt|recordOccurredAt|recordUpdatedAt|characterStart|characterEnd|contentHash|hearingId|peCode|projectId|lineId|documentSection|page|jurisdiction|session|version|eligibility|disqualifier|deadline|condition)/i.test(key) ? 0 : 1;
+  const ordered = [...entries].sort(([left], [right]) => priority(left) - priority(right));
+  for (const [key, item] of ordered) {
+    // Long content is considered only after all exact compact qualifiers.
+    if ((JSON.stringify(item)?.length ?? 0) > 1000 && (typeof item !== 'object' || priority(key) !== 0)) continue;
+    if (JSON.stringify({ ...result, [key]: item }).length <= budget) result[key] = item;
   }
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, Math.max(0, maxChars - 32))}…[record truncated]`;
+  const excerpts: Record<string, string> = {};
+  for (const [key, item] of entries) {
+    if (key in result || typeof item !== 'string' || !/^(text|body|textContent|content|summary|description|evidenceText|details|narrative)$/i.test(key)) continue;
+    let low = 0;
+    let high = item.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      const candidate = { ...result, excerpts: { ...excerpts, [key]: item.slice(0, middle) } };
+      if (JSON.stringify(candidate).length <= budget) low = middle;
+      else high = middle - 1;
+    }
+    if (low > 0) excerpts[key] = item.slice(0, low);
+  }
+  if (Object.keys(excerpts).length) result.excerpts = excerpts;
+  return result;
+}
+
+function validEvidenceDate(value: Date | null | undefined): string | undefined {
+  return value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : undefined;
 }
 
 function uniqueDomains(values: readonly RetrievalDomain[]): RetrievalDomain[] {
@@ -1013,7 +1102,8 @@ function isTrivialTurn(lower: string): boolean {
 }
 
 const PORTFOLIO_RE = /\b(portfolio|all (?:of )?(?:our|my) clients|across (?:our|my) clients|client book|book of business)\b/i;
+const CLIENT_ANALYSIS_DOMAINS: readonly RetrievalDomain[] = ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'];
 const PERSONAL_MEMORY_RE = /\b(remember|memory|nickname|preference|preferences|my voice|my tone|about me|about us|how i write|how we write)\b/i;
 const RELATIONSHIP_RE = /\b(history|relationship|relationships|communications|correspondence|interactions|engagement history)\b/i;
 const CHANGE_RE = /\b(changed|changes|new since|since last|recent changes|what's new|what is new|last \d+ (?:days?|weeks?|months?))\b/i;
-const TARGET_STOP_WORDS = new Set(['I', 'AI', 'API', 'CAPIRO', 'MERI', 'US', 'USA', 'DOD', 'DOW']);
+const TARGET_STOP_WORDS = new Set(['I', 'AI', 'API', 'CAPIRO', 'MERI', 'US', 'USA', 'DOD', 'DOW', 'FY']);

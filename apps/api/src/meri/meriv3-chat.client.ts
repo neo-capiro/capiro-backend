@@ -223,6 +223,7 @@ export class MeriV3ChatClient {
       currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
       reasoningMode: MeriV3ReasoningMode;
       toolPolicy?: 'none' | 'read-only';
+      researchRun?: { sessionId: string; runId: string };
       governedContext?: MeriGovernedTurnContext;
     };
     aiProvider?: ResolvedAiForChatHeader;

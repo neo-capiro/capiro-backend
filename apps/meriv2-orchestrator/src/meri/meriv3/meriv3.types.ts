@@ -44,6 +44,8 @@ export interface MeriV3ChatInput extends ChatInput {
   reasoningMode?: MeriV3ReasoningMode;
   /** A caller may only narrow the normal governed full-chat capabilities. */
   toolPolicy?: 'none' | 'read-only';
+  /** Server-owned durable research lease; reauthorized before each dispatch. */
+  researchRun?: { sessionId: string; runId: string };
 }
 
 export interface MeriV3RetrievalSummary {

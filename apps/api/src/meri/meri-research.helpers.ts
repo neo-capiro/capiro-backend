@@ -19,6 +19,7 @@ import {
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
 } from '@capiro/shared';
+import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 
 export type ResearchPhase = 'plan' | 'clarify' | 'gather' | 'synthesize' | 'done' | 'error';
 
@@ -51,13 +52,19 @@ export function buildPlanSystemPrompt(productName: string): string {
     '{',
     '  "title": string,                  // <=120 chars, a precise title for this research',
     '  "plan": string[],                 // 4-8 concrete sub-questions / angles the report will answer',
-    '  "clarifyingQuestions": string[]   // 3-6 questions to ask the lobbyist first',
+    '  "clarifyingQuestions": string[]   // 0-6 material questions; [] when context is sufficient',
     '}',
     '',
     'Good clarifying questions a senior analyst asks: scope (federal/state/both), time horizon,',
     'which client or interest this serves, the decision the report will inform, specific',
     'bills/agencies/program elements/companies to anchor on, and the deliverable format',
-    '(memo, board brief, one-pager, talking points). Do NOT ask questions answerable from the topic alone.',
+    '(memo, board brief, one-pager, talking points). Use the supplied conversation, client context,',
+    'attachments, prior answers, and requested deliverable before deciding a question is missing.',
+    'Do NOT ask questions answerable from that context or from available research tools. Put retrievable',
+    'gaps into the plan. Ask only about material ambiguity or a user decision that could change the',
+    'recommendation. Return clarifyingQuestions: [] when no such question remains; never re-ask known scope.',
+    'The plan must cover the client objective and active strategy, source dates and exact evidence,',
+    'alternatives and uncertainty, practical next steps, and gaps that could change the recommendation.',
   ].join('\n');
 }
 
@@ -86,11 +93,10 @@ export function parsePlanProposal(raw: string, topic: string): PlanProposal {
       'What is the legislative / regulatory / budget landscape?',
       'What are the risks, opportunities, and likely trajectory?',
     ],
-    clarifyingQuestions: [
-      'Is this for a specific client, and if so which interest does it serve?',
-      'What decision will this report inform, and by when?',
-      'Should this focus on federal, state, or both?',
-    ],
+    // A parsing failure is not evidence of missing user scope. Do not replace
+    // an empty or malformed list with canned questions already answered in the
+    // immutable handoff. The research pass can retrieve and disclose real gaps.
+    clarifyingQuestions: [],
   };
 
   const json = extractFirstJsonObject(raw);
@@ -113,9 +119,7 @@ export function parsePlanProposal(raw: string, topic: string): PlanProposal {
   return {
     title,
     plan: plan.length ? plan : fallback.plan,
-    clarifyingQuestions: clarifyingQuestions.length
-      ? clarifyingQuestions
-      : fallback.clarifyingQuestions,
+    clarifyingQuestions,
   };
 }
 
@@ -125,7 +129,10 @@ export function parsePlanProposal(raw: string, topic: string): PlanProposal {
  * data tools first and use the web only to supplement, to cite every claim, and
  * to produce a structured, decision-grade report.
  */
-export function buildResearchSystemPrompt(productName: string): string {
+export function buildResearchSystemPrompt(
+  productName: string,
+  options: { inheritChatOutputContract?: boolean } = {},
+): string {
   return [
     // Zero-trust grounding kernel (v3 plan Wave 1) FIRST — deep research is the
     // most dangerous surface (the report outlives the chat and was self-audited
@@ -138,6 +145,9 @@ export function buildResearchSystemPrompt(productName: string): string {
     meriGroundingDateBlock(new Date().toISOString()),
     '',
     `You are ${productName}, a senior federal government-affairs research analyst.`,
+    // V3 composes this addendum with chat's cached base, which already owns
+    // the shared answer contract. Standalone/legacy research still needs it.
+    ...(options.inheritChatOutputContract ? [] : [MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT]),
     'You are producing a DEEP RESEARCH REPORT for a lobbyist. You have tools that query',
     "your firm's internal intelligence (lobbying disclosures, bills, hearings, rules, contracts,",
     'SEC/FARA filings, GAO/CRS reports, federal spending, grants, economic data, the client',
@@ -152,7 +162,7 @@ export function buildResearchSystemPrompt(productName: string): string {
     '3. Then WRITE the full report as your final message (plain assistant text, no tool call).',
     '   You MUST end the run by producing the written report — never finish on a tool call.',
     '   When you must synthesize with no further tool calls, use ONLY facts already retrieved in',
-    '   this run, each with its FORM-B token; if the evidence is thin, say so, name the gaps in the',
+    '   this run or admitted in its governed context, each with its FORM-B token; if the evidence is thin, say so, name the gaps in the',
     '   "Not found in retrieval" section, and stop — a shorter grounded report beats a',
     '   complete-looking ungrounded one. Do NOT write a section from background knowledge.',
     '',

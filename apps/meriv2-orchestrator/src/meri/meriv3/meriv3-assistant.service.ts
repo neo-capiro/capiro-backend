@@ -120,7 +120,7 @@ function finishInstructions(): string {
   return [
     '# FINISH NOW — answer the user',
     'Do not call any more tools.',
-    'Write the complete answer using only facts returned by tools in this turn or explicit user-provided context.',
+    'Write the complete answer using only admitted governed context evidence, facts returned by tools in this turn, or explicit user-provided context. Preserve their source references and the government-affairs output requirements above; label any remaining material gap.',
     'Separate verified facts from inference and recommendations.',
     'For anything requested but not verified, name the gap plainly rather than filling it with a plausible guess.',
     'Do not reveal private chain-of-thought. Give a concise explanation of conclusions and evidence instead.',
@@ -367,6 +367,7 @@ export class MeriV3AssistantService {
 
     const runForcedSynthesis = async (reason: string): Promise<string> => {
       assertToolExecutionActive(opts);
+      await this.assertResearchRunActive(dto, opts);
       const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
       const timeoutMs = Math.max(1, remainingMs);
       this.logger.warn(
@@ -399,6 +400,7 @@ export class MeriV3AssistantService {
     try {
       for (rounds = 0; rounds < profile.maxToolRounds; rounds += 1) {
         assertToolExecutionActive(opts);
+        await this.assertResearchRunActive(dto, opts);
         const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
         // Stop opening new gather rounds once only the synthesis reserve remains.
         if (remainingMs <= reserveMs) break;
@@ -492,13 +494,20 @@ export class MeriV3AssistantService {
       telemetry = {
         ...telemetry,
         partial: true,
-        finishReason: opts.signal?.aborted
-          ? opts.signal.reason?.name === 'TimeoutError'
-            ? 'deadline_exceeded'
-            : 'cancelled'
-          : 'runtime_error',
+        finishReason:
+          error instanceof Error && error.name === 'ResearchRunInactiveError'
+            ? 'cancelled'
+            : opts.signal?.aborted
+              ? opts.signal.reason?.name === 'TimeoutError'
+                ? 'deadline_exceeded'
+                : 'cancelled'
+              : 'runtime_error',
       };
-      if (opts.signal?.aborted) finalText = '';
+      if (
+        opts.signal?.aborted ||
+        (error instanceof Error && error.name === 'ResearchRunInactiveError')
+      )
+        finalText = '';
       else if (
         !finalText &&
         (gatheredToolOutput || toolsUsed.length > 0) &&
@@ -685,6 +694,7 @@ export class MeriV3AssistantService {
     const executions: FunctionExecution[] = [];
     for (const call of args.calls) {
       assertToolExecutionActive(args.control);
+      await this.assertResearchRunActive(args.dto, args.control);
       const schema = args.schemas.find((candidate) => candidate.name === call.name);
       // Enforce capability selection at execution too: a provider can emit an
       // undeclared call, but it cannot escape the caller's narrower tool policy.
@@ -1053,6 +1063,48 @@ export class MeriV3AssistantService {
     }
 
     return { reply: released, citations: usedCitations, held };
+  }
+
+  private async assertResearchRunActive(
+    dto: MeriV3ChatInput,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    if (!dto.researchRun) return;
+    const { sessionId, runId } = dto.researchRun;
+    const credentials = RequestCredentialsStore.get();
+    if (typeof sessionId !== 'string' || typeof runId !== 'string' || !credentials?.bearerToken)
+      throw new Error('Authenticated research run identity is required.');
+    const execution = createMeriExecutionControl(control, 10_000);
+    try {
+      execution.assertActive();
+      const response = await fetch(
+        `${this.apiBaseUrl}/api/clio/research/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/active`,
+        {
+          signal: execution.signal,
+          headers: {
+            authorization: `Bearer ${credentials.bearerToken}`,
+            accept: 'application/json',
+            ...(credentials.impersonateTenantId
+              ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
+              : {}),
+          },
+        },
+      );
+      if ([404, 409].includes(response.status)) {
+        const error = new Error(
+          'Research is stopped, superseded, or no longer accessible. No further calls were scheduled.',
+        );
+        error.name = 'ResearchRunInactiveError';
+        throw error;
+      }
+      if (!response.ok || ((await response.json()) as { active?: unknown }).active !== true)
+        throw new Error(
+          'Research run status could not be verified; no further calls were scheduled.',
+        );
+      execution.assertActive();
+    } finally {
+      execution.dispose();
+    }
   }
 
   private async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {

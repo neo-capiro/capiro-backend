@@ -49,8 +49,9 @@ describe('native capability registration contract', () => {
         name === 'get_district_federal_market'
           ? { state: 'VA', district: '10' }
           : { query: 'autonomy', limit: 10 };
-      await service.registry.invoke(name, input, ctx);
-      expect(execute).toHaveBeenCalledWith(ctx, name, input);
+      const control = { signal: new AbortController().signal, deadlineAt: Date.now() + 10_000 };
+      await service.registry.invoke(name, input, ctx, control);
+      expect(execute).toHaveBeenCalledWith(ctx, name, input, control);
     },
   );
 

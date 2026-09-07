@@ -1,8 +1,14 @@
+import { MeriRetrievalCoverage } from './MeriRetrievalCoverage.js';
+import { meriCoverageReason } from '../../components/chat/meri-retrieval-metadata.js';
 import type { ChatMessageRetrieval, GroundingCaveat } from '../../components/chat/chat-store.js';
 import { MeriIcon } from './meri-icons.js';
 import { MeriPanelState } from './MeriPanelState.js';
 import { coverageWarningTone } from './MeriCoverageWarning.js';
-import type { MeriEvidenceClaim, MeriEvidenceSource, MeriEvidenceStat } from './MeriEvidenceTray.js';
+import type {
+  MeriEvidenceClaim,
+  MeriEvidenceSource,
+  MeriEvidenceStat,
+} from './MeriEvidenceTray.js';
 
 /**
  * MeriEvidenceTab — v6 turn inspector, Evidence tab. Merges what
@@ -33,10 +39,7 @@ function domainLabel(domain: string): string {
  * raw code. Mirrors MeriCoverageWarning's stopReasonCopy.
  */
 function coverageStopReasonCopy(stopReason: string): string | null {
-  if (stopReason === 'partial') {
-    return 'Meri stopped retrieving before covering every domain the plan required.';
-  }
-  return null;
+  return stopReason === 'complete' ? null : meriCoverageReason(stopReason);
 }
 
 export interface MeriEvidenceTabProps {
@@ -59,7 +62,11 @@ export function MeriEvidenceTab({
   const groundingItems = groundingCaveat?.findings ?? [];
   const coverageTone = retrieval ? coverageWarningTone(retrieval) : null;
   const hasAnything =
-    sources.length > 0 || verifyStats.length > 0 || claims.length > 0 || groundingItems.length > 0 || Boolean(coverageTone);
+    sources.length > 0 ||
+    verifyStats.length > 0 ||
+    claims.length > 0 ||
+    groundingItems.length > 0 ||
+    Boolean(retrieval);
 
   if (!hasAnything) {
     return (
@@ -100,13 +107,18 @@ export function MeriEvidenceTab({
       {coverageTone && retrieval ? (
         <div className="vnext-meri__evidence-warning" role="status" data-tone={coverageTone}>
           <div className="vnext-meri__evidence-warning-head">
-            <MeriIcon name={coverageTone === 'missing' ? 'AlertCircle' : 'AlertTriangle'} size={14} />
+            <MeriIcon
+              name={coverageTone === 'missing' ? 'AlertCircle' : 'AlertTriangle'}
+              size={14}
+            />
             <span className="vnext-meri__evidence-warning-label">
               {coverageTone === 'missing' ? 'REQUIRED SOURCE MISSING' : 'PARTIAL COVERAGE'}
             </span>
           </div>
           {missing.length ? (
-            <div className="vnext-meri__evidence-warning-body">Not searched: {missing.map(domainLabel).join(', ')}.</div>
+            <div className="vnext-meri__evidence-warning-body">
+              Not searched: {missing.map(domainLabel).join(', ')}.
+            </div>
           ) : null}
           {partial.length ? (
             <div className="vnext-meri__evidence-warning-body">
@@ -118,9 +130,13 @@ export function MeriEvidenceTab({
               SEARCHED · {searched.map(domainLabel).join(' · ').toUpperCase()}
             </div>
           ) : null}
-          {stopReasonNote ? <div className="vnext-meri__evidence-warning-note">{stopReasonNote}</div> : null}
+          {stopReasonNote ? (
+            <div className="vnext-meri__evidence-warning-note">{stopReasonNote}</div>
+          ) : null}
         </div>
       ) : null}
+
+      {retrieval ? <MeriRetrievalCoverage retrieval={retrieval} /> : null}
 
       {sources.length > 0 ? (
         <div className="vnext-meri__evidence-section">
@@ -159,7 +175,11 @@ export function MeriEvidenceTab({
           {verifyStats.length > 0 ? (
             <div className="vnext-meri__evidence-stat-row">
               {verifyStats.map((stat) => (
-                <span key={stat.label} className="vnext-meri__evidence-stat-pill" data-tone={stat.tone}>
+                <span
+                  key={stat.label}
+                  className="vnext-meri__evidence-stat-pill"
+                  data-tone={stat.tone}
+                >
                   {stat.label}
                 </span>
               ))}
@@ -178,7 +198,13 @@ export function MeriEvidenceTab({
   );
 }
 
-const CLAIM_META: Record<MeriEvidenceClaim['state'], { state: string; icon: 'Check' | 'Diamond01' | 'AlertTriangle' | 'SwitchVertical01' | 'HelpCircle' }> = {
+const CLAIM_META: Record<
+  MeriEvidenceClaim['state'],
+  {
+    state: string;
+    icon: 'Check' | 'Diamond01' | 'AlertTriangle' | 'SwitchVertical01' | 'HelpCircle';
+  }
+> = {
   verified: { state: 'VERIFIED · TIED TO A CITED LOCATOR', icon: 'Check' },
   inference: { state: 'INFERENCE · DERIVED, NOT QUOTED', icon: 'Diamond01' },
   unsupported: { state: 'UNSUPPORTED · NO EVIDENCE FOUND', icon: 'AlertTriangle' },

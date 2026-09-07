@@ -67,6 +67,39 @@ function plan(recipeTool: MeriRetrievalPlan['recipeTool'] = 'query_relationship_
 }
 
 describe('MeriSemanticToolGateway', () => {
+  test.each([
+    'Recommend opportunities for this client',
+    'Assess grant eligibility',
+    'Review procurement forecasts',
+  ])('exposes canonical funding inputs through the enabled runtime: %s', (request) => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const fundingSchemas = [
+      'search_funding_opportunities',
+      'get_funding_opportunity',
+      'get_funding_opportunity_requirements',
+      'search_procurement_forecasts',
+    ].map(schema);
+    const selected = gateway.select({
+      schemas: [...schemas, ...fundingSchemas],
+      tenantId: 'tenant-1',
+      request,
+      plan: {
+        ...plan('research_federal_market_strategy'),
+        subjectScope: 'client',
+        requiredDomains: ['opportunities'],
+      },
+    });
+    expect(selected.decision.mode).toBe('enabled');
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining(fundingSchemas.map((item) => item.name)),
+    );
+  });
+
   test('defaults closed and preserves the governed legacy schema surface', () => {
     const gateway = new MeriSemanticToolGateway(config());
     const selected = gateway.select({
