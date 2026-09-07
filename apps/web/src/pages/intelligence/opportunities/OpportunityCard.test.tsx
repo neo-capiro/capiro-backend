@@ -170,9 +170,11 @@ describe('a thin profile stays honest', () => {
     expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
   });
 
-  test('with no signals the fit is weak, not blank', () => {
+  test('with no signals the fit reads "No fit evidence", not blank', () => {
+    // PR #1498 split this from the weak-but-evidenced case: zero signals means
+    // there is nothing to assess, which is a different claim than "assessed as weak".
     renderCard(opportunity({ matchedSignals: [] }));
-    expect(screen.getByText('Weak fit')).toBeInTheDocument();
+    expect(screen.getByText('No fit evidence')).toBeInTheDocument();
   });
 });
 

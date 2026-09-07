@@ -374,7 +374,12 @@ describe('the record is rendered honestly', () => {
     detail = opportunity({ matchedSignals: [] });
     wrap(<FundingOpportunityDetail refValue={REF} />);
     const section = await screen.findByTestId('fo-detail-fit');
-    expect(section).toHaveTextContent(/absence of evidence, not evidence of a poor fit/i);
+    expect(section).toHaveTextContent('No fit evidence');
+    // PR #1498: the explanation now also names the reason organization-type
+    // eligibility can't fill this gap, since that's checked separately.
+    expect(section).toHaveTextContent(
+      /No fit evidence in this client’s recorded profile\. Add specific capabilities or funding priorities to improve matching/i,
+    );
   });
 
   test('confidence is labelled as evidence quality, never as a win probability', async () => {
