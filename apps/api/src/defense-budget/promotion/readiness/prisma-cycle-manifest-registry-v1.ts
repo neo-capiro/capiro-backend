@@ -7,12 +7,33 @@
  * content-addressed by (cycleId, manifestContentSha256): a manifest is
  * immutable once filed under its hash, so a second registration attempt for
  * the identical hash is `ON CONFLICT DO NOTHING`, never an overwrite.
+ *
+ * Phase 10B-31 hash-boundary fix: every candidate's OWN persisted
+ * `manifest_content_sha256` (set at verification time, see
+ * `FilesystemProofResolver`/`CompositeProofResolver`) is `sha256Hex` of the
+ * raw manifest BYTES read from the manifest's locator, decoded as a UTF-8
+ * string -- never a hash of a re-serialized JS object. `register()`
+ * previously hashed `JSON.stringify(parseBudgetCycleManifestV1(manifest))`
+ * instead: a structurally different hash domain (re-serialized, sorted only
+ * by whatever key order the parse produces, no original whitespace) that
+ * would essentially never coincide with the candidate-side hash for any real
+ * manifest file. `family-certification-materialization-rdte-v1.ts` compares
+ * these two values directly (`ref.manifestContentSha256 !==
+ * request.manifest.manifestContentSha256`), so every real RDT&E
+ * materialization would have failed closed as `candidate_incomplete`
+ * ("belongs to a different manifest") forever, for every candidate, the
+ * moment this registry's write path is wired up for real.
+ *
+ * `register()` therefore now hashes the exact raw manifest bytes the caller
+ * supplies -- the SAME `sha256Hex(text)` definition used everywhere else --
+ * rather than re-deriving its own hash from a parsed object. This method has
+ * no real production caller yet (only test fixtures call it today; see
+ * `scripts/lib/defense-budget-readiness-wiring.ts`, which wires only the
+ * read side, `loadManifestForIdentity`), so changing its input contract
+ * rewrites no historical data -- the registry table is empty in production.
  */
-import {
-  parseBudgetCycleManifestV1,
-  type BudgetCycleManifestV1,
-} from '../../contracts/budget-cycle-manifest-v1.js';
-import { sha256Bytes } from '../../contracts/canonical-json.js';
+import { parseBudgetCycleManifestV1 } from '../../contracts/budget-cycle-manifest-v1.js';
+import { sha256Hex } from '../../contracts/canonical-json.js';
 import type { ManifestForMaterializationPortV1 } from './materializing-family-reconciliation-certification-v1.js';
 import type { CycleFamilyReadinessIdentityV1 } from './cycle-family-readiness-v1.js';
 import type { MaterializationManifestInputV1 } from './family-certification-materialization-v1.js';
@@ -38,10 +59,26 @@ export class PrismaCycleManifestRegistryV1 implements ManifestForMaterialization
    * accepts a caller-supplied hash: it always recomputes from the exact
    * bytes it is given, so storage cannot be tricked into filing a manifest
    * under the wrong identity.
+   *
+   * `manifestBytes` must be the exact raw bytes of the manifest as read from
+   * its locator (the same bytes `FilesystemProofResolver`/
+   * `CompositeProofResolver` hash at verification time) -- NOT a
+   * re-serialization of a parsed object, which would compute a different
+   * hash for the identical logical manifest. Schema-validity is still
+   * checked (via `parseBudgetCycleManifestV1`) before anything is persisted.
    */
-  async register(cycleId: string, manifest: BudgetCycleManifestV1): Promise<{ manifestContentSha256: string }> {
-    const parsed = parseBudgetCycleManifestV1(manifest);
-    const manifestContentSha256 = sha256Bytes(Buffer.from(JSON.stringify(parsed), 'utf8'));
+  async register(
+    cycleId: string,
+    manifestBytes: Buffer | string,
+  ): Promise<{ manifestContentSha256: string }> {
+    const manifestText =
+      typeof manifestBytes === 'string' ? manifestBytes : manifestBytes.toString('utf8');
+    const parsed = parseBudgetCycleManifestV1(JSON.parse(manifestText));
+    // The SAME hash definition every candidate's persisted
+    // manifest_content_sha256 already uses -- sha256 of the raw manifest
+    // bytes, decoded as UTF-8 text -- so this value is directly comparable
+    // to `ref.manifestContentSha256` at materialization time.
+    const manifestContentSha256 = sha256Hex(manifestText);
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO "defense_budget_cycle_manifest_registry"
          ("cycle_id", "manifest_content_sha256", "fiscal_year", "manifest_document_jsonb")

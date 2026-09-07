@@ -584,7 +584,9 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
 
   it('the manifest registry, keyed by the RAW lifecycle cycle id, resolves for the matching readiness identity only', async () => {
     const registry = new PrismaCycleManifestRegistryV1(prisma);
-    await registry.register(RAW_CYCLE_ID, parseBudgetCycleManifestV1(fixtureA.manifestObject));
+    // Phase 10B-31: register() takes the raw manifest bytes, not a parsed
+    // object -- see prisma-cycle-manifest-registry-v1.ts's header comment.
+    await registry.register(RAW_CYCLE_ID, Buffer.from(JSON.stringify(fixtureA.manifestObject), 'utf8'));
     const loaded = await registry.loadManifestForIdentity(identity, RAW_CYCLE_ID);
     expect(loaded).not.toBeNull();
     expect(loaded!.documents.map((document) => document.documentKey)).toEqual([SOURCE_DOCUMENT_ID]);
