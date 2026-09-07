@@ -126,6 +126,12 @@ async function buildBridgeFixture(input: {
     sourcePath,
     sourceUrl: SOURCE_URL,
     sourceSha256,
+    // Phase 10B-31: this fixture's proof resolver is FilesystemProofResolver
+    // (not CompositeProofResolver), which never consults expectedSourceKey --
+    // this test exercises candidate cycle-identity persistence, not the
+    // metadata-agreement check, so any valid non-blank value satisfies the
+    // now-required field without affecting this file's assertions.
+    sourceKey: `defense-budget-observation-${input.sourceDocumentId}`,
     budgetFamily: 'rdte',
     exhibitType: 'R-2',
     authority: 'dod-comptroller',

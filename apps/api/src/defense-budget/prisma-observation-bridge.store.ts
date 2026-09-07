@@ -80,6 +80,9 @@ export class PrismaObservationBridgeStore implements ObservationBridgeStore {
       archiveBucket: document.archiveBucket,
       archiveS3Key: document.archiveS3Key,
       archiveVersionId: document.archiveVersionId,
+      // Phase 10B-31: same already-loaded row, one more of its columns --
+      // lets a replay hand the parser the real, persisted component.
+      component: document.component,
     };
   }
 

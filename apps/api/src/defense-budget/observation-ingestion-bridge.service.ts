@@ -174,6 +174,15 @@ export class ObservationIngestionBridgeService {
     }
     const { observation, expectedSource, cycle } = loaded;
 
+    // Phase 10B-31: the SAME deterministic sourceKey this (or a prior) run
+    // registers the SourceDocument under -- a pure function of the
+    // observation's own immutable dedupKey, available and identical whether
+    // this is the first-time or the idempotent-replay path, so it is
+    // computed once here rather than re-derived differently per branch. See
+    // the first-time path below for why this can never diverge from what
+    // DocumentRegistrar actually persists.
+    const sourceKey = `defense-budget-observation-${observation.dedupKey}`;
+
     const eligibility = evaluateBridgeEligibility(observation.observationState);
 
     if (eligibility.kind === 'ineligible') {
@@ -221,6 +230,8 @@ export class ObservationIngestionBridgeService {
           sourceDocumentId: observation.sourceDocumentId,
           sourceSha256: observation.contentSha256,
           localPath: materialized.localPath,
+          sourceKey,
+          component: materialized.component,
         });
         return this.result(
           this.deriveStatus(downstream, { isReplay: true }),
@@ -287,13 +298,11 @@ export class ObservationIngestionBridgeService {
       const localPath = join(tempDir, `${randomUUID()}.bin`);
       writeFileSync(localPath, fetched.bytes);
 
-      // documentId is derived from the OBSERVATION's own dedup key (a stable
-      // sha256 hex over expectedSourceDedupKey + contentSha256), not a random
-      // id — so replaying the same observation resolves to the SAME sourceKey
-      // and therefore the SAME logical SourceDocument, never a second
-      // immutable copy for identical bytes.
-      const sourceKey = `defense-budget-observation-${observation.dedupKey}`;
-
+      // `sourceKey` (computed once, above, from the OBSERVATION's own
+      // immutable dedup key) is derived the same way on every invocation —
+      // so replaying the same observation resolves to the SAME sourceKey and
+      // therefore the SAME logical SourceDocument, never a second immutable
+      // copy for identical bytes.
       const registered = await this.registrar.register({
         sourceKey,
         fiscalYear: observation.classifiedFiscalYear,
@@ -343,12 +352,24 @@ export class ObservationIngestionBridgeService {
       // observation. Everything below is downstream work whose failure must
       // be reported as retryable (or a governed terminal disposition), never
       // silently folded into overall bridge success.
+      //
+      // Phase 10B-31: component is read back from the row DocumentRegistrar
+      // just persisted (`registered.registry.document.component`), not
+      // re-derived from `expectedSource.component` a second time — the two
+      // are equal on every code path that actually writes a new row (the
+      // registrar passes `expectedSource.component` straight through), but
+      // reading the persisted value directly is strictly the authoritative
+      // source DocumentRegistrar's own idempotent upsert can return (the
+      // pre-existing-row short-circuit), and needs no separate proof of
+      // agreement.
       const downstream = await this.runDownstream({
         cycle,
         observation,
         sourceDocumentId: registered.registry.document.id,
         sourceSha256: documentSha256,
         localPath,
+        sourceKey,
+        component: (registered.registry.document.component as string | null | undefined) ?? null,
       });
 
       const reason =
@@ -378,7 +399,10 @@ export class ObservationIngestionBridgeService {
   private async materializeArchivedBytes(input: {
     sourceDocumentId: string;
     expectedSha256: string;
-  }): Promise<{ localPath: string; dispose: () => void } | { error: string }> {
+  }): Promise<
+    | { localPath: string; component: string | null; dispose: () => void }
+    | { error: string }
+  > {
     const record = await this.store.loadSourceDocumentArchive(input.sourceDocumentId);
     if (!record) {
       return {
@@ -420,7 +444,16 @@ export class ObservationIngestionBridgeService {
     const tempDir = mkdtempSync(join(tmpdir(), 'phase10b1-obs-bridge-replay-'));
     const localPath = join(tempDir, `${randomUUID()}.bin`);
     writeFileSync(localPath, archived.bytes);
-    return { localPath, dispose: () => rmSync(tempDir, { recursive: true, force: true }) };
+    return {
+      localPath,
+      // Phase 10B-31: the authoritative, persisted component from the SAME
+      // SourceDocument row `record` was just loaded from -- read back here
+      // (rather than re-derived from `expectedSource`) so a replay hands the
+      // parser the real value that is actually on the row, never a value
+      // that could have drifted since first registration.
+      component: record.component,
+      dispose: () => rmSync(tempDir, { recursive: true, force: true }),
+    };
   }
 
   /**
@@ -449,6 +482,12 @@ export class ObservationIngestionBridgeService {
     sourceDocumentId: string;
     sourceSha256: string;
     localPath: string;
+    /** Phase 10B-31: the authoritative sourceKey/component this SourceDocument
+     * carries, forwarded unchanged into the parser handoff so production-proof
+     * verification's metadata-agreement check compares against the real,
+     * persisted values instead of an absent field or a locally re-derived one. */
+    sourceKey: string;
+    component: string | null;
   }): Promise<DownstreamOutcome> {
     const { observation } = input;
     if (
@@ -482,6 +521,12 @@ export class ObservationIngestionBridgeService {
         sourceFamily: observation.classifiedSourceFamily,
         title: routing.documentType,
         sourceUrl: observation.discoveredUrl,
+        // Phase 10B-31: propagate the authoritative, persisted identity/
+        // component through unchanged (see the widened `runDownstream` input
+        // above) instead of leaving them unset for the manifest builder to
+        // silently default away.
+        sourceKey: input.sourceKey,
+        component: input.component,
       });
     } catch (error) {
       parserHandoffError = error instanceof Error ? error.message : String(error);

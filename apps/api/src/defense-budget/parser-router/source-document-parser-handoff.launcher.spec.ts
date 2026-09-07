@@ -85,6 +85,7 @@ describe('Phase 10B-28R -- buildLifecycleBridgeSyntheticManifestV1 (extracted pr
     sourcePath: '/tmp/defense-budget-parser-scratch/a99fbf5b/source.pdf',
     sourceUrl: 'https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2024/Base%20Budget/rdte/RDTE-Vol%201-Budget%20Activity%201.pdf',
     sourceSha256: '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6',
+    sourceKey: 'defense-budget-observation-cf5b34c86b34b7e75d9c5be7d18f4dc5a8bbea08aec23611bc2020efce6f74c4',
     budgetFamily: 'rdte' as const,
     exhibitType: 'R-2' as const,
     authority: 'dod-comptroller' as const,
@@ -103,6 +104,14 @@ describe('Phase 10B-28R -- buildLifecycleBridgeSyntheticManifestV1 (extracted pr
     expect(manifest.documents[0]!.documentKey).toBe(input.sourceDocumentId);
     expect(manifest.documents[0]!.component).toBe('ARMY');
     expect(manifest.documents[0]!.expectedLineKinds).toEqual(['RDTE_PE']);
+    // [Phase 10B-31] the authoritative sourceKey is carried onto its own
+    // dedicated field, distinct from sourceLocator (which stays the local
+    // scratch path below) -- this is the fix for the confirmed production
+    // bug where the metadata-agreement check compared the persisted
+    // SourceDocument.sourceKey against sourceLocator instead.
+    expect(manifest.documents[0]!.expectedSourceKey).toBe(input.sourceKey);
+    expect(manifest.documents[0]!.sourceLocator).toBe(input.sourcePath);
+    expect(manifest.documents[0]!.expectedSourceKey).not.toBe(manifest.documents[0]!.sourceLocator);
   });
 
   it('validates under the unchanged manifest validator with zero error findings', () => {
@@ -121,6 +130,7 @@ describe('Phase 10B-28R -- buildLifecycleBridgeSyntheticManifestV1 (extracted pr
       'sourceLocator',
       'sourceUrl',
       'expectedSourceSha256',
+      'expectedSourceKey',
       'family',
       'exhibit',
       'authority',

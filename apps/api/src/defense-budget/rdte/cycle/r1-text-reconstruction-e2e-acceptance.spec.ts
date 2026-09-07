@@ -159,6 +159,7 @@ describe('Phase 10B-11 acceptance -- real deterministic_pdfplumber output throug
       sourceSha256: SOURCE_SHA,
       sourceLocator: SOURCE_URL,
       sourceUrl: SOURCE_URL,
+      sourceKey: SOURCE_DOCUMENT_ID,
       parserPolicy: 'deterministic_table',
       exhibitType: 'R-1',
       budgetFamily: 'rdte',
