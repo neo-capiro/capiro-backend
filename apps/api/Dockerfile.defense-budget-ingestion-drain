@@ -119,7 +119,9 @@ RUN chown capiro:capiro \
       /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts \
  && grep -q '\$1::uuid' \
       /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
- && grep -q 'candidateStatus' \
+ && grep -q 'AS "candidateStatus"' \
+      /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts \
+ && grep -q 'row.candidateStatus as' \
       /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts
 
 # Phase 10B-23B: this image now bakes ONLY the detection + recognition

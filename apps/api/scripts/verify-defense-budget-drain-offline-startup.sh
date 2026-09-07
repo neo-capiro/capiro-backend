@@ -76,7 +76,15 @@ no_completed_download() {
   # (the real line is "Built capiro-defense-budget-parser @ file:///...").
   # With only "Installed N package" live, a regression that fetched wheels but
   # died before the install step would have passed this control.
-  if grep -Eq 'Downloading|Downloaded [A-Za-z0-9_.-]+|Prepared [0-9]+ package|Installed [0-9]+ package|Built capiro-defense-budget-parser|pypi\.org|files\.pythonhosted\.org' "$1"; then return 1; fi
+  # "Resolved N packages" is included because uv emits a per-package
+  # "Downloaded <name>" line only for some distributions -- in the real drain
+  # sync it printed 20 such lines while installing 59 packages. A regression
+  # whose wheels are all small enough to skip that line, and which then dies
+  # before "Prepared"/"Installed", would evade every other pattern here.
+  # "Resolved N packages" is emitted once uv has actually reached the index,
+  # and appears in none of the genuine offline-refusal transcripts (verified
+  # against all three captured control-B stderrs), so it costs no false FAIL.
+  if grep -Eq 'Downloading|Downloaded [A-Za-z0-9_.-]+|Resolved [0-9]+ package|Prepared [0-9]+ package|Installed [0-9]+ package|Built capiro-defense-budget-parser|pypi\.org|files\.pythonhosted\.org' "$1"; then return 1; fi
   return 0
 }
 

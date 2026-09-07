@@ -29,14 +29,15 @@ which 6 are alternative-funding jobs), and this packet touches one row.
 | Item | Value |
 |---|---|
 | Repair branch | `fix/phase10b28r-startup-and-cycle-identity` |
-| Reviewed repair head | `fc09a091dc0c7a4299560c85e5038654e7152994` (two commits: `0bb4a4b97` the repairs, `fc09a091d` the fixup answering the first independent review). Base `05e0115a371a5a23f3c945a4ac6cb1a2a9998a09`; `origin/main` has since advanced to `e5629f0e3` (Meri workspace fix, PR #1502) with **zero file overlap** with this PR — re-verify overlap again immediately before merging. |
+| Repair head to merge | **Do not hardcode a SHA from this document.** Merge the current head of PR #1504 (`gh pr view 1504 --json headRefOid`), having confirmed it is the head the latest independent review actually inspected. This packet has already gone stale on this row twice; a SHA written here is wrong the moment another review round lands, and merging a stale one silently drops later fixes. The branch is `fix/phase10b28r-startup-and-cycle-identity`; at the time of writing it carried three commits — `0bb4a4b97` (repairs) → `fc09a091d` (review round 1) → `eebc7a591` (review round 2). |
+| Base / drift | Merge-base `05e0115a371a5a23f3c945a4ac6cb1a2a9998a09`. `origin/main` advanced twice during this work (`e5629f0e3`, `d762a5f91`) with **zero true overlap**. Re-check overlap immediately before merging, and compute it **from the merge-base** (`git diff --name-only $(git merge-base HEAD origin/main)..origin/main` vs `…..HEAD`) — naively diffing branch-against-main lists your own files and looks like a conflict. |
 | Prior merged fix | PR #1486 → `b938b7b1f5dc13fc1dadfb2e704337f2c3b654f8` (cycle-ID fy-tag translation) |
 | Currently qualified 10B-28 drain image | `sha256:43d74221e84233f88b72fa19589a857167a4ed2c390bea2d5e1a6bf6f8bf407a` — **must NOT be deployed**: its launcher still requires PyPI at task start |
 | Local proof images (this session, NOT pushed, never to be deployed) | **#1** `p10b28r-proof-drain:0bb4a4b97…`, id `sha256:6e7a3387ca13e8f2a71358f5c22ba46cbdd9510ea8a5b82215a7d9d1d9db3a9b`, 746,324,689 B, built 22:11–22:16Z. **#2 (final)** `p10b28r-proof-drain2:fc09a091d…`, id `sha256:fe21de2f4a31fd01c892d05ca629ee4c8960f3984cf8ff15db5215cedd781670`, 746,423,213 B, built 23:02–23:07Z. Both linux/arm64, `--no-cache`, FROM the 10B-28 stage-one digest `d55e3fe2…`, clean tree at their respective heads, 9/9 model checksum gates, image ENV carrying `UV_NO_SYNC=1` + `UV_OFFLINE=1`. Image #2 additionally overlays the five cycle-identity/reader files (all 8 overlaid files verified byte-identical to the committed sources; build-time grep assertions passed). Built only to prove the launcher + identity contracts locally — **the release image must still be rebuilt from the MERGE SHA (both stages) and qualified.** |
 
 Post-merge sequence (all gated, none executed here):
 
-1. Merge the repair PR (normal merge commit, exact reviewed head).
+1. Merge the repair PR with a normal merge commit, pinned to **the current head of PR #1504 as reported by `gh pr view 1504 --json headRefOid`** — never to a SHA transcribed from this document (see the head row above for why).
 2. Build stage one (`apps/api/Dockerfile`, linux/arm64) from the MERGE SHA, push
    with a `*attested-source*` tag; build stage two
    (`apps/api/Dockerfile.defense-budget-ingestion-drain`, `--no-cache`, FROM the
@@ -251,8 +252,8 @@ release record should be copied out before that directory is reclaimed.
 
 | Item | Value |
 |---|---|
-| Final reviewed head | `fc09a091dc0c7a4299560c85e5038654e7152994` |
-| Commits | `0bb4a4b97` (repairs) → `fc09a091d` (fixup answering independent review #1) |
+| Head at the time this index was written | `eebc7a591117123f14783f14a707be62dad801d3` — **for provenance of the evidence below only.** Do not merge from this value; see §2. |
+| Commits | `0bb4a4b97` (repairs) → `fc09a091d` (review round 1) → `eebc7a591` (review round 2) |
 | PR | https://github.com/neo-capiro/capirov2/pull/1504 (draft; `MERGEABLE` / `CLEAN`) |
 
 ### Startup repair (production launcher, offline)
@@ -317,7 +318,8 @@ The 10 criticals are all pre-existing and unchanged: 7 inherited from the node b
 | Round | Scope | Verdict | Location |
 |---|---|---|---|
 | #1 | commit `0bb4a4b97` | APPROVE WITH NON-BLOCKING NOTES (11 findings; the one real blocker-adjacent item was the gate control-B false FAIL, fixed in `fc09a091d`) | `<SCRATCH>/review/INDEPENDENT-REVIEW.md` |
-| #2 | commit `fc09a091d` + this evidence chain | see file | `<SCRATCH>/review/INDEPENDENT-REVIEW-FINAL.md` |
+| #2 | commit `fc09a091d` + the evidence chain | APPROVE WITH NON-BLOCKING NOTES. Found the control-B regex was mostly dead code (matched ~1 of 45 real uv lines) and two overstatements in the author's reporting; all addressed in `eebc7a591` | `<SCRATCH>/review/INDEPENDENT-REVIEW-FINAL.md` |
+| #3 | commit `eebc7a591` (did the round-2 findings land?) | PARTIALLY RESOLVED: the three **code** findings fully resolved and independently re-derived; the reporting-accuracy habit recurred, including a stale head in this very document that would have made an operator merge the wrong commit. Corrections applied in the following commit | `<SCRATCH>/review/INDEPENDENT-REVIEW-FINAL.md` (appended) |
 
 ### Production state (read-only, unchanged all session)
 
