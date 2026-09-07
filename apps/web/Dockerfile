@@ -44,7 +44,13 @@ ARG GIT_SHA=dev
 RUN echo "build for ${GIT_SHA}" > /workspace/.git_sha
 # Build with placeholder values; the real keys come from runtime-config.js
 # generated at container start. env.ts ignores VITE_* when window.__CAPIRO_CONFIG__ is set.
-RUN VITE_CLERK_PUBLISHABLE_KEY=runtime VITE_API_BASE_URL=runtime \
+# NODE_OPTIONS: Rollup's chunk rendering for this app's heavy viz deps
+# (maplibre-gl, cytoscape, recharts, xyflow) has hit V8's default heap
+# ceiling under concurrent arm64/qemu builds on the shared build host
+# ("Ineffective mark-compacts near heap limit", SIGABRT) even though tsc
+# and module transform both succeeded.
+RUN NODE_OPTIONS=--max-old-space-size=6144 \
+    VITE_CLERK_PUBLISHABLE_KEY=runtime VITE_API_BASE_URL=runtime \
     pnpm --filter @capiro/web build
 
 # -------- runtime -------------------------------------------------------------
