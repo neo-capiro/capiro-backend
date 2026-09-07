@@ -328,29 +328,35 @@ async function syncHouseDocsMeetings(
       // re-derivation overwrite a canonical row that carries an explicit
       // local-zone correction.
       const protectedTz = await existingTimezone(prisma, id);
-      const row = stripProtectedTimeFields(
-        {
-          title,
-          chamber: 'House',
-          committeeName: mtg.committee,
-          date: day,
-          // Already an Eastern wall-clock string scraped off the page, so it is
-          // converted FORWARD to an instant rather than re-derived from one. Since
-          // Source 1 now also emits Eastern, both writers finally agree on the
-          // convention for this shared column and last-writer-wins is harmless.
-          startsAt: houseStartsAt(day, mtg.time),
-          time: mtg.time,
-          location: mtg.location,
-          type: inferHouseType(title, mtg.committee),
-          url: `https://www.congress.gov/event/${CURRENT_CONGRESS}th-Congress/house-event/${mtg.eventId}`,
-        },
-        protectedTz,
-      );
+      const fields = {
+        title,
+        chamber: 'House',
+        committeeName: mtg.committee,
+        date: day,
+        // Already an Eastern wall-clock string scraped off the page, so it is
+        // converted FORWARD to an instant rather than re-derived from one. Since
+        // Source 1 now also emits Eastern, both writers finally agree on the
+        // convention for this shared column and last-writer-wins is harmless.
+        startsAt: houseStartsAt(day, mtg.time),
+        time: mtg.time,
+        location: mtg.location,
+        type: inferHouseType(title, mtg.committee),
+        url: `https://www.congress.gov/event/${CURRENT_CONGRESS}th-Congress/house-event/${mtg.eventId}`,
+      };
+      // `stripProtectedTimeFields` only ever strips when a row ALREADY exists
+      // with a verified local-zone correction — the `create` branch can never
+      // actually run in that case, but Prisma's client validates its shape
+      // regardless of which branch will fire. `create` must therefore use the
+      // unstripped `fields` (which always has a `date`), never the stripped
+      // `row` — otherwise Prisma throws "Argument `date` is missing" and
+      // aborts the ENTIRE sync run on the very first protected row it meets,
+      // silently starving every hearing behind it (2026-09-07 incident).
+      const row = stripProtectedTimeFields(fields, protectedTz);
       await prisma.committeeHearing.upsert({
         where: { id },
         // Preserve committeeCode + witnesses (Source 1 owns them); refresh display fields.
         update: { ...row, syncedAt: new Date() },
-        create: { id, committeeCode: null, witnesses: [], ...row },
+        create: { id, committeeCode: null, witnesses: [], ...fields },
       });
       upserts++;
     }
@@ -440,26 +446,34 @@ async function main() {
             // (date/startsAt/time) are dropped so tomorrow's run cannot revert
             // the official correction; display fields still refresh.
             const protectedTz = await existingTimezone(prisma, id);
-            const row = stripProtectedTimeFields(
-              {
-                title,
-                chamber,
-                committeeName,
-                committeeCode: sysCode,
-                date,
-                startsAt,
-                time: formatTime(d.date),
-                location: formatLocation(d.location),
-                type: d.type?.trim() || 'Meeting',
-                witnesses,
-                url: meetingPublicUrl(d, congress, chamber, item.eventId),
-              },
-              protectedTz,
-            );
+            const fields = {
+              title,
+              chamber,
+              committeeName,
+              committeeCode: sysCode,
+              date,
+              startsAt,
+              time: formatTime(d.date),
+              location: formatLocation(d.location),
+              type: d.type?.trim() || 'Meeting',
+              witnesses,
+              url: meetingPublicUrl(d, congress, chamber, item.eventId),
+            };
+            // `create` must use the unstripped `fields` (always has a `date`),
+            // never the protection-stripped `row` — `create` can only ever run
+            // when no row exists yet, in which case `protectedTz` is null and
+            // stripping is already a no-op, so this is never a behavior change
+            // for the real create path. It only avoids Prisma's client-side
+            // validation of the (unreachable) create shape throwing "Argument
+            // `date` is missing" and aborting the entire sync run on the first
+            // protected row it meets — silently starving every hearing behind
+            // it. See sync-hearings-zone-guard.spec.ts for the regression test;
+            // this exact crash happened in production on 2026-09-07.
+            const row = stripProtectedTimeFields(fields, protectedTz);
             await prisma.committeeHearing.upsert({
               where: { id },
               update: { ...row, syncedAt: new Date() },
-              create: { id, ...row },
+              create: { id, ...fields },
             });
             meetingUpserts++;
 
@@ -562,10 +576,18 @@ async function main() {
                   type: 'hearing',
                   witnesses,
                   url: publicUrl,
+                  // Source 2 is /hearing/{congress} — a published TRANSCRIPT
+                  // record, which by construction only exists after the
+                  // hearing already happened. Neither branch ever set this,
+                  // so every Source-2 row sat on the schema default
+                  // ('scheduled') forever, permanently mislabeling completed
+                  // historical hearings as upcoming.
+                  eventStatus: 'completed',
                   syncedAt: new Date(),
                 },
                 create: {
                   id,
+                  eventStatus: 'completed',
                   title,
                   chamber,
                   committeeName,
