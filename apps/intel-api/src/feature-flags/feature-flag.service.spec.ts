@@ -5,6 +5,7 @@ import {
   DEFENSE_FUNDING_INTEL_FEATURE,
   DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE,
   DISTRICT_NEXUS_STRATEGIC_FEATURE,
+  DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE,
   FeatureFlagService,
   HEARING_WATCH_FEATURE,
 } from './feature-flag.service.js';
@@ -14,8 +15,8 @@ const TENANT = 'external-tenant-1';
 const INTERNAL = 'internal-tenant-1';
 
 function prismaMock(opts: { findUnique?: unknown; findMany?: unknown[] }) {
-  const findUnique = jest.fn().mockResolvedValue(opts.findUnique ?? null);
-  const findMany = jest.fn().mockResolvedValue(opts.findMany ?? []);
+  const findUnique = jest.fn<() => Promise<unknown>>().mockResolvedValue(opts.findUnique ?? null);
+  const findMany = jest.fn<() => Promise<unknown[]>>().mockResolvedValue(opts.findMany ?? []);
   const withTenant = jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) =>
     fn({ featureFlag: { findUnique, findMany } }),
   );
@@ -52,7 +53,9 @@ describe('FeatureFlagService.isEnabled', () => {
     // Before the fix, isEnabled() short-circuited true before ever reading
     // this row — an explicit off-switch for the internal tenant had zero
     // effect. The row must now be read first and its value is authoritative.
-    const { prisma, withTenant } = prismaMock({ findUnique: { enabled: false } });
+    const { prisma, withTenant } = prismaMock({
+      findUnique: { enabled: false },
+    });
     const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
     await expect(
       svc.isEnabled(DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE, INTERNAL),
@@ -91,6 +94,21 @@ describe('FeatureFlagService.isEnabled', () => {
 });
 
 describe('FeatureFlagService.enabledFor', () => {
+  test('supplier canary is visible internally only until explicitly disabled', async () => {
+    const { prisma, findMany } = prismaMock({ findMany: [] });
+    const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
+    expect((await svc.enabledFor(INTERNAL))[DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE]).toBe(true);
+    findMany.mockResolvedValue([
+      { feature: DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE, enabled: false },
+    ] as never);
+    expect(
+      (await svc.enabledFor(INTERNAL))[DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE],
+    ).toBeUndefined();
+    findMany.mockResolvedValue([] as never);
+    expect(
+      (await svc.enabledFor(TENANT))[DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE],
+    ).toBeUndefined();
+  });
   test('internal missing rows → all canary features default true', async () => {
     const { prisma } = prismaMock({ findMany: [] });
     const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
@@ -107,7 +125,12 @@ describe('FeatureFlagService.enabledFor', () => {
     // row for capiro-internal must independently turn off ONE canary feature
     // without affecting the others.
     const { prisma } = prismaMock({
-      findMany: [{ feature: DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE, enabled: false }],
+      findMany: [
+        {
+          feature: DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE,
+          enabled: false,
+        },
+      ],
     });
     const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
     const out = await svc.enabledFor(INTERNAL);
@@ -120,7 +143,12 @@ describe('FeatureFlagService.enabledFor', () => {
 
   test('internal explicit enabled row for a canary feature → still true, no double-count surprises', async () => {
     const { prisma } = prismaMock({
-      findMany: [{ feature: DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE, enabled: true }],
+      findMany: [
+        {
+          feature: DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE,
+          enabled: true,
+        },
+      ],
     });
     const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
     const out = await svc.enabledFor(INTERNAL);
@@ -128,7 +156,9 @@ describe('FeatureFlagService.enabledFor', () => {
   });
 
   test('external tenant only sees its own enabled rows, no canary defaults', async () => {
-    const { prisma } = prismaMock({ findMany: [{ feature: 'tracker_v2', enabled: true }] });
+    const { prisma } = prismaMock({
+      findMany: [{ feature: 'tracker_v2', enabled: true }],
+    });
     const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
     const out = await svc.enabledFor(TENANT);
     expect(out).toEqual({ tracker_v2: true });
@@ -136,7 +166,9 @@ describe('FeatureFlagService.enabledFor', () => {
   });
 
   test('external tenant with a disabled row for a non-canary feature sees it absent, not present', async () => {
-    const { prisma } = prismaMock({ findMany: [{ feature: 'tracker_v2', enabled: false }] });
+    const { prisma } = prismaMock({
+      findMany: [{ feature: 'tracker_v2', enabled: false }],
+    });
     const svc = new FeatureFlagService(prisma, configMock(INTERNAL));
     const out = await svc.enabledFor(TENANT);
     expect(out.tracker_v2).toBeUndefined();

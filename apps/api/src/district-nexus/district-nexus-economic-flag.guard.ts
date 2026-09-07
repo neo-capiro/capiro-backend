@@ -11,7 +11,10 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CAPIRO_INTERNAL_TENANT_SLUG } from './district-nexus-flag.guard.js';
+import {
+  CAPIRO_INTERNAL_TENANT_SLUG,
+  DISTRICT_NEXUS_FEATURE,
+} from './district-nexus-flag.guard.js';
 import type { DistrictNexusEconomicFeature } from './district-nexus-economic.types.js';
 
 const ECONOMIC_FEATURE_METADATA = 'district_nexus_economic_feature';
@@ -39,7 +42,8 @@ export class DistrictNexusEconomicFlagGuard implements CanActivate {
     private readonly config: ConfigService,
     private readonly reflector: Reflector,
   ) {
-    this.internalTenantId = this.config.get<string>('CAPIRO_INTERNAL_TENANT_ID')?.trim() || undefined;
+    this.internalTenantId =
+      this.config.get<string>('CAPIRO_INTERNAL_TENANT_ID')?.trim() || undefined;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -63,24 +67,28 @@ export class DistrictNexusEconomicFlagGuard implements CanActivate {
     feature: DistrictNexusEconomicFeature,
   ): Promise<boolean> {
     if (!tenantId) throw new NotFoundException();
-    if (this.internalTenantId && tenantId === this.internalTenantId) return true;
+    const configuredInternal = Boolean(this.internalTenantId && tenantId === this.internalTenantId);
 
     try {
-      const rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ ok: number }>>`
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
-          WHERE EXISTS (
-            SELECT 1
-            FROM intel_feature_flag
-            WHERE feature = ${feature}
-              AND tenant_id = ${tenantId}
-              AND enabled = true
+          WHERE COALESCE(
+            (SELECT enabled FROM intel_feature_flag
+             WHERE feature = ${feature} AND tenant_id = ${tenantId}),
+            ${configuredInternal} OR EXISTS (
+              SELECT 1 FROM tenants
+              WHERE id::text = ${tenantId} AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
+            )
           )
-          OR EXISTS (
-            SELECT 1
-            FROM tenants
-            WHERE id::text = ${tenantId}
-              AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
+          AND COALESCE(
+            (SELECT enabled FROM intel_feature_flag
+             WHERE feature = ${DISTRICT_NEXUS_FEATURE} AND tenant_id = ${tenantId}),
+            ${configuredInternal} OR EXISTS (
+              SELECT 1 FROM tenants
+              WHERE id::text = ${tenantId} AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
+            )
           )
           LIMIT 1
         `,

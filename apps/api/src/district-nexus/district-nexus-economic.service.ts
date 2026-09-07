@@ -708,16 +708,12 @@ export class DistrictNexusEconomicService {
       });
       return { client, mappings };
     });
-    const hasUei = Boolean(identity.client?.uei);
-    const hasConfirmedMappings = identity.mappings.length > 0;
-    const identityBasis: 'confirmed_uei_or_mappings' | 'none' =
-      hasUei || hasConfirmedMappings ? 'confirmed_uei_or_mappings' : 'none';
-
     // 3) Attributable rows: does the client's confirmed identity match any
     //    subaward prime/subawardee UEI? Only exact confirmed UEIs count.
     let attributableRows = 0;
     const ueis = new Set<string>();
-    if (identity.client?.uei) ueis.add(identity.client.uei.trim().toUpperCase());
+    const clientUei = identity.client?.uei?.trim().toUpperCase();
+    if (clientUei && /^[A-Z0-9]{12}$/.test(clientUei)) ueis.add(clientUei);
     for (const m of identity.mappings) {
       const id = m.externalId?.trim().toUpperCase();
       if (id && /^[A-Z0-9]{12}$/.test(id)) ueis.add(id);
@@ -738,7 +734,8 @@ export class DistrictNexusEconomicService {
 
     // 4) Honest status resolution. unavailable ≠ empty ≠ zero.
     const sourcePopulated = totalRows > 0;
-    const hasIdentity = identityBasis === 'confirmed_uei_or_mappings';
+    const hasIdentity = ueis.size > 0;
+    const identityBasis = hasIdentity ? 'confirmed_uei_or_mappings' : 'none';
 
     let status:
       | 'unavailable'
@@ -750,7 +747,7 @@ export class DistrictNexusEconomicService {
     if (!sourcePopulated) {
       status = 'not_populated';
       note =
-        'Federal Market subaward sync has never populated any rows in this environment. This is a missing-source state, not an empty client result.';
+        'Federal Market has no active synchronized subaward records in this environment. This is a missing-source state, not an empty client result.';
     } else if (lastSyncedAt == null) {
       status = 'unavailable';
       note = 'Subaward rows exist but carry no successful sync timestamp; freshness is unknown.';

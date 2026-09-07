@@ -36,6 +36,7 @@ export const DISTRICT_NEXUS_STRATEGIC_FEATURE = 'district_nexus_strategic_releva
  * stay dark until an explicit intel_feature_flag row is written.
  */
 export const DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE = 'district_nexus_priority_intelligence';
+export const DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE = 'district_nexus_supplier_footprint';
 
 /**
  * Internal-tenant canary features: visible for the Capiro internal tenant
@@ -51,6 +52,7 @@ const INTERNAL_CANARY_FEATURES: readonly string[] = [
   DEFENSE_FUNDING_INTEL_FEATURE,
   DISTRICT_NEXUS_STRATEGIC_FEATURE,
   DISTRICT_NEXUS_PRIORITY_INTELLIGENCE_FEATURE,
+  DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE,
 ];
 
 /**

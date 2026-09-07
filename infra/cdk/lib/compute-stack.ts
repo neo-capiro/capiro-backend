@@ -1,3 +1,4 @@
+import { addDistrictNexusIngestionErrorFilter } from './district-nexus-ingestion-monitoring';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
@@ -1750,6 +1751,7 @@ export class ComputeStack extends cdk.Stack {
       metricValue: '$.error_count',
       defaultValue: 0,
     });
+    addDistrictNexusIngestionErrorFilter(this, syncJobsLogGroup);
     const syncJobsTaskDef = new ecs.FargateTaskDefinition(
       this,
       'ApiSyncJobsTaskDef',

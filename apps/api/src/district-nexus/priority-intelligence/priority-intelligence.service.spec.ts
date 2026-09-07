@@ -19,9 +19,164 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { DistrictNexusPriorityIntelligenceService } from './priority-intelligence.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { DistrictNexusService } from '../district-nexus.service.js';
+import { stateFipsForAbbr } from '../../common/us-states.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const CLIENT = '22222222-2222-2222-2222-222222222222';
+
+describe('FRPP FIPS geography at the real priority read boundary', () => {
+  test.each([
+    ['FL', '12'],
+    ['DC', '11'],
+    ['PR', '72'],
+    ['GU', '66'],
+    ['AS', '60'],
+    ['MP', '69'],
+    ['VI', '78'],
+  ])('%s maps to source FIPS %s', (abbr, fips) => {
+    expect(stateFipsForAbbr(` ${abbr.toLowerCase()} `)).toBe(fips);
+  });
+  test.each(['ZZ', '12', '', 'Florida'])(
+    'invalid USPS input %s is rejected before database access',
+    async (state) => {
+      const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+      const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
+      await expect(
+        svc.getClientDistrictPriorityIntelligence(TENANT, CLIENT, state, '08'),
+      ).rejects.toThrow('Unknown state');
+      expect(prisma.withTenant).not.toHaveBeenCalled();
+    },
+  );
+  test('a populated FIPS district returns complete totals, a bounded preview, and source-unknown vintage', async () => {
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    const record = {
+      stateCode: '12',
+      congressionalDistrict: '08',
+      fiscalYear: 2024,
+      grain: 'detailed_asset',
+      rpUid: 'asset-1',
+      reportingAgency: 'GSA',
+      squareFeet: 100,
+      legalInterest: 'Owned',
+      boundaryCongress: null,
+    };
+    const findMany = jest.fn(
+      async (args: {
+        where: { stateCode: string; congressionalDistrict: string };
+        select?: unknown;
+      }) => {
+        // FRPP stores numeric FIPS; USPS input would return zero rows.
+        if (
+          args.where.stateCode !== record.stateCode ||
+          args.where.congressionalDistrict !== record.congressionalDistrict
+        )
+          return [];
+        return args.select ? [{ fiscalYear: 2024 }] : [record];
+      },
+    );
+    const groupBy = jest.fn(async () => [
+      { ...record, _count: { _all: 601 }, _sum: { squareFeet: 60100 } },
+      {
+        ...record,
+        grain: 'summarized_installation',
+        _count: { _all: 2 },
+        _sum: { squareFeet: 999999 },
+      },
+    ]);
+    Object.assign(prisma.gsaRealProperty, { findMany, groupBy });
+    jest.mocked(prisma.gsaRealPropertySourceRun.findMany).mockResolvedValue([
+      {
+        status: 'success',
+        dryRun: false,
+        attemptedAt: new Date('2026-09-06'),
+      },
+    ] as never);
+    const response = await new DistrictNexusPriorityIntelligenceService(
+      prisma,
+      makeNexusStub(),
+    ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+    const gsa = response.priorityIntelligence.federalProperty;
+    expect(gsa).toMatchObject({
+      availability: { status: 'loaded' },
+      detailedAssetCount: 601,
+      detailedSquareFeetTotal: 60100,
+      summarizedInstallationCount: 2,
+      ownedCount: 601,
+    });
+    expect(gsa.topAssets).toHaveLength(1);
+    expect(gsa.topAssets[0]).toMatchObject({
+      state: 'FL',
+      congressionalDistrict: '08',
+      boundaryCongress: null,
+    });
+    expect(gsa.warnings.join(' ')).toContain('source-unknown');
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          stateCode: '12',
+          congressionalDistrict: '08',
+          fiscalYear: 2024,
+        },
+      }),
+    );
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        take: 10,
+        where: expect.objectContaining({
+          congressionalDistrict: '08',
+          grain: 'detailed_asset',
+        }),
+      }),
+    );
+    expect(prisma.gsaRealPropertySourceRun.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { dryRun: false } }),
+    );
+    expect(response.missingPrioritySources).not.toContain(
+      'GSA FRPP federal property data not ingested',
+    );
+  });
+  test('a completed committed import with no district matches is loaded and empty, never not ingested', async () => {
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    jest.mocked(prisma.gsaRealPropertySourceRun.findMany).mockResolvedValue([
+      {
+        status: 'success',
+        dryRun: false,
+        attemptedAt: new Date('2026-09-06'),
+      },
+    ] as never);
+    const response = await new DistrictNexusPriorityIntelligenceService(
+      prisma,
+      makeNexusStub(),
+    ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+    expect(response.priorityIntelligence.federalProperty).toMatchObject({
+      availability: {
+        status: 'loaded',
+        reason: 'No FRPP assets recorded for FL-08',
+      },
+      detailedAssetCount: 0,
+      detailedSquareFeetTotal: null,
+    });
+  });
+  test('GSA changes use FIPS while CPF/CDS and economic changes use USPS', async () => {
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    await new DistrictNexusPriorityIntelligenceService(
+      prisma,
+      makeNexusStub(),
+    ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+    expect(prisma.districtNexusChange.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          districtCode: '08',
+          observationKind: 'change',
+          OR: [
+            { source: 'gsa', stateCode: '12' },
+            { source: { not: 'gsa' }, stateCode: 'FL' },
+          ],
+        },
+      }),
+    );
+  });
+});
 
 function sqlTextOf(strings: TemplateStringsArray): string {
   return Array.isArray(strings) ? strings.join('?') : String(strings);
@@ -108,7 +263,9 @@ function makeNexusStub(): DistrictNexusService {
 
 describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
   test('queries congress_member.state (not the non-existent state_code) for both chambers', async () => {
-    const { prisma, capturedCongressMemberSql } = makePrisma({ congressMemberBehavior: 'empty' });
+    const { prisma, capturedCongressMemberSql } = makePrisma({
+      congressMemberBehavior: 'empty',
+    });
     const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
     // loadMembers is private; this is the one query this incident was about,
     // so we exercise it directly rather than mock the whole public method's
@@ -119,7 +276,10 @@ describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
           tenantId: string,
           state: string,
           district: string,
-        ) => Promise<{ houseMemberBioguideIds: string[]; senatorBioguideIds: string[] }>;
+        ) => Promise<{
+          houseMemberBioguideIds: string[];
+          senatorBioguideIds: string[];
+        }>;
       }
     ).loadMembers.bind(svc);
 
@@ -219,7 +379,9 @@ describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
   });
 
   test('senate query never filters on district — Senate requests are statewide', async () => {
-    const { prisma, capturedCongressMemberSql } = makePrisma({ congressMemberBehavior: 'empty' });
+    const { prisma, capturedCongressMemberSql } = makePrisma({
+      congressMemberBehavior: 'empty',
+    });
     const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
     const loadMembers = (
       svc as unknown as {
@@ -236,7 +398,9 @@ describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
     // Guards against a future regression that special-cases at-large (single
     // statewide House seat, district code "00") as if it were an invalid or
     // "sentinel" value — it is a real, source-backed district code.
-    const { prisma, capturedCongressMemberSql } = makePrisma({ congressMemberBehavior: 'empty' });
+    const { prisma, capturedCongressMemberSql } = makePrisma({
+      congressMemberBehavior: 'empty',
+    });
     const svc = new DistrictNexusPriorityIntelligenceService(prisma, makeNexusStub());
     const loadMembers = (
       svc as unknown as {

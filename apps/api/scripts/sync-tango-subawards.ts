@@ -13,6 +13,7 @@
 import { createHash } from 'node:crypto';
 import { config as dotenvConfig } from 'dotenv';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { TangoSubawardClient } from '../src/external/tango/tango-subaward.client.js';
 import { mapTangoSubaward } from '../src/external/tango/tango-subaward.mapper.js';
 import type {
@@ -106,7 +107,9 @@ export interface SubawardSyncDeps {
   readCheckpoint: (syncKey: string) => Promise<SubawardCheckpoint | null>;
   writeCheckpoint: (
     syncKey: string,
-    checkpoint: Omit<SubawardCheckpoint, 'rowsProcessed'> & { rowsProcessed: number },
+    checkpoint: Omit<SubawardCheckpoint, 'rowsProcessed'> & {
+      rowsProcessed: number;
+    },
   ) => Promise<void>;
   upsert: (row: TangoSubaward) => Promise<'written' | 'unchanged'>;
   now?: () => Date;
@@ -166,6 +169,7 @@ export async function runSubawardSync(
     options.primeUei == null &&
     options.subawardeeUei == null &&
     options.state == null &&
+    options.limit == null &&
     !options.allowFull
   ) {
     throw new Error('first unbounded committed subaward sync requires --allow-full');
@@ -398,28 +402,48 @@ function upsertSubaward(prisma: PrismaClient): SubawardSyncDeps['upsert'] {
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
-  const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
-  if (!apiKey) throw new Error('No TANGO_API_KEY configured');
-
   const prisma = new PrismaClient();
-  await prisma.$connect();
+  const commit = process.argv.includes('--commit');
   try {
-    const gateway = new TangoSubawardClient({
-      apiKey,
-      baseUrl: process.env.TANGO_API_BASE_URL,
-      timeoutMs: process.env.TANGO_TIMEOUT_MS ? Number(process.env.TANGO_TIMEOUT_MS) : undefined,
-    });
-    const summary = await runSubawardSync(
-      {
-        gateway,
-        readCheckpoint: readCheckpoint(prisma),
-        writeCheckpoint: writeCheckpoint(prisma),
-        upsert: upsertSubaward(prisma),
+    await runWithSyncRun(
+      prisma,
+      `sync-tango-subawards${commit ? '' : ':dry-run'}`,
+      async () => {
+        const args = parseArgs(process.argv.slice(2));
+        const apiKey = (process.env.TANGO_API_KEY ?? '').trim();
+        if (!apiKey) throw new Error('No TANGO_API_KEY configured');
+        const gateway = new TangoSubawardClient({
+          apiKey,
+          baseUrl: process.env.TANGO_API_BASE_URL,
+          timeoutMs: process.env.TANGO_TIMEOUT_MS
+            ? Number(process.env.TANGO_TIMEOUT_MS)
+            : undefined,
+        });
+        // Tango's page checkpoint is authoritative; the generic SyncRun watermark
+        // must not replace its overlap window or advance an unfinished backfill.
+        const summary = await runSubawardSync(
+          {
+            gateway,
+            readCheckpoint: readCheckpoint(prisma),
+            writeCheckpoint: writeCheckpoint(prisma),
+            upsert: upsertSubaward(prisma),
+          },
+          args,
+        );
+        console.log(`TANGO_SUBAWARD_SYNC_DONE ${JSON.stringify(summary)}`);
+        return {
+          inserted: 0,
+          updated: summary.written,
+          skipped: summary.unchanged + summary.filteredOut + summary.olderThanWatermark,
+          errors: summary.unmappable,
+          complete: commit && summary.completeness === 'complete',
+          incompleteReason: commit
+            ? 'Bounded run; resume at persisted Tango page checkpoint'
+            : 'Dry run: no facts or checkpoint committed',
+        };
       },
-      args,
+      { metricFormat: 'json' },
     );
-    console.log(`TANGO_SUBAWARD_SYNC_DONE ${JSON.stringify(summary)}`);
   } finally {
     await prisma.$disconnect();
   }

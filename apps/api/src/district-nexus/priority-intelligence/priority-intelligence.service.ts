@@ -18,6 +18,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DistrictNexusService } from '../district-nexus.service.js';
+import { stateFipsForAbbr } from '../../common/us-states.js';
 import {
   normalizeCpfCdsDistrict,
   filterForDistrict,
@@ -130,7 +131,7 @@ export class DistrictNexusPriorityIntelligenceService {
     }
     const stateCode = state.trim().toUpperCase();
     const districtPadded = normalizeCpfCdsDistrict(district) ?? district.trim();
-    if (stateCode.length !== 2) {
+    if (!stateFipsForAbbr(stateCode)) {
       throw new NotFoundException(`Unknown state "${state}"`);
     }
     if (['90', '98', 'ZZ'].includes(district.trim().toUpperCase())) {
@@ -517,7 +518,10 @@ export class DistrictNexusPriorityIntelligenceService {
   // ── GSA federal presence ──────────────────────────────────────────────────
 
   private async loadGsaPresence(state: string, district: string): Promise<GsaFederalPresence> {
+    const stateFips = stateFipsForAbbr(state);
+    if (!stateFips) throw new NotFoundException(`Unknown state "${state}"`);
     const runs = await this.prisma.gsaRealPropertySourceRun.findMany({
+      where: { dryRun: false },
       orderBy: { attemptedAt: 'desc' },
       take: 5,
     });
@@ -527,30 +531,53 @@ export class DistrictNexusPriorityIntelligenceService {
     const lastFailure = runs.find((r) => r.status === 'failed');
     const anyRun = runs.length > 0;
 
-    const rows = await this.prisma.gsaRealProperty.findMany({
-      where: { stateCode: state, congressionalDistrict: district },
+    // Resolve the latest local vintage and aggregate ALL assets. A preview cap
+    // must not silently turn a district's property totals into a 500-row sample.
+    const geography = { stateCode: stateFips, congressionalDistrict: district };
+    const years = await this.prisma.gsaRealProperty.findMany({
+      where: geography,
+      select: { fiscalYear: true },
+      distinct: ['fiscalYear'],
       orderBy: { fiscalYear: 'desc' },
-      take: 500,
     });
-
-    const latestFy = rows[0]?.fiscalYear ?? null;
-    const latestRows = latestFy == null ? [] : rows.filter((r) => r.fiscalYear === latestFy);
-    const latestDetailed = latestRows.filter((r) => r.grain === 'detailed_asset');
+    const latestFy = years[0]?.fiscalYear ?? null;
+    const groups =
+      latestFy == null
+        ? []
+        : await this.prisma.gsaRealProperty.groupBy({
+            by: ['grain', 'reportingAgency', 'legalInterest', 'boundaryCongress'],
+            where: { ...geography, fiscalYear: latestFy },
+            _count: { _all: true },
+            _sum: { squareFeet: true },
+          });
+    const latestDetailed =
+      latestFy == null
+        ? []
+        : await this.prisma.gsaRealProperty.findMany({
+            where: {
+              ...geography,
+              fiscalYear: latestFy,
+              grain: 'detailed_asset',
+            },
+            orderBy: [{ reportingAgency: 'asc' }, { rpUid: 'asc' }],
+            take: 10,
+          });
+    const detailedGroups = groups.filter((r) => r.grain === 'detailed_asset');
 
     const gsaAvailability: PriorityIntelligenceAvailability = !anyRun
       ? {
           status: 'not_loaded',
-          reason: 'No GSA FRPP source run has ever been executed in this environment',
+          reason: 'No committed GSA FRPP source run has been executed in this environment',
           lastSuccessAt: null,
           lastFailureAt: null,
           lastError: null,
         }
       : {
-          status: lastSuccess == null ? 'error' : latestRows.length === 0 ? 'not_loaded' : 'loaded',
+          status: lastSuccess == null ? 'error' : 'loaded',
           reason:
             lastSuccess == null
               ? 'Latest GSA FRPP source run failed'
-              : latestRows.length === 0
+              : groups.length === 0
                 ? `No FRPP assets recorded for ${state}-${district}`
                 : null,
           lastSuccessAt: lastSuccess?.attemptedAt?.toISOString() ?? null,
@@ -558,19 +585,16 @@ export class DistrictNexusPriorityIntelligenceService {
           lastError: lastFailure?.error ?? null,
         };
 
-    let squareFeetTotal: number | null = null;
-    let anySqft = false;
-    for (const r of latestDetailed) {
-      if (r.squareFeet != null) {
-        anySqft = true;
-        squareFeetTotal = (squareFeetTotal ?? 0) + Number(r.squareFeet);
-      }
-    }
-    if (!anySqft) squareFeetTotal = null; // no asset carried sqft → unknown, not zero
-
+    const sqftGroups = detailedGroups.filter((r) => r._sum.squareFeet != null);
+    const squareFeetTotal = sqftGroups.length
+      ? sqftGroups.reduce((total, r) => total + Number(r._sum.squareFeet), 0)
+      : null;
     const agencyCounts = new Map<string, number>();
-    for (const r of latestDetailed) {
-      agencyCounts.set(r.reportingAgency, (agencyCounts.get(r.reportingAgency) ?? 0) + 1);
+    for (const r of detailedGroups) {
+      agencyCounts.set(
+        r.reportingAgency,
+        (agencyCounts.get(r.reportingAgency) ?? 0) + r._count._all,
+      );
     }
     const agenciesByAssetCount = [...agencyCounts.entries()]
       .map(([agency, assetCount]) => ({ agency, assetCount }))
@@ -578,7 +602,7 @@ export class DistrictNexusPriorityIntelligenceService {
       .slice(0, 8);
 
     const warnings: string[] = [];
-    if (latestRows.some((r) => r.boundaryCongress == null)) {
+    if (groups.some((r) => r.boundaryCongress == null)) {
       warnings.push(
         'FRPP rows carry no boundary Congress for their district column — district vintage is source-unknown (not inferred).',
       );
@@ -596,7 +620,7 @@ export class DistrictNexusPriorityIntelligenceService {
       squareFeet: r.squareFeet == null ? null : Number(r.squareFeet),
       squareFeetUom: r.squareFeetUom,
       city: r.cityName,
-      state: r.stateCode,
+      state,
       congressionalDistrict: r.congressionalDistrict,
       boundaryCongress: r.boundaryCongress,
       isDefense: r.isDefense,
@@ -607,16 +631,21 @@ export class DistrictNexusPriorityIntelligenceService {
       geographyBasis: r.geographyBasis as GsaPropertySummary['geographyBasis'],
     }));
 
-    const fiscalYears = [...new Set(rows.map((r) => r.fiscalYear))].sort((a, b) => a - b);
+    const fiscalYears = years.map((r) => r.fiscalYear).sort((a, b) => a - b);
 
     return {
       availability: gsaAvailability,
-      detailedAssetCount: latestDetailed.length,
+      detailedAssetCount: detailedGroups.reduce((n, r) => n + r._count._all, 0),
       detailedSquareFeetTotal: squareFeetTotal,
-      summarizedInstallationCount: latestRows.filter((r) => r.grain === 'summarized_installation')
-        .length,
-      ownedCount: latestDetailed.filter((r) => /owned/i.test(r.legalInterest ?? '')).length,
-      leasedCount: latestDetailed.filter((r) => /leased/i.test(r.legalInterest ?? '')).length,
+      summarizedInstallationCount: groups
+        .filter((r) => r.grain === 'summarized_installation')
+        .reduce((n, r) => n + r._count._all, 0),
+      ownedCount: detailedGroups
+        .filter((r) => /owned/i.test(r.legalInterest ?? ''))
+        .reduce((n, r) => n + r._count._all, 0),
+      leasedCount: detailedGroups
+        .filter((r) => /leased/i.test(r.legalInterest ?? ''))
+        .reduce((n, r) => n + r._count._all, 0),
       agenciesByAssetCount,
       topAssets,
       fiscalYears,
@@ -745,7 +774,15 @@ export class DistrictNexusPriorityIntelligenceService {
       // against district_nexus_change for audit, but are not "recent
       // intelligence" a user should see, and would otherwise crowd out
       // genuine later additions/removals/corrections within `take: 20`.
-      where: { stateCode: state, districtCode: district, observationKind: 'change' },
+      where: {
+        districtCode: district,
+        observationKind: 'change',
+        // GSA ledger geography mirrors source FIPS; other rails use USPS.
+        OR: [
+          { source: 'gsa', stateCode: stateFipsForAbbr(state) },
+          { source: { not: 'gsa' }, stateCode: state },
+        ],
+      },
       orderBy: { observedAt: 'desc' },
       take: 20,
     });
@@ -753,7 +790,7 @@ export class DistrictNexusPriorityIntelligenceService {
       changeKind: c.changeKind,
       source: c.source,
       sourceRecordId: c.sourceRecordId,
-      state: c.stateCode,
+      state: c.source === 'gsa' ? state : c.stateCode,
       district: c.districtCode,
       boundaryCongress: c.boundaryCongress,
       oldValue: c.oldValue ?? null,
@@ -885,7 +922,10 @@ export class DistrictNexusPriorityIntelligenceService {
       memberPriorities: MemberPrioritySummary[];
     },
     federalProperty: GsaFederalPresence,
-    sectorSignals: { availability: SectorSignalAvailability; metrics: SectorMetricProjection[] },
+    sectorSignals: {
+      availability: SectorSignalAvailability;
+      metrics: SectorMetricProjection[];
+    },
   ): string[] {
     const signals: string[] = [];
     if (cpfCds.clientRequests.length) {

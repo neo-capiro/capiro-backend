@@ -1,3 +1,4 @@
+import { districtNexusIngestionErrorAlarm } from './district-nexus-ingestion-monitoring';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
@@ -292,6 +293,7 @@ export class AlarmsStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     ingestionErrorAlarm.addAlarmAction(action);
+    districtNexusIngestionErrorAlarm(this, cfg.envName).addAlarmAction(action);
 
     const peSyncDashboard = new cloudwatch.Dashboard(this, 'PeSyncDashboard', {
       dashboardName: `capiro-${cfg.envName}-pe-sync`,

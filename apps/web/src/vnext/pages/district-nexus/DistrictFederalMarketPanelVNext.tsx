@@ -6,6 +6,12 @@ import { CapiroErrorState, CapiroSkeleton } from '../../components/feedback/inde
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import { useApi } from '../../../lib/use-api.js';
+import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
+import {
+  DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE,
+  getSupplierFootprintStatus,
+  SUPPLIER_STATUS_LABEL,
+} from '../../../pages/intelligence/district-nexus/supplier-footprint-api.js';
 import {
   formatMarketDate,
   formatMarketMoney,
@@ -29,6 +35,7 @@ function promptForDistrict(
   districtSubawardAmount: number | null,
   stateOnlySubawardAmount: number | null,
   futureSignals: FutureRow[],
+  supplierContext: string,
 ): string {
   const signalSummary = futureSignals
     .slice(0, 4)
@@ -37,7 +44,7 @@ function promptForDistrict(
         `${signal.source === 'agency_forecast' ? 'forecast' : 'SAM opportunity'}: ${signal.title}`,
     )
     .join('; ');
-  return `Assess the federal market context for ${districtKey}. Source-backed prime contract obligations shown here: ${formatMarketMoney(contractAmount)}. District-resolved subawards: ${formatMarketMoney(districtSubawardAmount)}. State-only subawards that Capiro has NOT attributed to this district: ${formatMarketMoney(stateOnlySubawardAmount)}. Future signals: ${signalSummary || 'none in this view'}. Explain why this district may matter to the selected client, relevant government-affairs implications, and the next actions. Keep state-only subawards separate from district facts and never add future opportunities to awarded totals.`;
+  return `Assess the federal market context for ${districtKey}. Source-backed prime contract obligations shown here: ${formatMarketMoney(contractAmount)}. Supplier coverage: ${supplierContext}. ${districtSubawardAmount == null ? '' : `District-resolved subawards: ${formatMarketMoney(districtSubawardAmount)}.`} ${stateOnlySubawardAmount == null ? '' : `State-only subawards that Capiro has NOT attributed to this district: ${formatMarketMoney(stateOnlySubawardAmount)}.`} Future signals: ${signalSummary || 'none in this view'}. Explain why this district may matter to the selected client, relevant government-affairs implications, and the next actions. Keep state-only subawards separate from district facts and never add future opportunities to awarded totals.`;
 }
 
 function signalGeography(signal: FutureRow): string {
@@ -61,6 +68,24 @@ export function DistrictFederalMarketPanelVNext({
 }) {
   const api = useApi();
   const toast = useCapiroToast();
+  const supplierEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE);
+  const supplierQuery = useQuery({
+    queryKey: ['district-nexus', 'supplier-footprint-status', clientId],
+    queryFn: () => getSupplierFootprintStatus(api, clientId!),
+    enabled: supplierEnabled && Boolean(clientId),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const supplierDenied =
+    (supplierQuery.error as { response?: { status?: number } } | null)?.response?.status === 404;
+  const showSupplier = supplierEnabled && !supplierDenied;
+  const supplierStatus = supplierQuery.isError ? 'unavailable' : supplierQuery.data?.status;
+  const supplierAvailable = showSupplier && supplierStatus === 'available';
+  const supplierLabel = !clientId
+    ? 'Select a client'
+    : supplierStatus
+      ? SUPPLIER_STATUS_LABEL[supplierStatus]
+      : 'Checking supplier coverage';
   const { state, districtNo } = splitDistrictKey(districtKey);
   const query = useQuery<FederalMarketGeographyResponse>({
     queryKey: ['district-nexus', 'federal-market-geography', clientId, districtKey],
@@ -100,10 +125,14 @@ export function DistrictFederalMarketPanelVNext({
     const stateSubawards = data.stateSubawards ?? [];
     const districtRows = data.districts.filter((row) => row.districtKey === districtKey);
     const contractAmount = sumOrNull(districtRows.map((row) => row.contractAmount));
-    const districtSubawardAmount = sumOrNull(districtRows.map((row) => row.subawardAmount));
-    const stateOnlySubawardAmount = sumOrNull(
-      stateSubawards.filter((row) => row.state === state).map((row) => row.subawardAmount),
-    );
+    const districtSubawardAmount = supplierAvailable
+      ? sumOrNull(districtRows.map((row) => row.subawardAmount))
+      : null;
+    const stateOnlySubawardAmount = supplierAvailable
+      ? sumOrNull(
+          stateSubawards.filter((row) => row.state === state).map((row) => row.subawardAmount),
+        )
+      : null;
     const stateOnlySubawardCount = stateSubawards
       .filter((row) => row.state === state)
       .reduce((sum, row) => sum + row.subawardCount, 0);
@@ -124,6 +153,9 @@ export function DistrictFederalMarketPanelVNext({
         districtSubawardAmount,
         stateOnlySubawardAmount,
         futureSignals,
+        showSupplier
+          ? `${supplierLabel}${supplierQuery.data?.note && !supplierQuery.isError ? `. ${supplierQuery.data.note}` : ''}`
+          : 'Not enabled in this view',
       );
       let copied = false;
       try {
@@ -158,11 +190,23 @@ export function DistrictFederalMarketPanelVNext({
             <strong>{formatMarketMoney(contractAmount)}</strong>
             <small>District place of performance</small>
           </div>
-          <div>
-            <span>Subawards</span>
-            <strong>{formatMarketMoney(districtSubawardAmount)}</strong>
-            <small>District-resolved only</small>
-          </div>
+          {showSupplier ? (
+            <div aria-label="Supplier coverage">
+              <span>Subawards</span>
+              <strong>
+                {supplierAvailable
+                  ? districtSubawardAmount != null
+                    ? formatMarketMoney(districtSubawardAmount)
+                    : districtRows.some((row) => row.subawardCount > 0)
+                      ? 'Amount not reported'
+                      : 'No district-resolved records'
+                  : supplierLabel}
+              </strong>
+              <small>
+                {supplierAvailable ? 'District-resolved only' : 'Client supplier coverage'}
+              </small>
+            </div>
+          ) : null}
           <div>
             <span>Future signals</span>
             <strong>{futureSignals.length}</strong>
@@ -170,14 +214,24 @@ export function DistrictFederalMarketPanelVNext({
           </div>
         </div>
 
-        {stateOnlySubawardCount > 0 ? (
+        {showSupplier && supplierQuery.data && !supplierQuery.isError ? (
+          <div className="dnx-muted" style={{ marginTop: 10 }}>
+            {supplierQuery.data.note}
+            {supplierQuery.data.lastSuccessfulSyncAt
+              ? ` Last subaward sync: ${formatMarketDate(supplierQuery.data.lastSuccessfulSyncAt)}.`
+              : ''}
+          </div>
+        ) : null}
+
+        {supplierAvailable && stateOnlySubawardCount > 0 ? (
           <div className="dnx-hint dnx-info" style={{ marginTop: 10 }}>
             <div>
               <b>
                 {formatMarketMoney(stateOnlySubawardAmount)} in {state}-level subawards
               </b>{' '}
-              across {stateOnlySubawardCount} record{stateOnlySubawardCount === 1 ? '' : 's'} cannot
-              be assigned to {districtKey} from the source data. They are shown as context only.
+              across {stateOnlySubawardCount} record
+              {stateOnlySubawardCount === 1 ? '' : 's'} cannot be assigned to {districtKey} from the
+              source data. They are shown as context only.
             </div>
           </div>
         ) : null}
@@ -233,7 +287,13 @@ export function DistrictFederalMarketPanelVNext({
   return (
     <div className="dnx-federal-market">
       {marketContent}
-      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--uui-gray-200)' }}>
+      <div
+        style={{
+          marginTop: 16,
+          paddingTop: 16,
+          borderTop: '1px solid var(--uui-gray-200)',
+        }}
+      >
         <DistrictEconomicFootprintPanelVNext clientId={clientId} districtKey={districtKey} />
       </div>
     </div>

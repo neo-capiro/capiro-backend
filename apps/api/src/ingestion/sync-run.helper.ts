@@ -42,6 +42,8 @@ export interface SyncRunContext {
 export const DEFAULT_STALE_RUN_TTL_MS = 6 * 60 * 60 * 1000;
 
 export interface RunWithSyncRunOptions {
+  /** JSON metric filters require a complete JSON event. Legacy remains the default for existing log consumers. */
+  metricFormat?: 'legacy' | 'json';
   /**
    * Explicit override for the incremental window (e.g. a `--since` CLI flag or a
    * `--backfill` floor). When provided it wins over the watermark, exactly like
@@ -74,17 +76,25 @@ function toDateString(d: Date | null): string | null {
  * metrics the alarms watch — zero runtime AWS dependency, matches the existing
  * ProgramElementSync pattern. Best-effort: never throws.
  */
-function emitMetricLine(source: string, counts: RunCounts, durationSeconds: number): void {
+function emitMetricLine(
+  source: string,
+  counts: RunCounts,
+  durationSeconds: number,
+  format: 'legacy' | 'json' = 'legacy',
+): void {
   try {
+    const metric = {
+      source,
+      rows_inserted: counts.inserted,
+      rows_updated: counts.updated,
+      error_count: counts.errors,
+      complete: counts.complete !== false,
+      duration_seconds: Math.round(durationSeconds),
+    };
     console.log(
-      `INGESTION_METRIC ${JSON.stringify({
-        source,
-        rows_inserted: counts.inserted,
-        rows_updated: counts.updated,
-        error_count: counts.errors,
-        complete: counts.complete !== false,
-        duration_seconds: Math.round(durationSeconds),
-      })}`,
+      format === 'json'
+        ? JSON.stringify({ event: 'INGESTION_METRIC', ...metric })
+        : `INGESTION_METRIC ${JSON.stringify(metric)}`,
     );
   } catch {
     /* never break ingestion on a logging failure */
@@ -154,6 +164,7 @@ export async function runWithSyncRun(
       source,
       { inserted: 0, updated: 0, skipped: 0, errors: 1 },
       (Date.now() - t0) / 1000,
+      options.metricFormat,
     );
     metricEmitted = true;
   };
@@ -212,7 +223,7 @@ export async function runWithSyncRun(
         where: { id: run.id },
         data,
       });
-      emitMetricLine(source, counts, (Date.now() - t0) / 1000);
+      emitMetricLine(source, counts, (Date.now() - t0) / 1000, options.metricFormat);
       metricEmitted = true;
       return counts;
     } catch (e) {

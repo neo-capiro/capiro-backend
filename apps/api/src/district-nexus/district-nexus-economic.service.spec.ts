@@ -19,9 +19,9 @@ function tenantHarness(
   }
   const tx = {
     client: {
-      findFirst: jest.fn().mockResolvedValue(
-        options.client === undefined ? { id: 'client-1' } : options.client,
-      ),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(options.client === undefined ? { id: 'client-1' } : options.client),
     },
     $queryRaw: queryRaw,
     $executeRaw: jest.fn().mockResolvedValue(1),
@@ -34,6 +34,34 @@ function tenantHarness(
 }
 
 const now = new Date('2026-08-22T12:00:00.000Z');
+
+describe('supplier status reports observed coverage and usable identity', () => {
+  test.each([
+    [0, now, 'ABCDEF123456', 0, 'not_populated'],
+    [20, null, 'ABCDEF123456', 0, 'unavailable'],
+    [20, now, null, 0, 'no_identity'],
+    [20, now, ' ', 0, 'no_identity'],
+    [20, now, 'bad-uei', 0, 'no_identity'],
+    [20, now, 'ABCDEF123456', 0, 'no_matching_records'],
+    [20, now, 'ABCDEF123456', 2, 'available'],
+  ])('source=%s lastSync=%s uei=%s matches=%s → %s', async (rows, synced, uei, matches, status) => {
+    const { prisma, tx } = tenantHarness();
+    tx.client.findFirst.mockResolvedValue({ id: 'client-1', uei } as never);
+    Object.assign(tx, {
+      clientIntelMapping: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ n: BigInt(rows), last_synced_at: synced }])
+      .mockResolvedValueOnce([{ n: BigInt(matches) }]);
+    const response = await new DistrictNexusEconomicService(
+      prisma as never,
+    ).getSupplierFootprintStatus('tenant-1', 'client-1');
+    expect(response.status).toBe(status);
+    expect(response.available).toBe(status === 'available');
+    if (status === 'no_identity' || status === 'not_populated')
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+});
 
 function evidenceRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -139,7 +167,9 @@ describe('DistrictNexusEconomicService', () => {
       congressional_district: null,
       review_status: 'rejected',
     });
-    const { prisma } = tenantHarness({ evidence: [rejected, rejectedUnresolved] });
+    const { prisma } = tenantHarness({
+      evidence: [rejected, rejectedUnresolved],
+    });
     const service = new DistrictNexusEconomicService(prisma as never);
 
     const result = await service.getClientFootprint('tenant-1', 'client-1');
@@ -186,12 +216,7 @@ describe('DistrictNexusEconomicService', () => {
     const service = new DistrictNexusEconomicService(prisma as never);
 
     await expect(
-      service.commitImport(
-        'tenant-1',
-        null,
-        'client-1',
-        '00000000-0000-0000-0000-000000000001',
-      ),
+      service.commitImport('tenant-1', null, 'client-1', '00000000-0000-0000-0000-000000000001'),
     ).rejects.toThrow('Footprint import not found');
     expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
   });
@@ -203,12 +228,7 @@ describe('DistrictNexusEconomicService', () => {
     const service = new DistrictNexusEconomicService(prisma as never);
 
     await expect(
-      service.commitImport(
-        'tenant-1',
-        null,
-        'client-1',
-        '00000000-0000-0000-0000-000000000001',
-      ),
+      service.commitImport('tenant-1', null, 'client-1', '00000000-0000-0000-0000-000000000001'),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.$executeRaw).not.toHaveBeenCalled();
   });
