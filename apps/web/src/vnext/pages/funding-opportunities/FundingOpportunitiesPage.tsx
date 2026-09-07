@@ -63,6 +63,7 @@ export function FundingOpportunitiesPage() {
     // Explicit explore remains explicit now that Recommended is the default.
     url.set({
       view: next,
+      clientId: next === 'pipeline' ? null : url.get('clientId'),
       filter: null,
       cursor: null,
       page: null,
@@ -199,7 +200,7 @@ export function FundingOpportunitiesPage() {
             >
               <option value="">
                 {view === 'pipeline'
-                  ? 'Select a client'
+                  ? 'Show all clients'
                   : view === 'explore'
                     ? 'Research without a client'
                     : 'All accessible clients'}
@@ -236,26 +237,16 @@ export function FundingOpportunitiesPage() {
           />
         ) : null}
         {view === 'pipeline' ? (
-          clientId ? (
-            board ? (
-              <FundingOpportunityPipeline clientId={clientId} />
-            ) : (
-              <FundingOpportunityInbox
-                key={`tracking:${clientId}`}
-                clientId={clientId}
-                clientName={clientName}
-                onSelectClient={setClient}
-                mode="tracking"
-              />
-            )
+          board && clientId ? (
+            <FundingOpportunityPipeline clientId={clientId} />
           ) : (
-            <section className="fo-pipeline-client-empty" data-testid="fo-pipeline-client-empty">
-              <h2>Choose a client to see tracked work</h2>
-              <p>
-                Use the client selector above to find saved opportunities, watched forecasts, and
-                active pursuits.
-              </p>
-            </section>
+            <FundingOpportunityInbox
+              key={`tracking:${clientId ?? 'all'}`}
+              clientId={clientId}
+              clientName={clientName}
+              onSelectClient={setClient}
+              mode="tracking"
+            />
           )
         ) : view === 'inbox' ? (
           <FundingOpportunityInbox

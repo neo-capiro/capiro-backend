@@ -186,12 +186,38 @@ describe('simple vNext navigation', () => {
     expect(screen.getByText(/Recommendations and tracking are not enabled/)).toBeInTheDocument();
     expect(apiGet.mock.calls.some(([path]) => String(path).includes('/inbox'))).toBe(false);
   });
-  test('Tracking has one client selector and never silently selects a client', async () => {
+  test('Tracking defaults to Show All and fetches the cross-client inbox', async () => {
     urlStore.set('view=pipeline');
     mount();
-    expect(await screen.findByText('Choose a client to see tracked work')).toBeInTheDocument();
-    expect(screen.getAllByRole('combobox', { name: 'Client' })).toHaveLength(1);
-    expect(apiGet.mock.calls.some(([path]) => String(path).includes('/inbox'))).toBe(false);
+    expect(await screen.findByTestId('fo-tracking')).toBeInTheDocument();
+    const selector = screen
+      .getAllByRole('combobox', { name: 'Client' })
+      .find((el) => (el as HTMLSelectElement).value === '')!;
+    expect(selector).toBeDefined();
+    // The Show All option is the first entry in the dropdown.
+    expect((selector as HTMLSelectElement).options[0]?.text).toBe('Show all clients');
+    // The inbox is queried without a clientId so every tracked client appears.
+    expect(
+      apiGet.mock.calls.some(
+        ([path]) => String(path).includes('/inbox') && !String(path).includes('clientId='),
+      ),
+    ).toBe(true);
+  });
+  test('switching to Tracking clears a pinned client (Show All is the landing state)', async () => {
+    urlStore.set('view=inbox&clientId=client-1');
+    current = response({ clientId: 'client-1' });
+    mount();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tracking' }));
+    expect(urlStore.get()).toContain('view=pipeline');
+    expect(urlStore.get()).not.toContain('clientId=');
+  });
+  test('leaving Tracking for Recommended keeps the pinned client', async () => {
+    urlStore.set('view=pipeline&clientId=client-1');
+    current = response({ clientId: 'client-1' });
+    mount();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Recommended' }));
+    expect(urlStore.get()).toContain('view=inbox');
+    expect(urlStore.get()).toContain('clientId=client-1');
   });
   test('Tracking is list first and saved items need no pipeline stage or board flag', async () => {
     urlStore.set('view=pipeline&clientId=client-1');

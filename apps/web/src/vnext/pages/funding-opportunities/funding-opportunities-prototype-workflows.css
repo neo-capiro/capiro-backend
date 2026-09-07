@@ -323,42 +323,6 @@
   font-size: 12px;
   line-height: 17px;
 }
-.capiro-vnext-root .fo-pipeline-client-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 360px;
-  padding: 48px 24px;
-  border: 1px solid var(--fo-border);
-  border-radius: 12px;
-  background: var(--fo-surface);
-  text-align: center;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-}
-.capiro-vnext-root .fo-pipeline-client-empty > div {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  background: var(--fo-brand-soft);
-  color: var(--fo-brand);
-  font-size: 24px;
-}
-.capiro-vnext-root .fo-pipeline-client-empty h2 {
-  margin: 0;
-  font-size: 18px;
-  line-height: 26px;
-}
-.capiro-vnext-root .fo-pipeline-client-empty p {
-  max-width: 520px;
-  margin: 6px 0 18px;
-  color: var(--fo-secondary);
-  font-size: 14px;
-  line-height: 21px;
-}
 .capiro-vnext-root .fo-pipeline-client-picker select {
   min-width: 220px;
   height: 40px;
