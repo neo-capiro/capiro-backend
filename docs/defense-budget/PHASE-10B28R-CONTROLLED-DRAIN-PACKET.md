@@ -303,11 +303,14 @@ Tooling and outputs: `<SCRATCH>/scan/compare_proof_vs_baseline.py`, `<SCRATCH>/s
 
 The 10 criticals are all pre-existing and unchanged: 7 inherited from the node base (`zlib1g` CVE-2023-45853; `perl-base` CVE-2026-13221 / CVE-2026-42496 / CVE-2026-8376; `libgnutls30` CVE-2026-33845 / CVE-2026-42010; `tar` CVE-2026-59873) and 3 from the drain image's own apt layer (`libsqlite3-0` CVE-2025-7458, `libglib2.0-0` CVE-2026-58016, `libxml2` CVE-2026-6653, all `fixed=None` on Debian 12). **`libgnutls30` and `tar` DO have fixed versions available** (`3.7.9-2+deb12u7`, `7.5.19`) — remediable by a base-image refresh, which this PR deliberately does not attempt. **No operator risk acceptance is recorded or implied here; the inherited-critical decision remains open and belongs to the release gate, not to this PR.**
 
-### Repository-wide validation at the final head
+### Repository-wide validation
+
+Round 3 correctly flagged that the logs originally cited here predated both fixup commits, so the "at the final head" label was wrong. The full scope has since been **re-run at the true final head** and the row below now cites that run; the earlier logs are retained only as the pre-fixup baseline.
 
 | Gate | Result | Location |
 |---|---|---|
-| Full `apps/api/src/defense-budget` Jest (`--maxWorkers=3`, isolated DB) | 264 suites / 3485 tests passed, 0 failed, 0 timeouts | `<SCRATCH>/logs/full-defense-budget.log` |
+| Full `apps/api/src/defense-budget` Jest at the final head (`--maxWorkers=3`, isolated DB) | **264 suites / 3485 tests passed, 0 failed**, exit 0, Jest-reported time 164.8 s. Genuineness checked rather than assumed: the slow real-parser suites really executed (`r1-text-reconstruction-e2e` 19.3 s, `lifecycle-bridge-manifest-cycle-id-v1.real-resolver` 48.5 s, `prisma-materialization-artifact-source-v1` 84.9 s, plus the real-Postgres integration spec) | `<SCRATCH>/logs/full-defense-budget-final.log` |
+| Same scope at the pre-fixup tree (baseline for comparison) | 264 / 3485, 0 failed, 174.7 s | `<SCRATCH>/logs/full-defense-budget.log` |
 | Touched/added specs after the fixup | 5 suites / 46 tests passed | `<SCRATCH>/logs/followups-specs.log` |
 | `lifecycle-bridge-manifest-cycle-id-v1.real-resolver.spec.ts` (real parser via the new launcher) | 3/3 | `<SCRATCH>/logs/real-resolver-spec.log` |
 | TypeScript `tsc --noEmit` vs clean current-main | identical error-signature set (16 lines / 12 unique, all pre-existing); **0 new** | `<SCRATCH>/logs/tsc-compare-final.log` |
