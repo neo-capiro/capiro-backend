@@ -1,8 +1,8 @@
 import { LiveHearingRoomPage } from '../../../../pages/intelligence/LiveHearingRoomPage.js';
+import { HearingRoomVNextView } from './HearingRoomVNextView.js';
 
-/** Keep browser capture, consent, playback and transcript recovery on the same
- * tested room as the canonical route. A second socket-only presentation cannot
- * start tab recording and must not advertise an active capture. */
+/** Native vNext presentation over the shared capture and recovery lifecycle. */
 export function LiveHearingRoomVNext({ sessionId }: { sessionId: string }) {
-  return <LiveHearingRoomPage key={sessionId} sessionId={sessionId} presentation="vnext" />;
+  return <LiveHearingRoomPage key={sessionId} sessionId={sessionId} presentation="vnext"
+    renderRoom={(room) => <HearingRoomVNextView room={room} />} />;
 }

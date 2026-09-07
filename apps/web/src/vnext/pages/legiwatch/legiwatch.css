@@ -1367,6 +1367,44 @@
 .capiro-vnext-root .lw .lw-liveroom { padding: 16px var(--lw-gutter) 28px; display: flex; flex-direction: column; gap: 16px; max-width: 1560px; width: 100%; margin: 0 auto; min-width: 0; }
 .capiro-vnext-root .lw .lw-liveroom__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
 
+/* Native live room. Placement stays in the existing responsive lw-live grid. */
+.capiro-vnext-root .lw .lw-room__link { border: 0; padding: 0; background: none; color: var(--lw-link); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+.capiro-vnext-root .lw .lw-room__link:hover { color: var(--lw-link-hover); text-decoration: underline; }
+.capiro-vnext-root .lw .lw-room__link:disabled { color: var(--lw-meta); cursor: default; }
+.capiro-vnext-root .lw .lw-room__link:focus-visible { outline: 2px solid var(--lw-link); outline-offset: 3px; }
+.capiro-vnext-root .lw .lw-room__heading { min-width: 0; flex: 1 1 240px; }
+.capiro-vnext-root .lw .lw-room__heading h1 { margin: 0 0 5px; font-size: 18px; line-height: 26px; font-weight: 600; color: var(--lw-ink); overflow-wrap: anywhere; }
+.capiro-vnext-root .lw .lw-room__heading .lw-mono { font-size: 11px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-room__spacer { flex: 1; }
+.capiro-vnext-root .lw .lw-room__row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.capiro-vnext-root .lw .lw-room__panel-body { padding: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; }
+.capiro-vnext-root .lw .lw-room__panel-body > * { max-width: 100%; }
+.capiro-vnext-root .lw .lw-room__copy { margin: 8px 0; font-size: 13px; line-height: 20px; color: var(--lw-body); overflow-wrap: anywhere; }
+.capiro-vnext-root .lw .lw-room__meta { margin: 0; font-size: 11px; line-height: 17px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-room__notice { padding: 12px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 13px; line-height: 20px; color: var(--lw-warn-fg); background: var(--lw-warn-card); border-radius: 8px; }
+.capiro-vnext-root .lw .lw-room__video .lw-video__body { min-height: 0; overflow: hidden; }
+.capiro-vnext-root .lw .lw-room__video .lw-video__body > video,
+.capiro-vnext-root .lw .lw-room__video .lw-video__body > iframe { width: 100%; height: 100%; max-height: none !important; border: 0; border-radius: 0 !important; object-fit: contain; }
+.capiro-vnext-root .lw .lw-room__video .lw-video__body > audio { margin: 20px; width: calc(100% - 40px) !important; }
+.capiro-vnext-root .lw .lw-room__video-empty { padding: 16px; text-align: center; color: #fff; font-size: 13px; line-height: 20px; }
+.capiro-vnext-root .lw .lw-room__video-empty .lw-video__mark { margin: 0 auto; }
+.capiro-vnext-root .lw .lw-room__playback-note { min-width: 0; font-size: 11px; line-height: 16px; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-room__transcript { display: flex; flex-direction: column; min-height: 420px; }
+.capiro-vnext-root .lw .lw-room__transcript-head { flex-wrap: wrap; gap: 8px; }
+.capiro-vnext-root .lw .lw-room__transcript-head .lw-search { flex: 1 1 180px; min-width: 0; height: 32px; }
+.capiro-vnext-root .lw .lw-room__transcript-head .lw-btn { height: 32px; max-width: 100%; }
+.capiro-vnext-root .lw .lw-room__transcript-scroll { height: 520px; overflow-y: auto; overflow-anchor: none; }
+.capiro-vnext-root .lw .lw-room__segment-body { flex: 1; min-width: 0; }
+.capiro-vnext-root .lw .lw-tseg.is-selected { box-shadow: inset 3px 0 var(--lw-link); background: var(--lw-selected); }
+.capiro-vnext-root .lw .lw-room__follow { padding: 8px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--lw-warn-fg); background: var(--lw-warn-card); }
+.capiro-vnext-root .lw .lw-room__follow .lw-btn { height: 28px; }
+.capiro-vnext-root .lw .lw-room__empty { padding: 16px; margin: 0; font-size: 13px; line-height: 20px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-room__intel-scroll { max-height: 900px; overflow-y: auto; }
+.capiro-vnext-root .lw .lw-room__intel-label { padding: 12px 16px 6px; }
+.capiro-vnext-root .lw .lw-room__moment { padding: 14px 16px; border-bottom: 1px solid var(--lw-line); }
+.capiro-vnext-root .lw .lw-room__moment-title { margin: 8px 0 0; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-room__intel-actions { border-top: 1px solid var(--lw-line); }
+
 /* ============================================================================
    Responsive — the two canonical boundaries
    ==========================================================================

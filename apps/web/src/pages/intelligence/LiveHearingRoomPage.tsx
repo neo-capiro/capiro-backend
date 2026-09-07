@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Hls from 'hls.js';
@@ -61,6 +61,38 @@ interface Card_ {
   title: string;
   body?: string;
   startMs?: number;
+}
+
+/** Presentation boundary: both rooms use the same capture/recovery lifecycle. */
+export interface HearingRoomViewModel {
+  session: ReturnType<typeof useHearingSession>['data'];
+  loading: boolean;
+  unavailable: boolean;
+  retry: () => void;
+  phase: Phase;
+  captureActive: boolean;
+  sessionEnded: boolean;
+  segments: HearingTranscriptItem[];
+  interim: string;
+  cards: Card_[];
+  transcriptLoading: boolean;
+  transcriptError: boolean;
+  intelligenceError: boolean;
+  error: string | null;
+  dismissError: () => void;
+  statusText: string | null;
+  bytesSent: number;
+  lastTranscriptAt: number | null;
+  wakeLock: ReturnType<typeof useHearingWakeLock>;
+  sourcePlayer: ReactNode;
+  connect: () => void;
+  disconnect: () => void;
+  startCapture: () => void;
+  endSession: () => void;
+  goBack: () => void;
+  confirmConsent: () => void;
+  confirmingConsent: boolean;
+  saveRecap: () => void;
 }
 
 const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{6,}$/;
@@ -296,7 +328,12 @@ function mergeSegments(persisted: HearingTranscriptItem[], live: LiveSegment[]):
 export function LiveHearingRoomPage({
   sessionId,
   presentation = 'canonical',
-}: { sessionId?: string; presentation?: 'canonical' | 'vnext' } = {}) {
+  renderRoom,
+}: {
+  sessionId?: string;
+  presentation?: 'canonical' | 'vnext';
+  renderRoom?: (model: HearingRoomViewModel) => ReactNode;
+} = {}) {
   const enabled = useIntelFeatureEnabled('hearing_watch');
   const params = useParams();
   const id = sessionId ?? params.id ?? '';
@@ -824,6 +861,51 @@ export function LiveHearingRoomPage({
         </div>
       </div>
     );
+  }
+
+  if (renderRoom) {
+    return <>
+      {renderRoom({
+        session: session.data,
+        loading: session.isLoading,
+        unavailable: session.isError || !session.data,
+        retry: () => { void session.refetch(); refreshPersisted(); },
+        phase, captureActive, sessionEnded, segments, interim, cards,
+        transcriptLoading: transcript.isLoading,
+        transcriptError: transcript.isError,
+        intelligenceError: summary.isError,
+        error, dismissError: () => setError(null), statusText, bytesSent, lastTranscriptAt, wakeLock,
+        sourcePlayer: embeddableUrl ? <MediaPlayer src={embeddableUrl} /> : youtubeVideoId ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+            title="Hearing video"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        ) : null,
+        connect: () => { void connect(); },
+        disconnect: disconnectSocket,
+        startCapture: () => { void startBrowserCapture(); },
+        endSession: () => { void endSession(); },
+        goBack: () => { void goBack(); },
+        confirmConsent: () => confirmConsent.mutate(
+          { id, attestation: 'Confirmed recording consent for this hearing.' },
+          {
+            onSuccess: () => message.success('Consent confirmed'),
+            onError: (e: unknown) => message.error((e as Error).message),
+          },
+        ),
+        confirmingConsent: confirmConsent.isPending,
+        saveRecap: () => setRecapOpen(true),
+      })}
+      {recapOpen && <SaveRecapModal
+        sessionId={id}
+        sessionTitle={session.data?.title ?? 'Hearing'}
+        defaultClientId={session.data?.clientId ?? undefined}
+        clients={clientsQuery.data ?? []}
+        onClose={() => setRecapOpen(false)}
+      />}
+    </>;
   }
 
   return (
