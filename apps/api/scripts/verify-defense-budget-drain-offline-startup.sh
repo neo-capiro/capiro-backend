@@ -60,12 +60,23 @@ no_download_markers() {
 }
 no_completed_download() {
   # For control B (sync forced back on, UV_OFFLINE=1 must still block it): uv
-  # is EXPECTED to attempt and fail closed -- "Building capiro-defense-budget-
-  # parser", "Resolved N package", and "Failed to resolve/fetch" are the
-  # attempt's own failure chatter, not evidence of a download. Only a
-  # COMPLETED fetch/build/install (past tense: Downloaded, Built, Installed N
-  # package) means the offline guard did not hold.
-  if grep -Eq 'Downloaded [0-9]|Built capiro-defense-budget-parser$|Installed [0-9]+ package' "$1"; then return 1; fi
+  # is EXPECTED to attempt and fail closed. "Building capiro-defense-budget-
+  # parser @ file:///..." and "Failed to resolve/fetch" are the attempt's own
+  # failure chatter, not evidence of a download, so they must NOT trip this.
+  # Anything showing uv actually reached an index or landed a distribution
+  # must trip it.
+  #
+  # These patterns are matched against uv's REAL output, verified both ways:
+  #   * against the genuine offline-refusal stderr -> no match (no false FAIL);
+  #   * against uv's genuine successful sync in the drain build log -> matches
+  #     all 23 of its download/build/install lines.
+  # Two earlier patterns were silently dead and are deliberately not reused:
+  # "Downloaded [0-9]" never fires (uv prints "Downloaded <name>", e.g.
+  # "Downloaded cryptography"), and an anchored "Built <pkg>$" never fires
+  # (the real line is "Built capiro-defense-budget-parser @ file:///...").
+  # With only "Installed N package" live, a regression that fetched wheels but
+  # died before the install step would have passed this control.
+  if grep -Eq 'Downloading|Downloaded [A-Za-z0-9_.-]+|Prepared [0-9]+ package|Installed [0-9]+ package|Built capiro-defense-budget-parser|pypi\.org|files\.pythonhosted\.org' "$1"; then return 1; fi
   return 0
 }
 

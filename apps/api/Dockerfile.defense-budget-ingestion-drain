@@ -111,8 +111,16 @@ RUN chown capiro:capiro \
       /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
  && grep -q "resolveCandidateCycleId" \
       /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
- && grep -q -- "--no-sync" \
-      /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts
+ && grep -q "LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1 = Object.freeze" \
+      /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
+ && grep -q "'run', '--no-sync', 'capiro-defense-budget-parser'" \
+      /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
+ && grep -q "cycleId: z.string().min(1).optional()" \
+      /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts \
+ && grep -q '\$1::uuid' \
+      /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
+ && grep -q 'candidateStatus' \
+      /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts
 
 # Phase 10B-23B: this image now bakes ONLY the detection + recognition
 # models. The other three PP-Structure sub-models formerly baked here

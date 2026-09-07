@@ -29,10 +29,10 @@ which 6 are alternative-funding jobs), and this packet touches one row.
 | Item | Value |
 |---|---|
 | Repair branch | `fix/phase10b28r-startup-and-cycle-identity` |
-| Reviewed repair head | `0bb4a4b97a8f195fcb4f89f6991c83e6d07000ed` (base `05e0115a371a5a23f3c945a4ac6cb1a2a9998a09` = `origin/main` at cut and at packet time) |
+| Reviewed repair head | `fc09a091dc0c7a4299560c85e5038654e7152994` (two commits: `0bb4a4b97` the repairs, `fc09a091d` the fixup answering the first independent review). Base `05e0115a371a5a23f3c945a4ac6cb1a2a9998a09`; `origin/main` has since advanced to `e5629f0e3` (Meri workspace fix, PR #1502) with **zero file overlap** with this PR — re-verify overlap again immediately before merging. |
 | Prior merged fix | PR #1486 → `b938b7b1f5dc13fc1dadfb2e704337f2c3b654f8` (cycle-ID fy-tag translation) |
 | Currently qualified 10B-28 drain image | `sha256:43d74221e84233f88b72fa19589a857167a4ed2c390bea2d5e1a6bf6f8bf407a` — **must NOT be deployed**: its launcher still requires PyPI at task start |
-| Local proof image (this session, NOT pushed, never to be deployed) | `p10b28r-proof-drain:0bb4a4b97a8f195fcb4f89f6991c83e6d07000ed`, image id `sha256:6e7a3387ca13e8f2a71358f5c22ba46cbdd9510ea8a5b82215a7d9d1d9db3a9b`, linux/arm64, 746,324,689 B, built 2026-09-06T22:11–22:16Z with `--no-cache` FROM the 10B-28 stage-one digest `d55e3fe2…` (clean tree at the repair head); image ENV carries `UV_NO_SYNC=1` and `UV_OFFLINE=1`. Built only to prove the launcher contract locally; the release image must be rebuilt from the MERGE SHA (both stages) and qualified. |
+| Local proof images (this session, NOT pushed, never to be deployed) | **#1** `p10b28r-proof-drain:0bb4a4b97…`, id `sha256:6e7a3387ca13e8f2a71358f5c22ba46cbdd9510ea8a5b82215a7d9d1d9db3a9b`, 746,324,689 B, built 22:11–22:16Z. **#2 (final)** `p10b28r-proof-drain2:fc09a091d…`, id `sha256:fe21de2f4a31fd01c892d05ca629ee4c8960f3984cf8ff15db5215cedd781670`, 746,423,213 B, built 23:02–23:07Z. Both linux/arm64, `--no-cache`, FROM the 10B-28 stage-one digest `d55e3fe2…`, clean tree at their respective heads, 9/9 model checksum gates, image ENV carrying `UV_NO_SYNC=1` + `UV_OFFLINE=1`. Image #2 additionally overlays the five cycle-identity/reader files (all 8 overlaid files verified byte-identical to the committed sources; build-time grep assertions passed). Built only to prove the launcher + identity contracts locally — **the release image must still be rebuilt from the MERGE SHA (both stages) and qualified.** |
 
 Post-merge sequence (all gated, none executed here):
 
@@ -240,6 +240,85 @@ scope for this canary.
   remain separate, gated verbs; REVIEW is not ACCEPT and one accepted R-2
   member is not a publishable snapshot.
 
-## 10. Evidence index (this session)
+## 10. Evidence index (this session, 2026-09-06)
 
-<<FILL: evidence index — offline gate result, full jest, tsc, independent review, proof image>>
+All artifacts below were produced in this session's scratchpad
+(`…/0ed75ca3-c55c-4a1a-8838-347e202da010/scratchpad`, referred to as `<SCRATCH>`).
+Scratchpad contents are session-scoped and not durable — anything needed for the
+release record should be copied out before that directory is reclaimed.
+
+### Repair identity
+
+| Item | Value |
+|---|---|
+| Final reviewed head | `fc09a091dc0c7a4299560c85e5038654e7152994` |
+| Commits | `0bb4a4b97` (repairs) → `fc09a091d` (fixup answering independent review #1) |
+| PR | https://github.com/neo-capiro/capirov2/pull/1504 (draft; `MERGEABLE` / `CLEAN`) |
+
+### Startup repair (production launcher, offline)
+
+| Evidence | Result | Location |
+|---|---|---|
+| RED: current 10B-28 image `43d74221…`, exact launcher, `--network none` | `version` exit 1 (~33 s) and page-11 `run` exit 1, both `Failed to fetch https://pypi.org/simple/hatchling/` | `<SCRATCH>/startup/red_launcher.log` |
+| GREEN gate, proof image #1 | `version` + `profile` + pages 11/15/20/37 all exit 0, zero download markers; controls A and B both exit non-zero. Gate script reported FAIL **only** because control B's marker regex matched uv's pre-refusal chatter — a gate-script bug, fixed in `fc09a091d` | `<SCRATCH>/startup/gate-proof.log` |
+| Control-B regex fix reverified against the captured failing stderr | uv's real text is `Packages were unavailable because the network was disabled`; no completed-download marker present | `<SCRATCH>/startup/gate-proof/controlB.stderr` |
+| **Gate, proof image #2 (final head): `OFFLINE_STARTUP_GATE=PASS`** | **45 `GATE_OK`, 0 `GATE_FAIL`.** `version` exit 0, `profile` exit 0, pages 11/15/20/37 all exit 0 (665 s / 1045 s / 1231 s / 511 s under QEMU) with zero download markers on every step; control A (sync on, no network) and control B (sync on, network available) both failed closed with exit 1. Run 1 on image #1 had ended `FAIL` (44 OK / 1 FAIL) purely on the gate's own control-B regex bug, since fixed. | `<SCRATCH>/startup/gate-proof2.log` |
+| Controls re-verified under the **corrected, stricter** control-B check | Control A exit 1; control B exit 1 with no download evidence → passes. The strict check was also shown **non-vacuous**: run against uv's real successful-sync output it correctly FAILS, so a regression that fetched wheels would be caught. This matters because the PASS above was produced by the pre-fix script; the pass does not depend on the weaker regex. | `<SCRATCH>/startup/controls-recheck/` |
+| Real handoff in-container, `--network none`, empty uv cache | exit 0 (38 s). Launcher observed as `uv run --no-sync capiro-defense-budget-parser` with `UV_NO_SYNC=1`/`UV_OFFLINE=1`, `uvCacheExists=false`; parser really executed (`deterministic_pdfplumber` / `pdfplumber-0.11.0`, page 1 requested → succeeded, 0 failed); **zero** download/sync markers | `<SCRATCH>/startup/e2e/run_e2e3.log`, `<SCRATCH>/startup/e2e/out/handoff/e2e-summary.json` |
+
+### Cycle-identity repair
+
+| Evidence | Result | Location |
+|---|---|---|
+| RED (real Postgres, pre-wiring) | candidate persisted as `fy2024:<uuid>`; raw-id readers returned nothing; RDT&E materialization `no_candidates_yet` | `<SCRATCH>/logs/integration-red.log` |
+| GREEN (real Postgres) | 10/10 — raw-id retrieval, fresh-client retrieval, idempotent replay, corpus-loader `ingested_review`, registry by raw id, REVIEW-not-usable until a hash-bound review decision, distinct cycles/FYs/documents, tampered manifest → REJECT, coexistence with pre-fix REJECT rows | `<SCRATCH>/logs/integration-green.log` |
+| Manifest-side translation observed in-container on the final image | The real handoff wrote manifest `cycleId = fy2024:cff02efd-45e7-4ae4-8f7f-dacd12bdb84c`, and the run's findings were all content-completeness ones (`completeness`, `missing_required_data_category`, `rdte_summary_detail`, …) with **no `manifest_sha_mismatch` and no cycle-ID finding** — expected for the 785-byte synthetic stub used there. **Scope limit:** this run had `persistVerificationAudit: false`, so it exercised only the manifest half. The `routerCycleId` printed in its summary is the driver's own input echoed back, not an observation of router behavior, and `cycleIdsInExecutionReport` was empty. It is therefore **not** evidence for the persistence half. | `<SCRATCH>/startup/e2e/out/handoff/` |
+| Persistence-side identity (candidate `cycle_id` = raw lifecycle UUID) | Proven **only** by the real-Postgres integration spec above — the authoritative evidence for this half of the repair. No in-container run demonstrates it. | `<SCRATCH>/logs/integration-green.log` |
+
+### Image build and contents (proof image #2, final head)
+
+| Evidence | Result | Location |
+|---|---|---|
+| Two-stage ARM64 build, `--no-cache` | `BUILD2_EXIT=0`; id `sha256:fe21de2f4a31…`; 9/9 model checksum gates OK | `<SCRATCH>/build/proof2-build.log` |
+| Overlay byte-identity | all 8 overlaid TS files byte-identical to the committed sources; `OVERLAY_MISMATCHES=0`; build-time grep assertions passed | `<SCRATCH>/startup/rebuild_and_regate2.log` |
+
+**Caveat on "built from the repair head":** both proof images layer this commit's files onto the pinned 10B-28 stage-one API digest `d55e3fe2…`, which predates the commit. The overlay byte-identity check plus the build-time assertions establish that the overlaid files are exactly this commit's; they do **not** establish that unoverlaid `apps/api/src` code in the base is current. That is acceptable for a local contract proof and is precisely why the release image must be rebuilt from the merge SHA at **both** stages.
+
+### Vulnerability posture
+
+Package/advisory **identity-level** comparison (not counts alone) against the 10B-28 drain baseline, with inherited-vs-overlay classification via an independent node-base scan:
+
+| Metric | Result |
+|---|---|
+| Findings | 727 on both sides; `{CRITICAL 10, HIGH 174, MEDIUM 309, LOW 210, UNKNOWN 24}` identical |
+| NEW in proof image | **0** |
+| GONE vs baseline | **0** |
+| NEW overlay/application findings | **0** |
+| Package-type split | `debian 565 / node-pkg 119 / python-pkg 43`, identical both sides |
+
+Tooling and outputs: `<SCRATCH>/scan/compare_proof_vs_baseline.py`, `<SCRATCH>/scan/compare-proof1.txt`, `<SCRATCH>/scan/trivy-proof-drain.json`, `<SCRATCH>/scan/sbom-proof-drain.cdx.json`.
+
+**Which image was scanned — both, with agreeing results.** The table above was first produced against proof image **#1**, then **confirmed by a direct Trivy scan of the final image #2**: 727 findings, the same `{CRITICAL 10, HIGH 174, MEDIUM 309, LOW 210, UNKNOWN 24}` distribution, **0 NEW / 0 GONE / 0 new overlay findings** versus the 10B-28 baseline (`<SCRATCH>/scan/trivy-proof2-drain.json`, `sbom-proof2-drain.cdx.json`, `compare-proof2.txt`). That agreement was predicted in advance from the images' inputs: both enumerate the same **227** Debian + Python packages (`diff` of the two lists is empty) and the same `node_modules` manifest-tree hash `abcfa6a9d4df344d1781bc2560b5e4cd`, so all three Trivy sources (`debian` 565, `node-pkg` 119, `python-pkg` 43) derive from identical inputs; the images differ only in which already-audited TypeScript files are copied in. Evidence: `<SCRATCH>/scan/pkgdiff/img1.txt`, `img2.txt`.
+
+The 10 criticals are all pre-existing and unchanged: 7 inherited from the node base (`zlib1g` CVE-2023-45853; `perl-base` CVE-2026-13221 / CVE-2026-42496 / CVE-2026-8376; `libgnutls30` CVE-2026-33845 / CVE-2026-42010; `tar` CVE-2026-59873) and 3 from the drain image's own apt layer (`libsqlite3-0` CVE-2025-7458, `libglib2.0-0` CVE-2026-58016, `libxml2` CVE-2026-6653, all `fixed=None` on Debian 12). **`libgnutls30` and `tar` DO have fixed versions available** (`3.7.9-2+deb12u7`, `7.5.19`) — remediable by a base-image refresh, which this PR deliberately does not attempt. **No operator risk acceptance is recorded or implied here; the inherited-critical decision remains open and belongs to the release gate, not to this PR.**
+
+### Repository-wide validation at the final head
+
+| Gate | Result | Location |
+|---|---|---|
+| Full `apps/api/src/defense-budget` Jest (`--maxWorkers=3`, isolated DB) | 264 suites / 3485 tests passed, 0 failed, 0 timeouts | `<SCRATCH>/logs/full-defense-budget.log` |
+| Touched/added specs after the fixup | 5 suites / 46 tests passed | `<SCRATCH>/logs/followups-specs.log` |
+| `lifecycle-bridge-manifest-cycle-id-v1.real-resolver.spec.ts` (real parser via the new launcher) | 3/3 | `<SCRATCH>/logs/real-resolver-spec.log` |
+| TypeScript `tsc --noEmit` vs clean current-main | identical error-signature set (16 lines / 12 unique, all pre-existing); **0 new** | `<SCRATCH>/logs/tsc-compare-final.log` |
+| `git diff --check` | clean | — |
+
+### Independent review
+
+| Round | Scope | Verdict | Location |
+|---|---|---|---|
+| #1 | commit `0bb4a4b97` | APPROVE WITH NON-BLOCKING NOTES (11 findings; the one real blocker-adjacent item was the gate control-B false FAIL, fixed in `fc09a091d`) | `<SCRATCH>/review/INDEPENDENT-REVIEW.md` |
+| #2 | commit `fc09a091d` + this evidence chain | see file | `<SCRATCH>/review/INDEPENDENT-REVIEW-FINAL.md` |
+
+### Production state (read-only, unchanged all session)
+
+Drain family `capiro-dev-defense-budget-ingestion-drain` remained `:16` / `cafeccb9…` with zero RUNNING and zero STOPPED tasks; outbox row `f57a3419…` untouched in `dead_letter`; no task definition registered, no image pushed, no outbox retried, no readiness or canonical change, no S3 write.

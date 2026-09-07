@@ -334,7 +334,16 @@ function manifestInputFor(fixture: BridgeFixture): MaterializationManifestInputV
  * Consequently this spec must not run concurrently against one database.
  */
 async function cleanupLifecycleRows(prisma: PrismaClient): Promise<void> {
+  // `defense_budget_cycle` has exactly four ON DELETE RESTRICT children:
+  // expected_source, source_observation, ingestion_outbox and lifecycle_signal.
+  // This spec only ever writes the first two, but all four are cleared before
+  // the cycle itself: a row left behind by a crashed or future variant of this
+  // spec would otherwise make the cycle undeletable, and since these statements
+  // deliberately do NOT swallow errors, that would throw in both beforeAll and
+  // afterAll and wedge the spec permanently against that database.
   const statements = [
+    `DELETE FROM "defense_budget_lifecycle_signal" WHERE "cycle_id" IN (SELECT "id" FROM "defense_budget_cycle" WHERE "template_version" = $1)`,
+    `DELETE FROM "defense_budget_ingestion_outbox" WHERE "cycle_id" IN (SELECT "id" FROM "defense_budget_cycle" WHERE "template_version" = $1)`,
     `DELETE FROM "defense_budget_source_observation" WHERE "cycle_id" IN (SELECT "id" FROM "defense_budget_cycle" WHERE "template_version" = $1)`,
     `DELETE FROM "defense_budget_expected_source" WHERE "cycle_id" IN (SELECT "id" FROM "defense_budget_cycle" WHERE "template_version" = $1)`,
     `DELETE FROM "defense_budget_cycle" WHERE "template_version" = $1`,
