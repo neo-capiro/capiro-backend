@@ -90,6 +90,22 @@ export const budgetCycleManifestDocumentV1Schema = z
     sourceLocator: nonBlankString,
     sourceUrl: z.string().optional(),
     expectedSourceSha256: sha256Schema.optional(),
+    /**
+     * Phase 10B-31: the SourceDocument.sourceKey this document is expected to
+     * be registered under, when the caller building this manifest entry
+     * already knows it authoritatively (the lifecycle bridge's synthetic
+     * manifest always does -- see `buildLifecycleBridgeSyntheticManifestV1`).
+     * Optional and additive so every existing curated manifest (which has
+     * never carried this field) keeps validating unchanged.
+     *
+     * `sourceLocator` above is a byte-location hint (a path or URL), not an
+     * identity key, and must never be conflated with the SourceDocument's
+     * `sourceKey` -- see the composite proof resolver's metadata-agreement
+     * check, which compares THIS field against the persisted `sourceKey` when
+     * present, falling back to comparing `sourceLocator` (its long-standing,
+     * looser behavior) only when this field is absent.
+     */
+    expectedSourceKey: nonBlankString.optional(),
     family: budgetFamilyV1Schema,
     exhibit: exhibitV1Schema,
     authority: budgetAuthorityV1Schema,
