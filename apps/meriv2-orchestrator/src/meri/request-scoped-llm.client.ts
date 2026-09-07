@@ -43,6 +43,8 @@ export interface AnthropicToolSchema {
 
 export interface ToolLoopResponse {
   content: AnthropicContentBlock[];
+  /** Actual responding provider, including a configured cross-provider fallback. */
+  provider?: 'anthropic' | 'openai';
   stopReason: string | null;
   /** Populated by Anthropic ONLY when `stopReason === 'refusal'` — the policy
    *  category (e.g. 'cyber', 'bio') plus an explanation. Null/absent for every
@@ -411,6 +413,7 @@ export class RequestScopedLlmClient implements LlmClient {
         usage: r.usage,
         model,
         usedTenantKey,
+        provider,
       };
     }
     this.logger.debug(`LLM tool round (model=${model}, usedTenantKey=${usedTenantKey})`);
@@ -472,7 +475,7 @@ export class RequestScopedLlmClient implements LlmClient {
       }
       if (params.onTextDelta) {
         const streamed = await parseAnthropicToolStream(res, params.onTextDelta);
-        return { ...streamed, model, usedTenantKey, streamed: true };
+        return { ...streamed, model, usedTenantKey, provider, streamed: true };
       }
       const data = (await res.json()) as {
         content?: AnthropicContentBlock[];
@@ -492,6 +495,7 @@ export class RequestScopedLlmClient implements LlmClient {
         usage: parseProviderUsage(data),
         model,
         usedTenantKey,
+        provider,
         streamed: false,
       };
     } finally {
@@ -647,3 +651,4 @@ export async function parseAnthropicToolStream(
 
   return { content, stopReason, stopDetails, usage };
 }
+

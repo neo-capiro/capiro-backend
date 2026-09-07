@@ -41,7 +41,7 @@
   gap: 24px;
   margin-top: 14px;
 }
-.capiro-strategies .st-ctxlib__title-block { flex: 1; min-width: 300px; }
+.capiro-strategies .st-ctxlib__title-block { flex: 1 1 300px; min-width: 0; }
 .capiro-strategies .st-ctxlib__eyebrow {
   font-size: 12px;
   font-weight: 600;
@@ -395,15 +395,18 @@
   white-space: nowrap;
 }
 .capiro-strategies .st-ctxlib__row-copy small {
-  font-family: var(--st-font-mono);
+  font-family: var(--st-font-sans);
   font-size: 12px;
   font-weight: 400;
   color: var(--st-gray-500);
 }
 .capiro-strategies .st-ctxlib__row-pills {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
+  max-width: 200px;
 }
 .capiro-strategies .st-ctxlib__row-pills .capiro-badge { text-transform: capitalize; }
 .capiro-strategies .st-dot {
@@ -507,6 +510,7 @@
     gap: 6px 12px;
   }
   .capiro-strategies .st-ctxlib__row-updated { align-self: center; }
+  .capiro-strategies .st-ctxlib__row-pills { max-width: 140px; }
 
   /* Search takes its own full row instead of a fixed 150px input. */
   .capiro-strategies .st-ctxlib__search {

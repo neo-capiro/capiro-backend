@@ -19,6 +19,7 @@ import { StrategyContextPackService } from './strategy/strategy-context-pack.ser
 import { StrategyReportNarrativeService } from './strategy/strategy-report-narrative.service.js';
 import { StewardController } from './steward/steward.controller.js';
 import { StewardExtractService } from './steward/steward-extract.service.js';
+import { ContextImportService } from './steward/context-import.service.js';
 import { MeriRetrievalCoordinator } from './retrieval/meri-retrieval-coordinator.js';
 import { MeriV3Controller } from './meriv3/meriv3.controller.js';
 import { MeriV3AccessService } from './meriv3/meriv3-access.service.js';
@@ -71,6 +72,8 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     StrategyContextPackService,
     StrategyReportNarrativeService,
     StewardExtractService,
+    ContextImportService,
   ],
 })
 export class MeriModule {}
+
