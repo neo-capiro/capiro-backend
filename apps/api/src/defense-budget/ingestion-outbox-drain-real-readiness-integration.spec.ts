@@ -374,6 +374,7 @@ function seedCandidate(
     currentRunId: runId,
     runDecision: 'PASS',
     runStatus: 'VERIFICATION_PASSED',
+    candidateStatus: 'VERIFICATION_PASSED',
     status: 'VERIFICATION_PASSED',
     terminalVerificationRunId: runId,
     family: input.family,

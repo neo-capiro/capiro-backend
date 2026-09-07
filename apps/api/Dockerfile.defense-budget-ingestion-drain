@@ -3,8 +3,10 @@
 # The sole-live API runtime image intentionally contains NO Python / uv /
 # parser-ML packages (see docs/runbooks/defense-budget-parser-router.md §2).
 # The governed one-shot drain still has to invoke
-# `uv run capiro-defense-budget-parser` via LocalParserRuntimeClient after it
-# archives a SourceDocument. This image layers ONLY the table-target parser
+# `uv run --no-sync capiro-defense-budget-parser` via LocalParserRuntimeClient
+# after it archives a SourceDocument (see LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1
+# in source-document-parser-handoff.ts and the UV_* environment below for the
+# no-runtime-download contract this image must honor). This image layers ONLY the table-target parser
 # runtime (pdfplumber + Camelot) onto a pinned API image digest so the drain
 # worker can hand off without changing the long-running API service image.
 #
@@ -66,17 +68,61 @@ RUN uv sync --locked --no-dev --extra ocr \
 # API image without a full monorepo rebuild of apps/api:
 #  - parser-runtime-contract-v1.ts: accept Python JSON null on optional fields
 #  - source-document-parser-handoff.ts: synthetic cycle manifest + parser project dir
+#    + Phase 10B-28R `uv run --no-sync` launcher
 #  - prisma-parser-run-recorder.ts: idempotent upsert on DocumentParseJob unique key
+# Phase 10B-28R: the candidate cycle-identity repair spans five more files. They
+# are overlaid too so a drain image built on an API base that predates 10B-28R
+# still persists bridge candidates under the RAW lifecycle cycle id (the value
+# every readiness/eligibility reader queries) and still reads them back
+# correctly; without this overlay such an image would carry the launcher fix
+# but not the identity fix. The overlay is a same-era convenience only -- the
+# release process rebuilds the API base from the merge SHA regardless.
+#  - verification-contract-v1.ts: optional VerificationRequestV1.cycleId
+#  - parser-router-v1.service.ts: router passes its governed cycleId to the verifier
+#  - budget-verification-v1.service.ts: candidate identity = requested cycleId
+#  - prisma-readiness-corpus-loader-v1.ts / prisma-materialization-artifact-source-v1.ts:
+#    uuid parameter casts + candidate (not run) status
 COPY apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
   /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts
 COPY apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts
 COPY apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts \
   /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+COPY apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
+  /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts
+COPY apps/api/src/defense-budget/verification/verification-contract-v1.ts \
+  /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts
+COPY apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
+  /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts
+COPY apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts
+COPY apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts
 RUN chown capiro:capiro \
   /app/apps/api/src/defense-budget/parser-router/parser-runtime-contract-v1.ts \
   /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
-  /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts
+  /app/apps/api/src/defense-budget/parser-router/prisma-parser-run-recorder.ts \
+  /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
+  /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts \
+  /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
+  /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts \
+ && grep -q "cycleId: this.config.cycleId" \
+      /app/apps/api/src/defense-budget/parser-router/parser-router-v1.service.ts \
+ && grep -q "resolveCandidateCycleId" \
+      /app/apps/api/src/defense-budget/verification/services/budget-verification-v1.service.ts \
+ && grep -q "LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1 = Object.freeze" \
+      /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
+ && grep -q "'run', '--no-sync', 'capiro-defense-budget-parser'" \
+      /app/apps/api/src/defense-budget/parser-router/source-document-parser-handoff.ts \
+ && grep -q "cycleId: z.string().min(1).optional()" \
+      /app/apps/api/src/defense-budget/verification/verification-contract-v1.ts \
+ && grep -q '\$1::uuid' \
+      /app/apps/api/src/defense-budget/promotion/readiness/prisma-readiness-corpus-loader-v1.ts \
+ && grep -q 'AS "candidateStatus"' \
+      /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts \
+ && grep -q 'row.candidateStatus as' \
+      /app/apps/api/src/defense-budget/promotion/readiness/prisma-materialization-artifact-source-v1.ts
 
 # Phase 10B-23B: this image now bakes ONLY the detection + recognition
 # models. The other three PP-Structure sub-models formerly baked here
@@ -135,9 +181,27 @@ RUN chmod +x /usr/local/bin/bake_model.sh && \
 
 # UV_CACHE_DIR must be under a writable path for the non-root `capiro` user
 # (Fargate task user cannot create /home/capiro/.cache/uv).
+#
+# Phase 10B-28R: the parser environment is COMPLETE after `uv sync --locked`
+# above. Nothing may be installed, resolved, built, or downloaded at task
+# start. Before this contract, `uv run capiro-defense-budget-parser` re-synced
+# the project on every task start: with the empty runtime UV_CACHE_DIR it
+# treated the editable root project as uncached, rebuilt it, and fetched the
+# unpinned build backend `hatchling` from PyPI -- a silent runtime package
+# download in Fargate and a hard startup failure without network.
+#  - UV_NO_SYNC=1  `uv run` never re-syncs the project environment here (the
+#                  production launcher also passes --no-sync explicitly).
+#  - UV_OFFLINE=1  uv refuses ALL network access in this image, so a
+#                  regression that reintroduces a runtime sync fails closed
+#                  at startup instead of downloading from PyPI.
+# apps/api/scripts/verify-defense-budget-drain-offline-startup.sh proves this
+# contract against a built image (version, profiling, parsing) with Docker
+# networking disabled; run it as part of every drain-image qualification.
 ENV DEFENSE_BUDGET_PARSER_PROJECT_DIR=/defense-budget-parser \
     UV_PROJECT=/defense-budget-parser \
     UV_CACHE_DIR=/tmp/uv-cache \
+    UV_NO_SYNC=1 \
+    UV_OFFLINE=1 \
     XDG_CACHE_HOME=/tmp \
     PATH="/defense-budget-parser/.venv/bin:/usr/local/bin:${PATH}"
 

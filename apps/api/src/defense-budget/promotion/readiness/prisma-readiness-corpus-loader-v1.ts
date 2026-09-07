@@ -45,9 +45,17 @@ export class PrismaReadinessCorpusLoaderV1 implements ReadinessCorpusLoaderPortV
     const cycle = cycles[0];
     if (cycle == null) throw new Error(`defense_budget_cycle_not_found:${identity.fiscalYear}:${identity.authorityTrack}`);
 
+    // Phase 10B-28R: every scalar parameter compared with a uuid column is
+    // cast explicitly. Prisma sends string parameters as `text`, and Postgres
+    // has no `uuid = text` operator -- against a real database these queries
+    // failed with 42883 the first time a cycle actually existed (surfaced by
+    // the first real-Postgres run of verification/persistence/
+    // lifecycle-bridge-candidate-cycle-identity.integration.spec.ts, which
+    // now exercises this loader end to end). The table-routed fakes never
+    // exercised the parameter types, which is why this stayed latent.
     const allExpected = await this.prisma.$queryRawUnsafe<ExpectedRow[]>(
       `SELECT "id", "source_family" AS "sourceFamily", "expected_state" AS "expectedState", "optional"
-         FROM "defense_budget_expected_source" WHERE "cycle_id" = $1 ORDER BY "id"`,
+         FROM "defense_budget_expected_source" WHERE "cycle_id" = $1::uuid ORDER BY "id"`,
       cycle.id,
     );
     const expected = allExpected.filter((row) =>
@@ -94,7 +102,7 @@ export class PrismaReadinessCorpusLoaderV1 implements ReadinessCorpusLoaderPortV
       return { observation, sourceDocument: null, parseJobs: [], candidates: [], verificationRuns: [] };
     }
     const [document] = await this.prisma.$queryRawUnsafe<Array<{ id: string; sha256: string | null }>>(
-      `SELECT "id", "sha256" FROM "source_document" WHERE "id" = $1`, observation.sourceDocumentId,
+      `SELECT "id", "sha256" FROM "source_document" WHERE "id" = $1::uuid`, observation.sourceDocumentId,
     );
     if (document == null || document.sha256 !== observation.contentSha256) {
       this.logInvariant(`readiness durable invariant violation for observation source document ${observation.sourceDocumentId}`);
@@ -102,19 +110,19 @@ export class PrismaReadinessCorpusLoaderV1 implements ReadinessCorpusLoaderPortV
     }
     const parseJobs = await this.prisma.$queryRawUnsafe<Array<{ inputSha256: string; status: string }>>(
       `SELECT "input_sha256" AS "inputSha256", "status" FROM "document_parse_job"
-        WHERE "source_document_id" = $1 AND "input_sha256" = $2 AND "status" = 'succeeded'`,
+        WHERE "source_document_id" = $1::uuid AND "input_sha256" = $2 AND "status" = 'succeeded'`,
       document.id, document.sha256,
     );
     const candidates = await this.prisma.$queryRawUnsafe<DurableReadinessIngestionFactsV1['candidates']>(
       `SELECT "id", "source_document_id" AS "sourceDocumentId", "source_sha256" AS "sourceSha256",
               "current_run_id" AS "currentRunId" FROM "budget_extraction_candidate_v1"
-        WHERE "source_document_id" = $1 AND "source_sha256" = $2 ORDER BY "created_at" DESC`,
+        WHERE "source_document_id" = $1::uuid AND "source_sha256" = $2 ORDER BY "created_at" DESC`,
       document.id, document.sha256,
     );
     const candidate = candidates[0];
     const verificationRuns = candidate == null ? [] : await this.prisma.$queryRawUnsafe<DurableReadinessIngestionFactsV1['verificationRuns']>(
       `SELECT "id", "candidate_id" AS "candidateId", "decision", "completed_at" AS "completedAt"
-         FROM "budget_verification_run_v1" WHERE "candidate_id" = $1 ORDER BY "completed_at" DESC`,
+         FROM "budget_verification_run_v1" WHERE "candidate_id" = $1::uuid ORDER BY "completed_at" DESC`,
       candidate.id,
     );
     return { observation, sourceDocument: document, parseJobs, candidates, verificationRuns };

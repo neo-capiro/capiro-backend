@@ -655,6 +655,14 @@ export class ParserRouterV1Service {
       mode: this.config.persistVerificationAudit ? 'persist_audit' : 'inspect',
       expectedSourcePdfSha256: this.config.sourceSha256,
       expectedExtractionArtifactSha256: bridgeOutput.artifactByteSha256,
+      // Phase 10B-28R: the candidate is persisted under THIS router's governed
+      // cycle id -- the lifecycle DefenseBudgetCycle.id on the ingestion-bridge
+      // path (the same value readiness/eligibility readers query by), the
+      // manifest's own cycleId on curated CLI paths (identical to the manifest
+      // label there). The proof manifest may carry a fiscal-year-tagged label
+      // instead (see lifecycle-bridge-manifest-cycle-id-v1.ts); that label
+      // stays hash-bound and is recorded on the manifest proof snapshot.
+      cycleId: this.config.cycleId,
     };
     return this.dependencies.verificationService.verify(request);
   }

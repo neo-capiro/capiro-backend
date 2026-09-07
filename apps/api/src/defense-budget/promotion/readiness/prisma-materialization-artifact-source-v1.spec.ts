@@ -129,7 +129,9 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
         extractionArtifactSha256: SHA, extractionArtifactLocator: '/fixture/r2.json',
         sourceDocumentId: 'doc_r2', sourceSha256: SHA, candidateId: 'cand_r2',
         manifestContentSha256: SHA, policySha256: 'b'.repeat(64),
-        currentRunId: 'run_r2', runDecision: 'REVIEW', runStatus: 'REVIEW_ACCEPTED',
+        // Phase 10B-28R: the run row keeps the verifier status (NEEDS_REVIEW);
+        // REVIEW_ACCEPTED only ever exists on the candidate row.
+        currentRunId: 'run_r2', runDecision: 'REVIEW', runStatus: 'NEEDS_REVIEW', candidateStatus: 'REVIEW_ACCEPTED',
       },
     ], [{ id: 'run_r2', resultSnapshot: {
       acceptedAssertionIds: ['accepted-r2'], rejectedAssertionIds: ['rejected-r2'],
@@ -159,6 +161,7 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
         currentRunId: 'run_o1',
         runDecision: 'PASS',
         runStatus: 'VERIFICATION_PASSED',
+        candidateStatus: 'VERIFICATION_PASSED',
       },
     ]);
     const adapter = new PrismaMaterializationArtifactSourceV1(prisma);
@@ -192,6 +195,7 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
         currentRunId: null,
         runDecision: null,
         runStatus: null,
+        candidateStatus: 'EXTRACTED',
       },
     ]);
     const adapter = new PrismaMaterializationArtifactSourceV1(prisma);
@@ -213,6 +217,7 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
         currentRunId: 'run_o1',
         runDecision: 'PASS',
         runStatus: 'VERIFICATION_PASSED',
+        candidateStatus: 'VERIFICATION_PASSED',
       },
     ]);
     const adapter = new PrismaMaterializationArtifactSourceV1(prisma);

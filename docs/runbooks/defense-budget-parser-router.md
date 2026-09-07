@@ -345,3 +345,59 @@ rm -rf work/fy2027
 
 Do not delete shared parser artifacts or persisted proof objects referenced by a
 Phase 2 audit run.
+
+## 16. Ingestion-drain image: offline startup contract (Phase 10B-28R)
+
+The governed one-shot drain (`apps/api/Dockerfile.defense-budget-ingestion-drain`,
+task family `capiro-dev-defense-budget-ingestion-drain`) invokes the Python
+runtime through `LocalParserRuntimeClient` with the launcher defined by
+`LIFECYCLE_BRIDGE_PARSER_RUNTIME_COMMAND_V1` in
+`source-document-parser-handoff.ts`:
+
+```text
+uv run --no-sync capiro-defense-budget-parser <version|profile|run> ...
+```
+
+The parser environment is complete when the image is built (`uv sync --locked
+--no-dev --extra ocr`). Nothing may be installed, resolved, built, or
+downloaded when a task starts:
+
+- `--no-sync` on the launcher: `uv run` never re-syncs the project
+  environment. Without it, the image's empty runtime `UV_CACHE_DIR` made uv
+  treat the editable root project as uncached, rebuild it, and fetch the
+  unpinned build backend `hatchling` from PyPI on every task start (silent in
+  Fargate, a hard failure with networking disabled).
+- `UV_NO_SYNC=1` in the image environment: the same contract for any other
+  `uv run` inside the image.
+- `UV_OFFLINE=1` in the image environment: uv refuses all network access, so
+  a launcher that regresses to re-syncing fails closed at startup instead of
+  downloading.
+
+Prove the contract against every built drain image before it is qualified or
+deployed (the gate uses the exact launcher, an empty runtime cache, no host
+cache mounts, Docker networking disabled, and the image's own user):
+
+```bash
+# Repository root; <image> is the local image ref or ECR digest ref of the drain image.
+apps/api/scripts/verify-defense-budget-drain-offline-startup.sh \
+  <image> \
+  apps/api/src/defense-budget/rdte/cycle/__fixtures__/production-fy2024-army-r2-vol1-ba1-official.pdf \
+  1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6 \
+  11,15,20,37 \
+  /path/to/out-dir
+```
+
+It must print `OFFLINE_STARTUP_GATE=PASS`. It checks `version`, `profile`, and
+one `run` per listed physical page through the production launcher, and two
+fail-closed controls: a re-syncing launcher (`UV_NO_SYNC=0`) must fail both
+without and with network, and must not download or install anything. A gate
+failure is a release blocker. Never work around it by re-enabling network,
+mounting a host uv cache, or substituting the venv entrypoint for the launcher
+in the gate -- fix the image or the launcher. On an x86 host the ARM64 image
+runs under QEMU (roughly five minutes per OCR page); native ARM64 is authoritative.
+
+Developer note: because the launcher never syncs, the specs that drive the
+real handoff (for example
+`lifecycle-bridge-manifest-cycle-id-v1.real-resolver.spec.ts`) need a
+pre-synced environment: run `uv sync --locked` in `apps/defense-budget-parser`
+first (section 1).
