@@ -31,6 +31,17 @@ interface AiTemplate {
   usageCount: number;
 }
 
+// Splits a template prompt into its intro and each "**Label** (...)" clause so
+// the preview reads as a scannable list instead of one dense paragraph. This
+// only affects how the prompt is DISPLAYED — the string sent to the model
+// (template.prompt) is never touched.
+function formatPromptForDisplay(prompt: string): string[] {
+  return prompt
+    .split(/(?=\*\*[^*]+\*\*)/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function StepTemplate({
   templateId,
   onChange,
@@ -220,8 +231,10 @@ function PreviewTemplateModal({
             <div className="mb-1 font-mono text-[11px] tracking-[0.06em] text-ink-tertiary uppercase">
               Prompt sent to Meri
             </div>
-            <div className="rounded-md border border-line-hairline bg-surface-subtle p-3.5 text-[12.5px] leading-[1.55] text-ink-secondary">
-              {template.prompt}
+            <div className="flex flex-col gap-2.5 rounded-md border border-line-hairline bg-surface-subtle p-3.5 text-[12.5px] leading-[1.55] text-ink-secondary">
+              {formatPromptForDisplay(template.prompt).map((part, i) => (
+                <p key={i}>{part}</p>
+              ))}
             </div>
           </div>
           <div className="flex gap-4 text-xs text-ink-tertiary">

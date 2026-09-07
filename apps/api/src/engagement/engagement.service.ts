@@ -851,10 +851,23 @@ const SYSTEM_AI_TEMPLATES = [
     name: 'Outreach Message',
     category: 'outreach',
     prompt:
-      'Draft a short, polished outreach message to this recipient on behalf of the client. Sound like a real government affairs operator wrote it — direct, human, specific; use em dashes where natural and never open with "Dear". Set a concrete subject line (no "re:" padding). Body under 175 words: open with a natural greeting using the recipient\'s real first name; one sentence on why you are reaching out; one short paragraph tying the client\'s issue to this recipient\'s committee, district/state, agency role, or prior work from the selected context; one specific ask; an offer of helpful follow-up or materials; end with a brief closing line (do not sign a name — the app appends the sender\'s signature separately). Do not overstate the relationship, do not claim the recipient supports anything unless the context proves it, and do not invent facts.',
-    description: 'Short, personalized Hill or client message — direct, specific, one clear ask.',
+      'Draft a short, polished outreach message to this recipient on behalf of the client. Sound like a real government affairs operator wrote it — direct, human, specific; use em dashes where natural and never open with "Dear". Set a concrete subject line (no "re:" padding). Body under 175 words, opening with a natural greeting using the recipient\'s real first name and closing with a brief line (do not sign a name — the app appends the sender\'s signature separately). Beyond that greeting and closing, do not impose a fixed structure — let the main idea and selected context drive what the message actually says and which angle to take. Do not overstate the relationship, do not claim the recipient supports anything unless the context proves it, and do not invent facts.',
+    description: 'Short, personalized Hill or client message — direct and specific, shaped by your main idea.',
     samplePreview:
       "Subject: FY27 follow-up on directed-energy funding\n\nHi Dana —\n\nFollowing your subcommittee's markup last week, I wanted to flag where our client's work lines up with the committee's directed-energy priorities. They build the beam-control subsystem fielded on two of the programs the mark funds and can turn around test data on short notice.\n\nWould you have 20 minutes in the next two weeks for a short briefing? I'm happy to send a one-pager ahead of time so the conversation is efficient.\n\nThanks for considering it —",
+    tone: 'professional',
+    usageCount: 0,
+  },
+  {
+    id: 'system-request-meeting',
+    source: 'system' as const,
+    name: 'Request Office Meeting',
+    category: 'outreach',
+    prompt:
+      'Draft a short, direct email to congressional office staff requesting an in-person meeting on behalf of the client. Subject: name the client\'s capability or issue driving the request (no "re:" padding). Sound like a real government affairs operator wrote it — direct, human, specific; use em dashes where natural and never open with "Dear". Body under 150 words: open with a natural greeting using the recipient\'s real first name; introduce the client in one sentence; name the specific capability, program, or issue behind the request from the selected context; ask directly for an in-person meeting, offering flexibility on timing; end with a brief closing line (do not sign a name — the app appends the sender\'s signature separately). Let the main idea and selected context shape the specific angle. Do not overstate the relationship, do not claim the recipient supports anything unless the context proves it, and do not invent facts.',
+    description: 'Direct request for an in-person meeting — greets the office, introduces the client, names the ask.',
+    samplePreview:
+      "Subject: Directed-energy test capability — meeting request\n\nHi Jordan —\n\nI'm reaching out on behalf of our client, which builds the beam-control subsystem used on two of the committee's priority programs.\n\nGiven the subcommittee's recent focus on directed-energy readiness, I'd welcome the chance to walk your office through what we're seeing on the program side — in person, whenever works over the next few weeks.\n\nHappy to work around the office's schedule —",
     tone: 'professional',
     usageCount: 0,
   },
@@ -898,33 +911,6 @@ const SYSTEM_AI_TEMPLATES = [
     usageCount: 0,
   },
   {
-    id: 'system-hill-prep',
-    source: 'system' as const,
-    name: 'Hill Prep (Multiple Meetings)',
-    category: 'hill',
-    prompt:
-      'Prepare a Hill prep packet covering multiple congressional meetings in a day, delivered as one email. Subject: "Hill prep — " plus the client and date if known. This is a single coordinated strategy, not separate summaries. Use only the supplied client, recipients, and selected context; do not invent. Body in Markdown: **Bottom line for the day** (main objective, which meetings matter most, strongest alignment, likely objections, what to avoid saying); **Core message** (the common message across meetings — natural, not a script — with value proposition, policy rationale, local/committee relevance, and the specific ask); **Message discipline** (one-sentence message, top 3 proof points, framing, words or arguments to avoid, sensitive issues); **Meeting-by-meeting** (per office: priority High/Medium/Low, why it matters, office read, best angle, likely concerns, 3-5 tailored talking points, 3-5 questions, recommended ask, follow-up); **Cross-meeting intelligence** (likely supporters, offices needing education, skeptics, offices with appropriations/authorization/oversight leverage, potential champions and blockers); **Suggested meeting order strategy**; **Questions to carry across the day**; **End-of-day follow-up plan**.',
-    description:
-      'Full Hill-day packet: one message, office-by-office prep, cross-meeting strategy.',
-    samplePreview:
-      '## Bottom line for the day\nFour meetings, one ask. Lead with Rep. Carter (most aligned) to validate the framing before the two skeptical offices, and close with the appropriations staff.\n\n## Core message\nThe program delivers in-district jobs and a capability the committee has prioritized; we are asking for report language directing a briefing.\n\n## Meeting-by-meeting\n- Carter (High): confirm support, ask him to socialize the language.\n- Diaz (Medium): address the cost concern head-on with the new data.\n\n## End-of-day follow-up plan\nSend tailored one-pagers within 24 hours and request staff meetings with the two undecided offices.',
-    tone: 'professional',
-    usageCount: 0,
-  },
-  {
-    id: 'system-office-memo',
-    source: 'system' as const,
-    name: 'Congressional Office Memo',
-    category: 'office',
-    prompt:
-      'Generate a congressional office intelligence memo that helps the lobbyist decide how to approach this office — not just who the member is — delivered as an email. Subject: "Office memo — " plus the office name. Use selected context first; include generic biography only when it affects strategy; do not invent. Body in Markdown: **Bottom line** (why this office matters to the client; champion / persuadable / information target / blocker; best way to approach); **Office profile** (party, state/district, committees, leadership roles, caucuses, relevant staff, district/state interests — only what is supported); **Policy interests** (from bills, committee activity, statements, hearings, funding requests, district economic profile); **Connection to client** (Strong alignment / Possible / Weak / Friction); **Recent activity that matters** (what happened, why it matters, how to use it); **Influence assessment** (policy influence, political relevance, client relevance — each High/Medium/Low, with reasoning); **Best engagement strategy** (messenger, argument, proof point, ask, follow-up material); **Talking points**; **Questions to ask**; **Risks and watch-outs**.',
-    description: 'How to approach an office: posture, interests, influence, engagement strategy.',
-    samplePreview:
-      "## Bottom line\nLikely persuadable. The member sits on the relevant subcommittee and has a major employer in-district, so lead with the jobs angle and bring the readiness data.\n\n## Office profile\nMajority member; serves on the authorizing subcommittee; district hosts a key supplier.\n\n## Connection to client\nPossible alignment — the client's work supports an in-district program.\n\n## Best engagement strategy\nMessenger: the client's program lead. Argument: jobs plus capability. Ask: a member meeting before markup, with a staff briefing as the fallback.",
-    tone: 'professional',
-    usageCount: 0,
-  },
-  {
     id: 'system-legislative-impact',
     source: 'system' as const,
     name: 'Legislative Impact Memo',
@@ -935,46 +921,6 @@ const SYSTEM_AI_TEMPLATES = [
     samplePreview:
       "## Bottom line\n- Section 214 directly affects the client's contract vehicle.\n- Funding is authorized but not yet appropriated.\n- Recommend Support with changes.\n\n## What the bill does\nReauthorizes the program and adds a new reporting gate before obligation.\n\n## Why it matters to the client\nThe reporting gate could delay task orders on their current vehicle.\n\n## Recommended position\nSupport with changes — seek report language clarifying the gate applies only to new starts.\n\n## Engagement plan\nBrief the two authorizing offices and monitor the appropriations mark.",
     tone: 'formal',
-    usageCount: 0,
-  },
-  {
-    id: 'system-hearing-prep',
-    source: 'system' as const,
-    name: 'Hearing Prep',
-    category: 'hearing',
-    prompt:
-      'Prepare a hearing intelligence brief, delivered as an email — what is likely to happen, why it matters, and how to use the hearing before and after. Subject: "Hearing prep — " plus the hearing title. Use the supplied hearing details, witnesses, members, client, and selected context; do not invent testimony, questions, or positions. Body in Markdown: **Bottom line** (why this hearing matters to the client, the main issue, likely political frame, what to watch); **Hearing setup** (committee/subcommittee, chair and ranking member, witnesses, jurisdiction, related bills/programs/funding); **Likely themes** (per theme: why likely, who raises it, client relevance, risk/opportunity); **Witness read** (per witness: role, likely perspective, relevant prior activity, effect on the client); **Member dynamics** (who shapes the hearing and how); **Likely questions** (majority / minority / client-relevant / risk-creating); **Client implications** (policy, oversight, appropriations, regulation, reputation, business development, coalition); **Recommended pre-hearing actions**; **Recommended post-hearing actions**; **Watch-outs**.',
-    description: 'Hearing brief: likely themes, witness read, member dynamics, pre/post actions.',
-    samplePreview:
-      "## Bottom line\nThe hearing is framed around readiness, but the real action for the client is the Q&A on the modernization account — that is where funding signals will surface.\n\n## Hearing setup\nFull committee; the chair and ranking member both have programs in the client's space; two DoD witnesses.\n\n## Likely themes\nReadiness shortfalls, schedule slips, and modernization trade-offs.\n\n## Recommended pre-hearing actions\nSend committee staff a short data sheet on the client's program.\n\n## Recommended post-hearing actions\nFollow up on any question that touches the modernization account within 24 hours.",
-    tone: 'professional',
-    usageCount: 0,
-  },
-  {
-    id: 'system-pe-brief',
-    source: 'system' as const,
-    name: 'Defense Program Element Brief',
-    category: 'defense',
-    prompt:
-      'Generate a Defense Program Element intelligence brief connecting budget data to lobbying and business-development strategy, delivered as an email. Subject: "PE brief — " plus the PE code and title. Use the supplied PE data (code, title, service, budget activity, funding history, requested funding, congressional marks, associated programs, office/command, contractors, contracts, hearings, legislation, reports), client, and selected context; do not invent figures or marks, and state confidence. Body in Markdown: **Bottom line** (what the program funds; why it matters to the service, to industry, and to the client); **Funding picture** (prior year, current request, increase/decrease, congressional changes, direction of travel, confidence — what the movement suggests without overstating); **Program read** (mission area, modernization relevance, technology areas, associated programs, milestones, dependencies); **Stakeholder map** (service owner, PEO/PM/command, OSD stakeholders, committees, interested members, contractors, competitors, associations); **Congressional relevance** (appropriations/authorization interest, oversight risk, district/state relevance, prior marks or report language, hearing references); **Industry relevance** (contracting opportunities, competitive positioning, recompete/new-start signals, transition risk); **Client implications** (Opportunity / Risk / Relationship target / Funding target / Intelligence gap); **Recommended engagement strategy**; **Talking points** (5-7); **Questions to ask** (Hill staff, agency, industry, client team); **Watch items** (budget documents, marks, hearings, contract awards, RFIs/RFPs, GAO/CRS/IG reports).',
-    description:
-      'PE budget intelligence tied to lobbying strategy: funding, stakeholders, watch items.',
-    samplePreview:
-      '## Bottom line\nPE 0604XXXF funds the next-gen sensor line — the FY27 request is up 18%, and the client is positioned for the integration recompete.\n\n## Funding picture\nPrior year $210M; FY27 request $248M; no marks yet. Direction of travel: up. Confidence: medium.\n\n## Stakeholder map\nService owner: Air Force; PEO and prime known; two subcommittees with jurisdiction.\n\n## Client implications\nOpportunity — recompete on the integration scope. Risk — an incumbent protest could slip the schedule.\n\n## Recommended engagement strategy\nBrief the program office and the two authorizing offices; watch the appropriations mark and the next contract action.',
-    tone: 'professional',
-    usageCount: 0,
-  },
-  {
-    id: 'system-stakeholder-profile',
-    source: 'system' as const,
-    name: 'Stakeholder Profile',
-    category: 'stakeholder',
-    prompt:
-      'Generate a stakeholder intelligence profile that helps the lobbyist decide how to approach this person — not just their resume — delivered as an email. Subject: "Stakeholder profile — " plus the name. Use selected context first; do not invent activity, positions, or relationships. Body in Markdown: **Bottom line** (why this person matters, what they likely care about, how to approach them, what to avoid); **Role and influence** (formal authority, informal influence, decision power, relationship to relevant committees/agencies/programs); **Issue alignment** (Strong / Possible / Friction / Unknown); **Relevant activity** (statements, bills, hearings, votes, funding, lobbying connections, agency actions, news — from context); **Relationship strategy** (best reason to engage, messenger, opening, proof point, ask, follow-up); **Talking points** (5, tailored); **Questions to ask** (5); **Watch-outs**.',
-    description: 'Read on a person: influence, alignment, and how to build the relationship.',
-    samplePreview:
-      "## Bottom line\nThe staff director is the real decision-maker here — pragmatic, data-driven, and skeptical of vendor pitches. Lead with the readiness data, not the relationship.\n\n## Role and influence\nControls the subcommittee's pen and the member's schedule on defense issues.\n\n## Issue alignment\nPossible — has backed similar capabilities when the data was strong.\n\n## Relationship strategy\nMessenger: a technical lead, not a lobbyist. Opening: the committee's own readiness question. Ask: a 15-minute briefing.",
-    tone: 'professional',
     usageCount: 0,
   },
   {
@@ -1001,19 +947,6 @@ const SYSTEM_AI_TEMPLATES = [
     samplePreview:
       "## Bottom line\n- The rule, as proposed, raises our client's compliance cost.\n- The comment window closes in 21 days.\n- Recommend: Prepare comments and brief two offices.\n\n## Business impact\nHigher recurring compliance cost; modest schedule risk on current work.\n\n## Political read\nThe agency wants the rule finalized this year; targeted comments can still shape it.\n\n## Recommended decision\nPrepare — draft comments and line up two supportive offices.\n\n## Next steps\nDraft comments this week; schedule the two briefings; set an internal review before filing.",
     tone: 'formal',
-    usageCount: 0,
-  },
-  {
-    id: 'system-strategy-memo',
-    source: 'system' as const,
-    name: 'Internal Strategy Memo',
-    category: 'strategy',
-    prompt:
-      'Create an internal government affairs strategy memo for planning what to do next, delivered as an email. Be candid, practical, and direct — this is internal. Subject: "Strategy memo — " plus the issue. Use the supplied client, stakeholders, and selected context; do not invent. Body in Markdown: **Bottom line** (the recommended strategy in plain English); **Objective** (what we are trying to accomplish); **Current landscape** (policy status, political dynamics, stakeholders, timing, risks); **Strategic options** (2-4 options — per option: description, upside, downside, required work, likelihood of success, recommended or not); **Recommended path** (target offices or agencies, message, proof points, coalition needs, materials, timing); **Risks** (political, procedural, reputational, client); **Next 7 days**; **Next 30 days**.',
-    description: 'Internal game plan: options weighed, a recommended path, and a 7/30-day plan.',
-    samplePreview:
-      '## Bottom line\nRun a quiet authorization play through SASC rather than a public appropriations push — lower profile, better odds this cycle.\n\n## Objective\nSecure report language directing the briefing without triggering opposition.\n\n## Strategic options\n- Quiet authorization play (recommended): lower profile, needs two champions.\n- Public appropriations push: faster, but invites the opponent to organize.\n\n## Recommended path\nBrief the two supportive SASC offices, hand them the language, and stay off the record.\n\n## Next 7 days\nConfirm the two champions and circulate the language.\n\n## Next 30 days\nTrack the mark and prepare a fallback amendment.',
-    tone: 'candid',
     usageCount: 0,
   },
 ] as const;

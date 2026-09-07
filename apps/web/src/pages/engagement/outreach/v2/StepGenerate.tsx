@@ -498,16 +498,17 @@ export function StepGenerate({
                   <div className="mt-3.5 flex flex-col gap-1.5">
                     <div className="text-[13px] font-semibold text-ink-strong">Improve with Meri</div>
                     <div className="flex gap-2">
-                      <Input
-                        value={improveText}
-                        onChange={setImproveText}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') submitImprove();
-                        }}
-                        placeholder="e.g. make it warmer, tighten the ask, add a line about the markup"
-                        disabled={!!activeKey && generatingKey === activeKey}
-                        className="flex-1"
-                      />
+                      <div className="flex-1">
+                        <Input
+                          value={improveText}
+                          onChange={setImproveText}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') submitImprove();
+                          }}
+                          placeholder="e.g. make it warmer, tighten the ask, add a line about the markup"
+                          disabled={!!activeKey && generatingKey === activeKey}
+                        />
+                      </div>
                       <Button
                         variant="primary"
                         isDisabled={!improveText.trim()}
