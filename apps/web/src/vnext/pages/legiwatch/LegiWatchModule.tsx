@@ -19,6 +19,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronDown, Crosshair } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -44,10 +45,10 @@ type Overlay = 'views' | 'watch' | 'states' | 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
   hearings: {
-    eyebrow: 'Hearing watch',
+    eyebrow: 'Legislative intelligence',
     title: 'Hearings',
     description:
-      'Move from committee schedules to live transcription, watchlist hits, and durable hearing intelligence.',
+      'Congressional proceedings Capiro is watching, attending and archiving for your clients.',
   },
   committees: {
     eyebrow: 'Committee directory',
@@ -151,6 +152,7 @@ export function LegiWatchModule() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [lensOpen, setLensOpen] = useState(false);
 
   // §7.2/§7.9 — removed tabs redirect to hearings; unknown tabs land on hearings.
   const rawTab = searchParams.get('tab');
@@ -278,23 +280,57 @@ export function LegiWatchModule() {
 
       <header className="lw-pagehead">
         <div>
-          <div className="lw-eyebrow">{head.eyebrow} · {scopeLabel}</div>
+          <div className="lw-eyebrow">{head.eyebrow}</div>
           <h1 className="lw-h1">{head.title}</h1>
           <p className="lw-desc">{head.description}</p>
         </div>
         <div className="lw-pagehead__actions">
-          <select
-            aria-label="LegiWatch client scope"
-            className="lw-btn"
-            style={{ height: 42, appearance: 'none', paddingRight: 28 }}
-            value={selectedClient?.id ?? ''}
-            onChange={(e) => setParam('client', e.target.value || null)}
+          {/* Client lens (§7.1) — the one shaded control in the header set:
+              brand-tinted bg/ring because it scopes the whole page's private
+              client analysis. Eyebrow + value stacked per the v2 prototype. */}
+          <button
+            type="button"
+            className="lw-lens"
+            onClick={() => setLensOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={lensOpen}
           >
-            <option value="">All clients</option>
-            {visibleClients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            <Crosshair size={16} color="#294E68" aria-hidden="true" />
+            <span className="lw-lens__stack">
+              <span className="lw-lens__eyebrow">Client lens</span>
+              <span className="lw-lens__value">{scopeLabel}</span>
+            </span>
+            <ChevronDown size={15} color="#294E68" aria-hidden="true" />
+          </button>
+          {lensOpen ? (
+            <div className="lw-lens__menu" role="listbox" aria-label="Client lens">
+              <div className="lw-lens__menuhead">Client lens</div>
+              <button
+                type="button"
+                role="option"
+                aria-selected={!selectedClient}
+                className={`lw-lens__opt${!selectedClient ? ' is-active' : ''}`}
+                onClick={() => { setParam('client', null); setLensOpen(false); }}
+              >
+                <span className="lw-lens__optname">All clients</span>
+              </button>
+              {visibleClients.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedClient?.id === c.id}
+                  className={`lw-lens__opt${selectedClient?.id === c.id ? ' is-active' : ''}`}
+                  onClick={() => { setParam('client', c.id); setLensOpen(false); }}
+                >
+                  <span className="lw-lens__optname">{c.name}</span>
+                </button>
+              ))}
+              <div className="lw-lens__note">
+                The lens changes your private client analysis. It never changes the public record.
+              </div>
+            </div>
+          ) : null}
           {/* PR C §16: a scoped client the directory no longer lists is an
               ARCHIVED/DELETED reference. The scope keeps working (historical
               data stays reachable) but the selector must not silently pretend
@@ -312,7 +348,7 @@ export function LegiWatchModule() {
           </LwButton>
           <button
             type="button"
-            className="lw-btn lw-btn--42 lw-btn--icon"
+            className="lw-iconbtn"
             aria-label="LegiWatch settings"
             title="LegiWatch settings"
             onClick={() => setTab('settings')}
@@ -326,7 +362,7 @@ export function LegiWatchModule() {
                 strokeLinejoin="round"
               />
               <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06-.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-1.51 1Z"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"

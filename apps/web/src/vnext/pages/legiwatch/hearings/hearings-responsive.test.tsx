@@ -137,8 +137,8 @@ describe('LW-QA-011 — responsive hearings view-mode', () => {
     await screen.findByLabelText('Week calendar');
     const seg = screen.getByLabelText('Schedule view');
     expect(seg.getAttribute('aria-disabled')).toBeNull();
-    // The user can switch to List on desktop.
-    fireEvent.click(within(seg).getByText('List'));
+    // The user can switch to Agenda on desktop.
+    fireEvent.click(within(seg).getByText('Agenda'));
     await waitFor(() => expect(screen.queryByLabelText('Week calendar')).toBeNull());
   });
 
