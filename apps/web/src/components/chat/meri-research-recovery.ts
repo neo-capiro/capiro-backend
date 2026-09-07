@@ -38,21 +38,23 @@ export interface MeriRecoveredResearch {
   planMessageId: string | null;
   reportMessageId: string | null;
   report: string | null;
-  reportEvidence?: Pick<
-    ChatMessage,
-    | 'citations'
-    | 'contextPacketId'
-    | 'retrieval'
-    | 'verification'
-    | 'groundingCaveat'
-    | 'groundingStatement'
-    | 'runtimeStatus'
-    | 'orchestratorIntent'
-    | 'orchestratorTier'
-    | 'planSteps'
-    | 'trustSteps'
-  >;
+  reportEvidence?: MeriResearchReportEvidence;
 }
+
+export type MeriResearchReportEvidence = Pick<
+  ChatMessage,
+  | 'citations'
+  | 'contextPacketId'
+  | 'retrieval'
+  | 'verification'
+  | 'groundingCaveat'
+  | 'groundingStatement'
+  | 'runtimeStatus'
+  | 'orchestratorIntent'
+  | 'orchestratorTier'
+  | 'planSteps'
+  | 'trustSteps'
+>;
 
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
@@ -103,7 +105,6 @@ export function readRecoveredResearch(
     return null;
   const report = record(session.report);
   const publicMetadata = record(session.reportMetadata);
-  const persisted = { metadata: publicMetadata };
   return {
     id: session.id,
     conversationId,
@@ -117,21 +118,26 @@ export function readRecoveredResearch(
     report: typeof report.bodyText === 'string' ? report.bodyText : null,
     ...(Object.keys(publicMetadata).length
       ? {
-          reportEvidence: {
-            citations: mapPersistedCitations(persisted),
-            ...mapPersistedWorkPerformed(persisted),
-            contextPacketId: mapPersistedContextPacketId(persisted),
-            retrieval: mapPersistedRetrieval(persisted),
-            verification: mapPersistedVerification(persisted),
-            groundingCaveat: mapPersistedGroundingCaveat(persisted),
-            groundingStatement:
-              typeof publicMetadata.groundingStatement === 'string'
-                ? publicMetadata.groundingStatement
-                : undefined,
-            runtimeStatus: meriRuntimeStatus(publicMetadata),
-          },
+          reportEvidence: readResearchReportEvidence(publicMetadata),
         }
       : {}),
+  };
+}
+
+/** Use the same validated public metadata for the final stream event and reload. */
+export function readResearchReportEvidence(value: unknown): MeriResearchReportEvidence {
+  const metadata = record(value);
+  const persisted = { metadata };
+  return {
+    citations: mapPersistedCitations(persisted),
+    ...mapPersistedWorkPerformed(persisted),
+    contextPacketId: mapPersistedContextPacketId(persisted),
+    retrieval: mapPersistedRetrieval(persisted),
+    verification: mapPersistedVerification(persisted),
+    groundingCaveat: mapPersistedGroundingCaveat(persisted),
+    groundingStatement:
+      typeof metadata.groundingStatement === 'string' ? metadata.groundingStatement : undefined,
+    runtimeStatus: meriRuntimeStatus(metadata),
   };
 }
 

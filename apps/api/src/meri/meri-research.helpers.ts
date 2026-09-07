@@ -18,6 +18,7 @@ import {
   MERI_GROUNDING_INVARIANT,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
+  type MeriCitation,
 } from '@capiro/shared';
 import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
 
@@ -241,6 +242,7 @@ export function assembleReportArtifact(input: {
   plan: string[];
   reportBody: string;
   sources: Array<{ label?: string; tool?: string; summary?: string; count?: number | null }>;
+  citations?: MeriCitation[];
   generatedAt: Date;
 }): string {
   const header: string[] = [];
@@ -253,7 +255,17 @@ export function assembleReportArtifact(input: {
 
   const body = input.reportBody.trim() || '_No report content was generated._';
 
-  const sourceLines = dedupeSources(input.sources);
+  // Exported/open-as-page reports use the same source identities as the chat.
+  // A completed tool receipt alone is not a bibliographic source or excerpt.
+  const plain = (value: string) => value.replace(/[\r\n]+/g, ' ').replace(/[\\`*_{}\[\]<>]/g, '\\$&');
+  const sourceLines = input.citations?.length
+    ? input.citations.map((citation) => {
+        const detail = [plain(citation.title)];
+        if (citation.snippet) detail.push(plain(citation.snippet));
+        if (citation.url && /^https?:\/\//i.test(citation.url)) detail.push(plain(citation.url));
+        return `[${citation.n}] ${detail.join(' — ')}`;
+      })
+    : dedupeSources(input.sources);
   const footer: string[] = [];
   if (sourceLines.length) {
     footer.push('');

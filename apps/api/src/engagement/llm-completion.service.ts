@@ -47,6 +47,10 @@ export interface LlmCompletionRequest {
   userStatic: string;
   /** Volatile per-request user body. */
   userVolatile: string;
+  /** Server-authorized PDF bytes, bounded by the caller to the requested page. */
+  pdfInput?: { filename: string; base64: string };
+  /** Cancellation/deadline inherited from the originating tool request. */
+  signal?: AbortSignal;
   /** Structured-output JSON schema (both providers). */
   jsonSchema: Record<string, unknown>;
   jsonSchemaName?: string;
@@ -201,6 +205,7 @@ export class LlmCompletionService {
     req: LlmCompletionRequest,
     onProgress: (rawTextSoFar: string) => void,
   ): Promise<LlmCompletionResult> {
+    req.signal?.throwIfAborted();
     if (req.provider !== 'openai') {
       return this.completeInner(req);
     }
@@ -208,8 +213,10 @@ export class LlmCompletionService {
     const maxRetries = req.maxRetries ?? DEFAULT_MAX_RETRIES;
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      req.signal?.throwIfAborted();
       try {
         const outcome = await this.streamOnce(req, onProgress);
+        req.signal?.throwIfAborted();
         if (outcome.kind === 'ok') {
           contextStageTimer.recordProvider({
             status: 'ok',
@@ -237,6 +244,7 @@ export class LlmCompletionService {
           `openai streaming completion failed: ${outcome.message}`,
         );
       } catch (err) {
+        req.signal?.throwIfAborted();
         if (err instanceof ServiceUnavailableException) throw err;
         lastError = err;
         if (attempt < maxRetries) {
@@ -272,7 +280,10 @@ export class LlmCompletionService {
     req: LlmCompletionRequest,
     onProgress: (rawTextSoFar: string) => void,
   ): Promise<StreamOutcome> {
+    req.signal?.throwIfAborted();
     const controller = new AbortController();
+    const onAbort = () => controller.abort(req.signal?.reason);
+    req.signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), req.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     try {
       const { url, headers, body } = this.buildRequest(req);
@@ -316,12 +327,15 @@ export class LlmCompletionService {
       let streamError: string | null = null;
 
       while (true) {
+        req.signal?.throwIfAborted();
         const { done, value } = await reader.read();
+        req.signal?.throwIfAborted();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const events = buffer.split('\n\n');
         buffer = events.pop() ?? ''; // last (possibly incomplete) event stays buffered
         for (const rawEvent of events) {
+          req.signal?.throwIfAborted();
           const dataLine = rawEvent.split('\n').find((line) => line.startsWith('data:'));
           if (!dataLine) continue;
           const jsonText = dataLine.slice(5).trim();
@@ -364,6 +378,7 @@ export class LlmCompletionService {
         message: streamError ?? 'stream ended without a completed event',
       };
     } catch (err) {
+      req.signal?.throwIfAborted();
       if ((err as Error).name === 'AbortError') {
         throw new ServiceUnavailableException(
           `${req.provider} request timed out after ${(req.timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000}s`,
@@ -372,17 +387,24 @@ export class LlmCompletionService {
       throw err;
     } finally {
       clearTimeout(timer);
+      req.signal?.removeEventListener('abort', onAbort);
     }
   }
 
   private async completeInner(req: LlmCompletionRequest): Promise<LlmCompletionResult> {
+    req.signal?.throwIfAborted();
+    if (req.pdfInput && req.provider !== 'openai') {
+      throw new ServiceUnavailableException('PDF input requires the OpenAI Responses provider');
+    }
     // Assert the exact caller authority before any network call.
     this.runtimePolicy?.assertExternalAction(req.runtimeAction ?? 'outreach_generate');
     const maxRetries = req.maxRetries ?? DEFAULT_MAX_RETRIES;
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      req.signal?.throwIfAborted();
       try {
         const { status, json, retryAfterMs } = await this.callOnce(req);
+        req.signal?.throwIfAborted();
         if (status >= 200 && status < 300) {
           const parsed = this.parseResult(req.provider, json);
           // Counts and enums already available here. No prompt, no completion
@@ -414,6 +436,7 @@ export class LlmCompletionService {
           `${req.provider} completion failed: ${readError(json, status)}`,
         );
       } catch (err) {
+        req.signal?.throwIfAborted();
         if (err instanceof ServiceUnavailableException) throw err;
         // Network/abort/parse error — transient; retry with backoff.
         lastError = err;
@@ -443,7 +466,10 @@ export class LlmCompletionService {
   private async callOnce(
     req: LlmCompletionRequest,
   ): Promise<{ status: number; json: Record<string, unknown>; retryAfterMs: number | null }> {
+    req.signal?.throwIfAborted();
     const controller = new AbortController();
+    const onAbort = () => controller.abort(req.signal?.reason);
+    req.signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), req.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     try {
       const { url, headers, body } = this.buildRequest(req);
@@ -458,6 +484,7 @@ export class LlmCompletionService {
       const retryAfterMs = retryAfter ? Math.max(0, Number(retryAfter) * 1000) || null : null;
       return { status: res.status, json, retryAfterMs };
     } catch (err) {
+      req.signal?.throwIfAborted();
       if ((err as Error).name === 'AbortError') {
         throw new ServiceUnavailableException(
           `${req.provider} request timed out after ${(req.timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000}s`,
@@ -466,6 +493,7 @@ export class LlmCompletionService {
       throw err;
     } finally {
       clearTimeout(timer);
+      req.signal?.removeEventListener('abort', onAbort);
     }
   }
 
@@ -479,7 +507,15 @@ export class LlmCompletionService {
       // text.format.json_schema, budget via max_output_tokens. Prompt caching is
       // automatic (no cache_control), so the static/volatile split is simply
       // joined here.
-      const input = joinUser(req.userStatic, req.userVolatile);
+      const userText = joinUser(req.userStatic, req.userVolatile);
+      // https://developers.openai.com/api/docs/guides/file-inputs
+      // PDF inputs include page images, so a scanned page does not depend on
+      // a text layer. No Files API upload or persistent provider file is needed.
+      const input = req.pdfInput ? [{ role: 'user', content: [
+        { type: 'input_file', filename: req.pdfInput.filename,
+          file_data: `data:application/pdf;base64,${req.pdfInput.base64}` },
+        { type: 'input_text', text: userText },
+      ] }] : userText;
       // Reasoning families only. `gpt-4.1*`/`gpt-4o*` reject `reasoning`, so an
       // unconditional field would 400 the model this service runs on today.
       const openAiReasoning =
@@ -494,6 +530,7 @@ export class LlmCompletionService {
         },
         body: {
           model: req.model,
+          ...(req.pdfInput ? { store: false } : {}),
           // Omit `instructions` when there is no system prompt (legacy v1 path).
           ...(req.system.trim() ? { instructions: req.system } : {}),
           input,

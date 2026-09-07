@@ -23,6 +23,8 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
 /* ── Public data shapes ─────────────────────────────────────────────────── */
 
 export interface MeriEvidenceSource {
+  /** Canonical marker in the answer; filtering sources must never renumber it. */
+  citationNumber?: number;
   icon: MeriIconName;
   provider: string;
   date: string;
@@ -298,7 +300,7 @@ export function MeriEvidenceTray({
                     <span className="vnext-meri__evidence-source-date">{source.date}</span>
                   </span>
                   <span className="vnext-meri__evidence-source-title">
-                    [{index + 1}] {source.title}
+                    [{source.citationNumber ?? index + 1}] {source.title}
                   </span>
                   <span className="vnext-meri__evidence-source-snippet">{source.snippet}</span>
                 </span>

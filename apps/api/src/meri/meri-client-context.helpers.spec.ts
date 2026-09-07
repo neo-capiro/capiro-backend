@@ -58,9 +58,30 @@ describe('canonical Meri client profile coverage', () => {
     const first = await read({});
     expect(() => parseClientProfileQuery({ section: 'submissionHistory', cursor: first.coverage.nextCursor }, 'client-b')).toThrow(BadRequestException);
     expect(() => parseClientProfileQuery({ section: 'people', cursor: first.coverage.nextCursor }, clientId)).toThrow(BadRequestException);
-    for (const input of [{ cursor: first.coverage.nextCursor }, { limit: 51 }, { section: 'secrets' }, { section: 'people', cursor: 'garbage' }]) {
+    for (const input of [{ cursor: first.coverage.nextCursor }, { limit: 51 }, { representation: 'invalid' }, { section: 'secrets' }, { section: 'people', cursor: 'garbage' }]) {
       expect(() => parseClientProfileQuery(input, clientId)).toThrow(BadRequestException);
     }
+  });
+
+  it('allows concise selected-section inventory pages without changing full-record defaults', async () => {
+    const result = await read({ section: 'submissionHistory', representation: 'summary', limit: 50 });
+    expect(result.items).toHaveLength(50);
+    expect(result.items[0]!.description).toBe(records[0]!.description.slice(0, 20));
+    expect(result.coverage).toMatchObject({ total: 63, representation: 'summary', truncated: true });
+  });
+
+  it('retains domain counts, cursor and provenance without loading unbounded record bodies', async () => {
+    const loadPage = jest.fn(async () => ({ items: [records[0]!], total: 800, hasMore: true }));
+    const first = await readClientProfileSection({
+      clientId, section: 'advocacyRecords', query: { section: 'advocacyRecords', limit: 1 }, loadPage, summarize,
+    });
+    expect(first.coverage).toMatchObject({ total: 800, returned: 1, status: 'partial' });
+    const nextQuery = parseClientProfileQuery({ section: 'advocacyRecords', cursor: first.coverage.nextCursor }, clientId);
+    expect(nextQuery.afterId).toBe(records[0]!.id);
+    expect(() => parseClientProfileQuery({ section: 'advocacyMatters', cursor: first.coverage.nextCursor }, clientId)).toThrow(BadRequestException);
+    expect(() => parseClientProfileQuery({ section: 'advocacyRecords', cursor: first.coverage.nextCursor }, 'client-b')).toThrow(BadRequestException);
+    await readClientProfileSection({ clientId, section: 'advocacyRecords', query: { section: 'people', limit: 25 }, loadPage, summarize });
+    expect(loadPage).toHaveBeenCalledTimes(1);
   });
 
   it('continues after a cursor record is deleted without repeating earlier rows', async () => {

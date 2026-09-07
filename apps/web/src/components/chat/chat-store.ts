@@ -90,6 +90,31 @@ export interface ChatMessageRetrieval {
   coverage: {
     complete: boolean;
     stopReason: string;
+    phase?: 'turn';
+    /** Immutable initial context coverage; subsequent reads stay distinct. */
+    initialContext?: {
+      complete: boolean;
+      stopReason: string;
+      recordsReturned?: number;
+      recordsEvaluated?: number;
+      missingDomains?: string[];
+      partialDomains?: string[];
+      paginationComplete?: boolean;
+      truncated?: boolean;
+      sourceHealth?: ChatMessageRetrieval['coverage']['sourceHealth'];
+    };
+    restoredSources?: string[];
+    toolReads?: Array<{
+      source: string;
+      tool: string;
+      status: 'complete' | 'partial' | 'error' | 'unavailable';
+      recordsReturned: number | null;
+      recordsEvaluated: number | null;
+      paginationComplete: boolean | null;
+      truncated: boolean;
+      lastSyncAt?: string;
+      detail?: string;
+    }>;
     /** Same as above — real fields from RetrievalFrame, previously untyped. */
     searchedDomains?: string[];
     missingDomains?: string[];
@@ -306,6 +331,34 @@ export function updateChatMessage(id: string, content: string): void {
   notify();
 }
 
+/** Publish a final body, canonical identity and its evidence in one store update.
+ * Research completion and reconnect use this same path so a report never
+ * renders its final markers before the source objects arrive. */
+export function completeChatMessage(
+  optimisticId: string,
+  message: Pick<ChatMessage, 'id' | 'content'> & Partial<ChatMessage>,
+): void {
+  const previous = state.messages.find((row) => row.id === optimisticId);
+  const canonical = state.messages.find((row) => row.id === message.id);
+  const completed: ChatMessage = {
+    role: 'assistant',
+    createdAt: new Date(),
+    ...previous,
+    ...canonical,
+    ...message,
+  };
+  let inserted = false;
+  const messages = state.messages.flatMap((row) => {
+    if (row.id !== optimisticId && row.id !== message.id) return [row];
+    if (inserted) return [];
+    inserted = true;
+    return [completed];
+  });
+  if (!inserted) messages.push(completed);
+  state = { ...state, messages };
+  notify();
+}
+
 export function setChatMessageCitations(id: string, citations: MeriCitation[]): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, citations } : m));
   state = { ...state, messages };
@@ -319,7 +372,9 @@ export function setChatMessageRuntimeStatus(
   state = {
     ...state,
     messages: state.messages.map((message) =>
-      message.id === id ? { ...message, runtimeStatus } : message,
+      message.id === id
+        ? { ...message, runtimeStatus: { ...message.runtimeStatus, ...runtimeStatus } }
+        : message,
     ),
   };
   notify();

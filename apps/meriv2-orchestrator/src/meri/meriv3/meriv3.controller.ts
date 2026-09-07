@@ -28,6 +28,7 @@ import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { listMeriV3ReasoningProfiles } from './meriv3-reasoning.js';
 import type { MeriV3ChatInput } from './meriv3.types.js';
 import { meriEvidenceManifest } from './meriv3-context-evidence.js';
+import { reconcileMeriTurnCoverage } from './meriv3-turn-coverage.js';
 
 type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -78,7 +79,7 @@ export class MeriV3Controller {
       return {
         ...result,
         contextPacket: governed.contextPacket,
-        retrieval: governed.retrieval,
+        retrieval: reconcileMeriTurnCoverage(governed.retrieval, result.toolCoverage ?? []),
         evidenceManifest:
           result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),
       };
@@ -160,7 +161,7 @@ export class MeriV3Controller {
           ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
           ...(dto.toolPolicy ? { held: result.held ?? false } : {}),
           ...(dto.toolPolicy === 'read-only' ? { ledgerEntries: result.ledgerEntries ?? [] } : {}),
-          retrieval: governed.retrieval,
+          retrieval: reconcileMeriTurnCoverage(governed.retrieval, result.toolCoverage ?? []),
           contextPacket: governed.contextPacket,
           evidenceManifest:
             result.evidenceManifest ?? meriEvidenceManifest(governed, result.citations ?? []),

@@ -168,6 +168,14 @@ describe('MeriV3AssistantService', () => {
       sources: [expect.objectContaining({ tool: 'search_memory', truncated: true })],
     });
     expect((result.ledgerEntries?.[0]?.result as Record<string, unknown>).nextCursor).toBeNull();
+    expect(result.toolCoverage).toEqual([
+      expect.objectContaining({
+        source: 'institutional_knowledge',
+        tool: 'search_memory',
+        status: 'partial',
+        truncated: true,
+      }),
+    ]);
   });
 
   test('stops the remaining tool batch and synthesis after cancellation', async () => {

@@ -101,6 +101,67 @@ describe('MeriV3 governed context HTTP trust boundary', () => {
     expect(setHeader).not.toHaveBeenCalled();
     expect(on).not.toHaveBeenCalled();
   });
+  it('returns later tool receipts with the original signed context, rather than overwriting them with initial coverage', async () => {
+    const { instance, run } = controller();
+    const ctx = context();
+    ctx.retrieval = {
+      plan: {
+        version: 1,
+        queryClass: 'lookup',
+        subjectScope: 'client',
+        targetHint: null,
+        recipeTool: null,
+        requireCompleteCoverage: true,
+        requiredDomains: ['institutional_knowledge'],
+        timeWindow: null,
+      },
+      coverage: {
+        version: 1,
+        complete: false,
+        requestedDomains: ['institutional_knowledge'],
+        searchedDomains: [],
+        missingDomains: ['institutional_knowledge'],
+        partialDomains: [],
+        requestedEntityCount: 1,
+        searchedEntityCount: 0,
+        recordsReturned: 0,
+        recordsEvaluated: 0,
+        paginationComplete: false,
+        truncated: false,
+        sourceHealth: [{ source: 'institutional_knowledge', status: 'error' }],
+        unavailableSources: [{ source: 'institutional_knowledge', reason: 'source_error' }],
+        toolsInvoked: [],
+        stopReason: 'source_error',
+      },
+    };
+    run.mockResolvedValueOnce({
+      reply: 'Approved fact',
+      toolCoverage: [
+        {
+          source: 'institutional_knowledge',
+          tool: 'search_memory',
+          status: 'partial',
+          recordsReturned: 3,
+          recordsEvaluated: 404,
+          paginationComplete: false,
+          truncated: false,
+        },
+      ],
+    });
+    const result = await instance.run(
+      { ...input, governedContext: attestMeriGovernedContext(ctx, input, secret) },
+      tenant,
+      { headers: {} } as never,
+    );
+    expect(result.retrieval.coverage).toMatchObject({
+      phase: 'turn',
+      missingDomains: [],
+      partialDomains: ['institutional_knowledge'],
+      restoredSources: ['institutional_knowledge'],
+      initialContext: { missingDomains: ['institutional_knowledge'] },
+      toolReads: [{ recordsReturned: 3, recordsEvaluated: 404 }],
+    });
+  });
   it('does not allow a signed context to move to another conversation', async () => {
     const { instance, run } = controller();
     const governedContext = attestMeriGovernedContext(context(), input, secret);

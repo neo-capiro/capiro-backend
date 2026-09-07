@@ -2862,6 +2862,11 @@ const TOOL_CITATION_TYPE: Readonly<Record<string, string>> = {
   search_research_sources: 'internal',
   get_client_context: 'client',
   search_client_knowledge: 'client_kb',
+  search_federal_contract_awards: 'federal_award',
+  search_federal_subawards: 'federal_subaward',
+  search_contract_vehicles: 'contract_vehicle',
+  search_procurement_forecasts: 'procurement_forecast',
+  get_district_federal_market: 'federal_market',
 };
 
 const CITATION_TITLE_FIELDS = [
@@ -2925,7 +2930,87 @@ function truncateCitation(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function citationRowsOf(payload: Record<string, unknown>): unknown[] | null {
+function citationObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Read only rows present in the model-visible result, never coverage totals or
+ * source references for records removed by the projection budget. */
+function clientContextCitationRows(payload: Record<string, unknown>): unknown[] {
+  const context = citationObject(payload.context) ? payload.context : payload;
+  const rows: Record<string, unknown>[] = [];
+  if (citationObject(context.client) && firstCitationString(context.client, ['id'])) {
+    rows.push(context.client);
+  }
+  if (!citationObject(payload.profile)) return rows;
+  const profileSources = citationObject(payload.profileSources) ? payload.profileSources : {};
+  for (const [section, values] of Object.entries(payload.profile)) {
+    if (!Array.isArray(values)) continue;
+    const references = Array.isArray(profileSources[section])
+      ? (profileSources[section] as unknown[]).filter(citationObject)
+      : [];
+    for (const row of values) {
+      if (!citationObject(row)) continue;
+      const id = firstCitationString(row, ['id']);
+      if (!id) continue;
+      const reference = references.find((source) => source.recordId === id);
+      rows.push({
+        ...row,
+        id,
+        title: firstCitationString(row, ['name', 'title']) ?? `${section}: ${id}`,
+        url: firstCitationString(row, CITATION_URL_FIELDS) ??
+          (reference ? firstCitationString(reference, CITATION_URL_FIELDS) : null),
+        snippet: firstCitationString(row, CITATION_SNIPPET_FIELDS) ?? JSON.stringify(row),
+      });
+    }
+  }
+  return rows;
+}
+
+function federalMarketCitationRows(tool: string, payload: Record<string, unknown>): unknown[] | null {
+  const labels: Record<string, string> = {
+    search_federal_contract_awards: 'Federal contract award',
+    search_federal_subawards: 'Federal subaward',
+    search_contract_vehicles: 'Contract vehicle',
+    search_procurement_forecasts: 'Procurement forecast',
+  };
+  if (labels[tool] && Array.isArray(payload.items)) {
+    return payload.items.filter(citationObject).flatMap((row) => {
+      const id = firstCitationString(row, ['id']);
+      if (!id) return [];
+      return [{
+        ...row,
+        id,
+        title: firstCitationString(row, ['title', 'name', 'description', 'awardId', 'providerKey', 'vehicleId', 'forecastId']) ??
+          `${labels[tool]}: ${id}`,
+        snippet: firstCitationString(row, CITATION_SNIPPET_FIELDS) ?? JSON.stringify(row),
+      }];
+    });
+  }
+  if (tool !== 'get_district_federal_market') return null;
+  const districts = Array.isArray(payload.districts) ? payload.districts : [];
+  const stateSubawards = Array.isArray(payload.stateSubawards) ? payload.stateSubawards : [];
+  const futureSignals = Array.isArray(payload.futureSignals) ? payload.futureSignals : [];
+  return [
+    ...districts.filter(citationObject).flatMap((row) => {
+      const id = firstCitationString(row, ['districtKey']);
+      return id ? [{ ...row, id, title: `Federal market: ${id}`, snippet: JSON.stringify(row) }] : [];
+    }),
+    ...stateSubawards.filter(citationObject).flatMap((row) => {
+      const id = firstCitationString(row, ['state']);
+      return id ? [{ ...row, id, title: `State-level subawards: ${id}`, snippet: JSON.stringify(row) }] : [];
+    }),
+    ...futureSignals.filter(citationObject),
+  ];
+}
+
+function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown[] | null {
+  if (tool === 'get_client_context') {
+    const profileRows = clientContextCitationRows(payload);
+    if (profileRows.length) return profileRows;
+  }
+  const market = federalMarketCitationRows(tool, payload);
+  if (market) return market;
   if (Array.isArray(payload.data)) return payload.data as unknown[];
   if (Array.isArray(payload.results)) return payload.results as unknown[];
   // Shared retrieval returns evidence envelopes, not the legacy data/results
@@ -2977,7 +3062,7 @@ export function extractCitationsFromToolResult(
   if (!payload || typeof payload !== 'object') return [];
   const rec = payload as Record<string, unknown>;
   if (typeof rec.error === 'string') return [];
-  const rows = citationRowsOf(rec);
+  const rows = citationRowsOf(toolName, rec);
   if (!rows || rows.length === 0) return [];
 
   const type = TOOL_CITATION_TYPE[toolName] ?? 'source';
@@ -3169,6 +3254,10 @@ export type CitationAnchor = Readonly<{
  */
 export const FORM_B_CITATION_RE = /\[S:([a-z][a-z0-9_]*):([^\]\s]{1,80})\]/g;
 
+/** Also recognize malformed internal markers so they cannot leak into prose.
+ * This is deliberately broader than the valid grammar above. */
+export const FORM_B_TOKEN_RE = /\[S:[^\]\r\n]*(?:\]|(?=\r?\n|$))/g;
+
 export interface FormBCitationCheck {
   /** Distinct FORM B tokens found, in first-seen order. */
   tokens: string[];
@@ -3198,16 +3287,16 @@ export function validateFormBCitations(
   if (typeof text !== 'string' || text.length === 0) {
     return { tokens, valid, invalid, sanitizedText: typeof text === 'string' ? text : '' };
   }
-  const re = new RegExp(FORM_B_CITATION_RE.source, 'g');
+  const re = new RegExp(FORM_B_TOKEN_RE.source, 'g');
+  const validGrammar = new RegExp(`^${FORM_B_CITATION_RE.source}$`);
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) != null) {
     const token = m[0];
     if (tokens.includes(token)) continue;
     tokens.push(token);
-    const tool = m[1]!;
-    const recordId = m[2]!;
-    const result = toolResultsThisTurn[tool];
-    const ok = typeof result === 'string' && result.includes(recordId);
+    const parsed = validGrammar.exec(token);
+    const result = parsed ? toolResultsThisTurn[parsed[1]!] : undefined;
+    const ok = parsed !== null && typeof result === 'string' && result.includes(parsed[2]!);
     (ok ? valid : invalid).push(token);
   }
   let sanitizedText = text;
@@ -3450,7 +3539,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_client_context',
     description:
-      'Load authorized client context and profile capabilities, people, facilities and submission history. Inspect profileSections for exact counts, availability and nextCursor; request a section with its cursor to read more. A missing or unavailable section is not evidence that the client lacks it.',
+      'Load authorized client capabilities, people, facilities, older submissionHistory and current advocacyMatters/advocacyRecords with evidence provenance. Inspect profileSections for exact counts, availability and nextCursor. For a complete inventory, request each section with representation summary and limit 50; follow every nextCursor before summarizing. Use full records for detailed evidence. A missing or unavailable section is not evidence that the client lacks it.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],

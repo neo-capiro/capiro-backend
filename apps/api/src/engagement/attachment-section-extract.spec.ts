@@ -29,6 +29,23 @@ describe('canonical attachment section extraction', () => {
     ).rejects.toThrow('between 1 and 3');
   });
 
+  it('extracts a substantive final section after page 20 and character 12000', async () => {
+    const document = await PDFDocument.create();
+    const font = await document.embedFont(StandardFonts.Helvetica);
+    for (let number = 1; number <= 22; number++) {
+      const page = document.addPage([720, 1100]);
+      if (number < 22) page.drawText(`Earlier page ${number}`, { font });
+      else {
+        for (let line = 0; line < 120; line++) page.drawText(`Row ${line}: ${'recorded condition '.repeat(6)}`, { font, size: 5, x: 20, y: 1070 - line * 8 });
+        page.drawText('FINAL BINDING CONDITION: no university lead applicant.', { font, size: 5, x: 20, y: 90 });
+      }
+    }
+    const result = await extractAttachmentSection(Buffer.from(await document.save()), 'pdf', 22);
+    expect(result).toMatchObject({ section: 22, sectionCount: 22, sectionKind: 'page' });
+    expect(result.text.indexOf('FINAL BINDING CONDITION')).toBeGreaterThan(12000);
+    expect(result.text).not.toContain('Earlier page');
+  });
+
   it('reads rows past the old 5000-row summary cap and keeps Excel coordinates', async () => {
     const ExcelJS = await import('exceljs');
     const workbook = new (ExcelJS.default ?? ExcelJS).Workbook();

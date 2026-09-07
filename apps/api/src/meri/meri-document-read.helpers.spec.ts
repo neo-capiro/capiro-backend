@@ -15,6 +15,18 @@ const base = {
 };
 
 describe('resumable client document evidence', () => {
+  it('stops automatic traversal of unreadable PDFs and does not manufacture an empty evidence record', () => {
+    const page = buildDocumentReadPage(clientId,
+      parseDocumentReadInput({ documentId: base.attachmentId }, clientId),
+      { ...base, source: 'pdf', text: '', sectionCount: 22 });
+    expect(page.coverage).toMatchObject({ nextCursor: null, continuationBlocked: true,
+      missingContent: true, complete: false, truncated: true, sectionComplete: false,
+      explicitNextSection: 2 });
+    expect(page.records).toEqual([]);
+    // A known later page remains explicitly reachable, with no false claim
+    // that the unread first page proves all 22 pages are empty.
+    expect(parseDocumentReadInput({ documentId: base.attachmentId, section: 22 }, clientId).section).toBe(22);
+  });
   it('reconstructs evidence beyond the old 12000-character cutoff without gaps or duplicate characters', () => {
     const text = `${'Early content. '.repeat(1300)}The decisive limitation is in the last paragraph.`;
     let cursor: string | null = null;

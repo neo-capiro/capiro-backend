@@ -9,6 +9,7 @@ import type {
   MeriRetrievalTimeWindow,
 } from '../retrieval/meri-retrieval-plan.js';
 import type { MeriQueryClass, MeriSubjectScope } from '../retrieval/meri-retrieval-intent.js';
+import type { MeriToolCoverageReceipt } from './meriv3-turn-coverage.js';
 
 /** Stable product labels. Provider model ids remain server configuration. */
 export const MERIV3_REASONING_MODES = ['fast', 'standard', 'deep', 'max'] as const;
@@ -64,6 +65,7 @@ export interface MeriV3RetrievalSummary {
 }
 
 export interface MeriV3ChatResult extends ChatResult {
+  toolCoverage?: MeriToolCoverageReceipt[];
   evidenceManifest?: MeriEvidenceManifest;
   providerCalls?: MeriV3ProviderTelemetry[];
   /** Tool evidence for the API research auditor; never provider reasoning. */

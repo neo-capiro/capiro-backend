@@ -20,6 +20,7 @@ import {
 import { FILES, FOLDERS } from '../portfolio-fixtures.js';
 import { CLIENT_STORAGE_QUOTA_BYTES, CLIENT_STORAGE_WARN_THRESHOLD } from '@capiro/shared';
 import './files-tab.css';
+import { fileReadability } from './file-readability.js';
 
 /**
  * Files tab (spec §11, Figma geometry from `dom-tab-files.txt`).
@@ -273,8 +274,7 @@ function attachmentRow(file: ClientAttachment): FileRowModel {
     modified: shortDate(file.createdAt),
     modifiedTs: Date.parse(file.createdAt) || 0,
     owner: file.uploadedByName?.split(' ')[0] ?? '—',
-    status: file.indexedAt ? 'Indexed' : 'Uploaded',
-    tone: file.indexedAt ? 'success' : 'gray',
+    ...fileReadability(file),
     folder,
     downloadUrl: file.downloadUrl,
     previewUrl: file.previewUrl ?? null,
@@ -1472,7 +1472,10 @@ function FileRow({
       <span className="cap-pf-files__row-84">{row.modified}</span>
       <span className="cap-pf-files__row-84">{row.owner}</span>
       <span className="cap-pf-files__row-status">
-        <Pill tone={row.tone}>{row.status}</Pill>
+        <Pill tone={row.tone} style={{ maxWidth: '100%', height: 'auto', minHeight: 22,
+          whiteSpace: 'normal', padding: '3px 6px', borderRadius: 8 }}>
+          {row.status}
+        </Pill>
       </span>
       <span className="cap-pf-files__row-menu">
         <button

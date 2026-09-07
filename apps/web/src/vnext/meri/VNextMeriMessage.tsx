@@ -13,7 +13,10 @@ import { MeriAnalysisChartCard } from './MeriAnalysisChartCard.js';
 import { MeriMessageFeedback } from './MeriMessageFeedback.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { visibleMarkdown } from './meri-presentation.js';
-import { meriRuntimeStatusText } from '../../components/chat/meri-runtime-status.js';
+import {
+  meriRuntimeMessageContent,
+  meriRuntimeStatusText,
+} from '../../components/chat/meri-runtime-status.js';
 import type {
   MeriEvidenceClaim,
   MeriEvidenceSource,
@@ -256,10 +259,14 @@ function VNextMeriAssistantMessage({
     [citationMap],
   );
 
-  const markdownSource = visibleMarkdown(message.content, messageIsStreaming);
+  const markdownSource = visibleMarkdown(
+    meriRuntimeMessageContent(message.content, message.runtimeStatus),
+    messageIsStreaming,
+  );
   const runtimeStatusText = meriRuntimeStatusText(message.runtimeStatus);
 
   const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
+    citationNumber: citation.n,
     icon: 'File05',
     provider: citation.tool.replace(/_/g, ' ').toUpperCase(),
     date: 'RETRIEVED THIS TURN',
@@ -297,6 +304,7 @@ function VNextMeriAssistantMessage({
     steps: workTrustSteps,
     intent: workIntent,
     tier: workTier,
+    ...(message.runtimeStatus ? { runtimeStatus: message.runtimeStatus } : {}),
   };
   const hasThinkingData =
     thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent);

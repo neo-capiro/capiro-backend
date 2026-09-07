@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
-import type { MeriV3ChatClient, MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
+import type { MeriV3ChatClient, MeriV3ChatStreamEvent, MeriV3RetrievalStreamSummary } from './meriv3-chat.client.js';
 import type { MeriResearchHandoff } from './meri-research-handoff.js';
 
 // Infrastructure is replaced at its constructor boundary; the production runner
@@ -55,6 +55,27 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     const { runner, client } = fixture();
     await runner.plan(ctx, { ...input, handoff: { ...handoff, reasoningMode: 'standard' } }, auth);
     expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ toolPolicy: 'none', reasoningMode: 'standard' }) }));
+  });
+  it('retains reconciled turn coverage in the research result rather than reverting to the initial packet', async () => {
+    const base = fixture();
+    const initial = {
+      version: 1 as const, complete: false, requestedDomains: ['institutional_knowledge'], searchedDomains: [],
+      missingDomains: ['institutional_knowledge'], partialDomains: [],
+      requestedEntityCount: 1, searchedEntityCount: 0, recordsReturned: 0, recordsEvaluated: 0,
+      paginationComplete: false, truncated: false, sourceHealth: [], unavailableSources: [], toolsInvoked: [], stopReason: 'source_error',
+    };
+    const retrieval: MeriV3RetrievalStreamSummary = {
+      plan: { version: 1, queryClass: 'lookup', subjectScope: 'client', targetHint: null, recipeTool: null,
+        requireCompleteCoverage: true, requiredDomains: ['institutional_knowledge'], timeWindow: null },
+      coverage: { ...initial, phase: 'turn', complete: false, missingDomains: [], partialDomains: ['institutional_knowledge'],
+        restoredSources: ['institutional_knowledge'],
+        initialContext: initial,
+        toolReads: [{ source: 'institutional_knowledge', tool: 'search_memory', status: 'partial', recordsReturned: 3, recordsEvaluated: 404, paginationComplete: false, truncated: false }],
+      },
+    };
+    const { runner } = fixture([{ ...base.done, retrieval } as MeriV3ChatStreamEvent]);
+    const result = await runner.run(ctx, input, auth, () => {});
+    expect(result.retrieval).toEqual(retrieval);
   });
 
   it('does not fall back to another provider when V3 is missing its credential or configuration', async () => {

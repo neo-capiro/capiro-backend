@@ -1,12 +1,16 @@
 import type { ChatMessageRetrieval } from '../../components/chat/chat-store.js';
-import { meriCoverageReason } from '../../components/chat/meri-retrieval-metadata.js';
+import { meriCoverageReason, meriCoverageSourceLabel } from '../../components/chat/meri-retrieval-metadata.js';
 
-const label = (value: string) =>
-  value.replace(/[_-]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+const label = meriCoverageSourceLabel;
+const timestamp = (value?: string) => value && Number.isFinite(Date.parse(value))
+  ? new Date(value).toISOString().replace('T', ' ').replace('.000Z', ' UTC') : 'Not reported';
 
 export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRetrieval }) {
   const coverage = retrieval.coverage;
   const health = coverage.sourceHealth ?? [];
+  const turn = coverage.phase === 'turn';
+  const initial = coverage.initialContext;
+  const reads = coverage.toolReads ?? [];
   const status = {
     complete: 'Retrieved',
     partial: 'Partial',
@@ -14,9 +18,10 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
     unavailable: 'Unavailable',
   };
   return (
-    <section className="vnext-meri__evidence-section" aria-label="Initial context coverage">
-      <div className="vnext-meri__evidence-section-label">INITIAL CONTEXT COVERAGE</div>
+    <section className="vnext-meri__evidence-section" aria-label={turn ? 'Turn source coverage' : 'Initial context coverage'}>
+      <div className="vnext-meri__evidence-section-label">{turn ? 'TURN SOURCE COVERAGE' : 'INITIAL CONTEXT COVERAGE'}</div>
       <p>{meriCoverageReason(coverage.stopReason)}.</p>
+      {turn ? <p>Initial context counts are shown first. Later reads are listed separately; repeated or overlapping reads are not added together.</p> : null}
       {coverage.recordsReturned !== undefined ? (
         <p>
           {coverage.recordsReturned} records returned
@@ -54,19 +59,43 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
               <tr key={source.source}>
                 <th scope="row">{label(source.source)}</th>
                 <td>{status[source.status]}</td>
-                <td>
-                  {source.lastSyncAt
-                    ? new Date(source.lastSyncAt)
-                        .toISOString()
-                        .replace('T', ' ')
-                        .replace('.000Z', ' UTC')
-                    : 'Not reported'}
-                </td>
+                <td>{timestamp(source.lastSyncAt)}</td>
                 <td>{source.detail ? meriCoverageReason(source.detail) : 'Not reported'}</td>
               </tr>
             ))}
           </tbody>
         </table>
+      ) : null}
+      {initial && !initial.complete ? (
+        <details>
+          <summary>Initial context before later reads</summary>
+          <p>{meriCoverageReason(initial.stopReason)}.</p>
+          {(initial.sourceHealth ?? []).map((source) => (
+            <p key={source.source}>{label(source.source)}: {status[source.status]}{source.detail ? ` — ${meriCoverageReason(source.detail)}` : ''}.</p>
+          ))}
+        </details>
+      ) : null}
+      {reads.length ? (
+        <>
+          <table aria-label="Subsequent tool reads">
+            <thead><tr><th scope="col">Source</th><th scope="col">Read result</th><th scope="col">Records returned / evaluated</th><th scope="col">Remaining gap</th><th scope="col">Source timestamp (UTC)</th></tr></thead>
+            <tbody>{reads.map((read, index) => (
+              <tr key={`${read.tool}-${read.source}-${index}`}>
+                <th scope="row">{label(read.source)}{read.detail?.startsWith('profile_section:') ? ` · ${meriCoverageReason(read.detail)}` : ''}</th>
+                <td>{status[read.status]} for this read</td>
+                <td>{read.recordsReturned ?? 'Unknown'} / {read.recordsEvaluated ?? 'Unknown'}</td>
+                <td>{[
+                  read.paginationComplete === false ? 'More pages remain' : null,
+                  read.truncated ? 'Some content was shortened or omitted' : null,
+                  read.paginationComplete === null ? 'Pagination not reported' : null,
+                  read.detail && !read.detail.startsWith('profile_section:') && read.detail !== 'complete' ? meriCoverageReason(read.detail) : null,
+                ].filter(Boolean).join('; ') || 'None reported for this read'}</td>
+                <td>{timestamp(read.lastSyncAt)}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+          <p>A completed read covers its requested query, page or section. It does not establish complete access to the source or all client records.</p>
+        </>
       ) : null}
       {(coverage.unavailableSources ?? []).length ? (
         <ul>
@@ -77,7 +106,7 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
           ))}
         </ul>
       ) : null}
-      {health.length ? (
+      {health.length || reads.length ? (
         <p>
           Use the cited document’s date and stage to assess currency; this timestamp alone does not
           establish that a fact is current.

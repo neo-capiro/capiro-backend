@@ -48,6 +48,10 @@ import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js'
 import { meriEvidenceManifest, seedMeriContextEvidence } from './meriv3-context-evidence.js';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
+  observeMeriTurnToolCoverage,
+  type MeriToolCoverageReceipt,
+} from './meriv3-turn-coverage.js';
+import {
   OpenAiResponsesClient,
   anthropicSchemaToResponsesTool,
   readOpenAiResponsesErrorTelemetry,
@@ -252,6 +256,7 @@ export class MeriV3AssistantService {
     const verificationAvailable = toolSchemas.length > 0;
     const input: Array<Record<string, unknown>> = [...initialInput];
     const steps: ChatStep[] = [];
+    const toolCoverage: MeriToolCoverageReceipt[] = [];
     const pendingApprovals: NonNullable<MeriV3ChatResult['pendingApprovals']> = [];
     const artifacts: ChatArtifact[] = [];
     const citations: MeriCitation[] = [...initialEvidence.citations];
@@ -442,6 +447,7 @@ export class MeriV3AssistantService {
           calls: response.functionCalls,
           schemas: toolSchemas,
           steps,
+          toolCoverage,
           pendingApprovals,
           artifacts,
           citations,
@@ -619,6 +625,7 @@ export class MeriV3AssistantService {
         cacheCreationTokens: usage.cacheCreationTokens,
       },
       steps,
+      toolCoverage,
       evidenceManifest: meriEvidenceManifest(
         currentGovernedMeriContext(),
         released.citations,
@@ -681,6 +688,7 @@ export class MeriV3AssistantService {
     calls: OpenAiResponsesFunctionCall[];
     schemas: ToolSchema[];
     steps: ChatStep[];
+    toolCoverage: MeriToolCoverageReceipt[];
     pendingApprovals: NonNullable<MeriV3ChatResult['pendingApprovals']>;
     artifacts: ChatArtifact[];
     citations: MeriCitation[];
@@ -762,6 +770,9 @@ export class MeriV3AssistantService {
         readOnly: this.registry.get(call.name)?.readOnly === true,
         inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
       });
+      if (this.registry.get(call.name)?.readOnly === true) {
+        args.toolCoverage.push(...observeMeriTurnToolCoverage(call.name, visibleResult));
+      }
       const cites = extractCitationsFromToolResult(
         call.name,
         visibleResult,

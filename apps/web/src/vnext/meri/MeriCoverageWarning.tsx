@@ -1,4 +1,4 @@
-import { meriCoverageReason } from '../../components/chat/meri-retrieval-metadata.js';
+import { meriCoverageReason, meriCoverageSourceLabel } from '../../components/chat/meri-retrieval-metadata.js';
 import type { ChatMessageRetrieval } from '../../components/chat/chat-store.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 
@@ -44,7 +44,7 @@ const TONE: Record<'missing' | 'partial', Tone> = {
 };
 
 function domainLabel(domain: string): string {
-  return domain.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return meriCoverageSourceLabel(domain);
 }
 
 /**
@@ -83,6 +83,8 @@ export function MeriCoverageWarning({ retrieval }: { retrieval: ChatMessageRetri
   const missing = retrieval.coverage.missingDomains ?? [];
   const partial = retrieval.coverage.partialDomains ?? [];
   const searched = retrieval.coverage.searchedDomains ?? [];
+  const turn = retrieval.coverage.phase === 'turn';
+  const restored = retrieval.coverage.restoredSources ?? [];
 
   return (
     <div
@@ -106,13 +108,19 @@ export function MeriCoverageWarning({ retrieval }: { retrieval: ChatMessageRetri
             color: spec.fg,
           }}
         >
-          {spec.label}
+          {turn && tone === 'missing' ? 'INITIAL CONTEXT GAP REMAINS' : spec.label}
         </span>
       </div>
 
       {missing.length ? (
         <div style={{ marginTop: 9, fontSize: 13, lineHeight: '19px', color: '#344054' }}>
-          Not searched: {missing.map(domainLabel).join(', ')}.
+          {turn ? 'Initial context still missing: ' : 'Not searched: '}{missing.map(domainLabel).join(', ')}.
+        </div>
+      ) : null}
+      {restored.length ? (
+        <div style={{ marginTop: 8, fontSize: 13, lineHeight: '19px', color: '#344054' }}>
+          Later reads reached {restored.map(domainLabel).join(', ')}. Source access recovered;
+          complete coverage of the original request is still unverified.
         </div>
       ) : null}
       {partial.length ? (

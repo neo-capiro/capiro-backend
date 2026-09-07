@@ -81,6 +81,38 @@ function props(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Meri message work performed', () => {
+  test('uses the same source number and record in inline citations and the inspector', () => {
+    const citation = {
+      n: 7,
+      id: 'attachment-1',
+      title: 'Earlier attachment',
+      type: 'source',
+      tool: 'get_research_evidence',
+      url: null,
+      snippet: 'Verified attachment evidence.',
+    };
+    const original = props({
+      message: message({ content: 'Evidence [7].', citations: [citation] }),
+    });
+    render(<VNextMeriMessage {...original} />);
+    fireEvent.click(screen.getByRole('button', { name: '[7]' }));
+    expect(screen.getByText('Verified attachment evidence.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show work' }));
+    expect(original.onOpenTurnInspector).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evidence: expect.objectContaining({
+          sources: [
+            expect.objectContaining({
+              citationNumber: 7,
+              title: 'Earlier attachment',
+            }),
+          ],
+        }),
+      }),
+      'thinking',
+    );
+  });
+
   test('keeps a completed turn’s work when a later turn starts streaming', () => {
     const original = props();
     const { rerender } = render(<VNextMeriMessage {...original} />);

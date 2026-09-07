@@ -158,7 +158,7 @@ export function MeriEvidenceTab({
                     <span className="vnext-meri__evidence-source-date">{source.date}</span>
                   </span>
                   <span className="vnext-meri__evidence-source-title">
-                    [{index + 1}] {source.title}
+                    [{source.citationNumber ?? index + 1}] {source.title}
                   </span>
                   <span className="vnext-meri__evidence-source-snippet">{source.snippet}</span>
                 </span>

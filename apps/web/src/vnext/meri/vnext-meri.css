@@ -4875,6 +4875,115 @@ width: 30px;
   overflow-y: auto;
 }
 
+/* Import has an unbounded number of drafts. Only its list scrolls; the
+   description and Cancel action stay reachable at small viewport sizes. */
+.capiro-vnext-root .vnext-meri__workspace-import {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import > :not(.vnext-meri__move-workspace-list) {
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__confirm-title {
+  margin-top: 0;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__move-workspace-list {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #101828;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:hover,
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:focus-visible {
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:focus-visible {
+  outline: 2px solid #4E5BA6;
+  outline-offset: -2px;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-name {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-meta {
+  font-size: 11px;
+  line-height: 16px;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-item > .vnext-meri__workspace-meta {
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-import .vnext-meri__workspace-document {
+  padding-left: 24px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-runtime {
+  padding: 12px 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: #475467;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-runtime dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-runtime dd {
+  margin: 0;
+  color: #101828;
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-runtime p {
+  margin: 8px 0 0;
+}
+
 /* "Behind the answer" · Context — a right-side sliding Sheet (v6 prototype's
    shadcn `Sheet`), pixel-parity port of `state-context-sheet.html`. Literal
    hex, not var(--m-*): MeriContextSheet mounts as a sibling of

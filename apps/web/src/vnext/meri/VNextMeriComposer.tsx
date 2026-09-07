@@ -127,6 +127,7 @@ export function VNextMeriComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLDivElement>(null);
+  const workspaceDialogRef = useRef<HTMLDivElement>(null);
 
   const {
     isStreaming,
@@ -171,6 +172,48 @@ export function VNextMeriComposer({
     workspaceOpenRef.current = false;
     setWorkspaceImportOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (!workspaceImportOpen) return;
+    const returnFocus = addRef.current?.querySelector<HTMLButtonElement>('button');
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    workspaceDialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeWorkspaceImport();
+        return;
+      }
+      const dialog = workspaceDialogRef.current;
+      if (event.key !== 'Tab' || !dialog) return;
+      const buttons = Array.from(
+        dialog.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'),
+      );
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === dialog)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      returnFocus?.focus();
+    };
+  }, [workspaceImportOpen, closeWorkspaceImport]);
 
   // v6: Task Mode has no dedicated toolbar control — RESEARCH stays reachable
   // via the Landing "Deep research" skill card and inline research offers;
@@ -1070,17 +1113,26 @@ export function VNextMeriComposer({
   );
 
   const workspaceImportDialog = workspaceImportOpen ? (
-    <div className="vnext-meri__confirm-scrim" role="presentation">
+    <div
+      className="vnext-meri__confirm-scrim"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) closeWorkspaceImport();
+      }}
+    >
       <div
+        ref={workspaceDialogRef}
+        tabIndex={-1}
         className="vnext-meri__confirm-dialog vnext-meri__workspace-import"
         role="dialog"
         aria-modal="true"
         aria-labelledby="meri-workspace-import-title"
+        aria-describedby="meri-workspace-import-description"
       >
         <div id="meri-workspace-import-title" className="vnext-meri__confirm-title">
           Import from workspace
         </div>
-        <div className="vnext-meri__confirm-body">
+        <div id="meri-workspace-import-description" className="vnext-meri__confirm-body">
           Select a document to add as editable text. It stays in this draft until you review and
           send it.
         </div>

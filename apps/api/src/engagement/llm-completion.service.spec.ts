@@ -14,6 +14,46 @@ function res(status: number, body: unknown, headers: Record<string, string> = {}
 
 const silentLogger = { warn: () => {} };
 
+describe('PDF input and originating-tool cancellation', () => {
+  test('shapes a nonpersistent PDF Responses input through the canonical transport', async () => {
+    const { svc, calls } = makeService([async () => res(200, { status: 'completed', output_text: '{}' })]);
+    await svc.complete({ ...anthReq, provider: 'openai', model: 'configured-model',
+      pdfInput: { filename: 'page-22.pdf', base64: 'JVBERi0=' } });
+    expect(calls[0]!.body).toMatchObject({ store: false, input: [{ role: 'user', content: [
+      { type: 'input_file', filename: 'page-22.pdf', file_data: 'data:application/pdf;base64,JVBERi0=' },
+      { type: 'input_text', text: 'STATIC\n\nVOLATILE' },
+    ] }] });
+  });
+  test('propagates Stop to the provider and does not retry the aborted call', async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    const svc = new LlmCompletionService({ fetchImpl: (async (_url, init) => {
+      calls++;
+      expect(init?.signal).toBeDefined();
+      controller.abort();
+      expect(init?.signal?.aborted).toBe(true);
+      throw init?.signal?.reason;
+    }) as typeof fetch, sleepImpl: async () => {} });
+    await expect(svc.complete({ ...anthReq, signal: controller.signal })).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
+  test('honors the same cancellation contract for streaming requests', async () => {
+    const controller = new AbortController();
+    const fetchImpl = jest.fn(async (_url, init: RequestInit | undefined) => {
+      controller.abort();
+      expect(init?.signal?.aborted).toBe(true);
+      throw init?.signal?.reason;
+    });
+    const svc = new LlmCompletionService({ fetchImpl: fetchImpl as typeof fetch });
+    await expect(svc.completeStreaming({ ...anthReq, provider: 'openai', signal: controller.signal }, () => {})).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const preAborted = new AbortController();
+    preAborted.abort();
+    await expect(svc.completeStreaming({ ...anthReq, provider: 'openai', signal: preAborted.signal }, () => {})).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
 function makeService(responses: Array<() => Promise<Response>>) {
   const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
   let i = 0;

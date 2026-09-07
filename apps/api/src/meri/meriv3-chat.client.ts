@@ -35,6 +35,20 @@ export interface MeriV3RetrievalStreamSummary {
   };
   coverage: {
     version: 1;
+    phase?: 'turn';
+    initialContext?: MeriGovernedTurnContext['retrieval']['coverage'];
+    restoredSources?: string[];
+    toolReads?: Array<{
+      source: string;
+      tool: string;
+      status: 'complete' | 'partial' | 'error' | 'unavailable';
+      recordsReturned: number | null;
+      recordsEvaluated: number | null;
+      paginationComplete: boolean | null;
+      truncated: boolean;
+      lastSyncAt?: string;
+      detail?: string;
+    }>;
     complete: boolean;
     requestedDomains: string[];
     searchedDomains: string[];
@@ -54,7 +68,7 @@ export interface MeriV3RetrievalStreamSummary {
     }>;
     unavailableSources: Array<{ source: string; reason: string }>;
     toolsInvoked: string[];
-    stopReason: 'complete' | 'partial' | 'no-retrieval-required';
+    stopReason: string;
   };
   /** Optional during rolling deploys where API and orchestrator revisions overlap. */
   trace?: {

@@ -242,6 +242,47 @@ describe('conversation composer drafts', () => {
 });
 
 describe('workspace import disclosure', () => {
+  test.each(['Escape', 'backdrop'])(
+    'dismisses with %s, restores focus and preserves the draft',
+    async (dismissal) => {
+      await render(composer());
+      enter('Unsent client briefing');
+      await openImport();
+      const dialog = screen.getByRole('dialog', { name: 'Import from workspace' });
+      expect(dialog).toHaveFocus();
+      expect(dialog).toHaveAccessibleDescription(/Select a document to add as editable text/);
+      // Clicking content does not accidentally dismiss the dialog.
+      fireEvent.mouseDown(screen.getByText('Import from workspace'));
+      expect(dialog).toBeInTheDocument();
+      if (dismissal === 'Escape') fireEvent.keyDown(dialog, { key: 'Escape' });
+      else fireEvent.mouseDown(dialog.parentElement!);
+      expect(screen.queryByRole('dialog', { name: 'Import from workspace' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Add to conversation' })).toHaveFocus();
+      expect(textarea()).toHaveValue('Unsent client briefing');
+    },
+  );
+
+  test('keeps keyboard focus within the import dialog, including while loading', async () => {
+    const pending = deferred<unknown>();
+    mocks.get.mockImplementation((path: string) =>
+      path === '/workspace-api/drafts?scope=all' ? pending.promise : importRoutes(path),
+    );
+    await render(composer());
+    fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Import from workspace/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Import from workspace' });
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await act(async () =>
+      pending.resolve({ data: [{ id: 'draft-a', docTitle: 'Briefing draft' }] }),
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Cancel' }), { key: 'Tab' });
+    const first = screen.getByRole('button', { name: /Briefing draft/ });
+    expect(first).toHaveFocus();
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  });
+
   test('expands, collapses and reopens cached documents repeatedly without another fetch', async () => {
     await render(composer());
     await openImport();
@@ -297,7 +338,7 @@ describe('workspace import disclosure', () => {
     expect(screen.getByRole('button', { name: /Client evidence/ })).toBeTruthy();
   });
 
-  test.each(['route', 'identity', 'cancel', 'unmount'])(
+  test.each(['route', 'identity', 'cancel', 'Escape', 'backdrop', 'unmount'])(
     'rejects a delayed document body after %s changes',
     async (kind) => {
       const pending = deferred<unknown>();
@@ -315,6 +356,8 @@ describe('workspace import disclosure', () => {
         await view.rerender(composer());
       }
       if (kind === 'cancel') fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      if (kind === 'Escape') fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+      if (kind === 'backdrop') fireEvent.mouseDown(screen.getByRole('dialog').parentElement!);
       if (kind === 'unmount') {
         view.unmount();
         await render(composer());

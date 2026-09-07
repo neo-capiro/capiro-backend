@@ -107,6 +107,13 @@ export interface AdvocacyMatterDetail extends AdvocacyMatterSummary {
   }>;
 }
 
+/** Current Advocacy History ledger, including records not assigned to a matter. */
+export type AdvocacyHistoryRecord = AdvocacyMatterDetail['records'][number] & {
+  matterId: string | null;
+  matterTitle: string | null;
+  updatedAt: string;
+};
+
 /** §18/19 Timeline: one flat, chronological row spanning every Matter for a
  *  client. `kind` distinguishes a durable client_advocacy_record from a
  *  client_advocacy_matter_link so the UI can render each with the right
@@ -1150,6 +1157,56 @@ export class ClientAdvocacyMatterService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }));
+  }
+
+  /** Bounded canonical ledger read for Meri inventories. Unlike the visual
+   * timeline, it retains full evidence bodies/provenance and reports the total,
+   * including unassigned records. Rejected advocacy is never recalled. */
+  async listRecords(
+    ctx: TenantContext,
+    clientId: string,
+    page: { afterId?: string; limit: number },
+  ): Promise<{ items: AdvocacyHistoryRecord[]; total: number; hasMore: boolean }> {
+    await this.assertClient(ctx, clientId);
+    if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > 50) {
+      throw new BadRequestException('Advocacy record page limit must be between 1 and 50');
+    }
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const counts = await tx.$queryRawUnsafe<Array<{ total: number }>>(
+        `SELECT COUNT(*)::int AS total FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND not_advocacy = false`,
+        ctx.tenantId, clientId,
+      );
+      const rows = await tx.$queryRawUnsafe<Array<
+        Omit<AdvocacyHistoryRecord, 'activityDate' | 'createdAt' | 'updatedAt' | 'metadata'> & {
+          activityDate: Date | null; createdAt: Date; updatedAt: Date; metadata: unknown;
+        }
+      >>(
+        `SELECT r.id, r.record_type AS "recordType", r.title, r.summary,
+                r.activity_date AS "activityDate", r.status, r.outcome,
+                r.source_type AS "sourceType", r.source_id AS "sourceId",
+                r.source_url AS "sourceUrl", r.evidence_class AS "evidenceClass",
+                r.confidence, r.metadata_jsonb AS metadata, r.created_at AS "createdAt",
+                r.updated_at AS "updatedAt", r.matter_locked AS "matterLocked",
+                r.matter_id AS "matterId", m.title AS "matterTitle"
+           FROM client_advocacy_record r
+           LEFT JOIN client_advocacy_matter m
+             ON m.id = r.matter_id AND m.tenant_id = r.tenant_id AND m.client_id = r.client_id
+          WHERE r.tenant_id = $1::uuid AND r.client_id = $2::uuid AND r.not_advocacy = false
+            AND ($3::uuid IS NULL OR r.id > $3::uuid)
+          ORDER BY r.id ASC LIMIT $4`,
+        ctx.tenantId, clientId, page.afterId ?? null, page.limit + 1,
+      );
+      return {
+        total: counts[0]?.total ?? 0,
+        hasMore: rows.length > page.limit,
+        items: rows.slice(0, page.limit).map((row) => ({
+          ...row, activityDate: row.activityDate?.toISOString() ?? null,
+          createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+          confidence: Number(row.confidence), metadata: asRecord(row.metadata),
+        })),
+      };
+    });
   }
 
   /** One Matter with its full record and link roll-up, for the Matter detail drawer. */

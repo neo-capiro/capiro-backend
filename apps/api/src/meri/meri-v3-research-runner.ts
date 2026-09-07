@@ -82,6 +82,7 @@ export class MeriV3ResearchRunner {
     telemetry?: MeriV3ProviderTelemetry;
     providerCalls?: MeriV3ProviderTelemetry[];
     evidenceManifest?: MeriEvidenceManifest;
+    retrieval?: DoneFrame['retrieval'];
   }> {
     const result = await this.complete(ctx, input, auth, 'read-only', onEvent);
     const ledgerEntries = result.ledgerEntries ?? [];
@@ -105,6 +106,7 @@ export class MeriV3ResearchRunner {
       ...(result.telemetry ? { telemetry: result.telemetry } : {}),
       ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
       ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
+      ...(result.retrieval ? { retrieval: result.retrieval } : {}),
     };
   }
 

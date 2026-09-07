@@ -2,6 +2,168 @@ import { extractCitationsFromToolResult } from '@capiro/shared';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 
 describe('model-visible tool evidence budgets', () => {
+  const profileSections = [
+    'capabilities',
+    'people',
+    'facilities',
+    'submissionHistory',
+    'advocacyMatters',
+    'advocacyRecords',
+  ];
+
+  const profileFixture = () => {
+    const profile = Object.fromEntries(
+      profileSections.map((section) => [
+        section,
+        Array.from({ length: 8 }, (_, index) => ({
+          id: `${section}-${index}`,
+          name: `${section} record ${index}`,
+          description: 'Actual authorized profile content. '.repeat(12),
+        })),
+      ]),
+    );
+    return {
+      tool: 'get_client_context',
+      client: { id: 'client-1', name: 'Aster Sensor Works' },
+      profile,
+      profileSections: Object.fromEntries(
+        profileSections.map((section) => [
+          section,
+          {
+            status: 'partial',
+            total: 26,
+            returned: 8,
+            limit: 8,
+            truncated: true,
+            nextCursor: `${section}-after-8`,
+            representation: 'summary',
+            source: { tool: 'get_client_context', clientId: 'client-1', section },
+          },
+        ]),
+      ),
+      profileSources: Object.fromEntries(
+        profileSections.map((section) => [
+          section,
+          profile[section]!.map((row) => ({
+            recordId: row.id,
+            sourceUrl: `https://example.gov/${row.id}`,
+          })),
+        ]),
+      ),
+      meetings: [{ id: 'meeting-omitted', summary: 'Large engagement history '.repeat(1_000) }],
+    };
+  };
+
+  it('interleaves complete profile rows from all six sections and retains honest counts and sources', () => {
+    const source = profileFixture();
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+      inputProperties: { limit: {}, section: {} },
+    }) as Record<string, any>;
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(12_000);
+    expect(result.client).toEqual(source.client);
+    for (const section of profileSections) {
+      expect(result.profile[section].length).toBeGreaterThan(0);
+      expect(result.profile[section].length).toBeLessThan(8);
+      expect(result.profile[section]).toEqual(
+        source.profile[section]!.slice(0, result.profile[section].length),
+      );
+      expect(result.profileSections[section]).toMatchObject({
+        total: 26,
+        returned: result.profile[section].length,
+        sourceReturned: 8,
+        status: 'partial',
+        truncated: true,
+        truncatedByProjection: true,
+        nextCursor: null,
+        representation: 'summary',
+      });
+      expect(
+        result.profileSources[section].map((reference: { recordId: string }) => reference.recordId),
+      ).toEqual(result.profile[section].map((row: { id: string }) => row.id));
+    }
+    expect(result.projection).toMatchObject({
+      sourceRecordCount: 48,
+      continuation: { preserveCurrentCursor: true, overrides: { limit: 1 } },
+    });
+    expect(result.projection.omittedFields).toContain('meetings');
+    const citations = extractCitationsFromToolResult('get_client_context', result, 1, 50);
+    expect(citations.some((citation) => citation.id === 'advocacyRecords-0')).toBe(true);
+    expect(citations.some((citation) => citation.id === 'capabilities-7')).toBe(false);
+    expect(JSON.stringify(result)).not.toContain('meeting-omitted');
+  });
+
+  it('preserves unavailable sections and does not let one oversized full record erase other sections', () => {
+    const source = profileFixture();
+    source.profile.capabilities![0]!.description = 'Full unabridged record. '.repeat(1_000);
+    source.profileSections.capabilities!.representation = 'full';
+    source.profile.people = [];
+    Object.assign(source.profileSections.people!, {
+      status: 'unavailable',
+      returned: 0,
+      total: null,
+      truncated: null,
+      nextCursor: null,
+    });
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
+    expect(result.profile.capabilities).toEqual([]);
+    expect(result.profileSections.capabilities).toMatchObject({
+      total: 26,
+      returned: 0,
+      status: 'partial',
+      nextCursor: null,
+      representation: 'full',
+    });
+    expect(result.profileSections.people).toMatchObject({
+      status: 'unavailable',
+      returned: 0,
+      total: null,
+      truncated: null,
+    });
+    expect(result.profile.advocacyRecords.length).toBeGreaterThan(0);
+    expect(result.profileSources.capabilities).toEqual([]);
+    expect(result.projection.continuation.instruction).toContain('representation summary');
+    expect(
+      extractCitationsFromToolResult('get_client_context', result, 1, 50).some(
+        (citation) => citation.id === 'capabilities-0',
+      ),
+    ).toBe(false);
+  });
+
+  it('preserves a source cursor once its entire page is visible despite unrelated context being omitted', () => {
+    const source = profileFixture();
+    for (const section of profileSections) {
+      source.profile[section] = source.profile[section]!.slice(0, 1);
+      Object.assign(source.profileSections[section]!, {
+        returned: 1,
+        nextCursor: `${section}-after-1`,
+      });
+    }
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
+    expect(result.truncated).toBe(true);
+    for (const section of profileSections) {
+      expect(result.profile[section]).toEqual(source.profile[section]);
+      expect(result.profileSections[section]).toMatchObject({
+        returned: 1,
+        sourceReturned: 1,
+        total: 26,
+        truncated: true,
+        truncatedByProjection: false,
+        nextCursor: `${section}-after-1`,
+      });
+    }
+  });
+
   it('keeps only complete leading rows and preserves counts without advancing past unread rows', () => {
     const source = {
       total: 80,

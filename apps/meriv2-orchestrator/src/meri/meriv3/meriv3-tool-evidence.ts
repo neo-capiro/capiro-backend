@@ -55,6 +55,147 @@ function sanitizeValue(value: unknown): unknown {
   );
 }
 
+/** Client context uses independently paged profile sections rather than a
+ * top-level row array. Preserve a leading subset from each section, so a large
+ * capabilities list cannot erase people, facilities or advocacy evidence. */
+function projectClientProfileEvidence(
+  original: Record<string, unknown>,
+  maxCharacters: number,
+  originalCharacters: number,
+): Record<string, unknown> | null {
+  if (!object(original.profile) || !object(original.profileSections)) return null;
+  const profile = original.profile;
+  const headers = original.profileSections;
+  const sections = Object.keys(profile).filter((section) => Array.isArray(profile[section]));
+  const shown = Object.fromEntries(sections.map((section) => [section, [] as unknown[]]));
+  const shownSources = Object.fromEntries(sections.map((section) => [section, [] as unknown[]]));
+  const sourceReferences = object(original.profileSources) ? original.profileSources : {};
+  const sourceCount = sections.reduce(
+    (total, section) => total + (profile[section] as unknown[]).length,
+    0,
+  );
+  const compactHeaders = Object.fromEntries(
+    sections.map((section) => {
+      const source = object(headers[section]) ? headers[section] : {};
+      const fields = Object.fromEntries(
+        [
+          'status',
+          'total',
+          'returned',
+          'limit',
+          'truncated',
+          'nextCursor',
+          'representation',
+          'source',
+          'error',
+        ]
+          .filter((key) => source[key] !== undefined)
+          .map((key) => [key, source[key]]),
+      );
+      return [section, fields];
+    }),
+  );
+  const projected: Record<string, unknown> = {
+    tool: original.tool,
+    generatedAt: original.generatedAt,
+    profileSections: compactHeaders,
+    profile: shown,
+    profileSources: shownSources,
+    partial: true,
+    truncated: true,
+    projection: {
+      truncated: true,
+      reason: 'model_tool_evidence_budget',
+      originalCharacters,
+      sourceRecordCount: sourceCount,
+      shownRecordCount: 0,
+      omittedFields: Object.keys(original).filter(
+        (field) =>
+          !['tool', 'generatedAt', 'profile', 'profileSections', 'profileSources'].includes(field),
+      ),
+      continuation: {
+        preserveFilters: true,
+        preserveCurrentCursor: true,
+        overrides: { limit: 1 },
+        instruction:
+          'For each section with truncatedByProjection, repeat get_client_context with that section, the same client and CURRENT cursor, and limit 1. Do not advance past omitted records. A section nextCursor is usable only when its entire returned page is visible. Summary records omit fields; request representation full for full records. If one full record still exceeds the budget, request representation summary and disclose that its full content was not read. Unavailable, unrequested or omitted sections are not evidence of absence.',
+      },
+    },
+  };
+  const projection = projected.projection as Record<string, unknown>;
+  const updateCoverage = () => {
+    let shownCount = 0;
+    for (const section of sections) {
+      const sourceRows = profile[section] as unknown[];
+      const visibleCount = shown[section]!.length;
+      const omitted = visibleCount < sourceRows.length;
+      const sourceHeader = object(headers[section]) ? headers[section] : {};
+      const header = compactHeaders[section]!;
+      header.returned = visibleCount;
+      header.sourceReturned = sourceRows.length;
+      header.truncatedByProjection = omitted;
+      header.status = omitted ? 'partial' : sourceHeader.status;
+      header.truncated = omitted ? true : sourceHeader.truncated;
+      header.nextCursor = omitted ? null : sourceHeader.nextCursor;
+      shownCount += visibleCount;
+    }
+    projection.shownRecordCount = shownCount;
+  };
+  updateCoverage();
+  // Pathological metadata still goes through the generic bounded fallback.
+  if (JSON.stringify(projected).length > maxCharacters) return null;
+
+  // Keep client identity when its complete object fits. Other engagement
+  // fields remain explicitly omitted; their absence cannot imply no history.
+  const context = object(original.context) ? original.context : original;
+  if (object(context.client) && JSON.stringify(context.client).length <= maxCharacters / 8) {
+    projected.client = context.client;
+    if (JSON.stringify(projected).length > maxCharacters) delete projected.client;
+    else if ('client' in original) {
+      projection.omittedFields = (projection.omittedFields as string[]).filter(
+        (field) => field !== 'client',
+      );
+    }
+  }
+  if (typeof original.coverageNote === 'string' && original.coverageNote.length <= 1_200) {
+    projected.coverageNote = original.coverageNote;
+    if (JSON.stringify(projected).length > maxCharacters) delete projected.coverageNote;
+    else
+      projection.omittedFields = (projection.omittedFields as string[]).filter(
+        (field) => field !== 'coverageNote',
+      );
+  }
+
+  const blockedSections = new Set<string>();
+  const maxRows = sections.reduce(
+    (max, section) => Math.max(max, (profile[section] as unknown[]).length),
+    0,
+  );
+  for (let index = 0; index < maxRows; index += 1) {
+    for (const section of sections) {
+      const rows = profile[section] as unknown[];
+      if (blockedSections.has(section) || index >= rows.length) continue;
+      const row = rows[index];
+      shown[section]!.push(row);
+      const references = Array.isArray(sourceReferences[section])
+        ? (sourceReferences[section] as unknown[])
+        : [];
+      const reference = object(row)
+        ? references.find((value) => object(value) && value.recordId === row.id)
+        : undefined;
+      if (reference !== undefined) shownSources[section]!.push(reference);
+      updateCoverage();
+      if (JSON.stringify(projected).length > maxCharacters) {
+        shown[section]!.pop();
+        if (reference !== undefined) shownSources[section]!.pop();
+        blockedSections.add(section);
+        updateCoverage();
+      }
+    }
+  }
+  return projected;
+}
+
 /** The projection is already sanitized structurally; never regex the serialized JSON again. */
 export function wrapMeriToolEvidence(toolName: string, result: unknown): string {
   return [
@@ -82,6 +223,10 @@ export function projectMeriToolEvidence(args: {
   if (safe.length <= args.maxCharacters) return result;
 
   const original = object(result) ? result : {};
+  if (args.readOnly) {
+    const profile = projectClientProfileEvidence(original, args.maxCharacters, safe.length);
+    if (profile) return profile;
+  }
   const rowKey = ROW_KEYS.find((key) => Array.isArray(original[key]));
   const rows = rowKey ? (original[rowKey] as unknown[]) : Array.isArray(result) ? result : [];
   const key = rowKey ?? (Array.isArray(result) ? 'data' : undefined);

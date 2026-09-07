@@ -311,6 +311,79 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     });
   });
 
+  it.each([0, 1])(
+    'persists an honest empty Stop receipt after %i completed tools for later replay',
+    async (toolCount) => {
+      const { service, client, sse, tx, frames } = buildHarness();
+      const abort = new AbortController();
+      client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+        if (toolCount) {
+          onEvent({ type: 'tool_call', tool: 'get_client_context', label: 'Client context' });
+          onEvent({
+            type: 'tool_done',
+            tool: 'get_client_context',
+            label: 'Client context',
+            status: 'done',
+            detail: 'Read client capabilities',
+          });
+        }
+        abort.abort();
+        throw abort.signal.reason;
+      });
+      await service.streamMessage(
+        CTX,
+        CONVERSATION,
+        'Read client context',
+        sse,
+        abort.signal,
+        'new',
+        [],
+        'token',
+      );
+      const saved = tx.clioMessage.create.mock.calls
+        .map(([arg]: any) => arg.data)
+        .find((data: any) => data.role === 'assistant');
+      expect(saved).toMatchObject({
+        body: 'Stopped before an answer was generated.',
+        metadata: { finishReason: 'aborted', partial: true },
+      });
+      expect(saved.metadata.trustSteps).toHaveLength(toolCount);
+      expect(frames().some((frame) => frame.type === 'error')).toBe(false);
+      expect(frames().find((frame) => frame.type === 'done')).toMatchObject({
+        messageId: expect.any(String),
+        finishReason: 'aborted',
+        partial: true,
+      });
+    },
+  );
+
+  it('persists a deadline receipt without inventing a provider failure or user Stop', async () => {
+    const { service, client, sse, tx, frames } = buildHarness();
+    const abort = new AbortController();
+    client.streamChat.mockImplementationOnce(async () => {
+      abort.abort(new DOMException('Deadline expired', 'TimeoutError'));
+      throw abort.signal.reason;
+    });
+    await service.streamMessage(
+      CTX,
+      CONVERSATION,
+      'Read client context',
+      sse,
+      abort.signal,
+      'new',
+      [],
+      'token',
+    );
+    const saved = tx.clioMessage.create.mock.calls
+      .map(([arg]: any) => arg.data)
+      .find((data: any) => data.role === 'assistant');
+    expect(saved).toMatchObject({
+      body: 'The turn reached its time limit before an answer was generated.',
+      metadata: { finishReason: 'deadline_exceeded', partial: true },
+    });
+    expect(frames().some((frame) => frame.type === 'error')).toBe(false);
+  });
+
   it('a summary provider failure stays off the completed V3 response', async () => {
     const { service, client, sse, frames, maintenance } = buildHarness();
     const failure = new Error('summary provider unavailable');

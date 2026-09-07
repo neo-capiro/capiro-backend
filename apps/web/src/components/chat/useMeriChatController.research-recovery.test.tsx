@@ -57,6 +57,76 @@ afterEach(() => {
 });
 
 describe('durable research recovery', () => {
+  test('attaches streamed report citations to the canonical message before any recovery response', async () => {
+    const session = saved();
+    let streamed = false;
+    const citation = {
+      n: 7,
+      id: 'earlier-attachment',
+      title: 'client-brief.txt',
+      type: 'source',
+      tool: 'get_research_evidence',
+      url: null,
+      snippet: 'The earlier attachment evidence.',
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: unknown) => {
+        const url = String(input);
+        if (url.endsWith('/stream')) {
+          streamed = true;
+          // History can win the race with the final stream event. Completion
+          // must coalesce that row and the optimistic placeholder, not clone it.
+          appendChatMessage({
+            id: 'report-7', role: 'assistant', content: 'Earlier saved body.',
+            createdAt: new Date(),
+          });
+          return stream([
+            {
+              type: 'report',
+              messageId: 'report-7',
+              body: 'Attachment fact. [7]',
+              reportMetadata: {
+                citations: [citation],
+                reasoningMode: 'standard',
+                trustSteps: [
+                  {
+                    tool: 'get_research_evidence',
+                    label: 'Read earlier attachment',
+                    status: 'done',
+                  },
+                ],
+                thinking: 'PRIVATE PROVIDER REASONING',
+              },
+            },
+            { type: 'done' },
+          ]);
+        }
+        // A disconnected recovery endpoint cannot repair the stream's source contract.
+        if (streamed) return new Response('Unavailable', { status: 503 });
+        if (url.includes('research?')) return json([session]);
+        if (url.endsWith('/research/research-1')) return json(session);
+        return json([]);
+      }),
+    );
+    const { result, unmount } = renderHook(
+      () => useMeriChatController({ selectedClientName: null }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.researchRecovery?.id).toBe('research-1'));
+    await act(async () => {
+      await result.current.resumeResearch();
+    });
+    const reports = result.current.messages.filter((message) => message.id === 'report-7');
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.content).toBe('Attachment fact. [7]');
+    expect(reports[0]?.citations).toEqual([citation]);
+    expect(reports[0]?.trustSteps?.[0]?.label).toBe('Read earlier attachment');
+    expect(result.current.researchReports['report-7']).toBe('research-1');
+    expect(JSON.stringify(reports)).not.toContain('PRIVATE PROVIDER REASONING');
+    unmount();
+  });
+
   test('restores saved questions without starting any provider work', async () => {
     const session = saved('awaiting_clarification', 'plan');
     const fetchMock = vi.fn(async (input: unknown) =>

@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import type { DocumentReadability } from '../engagement/attachment-pdf-vision.js';
 
 interface DocumentCursor {
   version: 1;
@@ -115,6 +116,7 @@ interface ExtractedDocument {
   truncated?: boolean;
   extractionMetadata?: unknown;
   disclosure?: string;
+  readability?: DocumentReadability;
 }
 
 /** Metadata precedes records so even an outer tool budget retains the next
@@ -160,8 +162,12 @@ export function buildDocumentReadPage(
   const sectionCount = extracted.sectionCount ?? 1;
   const moreText = end < extracted.text.length;
   const moreSections = section < sectionCount;
+  // An empty text layer is not evidence that each remaining PDF page is empty.
+  // Stop the automatic cursor walk after a failed/unavailable visual read;
+  // callers may explicitly select a known page once they inspect the gap.
+  const continuationBlocked = extracted.source === 'pdf' && !extracted.text.trim();
   const nextCursor =
-    moreText || moreSections
+    !continuationBlocked && (moreText || moreSections)
       ? encode({
           version: 1,
           documentId: extracted.attachmentId,
@@ -194,34 +200,46 @@ export function buildDocumentReadPage(
     tool: 'read_client_documents',
     generatedAt: new Date().toISOString(),
     clientId,
+    document: { id: extracted.attachmentId, fileName: extracted.fileName,
+      contentType: extracted.contentType, contentHash: extracted.contentHash },
     coverage: {
-      contentScope: 'extractable_text_only',
+      contentScope: extracted.readability?.method === 'openai_pdf' ? 'provider_transcribed_page_text' : 'extractable_text_only',
       extractedSectionEmpty: !extracted.text.trim(),
+      readability: extracted.readability ?? null,
+      continuationBlocked,
+      ...(continuationBlocked ? {
+        missingContent: true,
+        nextAction: 'Inspect the original document or retry a specific page when visual reading is available. Do not repeatedly walk empty pages.',
+        explicitNextSection: moreSections ? section + 1 : null,
+      } : {}),
       nextCursor,
-      truncated: Boolean(nextCursor) || Boolean(extracted.truncated),
+      truncated: Boolean(nextCursor) || Boolean(extracted.truncated) || continuationBlocked,
       complete:
         !input.query &&
         start === 0 &&
         section === 1 &&
         sectionCount === 1 &&
         !nextCursor &&
+        Boolean(extracted.text.trim()) &&
         !extracted.truncated,
       section,
       sectionCount,
       sectionCharacters: extracted.text.length,
       characterStart: start,
       characterEnd: end,
-      sectionComplete: start === 0 && !moreText,
+      sectionComplete: start === 0 && !moreText && !continuationBlocked && !extracted.truncated,
       query: input.query || null,
       matched: input.query ? match >= 0 : null,
       extractionTruncated: extracted.truncated ?? false,
       extractionMetadata: extracted.extractionMetadata ?? null,
       disclosure: extracted.disclosure ?? null,
-      note: input.query
+      note: continuationBlocked
+        ? 'This page is unreadable through the available extraction path. No conclusion about the other pages is supported, and no automatic continuation is scheduled.'
+        : input.query
         ? 'Search applies to this section only. Follow nextCursor to search the remaining sections; clear query and read section for full surrounding text.'
         : 'Follow nextCursor for all remaining text/pages/slides/sheet rows. Empty extracted pages may require visual/OCR review.',
     },
-    records: [
+    records: !payload.text.trim() ? [] : [
       {
         recordId: reference,
         payload,

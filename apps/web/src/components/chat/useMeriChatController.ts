@@ -24,6 +24,7 @@ import { useImpersonation } from '../../state/impersonation.js';
 import {
   addChatMessageChartArtifact,
   appendChatMessage,
+  completeChatMessage,
   claimMeriIdentity,
   clearChatSession,
   MeriSourceAttribution,
@@ -66,6 +67,7 @@ import { formatMeriHttpError } from './meri-http-error.js';
 import { meriRuntimeStatus, type MeriRuntimeStatus } from './meri-runtime-status.js';
 import {
   readRecoveredResearch,
+  readResearchReportEvidence,
   readResearchRun,
   mayResumeResearch,
   type MeriRecoveredResearch,
@@ -83,7 +85,7 @@ import type { MeriLearnedMemory } from './MeriMemoryPanel.js';
 
 type SseEvent =
   | { type: 'runtime'; telemetry?: Record<string, unknown> }
-  | { type: 'start'; intent: string; tier?: 'fast' | 'deep' }
+  | { type: 'start'; intent: string; tier?: 'fast' | 'deep'; reasoningMode?: string }
   | {
       type: 'trace';
       trace?: Array<{ tool: string; action: 'selected' | 'skipped'; reason: string }>;
@@ -213,6 +215,7 @@ type ResearchSseEvent =
     }
   | {
       type: 'report';
+      reportMetadata?: Record<string, unknown>;
       artifactId?: string;
       messageId?: string | null;
       conversationId?: string;
@@ -1545,16 +1548,19 @@ export function useMeriChatController({
             } else if (e.type === 'report' && typeof e.body === 'string') {
               completedReport = true;
               report = e.body;
-              updateChatMessage(assistantId, report);
-              if (typeof e.messageId === 'string' && e.messageId !== assistantId) {
-                replaceChatMessageId(assistantId, e.messageId);
-                assistantId = e.messageId;
-                researchMessageRef.current = {
-                  sessionId: id,
-                  messageId: assistantId,
-                  phase: 'research',
-                };
-              }
+              const canonicalId =
+                typeof e.messageId === 'string' && e.messageId ? e.messageId : assistantId;
+              completeChatMessage(assistantId, {
+                id: canonicalId,
+                content: report,
+                ...(e.reportMetadata ? readResearchReportEvidence(e.reportMetadata) : {}),
+              });
+              assistantId = canonicalId;
+              researchMessageRef.current = {
+                sessionId: id,
+                messageId: assistantId,
+                phase: 'research',
+              };
             } else if (e.type === 'error') {
               updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
             }
@@ -1660,48 +1666,16 @@ export function useMeriChatController({
         setResearchAwaitingAnswers(awaiting && recovered.questions.length > 0);
         const messagesNow = getChatStateSnapshot().messages;
         if (recovered.reportMessageId && recovered.report !== null) {
-          if (!messagesNow.some((message) => message.id === recovered.reportMessageId)) {
-            const pendingId =
-              researchMessageRef.current?.sessionId === recovered.id &&
-              researchMessageRef.current.phase === 'research'
-                ? researchMessageRef.current.messageId
-                : `research-recovery-${recovered.id}`;
-            if (messagesNow.some((message) => message.id === pendingId))
-              replaceChatMessageId(pendingId, recovered.reportMessageId);
-            else
-              appendChatMessage({
-                id: recovered.reportMessageId,
-                role: 'assistant',
-                content: recovered.report,
-                createdAt: new Date(),
-              });
-          }
-          updateChatMessage(recovered.reportMessageId, recovered.report);
-          if (recovered.reportEvidence) {
-            const evidence = recovered.reportEvidence;
-            setChatMessageCitations(recovered.reportMessageId, evidence.citations ?? []);
-            setChatMessageThinking(recovered.reportMessageId, {
-              orchestratorIntent: evidence.orchestratorIntent,
-              orchestratorTier: evidence.orchestratorTier,
-              planSteps: evidence.planSteps,
-              trustSteps: evidence.trustSteps,
-            });
-            if (evidence.contextPacketId)
-              setChatMessageContextPacketId(recovered.reportMessageId, evidence.contextPacketId);
-            if (evidence.retrieval)
-              setChatMessageRetrieval(recovered.reportMessageId, evidence.retrieval);
-            if (evidence.verification)
-              setChatMessageVerification(recovered.reportMessageId, evidence.verification);
-            if (evidence.groundingCaveat)
-              setChatMessageGroundingCaveat(recovered.reportMessageId, evidence.groundingCaveat);
-            if (evidence.groundingStatement)
-              setChatMessageGroundingStatement(
-                recovered.reportMessageId,
-                evidence.groundingStatement,
-              );
-            if (evidence.runtimeStatus)
-              setChatMessageRuntimeStatus(recovered.reportMessageId, evidence.runtimeStatus);
-          }
+          const pendingId =
+            researchMessageRef.current?.sessionId === recovered.id &&
+            researchMessageRef.current.phase === 'research'
+              ? researchMessageRef.current.messageId
+              : `research-recovery-${recovered.id}`;
+          completeChatMessage(pendingId, {
+            id: recovered.reportMessageId,
+            content: recovered.report,
+            ...recovered.reportEvidence,
+          });
           setResearchReports((previous) => ({
             ...previous,
             [recovered.reportMessageId!]: recovered.id,
@@ -2051,6 +2025,11 @@ export function useMeriChatController({
             }
 
             if (event.type === 'start') {
+              const status = meriRuntimeStatus(event);
+              if (status) {
+                turnRuntimeStatus = { ...turnRuntimeStatus, ...status };
+                setChatMessageRuntimeStatus(assistantId, turnRuntimeStatus);
+              }
               setOrchestratorTier(event.tier ?? null);
               setOrchestratorIntent(event.intent ?? null);
               setTrustSteps([]);
@@ -2066,7 +2045,7 @@ export function useMeriChatController({
               // or on a session switch, and nowhere else.
             } else if (event.type === 'runtime') {
               const status = meriRuntimeStatus(event);
-              turnRuntimeStatus = status ?? turnRuntimeStatus;
+              turnRuntimeStatus = status ? { ...turnRuntimeStatus, ...status } : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
             } else if (event.type === 'pending_approval') {
               // MeriV2 gate-held write — the server already created the durable
@@ -2214,7 +2193,7 @@ export function useMeriChatController({
             } else if (event.type === 'done') {
               const status = meriRuntimeStatus(event);
               turnCompletionReceived = true;
-              turnRuntimeStatus = status ?? turnRuntimeStatus;
+              turnRuntimeStatus = status ? { ...turnRuntimeStatus, ...status } : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
               // Evidence must resolve the immutable packet from this response,
               // never whichever packet happened to be compiled most recently.

@@ -120,6 +120,7 @@ jobs:
           src/meri/meri-capability-contract.spec.ts
           src/meri/full-chat-read-tools.catalog.spec.ts
           src/meri/api-client-context.repo.spec.ts
+          src/meri/shared-retrieval-citations.spec.ts
           src/meri/chat/chat-prompt.spec.ts
 
       - name: Test API routing, flags, transport and managed apps
@@ -142,6 +143,7 @@ jobs:
           src/meri/meri-tool-manifest.parity.spec.ts
           src/meri/meri-tools.firmdata.spec.ts
           src/meri/meri-client-context.helpers.spec.ts
+          src/clients/client-advocacy-record-read.service.spec.ts
           src/meri/evals/government-affairs-grader.spec.ts
           src/funding-opportunities/meri-opportunity-tools.spec.ts
           src/funding-opportunities/requirements/opportunity-requirement.spec.ts
@@ -178,6 +180,11 @@ jobs:
           --runInBand --forceExit
           src/engagement/attachment-section-extract.spec.ts
           src/engagement/engagement-document-read.spec.ts
+          src/engagement/attachment-pdf-vision.spec.ts
+          src/embeddings/client-kb-readability.spec.ts
+          src/engagement/llm-completion.service.spec.ts
+          src/engagement/llm-completion-streaming.service.spec.ts
+          src/meri/meri-attachment-extract.spec.ts
 
       - name: Test core evidence and cancellation contracts
         run: >
@@ -200,6 +207,10 @@ jobs:
           src/components/chat/useMeriChatController.feedback-identity.test.tsx
           src/components/chat/useMeriChatController.research-recovery.test.tsx
           src/vnext/meri/MeriEvidenceTab.coverage.test.tsx
+          src/vnext/meri/MeriEvidenceTab.citations.test.tsx
+          src/vnext/meri/MeriThinkingTab.runtime.test.tsx
+          src/vnext/meri/MeriTurnCoverage.test.tsx
+          src/vnext/pages/client-crm/tabs/file-readability.test.ts
           src/vnext/meri/MeriResearchRecovery.test.tsx
           src/vnext/meri/VNextMeriReasoningControl.test.tsx
           src/components/chat/useMeriChatController.rename-persistence.test.tsx

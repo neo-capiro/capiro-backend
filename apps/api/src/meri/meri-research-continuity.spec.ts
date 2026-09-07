@@ -285,6 +285,51 @@ function fixture() {
 }
 
 describe('Deep Research conversation continuity', () => {
+  it('sends the same numbered source objects on completion, replay, and saved report recovery', async () => {
+    const f = fixture();
+    const citation = {
+      n: 7,
+      id: 'prior-file',
+      title: 'brief.txt',
+      type: 'source',
+      tool: 'get_research_evidence',
+      url: null,
+      snippet: 'Client has three sensor manufacturing facilities.',
+    };
+    const original = await f.runner.run(ctx, {});
+    const reconciledRetrieval = {
+      ...f.auth.governedContext!.retrieval,
+      coverage: {
+        ...f.auth.governedContext!.retrieval.coverage,
+        phase: 'completed_turn',
+        searchedDomains: ['clients'],
+        recordsReturned: 3,
+        restoredSources: ['clients'],
+      },
+    };
+    f.runner.run.mockResolvedValue({
+      ...original,
+      reportBody: '# Client briefing\n\nThree sensor facilities. [7]',
+      citations: [citation],
+      retrieval: reconciledRetrieval,
+    } as never);
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+    const completed = f.events.find((event) => event.type === 'report');
+    expect(completed.body).toContain('[7]');
+    expect(completed.reportMetadata.citations).toEqual([citation]);
+    expect(completed.reportMetadata.reasoningMode).toBe('max');
+    expect(completed.reportMetadata.retrieval).toEqual(reconciledRetrieval);
+    const recovered = await f.service.getSession(ctx, 'research-a');
+    expect(recovered.reportMetadata).toEqual(completed.reportMetadata);
+    const callCount = f.runner.run.mock.calls.length;
+    await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+    const replayed = f.events.filter((event) => event.type === 'report').at(-1);
+    expect(replayed.reportMetadata).toEqual(completed.reportMetadata);
+    expect(replayed.messageId).toBe(completed.messageId);
+    expect(f.runner.run).toHaveBeenCalledTimes(callCount);
+  });
+
   it('carries stored context/evidence/effort into both phases and saves the completed report in its originating thread', async () => {
     const f = fixture();
     await f.service.createSession(ctx, {

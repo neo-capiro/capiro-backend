@@ -82,7 +82,7 @@ describe('get_client_context tool', () => {
     expect(createGetClientContextTool(repo).readOnly).toBe(true);
   });
 
-  it('preserves pagination options through the native registry', async () => {
+  it.each(['submissionHistory', 'advocacyMatters', 'advocacyRecords'] as const)('preserves %s inventory options through the native registry', async (section) => {
     const { repo, seen } = fakeRepo();
     const registry = new InMemoryToolRegistry();
     registry.register(createGetClientContextTool(repo));
@@ -90,20 +90,22 @@ describe('get_client_context tool', () => {
       'get_client_context',
       {
         clientId: VALID_CLIENT_ID,
-        section: 'submissionHistory',
+        section,
         cursor: 'next-page',
         limit: 50,
+        representation: 'summary',
       },
       ctx,
     );
     expect(seen[0]?.options).toEqual({
-      section: 'submissionHistory',
+      section,
       cursor: 'next-page',
       limit: 50,
+      representation: 'summary',
     });
   });
 
-  it.each([{ section: 'secrets' }, { limit: 51 }, { limit: 0 }, { limit: 1.5 }])(
+  it.each([{ section: 'secrets' }, { limit: 51 }, { limit: 0 }, { limit: 1.5 }, { representation: 'all' }])(
     'rejects unsupported profile options %p',
     async (options) => {
       const { repo, seen } = fakeRepo();

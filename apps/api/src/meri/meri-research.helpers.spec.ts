@@ -140,6 +140,19 @@ describe('clio-research helpers', () => {
   });
 
   describe('assembleReportArtifact', () => {
+    it('exports canonical citation numbers and excerpts instead of generic tool receipts', () => {
+      const md = assembleReportArtifact({
+        title: 'Brief', topic: 'Client objective', plan: [], reportBody: 'Client fact [7].',
+        sources: [{ label: 'Read attachment', summary: 'Source retrieved; see cited evidence.' }],
+        citations: [{ n: 7, id: 'attachment-1', title: 'Earlier brief.txt',
+          snippet: 'The client requires an industry lead.', url: null,
+          type: 'source', tool: 'get_research_evidence' }],
+        generatedAt: new Date('2026-09-07T00:00:00Z'),
+      });
+      expect(md).toContain('- [7] Earlier brief.txt — The client requires an industry lead.');
+      expect(md).not.toContain('Source retrieved; see cited evidence.');
+    });
+
     it('builds header, body, and a sources footer', () => {
       const md = assembleReportArtifact({
         title: 'EW Budget Outlook',

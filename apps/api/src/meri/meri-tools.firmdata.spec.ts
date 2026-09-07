@@ -11,6 +11,7 @@ jest.mock('../intelligence/actions/action-recommendation-read.service.js', () =>
 jest.mock('../clients/client-capabilities.service.js', () => ({ ClientCapabilitiesService: jest.fn() }));
 jest.mock('../clients/client-people.service.js', () => ({ ClientPeopleService: jest.fn() }));
 jest.mock('../clients/client-facilities.service.js', () => ({ ClientFacilitiesService: jest.fn() }));
+jest.mock('../clients/client-advocacy-matter.service.js', () => ({ ClientAdvocacyMatterService: jest.fn() }));
 jest.mock('../clients/clients.service.js', () => ({ ClientsService: jest.fn() }));
 jest.mock('../clients/representation-resolver.service.js', () => ({ RepresentationResolverService: jest.fn() }));
 jest.mock('../regulatory-docket/regulatory-docket.service.js', () => ({ RegulatoryDocketService: jest.fn() }));
@@ -133,6 +134,10 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     buildXlsx: jest.fn().mockResolvedValue(Buffer.from('xlsx')),
     buildPptx: jest.fn().mockResolvedValue(Buffer.from('pptx')),
   };
+  const clientAdvocacy = {
+    listMatters: jest.fn().mockResolvedValue([]),
+    listRecords: jest.fn().mockResolvedValue({ items: [], total: 0, hasMore: false }),
+  };
 
   const service = new MeriToolsService(
     prisma as never,
@@ -165,6 +170,7 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     {} as never, // opportunityTools
     extra.sharedRetrieval as never,
     extra.contextPlane as never,
+    clientAdvocacy as never,
   );
 
   return {
@@ -179,6 +185,7 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     clientCapabilities,
     clientPeople,
     clientFacilities,
+    clientAdvocacy,
     docgen,
     clients,
   };
@@ -711,7 +718,7 @@ describe('get_client_context canonical rich profile', () => {
     return { ...m, wallRead, withTenantUser };
   }
 
-  it('loads all four authorized sections with complete counts and keeps engagement context', async () => {
+  it('loads authorized sections with complete counts and keeps engagement context', async () => {
     const m = makeContextMocks();
     const history = Array.from({ length: 63 }, (_, i) => ({ id: `history-${String(i).padStart(3, '0')}`, title: `Ask ${i}`, outcome: 'Full history' }));
     m.clientCapabilities.listClientHistory.mockResolvedValue(history);
@@ -726,6 +733,8 @@ describe('get_client_context canonical rich profile', () => {
     expect(m.clientCapabilities.listCapabilities).toHaveBeenCalledWith(ctx, clientId);
     expect(m.clientPeople.listPeople).toHaveBeenCalledWith(ctx, clientId);
     expect(m.clientFacilities.listFacilities).toHaveBeenCalledWith(ctx, clientId);
+    expect(m.clientAdvocacy.listMatters).toHaveBeenCalledWith(ctx, clientId);
+    expect(m.clientAdvocacy.listRecords).toHaveBeenCalledWith(ctx, clientId, { limit: 25, afterId: undefined });
     expect(result.context.client.name).toBe('Acme');
     expect(result.profile.capabilities[0].name).toBe('Robotics');
     expect(result.profileSections.submissionHistory).toMatchObject({ status: 'partial', total: 63, returned: 25, truncated: true });
@@ -755,6 +764,8 @@ describe('get_client_context canonical rich profile', () => {
     expect(m.clientCapabilities.listCapabilities).not.toHaveBeenCalled();
     expect(m.clientPeople.listPeople).not.toHaveBeenCalled();
     expect(m.clientFacilities.listFacilities).not.toHaveBeenCalled();
+    expect(m.clientAdvocacy.listMatters).not.toHaveBeenCalled();
+    expect(m.clientAdvocacy.listRecords).not.toHaveBeenCalled();
   });
 
   it('fails closed if the wall cannot be checked', async () => {
@@ -762,9 +773,11 @@ describe('get_client_context canonical rich profile', () => {
     m.wallRead.mockRejectedValue(new Error('Wall check unavailable'));
     await expect(m.service.execute(ctx, 'get_client_context', { clientId })).rejects.toThrow('Wall check unavailable');
     expect(m.engagement.clientContext).not.toHaveBeenCalled();
+    expect(m.clientAdvocacy.listMatters).not.toHaveBeenCalled();
+    expect(m.clientAdvocacy.listRecords).not.toHaveBeenCalled();
   });
 
-  it('keeps all four section cursors visible before large records in the model prompt', async () => {
+  it('keeps every section cursor visible before large records in the model prompt', async () => {
     const m = makeContextMocks();
     const rows = Array.from({ length: 30 }, (_, i) => ({
       id: `row-${i}`, name: 'x'.repeat(30000), description: 'y'.repeat(30000),
@@ -773,15 +786,82 @@ describe('get_client_context canonical rich profile', () => {
     m.clientPeople.listPeople.mockResolvedValue(rows);
     m.clientFacilities.listFacilities.mockResolvedValue(rows);
     m.clientCapabilities.listClientHistory.mockResolvedValue(rows);
+    m.clientAdvocacy.listMatters.mockResolvedValue(rows);
+    m.clientAdvocacy.listRecords.mockResolvedValue({ items: rows.slice(0, 25), total: 30, hasMore: true });
     const result = await m.service.execute(ctx, 'get_client_context', { clientId }) as any;
     const prompt = wrapToolResultForPrompt('get_client_context', result, 12000);
-    for (const section of ['capabilities', 'people', 'facilities', 'submissionHistory']) {
+    for (const section of ['capabilities', 'people', 'facilities', 'submissionHistory', 'advocacyMatters', 'advocacyRecords']) {
       expect(result.profileSections[section].sourceReferences).toBeUndefined();
       expect(result.profileSources[section]).toHaveLength(25);
       expect(prompt).toContain(result.profileSections[section].nextCursor);
     }
     expect(prompt).toContain('Unavailable or unrequested sections are not empty');
     expect(prompt).toContain('[truncated tool result]');
+  });
+
+  it('makes all 26 capability summaries available in a single inventory page within the prompt budget', async () => {
+    const m = makeContextMocks();
+    const capabilities = Array.from({ length: 26 }, (_, i) => ({
+      id: `cap-${String(i).padStart(2, '0')}`, name: `Capability ${i}`, description: 'Recorded evidence',
+    }));
+    m.clientCapabilities.listCapabilities.mockResolvedValue(capabilities);
+    const result = await m.service.execute(ctx, 'get_client_context', {
+      clientId, section: 'capabilities', representation: 'summary', limit: 50,
+    }) as any;
+    expect(result.profile.capabilities).toHaveLength(26);
+    expect(result.profileSections.capabilities).toMatchObject({
+      status: 'complete', total: 26, returned: 26, nextCursor: null, representation: 'summary',
+    });
+    const prompt = wrapToolResultForPrompt('get_client_context', result, 12000);
+    expect(prompt).toContain('Capability 25');
+    expect(prompt).not.toContain('[truncated tool result]');
+    expect(m.clientAdvocacy.listRecords).not.toHaveBeenCalled();
+  });
+
+  it('keeps current matters and evidence records distinct from the old submission ledger, with full record continuation', async () => {
+    const m = makeContextMocks();
+    m.clientCapabilities.listClientHistory.mockResolvedValue([{ id: 'old-1', title: 'Older submission' }]);
+    m.clientAdvocacy.listMatters.mockResolvedValue(Array.from({ length: 7 }, (_, i) => ({
+      id: `matter-${i}`, title: `Matter ${i}`, recordCount: i === 0 ? 2 : 1,
+      autoGenerated: true, summary: 'Proposed grouping', updatedAt: '2026-09-07T00:00:00.000Z',
+    })));
+    const records = Array.from({ length: 8 }, (_, i) => ({
+      id: `record-${i}`, title: `Activity ${i}`, matterId: i === 7 ? null : `matter-${i % 7}`,
+      summary: 'Original evidence '.repeat(40), sourceType: 'lda', sourceId: `filing-${i}`,
+      sourceUrl: `https://example.gov/filing/${i}`, evidenceClass: 'inferred', confidence: 0.4,
+      updatedAt: '2026-09-07T00:00:00.000Z',
+    }));
+    m.clientAdvocacy.listRecords.mockImplementation(async (_ctx, _clientId, page) => {
+      const after = page.afterId ? records.findIndex((r) => r.id === page.afterId) + 1 : 0;
+      return { items: records.slice(after, after + page.limit), total: 8, hasMore: after + page.limit < 8 };
+    });
+    const overview = await m.service.execute(ctx, 'get_client_context', { clientId }) as any;
+    expect(overview.profileSections.advocacyMatters.total).toBe(7);
+    expect(overview.profileSections.advocacyRecords.total).toBe(8);
+    expect(overview.profileSections.submissionHistory.total).toBe(1);
+    expect(overview.profile.advocacyRecords[7].matterId).toBeNull();
+    expect(overview.profile.advocacyRecords[0]).toMatchObject({ evidenceClass: 'inferred', confidence: 0.4 });
+    const first = await m.service.execute(ctx, 'get_client_context', {
+      clientId, section: 'advocacyRecords', limit: 3,
+    }) as any;
+    expect(first.profile.advocacyRecords[0].summary).toBe(records[0]!.summary);
+    expect(first.profileSources.advocacyRecords[0]).toMatchObject({
+      recordId: 'record-0', sourceUrl: 'https://example.gov/filing/0',
+    });
+    const remaining = await m.service.execute(ctx, 'get_client_context', {
+      clientId, section: 'advocacyRecords', cursor: first.profileSections.advocacyRecords.nextCursor, limit: 50,
+    }) as any;
+    expect(remaining.profile.advocacyRecords.map((r: any) => r.id)).toEqual(records.slice(3).map((r) => r.id));
+    expect(remaining.profileSections.advocacyRecords).toMatchObject({ total: 8, returned: 5, nextCursor: null });
+    expect(remaining.profileSections.submissionHistory.status).toBe('not_requested');
+  });
+
+  it('does not describe an unavailable current advocacy source as an empty history', async () => {
+    const m = makeContextMocks();
+    m.clientAdvocacy.listRecords.mockRejectedValue(new Error('Read unavailable'));
+    const result = await m.service.execute(ctx, 'get_client_context', { clientId }) as any;
+    expect(result.profileSections.advocacyRecords).toMatchObject({ status: 'unavailable', total: null });
+    expect(result.profileSections.submissionHistory).toMatchObject({ status: 'complete', total: 0 });
   });
 });
 

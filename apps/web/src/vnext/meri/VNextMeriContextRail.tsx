@@ -8,7 +8,8 @@ import { MeriArtifactCanvas } from './MeriArtifactCanvas.js';
 import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextSection } from './meri-prefs.js';
-import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
+import { activeContextLabels, contextPacketSummary, contextItemLabel } from './meri-context-packet.js';
+import { meriCoverageReason, meriCoverageSourceLabel } from '../../components/chat/meri-retrieval-metadata.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
 import { MeriMemoryTab, useMeriGovernedMemoryQueues } from './MeriMemoryTab.js';
 import { MeriPanelState } from './MeriPanelState.js';
@@ -202,6 +203,8 @@ export function VNextMeriContextRail({
   }, [controller.stagedAttachments]);
 
   const contextItems = useMemo(() => activeContextLabels(packet), [packet]);
+  const latestRetrieval = [...controller.messages].reverse().find((message) => message.role === 'assistant')?.retrieval;
+  const restoredSources = latestRetrieval?.coverage.restoredSources ?? [];
 
   const { reviewCount, pendingProposalCount } = useMeriGovernedMemoryQueues();
   const pendingMemoryCount = reviewCount + pendingProposalCount;
@@ -377,7 +380,8 @@ export function VNextMeriContextRail({
                 <div className="vnext-meri__ctx-degraded" role="status">
                   <MeriIcon name="AlertTriangle" size={15} color="#B54708" />
                   <span className="vnext-meri__ctx-degraded-text">
-                    {packet.degradedReason ?? 'Context provenance is degraded for this thread.'}
+                    Initial context: {meriCoverageReason(packet.degradedReason ?? 'Some context could not be retrieved')}.
+                    {restoredSources.length ? ` Later reads reached ${restoredSources.map(meriCoverageSourceLabel).join(', ')}. See the turn's Evidence tab for the remaining gaps.` : ''}
                   </span>
                 </div>
               ) : null}
@@ -410,13 +414,13 @@ export function VNextMeriContextRail({
                 ) : !packetLoading && !packetError ? <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState> : null}
                 {packet && packet.exclusions.length ? (
                   <div className="vnext-meri__ctx-list" aria-label="Context not included">
-                    <span className="vnext-meri__section-label">NOT INCLUDED · {packet.exclusions.length}</span>
+                    <span className="vnext-meri__section-label">NOT INCLUDED IN INITIAL CONTEXT · {packet.exclusions.length}</span>
                     {packet.exclusions.slice(0, 5).map((exclusion, index) => (
                       <div key={exclusion.id ?? `${exclusion.label}-${index}`} className="vnext-meri__ctx-exclusion">
                         <MeriIcon name="File05" size={13} color="#98A2B3" />
                         <div className="vnext-meri__ctx-exclusion-body">
-                          <span className="vnext-meri__ctx-exclusion-label">{exclusion.label}</span>
-                          <span className="vnext-meri__ctx-exclusion-reason">{exclusion.reason.replace(/[-_]/g, ' ').toUpperCase()}</span>
+                          <span className="vnext-meri__ctx-exclusion-label">{contextItemLabel(exclusion.label, exclusion.type)}</span>
+                          <span className="vnext-meri__ctx-exclusion-reason">{meriCoverageReason(exclusion.reason)}</span>
                         </div>
                       </div>
                     ))}

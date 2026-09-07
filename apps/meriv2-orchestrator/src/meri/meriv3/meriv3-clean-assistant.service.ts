@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   extractCitationsFromToolResult,
   FORM_B_CITATION_RE,
+  FORM_B_TOKEN_RE,
   type MeriCitation,
 } from '@capiro/shared';
 import type { LedgerEntry } from '@capiro/meriv2-core';
@@ -106,12 +107,19 @@ function truncate(value: string | null, max: number): string | null {
 function resultRows(result: unknown, tool: string): Record<string, unknown>[] {
   if (Array.isArray(result)) return result.filter(isRecord);
   if (!isRecord(result)) return [];
+  // Native client profiles and Federal Market responses have their own row
+  // contracts. Use the same visible-record extractor as the provider prompt.
+  const canonical = extractCitationsFromToolResult(tool, result, 1, MAX_RELEASE_CITATIONS);
+  const byId = new Map(canonical.map((citation) => [citation.id, citation]));
   for (const key of RESULT_ARRAY_KEYS) {
     const rows = result[key];
     if (Array.isArray(rows)) {
       return rows.filter(isRecord).flatMap((row) => {
         if (key !== 'records' || !isRecord(row.payload) || typeof row.recordId !== 'string') {
-          return [row];
+          const citation = byId.get(firstString(row, ID_FIELDS) ?? '');
+          return citation
+            ? [{ ...row, ...citation, sourceTool: firstString(row, ['sourceTool']) ?? tool }]
+            : [row];
         }
         // Shared retrieval keeps titles and links inside an evidence envelope.
         // Reuse the canonical extractor so Form-B references beyond the initial
@@ -123,6 +131,7 @@ function resultRows(result: unknown, tool: string): Record<string, unknown>[] {
       });
     }
   }
+  if (canonical.length) return canonical.map((citation) => ({ ...citation, sourceTool: tool }));
   return firstString(result, [...TITLE_FIELDS, ...SNIPPET_FIELDS]) ? [result] : [];
 }
 
@@ -182,11 +191,16 @@ function matchingEvidence(
 export function buildMeriV3ReleaseCitations(
   citations: readonly MeriCitation[],
   ledgerEntries: readonly LedgerEntry[],
-): { citations: MeriCitation[]; aliases: Map<string, MeriCitation> } {
+): {
+  citations: MeriCitation[];
+  aliases: Map<string, MeriCitation>;
+  numberAliases: Map<number, number>;
+} {
   const evidence = evidenceFromLedger(ledgerEntries);
   const normalized: MeriCitation[] = [];
   const byKey = new Map<string, MeriCitation>();
   const aliases = new Map<string, MeriCitation>();
+  const numberAliases = new Map<number, number>();
 
   for (const citation of citations) {
     const source = matchingEvidence(citation, evidence);
@@ -202,16 +216,21 @@ export function buildMeriV3ReleaseCitations(
         }
       : citation;
     const key = `${updated.tool}:${updated.id}`;
-    if (!byKey.has(key)) {
+    let canonical = byKey.get(key);
+    if (!canonical) {
+      canonical = updated;
       byKey.set(key, updated);
       normalized.push(updated);
     }
-    aliases.set(`${citation.tool}:${citation.id}`, updated);
-    aliases.set(key, updated);
-    if (source) aliases.set(`${source.callTool}:${source.id}`, updated);
+    numberAliases.set(citation.n, canonical.n);
+    aliases.set(`${citation.tool}:${citation.id}`, canonical);
+    aliases.set(key, canonical);
+    if (source) aliases.set(`${source.callTool}:${source.id}`, canonical);
   }
 
-  let nextN = normalized.reduce((max, citation) => Math.max(max, citation.n), 0) + 1;
+  // A repeated record may already have been numbered in a later tool result.
+  // Do not reuse that number for a different source after deduplication.
+  let nextN = citations.reduce((max, citation) => Math.max(max, citation.n), 0) + 1;
   for (const source of evidence) {
     if (normalized.length >= MAX_RELEASE_CITATIONS) break;
     const key = `${source.sourceTool}:${source.id}`;
@@ -235,19 +254,25 @@ export function buildMeriV3ReleaseCitations(
   }
 
   normalized.sort((left, right) => left.n - right.n);
-  return { citations: normalized, aliases };
+  return { citations: normalized, aliases, numberAliases };
 }
 
 export function normalizeMeriV3FormBCitations(
   text: string,
   aliases: ReadonlyMap<string, MeriCitation>,
+  numberAliases: ReadonlyMap<number, number> = new Map(),
 ): string {
   const pattern = new RegExp(FORM_B_CITATION_RE.source, 'g');
   return text
+    .replace(/\[(\d{1,3})\]/g, (token, digits: string) => {
+      const canonical = numberAliases.get(Number(digits));
+      return canonical === undefined ? token : `[${canonical}]`;
+    })
     .replace(pattern, (_token, tool: string, id: string) => {
       const citation = aliases.get(`${tool}:${id}`);
       return citation ? `[${citation.n}]` : '';
     })
+    .replace(new RegExp(FORM_B_TOKEN_RE.source, 'g'), '')
     .replace(/[ \t]+([,.;:!?])/g, '$1')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
@@ -290,7 +315,7 @@ export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService
       const release = buildMeriV3ReleaseCitations(args.citations, args.ledgerEntries);
       return nativeFinalize({
         ...args,
-        reply: normalizeMeriV3FormBCitations(args.reply, release.aliases),
+        reply: normalizeMeriV3FormBCitations(args.reply, release.aliases, release.numberAliases),
         citations: release.citations,
       });
     };

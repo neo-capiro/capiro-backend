@@ -451,13 +451,24 @@ export class MeriV3ProxyService {
       confidence: step.status === 'done' ? 'high' : 'low',
     }));
 
+    // A turn stopped before its first text token still needs a durable receipt.
+    // Otherwise reload either loses the partial turn or substitutes a provider
+    // failure for an intentional Stop. Keep actual provider failures distinct.
+    const stoppedWithoutText =
+      !assistantContent && (finishReason === 'aborted' || finishReason === 'deadline_exceeded');
+    const emptyAnswerBody =
+      finishReason === 'aborted'
+        ? 'Stopped before an answer was generated.'
+        : finishReason === 'deadline_exceeded'
+          ? 'The turn reached its time limit before an answer was generated.'
+          : 'MeriV3 could not complete this turn. Please try again.';
     let assistantMessageId: string | null = null;
-    if (assistantContent || steps.length || errorMessage) {
+    if (assistantContent || steps.length || errorMessage || stoppedWithoutText) {
       const message = await this.persistAssistantMessage(
         ctx,
         conversation,
         conversationId,
-        assistantContent || 'MeriV3 could not complete this turn. Please try again.',
+        assistantContent || emptyAnswerBody,
         {
           intent: frame?.intent ?? 'general',
           tier: reasoningMode === 'fast' ? 'fast' : 'deep',

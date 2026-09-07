@@ -156,6 +156,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ClientPeopleService,
     ClientFacilitiesService,
     ClientTargetsService,
+    ClientAdvocacyMatterService,
   ],
 })
 export class ClientsModule {}

@@ -14,6 +14,7 @@ import {
 } from './embedder.js';
 import {
   KB_MAX_CHUNKS_PER_CLIENT,
+  KB_MAX_CHUNKS_PER_DOC,
   KB_SOURCE_TYPES,
   buildClientFacilityText,
   buildClientPersonText,
@@ -257,12 +258,31 @@ export class ClientKbService {
           .catch(() => null)
       : null;
 
-    const text = await this.extractAttachmentTextForKb(attachment);
-    // Replace any prior chunks for this doc before re-indexing.
+    // Clear a prior success before any operation which may fail. Filename-only
+    // embeddings are useful for discovery but are not searchable document text.
+    await this.prisma.withTenant(tenantId, (tx) => tx.engagementAttachment.update({
+      where: { id: attachmentId }, data: { indexedAt: null },
+    }));
+    let extraction: Awaited<ReturnType<ClientKbService['extractAttachmentTextForKb']>>;
+    try {
+      extraction = await this.extractAttachmentTextForKb(attachment);
+    } catch (error) {
+      await this.prisma.withTenant(tenantId, (tx) => tx.engagementAttachment.update({
+        where: { id: attachmentId }, data: {
+          indexedAt: null, extractionStatus: 'failed',
+          extractionMetadata: { chars: 0, contentScope: 'unavailable', reason: 'text_extraction_failed' },
+        },
+      }));
+      throw error;
+    }
+    // Retain previous chunks if S3/parsing failed. Only replace evidence once
+    // its current bytes were actually read (including a confirmed empty result).
     await this.purge(tenantId, 'client_doc_chunk', attachmentId);
+    const text = extraction?.text?.trim() || null;
     const chunks = text
       ? chunkDocumentText(text)
       : [`Image or non-text attachment: ${attachment.fileName}`];
+    const contentTruncated = Boolean(extraction?.truncated) || chunks.length >= KB_MAX_CHUNKS_PER_DOC;
     for (let i = 0; i < chunks.length; i += 1) {
       await embedAndUpsert(this.prisma, {
         tenantId,
@@ -283,7 +303,7 @@ export class ClientKbService {
       });
     }
 
-    // Stamp the attachment as indexed (Meetings v2 §5) — reached only after the
+    // Stamp content as indexed (Meetings v2 §5) — reached only after the
     // whole chunk loop succeeds, so the two early returns above (missing/no-client,
     // quota exceeded) correctly leave indexedAt null. Drives the Documents-tab
     // per-file "Indexed" badge. withTenant (not withSystem): the row is
@@ -291,7 +311,22 @@ export class ClientKbService {
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.engagementAttachment.update({
         where: { id: attachmentId },
-        data: { indexedAt: new Date() },
+        data: {
+          indexedAt: text ? new Date() : null,
+          extractionStatus: !text ? 'empty' : contentTruncated ? 'truncated' : 'extracted',
+          extractionMetadata: {
+            chars: text?.length ?? 0,
+            contentScope: text ? 'extractable_text_only' : 'metadata_only',
+            truncated: contentTruncated,
+            indexedChunks: text ? chunks.length : 0,
+            pages: extraction?.pages ?? null, pagesRead: extraction?.pagesRead ?? null,
+            needsVisualRead: !text && /pdf/i.test(attachment.contentType ?? attachment.fileName),
+            note: text
+              ? 'Text indexed; images and diagrams require a visual page read.'
+              : 'Only file metadata is searchable. Document contents have not been read.',
+            extractedAt: new Date().toISOString(),
+          },
+        },
       }),
     );
   }
@@ -301,8 +336,8 @@ export class ClientKbService {
     fileName: string;
     contentType: string | null;
     s3Key: string;
-  }): Promise<string | null> {
-    if (!this.bucket) return null;
+  }): Promise<{ text: string; truncated: boolean; pages?: number; pagesRead?: number } | null> {
+    if (!this.bucket) throw new Error('Document storage is not configured');
     const name = attachment.fileName.toLowerCase();
     const ct = (attachment.contentType ?? '').toLowerCase();
     const isPdf = ct === 'application/pdf' || name.endsWith('.pdf');
@@ -319,9 +354,9 @@ export class ClientKbService {
       new GetObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }),
     );
     const bytes = Buffer.from(await res.Body!.transformToByteArray());
-    if (isText) return bytes.toString('utf8');
-    if (isDocx) return (await mammoth.extractRawText({ buffer: bytes })).value;
-    return (await extractPdfText(bytes)).text;
+    if (isText) return { text: bytes.toString('utf8'), truncated: false };
+    if (isDocx) return { text: (await mammoth.extractRawText({ buffer: bytes })).value, truncated: false };
+    return extractPdfText(bytes);
   }
 
   // ── Purge / status / backfill ────────────────────────────────────────────

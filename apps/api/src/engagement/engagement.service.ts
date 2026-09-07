@@ -6,9 +6,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
+import { AttachmentPdfVisionReader, type DocumentReadability } from './attachment-pdf-vision.js';
 import {
   S3Client,
   DeleteObjectCommand,
@@ -1043,6 +1046,7 @@ export class EngagementService {
   private readonly s3: S3Client;
   private readonly bucket?: string;
   private readonly openAiApiKey?: string;
+  private readonly attachmentPdfVision = new AttachmentPdfVisionReader();
   private readonly outreachDailyTokenBudget: number;
   /** Phase 0: immutable versioned drafts + durable send intents (default off). */
   private readonly versionedOutreach: boolean;
@@ -1075,6 +1079,7 @@ export class EngagementService {
     // prep behaves exactly as before — no event recorded, no other
     // behavior change.
     private readonly qualityTelemetry?: QualityTelemetryCaptureService,
+    @Optional() private readonly documentAiCredentials?: AiCredentialResolverService,
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.openAiApiKey = config.get('OPENAI_API_KEY', { infer: true });
@@ -6697,12 +6702,34 @@ export class EngagementService {
     if (options.section !== undefined) {
       const extracted = await this.attachmentContent.extractSection(bytes, fileName, contentType, options.section, options.signal);
       options.signal?.throwIfAborted();
+      let text = extracted.text;
+      let readability: DocumentReadability = {
+        status: text.trim() ? 'text_readable' : 'no_readable_text',
+        method: 'text', scope: 'section', section: extracted.section,
+        sectionCount: extracted.sectionCount, chars: text.length,
+        note: 'Only this section has been read. Text extraction does not cover diagrams or images.',
+      };
+      if (extracted.source === 'pdf' && !text.trim()) {
+        const visual = await this.attachmentPdfVision.read({
+          bytes, section: extracted.section, sectionCount: extracted.sectionCount,
+          cacheScope: `${ctx.tenantId}:${attachment.id}:${contentHash}`,
+          resolveCredential: () => this.documentAiCredentials?.resolveProvider(ctx, 'openai') ?? Promise.resolve(null),
+          signal: options.signal,
+        });
+        text = visual.text;
+        readability = visual.readability;
+      }
+      const truncated = readability.status === 'ocr_partial';
+      const extractionMetadata = {
+        chars: text.length, truncated, sectionRead: true,
+        emptySection: !text.trim(), section: extracted.section,
+        sectionCount: extracted.sectionCount, readability,
+      };
+      await this.recordExtractionOutcome(ctx, attachment.id,
+        !text.trim() ? 'empty' : truncated ? 'truncated' : 'extracted', extractionMetadata, true);
       return {
         attachmentId: attachment.id, fileName, contentType, contentHash,
-        ...extracted,
-        truncated: false,
-        extractionMetadata: { chars: extracted.text.length, truncated: false, sectionRead: true,
-          emptySection: !extracted.text.trim(), section: extracted.section, sectionCount: extracted.sectionCount },
+        ...extracted, text, readability, truncated, extractionMetadata,
         ...(disclosure ? { disclosure } : {}),
       };
     }
@@ -6759,20 +6786,35 @@ export class EngagementService {
     id: string,
     status: 'extracted' | 'truncated' | 'empty' | 'failed',
     metadata: Record<string, unknown>,
+    sectionOnly = false,
   ): Promise<void> {
     await this.prisma
-      .withTenant(ctx.tenantId, (tx) =>
-        tx.engagementAttachment.updateMany({
+      .withTenant(ctx.tenantId, async (tx) => {
+        // A selected page says nothing about whole-document indexing. Retain
+        // its last outcome separately so one blank page cannot erase a
+        // successful text index (or falsely certify an unread whole file).
+        const previous = sectionOnly ? await tx.engagementAttachment.findFirst({
+          where: { id, tenantId: ctx.tenantId }, select: { extractionMetadata: true },
+        }) : null;
+        const previousMetadata = previous?.extractionMetadata &&
+          typeof previous.extractionMetadata === 'object' && !Array.isArray(previous.extractionMetadata)
+          ? previous.extractionMetadata : {};
+        return tx.engagementAttachment.updateMany({
           where: { id, tenantId: ctx.tenantId },
-          data: {
+          data: sectionOnly ? {
+            extractionMetadata: {
+              ...previousMetadata,
+              lastSectionRead: { ...metadata, status, extractedAt: new Date().toISOString() },
+            } as unknown as Prisma.InputJsonValue,
+          } : {
             extractionStatus: status,
             extractionMetadata: {
               ...metadata,
               extractedAt: new Date().toISOString(),
             } as unknown as Prisma.InputJsonValue,
           },
-        }),
-      )
+        });
+      })
       .catch((e) =>
         this.logger.warn(`could not record extraction outcome for ${id}: ${(e as Error).message}`),
       );

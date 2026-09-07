@@ -29,16 +29,18 @@ export interface ClientContextRepo {
 
 export interface GetClientContextInput {
   clientId: string;
-  section?: 'capabilities' | 'people' | 'facilities' | 'submissionHistory';
+  section?: 'capabilities' | 'people' | 'facilities' | 'submissionHistory' | 'advocacyMatters' | 'advocacyRecords';
   cursor?: string;
   limit?: number;
+  representation?: 'summary' | 'full';
 }
 
 export const getClientContextInputSchema = z.object({
   clientId: z.string().uuid('clientId must be a client UUID'),
-  section: z.enum(['capabilities', 'people', 'facilities', 'submissionHistory']).optional(),
+  section: z.enum(['capabilities', 'people', 'facilities', 'submissionHistory', 'advocacyMatters', 'advocacyRecords']).optional(),
   cursor: z.string().min(1).max(1024).optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  representation: z.enum(['summary', 'full']).optional(),
 });
 
 /**
@@ -52,8 +54,9 @@ export function createGetClientContextTool(
   return {
     name: 'get_client_context',
     description:
-      'Load authorized client context and profile capabilities, people, facilities and submission history. ' +
+      'Load authorized client capabilities, people, facilities, older submissionHistory and current advocacyMatters/advocacyRecords with evidence provenance. ' +
       'Inspect profileSections for exact counts, availability and nextCursor; request a section with its cursor to read more. ' +
+      'For a complete inventory, request each section with representation summary and limit 50; follow every nextCursor before summarizing. Use full records for detailed evidence. ' +
       'A missing or unavailable section is not evidence that the client lacks it.',
     readOnly: true,
     inputSchema: getClientContextInputSchema,

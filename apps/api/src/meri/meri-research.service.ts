@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import type { MeriCitation, TenantContext } from '@capiro/shared';
 import { validateFormBCitations } from '@capiro/shared';
 import {
   runAuditor,
@@ -54,7 +54,10 @@ import {
 } from './meri-research-handoff.js';
 import { attachmentMetaRef } from './meri-attachment.helpers.js';
 import { MeriV3ResearchRunner, type ResearchRuntimeAuth } from './meri-v3-research-runner.js';
-import type { MeriV3ProviderTelemetry } from './meriv3-chat.client.js';
+import type {
+  MeriV3ProviderTelemetry,
+  MeriV3RetrievalStreamSummary,
+} from './meriv3-chat.client.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
 
@@ -188,7 +191,7 @@ export class MeriResearchService {
         ...report,
         bodyText: 'Report held for review. Open Reviews before using this deliverable.',
       };
-    let reportMetadata: Record<string, unknown> = {};
+    let reportMetadata = publicResearchReportMetadata(report?.metadata);
     const reportMessageId = researchMetadata(session.metadata).reportMessageId;
     if (report && typeof reportMessageId === 'string') {
       const message = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -204,26 +207,7 @@ export class MeriResearchService {
         }),
       );
       const metadata = researchMetadata(message?.metadata);
-      reportMetadata = Object.fromEntries(
-        [
-          'citations',
-          'trustSteps',
-          'trace',
-          'intent',
-          'tier',
-          'plan',
-          'contextPacketId',
-          'retrieval',
-          'verification',
-          'groundingCaveat',
-          'groundingStatement',
-          'telemetry',
-          'reasoningMode',
-          'evidenceManifest',
-        ]
-          .filter((key) => key in metadata)
-          .map((key) => [key, metadata[key]]),
-      );
+      reportMetadata = publicResearchReportMetadata(metadata);
     }
     return { ...session, run: readResearchRun(session.metadata), report, reportMetadata };
   }
@@ -656,6 +640,7 @@ export class MeriResearchService {
           type: 'report',
           artifactId: session.report.id,
           body: session.report.bodyText ?? '',
+          reportMetadata: session.reportMetadata,
           messageId: metadata.reportMessageId,
           conversationId:
             readResearchHandoff(session.metadata)?.conversationId ?? metadata.backingConversationId,
@@ -1549,7 +1534,8 @@ export class MeriResearchService {
       model: string;
       auditorMode: Awaited<ReturnType<typeof resolveTenantAuditorMode>>;
       bufferReport: boolean;
-      citations?: unknown[];
+      citations?: MeriCitation[];
+      retrieval?: MeriV3RetrievalStreamSummary;
       telemetry?: MeriV3ProviderTelemetry;
       providerCalls?: MeriV3ProviderTelemetry[];
       evidenceManifest?: MeriEvidenceManifest;
@@ -1671,8 +1657,46 @@ export class MeriResearchService {
       plan,
       reportBody,
       sources,
+      citations: result.citations,
       generatedAt: new Date(),
     });
+
+    const retrieval = result.retrieval ?? result.runAuth.governedContext?.retrieval;
+    const reportMetadata = {
+      researchSessionId: session.id,
+      researchReport: true,
+      model,
+      intent: 'deep_research',
+      tier: handoff?.reasoningMode === 'fast' ? 'fast' : 'deep',
+      plan,
+      trustSteps: sources.map((source) => ({
+        tool: source.tool,
+        label: source.label,
+        detail: source.summary,
+        count: source.count,
+        confidence: source.confidence,
+        status: source.confidence === 'low' ? 'error' : 'done',
+      })),
+      ...(result.runAuth.governedContext
+        ? {
+            contextPacketId: result.runAuth.governedContext.contextPacket.packetId,
+          }
+        : {}),
+      ...(retrieval ? { retrieval } : {}),
+      ...(handoff ? { reasoningMode: handoff.reasoningMode } : {}),
+      ...(result.telemetry
+        ? {
+            telemetry: result.telemetry,
+            reasoningEffort: result.telemetry.effectiveReasoningEffort,
+            finishReason: result.telemetry.finishReason,
+            partial: result.telemetry.partial,
+          }
+        : {}),
+      ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
+      ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
+      ...(result.citations ? { citations: result.citations } : {}),
+      ...(held ? { heldForReview: true } : {}),
+    };
 
     const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.fenceRun(tx, ctx, session.id, result.runAuth);
@@ -1730,41 +1754,7 @@ export class MeriResearchService {
               conversationId,
               role: 'assistant',
               body: held ? heldNotice : artifactBody,
-              metadata: {
-                researchSessionId: session.id,
-                researchReport: true,
-                model,
-                intent: 'deep_research',
-                tier: handoff.reasoningMode === 'fast' ? 'fast' : 'deep',
-                plan,
-                trustSteps: sources.map((source) => ({
-                  tool: source.tool,
-                  label: source.label,
-                  detail: source.summary,
-                  count: source.count,
-                  confidence: source.confidence,
-                  status: source.confidence === 'low' ? 'error' : 'done',
-                })),
-                ...(result.runAuth.governedContext
-                  ? {
-                      contextPacketId: result.runAuth.governedContext.contextPacket.packetId,
-                      retrieval: result.runAuth.governedContext.retrieval,
-                    }
-                  : {}),
-                reasoningMode: handoff.reasoningMode,
-                ...(result.telemetry
-                  ? {
-                      telemetry: result.telemetry,
-                      reasoningEffort: result.telemetry.effectiveReasoningEffort,
-                      finishReason: result.telemetry.finishReason,
-                      partial: result.telemetry.partial,
-                    }
-                  : {}),
-                ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
-                ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
-                ...(result.citations ? { citations: result.citations } : {}),
-                ...(held ? { heldForReview: true } : {}),
-              } as unknown as Prisma.InputJsonObject,
+              metadata: reportMetadata as unknown as Prisma.InputJsonObject,
             },
             select: { id: true },
           })
@@ -1781,6 +1771,7 @@ export class MeriResearchService {
           contentType: 'text/markdown',
           bodyText: artifactBody,
           metadata: {
+            ...reportMetadata,
             researchSessionId: session.id,
             topic: session.topic,
             plan,
@@ -1882,6 +1873,7 @@ export class MeriResearchService {
         messageId: persisted.messageId,
         conversationId: persisted.conversationId,
         body: held ? heldNotice : artifactBody,
+        reportMetadata: publicResearchReportMetadata(reportMetadata),
       }),
     );
     sse.write(sseEvent({ type: 'done' }));
@@ -2095,4 +2087,31 @@ function asStringRecord(value: Prisma.JsonValue | null | undefined): Record<stri
     if (typeof v === 'string') out[k] = v;
   }
   return out;
+}
+
+/** Only user-facing evidence crosses the report stream/recovery boundary. */
+function publicResearchReportMetadata(value: unknown): Record<string, unknown> {
+  const metadata = researchMetadata(value);
+  return Object.fromEntries(
+    [
+      'citations',
+      'trustSteps',
+      'trace',
+      'intent',
+      'tier',
+      'plan',
+      'contextPacketId',
+      'retrieval',
+      'verification',
+      'groundingCaveat',
+      'groundingStatement',
+      'telemetry',
+      'reasoningMode',
+      'finishReason',
+      'partial',
+      'evidenceManifest',
+    ]
+      .filter((key) => key in metadata)
+      .map((key) => [key, metadata[key]]),
+  );
 }

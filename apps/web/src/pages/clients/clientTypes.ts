@@ -188,6 +188,10 @@ export interface ClientAttachment {
   // Meetings v2: stamped when client-KB indexing completes (drives the per-file
   // "Indexed" badge); uploader for attribution. All nullable / additive.
   indexedAt: string | null;
+  /** Extraction/indexing describe different facts; indexedAt alone never
+   * establishes that the file's contents are readable. */
+  extractionStatus?: 'pending' | 'extracted' | 'truncated' | 'empty' | 'failed' | null;
+  extractionMetadata?: Record<string, unknown> | null;
   uploadedByUserId: string | null;
   uploadedByName: string | null;
   /** Client CRM organization metadata; null means the attachment is unfiled. */

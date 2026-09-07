@@ -93,16 +93,106 @@ describe('MeriV3 clean evidence release', () => {
   });
 
   test('removes an unregistered internal marker instead of exposing it', () => {
-    expect(
-      normalizeMeriV3FormBCitations(
-        'Claim. [S:search_emails:missing-id]',
-        new Map(),
-      ),
-    ).toBe('Claim.');
+    expect(normalizeMeriV3FormBCitations('Claim. [S:search_emails:missing-id]', new Map())).toBe(
+      'Claim.',
+    );
   });
 });
 
 describe('shared retrieval citations in the final chat release', () => {
+  it('normalizes native client records and Federal Market records using actual row identities', () => {
+    const profile = {
+      profile: {
+        capabilities: [{ id: 'cap-1', name: 'Sensors', description: 'Builds prototypes.' }],
+        advocacyRecords: [
+          { id: 'advocacy-1', title: 'Office meeting', summary: 'Discussed an evaluation.' },
+        ],
+      },
+      profileSources: {
+        advocacyRecords: [{ recordId: 'advocacy-1', sourceUrl: 'https://example.gov/meeting' }],
+      },
+    };
+    const awards = {
+      items: [
+        {
+          id: 'award-1',
+          awardId: 'CONT_AWD_1',
+          description: 'Sensor demonstration',
+          amount: 50000,
+        },
+      ],
+    };
+    const forecasts = {
+      items: [
+        { id: 'forecast-1', title: 'Sensor forecast', sourceUrl: 'https://example.gov/forecast' },
+      ],
+    };
+    const emptySubawards = { items: [], source: 'MakeGov/Tango subaward intelligence', total: 0 };
+    const entries = [
+      ['get_client_context', profile],
+      ['search_federal_contract_awards', awards],
+      ['search_procurement_forecasts', forecasts],
+      ['search_federal_subawards', emptySubawards],
+    ].map(([tool, result]) => ({ tool: String(tool), result, serialized: JSON.stringify(result) }));
+    const release = buildMeriV3ReleaseCitations([], entries);
+    expect(release.citations.map((citation) => citation.id)).toEqual([
+      'cap-1',
+      'advocacy-1',
+      'award-1',
+      'forecast-1',
+    ]);
+    expect(release.citations[1]?.url).toBe('https://example.gov/meeting');
+    expect(
+      normalizeMeriV3FormBCitations(
+        'Capability [S:get_client_context:cap-1]; history [S:get_client_context:advocacy-1]; ' +
+          'award [S:search_federal_contract_awards:award-1]; forecast [S:search_procurement_forecasts:forecast-1]. ' +
+          'No rows [S:search_federal_subawards:MakeGov/Tango subaward intelligence].',
+        release.aliases,
+      ),
+    ).toBe('Capability [1]; history [2]; award [3]; forecast [4]. No rows.');
+  });
+
+  it('keeps both numbered and Form-B references to a repeated source attached to its canonical number', () => {
+    const result = {
+      data: [
+        { id: 'source-1', title: 'Repeated source' },
+        { id: 'source-2', title: 'New source' },
+      ],
+    };
+    const first = extractCitationsFromToolResult('search_public_web', result, 1, 1)[0]!;
+    const release = buildMeriV3ReleaseCitations(
+      [first, { ...first, n: 6 }],
+      [
+        {
+          tool: 'search_public_web',
+          result,
+          serialized: JSON.stringify(result),
+        },
+      ],
+    );
+    expect(release.citations.map(({ id, n }) => ({ id, n }))).toEqual([
+      { id: 'source-1', n: 1 },
+      { id: 'source-2', n: 7 },
+    ]);
+    expect(
+      normalizeMeriV3FormBCitations(
+        'Same evidence [6] [S:search_public_web:source-1]; new evidence [S:search_public_web:source-2].',
+        release.aliases,
+        release.numberAliases,
+      ),
+    ).toBe('Same evidence [1] [1]; new evidence [7].');
+    expect(release.aliases.get('search_public_web:source-1')?.n).toBe(1);
+  });
+
+  it('removes malformed markers without changing surrounding prose, normal links or code syntax', () => {
+    const input =
+      'No rows [S:search_federal_subawards:MakeGov/Tango subaward intelligence].\n' +
+      'Read [a source](https://example.gov) and the list [1, 2].\n```ts\nconst values = [1, 2];\n```';
+    expect(normalizeMeriV3FormBCitations(input, new Map())).toBe(
+      'No rows.\nRead [a source](https://example.gov) and the list [1, 2].\n```ts\nconst values = [1, 2];\n```',
+    );
+  });
+
   it('preserves a sixth evidence reference beyond the initial five prompt citations', () => {
     const result = {
       records: Array.from({ length: 6 }, (_, index) => ({
