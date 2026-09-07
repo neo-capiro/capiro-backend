@@ -5,13 +5,32 @@
  *   - latest terminal (non-VALIDATING) `budget_extraction_candidate_v1` row
  *     per (cycleId, manifestDocumentKey), joined to its current run's decision
  *     via `current_run_id` -> `budget_verification_run_v1.status`;
- *   - the artifact bytes at `extraction_artifact_locator`, re-verified byte-
- *     for-byte against `extraction_artifact_sha256` before use — storage is
- *     never trusted without a hash check, same stance as every other reader
- *     in this tree (`PrismaProjectionPlanRepositoryV1.loadVerified`, etc.);
+ *   - the artifact bytes at `extraction_artifact_locator`, re-verified against
+ *     `extraction_artifact_sha256` before use — storage is never trusted
+ *     without a hash check, same stance as every other reader in this tree
+ *     (`PrismaProjectionPlanRepositoryV1.loadVerified`, etc.);
  *   - the exact same accepted-assertion filter the original verification
  *     already decided, applied here as a restatement (never a re-run) of
  *     `acceptedArtifact` in `scripts/certify-defense-budget-non-rdte.ts`.
+ *
+ * Phase 10B-31 hash-boundary fix: `extraction_artifact_sha256` is persisted
+ * by `BudgetVerificationV1Service` as `resolution.extractionArtifactContentSha256`
+ * -- the artifact's CANONICAL CONTENT hash (`computeArtifactContentSha256`:
+ * sha256 of sorted-key, whitespace-free canonical JSON over the payload with
+ * `artifactId`/`contentSha256` stripped) -- never a raw byte hash of the
+ * serialized file. The file on disk/S3 is `JSON.stringify(artifact, null, 2)`
+ * (see `rdte-phase3-semantic-artifact-factory-v1.ts`), which embeds
+ * `artifactId`/`contentSha256` and uses insertion-order keys plus 2-space
+ * indentation, so its raw byte SHA is a structurally different hash domain
+ * from the content SHA and will essentially never coincide for real data.
+ * Re-verification here therefore recomputes the CONTENT hash from the
+ * reloaded, parsed artifact (`computeArtifactContentSha256`) and compares
+ * THAT against `extraction_artifact_sha256` -- matching what the producer
+ * actually persisted -- rather than hashing the raw file bytes, which
+ * disagreed with the stored value unconditionally (see
+ * `lifecycle-bridge-candidate-cycle-identity.integration.spec.ts`'s
+ * `95433cc2... vs 9a088be0...` case, and this fix's own regression tests for
+ * an independent re-derivation against real recovered artifact bytes).
  *
  * A locator may be a bare filesystem path (`FilesystemProofResolver`'s own
  * convention) or an `s3://` URI. This adapter reads either directly via
@@ -21,8 +40,10 @@
  * verification has already completed and been durably recorded.
  */
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { parseDefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.semantic.js';
+import {
+  parseDefenseBudgetExtractionArtifactV1,
+  computeArtifactContentSha256,
+} from '../../contracts/extraction-artifact-v1.semantic.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
 import type {
   MaterializationArtifactSourcePortV1,
@@ -58,10 +79,6 @@ interface CandidateRowV1 {
   currentRunId: string | null;
   runDecision: string | null;
   runStatus: string | null;
-}
-
-function sha256Hex(buffer: Buffer): string {
-  return createHash('sha256').update(buffer).digest('hex');
 }
 
 /**
@@ -187,18 +204,26 @@ export class PrismaMaterializationArtifactSourceV1 implements MaterializationArt
       ? await this.readS3(ref.extractionArtifactLocator)
       : await readFile(ref.extractionArtifactLocator);
 
-    const byteSha256 = sha256Hex(bytes);
-    if (byteSha256 !== ref.extractionArtifactSha256) {
+    const parsed = parseDefenseBudgetExtractionArtifactV1(JSON.parse(bytes.toString('utf8')));
+
+    // `extraction_artifact_sha256` is persisted as the artifact's CONTENT
+    // hash (`computeArtifactContentSha256`), never a raw byte hash of the
+    // serialized file (see this file's header comment) -- recompute the SAME
+    // content hash from the reloaded, parsed artifact and compare that,
+    // rather than hashing the raw file bytes (which disagree with the stored
+    // value unconditionally for real data, since the file embeds
+    // artifactId/contentSha256 and uses insertion-order keys + indentation).
+    const contentSha256 = computeArtifactContentSha256(parsed);
+    if (contentSha256 !== ref.extractionArtifactSha256) {
       throw new Error(
-        `artifact byte SHA mismatch for candidate ${ref.candidateId} (${ref.manifestDocumentKey}): ` +
-          `expected ${ref.extractionArtifactSha256}, got ${byteSha256}; refusing to materialize from tampered/stale storage`,
+        `artifact content SHA mismatch for candidate ${ref.candidateId} (${ref.manifestDocumentKey}): ` +
+          `expected ${ref.extractionArtifactSha256}, got ${contentSha256}; refusing to materialize from tampered/stale storage`,
       );
     }
 
-    const parsed = parseDefenseBudgetExtractionArtifactV1(JSON.parse(bytes.toString('utf8')));
-    // The candidate SHA binds the serialized bytes (verified above); the
-    // artifact's canonical content SHA is a distinct identity. Bind the
-    // parsed envelope through its recorded artifact ID here.
+    // The candidate SHA binds the parsed envelope's canonical content
+    // (verified above); bind the envelope through its recorded artifact ID
+    // too, as an independent, DB-trusted identity check.
     if (parsed.artifactId !== ref.extractionArtifactId) {
       throw new Error(
         `reloaded artifact for candidate ${ref.candidateId} does not match the candidate's recorded artifact identity`,

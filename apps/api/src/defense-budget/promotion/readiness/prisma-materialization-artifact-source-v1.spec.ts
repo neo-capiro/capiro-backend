@@ -6,8 +6,19 @@
  * `prisma-family-reconciliation-certification-v1.spec.ts`'s `FakeCertPrisma`
  * and `phase10b2-repair-findings.md` §5. Artifact bytes are read from real
  * temp files via `node:fs` -- this adapter's own `loadVerifiedArtifact`
- * reads the filesystem directly (not through Prisma), so a real byte-level
- * SHA mismatch can only be proven with a real file on disk.
+ * reads the filesystem directly (not through Prisma).
+ *
+ * Phase 10B-31 hash-boundary fix: `extraction_artifact_sha256` is the
+ * artifact's CONTENT hash (`computeArtifactContentSha256`), not a raw byte
+ * hash of the serialized file (see the adapter's own header comment). Every
+ * fixture artifact built here is made genuinely self-consistent via
+ * `computeArtifactContentSha256` -- the SAME function the real producer
+ * (`rdte-phase3-semantic-artifact-factory-v1.ts`) and the fixed consumer both
+ * use -- rather than a fixed dummy `contentSha256`/hand-hashed-bytes pair,
+ * which previously matched only by construction and hid the real
+ * byte-vs-content disagreement (see
+ * `lifecycle-bridge-candidate-cycle-identity.integration.spec.ts`'s real
+ * `95433cc2... vs 9a088be0...` case for the production instance of this bug).
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -15,19 +26,24 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { PrismaMaterializationArtifactSourceV1 } from './prisma-materialization-artifact-source-v1.js';
 import type { S3ByteReaderPortV1 } from './prisma-materialization-artifact-source-v1.js';
+import { computeArtifactContentSha256 } from '../../contracts/extraction-artifact-v1.semantic.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
 
 const SHA = 'a'.repeat(64);
 
-function sha256Hex(buffer: Buffer): string {
-  return createHash('sha256').update(buffer).digest('hex');
-}
-
-function makeArtifactJson(artifactId: string): DefenseBudgetExtractionArtifactV1 {
-  return {
+/**
+ * Builds a genuinely self-consistent artifact: `contentSha256`/`artifactId`
+ * are computed from the REST of the payload via the real
+ * `computeArtifactContentSha256`, exactly as the real producer does, instead
+ * of a fixed dummy value that only "matched" by construction.
+ */
+function makeArtifactJson(
+  sourceOverrides: Partial<DefenseBudgetExtractionArtifactV1['source']> = {},
+): DefenseBudgetExtractionArtifactV1 {
+  const draft = {
     schemaVersion: 'defense_budget_extraction_v1',
-    artifactId,
-    contentSha256: SHA,
+    artifactId: 'placeholder',
+    contentSha256: 'placeholder',
     source: {
       manifestDocumentKey: 'o1',
       sourcePdfSha256: SHA,
@@ -39,6 +55,7 @@ function makeArtifactJson(artifactId: string): DefenseBudgetExtractionArtifactV1
       component: 'ARMY',
       budgetCycle: 'pb_fy2027',
       documentType: 'pb_exhibit',
+      ...sourceOverrides,
     },
     parserRuns: [],
     evidence: [],
@@ -79,6 +96,8 @@ function makeArtifactJson(artifactId: string): DefenseBudgetExtractionArtifactV1
       completenessStatus: 'complete',
     },
   } as unknown as DefenseBudgetExtractionArtifactV1;
+  const contentSha256 = computeArtifactContentSha256(draft);
+  return { ...draft, artifactId: `dbx1_${contentSha256}`, contentSha256 };
 }
 
 /** Table-routed fake serving both loadCandidateRefs and loadAcceptedAssertionIds. */
@@ -114,11 +133,25 @@ afterEach(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
-function writeArtifactFile(content: DefenseBudgetExtractionArtifactV1): { locator: string; sha256: string } {
+function writeArtifactFile(content: DefenseBudgetExtractionArtifactV1): { locator: string } {
   const bytes = Buffer.from(JSON.stringify(content), 'utf8');
   const locator = path.join(tempDir, 'artifact.json');
   fs.writeFileSync(locator, bytes);
-  return { locator, sha256: sha256Hex(bytes) };
+  return { locator };
+}
+
+/**
+ * Tampers a written artifact's real PAYLOAD (a title, not raw bytes appended
+ * after the JSON) so the file stays syntactically valid JSON but its
+ * recomputed content hash genuinely changes -- proving the content-hash
+ * check fires on real tampering, not just on a corrupted-JSON parse failure.
+ */
+function tamperArtifactFile(locator: string): void {
+  const parsed = JSON.parse(fs.readFileSync(locator, 'utf8')) as { assertions: Array<Record<string, unknown>> };
+  parsed.assertions = parsed.assertions.map((assertion, index) =>
+    index === 0 ? { ...assertion, title: `${assertion.title as string} (tampered)` } : assertion,
+  );
+  fs.writeFileSync(locator, JSON.stringify(parsed), 'utf8');
 }
 
 describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
@@ -236,40 +269,41 @@ describe('PrismaMaterializationArtifactSourceV1 — loadCandidateRefs', () => {
 });
 
 describe('PrismaMaterializationArtifactSourceV1 — loadVerifiedArtifact', () => {
-  it('applies the same byte-SHA-bound reload to an RDT&E candidate artifact', async () => {
-    const artifactJson = makeArtifactJson('art_rdte');
-    artifactJson.source = {
-      ...artifactJson.source,
+  it('applies the same content-SHA-bound reload to an RDT&E candidate artifact (positive control), and rejects a real payload tamper (negative control)', async () => {
+    const artifactJson = makeArtifactJson({
       manifestDocumentKey: 'r2',
       family: 'rdte',
       exhibit: 'R-2',
-    };
-    const { locator, sha256 } = writeArtifactFile(artifactJson);
+    });
+    const { locator } = writeArtifactFile(artifactJson);
     const adapter = new PrismaMaterializationArtifactSourceV1(new FakeMaterializationPrisma());
     const ref = {
-      manifestDocumentKey: 'r2', extractionArtifactId: 'art_rdte',
-      extractionArtifactSha256: sha256, extractionArtifactLocator: locator,
+      manifestDocumentKey: 'r2', extractionArtifactId: artifactJson.artifactId,
+      extractionArtifactSha256: artifactJson.contentSha256, extractionArtifactLocator: locator,
       sourceDocumentId: 'doc_r2', sourceSha256: SHA, candidateId: 'cand_r2',
       verificationRunId: 'run_r2', decision: 'PASS' as const,
       status: 'VERIFICATION_PASSED' as const, manifestContentSha256: SHA,
       acceptedAssertionIds: ['asrt_1'],
     };
+    // Positive control: the real, unmodified, self-consistent artifact reloads.
     const reloaded = await adapter.loadVerifiedArtifact(ref);
     expect(reloaded.source.family).toBe('rdte');
-    fs.appendFileSync(locator, 'tamper');
-    await expect(adapter.loadVerifiedArtifact(ref)).rejects.toThrow(/byte SHA mismatch/);
+    // Negative control: tampering the real payload (not just corrupting JSON
+    // syntax) changes the recomputed content hash and must still be rejected.
+    tamperArtifactFile(locator);
+    await expect(adapter.loadVerifiedArtifact(ref)).rejects.toThrow(/content SHA mismatch/);
   });
 
-  it('reloads a filesystem-located artifact, re-verifies its byte SHA, and filters to accepted assertions', async () => {
-    const artifactJson = makeArtifactJson('art_o1');
-    const { locator, sha256 } = writeArtifactFile(artifactJson);
+  it('reloads a filesystem-located artifact, re-verifies its content SHA, and filters to accepted assertions', async () => {
+    const artifactJson = makeArtifactJson();
+    const { locator } = writeArtifactFile(artifactJson);
     const prisma = new FakeMaterializationPrisma();
     const adapter = new PrismaMaterializationArtifactSourceV1(prisma);
 
     const ref = {
       manifestDocumentKey: 'o1',
-      extractionArtifactId: 'art_o1',
-      extractionArtifactSha256: sha256,
+      extractionArtifactId: artifactJson.artifactId,
+      extractionArtifactSha256: artifactJson.contentSha256,
       extractionArtifactLocator: locator,
       sourceDocumentId: 'doc_o1',
       sourceSha256: SHA,
@@ -286,15 +320,15 @@ describe('PrismaMaterializationArtifactSourceV1 — loadVerifiedArtifact', () =>
     expect(reloaded.assertions[0]?.assertionId).toBe('asrt_1');
   });
 
-  it('throws on a byte SHA mismatch (tampered/stale storage) rather than trusting storage', async () => {
-    const artifactJson = makeArtifactJson('art_o1');
+  it('throws on a content SHA mismatch (tampered/stale storage, or a byte-hash caller-supplied-by-mistake) rather than trusting storage', async () => {
+    const artifactJson = makeArtifactJson();
     const { locator } = writeArtifactFile(artifactJson);
     const prisma = new FakeMaterializationPrisma();
     const adapter = new PrismaMaterializationArtifactSourceV1(prisma);
 
     const ref = {
       manifestDocumentKey: 'o1',
-      extractionArtifactId: 'art_o1',
+      extractionArtifactId: artifactJson.artifactId,
       extractionArtifactSha256: 'b'.repeat(64), // wrong on purpose
       extractionArtifactLocator: locator,
       sourceDocumentId: 'doc_o1',
@@ -307,19 +341,44 @@ describe('PrismaMaterializationArtifactSourceV1 — loadVerifiedArtifact', () =>
       acceptedAssertionIds: ['asrt_1'],
     };
 
-    await expect(adapter.loadVerifiedArtifact(ref)).rejects.toThrow(/byte SHA mismatch/);
+    await expect(adapter.loadVerifiedArtifact(ref)).rejects.toThrow(/content SHA mismatch/);
+  });
+
+  it('never accepts the raw byte SHA of the stored file in place of the content SHA (the exact Phase 10B-31 bug: these are two different hash domains)', async () => {
+    const artifactJson = makeArtifactJson();
+    const { locator } = writeArtifactFile(artifactJson);
+    const rawByteSha256 = createHash('sha256')
+      .update(fs.readFileSync(locator))
+      .digest('hex');
+    expect(rawByteSha256).not.toBe(artifactJson.contentSha256);
+    const adapter = new PrismaMaterializationArtifactSourceV1(new FakeMaterializationPrisma());
+    const ref = {
+      manifestDocumentKey: 'o1',
+      extractionArtifactId: artifactJson.artifactId,
+      extractionArtifactSha256: rawByteSha256, // the OLD (buggy) consumer's own value
+      extractionArtifactLocator: locator,
+      sourceDocumentId: 'doc_o1',
+      sourceSha256: SHA,
+      candidateId: 'cand_o1',
+      verificationRunId: 'run_o1',
+      decision: 'PASS' as const,
+      status: 'VERIFICATION_PASSED' as const,
+      manifestContentSha256: SHA,
+      acceptedAssertionIds: ['asrt_1'],
+    };
+    await expect(adapter.loadVerifiedArtifact(ref)).rejects.toThrow(/content SHA mismatch/);
   });
 
   it('a REJECT decision reload defensively returns zero assertions (caller never reaches here for REJECT, but the empty-set behavior is preserved)', async () => {
-    const artifactJson = makeArtifactJson('art_o1');
-    const { locator, sha256 } = writeArtifactFile(artifactJson);
+    const artifactJson = makeArtifactJson();
+    const { locator } = writeArtifactFile(artifactJson);
     const prisma = new FakeMaterializationPrisma();
     const adapter = new PrismaMaterializationArtifactSourceV1(prisma);
 
     const ref = {
       manifestDocumentKey: 'o1',
-      extractionArtifactId: 'art_o1',
-      extractionArtifactSha256: sha256,
+      extractionArtifactId: artifactJson.artifactId,
+      extractionArtifactSha256: artifactJson.contentSha256,
       extractionArtifactLocator: locator,
       sourceDocumentId: 'doc_o1',
       sourceSha256: SHA,
@@ -336,13 +395,12 @@ describe('PrismaMaterializationArtifactSourceV1 — loadVerifiedArtifact', () =>
   });
 
   it('reads an s3:// locator through the injected S3 byte reader, never node:fs, and throws when no reader is configured', async () => {
-    const artifactJson = makeArtifactJson('art_s3');
+    const artifactJson = makeArtifactJson();
     const bytes = Buffer.from(JSON.stringify(artifactJson), 'utf8');
-    const sha256 = sha256Hex(bytes);
     const ref = {
       manifestDocumentKey: 'o1',
-      extractionArtifactId: 'art_s3',
-      extractionArtifactSha256: sha256,
+      extractionArtifactId: artifactJson.artifactId,
+      extractionArtifactSha256: artifactJson.contentSha256,
       extractionArtifactLocator: 's3://bucket/o1.json',
       sourceDocumentId: 'doc_o1',
       sourceSha256: SHA,
