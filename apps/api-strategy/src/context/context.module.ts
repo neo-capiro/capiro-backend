@@ -7,6 +7,8 @@ import { StewardService } from './steward.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { StrategyAiCredentialResolver } from '../meri/strategy-ai-credential.resolver.js';
 import { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client.js';
+import { ContextImportController } from './context-import.controller.js';
+import { ContextImportService } from './context-import.service.js';
 
 /**
  * Stage D context module: context-pack document store (upload / supersession /
@@ -22,9 +24,10 @@ import { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client
  * stewardFacts + stewardHealth).
  */
 @Module({
-  controllers: [ContextController, StewardController],
+  controllers: [ContextController, StewardController, ContextImportController],
   providers: [
     ContextDocumentsService,
+    ContextImportService,
     CurrentPlanExportService,
     StewardService,
     VersioningService,

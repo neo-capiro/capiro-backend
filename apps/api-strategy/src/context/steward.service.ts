@@ -97,7 +97,10 @@ export class StewardService {
 
     const fm = (doc.frontmatter ?? {}) as Record<string, unknown>;
     const docAuthority = typeof fm.authority === 'string' ? fm.authority : null;
-    const docAsOf = typeof fm.as_of === 'string' ? fm.as_of : null;
+    // Imported source packets must carry an administrative as_of date for
+    // the document contract. It is not the source's publication/approval date.
+    const importedSource = typeof fm.source_attachment_id === 'string';
+    const docAsOf = fm.source_as_of_unknown === true ? null : typeof fm.as_of === 'string' ? fm.as_of : null;
     // The Date an OMITTED fact asOf inherits at persist time (wire-contract 1:
     // null asOf = inherit the document's as_of), mirroring the authority fallback.
     const docAsOfDate = parseFactDate(docAsOf);
@@ -202,7 +205,7 @@ export class StewardService {
             clientId: doc.clientId,
             fact: factText,
             sourceRef,
-            authority: typeof f.authority === 'string' && f.authority ? f.authority : docAuthority,
+            authority: importedSource ? 'working_draft' : typeof f.authority === 'string' && f.authority ? f.authority : docAuthority,
             // OMITTED asOf (null) inherits the document's as_of; a fact's own
             // date wins; a MALFORMED date still degrades to undated (never
             // fabricate a date the model did not assert).

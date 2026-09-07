@@ -34,6 +34,38 @@ import {
 } from '../strategies-api.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
 import { errorMessage } from '../../../../lib/error-message.js';
+import { contextSourceLabel } from '../context/context-import-api.js';
+
+interface ImportedSourceCitation {
+  fileName: string;
+  evidence: Array<{ sourceRef: string; quote: string }>;
+}
+
+/** New imports retain source metadata as JSON; older facts contain a plain
+ * quotation. Format only a complete recognized citation, preserving the
+ * original legacy text for everything else. */
+function importedSourceCitation(citation: string): ImportedSourceCitation | null {
+  try {
+    const value: unknown = JSON.parse(citation);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const source = value as Record<string, unknown>;
+    if (typeof source.attachmentId !== 'string' || !source.attachmentId.trim()
+      || typeof source.contentHash !== 'string' || !source.contentHash.trim()
+      || typeof source.fileName !== 'string' || !source.fileName.trim()
+      || !Array.isArray(source.evidence) || !source.evidence.length) return null;
+    const evidence: ImportedSourceCitation['evidence'] = [];
+    for (const candidate of source.evidence) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+      const excerpt = candidate as Record<string, unknown>;
+      if (typeof excerpt.sourceRef !== 'string' || !excerpt.sourceRef.trim()
+        || typeof excerpt.quote !== 'string' || !excerpt.quote.trim()) return null;
+      evidence.push({ sourceRef: excerpt.sourceRef, quote: excerpt.quote });
+    }
+    return { fileName: source.fileName, evidence };
+  } catch {
+    return null;
+  }
+}
 
 function metaLine(fact: ContextConflictFact | null): string {
   if (!fact) return '';
@@ -53,6 +85,17 @@ function FactEvidence({ factId }: { factId: string | null }) {
 
   if (!factId) return null;
   if (full?.citation) {
+    const source = importedSourceCitation(full.citation);
+    if (source) {
+      return <div className="st-quote">{source.evidence.map((excerpt, index) => (
+        <span key={index} style={{ display: 'block', marginTop: index ? 12 : 0 }}>
+          <cite style={{ display: 'block', marginBottom: 4, color: 'var(--st-gray-400)', fontStyle: 'normal' }}>
+            {source.fileName} · {contextSourceLabel(excerpt.sourceRef)}
+          </cite>
+          <span style={{ display: 'block', whiteSpace: 'pre-wrap' }}>{excerpt.quote}</span>
+        </span>
+      ))}</div>;
+    }
     return <div className="st-quote st-mono">{full.citation}</div>;
   }
   if (facts.isLoading || locate.isLoading) {

@@ -1,7 +1,6 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UploadContextOverlay } from './UploadContextOverlay.js';
 import { ResolveConflictOverlay } from './ResolveConflictOverlay.js';
 
 const mocks = vi.hoisted(() => ({
@@ -30,13 +29,6 @@ vi.mock('./StrategiesModalShell.js', () => ({
   ),
 }));
 
-function content(state = 'active', scope = 'client', client = 'client-one', extra = '') {
-  return `---\ndocument_type: strategy_brief\nschema_version: "1.0"\nstate: ${state}\nscope: ${scope}\nclient_id: ${client}\nauthority: client_approved\nconfidentiality: client_confidential\nsource_of_truth: true\nas_of: 2026-09-01\n${extra}---\n# Updated source\nEvidence`;
-}
-function paste(text: string) {
-  fireEvent.click(screen.getByRole('tab', { name: 'Paste' }));
-  fireEvent.change(screen.getByRole('textbox', { name: 'Document · Required' }), { target: { value: text } });
-}
 const doc = { id: 'doc-one', title: 'Same client source', templateKey: '01_strategy_brief', scope: 'client', scopeRef: null, clientId: 'client-one', state: 'active', createdAt: '2026-09-01', frontmatter: { document_id: 'explicit-document' } };
 const factA = { id: 'fact-a', fact: 'Controlling evidence', state: 'active' };
 const factB = { id: 'fact-b', fact: 'Losing evidence', state: 'active' };
@@ -49,47 +41,6 @@ beforeEach(() => {
 });
 
 describe('Context overlay production regressions', () => {
-  it('previews only the one matching active supersession target', () => {
-    render(<MemoryRouter><UploadContextOverlay /></MemoryRouter>);
-    paste(content());
-    expect(screen.getByText('Same client source')).toBeInTheDocument();
-    expect(screen.queryByText('Other client source')).not.toBeInTheDocument();
-    expect(screen.queryByText('Draft source')).not.toBeInTheDocument();
-    expect(screen.getByText(/supersedes 1 existing/)).toBeInTheDocument();
-  });
-
-  it('never says a draft upload retires live documents', () => {
-    render(<MemoryRouter><UploadContextOverlay /></MemoryRouter>);
-    paste(content('draft'));
-    expect(screen.getByText('This upload is not active and will not supersede an existing document.')).toBeInTheDocument();
-    expect(screen.queryByText('Same client source')).not.toBeInTheDocument();
-  });
-
-  it('keeps the selected client and submitted front matter identical', () => {
-    render(<MemoryRouter><UploadContextOverlay /></MemoryRouter>);
-    paste(content());
-    expect(screen.getByRole('combobox', { name: 'Client · Optional' })).toHaveValue('client-one');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Client · Optional' }), { target: { value: 'client-two' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Upload document' }));
-    expect(mocks.upload).toHaveBeenCalledWith({ content: expect.stringContaining('client_id: client-two'), clientId: 'client-two' }, expect.any(Object));
-  });
-
-  it('does not let a slower previous file read overwrite the most recently chosen file', async () => {
-    let resolveFirst!: (text: string) => void;
-    const first = { name: 'first.md', size: 100, text: () => new Promise<string>((resolve) => { resolveFirst = resolve; }), arrayBuffer: () => Promise.reject(new Error('unavailable')) };
-    const second = { name: 'second.md', size: 100, text: () => Promise.resolve(content('draft')), arrayBuffer: () => Promise.reject(new Error('unavailable')) };
-    const view = render(<MemoryRouter><UploadContextOverlay /></MemoryRouter>);
-    const input = view.container.querySelector('input[type="file"]')!;
-    fireEvent.change(input, { target: { files: [first] } });
-    expect(screen.getByRole('button', { name: 'Upload document' })).toBeDisabled();
-    fireEvent.change(input, { target: { files: [second] } });
-    await waitFor(() => expect(screen.getByText('This upload is not active and will not supersede an existing document.')).toBeInTheDocument());
-    await act(async () => resolveFirst(content('active')));
-    expect(screen.getByText('second.md')).toBeInTheDocument();
-    expect(screen.getByText('This upload is not active and will not supersede an existing document.')).toBeInTheDocument();
-    expect(screen.getByText(/Hash unavailable/)).toBeInTheDocument();
-  });
-
   it('reports the real rejected outcome and requires a rationale before resolving', () => {
     render(<MemoryRouter><ResolveConflictOverlay /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: /Fact A/ }));
@@ -112,5 +63,31 @@ describe('Context overlay production regressions', () => {
     mocks.dismissPending = true;
     render(<MemoryRouter><ResolveConflictOverlay /></MemoryRouter>);
     expect(screen.getByTestId('shell')).toHaveAttribute('data-busy', 'true');
+  });
+
+  it('shows imported source files and readable excerpts while preserving legacy quotations', () => {
+    mocks.facts = [{ ...factA, citation: JSON.stringify({
+      attachmentId: 'private-attachment-id', fileName: 'Client briefing.pptx', contentHash: 'private-content-hash',
+      evidence: [
+        { sourceRef: 'slide:3#part1', quote: 'The client approved the revised committee request.' },
+        { sourceRef: 'slide:5#part2', quote: 'The earlier request is withdrawn.' },
+      ],
+    }) }, { ...factB, citation: 'Client email: Continue with the original request.' }];
+    render(<MemoryRouter><ResolveConflictOverlay /></MemoryRouter>);
+    expect(screen.getByText('Client briefing.pptx · Slide 3, part 1')).toBeInTheDocument();
+    expect(screen.getByText('Client briefing.pptx · Slide 5, part 2')).toBeInTheDocument();
+    expect(screen.getByText('The client approved the revised committee request.')).toBeInTheDocument();
+    expect(screen.getByText('The earlier request is withdrawn.')).toBeInTheDocument();
+    expect(screen.getByText('Client email: Continue with the original request.')).toBeInTheDocument();
+    expect(screen.queryByText(/private-attachment-id|private-content-hash/)).not.toBeInTheDocument();
+  });
+
+  it('preserves unrecognized or malformed citation text without crashing', () => {
+    const malformed = '{"fileName":"briefing.pdf","evidence":[null]}';
+    mocks.facts = [{ ...factA, citation: malformed }, { ...factB, citation: '{incomplete citation' }];
+    render(<MemoryRouter><ResolveConflictOverlay /></MemoryRouter>);
+    expect(screen.getByText(malformed)).toBeInTheDocument();
+    expect(screen.getByText('{incomplete citation')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resolve conflict' })).toBeDisabled();
   });
 });

@@ -52,6 +52,7 @@ import {
 import { OutreachTruthService } from './generation/outreach-truth.service.js';
 import { EvidenceSourceService } from './generation/evidence-source.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
+import { extractAttachmentContext } from './attachment-context-extract.js';
 import { AttachmentScannerService } from './attachment-scanner.service.js';
 import type { EnrichmentChannel } from './generation/evidence-packet.service.js';
 import type {
@@ -754,6 +755,9 @@ const ALLOWED_ATTACHMENT_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'text/csv',
   'text/plain',
+  'text/markdown',
+  'application/json',
+  'text/tab-separated-values',
 ]);
 const ALLOWED_ATTACHMENT_MIME_PREFIXES = ['image/', 'audio/', 'video/'];
 // SVG is scriptable: a stored image/svg+xml replays from S3 with its declared
@@ -6629,9 +6633,18 @@ export class EngagementService {
   async extractAttachmentText(
     ctx: TenantContext,
     id: string,
-    options: { clientId?: string; section?: number; signal?: AbortSignal } = {},
+    options: {
+      clientId?: string;
+      section?: number;
+      contextImport?: boolean;
+      contextSourceOnly?: boolean;
+      signal?: AbortSignal;
+    } = {},
   ) {
     options.signal?.throwIfAborted();
+    if ((options.contextImport || options.contextSourceOnly) && !options.clientId) {
+      throw new BadRequestException('Select the client before reading a strategy document');
+    }
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
 
     const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -6669,6 +6682,48 @@ export class EngagementService {
     const contentHash = this.attachmentContent.sha256(bytes);
     const contentType = attachment.contentType || 'application/octet-stream';
     const fileName = attachment.fileName || 'attachment';
+
+    if (options.contextSourceOnly) {
+      return {
+        attachmentId: attachment.id,
+        clientId: attachment.clientId,
+        fileName,
+        contentType,
+        contentHash,
+        source: 'text' as const,
+        text: '',
+      };
+    }
+
+    if (options.contextImport) {
+      const extraction = await extractAttachmentContext({
+        bytes,
+        fileName,
+        contentType,
+        cacheScope: `${ctx.tenantId}:${attachment.id}:${contentHash}`,
+        content: this.attachmentContent,
+        vision: this.attachmentPdfVision,
+        resolveCredential: () =>
+          this.documentAiCredentials?.resolveProvider(ctx, 'openai') ?? Promise.resolve(null),
+        signal: options.signal,
+      });
+      await this.recordExtractionOutcome(
+        ctx,
+        attachment.id,
+        extraction.truncated ? 'truncated' : 'extracted',
+        { ...extraction.extractionMetadata, warnings: extraction.warnings, contextImport: true },
+      );
+      return {
+        attachmentId: attachment.id,
+        clientId: attachment.clientId,
+        source: 'text' as const,
+        fileName,
+        contentType,
+        contentHash,
+        ...extraction,
+        ...(disclosure ? { disclosure } : {}),
+      };
+    }
 
     // Audio/video transcription stays here: it needs the OpenAI key this service
     // holds, and it is not a document-extraction path.

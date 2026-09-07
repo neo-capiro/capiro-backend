@@ -11,6 +11,7 @@ import type {
   StrategyReportNarrativeResponse,
 } from './meri.types.js';
 import { currentStrategyGovernedContext } from './strategy-governed-context.runtime.js';
+import type { ContextImportAnalysis, ContextImportComparison } from '../context/context-import.types.js';
 
 /**
  * Explicit identity delegation for the governed hops. Paired with
@@ -152,6 +153,29 @@ export class StrategyOrchestratorClient {
     aiProvider?: ResolvedAiProvider,
   ): Promise<StewardExtractResponse> {
     return this.post<StewardExtractResponse>('steward-extract', body, bearerToken, aiProvider);
+  }
+
+  /** Source-only context organization: authenticated internal transport, no plan mutation. */
+  contextImport(
+    body: unknown,
+    bearerToken: string | undefined,
+    aiProvider?: ResolvedAiProvider,
+    delegation?: ServiceDelegation,
+  ): Promise<ContextImportAnalysis> {
+    return this.post<ContextImportAnalysis>(
+      'strategy-context-import', body, bearerToken, aiProvider, true, delegation,
+    );
+  }
+
+  contextCompare(
+    body: unknown,
+    bearerToken: string | undefined,
+    aiProvider?: ResolvedAiProvider,
+    delegation?: ServiceDelegation,
+  ): Promise<ContextImportComparison> {
+    return this.post<ContextImportComparison>(
+      'strategy-context-compare', body, bearerToken, aiProvider, true, delegation,
+    );
   }
 
   private governedBody(

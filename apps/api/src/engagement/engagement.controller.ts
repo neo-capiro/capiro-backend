@@ -609,6 +609,11 @@ class AssociationOverrideDto {
   reason?: string;
 }
 
+class AttachmentContextReadDto {
+  @IsUUID()
+  clientId!: string;
+}
+
 class AttachmentUploadDto {
   @IsOptional()
   @IsUUID()
@@ -2627,6 +2632,39 @@ export class EngagementController {
   @EngagementRuntimeAction('attachment_external_read')
   extractAttachmentText(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.extractAttachmentText(ctx, id);
+  }
+
+  @Post('attachments/:id/context-text')
+  @EngagementRuntimeAction('attachment_external_read')
+  extractAttachmentContext(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: AttachmentContextReadDto,
+  ) {
+    return this.service.extractAttachmentText(ctx, id, {
+      clientId: body.clientId,
+      contextImport: true,
+    });
+  }
+
+  @Post('attachments/:id/context-source')
+  @EngagementRuntimeAction('attachment_external_read')
+  async attachmentContextSource(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: AttachmentContextReadDto,
+  ) {
+    const source = await this.service.extractAttachmentText(ctx, id, {
+      clientId: body.clientId,
+      contextSourceOnly: true,
+    });
+    return {
+      attachmentId: source.attachmentId,
+      clientId: body.clientId,
+      fileName: source.fileName,
+      contentType: source.contentType,
+      contentHash: source.contentHash,
+    };
   }
 
   @Delete('attachments/:id')

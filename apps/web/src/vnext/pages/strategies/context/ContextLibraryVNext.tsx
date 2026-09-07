@@ -2,7 +2,7 @@
  * Strategies vNext — Context library (/strategies/context), STRATEGIES-HANDOFF §7.5.
  *
  * The grounded-agent-context surface: summary stats (active documents /
- * extracted facts / open conflicts), documents grouped by template key with
+ * extracted facts / open conflicts), documents organized by topic key with
  * state + staleness pills, and a right rail carrying the stewardship statement
  * and the document contract. Data rides the shared module hooks
  * (../strategies-api.js) over the SAME /strategy-api/context backend the
@@ -22,7 +22,7 @@ import {
   CapiroErrorState,
   CapiroSkeleton,
 } from '../../../components/feedback/index.js';
-import { CapiroCheckIcon, CapiroDownloadIcon, CapiroSearchIcon } from '../../../components/icons/index.js';
+import { CapiroCheckIcon, CapiroSearchIcon } from '../../../components/icons/index.js';
 import {
   useClientsLite,
   useContextConflicts,
@@ -37,6 +37,7 @@ import {
   isContextDocStale,
 } from '../../../../pages/strategy/context/context-utils.js';
 import type { ContextDocumentListItem, ContextDocState } from '../../../../pages/strategy/types.js';
+import { contextCategoryLabel } from './context-categories.js';
 import './context-library.css';
 
 /*
@@ -67,9 +68,9 @@ type StateFilter = 'active' | 'all' | ContextDocState;
 
 const STATE_FILTERS: ReadonlyArray<{ id: StateFilter; label: string }> = [
   { id: 'active', label: 'Active' },
-  { id: 'all', label: 'All states' },
+  { id: 'all', label: 'All statuses' },
   { id: 'draft', label: 'Draft' },
-  { id: 'superseded', label: 'Superseded' },
+  { id: 'superseded', label: 'Previous versions' },
   { id: 'archived', label: 'Archived' },
 ];
 
@@ -112,51 +113,6 @@ function hasRequiredFrontMatter(doc: ContextDocumentListItem): boolean {
   return Boolean(
     doc.templateKey && doc.scope && fmScalar(doc.frontmatter, 'authority') && fmScalar(doc.frontmatter, 'as_of'),
   );
-}
-
-/*
- * Blank-pack markdown template (Stage D grammar: flat `key: value` scalars
- * between `---` fences). Ships with the pack's literal placeholders — the
- * upload validator rejects them until replaced with real values, by design
- * (frontmatter.ts DATE_PLACEHOLDER / ID_PLACEHOLDERS).
- */
-const MARKDOWN_TEMPLATE = `---
-document_type: strategy_brief
-schema_version: "1.0"
-state: draft
-scope: client
-client_id: client_123
-authority: working_draft
-confidentiality: client_confidential
-source_of_truth: false
-as_of: YYYY-MM-DD
-valid_until: null
-supersedes: null
----
-
-# Strategy brief
-
-Replace the placeholder front matter above before uploading: as_of must be a
-real YYYY-MM-DD date, client_id a real client id (required when scope is
-'client'), and state 'active' only when the document should go live.
-
-document_type one of: context_manifest, strategy_brief, client_constraints,
-ask_and_options, stakeholder_map, calendar_and_deadlines, decision_rules,
-current_plan, evidence_register, meeting_intelligence, decision_log,
-agent_mission, execution_playbook, agent_permissions.
-scope one of: once, node, strategy, client, firm.
-authority one of: firm_approved, client_approved, working_draft,
-external_authoritative, meeting_intelligence.
-`;
-
-function downloadMarkdownTemplate() {
-  const blob = new Blob([MARKDOWN_TEMPLATE], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = '01_strategy_brief.template.md';
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 export function ContextLibraryVNext() {
@@ -229,10 +185,10 @@ export function ContextLibraryVNext() {
                   : 'error',
             label:
               health.data.status === 'ok'
-                ? 'Healthy'
+                ? 'Ready to use'
                 : health.data.status === 'degraded'
-                  ? 'Degraded'
-                  : 'Conflicted',
+                  ? 'Needs attention'
+                  : 'Conflicting information',
           };
 
   const clientOptions = useMemo(
@@ -253,7 +209,7 @@ export function ContextLibraryVNext() {
       if (clientFilter !== 'all' && (clientFilter === 'firm' ? doc.clientId !== null : doc.clientId !== clientFilter))
         return false;
       if (stateFilter !== 'all' && doc.state !== stateFilter) return false;
-      if (term && !`${doc.title} ${doc.templateKey}`.toLowerCase().includes(term)) return false;
+      if (term && !`${doc.title} ${doc.templateKey} ${contextCategoryLabel(doc.templateKey)}`.toLowerCase().includes(term)) return false;
       return true;
     });
     let excluded = 0;
@@ -277,7 +233,6 @@ export function ContextLibraryVNext() {
   }, [docs.data, clientFilter, stateFilter, query]);
 
   const statsLoading = docs.isLoading || facts.isLoading || conflicts.isLoading;
-  const statsFailed = docs.isError || facts.isError || conflicts.isError;
 
   return (
     <div className="st-ctxlib">
@@ -290,19 +245,21 @@ export function ContextLibraryVNext() {
         </Link>
         <div className="st-ctxlib__title-row">
           <div className="st-ctxlib__title-block">
-            <div className="st-ctxlib__eyebrow">Grounded agent context</div>
+            <div className="st-ctxlib__eyebrow">Background for your strategy</div>
             <h1 className="st-ctxlib__title">Context library</h1>
             <p className="st-ctxlib__lede">
-              Durable, typed documents that ground Meri and strategy agents with validated front matter, provenance
-              and supersession.
+              Give Meri the background your team uses to advise a client. Upload existing documents—such as a
+              briefing, PowerPoint, firm blueprint, or meeting notes—and Meri organizes the relevant goals,
+              constraints, stakeholders, evidence, and next steps. Review what Meri finds before adding it
+              to your library. One file can cover several areas; no special format or separate files are needed.
             </p>
           </div>
           <div className="st-ctxlib__actions">
-            <CapiroButton variant="primary" onClick={() => navigate('/strategies/context/steward')}>
-              Steward review
+            <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/steward')}>
+              Review facts and conflicts
             </CapiroButton>
-            <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/upload')}>
-              Upload document
+            <CapiroButton variant="primary" onClick={() => navigate('/strategies/context/upload')}>
+              Upload files
             </CapiroButton>
           </div>
         </div>
@@ -320,8 +277,8 @@ export function ContextLibraryVNext() {
                 label="Active documents"
                 detail={
                   scopeClientId && healthStaleDocs !== undefined
-                    ? `${healthStaleDocs} stale (server health)`
-                    : 'Across firm + clients'
+                    ? `${healthStaleDocs} need updating for selected client`
+                    : 'Across your firm and clients'
                 }
                 onClick={() => setParam('state', 'active')}
               />
@@ -331,10 +288,10 @@ export function ContextLibraryVNext() {
                 value={activeFacts.length}
                 detail={
                   scopeClientId && healthMissingRequired !== undefined
-                    ? `${healthMissingRequired} missing required (server health)`
-                    : `${activeFacts.length} active · ${staleFactCount} stale`
+                    ? `${healthMissingRequired} essential context areas missing for selected client`
+                    : `${activeFacts.length} in use · ${staleFactCount} need updating`
                 }
-                label="Extracted facts"
+                label="Facts in use"
                 onClick={() => navigate('/strategies/context/steward')}
               />
               <StatCard
@@ -345,13 +302,13 @@ export function ContextLibraryVNext() {
                     ? healthOpenConflicts
                     : openConflicts.length
                 }
-                label="Open conflicts"
+                label="Conflicting information"
                 detail={
                   scopeClientId && healthOpenConflicts !== undefined
-                    ? 'From server health (material only)'
+                    ? 'Important conflicts for selected client'
                     : openConflicts.length > 0
-                      ? 'Steward decision required'
-                      : 'No steward decision required'
+                      ? 'Needs your review'
+                      : 'No conflicts need review'
                 }
                 tone={
                   (scopeClientId ? (healthOpenConflicts ?? 0) : openConflicts.length) > 0
@@ -369,7 +326,7 @@ export function ContextLibraryVNext() {
               <div className="st-ctxlib__toolbar-title">
                 <span className="st-ctxlib__doctitle">Documents</span>
                 <span className="st-ctxlib__doctitle-count">
-                  {visibleCount} document{visibleCount === 1 ? '' : 's'} · grouped by template
+                  {visibleCount} document{visibleCount === 1 ? '' : 's'} · organized by topic
                 </span>
               </div>
               <div className="st-ctxlib__pill-group" role="group" aria-label="Filter by client">
@@ -391,7 +348,7 @@ export function ContextLibraryVNext() {
                   </FilterPill>
                 ))}
               </div>
-              <div className="st-ctxlib__pill-group" role="group" aria-label="Filter by state">
+              <div className="st-ctxlib__pill-group" role="group" aria-label="Filter by status">
                 {STATE_FILTERS.map((filter) => (
                   <FilterPill
                     key={filter.id}
@@ -440,7 +397,7 @@ export function ContextLibraryVNext() {
               isForbidden(docs.error) ? (
                 <CapiroEmptyState
                   title="You don't have access to the context library"
-                  description="Context documents need the agentic Meri feature. Ask an admin to enable it for your account."
+                  description="Ask your administrator to enable Context Library for your account."
                 />
               ) : (
                 <CapiroErrorState
@@ -454,13 +411,13 @@ export function ContextLibraryVNext() {
                 title={(docs.data?.length ?? 0) > 0 ? 'No documents match these filters' : 'No context documents yet'}
                 description={
                   (docs.data?.length ?? 0) > 0
-                    ? 'Try another client, state, or search term.'
-                    : 'Upload a markdown document with typed front matter to start grounding agents.'
+                    ? 'Try another client, status, or search term.'
+                    : 'Start with a client briefing, firm blueprint, presentation, or meeting notes. Meri will organize the information for you to review.'
                 }
                 action={
                   (docs.data?.length ?? 0) === 0 ? (
                     <CapiroButton variant="primary" size="compact" onClick={() => navigate('/strategies/context/upload')}>
-                      Upload document
+                      Upload files
                     </CapiroButton>
                   ) : undefined
                 }
@@ -469,14 +426,14 @@ export function ContextLibraryVNext() {
               <div className="st-ctxlib__groups">
                 {excludedCount > 0 ? (
                   <div className="st-ctxlib__excluded-note" role="status">
-                    {excludedCount} document{excludedCount === 1 ? '' : 's'} not shown — missing required front
-                    matter (template key, scope, authority, or as-of).
+                    {excludedCount} document{excludedCount === 1 ? '' : 's'} need basic details before they can be shown.
+                    Upload the original files again to confirm the topic, who they apply to, approval status, and date.
                   </div>
                 ) : null}
                 {groups.map(([templateKey, rows]) => (
                   <section className="st-ctxlib__group" key={templateKey}>
                     <header className="st-ctxlib__group-header">
-                      <span className="st-mono">{templateKey}</span>
+                      <span>{contextCategoryLabel(templateKey)}</span>
                       <span className="st-ctxlib__group-count">
                         {rows.length} doc{rows.length === 1 ? '' : 's'}
                       </span>
@@ -494,34 +451,30 @@ export function ContextLibraryVNext() {
           {/* ---- right rail: dark stewardship card + document contract ------- */}
           <aside className="st-ctxlib__rail">
             <section className="st-ctxlib__stewardship">
-              <span className="st-ctxlib__stewardship-label">Stewardship</span>
-              <strong>Context is operational data.</strong>
+              <span className="st-ctxlib__stewardship-label">Keep your advice accurate</span>
+              <strong>Your team decides what to rely on.</strong>
               <p>
-                Facts retain exact source references. Supersession preserves history. Rejection never edits the
-                source document.
+                Review the facts Meri has found and check the supporting source. If two documents disagree—about
+                an approved ask or a deadline, for example—decide which information your team should use.
+                You can remove an incorrect fact without changing the document it came from.
               </p>
               <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/steward')}>
-                Review {openConflicts.length} conflict{openConflicts.length === 1 ? '' : 's'}
+                {openConflicts.length > 0
+                  ? `Review ${openConflicts.length} conflict${openConflicts.length === 1 ? '' : 's'}`
+                  : 'Review facts and sources'}
               </CapiroButton>
             </section>
 
             <div className="st-ctxlib__contract">
-              <span className="st-ctxlib__section-label">Document contract</span>
-              <h2>What every context document carries</h2>
+              <span className="st-ctxlib__section-label">How your files become useful</span>
+              <h2>Bring the documents you already use</h2>
               <ContractItem
-                title="Typed front matter"
-                detail="Template key, scope, client and authority."
+                title="Upload your existing work"
+                detail="A presentation or firm blueprint can cover several topics. You do not need a separate file for each."
               />
-              <ContractItem title="Validity window" detail="As-of and valid-until dates drive staleness." />
-              <ContractItem title="Supersession chain" detail="New versions never erase prior evidence." />
-              <ContractItem title="Exact provenance" detail="Facts point back to source document lines." />
-              <CapiroButton
-                variant="secondary"
-                leadingIcon={<CapiroDownloadIcon size={0.95} />}
-                onClick={downloadMarkdownTemplate}
-              >
-                Download markdown template
-              </CapiroButton>
+              <ContractItem title="Meri organizes the relevant information" detail="Goals, asks, constraints, stakeholders, deadlines, evidence, meeting notes, and instructions are grouped for review." />
+              <ContractItem title="Confirm which strategy it supports" detail="Choose a client and one strategy, or make the information available across that client’s strategies." />
+              <ContractItem title="Review before adding" detail="Check what Meri found and the source excerpts. Select useful information and leave out anything incorrect. New information is saved as working material." />
             </div>
           </aside>
         </div>
@@ -594,9 +547,9 @@ function DocumentRow({ doc, clientLabel }: { doc: ContextDocumentListItem; clien
   const validTo = fmtDay(doc.validUntil ?? fmScalar(doc.frontmatter, 'valid_until'));
   const meta = [
     clientLabel,
-    doc.scope,
+    ({ firm: 'Firm-wide', client: 'All client strategies', strategy: 'This strategy', node: 'This step', once: 'This task' } as Record<string, string>)[doc.scope] ?? doc.scope,
     asOf ? `as of ${asOf}` : null,
-    validTo ? `valid to ${validTo}` : null,
+    validTo ? `review by ${validTo}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -608,11 +561,11 @@ function DocumentRow({ doc, clientLabel }: { doc: ContextDocumentListItem; clien
       </span>
       <span className="st-ctxlib__row-pills">
         <CapiroBadge tone={STATE_TONE[doc.state]} dot>
-          {doc.state}
+          {doc.state === 'superseded' ? 'Previous version' : doc.state}
         </CapiroBadge>
         {stale ? (
           <CapiroBadge tone="warning" dot>
-            Stale
+            Needs updating
           </CapiroBadge>
         ) : null}
       </span>

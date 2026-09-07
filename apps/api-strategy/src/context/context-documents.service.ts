@@ -51,6 +51,11 @@ export class ContextDocumentsService {
     private readonly versioning: VersioningService,
   ) {}
 
+  /** Imports use the same scope authorization as direct document uploads. */
+  async assertImportScopeAllowed(tenantId: string, user: ContextUser, scope: 'client' | 'strategy') {
+    this.assertScopeAllowed(scope, await this.isOrgAdmin(tenantId, user));
+  }
+
   async upload(tenantId: string, user: ContextUser, dto: UploadContextDocumentDto) {
     const parsed = parseFrontmatter(dto.content);
     if (parsed.errors.length > 0 || parsed.frontmatter === null) {

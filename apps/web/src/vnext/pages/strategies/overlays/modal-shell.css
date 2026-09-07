@@ -16,22 +16,24 @@
 
 /* ------------------------------------------------------------------ shell */
 
-/* Shared shell (README "Modals"): fixed/full-bleed, top-aligned and
-   scrollable (NOT centered — a tall body like History or Upload must be able
-   to scroll the whole frame, not just clip at viewport height), backdrop
+/* Shared shell: fixed/full-bleed and centered in the viewport. Tall content
+   scrolls within the body so the header and actions remain available. The
+   two classes belong to the SAME root node, including when it is portaled
+   outside the Strategies page. Backdrop
    `rgba(12,17,29,.6)`. z-index:70 is the handoff's own literal — it sits
    above every shell chrome layer this module runs under (rail/header
    dropdowns top out at 60) and below the global toast pipeline
    (--capiro-z-modal + 1), so a save/upload toast still surfaces over an open
    overlay. */
-.capiro-strategies .st-overlay {
+.capiro-strategies.st-overlay {
   position: fixed;
   inset: 0;
   z-index: 70;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 32px 24px;
+  box-sizing: border-box;
   overflow-y: auto;
   background: rgba(12, 17, 29, 0.6);
   /* Backdrop fade-in (reference: the backdrop layer carries `animation:uiFade
@@ -52,7 +54,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .capiro-strategies .st-overlay {
+  .capiro-strategies.st-overlay {
     animation: none;
   }
 }
@@ -64,7 +66,10 @@
      StrategiesModalShell as a custom property; 900px only guards a caller
      that forgets to pass one. */
   max-width: var(--st-modal-max-width, 900px);
-  max-height: min(88vh, 900px);
+  max-height: min(calc(100vh - 64px), 900px);
+  max-height: min(calc(100dvh - 64px), 900px);
+  min-height: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2244,7 +2249,7 @@
      body. These are the parallel rules instead. The frame is z-index 70 and
      the shell's bottom nav is z-index 20, so the sheet covers the nav and
      needs no `.capiro-sheet-safe` inset. */
-  .capiro-strategies .st-overlay {
+  .capiro-strategies.st-overlay {
     padding: 0;
     align-items: stretch;
   }

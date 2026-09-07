@@ -19,7 +19,7 @@
  *
  * v3 pass (design handoff 2026-08-16): frame geometry is now the exact shared
  * shell from the handoff's "Modals" section — fixed/inset:0, z-index:70, a
- * `rgba(12,17,29,.6)` backdrop, top-aligned + scrollable (not centered), the
+ * `rgba(12,17,29,.6)` backdrop, centered with a scrollable body, the
  * two-part panel shadow, and the `stPop` entrance keyframe (strategies-tokens
  * .css). Each modal carries its own frame width via `maxWidth` (px) rather
  * than a two-value `size` enum — the six overlays differ enough (900–1080px)
@@ -27,6 +27,7 @@
  * value from the handoff's per-modal table.
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../../components/actions/index.js';
 import './modal-shell.css';
@@ -185,9 +186,12 @@ export function StrategiesModalShell({
     };
   }, []);
 
-  return (
+  // Mount outside the page layout: transformed or narrow route containers
+  // must not become the fixed overlay's containing block. Retain the kit and
+  // module scope classes so their tokens and controls follow the portal.
+  return createPortal(
     <div
-      className="capiro-strategies st-overlay"
+      className="capiro-vnext-root capiro-vnext-uui capiro-strategies st-overlay"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();
@@ -252,7 +256,7 @@ export function StrategiesModalShell({
           </div>
         </footer>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
-

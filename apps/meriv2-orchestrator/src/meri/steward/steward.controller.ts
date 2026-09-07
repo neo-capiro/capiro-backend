@@ -8,6 +8,15 @@ import { RequestCredentialsStore } from '../../request/request-credentials.store
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { StewardExtractService } from './steward-extract.service.js';
 import type { StewardExtractInput, StewardExtractResult } from './steward-prompt.js';
+import { ContextImportService } from './context-import.service.js';
+import type {
+  StrategyContextImportInput,
+  StrategyContextImportResult,
+} from './context-import-prompt.js';
+import type {
+  StrategyContextCompareInput,
+  StrategyContextCompareResult,
+} from './context-compare-prompt.js';
 
 /**
  * `/meri-api/steward-extract` — the Context Steward extraction surface
@@ -24,6 +33,7 @@ export class StewardController {
   constructor(
     private readonly resolver: MeriContextResolver,
     private readonly steward: StewardExtractService,
+    private readonly contextImporter: ContextImportService,
   ) {}
 
   @Post('steward-extract')
@@ -34,6 +44,32 @@ export class StewardController {
   ): Promise<StewardExtractResult> {
     const ctx = await this.resolver.resolve(tc, dto.clientId, 'steward');
     return this.scoped(req, () => this.steward.extract(ctx, dto));
+  }
+
+  @Post('strategy-context-import')
+  async importContext(
+    @Body() dto: StrategyContextImportInput,
+    @CurrentTenant() tc: OrchestratorTenantContext,
+    @Req() req: Request,
+  ): Promise<StrategyContextImportResult> {
+    const input = this.contextImporter.validateInput(dto);
+    return this.scoped(req, async () => {
+      const ctx = await this.resolver.resolve(tc, input.clientId, 'steward');
+      return this.contextImporter.import(ctx, input);
+    });
+  }
+
+  @Post('strategy-context-compare')
+  async compareContext(
+    @Body() dto: StrategyContextCompareInput,
+    @CurrentTenant() tc: OrchestratorTenantContext,
+    @Req() req: Request,
+  ): Promise<StrategyContextCompareResult> {
+    const input = this.contextImporter.validateComparison(dto);
+    return this.scoped(req, async () => {
+      const ctx = await this.resolver.resolve(tc, input.clientId, 'steward');
+      return this.contextImporter.compare(ctx, input);
+    });
   }
 
   private scoped<T>(req: Request, exec: () => Promise<T>): Promise<T> {
