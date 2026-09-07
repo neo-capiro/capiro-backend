@@ -155,9 +155,9 @@ describe('PR C §13 — watchlist gate scopes to dependent tabs only', () => {
     renderModule('/legiwatch?client=c-nowl&tab=feed');
     const gate = await screen.findByLabelText('Watchlist setup required');
     expect(within(gate).getAllByText(/no approved watchlist|monitoring model/i).length).toBeGreaterThan(0);
-    // Module chrome survives — the tab strip and client selector are present.
+    // Module chrome survives — the tab strip and Client lens selector are present.
     expect(screen.getByRole('tablist')).toBeTruthy();
-    expect(screen.getByLabelText('LegiWatch client scope')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /client lens/i })).toBeTruthy();
   });
 
   it.each([

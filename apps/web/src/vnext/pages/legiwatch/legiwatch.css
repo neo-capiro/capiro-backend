@@ -56,6 +56,14 @@
    losing to the shell's narrower cap. */
 .capiro-vnext-root .capiro-vnext-uui .uui-content:has(.lw) { max-width: none; padding: 0; margin: 0; }
 
+/* v2 prototype canvas: cool grey page wash (#EFF1F5) behind the white cards.
+   Painted on the module AND the escaped content wrapper so the fill reaches
+   the viewport edges after the shell's 1280px cap is lifted. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.lw),
+.capiro-vnext-root .lw {
+  background: #EFF1F5;
+}
+
 .capiro-vnext-root .lw {
   /* Module gutter. Used to lean on the shell's .uui-content for its own
      horizontal page gutter (32px, 16px below 780) and contribute none itself
@@ -357,7 +365,106 @@
   max-width: 720px;
   text-wrap: pretty;
 }
-.capiro-vnext-root .lw .lw-pagehead__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-pagehead__actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Client lens — the one shaded control in the header set (brand-tinted
+   bg/ring). Eyebrow (mono 9px) over the selected client label, v2 prototype. */
+.capiro-vnext-root .lw .lw-lens {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--lw-brand-bg);
+  box-shadow: inset 0 0 0 1px var(--lw-brand-ring);
+  color: var(--lw-brand-fg);
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-lens:hover { background: #E3EDF3; }
+.capiro-vnext-root .lw .lw-lens__stack { display: flex; flex-direction: column; line-height: 1.25; text-align: left; }
+.capiro-vnext-root .lw .lw-lens__eyebrow {
+  font-family: var(--lw-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #5C82A0;
+}
+.capiro-vnext-root .lw .lw-lens__value { font-size: 13px; font-weight: 600; color: var(--lw-brand-fg); }
+.capiro-vnext-root .lw .lw-lens__menu {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  width: 280px;
+  padding: 6px;
+  background: var(--lw-surface);
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-dropdown);
+  z-index: 60;
+  animation: lwFade .12s ease;
+}
+.capiro-vnext-root .lw .lw-lens__menuhead {
+  padding: 8px 10px 6px;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-lens__opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-vnext-root .lw .lw-lens__opt:hover { background: var(--lw-gray-bg); }
+.capiro-vnext-root .lw .lw-lens__opt.is-active { background: var(--lw-gray-bg); }
+.capiro-vnext-root .lw .lw-lens__optname { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-lens__opt.is-active .lw-lens__optname { font-weight: 600; }
+.capiro-vnext-root .lw .lw-lens__note {
+  margin: 6px 4px 2px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--lw-gray-bg);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--lw-body);
+}
+
+/* square settings gear — uniform with the 42px header set */
+.capiro-vnext-root .lw .lw-iconbtn {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--lw-control);
+  background: var(--lw-surface);
+  color: var(--lw-meta);
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-iconbtn:hover { background: var(--lw-page); color: var(--lw-label); }
 
 /* tab strip — roving tablist; active tab 2px ink bottom rule (A.6) */
 .capiro-vnext-root .lw .lw-tabs {
@@ -440,12 +547,49 @@
 }
 
 /* ============================================================================
-   A.7 — Hearings tab
-   ========================================================================== */
-/* Two columns only in the desktop band. At its NARROW end the content box is
-   844px, so the sessions column's floor is min()-guarded rather than a bare
-   360px — a bare floor would have pushed the schedule column to 468px and then
-   overflowed the moment the shell gutters changed. */
+   A.7 — Hearings tab (v2 prototype restyle)
+   Single full-width column on the Schedule sub-view: the calendar runs the
+   whole content width. The two-column rail only applies to the Sessions
+   sub-view (lw-hearings-cols is still used there). */
+
+/* Schedule/My Sessions/Archive segmented sub-tabs + the public/private legend
+   chip (top-right, under the module tabs). */
+.capiro-vnext-root .lw .lw-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-subtabs .lw-seg__item { height: 32px; }
+.capiro-vnext-root .lw .lw-recordkey {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--lw-surface);
+  box-shadow: inset 0 0 0 1px var(--lw-line);
+}
+.capiro-vnext-root .lw .lw-recordkey__sw { width: 8px; height: 8px; border-radius: 2px; }
+.capiro-vnext-root .lw .lw-recordkey__sw--public { background: #fff; box-shadow: inset 0 0 0 1px var(--lw-faint); }
+.capiro-vnext-root .lw .lw-recordkey__sw--analysis { background: var(--lw-brand-bg); box-shadow: inset 0 0 0 1px var(--lw-brand-ring); }
+.capiro-vnext-root .lw .lw-recordkey__sep { width: 1px; height: 14px; background: var(--lw-line); }
+.capiro-vnext-root .lw .lw-recordkey__lab {
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-recordkey__lab--analysis { color: var(--lw-brand-fg); }
+
+/* Full-width schedule column */
+.capiro-vnext-root .lw .lw-schedule { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Sessions sub-view still uses the two-column layout */
 .capiro-vnext-root .lw .lw-hearings-cols {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(min(320px, 100%), 1fr);
@@ -465,6 +609,24 @@
   border-radius: 12px;
   box-shadow: var(--lw-shadow-card);
 }
+/* Filter-bar view switch is the compact 30px segmented variant */
+.capiro-vnext-root .lw .lw-controls .lw-seg__item { height: 30px; }
+/* selects share the .lw-btn recipe but skin native + carry a caret icon */
+.capiro-vnext-root .lw .lw-selectwrap { position: relative; display: inline-flex; }
+.capiro-vnext-root .lw .lw-select {
+  appearance: none;
+  padding-right: 30px;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-select__caret {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--lw-meta);
+  pointer-events: none;
+}
+.capiro-vnext-root .lw .lw-controls__export { margin-left: auto; }
 .capiro-vnext-root .lw .lw-search {
   flex: 1;
   min-width: 200px;
@@ -477,6 +639,7 @@
   border: 1px solid var(--lw-control);
   background: var(--lw-surface);
 }
+.capiro-vnext-root .lw .lw-search__icon { flex: 0 0 auto; color: var(--lw-meta); }
 .capiro-vnext-root .lw .lw-search input {
   flex: 1;
   border: 0;
@@ -566,19 +729,23 @@
   text-transform: uppercase;
 }
 
-/* calendar chip — the A.7 state matrix */
+/* calendar chip — the A.7 state matrix (v2 prototype recipe).
+   1px inset ring (not a border) + a 3px solid left edge in the state color, so
+   the edge never doubles the ring's left side. Time mono 10/600, title
+   12/16/600, meta mono 10 tracked. */
 .capiro-vnext-root .lw .lw-chip {
   width: 100%;
   padding: 9px 10px;
   border-radius: 8px;
-  border: 1px solid var(--lw-line);
-  border-left: 3px solid transparent;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--lw-gray-ring);
+  border-left: 3px solid var(--lw-brand-fg);
   text-align: left;
   cursor: pointer;
   display: block;
-  background: var(--lw-page);
+  background: var(--lw-gray-bg);
 }
-.capiro-vnext-root .lw .lw-chip:hover { background: var(--lw-hover); }
+.capiro-vnext-root .lw .lw-chip:hover { background: var(--lw-dark-bg); }
 .capiro-vnext-root .lw .lw-chip__row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .capiro-vnext-root .lw .lw-chip__time { font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
 .capiro-vnext-root .lw .lw-chip__marker { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
@@ -590,11 +757,11 @@
 .capiro-vnext-root .lw .lw-chip__meta { margin-top: 4px; font-family: var(--lw-mono); font-size: 10px; letter-spacing: .03em; color: var(--lw-faint); overflow-wrap: anywhere; word-break: normal; }
 .capiro-vnext-root .lw .lw-cal__empty { overflow-wrap: anywhere; }
 
-.capiro-vnext-root .lw .lw-chip--live { background: var(--lw-error-bg); border-color: var(--lw-error-ring); border-left-color: var(--lw-error-dot); }
+.capiro-vnext-root .lw .lw-chip--live { background: var(--lw-error-bg); box-shadow: inset 0 0 0 1px var(--lw-error-ring); border-left-color: var(--lw-error-dot); }
 .capiro-vnext-root .lw .lw-chip--live .lw-chip__time { color: var(--lw-error-fg); }
 .capiro-vnext-root .lw .lw-chip--hearing { border-left-color: var(--lw-brand-fg); }
 .capiro-vnext-root .lw .lw-chip--markup { border-left-color: var(--lw-faint); }
-.capiro-vnext-root .lw .lw-chip--unavailable { background: var(--lw-selected); border-left-color: var(--lw-line); cursor: default; }
+.capiro-vnext-root .lw .lw-chip--unavailable { background: var(--lw-gray-bg); box-shadow: inset 0 0 0 1px var(--lw-gray-ring); border-left-color: var(--lw-gray-ring); cursor: default; }
 .capiro-vnext-root .lw .lw-chip--unavailable .lw-chip__time,
 .capiro-vnext-root .lw .lw-chip--unavailable .lw-chip__title { color: var(--lw-faint); }
 

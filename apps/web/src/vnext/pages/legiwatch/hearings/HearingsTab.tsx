@@ -21,6 +21,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ChevronDown, ChevronLeft, ChevronRight, Search, DownloadCloud } from 'lucide-react';
 import { ArchiveSubTab } from './ArchiveSubTab.js';
 import {
   useHearingSessionHistory,
@@ -252,22 +253,23 @@ export function HearingsTab({ scope }: { scope: string }) {
     );
   }
 
-  // The sub-view strip is rendered for every sub-view so navigation is always
-  // reachable, including from the Archive.
+  // Sub-view strip (segmented control, v2 prototype) + public/private legend
+  // chip. Rendered for every sub-view so navigation is always reachable.
   const subStrip = (
-    <div className="lw-tabs" role="tablist" aria-label="Hearings sub-views" style={{ marginBottom: 14 }}>
-      {HEARING_SUBS.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          role="tab"
-          aria-selected={sub === option.id}
-          className={`lw-tab${sub === option.id ? ' is-active' : ''}`}
-          onClick={() => setSub(option.id)}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className="lw-subtabs" role="tablist" aria-label="Hearings sub-views">
+      <LwSeg
+        ariaLabel="Hearing views"
+        options={HEARING_SUBS.map((s) => ({ id: s.id, label: s.label }))}
+        value={sub}
+        onChange={(next) => setSub(next as HearingSub)}
+      />
+      <span className="lw-recordkey" aria-hidden="true">
+        <span className="lw-recordkey__sw lw-recordkey__sw--public" />
+        <span className="lw-recordkey__lab">Public record</span>
+        <span className="lw-recordkey__sep" />
+        <span className="lw-recordkey__sw lw-recordkey__sw--analysis" />
+        <span className="lw-recordkey__lab lw-recordkey__lab--analysis">Your analysis</span>
+      </span>
     </div>
   );
 
@@ -284,18 +286,17 @@ export function HearingsTab({ scope }: { scope: string }) {
   return (
     <div className="lw-body">
       {subStrip}
-      <div className={`lw-hearings-cols${sub === 'sessions' ? ' lw-hearings-cols--single' : ''}`}>
-        {/* LEFT — the schedule. Hidden on the Sessions sub-view, which is about
-            what the workspace is attending rather than what is scheduled. */}
+      <div className={sub === 'sessions' ? 'lw-hearings-cols lw-hearings-cols--single' : 'lw-schedule'}>
+        {/* Schedule sub-view is full-width (the calendar runs the whole content
+            width). The Sessions sub-view keeps the two-column rail. */}
         {sub === 'sessions' ? null : (
-        <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+        <div className="lw-schedule">
           <div className="lw-controls">
             <LwSeg
               ariaLabel="Schedule view"
               options={[
                 { id: 'calendar' as ViewMode, label: 'Calendar' },
-                { id: 'list' as ViewMode, label: 'List' },
+                { id: 'list' as ViewMode, label: 'Agenda' },
               ]}
               value={effectiveView}
               onChange={setView}
@@ -306,32 +307,38 @@ export function HearingsTab({ scope }: { scope: string }) {
                 Agenda layout at this width — Calendar returns on a wider display
               </span>
             ) : null}
-            <select
-              aria-label="Committee"
-              className="lw-btn"
-              value={committee}
-              onChange={(e) => setCommittee(e.target.value)}
-            >
-              <option value="">All committees</option>
-              {committees.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <select
-              aria-label="Proceeding kind"
-              className="lw-btn"
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-            >
-              <option value="">All kinds</option>
-              <option value="HEARING">Hearings</option>
-              <option value="MARKUP">Markups</option>
-            </select>
+            <div className="lw-selectwrap">
+              <select
+                aria-label="Committee"
+                className="lw-btn lw-select"
+                value={committee}
+                onChange={(e) => setCommittee(e.target.value)}
+              >
+                <option value="">All committees</option>
+                {committees.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
+            </div>
+            <div className="lw-selectwrap">
+              <select
+                aria-label="Proceeding kind"
+                className="lw-btn lw-select"
+                value={kind}
+                onChange={(e) => setKind(e.target.value)}
+              >
+                <option value="">All proceedings</option>
+                <option value="HEARING">Hearings</option>
+                <option value="MARKUP">Markups</option>
+              </select>
+              <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
+            </div>
             <div className="lw-search">
-              <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>⌕</span>
+              <Search size={16} className="lw-search__icon" aria-hidden="true" />
               <input
                 aria-label="Search proceedings"
-                placeholder="Search title or committee"
+                placeholder="Filter this week by title, committee or witness"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -350,7 +357,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                     setWeekAnchor(d);
                   }}
                 >
-                  ‹
+                  <ChevronLeft size={15} aria-hidden="true" />
                 </button>
                 <button
                   className="lw-navbtn"
@@ -361,7 +368,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                     setWeekAnchor(d);
                   }}
                 >
-                  ›
+                  <ChevronRight size={15} aria-hidden="true" />
                 </button>
                 <span className="lw-weeklabel">
                   {formatHearingDay(parseHearingMoment({ date: weekDays[0] ?? '' }))} –{' '}
@@ -455,7 +462,8 @@ export function HearingsTab({ scope }: { scope: string }) {
                 <span className="lw-legend__item"><span className="lw-legend__dot" style={{ background: 'var(--lw-error-dot)' }} />Live now</span>
                 <span className="lw-legend__item"><span className="lw-legend__dot" style={{ background: 'var(--lw-brand-dot)' }} />Hearing</span>
                 <span className="lw-legend__item"><span className="lw-legend__dot" style={{ background: 'var(--lw-faint)' }} />Markup</span>
-                <span className="lw-legend__item"><span className="lw-legend__dot" style={{ background: 'var(--lw-brand-dot)' }} />Recording queued</span>
+                <span className="lw-legend__item"><span className="lw-legend__dot" style={{ background: 'var(--lw-warn-ring)' }} />Access unverified</span>
+                <span className="lw-legend__item"><span className="lw-legend__dot" style={{ background: 'var(--lw-brand-dot)' }} />Capiro attending</span>
               </div>
             </section>
           ) : (
@@ -536,8 +544,6 @@ export function HearingsTab({ scope }: { scope: string }) {
             </section>
           )}
         </div>
-
-        </>
         )}
 
         {/* RIGHT — My Sessions + Scheduled recordings */}
