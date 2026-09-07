@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
@@ -38,6 +38,18 @@ export function FundingOpportunitiesPage() {
   const toast = useCapiroToast();
   const url = useUrlState();
   const [refreshing, setRefreshing] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const shareAnchorRef = useRef<HTMLSpanElement | null>(null);
+  // Close the share fallback menu on any click outside it (native-share
+  // browsers never show the menu, so this only runs on the fallback path).
+  useEffect(() => {
+    if (!shareMenuOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!shareAnchorRef.current?.contains(event.target as Node)) setShareMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [shareMenuOpen]);
   const clientId = url.get('clientId') ?? undefined;
   const inboxAvailable = inboxFlag.ready && inboxFlag.enabled;
   const boardAvailable = inboxAvailable && pipelineFlag.ready && pipelineFlag.enabled;
@@ -96,7 +108,43 @@ export function FundingOpportunitiesPage() {
       setRefreshing(false);
     }
   }
+  /**
+   * Share the current filtered view. Green-scope build (per user): native
+   * Web Share sheet when the browser offers one (gives Mail/Messages/copy for
+   * free, no backend), otherwise an inline menu with Email (mailto:) and
+   * Copy link. No AirDrop-specific handling — the sheet includes it only
+   * where the OS already does. AirDrop deliberately excluded from the
+   * fallback menu: it has no web API, so it would be a fake menu item.
+   */
+  const canNativeShare = typeof navigator.share === 'function';
+
+  async function shareViewLink() {
+    const url = window.location.href;
+    const shareData: ShareData = { title: document.title, url };
+    if (canNativeShare) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        // AbortError = the user closed the sheet; not a failure.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        // Any other share failure falls through to the manual menu.
+      }
+    }
+    setShareMenuOpen((open) => !open);
+  }
+
+  async function shareViaEmail() {
+    setShareMenuOpen(false);
+    const subject = encodeURIComponent('Funding opportunities view — Capiro');
+    const body = encodeURIComponent(
+      `Take a look at this funding opportunities view in Capiro: ${window.location.href}`,
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
   async function copyViewLink() {
+    setShareMenuOpen(false);
     try {
       await navigator.clipboard.writeText(window.location.href);
       toast.success('View link copied.');
@@ -127,7 +175,31 @@ export function FundingOpportunitiesPage() {
         </div>
         <div className="fo-module-hero__actions">
           <div className="fo-module-action-row">
-            <CapiroButton onClick={() => void copyViewLink()}>Copy view link</CapiroButton>
+            <span className="fov-popanchor" ref={shareAnchorRef}>
+              <CapiroButton
+                onClick={() => void shareViewLink()}
+                aria-haspopup={canNativeShare ? undefined : 'menu'}
+                aria-expanded={canNativeShare ? undefined : shareMenuOpen}
+              >
+                Share
+              </CapiroButton>
+              {shareMenuOpen ? (
+                <div className="fov-popanchor__panel fov-popanchor__panel--left" role="menu" aria-label="Share this view">
+                  <ul className="fov-menu">
+                    <li role="none">
+                      <button type="button" role="menuitem" onClick={() => void shareViaEmail()}>
+                        Email
+                      </button>
+                    </li>
+                    <li role="none">
+                      <button type="button" role="menuitem" onClick={() => void copyViewLink()}>
+                        Copy link
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              ) : null}
+            </span>
             <CapiroButton loading={refreshing} onClick={() => void refresh()}>
               Refresh
             </CapiroButton>

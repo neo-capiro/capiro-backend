@@ -102,7 +102,7 @@
   border: 1px solid var(--capiro-color-border-default);
   border-radius: var(--capiro-radius-surface);
   box-shadow: var(--uui-shadow-card);
-  padding: var(--capiro-space-04) var(--capiro-space-05);
+  padding: 12px var(--capiro-space-04);
   width: 100%;
 }
 
@@ -321,18 +321,27 @@
 .capiro-vnext-root .fov .fov-inbox-row__title:hover { text-decoration: underline; }
 .capiro-vnext-root .fov .fov-inbox-row__title:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: 4px; }
 
-.capiro-vnext-root .fov .fov-card__head { margin-bottom: 6px; }
-.capiro-vnext-root .fov .fov-card__title { font-size: 14px; font-weight: 600; line-height: 1.35; color: var(--capiro-color-text-heading); }
-.capiro-vnext-root .fov .fov-card__meta { margin-top: 2px; }
+.capiro-vnext-root .fov .fov-card__head { margin-bottom: 4px; }
+.capiro-vnext-root .fov .fov-card__title { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--capiro-color-text-heading); }
+.capiro-vnext-root .fov .fov-card__meta { margin-top: 1px; }
 
+/* Compact fact strip: label + value on ONE baseline row, so each fact is a
+   single line of text instead of a stacked block. Facts flow left-to-right
+   and wrap as whole lines — no tall min-width columns, no dead space. */
 .capiro-vnext-root .fov .fov-card__facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 18px;
-  margin: 10px 0 8px;
+  gap: 2px 16px;
+  margin: 6px 0 4px;
 }
 
-.capiro-vnext-root .fov .fov-fact { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
+.capiro-vnext-root .fov .fov-fact {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
 
 .capiro-vnext-root .fov .fov-fact__label {
   font-size: 10px;
@@ -341,6 +350,7 @@
   letter-spacing: 0.04em;
   color: var(--capiro-color-text-muted);
   font-family: var(--capiro-type-family-mono);
+  white-space: nowrap;
 }
 
 .capiro-vnext-root .fov .fov-fact__value {
@@ -350,7 +360,7 @@
 }
 
 .capiro-vnext-root .fov .fov-card__signals,
-.capiro-vnext-root .fov .fov-card__gaps { margin-bottom: 6px; }
+.capiro-vnext-root .fov .fov-card__gaps { margin-bottom: 4px; }
 
 /*
  * Agency forecasts: a left border rather than a background tint — the
@@ -360,14 +370,14 @@
 .capiro-vnext-root .fov .fov-card--forecast { border-left: 3px solid var(--fov-tone-gold-fg); }
 
 /* The forecast fact strip carries two long-labelled date fields. */
-.capiro-vnext-root .fov .fov-card--forecast .fov-fact { min-width: 132px; }
+.capiro-vnext-root .fov .fov-card--forecast .fov-fact__value { white-space: nowrap; }
 
 .capiro-vnext-root .fov .fov-card__actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 /* Two-line clamp for the SAM/Grants synopsis, with an explicit "more" toggle. */

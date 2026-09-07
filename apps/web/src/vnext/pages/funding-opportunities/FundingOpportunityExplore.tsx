@@ -190,7 +190,7 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
         <label>
           <span className="fov-filter-label">Opportunity feed</span>
           <select
-            className="capiro-input"
+            className="capiro-select fov-filter-input"
             value={feed}
             onChange={(event) =>
               url.set({
@@ -268,7 +268,7 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
             <label>
               <span className="fov-filter-label">Search</span>
               <input
-                className="capiro-input"
+                className="capiro-input fov-filter-input"
                 name="q"
                 defaultValue={url.get('q') ?? ''}
                 placeholder="Title, topic or keyword"
@@ -281,7 +281,7 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
                 <label>
                   <span className="fov-filter-label">Agency</span>
                   <input
-                    className="capiro-input"
+                    className="capiro-input fov-filter-input"
                     name="agency"
                     defaultValue={url.get('agency') ?? ''}
                   />
@@ -290,7 +290,7 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
                   <label>
                     <span className="fov-filter-label">NAICS code</span>
                     <input
-                      className="capiro-input"
+                      className="capiro-input fov-filter-input"
                       name="naics"
                       defaultValue={url.get('naics') ?? ''}
                     />
@@ -299,7 +299,7 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
                 <label>
                   <span className="fov-filter-label">Availability</span>
                   <select
-                    className="capiro-input"
+                    className="capiro-select fov-filter-input"
                     name="activeState"
                     defaultValue={url.get('activeState') ?? 'active'}
                   >
