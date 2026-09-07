@@ -497,11 +497,25 @@ export class CompositeProofResolver {
     // R8.1 §2.4: SourceDocument metadata must agree with manifest + artifact.
     if (production && sourceDocRow) {
       const row = sourceDocRow as Record<string, unknown>;
-      if (row.sourceKey != null && row.sourceKey !== manifestDocument.sourceLocator) {
+      // Phase 10B-31: `sourceLocator` is a byte-location hint (a filesystem
+      // path or URL) and is NOT the same concept as the persisted
+      // SourceDocument's stable `sourceKey` identity slug -- comparing them
+      // directly is only ever correct by convention (a curator happening to
+      // reuse the same string both places), never by contract. Every
+      // manifest-building caller that already KNOWS the authoritative
+      // sourceKey (the lifecycle bridge's synthetic manifest always does --
+      // see `buildLifecycleBridgeSyntheticManifestV1`) sets the dedicated
+      // `expectedSourceKey` field, which this compares against instead. A
+      // caller that does not set it (every curated CLI manifest today) keeps
+      // the exact prior comparison against `sourceLocator`, unchanged.
+      const expectedSourceKey = manifestDocument.expectedSourceKey ?? manifestDocument.sourceLocator;
+      if (row.sourceKey != null && row.sourceKey !== expectedSourceKey) {
+        const expectedField =
+          manifestDocument.expectedSourceKey != null ? 'expectedSourceKey' : 'sourceLocator';
         findings.push(
           blockingFinding(
             'source_metadata_mismatch',
-            `SourceDocument sourceKey "${String(row.sourceKey)}" does not match manifest sourceLocator "${manifestDocument.sourceLocator}"`,
+            `SourceDocument sourceKey "${String(row.sourceKey)}" does not match manifest ${expectedField} "${expectedSourceKey}"`,
           ),
         );
       }
