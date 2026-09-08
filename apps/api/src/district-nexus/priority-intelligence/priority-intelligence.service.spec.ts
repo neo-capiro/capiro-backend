@@ -51,7 +51,10 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
     const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
     const record = {
       stateCode: '12',
-      congressionalDistrict: '08',
+      // FRPP stores the source-form district: FIPS state, leading zero
+      // stripped by the parser ('8'), matching the real FY24 corpus where
+      // FL-08's 590 assets live under congressional_district='8'.
+      congressionalDistrict: '8',
       fiscalYear: 2024,
       grain: 'detailed_asset',
       rpUid: 'asset-1',
@@ -65,7 +68,8 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
         where: { stateCode: string; congressionalDistrict: string };
         select?: unknown;
       }) => {
-        // FRPP stores numeric FIPS; USPS input would return zero rows.
+        // FRPP stores numeric FIPS + the unpadded district; USPS/padded
+        // input would return zero rows.
         if (
           args.where.stateCode !== record.stateCode ||
           args.where.congressionalDistrict !== record.congressionalDistrict
@@ -106,7 +110,9 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
     expect(gsa.topAssets).toHaveLength(1);
     expect(gsa.topAssets[0]).toMatchObject({
       state: 'FL',
-      congressionalDistrict: '08',
+      // Stored source form, returned verbatim — the query translates, the
+      // response preserves stored geography.
+      congressionalDistrict: '8',
       boundaryCongress: null,
     });
     expect(gsa.warnings.join(' ')).toContain('source-unknown');
@@ -114,7 +120,7 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
       expect.objectContaining({
         where: {
           stateCode: '12',
-          congressionalDistrict: '08',
+          congressionalDistrict: '8',
           fiscalYear: 2024,
         },
       }),
@@ -123,7 +129,7 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
       expect.objectContaining({
         take: 10,
         where: expect.objectContaining({
-          congressionalDistrict: '08',
+          congressionalDistrict: '8',
           grain: 'detailed_asset',
         }),
       }),
@@ -166,12 +172,66 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
     expect(prisma.districtNexusChange.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          districtCode: '08',
           observationKind: 'change',
           OR: [
-            { source: 'gsa', stateCode: '12' },
-            { source: { not: 'gsa' }, stateCode: 'FL' },
+            { source: 'gsa', stateCode: '12', districtCode: '8' },
+            { source: { not: 'gsa' }, stateCode: 'FL', districtCode: '08' },
           ],
+        },
+      }),
+    );
+  });
+  test('GSA fact and change queries use the FRPP unpadded district form, not the padded key', async () => {
+    const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+    const record = {
+      stateCode: '12',
+      congressionalDistrict: '8',
+      fiscalYear: 2024,
+      grain: 'detailed_asset',
+      rpUid: 'asset-1',
+      reportingAgency: 'GSA',
+      squareFeet: 100,
+      legalInterest: 'Owned',
+      boundaryCongress: null,
+    };
+    const findMany = jest.fn(
+      async (args: {
+        where: { stateCode: string; congressionalDistrict: string };
+        select?: unknown;
+      }) => {
+        // FRPP stores '8' (leading zero stripped by the parser); the API is
+        // called with '08'. A padded query would silently return zero rows —
+        // this is the production defect this test pins (75% of GSA rows live
+        // in single-digit districts).
+        if (
+          args.where.stateCode !== record.stateCode ||
+          args.where.congressionalDistrict !== record.congressionalDistrict
+        )
+          return [];
+        return args.select ? [{ fiscalYear: 2024 }] : [record];
+      },
+    );
+    const groupBy = jest.fn(async () => [
+      { ...record, _count: { _all: 590 }, _sum: { squareFeet: 505731 } },
+    ]);
+    Object.assign(prisma.gsaRealProperty, { findMany, groupBy });
+    jest
+      .mocked(prisma.gsaRealPropertySourceRun.findMany)
+      .mockResolvedValue([
+        { status: 'success', dryRun: false, attemptedAt: new Date('2026-09-06') },
+      ] as never);
+    const response = await new DistrictNexusPriorityIntelligenceService(
+      prisma,
+      makeNexusStub(),
+    ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+    const gsa = response.priorityIntelligence.federalProperty;
+    expect(gsa).toMatchObject({ availability: { status: 'loaded' }, detailedAssetCount: 590 });
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          stateCode: '12',
+          congressionalDistrict: '8',
+          fiscalYear: 2024,
         },
       }),
     );

@@ -19,6 +19,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DistrictNexusService } from '../district-nexus.service.js';
 import { stateFipsForAbbr } from '../../common/us-states.js';
+
+/**
+ * GSA FRPP stores congressional districts in the source form produced by the
+ * parser's `normalizeCongressionalDistrict` — leading zeros stripped, so
+ * Florida's 8th district is stored as '8'. The API boundary accepts the padded
+ * CPF/CDS convention ('08'). Translate at the query boundary, mirroring the
+ * state USPS→FIPS translation: stored records and source identities are never
+ * rewritten. Sentinel codes (00/90/98/ZZ) are rejected before this point, so
+ * the input here is always a padded 2-digit district '01'–'89'.
+ */
+function gsaDistrictKey(paddedDistrict: string): string {
+  return String(Number(paddedDistrict));
+}
 import {
   normalizeCpfCdsDistrict,
   filterForDistrict,
@@ -533,7 +546,13 @@ export class DistrictNexusPriorityIntelligenceService {
 
     // Resolve the latest local vintage and aggregate ALL assets. A preview cap
     // must not silently turn a district's property totals into a 500-row sample.
-    const geography = { stateCode: stateFips, congressionalDistrict: district };
+    // GSA stores district keys in the FRPP source form (leading zeros stripped,
+    // e.g. '8'), while the API accepts the padded CPF/CDS convention ('08').
+    // Translate at the query boundary — never rewrite stored records.
+    const geography = {
+      stateCode: stateFips,
+      congressionalDistrict: gsaDistrictKey(district),
+    };
     const years = await this.prisma.gsaRealProperty.findMany({
       where: geography,
       select: { fiscalYear: true },
@@ -775,12 +794,20 @@ export class DistrictNexusPriorityIntelligenceService {
       // intelligence" a user should see, and would otherwise crowd out
       // genuine later additions/removals/corrections within `take: 20`.
       where: {
-        districtCode: district,
         observationKind: 'change',
-        // GSA ledger geography mirrors source FIPS; other rails use USPS.
+        // GSA ledger geography mirrors the source: FIPS state and the FRPP
+        // district form (leading zeros stripped). Other rails use USPS state
+        // and the padded district convention. Translate per source at the
+        // query boundary — stored ledger rows are never rewritten. Keep the
+        // district predicate inside each branch: an outer padded predicate
+        // would AND with the GSA source key and exclude single-digit districts.
         OR: [
-          { source: 'gsa', stateCode: stateFipsForAbbr(state) },
-          { source: { not: 'gsa' }, stateCode: state },
+          {
+            source: 'gsa',
+            stateCode: stateFipsForAbbr(state),
+            districtCode: gsaDistrictKey(district),
+          },
+          { source: { not: 'gsa' }, stateCode: state, districtCode: district },
         ],
       },
       orderBy: { observedAt: 'desc' },

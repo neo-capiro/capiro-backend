@@ -49,6 +49,11 @@ describe('TangoSubawardClient', () => {
     expect(url.searchParams.get('ordering')).toBe('-last_modified_date');
     expect(url.searchParams.get('shape')).toContain('subaward_details(*)');
     expect(url.searchParams.get('shape')).toContain('subaward_recipient(uei,display_name)');
+    // 2026-09-07 provider contract: these fields now 400 the whole request
+    // ("Invalid shape" / unknown_field). They must never return to the shape.
+    expect(url.searchParams.get('shape')).not.toContain('naics_code');
+    expect(url.searchParams.get('shape')).not.toContain('subawardee_parent_uei');
+    expect(url.searchParams.get('shape')).not.toContain('subawardee_parent_name');
     expect(url.searchParams.has('modified_after')).toBe(false);
   });
 

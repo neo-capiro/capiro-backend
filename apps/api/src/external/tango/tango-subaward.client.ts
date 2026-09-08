@@ -15,15 +15,16 @@ const SUBAWARD_SHAPE = [
   'fsrs_details(last_modified_date)',
   'funding_office(*)',
   'key',
-  'naics_code',
   'piid',
   'place_of_performance(*)',
   'prime_recipient(uei,display_name)',
   'subaward_details(*)',
   'subaward_recipient(uei,display_name)',
-  'subawardee_parent_uei',
-  'subawardee_parent_name',
   'usaspending_permalink',
+  // 2026-09-07: the provider rejected `naics_code`, `subawardee_parent_uei`
+  // and `subawardee_parent_name` as unknown_field (HTTP 400 "Invalid shape"),
+  // breaking every subaward request. All three were optional in the mapper
+  // (null-tolerant fallback chains); the DB columns stay null when absent.
 ].join(',');
 
 export interface TangoSubawardClientConfig {
