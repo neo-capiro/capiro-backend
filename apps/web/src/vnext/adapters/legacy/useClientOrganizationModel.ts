@@ -211,10 +211,11 @@ function rank(person: ClientPerson): number {
   return index < 0 ? 99 : index;
 }
 
-/** "Leadership · Auto-placed" / "Executive · Confirmed" / "Needs review". */
+/** Placement provenance only; never a claim of verified employment. */
 export function placementLabel(person: ClientPerson): string {
   const level = person.hierarchyLevel ? LEVEL_META[person.hierarchyLevel].label : 'Unplaced';
   if (person.reviewRequired) return `${level} · Needs review`;
-  if (person.placementSource === 'manual') return `${level} · Confirmed`;
+  if (person.placementSource === 'manual') return `${level} · Manually placed`;
   return person.hierarchyLevel ? `${level} · Auto-placed` : 'Unplaced · No title match';
 }
+

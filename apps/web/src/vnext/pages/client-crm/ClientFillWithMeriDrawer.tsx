@@ -20,6 +20,7 @@ import {
 } from '../../adapters/legacy/useClientFillWithMeri.js';
 import { UIcon } from './portfolio-primitives.js';
 import type { AdvocacyMatterSummary } from './tabs/AdvocacyMattersTab.js';
+import { appliedFindingCount, clientAttributionEvidence, sourceUrl } from './client-fill-review-evidence.js';
 import './client-fill-with-meri-drawer.css';
 
 /**
@@ -152,7 +153,7 @@ export function ClientFillWithMeriDrawer({
         disabled={uploading || fill.phase === 'researching'}
         onChange={uploadCapabilityDocument}
       />
-      {fill.phase === 'idle' || fill.phase === 'cancelled' ? (
+      {fill.phase === 'idle' || (fill.phase === 'cancelled' && !fill.run?.findings.length) ? (
         <IdleReview
           cancelled={fill.phase === 'cancelled'}
           website={websiteInput}
@@ -162,7 +163,7 @@ export function ClientFillWithMeriDrawer({
           uploading={uploading}
           error={uploadError ?? retryError}
         />
-      ) : fill.phase === 'failed' || fill.phase === 'permission-denied' ? (
+      ) : (fill.phase === 'failed' && !fill.run?.findings.length) || fill.phase === 'permission-denied' ? (
         <BlockedReview
           message={
             fill.phase === 'permission-denied'
@@ -175,6 +176,7 @@ export function ClientFillWithMeriDrawer({
         />
       ) : (
         <ReviewWorkspace
+          clientName={clientName}
           fill={fill}
           retryError={retryError}
           onRetryRun={retryRun}
@@ -321,7 +323,7 @@ function IdleReview({
       {cancelled ? (
         <div className="meri-fill-inline-note" role="status">
           <UIcon name="CheckCircle" size={17} />
-          <span>The last run was cancelled. No profile changes were applied.</span>
+          <span>The last run was cancelled. Any updates already applied remain on the record.</span>
         </div>
       ) : null}
       <p className="meri-fill-intro">
@@ -388,8 +390,8 @@ function BlockedReview({
       <div className="meri-fill-blocked__card">
         <span className="meri-fill-blocked__icon"><UIcon name="AlertCircle" size={18} /></span>
         <span>
-          <strong>Meri could not start this review</strong>
-          <p>{message} No part of the client record was changed.</p>
+          <strong>Meri could not complete this review</strong>
+          <p>{message} Any updates already applied remain on the record.</p>
           {attemptedAt ? <small>Last attempted {formatTime(attemptedAt)}</small> : null}
         </span>
       </div>
@@ -402,6 +404,7 @@ function BlockedReview({
 }
 
 function ReviewWorkspace({
+  clientName,
   fill,
   retryError,
   onRetryRun,
@@ -409,6 +412,7 @@ function ReviewWorkspace({
   matterOptions,
   onOpenMatter,
 }: {
+  clientName: string;
   fill: Fill;
   retryError: string | null;
   onRetryRun: () => void;
@@ -426,6 +430,12 @@ function ReviewWorkspace({
 
   return (
     <div className="meri-fill-work">
+      {fill.phase === 'failed' || fill.phase === 'cancelled' ? (
+        <p role="status" className="meri-fill-error-text meri-fill-work__error">
+          {fill.phase === 'cancelled' ? 'This run was cancelled.' : `This run could not complete. ${fill.run?.error ?? ''}`}
+          {' '}Existing findings are available below. Applied updates remain on the record.
+        </p>
+      ) : null}
       {!running ? <CompletionSummary fill={fill} conflictCount={conflicts.length} onRetry={onRetryRun} /> : null}
       {retryError ? <p className="meri-fill-error-text meri-fill-work__error">{retryError}</p> : null}
       {fill.cancelError ? <p className="meri-fill-error-text meri-fill-work__error">{errorText(fill.cancelError, 'Could not cancel this run.')}</p> : null}
@@ -433,6 +443,7 @@ function ReviewWorkspace({
       <div className="meri-fill-work__columns">
         <ActivityRail fill={fill} onRetryRun={onRetryRun} />
         <FindingsPanel
+          clientName={clientName}
           fill={fill}
           findings={reviewFindings}
           running={running}
@@ -443,7 +454,7 @@ function ReviewWorkspace({
       <footer className="meri-fill-footer">
         <span className="meri-fill-footer__copy">
           <strong>{running ? 'Meri is still working' : footerTitle(fill)}</strong>
-          <span>{running ? 'Findings appear as each pass completes. Closing this drawer does not stop the run.' : 'Profile fields stay unchanged until you apply the accepted proposals.'}</span>
+          <span>{running ? 'Findings appear as each pass completes. Closing this drawer does not stop the run.' : 'Unapplied proposals stay separate from the saved record. Attaching advocacy to a matter applies it immediately.'}</span>
         </span>
         {running ? (
           <button className="meri-fill-button meri-fill-button--quiet" disabled={fill.cancelPending} onClick={fill.cancelRun}>
@@ -482,15 +493,15 @@ function CompletionSummary({
   const progress = fill.run?.progress;
   const checks = progress?.completed ?? countCompletedTasks(fill.run?.tasks ?? []);
   const partial = fill.phase === 'partial' || fill.failedSources.length > 0;
-  const applied = fill.phase === 'applied' || fill.phase === 'apply-partial';
+  const applied = appliedFindingCount(fill.run?.findings ?? [], fill.applyOutcome?.applied ?? 0);
   return (
     <section className="meri-fill-summary">
       <div className="meri-fill-summary__message">
-        <strong>{partial ? 'Meri completed most of the review' : 'Meri finished the first pass'}</strong>
+        <strong>{fill.phase === 'failed' || fill.phase === 'cancelled' ? 'Review saved findings from this run' : partial ? 'Meri completed most of the review' : 'Meri finished the first pass'}</strong>
         <p>
           {applied
-            ? `${fill.applyOutcome?.applied ?? 0} accepted profile update${fill.applyOutcome?.applied === 1 ? '' : 's'} applied. Review any remaining findings below.`
-            : 'Review the evidence and decide what belongs on the record. Nothing in the profile has been written by this run yet.'}
+            ? `${applied} update${applied === 1 ? ' has' : 's have'} already been applied from this run. Those changes remain on the record; review the remaining proposals below.`
+            : 'Review the evidence and decide what belongs on the record. No updates from this run have been applied yet.'}
         </p>
       </div>
       {coverage ? (
@@ -664,12 +675,14 @@ const FINDING_GROUPS = [
 ] as const;
 
 function FindingsPanel({
+  clientName,
   fill,
   findings,
   running,
   matterOptions,
   onOpenMatter,
 }: {
+  clientName: string;
   fill: Fill;
   findings: FillFinding[];
   running: boolean;
@@ -714,6 +727,7 @@ function FindingsPanel({
               <div className="meri-fill-finding-group__items">
                 {group.findings.map((finding) => (
                   <FindingCard
+                    clientName={clientName}
                     key={finding.id}
                     finding={finding}
                     selected={fill.selected.has(finding.id)}
@@ -751,6 +765,7 @@ function FindingsPanel({
 }
 
 function FindingCard({
+  clientName,
   finding,
   selected,
   onAccept,
@@ -762,6 +777,7 @@ function FindingCard({
   onNotAdvocacy,
   onOpenMatter,
 }: {
+  clientName: string;
   finding: FillFinding;
   selected: boolean;
   onAccept: () => void;
@@ -783,7 +799,8 @@ function FindingCard({
   const conflict = hasCurrentConflict(finding);
   const informational = finding.status === 'informational';
   const rejected = finding.status === 'rejected';
-  const accepted = finding.status === 'accepted';
+  const accepted = finding.status === 'accepted' || Boolean(finding.appliedAt);
+  const staged = selected && finding.status === 'pending' && !accepted;
   const proposed = finding.proposedValue as Record<string, unknown> | null | undefined;
   const title = advocacy
     ? (typeof proposed?.title === 'string' && proposed.title) ||
@@ -809,7 +826,7 @@ function FindingCard({
   };
 
   return (
-    <article className={`meri-fill-card${conflict ? ' meri-fill-card--conflict' : ''}${selected ? ' meri-fill-card--selected' : ''}`}>
+    <article className={`meri-fill-card${conflict ? ' meri-fill-card--conflict' : ''}${staged ? ' meri-fill-card--selected' : ''}`}>
       <div className="meri-fill-card__body">
         <div className="meri-fill-card__label">
           <span>{title}</span>
@@ -843,25 +860,25 @@ function FindingCard({
       </div>
       <div className="meri-fill-card__source">
         <span><b>{sourceLabel(finding.source)}</b>{sourceWhere(finding)}</span>
-        {finding.evidence.length ? (
+        {finding.evidence.length || advocacy ? (
           <button aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen((value) => !value)}>
             {evidenceOpen ? 'Hide evidence' : 'Evidence'}
           </button>
         ) : null}
       </div>
-      {evidenceOpen ? <EvidencePanel finding={finding} /> : null}
+      {evidenceOpen ? <EvidencePanel finding={finding} clientName={clientName} /> : null}
       <div className="meri-fill-card__actions">
-        {selected ? (
+        {accepted ? (
+          <span className="meri-fill-card__settled meri-fill-card__settled--accepted">
+            <UIcon name="CheckCircle" size={15} /><strong>Applied</strong>
+          </span>
+        ) : staged ? (
           <span className="meri-fill-card__settled meri-fill-card__settled--accepted">
             <UIcon name="CheckCircle" size={15} /><strong>Accepted for apply</strong><button onClick={onUndoAccept}>Undo</button>
           </span>
         ) : rejected ? (
           <span className="meri-fill-card__settled">
             <strong>{advocacy ? 'Marked not advocacy' : 'Keeping current value'}</strong><button onClick={onRestore}>Undo</button>
-          </span>
-        ) : accepted ? (
-          <span className="meri-fill-card__settled meri-fill-card__settled--accepted">
-            <UIcon name="CheckCircle" size={15} /><strong>Applied</strong>
           </span>
         ) : informational ? (
           <span className="meri-fill-card__no-action">Related record · nothing to apply</span>
@@ -902,20 +919,36 @@ function FindingCard({
   );
 }
 
-function EvidencePanel({ finding }: { finding: FillFinding }) {
+function EvidencePanel({ finding, clientName }: { finding: FillFinding; clientName: string }) {
   const freshness = freshnessOf(finding);
+  const attribution = clientAttributionEvidence(finding);
+  const visibleEvidence = finding.evidence.slice(0, 4);
+  const links = visibleEvidence.map((item) => sourceUrl(item.url)).filter(Boolean);
   return (
     <div className="meri-fill-evidence">
-      {finding.evidence.slice(0, 4).map((item, index) => (
+      {attribution ? (
+        <>
+          <span><small>Client under review</small><span>{clientName}</span></span>
+          <span><small>Client attribution</small><strong>{attribution.confirmed ? 'Confirmed client mapping' : 'Needs identity verification'}</strong></span>
+          <span><small>Match basis</small><span>{attribution.basis}</span></span>
+          {attribution.identity.map(([label, value]) => <span key={label}><small>{label}</small><span>{value}</span></span>)}
+          {!attribution.identity.length ? <p>No organization or witness affiliation was supplied with this proposal.</p> : null}
+          {!attribution.confirmed ? <p>A similar name or a high proposal score does not establish that this record belongs to this client. Verify the source organization before confirming the client mapping.</p> : null}
+          {attribution.url && !links.includes(attribution.url) ? <span><small>Original source</small><a href={attribution.url} target="_blank" rel="noreferrer noopener">Open original source</a></span> : null}
+          {!attribution.url && !links.length ? <p>No source link was provided. Verify the original record before accepting this match.</p> : null}
+        </>
+      ) : null}
+      {!finding.evidence.length && !attribution ? <p>No source evidence was supplied with this proposal.</p> : null}
+      {visibleEvidence.map((item, index) => (
         <span key={`${finding.id}-evidence-${index}`}>
           <small>{index === 0 ? 'Evidence' : ''}</small>
           <span>
-            {item.url ? <a href={item.url} target="_blank" rel="noreferrer noopener">{item.label}</a> : item.label}
+            {sourceUrl(item.url) ? <a href={sourceUrl(item.url)!} target="_blank" rel="noreferrer noopener">{item.label}</a> : item.label}
             {item.excerpt ? <em>{item.excerpt}</em> : null}
           </span>
         </span>
       ))}
-      <span><small>Confidence</small><span>{Math.round(finding.confidence * 100)}%{freshness ? ` · ${freshness}` : ''}</span></span>
+      <span><small>{attribution ? 'Proposal score' : 'Confidence'}</small><span>{Math.round(finding.confidence * 100)}%{attribution ? ' · not proof of identity' : ''}{freshness ? ` · ${freshness}` : ' · observation date unavailable'}</span></span>
     </div>
   );
 }
@@ -1011,8 +1044,8 @@ function drawerTitle(phase: Fill['phase']): string {
 
 function drawerSubtitle(phase: Fill['phase']): string {
   if (phase === 'preparing' || phase === 'researching') return 'Researching, connecting records, and checking what Capiro already knows.';
-  if (phase === 'failed' || phase === 'permission-denied') return 'Meri could not start the review. Nothing was changed.';
-  if (phase === 'partial') return 'Meri completed most of the review. Nothing is written until you apply accepted profile changes.';
+  if (phase === 'failed' || phase === 'permission-denied') return 'Meri could not complete the review. Check existing findings before retrying.';
+  if (phase === 'partial') return 'Meri completed most of the review. Check applied updates and remaining proposals below.';
   if (['proposals', 'context-only', 'no-changes', 'applying', 'apply-partial', 'applied'].includes(phase)) return 'Meri finished the first pass. Review every finding before it reaches the profile.';
   return 'Complete and improve this client record from connected and reliable public sources.';
 }
@@ -1091,7 +1124,7 @@ function findingTag(finding: FillFinding, conflict: boolean): string {
 
 function sourceWhere(finding: FillFinding): string {
   const evidenceSource = finding.evidence.find((item) => item.source)?.source;
-  return evidenceSource && evidenceSource !== finding.source ? ` · ${evidenceSource}` : '';
+  return evidenceSource && evidenceSource !== finding.source ? ` · ${sourceLabel(evidenceSource)}` : '';
 }
 
 function findingGroup(finding: FillFinding): typeof FINDING_GROUPS[number]['id'] {

@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardHead, Pill, type PillTone } from '../portfolio-primitives.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
 import { useApi } from '../../../../lib/use-api.js';
+import { decodeHtmlEntities } from '../../../../lib/html-entities.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import {
@@ -26,6 +27,7 @@ import {
 import { explainSignals } from '../../../../pages/intelligence/opportunities/opportunity-explanations.js';
 import { LinkBtn, SecondaryBtn, CouldNotLoad, DomainStatsStrip } from './IntelligenceTab.js';
 import './intelligence-tab.css';
+import './opportunities-tab.css';
 
 /**
  * Opportunities — a top-level client directory (spec §10.4's former "Funding &
@@ -134,7 +136,7 @@ export function ClientCrmOpportunitiesProto({ client }: { client: Client }) {
   }
 
   return (
-    <div className="cap-pf-anim-rise capiro-intel capiro-intel-stack-24">
+    <div className="cap-pf-anim-rise capiro-intel capiro-intel-stack-24 capiro-client-opportunities">
       {/* No TabPageHead here, unlike every sibling tab. Those each sit under a
           record-surface header whose description says something DIFFERENT from
           their own; this panel's did not — it restated the surface description
@@ -227,7 +229,7 @@ function FundingPanel({ client }: { client: Client }) {
       {/* The nested Overview/Opportunities/Programs/Pursuits bar is gone: its
           state was never read — all four options rendered these same two
           cards. Dead chrome that promises filtering is worse than none. */}
-      <div className="cap-pf-grid-intel">
+      <div className="cap-pf-grid-intel capiro-client-opportunities__grid">
         {/* Opportunities */}
         <Card>
           <div className="capiro-intel-panel-head">
@@ -330,7 +332,6 @@ function RealOppRow({ o, clientId }: { o: FundingOpportunity; clientId: string }
   } = workflowStatusPill(o.workflow?.status ?? null);
   return (
     <div className="capiro-intel-opp-row">
-      <span className="capiro-intel-opp-kind">{KIND_LABELS[o.kind]}</span>
       <span className="capiro-intel-opp-main">
         <span className="capiro-intel-opp-title">
           <Link
@@ -341,7 +342,7 @@ function RealOppRow({ o, clientId }: { o: FundingOpportunity; clientId: string }
             })}
             style={{ color: 'inherit' }}
           >
-            {o.title}
+            {decodeHtmlEntities(o.title)}
           </Link>
         </span>
         <span className="capiro-intel-opp-agency">{o.agency ?? SOURCE_LABELS[o.source]}</span>
@@ -354,21 +355,24 @@ function RealOppRow({ o, clientId }: { o: FundingOpportunity; clientId: string }
           Eligibility: {ELIGIBILITY_LABELS[o.eligibility.state]}
         </span>
       </span>
-      <span className="capiro-intel-opp-money">
-        <span className="capiro-intel-opp-amount">{money.value}</span>
-        <span
-          className={
-            soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'
-          }
-        >
-          {deadline.daysRemaining != null ? `Due ${deadline.text}` : deadline.text}
+      <div className="capiro-client-opportunities__metadata">
+        <span className="capiro-intel-opp-kind">{KIND_LABELS[o.kind]}</span>
+        <span className="capiro-intel-opp-money">
+          <span className="capiro-intel-opp-amount">{money.value}</span>
+          <span
+            className={
+              soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'
+            }
+          >
+            {deadline.daysRemaining != null ? `Due ${deadline.text}` : deadline.text}
+          </span>
         </span>
-      </span>
-      <span className="capiro-intel-opp-pills">
-        <Pill tone={statusTone} dotless={dotless}>
-          {statusLabel}
-        </Pill>
-      </span>
+        <span className="capiro-intel-opp-pills">
+          <Pill tone={statusTone} dotless={dotless}>
+            {statusLabel}
+          </Pill>
+        </span>
+      </div>
     </div>
   );
 }
@@ -378,7 +382,7 @@ function RealProgramRow({ pe, onOpen }: { pe: RelevantPeRow; onOpen: () => void 
     <div className="capiro-intel-pe-card">
       <div className="capiro-intel-pe-top">
         <span className="capiro-intel-pe-code">{pe.peCode}</span>
-        <span className="capiro-intel-pe-title">{pe.title ?? pe.peCode}</span>
+        <span className="capiro-intel-pe-title">{decodeHtmlEntities(pe.title ?? pe.peCode)}</span>
       </div>
       <div className="capiro-intel-pe-rel">
         <span className="capiro-intel-eyebrow-xs">Relevance</span>

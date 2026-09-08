@@ -1,11 +1,10 @@
 import { useQueries } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
-import { latestDataUpdatedAt, relativeRefresh } from '../../adapters/legacy/useClientCrmOverviewModel.js';
+import { relativeRefresh } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 
 /**
- * One read of "is this client's profile actually populated, and how fresh is
- * what we are showing" — shared by the breadcrumb's freshness label and gap
+ * Availability of six profile sections — shared by the breadcrumb's read-time label and gap
  * chip (wire-audit "3 Compose extend" items 11-12) and by the Data health
  * drawer that shows the per-source detail.
  *
@@ -72,6 +71,8 @@ export interface DataHealthRow {
   state: SourceState;
   count: number;
   error: unknown;
+  /** Last successful browser fetch, not upstream ingestion or verification. */
+  fetchedAt: number | null;
   refetch: () => Promise<unknown>;
 }
 
@@ -89,9 +90,9 @@ export interface ClientDataHealth {
   /** True once every source has settled, so a count means something. */
   settled: boolean;
   /**
-   * How fresh the data on screen is: the most recent successful fetch across
-   * these sources, phrased the way `useClientCrmOverviewModel` already phrases
-   * its own `lastRefresh`. Null until something has loaded.
+   * Oldest successful browser fetch among the six checked sections. Null
+   * until all six have answered successfully; one fast response cannot imply
+   * the remaining sections have been checked.
    *
    * This is honestly a CLIENT-side fetch time, not a server-side ingestion
    * time. No per-client ingestion timestamp exists to read — the intelligence
@@ -133,6 +134,7 @@ export function useClientDataHealth(client: Client): ClientDataHealth {
 
   const rows: DataHealthRow[] = sources.map((source, index) => {
     const result = results[index];
+    const fetchedAt = result?.dataUpdatedAt ?? 0;
     const state: SourceState = !result || result.isLoading
       ? 'loading'
       : result.isError
@@ -145,11 +147,14 @@ export function useClientDataHealth(client: Client): ClientDataHealth {
       state,
       count: countOf(result?.data),
       error: result?.error,
+      fetchedAt: fetchedAt > 0 ? fetchedAt : null,
       refetch: () => result?.refetch() ?? Promise.resolve(),
     };
   });
 
-  const refreshedAt = latestDataUpdatedAt(...results.map((result) => ({ dataUpdatedAt: result.dataUpdatedAt })));
+  const allAnswered = rows.every((row) => row.state === 'ok' || row.state === 'empty');
+  const fetchedTimes = rows.map((row) => row.fetchedAt).filter((time): time is number => time != null);
+  const refreshedAt = allAnswered && fetchedTimes.length === rows.length ? Math.min(...fetchedTimes) : null;
 
   return {
     rows,

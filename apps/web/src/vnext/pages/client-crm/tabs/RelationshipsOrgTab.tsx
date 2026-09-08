@@ -9,7 +9,7 @@ import {
   Pill,
   TabPageHead,
 } from '../portfolio-primitives.js';
-import { ORG } from '../portfolio-fixtures.js';
+import { contactAddedLabel, leadershipTitleConflicts } from '../organization-review.js';
 import {
   HIERARCHY_LEVELS,
   LEVEL_META,
@@ -25,23 +25,7 @@ import { initialsFor } from '../../../adapters/legacy/useClientCrmOverviewModel.
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './relationships-org-tab.css';
 
-/**
- * Relationships / Organization sub-tab (spec §8.1).
- *
- * The chart renders the REAL reporting hierarchy whenever the client has a
- * roster (item 17); the design's four-level fixture renders only while the
- * roster is loading, errored, or genuinely empty. Strip counters, roster-quality
- * chips, the person drawer, "Add contact" (item 15) and the hierarchy modal all
- * bind to the real organization model. The segmented sub-tab bar is owned by
- * the parent page.
- *
- * Item 16 (custom rule sets) is NOT completable from the web: the placement
- * rules are a hardcoded `RULES` const in `apps/api/src/clients/
- * client-hierarchy.helpers.ts` with no table, no route and no write path
- * anywhere in the API. Placement writes — the half that does exist — already
- * work through `savePlacement`. The visible-levels list below now reads the
- * real `LEVEL_META` rather than a byte-identical fixture copy of it.
- */
+/** The saved roster and placement rules do not establish current employment. */
 export function ClientCrmOrganizationProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const model = useClientOrganizationModel(client.id);
   const [person, setPerson] = useState<ClientPerson | null>(null);
@@ -65,7 +49,7 @@ export function ClientCrmOrganizationProto({ client, drawer = false }: { client:
       ) : (
       <TabPageHead
         title="Client organization"
-        sub="A configurable roster automatically structured from titles. Manual placement always wins."
+        sub="Contacts arranged from saved titles and reporting lines. Placement does not verify a current role."
         actions={
           <>
             <PfButton variant="secondary" onClick={() => setConfiguring(true)}>
@@ -131,12 +115,12 @@ function rowsByDepth(roots: OrgNode[]): ClientPerson[][] {
   return rows.filter((row) => row && row.length > 0);
 }
 
-function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () => void }) {
+function RealPersonCard({ person, onOpen, titleConflict = false }: { person: ClientPerson; onOpen: () => void; titleConflict?: boolean }) {
   // An unplaced card drops the per-card eyebrow and the "Unplaced · No title
   // match" footer: its group header already says "Not placed", so repeating it
   // on every card turned a large unplaced roster into a wall of the same word.
   const placed = Boolean(person.hierarchyLevel);
-  const cardClass = person.reviewRequired
+  const cardClass = person.reviewRequired || titleConflict
     ? 'rel-org-person-card rel-org-person-card--review'
     : 'rel-org-person-card';
   return (
@@ -148,6 +132,8 @@ function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () =
       <span className="rel-org-person-name">{person.name}</span>
       <span className="rel-org-person-title">{person.title ?? 'Open role'}</span>
       {placed ? <span className="rel-org-person-meta">{placementLabel(person)}</span> : null}
+      <span className="rel-org-person-meta">{contactAddedLabel(person.createdAt)}</span>
+      {titleConflict ? <span className="rel-org-person-pill"><Pill tone="warning">Role overlap · Review current title</Pill></span> : null}
       {person.reviewRequired ? (
         <span className="rel-org-person-pill">
           <Pill tone="warning">{placed ? 'Review' : 'Needs review'}</Pill>
@@ -164,11 +150,13 @@ function LoosePeopleGroup({
   hint,
   people,
   onOpen,
+  conflicts,
 }: {
   title: string;
   hint: string;
   people: ClientPerson[];
   onOpen: (p: ClientPerson) => void;
+  conflicts: Set<string>;
 }) {
   if (people.length === 0) return null;
   return (
@@ -179,7 +167,7 @@ function LoosePeopleGroup({
       <p className="rel-org-loose-hint">{hint}</p>
       <div className="rel-org-depth-people">
         {people.map((p) => (
-          <RealPersonCard key={p.id} person={p} onOpen={() => onOpen(p)} />
+          <RealPersonCard key={p.id} person={p} onOpen={() => onOpen(p)} titleConflict={conflicts.has(p.id)} />
         ))}
       </div>
     </div>
@@ -202,8 +190,9 @@ function OrgChartCard({
   // Strip counters always come from the real model — the fixture's
   // "7 contacts placed · 1 title needs review" / "92% mapped" copy must never
   // render for a real client. While the roster loads, a skeleton is the honest
-  // state; the fixture chart below stays pixel-reviewable regardless.
+  // state; no example people are presented as client contacts.
   const loaded = model.people.length > 0;
+  const conflicts = leadershipTitleConflicts(model.people);
   const sub = `${model.placedCount} contact${model.placedCount === 1 ? '' : 's'} placed${
     model.needsReview.length > 0
       ? ` · ${model.needsReview.length} title${model.needsReview.length === 1 ? '' : 's'} need${
@@ -264,12 +253,16 @@ function OrgChartCard({
         ) : loaded ? (
           /* Item 17: the real reporting tree, one centred row per depth. */
           <>
+            <p className="rel-org-loose-hint">Contact dates show when records were added, not when roles began. Current roles and effective dates require source verification.</p>
+            {conflicts.size > 0 ? <p role="status" className="rel-org-role-review">
+              {conflicts.size} contacts share a leadership title. These may be overlapping or historical roles. Open each contact to review the title and record the source and effective dates in Notes before changing it.
+            </p> : null}
             {depthRows.map((row, li) => (
               <span key={li} className="rel-org-depth-row">
                 {li > 0 ? <span className="rel-org-depth-connector" aria-hidden /> : null}
                 <span className="rel-org-depth-people">
                   {row.map((p) => (
-                    <RealPersonCard key={p.id} person={p} onOpen={() => onOpenReal(p)} />
+                    <RealPersonCard key={p.id} person={p} onOpen={() => onOpenReal(p)} titleConflict={conflicts.has(p.id)} />
                   ))}
                 </span>
               </span>
@@ -279,75 +272,24 @@ function OrgChartCard({
               hint="Open a contact to place it, or fix its title."
               people={model.unplaced}
               onOpen={onOpenReal}
+              conflicts={conflicts}
             />
             <LoosePeopleGroup
               title="Manager missing"
               hint="Their manager was removed, so they are unattached."
               people={model.orphans}
               onOpen={onOpenReal}
+              conflicts={conflicts}
             />
           </>
         ) : (
-          /* Loading — the design's four fixture levels stay pixel-reviewable. */
-          ORG.map((level, li) => (
-            <span key={li} className="rel-org-depth-row">
-              {li > 0 ? <span className="rel-org-depth-connector" aria-hidden /> : null}
-              <span className="rel-org-depth-people">
-                {level.map((p) =>
-                  'ghost' in p && p.ghost ? (
-                    <GhostPersonCard key={p.id} person={p} />
-                  ) : (
-                    <PersonCard key={p.id} person={p} />
-                  ),
-                )}
-              </span>
-            </span>
-          ))
+          <div className="rel-org-state" role="status" aria-label="Loading client organization">
+            <PfSkeleton />
+            <p>Loading client organization…</p>
+          </div>
         )}
       </div>
     </Card>
-  );
-}
-
-type OrgPerson = {
-  id: string;
-  level: string;
-  init: string;
-  name: string;
-  title: string;
-  meta: string;
-  ghost?: boolean;
-};
-
-/** Fixture-only card, rendered while the roster loads. Non-interactive on
- *  purpose: a click used to try to resolve the fixture name against the real
- *  roster and silently no-op on a miss — a button that mostly did nothing. */
-function PersonCard({ person }: { person: OrgPerson }) {
-  return (
-    <span className="rel-org-person-card">
-      <Eyebrow tight>{person.level}</Eyebrow>
-      <span className="rel-org-person-avatar">
-        <Avatar initials={person.init} size={32} />
-      </span>
-      <span className="rel-org-person-name">{person.name}</span>
-      <span className="rel-org-person-title">{person.title}</span>
-      <span className="rel-org-person-meta">{person.meta}</span>
-    </span>
-  );
-}
-
-/** Open role — dashed feel via the subtle fill; not clickable as a contact. */
-function GhostPersonCard({ person }: { person: OrgPerson }) {
-  return (
-    <span className="rel-org-ghost-card">
-      <Eyebrow tight>{person.level}</Eyebrow>
-      <span aria-hidden className="rel-org-ghost-avatar">
-        —
-      </span>
-      <span className="rel-org-ghost-name">{person.name}</span>
-      <span className="rel-org-ghost-title">{person.title}</span>
-      <span className="rel-org-ghost-meta">{person.meta}</span>
-    </span>
   );
 }
 
@@ -425,3 +367,4 @@ function SettingField({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

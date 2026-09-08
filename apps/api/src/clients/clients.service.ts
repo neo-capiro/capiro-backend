@@ -1394,7 +1394,7 @@ export class ClientsService {
     const before = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findFirst({
         where: { id, tenantId: ctx.tenantId },
-        select: { uei: true, name: true, applicantTypes: true },
+        select: { uei: true, name: true, applicantTypes: true, intakeData: true, naicsCodes: true, setAsideCertifications: true },
       }),
     );
     if (!before) throw new NotFoundException('Client not found');

@@ -81,7 +81,7 @@ function LocationProbe() {
   return <div data-testid="location">{location.pathname}</div>;
 }
 
-function renderWork() {
+function renderWork(drawer = false) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -91,7 +91,7 @@ function renderWork() {
             path="/clients"
             element={
               <>
-                <ClientCrmWorkProto client={client} />
+                <ClientCrmWorkProto client={client} drawer={drawer} />
                 <LocationProbe />
               </>
             }
@@ -109,6 +109,24 @@ beforeEach(() => {
 });
 
 describe('ClientCrmWorkProto', () => {
+  it('labels the committed count explicitly when a strategy also contains draft and suggested steps', async () => {
+    const statuses = ['draft', 'suggested', 'active', 'completed'] as const;
+    const nodes = statuses.map((status, index) => ({
+      id: `node-${index}`, strategyId: STRATEGY_ID, kind: 'action' as const,
+      title: `Step ${index}`, status, startsOn: '2026-01-01', endsOn: null,
+      ownerUserId: null, openEnded: false,
+    })) as StrategyDetail['nodes'];
+    getMock.mockImplementation((url: string) => {
+      if (url === '/strategy-api/strategies') return Promise.resolve({ data: [{ ...listItem, nodeCount: 4 }] });
+      if (url === `/strategy-api/strategies/${STRATEGY_ID}`) return Promise.resolve({ data: { ...detail, nodes } });
+      return Promise.reject(new Error(`unexpected get ${url}`));
+    });
+    renderWork(true);
+    expect(await screen.findByLabelText('2 committed steps')).toHaveTextContent('2');
+    expect(screen.getByText('Committed steps')).toBeInTheDocument();
+    expect(screen.getByText('Committed steps exclude draft and suggested steps.')).toBeInTheDocument();
+  });
+
   it('shows a real empty CTA instead of the fixture strategy when the client has none', async () => {
     getMock.mockImplementation((url: string) => {
       if (url === '/strategy-api/strategies') return Promise.resolve({ data: [] });

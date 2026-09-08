@@ -1,0 +1,63 @@
+/* Use the space remaining after navigation and the client directory, rather
+   than viewport width, to decide whether two readable cards fit. */
+.capiro-client-opportunities {
+  container-type: inline-size;
+  container-name: client-opportunities;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-client-opportunities__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+@container client-opportunities (min-width: 1100px) {
+  .capiro-vnext-root .capiro-client-opportunities__grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  }
+}
+
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-panel-head {
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-panel-head-copy {
+  flex-basis: 280px;
+}
+
+/* Titles and matching evidence get the full row width. Amounts, dates, and
+   status wrap beneath them instead of squeezing titles into a narrow column. */
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-main {
+  flex: none;
+}
+
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-title,
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-agency {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.capiro-client-opportunities__metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-money,
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-pills {
+  width: auto;
+  max-width: 100%;
+  align-items: flex-start;
+}
+
+.capiro-vnext-root .capiro-client-opportunities .capiro-intel-opp-pills {
+  margin-left: auto;
+}

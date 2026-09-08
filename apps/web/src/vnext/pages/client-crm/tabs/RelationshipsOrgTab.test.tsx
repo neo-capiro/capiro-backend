@@ -120,11 +120,12 @@ describe('ClientCrmOrganizationProto — real hierarchy (item 17)', () => {
     expect(screen.queryByText('James Smith')).not.toBeInTheDocument();
   });
 
-  it('keeps the design fixture on screen while the roster is loading', () => {
+  it('shows a loading state without invented contacts', () => {
     getMock.mockImplementation(() => new Promise(() => {}));
     renderOrg();
 
-    expect(screen.getByText('James Smith')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading client organization' })).toBeInTheDocument();
+    expect(screen.queryByText('James Smith')).not.toBeInTheDocument();
   });
 });
 
@@ -212,5 +213,34 @@ describe('ClientCrmOrganizationProto — hierarchy settings (item 16)', () => {
     expect(screen.getByText('EVP · SVP')).toBeInTheDocument();
     // Rules are a hardcoded const in the API with no write path — say so.
     expect(screen.getByText('Built-in title rules (not editable)')).toBeInTheDocument();
+  });
+});
+
+
+describe('Leadership role review', () => {
+  it('flags overlapping leadership titles without choosing who is current or removing either contact', async () => {
+    mockPeople([
+      person({ id: 'p1', name: 'Christopher Aebli', title: 'President, Communications & Spectrum Dominance', placementSource: 'manual' }),
+      person({ id: 'p2', name: 'Jon Rambeau', title: 'President, Communications and Spectrum Dominance', placementSource: 'manual' }),
+    ]);
+    renderOrg();
+    expect(await screen.findByText(/2 contacts share a leadership title/)).toBeInTheDocument();
+    expect(screen.getByText('Christopher Aebli')).toBeInTheDocument();
+    expect(screen.getByText('Jon Rambeau')).toBeInTheDocument();
+    expect(screen.getAllByText('Role overlap · Review current title')).toHaveLength(2);
+    expect(screen.getAllByText('Executive · Manually placed')).toHaveLength(2);
+    expect(screen.queryByText(/Confirmed/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Contact dates show when records were added, not when roles began/)).toBeInTheDocument();
+  });
+
+  it('does not conflate different divisions or explicitly historical roles', async () => {
+    mockPeople([
+      person({ id: 'p1', title: 'President, Communications' }),
+      person({ id: 'p2', name: 'Other Leader', title: 'President, Space' }),
+      person({ id: 'p3', name: 'Former Leader', title: 'Former President, Communications' }),
+    ]);
+    renderOrg();
+    await screen.findByText('Other Leader');
+    expect(screen.queryByText(/contacts share a leadership title/)).not.toBeInTheDocument();
   });
 });

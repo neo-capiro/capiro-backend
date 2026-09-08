@@ -7,8 +7,10 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const patchMock = vi.hoisted(() => vi.fn());
+const postMock = vi.hoisted(() => vi.fn());
+const deleteMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock, post: vi.fn(), patch: patchMock }),
+  useApi: () => ({ get: getMock, post: postMock, patch: patchMock, delete: deleteMock }),
 }));
 
 const client: Client = {
@@ -64,6 +66,8 @@ function renderHistory() {
 beforeEach(() => {
   getMock.mockReset();
   patchMock.mockReset();
+  postMock.mockReset();
+  deleteMock.mockReset();
 });
 
 describe('ClientCrmHistoryProto', () => {
@@ -689,5 +693,68 @@ describe('ClientCrmHistoryProto — persistent first load', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Read more' }));
     await screen.findByText('Hi Jordan, thanks for the call today.');
     expect(getMock.mock.calls.length).toBe(callsAfterFirstExpand);
+  });
+});
+
+
+describe('Manual activity timing and cleanup', () => {
+  it.each([
+    ['Log a call', 'call'], ['Add a note', 'note'],
+    ['Record a client request', 'request'], ['Log a decision', 'decision'],
+  ])('records the actual local date and time from %s', async (button, kind) => {
+    getMock.mockResolvedValue({ data: [] });
+    postMock.mockResolvedValue({ data: {} });
+    renderHistory();
+    fireEvent.click(await screen.findByRole('button', { name: button }));
+    fireEvent.change(screen.getByLabelText('Summary *'), { target: { value: 'Historical activity' } });
+    fireEvent.change(screen.getByLabelText('When it happened *'), { target: { value: '2025-07-01T10:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log it' }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/activity', expect.objectContaining({
+      kind, title: 'Historical activity', occurredAt: new Date(2025, 6, 1, 10, 30).toISOString(),
+    })));
+  });
+
+  it('rejects a missing or future occurred-at time before sending', async () => {
+    getMock.mockResolvedValue({ data: [] });
+    renderHistory();
+    fireEvent.click(await screen.findByRole('button', { name: 'Log a call' }));
+    fireEvent.change(screen.getByLabelText('Summary *'), { target: { value: 'Call' } });
+    fireEvent.change(screen.getByLabelText('When it happened *'), { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Log it' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('When it happened *'), { target: { value: '2099-01-01T10:30' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Activity must have already occurred');
+    expect(screen.getByRole('button', { name: 'Log it' })).toBeDisabled();
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves suspected test notes and requires explicit confirmation before removal', async () => {
+    getMock.mockResolvedValue({ data: [{ id: 'qa-1', kind: 'note', title: 'QA note', body: 'Preserve this until reviewed',
+      occurredAt: '2025-07-01T10:30:00.000Z', createdAt: '2026-08-01T10:30:00.000Z',
+      sourceType: null, sourceId: null, pinned: true, dueAt: null, settledAt: null, origin: 'recorded' }] });
+    deleteMock.mockResolvedValue({ data: { ok: true } });
+    renderHistory();
+    expect(await screen.findByText('QA note')).toBeInTheDocument();
+    expect(screen.getByText(/Logged by your firm · Logged/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove QA note' }));
+    expect(deleteMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(deleteMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove QA note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove activity' }));
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith('/api/clients/client-1/activity/qa-1'));
+  });
+
+  it('translates derived metadata without rewriting human notes or offering removal of source-owned records', async () => {
+    const common = { occurredAt: '2025-07-01T10:30:00.000Z', sourceId: null, pinned: false, dueAt: null, settledAt: null };
+    getMock.mockResolvedValue({ data: [
+      { ...common, id: 'a', kind: 'document', title: 'Capabilities', body: 'fill-with-meri-capability', sourceType: 'attachment', origin: 'derived' },
+      { ...common, id: 'b', kind: 'outreach', title: 'Memo', body: 'intel_memo · sent', sourceType: 'outreach', origin: 'derived' },
+      { ...common, id: 'c', kind: 'note', title: 'Technical discussion', body: 'intel_memo', sourceType: null, origin: 'recorded' },
+    ] });
+    renderHistory();
+    expect(await screen.findByText('Capability document added with Meri')).toBeInTheDocument();
+    expect(screen.getByText('Intelligence memo · Sent')).toBeInTheDocument();
+    expect(screen.getByText('intel_memo')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Capabilities' })).not.toBeInTheDocument();
   });
 });

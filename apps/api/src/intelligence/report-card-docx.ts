@@ -12,6 +12,7 @@ import {
   WidthType,
 } from 'docx';
 import type { ReportCardData } from './report-card.service.js';
+import { REPORT_ACTIVITY_COVERAGE, reportFiscalYear, reportLabel } from './report-card-format.js';
 
 /**
  * Renders a client Report Card as a Word document — client-ready output for
@@ -45,7 +46,8 @@ export function reportCardFilename(data: ReportCardData): string {
   return `${slug(data.client.name)}-report-card-${dateStamp}.docx`;
 }
 
-function usd(amount: number): string {
+function usd(amount: number | null): string {
+  if (amount === null) return 'Unavailable';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -86,10 +88,7 @@ function statLine(label: string, value: string): Paragraph {
   return new Paragraph({
     spacing: { after: 40 },
     bullet: { level: 0 },
-    children: [
-      new TextRun({ text: `${label}: `, bold: true }),
-      new TextRun({ text: value }),
-    ],
+    children: [new TextRun({ text: `${label}: `, bold: true }), new TextRun({ text: value })],
   });
 }
 
@@ -120,7 +119,10 @@ function table(headers: [string, string], rows: Array<[string, string]>): Table 
         ),
       }),
   );
-  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] });
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [headerRow, ...bodyRows],
+  });
 }
 
 export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer> {
@@ -133,7 +135,12 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
     new Paragraph({
       spacing: { after: 40 },
       children: [
-        new TextRun({ text: (data.tenant.name || 'Report').toUpperCase(), bold: true, size: 30, color: NAVY }),
+        new TextRun({
+          text: (data.tenant.name || 'Report').toUpperCase(),
+          bold: true,
+          size: 30,
+          color: NAVY,
+        }),
         new TextRun({ text: '   Client Report Card', bold: true, size: 16, color: GOLD }),
       ],
     }),
@@ -159,16 +166,19 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
       }),
     ),
   );
-  if (data.client.sectorTag) children.push(metaLine('Sector', data.client.sectorTag));
+  if (data.client.sectorTag) children.push(metaLine('Sector', reportLabel(data.client.sectorTag)));
   children.push(
-    new Paragraph({ spacing: { after: 160 }, border: { bottom: { color: RULE, style: BorderStyle.SINGLE, size: 6, space: 6 } } }),
+    new Paragraph({
+      spacing: { after: 160 },
+      border: { bottom: { color: RULE, style: BorderStyle.SINGLE, size: 6, space: 6 } },
+    }),
   );
 
   // ---- Activity ----
-  children.push(sectionHeading('Activity'));
-  children.push(statLine('Meetings', String(data.activity.meetings)));
+  children.push(sectionHeading('Recorded activity'));
+  children.push(statLine('Non-cancelled meeting records', String(data.activity.meetings)));
   if (data.activity.uniqueRoles.length) {
-    children.push(statLine('Attendee roles engaged', data.activity.uniqueRoles.join(', ')));
+    children.push(statLine('Attendee roles listed', data.activity.uniqueRoles.join(', ')));
   }
   children.push(
     statLine(
@@ -180,43 +190,94 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
       }`,
     ),
   );
-  children.push(statLine('Tasks completed', String(data.activity.tasksCompleted)));
+  children.push(statLine('Completed task records updated', String(data.activity.tasksCompleted)));
   children.push(statLine('Debriefs filed', String(data.activity.debriefsFiled)));
   children.push(statLine('Mail threads active', String(data.activity.mailThreads)));
+  children.push(
+    new Paragraph({
+      spacing: { after: 120 },
+      children: [new TextRun({ text: REPORT_ACTIVITY_COVERAGE, color: GREY, size: 18 })],
+    }),
+  );
 
   // ---- Intelligence ----
   children.push(sectionHeading('Intelligence'));
-  children.push(statLine('Bills tracked', String(data.intelligence.billsTracked)));
+  children.push(
+    statLine(
+      'Bills tracked',
+      data.intelligence.billsTracked === null
+        ? 'Unavailable'
+        : String(data.intelligence.billsTracked),
+    ),
+  );
   const billStatusEntries = Object.entries(data.intelligence.billsByStatus);
   if (billStatusEntries.length) {
     children.push(
-      statLine('By status', billStatusEntries.map(([status, count]) => `${status}: ${count}`).join(', ')),
+      statLine(
+        'By status',
+        billStatusEntries.map(([status, count]) => `${reportLabel(status)}: ${count}`).join(', '),
+      ),
     );
   }
-  children.push(statLine('Competitor filings tracked', String(data.intelligence.competitorCount)));
-  // A confirmed $0 is a real reported figure; only the absence of a mapping
-  // (handled upstream, before this renderer ever sees the data) is "—".
-  children.push(statLine('Lobby spend (all-time, confirmed mapping)', usd(data.intelligence.lobbySpend)));
-  children.push(statLine('Contract wins (all-time, confirmed mapping)', usd(data.intelligence.contractWins)));
+  children.push(
+    statLine(
+      'Related LDA organization records',
+      data.intelligence.relatedOrganizationCount === null
+        ? 'Unavailable'
+        : String(data.intelligence.relatedOrganizationCount),
+    ),
+  );
+  children.push(
+    statLine('Reported LDA filing income (on record)', usd(data.intelligence.lobbySpend)),
+  );
+  children.push(
+    statLine('Reported federal contract total (on record)', usd(data.intelligence.contractWins)),
+  );
+  children.push(sectionHeading('Metric sources and coverage'));
+  for (const [label, text] of [
+    ['Bills tracked', data.intelligence.coverage.trackedBills],
+    ['Related organizations', data.intelligence.coverage.relatedOrganizations],
+    ['LDA filing income', data.intelligence.coverage.lobbying],
+    ['Federal contract total', data.intelligence.coverage.contracting],
+  ]) {
+    children.push(metaLine(label!, text!));
+  }
 
   // ---- Outcomes ----
-  children.push(sectionHeading('Outcomes this period'));
+  children.push(sectionHeading('Submission records updated this period'));
   if (data.outcomes.length === 0) {
     children.push(
       new Paragraph({
         spacing: { after: 120 },
-        children: [new TextRun({ text: 'No outcomes recorded for this period.', italics: true, color: GREY })],
+        children: [
+          new TextRun({
+            text: 'No submission records were updated in this period. This does not establish whether outcomes occurred.',
+            italics: true,
+            color: GREY,
+          }),
+        ],
       }),
     );
   } else {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Records are selected by their last update date; the update date does not establish when an outcome occurred.',
+            italics: true,
+            color: GREY,
+          }),
+        ],
+      }),
+    );
     for (const o of data.outcomes) {
-      const detail = [o.capability, `FY${o.fiscalYear}`].filter(Boolean).join(' · ');
+      const detail = [o.capability, reportFiscalYear(o.fiscalYear)].filter(Boolean).join(' · ');
       children.push(
         new Paragraph({
           bullet: { level: 0 },
           spacing: { after: 40 },
           children: [
-            new TextRun({ text: `${o.title} — ${o.outcomeType}`, bold: true }),
+            new TextRun({ text: `${o.title} — ${reportLabel(o.outcomeType)}`, bold: true }),
             new TextRun({ text: detail ? `  (${detail})` : '' }),
           ],
         }),
@@ -235,10 +296,22 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
 
   // ---- Engagement health trend ----
   if (data.healthTrend.length > 0) {
-    children.push(sectionHeading('Engagement health trend'));
+    children.push(sectionHeading('Recorded activity index'));
+    children.push(
+      new Paragraph({
+        spacing: { after: 80 },
+        children: [
+          new TextRun({
+            text: 'Internal logging index (0–100), not a measure of influence, relationship quality or effectiveness. Weights: meeting record 15; active mail thread 2; updated completed-task record 10; debrief 20; sent outreach 5. Capped at 100; shows up to the 13 most recent weekly observations within the report period and reflects available records only.',
+            color: GREY,
+            size: 18,
+          }),
+        ],
+      }),
+    );
     children.push(
       table(
-        ['Week ending', 'Score'],
+        ['Week ending', 'Recorded activity index'],
         data.healthTrend.map((w) => [w.week, String(w.score)]),
       ),
     );
@@ -246,8 +319,11 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
 
   // ---- Forward look ----
   if (data.aiForwardLook) {
-    children.push(sectionHeading('Forward look'));
-    for (const paragraph of data.aiForwardLook.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)) {
+    children.push(sectionHeading('Forward look — AI-assisted assessment'));
+    for (const paragraph of data.aiForwardLook
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter(Boolean)) {
       children.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun(paragraph)] }));
     }
   }

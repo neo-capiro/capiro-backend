@@ -364,6 +364,11 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     setSelected(new Set(ids));
   }, []);
 
+  // A successful apply or assignment can settle findings while their local
+  // selection IDs remain. Only still-pending proposals can be applied again.
+  const pendingIds = new Set(proposals.map((finding) => finding.id));
+  const pendingSelected = new Set([...selected].filter((id) => pendingIds.has(id)));
+
   return {
     phase,
     run: current,
@@ -371,7 +376,7 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     contextFindings,
     rejectedFindings,
     failedSources,
-    selected,
+    selected: pendingSelected,
     toggle,
     setAll,
     setSelectedFinding,
@@ -393,7 +398,7 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     retryTask: (taskId: string) => retryTask.mutate(taskId),
     retryTaskPending: retryTask.isPending,
     retryTaskError: retryTask.error,
-    applySelected: () => apply.mutate([...selected]),
+    applySelected: () => apply.mutate([...pendingSelected]),
     applyAll: () => apply.mutate(proposals.map((finding) => finding.id)),
     /** §22/23 "Not advocacy" — rejects a still-pending finding so it is
      *  never written as a client_advocacy_record row. `reason` is stored

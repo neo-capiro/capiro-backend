@@ -213,8 +213,17 @@ const TIMELINE_SUBTYPE_LABEL: Record<string, string> = {
   regulatory_document: 'Federal Register',
   hearing: 'Committee hearing',
   testimony: 'Testimony',
+  congressional_testimony: 'Congressional testimony',
+  fara_registration: 'FARA registration',
+  regulatory_comment: 'Regulatory comment',
+  cpf_request: 'Community Project Funding request',
+  cds_request: 'Congressionally Directed Spending request',
   fara_record: 'FARA registration',
 };
+
+function readableRecordLabel(value: string): string {
+  return TIMELINE_SUBTYPE_LABEL[value] ?? value.replace(/[_-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+}
 
 function useIsAdvocacyAdmin(): boolean {
   const me = useMe();
@@ -653,7 +662,7 @@ function TimelineRow({
       <span className="capiro-advocacy-timeline-row__main">
         <span className="capiro-advocacy-timeline-row__title">{entry.title}</span>
         <span className="capiro-advocacy-timeline-row__meta">
-          {TIMELINE_SUBTYPE_LABEL[entry.subtype] ?? entry.subtype}
+          {readableRecordLabel(entry.subtype)}
           {entry.date ? ` · ${formatDateShort(entry.date)}` : ' · Undated'}
           {entry.attributionNeedsReview ? ' · Attribution needs review' : entry.evidenceClass ? ` · ${EVIDENCE_LABEL[entry.evidenceClass] ?? entry.evidenceClass}` : ''}
         </span>
@@ -1241,7 +1250,8 @@ function RecordRow({
       </div>
       <span className="capiro-advocacy-record__meta">
         {record.activityDate ? formatDateShort(record.activityDate) : 'Undated'}
-        {record.status ? ` · ${record.status}` : ''}
+        {` · ${readableRecordLabel(record.recordType)}`}
+        {record.status ? ` · ${readableRecordLabel(record.status)}` : ''}
         {!attributionReview && record.confidence != null && record.confidence < 1 ? ` · ${Math.round(record.confidence * 100)}% confidence` : ''}
       </span>
       {attributionReview ? <p role="note" className="capiro-advocacy-form-hint">This public record has no verified organization-to-client mapping. Review the source before attributing it to this client. Matter assignment corrections are preserved.</p> : null}

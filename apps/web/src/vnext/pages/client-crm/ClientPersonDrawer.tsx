@@ -171,6 +171,7 @@ export function ClientPersonDrawer({
               onChange={(event) => set('name', event.target.value)}
             />
           </Field>
+          {person ? <p className="capiro-crm__foot">Saved titles may describe a current or historical role. Verify changes against a dated source; keep former roles and the source in Notes. Hierarchy placement does not verify employment.</p> : null}
           <Field label="Title">
             <input
               className="capiro-crm-form__input"
@@ -428,3 +429,4 @@ function messageOf(error: unknown): string {
   if (Array.isArray(data?.message)) return data.message.join(', ');
   return error instanceof Error ? error.message : 'Save failed';
 }
+

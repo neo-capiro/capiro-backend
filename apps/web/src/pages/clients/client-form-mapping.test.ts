@@ -71,3 +71,55 @@ describe('client funding profile form mapping', () => {
     ).toEqual(['Rural broadband', 'Workforce training']);
   });
 });
+
+describe('registration editing round trips', () => {
+  it('retains every legacy generic NAICS code through an unrelated save without inventing a primary', () => {
+    const saved = { ...client, intakeData: { naics: '541330, 541512; 336414', note: 'retain' } } as Client;
+    const values = clientToFormValues(saved);
+    expect(values.naicsCodes).toEqual(['541330', '541512', '336414']);
+    const payload = formValuesToClientPayload({ ...values, name: 'Updated name' }, saved);
+    expect(payload.naicsCodes).toEqual(['541330', '541512', '336414']);
+    expect(payload.intakeData).toEqual({ note: 'retain' });
+  });
+
+  it('retains all codes recorded in explicit-primary aliases while preserving the selected primary', () => {
+    const saved = { ...client, intakeData: {
+      primaryNaics: '541330, 541512', primary_naics: '336414',
+      naics: '541712', additionalNaics: '541330', additional_naics: '541715',
+    } } as Client;
+    const values = clientToFormValues(saved);
+    expect(values.naicsCodes).toEqual(['541330', '541512', '336414', '541712', '541715']);
+    const payload = formValuesToClientPayload(values, saved);
+    expect(payload.naicsCodes).toEqual(values.naicsCodes);
+    expect(payload.intakeData).toEqual({ primaryNaics: '541330', additionalNaics: '541512, 336414, 541712, 541715' });
+  });
+
+  it('reconciles stale legacy NAICS fields to the edited canonical list while preserving other data', () => {
+    const saved = { ...client, naicsCodes: ['336414'], intakeData: { ...client.intakeData, primaryNaics: '541330', additionalNaics: '541512' } } as Client;
+    const values = clientToFormValues(saved);
+    expect(values.naicsCodes).toEqual(['336414']);
+    const payload = formValuesToClientPayload(values, saved);
+    expect(payload.naicsCodes).toEqual(['336414']);
+    expect(payload.intakeData).not.toHaveProperty('primaryNaics');
+    expect(payload.intakeData).not.toHaveProperty('additionalNaics');
+    expect(payload.intakeData?.peNumber).toBe('0604215N');
+  });
+  it('loads legacy-only codes into the editor, preserving a real primary on save', () => {
+    const saved = { ...client, intakeData: { primaryNaics: '541330', additionalNaics: '541512, 336414' } } as Client;
+    const values = clientToFormValues(saved);
+    expect(values.naicsCodes).toEqual(['541330', '541512', '336414']);
+    const payload = formValuesToClientPayload(values, saved);
+    expect(payload.intakeData).toMatchObject({ primaryNaics: '541330', additionalNaics: '541512, 336414' });
+  });
+  it('normalizes a formatted EIN while retaining an invalid unchanged saved value for review', () => {
+    expect(formValuesToClientPayload({ name: 'Client', ein: '12-3456789' }).intakeData?.ein).toBe('123456789');
+    expect(formValuesToClientPayload({ name: 'Client', ein: '123456' }).intakeData?.ein).toBe('123456');
+  });
+  it('extracts identifiers from older NAICS descriptions without treating words as codes', () => {
+    const saved = { ...client, intakeData: { primaryNaics: '541512 · Computer Systems Design Services', additionalNaics: '541330 — Engineering services, 336414' } } as Client;
+    const values = clientToFormValues(saved);
+    expect(values.naicsCodes).toEqual(['541512', '541330', '336414']);
+    const payload = formValuesToClientPayload(values, saved);
+    expect(payload.intakeData).toMatchObject({ primaryNaics: '541512', additionalNaics: '541330, 336414' });
+  });
+});

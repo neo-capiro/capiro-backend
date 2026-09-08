@@ -7,6 +7,7 @@ import {
   fundingPrioritiesFromIntake,
 } from '@capiro/shared';
 import type { Client } from './clientTypes.js';
+import { isValidEin, normalizeEin, readRegistrationNaics, registrationConflicts } from '@capiro/shared/client-registration-integrity';
 import { toRecord } from './client-profile-crm-model.js';
 
 /**
@@ -147,21 +148,19 @@ export function readClientRegistrations(client: Client): ClientRegistrations {
 
   push('UEI', client.uei ?? text(intake, ['uei']));
   push('CAGE', client.cageCode ?? text(intake, ['cageCode', 'cage_code']));
-  push('EIN', text(intake, ['ein']));
+  const ein = text(intake, ['ein']);
+  push('EIN', normalizeEin(ein) ?? ein);
+  if (!isValidEin(ein)) push('EIN — review needed', 'Saved value does not contain nine digits. Verify it against the client’s registration record.');
 
-  // NAICS lives in two shapes: the free-text primary/additional pair the
-  // wizard has always had, and the first-class `naicsCodes[]` array the
-  // relevance engine reads. Prefer the explicit primary; fall back to the
-  // array's first entry so a client edited only through the array still shows one.
-  const naicsCodes = strings(client.naicsCodes);
-  const primaryNaics =
-    text(intake, ['primaryNaics', 'primary_naics', 'naics']) ?? naicsCodes[0] ?? null;
-  push('Primary NAICS', primaryNaics);
-
-  const additionalNaics =
-    text(intake, ['additionalNaics', 'additional_naics']) ??
-    (naicsCodes.length > 1 ? naicsCodes.slice(1).join(', ') : null);
-  push('Additional NAICS', additionalNaics);
+  // Display the same canonical list the editor and matching engine use. A
+  // primary is shown only when it was explicitly recorded and is still listed.
+  const naics = readRegistrationNaics(client);
+  if (naics.primary) {
+    push('Primary NAICS', naics.primary);
+    push('Additional NAICS', naics.codes.filter((code) => code !== naics.primary).join(', '));
+  } else push('NAICS codes', naics.codes.join(', '));
+  if (naics.disagreement) push('NAICS — review needed', `Older registration fields contain ${naics.legacyCodes.join(', ')} and differ from the current NAICS code list. Review the current list in Edit client; it is the list used for matching.`);
+  if (naics.legacyOnly) push('NAICS — review needed', 'These codes come from an older registration record. Review and save them in Edit client to use them for matching.');
 
   push('PSC codes', strings(client.pscCodes).join(', '));
 
@@ -180,6 +179,7 @@ export function readClientRegistrations(client: Client): ClientRegistrations {
   );
 
   rows.push(...readClientOrganizationTypeRows(client));
+  push('Registration — review needed', registrationConflicts(client).map((issue) => issue.message).join(' '));
   push('LDA registrant', text(intake, ['ldaRegistrantName', 'lda_registrant_name']));
   // Legacy free-text. Named for what the field is, not the design's "Contract
   // vehicles" — nothing guarantees the text describes vehicles.

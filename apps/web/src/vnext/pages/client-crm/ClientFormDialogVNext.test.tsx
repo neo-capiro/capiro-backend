@@ -10,7 +10,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GRANTS_GOV_UNRESTRICTED_APPLICANTS } from '@capiro/shared';
+import { GRANTS_GOV_APPLICANT_TYPES, GRANTS_GOV_UNRESTRICTED_APPLICANTS } from '@capiro/shared';
 import { ClientFormDialogVNext } from './ClientFormDialogVNext.js';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
 
@@ -61,6 +61,70 @@ function fillRequiredStepOne() {
 }
 
 describe('ClientFormDialogVNext', () => {
+  it('associates registration labels and NAICS removal controls with their specific inputs', async () => {
+    renderDialog();
+    fillRequiredStepOne();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('textbox', { name: 'CAGE Code' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'UEI' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'SAM.gov status' })).toBeInTheDocument();
+    expect(screen.getByLabelText('SAM.gov expiration date')).toHaveAttribute('type', 'date');
+    const naics = screen.getByRole('textbox', { name: 'NAICS codes' });
+    fireEvent.change(naics, { target: { value: '541330' } });
+    fireEvent.keyDown(naics, { key: 'Enter' });
+    expect(screen.getByRole('textbox', { name: 'NAICS codes' })).toBe(naics);
+    expect(naics).toHaveAccessibleDescription(/Procurement NAICS codes/);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove NAICS code 541330' }));
+    expect(screen.queryByRole('button', { name: 'Remove NAICS code 541330' })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'HUBZone' })).toBeInTheDocument();
+  });
+
+  it('blocks a new malformed EIN and accepts the usual hyphenated format', async () => {
+    const { onSubmit } = renderDialog();
+    fillRequiredStepOne();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /^EIN/ }), { target: { value: '123456' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Enter nine digits, for example 12-3456789, or leave EIN empty.')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox', { name: /^EIN/ }), { target: { value: '12-3456789' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add client' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
+    expect(onSubmit.mock.calls[0]?.[0].payload.intakeData?.ein).toBe('123456789');
+  });
+
+  it('shows saved registration conflicts and invalid EIN without blocking an unrelated correction', async () => {
+    const saved = { id: 'saved', name: 'Example', website: 'example.test', description: 'Example organization', applicantTypes: [GRANTS_GOV_APPLICANT_TYPES[1], GRANTS_GOV_APPLICANT_TYPES[9]], intakeData: { ein: '123456' } } as Client;
+    const { onSubmit } = renderDialog({ mode: 'edit', client: saved });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Registration selections need review')).toBeInTheDocument();
+    expect(screen.getByText(/Saved or entered EIN needs review/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]?.[0].payload.intakeData?.ein).toBe('123456');
+  });
+
+  it('requires correcting new mutually exclusive nonprofit tax statuses', async () => {
+    const { onSubmit } = renderDialog();
+    fillRequiredStepOne();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByText('Select organization types'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Nonprofit with 501(c)(3) status' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Nonprofit without 501(c)(3) status' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose either nonprofit with or without');
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Nonprofit without 501(c)(3) status' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('button', { name: 'Add client' })).toBeInTheDocument();
+  });
+
   it('gates Next on the current step: required company fields block, then advance', async () => {
     renderDialog();
     expect(screen.getByRole('dialog', { name: 'Add client' })).toBeInTheDocument();

@@ -599,20 +599,27 @@ export interface ReportCardData {
   period: { start: string; end: string; label: string };
   activity: {
     meetings: number;
-    /** GAI-29: distinct attendee roles engaged (derived from attendee.role), not offices. */
+    /** Distinct roles listed on meeting records; attendance is not independently verified. */
     uniqueRoles: string[];
     outreachSent: number;
     outreachOpenRate: number;
+    /** Currently done tasks updated in the period; update date is not completion date. */
     tasksCompleted: number;
     debriefsFiled: number;
     mailThreads: number;
   };
   intelligence: {
-    billsTracked: number;
+    billsTracked: number | null;
     billsByStatus: Record<string, number>;
-    competitorCount: number;
-    lobbySpend: number;
-    contractWins: number;
+    relatedOrganizationCount: number | null;
+    lobbySpend: number | null;
+    contractWins: number | null;
+    coverage: {
+      trackedBills: string;
+      relatedOrganizations: string;
+      lobbying: string;
+      contracting: string;
+    };
   };
   outcomes: Array<{
     title: string;

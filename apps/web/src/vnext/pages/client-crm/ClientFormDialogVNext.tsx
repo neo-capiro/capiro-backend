@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { isValidEin, registrationConflicts } from '@capiro/shared/client-registration-integrity';
 import { useQuery } from '@tanstack/react-query';
 import {
   SECTOR_LABELS,
@@ -77,6 +78,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function validateField(
   field: keyof ClientFormValues,
   values: ClientFormValues,
+  existing?: Client | null,
 ): string | undefined {
   if (field === 'name' && !(values.name ?? '').trim()) return 'Legal name is required';
   if (field === 'website' && !(values.website ?? '').trim()) return 'Website is required';
@@ -85,6 +87,14 @@ function validateField(
   if (field === 'primaryContactEmail') {
     const email = (values.primaryContactEmail ?? '').trim();
     if (email && !EMAIL_RE.test(email)) return 'Enter a valid email address';
+  }
+  if (field === 'ein' && !isValidEin(values.ein) && values.ein !== clientToFormValues(existing ?? undefined).ein) {
+    return 'Enter nine digits, for example 12-3456789, or leave EIN empty.';
+  }
+  if (field === 'applicantTypes') {
+    const oldConflicts = new Set(registrationConflicts(existing ?? {}).map((issue) => issue.code));
+    return registrationConflicts(formValuesToClientPayload(values, existing ?? undefined))
+      .find((issue) => issue.blocking && !oldConflicts.has(issue.code))?.message;
   }
   return undefined;
 }
@@ -138,7 +148,7 @@ export function ClientFormDialogVNext({
     setErrors((existing) =>
       existing[field] === undefined
         ? existing
-        : { ...existing, [field]: validateField(field, next) },
+        : { ...existing, [field]: validateField(field, next, client) },
     );
   };
 
@@ -148,7 +158,7 @@ export function ClientFormDialogVNext({
     let first: keyof ClientFormValues | null = null;
     const found: FieldErrors = {};
     for (const field of fields) {
-      const message = validateField(field, values);
+      const message = validateField(field, values, client);
       found[field] = message;
       if (message && first === null) first = field;
     }
@@ -209,7 +219,7 @@ export function ClientFormDialogVNext({
       // Pass the existing client (edit mode) so intakeData merges over the
       // current blob instead of overwriting it — preserves wired keys the
       // wizard doesn't render (peNumber, profileNotes, governmentHistory,
-      // dba, address, primaryNaics/additionalNaics — see
+      // dba, address — see
       // client-form-mapping.ts for the 2026-08-23 field removals).
       payload: formValuesToClientPayload(values, client ?? undefined),
       // Document upload moved out of the wizard — attach files via the
@@ -253,7 +263,7 @@ export function ClientFormDialogVNext({
             <CompanyInfoStep values={values} errors={errors} set={set} />
           </div>
           <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-            <GovRegistrationStep values={values} set={set} />
+            <GovRegistrationStep values={values} errors={errors} set={set} />
           </div>
           <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
             <SectorTracksStep
@@ -423,7 +433,8 @@ function CompanyInfoStep({ values, errors = {}, set }: StepProps) {
 
 /* ── Step 2: Gov't Registration ──────────────────────────────────────────── */
 
-function GovRegistrationStep({ values, set }: StepProps) {
+function GovRegistrationStep({ values, errors = {}, set }: StepProps) {
+  const conflicts = registrationConflicts(formValuesToClientPayload(values));
   return (
     <div className="capiro-cform__grid">
       <CapiroInput
@@ -469,6 +480,8 @@ function GovRegistrationStep({ values, set }: StepProps) {
         placeholder="12-3456789"
         value={values.ein ?? ''}
         onChange={(e) => set('ein', e.target.value)}
+        error={errors.ein}
+        helpText={!isValidEin(values.ein) ? 'Saved or entered EIN needs review: verify the nine-digit value against the client’s registration record. An unchanged saved value can remain while you edit other fields.' : 'Nine digits; a hyphen after the first two digits is optional.'}
       />
       {/* Step 2.3 — first-class NAICS / PSC code lists. These drive client ⇄ PE
           relevance matching (procurement codes). The legacy free-text
@@ -502,6 +515,14 @@ function GovRegistrationStep({ values, set }: StepProps) {
           value={values.applicantTypes ?? []}
           onChange={(list) => set('applicantTypes', list)}
         />
+        {errors.applicantTypes ? <p className="capiro-field__error" role="alert">{errors.applicantTypes}</p> : null}
+        {conflicts.length ? (
+          <div className="capiro-org-types__review" role="status">
+            <strong>Registration selections need review</strong>
+            <p>These are saved profile selections, not independently verified eligibility.</p>
+            <ul>{conflicts.map((issue) => <li key={issue.code}>{issue.message}</li>)}</ul>
+          </div>
+        ) : null}
       </div>
       <div className="capiro-cform__span2">
         <MultiCheckField
@@ -664,9 +685,11 @@ function CformCheck({
   checked?: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const id = useId();
   return (
-    <label className="capiro-cform__check">
+    <label className="capiro-cform__check" htmlFor={id}>
       <input
+        id={id}
         type="checkbox"
         checked={Boolean(checked)}
         onChange={(e) => onChange(e.target.checked)}
@@ -873,8 +896,8 @@ function TagListField({
     return true;
   };
   return (
-    <label className="capiro-field" htmlFor={id}>
-      <span className="capiro-field__label">{label}</span>
+    <div className="capiro-field">
+      <label className="capiro-field__label" htmlFor={id}>{label}</label>
       {values.length ? (
         <div className="capiro-cform__chips">
           {values.map((v) => (
@@ -883,7 +906,7 @@ function TagListField({
               <button
                 type="button"
                 className="capiro-cform__chip-x"
-                aria-label={`Remove ${v}`}
+                aria-label={`Remove ${label === 'NAICS codes' ? 'NAICS code ' : label === 'PSC codes' ? 'PSC code ' : ''}${v}`}
                 onClick={() => onChange(values.filter((x) => x !== v))}
               >
                 ×
@@ -898,7 +921,7 @@ function TagListField({
         placeholder={placeholder}
         value={pending}
         aria-invalid={Boolean(error)}
-        aria-describedby={error && id ? `${id}-error` : undefined}
+        aria-describedby={id ? [helpText ? `${id}-help` : undefined, error ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined : undefined}
         onChange={(e) => {
           setPending(e.target.value);
         }}
@@ -914,13 +937,13 @@ function TagListField({
           if (commit(pending)) setPending('');
         }}
       />
-      {helpText ? <span className="capiro-field__help">{helpText}</span> : null}
+      {helpText ? <span id={id ? `${id}-help` : undefined} className="capiro-field__help">{helpText}</span> : null}
       {error ? (
         <span id={id ? `${id}-error` : undefined} className="capiro-field__error" role="alert">
           {error}
         </span>
       ) : null}
-    </label>
+    </div>
   );
 }
 

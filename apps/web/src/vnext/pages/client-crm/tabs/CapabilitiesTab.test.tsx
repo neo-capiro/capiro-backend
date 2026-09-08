@@ -96,6 +96,7 @@ describe('ClientCrmCapabilitiesProto', () => {
       ...client,
       uei: 'WQ7RSTUV1234',
       cageCode: '5K2P1',
+      naicsCodes: ['541512'],
       pscCodes: ['5865', 'R425'],
       setAsideCertifications: ['HZC'],
       intakeData: {
@@ -109,7 +110,7 @@ describe('ClientCrmCapabilitiesProto', () => {
     expect(await screen.findByText('WQ7RSTUV1234')).toBeInTheDocument();
     expect(screen.getByText('5K2P1')).toBeInTheDocument();
     expect(screen.getByText('5865, R425')).toBeInTheDocument();
-    expect(screen.getByText('541512 · Computer Systems Design Services')).toBeInTheDocument();
+    expect(screen.getByText('541512')).toBeInTheDocument();
     // SAM codes render as their English labels, from the same option list the
     // Company Info wizard writes them with.
     expect(screen.getByText('HUBZone')).toBeInTheDocument();
@@ -135,6 +136,22 @@ describe('ClientCrmCapabilitiesProto', () => {
 /* ── capability evidence ("4 New capability" row 2) ──────────────────────── */
 
 describe('ClientCrmCapabilitiesProto — capability evidence (row 2)', () => {
+  it.each([
+    [null, 'Not set'],
+    [undefined, 'Not set'],
+    [2, 'Research'],
+    [5, 'Prototype'],
+    [8, 'Fielded'],
+  ])('distinguishes unknown TRL %s from an evidenced maturity band', async (trl, maturity) => {
+    getMock.mockResolvedValue({
+      data: [{ id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [], trl }],
+    });
+    renderCapabilities();
+    const card = await screen.findByRole('button', { name: /Autonomy stack/i });
+    expect(card).toHaveTextContent(maturity);
+    if (trl == null) expect(card).not.toHaveTextContent('Research');
+  });
+
   it('renders no invented matches count or evidence tier on a real capability', async () => {
     getMock.mockResolvedValue({
       data: [{ id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [] }],

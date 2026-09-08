@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { isISO8601 } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 
@@ -49,6 +50,7 @@ export interface ActivityItem {
   id: string;
   kind: ActivityKind;
   occurredAt: string;
+  createdAt?: string;
   title: string;
   body: string | null;
   personId: string | null;
@@ -126,6 +128,7 @@ export class ClientActivityService {
           id: row.id,
           kind: row.kind as ActivityKind,
           occurredAt: row.occurredAt.toISOString(),
+          createdAt: row.createdAt?.toISOString(),
           title: row.title,
           body: row.body,
           personId: row.personId,
@@ -212,6 +215,11 @@ export class ClientActivityService {
       // quick-add write one would create a second, diverging copy.
       throw new BadRequestException(`${input.kind} activity is recorded by its own feature`);
     }
+    if (input.occurredAt != null) {
+      const occurredAt = new Date(input.occurredAt);
+      if (!isISO8601(input.occurredAt, { strict: true, strictSeparator: true }) || !Number.isFinite(occurredAt.getTime())) throw new BadRequestException('Enter a valid activity date and time');
+      if (occurredAt.getTime() > Date.now()) throw new BadRequestException('Activity must have already occurred');
+    }
     if (input.dueAt && input.kind !== 'commitment' && input.kind !== 'request') {
       throw new BadRequestException('Only commitments and requests carry a due date');
     }
@@ -285,3 +293,4 @@ export class ClientActivityService {
     });
   }
 }
+

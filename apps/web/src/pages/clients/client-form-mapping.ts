@@ -9,6 +9,7 @@
  * antd-carrying module. Behavior is unchanged; the functions moved verbatim.
  */
 import { normalizeFundingPriorities, normalizeSector } from '@capiro/shared';
+import { normalizeEin, readRegistrationNaics, reconcileRegistrationNaics } from '@capiro/shared/client-registration-integrity';
 import type { Client, ClientFormValues, ClientPayload } from './clientTypes.js';
 
 // The 3 wizard steps (post cleanup — see docs/plans note below). Logo lives
@@ -119,8 +120,7 @@ export function formValuesToClientPayload(
 
   // The wizard-owned intakeData keys. Compute their new values; an undefined
   // value means "clear this key". Everything NOT in this set (peNumber,
-  // profileNotes, governmentHistory, documents, dba, address fields,
-  // primaryNaics/additionalNaics — all removed from the wizard 2026-08-23,
+  // profileNotes, governmentHistory, documents, dba, address fields — removed from the wizard 2026-08-23,
   // see CLIENT_FORM_STEP_FIELDS comment — plus anything else unrendered) is
   // preserved from the existing blob below so editing through the wizard
   // never wipes data written by an older wizard version or another surface.
@@ -131,16 +131,15 @@ export function formValuesToClientPayload(
     samStatus: optionalText(values.samStatus),
     samExpirationDate: optionalText(values.samExpirationDate),
     ldaRegistrantName: optionalText(values.ldaRegistrantName),
-    ein: optionalText(values.ein),
+    ein: normalizeEin(values.ein) ?? optionalText(values.ein),
     sectors: sectors.length ? sectors : undefined,
     engagementStartDate: optionalText(values.engagementStartDate),
     internalNotes: optionalText(values.internalNotes),
   };
 
   // Merge: existing blob first, then apply each wizard-owned key (set or
-  // delete). Non-wizard keys — including dba/address/primaryNaics/
-  // additionalNaics from older intakeData — ride through untouched so
-  // removing these fields from the wizard does not delete pre-existing data.
+  // delete). Other fields ride through. Legacy NAICS fields are reconciled
+  // separately with the canonical code list below.
   const intakeData: Record<string, unknown> = { ...toRecord(existing?.intakeData) };
   for (const [key, value] of Object.entries(wizardIntake)) {
     if (value === undefined) delete intakeData[key];
@@ -183,6 +182,7 @@ export function formValuesToClientPayload(
   payload.uei = optionalText(values.uei)?.toUpperCase() ?? null;
   payload.cageCode = optionalText(values.cageCode)?.toUpperCase() ?? null;
   payload.naicsCodes = normalizeCodes(values.naicsCodes);
+  payload.intakeData = reconcileRegistrationNaics(intakeData, payload.naicsCodes);
   payload.pscCodes = normalizeCodes(values.pscCodes);
   // NOT normalizeCodes: these are exact vendor label strings, and upper-casing or
   // stripping punctuation would stop them matching federal_grant.eligibility.
@@ -232,7 +232,7 @@ export function clientToFormValues(client?: Client): ClientFormValues {
     // Gov't registration — prefer the first-class columns (Step 2.3), fall back to intakeData.
     cageCode: client.cageCode ?? readText(intake, ['cageCode', 'cage_code']),
     uei: client.uei ?? readText(intake, ['uei']),
-    naicsCodes: Array.isArray(client.naicsCodes) ? client.naicsCodes : [],
+    naicsCodes: readRegistrationNaics(client).codes,
     pscCodes: Array.isArray(client.pscCodes) ? client.pscCodes : [],
     applicantTypes: Array.isArray(client.applicantTypes) ? client.applicantTypes : [],
     setAsideCertifications: Array.isArray(client.setAsideCertifications)

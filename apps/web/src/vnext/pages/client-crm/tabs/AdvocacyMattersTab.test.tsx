@@ -408,6 +408,22 @@ describe('ClientCrmAdvocacyMattersProto', () => {
     expect(screen.getByText('Won ask')).toBeInTheDocument();
   });
 
+  it('shows readable source types in the advocacy timeline', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/timeline')) return { data: [
+        { id: 'testimony-1', kind: 'record', title: 'Hearing appearance', subtype: 'congressional_testimony', date: '2026-03-12', evidenceClass: 'PUBLIC_RECORD', confidence: 0.8, matterId: null, matterTitle: null },
+        { id: 'fara-1', kind: 'record', title: 'Registration filing', subtype: 'fara_registration', date: '2026-03-11', evidenceClass: 'PUBLIC_RECORD', confidence: 0.8, matterId: null, matterTitle: null },
+      ] };
+      return { data: [] };
+    });
+    renderMatters();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Timeline' }));
+    expect(await screen.findByText(/Congressional testimony/)).toBeInTheDocument();
+    expect(screen.getByText(/FARA registration/)).toBeInTheDocument();
+    expect(screen.queryByText(/congressional_testimony/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/fara_registration/)).not.toBeInTheDocument();
+  });
+
   it('§18/19 Timeline: toggling to Timeline fetches and renders cross-Matter entries chronologically, distinct from the Matters list', async () => {
     getMock.mockImplementation(async (url: string) => {
       if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };

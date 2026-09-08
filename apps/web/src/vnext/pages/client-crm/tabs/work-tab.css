@@ -41,7 +41,7 @@
 .cap-pf-work-drawer__head,
 .cap-pf-work-drawer__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px 58px 84px 104px;
+  grid-template-columns: minmax(0, 1fr) 132px 90px 84px 104px;
   align-items: center;
   gap: 14px;
 }
@@ -108,6 +108,7 @@
   flex-wrap: wrap;
 }
 .cap-pf-work-drawer__footer > button { margin-left: auto; }
+.cap-pf-work-drawer__count-note { flex-basis: 100%; color: #667085; font-size: 12px; }
 .cap-pf-work-drawer__truth {
   display: inline-flex;
   align-items: center;

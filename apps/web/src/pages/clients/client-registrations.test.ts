@@ -61,6 +61,53 @@ describe('client organization display', () => {
   });
 });
 
+describe('registration accuracy', () => {
+  it('shows every generic legacy NAICS identifier without assigning a primary', () => {
+    const { rows } = readClientRegistrations(client({ intakeData: { naics: '541330, 541512' } }));
+    expect(rows).toContainEqual({ label: 'NAICS codes', value: '541330, 541512' });
+    expect(rows.some((row) => row.label === 'Primary NAICS')).toBe(false);
+  });
+
+  it.each([
+    { intakeData: { sbClassification: { sb: true } } },
+    { intakeData: { sbClassification: { large: true } } },
+    { intakeData: { sbClassification: { wosb: true } } },
+    { setAsideCertifications: ['8A'] },
+  ])('surfaces nonprofit/business facts stored outside organization types for review: %j', (fields) => {
+    const saved = client({ applicantTypes: [GRANTS_GOV_APPLICANT_TYPES[1]], ...fields });
+    const before = structuredClone(saved);
+    const { rows } = readClientRegistrations(saved);
+    expect(rows.find((row) => row.label === 'Registration — review needed')?.value).toContain('A nonprofit organization type and business classifications or set-aside certifications');
+    expect(saved).toEqual(before);
+  });
+
+  it('uses the same canonical codes as editing and matching, without guessing a primary', () => {
+    const { rows } = readClientRegistrations(client({ naicsCodes: ['336414'], intakeData: { primaryNaics: '541330', additionalNaics: '541512' } } as Partial<Client>));
+    expect(rows).toContainEqual({ label: 'NAICS codes', value: '336414' });
+    expect(rows.some((row) => row.label === 'Primary NAICS')).toBe(false);
+    expect(rows.some((row) => row.label === 'NAICS — review needed')).toBe(true);
+  });
+  it('keeps a recorded primary only when it belongs to the canonical list', () => {
+    const { rows } = readClientRegistrations(client({ naicsCodes: ['541330', '336414'], intakeData: { primaryNaics: '541330', additionalNaics: '541512' } } as Partial<Client>));
+    expect(rows).toContainEqual({ label: 'Primary NAICS', value: '541330' });
+    expect(rows).toContainEqual({ label: 'Additional NAICS', value: '336414' });
+  });
+  it('does not resurrect cleared codes from legacy intake', () => {
+    const { rows } = readClientRegistrations(client({ naicsCodes: [], intakeData: { primaryNaics: '541330' } } as Partial<Client>));
+    expect(rows.some((row) => row.label === 'Primary NAICS' || row.label === 'NAICS codes')).toBe(false);
+  });
+  it('flags invalid EIN and saved identity contradictions without changing stored facts', () => {
+    const saved = client({ applicantTypes: [GRANTS_GOV_APPLICANT_TYPES[13], GRANTS_GOV_APPLICANT_TYPES[1]], intakeData: { ein: '123456', sbClassification: { large: true } } } as Partial<Client>);
+    const before = structuredClone(saved);
+    const { rows } = readClientRegistrations(saved);
+    expect(rows).toContainEqual({ label: 'EIN', value: '123456' });
+    expect(rows.some((row) => row.label === 'EIN — review needed')).toBe(true);
+    expect(rows.find((row) => row.label === 'Registration — review needed')?.value).toContain('For-profit and nonprofit');
+    expect(rows.find((row) => row.label === 'Registration — review needed')?.value).toContain('Small and large business');
+    expect(saved).toEqual(before);
+  });
+});
+
 describe('client funding priority display', () => {
   it('reads explicit priorities separately from broad sector and focus tags', () => {
     expect(

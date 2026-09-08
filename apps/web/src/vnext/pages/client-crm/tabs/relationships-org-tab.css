@@ -333,3 +333,6 @@
   font-size: 14px;
   color: var(--capiro-color-text-primary);
 }
+
+
+.rel-org-role-review { padding: 12px; border-radius: 8px; background: var(--capiro-color-surface-warning, #fffaeb); color: var(--capiro-color-text-primary, #344054); font-size: 13px; line-height: 1.5; }

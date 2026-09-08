@@ -22,6 +22,9 @@ import { getMailThread, type MailRecipient, type MailThread } from '../mail-api.
 import { dayKey } from '../../../../pages/engagement/meetings/meetings-format.js';
 import { useMe } from '../../../../lib/me.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
+import { CapiroModal } from '../../../components/overlays/index.js';
+import { CapiroButton } from '../../../components/actions/index.js';
+import { activityBodyLabel } from '../activity-presentation.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './relationships-history-tab.css';
 
@@ -75,6 +78,7 @@ interface HistEntry {
   meta: string;
   action: string;
   onAction?: () => void;
+  onRemove?: () => void;
   /**
    * Reply-all, offered ONLY on an email-thread row and ONLY as a second
    * control. #1445 made the single email action a silent reply-all, which
@@ -112,6 +116,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   const [filter, setFilter] = useState<GroupFilter>('All');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<ActivityKind | null>(null);
+  const [removing, setRemoving] = useState<ActivityItem | null>(null);
   const [replyTarget, setReplyTarget] = useState<{
     to: MailRecipient;
     cc: MailRecipient[];
@@ -155,6 +160,14 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       (await api.post(`/api/clients/${client.id}/activity`, body)).data,
     onSuccess: () => {
       setAdding(null);
+      void qc.invalidateQueries({ queryKey: ['client-activity', client.id] });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/api/clients/${client.id}/activity/${encodeURIComponent(id)}`)).data,
+    onSuccess: () => {
+      setRemoving(null);
       void qc.invalidateQueries({ queryKey: ['client-activity', client.id] });
     },
   });
@@ -238,8 +251,9 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         title: item.title,
         // Synced meeting rows can carry a raw join URL (with an embedded
         // password) as their body — mask it to a platform name before render.
-        body: maskJoinUrls(item.body),
+        body: maskJoinUrls(activityBodyLabel(item)),
         meta: provenance(item),
+        onRemove: recorded ? () => { remove.reset(); setRemoving(item); } : undefined,
         action: recorded ? (item.pinned ? 'Pinned' : 'Pin') : view.action,
         onAction: recorded
           ? () => mutate.mutate({ id: item.id, pinned: !item.pinned })
@@ -316,6 +330,16 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           error={create.error}
         />
       ) : null}
+
+      {removing ? <CapiroModal open title="Remove activity?" onClose={() => { if (!remove.isPending) setRemoving(null); }}>
+        <p>Permanently remove “{removing.title}” from this client's timeline? This also removes it from pinned notes and open commitments.</p>
+        <p>Only remove an entry after confirming it is no longer needed, such as a test entry your team has verified.</p>
+        {remove.isError ? <p role="alert">Could not remove this activity. Try again.</p> : null}
+        <div className="capiro-crm__form-actions">
+          <CapiroButton variant="primary" loading={remove.isPending} onClick={() => remove.mutate(removing.id)}>Remove activity</CapiroButton>
+          <CapiroButton variant="secondary" disabled={remove.isPending} onClick={() => setRemoving(null)}>Cancel</CapiroButton>
+        </div>
+      </CapiroModal> : null}
 
       {replyTarget ? (
         <EmailComposeModal
@@ -536,6 +560,8 @@ function TimelineEntry({
               {expanded ? 'Show less' : 'Read more'}
             </button>
           ) : null}
+          {entry.onRemove ? <button type="button" className="rel-hist-row-action" onClick={entry.onRemove}
+            aria-label={`Remove ${entry.title}`}>Remove</button> : null}
           {entry.onAction ? (
             <button type="button" onClick={entry.onAction} className="rel-hist-row-action">
               {entry.action}
@@ -851,7 +877,11 @@ function buildReplyRecipients(
 }
 
 function provenance(item: ActivityItem): string {
-  if (item.origin === 'recorded') return item.pinned ? 'Logged by your firm · Pinned' : 'Logged by your firm';
+  if (item.origin === 'recorded') {
+    const logged = item.createdAt && Number.isFinite(Date.parse(item.createdAt))
+      ? ` · Logged ${new Date(item.createdAt).toLocaleString()}` : '';
+    return `Logged by your firm${logged}${item.pinned ? ' · Pinned' : ''}`;
+  }
   if (item.sourceType === 'meeting') return 'Meeting record · notes and debrief available';
   if (item.sourceType === 'attachment') return 'Workspace · client file';
   if (item.sourceType === 'outreach') return 'Outreach campaign · strategy-linked';
@@ -873,3 +903,4 @@ function commitmentTone(dueAt: string | null): PillTone {
 function formatDay(iso: string): string {
   return formatDateShort(iso) ?? 'Undated';
 }
+

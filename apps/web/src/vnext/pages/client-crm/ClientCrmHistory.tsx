@@ -6,6 +6,7 @@ import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroModal } from '../../components/overlays/index.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
+import { activityBodyLabel, localActivityDate, localActivityNow } from './activity-presentation.js';
 
 /**
  * Relationships / Relationship history — Figma `906:3360`.
@@ -36,6 +37,8 @@ export interface ActivityItem {
   id: string;
   kind: Kind;
   occurredAt: string;
+  /** Time the team logged a manual activity, separate from when it occurred. */
+  createdAt?: string;
   title: string;
   body: string | null;
   personId: string | null;
@@ -231,7 +234,7 @@ export function ClientCrmHistory({ client }: { client: Client }) {
                       ) : null}
                     </div>
                     <p className="capiro-crm__event-title">{item.title}</p>
-                    {item.body ? <p className="capiro-crm__foot">{item.body}</p> : null}
+                    {item.body ? <p className="capiro-crm__foot">{activityBodyLabel(item)}</p> : null}
                   </div>
                 </li>
               ))}
@@ -312,6 +315,10 @@ export function LogActivityModal({
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [dueAt, setDueAt] = useState('');
+  const [occurredAt, setOccurredAt] = useState(localActivityNow);
+  const occurredAtIso = localActivityDate(occurredAt);
+  const occurredAtError = !occurredAtIso ? 'Enter a valid date and time.'
+    : Date.parse(occurredAtIso) > Date.now() ? 'Activity must have already occurred. Use the due date for future commitments.' : null;
 
   const carriesDue = kind === 'commitment' || kind === 'request';
 
@@ -349,6 +356,17 @@ export function LogActivityModal({
             onChange={(event) => setBody(event.target.value)}
           />
         </label>
+        <label className="capiro-crm-form__field">
+          <span className="capiro-crm__meta">When it happened *</span>
+          <input type="datetime-local" className="capiro-crm-form__input"
+            value={occurredAt} max={localActivityNow()} required
+            onChange={(event) => setOccurredAt(event.target.value)}
+            aria-describedby="activity-occurred-help" aria-invalid={Boolean(occurredAtError)} />
+        </label>
+        <p id="activity-occurred-help" className="capiro-crm__foot">
+          Your local time ({Intl.DateTimeFormat().resolvedOptions().timeZone}). The time you log this entry is saved separately.
+        </p>
+        {occurredAtError ? <p role="alert" className="capiro-crm__state--error">{occurredAtError}</p> : null}
         {carriesDue ? (
           <label className="capiro-crm-form__field">
             <span className="capiro-crm__meta">Due</span>
@@ -372,11 +390,12 @@ export function LogActivityModal({
             variant="primary"
             size="compact"
             loading={pending}
-            disabled={!title.trim()}
+            disabled={!title.trim() || Boolean(occurredAtError)}
             onClick={() =>
               onSubmit({
                 kind,
                 title: title.trim(),
+                occurredAt: occurredAtIso,
                 ...(body.trim() ? { body: body.trim() } : {}),
                 ...(carriesDue && dueAt ? { dueAt: new Date(dueAt).toISOString() } : {}),
               })
@@ -406,3 +425,4 @@ function formatWhen(iso: string): string {
     ...(date.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' }),
   });
 }
+

@@ -294,14 +294,15 @@ interface CapabilityAreaView {
 
 /**
  * The backend carries no maturity field — derive the design's bands from TRL:
- * ≥7 Fielded (success), 4–6 Prototype (blue), otherwise Research (warning).
+ * ≥7 Fielded (success), 4–6 Prototype (blue), 1–3 Research (warning).
+ * An absent TRL is unknown, not evidence of an early research stage.
  *
  * Nothing else is invented. Matches and evidence tier/source have no field on
  * the capability model, so a live card simply does not render them.
  */
 function toLiveAreaView(cap: Capability): CapabilityAreaView {
-  const maturity = cap.trl != null && cap.trl >= 7 ? 'Fielded' : cap.trl != null && cap.trl >= 4 ? 'Prototype' : 'Research';
-  const tone: PillTone = maturity === 'Fielded' ? 'success' : maturity === 'Prototype' ? 'blue' : 'warning';
+  const maturity = cap.trl == null ? 'Not set' : cap.trl >= 7 ? 'Fielded' : cap.trl >= 4 ? 'Prototype' : 'Research';
+  const tone: PillTone = maturity === 'Not set' ? 'gray' : maturity === 'Fielded' ? 'success' : maturity === 'Prototype' ? 'blue' : 'warning';
   const pe = cap.peNumbers[0] ?? cap.peNumber;
   return {
     key: cap.id,

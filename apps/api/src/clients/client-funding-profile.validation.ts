@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { isValidEin, normalizeEin, normalizeNaicsCodes, reconcileRegistrationNaics, registrationConflicts } from '@capiro/shared/client-registration-integrity';
 import {
   applicantTypeKey,
   GRANTS_GOV_ORGANIZATION_TYPE_GROUPS,
@@ -13,11 +14,16 @@ export const CLIENT_ORGANIZATION_TYPES = GRANTS_GOV_ORGANIZATION_TYPE_GROUPS.fla
 
 type FundingProfileInput = {
   applicantTypes?: string[];
+  naicsCodes?: string[];
+  setAsideCertifications?: string[];
   intakeData?: Record<string, unknown>;
 };
 
 type StoredFundingProfile = {
   applicantTypes?: readonly string[];
+  naicsCodes?: readonly string[];
+  setAsideCertifications?: readonly string[];
+  intakeData?: unknown;
 };
 
 /**
@@ -64,6 +70,18 @@ export function validateClientFundingProfile(
     // Keep the existing whole-object write contract. Editors merge unrelated
     // saved fields and can intentionally clear a priority by omitting its key.
     const intakeData = { ...supplied };
+    if ('ein' in intakeData) {
+      const oldIntake = existing?.intakeData && typeof existing.intakeData === 'object' && !Array.isArray(existing.intakeData)
+        ? existing.intakeData as Record<string, unknown> : {};
+      if (!isValidEin(intakeData.ein) && intakeData.ein !== oldIntake.ein) {
+        throw new BadRequestException('EIN must contain nine digits, for example 12-3456789, or be left empty.');
+      }
+      if (isValidEin(intakeData.ein)) {
+        const ein = normalizeEin(intakeData.ein);
+        if (ein) intakeData.ein = ein;
+        else delete intakeData.ein;
+      }
+    }
     if ('fundingPriorities' in supplied) {
       const priorities = supplied.fundingPriorities;
       if (!Array.isArray(priorities) || priorities.length > MAX_FUNDING_PRIORITIES) {
@@ -86,6 +104,22 @@ export function validateClientFundingProfile(
     }
     result.intakeData = intakeData;
   }
+
+  if ('naicsCodes' in input) {
+    if (!Array.isArray(input.naicsCodes) || input.naicsCodes.some((value) => typeof value !== 'string')) {
+      throw new BadRequestException('NAICS codes must be a list of text values.');
+    }
+    result.naicsCodes = normalizeNaicsCodes(input.naicsCodes);
+    // An API caller may update only the canonical list. Reconcile legacy fields
+    // in the same write so they cannot reappear as contradictory display data.
+    const intake = result.intakeData ?? existing?.intakeData;
+    if (intake !== undefined) result.intakeData = reconcileRegistrationNaics(intake, result.naicsCodes);
+  }
+
+  const previousConflicts = new Set(registrationConflicts(existing ?? {}).map((issue) => issue.code));
+  const nextProfile = { ...existing, ...input, ...result };
+  const newConflict = registrationConflicts(nextProfile).find((issue) => issue.blocking && !previousConflicts.has(issue.code));
+  if (newConflict) throw new BadRequestException(newConflict.message);
 
   return result;
 }

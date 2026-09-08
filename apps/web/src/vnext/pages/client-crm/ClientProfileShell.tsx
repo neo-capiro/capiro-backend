@@ -147,20 +147,16 @@ export function ClientProfileShell({
       <div className="cap-pf-client__crumbs cap-pf-breadcrumb-bar">
         <CrumbButton label="All clients" back onClick={() => navigate('/clients')} />
         <span className="cap-pf-breadcrumb-spacer" />
-        {/* Item 11: real freshness. The green pulse is a health claim, so it
-            only shows when every source answered — a failing source turns the
-            dot amber and the copy says what happened instead of a stale time.
-            This measures when the app last fetched, which is what "refreshed"
-            means here; no per-client ingestion timestamp exists to read. */}
-        <span className="cap-pf-breadcrumb-freshness">
+        {/* Fetch status for the six profile sections checked by the health drawer. */}
+        <span className="cap-pf-breadcrumb-freshness" title="Profile section fetch status. Intelligence sources and upstream data freshness are not included.">
           <span
             className={`cap-pf-freshness-dot cap-pf-freshness-dot--${freshnessState}${sourceFailures === 0 ? ' cap-pf-anim-pulse' : ''}`}
           />
           {sourceFailures > 0
-            ? `${sourceFailures} source${sourceFailures === 1 ? '' : 's'} unavailable`
+            ? `${sourceFailures} profile section${sourceFailures === 1 ? '' : 's'} unavailable`
             : refreshedLabel
-              ? `Sources read ${refreshedLabel}`
-              : 'Reading sources…'}
+              ? `Profile sections read ${refreshedLabel}`
+              : 'Reading profile sections…'}
         </span>
         {profileGapCount > 0 ? (
           <CrumbButton

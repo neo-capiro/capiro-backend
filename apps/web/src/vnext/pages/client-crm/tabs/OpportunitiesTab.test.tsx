@@ -21,6 +21,30 @@ vi.mock('../../../../pages/clients/relevance-api.js', () => ({
 afterEach(cleanup);
 
 describe('client opportunity relevance', () => {
+  test('decodes upstream title entities as plain text without creating markup', async () => {
+    apiGet.mockResolvedValue({ data: {
+      counts: { activeGrants: 1, activeContracts: 0, pursuing: 0, saved: 0 },
+      nextDeadline: null, topContracts: [], topGrants: [{
+        id: 'grant-encoded', source: 'grants_gov', sourceRecordId: 'grant-encoded',
+        title: 'Research &amp; Development &#8212; &lt;img src=x onerror=alert(1)&gt;',
+        kind: 'grant', agency: 'NSF', responseDeadline: null, responseDeadlineNote: null,
+        grantFunding: null, contractValue: null, workflow: null,
+        eligibility: { state: 'needs_review', reason: 'Review applicant criteria.' },
+        matchedSignals: [],
+      }],
+    } });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    render(<MemoryRouter><QueryClientProvider client={queryClient}>
+      <ClientCrmOpportunitiesProto client={{ id: 'client-1', name: 'County' } as Client} />
+    </QueryClientProvider></MemoryRouter>);
+    const link = await screen.findByRole('link', {
+      name: 'Research & Development — <img src=x onerror=alert(1)>',
+    });
+    expect(link.querySelector('img')).toBeNull();
+    expect(link.innerHTML).toContain('&lt;img');
+    expect(link).toHaveAttribute('href', '/intelligence/opportunities/grants_gov/grant-encoded?clientId=client-1');
+  });
+
   test('shows the recorded funding priority separately from grant eligibility', async () => {
     const grant = {
       id: 'grant-1',

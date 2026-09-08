@@ -7,7 +7,7 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 /**
  * Data health — Figma `907:3464`.
  *
- * One place to see whether each source behind this client is actually
+ * One place to see whether the six listed profile sections are actually
  * answering. The reads themselves live in `useClientDataHealth`, shared with
  * the breadcrumb's freshness label and gap chip so the chip's count and this
  * drawer's rows are the same numbers off the same cache, never two opinions.
@@ -28,24 +28,30 @@ export function ClientDataHealthDrawer({
   client: Client;
   onClose: () => void;
 }) {
-  const { rows, gaps, failures, refetchAll } = useClientDataHealth(client);
+  const { rows, gaps, failures, settled, total, refetchAll } = useClientDataHealth(client);
+  const pending = rows.filter((row) => row.state === 'loading').length;
 
   return (
     <CapiroDrawer open title={`Data health — ${client.name}`} onClose={onClose}>
       <div className="capiro-crm-form">
         <p className="capiro-crm__foot">
-          {failures === 0
-            ? 'Every source behind this client answered.'
-            : `${failures} source${failures === 1 ? '' : 's'} could not be read. Counts elsewhere in this profile show a dash rather than a zero for those.`}
+          {`${total} profile sections are checked below. Intelligence feeds, opportunity matching, and upstream source freshness are not checked here.`}
+        </p>
+        <p className="capiro-crm__foot" role="status">
+          {!settled
+            ? `Checking ${pending} of ${total} profile sections…`
+            : failures === 0
+              ? `All ${total} checked profile sections answered.`
+              : `${failures} of ${total} checked profile sections could not be read. Their record counts are unknown.`}
         </p>
         {gaps > 0 ? (
           <p className="capiro-crm__foot">
-            {`${gaps} source${gaps === 1 ? ' answered' : 's answered'} with nothing recorded yet — these are the profile gaps counted in the breadcrumb.`}
+            {`${gaps} checked section${gaps === 1 ? ' answered' : 's answered'} with nothing recorded yet — these are the profile gaps counted in the breadcrumb.`}
           </p>
         ) : null}
 
         <ul className="capiro-crm__rows">
-          {rows.map(({ source, state, count, error }) => (
+          {rows.map(({ source, state, count, error, fetchedAt }) => (
             <li key={source.key} className="capiro-crm__review-row">
               <span className="capiro-crm__row-main">
                 <span className="capiro-crm__row-title">{source.label}</span>
@@ -59,9 +65,14 @@ export function ClientDataHealthDrawer({
                         ? 'Answered · no records yet'
                         : `${count} record${count === 1 ? '' : 's'}`}
                 </span>
+                {fetchedAt != null ? (
+                  <span className="capiro-crm__meta capiro-crm__row-meta">
+                    Last read in this app: <time dateTime={new Date(fetchedAt).toISOString()}>{new Date(fetchedAt).toLocaleString()}</time>
+                  </span>
+                ) : null}
               </span>
               <CapiroBadge
-                tone={state === 'unavailable' ? 'danger' : state === 'empty' ? 'warning' : 'success'}
+                tone={state === 'loading' ? 'neutral' : state === 'unavailable' ? 'danger' : state === 'empty' ? 'warning' : 'success'}
               >
                 {state === 'loading' ? 'CHECKING' : state.toUpperCase()}
               </CapiroBadge>
@@ -71,7 +82,7 @@ export function ClientDataHealthDrawer({
 
         <div className="capiro-crm__form-actions">
           <CapiroButton variant="secondary" size="compact" onClick={refetchAll}>
-            Re-check all
+            Re-check these sections
           </CapiroButton>
           <CapiroButton variant="quiet" size="compact" onClick={onClose}>
             Close

@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { EngagementTaskStatus, Prisma } from '@prisma/client';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { EngagementTaskStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { columnKeywordMatchSql } from './bill-keyword-match.helpers.js';
+import { REPORT_ACTIVITY_COVERAGE, reportFiscalYear, reportLabel } from './report-card-format.js';
 import { InsightGeneratorService } from './insight-generator.service.js';
 
 export interface ReportCardData {
@@ -22,11 +22,17 @@ export interface ReportCardData {
     mailThreads: number;
   };
   intelligence: {
-    billsTracked: number;
+    billsTracked: number | null;
     billsByStatus: Record<string, number>;
-    competitorCount: number;
-    lobbySpend: number;
-    contractWins: number;
+    relatedOrganizationCount: number | null;
+    lobbySpend: number | null;
+    contractWins: number | null;
+    coverage: {
+      trackedBills: string;
+      relatedOrganizations: string;
+      lobbying: string;
+      contracting: string;
+    };
   };
   outcomes: Array<{
     title: string;
@@ -42,6 +48,7 @@ export interface ReportCardData {
 
 @Injectable()
 export class ReportCardService {
+  private readonly logger = new Logger(ReportCardService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly insightGen: InsightGeneratorService,
@@ -75,30 +82,38 @@ export class ReportCardService {
       await Promise.all([
         this.prisma.withTenant(tenantId, (tx) =>
           tx.meeting.findMany({
-            where: { clientId, startsAt: { gte: start } },
+            where: {
+              clientId,
+              startsAt: { gte: start, lte: now },
+              status: { notIn: ['cancelled', 'canceled'] },
+            },
             include: { attendees: true },
           }),
         ),
         this.prisma.withTenant(tenantId, (tx) =>
           tx.outreachRecord.findMany({
-            where: { clientId, sentAt: { gte: start }, deletedAt: null },
+            where: { clientId, sentAt: { gte: start, lte: now }, deletedAt: null },
             select: { id: true, stats: true },
           }),
         ),
         this.prisma.withTenant(tenantId, (tx) =>
           tx.engagementTask.count({
-            where: { clientId, status: EngagementTaskStatus.done, updatedAt: { gte: start } },
+            where: {
+              clientId,
+              status: EngagementTaskStatus.done,
+              updatedAt: { gte: start, lte: now },
+            },
           }),
         ),
         this.prisma.withTenant(tenantId, (tx) =>
-          tx.meetingDebrief.count({ where: { clientId, createdAt: { gte: start } } }),
+          tx.meetingDebrief.count({ where: { clientId, createdAt: { gte: start, lte: now } } }),
         ),
         this.prisma.withTenant(tenantId, (tx) =>
-          tx.mailThread.count({ where: { clientId, lastMessageAt: { gte: start } } }),
+          tx.mailThread.count({ where: { clientId, lastMessageAt: { gte: start, lte: now } } }),
         ),
         this.prisma.withTenant(tenantId, (tx) =>
           tx.clientSubmissionHistory.findMany({
-            where: { clientId, updatedAt: { gte: start } },
+            where: { clientId, updatedAt: { gte: start, lte: now } },
             include: { capability: { select: { name: true } } },
           }),
         ),
@@ -127,10 +142,10 @@ export class ReportCardService {
     const outreachOpenRate = outreachSent > 0 ? Math.min(1, openedRecords / outreachSent) : 0;
 
     // Intelligence metrics via confirmed mappings
-    const [roi, trackedBillsCount, competitorCount] = await Promise.all([
+    const [roi, trackedBills, relatedOrganizations] = await Promise.all([
       this.getLobbyRoi(clientId, tenantId),
       this.getTrackedBillsCount(clientId, tenantId),
-      this.getCompetitorCount(clientId, tenantId),
+      this.getRelatedOrganizationCount(clientId, tenantId),
     ]);
 
     // Weekly engagement health trend
@@ -138,7 +153,9 @@ export class ReportCardService {
     const healthTrendRows: Array<{ start: Date; end: Date }> = [];
     for (let i = weekCount - 1; i >= 0; i--) {
       const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-      const weekStart = new Date(weekEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const weekStart = new Date(
+        Math.max(start.getTime(), weekEnd.getTime() - 7 * 24 * 60 * 60 * 1000),
+      );
       healthTrendRows.push({ start: weekStart, end: weekEnd });
     }
 
@@ -146,7 +163,13 @@ export class ReportCardService {
       healthTrendRows.map(async (w) => {
         const [wMeet, wMail, wTask, wDebrief, wOutreach] = await Promise.all([
           this.prisma.withTenant(tenantId, (tx) =>
-            tx.meeting.count({ where: { clientId, startsAt: { gte: w.start, lt: w.end } } }),
+            tx.meeting.count({
+              where: {
+                clientId,
+                startsAt: { gte: w.start, lt: w.end },
+                status: { notIn: ['cancelled', 'canceled'] },
+              },
+            }),
           ),
           this.prisma.withTenant(tenantId, (tx) =>
             tx.mailThread.count({
@@ -168,7 +191,9 @@ export class ReportCardService {
             }),
           ),
           this.prisma.withTenant(tenantId, (tx) =>
-            tx.outreachRecord.count({ where: { clientId, sentAt: { gte: w.start, lt: w.end } } }),
+            tx.outreachRecord.count({
+              where: { clientId, sentAt: { gte: w.start, lt: w.end }, deletedAt: null },
+            }),
           ),
         ]);
         const score = Math.min(
@@ -184,21 +209,27 @@ export class ReportCardService {
     // AI forward-look
     const contextLines = [
       `CLIENT: ${client.name}`,
-      `PERIOD: trailing ${period === 'quarter' ? '90 days' : '12 months'} (${start.toLocaleDateString()} – ${now.toLocaleDateString()}); NOT a federal fiscal-year period`,
-      `MEETINGS: ${meetings.length} (${uniqueRoles.size} distinct attendee roles engaged)`,
+      `PERIOD: trailing ${period === 'quarter' ? '90 days' : '365 days'} (${start.toLocaleDateString()} – ${now.toLocaleDateString()}); NOT a federal fiscal-year period`,
+      `RECORDED MEETINGS: ${meetings.length} non-cancelled calendar records (${uniqueRoles.size} distinct attendee roles listed; attendance not independently verified)`,
       `OUTREACH: ${outreachSent} sent, ${(outreachOpenRate * 100).toFixed(0)}% open rate`,
-      `TASKS COMPLETED: ${tasksCompleted}`,
+      `COMPLETED TASK RECORDS UPDATED THIS PERIOD: ${tasksCompleted} (last update is not the completion date)`,
       `DEBRIEFS FILED: ${debriefs}`,
       `MAIL THREADS ACTIVE: ${mailThreads}`,
-      `BILLS TRACKED: ${trackedBillsCount}`,
-      `LOBBY SPEND (all-time): $${roi.lobbySpend.toLocaleString()}`,
-      `CONTRACT WINS (all-time): $${roi.contractWins.toLocaleString()}`,
-      `COMPETITOR COUNT: ${competitorCount}`,
-      `SUBMISSIONS THIS PERIOD:`,
-      ...submissions.map((s) => `  - ${s.title} (FY${s.fiscalYear}): ${s.outcomeType}`),
+      `BILLS TRACKED: ${trackedBills.count ?? 'Unavailable'}; ${trackedBills.coverage}`,
+      `REPORTED LDA FILING INCOME: ${roi.lobbySpend === null ? 'Unavailable' : '$' + roi.lobbySpend.toLocaleString()}; ${roi.lobbyingCoverage}`,
+      `REPORTED FEDERAL CONTRACT TOTAL: ${roi.contractWins === null ? 'Unavailable' : '$' + roi.contractWins.toLocaleString()}; ${roi.contractingCoverage}`,
+      `OTHER LDA ORGANIZATION RECORDS WITH SHARED ISSUE CODES: ${relatedOrganizations.count ?? 'Unavailable'}; ${relatedOrganizations.coverage}`,
+      `SUBMISSION RECORDS UPDATED THIS PERIOD (update date does not establish an outcome date):`,
+      ...submissions.map(
+        (s) => `  - ${s.title} (${reportFiscalYear(s.fiscalYear)}): ${reportLabel(s.outcomeType)}`,
+      ),
     ];
 
-    const aiPrompt = `Based on this client's activity and intelligence data for the past ${period === 'quarter' ? 'quarter (90 days)' : 'year'}, write a 3-paragraph forward-looking assessment: (1) key accomplishments and wins, (2) emerging risks and opportunities, (3) recommended priorities for next period. Be specific and cite the data points provided.\n\n${contextLines.join('\n')}`;
+    const aiPrompt = `EVIDENCE RULES:
+${REPORT_ACTIVITY_COVERAGE}
+Never infer inactivity, lost access, diminished influence, lobbying effectiveness, or causation between lobbying and awards from these records. Shared issue codes identify related LDA organization records, not verified competitors or a count of filings. Unavailable metrics are unknown, not zero. Financial totals cover the source's on-record history, not the report's rolling activity period, and may include amendments. Submission update dates do not prove when a win occurred. Distinguish observations from judgments and recommendations, and state coverage limits in the assessment. Do not invent accomplishments or risks; when records are absent, recommend verifying coverage.
+
+Based on this client's activity and intelligence data for the past ${period === 'quarter' ? 'quarter (90 days)' : 'year (365 days)'}, write a 3-paragraph forward-looking assessment: (1) recorded activity and supported outcomes, (2) evidence-backed opportunities and material uncertainties, (3) recommended priorities for next period. Do not manufacture a win or a risk when the available records do not support one. Be specific and cite the data points provided.\n\n${contextLines.join('\n')}`;
 
     const aiForwardLook = await this.insightGen.generateFreeText(aiPrompt).catch(() => '');
 
@@ -212,7 +243,7 @@ export class ReportCardService {
     const periodLabel =
       period === 'quarter'
         ? `Trailing 90 days (${rangeFmt(start)} – ${rangeFmt(now)})`
-        : `Trailing 12 months (${rangeFmt(start)} – ${rangeFmt(now)})`;
+        : `Trailing 365 days (${rangeFmt(start)} – ${rangeFmt(now)})`;
 
     return {
       client: { id: client.id, name: client.name, sectorTag: client.sectorTag ?? null },
@@ -228,11 +259,17 @@ export class ReportCardService {
         mailThreads,
       },
       intelligence: {
-        billsTracked: trackedBillsCount,
+        billsTracked: trackedBills.count,
         billsByStatus: {},
-        competitorCount,
+        relatedOrganizationCount: relatedOrganizations.count,
         lobbySpend: roi.lobbySpend,
         contractWins: roi.contractWins,
+        coverage: {
+          trackedBills: trackedBills.coverage,
+          relatedOrganizations: relatedOrganizations.coverage,
+          lobbying: roi.lobbyingCoverage,
+          contracting: roi.contractingCoverage,
+        },
       },
       outcomes: submissions.map((s) => ({
         title: s.title,
@@ -254,87 +291,120 @@ export class ReportCardService {
       ),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findFirst({
-          where: { clientId, source: 'contracting', confirmed: true, reviewStatus: 'confirmed', rollUpAwards: true },
+          where: {
+            clientId,
+            source: 'contracting',
+            confirmed: true,
+            reviewStatus: 'confirmed',
+            rollUpAwards: true,
+          },
         }),
       ),
     ]);
 
-    let lobbySpend = 0;
-    let contractWins = 0;
+    let lobbySpend: number | null = null;
+    let contractWins: number | null = null;
+    let lobbyingCoverage = 'Unavailable: no confirmed LDA organization mapping.';
+    let contractingCoverage =
+      'Unavailable: no confirmed contracting mapping approved for award rollup.';
 
     if (ldaMapping) {
-      const rows = await this.prisma.$queryRaw<Array<{ total: number }>>`
-        SELECT COALESCE(SUM(income), 0)::float AS total
+      const rows = await this.prisma.$queryRaw<
+        Array<{
+          total: number | null;
+          filings: number;
+          first_year: number | null;
+          last_year: number | null;
+        }>
+      >`
+        SELECT SUM(income)::float AS total, COUNT(*)::int AS filings,
+               MIN(filing_year)::int AS first_year, MAX(filing_year)::int AS last_year
         FROM lda_filing WHERE client_id = ${Number(ldaMapping.externalId)}
       `;
-      lobbySpend = rows[0]?.total ?? 0;
+      const row = rows[0];
+      lobbySpend = row?.total ?? null;
+      lobbyingCoverage = row?.filings
+        ? `LDA confirmed organization mapping; ${row.filings} stored filings, filing years ${row.first_year}–${row.last_year}. Sum of reported filing income; amendments may overlap. Not a deduplicated spending or trailing-period total.`
+        : 'Confirmed LDA organization mapping; no stored filings with a reported income amount.';
     }
 
     if (contractingMapping) {
-      const rows = await this.prisma.$queryRaw<Array<{ total: number }>>`
-        SELECT COALESCE(total_contracts, 0)::float AS total
+      const rows = await this.prisma.$queryRaw<Array<{ total: number | null }>>`
+        SELECT total_contracts::float AS total
         FROM federal_contractor WHERE id = ${contractingMapping.externalId}::uuid
       `;
-      contractWins = rows[0]?.total ?? 0;
+      contractWins = rows[0]?.total ?? null;
+      contractingCoverage =
+        'Federal contractor source total for one confirmed mapped entity approved for award rollup. Source reporting window is not supplied; subsidiary coverage is not established. Not a measure of lobbying-attributable wins or activity-period awards.';
     }
 
-    return { lobbySpend, contractWins };
+    return { lobbySpend, contractWins, lobbyingCoverage, contractingCoverage };
   }
 
   private async getTrackedBillsCount(clientId: string, tenantId: string) {
-    const ldaMapping = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findFirst({
-        where: { clientId, source: 'lda', confirmed: true },
-      }),
-    );
-    if (!ldaMapping) return 0;
-
-    const codeRows = await this.prisma.$queryRaw<Array<{ issue_codes: string[] }>>`
-      SELECT COALESCE(issue_codes, '{}') AS issue_codes
-      FROM lda_client WHERE id = ${Number(ldaMapping.externalId)}
-    `;
-    const issueCodes = codeRows[0]?.issue_codes ?? [];
-    if (!issueCodes.length) return 0;
-
-    const nameRows = await this.prisma.$queryRaw<Array<{ name: string }>>`
-      SELECT name FROM lda_issue_code WHERE code = ANY(${issueCodes}::text[])
-    `;
-    if (!nameRows.length) return 0;
-
-    const patterns = nameRows.map((r) => `%${r.name.toLowerCase()}%`);
-    // Per-pattern ILIKE (not ILIKE ANY) so the LOWER(name) trigram index is used;
-    // identical result set. See bill-keyword-match.helpers.ts.
-    const nameMatch = columnKeywordMatchSql(Prisma.sql`LOWER(cbs.name)`, {
-      ilikePatterns: patterns,
-    });
-    const countRows = await this.prisma.$queryRaw<Array<{ count: string }>>(Prisma.sql`
-      SELECT COUNT(DISTINCT cb.id)::text AS count
-      FROM congress_bill cb
-      JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-      WHERE ${nameMatch}
-    `);
-    return parseInt(countRows[0]?.count ?? '0', 10);
+    // Both apps use this database, but curate DIFFERENT membership tables.
+    // Resolve exactly the UI's tracker_v2 flag; never count issue-matched bills
+    // or silently substitute the stale legacy board after a v2 read failure.
+    try {
+      return await this.prisma.withTenant(tenantId, async (tx) => {
+        const flags = await tx.$queryRaw<Array<{ enabled: boolean }>>`
+          SELECT enabled FROM intel_feature_flag
+          WHERE tenant_id = ${tenantId}::uuid AND feature = 'tracker_v2'
+        `;
+        const intel = flags[0]?.enabled === true;
+        const rows = intel
+          ? await tx.$queryRaw<Array<{ count: number }>>`
+              SELECT COUNT(*)::int AS count FROM intel_tracked_bill
+              WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+            `
+          : await tx.$queryRaw<Array<{ count: number }>>`
+              SELECT COUNT(*)::int AS count FROM tracked_bill
+              WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+            `;
+        return {
+          count: rows[0]?.count ?? 0,
+          coverage: `Current curated client board (${intel ? 'LegiWatch' : 'legacy tracker'}), all stored memberships as of generation; not issue-related recommendations or bills added during the activity period.`,
+        };
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Report-card tracked-bill source unavailable for client ${clientId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return {
+        count: null,
+        coverage: 'Unavailable: the current client tracker source could not be read.',
+      };
+    }
   }
 
-  private async getCompetitorCount(clientId: string, tenantId: string) {
+  private async getRelatedOrganizationCount(clientId: string, tenantId: string) {
     const ldaMapping = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientIntelMapping.findFirst({
         where: { clientId, source: 'lda', confirmed: true },
       }),
     );
-    if (!ldaMapping) return 0;
+    if (!ldaMapping)
+      return { count: null, coverage: 'Unavailable: no confirmed LDA organization mapping.' };
 
     const ldaClientId = Number(ldaMapping.externalId);
     const codeRows = await this.prisma.$queryRaw<Array<{ issue_codes: string[] }>>`
       SELECT COALESCE(issue_codes, '{}') AS issue_codes FROM lda_client WHERE id = ${ldaClientId}
     `;
     const issueCodes = codeRows[0]?.issue_codes ?? [];
-    if (!issueCodes.length) return 0;
+    if (!issueCodes.length)
+      return {
+        count: null,
+        coverage: 'Unavailable: no LDA issue codes for the confirmed organization.',
+      };
 
     const countRows = await this.prisma.$queryRaw<Array<{ count: string }>>`
       SELECT COUNT(DISTINCT id)::text AS count FROM lda_client
       WHERE issue_codes && ${issueCodes}::text[] AND id != ${ldaClientId}
     `;
-    return parseInt(countRows[0]?.count ?? '0', 10);
+    return {
+      count: parseInt(countRows[0]?.count ?? '0', 10),
+      coverage:
+        'Other LDA organization records sharing at least one broad issue code in the stored corpus, across all available years. Not verified competitors, unique corporate groups, or a count of filings.',
+    };
   }
 }

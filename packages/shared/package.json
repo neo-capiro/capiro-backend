@@ -5,6 +5,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./client-registration-integrity": {
+      "types": "./dist/client-registration-integrity.d.ts",
+      "require": "./dist/client-registration-integrity.js",
+      "import": "./dist/client-registration-integrity.js",
+      "default": "./dist/client-registration-integrity.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",

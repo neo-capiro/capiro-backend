@@ -110,7 +110,7 @@ interface RiskModel {
 
 const BAND_LABELS = [
   'Current strategies',
-  'Live plan steps',
+  'Committed steps',
   'Next 30 days',
   'Open risks',
   'Linked artifacts',
@@ -390,7 +390,7 @@ export function ClientCrmWorkProto({ client, drawer = false }: { client: Client;
             <div className="cap-pf-work-drawer__head" aria-hidden>
               <span>Strategy</span>
               <span>Owner</span>
-              <span>Steps</span>
+              <span>Committed steps</span>
               <span>Target</span>
               <span>Status</span>
             </div>
@@ -419,7 +419,7 @@ export function ClientCrmWorkProto({ client, drawer = false }: { client: Client;
                     <Avatar initials={row.init} size={24} />
                     <span>{row.owner}</span>
                   </span>
-                  <span className="cap-pf-work-drawer__number">{row.steps}</span>
+                  <span className="cap-pf-work-drawer__number" aria-label={`${row.steps} committed steps`}>{row.steps}</span>
                   <span className="cap-pf-work-drawer__target">{row.target}</span>
                   <span className="cap-pf-work-drawer__status"><Pill tone={row.tone}>{row.status}</Pill></span>
                 </button>
@@ -428,6 +428,7 @@ export function ClientCrmWorkProto({ client, drawer = false }: { client: Client;
           </div>
         </div>
         <div className="cap-pf-work-drawer__footer">
+          <span className="cap-pf-work-drawer__count-note">Committed steps exclude draft and suggested steps.</span>
           <span className="cap-pf-work-drawer__truth"><i />Source of truth · Strategies</span>
           <button type="button" onClick={() => navigate('/strategies')}>Open Strategies →</button>
         </div>
@@ -439,7 +440,7 @@ export function ClientCrmWorkProto({ client, drawer = false }: { client: Client;
     <div className="cap-pf-anim-rise cap-pf-work">
       <TabPageHead
         title="Client work"
-        sub="A client-specific view of live Strategies and Strategy nodes. Changes sync both ways."
+        sub="A client-specific view of Strategies. Committed steps exclude draft and suggested steps; edit the shared plan in Strategies."
         actions={
           <>
             <span className="cap-pf-work__truth-pill">
