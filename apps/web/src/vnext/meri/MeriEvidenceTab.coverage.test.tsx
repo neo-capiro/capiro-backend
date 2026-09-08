@@ -109,6 +109,68 @@ describe('Meri public coverage contract', () => {
     expect(screen.queryByText('No evidence was recorded for this turn.')).not.toBeInTheDocument();
   });
 
+  it.each(['streamed', 'reloaded'])('shows restored access and retains the initial failure on a %s turn', (mode) => {
+    const initialContext = {
+      ...retrieval.coverage,
+      searchedDomains: ['institutional_knowledge'],
+      missingDomains: ['institutional_knowledge'],
+      sourceHealth: [{
+        source: 'institutional_knowledge', status: 'error', detail: 'adapter_execution_failed',
+      }],
+    };
+    const completed = {
+      ...retrieval,
+      coverage: {
+        ...retrieval.coverage,
+        phase: 'turn',
+        complete: false,
+        stopReason: 'turn_coverage_partial',
+        searchedDomains: ['institutional_knowledge'],
+        missingDomains: [],
+        partialDomains: ['institutional_knowledge'],
+        restoredSources: ['institutional_knowledge'],
+        unavailableSources: [],
+        initialContext,
+        sourceHealth: [{
+          source: 'institutional_knowledge', status: 'partial',
+          detail: 'source_access_restored_coverage_unproven',
+        }],
+        toolReads: [{
+          source: 'institutional_knowledge', tool: 'search_memory', status: 'partial',
+          recordsReturned: 3, recordsEvaluated: 404, paginationComplete: false,
+          truncated: false, detail: 'pagination_incomplete',
+        }],
+      },
+    };
+    const value = mode === 'streamed'
+      ? meriRetrievalMetadata(completed)
+      : mapPersistedRetrieval({ metadata: JSON.parse(JSON.stringify({ retrieval: completed })) });
+    render(<MeriEvidenceTab sources={[]} verifyStats={[]} claims={[]} groundingCaveat={null} retrieval={value ?? null} />);
+    expect(screen.getByText('PARTIAL COVERAGE')).toBeInTheDocument();
+    expect(screen.queryByText('REQUIRED SOURCE MISSING')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Not searched:/)).not.toBeInTheDocument();
+    const health = within(screen.getByRole('table', { name: 'Source coverage and freshness' }));
+    expect(health.getByText('Partial')).toBeInTheDocument();
+    expect(health.queryByText('Read failed')).not.toBeInTheDocument();
+    expect(screen.getByText(/Institutional Knowledge: Read failed/)).toBeInTheDocument();
+    const reads = within(screen.getByRole('table', { name: 'Subsequent tool reads' }));
+    expect(reads.getByText('3 / 404')).toBeInTheDocument();
+    expect(reads.getByText(/More pages remain/)).toBeInTheDocument();
+    expect(screen.getByText('10 records returned · 26 records evaluated.')).toBeInTheDocument();
+  });
+
+  it('distinguishes a failed attempt from a source never searched on existing saved turns', () => {
+    render(<MeriEvidenceTab sources={[]} verifyStats={[]} claims={[]} groundingCaveat={null}
+      retrieval={{ ...retrieval, coverage: {
+        ...retrieval.coverage,
+        missingDomains: ['institutional_knowledge', 'hearings'],
+        searchedDomains: ['institutional_knowledge'],
+      } }} />);
+    expect(screen.getByText('Could not read: Institutional Knowledge.')).toBeInTheDocument();
+    expect(screen.getByText('Not searched: Hearings.')).toBeInTheDocument();
+    expect(screen.queryByText('Not searched: Institutional Knowledge.')).not.toBeInTheDocument();
+  });
+
   it('drops malformed counts/dates/status and does not fill unknown freshness with today', () => {
     const normalized = meriRetrievalMetadata({
       ...retrieval,

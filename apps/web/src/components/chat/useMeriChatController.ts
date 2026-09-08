@@ -85,6 +85,15 @@ import type { MeriLearnedMemory } from './MeriMemoryPanel.js';
 
 type SseEvent =
   | { type: 'runtime'; telemetry?: Record<string, unknown> }
+  | { type: 'turn_accepted'; messageId?: string }
+  | {
+      type: 'progress';
+      note: string;
+      elapsedMs?: number;
+      phase?: string;
+      runId?: string;
+      accepted?: false;
+    }
   | { type: 'start'; intent: string; tier?: 'fast' | 'deep'; reasoningMode?: string }
   | {
       type: 'trace';
@@ -527,6 +536,22 @@ export function useMeriChatController({
   // (CLIENT / PORTFOLIO / EXTERNAL RESEARCH / general) instead of the legacy
   // "Scoped · <client>" placeholder. Reset to null when a new turn starts.
   const [lastRetrieval, setLastRetrieval] = useState<ChatMessageRetrieval | null>(null);
+  const [turnProgress, setTurnProgress] = useState<{ note: string; elapsedMs: number } | null>(
+    null,
+  );
+  const resetActiveTurnWork = useCallback(() => {
+    // These fields describe the pending reply. Completed messages already own
+    // their work receipts, so clear live state before awaiting this turn's start
+    // frame (context compilation can take time before the first event arrives).
+    setTrustSteps([]);
+    setPlanSteps([]);
+    setOrchestratorIntent(null);
+    setOrchestratorTier(null);
+    setOrchestratorConflict(null);
+    setOrchestratorTemplate(null);
+    setLastRetrieval(null);
+    setTurnProgress(null);
+  }, []);
   const [learnedMemories, setLearnedMemories] = useState<MeriLearnedMemory[]>([]);
   const [forgottenMemories, setForgottenMemories] = useState<MeriLearnedMemory[]>([]);
   const forgetTimersRef = useRef(new Map<string, number>());
@@ -1306,6 +1331,7 @@ export function useMeriChatController({
       const turnAttachments = researchSessionRef.current
         ? []
         : stagedAttachments.filter(isUsableAttachment);
+      resetActiveTurnWork();
       // Echo the user's message into the conversation.
       appendChatMessage({
         id: generateId(),
@@ -1437,6 +1463,7 @@ export function useMeriChatController({
       stagedAttachments,
       researchAwaitingAnswers,
       researchRecovery,
+      resetActiveTurnWork,
     ], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
@@ -1907,6 +1934,8 @@ export function useMeriChatController({
         .map((att) => att.id)
         .filter((id): id is string => Boolean(id));
 
+      resetActiveTurnWork();
+
       // A new turn appends the user message. For regenerate/edit-and-resend the
       // caller has already trimmed (and for resend, edited) the local messages,
       // and the server re-runs the last user turn (P0-4).
@@ -1947,6 +1976,13 @@ export function useMeriChatController({
       const controller = new AbortController();
       abortRef.current = controller;
       const streamEpoch = ++streamEpochRef.current;
+      // This stream's callbacks own only this assistant placeholder. The epoch
+      // rejects a replaced request; the signal also rejects a read that already
+      // fulfilled when Stop was clicked, before another request starts.
+      const isCurrentTurn = () =>
+        streamEpoch === streamEpochRef.current &&
+        !controller.signal.aborted &&
+        mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current);
 
       // Meri v6 thinking-persistence piece 1: local (non-state) accumulators
       // mirroring every setOrchestratorTier/setOrchestratorIntent/setPlanSteps/
@@ -1976,7 +2012,7 @@ export function useMeriChatController({
         // PRE-DISPATCH: authHeaders() is async, so an identity switch can land
         // while it is pending. Never send this identity's request under the
         // credentials of the one that just authenticated.
-        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
+        if (!isCurrentTurn()) return false;
         const res = await fetch(`${config.apiBaseUrl}/api/clio/conversations/${sid}/stream`, {
           method: 'POST',
           headers: streamHeaders,
@@ -1986,17 +2022,22 @@ export function useMeriChatController({
 
         if (!res.ok) {
           const text = await res.text().catch(() => '');
+          if (!isCurrentTurn()) return false;
           updateChatMessage(assistantId, formatMeriHttpError(res.status, text, res.statusText));
           return false;
         }
 
         if (!res.body) {
+          if (!isCurrentTurn()) return false;
           updateChatMessage(assistantId, 'No response body received.');
           return false;
         }
 
-        accepted = true;
         const reader = res.body.getReader();
+        if (!isCurrentTurn()) {
+          await reader.cancel().catch(() => {});
+          return accepted;
+        }
         const decoder = new TextDecoder();
         let buffer = '';
         let accumulated = '';
@@ -2013,7 +2054,7 @@ export function useMeriChatController({
             // A route switch can race one final fulfilled reader.read(). Ignore
             // that stale event rather than letting the former thread mutate the
             // currently selected thread's shared controller state.
-            if (streamEpoch !== streamEpochRef.current) break outer;
+            if (!isCurrentTurn()) break outer;
             if (!line.startsWith('data: ')) continue;
             const jsonStr = line.slice(6).trim();
             if (!jsonStr) continue;
@@ -2024,7 +2065,32 @@ export function useMeriChatController({
               continue;
             }
 
-            if (event.type === 'start') {
+            // HTTP headers alone can precede durable turn acceptance. Older
+            // runtimes lack the explicit receipt, but their actual runtime
+            // frames still establish acceptance; progress and an empty done do
+            // not, and an explicit setup rejection must survive its done frame.
+            if (event.type !== 'progress' && event.type !== 'done' && event.type !== 'error')
+              accepted = true;
+
+            if (event.type === 'turn_accepted') {
+              // Persistence is acknowledged separately from starting the model.
+              // Keep context/provider progress and work state untouched.
+              accepted = true;
+            } else if (event.type === 'progress') {
+              // The API can open SSE while preparing context, before the user
+              // turn is persisted. Stop in that window must restore the draft.
+              if (event.accepted === false) accepted = false;
+              if (typeof event.note === 'string' && event.note.trim())
+                setTurnProgress({
+                  note: event.note,
+                  elapsedMs:
+                    typeof event.elapsedMs === 'number' && Number.isFinite(event.elapsedMs)
+                      ? Math.max(0, event.elapsedMs)
+                      : 0,
+                });
+            } else if (event.type === 'start') {
+              accepted = true;
+              setTurnProgress(null);
               const status = meriRuntimeStatus(event);
               if (status) {
                 turnRuntimeStatus = { ...turnRuntimeStatus, ...status };
@@ -2191,6 +2257,7 @@ export function useMeriChatController({
                 [assistantId]: { topic: event.topic, reason: event.reason },
               }));
             } else if (event.type === 'done') {
+              if (event.messageId) accepted = true;
               const status = meriRuntimeStatus(event);
               turnCompletionReceived = true;
               turnRuntimeStatus = status ? { ...turnRuntimeStatus, ...status } : turnRuntimeStatus;
@@ -2231,7 +2298,7 @@ export function useMeriChatController({
               }
               break outer;
             } else if (event.type === 'error') {
-              if (event.accepted === false) accepted = false;
+              accepted = event.accepted !== false;
               updateChatMessage(assistantId, `Error: ${event.message}`);
               // Errors after a persisted user turn can still be followed by
               // done with the assistant id, work receipt and partial status.
@@ -2274,7 +2341,8 @@ export function useMeriChatController({
           }
         }
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return accepted;
+        if (!isCurrentTurn() || (err instanceof Error && err.name === 'AbortError'))
+          return accepted;
         updateChatMessage(assistantId, 'Failed to get a response. Please try again.');
       } finally {
         // Meri v6 thinking-persistence piece 1: attach whatever plan/trust-step/
@@ -2304,7 +2372,10 @@ export function useMeriChatController({
           });
         // An older stream must never unlock a newly-selected thread or a newer
         // request that is now in progress.
-        if (streamEpoch === streamEpochRef.current) setStreaming(false);
+        if (streamEpoch === streamEpochRef.current) {
+          setStreaming(false);
+          setTurnProgress(null);
+        }
       }
       return accepted;
     },
@@ -2319,6 +2390,7 @@ export function useMeriChatController({
       researchMode,
       writeMode,
       stagedAttachments,
+      resetActiveTurnWork,
     ],
   ); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2395,6 +2467,7 @@ export function useMeriChatController({
     setStreaming(false);
     setTrustSteps([]);
     setPlanSteps([]);
+    setTurnProgress(null);
     setOrchestratorIntent(null);
     setOrchestratorTier(null);
     setOrchestratorConflict(null);
@@ -2479,6 +2552,7 @@ export function useMeriChatController({
     researchSessionRef.current = null;
     abortRef.current?.abort();
     setStreaming(false);
+    setTurnProgress(null);
     setResearchAwaitingAnswers(false);
     setResearchQuestions([]);
     setIsResearchStreaming(false);
@@ -3113,6 +3187,7 @@ export function useMeriChatController({
     researchOffers,
     isResearchStreaming,
     researchProgress,
+    turnProgress,
     researchRecovery,
     researchRecoveryError,
     resumeResearch,

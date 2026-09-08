@@ -33,8 +33,17 @@ function setup() {
       findMany: jest.fn().mockResolvedValue([
         {
           id: 'mailbox-1',
+          provider: 'google_workspace',
           status: 'connected',
           lastSyncAt: new Date('2026-08-17T12:00:00.000Z'),
+          syncState: {
+            mail: {
+              captureVersion: 1,
+              updatedAt: '2026-08-16T12:00:00.000Z',
+              historyId: 'history-1',
+              labels: { ALL: { backfillDone: true } },
+            },
+          },
         },
       ]),
       findFirst: jest.fn().mockResolvedValue(null),
@@ -60,6 +69,12 @@ const request = (overrides: Partial<RetrievalRequest> = {}): RetrievalRequest =>
 });
 
 describe('CorePrismaRetrievalAdapter Phase 15 SecurityScope', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-08-17T12:00:00.000Z'));
+  });
+  afterEach(() => jest.useRealTimers());
+
   it('intersects the authorized client envelope with ethical-wall visibility', async () => {
     const { adapter, catalog, tx } = setup();
     tx.client.findMany.mockReset().mockResolvedValue([{ id: 'client-1' }]);
@@ -140,7 +155,7 @@ describe('CorePrismaRetrievalAdapter Phase 15 SecurityScope', () => {
         id: { in: ['mailbox-1'] },
       },
       orderBy: { id: 'asc' },
-      select: { id: true, status: true, lastSyncAt: true },
+      select: { id: true, provider: true, status: true, lastSyncAt: true, syncState: true },
     });
     expect(tx.mailMessage.count).toHaveBeenCalledWith({
       where: {

@@ -41,6 +41,7 @@ jest.mock('../funding-opportunities/meri-opportunity-tools.adapter.js', () => ({
 }));
 // These contracts stub the domain ports; loading the unrelated mail/generation graph is unnecessary.
 jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
+jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
 
 import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
 
@@ -110,6 +111,7 @@ const EXPECTED_TOOLS = [
   'send_email',
   'list_emails',
   'search_emails',
+  'get_email_thread',
   'list_upcoming_meetings',
   'reply_email',
   'save_memory',
@@ -178,6 +180,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   save_note: ['body'],
   send_email: ['to', 'subject', 'body'],
   reply_email: ['threadId', 'body'],
+  get_email_thread: ['threadId'],
   save_memory: ['content'],
   confirm_memory: ['memoryItemId'],
   correct_memory: ['memoryItemId', 'newContent'],

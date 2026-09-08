@@ -5,6 +5,7 @@ import {
   ownMeetingWhere,
   ownOutreachRecordWhere,
 } from '../../engagement/engagement-access.helpers.js';
+import { getMailSyncCoverage } from '../../engagement/mail-sync-coverage.js';
 import type { KnowledgeJsonObject } from '../../knowledge/knowledge.types.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { RetrievalSourceAdapter } from '../retrieval-source.adapter.js';
@@ -357,7 +358,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         ...(mailboxScopeWasSpecified ? { id: { in: authorizedMailboxIds } } : {}),
       },
       orderBy: { id: 'asc' },
-      select: { id: true, status: true, lastSyncAt: true },
+      select: { id: true, provider: true, status: true, lastSyncAt: true, syncState: true },
     });
     if (
       mailboxScopeWasSpecified &&
@@ -446,8 +447,9 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     const connectedMailboxes = mailboxConnections.filter(
       (connection) => connection.status === 'connected',
     );
-    const completedSyncs = connectedMailboxes
-      .map((connection) => connection.lastSyncAt)
+    const mailboxCoverage = connectedMailboxes.map(getMailSyncCoverage);
+    const completedSyncs = mailboxCoverage
+      .map((coverage) => coverage.lastMailSyncAt)
       .filter((value): value is Date => value !== null);
     result.lastSyncAt = completedSyncs.reduce<Date | undefined>(
       (oldest, value) => (!oldest || value < oldest ? value : oldest),
@@ -463,9 +465,11 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     } else if (connectedMailboxes.length !== mailboxConnections.length) {
       result.sourceStatus = 'degraded';
       result.degradedReason = 'one_or_more_authorized_mailboxes_not_connected';
-    } else if (connectedMailboxes.some((connection) => connection.lastSyncAt === null)) {
+    } else if (mailboxCoverage.some((coverage) => coverage.sourceStatus !== 'healthy')) {
       result.sourceStatus = 'degraded';
-      result.degradedReason = 'one_or_more_authorized_mailbox_syncs_incomplete';
+      result.degradedReason = mailboxCoverage.find(
+        (coverage) => coverage.sourceStatus !== 'healthy',
+      )!.reason ?? 'one_or_more_authorized_mailbox_syncs_incomplete';
     }
 
     return result;

@@ -1,5 +1,6 @@
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { meriToolCoverageCatalogEntry } from '../retrieval/meri-tool-catalog.js';
+import { coalesceMeriMailPages, observeMeriToolCoverage, type MeriMailPageReceipt } from '../retrieval/meri-retrieval-coverage.js';
 
 type InitialRetrieval = MeriGovernedTurnContext['retrieval'];
 type Status = InitialRetrieval['coverage']['sourceHealth'][number]['status'];
@@ -15,6 +16,7 @@ export interface MeriToolCoverageReceipt {
   truncated: boolean;
   lastSyncAt?: string;
   detail?: string;
+  mailPage?: MeriMailPageReceipt;
 }
 
 export type MeriTurnRetrieval = InitialRetrieval & {
@@ -145,6 +147,27 @@ export function observeMeriTurnToolCoverage(
 ): MeriToolCoverageReceipt[] {
   const payload = object(value);
   if (!payload) return [];
+  if (tool === 'list_emails' || tool === 'search_emails') {
+    // Reuse the existing source observer; thread grouping is only a compatibility
+    // view and must never replace canonical message totals or mail sync health.
+    const observed = observeMeriToolCoverage(tool, {}, payload);
+    const mailboxes = Array.isArray(payload.searchedMailboxes) ? payload.searchedMailboxes : [];
+    const mailCoverageKnown = mailboxes.length > 0 && mailboxes.every((box) => object(object(box)?.mailCoverage));
+    const unavailable = Array.isArray(payload.searchedMailboxes) && mailboxes.length === 0;
+    return [{ ...receipt(tool, 'mail', {
+      returned: observed.returned,
+      recordsEvaluated: observed.total,
+      hasMore: observed.hasMore,
+      truncated: payload.truncated === true,
+      complete: mailCoverageKnown && observed.status === 'complete',
+      paginationComplete: !observed.hasMore && payload.hasMore === false,
+      sourceStatus: unavailable ? 'unavailable' : observed.status,
+      ...(unavailable ? { stopReason: 'no_connected_mailbox' }
+        : observed.sourceHealth.find((source) => source.detail)?.detail
+          ? { stopReason: observed.sourceHealth.find((source) => source.detail)!.detail }
+          : {}),
+    }, payload), ...(observed.mailPage ? { mailPage: observed.mailPage } : {}) }];
+  }
   const coverage = object(payload.coverage);
   if (Array.isArray(coverage?.sources)) {
     return coverage.sources.flatMap((value) => {
@@ -187,6 +210,23 @@ export function reconcileMeriTurnCoverage(
   reads: readonly MeriToolCoverageReceipt[],
 ): InitialRetrieval | MeriTurnRetrieval {
   if (!reads.length) return initial;
+  const individualReads = reads;
+  const mailPages = reads.filter((read) => read.mailPage);
+  reads = [
+    ...reads.filter((read) => !read.mailPage),
+    ...coalesceMeriMailPages(mailPages.map((read) => ({
+      tool: read.tool, domains: ['mail'], returned: read.recordsReturned ?? 0,
+      total: read.recordsEvaluated, hasMore: read.paginationComplete === false,
+      truncated: read.truncated, status: read.status === 'error' ? 'error'
+        : read.status === 'unavailable' ? 'unavailable' : read.status === 'complete' ? 'complete' : 'partial',
+      sourceHealth: [], mailPage: read.mailPage, detail: read.detail,
+    }))).map((observed): MeriToolCoverageReceipt => ({
+      source: 'mail', tool: observed.tool, status: observed.status,
+      recordsReturned: observed.returned, recordsEvaluated: observed.total,
+      paginationComplete: !observed.hasMore, truncated: observed.truncated,
+      ...(observed.detail ? { detail: observed.detail } : {}),
+    })),
+  ];
   const coverage = initial.coverage;
   const usable = new Set(
     reads
@@ -245,7 +285,7 @@ export function reconcileMeriTurnCoverage(
       ...coverage,
       phase: 'turn',
       initialContext: coverage,
-      toolReads: [...reads],
+      toolReads: [...individualReads],
       restoredSources,
       complete,
       // Counts stay attached to the initial packet; receipts have per-read

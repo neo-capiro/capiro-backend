@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
@@ -59,6 +60,7 @@ export class MeriV3ProxyService {
     private readonly clientKb: ClientKbService,
     private readonly firmSkills: MeriFirmSkillsService,
     @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
+    private readonly conversationEvidence: MeriConversationEvidenceService,
   ) {}
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
@@ -149,6 +151,10 @@ export class MeriV3ProxyService {
       });
     }
 
+    // Acceptance describes durable user-message persistence, not provider readiness.
+    // A stopped preparation must not restore this already-saved prompt as a draft.
+    emit({ type: 'turn_accepted', ...(sourceMessageId ? { messageId: sourceMessageId } : {}) });
+
     if (
       process.env.MERI_COMPLIANCE_BLOCK !== 'false' &&
       (await this.flags.isEnabled(ctx.tenantId, 'complianceBlock', true))
@@ -210,6 +216,7 @@ export class MeriV3ProxyService {
       conversationId,
       conversation.summaryUpToMessageId ?? null,
     );
+    const inherited = await this.conversationEvidence.load(ctx, conversationId, conversation.clientId, clientSignal);
     let aiProvider: Awaited<ReturnType<AiCredentialResolverService['resolveProvider']>>;
     try {
       aiProvider = await this.aiCredentials.resolveProvider(ctx, 'openai');
@@ -364,6 +371,10 @@ export class MeriV3ProxyService {
         bearerToken,
         input: {
           messages: replay.history,
+          inheritedDocumentEvidence: inherited.citations,
+          ...(inherited.unavailable || inherited.omitted
+            ? { inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence through current tools before using it.` }
+            : {}),
           ...(conversation.clientId ? { clientId: conversation.clientId } : {}),
           conversationId,
           ...(conversation.summary && replay.hasSummaryBoundary

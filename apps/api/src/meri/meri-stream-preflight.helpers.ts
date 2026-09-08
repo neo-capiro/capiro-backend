@@ -83,12 +83,24 @@ export interface DeferredSseResponse {
 
 export function createDeferredMeriSseWriter(res: DeferredSseResponse): {
   started: () => boolean;
+  accepted: () => boolean;
   write: (data: string) => void;
 } {
   let started = false;
+  let accepted = false;
   return {
     started: () => started,
+    accepted: () => accepted,
     write(data: string) {
+      for (const line of data.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const type = JSON.parse(line.slice(6))?.type;
+          if (type === 'start' || type === 'turn_accepted') accepted = true;
+        } catch {
+          /* SSE comments and incomplete frames cannot accept a turn. */
+        }
+      }
       if (!started) {
         started = true;
         res.setHeader('Content-Type', 'text/event-stream');
@@ -104,8 +116,16 @@ export function createDeferredMeriSseWriter(res: DeferredSseResponse): {
 export function writeMeriStreamErrorFrame(
   write: (data: string) => void,
   classified: MeriStreamSetupError,
+  accepted?: boolean,
 ): void {
-  write(`data: ${JSON.stringify({ type: 'error', code: classified.code, message: classified.message })}\n\n`);
+  write(
+    `data: ${JSON.stringify({
+      type: 'error',
+      code: classified.code,
+      message: classified.message,
+      ...(accepted === false ? { accepted: false } : {}),
+    })}\n\n`,
+  );
   write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
 }
 
@@ -121,7 +141,7 @@ export async function runMeriStreamWithSetupGuard(args: {
     const classified = classifyMeriStreamSetupError(err);
     args.onError?.(classified, err);
     if (sse.started()) {
-      writeMeriStreamErrorFrame(sse.write, classified);
+      writeMeriStreamErrorFrame(sse.write, classified, sse.accepted());
     } else if (!args.res.headersSent) {
       args.res.status(classified.status).json({
         statusCode: classified.status,

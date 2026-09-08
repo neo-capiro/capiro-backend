@@ -1,5 +1,5 @@
 import type { ZodType, ZodIssue } from 'zod';
-import type { TenantContext, TenantRole } from '@capiro/shared';
+import type { MeriCitation, TenantContext, TenantRole } from '@capiro/shared';
 import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
 
@@ -78,6 +78,8 @@ export interface MeriGovernedTurnContext {
   prompt: string;
   /** API-projected evidence; authenticated before it can enter a grounding ledger. */
   evidence?: MeriContextEvidenceEnvelope;
+  /** Server-saved document observations; canonical source authorization and hash checked this turn. */
+  inheritedDocumentEvidence?: MeriCitation[];
   attestation?: { version: 1; issuedAt: number; signature: string };
   contextPacket: MeriContextPacketSummary;
   retrieval: {
@@ -155,7 +157,7 @@ export interface MeriEvidenceManifest {
   sources: Array<{
     id: string;
     tool: string;
-    origin: 'initial_context' | 'tool';
+    origin: 'initial_context' | 'tool' | 'conversation';
     /** Null when the runtime did not receive a complete-source assertion. */
     truncated: boolean | null;
   }>;

@@ -73,13 +73,14 @@ describe('Meri retrieval data catalog', () => {
     expect(meriToolCoverageCatalogEntry('search_tracked_bills').exhaustive).toBe(false);
   });
 
-  test('keeps count-backed email search distinct from bounded newest-thread listing', () => {
+  test('recognizes count-backed date-filtered pages from both mail readers', () => {
     expect(meriToolCoverageCatalogEntry('search_emails')).toEqual(
       expect.objectContaining({ domains: ['mail'], exhaustive: true }),
     );
     expect(meriToolCoverageCatalogEntry('list_emails')).toEqual(
-      expect.objectContaining({ domains: ['mail'], exhaustive: false }),
+      expect.objectContaining({ domains: ['mail'], exhaustive: true }),
     );
+    expect(meriDatasetsForTool('list_emails')[0]?.capabilities).toMatchObject({ dateRange: true, pagination: true });
   });
 
   test('links tools back to their catalog datasets', () => {

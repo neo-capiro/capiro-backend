@@ -1,4 +1,4 @@
-import { selectMeriCapabilitySchemas } from '@capiro/shared';
+import { selectMeriCapabilitySchemas, isMeriMailReadTool } from '@capiro/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -515,6 +515,7 @@ export class ChatAssistantService {
             emit,
             prePersistRefusal,
             noteComplianceOutcome,
+            dto.clientId,
           ),
         })),
       );
@@ -674,7 +675,9 @@ export class ChatAssistantService {
     toolSchema: AnthropicToolSchema | undefined,
   ): Record<string, unknown> {
     const out = { ...input };
-    if (dto.clientId && !isUuid(out.clientId)) out.clientId = dto.clientId;
+    if (dto.clientId && !isMeriMailReadTool(toolSchema?.name) && !isUuid(out.clientId)) {
+      out.clientId = dto.clientId;
+    }
     // Only inject conversationId if the TOOL'S OWN schema declares it as a
     // property. Side-effecting tools are re-validated server-side against that
     // same schema with additionalProperties disallowed by default
@@ -701,10 +704,18 @@ export class ChatAssistantService {
     emit: (event: ChatStreamEvent) => void = () => {},
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null = () => null,
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void = () => {},
+    scopeClientId?: string,
   ): Promise<unknown> {
     const label = toolLabel(name);
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
+    const suppliedClient = typeof input.clientId === 'string' ? input.clientId.trim() : '';
+    if (isMeriMailReadTool(name) && scopeClientId && suppliedClient && suppliedClient !== scopeClientId) {
+      const detail = 'This conversation is pinned to a different client. I did not run the cross-client request.';
+      steps.push({ tool: name, label, status: 'blocked', detail });
+      emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
+      return { blocked: true, error: detail };
+    }
     const refusal = prePersistRefusal(name, input);
     if (refusal) {
       const detail = 'held: pre-release verification failed';

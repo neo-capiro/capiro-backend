@@ -7,6 +7,7 @@ import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 jest.mock('../engagement/ai-credential-resolver.service.js', () => ({
   AiCredentialResolverService: class {},
 }));
+jest.mock('./meri-conversation-evidence.service.js', () => ({ MeriConversationEvidenceService: class {} }));
 jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: class {} }));
 jest.mock('./meri-firm-skills.service.js', () => ({ MeriFirmSkillsService: class {} }));
 
@@ -66,6 +67,7 @@ function buildHarness() {
   const clientKb = { buildSnapshot: jest.fn(async () => null) };
   const firmSkills = { skillsForTenant: jest.fn(async () => []) };
   const maintenance = { scheduleAfterTurnMaintenance: jest.fn() };
+  const conversationEvidence = { load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })) };
 
   const service = new MeriV3ProxyService(
     prisma as never,
@@ -75,6 +77,7 @@ function buildHarness() {
     clientKb as never,
     firmSkills as never,
     maintenance,
+    conversationEvidence as never,
   );
 
   const writes: string[] = [];
@@ -84,12 +87,28 @@ function buildHarness() {
       .filter((w) => w.startsWith('data: '))
       .map((w) => JSON.parse(w.slice(6)) as Record<string, unknown>);
 
-  return { service, tx, prisma, flags, client, sse, frames, maintenance };
+  return { service, tx, prisma, flags, client, sse, frames, maintenance, conversationEvidence };
 }
 
 const CTX = { tenantId: TENANT, userId: USER } as never;
 
 describe('MeriV3ProxyService — done frame carries the persisted message id', () => {
+  it('forwards reauthorized [56] and persists it on the new message after completion', async () => {
+    const { service, client, conversationEvidence, sse, tx, frames } = buildHarness();
+    const citation = { n: 56, id: 'doc-1:aaaaaaaaaaaaaaaa:22:0-840', title: 'Capiro 2.0.pdf',
+      tool: 'read_client_documents', type: 'source', snippet: 'Exact excerpt', url: null };
+    conversationEvidence.load.mockResolvedValue({ citations: [citation], unavailable: 0, omitted: 0 } as never);
+    client.streamChat.mockImplementationOnce(async ({ input, onEvent }: any) => {
+      expect(input.inheritedDocumentEvidence).toEqual([citation]);
+      onEvent({ type: 'done', reply: 'Briefing created.', citations: [citation], steps: [],
+        runtime: 'meriv3', model: 'configured-model', reasoningMode: 'fast', reasoningEffort: 'low' });
+    });
+    await service.streamMessage(CTX, CONVERSATION, 'Create the briefing', sse, undefined, 'new', [], 'token');
+    expect(frames().find((frame) => frame.type === 'citations')).toMatchObject({ citations: [citation] });
+    const saved = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data).find((data: any) => data.role === 'assistant');
+    expect(JSON.parse(JSON.stringify(saved.metadata)).citations).toEqual([citation]);
+  });
+
   it.each(['runtime-url', 'bearer'])(
     'explicitly rejects %s setup failure before accepting or persisting a turn',
     async (missing) => {

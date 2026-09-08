@@ -41,11 +41,7 @@ function make() {
   } as unknown as MeriV3VisualAnalysisService;
   const governedRuntime = {
     runChatTurn: jest.fn(
-      async (
-        _valueCtx: unknown,
-        _input: unknown,
-        execute: () => Promise<unknown>,
-      ) => execute(),
+      async (_valueCtx: unknown, _input: unknown, execute: () => Promise<unknown>) => execute(),
     ),
   } as unknown as MeriContextPlaneRuntimeService;
   return {
@@ -64,7 +60,7 @@ describe('Meri runtime proxy Phase 19', () => {
 
     expect(governedRuntime.runChatTurn).toHaveBeenCalledWith(
       ctx,
-      { conversationId: 'conversation', body: 'hello', mode: 'new' },
+      { conversationId: 'conversation', body: 'hello', mode: 'new', signal: undefined },
       expect.any(Function),
     );
     expect(meriv3.shouldHandle).toHaveBeenCalledWith(ctx);
@@ -80,7 +76,12 @@ describe('Meri runtime proxy Phase 19', () => {
     await service.streamMessage(ctx as never, 'conversation', 'hello', writer);
 
     expect(governedRuntime.runChatTurn).toHaveBeenCalledTimes(1);
-    expect(meriv3.streamMessage).toHaveBeenCalledWith(ctx, 'conversation', 'hello', writer);
+    expect(meriv3.streamMessage).toHaveBeenCalledWith(ctx, 'conversation', 'hello', {
+      write: expect.any(Function),
+    });
+    const forwarded = (meriv3.streamMessage as jest.Mock).mock.calls[0]![3];
+    forwarded.write('data: {"type":"text","text":"hello"}\n\n');
+    expect(writer.write).toHaveBeenCalledWith('data: {"type":"text","text":"hello"}\n\n');
     expect(raw.streamMessage).not.toHaveBeenCalled();
   });
 
@@ -98,7 +99,7 @@ describe('Meri runtime proxy Phase 19', () => {
 
     expect(governedRuntime.runChatTurn).toHaveBeenCalledWith(
       ctx,
-      { conversationId: 'conversation', body: '', mode: 'regenerate' },
+      { conversationId: 'conversation', body: '', mode: 'regenerate', signal: undefined },
       expect.any(Function),
     );
   });

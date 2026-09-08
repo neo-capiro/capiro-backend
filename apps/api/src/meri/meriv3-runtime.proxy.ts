@@ -7,6 +7,7 @@ import {
 } from './meri-context-plane-runtime.js';
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
+import { withMeriTurnProgress } from './meri-turn-progress.js';
 
 export const RAW_MERI_SERVICE = Symbol('RAW_MERI_SERVICE');
 const PHASE19_PATCHED = Symbol('phase19-governed-context-patched');
@@ -57,8 +58,8 @@ type V3Internals = {
  *  - V2/V3 clients receive the same governed bundle over their existing JSON body,
  *  - legacy clio_memory + client-KB prewarms are suppressed only while a governed
  *    turn is active,
- *  - done frames are normalized back to the API-side packet/coverage so UI and
- *    persistence cannot drift from the shared Context Plane truth.
+ *  - done frames retain the API-side packet and the orchestrator's reconciliation
+ *    of later reads, so saved coverage matches the evidence used for the turn.
  */
 export function createMeriRuntimeService(
   raw: MeriService,
@@ -77,14 +78,23 @@ export function createMeriRuntimeService(
           const conversationId = args[1] as string;
           const body = args[2] as string;
           const mode = (args[5] ?? 'new') as 'new' | 'regenerate' | 'resend';
-          return governedRuntime.runChatTurn(
-            ctx,
-            { conversationId, body, mode },
-            async () =>
-              (await meriv3.shouldHandle(ctx))
-                ? meriv3.streamMessage(...args)
-                : target.streamMessage(...args),
-          );
+          const signal = args[4];
+          return withMeriTurnProgress(args[3], signal, async (writer) => {
+            const forwarded = [...args] as Parameters<MeriService['streamMessage']>;
+            forwarded[3] = writer;
+            return governedRuntime.runChatTurn(
+              ctx,
+              { conversationId, body, mode, signal },
+              async () => {
+                signal?.throwIfAborted();
+                const useV3 = await meriv3.shouldHandle(ctx);
+                signal?.throwIfAborted();
+                return useV3
+                  ? meriv3.streamMessage(...forwarded)
+                  : target.streamMessage(...forwarded);
+              },
+            );
+          });
         };
       }
       if (property === 'getArtifactImage') {
@@ -200,10 +210,28 @@ function normalizeDoneFrame(
   governed: MeriGovernedTurnContext,
 ): Record<string, unknown> {
   if (event.type !== 'done') return event;
+  const retrieval = event.retrieval as
+    | { coverage?: { phase?: unknown; toolReads?: unknown } }
+    | null
+    | undefined;
+  // The authenticated orchestrator reconciles the signed initial packet with
+  // later tool receipts. Retain that turn result: replacing it with the initial
+  // packet loses successful reads and reintroduces already-restored failures in
+  // both the saved message and its SSE completion. Older runtimes without turn
+  // receipts still use the API's governed coverage, never a legacy planner.
+  const turnCoverage =
+    retrieval?.coverage?.phase === 'turn' && Array.isArray(retrieval.coverage.toolReads)
+      ? retrieval.coverage
+      : null;
   return {
     ...event,
     contextPacket: governed.contextPacket,
     contextPacketId: governed.contextPacket.packetId ?? undefined,
-    retrieval: governed.retrieval,
+    retrieval: turnCoverage
+      ? {
+          ...governed.retrieval,
+          coverage: { ...turnCoverage, initialContext: governed.retrieval.coverage },
+        }
+      : governed.retrieval,
   };
 }

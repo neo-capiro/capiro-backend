@@ -5,6 +5,7 @@ import {
   buildMeriSystemBlocks,
   clientScopeDirective,
   clientScopeRefusal,
+  isMeriMailReadTool,
   CLIENT_ID_UUID_RE,
   meriCapabilityBlock,
   CLIO_CAPABILITY_LINES,
@@ -39,6 +40,18 @@ describe('clientScopeDirective — the hard scope constraint for a client sessio
     expect(clientScopeDirective('C2 Strategies')).toContain(
       'provided only so you can answer questions about the roster itself',
     );
+  });
+
+  it('preserves the authenticated personal mailbox while pinning explicit client reads', () => {
+    const directive = clientScopeDirective('C2 Strategies');
+    expect(directive).toContain('own inbox or personal email activity');
+    expect(directive).toContain('Omit clientId on list_emails/search_emails');
+    expect(directive).toContain('does not authorize access to another user');
+    expect(isMeriMailReadTool('list_emails')).toBe(true);
+    expect(isMeriMailReadTool('search_emails')).toBe(true);
+    expect(isMeriMailReadTool('get_email_thread')).toBe(true);
+    expect(isMeriMailReadTool('get_client_context')).toBe(false);
+    expect(isMeriMailReadTool('send_email')).toBe(false);
   });
 
   it('still constrains the session when the client name is missing or blank', () => {
@@ -86,7 +99,8 @@ describe('MERI_GROUNDING_INVARIANT (Wave 1 zero-trust kernel)', () => {
   it('opens the meri_grounding element and states every kernel block', () => {
     expect(MERI_GROUNDING_INVARIANT.startsWith('<meri_grounding version="1.0">')).toBe(true);
     expect(MERI_GROUNDING_INVARIANT).toContain('CLOSED-WORLD RULE');
-    expect(MERI_GROUNDING_INVARIANT).toContain('Data missing from legislative context');
+    expect(MERI_GROUNDING_INVARIANT).toContain('actual source and requested scope');
+    expect(MERI_GROUNDING_INVARIANT).not.toContain('Data missing from legislative context');
     expect(MERI_GROUNDING_INVARIANT).toContain('CITATION TOKENS');
     expect(MERI_GROUNDING_INVARIANT).toContain('[S:tool_name:record_id]');
     expect(MERI_GROUNDING_INVARIANT).toContain('AUTHORIZATION vs APPROPRIATION');
@@ -98,6 +112,14 @@ describe('MERI_GROUNDING_INVARIANT (Wave 1 zero-trust kernel)', () => {
   });
   it('carries no unresolved template variable (date lives only in the date block)', () => {
     expect(MERI_GROUNDING_INVARIANT).not.toContain('{{CURRENT_DATE}}');
+  });
+
+  it('keeps mail gaps specific and distinguishes sync health from empty search results', () => {
+    expect(MERI_GROUNDING_INVARIANT).toContain('Do not\n  print tool names');
+    expect(MERI_GROUNDING_INVARIANT).toContain('mail-specific coverage');
+    expect(MERI_GROUNDING_INVARIANT).toContain('empty keyword search establishes only');
+    expect(MERI_GROUNDING_INVARIANT).toContain('filler search term such as "the"');
+    expect(MERI_GROUNDING_INVARIANT).toContain('Do not\n  append unrelated legislative disclaimers');
   });
 });
 

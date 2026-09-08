@@ -79,6 +79,8 @@ export function MeriEvidenceTab({
   const missing = retrieval?.coverage.missingDomains ?? [];
   const partial = retrieval?.coverage.partialDomains ?? [];
   const searched = retrieval?.coverage.searchedDomains ?? [];
+  const unread = missing.filter((source) => searched.includes(source));
+  const unsearched = missing.filter((source) => !searched.includes(source));
   const stopReasonNote = retrieval ? coverageStopReasonCopy(retrieval.coverage.stopReason) : null;
 
   return (
@@ -115,9 +117,14 @@ export function MeriEvidenceTab({
               {coverageTone === 'missing' ? 'REQUIRED SOURCE MISSING' : 'PARTIAL COVERAGE'}
             </span>
           </div>
-          {missing.length ? (
+          {unsearched.length ? (
             <div className="vnext-meri__evidence-warning-body">
-              Not searched: {missing.map(domainLabel).join(', ')}.
+              Not searched: {unsearched.map(domainLabel).join(', ')}.
+            </div>
+          ) : null}
+          {unread.length ? (
+            <div className="vnext-meri__evidence-warning-body">
+              Could not read: {unread.map(domainLabel).join(', ')}.
             </div>
           ) : null}
           {partial.length ? (

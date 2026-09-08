@@ -44,6 +44,7 @@ import {
   ownOutreachRecordWhere,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
+import { queryMailMessages } from './mail-query.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
   GenerationGatewayService,
@@ -2185,6 +2186,15 @@ export class EngagementService {
     if (!thread) throw new NotFoundException('Mail thread not found');
     const { connection, ...rest } = thread;
     return { ...rest, connectionEmail: connection?.accountEmail ?? null };
+  }
+
+  /** Shared, bounded mailbox retrieval for assistant list/search tools. */
+  searchMailMessages(
+    ctx: TenantContext,
+    input: Record<string, unknown>,
+    options: { allowUnfiltered?: boolean; defaultLimit?: number } = {},
+  ) {
+    return queryMailMessages(this.prisma, ctx, input, options);
   }
 
   listMailThreads(ctx: TenantContext, query: { clientId?: string; recipientEmails?: string[] }) {

@@ -1,6 +1,6 @@
 import { ledgerToToolResultMap, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { extractCitationsFromToolResult, validateFormBCitations } from '@capiro/shared';
-import { seedMeriContextEvidence, meriEvidenceManifest } from './meriv3-context-evidence.js';
+import { seedMeriContextEvidence, meriEvidenceManifest, numberMeriEvidenceCitations } from './meriv3-context-evidence.js';
 import {
   buildMeriV3ReleaseCitations,
   normalizeMeriV3FormBCitations,
@@ -53,6 +53,36 @@ describe('initial evidence stays in the same citation and grounding ledger', () 
       url: 'https://example.gov/meeting/5',
     });
   });
+  it('retains inherited document identity, exact excerpt, numbering and limitations through JSON reload', () => {
+    const governed = context();
+    const citation = { n: 56, type: 'source', tool: 'read_client_documents', id: 'doc-page-22',
+      title: 'Capiro 2.0.pdf', snippet: 'Original snippet', url: null,
+      documentEvidence: { clientId: 'client-1', documentId: 'doc-1', contentHash: 'a'.repeat(64),
+        record: { recordId: 'doc-page-22', payload: { id: 'doc-page-22', title: 'Capiro 2.0.pdf', text: 'The exact page excerpt.', section: 22 } },
+        coverage: { complete: false, truncated: true, disclosure: 'Visual page extraction only' }, observedAt: '2026-09-07T00:00:00Z' } };
+    governed.inheritedDocumentEvidence = JSON.parse(JSON.stringify([citation]));
+    const seeded = seedMeriContextEvidence(governed);
+    expect(seeded.citations[0]).toEqual(citation);
+    expect(seeded.citations[1]?.n).toBe(1);
+    expect(new Set(seeded.citations.map((source) => source.n)).size).toBe(seeded.citations.length);
+    expect(seeded.citationPrompt).toContain('Visual page extraction only');
+    expect(seeded.citationPrompt).toContain('The exact page excerpt.');
+    const release = buildMeriV3ReleaseCitations(seeded.citations, seeded.ledgerEntries);
+    expect(normalizeMeriV3FormBCitations('Observation [S:read_client_documents:doc-page-22].', release.aliases)).toBe('Observation [56].');
+    expect(release.citations.find((source) => source.id === 'doc-page-22')?.documentEvidence).toEqual(citation.documentEvidence);
+    expect(meriEvidenceManifest(governed, release.citations, seeded.ledgerEntries).sources.find((source) => source.id === 'doc-page-22')).toMatchObject({
+      id: 'doc-page-22', origin: 'conversation', truncated: true,
+    });
+  });
+
+  it('allocates around inherited [999] and reuses an existing document number when it is reread', () => {
+    const source = { n: 999, type: 'source', id: 'doc-page-22', title: 'PDF', url: null, snippet: 'Page observation', tool: 'read_client_documents' };
+    const current = { ...source, id: 'meeting-1', tool: 'context_plane', n: 1 };
+    const numbered = numberMeriEvidenceCitations([{ ...source, n: 1 }, current], [source]);
+    expect(numbered.map(({ id, n }) => ({ id, n }))).toEqual([{ id: 'doc-page-22', n: 999 }, { id: 'meeting-1', n: 1 }]);
+    expect(numberMeriEvidenceCitations([current], numbered)[0]?.n).toBe(1);
+  });
+
   it('numbers subsequent tool evidence after initial sources and saves a body-free manifest', () => {
     const governed = context();
     const seed = seedMeriContextEvidence(governed);

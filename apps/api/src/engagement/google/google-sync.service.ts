@@ -32,6 +32,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { markMailMessageRemovedInTx } from '../mail-message-state.js';
+import { MAIL_CAPTURE_VERSION } from '../mail-sync-coverage.js';
 import { GoogleTokenService } from './google-token.service.js';
 
 const GMAIL_BASE_URL = 'https://gmail.googleapis.com/gmail/v1';
@@ -149,6 +150,10 @@ interface GoogleSyncState {
     lastStats?: SyncStats;
   };
   mail?: {
+    captureVersion?: number;
+    captureReplayReady?: boolean;
+    captureReplayHistoryId?: string | null;
+    captureReplayCatchupPending?: boolean;
     historyId?: string | null;
     incrementalPageToken?: string | null;
     incrementalLatestHistoryId?: string | null;
@@ -663,10 +668,39 @@ export class GoogleSyncService {
     accessToken: string,
     input: { reset?: boolean },
   ): Promise<Record<string, SyncStats>> {
+    const needsCaptureReplay = (state.mail?.captureVersion ?? 0) < MAIL_CAPTURE_VERSION;
+    let priorHistoryId = state.mail?.historyId ?? null;
+    if (!input.reset && needsCaptureReplay && !state.mail?.captureReplayReady && priorHistoryId) {
+      // Drain pending changes (including deletions) before retiring the old
+      // baseline. The regular incremental method retains its bounded cursor.
+      const preparation = { ...state.mail };
+      try {
+        const stats = await this.syncMailIncremental(
+          tenantId,
+          connection,
+          preparation,
+          accessToken,
+        );
+        state.mail = {
+          ...preparation,
+          captureVersion: state.mail?.captureVersion ?? 0,
+          captureReplayReady: !stats.hasMore,
+          updatedAt: new Date().toISOString(),
+          lastStats: stats,
+        };
+        return { incremental: stats };
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+        // Provider-expired history cannot be replayed; use the same full
+        // backfill recovery as ordinary expired-history sync.
+        priorHistoryId = null;
+      }
+    }
+    const reset = input.reset || needsCaptureReplay;
     // Reset means a genuinely new baseline. Reusing the old historyId while a
     // capped full backfill still has pages left makes the next run jump back to
     // history.list and abandon the saved messages.list continuation.
-    const mailState: NonNullable<GoogleSyncState['mail']> = input.reset
+    const mailState: NonNullable<GoogleSyncState['mail']> = reset
       ? {}
       : {
           ...(state.mail ?? {}),
@@ -674,6 +708,16 @@ export class GoogleSyncService {
           // caller's in-memory state before syncConnectionByTenant persists it.
           labels: state.mail?.labels ? { ...state.mail.labels } : undefined,
         };
+    if (reset) {
+      // Keep the pre-replay baseline separate from historyId, which must stay
+      // empty while messages.list has pages left. Catching up from this point
+      // after backfill captures changes/deletions that happened during replay.
+      mailState.captureReplayHistoryId =
+        priorHistoryId ?? (await this.gmailProfile(accessToken)).historyId ?? null;
+      if (!mailState.captureReplayHistoryId)
+        throw new Error('Gmail mail replay requires a history baseline');
+      mailState.captureReplayCatchupPending = true;
+    }
     const results: Record<string, SyncStats> = {};
     const pendingBackfill = mailState.labels?.[MAIL_BACKFILL_SCOPE];
     const hasBackfillPageToken = Boolean(pendingBackfill?.backfillPageToken);
@@ -688,7 +732,7 @@ export class GoogleSyncService {
       );
     }
 
-    if (!input.reset && mailState.historyId && hasBackfillContinuation) {
+    if (!reset && mailState.historyId && hasBackfillContinuation) {
       // Recovery for state written by the old reset/reclaim implementation. A
       // full messages.list page chain is authoritative until it is exhausted;
       // the stale history baseline must not steal the next run.
@@ -702,11 +746,16 @@ export class GoogleSyncService {
 
     // Incremental path: a stored historyId means we've established a baseline,
     // unless the recovery block above found an unfinished full backfill.
-    if (!input.reset && mailState.historyId) {
+    if (!reset && mailState.historyId) {
       try {
         const stats = await this.syncMailIncremental(tenantId, connection, mailState, accessToken);
         state.mail = {
           ...mailState,
+          captureVersion: MAIL_CAPTURE_VERSION,
+          captureReplayCatchupPending: Boolean(
+            mailState.captureReplayCatchupPending && stats.hasMore,
+          ),
+          captureReplayHistoryId: stats.hasMore ? mailState.captureReplayHistoryId : null,
           updatedAt: new Date().toISOString(),
           lastStats: stats,
         };
@@ -721,22 +770,26 @@ export class GoogleSyncService {
         mailState.incrementalPageToken = null;
         mailState.incrementalLatestHistoryId = null;
         mailState.labels = {};
+        mailState.captureReplayHistoryId = (await this.gmailProfile(accessToken)).historyId ?? null;
+        if (!mailState.captureReplayHistoryId)
+          throw new Error('Gmail mail replay requires a history baseline');
+        mailState.captureReplayCatchupPending = true;
       }
     }
 
     // Backfill path: ONE query over the whole mailbox (minus spam/trash/
     // drafts — archive and custom labels included), capped per run, resuming
-    // from the stored pageToken. Once exhausted, capture the current profile
-    // historyId as the baseline for future incremental syncs. Pre-widening
+    // from the stored pageToken. Once exhausted, catch up from the pre-replay
+    // history baseline to retain changes made during the backfill. Pre-widening
     // INBOX/SENT label states are simply ignored; the 'ALL' scope starts its
     // own backfill (upserts are idempotent).
-    const labelStates = input.reset ? {} : (mailState.labels ?? {});
+    const labelStates = reset ? {} : (mailState.labels ?? {});
     const current = labelStates[MAIL_BACKFILL_SCOPE] ?? {};
-    if (current.backfillDone && !current.backfillPageToken && !input.reset) {
+    if (current.backfillDone && !current.backfillPageToken && !reset) {
       results[MAIL_BACKFILL_SCOPE] = emptyStats();
     } else {
       const stats = emptyStats();
-      let pageToken: string | null = input.reset ? null : (current.backfillPageToken ?? null);
+      let pageToken: string | null = reset ? null : (current.backfillPageToken ?? null);
 
       // The pageToken a prior run stored is only valid against the EXACT query
       // that produced it. `after:` is a Unix timestamp computed from "now", so
@@ -744,7 +797,7 @@ export class GoogleSyncService {
       // out from under a still-valid pageToken. Freeze it once per backfill
       // cycle and reuse verbatim on every resume within that cycle.
       let query: string;
-      if (input.reset || !pageToken) {
+      if (reset || !pageToken) {
         query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
       } else if (current.backfillQuery) {
         query = current.backfillQuery;
@@ -771,6 +824,13 @@ export class GoogleSyncService {
           stats.scanned += 1;
           try {
             const message = await this.gmailGet(accessToken, ref.id);
+            // Labels can change between listing and fetch. Apply the same
+            // removal contract as incremental sync instead of restoring trash.
+            if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+              await this.markGmailMessageRemoved(tenantId, ref.id, 'trashed');
+              stats.removed += 1;
+              continue;
+            }
             const outcome = await this.persistGmailMessage(
               tenantId,
               connection.id,
@@ -810,16 +870,20 @@ export class GoogleSyncService {
     }
 
     const allDone = Boolean(labelStates[MAIL_BACKFILL_SCOPE]?.backfillDone);
-    // Never carry a pre-backfill history baseline across an unfinished reset.
-    // Once the page chain is fully exhausted, Gmail's current profile historyId
-    // becomes the only safe incremental baseline.
+    // Keep historyId empty until the page chain is exhausted, then restore the
+    // saved baseline so normal incremental sync catches changes during replay.
     let historyId: string | null = null;
     if (allDone) {
-      const profile = await this.gmailProfile(accessToken);
-      historyId = profile.historyId ?? null;
+      historyId =
+        mailState.captureReplayHistoryId ??
+        (await this.gmailProfile(accessToken)).historyId ??
+        null;
     }
 
     state.mail = {
+      captureVersion: MAIL_CAPTURE_VERSION,
+      captureReplayHistoryId: mailState.captureReplayHistoryId,
+      captureReplayCatchupPending: mailState.captureReplayCatchupPending,
       historyId,
       labels: labelStates,
       updatedAt: new Date().toISOString(),
@@ -1059,16 +1123,8 @@ export class GoogleSyncService {
           ...ccRecipients.map((r) => ({ ...r, role: 'cc' })),
           ...bccRecipients.map((r) => ({ ...r, role: 'bcc' })),
         ]);
-        // Contact harvesting must not depend on client association. A message
-        // can be a useful correspondent for Fill with Meri even when its
-        // subject/body/domain was not strong enough to create a MailThread.
-        if (!clientId && !existingThread) {
-          await harvestMailContacts(tx, tenantId, participantJson, {
-            source: 'google',
-            clientId: null,
-          });
-          return 'skipped';
-        }
+        // Client association is advisory. Keep unassociated mail in the same
+        // owner-scoped store so personal inbox requests can retrieve it too.
         const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
         const thread = existingThread
           ? await tx.mailThread.update({
@@ -1084,7 +1140,9 @@ export class GoogleSyncService {
                 metadata: { labels: unique([folder]), deleted: false } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
-                associationSignals: association.signals as Prisma.InputJsonValue,
+                associationSignals: hasManualAssociationSignal(existingThread.associationSignals)
+                  ? (existingThread.associationSignals as Prisma.InputJsonValue)
+                  : (association.signals as Prisma.InputJsonValue),
               },
               select: { id: true },
             })
@@ -1182,7 +1240,7 @@ export class GoogleSyncService {
           source: 'google',
           clientId,
         });
-        return 'matched';
+        return 'matched' as const;
       },
       { timeoutMs: GOOGLE_SYNC_TX_TIMEOUT_MS },
     );

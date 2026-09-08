@@ -32,6 +32,17 @@ export interface MeriToolCoverageObservation {
    */
   authoritativeCoverage?: boolean;
   detail?: string;
+  mailPage?: MeriMailPageReceipt;
+}
+
+/** Exact canonical query identity and visible record ids, used only to reconcile
+ * pages already read. This never chooses a query or retrieves more evidence. */
+export interface MeriMailPageReceipt {
+  key: string;
+  offset: number;
+  recordIds: string[];
+  sourceComplete: boolean;
+  contentTruncated: boolean;
 }
 
 export interface MeriCoverageManifest {
@@ -114,6 +125,7 @@ function sourceHealthFromMailboxes(record: Record<string, unknown>): MeriSourceH
           ? raw.source
           : 'mailbox';
     const connectionStatus = typeof raw.status === 'string' ? raw.status.toLowerCase() : '';
+    const mailCoverage = isRecord(raw.mailCoverage) ? raw.mailCoverage : null;
     const synced =
       finiteNumber(raw.syncedMessages) ??
       finiteNumber(raw.messageCount) ??
@@ -124,14 +136,19 @@ function sourceHealthFromMailboxes(record: Record<string, unknown>): MeriSourceH
         ? 'error'
         : /disabled|unavailable|needs_configuration/.test(connectionStatus)
           ? 'unavailable'
-          : synced > 0
-            ? 'complete'
-            : 'partial';
+          : mailCoverage
+            ? mailCoverage.sourceStatus === 'healthy'
+              ? 'complete'
+              : mailCoverage.sourceStatus === 'unavailable' ? 'unavailable' : 'partial'
+            : synced > 0 ? 'complete' : 'partial';
+    const syncedAt = mailCoverage ? mailCoverage.lastMailSyncAt : raw.lastSyncAt;
     out.push({
       source: provider,
       status,
-      ...(typeof raw.lastSyncAt === 'string' ? { lastSyncAt: raw.lastSyncAt } : {}),
-      ...(typeof raw.note === 'string' ? { detail: raw.note } : {}),
+      ...(syncedAt instanceof Date ? { lastSyncAt: syncedAt.toISOString() }
+        : typeof syncedAt === 'string' ? { lastSyncAt: syncedAt } : {}),
+      ...(typeof mailCoverage?.reason === 'string' ? { detail: mailCoverage.reason }
+        : typeof raw.note === 'string' ? { detail: raw.note } : {}),
     });
   }
   return out;
@@ -179,10 +196,9 @@ export function observeMeriToolCoverage(
     nestedReturned ??
     (rows.length ? rows.length : 0);
   const hasMore =
-    payload.hasMore === true ||
+    (typeof payload.hasMore === 'boolean' ? payload.hasMore : total !== null && total > returned) ||
     payload.nextCursor != null ||
-    coverage?.paginationComplete === false ||
-    (total !== null && total > returned);
+    coverage?.paginationComplete === false;
   const truncated = payload.truncated === true || coverage?.truncated === true || hasMore;
   const error = typeof payload.error === 'string' ? payload.error : null;
   const note = typeof payload.note === 'string' ? payload.note : null;
@@ -201,19 +217,27 @@ export function observeMeriToolCoverage(
   );
   const sourceHealth = sourceHealthFromMailboxes(payload);
   const sourceFailure = sourceHealth.some(
-    (source) => source.status === 'error' || source.status === 'unavailable',
+    (source) => source.status !== 'complete',
   );
+  // During a mixed-version rollout, old list_emails returns only threads/count.
+  // A count of the newest threads is not an exhaustion receipt for the inbox.
+  const legacyMailListing = tool === 'list_emails' &&
+    (finiteNumber(payload.totalMatches) === null || finiteNumber(payload.returned) === null || typeof payload.hasMore !== 'boolean');
   const status: MeriSourceHealthStatus = error
     ? 'error'
     : unavailable
       ? 'unavailable'
-      : coverageComplete
+      : sourceFailure || legacyMailListing
+        ? 'partial'
+        : coverageComplete
         ? 'complete'
         : coveragePartial || truncated || sourceFailure
           ? 'partial'
           : !catalog.exhaustive && !explicitPaginationComplete
             ? 'partial'
             : 'complete';
+
+  const mailPage = mailPageReceipt(tool, payload, rows, returned, total, sourceHealth, error);
 
   return {
     tool,
@@ -242,7 +266,73 @@ export function observeMeriToolCoverage(
       : {}),
     ...(authoritativeCoverage ? { authoritativeCoverage: true } : {}),
     ...(error || note ? { detail: error ?? note ?? undefined } : {}),
+    ...(mailPage ? { mailPage } : {}),
   };
+}
+
+function mailPageReceipt(
+  tool: string,
+  payload: Record<string, unknown>,
+  rows: unknown[],
+  returned: number,
+  total: number | null,
+  sourceHealth: MeriSourceHealth[],
+  error: string | null,
+): MeriMailPageReceipt | null {
+  if (tool !== 'list_emails' && tool !== 'search_emails') return null;
+  if (!isRecord(payload.queryScope) || !Number.isSafeInteger(payload.offset) || Number(payload.offset) < 0 || total === null) return null;
+  const scope = payload.queryScope;
+  const keys = ['query', 'from', 'participant', 'clientId', 'folder', 'withinDays', 'asOf'] as const;
+  if (keys.some((key) => !(key in scope)) || typeof scope.asOf !== 'string' || !Number.isFinite(Date.parse(scope.asOf))) return null;
+  const recordIds = rows.flatMap((row) => isRecord(row) && typeof row.id === 'string' ? [row.id] : []);
+  const mailboxes = Array.isArray(payload.searchedMailboxes) ? payload.searchedMailboxes : [];
+  const sourceComplete = !error && mailboxes.length > 0 && mailboxes.every((box) =>
+    isRecord(box) && isRecord(box.mailCoverage) && box.mailCoverage.sourceStatus === 'healthy',
+  ) && sourceHealth.every((source) => source.status === 'complete');
+  return {
+    key: JSON.stringify(keys.map((key) => [key, scope[key]])),
+    offset: Number(payload.offset), recordIds, sourceComplete,
+    contentTruncated: (isRecord(payload.projection) && payload.projection.contentTruncated === false
+      ? false : payload.truncated === true || (isRecord(payload.projection) && payload.projection.truncated === true)) ||
+      recordIds.length !== returned,
+  };
+}
+
+/** Reconcile only exact canonical mail query pages. Repeated totals and pages
+ * are counted once; a missing range, changed filter, or degraded sync stays partial. */
+export function coalesceMeriMailPages(
+  observations: readonly MeriToolCoverageObservation[],
+): MeriToolCoverageObservation[] {
+  const groups = new Map<string, MeriToolCoverageObservation[]>();
+  const output: MeriToolCoverageObservation[] = [];
+  for (const observation of observations) {
+    if (!observation.mailPage) output.push(observation);
+    else groups.set(observation.mailPage.key, [...(groups.get(observation.mailPage.key) ?? []), observation]);
+  }
+  for (const pages of groups.values()) {
+    const first = pages[0]!;
+    const total = Math.max(...pages.map((page) => page.total ?? 0));
+    const ids = new Set(pages.flatMap((page) => page.mailPage!.recordIds));
+    let through = 0;
+    for (const page of [...pages].sort((a, b) => a.mailPage!.offset - b.mailPage!.offset)) {
+      if (page.mailPage!.offset > through) break;
+      through = Math.max(through, page.mailPage!.offset + page.returned);
+    }
+    const exhausted = pages.every((page) => page.total === total) && through >= total && ids.size >= total &&
+      pages.some((page) => !page.hasMore && page.mailPage!.offset + page.returned >= total);
+    const contentTruncated = pages.some((page) => page.mailPage!.contentTruncated);
+    const sourceComplete = pages.every((page) => page.mailPage!.sourceComplete);
+    const status: MeriSourceHealthStatus = pages.some((page) => page.status === 'error') ? 'error'
+      : pages.some((page) => page.status === 'unavailable') ? 'unavailable'
+        : exhausted && !contentTruncated && sourceComplete ? 'complete' : 'partial';
+    output.push({ ...first, returned: ids.size, total, hasMore: !exhausted,
+      truncated: contentTruncated || !exhausted, status,
+      sourceHealth: mergeSourceHealth(pages),
+      detail: status === 'complete' ? undefined : pages.find((page) => page.detail)?.detail ?? 'mail_query_coverage_partial',
+      mailPage: undefined,
+    });
+  }
+  return output;
 }
 
 function unique<T>(values: readonly T[]): T[] {
@@ -298,6 +388,8 @@ export function buildMeriCoverageManifest(
   plan: MeriRetrievalPlan,
   observations: readonly MeriToolCoverageObservation[],
 ): MeriCoverageManifest {
+  const toolsInvoked = unique(observations.map((observation) => observation.tool));
+  observations = coalesceMeriMailPages(observations);
   if (!plan.requiredDomains.length && !observations.length) {
     return {
       version: 1,
@@ -402,7 +494,7 @@ export function buildMeriCoverageManifest(
     truncated,
     sourceHealth,
     unavailableSources,
-    toolsInvoked: unique(observations.map((observation) => observation.tool)),
+    toolsInvoked,
     stopReason: complete ? 'complete' : 'partial',
   };
 }

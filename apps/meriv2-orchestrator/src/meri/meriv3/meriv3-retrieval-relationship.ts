@@ -1,3 +1,4 @@
+import { MERI_MAIL_MAX_STALENESS_MS } from '@capiro/shared';
 import {
   attentionItem,
   evidenceRows,
@@ -25,7 +26,6 @@ const FREE_MAIL_DOMAINS = new Set([
   'protonmail.com',
   'yahoo.com',
 ]);
-const MAX_MAILBOX_STALENESS_MS = 48 * 60 * 60 * 1000;
 
 function numberValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -165,7 +165,7 @@ function mailboxHealthIssues(result: unknown, now = Date.now()): string[] {
       issues.push(`${account} has no verifiable last-sync timestamp.`);
       continue;
     }
-    if (now - lastSyncAt.getTime() > MAX_MAILBOX_STALENESS_MS) {
+    if (now - lastSyncAt.getTime() > MERI_MAIL_MAX_STALENESS_MS) {
       issues.push(`${account} has not synchronized within the last 48 hours.`);
     }
   }

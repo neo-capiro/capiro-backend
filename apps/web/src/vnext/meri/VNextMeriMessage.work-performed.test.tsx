@@ -81,6 +81,42 @@ function props(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Meri message work performed', () => {
+  test('shows ordinary pending progress as status without attributing a tool or research run', () => {
+    const { rerender } = render(
+      <VNextMeriMessage
+        {...props({
+          message: message({ content: '', trustSteps: [], planSteps: [] }),
+          controller: controller({
+            trustSteps: [],
+            planSteps: [],
+            orchestratorIntent: null,
+            turnProgress: {
+              note: 'Reading authorized client context',
+              elapsedMs: 18000,
+            },
+          }),
+          isStreaming: true,
+        })}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Reading authorized client context · 18s elapsed',
+    );
+    expect(screen.queryByLabelText('Research progress')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reviewed client profile')).not.toBeInTheDocument();
+    rerender(
+      <VNextMeriMessage
+        {...props({
+          controller: controller({
+            turnProgress: { note: 'Reading authorized client context', elapsedMs: 18000 },
+          }),
+          isStreaming: false,
+        })}
+      />,
+    );
+    expect(screen.queryByText(/Reading authorized client context/)).not.toBeInTheDocument();
+  });
+
   test('uses the same source number and record in inline citations and the inspector', () => {
     const citation = {
       n: 7,

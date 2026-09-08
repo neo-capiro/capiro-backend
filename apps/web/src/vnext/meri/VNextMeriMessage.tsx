@@ -350,6 +350,13 @@ function VNextMeriAssistantMessage({
 
         {runtimeStatusText && !messageIsStreaming ? <p role="status">{runtimeStatusText}</p> : null}
 
+        {messageIsStreaming && !controller.isResearchStreaming && controller.turnProgress ? (
+          <p role="status" aria-live="polite">
+            {controller.turnProgress.note} · {Math.floor(controller.turnProgress.elapsedMs / 1000)}s
+            elapsed
+          </p>
+        ) : null}
+
         {showResearchProgress ? (
           <MeriResearchProgress
             isStreaming={controller.isResearchStreaming}

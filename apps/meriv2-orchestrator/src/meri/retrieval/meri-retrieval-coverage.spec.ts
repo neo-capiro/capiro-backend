@@ -3,7 +3,19 @@ import {
   appendMeriCoverageDisclosure,
   buildMeriCoverageManifest,
   observeMeriToolCoverage,
+  coalesceMeriMailPages,
 } from './meri-retrieval-coverage.js';
+
+function mailPage(offset: number, returned: number, scope: Record<string, unknown> = {}) {
+  const asOf = '2026-09-07T12:00:00.000Z';
+  return {
+    offset, asOf, queryScope: { query: null, from: null, participant: null, clientId: null, folder: 'inbox', withinDays: 14, asOf, ...scope },
+    totalMatches: 75, returned, hasMore: offset + returned < 75,
+    messages: Array.from({ length: returned }, (_, i) => ({ id: `mail-${offset + i}` })),
+    searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected', syncedMessages: 100,
+      mailCoverage: { sourceStatus: 'healthy', lastMailSyncAt: asOf } }],
+  };
+}
 
 function plan(overrides: Partial<MeriRetrievalPlan> = {}): MeriRetrievalPlan {
   return {
@@ -35,6 +47,52 @@ function plan(overrides: Partial<MeriRetrievalPlan> = {}): MeriRetrievalPlan {
 }
 
 describe('Meri retrieval coverage', () => {
+  test('keeps legacy newest-thread listings partial during a mixed-version rollout', () => {
+    expect(observeMeriToolCoverage('list_emails', {}, { threads: [], count: 0 }).status).toBe('partial');
+  });
+
+  test('honors an explicit final page while counting 75 matching messages only once', () => {
+    const first = observeMeriToolCoverage('list_emails', {}, mailPage(0, 50));
+    const final = observeMeriToolCoverage('list_emails', {}, mailPage(50, 25));
+    expect(final).toMatchObject({ hasMore: false, truncated: false, returned: 25, total: 75 });
+    const manifest = buildMeriCoverageManifest(plan({ requiredDomains: ['mail'], subjectScope: 'general' }), [first, final, first]);
+    expect(manifest).toMatchObject({ complete: true, paginationComplete: true, truncated: false, recordsEvaluated: 75, recordsReturned: 75 });
+  });
+
+  test('does not close a mail query from only its final page or pages with different filters', () => {
+    const first = observeMeriToolCoverage('list_emails', {}, mailPage(0, 50));
+    const final = observeMeriToolCoverage('list_emails', {}, mailPage(50, 25));
+    expect(coalesceMeriMailPages([final])[0]).toMatchObject({ status: 'partial', hasMore: true, returned: 25, total: 75 });
+    const different = observeMeriToolCoverage('list_emails', {}, mailPage(50, 25, { folder: 'sent' }));
+    const manifest = buildMeriCoverageManifest(plan({ requiredDomains: ['mail'], subjectScope: 'general' }), [first, different]);
+    expect(manifest.complete).toBe(false);
+    expect(manifest.paginationComplete).toBe(false);
+  });
+
+  test('recovers omitted whole rows through safe projected-page continuation but not clipped message content', () => {
+    const first = observeMeriToolCoverage('search_emails', {}, {
+      ...mailPage(0, 30), truncated: true, projection: { truncated: true, contentTruncated: false },
+    });
+    const last = observeMeriToolCoverage('search_emails', {}, mailPage(30, 45));
+    expect(coalesceMeriMailPages([first, last])[0]).toMatchObject({ status: 'complete', returned: 75, total: 75, truncated: false });
+    const clipped = observeMeriToolCoverage('search_emails', {}, {
+      ...mailPage(0, 30), truncated: true, projection: { truncated: true, contentTruncated: true },
+    });
+    expect(coalesceMeriMailPages([clipped, last])[0]).toMatchObject({ status: 'partial', truncated: true });
+  });
+
+  test.each(['list_emails', 'search_emails'])('%s uses mail health and message totals over thread grouping', (tool) => {
+    const payload = {
+      totalMatches: 2, returned: 2, count: 1, hasMore: false,
+      messages: [{ id: 'mail-1' }, { id: 'mail-2' }], threads: [{ id: 'thread-1' }],
+      searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected', syncedMessages: 100,
+        mailCoverage: { sourceStatus: 'degraded', reason: 'mail_capture_repair_required', lastMailSyncAt: null } }],
+    };
+    const observation = observeMeriToolCoverage(tool, { withinDays: 14, folder: 'inbox' }, payload);
+    expect(observation).toMatchObject({ returned: 2, total: 2, status: 'partial',
+      sourceHealth: [{ source: 'microsoft_365', status: 'partial', detail: 'mail_capture_repair_required' }] });
+  });
+
   test('marks a fully enumerated portfolio recipe complete even with zero changes', () => {
     const observation = observeMeriToolCoverage('query_portfolio_changes', {}, {
       coverage: {

@@ -30,16 +30,21 @@ export class MeriContextPlaneRuntimeService {
       conversationId: string;
       body: string;
       mode: 'new' | 'regenerate' | 'resend';
+      signal?: AbortSignal;
     },
     fn: () => Promise<T>,
   ): Promise<T> {
+    input.signal?.throwIfAborted();
     const prepared = await this.prepareTurn(ctx, input);
+    input.signal?.throwIfAborted();
     const governed = await this.contextPlane.resolveChat(ctx, {
       conversationId: input.conversationId,
       task: prepared.task,
     });
-    const activeClient =
-      governed.retrieval.plan.subjectScope === 'client' ? prepared.client : null;
+    // Retrieval owns its database work. Stop must prevent the next stage from
+    // starting, even when that work finishes after the browser disconnected.
+    input.signal?.throwIfAborted();
+    const activeClient = governed.retrieval.plan.subjectScope === 'client' ? prepared.client : null;
     return runtime.run({ context: governed, activeClient }, fn);
   }
 

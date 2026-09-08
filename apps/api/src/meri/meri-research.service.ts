@@ -21,7 +21,7 @@ import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
-import { clientScopeRefusal, CLIENT_ID_UUID_RE } from './meri-prompt.helpers.js';
+import { clientScopeRefusal, CLIENT_ID_UUID_RE, isMeriMailReadTool } from './meri-prompt.helpers.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { DELIVERABLE_RISK_TIERS } from '@capiro/shared';
@@ -1293,7 +1293,7 @@ export class MeriResearchService {
             const supplied =
               typeof parsedInput.clientId === 'string' ? parsedInput.clientId.trim() : '';
             if (!supplied) {
-              parsedInput.clientId = session.clientId;
+              if (!isMeriMailReadTool(t.name)) parsedInput.clientId = session.clientId;
             } else if (supplied !== session.clientId) {
               const name = CLIENT_ID_UUID_RE.test(supplied)
                 ? null

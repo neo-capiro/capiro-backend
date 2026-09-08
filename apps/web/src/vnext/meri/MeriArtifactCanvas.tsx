@@ -1,15 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js';
 import { MeriIcon } from './meri-icons.js';
+import { MeriWordArtifactPreview, meriWordArtifactText, readMeriWordArtifact } from './MeriWordArtifactPreview.js';
 
 /**
  * MeriArtifactCanvas — the in-rail "ARTIFACT" panel content, replacing the
  * legacy fixed-overlay MeriCanvas for the vNext workspace. A CanvasArtifact
- * only ever carries { id, title, kind, bodyText } — no figures grid, next-steps
- * list, citation count, or sheet/deck table data exists on it, and there is no
- * "open as page" route — so unlike the v4 prototype's `panelIsArtifact` block,
- * this renders the real body text plus copy/download and drops the rest
- * rather than fabricating it.
+ * carries { id, title, kind, bodyText }. Word bodyText is the API's persisted
+ * document spec; preview its actual content while downloads continue through
+ * the canonical authenticated document renderer.
  */
 
 const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
@@ -34,8 +33,12 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
 
   const title = artifact.title?.trim() || 'Document';
   const body = artifact.bodyText ?? '';
+  const isStructuredWord = artifact.kind === 'word_document' && /^\s*[\[{]/.test(body);
+  const wordDocument = useMemo(() => isStructuredWord ? readMeriWordArtifact(body) : null, [body, isStructuredWord]);
+  const previewUnavailable = isStructuredWord && !wordDocument;
+  const copyText = useMemo(() => wordDocument ? meriWordArtifactText(wordDocument) : body, [wordDocument, body]);
   const docKind = artifact.kind ? DOC_KINDS[artifact.kind] : undefined;
-  const isOfficeDoc = Boolean(docKind && artifact.id);
+  const isOfficeDoc = Boolean(docKind);
   const metaLabel = docKind?.label ?? 'MARKDOWN DOCUMENT';
 
   const slugify = () =>
@@ -46,7 +49,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(body);
+      await navigator.clipboard.writeText(copyText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -130,6 +133,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
           <button
             type="button"
             onClick={copy}
+            disabled={previewUnavailable}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -201,7 +205,9 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
             wordBreak: 'break-word',
           }}
         >
-          {body || 'This document has no content yet.'}
+          {wordDocument ? <MeriWordArtifactPreview document={wordDocument} /> : previewUnavailable ? (
+            <p role="status">This document preview is unavailable. Download the Word file to view its content.</p>
+          ) : body || 'This document has no content yet.'}
         </div>
       </div>
     </div>

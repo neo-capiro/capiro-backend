@@ -1,5 +1,7 @@
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
 import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT } from '@capiro/meriv2-core';
+import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 
@@ -81,6 +83,34 @@ describe('MeriV3AssistantService', () => {
     delete process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_RELEASE_GATE;
     jest.restoreAllMocks();
+  });
+
+  test('saves inherited document evidence used only in the generated artifact, preserving [56]', async () => {
+    const citation = { n: 56, type: 'source', id: 'doc-page-22', title: 'Capiro 2.0.pdf', url: null,
+      snippet: 'Meeting preparation', tool: 'read_client_documents', documentEvidence: {
+        clientId: 'client-1', documentId: 'doc-1', contentHash: 'a'.repeat(64), observedAt: '2026-09-07T00:00:00Z',
+        record: { recordId: 'doc-page-22', payload: { title: 'Capiro 2.0.pdf', text: 'Meeting preparation', section: 22 } },
+        coverage: { complete: false, truncated: true, disclosure: 'Visual page extraction only' },
+      } };
+    const governed = { inheritedDocumentEvidence: [citation], contextPacket: { packetId: 'packet-1' } } as unknown as MeriGovernedTurnContext;
+    const call = { type: 'function_call', call_id: 'word-call', name: 'create_word', arguments: '{}' };
+    const complete = jest.fn().mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'Your briefing is ready.' }));
+    const artifact = { id: 'artifact-1', kind: 'docx', title: 'QA Briefing',
+      bodyText: JSON.stringify({ title: 'QA Briefing', sections: [{ paragraphs: ['Page 22 observation [56]. Visual extraction only.'] }] }) };
+    const createProposal = jest.fn().mockResolvedValue({ disposition: 'executed', executionResult: { artifact } });
+    const assistant = build(registry([{ name: 'create_word', readOnly: false }]), complete, createProposal);
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{ name: 'create_word', description: 'Create a Word document', input_schema: { type: 'object', properties: {} } }] }), { status: 200 })) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'test-token' }, () => runWithGovernedMeriContext(governed, () => assistant.run(context, {
+      clientId: 'client-1', conversationId: 'thread-1', messages: [{ role: 'user', text: 'Create a Word briefing from the earlier page observation.' }],
+    })));
+    expect(result.reply).toBe('Your briefing is ready.');
+    expect(result.artifacts).toEqual([artifact]);
+    expect(result.citations).toEqual([citation]);
+    const saved = JSON.parse(JSON.stringify(result));
+    expect(saved.citations[0].documentEvidence.coverage.disclosure).toBe('Visual page extraction only');
+    expect(saved.evidenceManifest.sources[0]).toMatchObject({ id: 'doc-page-22', origin: 'conversation', truncated: true });
+    expect(complete.mock.calls[0]?.[0].instructions).toContain('[56]');
   });
 
   test('retains the professional answer contract and client constraints in forced synthesis', async () => {
@@ -596,6 +626,58 @@ describe('MeriV3AssistantService', () => {
       expect.objectContaining({ tool: 'get_client_context', status: 'blocked' }),
     ]);
   });
+
+  test.each(['list_emails', 'search_emails'])(
+    '%s preserves a provider-selected personal inbox date range without injecting the UI client',
+    async (name) => {
+      const input = { withinDays: 14, folder: 'inbox', limit: 50 };
+      const call = { type: 'function_call', call_id: 'inbox-call', name, arguments: JSON.stringify(input) };
+      const complete = jest.fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(response({ outputText: 'You received a meeting invitation for September 8. [1]' }));
+      const invoke = jest.fn().mockResolvedValue({
+        messages: [{ id: 'personal-mail-1', threadId: 'thread-1', subject: 'Meeting invitation',
+          preview: 'Can we meet on September 8?', clientId: null, folder: 'inbox' }],
+        totalMatches: 1, returned: 1, hasMore: false,
+        asOf: '2026-09-07T12:00:00Z', searchedMailboxes: [],
+      });
+      const assistant = build(registry([{ name, readOnly: true }], invoke), complete);
+      global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{
+        name, description: 'Read authenticated mail', input_schema: { type: 'object', properties: {
+          clientId: { type: 'string' }, withinDays: { type: 'number' }, folder: { type: 'string' }, limit: { type: 'number' },
+        } },
+      }] }))) as typeof fetch;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(context, {
+        clientId: 'client-a',
+        messages: [{ role: 'user', text: 'what activities do i have in my email inbox for the last two weeks' }],
+      }));
+      expect(invoke).toHaveBeenCalledWith(name, input, context, expect.any(Object));
+      expect(JSON.stringify(complete.mock.calls[1][0].input)).toContain('personal-mail-1');
+      expect(complete.mock.calls[0][0].instructions).toContain('withinDays=14 and omit clientId');
+      expect(result.steps).toEqual([expect.objectContaining({ tool: name, status: 'done' })]);
+    },
+  );
+
+  test.each(['list_emails', 'search_emails'])(
+    '%s still refuses an explicit different client filter',
+    async (name) => {
+      const call = { type: 'function_call', call_id: 'inbox-call', name,
+        arguments: '{"clientId":"client-b","withinDays":14,"folder":"inbox"}' };
+      const complete = jest.fn()
+        .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+        .mockResolvedValueOnce(response({ outputText: 'I did not read another client.' }));
+      const invoke = jest.fn();
+      const assistant = build(registry([{ name, readOnly: true }], invoke), complete);
+      global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{
+        name, description: 'Read mail', input_schema: { type: 'object', properties: { clientId: { type: 'string' } } },
+      }] }))) as typeof fetch;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(context, {
+        clientId: 'client-a', messages: [{ role: 'user', text: 'Read client B mail.' }],
+      }));
+      expect(invoke).not.toHaveBeenCalled();
+      expect(result.steps).toEqual([expect.objectContaining({ tool: name, status: 'blocked' })]);
+    },
+  );
 });
 
 describe('Durable research cancellation across API replicas', () => {

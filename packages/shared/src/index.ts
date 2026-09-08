@@ -2515,25 +2515,25 @@ CLOSED-WORLD RULE — this overrides every other instinct you have:
 </closed_world>`;
 
 const GB_REFUSAL = `<refusal_protocol scope="invariant">
-When the retrieved context does not contain the answer, say exactly:
-
-  "Data missing from legislative context"
-
-followed by a dash and what you searched, so the user can judge coverage and next steps. Format:
-
-  Data missing from legislative context — searched: search_congress_bills("counter-UAS authority",
-  congress=119) → 0 results; get_pe_report_language(0305116F, FY2027) → no provisions. I can retry
-  with different terms or check <specific other tool> if useful.
+When relevant retrieved context does not contain the answer, explain the evidence gap in plain
+language using the actual source and requested scope. For example, a mail lookup can say that no
+matching messages were found in the synced inbox for the requested dates. An email, calendar,
+client-document, or task question is not a legislative-data question.
 
 Rules:
-- Name each tool called, the essential arguments, and the outcome (0 results / not in payload /
-  truncated). If you did not search because no tool covers it, say "no available tool returns this".
+- Name the relevant source, date range or filters, and material outcome or limitation. Explain
+  whether records were absent, the source was unavailable, or coverage was incomplete. Do not
+  print tool names, argument syntax, or diagnostic work logs unless the user asks for diagnostics.
+- A connected account or recent general sync timestamp does not prove mail was retrieved or the
+  requested dates were fully covered. Use the mail-specific coverage returned by the tools.
+- An empty keyword search establishes only that the keyword did not match. It does not prove an
+  inbox is empty. Never invent a filler search term such as "the" to enumerate a date range.
 - NEVER soften the refusal into a guess, a "typically", a "likely", or an illustrative example with
   invented specifics. No helpful guessing — a fabricated staffer email or a "typical 7-10 day window"
-  is strictly worse than this refusal line.
-- Partial coverage: answer the covered part with citations, then use the refusal line for the
-  uncovered remainder in the same response. Do not let the grounded half lend credibility to the
-  ungrounded half.
+  is strictly worse than an honest gap statement.
+- Partial coverage: answer the covered part with citations, then explain the material uncovered
+  remainder once. Do not let the grounded half lend credibility to the ungrounded half. Do not
+  append unrelated legislative disclaimers or duplicate a limitation already explained.
 </refusal_protocol>`;
 
 const GB_CITATIONS = `<citations scope="invariant">
@@ -2717,8 +2717,8 @@ L1 SECONDARY — only news/web coverage (search_intel_articles, search_public_we
 L2 CONFLICTING — two sources disagree: state both, each with its token. Resolution order: primary
    source over secondary; Capiro internal over public web; newer statusAt/generatedAt over older.
    Name the winner and why. Never average, blend, or silently pick.
-L3 PARTIAL — the data covers part of the question: answer the covered part at L0/L1, then the exact
-   line "Data missing from legislative context — searched: ..." for the remainder.
+L3 PARTIAL — the data covers part of the question: answer the covered part at L0/L1, then explain
+   the material source-specific gap for the remainder using the refusal protocol.
 L4 ABSENT — nothing retrieved bears on it: refusal protocol, nothing else.
 
 INFERENCE LABELING: your own reasoning on top of L0 facts is allowed but must be prefixed
@@ -2742,7 +2742,7 @@ ADVICE GATE — recommendations inherit the weakest fact under them:
    alignment", and "primary vehicle" are banned unless the DIRECT MATCH evidence is cited AND (for
    "primary vehicle") a sibling-line check was retrieved showing no materially larger line.
 3. If the facts under a recommendation are L3/L4, the recommendation section says so instead of
-   recommending: "No grounded ask available — Data missing from legislative context (…)".
+   recommending an unsupported action. Name the missing evidence and how it limits the proposed action.
 </recommendations>`;
 
 const GB_SELF_CHECK = `<self_check scope="invariant">
@@ -2754,8 +2754,8 @@ BEFORE SENDING, verify every one of these; fix, relabel as inference, or refuse 
   in a "Citable sources" block.
 - No comparison violates the same-table rule; no direction word lacks a source-stated delta.
 - Every "As general background" passage contains zero specifics.
-- Anything you looked for and did not find is stated with the exact refusal phrase — never implied
-  by silence.
+- Material evidence you looked for and did not find is disclosed once in source-specific plain
+  language — never implied by silence or replaced with unrelated legislative boilerplate.
 </self_check>`;
 
 /**
@@ -2841,6 +2841,15 @@ export interface MeriCitation {
   snippet: string | null;
   /** Originating tool name. */
   tool: string;
+  /** Exact document-page observation, reauthorized before another turn can use it. */
+  documentEvidence?: {
+    clientId: string;
+    documentId: string;
+    contentHash: string;
+    record: Record<string, unknown>;
+    coverage: Record<string, unknown>;
+    observedAt: string | null;
+  };
 }
 
 /** Map a Meri tool name to a citation `type` label. */
@@ -2867,6 +2876,9 @@ const TOOL_CITATION_TYPE: Readonly<Record<string, string>> = {
   search_contract_vehicles: 'contract_vehicle',
   search_procurement_forecasts: 'procurement_forecast',
   get_district_federal_market: 'federal_market',
+  list_emails: 'email',
+  search_emails: 'email',
+  get_email_thread: 'email',
 };
 
 const CITATION_TITLE_FIELDS = [
@@ -3005,6 +3017,16 @@ function federalMarketCitationRows(tool: string, payload: Record<string, unknown
 }
 
 function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown[] | null {
+  if (isMeriMailReadTool(tool) && Array.isArray(payload.messages)) {
+    return payload.messages.filter(citationObject).flatMap((message) => {
+      const id = firstCitationString(message, ['id']);
+      if (!id) return [];
+      return [{ ...message, id,
+        title: firstCitationString(message, ['subject']) ?? 'Email message',
+        snippet: firstCitationString(message, ['bodyText', 'preview']),
+      }];
+    });
+  }
   if (tool === 'get_client_context') {
     const profileRows = clientContextCitationRows(payload);
     if (profileRows.length) return profileRows;
@@ -3085,6 +3107,19 @@ export function extractCitationsFromToolResult(
       url: url && /^https?:\/\//i.test(url) ? url : null,
       snippet: snippetRaw ? truncateCitation(snippetRaw, 240) : null,
       tool: toolName,
+      ...(toolName === 'read_client_documents' && citationObject(rec.document) &&
+        typeof rec.clientId === 'string' && typeof rec.document.id === 'string' &&
+        typeof rec.document.contentHash === 'string' && citationObject(rec.coverage) &&
+        Array.isArray(rec.records)
+        ? { documentEvidence: {
+            clientId: rec.clientId,
+            documentId: rec.document.id,
+            contentHash: rec.document.contentHash,
+            record: rec.records.find((value) => citationObject(value) && value.recordId === id) as Record<string, unknown>,
+            coverage: rec.coverage,
+            observedAt: typeof rec.generatedAt === 'string' ? rec.generatedAt : null,
+          } }
+        : {}),
     });
     n += 1;
   }
@@ -3519,6 +3554,15 @@ export interface MeriCapabilityDefinition {
  * its handler owner, side effects and allowed surfaces. Provider/app MCP tools
  * retain their separate authenticated discovery and execution path.
  */
+/** Mail reads default to the authenticated owner's mailbox. A selected client
+ * is an optional explicit filter, never an implicit restriction on their inbox. */
+/** Mail freshness policy shared by canonical reads and retrieval coverage. */
+export const MERI_MAIL_MAX_STALENESS_MS = 48 * 60 * 60 * 1000;
+
+export function isMeriMailReadTool(name: string | undefined): boolean {
+  return name === 'list_emails' || name === 'search_emails' || name === 'get_email_thread';
+}
+
 export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'get_research_evidence',
@@ -3848,7 +3892,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'list_emails',
     description:
-      "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
+      "List the authenticated user's synced email threads, newest first. For inbox activity over a date range, use withinDays (last two weeks = 14) and folder='inbox' without a keyword. Omit clientId for the user's own inbox, even when a client is selected; pass clientId only when the user asks for that client's mail. Supports bounded pages (limit up to 50); while hasMore is true, pass offset=nextOffset with the same returned asOf and filters. The initial request can omit asOf; continuation requires it. folder accepts inbox, sent, or all (default all). Check mail coverage and disclose partial results if you stop before exhausting pages. For a specific message, sender, or topic use search_emails.",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
@@ -3856,7 +3900,15 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_emails',
     description:
-      "Search the user's synced email (Microsoft 365/Google) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). Matching is an exact, case-insensitive substring — there is NO fuzzy or typo tolerance, so a real company or person's name that is spelled even slightly differently (plural vs singular, a hyphen, an abbreviation, a missing/extra word) will not match. If a full name or phrase returns zero results, retry with just its single most distinctive word before concluding the person or company is absent, and treat any hit on that broader term as a possible naming variant worth surfacing to the user rather than a false lead to discard. IMPORTANT: bodies are stored as short previews and junk/spam, deleted/trash, and drafts folders never sync, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
+      "Search the authenticated user's synced email by content, people, or a bounded date range. Provide at least one of query (substring of subject, sender, recipients or stored body), from (sender email/name), participant (sender or to/cc/bcc email/name), or withinDays (last N days). A date-only inbox query is valid: withinDays=14, folder='inbox'; never invent a filler keyword such as 'the'. Omit clientId for the user's own mailbox even when a client is selected; pass it only for explicitly client-specific mail. Optional limit defaults to 20, max 50; folder is inbox, sent, or all (default all). Returns newest-first messages, threadId, totalMatches, hasMore, nextOffset, asOf and mailbox coverage. Continue with offset=nextOffset and the same returned asOf and filters; a continuation requires asOf. Disclose partial coverage if you stop while hasMore is true. Exact case-insensitive substring matching has no typo tolerance: retry a failed specific name/phrase with its most distinctive word. Inspect actual body completeness and mail-specific sync coverage; general connection sync time does not prove mail coverage. Junk/spam, deleted/trash and drafts are outside the synced corpus. Report a miss as 'not found in synced mail', never as proof no email exists.",
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'get_email_thread',
+    description:
+      "Read the authenticated user's stored message bodies in one email thread. Use a threadId from list_emails/search_emails, and optionally messageId to read one message. Mail search/list previews are abbreviated: use this tool before attributing detailed commitments, deadlines, or requests that the preview does not show. Read bounded body sections with bodyOffset and maxCharacters (up to 6000), and message pages with messageOffset and limit (up to 10); follow the returned continuation with the same thread/message selection. Report actual body completeness and any unread continuation; a missing or truncated body is not proof a commitment was absent. Read-only; never sends or changes mail.",
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],

@@ -6,6 +6,16 @@ import {
 } from './meri-citations.helpers.js';
 
 describe('extractCitationsFromToolResult', () => {
+  it.each(['list_emails', 'search_emails', 'get_email_thread'])('cites only visible canonical message rows from %s', (tool) => {
+    const citations = extractCitationsFromToolResult(tool, {
+      messages: [{ id: 'message-1', threadId: 'thread-1', subject: 'Meeting request', bodyText: 'Please send the briefing by Friday.', preview: 'Abbreviated preview' }],
+      threads: [{ id: 'thread-1', subject: 'Duplicate grouping' }],
+      totalMatches: 100, returned: 1,
+    }, 4);
+    expect(citations).toEqual([expect.objectContaining({ n: 4, id: 'message-1', type: 'email',
+      title: 'Meeting request', snippet: 'Please send the briefing by Friday.', tool })]);
+  });
+
   it('extracts numbered citations from a bills result', () => {
     const payload = {
       total: 2,

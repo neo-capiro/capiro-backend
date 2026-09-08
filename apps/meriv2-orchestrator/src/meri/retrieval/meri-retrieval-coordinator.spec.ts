@@ -19,6 +19,21 @@ function plan(): MeriRetrievalPlan {
 }
 
 describe('MeriRetrievalCoordinator', () => {
+  test.each(['list_emails', 'search_emails'])('%s does not mistake a recent calendar sync for healthy inbox coverage', async (tool) => {
+    const coordinator = new MeriRetrievalCoordinator();
+    const observation = await coordinator.run(plan(), async () => {
+      coordinator.observe(tool, { withinDays: 14, folder: 'inbox' }, {
+        totalMatches: 0, returned: 0, count: 0, hasMore: false, messages: [], threads: [],
+        searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected',
+          lastSyncAt: new Date().toISOString(), syncedMessages: 100,
+          mailCoverage: { sourceStatus: 'degraded', reason: 'mail_capture_repair_required', lastMailSyncAt: null } }],
+      });
+      return coordinator.observations()[0];
+    });
+    expect(observation?.status).toBe('partial');
+    expect(observation?.detail).toContain('mail_capture_repair_required');
+  });
+
   test('does not let a non-authoritative composite recipe hide a partial underlying search', async () => {
     const coordinator = new MeriRetrievalCoordinator();
 

@@ -30,6 +30,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { markMailMessageRemovedInTx } from '../mail-message-state.js';
+import { MAIL_CAPTURE_VERSION } from '../mail-sync-coverage.js';
 import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 import {
   MAX_SYNCED_MAIL_FOLDERS,
@@ -102,6 +103,14 @@ interface MicrosoftSyncState {
     lastStats?: SyncStats;
   };
   mail?: {
+    captureVersion?: number;
+    /** Old deltas were drained before the one-time capture replay starts. */
+    captureReplayReady?: boolean;
+    captureReplayCatchupPending?: boolean;
+    captureReplayFinishing?: boolean;
+    captureReplayPreviousFolders?: Record<string, MailFolderSyncState>;
+    captureReplayMissingFolders?: string[];
+    folderEnumerationComplete?: boolean;
     cursor?: string | null;
     deltaLink?: string | null;
     updatedAt?: string | null;
@@ -117,6 +126,8 @@ interface MicrosoftSyncState {
 }
 
 interface MailFolderSyncState {
+  /** Keep capped backfill continuations out of incremental knowledge ingestion. */
+  syncMode?: MailboxSyncMode;
   cursor?: string | null;
   nextLink?: string | null;
   deltaLink?: string | null;
@@ -537,39 +548,35 @@ export class MicrosoftGraphSyncService {
       id?: unknown;
       internetMessageId?: unknown;
       conversationId?: unknown;
-    }>(
-      '/me/messages',
-      accessToken,
-      {
-        subject: input.subject,
-        body: {
-          contentType: input.bodyContentType ?? 'Text',
-          content: input.body,
-        },
-        toRecipients: toGraphRecipients(input.toRecipients),
-        ...(input.ccRecipients?.length
-          ? { ccRecipients: toGraphRecipients(input.ccRecipients) }
-          : {}),
-        ...(input.bccRecipients?.length
-          ? { bccRecipients: toGraphRecipients(input.bccRecipients) }
-          : {}),
-        ...(input.attachments?.length
-          ? {
-              attachments: input.attachments.map((a) => ({
-                '@odata.type': '#microsoft.graph.fileAttachment',
-                name: a.name,
-                contentType: a.contentType,
-                contentBytes: a.contentBytes,
-              })),
-            }
-          : {}),
-        ...(correlationHeader
-          ? {
-              internetMessageHeaders: [{ name: 'X-Capiro-Delivery-Id', value: correlationHeader }],
-            }
-          : {}),
+    }>('/me/messages', accessToken, {
+      subject: input.subject,
+      body: {
+        contentType: input.bodyContentType ?? 'Text',
+        content: input.body,
       },
-    );
+      toRecipients: toGraphRecipients(input.toRecipients),
+      ...(input.ccRecipients?.length
+        ? { ccRecipients: toGraphRecipients(input.ccRecipients) }
+        : {}),
+      ...(input.bccRecipients?.length
+        ? { bccRecipients: toGraphRecipients(input.bccRecipients) }
+        : {}),
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((a) => ({
+              '@odata.type': '#microsoft.graph.fileAttachment',
+              name: a.name,
+              contentType: a.contentType,
+              contentBytes: a.contentBytes,
+            })),
+          }
+        : {}),
+      ...(correlationHeader
+        ? {
+            internetMessageHeaders: [{ name: 'X-Capiro-Delivery-Id', value: correlationHeader }],
+          }
+        : {}),
+    });
 
     const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
     if (!draftId) {
@@ -919,18 +926,58 @@ export class MicrosoftGraphSyncService {
     const enumeration = await this.listSyncableMailFolders(connection.id, accessToken);
     const folders = [...legacyFolders, ...enumeration.folders];
     const results: Record<string, SyncStats> = {};
-    const mailState = state.mail ?? {};
-    const folderStates = mailState.folders ?? {};
+    const missingFolders = new Set(state.mail?.captureReplayMissingFolders ?? []);
+    const needsCaptureReplay = (state.mail?.captureVersion ?? 0) < MAIL_CAPTURE_VERSION;
+    const prepareReplay =
+      !input.reset &&
+      needsCaptureReplay &&
+      !state.mail?.captureReplayReady &&
+      Object.values(state.mail?.folders ?? {}).some(
+        (folder) => folder.nextLink || folder.cursor || folder.deltaLink,
+      );
+    const reset = input.reset || (needsCaptureReplay && !prepareReplay);
+    const finishReplay =
+      !reset &&
+      !prepareReplay &&
+      state.mail?.captureReplayCatchupPending &&
+      (state.mail.captureReplayFinishing ||
+        !Object.values(state.mail?.folders ?? {}).some((folder) => folder.nextLink));
+    const previousFolders = reset ? state.mail?.folders : state.mail?.captureReplayPreviousFolders;
+    const activeFolders = finishReplay
+      ? { ...(state.mail?.folders ?? {}), ...(previousFolders ?? {}) }
+      : state.mail?.folders;
+    if (prepareReplay || finishReplay) {
+      // A folder that is now empty may contain the deletion events we still
+      // need. Drain every previously stored cursor before retiring its baseline.
+      const selected = new Set(folders.map((folder) => folder.key));
+      for (const [key, previous] of Object.entries(activeFolders ?? {})) {
+        if (!selected.has(key) && (previous.nextLink || previous.cursor || previous.deltaLink)) {
+          folders.push({
+            key,
+            pathSegment: encodeURIComponent(key),
+            displayPath: previous.displayName ?? key,
+          });
+        }
+      }
+    }
+    // Publish new state only after the mail leg succeeds. The caller can keep
+    // calendar success after a transient mail failure; mutating the old folder
+    // map here would otherwise advance some repair cursors despite that failure.
+    const folderStates: Record<string, MailFolderSyncState> = reset
+      ? {}
+      : { ...(activeFolders ?? {}) };
 
     for (const folder of folders) {
       const current = folderStates[folder.key] ?? {};
       const stats = emptyStats();
       let usedStoredCursor =
-        !input.reset && Boolean(current.nextLink || current.cursor || current.deltaLink);
+        !reset && Boolean(current.nextLink || current.cursor || current.deltaLink);
+      const cursorSyncMode = current.syncMode ?? 'incremental';
       let nextUrl = usedStoredCursor
         ? (current.nextLink || current.cursor || current.deltaLink)!
         : mailDeltaUrl(folder.pathSegment, addDays(new Date(), -MAIL_BACKFILL_DAYS));
       let deltaLink: string | null = null;
+      let folderUnavailable = false;
 
       for (let page = 0; page < MAX_MAIL_PAGES_PER_FOLDER_PER_RUN && nextUrl; page += 1) {
         stats.pages += 1;
@@ -940,6 +987,29 @@ export class MicrosoftGraphSyncService {
             Prefer: 'odata.maxpagesize=50',
           });
         } catch (err) {
+          if (
+            (prepareReplay || finishReplay) &&
+            usedStoredCursor &&
+            !['inbox', 'sentitems'].includes(folder.key) &&
+            mailErrorStatus(err) === 404
+          ) {
+            // A genuinely deleted custom folder must not block all other
+            // replay work forever. Confirm absence separately from a bad delta
+            // URL, then retain a coverage gap; message disposition is unknown.
+            try {
+              await this.graphGet(
+                `/me/mailFolders/${encodeURIComponent(folder.key)}?$select=id`,
+                accessToken,
+              );
+            } catch (lookupError) {
+              if (mailErrorStatus(lookupError) !== 404) throw lookupError;
+              missingFolders.add(folder.key);
+              stats.failed += 1;
+              folderUnavailable = true;
+              delete folderStates[folder.key];
+              break;
+            }
+          }
           // Expired delta state (410 SyncStateNotFound) — restart this
           // folder's stream from a fresh backfill window (see syncCalendar).
           if (usedStoredCursor && isGraphSyncStateGone(err)) {
@@ -961,7 +1031,7 @@ export class MicrosoftGraphSyncService {
               connection.id,
               folder.displayPath,
               await this.hydrateGraphMessageBody(accessToken, message),
-              usedStoredCursor ? 'incremental' : 'backfill',
+              usedStoredCursor ? cursorSyncMode : 'backfill',
             );
             stats.matched += outcome === 'matched' ? 1 : 0;
             stats.skipped += outcome === 'skipped' ? 1 : 0;
@@ -986,8 +1056,14 @@ export class MicrosoftGraphSyncService {
         if (!nextUrl) break;
       }
 
+      if (folderUnavailable) {
+        results[folder.key] = stats;
+        continue;
+      }
+      missingFolders.delete(folder.key);
       stats.hasMore = Boolean(nextUrl);
       folderStates[folder.key] = {
+        syncMode: nextUrl ? (usedStoredCursor ? cursorSyncMode : 'backfill') : 'incremental',
         cursor: nextUrl || deltaLink || current.deltaLink || null,
         nextLink: nextUrl || null,
         deltaLink: deltaLink ?? current.deltaLink ?? null,
@@ -1008,7 +1084,22 @@ export class MicrosoftGraphSyncService {
       }
     }
 
+    const hasMore = Object.values(folderStates).some((folder) => folder.nextLink);
+    const captureReplayCatchupPending = finishReplay
+      ? hasMore
+      : Boolean(previousFolders && Object.keys(previousFolders).length > 0);
     state.mail = {
+      captureVersion: prepareReplay ? (state.mail?.captureVersion ?? 0) : MAIL_CAPTURE_VERSION,
+      captureReplayReady: prepareReplay && !hasMore,
+      captureReplayCatchupPending,
+      captureReplayFinishing: Boolean(finishReplay && captureReplayCatchupPending),
+      captureReplayMissingFolders: [...missingFolders],
+      captureReplayPreviousFolders: captureReplayCatchupPending
+        ? finishReplay
+          ? folderStates
+          : previousFolders
+        : undefined,
+      folderEnumerationComplete: enumeration.coverageComplete,
       cursor: Object.values(folderStates).find((folder) => folder.nextLink)?.nextLink ?? null,
       deltaLink: null,
       updatedAt: new Date().toISOString(),
@@ -1028,7 +1119,7 @@ export class MicrosoftGraphSyncService {
   private async listSyncableMailFolders(
     connectionId: string,
     accessToken: string,
-  ): Promise<{ folders: SyncableMailFolder[]; enumerated: boolean }> {
+  ): Promise<{ folders: SyncableMailFolder[]; enumerated: boolean; coverageComplete: boolean }> {
     const FOLDER_SELECT =
       '$select=id,displayName,parentFolderId,childFolderCount,totalItemCount&$top=100';
     try {
@@ -1039,9 +1130,10 @@ export class MicrosoftGraphSyncService {
             accessToken,
           );
           return folder.id ?? null;
-        } catch {
+        } catch (error) {
           // Some well-known folders 404 on some mailbox types — treat as absent.
-          return null;
+          if (mailErrorStatus(error) === 404) return null;
+          throw error;
         }
       };
       const [inboxId, sentItemsId, ...noiseRootIds] = await Promise.all([
@@ -1091,14 +1183,14 @@ export class MicrosoftGraphSyncService {
       this.logger.log(
         `mail folder enumeration for connection ${connectionId}: ${folders.length} dynamic folders (+inbox/sentitems)`,
       );
-      return { folders, enumerated: true };
+      return { folders, enumerated: true, coverageComplete: dropped === 0 && all.length < 2000 };
     } catch (error) {
       this.logger.warn(
         `mail folder enumeration failed for connection ${connectionId} — syncing inbox+sentitems only: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return { folders: [], enumerated: false };
+      return { folders: [], enumerated: false, coverageComplete: false };
     }
   }
 
@@ -1430,15 +1522,8 @@ export class MicrosoftGraphSyncService {
           ...ccRecipients.map((recipient) => ({ ...recipient, role: 'cc' })),
           ...bccRecipients.map((recipient) => ({ ...recipient, role: 'bcc' })),
         ]);
-        // Harvest correspondents even when association cannot create a thread;
-        // Fill with Meri can match these tenant contacts by the client's domain.
-        if (!clientId && !existingThread) {
-          await harvestMailContacts(tx, tenantId, participantJson, {
-            source: 'microsoft_graph',
-            clientId: null,
-          });
-          return 'skipped';
-        }
+        // Client association is advisory. Keep unassociated mail in the same
+        // owner-scoped store so personal inbox requests can retrieve it too.
 
         const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
         const thread = existingThread
@@ -1459,7 +1544,9 @@ export class MicrosoftGraphSyncService {
                 } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
-                associationSignals: association.signals as Prisma.InputJsonValue,
+                associationSignals: hasManualAssociationSignal(existingThread.associationSignals)
+                  ? (existingThread.associationSignals as Prisma.InputJsonValue)
+                  : (association.signals as Prisma.InputJsonValue),
               },
               select: { id: true },
             })
@@ -1562,7 +1649,7 @@ export class MicrosoftGraphSyncService {
           source: 'microsoft_graph',
           clientId,
         });
-        return 'matched';
+        return 'matched' as const;
       },
       { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
     );

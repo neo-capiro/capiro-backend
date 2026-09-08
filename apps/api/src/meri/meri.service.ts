@@ -75,6 +75,7 @@ import {
   buildMeriSystemBlocks,
   clientScopeDirective,
   clientScopeRefusal,
+  isMeriMailReadTool,
   CLIENT_ID_UUID_RE,
   meriCapabilityBlock,
   emptyUsage,
@@ -679,6 +680,8 @@ export class MeriService implements MeriTurnMaintenance {
         }
       });
     }
+
+    sse.write(`data: ${JSON.stringify({ type: 'turn_accepted' })}\n\n`);
 
     // Phase 27 post-launch P1: the client seeds the streamed assistant reply
     // with a client-generated optimistic id and has no other way to learn the
@@ -1460,7 +1463,7 @@ export class MeriService implements MeriTurnMaintenance {
             const supplied =
               typeof parsedInput.clientId === 'string' ? parsedInput.clientId.trim() : '';
             if (!supplied) {
-              parsedInput.clientId = conversation.clientId;
+              if (!isMeriMailReadTool(t.name)) parsedInput.clientId = conversation.clientId;
             } else if (supplied !== conversation.clientId) {
               // find_contacts documents an exact client NAME here, so a non-uuid
               // value naming THIS session's client resolves to it rather than

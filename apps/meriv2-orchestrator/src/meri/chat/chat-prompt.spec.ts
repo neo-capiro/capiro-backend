@@ -129,6 +129,16 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('never use them for firm-internal questions');
   });
 
+  it('guides the provider to date-only personal inbox retrieval despite selected client context', () => {
+    const prompt = buildChatSystemPrompt({ clientId: 'client-1' }, ctx);
+    expect(prompt).toContain('what activities do i have in my email inbox for the last two weeks');
+    expect(prompt).toContain('withinDays=14 and omit clientId');
+    expect(prompt).toContain('without a query keyword');
+    expect(prompt).toContain('nextOffset and the returned asOf with the same filters');
+    expect(prompt).toContain('distinguish proposed follow-up from an actual commitment');
+    expect(prompt).not.toContain('Data missing from legislative context');
+  });
+
   it('routes state-legislation and cross-jurisdiction questions to the right tools (Phase 1 M4.3)', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     expect(prompt).toContain('State legislation & agency rules');

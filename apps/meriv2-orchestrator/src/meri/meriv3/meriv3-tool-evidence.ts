@@ -1,6 +1,6 @@
 import { sanitizeToolResultText } from '@capiro/meriv2-core';
 
-const ROW_KEYS = ['records', 'data', 'results', 'items', 'documents', 'memories', 'hearings'];
+const ROW_KEYS = ['records', 'data', 'results', 'items', 'documents', 'memories', 'hearings', 'messages'];
 const META_KEYS = [
   'status',
   'error',
@@ -32,6 +32,13 @@ const META_KEYS = [
   'disclosures',
   'extraction',
   'truncated',
+  'threadId',
+  'messageId',
+  'messageOffset',
+  'bodyOffset',
+  'maxCharacters',
+  'nextMessageOffset',
+  'totalMessages',
 ];
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -53,6 +60,134 @@ function sanitizeValue(value: unknown): unknown {
       return [unique, sanitizeValue(entry)];
     }),
   );
+}
+
+/** Mail inventory has a message page and a duplicate legacy thread view. Keep
+ * the message rows once and advance only over complete rows the model sees.
+ * A retained row's preview/body and citations are never shortened separately. */
+function projectMailInventoryEvidence(
+  original: Record<string, unknown>,
+  maxCharacters: number,
+  originalCharacters: number,
+): Record<string, unknown> | null {
+  if (
+    !Array.isArray(original.messages) ||
+    !Array.isArray(original.searchedMailboxes) ||
+    typeof original.totalMatches !== 'number'
+  ) return null;
+  const { threads: _threads, count: _count, ...canonical } = original;
+  if (JSON.stringify(canonical).length <= maxCharacters) return canonical;
+  const rows = original.messages;
+  const shown: unknown[] = [];
+  const offset = typeof original.offset === 'number' && Number.isSafeInteger(original.offset)
+    && original.offset >= 0 ? original.offset : null;
+  const scopeKnown = offset !== null && typeof original.asOf === 'string'
+    && object(original.queryScope);
+  const projected: Record<string, unknown> = {
+    ...canonical,
+    messages: shown,
+    returned: 0,
+    hasMore: true,
+    nextOffset: null,
+    truncated: true,
+    partial: true,
+    projection: {
+      truncated: true,
+      reason: 'model_tool_evidence_budget',
+      originalCharacters,
+      sourceRecordCount: rows.length,
+      shownRecordCount: 0,
+      // The omitted records can be recovered using the adjusted offset. No
+      // field in any displayed row was removed or shortened by projection.
+      contentTruncated: false,
+      continuation: {
+        preserveFilters: true,
+        preserveAsOf: true,
+        overrides: { limit: 1 },
+        instruction: 'Continue with the returned nextOffset and the same asOf and queryScope filters. It advances only past messages shown here. If nextOffset is null, repeat this read at the current offset with limit 1; do not skip an undisplayed message. A single message that still does not fit was not read.',
+      },
+    },
+  };
+  const projection = projected.projection as Record<string, unknown>;
+  const update = () => {
+    projected.returned = shown.length;
+    projection.shownRecordCount = shown.length;
+    const omitted = shown.length < rows.length;
+    projected.hasMore = omitted || original.hasMore === true;
+    const next = scopeKnown && shown.length > 0 ? offset! + shown.length : null;
+    projected.nextOffset = projected.hasMore && next !== null && next <= 10000 ? next : null;
+  };
+  update();
+  // Never replace unknown mailbox health with a healthy-looking subset merely
+  // to fit metadata. Fail this projection explicitly rather than imply no mail.
+  if (JSON.stringify(projected).length > maxCharacters) {
+    return {
+      error: 'Mail scope or mailbox coverage exceeds the model evidence budget; no messages were read.',
+      messages: [], returned: 0, hasMore: true, nextOffset: null, truncated: true,
+      projection: { truncated: true, contentTruncated: true, shownRecordCount: 0 },
+    };
+  }
+  for (const row of rows) {
+    shown.push(row);
+    update();
+    if (JSON.stringify(projected).length > maxCharacters) {
+      shown.pop();
+      update();
+      break;
+    }
+  }
+  return projected;
+}
+
+function projectMailThreadEvidence(
+  original: Record<string, unknown>,
+  maxCharacters: number,
+  originalCharacters: number,
+): Record<string, unknown> | null {
+  if (!Array.isArray(original.messages) || typeof original.threadId !== 'string'
+    || typeof original.messageOffset !== 'number' || !('nextMessageOffset' in original)) return null;
+  if (originalCharacters <= maxCharacters) return original;
+  const rows = original.messages;
+  const shown: unknown[] = [];
+  const projected: Record<string, unknown> = {
+    ...original, messages: shown, returned: 0, hasMore: true,
+    nextMessageOffset: null, truncated: true, partial: true,
+    projection: {
+      truncated: true, reason: 'model_tool_evidence_budget', originalCharacters,
+      sourceRecordCount: rows.length, shownRecordCount: 0, contentTruncated: false,
+      continuation: {
+        preserveFilters: true,
+        overrides: { limit: 1, maxCharacters: 1000 },
+        instruction: 'Each displayed message retains its complete returned body fragment and nextBodyOffset. Read an unfinished body with the same threadId, that messageId and bodyOffset=nextBodyOffset before claiming its full contents were read. Continue messages with nextMessageOffset, which advances only over displayed rows. If no row fits, repeat the current messageOffset with limit 1 and maxCharacters 1000, preserving messageId and bodyOffset; do not skip that message.',
+      },
+    },
+  };
+  const projection = projected.projection as Record<string, unknown>;
+  const update = () => {
+    projected.returned = shown.length;
+    projection.shownRecordCount = shown.length;
+    projected.hasMore = shown.length < rows.length || original.hasMore === true;
+    projected.nextMessageOffset = projected.hasMore && shown.length > 0
+      ? (original.messageOffset as number) + shown.length : null;
+  };
+  update();
+  if (JSON.stringify(projected).length > maxCharacters) {
+    return {
+      error: 'Mail thread metadata exceeds the model evidence budget; no messages were read.',
+      messages: [], returned: 0, hasMore: true, nextMessageOffset: null, truncated: true,
+      projection: { truncated: true, contentTruncated: true, shownRecordCount: 0 },
+    };
+  }
+  for (const row of rows) {
+    shown.push(row);
+    update();
+    if (JSON.stringify(projected).length > maxCharacters) {
+      shown.pop();
+      update();
+      break;
+    }
+  }
+  return projected;
 }
 
 /** Client context uses independently paged profile sections rather than a
@@ -220,9 +355,15 @@ export function projectMeriToolEvidence(args: {
   // Apply the existing injection defense before constructing the ledger too.
   const result = sanitizeValue(JSON.parse(serialized));
   const safe = JSON.stringify(result);
+  const original = object(result) ? result : {};
+  if (args.readOnly) {
+    const mail = projectMailInventoryEvidence(original, args.maxCharacters, safe.length);
+    if (mail) return mail;
+    const thread = projectMailThreadEvidence(original, args.maxCharacters, safe.length);
+    if (thread) return thread;
+  }
   if (safe.length <= args.maxCharacters) return result;
 
-  const original = object(result) ? result : {};
   if (args.readOnly) {
     const profile = projectClientProfileEvidence(original, args.maxCharacters, safe.length);
     if (profile) return profile;
@@ -257,6 +398,7 @@ export function projectMeriToolEvidence(args: {
     ...(rows.length || 'nextCursor' in original
       ? { hasMore: true, nextCursor: null, returned: 0 }
       : {}),
+    ...('nextMessageOffset' in original ? { nextMessageOffset: null } : {}),
     ...(object(metadata.coverage)
       ? {
           coverage: {

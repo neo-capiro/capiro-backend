@@ -5,6 +5,26 @@ import { CorePrismaRetrievalAdapter } from './core-prisma-retrieval.adapter.js';
 
 const DEFAULT_MAIL_SYNC = new Date('2026-08-16T12:00:00.000Z');
 
+function mailConnection(id = 'mail-connection-1', mailSyncAt = DEFAULT_MAIL_SYNC) {
+  return {
+    id,
+    provider: 'microsoft_365',
+    status: 'connected',
+    lastSyncAt: new Date('2026-09-07T12:00:00.000Z'),
+    syncState: {
+      mail: {
+        captureVersion: 1,
+        updatedAt: mailSyncAt.toISOString(),
+        folderEnumerationComplete: true,
+        folders: {
+          inbox: { updatedAt: mailSyncAt.toISOString(), deltaLink: 'inbox-delta' },
+          sentitems: { updatedAt: mailSyncAt.toISOString(), deltaLink: 'sent-delta' },
+        },
+      },
+    },
+  };
+}
+
 const request = (overrides: Partial<RetrievalRequest> = {}): RetrievalRequest => ({
   queryClass: 'lookup',
   requestedDomains: ['clients'],
@@ -43,13 +63,7 @@ function setup(txOverrides: Record<string, unknown> = {}) {
       count: jest.fn().mockResolvedValue(0),
     },
     integrationConnection: {
-      findMany: jest.fn().mockResolvedValue([
-        {
-          id: 'mail-connection-1',
-          status: 'connected',
-          lastSyncAt: DEFAULT_MAIL_SYNC,
-        },
-      ]),
+      findMany: jest.fn().mockResolvedValue([mailConnection()]),
       findFirst: jest.fn().mockResolvedValue({ lastSyncAt: DEFAULT_MAIL_SYNC }),
     },
     ...txOverrides,
@@ -64,6 +78,12 @@ function setup(txOverrides: Record<string, unknown> = {}) {
 }
 
 describe('CorePrismaRetrievalAdapter', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-08-17T12:00:00.000Z'));
+  });
+  afterEach(() => jest.useRealTimers());
+
   it('enters the tenant-scoped Prisma transaction and resolves client visibility through the ethical wall', async () => {
     const { adapter, catalog, tx, withTenant } = setup();
 
@@ -183,7 +203,7 @@ describe('CorePrismaRetrievalAdapter', () => {
         provider: { in: ['microsoft_365', 'google_workspace', 'imap_caldav'] },
       },
       orderBy: { id: 'asc' },
-      select: { id: true, status: true, lastSyncAt: true },
+      select: { id: true, provider: true, status: true, lastSyncAt: true, syncState: true },
     });
   });
 
@@ -205,8 +225,8 @@ describe('CorePrismaRetrievalAdapter', () => {
   it('marks mail coverage degraded when one authorized mailbox is not connected', async () => {
     const { adapter, catalog, tx } = setup();
     tx.integrationConnection.findMany.mockReset().mockResolvedValue([
-      { id: 'mail-1', status: 'connected', lastSyncAt: DEFAULT_MAIL_SYNC },
-      { id: 'mail-2', status: 'error', lastSyncAt: null },
+      mailConnection('mail-1'),
+      { ...mailConnection('mail-2'), status: 'error', lastSyncAt: null },
     ]);
 
     const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
@@ -220,10 +240,10 @@ describe('CorePrismaRetrievalAdapter', () => {
 
   it('reports the stalest completed authorized mailbox sync rather than a fresher unrelated connection', async () => {
     const { adapter, catalog, tx } = setup();
-    const older = new Date('2026-08-10T12:00:00.000Z');
+    const older = new Date('2026-08-15T13:00:00.000Z');
     tx.integrationConnection.findMany.mockReset().mockResolvedValue([
-      { id: 'mail-1', status: 'connected', lastSyncAt: DEFAULT_MAIL_SYNC },
-      { id: 'mail-2', status: 'connected', lastSyncAt: older },
+      mailConnection('mail-1'),
+      mailConnection('mail-2', older),
     ]);
 
     const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
@@ -232,6 +252,94 @@ describe('CorePrismaRetrievalAdapter', () => {
       sourceStatus: 'healthy',
       coverageComplete: true,
       lastSyncAt: older,
+    });
+  });
+
+  it('keeps complete stored pagination partial when the actual mail sync is stale', async () => {
+    const { adapter, catalog, tx } = setup();
+    tx.integrationConnection.findMany.mockResolvedValue([
+      mailConnection('mail-stale', new Date('2026-08-10T12:00:00.000Z')),
+    ]);
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+    expect(result).toMatchObject({
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      paginationComplete: true,
+      stopReason: 'mail_sync_stale',
+    });
+  });
+
+  it('does not claim empty mail coverage is complete after a calendar-only connection sync', async () => {
+    const { adapter, catalog, tx } = setup();
+    tx.integrationConnection.findMany.mockResolvedValue([
+      { ...mailConnection(), syncState: { calendar: { updatedAt: DEFAULT_MAIL_SYNC.toISOString() } } },
+    ]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      returned: 0,
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      lastSyncAt: undefined,
+      stopReason: 'mail_never_synced',
+    });
+  });
+
+  it('does not promote legacy client-associated-only mail to complete mailbox coverage', async () => {
+    const { adapter, catalog, tx } = setup();
+    const connection = mailConnection();
+    tx.integrationConnection.findMany.mockResolvedValue([
+      { ...connection, syncState: { mail: { ...connection.syncState.mail, captureVersion: undefined } } },
+    ]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      lastSyncAt: DEFAULT_MAIL_SYNC,
+      stopReason: 'mail_capture_repair_required',
+    });
+  });
+
+  it('separates complete local pagination from an unfinished provider backfill', async () => {
+    const { adapter, catalog, tx } = setup();
+    const connection = mailConnection();
+    tx.integrationConnection.findMany.mockResolvedValue([
+      { ...connection, syncState: { mail: { ...connection.syncState.mail, lastStats: { hasMore: true } } } },
+    ]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      returned: 0,
+      paginationComplete: true,
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      stopReason: 'mail_sync_incomplete',
+    });
+  });
+
+  it('withholds complete mail coverage while replay still owes retained-baseline catch-up', async () => {
+    const { adapter, catalog, tx } = setup();
+    const connection = mailConnection();
+    tx.integrationConnection.findMany.mockResolvedValue([
+      { ...connection, syncState: { mail: {
+        ...connection.syncState.mail,
+        captureReplayCatchupPending: true,
+        lastStats: { hasMore: false },
+      } } },
+    ]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      returned: 0,
+      paginationComplete: true,
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      stopReason: 'mail_sync_incomplete',
     });
   });
 

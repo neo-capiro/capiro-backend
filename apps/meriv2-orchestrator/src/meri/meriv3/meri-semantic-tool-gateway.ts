@@ -30,6 +30,7 @@ const RECIPE_SUPPORT: Record<string, readonly string[]> = {
   query_relationship_brief: [
     'resolve_entity',
     'search_emails',
+    'get_email_thread',
     'search_research_sources',
     'search_memory',
   ],
@@ -65,6 +66,7 @@ const RECIPE_SUPPORT: Record<string, readonly string[]> = {
 
 const MAIL_HISTORY_SUPPORT = [
   'search_emails',
+  'get_email_thread',
   'find_contacts',
   'search_memory',
   'lookup_client_registry',
@@ -88,7 +90,7 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = 
   clients: ['get_client_context', 'search_client_knowledge'],
   internal_research: ['search_research_sources'],
   documents: ['read_client_documents', 'search_client_knowledge'],
-  mail: ['search_emails', 'list_emails'],
+  mail: ['search_emails', 'list_emails', 'get_email_thread'],
   contacts: ['find_contacts'],
   meetings: ['list_upcoming_meetings', 'query_debriefs'],
   tasks: ['query_tasks', 'list_scheduled_tasks'],
@@ -124,7 +126,7 @@ const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = 
 const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }> = [
   {
     pattern: /\b(?:send|email|reply|respond)\b/i,
-    tools: ['search_emails', 'send_email', 'reply_email'],
+    tools: ['search_emails', 'get_email_thread', 'send_email', 'reply_email'],
   },
   {
     pattern: /\b(?:word|docx|document|memo|briefing|report)\b/i,
@@ -226,7 +228,7 @@ const TOPIC_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }> 
   },
   {
     pattern: /\b(?:inbox|mail|email|correspondence|thread)\b/i,
-    tools: ['search_emails', 'list_emails', 'find_contacts'],
+    tools: ['search_emails', 'list_emails', 'get_email_thread', 'find_contacts'],
   },
   {
     pattern: /\b(?:web|internet|website|online|latest|recent|news)\b/i,

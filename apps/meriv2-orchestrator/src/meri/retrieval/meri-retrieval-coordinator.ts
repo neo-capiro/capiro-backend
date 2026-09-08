@@ -1,7 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
+import { isMeriMailReadTool, MERI_MAIL_MAX_STALENESS_MS } from '@capiro/shared';
 import {
   buildMeriCoverageManifest,
+  coalesceMeriMailPages,
   observeMeriToolCoverage,
   type MeriCoverageManifest,
   type MeriToolCoverageObservation,
@@ -46,7 +48,6 @@ interface MeriRetrievalRunState {
 }
 
 const RECIPE_TOOLS = new Set<string>(MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS);
-const MAX_MAILBOX_STALENESS_MS = 48 * 60 * 60 * 1000;
 
 /**
  * These readers return bounded arrays but do not currently expose a durable
@@ -56,7 +57,6 @@ const MAX_MAILBOX_STALENESS_MS = 48 * 60 * 60 * 1000;
  */
 const BOUNDED_WITHOUT_COMPLETENESS = new Set([
   'find_contacts',
-  'list_emails',
   'list_upcoming_meetings',
   'query_action_items',
   'query_debriefs',
@@ -88,21 +88,26 @@ function mailboxCoverageIssue(result: unknown, now = Date.now()): string | null 
     if (/error|failed|disabled|unavailable|needs_configuration/.test(status)) {
       return `${account} is ${status || 'unavailable'}.`;
     }
+    const mailCoverage = isRecord(raw.mailCoverage) ? raw.mailCoverage : null;
+    if (mailCoverage && mailCoverage.sourceStatus !== 'healthy') {
+      return `${account} has incomplete mail coverage: ${String(mailCoverage.reason ?? 'mail_sync_incomplete')}.`;
+    }
     const syncedMessages =
       typeof raw.syncedMessages === 'number' && Number.isFinite(raw.syncedMessages)
         ? raw.syncedMessages
         : 0;
-    if (syncedMessages <= 0) return `${account} has no synchronized messages.`;
+    if (syncedMessages <= 0 && !mailCoverage) return `${account} has no synchronized messages.`;
+    const mailSyncAt = mailCoverage ? mailCoverage.lastMailSyncAt : raw.lastSyncAt;
     const lastSyncAt =
-      raw.lastSyncAt instanceof Date
-        ? raw.lastSyncAt
-        : typeof raw.lastSyncAt === 'string'
-          ? new Date(raw.lastSyncAt)
+      mailSyncAt instanceof Date
+        ? mailSyncAt
+        : typeof mailSyncAt === 'string'
+          ? new Date(mailSyncAt)
           : null;
     if (!lastSyncAt || !Number.isFinite(lastSyncAt.getTime())) {
       return `${account} has no verifiable last-sync timestamp.`;
     }
-    if (now - lastSyncAt.getTime() > MAX_MAILBOX_STALENESS_MS) {
+    if (now - lastSyncAt.getTime() > MERI_MAIL_MAX_STALENESS_MS) {
       return `${account} has not synchronized within the last 48 hours.`;
     }
   }
@@ -152,11 +157,12 @@ export class MeriRetrievalCoordinator {
       observation.detail =
         observation.detail ?? 'Bounded result without a cursor/total completeness contract.';
     }
-    if (tool === 'search_emails') {
+    if (isMeriMailReadTool(tool)) {
       const issue = mailboxCoverageIssue(result);
       if (issue) {
         observation.status = 'partial';
         observation.detail = issue;
+        if (observation.mailPage) observation.mailPage.sourceComplete = false;
       }
     }
     state.observations.push(observation);
@@ -179,9 +185,10 @@ export class MeriRetrievalCoordinator {
       throw new Error('Meri retrieval coverage requested outside an active retrieval run');
     }
     const manifest = buildMeriCoverageManifest(state.plan, state.observations);
+    const observations = coalesceMeriMailPages(state.observations);
     const authoritativeCompleteDomains = new Set(
       state.plan.requiredDomains.filter((domain) =>
-        state.observations.some(
+        observations.some(
           (observation) =>
             observation.authoritativeCoverage === true &&
             observation.status === 'complete' &&
@@ -192,7 +199,7 @@ export class MeriRetrievalCoordinator {
     const underlyingPartial = state.plan.requiredDomains.filter(
       (domain) =>
         !authoritativeCompleteDomains.has(domain) &&
-        state.observations.some(
+        observations.some(
           (observation) =>
             !RECIPE_TOOLS.has(observation.tool) &&
             observation.domains.includes(domain) &&

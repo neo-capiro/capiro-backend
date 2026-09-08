@@ -3,11 +3,12 @@ import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import type { MeriV3ChatClient, MeriV3ChatStreamEvent, MeriV3RetrievalStreamSummary } from './meriv3-chat.client.js';
-import type { MeriResearchHandoff } from './meri-research-handoff.js';
+import { researchHandoffPrompt, type MeriResearchHandoff } from './meri-research-handoff.js';
 
 // Infrastructure is replaced at its constructor boundary; the production runner
 // and its actual event/credential/evidence logic execute unchanged.
 jest.mock('../ai-credentials/ai-credential-resolver.service.js', () => ({ AiCredentialResolverService: class {} }));
+jest.mock('./meri-conversation-evidence.service.js', () => ({ MeriConversationEvidenceService: class {} }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('./meri-feature-flags.service.js', () => ({ MeriFeatureFlagsService: class {} }));
 
@@ -32,8 +33,9 @@ function fixture(events?: MeriV3ChatStreamEvent[]) {
   const credentials = { resolveProvider: jest.fn(async () => ({ provider: 'openai', apiKey: 'tenant-key', model: 'configured-chat-model' })) };
   const tx = { clioAttachment: { findMany: jest.fn(async () => [] as Array<{ id: string; data: Buffer; mediaType: string; status: string }>) } };
   const prisma = { withTenantUser: jest.fn(async (_tenant: string, _user: string, callback: (db: typeof tx) => unknown) => callback(tx)) };
-  const runner = new MeriV3ResearchRunner(client as never, flags as never, credentials as never, prisma as never);
-  return { runner, client, flags, credentials, tx, prisma, done };
+  const conversationEvidence = { load: jest.fn(async () => ({ citations: [], unavailable: 0, omitted: 0 })) };
+  const runner = new MeriV3ResearchRunner(client as never, flags as never, credentials as never, prisma as never, conversationEvidence as never);
+  return { runner, client, flags, credentials, tx, prisma, done, conversationEvidence };
 }
 
 describe('MeriV3ResearchRunner primary runtime', () => {
@@ -49,6 +51,29 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     }));
     expect(result.model).toBe('configured-chat-model');
     expect(result.ledgerEntries).toHaveLength(1);
+  });
+
+  it('passes reauthorized inherited document observations into the same research runtime', async () => {
+    const { runner, client, conversationEvidence } = fixture();
+    const citation = { n: 56, id: 'doc-page-22', tool: 'read_client_documents', title: 'Capiro 2.0.pdf' };
+    conversationEvidence.load.mockResolvedValue({ citations: [citation], unavailable: 0, omitted: 0 } as never);
+    await runner.run(ctx, input, auth, () => {});
+    expect(conversationEvidence.load).toHaveBeenCalledWith(ctx, 'thread-a', 'client-a', undefined, handoff.messages);
+    expect(client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ inheritedDocumentEvidence: [citation] }) }));
+  });
+
+  it('does not leak a captured full document excerpt to the provider after replay authorization fails', async () => {
+    const { runner, client, conversationEvidence } = fixture();
+    const captured: MeriResearchHandoff = { ...handoff, messages: [{ id: 'earlier', role: 'assistant', body: 'Earlier briefing.', createdAt: '2026-09-07T00:00:00Z',
+      metadata: { citations: [{ n: 56, tool: 'read_client_documents', id: 'doc-page-22', title: 'Document', snippet: 'REVOKED_SNIPPET',
+        documentEvidence: { record: { payload: { text: 'REVOKED_EXACT_EXCERPT' } } } }] } }] };
+    conversationEvidence.load.mockResolvedValue({ citations: [], unavailable: 1, omitted: 0 });
+    await runner.run(ctx, { ...input, handoff: captured, user: researchHandoffPrompt(captured) }, auth, () => {});
+    const outbound = client.streamChat.mock.calls[0]?.[0].input;
+    expect(outbound?.inheritedDocumentEvidence).toEqual([]);
+    expect(JSON.stringify(outbound)).not.toContain('REVOKED_EXACT_EXCERPT');
+    expect(JSON.stringify(outbound)).not.toContain('REVOKED_SNIPPET');
+    expect(captured.messages[0]?.metadata).toHaveProperty('citations.0.documentEvidence');
   });
 
   it('plans on the same runtime with tools disabled and honors Standard explicitly', async () => {

@@ -60,6 +60,7 @@ import { ClientsService } from '../clients/clients.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import { RegulatoryDocketService } from '../regulatory-docket/regulatory-docket.service.js';
 import { EngagementMailSender } from '../engagement/mail-sender.service.js';
+import { ownMailThreadWhere, ownMailMessageWhere } from '../engagement/engagement-access.helpers.js';
 import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import { listDatasetSummaries } from './analytics/global-dataset-registry.js';
@@ -640,19 +641,34 @@ export class MeriToolsService {
         ['to', 'subject', 'body'],
       ),
       list_emails: obj({
-        clientId: str('Optional client UUID filter'),
-        limit: int('Max threads (default 15, max 50)'),
+        clientId: str('Optional explicit client UUID filter; omit for the user’s own mailbox'),
+        withinDays: int('Only messages from the last N days; use 14 for the last two weeks'),
+        folder: str('inbox, sent, or all (default all); use inbox for inbox activity'),
+        limit: int('Max messages per page (default 15, max 50), grouped into threads'),
+        offset: int('Continuation offset from nextOffset (default 0, max 10000)'),
+        asOf: str('Reuse the first page’s asOf timestamp when continuing'),
       }),
       search_emails: obj({
         query: str(
-          'Free-text match over subject, sender, recipients, and the stored message preview',
+          'Optional literal text match over subject, sender, recipients, and stored body; omit for broad activity listings',
         ),
         from: str('Sender email or name fragment'),
         participant: str('Email or name fragment matched against sender and to/cc/bcc recipients'),
         clientId: str('Optional client UUID filter'),
-        withinDays: int('Only messages from the last N days (default: no limit)'),
-        limit: int('Max messages (default 20, max 50)'),
+        withinDays: int('Only messages from the last N days; sufficient without query/from/participant'),
+        folder: str('inbox, sent, or all (default all)'),
+        limit: int('Max messages per page (default 20, max 50)'),
+        offset: int('Continuation offset from nextOffset (default 0, max 10000)'),
+        asOf: str('Reuse the first page’s asOf timestamp when continuing'),
       }),
+      get_email_thread: obj({
+        threadId: str('Exact threadId from list_emails or search_emails'),
+        messageId: str('Optional exact message id to read one message body'),
+        messageOffset: int('Message page offset, default 0; reuse nextMessageOffset'),
+        limit: int('Messages per page, default 3, maximum 10'),
+        bodyOffset: int('Body character offset, default 0; use nextBodyOffset with messageId'),
+        maxCharacters: int('Characters per message body, default 2000, maximum 6000'),
+      }, ['threadId']),
       list_upcoming_meetings: obj({
         clientId: str('Optional client UUID filter'),
         limit: int('Max meetings (default 10, max 25)'),
@@ -1492,6 +1508,8 @@ export class MeriToolsService {
         return this.listEmails(ctx, input);
       case 'search_emails':
         return this.searchEmails(ctx, input);
+      case 'get_email_thread':
+        return this.getEmailThread(ctx, input);
       case 'list_upcoming_meetings':
         return this.listUpcomingMeetings(ctx, input);
       case 'reply_email':
@@ -5358,262 +5376,88 @@ export class MeriToolsService {
   }
 
   private async listEmails(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = optionalString(input, 'clientId', 36);
-    const limit = clampInt(input.limit, 1, 50, 15);
-
-    const where: Prisma.MailThreadWhereInput = {
-      ...ownMailThreadWhere(ctx.userId),
-    };
-    if (clientId) where.clientId = clientId;
-
-    const threads = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.mailThread.findMany({
-        where,
-        orderBy: { lastMessageAt: 'desc' },
-        take: limit,
-        select: {
-          id: true,
-          subject: true,
-          snippet: true,
-          participants: true,
-          lastMessageAt: true,
-          status: true,
-          client: { select: { id: true, name: true } },
-          messages: {
-            orderBy: { sentAt: 'desc' },
-            take: 3,
-            select: {
-              id: true,
-              subject: true,
-              fromEmail: true,
-              fromName: true,
-              bodyText: true,
-              sentAt: true,
-              receivedAt: true,
-            },
-          },
-        },
-      }),
-    );
-
-    return { threads, count: threads.length };
+    const result = await this.engagement.searchMailMessages(ctx, input, {
+      allowUnfiltered: true,
+      defaultLimit: 15,
+    });
+    if ('error' in result) return result;
+    // Retain the existing thread envelope/citation IDs. The page and date/folder
+    // scope are message-based so older activity is never hidden by newer replies.
+    const threads = new Map<string, {
+      id: string; subject: string | null; snippet: string | null;
+      lastMessageAt: Date | null; client: { id: string; name: string | null } | null;
+      messages: Array<Record<string, unknown>>;
+    }>();
+    for (const message of result.messages) {
+      const thread = threads.get(message.threadId) ?? {
+        id: message.threadId,
+        subject: message.subject,
+        snippet: message.preview,
+        lastMessageAt: message.receivedAt ?? message.sentAt,
+        client: message.client,
+        messages: [],
+      };
+      thread.messages.push({
+        id: message.id, subject: message.subject,
+        fromEmail: message.from.email, fromName: message.from.name,
+        bodyText: message.preview, sentAt: message.sentAt, receivedAt: message.receivedAt,
+      });
+      threads.set(message.threadId, thread);
+    }
+    return { ...result, threads: [...threads.values()], count: threads.size };
   }
 
-  /**
-   * Search synced mail by content/people — the lookup counterpart to
-   * listEmails (which only pages the newest threads and can never reach older
-   * mail). Message-level ILIKE over subject / sender / recipients / stored
-   * preview, scoped like every mail tool: tenant + the caller's own
-   * connections. Raw SQL (parameterized) because recipients live in jsonb
-   * arrays the Prisma builder can't fragment-match; LIKE wildcards in user
-   * input are escaped so they match literally. Always returns a per-mailbox
-   * coverage report so the model can distinguish "not in synced mail" from
-   * "mailbox never synced" instead of asserting the email doesn't exist.
-   */
   private async searchEmails(ctx: TenantContext, input: Record<string, unknown>) {
-    const query = optionalString(input, 'query', 200);
-    const from = optionalString(input, 'from', 200);
-    const participant = optionalString(input, 'participant', 200);
-    const clientId = optionalString(input, 'clientId', 36);
-    const withinDays =
-      input.withinDays === undefined || input.withinDays === null
-        ? null
-        : clampInt(input.withinDays, 1, 3650, 365);
-    const limit = clampInt(input.limit, 1, 50, 20);
+    return this.engagement.searchMailMessages(ctx, input);
+  }
 
-    if (!query && !from && !participant) {
+  private async getEmailThread(ctx: TenantContext, input: Record<string, unknown>) {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const threadId = typeof input.threadId === 'string' ? input.threadId.trim() : '';
+    const messageId = typeof input.messageId === 'string' ? input.messageId.trim() : '';
+    const messageOffset = input.messageOffset == null ? 0 : Number(input.messageOffset);
+    const bodyOffset = input.bodyOffset == null ? 0 : Number(input.bodyOffset);
+    const limit = input.limit == null ? 3 : Number(input.limit);
+    const maxCharacters = input.maxCharacters == null ? 2000 : Number(input.maxCharacters);
+    if (!uuid.test(threadId) || (messageId && !uuid.test(messageId))) {
+      return { error: 'Use exact threadId and messageId UUIDs returned by the mail tools.' };
+    }
+    if (!Number.isInteger(messageOffset) || messageOffset < 0 || messageOffset > 10000 ||
+        !Number.isInteger(bodyOffset) || bodyOffset < 0 || bodyOffset > 10000000 ||
+        !Number.isInteger(limit) || limit < 1 || limit > 10 ||
+        !Number.isInteger(maxCharacters) || maxCharacters < 1 || maxCharacters > 6000 ||
+        (bodyOffset > 0 && !messageId)) {
+      return { error: 'Use bounded message/body offsets, limit 1–10 and maxCharacters 1–6000. Body continuation requires messageId.' };
+    }
+    // Reuse the endpoint's tenant, owner and active-message authorization. No
+    // provider network call, read-receipt mutation, or message send is involved.
+    const thread = await this.engagement.getMailThread(ctx, threadId);
+    const matching = messageId ? thread.messages.filter((message) => message.id === messageId) : thread.messages;
+    if (messageId && !matching.length) return { error: 'Message is not active in this authorized thread.' };
+    const messages = matching.slice(messageOffset, messageOffset + limit).map((message) => {
+      const body = message.bodyText ?? '';
+      const metadata = message.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
+        ? message.metadata : {};
+      const bodyEnd = Math.min(body.length, bodyOffset + maxCharacters);
       return {
-        error:
-          "Provide at least one of 'query', 'from', or 'participant'. To simply see the newest threads use list_emails instead.",
+        id: message.id, threadId, subject: message.subject,
+        from: { email: message.fromEmail, name: message.fromName },
+        to: message.toRecipients, cc: message.ccRecipients,
+        sentAt: message.sentAt, receivedAt: message.receivedAt,
+        bodyText: body.slice(bodyOffset, bodyEnd), bodyOffset, bodyLength: body.length,
+        bodyCompleteness: typeof metadata.bodyCompleteness === 'string' ? metadata.bodyCompleteness : 'unknown',
+        bodyTruncated: bodyOffset > 0 || bodyEnd < body.length,
+        nextBodyOffset: bodyEnd < body.length ? bodyEnd : null,
       };
-    }
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (clientId && !UUID_RE.test(clientId)) {
-      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
-    }
-
-    // Escape LIKE wildcards so model-supplied terms match literally
-    // (Postgres treats backslash as the LIKE escape character by default).
-    const pattern = (term: string) => `%${term.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
-
-    const conds: Prisma.Sql[] = [
-      Prisma.sql`m.tenant_id = ${ctx.tenantId}::uuid`,
-      Prisma.sql`c.created_by_user_id = ${ctx.userId}::uuid`,
-    ];
-    if (query) {
-      const p = pattern(query);
-      conds.push(
-        Prisma.sql`(m.subject ILIKE ${p} OR m.body_text ILIKE ${p} OR m.from_email::text ILIKE ${p} OR m.from_name ILIKE ${p} OR m.to_recipients_jsonb::text ILIKE ${p} OR m.cc_recipients_jsonb::text ILIKE ${p})`,
-      );
-    }
-    if (from) {
-      const p = pattern(from);
-      conds.push(Prisma.sql`(m.from_email::text ILIKE ${p} OR m.from_name ILIKE ${p})`);
-    }
-    if (participant) {
-      const p = pattern(participant);
-      conds.push(
-        Prisma.sql`(m.from_email::text ILIKE ${p} OR m.from_name ILIKE ${p} OR m.to_recipients_jsonb::text ILIKE ${p} OR m.cc_recipients_jsonb::text ILIKE ${p} OR m.bcc_recipients_jsonb::text ILIKE ${p})`,
-      );
-    }
-    if (clientId) conds.push(Prisma.sql`t.client_id = ${clientId}::uuid`);
-    if (withinDays !== null) {
-      conds.push(
-        // ::int — Prisma binds JS numbers as int8 and make_interval only takes int4.
-        Prisma.sql`COALESCE(m.received_at, m.sent_at) >= now() - make_interval(days => ${withinDays}::int)`,
-      );
-    }
-    const where = Prisma.join(conds, ' AND ');
-
-    // The same message can be synced once per folder (inbox + sent copies of a
-    // reply), so fetch headroom, count distinct, and dedupe on the RFC message
-    // id before trimming to `limit`.
-    const fetchLimit = Math.min(limit * 2, 100);
-
-    const { total, rows, coverage } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const counted = await tx.$queryRaw<Array<{ n: number }>>(Prisma.sql`
-        SELECT count(DISTINCT COALESCE(m.metadata_jsonb->>'internetMessageId', m.id::text))::int AS n
-        FROM mail_messages m
-        JOIN engagement_connections c ON c.id = m.connection_id
-        JOIN mail_threads t ON t.id = m.thread_id
-        WHERE ${where}
-      `);
-      const rows = await tx.$queryRaw<
-        Array<{
-          id: string;
-          thread_id: string;
-          subject: string | null;
-          from_email: string | null;
-          from_name: string | null;
-          to_recipients: unknown;
-          cc_recipients: unknown;
-          sent_at: Date | null;
-          received_at: Date | null;
-          preview: string | null;
-          has_attachments: boolean;
-          folder: string | null;
-          internet_message_id: string | null;
-          client_id: string | null;
-          client_name: string | null;
-          account_email: string | null;
-        }>
-      >(Prisma.sql`
-        SELECT m.id::text AS id, m.thread_id::text AS thread_id, m.subject,
-               m.from_email::text AS from_email, m.from_name,
-               m.to_recipients_jsonb AS to_recipients, m.cc_recipients_jsonb AS cc_recipients,
-               m.sent_at, m.received_at, left(m.body_text, 400) AS preview,
-               m.has_attachments,
-               m.metadata_jsonb->>'folder' AS folder,
-               m.metadata_jsonb->>'internetMessageId' AS internet_message_id,
-               t.client_id::text AS client_id, cl.name AS client_name,
-               c.account_email::text AS account_email
-        FROM mail_messages m
-        JOIN engagement_connections c ON c.id = m.connection_id
-        JOIN mail_threads t ON t.id = m.thread_id
-        LEFT JOIN clients cl ON cl.id = t.client_id
-        WHERE ${where}
-        ORDER BY COALESCE(m.received_at, m.sent_at) DESC NULLS LAST
-        LIMIT ${fetchLimit}
-      `);
-      const coverage = await tx.$queryRaw<
-        Array<{
-          account_email: string | null;
-          provider: string;
-          status: string;
-          last_sync_at: Date | null;
-          synced_messages: number;
-          oldest_synced: Date | null;
-          newest_synced: Date | null;
-        }>
-      >(Prisma.sql`
-        SELECT c.account_email::text AS account_email, c.provider::text AS provider,
-               c.status::text AS status, c.last_sync_at,
-               count(m.id)::int AS synced_messages,
-               min(COALESCE(m.received_at, m.sent_at)) AS oldest_synced,
-               max(COALESCE(m.received_at, m.sent_at)) AS newest_synced
-        FROM engagement_connections c
-        LEFT JOIN mail_messages m ON m.connection_id = c.id AND m.tenant_id = c.tenant_id
-        WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
-        GROUP BY c.id, c.created_at
-        ORDER BY c.created_at
-      `);
-      return { total: counted[0]?.n ?? 0, rows, coverage };
     });
-
-    const searchedMailboxes = coverage.map((c) => ({
-      accountEmail: c.account_email,
-      provider: c.provider,
-      status: c.status,
-      lastSyncAt: c.last_sync_at,
-      syncedMessages: c.synced_messages,
-      syncedRange:
-        c.synced_messages > 0 ? { oldest: c.oldest_synced, newest: c.newest_synced } : null,
-    }));
-
-    if (searchedMailboxes.length === 0) {
-      return {
-        totalMatches: 0,
-        returned: 0,
-        hasMore: false,
-        messages: [],
-        searchedMailboxes,
-        notes: [
-          'No connected mailbox exists for this user — nothing was searched. They can connect Microsoft 365 or Google under Settings → Integrations.',
-        ],
-      };
-    }
-
-    const capRecipients = (value: unknown) => {
-      const list = Array.isArray(value)
-        ? (value as Array<{ email?: unknown; name?: unknown }>)
-        : [];
-      return list.slice(0, 8).map((r) => ({
-        email: typeof r.email === 'string' ? r.email : null,
-        name: typeof r.name === 'string' ? r.name : null,
-      }));
-    };
-
-    const seen = new Set<string>();
-    const messages: Array<Record<string, unknown>> = [];
-    for (const row of rows) {
-      const key = row.internet_message_id ?? row.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      messages.push({
-        threadId: row.thread_id,
-        subject: row.subject,
-        from: { email: row.from_email, name: row.from_name },
-        to: capRecipients(row.to_recipients),
-        cc: capRecipients(row.cc_recipients),
-        sentAt: row.sent_at,
-        receivedAt: row.received_at,
-        folder: row.folder,
-        preview: row.preview,
-        hasAttachments: row.has_attachments,
-        mailbox: row.account_email,
-        client: row.client_id ? { id: row.client_id, name: row.client_name } : null,
-      });
-      if (messages.length >= limit) break;
-    }
-
-    const notes: string[] = [
-      'Bodies are stored as short previews, and junk/spam, deleted/trash, and drafts folders never sync — a miss means "not found in synced mail", not proof the email does not exist.',
-    ];
-    for (const box of searchedMailboxes) {
-      if (box.syncedMessages === 0) {
-        notes.push(
-          `Mailbox ${box.accountEmail ?? '(no address on record)'} (${box.provider}, status: ${box.status}) has NO synced mail — it was not effectively searched.`,
-        );
-      }
-    }
-
+    const hasMore = messageOffset + messages.length < matching.length;
     return {
-      totalMatches: total,
-      returned: messages.length,
-      hasMore: total > messages.length,
+      threadId, subject: thread.subject, mailbox: thread.connectionEmail,
+      messageId: messageId || null, messageOffset, totalMessages: matching.length,
+      returned: messages.length, hasMore,
+      nextMessageOffset: hasMore ? messageOffset + messages.length : null,
       messages,
-      searchedMailboxes,
-      notes,
+      notes: ['Read remaining message pages and each nextBodyOffset before claiming the full thread was read. Body continuation uses the same threadId, exact messageId, messageOffset=0 and bodyOffset=nextBodyOffset. Provider bodies may themselves be truncated or unavailable; bodyCompleteness reports the stored state.'],
     };
   }
 
@@ -7366,18 +7210,6 @@ function parsePeopleInputs(value: unknown): CreatePersonInput[] {
 function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
   return {
     OR: [{ createdByUserId: userId }, { connection: { createdByUserId: userId } }],
-  };
-}
-
-function ownMailThreadWhere(userId: string): Prisma.MailThreadWhereInput {
-  return {
-    connection: { createdByUserId: userId },
-  };
-}
-
-function ownMailMessageWhere(userId: string): Prisma.MailMessageWhereInput {
-  return {
-    connection: { createdByUserId: userId },
   };
 }
 

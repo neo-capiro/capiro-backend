@@ -62,6 +62,17 @@ const round = (value: number): number => Math.round(value * 100) / 100;
 @Injectable()
 export class ContextStageTimerService {
   private readonly storage = new AsyncLocalStorage<StageScope>();
+  private readonly observer = new AsyncLocalStorage<
+    (stage: ContextStage, active: boolean) => void
+  >();
+
+  /** Request-local progress from the existing measured stages; never source bodies. */
+  observe<T>(
+    onStage: (stage: ContextStage, active: boolean) => void,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    return this.observer.run(onStage, fn);
+  }
 
   /** Opens one measurement scope for a single governed operation. */
   async run<T>(fn: () => Promise<T>): Promise<T> {
@@ -86,12 +97,14 @@ export class ContextStageTimerService {
     const scope = this.storage.getStore();
     if (!scope) return fn();
     const startedAt = performance.now();
+    this.observer.getStore()?.(stage, true);
     try {
       return await fn();
     } finally {
       const elapsed = performance.now() - startedAt;
       scope.durations.set(stage, (scope.durations.get(stage) ?? 0) + elapsed);
       scope.calls.set(stage, (scope.calls.get(stage) ?? 0) + 1);
+      this.observer.getStore()?.(stage, false);
     }
   }
 

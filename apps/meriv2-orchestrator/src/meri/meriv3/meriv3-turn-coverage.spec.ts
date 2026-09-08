@@ -61,6 +61,56 @@ function memory(override: Record<string, unknown> = {}) {
 }
 
 describe('completed-turn source coverage', () => {
+  it.each(['list_emails', 'search_emails'])('%s reports canonical mail health instead of a recent connection timestamp', (tool) => {
+    const mailCoverage: Record<string, unknown> = {
+      sourceStatus: 'degraded', reason: 'mail_capture_repair_required', lastMailSyncAt: null,
+    };
+    const payload = {
+      totalMatches: 2, returned: 2, count: 1, hasMore: false,
+      messages: [{ id: 'mail-1' }, { id: 'mail-2' }], threads: [{ id: 'thread-1' }],
+      searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected', syncedMessages: 100,
+        lastSyncAt: new Date().toISOString(),
+        mailCoverage }],
+    };
+    expect(observeMeriTurnToolCoverage(tool, payload)).toEqual([expect.objectContaining({
+      source: 'mail', status: 'partial', recordsReturned: 2, recordsEvaluated: 2,
+      detail: 'mail_capture_repair_required',
+    })]);
+    Object.assign(mailCoverage, { sourceStatus: 'healthy', reason: null, lastMailSyncAt: new Date().toISOString() });
+    expect(observeMeriTurnToolCoverage(tool, payload)).toEqual([expect.objectContaining({
+      source: 'mail', status: 'complete', recordsReturned: 2, recordsEvaluated: 2, paginationComplete: true,
+    })]);
+  });
+
+  it('keeps per-page mail receipts while reconciling an exhausted exact query once', () => {
+    const asOf = '2026-09-07T12:00:00.000Z';
+    const page = (offset: number, returned: number) => ({
+      offset, asOf, queryScope: { query: null, from: null, participant: null, clientId: null, folder: 'inbox', withinDays: 14, asOf },
+      totalMatches: 75, returned, hasMore: offset + returned < 75,
+      messages: Array.from({ length: returned }, (_, i) => ({ id: `mail-${offset + i}` })),
+      searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected', syncedMessages: 100,
+        mailCoverage: { sourceStatus: 'healthy', lastMailSyncAt: asOf } }],
+    });
+    const first = observeMeriTurnToolCoverage('list_emails', page(0, 50));
+    const final = observeMeriTurnToolCoverage('list_emails', page(50, 25));
+    expect(final[0]).toMatchObject({ recordsReturned: 25, recordsEvaluated: 75, paginationComplete: true, truncated: false });
+    const before = initial('mail');
+    Object.assign(before.coverage, {
+      complete: true, searchedDomains: ['mail'], missingDomains: [], partialDomains: [],
+      paginationComplete: true, sourceHealth: [{ source: 'mail', status: 'complete' }], unavailableSources: [],
+    });
+    const result = reconcileMeriTurnCoverage(before, [...first, ...final]) as MeriTurnRetrieval;
+    expect(result.coverage).toMatchObject({ complete: true, paginationComplete: true, partialDomains: [], truncated: false });
+    expect(result.coverage.toolReads).toHaveLength(2);
+    expect((reconcileMeriTurnCoverage(before, final) as MeriTurnRetrieval).coverage.complete).toBe(false);
+  });
+
+  it('does not report a missing mailbox as a successful empty read', () => {
+    expect(observeMeriTurnToolCoverage('list_emails', {
+      totalMatches: 0, returned: 0, hasMore: false, messages: [], searchedMailboxes: [],
+    })).toEqual([expect.objectContaining({ status: 'unavailable', detail: 'no_connected_mailbox' })]);
+  });
+
   it('resolves initial memory access failure while preserving a partial client query and the original failure receipt', () => {
     const before = initial();
     const result = reconcileMeriTurnCoverage(

@@ -104,12 +104,12 @@ export const MERI_DATASET_CATALOG: MeriDatasetDefinition[] = [
   {
     id: 'mail_messages',
     description:
-      'Synchronized Microsoft 365 and Google Workspace message records. search_emails provides an exact match count but no continuation cursor when matches exceed its result limit.',
+      'Synchronized Microsoft 365 and Google Workspace message records. Mail tools provide exact match counts and bounded pages; continue with nextOffset and the same returned asOf and filters. Mail-specific coverage determines whether synced records cover the request.',
     domains: ['mail'],
     entities: ['message', 'person', 'company', 'client'],
-    tools: ['search_emails', 'list_emails'],
+    tools: ['search_emails', 'list_emails', 'get_email_thread'],
     timeSemantics: { occurredAt: ['sentAt', 'receivedAt'], changedAt: ['updatedAt'] },
-    capabilities: caps(true, false),
+    capabilities: caps(true, false, { dateRange: true, pagination: true }),
     authority: ['communication occurrence', 'participants', 'message content', 'thread chronology'],
     scope: 'tenant',
   },

@@ -1,11 +1,46 @@
 import { extractCitationsFromToolResult } from '@capiro/shared';
+import { numberMeriEvidenceCitations } from './meriv3-context-evidence.js';
 import type { LedgerEntry } from '@capiro/meriv2-core';
 import {
+  MeriV3CleanAssistantService,
   buildMeriV3ReleaseCitations,
   normalizeMeriV3FormBCitations,
 } from './meriv3-clean-assistant.service.js';
 
 describe('MeriV3 clean evidence release', () => {
+  test('normalizes real Word input before generation so persisted spec, export and Evidence use [56]', () => {
+    const source = { n: 56, type: 'source', id: 'doc-page-22', title: 'Capiro 2.0.pdf', url: null, snippet: 'Observed page', tool: 'read_client_documents' };
+    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
+      prepareArtifactInput: (name: string, input: Record<string, unknown>, citations: typeof source[], ledger: LedgerEntry[]) => Record<string, unknown>;
+    };
+    const spec = { title: 'QA Briefing', sections: [{ paragraphs: ['Observed [57] and [S:read_client_documents:doc-page-22].'] }] };
+    const normalized = prepare.prepareArtifactInput('create_word', spec, [source, { ...source, n: 57 }], []);
+    expect(JSON.parse(JSON.stringify(normalized))).toEqual({ title: 'QA Briefing', sections: [{ paragraphs: ['Observed [56] and [56].'] }] });
+    expect(spec.sections[0]?.paragraphs[0]).toContain('[57]');
+    const originals = [source, { ...source, n: 57 }];
+    prepare.prepareArtifactInput('create_word', spec, originals, []);
+    const final = buildMeriV3ReleaseCitations(originals, []);
+    expect(normalizeMeriV3FormBCitations('Later answer [57].', final.aliases, final.numberAliases)).toBe('Later answer [56].');
+    expect(prepare.prepareArtifactInput('create_excel', spec, [source], [])).toBe(spec);
+  });
+
+  test('reserves a newly promoted artifact source number before later tool results arrive', () => {
+    const result = { records: Array.from({ length: 6 }, (_, index) => ({ recordId: `source-${index + 1}`,
+      payload: { title: `Source ${index + 1}`, text: 'Actual source evidence' } })) };
+    const citations = extractCitationsFromToolResult('search_capiro_data', result, 1, 5);
+    const ledger: LedgerEntry[] = [{ tool: 'search_capiro_data', result, serialized: JSON.stringify(result) }];
+    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
+      prepareArtifactInput: (name: string, input: Record<string, unknown>, citations: ReturnType<typeof extractCitationsFromToolResult>, ledger: LedgerEntry[]) => Record<string, unknown>;
+    };
+    const spec = prepare.prepareArtifactInput('create_word', { title: 'Briefing', paragraphs: ['Sixth source [S:search_capiro_data:source-6].'] }, citations, ledger);
+    const later = numberMeriEvidenceCitations([{ n: 1, type: 'source', tool: 'read_client_documents', id: 'later-doc', title: 'Later document', url: null, snippet: 'Other evidence' }], citations);
+    citations.push(...later);
+    const released = buildMeriV3ReleaseCitations(citations, ledger);
+    expect(spec.paragraphs).toEqual(['Sixth source [6].']);
+    expect(later[0]?.n).toBe(7);
+    expect(released.citations.find((source) => source.n === 6)?.id).toBe('source-6');
+  });
+
   test('turns recipe email evidence into an attached numbered citation', () => {
     const ledgerEntries: LedgerEntry[] = [
       {

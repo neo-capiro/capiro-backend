@@ -18,6 +18,7 @@ import { OpenAiResponsesClient } from './openai-responses.client.js';
 
 interface FinalizeReplyArgs {
   reply: string;
+  artifactBodies?: string[];
   citations: MeriCitation[];
   ledgerEntries: LedgerEntry[];
   [key: string]: unknown;
@@ -139,6 +140,7 @@ function citationType(tool: string, fallback?: MeriCitation['type']): MeriCitati
   const typeByTool: Record<string, MeriCitation['type']> = {
     search_emails: 'email',
     list_emails: 'email',
+    get_email_thread: 'email',
     find_contacts: 'contact',
     search_memory: 'memory',
     query_debriefs: 'meeting',
@@ -230,12 +232,16 @@ export function buildMeriV3ReleaseCitations(
 
   // A repeated record may already have been numbered in a later tool result.
   // Do not reuse that number for a different source after deduplication.
-  let nextN = citations.reduce((max, citation) => Math.max(max, citation.n), 0) + 1;
+  const reservedNumbers = new Set(citations.map((source) => source.n));
+  let nextN = citations.reduce((max, source) => Math.max(max, source.n), 0) + 1;
   for (const source of evidence) {
     if (normalized.length >= MAX_RELEASE_CITATIONS) break;
     const key = `${source.sourceTool}:${source.id}`;
     let citation = byKey.get(key);
     if (!citation) {
+      if (nextN > 999) nextN = 1;
+      while (reservedNumbers.has(nextN)) nextN += 1;
+      if (nextN > 999) break;
       citation = {
         n: nextN,
         type: citationType(source.sourceTool),
@@ -245,6 +251,7 @@ export function buildMeriV3ReleaseCitations(
         snippet: source.snippet,
         tool: source.sourceTool,
       };
+      reservedNumbers.add(nextN);
       nextN += 1;
       byKey.set(key, citation);
       normalized.push(citation);
@@ -288,6 +295,32 @@ export function normalizeMeriV3FormBCitations(
  */
 @Injectable()
 export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService {
+  protected override prepareArtifactInput(
+    name: string, input: Record<string, unknown>, citations: MeriCitation[], ledgerEntries: LedgerEntry[],
+  ): Record<string, unknown> {
+    if (name !== 'create_word' && name !== 'create_powerpoint') return input;
+    // Normalize before canonical doc generation and policy authorization so
+    // preview, saved spec, export and Evidence cards share the same references.
+    const release = buildMeriV3ReleaseCitations(citations, ledgerEntries);
+    // Form-B may promote a model-visible ledger source beyond the initial
+    // citation candidates. Reserve it now so later tools cannot reuse the
+    // number already written into the canonical artifact specification.
+    const reserved = new Set(citations.map((source) => source.n));
+    for (const source of release.citations) {
+      if (!reserved.has(source.n)) {
+        citations.push(source);
+        reserved.add(source.n);
+      }
+    }
+    const normalize = (value: unknown): unknown => {
+      if (typeof value === 'string') return normalizeMeriV3FormBCitations(value, release.aliases, release.numberAliases);
+      if (Array.isArray(value)) return value.map(normalize);
+      if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalize(item)]));
+      return value;
+    };
+    return normalize(input) as Record<string, unknown>;
+  }
+
   constructor(
     registryService: MeriRegistryService,
     openai: OpenAiResponsesClient,
@@ -317,6 +350,7 @@ export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService
         ...args,
         reply: normalizeMeriV3FormBCitations(args.reply, release.aliases, release.numberAliases),
         citations: release.citations,
+        artifactBodies: args.artifactBodies?.map((body) => normalizeMeriV3FormBCitations(body, release.aliases, release.numberAliases)),
       });
     };
   }

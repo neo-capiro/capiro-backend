@@ -24,6 +24,7 @@
 // text); re-exported here so apps/api callers and tests import from one place.
 export {
   MERI_GROUNDING_INVARIANT,
+  isMeriMailReadTool,
   MERI_GROUNDING_OUTREACH_KERNEL,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
@@ -106,8 +107,9 @@ export function clientScopeDirective(clientName: string | null | undefined): str
   const label = clientName?.trim() ? `"${clientName.trim()}"` : UNNAMED_CLIENT;
   return [
     `Active client scope (HARD CONSTRAINT): this conversation is assigned to ${label}.`,
-    `Every answer, draft, recommendation, and tool call in this session must be about ${label} and nothing else.`,
-    `Do NOT report, compare, summarize, or mention any other client's meetings, emails, tasks, outreach, documents, filings, or remembered facts — not even in passing, and not even if another client appears in the context below or in a tool result. Treat any such material as out of scope and leave it out.`,
+    `Every client-specific answer, draft, recommendation, and client-scoped tool call in this session must be about ${label}.`,
+    `Do NOT report, compare, summarize, or mention any other client's records when answering a client-specific question — even if another client appears in the context below or in a tool result. Treat such material as out of scope.`,
+    `A request about the user's own inbox or personal email activity uses their authenticated mailbox, even while a client is selected. Omit clientId on list_emails/search_emails for that request; include it only for explicitly client-specific mail. This does not authorize access to another user's mailbox or another client's records through client-scoped tools.`,
     `The firm's client roster is provided only so you can answer questions about the roster itself (who the clients are, how many there are, whether an organization is a client). It is not license to discuss another client's work.`,
     `If the user asks about a different client, say plainly that this session is scoped to ${label} and ask them to switch the session's client (or open a General session). Do not answer from another client's data.`,
     `Client-scoped tools are pinned to ${label}: they refuse a different client rather than returning it.`,

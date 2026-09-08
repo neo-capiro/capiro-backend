@@ -135,7 +135,7 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
   if (schema.name === 'search_emails') {
     return {
       ...schema,
-      description: `${schema.description} The result includes totalMatches, returned, hasMore, and searchedMailboxes coverage. Treat the search as incomplete when hasMore is true or any mailbox is unavailable.`,
+      description: `${schema.description} The result includes totalMatches, returned, hasMore, nextOffset, asOf, and searchedMailboxes coverage. Continue with offset=nextOffset and the same asOf and filters. Treat the search as incomplete when hasMore is true or any mailbox is unavailable.`,
     };
   }
   return schema;

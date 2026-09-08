@@ -7,6 +7,7 @@ import type {
   MeriEvidenceManifest,
 } from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
+import { MeriConversationEvidenceService } from './meri-conversation-evidence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import {
@@ -50,6 +51,7 @@ export class MeriV3ResearchRunner {
     private readonly flags: MeriFeatureFlagsService,
     private readonly credentials: AiCredentialResolverService,
     private readonly prisma: PrismaService,
+    private readonly conversationEvidence: MeriConversationEvidenceService,
   ) {}
 
   enabled(ctx: TenantContext): Promise<boolean> {
@@ -128,6 +130,10 @@ export class MeriV3ResearchRunner {
         'The conversation’s OpenAI provider is not configured.',
       );
     const currentTurnImages = await this.snapshotImages(ctx, input.handoff);
+    const inherited = toolPolicy === 'read-only'
+      ? await this.conversationEvidence.load(ctx, input.conversationId ?? input.handoff?.conversationId ?? undefined,
+          input.clientId, auth.signal, input.handoff?.messages)
+      : { citations: [], unavailable: 0, omitted: 0 };
     let frame: DoneFrame | undefined;
     let errorMessage: string | undefined;
     await this.client.streamChat({
@@ -154,6 +160,10 @@ export class MeriV3ResearchRunner {
             : []),
         ].join('\n\n'),
         governedContext: auth.governedContext,
+        inheritedDocumentEvidence: inherited.citations,
+        ...(inherited.unavailable || inherited.omitted
+          ? { inheritedEvidenceNotice: `${inherited.unavailable} earlier document observations could not be reauthorized; ${inherited.omitted} were outside the bounded replay. Retrieve missing evidence before using it.` }
+          : {}),
         toolPolicy,
         ...(auth.run ? { researchRun: { sessionId: input.sessionId, runId: auth.run.id } } : {}),
         ...(currentTurnImages.length ? { currentTurnImages } : {}),

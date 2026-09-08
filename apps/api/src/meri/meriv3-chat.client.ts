@@ -1,3 +1,4 @@
+import type { MeriCitation } from '@capiro/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { attestMeriGovernedContext } from '@capiro/meriv2-core';
 import type {
@@ -185,15 +186,7 @@ export type MeriV3ChatStreamEvent =
         cacheReadTokens?: number;
         cacheCreationTokens?: number;
       };
-      citations?: Array<{
-        n: number;
-        type: string;
-        id: string;
-        title: string;
-        url: string | null;
-        snippet: string | null;
-        tool: string;
-      }>;
+      citations?: MeriCitation[];
       steps: Array<{
         tool: string;
         label: string;
@@ -239,6 +232,9 @@ export class MeriV3ChatClient {
       toolPolicy?: 'none' | 'read-only';
       researchRun?: { sessionId: string; runId: string };
       governedContext?: MeriGovernedTurnContext;
+      /** Server-only observations from MeriConversationEvidenceService. */
+      inheritedDocumentEvidence?: MeriCitation[];
+      inheritedEvidenceNotice?: string;
     };
     aiProvider?: ResolvedAiForChatHeader;
     impersonateTenantId?: string;
@@ -266,7 +262,11 @@ export class MeriV3ChatClient {
         ...(params.input.governedContext
           ? {
               governedContext: attestMeriGovernedContext(
-                params.input.governedContext,
+                {
+                  ...params.input.governedContext,
+                  inheritedDocumentEvidence: params.input.inheritedDocumentEvidence ?? [],
+                  prompt: [params.input.governedContext.prompt, params.input.inheritedEvidenceNotice ?? ''].filter(Boolean).join('\n\n'),
+                },
                 params.input,
                 process.env.INTERNAL_SERVICE_SECRET,
               ),

@@ -1,4 +1,4 @@
-import { MERI_CAPABILITY_REGISTRY, selectMeriCapabilitySchemas } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, selectMeriCapabilitySchemas, isMeriMailReadTool } from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -45,7 +45,7 @@ import {
 } from '../chat/chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
-import { meriEvidenceManifest, seedMeriContextEvidence } from './meriv3-context-evidence.js';
+import { meriEvidenceManifest, seedMeriContextEvidence, numberMeriEvidenceCitations } from './meriv3-context-evidence.js';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
   observeMeriTurnToolCoverage,
@@ -564,6 +564,7 @@ export class MeriV3AssistantService {
       ctx,
       dto,
       reply: finalText,
+      artifactBodies: artifacts.map((artifact) => artifact.bodyText ?? ''),
       citations,
       ledgerEntries,
       evidencePlan,
@@ -748,7 +749,7 @@ export class MeriV3AssistantService {
         });
         continue;
       }
-      const augmented = this.augmentToolInput(args.dto, parsed, schema);
+      const augmented = this.augmentToolInput(args.dto, this.prepareArtifactInput(call.name, parsed, args.citations, args.ledgerEntries), schema);
       args.toolsUsed.push(call.name);
       const result = await this.invokeTool({
         ctx: args.ctx,
@@ -773,12 +774,12 @@ export class MeriV3AssistantService {
       if (this.registry.get(call.name)?.readOnly === true) {
         args.toolCoverage.push(...observeMeriTurnToolCoverage(call.name, visibleResult));
       }
-      const cites = extractCitationsFromToolResult(
-        call.name,
-        visibleResult,
-        args.citations.length + 1,
-      );
-      args.citations.push(...cites);
+      const cites = numberMeriEvidenceCitations(extractCitationsFromToolResult(call.name, visibleResult, 1), args.citations);
+      for (const cite of cites) {
+        const index = args.citations.findIndex((source) => source.tool === cite.tool && source.id === cite.id);
+        if (index < 0) args.citations.push(cite);
+        else args.citations[index] = cite;
+      }
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
       args.ledgerEntries.push({ tool: call.name, serialized, result: visibleResult });
@@ -786,6 +787,10 @@ export class MeriV3AssistantService {
     }
     return executions;
   }
+
+  protected prepareArtifactInput(
+    _name: string, input: Record<string, unknown>, _citations: MeriCitation[], _ledgerEntries: LedgerEntry[],
+  ): Record<string, unknown> { return input; }
 
   private augmentToolInput(
     dto: MeriV3ChatInput,
@@ -803,7 +808,10 @@ export class MeriV3AssistantService {
             'This conversation is pinned to a different client. I did not run the cross-client request.',
         };
       }
-      output.clientId = dto.clientId;
+      // The owner-authenticated mailbox includes mail with no client association.
+      // Keep explicit client filters pinned, but let the provider omit one for
+      // personal inbox questions regardless of the conversation's UI focus.
+      if (supplied || !isMeriMailReadTool(schema?.name)) output.clientId = dto.clientId;
     }
     if (dto.conversationId && output.conversationId === undefined && properties?.conversationId) {
       output.conversationId = dto.conversationId;
@@ -963,6 +971,7 @@ export class MeriV3AssistantService {
     ctx: MeriContext;
     dto: MeriV3ChatInput;
     reply: string;
+    artifactBodies?: string[];
     citations: MeriCitation[];
     ledgerEntries: LedgerEntry[];
     evidencePlan: ReturnType<typeof planGovernmentAffairsEvidence>;
@@ -979,7 +988,12 @@ export class MeriV3AssistantService {
     );
     let released = formB.sanitizedText;
     let held = false;
-    const usedCitations = formA.used;
+    const usedCitations = [...formA.used];
+    for (const body of args.artifactBodies ?? []) {
+      for (const source of validateCitationMarkers(body, args.citations).used) {
+        if (!usedCitations.some((existing) => existing.n === source.n)) usedCitations.push(source);
+      }
+    }
 
     const auditMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditMode !== 'off' && released.trim()) {

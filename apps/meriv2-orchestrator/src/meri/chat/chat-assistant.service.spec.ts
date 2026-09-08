@@ -229,6 +229,48 @@ afterEach(() => {
 });
 
 describe('ChatAssistantService.run', () => {
+  it.each(['list_emails', 'search_emails'])(
+    '%s keeps a personal two-week inbox request independent of the selected client',
+    async (name) => {
+      const executeSpy = jest.fn(async () => ({ messages: [{ id: 'mail-1', subject: 'Meeting invitation' }], returned: 1, hasMore: false }));
+      const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+      const input = { withinDays: 14, folder: 'inbox', limit: 50 };
+      let round = 0;
+      global.fetch = jest.fn(async (url: string) => {
+        if (url.includes('/api/clio/tool-schemas')) return schemasResponse([name], { [name]: ['clientId', 'withinDays', 'folder', 'limit'] });
+        round += 1;
+        return round === 1
+          ? anthropic([{ type: 'tool_use', id: 'inbox-call', name, input }], 'tool_use')
+          : anthropic([{ type: 'text', text: 'You have a meeting invitation.' }], 'end_turn');
+      }) as unknown as typeof fetch;
+      await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () => makeService(executor).run(ctx, {
+        clientId: 'client-a', messages: [{ role: 'user', text: 'what activities do i have in my email inbox for the last two weeks' }],
+      }));
+      expect(executeSpy).toHaveBeenCalledWith(ctx, name, input, undefined);
+    },
+  );
+
+  it.each(['list_emails', 'search_emails'])(
+    '%s refuses an explicit other-client filter in the legacy orchestrator',
+    async (name) => {
+      const executeSpy = jest.fn();
+      const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+      let round = 0;
+      global.fetch = jest.fn(async (url: string) => {
+        if (url.includes('/api/clio/tool-schemas')) return schemasResponse([name], { [name]: ['clientId'] });
+        round += 1;
+        return round === 1
+          ? anthropic([{ type: 'tool_use', id: 'inbox-call', name, input: { clientId: 'client-b', withinDays: 14 } }], 'tool_use')
+          : anthropic([{ type: 'text', text: 'I did not read another client.' }], 'end_turn');
+      }) as unknown as typeof fetch;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () => makeService(executor).run(ctx, {
+        clientId: 'client-a', messages: [{ role: 'user', text: 'Read client B mail.' }],
+      }));
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(result.steps).toEqual([expect.objectContaining({ tool: name, status: 'blocked' })]);
+    },
+  );
+
   it('runs a read tool through the registry, then answers in prose', async () => {
     const executeSpy = jest.fn(async () => ({ items: [{ id: 'hr1' }], count: 1 }));
     const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
