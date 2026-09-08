@@ -689,13 +689,34 @@ export function LiveHearingRoomPage({
 
     setError(null);
     setPhaseNow('requesting_share');
-    setStatusText('Choose the browser tab playing the hearing and enable Share tab audio.');
+    // The hearing plays in the embed on THIS page unless the source is
+    // reference-only, in which case the analyst opened it in another tab.
+    const capturesThisTab = Boolean(embeddableUrl || youtubeVideoId);
+    setStatusText(
+      capturesThisTab
+        ? 'Choose This tab and enable Share tab audio.'
+        : 'Choose the browser tab playing the hearing and enable Share tab audio.',
+    );
     const generation = socketGenerationRef.current;
     let captureRequested = false;
     try {
       // video:true is required by the browser to offer a "Tab" source with a
       // "Share tab audio" checkbox; the video track is discarded immediately.
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      //
+      // The two source paths need DIFFERENT pickers, and conflating them was the
+      // 2026-09-08 dead end: when the hearing plays in the embed on this page,
+      // the copy says "choose This tab" — but Chromium excludes the CALLING tab
+      // from the generic tab list by default (selfBrowserSurface defaults to
+      // exclude), so the one tab the analyst was told to pick was the one tab
+      // not offered. `preferCurrentTab` is the purpose-built opt-in for that.
+      // It must stay OFF for a reference-only source, which genuinely lives in
+      // a DIFFERENT tab the analyst opened — narrowing the picker to this tab
+      // would make that path uncapturable instead.
+      const display = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true,
+        ...(capturesThisTab ? { preferCurrentTab: true } : {}),
+      } as DisplayMediaStreamOptions);
       // Re-check live state: the browser's picker can sit open for a while, and a
       // disconnect (or a second Start attempt) may have happened while we waited.
       const phaseAfterPicker = phaseRef.current as Phase;
@@ -803,7 +824,7 @@ export function LiveHearingRoomPage({
       );
       setPhaseNow(wsRef.current?.readyState === WebSocket.OPEN ? 'connected' : 'idle');
     }
-  }, [cleanupCaptureTracks, disconnectSocket, endSession, setPhaseNow]);
+  }, [cleanupCaptureTracks, disconnectSocket, embeddableUrl, endSession, setPhaseNow, youtubeVideoId]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
