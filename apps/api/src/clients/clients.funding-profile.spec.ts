@@ -148,7 +148,14 @@ describe('client funding profile API writers', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.client.findFirst).toHaveBeenCalledWith({
       where: { id: 'missing', tenantId: 'tenant-1' },
-      select: { uei: true, name: true, applicantTypes: true },
+      select: {
+        uei: true,
+        name: true,
+        applicantTypes: true,
+        intakeData: true,
+        naicsCodes: true,
+        setAsideCertifications: true,
+      },
     });
     expect(tx.client.update).not.toHaveBeenCalled();
   });
