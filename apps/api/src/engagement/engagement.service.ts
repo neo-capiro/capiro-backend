@@ -6970,6 +6970,91 @@ export class EngagementService {
   }
 
   /**
+   * System-driven counterpart to {@link deleteAttachment} for age/policy-based
+   * retention sweeps (e.g. NotetakerService.reconcileExpiredTranscripts) that
+   * erase by attachment id with no authenticated user in the loop. Mirrors
+   * deleteAttachment's recoverable S3-then-row erasure (see its comment for why
+   * that ordering avoids leaving an orphaned S3 object), scoped by tenantId
+   * (like reconcileFailedAttachmentDeletes below) rather than a TenantContext,
+   * and via withSystem since callers sweep across tenants.
+   *
+   * Deliberately skips deleteAttachment's validateAttachmentParents →
+   * ensureOwnMeeting check. That check requires the caller to OWN the
+   * attachment's parent meeting, which is right for a user-initiated delete but
+   * wrong here: a retention sweep isn't acting on anyone's behalf, so there is
+   * no user to authorize against — and ownMeetingWhere() deliberately excludes
+   * a meeting calendar sync soft-deleted (status='deleted'). That meeting row
+   * (and its FK-cascaded attachments) still exists, so the exclusion is
+   * permanent, not transient: routing retention through deleteAttachment left
+   * the swept attachment permanently un-erasable, failing "Meeting not found"
+   * on every sweep forever instead of just once.
+   */
+  async eraseAttachmentAsSystem(tenantId: string, id: string): Promise<{ ok: true }> {
+    const attachment = await this.prisma.withSystem((tx) =>
+      tx.engagementAttachment.findFirst({
+        where: { id, tenantId },
+        select: { s3Key: true, clientId: true },
+      }),
+    );
+    if (!attachment) throw new NotFoundException('Attachment not found');
+
+    await this.prisma.withSystem((tx) =>
+      tx.engagementAttachment.updateMany({
+        where: { id, tenantId },
+        data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
+      }),
+    );
+
+    if (this.bucket) {
+      try {
+        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }));
+      } catch (e) {
+        await this.prisma
+          .withSystem((tx) =>
+            tx.engagementAttachment.updateMany({
+              where: { id, tenantId },
+              data: {
+                lifecycleStatus: 'delete_failed',
+                extractionMetadata: {
+                  deleteError: (e as Error).message.slice(0, 300),
+                  deleteFailedAt: new Date().toISOString(),
+                } as unknown as Prisma.InputJsonValue,
+              },
+            }),
+          )
+          .catch((markErr) =>
+            this.logger.error(
+              `could not mark attachment ${id} delete_failed: ${(markErr as Error).message}`,
+            ),
+          );
+        this.logger.error(
+          `attachment ${id} S3 delete FAILED; row retained as delete_failed for retry: ${
+            (e as Error).message
+          }`,
+        );
+        throw new ServiceUnavailableException({
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          error: 'ATTACHMENT_DELETE_FAILED',
+          message:
+            'The file could not be removed from storage. It has been made inaccessible and the deletion will be retried — no download link remains valid.',
+        });
+      }
+    }
+
+    // withSystem does not auto-inject a tenant predicate the way withTenant
+    // does, so tenantId is included explicitly in this unique-where delete
+    // (an extended-where filter, supported alongside the id) rather than
+    // relying on that injection.
+    await this.prisma.withSystem((tx) =>
+      tx.engagementAttachment.delete({ where: { id, tenantId } }),
+    );
+    if (attachment.clientId) {
+      this.clientKb.purgeFireAndForget(tenantId, 'client_doc_chunk', id);
+    }
+    return { ok: true };
+  }
+
+  /**
    * Gate H a-6: link an OLD attachment to the NEW one that replaces it,
    * instead of deleting it. Used by the alert-memo regenerate path (and any
    * future generator's "regenerate" action) in place of deleteAttachment.

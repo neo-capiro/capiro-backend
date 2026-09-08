@@ -6,7 +6,7 @@ import { EngagementService } from '../engagement/engagement.service.js';
  *
  * The existing implementations remain authoritative for transcript attachment
  * lifecycle, encrypted meeting notes, and grounded debrief drafting. Notetaker
- * receives this four-method object rather than the broad EngagementService.
+ * receives this five-method object rather than the broad EngagementService.
  */
 @Injectable()
 export class MeetingCapturePersistenceService {
@@ -20,6 +20,12 @@ export class MeetingCapturePersistenceService {
 
   deleteAttachment(...args: Parameters<EngagementService['deleteAttachment']>) {
     return this.engagement.deleteAttachment(...args);
+  }
+
+  eraseAttachmentAsSystem(
+    ...args: Parameters<EngagementService['eraseAttachmentAsSystem']>
+  ) {
+    return this.engagement.eraseAttachmentAsSystem(...args);
   }
 
   generateMeetingDebriefDraft(

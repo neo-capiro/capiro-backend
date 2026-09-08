@@ -102,6 +102,7 @@ function makeService(tx: Tx, configOverrides: Record<string, unknown> = {}) {
     createMeetingDebrief: asyncMock({ id: 'd1' }),
     createMeetingNote: asyncMock({ id: 'n1' }),
     deleteAttachment: asyncMock({ ok: true }),
+    eraseAttachmentAsSystem: asyncMock({ ok: true }),
   } as unknown as EngagementService;
 
   const config = {
@@ -770,10 +771,9 @@ describe('NotetakerService.reconcileExpiredTranscripts (30-day transcript retent
     tenantId: 't1',
     meetingId: 'm1',
     s3Key: 'tenants/t1/engagement/x/transcript.txt',
-    uploadedByUserId: 'u1',
   };
 
-  test('erases an over-age transcript via deleteAttachment and nulls the dangling pointers', async () => {
+  test('erases an over-age transcript via eraseAttachmentAsSystem and nulls the dangling pointers', async () => {
     const tx = makeTx();
     tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
     const { service, engagement } = makeService(tx);
@@ -781,12 +781,10 @@ describe('NotetakerService.reconcileExpiredTranscripts (30-day transcript retent
     const count = await service.reconcileExpiredTranscripts();
 
     expect(count).toBe(1);
-    // Reuses the single erasure path — never a note/debrief delete (there is no such
-    // call; notes + debriefs are independent tables kept forever).
-    expect(engagement.deleteAttachment).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 't1', userId: 'u1' }),
-      'a1',
-    );
+    // Reuses the single system erasure path — never a note/debrief delete (there is
+    // no such call; notes + debriefs are independent tables kept forever). Scoped by
+    // tenantId + id alone, not a per-user TenantContext.
+    expect(engagement.eraseAttachmentAsSystem).toHaveBeenCalledWith('t1', 'a1');
     expect(tx.meeting.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { transcriptS3Key: null } }),
     );
@@ -818,17 +816,25 @@ describe('NotetakerService.reconcileExpiredTranscripts (30-day transcript retent
 
     expect(await service.reconcileExpiredTranscripts()).toBe(0);
     expect(tx.engagementAttachment.findMany).not.toHaveBeenCalled();
-    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+    expect(engagement.eraseAttachmentAsSystem).not.toHaveBeenCalled();
   });
 
-  test('skips (does not erase) a transcript whose uploader has left the tenant', async () => {
+  test('still erases when the uploader has left the tenant or the parent meeting is soft-deleted', async () => {
+    // Regression test: the sweep used to hydrate a TenantContext for the transcript's
+    // original uploader and erase via the ownership-gated deleteAttachment. A meeting
+    // soft-deleted by calendar sync (status='deleted') — or an uploader who has since
+    // left the tenant — made that path throw "Meeting not found" / skip forever, since
+    // neither the meeting row nor the attachment row is ever actually removed.
+    // eraseAttachmentAsSystem erases by tenantId + attachment id alone, so this sweep
+    // no longer depends on the uploader or the meeting's visibility at all.
     const tx = makeTx();
     tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
-    tx.user.findUnique.mockResolvedValue(null); // hydrateContext -> null
+    tx.user.findUnique.mockResolvedValue(null);
+    tx.meeting.findFirst.mockResolvedValue(null);
     const { service, engagement } = makeService(tx);
 
-    expect(await service.reconcileExpiredTranscripts()).toBe(0);
-    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+    expect(await service.reconcileExpiredTranscripts()).toBe(1);
+    expect(engagement.eraseAttachmentAsSystem).toHaveBeenCalledWith('t1', 'a1');
   });
 
   test('does nothing when no transcripts are past the window', async () => {
@@ -836,14 +842,16 @@ describe('NotetakerService.reconcileExpiredTranscripts (30-day transcript retent
     const { service, engagement } = makeService(tx);
 
     expect(await service.reconcileExpiredTranscripts()).toBe(0);
-    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+    expect(engagement.eraseAttachmentAsSystem).not.toHaveBeenCalled();
   });
 
   test('a per-row erase failure does not stop the sweep', async () => {
     const tx = makeTx();
     tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
     const { service, engagement } = makeService(tx);
-    (engagement.deleteAttachment as jest.Mock).mockRejectedValue(new Error('s3 down') as never);
+    (engagement.eraseAttachmentAsSystem as jest.Mock).mockRejectedValue(
+      new Error('s3 down') as never,
+    );
 
     await expect(service.reconcileExpiredTranscripts()).resolves.toBe(0);
   });

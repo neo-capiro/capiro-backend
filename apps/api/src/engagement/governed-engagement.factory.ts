@@ -47,6 +47,7 @@ const RUNTIME_ACTION_BY_METHOD: Readonly<Record<string, RuntimeMethodMetadata>> 
   createAttachmentFromBuffer: { action: 'attachment_external_write' },
   supersedeAttachment: { action: 'attachment_external_write' },
   deleteAttachment: { action: 'attachment_external_write' },
+  eraseAttachmentAsSystem: { action: 'attachment_external_write' },
   reconcileFailedAttachmentDeletes: { action: 'attachment_external_write' },
   extractAttachmentText: { action: 'attachment_external_read' },
   readAttachmentBytes: { action: 'attachment_external_read' },
