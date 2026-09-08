@@ -33,6 +33,7 @@ const MIGRATIONS_DIR = [
 
 /** The migrations this prototype rollout added (Phases 2 and 3). */
 const ROLLOUT_MIGRATIONS = ['20260727000000_sp_strategy_chat_message', '20260727010000_sp_watch_consistency'];
+const QA_MIGRATIONS = ['20260908030000_sp_node_completed', '20260908090000_watch_mission_purpose'];
 
 function migrationNames(): string[] {
   return readdirSync(MIGRATIONS_DIR)
@@ -83,10 +84,16 @@ describe('Phase 6 §4 — strategy migrations are ordered, additive and reversib
     expect([...stamps].sort()).toEqual(stamps);
   });
 
-  it('this rollout’s migrations are present, in order, and last', () => {
+  it('the prototype migrations remain present in their original order', () => {
     const names = migrationNames();
     for (const m of ROLLOUT_MIGRATIONS) expect(names).toContain(m);
-    expect(names.slice(-ROLLOUT_MIGRATIONS.length)).toEqual(ROLLOUT_MIGRATIONS);
+    expect(names.filter((name) => ROLLOUT_MIGRATIONS.includes(name))).toEqual(ROLLOUT_MIGRATIONS);
+  });
+
+  it('appends the QA migrations without rewriting the prototype history', () => {
+    expect(migrationNames().slice(-QA_MIGRATIONS.length)).toEqual(QA_MIGRATIONS);
+    expect(executableSql(sqlOf(QA_MIGRATIONS[1]!))).toMatch(/ADD COLUMN "purpose" TEXT\s*;/);
+    expect(sqlOf(QA_MIGRATIONS[1]!)).toMatch(/--\s*ROLLBACK/);
   });
 
   it.each(ROLLOUT_MIGRATIONS)('%s contains no destructive statement', (name) => {

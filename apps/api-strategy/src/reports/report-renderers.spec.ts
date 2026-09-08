@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import { DocxReportRenderer } from "./docx-report.renderer.js";
 import { PptxReportRenderer } from "./pptx-report.renderer.js";
 import type { VerifiedReportNarrative } from "./report-narrative.types.js";
+import { computeReportHealth } from "./report-health.js";
 import { ooxmlSafeText } from "./report-text.js";
 import type {
   ExecutiveReportSnapshot,
@@ -46,6 +47,19 @@ describe("executive report renderers", () => {
       expect(text).not.toContain("Internal practitioner note");
     },
   );
+
+  it.each([
+    ["DOCX", (value: ExecutiveReportSnapshot) => new DocxReportRenderer().render(value, null)],
+    ["PPTX", (value: ExecutiveReportSnapshot) => new PptxReportRenderer().render(value, null)],
+  ])("renders no-gate health as N/A in %s instead of implying verified grounding", async (_label, render) => {
+    const value = snapshot();
+    value.nodes = value.nodes.filter((node) => node.kind !== "gate");
+    value.health = computeReportHealth(value.nodes, new Date(value.asOf));
+    const text = await packageText(await render(value));
+    expect(text).toContain("N/A");
+    expect(text).not.toContain("null%");
+    expect(text).not.toContain("0/0 gates grounded");
+  });
 
   it.each([
     ["DOCX", () => new DocxReportRenderer().render(workingPlanSnapshot(), null)],
@@ -360,6 +374,7 @@ function snapshot(): ExecutiveReportSnapshot {
       ownedNodes: 4,
       totalGates: 1,
       groundedGates: 1,
+      datedNodes: 4,
       overdueNodes: 1,
     },
     allLiveHealth: {
@@ -372,6 +387,7 @@ function snapshot(): ExecutiveReportSnapshot {
       ownedNodes: 4,
       totalGates: 1,
       groundedGates: 1,
+      datedNodes: 4,
       overdueNodes: 1,
     },
     counts: {

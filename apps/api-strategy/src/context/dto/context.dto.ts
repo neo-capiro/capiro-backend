@@ -42,3 +42,8 @@ export class ApproveContextDocumentDto {
   @Matches(/^[a-f0-9]{64}$/)
   expectedChecksum!: string;
 }
+
+export class ReassignContextDocumentDto extends ApproveContextDocumentDto {
+  @IsUUID()
+  strategyId!: string;
+}

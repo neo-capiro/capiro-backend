@@ -56,6 +56,7 @@ import {
   useClientsLite,
   useContextConflicts,
   useContextFacts,
+  useContextFact,
   useContextHealth,
   useDismissContextConflict,
   useRejectContextFact,
@@ -68,6 +69,8 @@ import type {
   ContextFact,
   ContextFactState,
 } from '../../../../pages/strategy/types.js';
+import { useContextClientScope } from './use-context-client-scope.js';
+import { contextHealthStatus } from './context-health-label.js';
 import './steward-review.css';
 
 const FACT_STATES: readonly { id: ContextFactState; label: string }[] = [
@@ -99,7 +102,7 @@ function fmtDay(iso: string | null): string | null {
   if (!y || !m || !d) return null;
   const label = MONTHS[Number(m) - 1];
   if (!label || Number.isNaN(Number(d))) return null;
-  return `${label} ${Number(d)}`;
+  return `${label} ${Number(d)}, ${y}`;
 }
 
 function isForbidden(error: unknown): boolean {
@@ -126,13 +129,19 @@ export function StewardReviewVNext() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useCapiroToast();
 
-  const facts = useContextFacts();
-  const conflicts = useContextConflicts();
+  const scope = useContextClientScope();
+  const linkedFact = useContextFact(searchParams.get('fact'));
+  const facts = useContextFacts({ clientId: scope.clientId ?? undefined, includeFirm: true, firmOnly: scope.scope === 'firm' });
+  const conflicts = useContextConflicts(scope.clientId ?? undefined, scope.scope === 'firm');
+  const ledgerFacts = useMemo(() => {
+    const rows = facts.data ?? [];
+    return linkedFact.data && !rows.some((fact) => fact.id === linkedFact.data?.id) ? [...rows, linkedFact.data] : rows;
+  }, [facts.data, linkedFact.data]);
   const clients = useClientsLite();
   const reject = useRejectContextFact();
   const dismiss = useDismissContextConflict();
 
-  const clientFilter = searchParams.get('client') ?? 'all';
+  const clientFilter = scope.scope;
   const requestedState = searchParams.get('state');
   const stateFilter = FACT_STATES.find((state) => state.id === requestedState)?.id ?? 'active';
   const query = searchParams.get('q') ?? '';
@@ -150,19 +159,10 @@ export function StewardReviewVNext() {
   const healthClientId = clientFilter !== 'all' && clientFilter !== 'firm' ? clientFilter : null;
   const health = useContextHealth(healthClientId);
 
-  /* ScopeBar status — this view's own primary signal is conflicts, not a
-   * client-scoped health status (that only exists once a client is picked
-   * below), so the pill is grounded in the portfolio-wide open-conflict count
-   * from the same useContextConflicts() query the section below renders,
-   * never an invented number. */
-  const openConflictsAll = (conflicts.data ?? []).filter((conflict) => conflict.state === 'open').length;
-  const scopeStatus: ScopeBarStatus = conflicts.isLoading
-    ? { tone: 'gray', label: 'Checking conflicts…' }
-    : conflicts.isError
-      ? { tone: 'gray', label: 'Context health unavailable' }
-      : openConflictsAll > 0
-        ? { tone: 'warning', label: `${openConflictsAll} open conflict${openConflictsAll === 1 ? '' : 's'}` }
-        : { tone: 'success', label: 'Healthy · no open conflicts' };
+  const scopeStatus: ScopeBarStatus = healthClientId
+    ? contextHealthStatus(health.data, health.isError || facts.isError || conflicts.isError, health.isLoading || facts.isLoading, health.data?.activeFacts ?? ledgerFacts.filter((fact) => scope.matches(fact.clientId) && fact.state === 'active').length)
+    : facts.isError || conflicts.isError ? { tone: 'gray', label: 'Context health unavailable' }
+      : { tone: 'gray', label: 'Select a client to assess its context' };
 
   const setParam = (key: string, value: string | null) => {
     setSearchParams(
@@ -198,9 +198,10 @@ export function StewardReviewVNext() {
       setHighlightId(null);
       return;
     }
-    if (!facts.data || consumedFactParam.current === param) return;
+    if (consumedFactParam.current === param) return;
+    const hit = linkedFact.data ?? facts.data?.find((fact) => fact.id === param);
+    if (!hit && !linkedFact.isSuccess && !linkedFact.isError) return;
     consumedFactParam.current = param;
-    const hit = facts.data.find((fact) => fact.id === param);
     if (!hit) {
       toast.error('That fact could not be found — it may have been removed.');
       return;
@@ -213,11 +214,14 @@ export function StewardReviewVNext() {
       if (hit.state === 'active') next.delete('state');
       else next.set('state', hit.state);
       next.delete('client');
+      next.delete('clientId');
+      if (hit.clientId) next.set('clientId', hit.clientId);
+      else next.set('client', 'firm');
       next.delete('q');
       return next;
     }, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, facts.data]);
+  }, [searchParams, facts.data, linkedFact.data, linkedFact.isSuccess, linkedFact.isError]);
 
   /* Scroll the highlighted row into view once it is actually rendered. */
   useEffect(() => {
@@ -226,32 +230,21 @@ export function StewardReviewVNext() {
     }
   }, [highlightId, stateFilter, clientFilter, facts.data]);
 
-  const matchesClient = (clientId: string | null) =>
-    clientFilter === 'all' || (clientFilter === 'firm' ? clientId === null : clientId === clientFilter);
-
-  /* Client options derive from the ledger itself (facts ∪ conflicts), like the
-   * canonical steward; names resolve through the shared clients-lite query. */
-  const clientOptions = useMemo(() => {
-    const ids = new Set<string>();
-    for (const fact of facts.data ?? []) if (fact.clientId) ids.add(fact.clientId);
-    for (const conflict of conflicts.data ?? []) if (conflict.clientId) ids.add(conflict.clientId);
-    return [...ids].map((id) => ({ value: id, label: clientName(clients.data, id) }));
-  }, [facts.data, conflicts.data, clients.data]);
-  const hasFirmRows =
-    (facts.data ?? []).some((fact) => fact.clientId === null) ||
-    (conflicts.data ?? []).some((conflict) => conflict.clientId === null);
+  const matchesClient = scope.matches;
+  const clientOptions = (clients.data ?? []).map((client) => ({ value: client.id, label: client.name }));
+  const hasFirmRows = true;
 
   const stateCounts = useMemo(() => {
     const counts = { active: 0, stale: 0, superseded: 0, rejected: 0 } as Record<
       ContextFactState,
       number
     >;
-    for (const fact of facts.data ?? []) {
+    for (const fact of ledgerFacts) {
       if (matchesClient(fact.clientId)) counts[fact.state] += 1;
     }
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facts.data, clientFilter]);
+  }, [ledgerFacts, clientFilter]);
   /* "Facts" section summary (design handoff: an 18px/600 value under the
    * eyebrow) — the real total across every state for the current client
    * filter, never a fixture-style flat count. */
@@ -259,14 +252,14 @@ export function StewardReviewVNext() {
 
   const visibleFacts = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return (facts.data ?? []).filter((fact) => {
+    return ledgerFacts.filter((fact) => {
       if (fact.state !== stateFilter || !matchesClient(fact.clientId)) return false;
       if (term && !`${fact.fact} ${fact.documentTitle ?? ''} ${fact.sourceRef}`.toLowerCase().includes(term))
         return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facts.data, stateFilter, clientFilter, query]);
+  }, [ledgerFacts, stateFilter, clientFilter, query]);
 
   /* Conflicts: open first, then newest; the client filter rides the conflict's
    * derived clientId (a conflict with no client info always stays visible).
@@ -298,9 +291,9 @@ export function StewardReviewVNext() {
    * the ledger carries documentId / sourceRef / confidence for the same fact. */
   const factById = useMemo(() => {
     const map = new Map<string, ContextFact>();
-    for (const fact of facts.data ?? []) map.set(fact.id, fact);
+    for (const fact of ledgerFacts) map.set(fact.id, fact);
     return map;
-  }, [facts.data]);
+  }, [ledgerFacts]);
 
   const onRejectFact = (fact: ContextFact) => {
     if (reject.isPending) return;
@@ -336,7 +329,7 @@ export function StewardReviewVNext() {
 
       {/* ---- header ------------------------------------------------------- */}
       <header className="st-steward__header">
-        <Link className="st-steward__back" to="/strategies/context">
+        <Link className="st-steward__back" to={`/strategies/context${scope.query}`}>
           <ChevronLeftGlyph />Context library
         </Link>
         <div className="st-steward__title-row">
@@ -353,7 +346,7 @@ export function StewardReviewVNext() {
             label="Client"
             aria-label="Filter by client"
             value={clientFilter}
-            onChange={(event) => setParam('client', event.target.value)}
+            onChange={(event) => scope.select(event.target.value)}
             options={[
               { value: 'all', label: 'All clients' },
               ...(hasFirmRows ? [{ value: 'firm', label: 'Firm-wide' }] : []),
@@ -368,7 +361,7 @@ export function StewardReviewVNext() {
         <section className="st-steward__band" aria-label="Context health">
           <div className="st-steward__band-head">
             <span className="st-steward__band-label">Context health</span>
-            <strong>{healthClientId ? clientLabel(healthClientId) : 'All clients'}</strong>
+            <strong>{healthClientId ? clientLabel(healthClientId) : clientFilter === 'firm' ? 'Firm-wide' : 'All clients'}</strong>
           </div>
           {healthClientId ? (
             health.isLoading ? (
@@ -391,7 +384,7 @@ export function StewardReviewVNext() {
                  * surface the available dimensions so the band never goes empty. */}
                 <div className="st-steward__band-metrics" style={{ marginTop: 12 }}>
                   <BandMetric
-                    value={(facts.data ?? []).filter((f) => f.clientId === healthClientId && f.state === 'active').length}
+                    value={ledgerFacts.filter((f) => f.clientId === healthClientId && f.state === 'active').length}
                     label="Active facts (derived)"
                     loading={facts.isLoading}
                     failed={facts.isError}
@@ -411,7 +404,7 @@ export function StewardReviewVNext() {
                   <span className="st-steward__band-metric">
                     <CapiroBadge
                       tone={
-                        health.data.status === 'ok'
+                        scopeStatus.tone === 'success'
                           ? 'success'
                           : health.data.status === 'degraded'
                             ? 'warning'
@@ -419,11 +412,7 @@ export function StewardReviewVNext() {
                       }
                       dot
                     >
-                      {health.data.status === 'ok'
-                        ? 'Healthy'
-                        : health.data.status === 'degraded'
-                          ? 'Degraded'
-                          : 'Conflicted'}
+                      {scopeStatus.label}
                     </CapiroBadge>
                   </span>
                   <BandMetric value={health.data.staleDocuments} label="Stale documents" />
@@ -454,19 +443,19 @@ export function StewardReviewVNext() {
           ) : (
             <div className="st-steward__band-metrics">
               <BandMetric
-                value={(facts.data ?? []).filter((fact) => fact.state === 'active').length}
+                value={stateCounts.active}
                 label="Active facts"
                 loading={facts.isLoading}
                 failed={facts.isError}
               />
               <BandMetric
-                value={(facts.data ?? []).filter((fact) => fact.state === 'stale').length}
+                value={stateCounts.stale}
                 label="Stale facts"
                 loading={facts.isLoading}
                 failed={facts.isError}
               />
               <BandMetric
-                value={(conflicts.data ?? []).filter((conflict) => conflict.state === 'open').length}
+                value={openConflictCount}
                 label="Open conflicts"
                 loading={conflicts.isLoading}
                 failed={conflicts.isError}

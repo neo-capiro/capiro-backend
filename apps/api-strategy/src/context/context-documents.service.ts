@@ -56,7 +56,7 @@ export class ContextDocumentsService {
     this.assertScopeAllowed(scope, await this.isOrgAdmin(tenantId, user));
   }
 
-  async upload(tenantId: string, user: ContextUser, dto: UploadContextDocumentDto, reviewed?: { id: string; checksum: string }) {
+  async upload(tenantId: string, user: ContextUser, dto: UploadContextDocumentDto, reviewed?: { id: string; checksum: string; operation?: 'approve' | 'reassign' }) {
     const parsed = parseFrontmatter(dto.content);
     if (parsed.errors.length > 0 || parsed.frontmatter === null) {
       throw this.badFrontmatter(
@@ -119,8 +119,16 @@ export class ContextDocumentsService {
       if (reviewed) {
         await tx.$queryRaw`SELECT id FROM sp_context_document WHERE id = ${reviewed.id}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE`;
         const current = await tx.spContextDocument.findFirst({ where: { id: reviewed.id } });
-        if (!current || current.state !== 'active' || current.checksum !== reviewed.checksum || isStale(current.validUntil)) {
-          throw new ConflictException('This document changed or expired. Reload and review the current version before approving.');
+        if (!current || current.state !== 'active' || current.checksum !== reviewed.checksum || (reviewed.operation !== 'reassign' && isStale(current.validUntil))) {
+          throw new ConflictException('This document changed or expired. Reload and review the current version before saving a revision.');
+        }
+        if (reviewed.operation === 'reassign') {
+          if (current.clientId !== clientId || scope !== 'strategy' || !scopeRef) throw new BadRequestException('Reassignment must stay within the original client.');
+          await tx.$queryRaw`SELECT id FROM sp_strategy WHERE id = ${scopeRef}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE`;
+          const target = await tx.spStrategy.findFirst({ where: { id: scopeRef, clientId: clientId!, archivedAt: null } });
+          if (!target) throw new NotFoundException('Select an active strategy belonging to this document’s client.');
+          const existing = await tx.spContextDocument.findFirst({ where: { templateKey, scope, clientId, scopeRef, state: 'active' } });
+          if (existing && existing.id !== current.id) throw new ConflictException('That strategy already has an active document for this topic. Review it before replacing anything.');
         }
       }
       // IDEMPOTENT: same key-tuple + same content (checksum) on a row already
@@ -159,7 +167,9 @@ export class ContextDocumentsService {
       const fmSupersedes = typeof fm.supersedes === 'string' ? fm.supersedes : null;
       let active: SpContextDocument | null = null;
       if (state === 'active') {
-        active = fmSupersedes
+        active = reviewed
+          ? await tx.spContextDocument.findFirst({ where: { id: reviewed.id, templateKey, state: 'active' } })
+          : fmSupersedes
           ? await tx.spContextDocument.findFirst({
               where: {
                 templateKey,
@@ -251,9 +261,9 @@ export class ContextDocumentsService {
       });
       if (reviewed) await this.versioning.logActivity(tx, {
         tenantId, actorUserId: user.clerkUserId, authorKind: 'person',
-        action: 'context_doc.approved', entityType: 'context_document', entityId: created.id,
+        action: reviewed.operation === 'reassign' ? 'context_doc.reassigned' : 'context_doc.approved', entityType: 'context_document', entityId: created.id,
         before: { documentId: reviewed.id, checksum: reviewed.checksum },
-        after: { authority: 'firm_approved', source_of_truth: true, checksum },
+        after: { authority: fm.authority, source_of_truth: fm.source_of_truth, scope, scopeRef, clientId, checksum },
       });
       return created;
     });
@@ -278,6 +288,32 @@ export class ContextDocumentsService {
     return this.upload(tenantId, user, { content, title: doc.title }, { id, checksum: expectedChecksum });
   }
 
+  /** Resolve a document's target without treating archived plans as active context. */
+  async association(tenantId: string, id: string) {
+    const doc = await this.get(tenantId, id);
+    if (doc.scope !== 'strategy' || !doc.scopeRef) return { state: 'not_strategy_scoped', strategy: null };
+    const strategy = await this.prisma.withTenant(tenantId, (tx) => tx.spStrategy.findFirst({
+      where: { id: doc.scopeRef! }, select: { id: true, title: true, clientId: true, archivedAt: true },
+    }));
+    if (!strategy) return { state: 'missing', strategy: null };
+    if (strategy.clientId !== doc.clientId) return { state: 'client_mismatch', strategy: null };
+    return { state: strategy.archivedAt ? 'archived' : 'active', strategy: { id: strategy.id, title: strategy.title } };
+  }
+
+  /** Reassignment creates an unapproved revision in the same client and preserves the source. */
+  async reassign(tenantId: string, user: ContextUser, id: string, expectedChecksum: string, strategyId: string) {
+    const doc = await this.get(tenantId, id);
+    if (doc.state !== 'active' || doc.checksum !== expectedChecksum) throw new ConflictException('This document changed. Reload and review the current version before moving it.');
+    if (doc.scope !== 'strategy' || !doc.clientId) throw new BadRequestException('Only a strategy document with a client can be reassigned.');
+    if (doc.scopeRef === strategyId) throw new BadRequestException('Select a different strategy.');
+    const parsed = parseFrontmatter(doc.content);
+    const fm = parsed.frontmatter;
+    if (!fm || parsed.errors.length || validateFrontmatter(fm).length) throw new BadRequestException('Document metadata must be valid before reassignment.');
+    const next = { ...fm, document_id: randomUUID(), strategy_id: strategyId, authority: 'working_draft', source_of_truth: false, supersedes: fm.document_id };
+    const content = `---\n${Object.entries(next).map(([key, value]) => `${key}: ${value === null ? 'null' : typeof value === 'boolean' ? value : `"${value}"`}`).join('\n')}\n---\n${parsed.body}`;
+    return this.upload(tenantId, user, { content, title: doc.title }, { id, checksum: expectedChecksum, operation: 'reassign' });
+  }
+
   /**
    * List documents with the DERIVED stale flag. Stale rows (validUntil strictly
    * before today) are excluded unless `includeStale` — a stale source of truth
@@ -290,6 +326,8 @@ export class ContextDocumentsService {
       templateKey?: string;
       state?: string;
       includeStale?: boolean;
+      includeFirm?: boolean;
+      firmOnly?: boolean;
     } = {},
   ): Promise<ContextDocumentWithStale[]> {
     // ?state= is raw client input — validate against the enum so a bogus value
@@ -307,7 +345,8 @@ export class ContextDocumentsService {
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spContextDocument.findMany({
         where: {
-          ...(opts.clientId ? { clientId: opts.clientId } : {}),
+          ...(opts.firmOnly ? { clientId: null, scope: 'firm' as const }
+            : opts.clientId ? { AND: [opts.includeFirm ? { OR: [{ clientId: opts.clientId }, { clientId: null, scope: 'firm' as const }] } : { clientId: opts.clientId }] } : {}),
           ...(opts.templateKey ? { templateKey: opts.templateKey } : {}),
           ...(opts.state ? { state: opts.state as SpContextDocState } : {}),
           ...(!opts.includeStale ? {

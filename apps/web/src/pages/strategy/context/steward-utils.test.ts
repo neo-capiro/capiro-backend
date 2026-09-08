@@ -141,13 +141,9 @@ describe('normalizeContextHealth', () => {
     expect(h.staleDocuments).toBe(2);
   });
 
-  it('degrades unknown shapes to a healthy default', () => {
-    expect(normalizeContextHealth(null)).toEqual({
-      status: 'ok',
-      missingRequired: [],
-      staleDocuments: 0,
-      openMaterialConflicts: [],
-    });
+  it('rejects an invalid health response instead of presenting healthy', () => {
+    expect(() => normalizeContextHealth(null)).toThrow(/unavailable/);
+    expect(() => normalizeContextHealth({ status: 'surprise' })).toThrow(/unavailable/);
   });
 });
 

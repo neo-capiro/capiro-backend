@@ -32,6 +32,9 @@ import {
   useExecutionRuns,
   useResumeRun,
   useRetryRun,
+  useRunPolicy,
+  useReconcileRun,
+  useStrategy,
   useStrategies,
 } from '../strategies-api.js';
 import {
@@ -47,7 +50,7 @@ import type {
   ExecutionTaskStatus,
   RunState,
 } from '../../../../pages/strategy/types.js';
-import { BannerLockGlyph, fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
+import { BannerLockGlyph, fmtRelative, isForbidden, StaleNote, staleOrError } from './agents-shared.js';
 
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -59,35 +62,35 @@ const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0
  * release (§8.11), never a failure and never "sent".
  */
 const RUN_PILL: Record<RunState, { token: string; tone: string }> = {
-  queued: { token: 'queued', tone: '' },
-  planning: { token: 'planning', tone: 'st-pill--accent' },
-  waiting_for_input: { token: 'waiting', tone: 'st-pill--warning' },
-  ready_for_review: { token: 'ready', tone: 'st-pill--accent' },
-  approved: { token: 'approved', tone: 'st-pill--accent' },
-  executing: { token: 'executing', tone: 'st-pill--accent' },
-  staged: { token: 'staged_not_sent', tone: 'st-pill--success' },
-  completed: { token: 'completed', tone: 'st-pill--success' },
-  failed: { token: 'failed', tone: 'st-pill--error' },
-  failed_recoverable: { token: 'recoverable', tone: 'st-pill--warning' },
-  failed_terminal: { token: 'failed', tone: 'st-pill--error' },
-  canceled: { token: 'canceled', tone: '' },
-  superseded: { token: 'superseded', tone: '' },
+  queued: { token: 'Queued', tone: '' },
+  planning: { token: 'Preparing plan', tone: 'st-pill--accent' },
+  waiting_for_input: { token: 'Needs attention', tone: 'st-pill--warning' },
+  ready_for_review: { token: 'Ready for review', tone: 'st-pill--accent' },
+  approved: { token: 'Approved', tone: 'st-pill--accent' },
+  executing: { token: 'Preparing drafts', tone: 'st-pill--accent' },
+  staged: { token: 'Drafts ready · not sent', tone: 'st-pill--success' },
+  completed: { token: 'Completed', tone: 'st-pill--success' },
+  failed: { token: 'Failed', tone: 'st-pill--error' },
+  failed_recoverable: { token: 'Can retry', tone: 'st-pill--warning' },
+  failed_terminal: { token: 'Failed', tone: 'st-pill--error' },
+  canceled: { token: 'Canceled', tone: '' },
+  superseded: { token: 'Replaced', tone: '' },
 };
 
 /** The §7.9 run-state model card — the full supported vocabulary, verbatim. */
 const RUN_STATE_MODEL: ReadonlyArray<{ token: string; note: string }> = [
-  { token: 'queued', note: 'Accepted, waiting for a worker.' },
-  { token: 'planning', note: 'The agent is drafting the task plan.' },
-  { token: 'waiting', note: 'Parked for human input — the reason stays on the run.' },
-  { token: 'ready', note: 'Plan staged and awaiting human review.' },
-  { token: 'approved', note: 'Plan approved by a person; execution has not started.' },
-  { token: 'executing', note: 'Tasks are being staged.' },
-  { token: 'completed', note: 'Every task finished.' },
-  { token: 'recoverable', note: 'Failed in a repairable way — Retry is available.' },
-  { token: 'failed', note: 'Terminal failure; the reason stays visible.' },
-  { token: 'canceled', note: 'Stopped by a person.' },
-  { token: 'superseded', note: 'Replaced by a newer attempt.' },
-  { token: 'staged_not_sent', note: 'Artifacts staged, nothing sent. Terminal success in this release.' },
+  { token: 'Queued', note: 'Accepted, waiting for a worker.' },
+  { token: 'Preparing plan', note: 'The agent is drafting the task plan.' },
+  { token: 'Needs attention', note: 'Parked for human input — the reason stays on the run.' },
+  { token: 'Ready for review', note: 'Plan staged and awaiting human review.' },
+  { token: 'Approved', note: 'Plan approved by a person; execution has not started.' },
+  { token: 'Preparing drafts', note: 'Tasks are being staged.' },
+  { token: 'Completed', note: 'Every task finished.' },
+  { token: 'Can retry', note: 'Failed in a repairable way — Retry is available.' },
+  { token: 'Failed', note: 'Terminal failure; the reason stays visible.' },
+  { token: 'Canceled', note: 'Stopped by a person.' },
+  { token: 'Replaced', note: 'Replaced by a newer attempt.' },
+  { token: 'Drafts ready · not sent', note: 'Drafts are ready for review. Nothing was sent.' },
 ];
 
 const TERMINAL: ReadonlySet<RunState> = new Set([
@@ -170,7 +173,7 @@ export function ExecutionRuns() {
   const runs = useExecutionRuns(strategyFilter, true);
   const strategies = useStrategies();
   const clients = useClientsLite();
-  /* "View Stage H criteria" — purely a local expand/collapse over the SAME
+  /* "View approval rules" — purely a local expand/collapse over the SAME
    * static criteria text already in the security card below; no fetch, no
    * mutation, no navigation (§11 rule 7 stays intact). The URL param
    * ?stage-h=1 is the deep-link target (see openStageH/closeStageH above). */
@@ -178,7 +181,7 @@ export function ExecutionRuns() {
   const strategyLabel = (strategyId: string | null): { title: string; client: string } => {
     if (!strategyId) return { title: 'Firm-level', client: '' };
     const s = strategies.data?.find((r) => r.id === strategyId);
-    return { title: s?.title ?? 'Strategy', client: clientName(clients.data, s?.clientId) };
+    return { title: s?.title ?? 'Strategy unavailable', client: clientName(clients.data, s?.clientId) };
   };
 
   const rows = useMemo(() => {
@@ -210,10 +213,10 @@ export function ExecutionRuns() {
         </span>
         <div>
           <p className="st-dark-banner__title">
-            External send is disabled until security review (Stage H).
+            Drafts stay here for your review. Nothing is sent.
           </p>
           <p className="st-dark-banner__sub">
-            The Execution Agent stages artifacts — Workspace drafts and outreach records — for human
+            The Execution Agent prepares Workspace drafts and outreach records for human
             review. Nothing is sent from this surface.
           </p>
         </div>
@@ -283,11 +286,11 @@ export function ExecutionRuns() {
             </div>
           ) : null}
 
-          {/* ---- Run state model (§7.9) — the full supported vocabulary --- */}
+          {/* ---- What each status means (§7.9) — the full supported vocabulary --- */}
           <div className="st-agents__section">
             <div className="st-card">
               <div className="st-card__header">
-                <h2 className="st-card__title">Run state model</h2>
+                <h2 className="st-card__title">What each status means</h2>
               </div>
               <div className="st-card__body">
                 <div className="st-agents__states-grid">
@@ -318,7 +321,7 @@ export function ExecutionRuns() {
             </div>
           )}
 
-          {/* ---- Security control (§7.9/§11 rule 9) — NOT decorative ------
+          {/* ---- Sending and approval (§7.9/§11 rule 9) — NOT decorative ------
             The handoff links this card to the Stage-H criteria via the
             ?stage-h=1 URL param (deep-linkable, bookmarkable). The criteria
             also render inline in the modal as a read-only expansion of the
@@ -326,21 +329,19 @@ export function ExecutionRuns() {
           <div className="st-agents__section">
             <div className="st-card st-agents__security">
               <div className="st-card__header">
-                <h2 className="st-card__title">Security control</h2>
+                <h2 className="st-card__title">Sending and approval</h2>
               </div>
               <div className="st-card__body">
                 <p className="st-agents__security-headline">No direct send action is available.</p>
                 <p className="st-agents__security-copy">
-                  No direct send action exists on this surface. Outreach artifacts are staged for
-                  human review, and external send stays disabled until the Stage H security review
-                  clears it.
+                  No direct send action exists on this surface. Outreach drafts are prepared for
+                  human review. Sending is not available from this screen.
                 </p>
                 <ul className="st-agents__security-list">
-                  <li>Stage H security evals pass before any send path ships.</li>
-                  <li>The send grant is enabled server-side only — no client control can turn it on.</li>
+                  <li>Draft preparation does not authorize sending.</li>
+                  <li>Sending requires separate organization authorization and security controls.</li>
                   <li>
-                    When it ships, approval binds to the exact staged content hash; any edit
-                    invalidates it.
+                    Approval applies to the exact content reviewed. A material edit requires a new review.
                   </li>
                 </ul>
                 {/* The single most safety-emphasized control in the design
@@ -355,7 +356,7 @@ export function ExecutionRuns() {
                   className="st-agents__stageh-btn"
                   onClick={openStageH}
                 >
-                  View Stage H criteria
+                  View approval rules
                 </button>
               </div>
             </div>
@@ -367,17 +368,17 @@ export function ExecutionRuns() {
           above — never a second, divergent copy of the policy text. */}
       <CapiroModal
         open={stageHOpen}
-        title="Stage H security criteria"
+        title="Sending and approval rules"
         onClose={closeStageH}
       >
         <p className="st-agents__modal-copy">
-          No direct send action exists on this surface. Outreach artifacts are staged for human
-          review, and external send stays disabled until the Stage H security review clears it.
+          No direct send action exists on this surface. Outreach drafts are prepared for human
+          review. Sending is not available from this screen.
         </p>
         <ul className="st-agents__modal-list">
-          <li>Stage H security evals pass before any send path ships.</li>
-          <li>The send grant is enabled server-side only — no client control can turn it on.</li>
-          <li>When it ships, approval binds to the exact staged content hash; any edit invalidates it.</li>
+          <li>Draft preparation does not authorize sending.</li>
+          <li>Sending requires separate organization authorization and security controls.</li>
+          <li>Approval applies to the exact content reviewed. A material edit requires a new review.</li>
         </ul>
       </CapiroModal>
     </div>
@@ -421,6 +422,15 @@ function RunCard({
   const resume = useResumeRun();
   const retry = useRetryRun();
   const cancel = useCancelRun();
+  const policy = useRunPolicy(run.id, !TERMINAL.has(run.state));
+  const reconcile = useReconcileRun();
+  const detail = useStrategy(label.title === 'Strategy unavailable' ? run.strategyId ?? '' : null);
+  const can = (action: string) => policy.data?.state === run.state && policy.data.actions.some((a) => a === action);
+  const nodeId = run.nodeId ?? run.tasks.find((t) => t.nodeId)?.nodeId;
+  const repairPath = run.strategyId ? `/strategies/${run.strategyId}${nodeId ? `?step=${encodeURIComponent(nodeId)}&tab=step` : ''}` : null;
+  const heartbeat = policy.data?.heartbeatAt ?? run.startedAt ?? run.createdAt;
+  const overdueQueue = !!policy.data?.timeoutMinutes && Date.now() - new Date(heartbeat).getTime() > policy.data.timeoutMinutes * 60_000;
+  const [recoveryNote, setRecoveryNote] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<'cancel' | 'edit' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -432,7 +442,7 @@ function RunCard({
       : null;
   const failed =
     run.state === 'failed' || run.state === 'failed_recoverable' || run.state === 'failed_terminal';
-  const busy = execute.isPending || resume.isPending || retry.isPending || cancel.isPending;
+  const busy = execute.isPending || resume.isPending || retry.isPending || cancel.isPending || reconcile.isPending;
 
   const onExecute = () => {
     execute.mutate(
@@ -482,10 +492,10 @@ function RunCard({
               className="st-agents__link"
               onClick={() => navigate(`/strategies/${run.strategyId}`)}
             >
-              {label.title}
+              {detail.data?.title ?? label.title}
             </button>
           ) : (
-            <span className="st-agents__summary-inline">{label.title}</span>
+            <span className="st-agents__summary-inline">{detail.data?.title ?? label.title}</span>
           )}
           {label.client && label.client !== '—' && (
             <span className="st-agents__group-client">{label.client}</span>
@@ -494,14 +504,16 @@ function RunCard({
           <span className="st-agents__meta">
             {triggerLabel(run.trigger)}
             {' · '}
-            run{' '}
-            <span className="st-mono" title={run.id}>
-              {shortId(run.id)}
-            </span>
-            {' · '}
             {fmtRelative(run.createdAt)}
           </span>
         </div>
+
+        <details className="st-agents__meta"><summary>Run details</summary><p>Run reference: {run.id}</p><p>Recorded state: {run.state}</p>{policy.data?.heartbeatAt && <p>Last activity: {new Date(policy.data.heartbeatAt).toLocaleString()}</p>}</details>
+        {policy.isError && !TERMINAL.has(run.state) && <p role="alert">Available actions could not be checked. <button type="button" onClick={() => void policy.refetch()}>Try again</button></p>}
+        {overdueQueue && <div className="st-agents__block"><p>This run has had no recorded progress beyond its normal {policy.data?.timeoutMinutes}-minute window. Check its recorded state before retrying; a delay alone does not establish why it stopped.</p>
+          {can('reconcile') && <CapiroButton disabled={busy} onClick={() => reconcile.mutate({ id: run.id }, { onSuccess: (result) => setRecoveryNote(result.findings.map((f) => f.detail).join(' ') || 'No repair was needed. The recorded run state is current.'), onError: (err) => setActionError(errorMessage(err, 'Could not check this run.')) })}>{reconcile.isPending ? 'Checking…' : 'Check run status'}</CapiroButton>}
+        </div>}
+        {recoveryNote && <p role="status">{recoveryNote}</p>}
 
         {/* Plan well (design handoff — a labeled #F9FAFB box). The reference
             also shows an "Operator · Name" line, but no such field exists on
@@ -539,7 +551,7 @@ function RunCard({
         {awaitingSend && (
           <div className="st-agents__send-preview">
             <p className="st-agents__send-preview-title">
-              Staged outreach — parked for send approval (disabled until Stage H)
+              Outreach draft ready — sending is unavailable
             </p>
             {sendTask?.send ? (
               <dl className="st-agents__send-preview-grid">
@@ -582,7 +594,7 @@ function RunCard({
             {isPriorApprovalInvalidated(sendTask?.send ?? null) && (
               <p className="st-agents__send-preview-warning" role="status">
                 The staged content changed since a prior approval — that approval no longer binds
-                and would need to be re-granted after Stage H.
+                and needs a new review before any authorized send.
               </p>
             )}
           </div>
@@ -593,11 +605,15 @@ function RunCard({
         {block && (
           <div className="st-agents__block">
             <div className="st-agents__block-text">
-              <b>{block.label}.</b> {block.reason}
+              <b>{block.kind === 'ineligible' ? 'Update this step before preparing work' : block.label}.</b> {block.kind === 'ineligible' ? 'Check the step type, subject, owner and dates in the editor, then return here to resume.' : block.kind === 'material_conflict' ? 'Resolve conflicting client information in Context review, then resume.' : block.kind === 'version_drift' ? 'Review the updated strategy and prepare a new plan before continuing.' : block.reason}
+              <details><summary>Reported reason</summary>{block.reason}</details>
             </div>
-            <CapiroButton size="compact" disabled={busy} onClick={onResume}>
+            {repairPath && (block.kind === 'ineligible' || block.kind === 'version_drift') && <CapiroButton size="compact" onClick={() => navigate(repairPath)}>Review step</CapiroButton>}
+            {block.kind === 'material_conflict' && <CapiroButton size="compact" onClick={() => navigate('/strategies/context/steward')}>Review context</CapiroButton>}
+            {block.kind === 'version_drift' && can('retry') && <CapiroButton size="compact" disabled={busy} onClick={onRetry}>Prepare updated plan</CapiroButton>}
+            {block.kind !== 'version_drift' && can('resume') && <CapiroButton size="compact" disabled={busy} onClick={onResume}>
               {resume.isPending ? 'Resuming…' : 'Resume'}
-            </CapiroButton>
+            </CapiroButton>}
           </div>
         )}
 
@@ -619,7 +635,7 @@ function RunCard({
           run.state === 'approved' ||
           run.state === 'waiting_for_input') && (
           <div className="st-agents__run-actions">
-            <CapiroButton variant="quiet" size="compact" disabled={busy} onClick={() => setConfirm('cancel')}>
+            <CapiroButton variant="quiet" size="compact" disabled={busy || !can('cancel')} onClick={() => setConfirm('cancel')}>
               Cancel
             </CapiroButton>
             {(run.state === 'ready_for_review' || run.state === 'approved') && (
@@ -639,7 +655,7 @@ function RunCard({
                 variant="primary"
                 size="compact"
                 className="st-agents__run-actions-primary"
-                disabled={busy}
+                disabled={busy || !can('execute')}
                 onClick={onExecute}
               >
                 {execute.isPending ? 'Executing…' : 'Execute plan'}
@@ -650,7 +666,7 @@ function RunCard({
                 variant="primary"
                 size="compact"
                 className="st-agents__run-actions-primary"
-                disabled={busy}
+                disabled={busy || !can('retry')}
                 onClick={onRetry}
               >
                 {retry.isPending ? 'Retrying…' : 'Retry run'}

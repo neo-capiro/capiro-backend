@@ -172,6 +172,9 @@ export class DocxReportRenderer {
       ),
     );
     children.push(healthTable(snapshot));
+    children.push(mutedParagraph(
+      `${snapshot.options.audience === "client" ? "Client health counts only approved, client-eligible source facts." : "Internal health counts linked source references, which do not verify their contents."} Gate coverage is separate from approved document context and linked outputs. Ownership, gate coverage and timeliness use weights 40:35:25; dimensions with no applicable items are omitted and the remaining weights rescaled.`,
+    ));
     if (workingPlanNodes.length > 0) {
       children.push(
         mutedParagraph(
@@ -1002,14 +1005,14 @@ function healthTable(snapshot: ExecutiveReportSnapshot): Table {
       `${health.ownedNodes} of ${health.totalNodes} assigned`,
     ],
     [
-      "Grounding",
-      `${health.groundingPct}%`,
-      `${health.groundedGates} of ${health.totalGates} gates`,
+      "Gate sources",
+      health.groundingPct === null ? "N/A" : `${health.groundingPct}%`,
+      health.totalGates ? `${health.groundedGates} of ${health.totalGates} gates` : "No applicable gates",
     ],
     [
       "Timeliness",
-      `${health.timelinessPct}%`,
-      `${health.overdueNodes} overdue`,
+      health.timelinessPct === null ? "N/A" : `${health.timelinessPct}%`,
+      `${health.overdueNodes} of ${health.datedNodes} unfinished dated commitments overdue (UTC)`,
     ],
   ];
   return new Table({
@@ -1822,8 +1825,8 @@ function cell(
 function healthNarrative(snapshot: ExecutiveReportSnapshot): string {
   const parts = [
     `${snapshot.health.ownedNodes}/${snapshot.health.totalNodes} steps assigned`,
-    `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates grounded`,
+    snapshot.health.totalGates ? `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates have source references` : "Gate source coverage not applicable (no gates)",
     `${snapshot.health.overdueNodes} overdue`,
   ];
-  return `Current plan health reflects ${parts.join(", ")}. The score is deterministic and based on ownership, evidence grounding, and timeliness.`;
+  return `Current plan health reflects ${parts.join(", ")}. The score is deterministic and based on ownership, gate source coverage, and timeliness. Due dates before today (UTC) are overdue; suggested, completed and ongoing work is excluded.`;
 }

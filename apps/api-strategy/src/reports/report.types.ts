@@ -29,14 +29,15 @@ export interface ReportIssue {
 
 export interface ReportHealth {
   score: number;
-  label: "On track" | "Needs attention" | "At risk";
+  label: "On track" | "Needs attention" | "At risk" | "No steps";
   coveragePct: number;
-  groundingPct: number;
-  timelinessPct: number;
+  groundingPct: number | null;
+  timelinessPct: number | null;
   totalNodes: number;
   ownedNodes: number;
   totalGates: number;
   groundedGates: number;
+  datedNodes: number;
   overdueNodes: number;
 }
 
@@ -173,6 +174,8 @@ export interface ReportPreflight {
 export interface ReportProvenanceSource {
   section: string;
   ref: string | null;
+  /** Resolved against an audience-eligible context fact. */
+  resolved?: boolean;
 }
 
 /**

@@ -938,6 +938,24 @@ describe('StewardService conflicts — resolve / dismiss', () => {
 });
 
 describe('StewardService.listFacts', () => {
+  it('filters firm facts and conflicts before the row limit without admitting unbound context', async () => {
+    const store = makeStore();
+    seedDoc(store, { id: DOC_ID, clientId: null, scope: 'firm' });
+    seedDoc(store, { id: OTHER_DOC_ID, clientId: null, scope: 'once' });
+    seedFact(store, { id: 'firm-a', documentId: DOC_ID, clientId: null });
+    seedFact(store, { id: 'firm-b', documentId: DOC_ID, clientId: null });
+    seedFact(store, { id: 'unbound', documentId: OTHER_DOC_ID, clientId: null, createdAt: new Date('2030-01-01') });
+    store.conflicts.set('firm-conflict', { id: 'firm-conflict', tenantId: T, factAId: 'firm-a', factBId: 'firm-b', state: 'open', createdAt: new Date('2026-07-01') });
+    store.conflicts.set('unbound-conflict', { id: 'unbound-conflict', tenantId: T, factAId: 'unbound', factBId: 'unbound', state: 'open', createdAt: new Date('2030-01-01') });
+    for (let i = 0; i < 201; i++) {
+      seedFact(store, { id: `client-${i}`, createdAt: new Date('2030-01-01') });
+      store.conflicts.set(`client-conflict-${i}`, { id: `client-conflict-${i}`, tenantId: T, factAId: `client-${i}`, factBId: `client-${i}`, state: 'open', createdAt: new Date('2030-01-01') });
+    }
+    const { svc } = makeService(store);
+
+    expect((await svc.listFacts(T, { firmOnly: true })).map((row) => row.id)).toEqual(['firm-b', 'firm-a']);
+    expect((await svc.listConflicts(T, { firmOnly: true })).map((row) => row.id)).toEqual(['firm-conflict']);
+  });
   it('400s bogus state / non-UUID filters without opening a tx; filters by document', async () => {
     const store = makeStore();
     seedDoc(store);
@@ -1003,6 +1021,14 @@ describe('StewardService.health — fact-level grounding health (A8 upgrade)', (
       });
     }
   }
+
+  it('does not label zero extracted facts as assessed when required documents exist', async () => {
+    const store = makeStore(); seedRequiredDocs(store); const { svc } = makeService(store);
+    const health = await svc.health(T, CLIENT_ID);
+    expect(health.status).toBe('degraded');
+    expect(health.assessment).toBe('not_assessed');
+    expect(health.factCounts.active).toBe(0);
+  });
 
   it("status 'ok' when both required templates have active docs, nothing stale, no open material conflicts", async () => {
     const store = makeStore();
@@ -1133,7 +1159,9 @@ describe('StewardService.health — fact-level grounding health (A8 upgrade)', (
     const { svc } = makeService(store);
 
     const health = await svc.health(T, CLIENT_ID);
-    expect(health.status).toBe('ok'); // the material conflict belongs to the OTHER client
+    expect(health.status).toBe('degraded'); // No in-scope facts: the other client's assessment cannot imply health.
+    expect(health.assessment).toBe('not_assessed');
+    expect(health.openMaterialConflicts).toEqual([]);
     expect(health.factCounts.active).toBe(0);
 
     await expect(svc.health(T, 'not-a-uuid')).rejects.toThrow(/Invalid clientId/);

@@ -987,15 +987,20 @@ export function ExportOverlay() {
                           {preflight.data.health.label}
                         </strong>
                         <small>
-                          {preflight.data.health.coveragePct}% owner coverage ·{' '}
-                          {preflight.data.health.groundingPct}% grounded
+                          {preflight.data.health.ownedNodes}/{preflight.data.health.totalNodes} steps owned ·{' '}
+                          {preflight.data.health.totalGates ? `${preflight.data.health.groundedGates}/${preflight.data.health.totalGates} gates with sources (${preflight.data.health.groundingPct}%)` : 'Gate source coverage: N/A — no gates'}
                         </small>
+                        <small>
+                          {preflight.data.health.datedNodes} unfinished dated commitments · {preflight.data.health.overdueNodes} overdue (UTC).{' '}
+                          {audience === 'client' ? 'Client health uses approved, client-eligible source facts.' : 'Internal health counts linked source references, which do not verify their contents.'}
+                        </small>
+                        <small>Gate source coverage is separate from approved document context and linked outputs.</small>
                         {preflight.data.allLiveHealth.totalNodes !==
                           preflight.data.health.totalNodes ||
                         preflight.data.allLiveHealth.score !==
                           preflight.data.health.score ? (
                           <small>
-                            All live plan: {preflight.data.allLiveHealth.score}
+                            All live plan, internal source policy: {preflight.data.allLiveHealth.score}
                             /100 · {preflight.data.allLiveHealth.label}
                           </small>
                         ) : null}

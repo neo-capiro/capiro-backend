@@ -113,6 +113,16 @@ describe('verifyPlan', () => {
     expect(r.violations.some((v) => v.code === 'dep-overlap' && v.severity === 'warning')).toBe(true);
   });
 
+  it('asks for prerequisite review on independent gates without blocking or inventing edges', () => {
+    const gate = N({ id: 'external-markup', kind: 'gate' });
+    const result = verifyPlan(input([gate]));
+    expect(result.errorCount).toBe(0);
+    expect(result.violations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'prerequisites-review', severity: 'warning', nodeIds: ['external-markup'] }),
+    ]));
+    expect(gate.dependsOnIds).toEqual([]);
+  });
+
   it('errors when a submission lands on/after its FY markup — and skips with no markup rows', () => {
     const congress: VerifierRefRow[] = [
       { label: 'HAC-D subcommittee markup', fy: 2027, startsOn: '2027-05-01', endsOn: '2027-05-01' },

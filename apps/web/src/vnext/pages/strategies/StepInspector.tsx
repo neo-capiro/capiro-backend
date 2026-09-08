@@ -22,6 +22,7 @@ import {
   useCreateMission,
   useMissions,
   usePlanExecution,
+  useExecutionPreflight,
   useUpdateMission,
   useDismissContextGap,
   useRecordArtifact,
@@ -38,7 +39,8 @@ import {
   type ClientExportReadyStatus,
 } from './lib/step-review.js';
 import { StepDetailsForm } from './StepDetailsForm.js';
-import { strategyArtifactHref } from './lib/artifact-link.js';
+import { strategyArtifactHref, strategyArtifactReference } from './lib/artifact-link.js';
+import { errorMessage } from '../../../lib/error-message.js';
 import './step-inspector.css';
 
 const KIND_LABEL: Record<string, string> = {
@@ -161,19 +163,23 @@ export function StepInspector({
   const assistant = useAssistant(strategyId);
   const [draft, setDraft] = useState('');
   const sending = useRef(false);
+  const sendAttempt = useRef<{ instruction: string; clientMessageId: string } | null>(null);
 
   const send = (text?: string) => {
     const instruction = (text ?? draft).trim();
     if (!instruction || assistant.isPending || sending.current) return;
+    const attempt = sendAttempt.current?.instruction === instruction ? sendAttempt.current : { instruction, clientMessageId: globalThis.crypto.randomUUID() };
+    sendAttempt.current = attempt;
     sending.current = true;
     onTabChange('meri');
     assistant.mutate({
       scope: nodeId ? 'node' : 'strategy',
       nodeId: nodeId ?? undefined,
       instruction,
-      clientMessageId: `vnext-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      clientMessageId: attempt.clientMessageId,
     }, {
       onSuccess: () => {
+        if (sendAttempt.current?.clientMessageId === attempt.clientMessageId) sendAttempt.current = null;
         // Preserve text typed while a request was in flight and keep failed drafts retryable.
         if (text === undefined) setDraft((current) => current.trim() === instruction ? '' : current);
       },
@@ -251,7 +257,10 @@ export function StepInspector({
           <CapiroInput
             label="Ask Meri"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (sendAttempt.current?.instruction !== e.target.value.trim()) sendAttempt.current = null;
+            }}
             placeholder={`Ask Meri about this ${nodeId ? 'step' : 'strategy'}…`}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -271,7 +280,7 @@ export function StepInspector({
         </div>
         {assistant.isError ? (
           <p className="st-modal__alert" role="alert">
-            Meri could not respond. {(assistant.error as Error)?.message || 'Please try again.'}
+            Meri could not respond. {errorMessage(assistant.error, 'Please try again.')}
           </p>
         ) : null}
         <p className="st-meri-hint">
@@ -468,7 +477,7 @@ function StepTab({
         </ul>
       )}
 
-      <ExecutionActions strategyId={strategyId} step={step} />
+      <ExecutionActions strategyId={strategyId} step={step} onEdit={() => setEditing(true)} />
 
       <RecordArtifactSection strategyId={strategyId} step={step} />
 
@@ -479,22 +488,29 @@ function StepTab({
 
 /* ------------------------------------------------------- Workspace / outreach */
 
-function ExecutionActions({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
+function ExecutionActions({ strategyId, step, onEdit }: { strategyId: string; step: StrategyNode; onEdit: () => void }) {
   const navigate = useNavigate();
   const missions = useMissions(strategyId, false);
   const createMission = useCreateMission();
   const updateMission = useUpdateMission();
   const plan = usePlanExecution();
+  const readiness = useExecutionPreflight(strategyId, step.id, step.updatedAt);
   const stagingRef = useRef(false);
   const [staging, setStaging] = useState<'workspace' | 'outreach' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const unavailableStatus = (readiness.error as { response?: { status?: number } } | null)?.response?.status;
 
   const stage = async (kind: 'workspace' | 'outreach') => {
-    if (stagingRef.current) return;
+    if (stagingRef.current || readiness.isFetching || !readiness.data?.[kind].eligible) return;
     stagingRef.current = true;
     setStaging(kind);
     setError(null);
     try {
+      // Refresh the authoritative check before creating or activating a mission.
+      const checked = await readiness.refetch();
+      if (checked.isError || !checked.data) throw checked.error ?? new Error('Readiness could not be checked.');
+      if (!checked.data[kind].eligible) throw new Error(checked.data[kind].reasons.map(readinessReason).join(' '));
+      if (!checked.data.nodeUpdatedAt) throw new Error('This step has no current revision. Reload the strategy and try again.');
       // Always check current missions before creating one. A failed list is not an empty list.
       const result = await missions.refetch();
       if (result.isError || !result.data) throw result.error ?? new Error('Execution missions could not be loaded.');
@@ -505,12 +521,16 @@ function ExecutionActions({ strategyId, step }: { strategyId: string; step: Stra
         const activated = await updateMission.mutateAsync({ id: mission.id, input: { state: 'active' } });
         if (activated?.state !== 'active') throw new Error('The execution mission could not be activated.');
       }
-      const run = await plan.mutateAsync({ missionId: mission.id, strategyId, nodeId: step.id, kind });
+      const run = await plan.mutateAsync({
+        missionId: mission.id, strategyId, nodeId: step.id, kind,
+        pinnedVersionId: checked.data.headVersionId ?? undefined,
+        expectedNodeUpdatedAt: checked.data.nodeUpdatedAt,
+      });
       if (!run) throw new Error('No execution plan was returned. Please try again.');
       // This only prepares the existing execution plan. Its review page shows any waiting reason.
       navigate(`/strategies/agents/runs?strategyId=${encodeURIComponent(strategyId)}`);
     } catch (err) {
-      setError((err as Error)?.message || 'The execution plan could not be prepared. Please try again.');
+      setError(errorMessage(err, 'The execution plan could not be prepared. Please try again.'));
     } finally {
       stagingRef.current = false;
       setStaging(null);
@@ -518,18 +538,42 @@ function ExecutionActions({ strategyId, step }: { strategyId: string; step: Stra
   };
 
   return (
-    <>
+    <section aria-label="Preparation readiness" aria-live="polite">
+      <p className="st-section-label">Prepare work</p>
+      <p className="st-inspector__empty">Check this step’s requirements before preparing a draft for review.</p>
+      {readiness.isLoading || readiness.isFetching ? <p>Checking readiness…</p> : null}
+      {readiness.isError ? <div role="alert"><p>{unavailableStatus === 403 ? 'Preparation is unavailable for your team or account. Ask your team administrator.' : unavailableStatus === 404 ? 'This strategy or step is no longer available. Reload the strategy before preparing work.' : 'Readiness could not be checked. Try again before preparing work.'}</p><CapiroButton size="compact" onClick={() => void readiness.refetch()}>Retry readiness check</CapiroButton></div> : null}
+      {readiness.data && !readiness.isError ? (['workspace', 'outreach'] as const).map((kind) => (
+        <div key={kind}>
+          <strong>{kind === 'workspace' ? 'Workspace draft' : 'Outreach record'}: {readiness.data[kind].eligible ? 'Ready to prepare' : 'Needs attention'}</strong>
+          {readiness.data[kind].reasons.length ? <ul>{readiness.data[kind].reasons.map((reason) => <li key={reason}>{readinessReason(reason)}</li>)}</ul> : null}
+        </div>
+      )) : null}
+      {readiness.data && (!readiness.data.workspace.eligible || !readiness.data.outreach.eligible) ? <CapiroButton size="compact" onClick={onEdit}>Update step details</CapiroButton> : null}
       <div className="st-inspector__actions">
-        <CapiroButton disabled={staging !== null} loading={staging === 'workspace'} onClick={() => void stage('workspace')}>
+        <CapiroButton disabled={staging !== null || readiness.isFetching || readiness.isError || !readiness.data?.workspace.eligible} loading={staging === 'workspace'} onClick={() => void stage('workspace')}>
           Prepare in Workspace
         </CapiroButton>
-        <CapiroButton variant="primary" disabled={staging !== null} loading={staging === 'outreach'} onClick={() => void stage('outreach')}>
+        <CapiroButton variant="primary" disabled={staging !== null || readiness.isFetching || readiness.isError || !readiness.data?.outreach.eligible} loading={staging === 'outreach'} onClick={() => void stage('outreach')}>
           Stage outreach
         </CapiroButton>
       </div>
       {error ? <p className="st-modal__alert" role="alert">{error}</p> : null}
-    </>
+    </section>
   );
+}
+
+/** Translate the canonical gate's technical field names for the planning team. */
+function readinessReason(reason: string): string {
+  if (reason.startsWith('node kind must')) return 'Choose Action as the step type to prepare a Workspace draft.';
+  if (reason.startsWith('node subject must') && reason.includes('workspace execution')) return 'Choose Deliverable or Submission as the subject to prepare a Workspace draft.';
+  if (reason.startsWith('node subject must') && reason.includes('outreach execution')) return 'Choose Member, Committee, or Agency as the subject to stage outreach.';
+  if (reason.startsWith('node has no owner')) return 'Assign an owner in the step details.';
+  if (reason.startsWith('node has no target date')) return 'Set a start date or deadline in the step details.';
+  if (reason === 'caller has no workspace access') return 'Workspace access is required. Ask your team administrator.';
+  if (reason.startsWith('strategy has') && reason.includes('open material conflict')) return 'Resolve conflicting information in Context review before preparing this work.';
+  if (reason.startsWith('step is completed')) return 'Reopen this completed step before preparing more work.';
+  return reason;
 }
 
 /* ------------------------------------------------------------ Meri suggestion */
@@ -539,9 +583,10 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
   const [artifactType, setArtifactType] = useState<ArtifactType>('workspace_draft');
   const [artifactRef, setArtifactRef] = useState('');
   const [recorded, setRecorded] = useState(false);
+  const parsedReference = strategyArtifactReference(artifactType, artifactRef, window.location.origin);
 
   const submit = () => {
-    const ref = artifactRef.trim();
+    const ref = parsedReference;
     if (!ref || recordArtifact.isPending) return;
     setRecorded(false);
     recordArtifact.mutate(
@@ -557,9 +602,9 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
 
   return (
     <div className="st-inspector__artifact-section">
-      <p className="st-section-label">Record evidence artifact</p>
+      <p className="st-section-label">Link existing work</p>
       <p className="st-inspector__empty" style={{ marginBottom: 8 }}>
-        Link a Workspace draft or Outreach record to this step as a grounding back-link.
+        Open the existing Workspace draft or outreach record, copy its link, and paste it here to associate the work with this step. This links the work; it does not verify the claims inside it.
       </p>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -575,28 +620,29 @@ function RecordArtifactSection({ strategyId, step }: { strategyId: string; step:
           </select>
         </label>
         <label style={{ fontSize: 12, flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          Reference
+          Link or reference
           <input
             value={artifactRef}
             onChange={(e) => { setArtifactRef(e.target.value); setRecorded(false); }}
             disabled={recordArtifact.isPending}
-            placeholder="Artifact reference id"
+            placeholder="Paste a Capiro draft or outreach link"
             style={{ fontSize: 12 }}
           />
         </label>
         <CapiroButton
           size="compact"
           variant="secondary"
-          disabled={!artifactRef.trim() || recordArtifact.isPending}
+          disabled={!parsedReference || recordArtifact.isPending}
           loading={recordArtifact.isPending}
           onClick={submit}
         >
-          Record
+          Link work
         </CapiroButton>
       </div>
+      {artifactRef.trim() && !parsedReference ? <p role="alert">Paste the Capiro link for the selected work type, or its reference.</p> : null}
       {recorded ? (
         <p className="st-inspector__empty" style={{ color: 'var(--st-success-fg, #12b76a)', marginTop: 4 }}>
-          Artifact recorded. The back-link is now on this step.
+          Work linked. You can open it from this step’s Linked outputs section.
         </p>
       ) : null}
       {recordArtifact.isError ? (

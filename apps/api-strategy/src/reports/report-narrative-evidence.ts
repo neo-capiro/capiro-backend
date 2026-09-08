@@ -82,8 +82,9 @@ export function buildNarrativeEvidence(
     "Delivery readiness",
     `Delivery readiness score ${health.score} of 100 (${health.label}). ` +
       `${health.ownedNodes} of ${health.totalNodes} steps assigned to an owner. ` +
-      `${health.groundedGates} of ${health.totalGates} gates grounded in evidence. ` +
-      `${health.overdueNodes} step${health.overdueNodes === 1 ? "" : "s"} overdue. ` +
+      (health.totalGates ? `${health.groundedGates} of ${health.totalGates} gates have linked source references. ` : "Gate source coverage is not applicable: no gates. ") +
+      "This coverage is separate from document grounding and does not verify source contents. " +
+      `${health.overdueNodes} of ${health.datedNodes} unfinished dated commitments overdue before today (UTC). ` +
       `Included plan steps: ${snapshot.counts.nodes} (${snapshot.counts.actions} actions, ${snapshot.counts.decisions} decisions, ${snapshot.counts.gates} gates, ${snapshot.counts.milestones} milestones, ${snapshot.counts.risks} risks).`,
   );
 

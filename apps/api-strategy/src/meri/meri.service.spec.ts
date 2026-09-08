@@ -1544,6 +1544,7 @@ describe('MeriService — Stage E steward pack + provenance fact-check', () => {
     asOf: '2026-07-01',
   };
   const conflictedHealth: StewardHealthReport = {
+    assessment: 'conflicted',
     status: 'conflicted',
     factCounts: { active: 2, superseded: 0, stale: 0, rejected: 0 },
     openConflicts: 1,

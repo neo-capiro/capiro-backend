@@ -19,13 +19,18 @@ import type { StrategyDetail, StrategyNode } from '../../../pages/strategy/types
 
 const actions = vi.hoisted(() => ({
   edit: vi.fn(), remove: vi.fn(), assistant: vi.fn(), add: vi.fn(), missions: vi.fn(), create: vi.fn(), update: vi.fn(), plan: vi.fn(),
-  assistantError: false, addError: false, empty: false, dueToday: false,
+  assistantError: false, addError: false, empty: false, dueToday: false, readiness: vi.fn(), readinessBlocked: false, readinessError: false, readinessFetching: false,
 }));
 
 const STRATEGY_ID = '11111111-2222-3333-4444-555555555555';
 
 /** Fixed "now" so the axis and the fixtures agree — mirrors the timeline suite. */
 const NOW = new Date('2026-08-19T12:00:00.000Z');
+const READY = {
+  strategyId: STRATEGY_ID, nodeId: 'n1', checkedAt: NOW.toISOString(), headVersionId: 'v1', nodeUpdatedAt: '2026-01-01T00:00:00.000Z',
+  workspace: { enabled: true, eligible: true, reasons: [] },
+  outreach: { enabled: true, eligible: false, reasons: ["node subject must be one of member, committee, agency for outreach execution (is 'deliverable')"] },
+};
 
 vi.mock('../../adapters/legacy/useShellClientContext.js', () => ({
   useShellClientContext: () => ({
@@ -102,6 +107,8 @@ vi.mock('./strategies-api.js', async () => {
     useTenantMembers: () => ({ data: [] }),
     usePendingWatchCounts: () => ({ data: {} }),
     useWatchReviewState: () => ({ data: { proposals: [] } }),
+    useWatchMonitoring: () => ({ data: { available: false }, isSuccess: true }),
+    useConfigureWatchMonitoring: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useRevalidateWatch: () => ({ mutate: vi.fn(), isPending: false }),
     useForkReferenceCalendar: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
     // Only StepInspector needs these — never resolving a real request here,
@@ -113,6 +120,10 @@ vi.mock('./strategies-api.js', async () => {
     useCreateMission: () => ({ mutateAsync: actions.create }),
     useUpdateMission: () => ({ mutateAsync: actions.update }),
     usePlanExecution: () => ({ mutateAsync: actions.plan }),
+    useExecutionPreflight: () => ({
+      data: actions.readinessError ? undefined : actions.readinessBlocked ? { ...READY, workspace: { enabled: true, eligible: false, reasons: ['node has no owner (ownerUserId is required)'] } } : READY,
+      isLoading: false, isFetching: actions.readinessFetching, isError: actions.readinessError, refetch: actions.readiness,
+    }),
     useRecordArtifact: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
     useStrategyConversation: () => ({ data: [], isLoading: false }),
     useDismissContextGap: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
@@ -138,10 +149,15 @@ function renderEditor() {
 beforeEach(() => {
   vi.clearAllMocks();
   actions.add.mockReset();
+  actions.assistant.mockReset();
   actions.assistantError = false;
   actions.addError = false;
   actions.empty = false;
   actions.dueToday = false;
+  actions.readinessBlocked = false;
+  actions.readinessError = false;
+  actions.readinessFetching = false;
+  actions.readiness.mockResolvedValue({ data: READY, isError: false });
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(NOW);
 });
@@ -155,7 +171,7 @@ describe('Step inspector — cross-step state isolation', () => {
     fireEvent.change(composer, { target: { value: 'Draft meant for step n1' } });
     expect(composer.value).toBe('Draft meant for step n1');
 
-    fireEvent.click(screen.getByRole('button', { name: /Select final PE targets/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Decision: Select final PE targets,/ }));
 
     const composerAfterSwitch = screen.getByLabelText('Ask Meri') as HTMLInputElement;
     expect(composerAfterSwitch.value).toBe('');
@@ -165,13 +181,13 @@ describe('Step inspector — cross-step state isolation', () => {
     renderEditor();
     fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
 
-    const refInput = screen.getByPlaceholderText('Artifact reference id') as HTMLInputElement;
+    const refInput = screen.getByLabelText('Link or reference') as HTMLInputElement;
     fireEvent.change(refInput, { target: { value: 'outreach-123' } });
     expect(refInput.value).toBe('outreach-123');
 
-    fireEvent.click(screen.getByRole('button', { name: /Select final PE targets/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Decision: Select final PE targets,/ }));
 
-    const refInputAfterSwitch = screen.getByPlaceholderText('Artifact reference id') as HTMLInputElement;
+    const refInputAfterSwitch = screen.getByLabelText('Link or reference') as HTMLInputElement;
     expect(refInputAfterSwitch.value).toBe('');
   });
 });
@@ -243,8 +259,8 @@ describe('Strategy editor action persistence', () => {
     actions.plan.mockResolvedValue({ id: 'run-1', state: 'waiting_for_input' });
     renderEditor();
     fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Stage outreach' }));
-    await waitFor(() => expect(actions.plan).toHaveBeenCalledWith({ missionId: 'mission-1', strategyId: STRATEGY_ID, nodeId: 'n1', kind: 'outreach' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare in Workspace' }));
+    await waitFor(() => expect(actions.plan).toHaveBeenCalledWith({ missionId: 'mission-1', strategyId: STRATEGY_ID, nodeId: 'n1', kind: 'workspace', pinnedVersionId: 'v1', expectedNodeUpdatedAt: READY.nodeUpdatedAt }));
     expect(actions.create).not.toHaveBeenCalled();
     expect(await screen.findByText('Execution review')).toBeInTheDocument();
   });
@@ -301,4 +317,83 @@ it('shows canonical outputs even when a step has no provenance sources', () => {
   fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
   expect(screen.getByRole('link', { name: 'Open Workspace draft' })).toHaveAttribute('href', '/workspace/draft/draft-1');
   expect(screen.getByText('0 sources · 1 linked outputs')).toBeInTheDocument();
+});
+
+
+describe('Step preparation readiness', () => {
+  it('explains unsupported actions and missing owners before any mission or run is created', () => {
+    actions.readinessBlocked = true;
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
+    expect(screen.getByText('Assign an owner in the step details.')).toBeInTheDocument();
+    expect(screen.getByText('Choose Member, Committee, or Agency as the subject to stage outreach.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Prepare in Workspace' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stage outreach' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Update step details' }));
+    expect(screen.getByRole('form', { name: 'Edit step details' })).toBeInTheDocument();
+    expect(actions.create).not.toHaveBeenCalled();
+    expect(actions.plan).not.toHaveBeenCalled();
+  });
+
+  it('stops before mission lookup if the refreshed readiness no longer passes', async () => {
+    actions.readiness.mockResolvedValue({ data: { ...READY, workspace: { enabled: true, eligible: false, reasons: ['node has no owner (ownerUserId is required)'] } }, isError: false });
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare in Workspace' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Assign an owner'));
+    expect(actions.missions).not.toHaveBeenCalled();
+    expect(actions.create).not.toHaveBeenCalled();
+    expect(actions.plan).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when readiness is unavailable and provides a retry', () => {
+    actions.readinessError = true;
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
+    expect(screen.getByRole('button', { name: 'Prepare in Workspace' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Stage outreach' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry readiness check' }));
+    expect(actions.readiness).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables preparation while cached readiness is being refreshed', () => {
+    actions.readinessFetching = true;
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
+    expect(screen.getByText('Checking readiness…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Prepare in Workspace' })).toBeDisabled();
+    expect(actions.create).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('Meri submission idempotency', () => {
+  it('uses a valid UUID and retries a failed instruction with the same ID, then resets for a new instruction', () => {
+    actions.assistant.mockImplementation((_input, handlers) => handlers.onSettled());
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Meri' }));
+    const composer = screen.getByLabelText('Ask Meri');
+    fireEvent.change(composer, { target: { value: 'Review this plan' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    const first = actions.assistant.mock.calls[0]![0].clientMessageId;
+    expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(actions.assistant.mock.calls[1]![0].clientMessageId).toBe(first);
+    fireEvent.change(composer, { target: { value: 'Review the dates' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(actions.assistant.mock.calls[2]![0].clientMessageId).not.toBe(first);
+  });
+
+  it('creates a new idempotency ID for a successfully completed instruction sent again', () => {
+    actions.assistant.mockImplementation((_input, handlers) => { handlers.onSuccess(); handlers.onSettled(); });
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Meri' }));
+    const composer = screen.getByLabelText('Ask Meri');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      fireEvent.change(composer, { target: { value: 'Review this plan' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      expect(composer).toHaveValue('');
+    }
+    expect(actions.assistant.mock.calls[1]![0].clientMessageId).not.toBe(actions.assistant.mock.calls[0]![0].clientMessageId);
+  });
 });

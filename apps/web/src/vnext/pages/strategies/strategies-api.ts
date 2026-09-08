@@ -45,6 +45,10 @@ import type {
   CreateStrategyInput,
   DraftStrategyInput,
   ExecutionRun,
+  ExecutionPreflight,
+  WatchMonitoring,
+  RunPolicy,
+  ReconcileResult,
   ExtractFactsResult,
   FirmPhase,
   FirmPhaseInput,
@@ -164,13 +168,13 @@ export function useReferenceCalendars() {
 
 /* ------------------------------------------------------------ context (D) */
 
-export function useContextDocuments() {
+export function useContextDocuments(clientId?: string, firmOnly = false) {
   const api = useApi();
   return useQuery<ContextDocumentListItem[]>({
-    queryKey: ['strategy', 'context-documents'],
+    queryKey: firmOnly ? ['strategy', 'context-documents', 'firm'] : clientId ? ['strategy', 'context-documents', clientId] : ['strategy', 'context-documents'],
     queryFn: async () =>
       normalizeDocumentList(
-        (await api.get<unknown>(`${BASE}/context/documents?includeStale=true`))
+        (await api.get<unknown>(`${BASE}/context/documents?includeStale=true${firmOnly ? '&firmOnly=true' : clientId ? `&clientId=${encodeURIComponent(clientId)}&includeFirm=true` : ''}`))
           .data,
       ),
     staleTime: 30_000,
@@ -232,13 +236,15 @@ export function useContextLocate(
 /* ------------------------------------------------------------- steward (E) */
 
 export function useContextFacts(
-  filter: { documentId?: string; clientId?: string; state?: ContextFact['state'] } = {},
+  filter: { documentId?: string; clientId?: string; state?: ContextFact['state']; includeFirm?: boolean; firmOnly?: boolean } = {},
   enabled = true,
 ) {
   const api = useApi();
   const query = new URLSearchParams();
   if (filter.documentId) query.set('documentId', filter.documentId);
   if (filter.clientId) query.set('clientId', filter.clientId);
+  if (filter.includeFirm) query.set('includeFirm', 'true');
+  if (filter.firmOnly) query.set('firmOnly', 'true');
   if (filter.state) query.set('state', filter.state);
   const suffix = query.size ? `?${query.toString()}` : '';
   return useQuery<ContextFact[]>({
@@ -250,13 +256,19 @@ export function useContextFacts(
   });
 }
 
-export function useContextConflicts() {
+export function useContextFact(id: string | null) {
+  const api = useApi();
+  return useQuery<ContextFact | undefined>({ queryKey: ['strategy', 'context-fact', id], enabled: !!id,
+    queryFn: async () => normalizeFacts([(await api.get<unknown>(`${BASE}/context/facts/${encodeURIComponent(id ?? '')}`)).data])[0] });
+}
+
+export function useContextConflicts(clientId?: string, firmOnly = false) {
   const api = useApi();
   return useQuery<ContextConflict[]>({
-    queryKey: ['strategy', 'context-conflicts'],
+    queryKey: firmOnly ? ['strategy', 'context-conflicts', 'firm'] : clientId ? ['strategy', 'context-conflicts', clientId] : ['strategy', 'context-conflicts'],
     queryFn: async () =>
       normalizeConflicts(
-        (await api.get<unknown>(`${BASE}/context/conflicts`)).data,
+        (await api.get<unknown>(`${BASE}/context/conflicts${firmOnly ? '?firmOnly=true' : clientId ? `?clientId=${encodeURIComponent(clientId)}&includeFirm=true` : ''}`)).data,
       ),
     staleTime: 30_000,
   });
@@ -342,6 +354,7 @@ export function useTransitionRun() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['strategy', 'firm-review-runs'] });
       void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'run-policy'] });
     },
   });
 }
@@ -732,6 +745,9 @@ function useAgentsInvalidate() {
   return () => {
     void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
     void qc.invalidateQueries({ queryKey: ['strategy', 'missions'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-monitoring'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-state'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-pending-counts'] });
   };
 }
 
@@ -815,6 +831,7 @@ function useExecutionInvalidate() {
   return () => {
     void qc.invalidateQueries({ queryKey: ['strategy', 'execution-runs'] });
     void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'run-policy'] });
   };
 }
 
@@ -1198,14 +1215,15 @@ export interface StrategyExportInput extends StrategyExportOptions {
 
 export interface StrategyReportHealth {
   score: number;
-  label: 'On track' | 'Needs attention' | 'At risk';
+  label: 'On track' | 'Needs attention' | 'At risk' | 'No steps';
   coveragePct: number;
-  groundingPct: number;
-  timelinessPct: number;
+  groundingPct: number | null;
+  timelinessPct: number | null;
   totalNodes: number;
   ownedNodes: number;
   totalGates: number;
   groundedGates: number;
+  datedNodes: number;
   overdueNodes: number;
 }
 
@@ -1423,13 +1441,13 @@ function useWatchInvalidate(strategyId: string) {
     void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
     void qc.invalidateQueries({ queryKey: ['strategy', 'missions'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-monitoring'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-state'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-pending-counts'] });
     void qc.invalidateQueries({
       queryKey: ['strategy', 'versions', strategyId],
     });
     void qc.invalidateQueries({ queryKey: conversationKey(strategyId, null) });
-    void qc.invalidateQueries({
-      queryKey: ['strategy', 'watch-pending-counts'],
-    });
   };
 }
 
@@ -1438,11 +1456,11 @@ export function useRevalidateWatch(strategyId: string) {
   const api = useApi();
   const qc = useQueryClient();
   const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async () =>
+  return useMutation<WatchReviewState, Error, boolean | void>({
+    mutationFn: async (force) =>
       (
         await api.post<WatchReviewState>(
-          `${BASE}/agents/watch/strategies/${strategyId}/revalidate`,
+          `${BASE}/agents/watch/strategies/${strategyId}/revalidate`, undefined, { timeout: 120_000, params: force ? { force: true } : undefined },
         )
       ).data,
     onSuccess: (state) => {
@@ -1654,5 +1672,56 @@ export function useApproveContextDocument() {
       void qc.invalidateQueries({ queryKey: ['strategy'] });
       qc.setQueryData(['strategy', 'context-document', doc.id], doc);
     },
+  });
+}
+
+/** Eligibility uses the same service gates as planning and creates no mission or run. */
+export function useExecutionPreflight(strategyId: string, nodeId: string, nodeUpdatedAt?: string) {
+  const api = useApi();
+  return useQuery<ExecutionPreflight>({
+    queryKey: ['strategy', 'execution-preflight', strategyId, nodeId, nodeUpdatedAt],
+    enabled: !!strategyId && !!nodeId,
+    staleTime: 0,
+    queryFn: async () => (await api.get<ExecutionPreflight>(`${BASE}/agents/execution/preflight`, { params: { strategyId, nodeId } })).data,
+  });
+}
+
+export function useWatchMonitoring(strategyId: string) {
+  const api = useApi();
+  return useQuery<WatchMonitoring>({
+    queryKey: ['strategy', 'watch-monitoring', strategyId],
+    enabled: !!strategyId,
+    staleTime: 0,
+    queryFn: async () => (await api.get<WatchMonitoring>(`${BASE}/agents/watch/strategies/${strategyId}/monitoring`)).data,
+  });
+}
+
+export function useConfigureWatchMonitoring(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (mode: 'paused' | 'manual' | 'daily' | 'weekly') =>
+      (await api.patch<WatchMonitoring>(`${BASE}/agents/watch/strategies/${strategyId}/monitoring`, { mode })).data,
+    onSuccess: (data) => { qc.setQueryData(['strategy', 'watch-monitoring', strategyId], data); invalidate(); },
+  });
+}
+
+export function useRunPolicy(runId: string, enabled = true) {
+  const api = useApi();
+  return useQuery<RunPolicy>({
+    queryKey: ['strategy', 'run-policy', runId],
+    enabled: !!runId && enabled,
+    queryFn: async () => (await api.get<RunPolicy>(`${BASE}/agents/execution/runs/${runId}/policy`)).data,
+  });
+}
+
+export function useReconcileRun() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }) => (await api.post<ReconcileResult>(`${BASE}/agents/execution/runs/${id}/reconcile`)).data,
+    onSuccess: (_result, { id }) => { invalidate(); void qc.invalidateQueries({ queryKey: ['strategy', 'run-policy', id] }); },
   });
 }

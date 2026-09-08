@@ -57,6 +57,14 @@ function matches(rec: Rec, where: Record<string, unknown> | undefined): boolean 
   if (!where) return true;
   for (const [key, cond] of Object.entries(where)) {
     if (cond === undefined) continue;
+    if (key === 'OR') { if (!(cond as Array<Record<string, unknown>>).some((w) => matches(rec, w))) return false; continue; }
+    if (key === 'NOT') { if (matches(rec, cond as Record<string, unknown>)) return false; continue; }
+    if (key === 'runs') { if (!(rec.runs as Rec[] ?? []).some((run) => matches(run, (cond as any).some))) return false; continue; }
+    if (key === 'findings' && typeof cond === 'object' && 'path' in (cond as object)) {
+      const value = (rec.findings as any)?.[(cond as any).path[0]];
+      if (value === null || value === undefined) return false;
+      continue;
+    }
     const val = rec[key];
     if (cond === null) {
       if (val !== null && val !== undefined) return false;
@@ -72,6 +80,10 @@ function matches(rec: Rec, where: Record<string, unknown> | undefined): boolean 
       }
       if ('in' in c) {
         if (!Array.isArray(c.in) || !c.in.includes(val)) return false;
+        continue;
+      }
+      if ('startsWith' in c) {
+        if (typeof val !== 'string' || typeof c.startsWith !== 'string' || !val.startsWith(c.startsWith)) return false;
         continue;
       }
       throw new Error(`fake tx: unmodelled where operator for '${key}': ${JSON.stringify(cond)}`);
@@ -334,7 +346,7 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     findFirst: async (args: {
       where?: Record<string, unknown>;
       orderBy?: OrderSpec | OrderSpec[];
-    }) => findFirstGeneric([...store.missions.values()], args),
+    }) => findFirstGeneric([...store.missions.values()].map((m) => ({ ...m, runs: [...store.runs.values()].filter((r) => r.missionId === m.id) })), args),
   };
 
   const spAgentRun = {
@@ -928,8 +940,8 @@ describe('WatchReviewService — resolved finding is dropped with a plain-langua
     const store = makeStore();
     const { svc, csId, watchKey } = await seedOneOpenProposal(store, { id: 'N1' });
     // Simulate an unrelated human edit that also happens to resolve N1
-    // (marking it active) — a NEW version exists, so CS1 becomes a zombie.
-    store.nodes.get('N1')!.status = 'active';
+    // (marking it completed) — a NEW version exists, so CS1 becomes a zombie.
+    store.nodes.get('N1')!.status = 'completed';
     seedVersion(store, 'v2', new Date('2026-07-15T00:00:00.000Z'));
 
     const state = await svc.revalidate(T, U, SID, 'manual');
@@ -983,6 +995,24 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
       dropped: [],
     });
     expect(state.proposals).toHaveLength(1);
+  });
+
+  it('an explicit check refreshes the same-day result and does not duplicate proposals', async () => {
+    const store = makeStore();
+    const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
+    const spy = jest.spyOn(watcher, 'runCheckNow');
+    const first = await svc.revalidate(T, U, SID, 'manual-check');
+    const second = await svc.revalidate(T, U, SID, 'manual-check');
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(first.proposals).toHaveLength(1);
+    expect(second.proposals).toHaveLength(1);
+  });
+
+  it('keeps a custom Watch mission selected when a newer Execution mission exists', async () => {
+    const store = makeStore();
+    const { svc } = await seedOneOpenProposal(store, { id: 'N1' });
+    store.missions.set('execute-mission', { ...store.missions.get(MID)!, id: 'execute-mission', name: 'Execute this strategy', createdAt: new Date() });
+    expect((await svc.getState(T, SID)).mission?.id).toBe(MID);
   });
 
   it.each(['failed_terminal', 'planning', 'canceled'])(
@@ -1050,6 +1080,30 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
     }));
     expect(result.lastRecheck!.state).toBe('complete');
     expect(store.runs.size).toBe(3);
+  });
+
+  it('refreshes the successful retry on later manual checks instead of reopening its failed ancestor', async () => {
+    const store = makeStore();
+    const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
+    for (const run of store.runs.values()) run.createdAt = new Date(Date.now() - 1000);
+    await svc.revalidate(T, U, SID, 'manual-check');
+    const failed = [...store.runs.values()].find((run) => String(run.idempotencyKey).startsWith('recheck:'))!;
+    failed.state = 'failed_terminal';
+    failed.createdAt = new Date(Date.now() - 100);
+    expect((await svc.revalidate(T, U, SID, 'manual-check')).lastRecheck!.state).toBe('complete');
+    const retry = [...store.runs.values()].find((run) => String(run.idempotencyKey).includes(':retry:'))!;
+    const spy = jest.spyOn(watcher, 'runCheckNow');
+
+    const refresh = await svc.revalidate(T, U, SID, 'manual-check');
+    expect(refresh.lastRecheck!.state).toBe('complete');
+    expect(spy).toHaveBeenLastCalledWith(T, U, MID, expect.objectContaining({ idempotencyKey: retry.idempotencyKey }));
+    expect(store.runs.size).toBe(3);
+
+    // A separate scheduled/manual check must not hide the successful retry lineage.
+    await watcher.runCheckNow(T, U, MID, { idempotencyKey: 'independent-check' });
+    expect((await svc.revalidate(T, U, SID, 'manual-check')).lastRecheck!.state).toBe('complete');
+    expect(spy).toHaveBeenLastCalledWith(T, U, MID, expect.objectContaining({ idempotencyKey: retry.idempotencyKey }));
+    expect(store.runs.size).toBe(4);
   });
 
   it('DOES run a fresh check when a human edit moved the head since the last check', async () => {
@@ -2001,4 +2055,3 @@ describe('Phase 6 §4 — tenant-crossing probes on the Watch write paths', () =
     expect(store.nodes.get('N1')!.startsOn).toBe(daysFromToday(-14));
   });
 });
-

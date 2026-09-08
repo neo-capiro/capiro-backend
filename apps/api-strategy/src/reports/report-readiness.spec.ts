@@ -280,7 +280,7 @@ function baseReport(nodes: ReportNode[]): ExecutiveReportSnapshot {
     score: 82,
     label: "On track" as const,
     coveragePct: 100,
-    groundingPct: 100,
+    groundingPct: nodes.some((item) => item.kind === "gate") ? 100 : null,
     timelinessPct: 100,
     totalNodes: nodes.length,
     ownedNodes: nodes.length,
@@ -288,6 +288,7 @@ function baseReport(nodes: ReportNode[]): ExecutiveReportSnapshot {
     groundedGates: nodes.filter(
       (item) => item.kind === "gate" && item.sources.length > 0,
     ).length,
+    datedNodes: nodes.length,
     overdueNodes: 0,
   };
   return {

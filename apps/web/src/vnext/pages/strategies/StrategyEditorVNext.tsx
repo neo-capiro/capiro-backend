@@ -16,12 +16,13 @@
  * queue. Step edits go through the step inspector and each produces a revision.
  * The save stamp reflects real persistence — never optimistic "Saved".
  */
-import { checkFiscalCycle } from '@capiro/strategy-verifier';
+import { checkFiscalCycle, checkPlanDependencies, strategyStepDueDate } from '@capiro/strategy-verifier';
+import { WatchControls } from './WatchControls.js';
 import { phaseCoverageGaps } from './lib/phase-coverage.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
-import { CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
+import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import {
   clientName,
   memberName,
@@ -220,6 +221,10 @@ export function StrategyEditorVNext() {
       </div>
     );
   }
+  if (strategy.isError && (strategy.error as { response?: { status?: number } })?.response?.status === 410) {
+    return <div className="st-page"><CapiroEmptyState title="This strategy is archived" description="Its saved versions and source documents remain in history. Choose an active strategy to edit a plan or generate a report."
+      action={<CapiroButton variant="secondary" onClick={() => navigate('/strategies')}>Back to strategies</CapiroButton>} /></div>;
+  }
   if (strategy.isError || !detail) {
     return (
       <div className="st-page">
@@ -232,7 +237,13 @@ export function StrategyEditorVNext() {
     );
   }
 
-  const cycleIssues = checkFiscalCycle(detail.nodes, `${detail.title} ${detail.goal ?? ''}`);
+  // Prisma's date-only columns arrive as midnight ISO timestamps over JSON.
+  // The shared verifier intentionally consumes YYYY-MM-DD calendar dates.
+  const reviewNodes = detail.nodes.map((node) => ({ ...node,
+    startsOn: node.startsOn.slice(0, 10), endsOn: node.endsOn?.slice(0, 10) ?? null,
+  }));
+  const cycleIssues = checkFiscalCycle(reviewNodes, `${detail.title} ${detail.goal ?? ''}`);
+  const dependencyIssues = checkPlanDependencies(reviewNodes);
   const objective = TYPE_LABEL[detail.type] ?? detail.type;
   const eyebrow = `${clientName(clients.data, detail.clientId)} · ${objective}`.toUpperCase();
   const openStep = detail.nodes.find((n) => n.id === openStepId) ?? null;
@@ -336,6 +347,7 @@ export function StrategyEditorVNext() {
         </header>
 
         <div className="st-editor__main">
+        <WatchControls strategyId={detail.id} />
         {calendars.isError ? (
           <div role="alert">Reference calendars could not be loaded. <CapiroButton onClick={() => void calendars.refetch()}>Retry calendars</CapiroButton></div>
         ) : null}
@@ -345,6 +357,14 @@ export function StrategyEditorVNext() {
           Review the cited year and edit the dates, or ask Meri to reconcile the plan against the correct fiscal cycle and dated primary sources.
         </div> : null}
         {layers.congress || layers.ppbe ? <p className="st-purpose">Calendar bands show planning reference windows. Confirm dated primary sources before treating them as official deadlines.</p> : null}
+        {dependencyIssues.length > 0 ? <div role="status" className="st-modal__alert">
+          <strong>Review prerequisites and overlaps.</strong> Overlapping actions can be intentional. Check the relationship before changing a date.
+          <details><summary>Review {dependencyIssues.length} dependency findings</summary><ul>{dependencyIssues.map((issue, index) => <li key={`${issue.code}-${index}`}>
+            <button type="button" className="st-library-clearlink" onClick={() => openInspector(issue.nodeIds[0]!)}>{issue.message}</button>
+            {issue.suggestion ? <p>{issue.suggestion}</p> : null}
+          </li>)}</ul></details>
+          <CapiroButton onClick={() => openInspector('__strategy__', 'meri')}>Review with Meri</CapiroButton>
+        </div> : null}
         {firmPhases.data && phaseCoverageGaps(firmPhases.data, axis.startFy, axis.endFy).length > 0 ? <div role="status" className="st-modal__alert">
           Firm phases do not cover the full visible horizon. <CapiroButton onClick={() => navigate(overlayPath('phases'))}>Review phase coverage</CapiroButton>
         </div> : null}
@@ -454,7 +474,7 @@ function PlanHealthChip({
   if (!health) return <CapiroSkeleton width={140} height={28} />;
   return (
     <button type="button" className="st-pill st-pill--accent st-planhealth-chip" onClick={onReview}>
-      Plan health · {health.score}
+      Plan health · {health.totalSteps ? health.score : 'No steps'}
     </button>
   );
 }
@@ -473,10 +493,9 @@ function NextThirtyDays({
     const in30 = now + 30 * 86400000;
     return (
       detail.nodes
-        .filter((n) => !n.openEnded && n.status !== 'completed')
         .filter((n) => {
-          const due = new Date(n.endsOn ?? n.startsOn).getTime();
-          return !Number.isNaN(due) && due >= now && due <= in30;
+          const due = strategyStepDueDate(n);
+          return due !== null && due >= now && due <= in30;
         })
         .sort((a, b) => (a.endsOn ?? a.startsOn).localeCompare(b.endsOn ?? b.startsOn))[0] ?? null
     );
@@ -498,7 +517,7 @@ function NextThirtyDays({
             <CapiroButton onClick={() => onOpen(next.id)}>Open step</CapiroButton>
           </>
         ) : (
-          <p className="st-purpose">No unfinished steps fall due in the next 30 days.</p>
+          <p className="st-purpose">No unfinished plan commitments fall due in the next 30 days. Suggested work is in the review queue.</p>
         )}
       </div>
     </section>
@@ -525,9 +544,13 @@ function PlanHealthCard({
     <section className="st-card st-planhealth">
       <div className="st-card__header"><p className="st-section-label">Plan health</p></div>
       <div className="st-card__body st-planhealth__body">
-        <div className="st-planhealth__score">{health.score}</div>
+        <div className="st-planhealth__score">{health.totalSteps ? health.score : '—'}</div>
         <div className="st-planhealth__facts">
           <p>{health.ownedSteps} of {health.totalSteps} steps have owners</p>
+          <p>{health.totalGates ? `${health.groundedGates} of ${health.totalGates} gates have source references` : 'Gate source coverage: N/A — no gates'}</p>
+          <p>{health.datedSteps ? `${health.overdueSteps} of ${health.datedSteps} unfinished dated commitments are overdue (UTC)` : 'Timeliness: N/A — no unfinished dated commitments'}</p>
+          <p>All live plan items. Client reports use approved, client-eligible sources. Linked outputs and approved context are assessed separately.</p>
+          <details><summary>How this score is calculated</summary><p>Ownership, gate source coverage and timeliness use weights 40:35:25. Dimensions with no applicable items are excluded and the remaining weights rescaled. A source reference does not verify its contents.</p></details>
         </div>
         <CapiroButton onClick={onReview}>Review proposals</CapiroButton>
       </div>
@@ -1454,4 +1477,3 @@ function formatDate(iso: string): string {
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
-

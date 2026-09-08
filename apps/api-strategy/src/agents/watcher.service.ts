@@ -21,6 +21,7 @@ import { ChangeSetsService } from './change-sets.service.js';
 import { classifyRisk } from './risk-router.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import { findingKey, runWatcherChecks, type Finding, type WatcherNode } from './watcher-checks.js';
+import { WATCH_MISSION_NAME, WATCH_MISSION_WHERE } from './watch-mission.js';
 import type {
   CreateChangeSetDto,
   CreateRunDto,
@@ -59,6 +60,71 @@ export class WatcherService {
     private readonly meri: MeriService,
     private readonly steward: StewardService,
   ) {}
+
+  /** Read monitoring independently of proposal count; an empty queue is not proof of a check. */
+  async monitoring(tenantId: string, strategyId: string) {
+    const available = await this.flags.isAgenticFlagEnabled(tenantId, AGENTIC_FLAGS.strategyWatcher);
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId, archivedAt: null }, select: { id: true } });
+      if (!strategy) throw new NotFoundException('Strategy not found or archived');
+      const missions = await tx.spAgentMission.findMany({
+        where: { strategyId, ...WATCH_MISSION_WHERE },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+      const mission = missions.find((m) => m.state === 'active') ?? missions[0] ?? null;
+      const latest = mission ? await tx.spAgentRun.findFirst({
+        where: { missionId: { in: missions.map((m) => m.id) } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }) : null;
+      const payload = latest?.findings && typeof latest.findings === 'object' && !Array.isArray(latest.findings)
+        ? latest.findings as Record<string, unknown> : null;
+      const checkedAt = typeof payload?.checkedAt === 'string' ? payload.checkedAt
+        : Array.isArray(payload?.findings) && typeof payload?.checkedOn === 'string' ? latest?.createdAt.toISOString() ?? null : null;
+      return {
+        strategyId, available,
+        schedulerEnabled: process.env.STRATEGY_AGENTS_ENABLED === 'true' && process.env.STRATEGY_WATCHER_SCHEDULER === 'true',
+        mission: mission ? { id: mission.id, state: mission.state, cadence: mission.cadence, nextRunAt: mission.nextRunAt?.toISOString() ?? null } : null,
+        duplicateMissionCount: missions.filter((m) => m.state === 'active' && m.id !== mission?.id).length,
+        lastRun: latest ? { id: latest.id, state: latest.state, startedAt: latest.startedAt?.toISOString() ?? latest.createdAt.toISOString(), checkedAt, error: latest.error, findingCount: Array.isArray(payload?.findings) ? payload.findings.length : null } : null,
+      };
+    });
+  }
+
+  /** A strategy-row lock serializes create-if-absent across tabs and people. */
+  async configureMonitoring(tenantId: string, userId: string, strategyId: string, mode: 'paused' | 'manual' | 'daily' | 'weekly') {
+    const available = await this.flags.isAgenticFlagEnabled(tenantId, AGENTIC_FLAGS.strategyWatcher);
+    if (!available) throw new ForbiddenException('Strategy monitoring is not enabled for your organization');
+    if ((mode === 'daily' || mode === 'weekly') && (process.env.STRATEGY_AGENTS_ENABLED !== 'true' || process.env.STRATEGY_WATCHER_SCHEDULER !== 'true')) {
+      throw new BadRequestException('Scheduled monitoring is unavailable. Choose manual checks until scheduling is enabled by your administrator.');
+    }
+    await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM sp_strategy WHERE id = ${strategyId}::uuid FOR UPDATE`;
+      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId, archivedAt: null }, select: { id: true } });
+      if (!strategy) throw new NotFoundException('Strategy not found or archived');
+      const missions = await tx.spAgentMission.findMany({
+        where: { strategyId, ...WATCH_MISSION_WHERE },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+      const existing = missions.find((m) => m.state === 'active') ?? missions[0];
+      const duplicates = missions.filter((m) => m.id !== existing?.id);
+      if (!existing && mode === 'paused') return;
+      const cadence = mode === 'daily' || mode === 'weekly' ? mode : null;
+      const state = mode === 'paused' ? 'paused' as const : 'active' as const;
+      const nextRunAt = cadence ? existing?.state === 'active' && existing.cadence === cadence && existing.nextRunAt ? existing.nextRunAt : new Date() : null;
+      if (existing && existing.purpose === 'watch' && existing.state === state && existing.cadence === cadence && existing.nextRunAt?.getTime() === nextRunAt?.getTime() && !duplicates.some((m) => m.state === 'active' || m.cadence !== null || m.nextRunAt !== null)) return;
+      const mission = existing ? await tx.spAgentMission.update({ where: { id: existing.id }, data: { purpose: 'watch', state, cadence, nextRunAt, updatedByUserId: userId } })
+        : await tx.spAgentMission.create({ data: { tenantId, strategyId, name: WATCH_MISSION_NAME, purpose: 'watch', state, cadence, nextRunAt, createdByUserId: userId } });
+      // Historical duplicate Watch missions are paused, never deleted; their checks stay available.
+      for (const duplicate of duplicates) {
+        await tx.spAgentMission.update({ where: { id: duplicate.id }, data: { purpose: 'watch', state: 'paused', cadence: null, nextRunAt: null, updatedByUserId: userId } });
+      }
+      await this.versioning.logActivity(tx, { tenantId, actorUserId: userId, authorKind: 'person', action: 'watch.monitoring_configured', entityType: 'mission', entityId: mission.id,
+        before: existing ? { state: existing.state, cadence: existing.cadence } : null,
+        after: { strategyId, mode, pausedDuplicateIds: duplicates.map((m) => m.id) },
+      });
+    });
+    return this.monitoring(tenantId, strategyId);
+  }
 
   /**
    * Run one watcher check for a mission, now. `userId` null = scheduler/system
@@ -206,7 +272,7 @@ export class WatcherService {
     const ground = await this.meri.grounding(tenantId);
     const strategy = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spStrategy.findFirst({
-        where: { id: strategyId },
+        where: { id: strategyId, archivedAt: null },
         include: {
           // P0-1: LIVE plan only — a node archived by a restore must never
           // produce watcher findings or verifier violations.
@@ -232,6 +298,7 @@ export class WatcherService {
       startsOn: isoDate(n.startsOn) ?? '',
       endsOn: isoDate(n.endsOn),
       status: String(n.status),
+      openEnded: n.openEnded,
       ownerUserId: n.ownerUserId,
       dependsOnIds: n.dependsOnIds,
       provenance: n.provenance,
@@ -373,7 +440,7 @@ export class WatcherService {
       // plan now, before pinning proposals to its head: a concurrent edit must
       // never make an old calculation look approved for a newer version.
       const current = await tx.spStrategy.findFirst({
-        where: { id: strategyId },
+        where: { id: strategyId, archivedAt: null },
         include: { nodes: { where: { ...LIVE_NODE_WHERE } }, artifacts: true },
       });
       if (!current || checkSnapshot(current) !== expectedSnapshot) {

@@ -31,7 +31,7 @@ const TAB_COPY: Record<AgentsTab, { h1: string; description: string }> = {
   proposals: {
     h1: 'Agent review queue',
     description:
-      "Review what the Watcher proposes against your plans — every change needs a person's approval before it touches a strategy.",
+      "Review suggested changes from Watch. Proposals in this queue need your approval and application; you and Meri can also edit the working plan directly.",
   },
   runs: {
     h1: 'Execution',

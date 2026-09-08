@@ -20,7 +20,7 @@
  * always has: plain language naming the real node/date/label involved.
  */
 
-import { fyOfIso, validIso, type Violation } from '@capiro/strategy-verifier';
+import { fyOfIso, validIso, isStrategyStepOverdue, type Violation } from '@capiro/strategy-verifier';
 import type { PlanEdit } from '../meri/meri.types.js';
 
 export const FINDING_SEVERITIES = ['info', 'warning', 'critical'] as const;
@@ -101,6 +101,8 @@ export interface WatcherNode {
   title: string;
   startsOn: string;
   endsOn: string | null;
+  openEnded?: boolean;
+  archivedAt?: string | null;
   status: string;
   ownerUserId: string | null;
   dependsOnIds: string[];
@@ -247,22 +249,22 @@ function foldVerifier(violations: Violation[]): Finding[] {
 function checkOverdue(nodes: WatcherNode[], today: string): Finding[] {
   const out: Finding[] = [];
   for (const n of nodes) {
-    if (!validIso(n.endsOn) || !validIso(n.startsOn)) continue;
-    if (n.endsOn >= today || n.status === 'completed') continue;
-    const duration = Math.max(0, diffDaysIso(n.endsOn, n.startsOn));
+    if (!isStrategyStepOverdue(n, new Date(today))) continue;
+    const due = n.endsOn ?? n.startsOn;
+    const duration = validIso(n.startsOn) ? Math.max(0, diffDaysIso(due, n.startsOn)) : 0;
     const newStartsOn = addDaysIso(today, 1);
     const newEndsOn = addDaysIso(newStartsOn, duration);
     out.push({
       code: 'overdue',
       severity: 'warning',
       nodeIds: [n.id],
-      message: `"${n.title}" ended ${n.endsOn} and is still ${n.status.replace('_', ' ')}.`,
+      message: `"${n.title}" was due ${due} and is still ${n.status.replace('_', ' ')}.`,
       suggestion: `Restart it ${newStartsOn}–${newEndsOn}, or mark it Completed if the work is done.`,
       proposedOps: [{ op: 'retime', nodeId: n.id, startsOn: newStartsOn, endsOn: newEndsOn }],
       category: 'calendar',
       title: 'Overdue',
       impact: `"${n.title}" is still open past its planned end date.`,
-      whyCompared: ['today', 'endsOn', 'status'],
+      whyCompared: ['today (UTC)', 'endsOn or startsOn', 'status', 'openEnded'],
       sortRank: CATEGORY_SORT_RANK.calendar,
     });
   }

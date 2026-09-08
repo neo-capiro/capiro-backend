@@ -33,6 +33,7 @@ const CLIENT_ID = '0a1b2c3d-4444-4555-8666-777788889999';
 
 function makeStore() {
   const docs = new Map<string, Rec>();
+  const strategies = new Map<string, Rec>();
   // Stage E: sp_context_fact rows — document supersession flips the OLD doc's
   // active facts to `stale` in the same tx.
   const facts = new Map<string, Rec>();
@@ -40,7 +41,7 @@ function makeStore() {
   const outbox: Rec[] = [];
   let seq = 0;
   const nextId = (p: string) => `${p}-${++seq}`;
-  return { docs, facts, activity, outbox, nextId };
+  return { docs, strategies, facts, activity, outbox, nextId };
 }
 type Store = ReturnType<typeof makeStore>;
 
@@ -50,6 +51,10 @@ type Store = ReturnType<typeof makeStore>;
  */
 function matches(rec: Rec, where: Record<string, unknown>): boolean {
   for (const [k, v] of Object.entries(where)) {
+    if (k === 'AND') {
+      if (!(v as Record<string, unknown>[]).every((branch) => matches(rec, branch))) return false;
+      continue;
+    }
     if (k === 'OR') {
       if (!(v as Record<string, unknown>[]).some((branch) => matches(rec, branch))) return false;
       continue;
@@ -138,6 +143,7 @@ function makeTx(store: Store) {
   return {
     $queryRaw: async () => [],
     spContextDocument,
+    spStrategy: { findFirst: async ({ where }: { where: Record<string, unknown> }) => [...store.strategies.values()].find((row) => matches(row, where)) ?? null },
     spActivityLog,
     spEventOutbox,
     spContextFact,
@@ -1176,5 +1182,68 @@ describe('Context document approval', () => {
       expect(store.docs.size).toBe(1);
       expect(store.docs.get(doc.id)?.state).toBe('active');
     }
+  });
+});
+
+
+describe('Context association and reassignment', () => {
+  const NEXT = 'abcdef12-1111-4222-8333-444455556666';
+  async function setup() {
+    const store = makeStore(); const { svc } = makeService(store);
+    const original = await svc.upload(T, ADMIN, { content: makeContent({ client_id: `"${CLIENT_ID}"` }) });
+    store.strategies.set(STRATEGY_ID, { id: STRATEGY_ID, clientId: CLIENT_ID, title: 'Prior plan', archivedAt: new Date() });
+    store.strategies.set(NEXT, { id: NEXT, clientId: CLIENT_ID, title: 'Current plan', archivedAt: null });
+    return { store, svc, original };
+  }
+  it('labels an archived association and moves to an unapproved revision without changing the source body or original history', async () => {
+    const { store, svc, original } = await setup();
+    expect(await svc.association(T, original.id)).toMatchObject({ state: 'archived', strategy: { title: 'Prior plan' } });
+    store.facts.set('fact', { id: 'fact', documentId: original.id, state: 'active' });
+    const next = await svc.reassign(T, MEMBER, original.id, original.checksum, NEXT);
+    expect(next).toMatchObject({ clientId: CLIENT_ID, scopeRef: NEXT, supersedesId: original.id });
+    expect(next.frontmatter).toMatchObject({ authority: 'working_draft', source_of_truth: false });
+    expect(next.content.split('---')[2]).toEqual(original.content.split('---')[2]);
+    expect(store.docs.get(original.id)).toMatchObject({ state: 'superseded', content: original.content });
+    expect(store.facts.get('fact')?.state).toBe('stale');
+    expect(store.activity).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'context_doc.reassigned' })]));
+    expect(await svc.association(T, next.id)).toMatchObject({ state: 'active', strategy: { title: 'Current plan' } });
+  });
+  it('binds reviewed supersession to the exact source row even when frontmatter revision IDs collide', async () => {
+    const { store, svc, original } = await setup();
+    const unrelated = await svc.upload(T, ADMIN, { content: makeContent({ client_id: `"${CLIENT_ID}"`, strategy_id: '"11111111-1111-4222-8333-444455556666"' }, '# Another strategy') });
+    const next = await svc.reassign(T, MEMBER, original.id, original.checksum, NEXT);
+    expect(next.supersedesId).toBe(original.id);
+    expect(store.docs.get(original.id)?.state).toBe('superseded');
+    expect(store.docs.get(unrelated.id)?.state).toBe('active');
+  });
+  it('filters a client and shared firm documents before the row limit', async () => {
+    const { store, svc } = await setup();
+    for (let i = 0; i < 201; i++) store.docs.set(`foreign-${i}`, { id: `foreign-${i}`, clientId: 'foreign', scope: 'client', state: 'active', validUntil: null, createdAt: new Date('2030-01-01') });
+    store.docs.set('firm', { id: 'firm', clientId: null, scope: 'firm', state: 'active', validUntil: null, createdAt: new Date('2020-01-01') });
+    store.docs.set('unbound', { id: 'unbound', clientId: null, scope: 'strategy', state: 'active', validUntil: null, createdAt: new Date('2020-01-01') });
+    const rows = await svc.list(T, { clientId: CLIENT_ID, includeFirm: true, includeStale: true });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.id)).toContain('firm');
+    expect(rows.map((row) => row.id)).not.toContain('unbound');
+  });
+  it('keeps firm-only documents visible behind more than 200 client records and excludes unbound context', async () => {
+    const { store, svc } = await setup();
+    for (let i = 0; i < 201; i++) store.docs.set(`client-${i}`, { id: `client-${i}`, clientId: CLIENT_ID, scope: 'client', state: 'active', validUntil: null, createdAt: new Date('2030-01-01') });
+    store.docs.set('firm', { id: 'firm', clientId: null, scope: 'firm', state: 'active', validUntil: null, createdAt: new Date('2020-01-01') });
+    store.docs.set('unbound', { id: 'unbound', clientId: null, scope: 'once', state: 'active', validUntil: null, createdAt: new Date('2030-01-02') });
+
+    const rows = await svc.list(T, { firmOnly: true, includeStale: true });
+
+    expect(rows.map((row) => row.id)).toEqual(['firm']);
+  });
+  it.each(['missing', 'other_client', 'archived', 'changed', 'occupied'])('rejects %s reassignment without retiring the original', async (reason) => {
+    const { store, svc, original } = await setup();
+    if (reason === 'missing') store.strategies.delete(NEXT);
+    if (reason === 'other_client') store.strategies.get(NEXT)!.clientId = 'foreign-client';
+    if (reason === 'archived') store.strategies.get(NEXT)!.archivedAt = new Date();
+    if (reason === 'occupied') await svc.upload(T, ADMIN, { content: makeContent({ client_id: `"${CLIENT_ID}"`, strategy_id: `"${NEXT}"`, document_id: '"other_document"' }) });
+    await expect(svc.reassign(T, MEMBER, original.id, reason === 'changed' ? '0'.repeat(64) : original.checksum, NEXT)).rejects.toThrow();
+    expect(store.docs.get(original.id)?.state).toBe('active');
+    expect(store.activity.some((row) => row.action === 'context_doc.reassigned')).toBe(false);
   });
 });

@@ -17,6 +17,7 @@ import {
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { isoDate } from '../strategy/versioning.js';
 import { RUN_TERMINAL_STATES } from './run-state.js';
+import { findWatchMission } from './watch-mission.js';
 import { WatcherService } from './watcher.service.js';
 import { findingKey, type Finding, type FindingCategory } from './watcher-checks.js';
 import { orderBatchOps } from './watch-batch-order.js';
@@ -157,10 +158,7 @@ export class WatchReviewService {
         select: { id: true },
       });
       if (!head) throw new NotFoundException('strategy has no version history');
-      const mission = await tx.spAgentMission.findFirst({
-        where: { strategyId },
-        orderBy: [{ createdAt: 'desc' }],
-      });
+      const mission = await findWatchMission(tx, strategyId);
       const openProposals = await tx.spChangeSet.findMany({
         where: { strategyId, status: 'proposed', watchKey: { not: null } },
         select: { id: true, watchKey: true, strategyVersionId: true, ops: true },
@@ -190,7 +188,7 @@ export class WatchReviewService {
       isoDate(checkedAt) === today &&
       (!lastEditedAt || checkedAt > lastEditedAt);
 
-    if (!mission || (allCurrentHead && runIsFresh)) {
+    if (!mission || mission.state !== 'active' || (reason !== 'manual-check' && allCurrentHead && runIsFresh)) {
       this.logger.log(
         `[strategy:${strategyId}] Watch revalidate no-op (reason:${reason}) — ${
           mission ? 'already fresh' : 'no Watch mission'
@@ -213,15 +211,25 @@ export class WatchReviewService {
 
     let recheckFailed = false;
     try {
+      const baseKey = `recheck:${mission.id}:${headId}:${today}:${lastEditedAt?.getTime() ?? 0}`;
+      // Resolve this check's own retry family. A newer scheduled run may be
+      // unrelated; falling back to baseKey after a successful retry would reopen
+      // the failed ancestor and permanently break subsequent manual checks.
+      const previousAttempt = await this.prisma.withTenant(tenantId, (tx) => tx.spAgentRun.findFirst({
+        where: { missionId: mission.id, OR: [
+          { idempotencyKey: baseKey },
+          { idempotencyKey: { startsWith: `${baseKey}:retry:` } },
+        ] },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, state: true, idempotencyKey: true },
+      }));
+      const idempotencyKey = previousAttempt
+        ? RUN_TERMINAL_STATES.has(previousAttempt.state)
+          ? `${baseKey}:retry:${previousAttempt.id}`
+          : previousAttempt.idempotencyKey
+        : baseKey;
       await this.watcher.runCheckNow(tenantId, userId, mission.id, {
-        // A failed attempt cannot be re-driven with its terminal run's key.
-        // Include the observation date/edit clock, then retry lineage when
-        // needed, while concurrent attempts still share the same key.
-        idempotencyKey: `recheck:${mission.id}:${headId}:${today}:${lastEditedAt?.getTime() ?? 0}${
-          latestRun && RUN_TERMINAL_STATES.has(latestRun.state)
-            ? `:retry:${latestRun.id}`
-            : ''
-        }`,
+        idempotencyKey,
         trigger: 'manual',
       });
     } catch (err) {
@@ -861,10 +869,7 @@ export class WatchReviewService {
     });
     if (!head) throw new NotFoundException('strategy has no version history');
 
-    const mission = await tx.spAgentMission.findFirst({
-      where: { strategyId },
-      orderBy: [{ createdAt: 'desc' }],
-    });
+    const mission = await findWatchMission(tx, strategyId);
     const latestRun = mission
       ? await tx.spAgentRun.findFirst({
           where: { missionId: mission.id },
@@ -1126,4 +1131,3 @@ function stableJson(v: unknown): string {
       : val,
   );
 }
-

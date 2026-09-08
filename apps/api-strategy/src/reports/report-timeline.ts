@@ -1,3 +1,4 @@
+import { isStrategyStepOverdue } from '@capiro/strategy-verifier';
 import type { ExecutiveReportSnapshot, ReportNode } from "./report.types.js";
 
 /**
@@ -130,7 +131,7 @@ export function buildTimelineModel(
       singleDay || node.kind === "milestone" || node.kind === "gate";
     const startFraction = fraction(rawStart);
     const endFraction = marker ? startFraction : fraction(rawEnd);
-    const overdue = !node.openEnded && rawEnd < asOfMs;
+    const overdue = isStrategyStepOverdue(node, new Date(asOfMs));
     return {
       node,
       startFraction,

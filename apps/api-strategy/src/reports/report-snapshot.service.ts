@@ -501,6 +501,7 @@ export class ReportSnapshotService {
         return [
           {
             section: fact.documentTitle,
+            resolved: true,
             ref:
               options.audience === "internal"
                 ? `${fact.sourceRef} · fact:${fact.id}`

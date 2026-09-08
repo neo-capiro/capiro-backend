@@ -113,6 +113,8 @@ vi.mock('./strategies-api.js', async () => {
     useTenantMembers: () => ({ data: [] }),
     usePendingWatchCounts: () => ({ data: {} }),
     useWatchReviewState: () => ({ data: { proposals: [] } }),
+    useWatchMonitoring: () => ({ data: { available: false }, isSuccess: true }),
+    useConfigureWatchMonitoring: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useRevalidateWatch: () => ({ mutate: vi.fn(), isPending: false }),
     useForkReferenceCalendar: () => ({ mutate: forkMutate, isPending: false, isError: false, error: null }),
   };
@@ -345,6 +347,19 @@ describe('Legislative calendar editing', () => {
 
 
 describe('Calendar persistence and fiscal boundaries', () => {
+  it('reviews fiscal cycles and overlapping dependencies from real API timestamps', () => {
+    const original = detail.nodes;
+    detail.nodes = [
+      node({ id: 'budget', title: "Analyze President's Budget FY27", startsOn: '2027-01-29T00:00:00.000Z', endsOn: '2027-02-19T00:00:00.000Z' }),
+      node({ id: 'request', title: 'Prepare request', startsOn: '2027-02-07T00:00:00.000Z', dependsOnIds: ['budget'] }),
+    ];
+    try {
+      renderEditor();
+      expect(screen.getByText('Budget cycle needs review.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Prepare request.*starts before its dependency/ })).toBeTruthy();
+    } finally { detail.nodes = original; }
+  });
+
   it('draws firm phases through the last month before the exclusive end quarter', () => {
     renderEditor();
     const phase = screen.getByRole('button', { name: 'Strategy refresh' });

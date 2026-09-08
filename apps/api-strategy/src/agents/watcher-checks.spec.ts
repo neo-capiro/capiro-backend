@@ -130,6 +130,20 @@ describe('(b) overdue', () => {
     expect(byCode(runWatcherChecks(input({ nodes })), 'overdue')).toEqual([]);
   });
 
+  it('uses the single-day fallback and excludes suggested, ongoing and archived work', () => {
+    const nodes = [
+      node({ id: 'single', startsOn: '2026-07-23', endsOn: null }),
+      node({ id: 'active', status: 'active', endsOn: '2026-07-23' }),
+      node({ id: 'suggested', status: 'suggested', endsOn: '2026-07-23' }),
+      node({ id: 'ongoing', openEnded: true, endsOn: '2026-07-23' }),
+      node({ id: 'archived', archivedAt: '2026-07-23', endsOn: '2026-07-23' }),
+      node({ id: 'invalid', endsOn: '2026-02-30' }),
+    ];
+    const overdue = byCode(runWatcherChecks(input({ nodes })), 'overdue');
+    expect(overdue.map((finding) => finding.nodeIds[0])).toEqual(['single', 'active']);
+    expect(overdue[0]?.proposedOps).toEqual([{ op: 'retime', nodeId: 'single', startsOn: '2026-07-25', endsOn: '2026-07-25' }]);
+  });
+
   it('a step ending today (or later) is not overdue', () => {
     const nodes = [node({ id: 'N1', startsOn: '2026-07-10', endsOn: TODAY })];
     expect(byCode(runWatcherChecks(input({ nodes })), 'overdue')).toEqual([]);

@@ -31,7 +31,8 @@ import {
   useContextHealth,
 } from '../strategies-api.js';
 import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
-import { useShellClientContext } from '../../../adapters/legacy/useShellClientContext.js';
+import { useContextClientScope } from './use-context-client-scope.js';
+import { contextHealthStatus } from './context-health-label.js';
 import {
   fmScalar,
   isContextDocStale,
@@ -90,7 +91,7 @@ function fmtDay(iso: string | null): string | null {
   if (!y || !m || !d) return null;
   const label = MONTHS[Number(m) - 1];
   if (!label || Number.isNaN(Number(d))) return null;
-  return `${label} ${Number(d)}`;
+  return `${label} ${Number(d)}, ${y}`;
 }
 
 /** "Updated …" at day granularity (the §7.5 row stamp). */
@@ -118,21 +119,15 @@ function hasRequiredFrontMatter(doc: ContextDocumentListItem): boolean {
 export function ContextLibraryVNext() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const docs = useContextDocuments();
-  const facts = useContextFacts();
-  const conflicts = useContextConflicts();
+  const scope = useContextClientScope();
+  const docs = useContextDocuments(scope.clientId ?? undefined, scope.scope === 'firm');
+  const facts = useContextFacts({ clientId: scope.clientId ?? undefined, includeFirm: true, firmOnly: scope.scope === 'firm' });
+  const conflicts = useContextConflicts(scope.clientId ?? undefined, scope.scope === 'firm');
   const clients = useClientsLite();
 
-  /* ScopeBar status: the shared cross-app client scope (the same one the
-   * ScopeBar's own Client chip reads), not this page's own client filter
-   * pills below — a different, page-local concern. There is no single
-   * meaningful "N facts" number across all clients, so an unscoped portfolio
-   * never gets a fabricated "Healthy" reading (see ScopeBar status below). */
-  const clientContext = useShellClientContext();
-  const scopeClientId = clientContext.selectedClientId;
+  const scopeClientId = scope.clientId;
   const health = useContextHealth(scopeClientId);
-
-  const clientFilter = searchParams.get('client') ?? 'all';
+  const clientFilter = scope.scope;
   const requestedState = searchParams.get('state');
   const stateFilter = STATE_FILTERS.find((filter) => filter.id === requestedState)?.id ?? 'active';
   const query = searchParams.get('q') ?? '';
@@ -155,14 +150,12 @@ export function ContextLibraryVNext() {
   const clientName = (id: string | null) =>
     id === null ? 'Firm' : (clients.data?.find((client) => client.id === id)?.name ?? 'Client');
 
-  /* Library-wide stats describe the WHOLE library, not the current filter.
-   * When a client is scoped and health is available, the stale-documents and
-   * missing-required metrics come from the server's ContextHealth payload
-   * (useContextHealth) rather than a client-side re-derivation. */
-  const activeDocuments = (docs.data ?? []).filter((doc) => doc.state === 'active');
-  const activeFacts = (facts.data ?? []).filter((fact) => fact.state === 'active');
-  const staleFactCount = (facts.data ?? []).filter((fact) => fact.state === 'stale').length;
-  const openConflicts = (conflicts.data ?? []).filter((conflict) => conflict.state === 'open');
+  /* Summary and documents share the effective client scope, including shared firm context. */
+  const scopedDocuments = (docs.data ?? []).filter((doc) => scope.matches(doc.clientId));
+  const activeDocuments = scopedDocuments.filter((doc) => doc.state === 'active');
+  const activeFacts = (facts.data ?? []).filter((fact) => scope.matches(fact.clientId) && fact.state === 'active');
+  const staleFactCount = (facts.data ?? []).filter((fact) => scope.matches(fact.clientId) && fact.state === 'stale').length;
+  const openConflicts = (conflicts.data ?? []).filter((conflict) => scope.matches(conflict.clientId) && conflict.state === 'open');
   /* Server-side health dimensions for the scoped client — these are the real
    * backend counts, not client-derived aggregates. Used to enrich the stats
    * band when the health endpoint is available. */
@@ -170,44 +163,17 @@ export function ContextLibraryVNext() {
   const healthMissingRequired = health.data?.missingRequired.length;
   const healthOpenConflicts = health.data?.openMaterialConflicts.length;
 
-  const scopeStatus: ScopeBarStatus = !scopeClientId
-    ? { tone: 'gray', label: 'Select a client to see context health' }
-    : health.isLoading
-      ? { tone: 'gray', label: 'Checking context health…' }
-      : health.isError || !health.data
-        ? { tone: 'gray', label: 'Context health unavailable' }
-        : {
-            tone:
-              health.data.status === 'ok'
-                ? 'success'
-                : health.data.status === 'degraded'
-                  ? 'warning'
-                  : 'error',
-            label:
-              health.data.status === 'ok'
-                ? 'Ready to use'
-                : health.data.status === 'degraded'
-                  ? 'Needs attention'
-                  : 'Conflicting information',
-          };
-
-  const clientOptions = useMemo(
-    () =>
-      [...new Set((docs.data ?? []).map((doc) => doc.clientId).filter((id): id is string => Boolean(id)))].map(
-        (id) => ({ id, name: clientName(id) }),
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [docs.data, clients.data],
-  );
-  const hasFirmDocs = (docs.data ?? []).some((doc) => doc.clientId === null);
+  const scopeStatus: ScopeBarStatus = scopeClientId
+    ? contextHealthStatus(health.data, health.isError, health.isLoading, health.data?.activeFacts)
+    : { tone: 'gray', label: 'Select a client to assess its context' };
+  const clientOptions = clients.data ?? [];
 
   /* §7.5: group by template key; rows without the required front matter are
    * excluded from display and surfaced as a count, never rendered bare. */
   const { groups, excludedCount, visibleCount } = useMemo(() => {
     const term = query.trim().toLowerCase();
     const filtered = (docs.data ?? []).filter((doc) => {
-      if (clientFilter !== 'all' && (clientFilter === 'firm' ? doc.clientId !== null : doc.clientId !== clientFilter))
-        return false;
+      if (!scope.matches(doc.clientId)) return false;
       if (stateFilter !== 'all' && doc.state !== stateFilter) return false;
       if (term && !`${doc.title} ${doc.templateKey} ${contextCategoryLabel(doc.templateKey)}`.toLowerCase().includes(term)) return false;
       return true;
@@ -255,10 +221,10 @@ export function ContextLibraryVNext() {
             </p>
           </div>
           <div className="st-ctxlib__actions">
-            <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/steward')}>
+            <CapiroButton variant="secondary" onClick={() => navigate(`/strategies/context/steward${scope.query}`)}>
               Review facts and conflicts
             </CapiroButton>
-            <CapiroButton variant="primary" onClick={() => navigate('/strategies/context/upload')}>
+            <CapiroButton variant="primary" onClick={() => navigate(`/strategies/context/upload${scope.query}`)}>
               Upload files
             </CapiroButton>
           </div>
@@ -278,7 +244,7 @@ export function ContextLibraryVNext() {
                 detail={
                   scopeClientId && healthStaleDocs !== undefined
                     ? `${healthStaleDocs} need updating for selected client`
-                    : 'Across your firm and clients'
+                    : scopeClientId ? 'Selected client and shared firm context' : clientFilter === 'firm' ? 'Shared firm context' : 'Across your firm and clients'
                 }
                 onClick={() => setParam('state', 'active')}
               />
@@ -292,7 +258,7 @@ export function ContextLibraryVNext() {
                     : `${activeFacts.length} in use · ${staleFactCount} need updating`
                 }
                 label="Facts in use"
-                onClick={() => navigate('/strategies/context/steward')}
+                onClick={() => navigate(`/strategies/context/steward${scope.query}`)}
               />
               <StatCard
                 loading={statsLoading}
@@ -316,7 +282,7 @@ export function ContextLibraryVNext() {
                     : 'default'
                 }
                 data-source={scopeClientId && health.data ? 'live' : 'derived'}
-                onClick={() => navigate('/strategies/context/steward')}
+                onClick={() => navigate(`/strategies/context/steward${scope.query}`)}
               />
             </section>
 
@@ -330,24 +296,23 @@ export function ContextLibraryVNext() {
                 </span>
               </div>
               <div className="st-ctxlib__pill-group" role="group" aria-label="Filter by client">
-                <FilterPill active={clientFilter === 'all'} onClick={() => setParam('client', 'all')}>
+                <FilterPill active={clientFilter === 'all'} onClick={() => scope.select('all')}>
                   All clients
                 </FilterPill>
-                {hasFirmDocs ? (
-                  <FilterPill active={clientFilter === 'firm'} onClick={() => setParam('client', 'firm')}>
-                    Firm
-                  </FilterPill>
-                ) : null}
+                <FilterPill active={clientFilter === 'firm'} onClick={() => scope.select('firm')}>
+                  Firm
+                </FilterPill>
                 {clientOptions.map((option) => (
                   <FilterPill
                     key={option.id}
                     active={clientFilter === option.id}
-                    onClick={() => setParam('client', option.id)}
+                    onClick={() => scope.select(option.id)}
                   >
                     {option.name}
                   </FilterPill>
                 ))}
               </div>
+              {scopeClientId ? <p className="st-ctxlib__stale-note">Includes shared firm documents, labeled Firm. Other clients’ documents are excluded.</p> : null}
               <div className="st-ctxlib__pill-group" role="group" aria-label="Filter by status">
                 {STATE_FILTERS.map((filter) => (
                   <FilterPill
@@ -416,7 +381,7 @@ export function ContextLibraryVNext() {
                 }
                 action={
                   (docs.data?.length ?? 0) === 0 ? (
-                    <CapiroButton variant="primary" size="compact" onClick={() => navigate('/strategies/context/upload')}>
+                    <CapiroButton variant="primary" size="compact" onClick={() => navigate(`/strategies/context/upload${scope.query}`)}>
                       Upload files
                     </CapiroButton>
                   ) : undefined
@@ -439,7 +404,7 @@ export function ContextLibraryVNext() {
                       </span>
                     </header>
                     {rows.map((doc) => (
-                      <DocumentRow key={doc.id} doc={doc} clientLabel={clientName(doc.clientId)} />
+                      <DocumentRow key={doc.id} doc={doc} clientLabel={clientName(doc.clientId)} scopeQuery={scope.query} />
                     ))}
                   </section>
                 ))}
@@ -458,7 +423,7 @@ export function ContextLibraryVNext() {
                 an approved ask or a deadline, for example—decide which information your team should use.
                 You can remove an incorrect fact without changing the document it came from.
               </p>
-              <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/steward')}>
+              <CapiroButton variant="secondary" onClick={() => navigate(`/strategies/context/steward${scope.query}`)}>
                 {openConflicts.length > 0
                   ? `Review ${openConflicts.length} conflict${openConflicts.length === 1 ? '' : 's'}`
                   : 'Review facts and sources'}
@@ -540,7 +505,7 @@ function FilterPill({
   );
 }
 
-function DocumentRow({ doc, clientLabel }: { doc: ContextDocumentListItem; clientLabel: string }) {
+function DocumentRow({ doc, clientLabel, scopeQuery }: { doc: ContextDocumentListItem; clientLabel: string; scopeQuery: string }) {
   const navigate = useNavigate();
   const stale = isContextDocStale(doc);
   const asOf = fmtDay(fmScalar(doc.frontmatter, 'as_of'));
@@ -554,7 +519,7 @@ function DocumentRow({ doc, clientLabel }: { doc: ContextDocumentListItem; clien
     .filter(Boolean)
     .join(' · ');
   return (
-    <button type="button" className="st-ctxlib__row" onClick={() => navigate(`/strategies/context/${doc.id}`)}>
+    <button type="button" className="st-ctxlib__row" onClick={() => navigate(`/strategies/context/${doc.id}${scopeQuery}`)}>
       <span className="st-ctxlib__row-copy">
         <strong>{doc.title}</strong>
         <small>{meta}</small>

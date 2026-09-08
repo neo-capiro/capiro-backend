@@ -1,3 +1,4 @@
+import { isCommittedStrategyStep, isStrategyStepOverdue, strategyStepDueDate } from '@capiro/strategy-verifier';
 import type {
   ExecutiveReportSnapshot,
   ReportNarrativeItem,
@@ -12,7 +13,9 @@ export interface RoadmapGroup {
     | "Now & next 30 days"
     | "31–60 days"
     | "61–90 days"
-    | "Later";
+    | "Later"
+    | "Completed"
+    | "Suggested / awaiting acceptance";
   nodes: ReportNode[];
 }
 
@@ -103,7 +106,7 @@ export function leadershipAgenda(
 ): LeadershipAgendaItem[] {
   const agenda: LeadershipAgendaItem[] = [];
   const asOf = Date.parse(`${snapshot.asOf}T00:00:00.000Z`);
-  const ordered = criticalNodes(snapshot, snapshot.nodes.length);
+  const ordered = criticalNodes(snapshot, snapshot.nodes.length).filter((node) => isCommittedStrategyStep(node) && node.status !== "completed");
 
   for (const node of ordered.filter(
     (candidate) => candidate.kind === "decision",
@@ -122,7 +125,7 @@ export function leadershipAgenda(
     });
   }
   for (const node of ordered.filter(
-    (candidate) => !candidate.openEnded && dueMs(candidate) < asOf,
+    (candidate) => isStrategyStepOverdue(candidate, new Date(asOf)),
   )) {
     agenda.push({
       title: `Recover or rebaseline: ${node.title}`,
@@ -314,14 +317,16 @@ export function roadmap(snapshot: ExecutiveReportSnapshot): RoadmapGroup[] {
     { label: "31–60 days", nodes: [] },
     { label: "61–90 days", nodes: [] },
     { label: "Later", nodes: [] },
+    { label: "Completed", nodes: [] },
+    { label: "Suggested / awaiting acceptance", nodes: [] },
   ];
   for (const node of snapshot.nodes) {
+    if (node.status === "completed") { groups[5]!.nodes.push(node); continue; }
+    if (node.status === "suggested") { groups[6]!.nodes.push(node); continue; }
     const diffDays = Math.floor(
       (Date.parse(`${node.startsOn}T00:00:00.000Z`) - asOf) / 86_400_000,
     );
-    const overdue =
-      !node.openEnded &&
-      Date.parse(`${node.endsOn ?? node.startsOn}T00:00:00.000Z`) < asOf;
+    const overdue = isStrategyStepOverdue(node, new Date(asOf));
     const index = overdue
       ? 0
       : diffDays <= 30
@@ -333,7 +338,7 @@ export function roadmap(snapshot: ExecutiveReportSnapshot): RoadmapGroup[] {
             : 4;
     groups[index]!.nodes.push(node);
   }
-  return groups;
+  return groups.filter((group, index) => index < 5 || group.nodes.length > 0);
 }
 
 export function nodeDetail(
@@ -416,7 +421,9 @@ function comparable(value: string): string {
 }
 
 function priority(node: ReportNode, asOf: number): number {
-  const overdue = !node.openEnded && dueMs(node) < asOf;
+  if (node.status === "completed") return 99;
+  if (node.status === "suggested") return 98;
+  const overdue = isStrategyStepOverdue(node, new Date(asOf));
   if (overdue) return 0;
   if (node.kind === "risk") return 1;
   if (node.kind === "decision") return 2;
@@ -426,8 +433,7 @@ function priority(node: ReportNode, asOf: number): number {
 }
 
 function dueMs(node: ReportNode): number {
-  const parsed = Date.parse(`${node.endsOn ?? node.startsOn}T00:00:00.000Z`);
-  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+  return strategyStepDueDate(node) ?? Number.MAX_SAFE_INTEGER;
 }
 
 function titleCase(value: string): string {

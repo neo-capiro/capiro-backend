@@ -5,9 +5,7 @@
  * The provenance surface for one grounded-agent-context document: header with
  * template key / client / title plus the Extract-facts and Archive actions, a
  * metadata strip (scope · authority · state · as-of · valid-to + supersession),
- * the raw markdown body as numbered monospace lines (what the agents read is
- * exactly what you see — deliberately no markdown renderer, no edit affordance
- * anywhere), and a right rail with the outline (the single selection control,
+ * a sanitized reading view with the original numbered source available on demand, and a right rail with the outline (the single selection control,
  * §4.1 #8), the SHA-256 provenance card and the extracted-fact counts.
  *
  * Governance (§7.6 must-nots):
@@ -57,6 +55,10 @@ import {
   resolveHighlight,
 } from '../../../../pages/strategy/context/context-utils.js';
 import type { ContextDocState } from '../../../../pages/strategy/types.js';
+import { ContextReadingView } from './ContextReadingView.js';
+import { ContextAssociation } from './ContextAssociation.js';
+import { contextCategoryLabel } from './context-categories.js';
+import { contextHealthStatus } from './context-health-label.js';
 import './context-document.css';
 
 /*
@@ -140,28 +142,15 @@ export function ContextDocumentVNext() {
    * no single meaningful "N facts" number across all clients, so an unscoped
    * portfolio never gets a fabricated "Healthy" reading. */
   const clientContext = useShellClientContext();
-  const scopeClientId = clientContext.selectedClientId;
+  const scopeClientId = doc.data?.clientId ?? null;
+  const fixedScopeClientName = doc.data ? (doc.data.clientId ? clientName(clients.data, doc.data.clientId) : 'Firm-wide') : undefined;
   const health = useContextHealth(scopeClientId);
-  const scopeStatus: ScopeBarStatus = !scopeClientId
-    ? { tone: 'gray', label: 'Select a client to see context health' }
-    : health.isLoading
-      ? { tone: 'gray', label: 'Checking context health…' }
-      : health.isError || !health.data
-        ? { tone: 'gray', label: 'Context health unavailable' }
-        : {
-            tone:
-              health.data.status === 'ok'
-                ? 'success'
-                : health.data.status === 'degraded'
-                  ? 'warning'
-                  : 'error',
-            label:
-              health.data.status === 'ok'
-                ? 'Healthy'
-                : health.data.status === 'degraded'
-                  ? 'Degraded'
-                  : 'Conflicted',
-          };
+  const scopeStatus: ScopeBarStatus = scopeClientId
+    ? contextHealthStatus(health.data, health.isError, health.isLoading, health.data?.activeFacts)
+    : { tone: 'gray', label: 'Shared firm context' };
+  useEffect(() => {
+    if (doc.data?.clientId) clientContext.setSelectedClientId?.(doc.data.clientId);
+  }, [doc.data?.clientId]);
 
   /* §4.1 #8: selection is single-sourced from the outline and lives in the URL
    * (?ref=), so a copied source link restores the exact highlighted range. */
@@ -250,7 +239,7 @@ export function ContextDocumentVNext() {
   if (doc.isLoading) {
     return (
       <div className="st-ctxdoc" aria-label="Loading context document">
-        <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
+        <ScopeBar clientLabel="CLIENT" fixedClientName={fixedScopeClientName} status={scopeStatus} />
         <div className="st-ctxdoc__header">
           <CapiroSkeleton width={140} height={12} />
           <CapiroSkeleton width={220} height={11} />
@@ -279,9 +268,9 @@ export function ContextDocumentVNext() {
   if (!doc.data || (doc.isError && isForbidden(doc.error))) {
     return (
       <div className="st-ctxdoc">
-        <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
+        <ScopeBar clientLabel="CLIENT" fixedClientName={fixedScopeClientName} status={scopeStatus} />
         <div className="st-ctxdoc__state-page">
-          <Link className="st-ctxdoc__back" to="/strategies/context">
+          <Link className="st-ctxdoc__back" to={`/strategies/context${scopeClientId ? `?clientId=${scopeClientId}` : ''}`}>
             <ChevronLeftGlyph />Context library
           </Link>
           {isForbidden(doc.error) ? (
@@ -394,17 +383,17 @@ export function ContextDocumentVNext() {
 
   return (
     <div className="st-ctxdoc">
-      <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
+      <ScopeBar clientLabel="CLIENT" fixedClientName={fixedScopeClientName} status={scopeStatus} />
 
       {/* ---- header ------------------------------------------------------- */}
       <header className="st-ctxdoc__header">
-        <Link className="st-ctxdoc__back" to="/strategies/context">
+        <Link className="st-ctxdoc__back" to={`/strategies/context${scopeClientId ? `?clientId=${scopeClientId}` : ''}`}>
           <ChevronLeftGlyph />Context library
         </Link>
         <div className="st-ctxdoc__title-row">
           <div className="st-ctxdoc__title-block">
             <div className="st-ctxdoc__eyebrow st-mono">
-              {d.templateKey}
+              {contextCategoryLabel(d.templateKey)}
               <span aria-hidden="true"> · </span>
               {clientLabel}
             </div>
@@ -559,9 +548,13 @@ export function ContextDocumentVNext() {
         </span>
       </div>
 
+      <ContextAssociation key={d.id} document={d} />
       <div className="st-ctxdoc__main">
         {/* ---- source viewer: numbered monospace lines, read-only ---------- */}
-        <section className="st-ctxdoc__viewer" aria-label="Document source">
+        <section className="st-ctxdoc__viewer" aria-label="Document">
+          <ContextReadingView content={d.content} highlight={highlight} />
+          <details className="st-ctxdoc__source-details">
+            <summary>Original source and citation lines</summary>
           <div className="st-ctxdoc__viewer-head">
             <span className="st-mono">{d.templateKey}.md</span>
             <span className="st-ctxdoc__viewer-head-label">Line view</span>
@@ -584,6 +577,7 @@ export function ContextDocumentVNext() {
               );
             })}
           </div>
+          </details>
           <div className="st-ctxdoc__selection-footer">
             {activeRef && locate.isFetching ? (
               <span className="st-ctxdoc__selection-label">Locating source lines…</span>
@@ -593,7 +587,7 @@ export function ContextDocumentVNext() {
               </span>
             ) : (
               <span className="st-ctxdoc__selection-label">
-                Select a section in the outline to highlight its exact source lines.
+                Select a section in the outline to highlight it and copy its citation.
               </span>
             )}
             <span className="st-ctxdoc__selection-spacer" />
@@ -614,8 +608,7 @@ export function ContextDocumentVNext() {
             <span className="st-ctxdoc__card-label">Outline</span>
             <h2 className="st-ctxdoc__card-title">Document outline</h2>
             <p className="st-ctxdoc__card-hint">
-              Click a section to locate its exact source lines — retrieved deterministically, no AI
-              involved.
+              Select a section to read it in the document. Original source lines remain available for checking citations.
             </p>
             {sections.isLoading ? (
               <div className="st-ctxdoc__outline">
@@ -672,10 +665,11 @@ export function ContextDocumentVNext() {
             ) : null}
           </section>
 
-          <section className="st-ctxdoc__card st-ctxdoc__card--muted" aria-label="Provenance">
+          <details className="st-ctxdoc__card st-ctxdoc__card--muted" aria-label="Provenance">
+            <summary>Document history and technical details</summary>
             <span className="st-ctxdoc__card-label">Provenance</span>
             <div className="st-ctxdoc__hash-row">
-              <span className="st-ctxdoc__hash-chip st-mono">SHA-256 VERIFIED</span>
+              <span className="st-ctxdoc__hash-chip st-mono">Stored document checksum</span>
               <span className="st-ctxdoc__hash-value st-mono" title={d.checksum}>
                 {d.checksum.slice(0, 16)}…
               </span>
@@ -729,7 +723,7 @@ export function ContextDocumentVNext() {
                 </dd>
               </div>
             </dl>
-          </section>
+          </details>
 
           <section className="st-ctxdoc__card" aria-label="Extracted facts">
             <span className="st-ctxdoc__card-label">Extracted facts</span>
@@ -769,7 +763,7 @@ export function ContextDocumentVNext() {
                 ) : null}
               </>
             )}
-            <CapiroButton variant="primary" onClick={() => navigate('/strategies/context/steward')}>
+            <CapiroButton variant="primary" onClick={() => navigate(`/strategies/context/steward${scopeClientId ? `?clientId=${scopeClientId}` : ''}`)}>
               Open steward review
             </CapiroButton>
           </section>

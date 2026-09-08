@@ -548,3 +548,14 @@
     transform: translate(-50%, -50%);
   }
 }
+
+/* Default reading mode, with the original source retained below it. */
+.st-ctxdoc__reading { padding: 28px; font: 15px/1.65 var(--font-body, sans-serif); overflow-wrap: anywhere; }
+.st-ctxdoc__reading h1 { font-size: 25px; } .st-ctxdoc__reading h2 { font-size: 20px; } .st-ctxdoc__reading h3 { font-size: 17px; }
+.st-ctxdoc__reading table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.st-ctxdoc__reading th, .st-ctxdoc__reading td { border: 1px solid var(--st-border, #ddd); padding: 8px; text-align: left; }
+.st-ctxdoc__reading pre { overflow-x: auto; padding: 12px; }
+.st-ctxdoc__reading .is-hit { background: #fff2cc; color: #282415; border-radius: 4px; }
+.st-ctxdoc__source-details summary, .st-ctxdoc__card > summary { cursor: pointer; padding: 12px; font-weight: 600; }
+.st-ctxdoc__association { margin: 16px 28px; padding: 16px; border: 1px solid var(--st-border, #ddd); border-radius: 10px; }
+.st-ctxdoc__association select { max-width: 100%; padding: 8px; margin: 8px; }

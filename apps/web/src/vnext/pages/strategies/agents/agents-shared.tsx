@@ -3,22 +3,12 @@
  * Pure presentational utilities used by both tabs (proposals + runs). No data
  * fetching here — every hook lives in ../strategies-api.js (BUILD-CONTRACT).
  */
+import { strategyRelativeTime } from '../lib/date-format.js';
 import type { UseQueryResult } from '@tanstack/react-query';
 
 /** ISO datetime → "just now" / "N min ago" / … (day-granularity fallback). */
 export function fmtRelative(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '—';
-  const diff = Date.now() - then;
-  const mins = Math.round(diff / 60_000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return days === 1 ? 'yesterday' : `${days} days ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return iso ? strategyRelativeTime(iso) : '—';
 }
 
 /** Machine identifier → short form for display (full value stays in title). */
@@ -80,4 +70,9 @@ export function BannerLockGlyph() {
       <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
     </svg>
   );
+}
+
+/** The Watch marker remains in the audit record, not the primary proposal text. */
+export function proposalSummary(summary: string): string {
+  return summary.replace(/^\[watch:[^\]]+\]\s*/, '') || 'Proposed plan change';
 }

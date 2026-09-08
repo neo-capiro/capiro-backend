@@ -53,6 +53,7 @@ const REF_PREVIEW_CHARS = 120;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface StewardHealthReport {
+  assessment: 'missing' | 'not_assessed' | 'stale' | 'conflicted' | 'assessed';
   status: 'ok' | 'degraded' | 'conflicted';
   factCounts: Record<SpFactState, number>;
   openConflicts: number;
@@ -284,7 +285,7 @@ export class StewardService {
   /** List facts for the review UI (newest first, joined with their document). */
   async listFacts(
     tenantId: string,
-    opts: { clientId?: string; documentId?: string; state?: string } = {},
+    opts: { clientId?: string; documentId?: string; state?: string; includeFirm?: boolean; firmOnly?: boolean } = {},
   ) {
     if (opts.state && !(Object.values(SpFactState) as string[]).includes(opts.state)) {
       throw new BadRequestException(
@@ -304,7 +305,8 @@ export class StewardService {
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.spContextFact.findMany({
         where: {
-          ...(opts.clientId ? { clientId: opts.clientId } : {}),
+          ...(opts.firmOnly ? { clientId: null, document: { is: { scope: 'firm' as const } } }
+            : opts.clientId ? (opts.includeFirm ? { OR: [{ clientId: opts.clientId }, { clientId: null, document: { is: { scope: 'firm' as const } } }] } : { clientId: opts.clientId }) : {}),
           ...(opts.documentId ? { documentId: opts.documentId } : {}),
           ...(opts.state ? { state: opts.state as SpFactState } : {}),
         },
@@ -313,6 +315,13 @@ export class StewardService {
         include: { document: { select: { title: true, templateKey: true } } },
       }),
     );
+  }
+
+  /** Direct citation lookup remains available even outside the first page of facts. */
+  async factById(tenantId: string, id: string) {
+    const fact = await this.prisma.withTenant(tenantId, (tx) => tx.spContextFact.findFirst({ where: { id }, include: { document: { select: { title: true, templateKey: true } } } }));
+    if (!fact) throw new NotFoundException('Fact not found');
+    return fact;
   }
 
   /** Reviewer verdict: an ACTIVE fact may be rejected (any other state 409s). */
@@ -348,7 +357,7 @@ export class StewardService {
    * with the provenance a reviewer decides on: text, source-document title,
    * authority, and as-of date (the web ContextConflictFact shape).
    */
-  async listConflicts(tenantId: string, opts: { clientId?: string; state?: string } = {}) {
+  async listConflicts(tenantId: string, opts: { clientId?: string; state?: string; includeFirm?: boolean; firmOnly?: boolean } = {}) {
     if (opts.state && !(Object.values(SpConflictState) as string[]).includes(opts.state)) {
       throw new BadRequestException(
         `Invalid state '${opts.state}' — expected one of: ${Object.values(SpConflictState).join(', ')}`,
@@ -358,9 +367,10 @@ export class StewardService {
       throw new BadRequestException(`Invalid clientId '${opts.clientId}' — expected a UUID`);
     }
     return this.prisma.withTenant(tenantId, async (tx) => {
-      const clientFactIds = opts.clientId
+      const clientFactIds = opts.firmOnly || opts.clientId
         ? (await tx.spContextFact.findMany({
-            where: { clientId: opts.clientId },
+            where: opts.firmOnly ? { clientId: null, document: { is: { scope: 'firm' } } }
+              : opts.includeFirm ? { OR: [{ clientId: opts.clientId }, { clientId: null, document: { is: { scope: 'firm' } } }] } : { clientId: opts.clientId },
             select: { id: true },
           })).map((fact) => fact.id)
         : null;
@@ -405,7 +415,8 @@ export class StewardService {
         // ends share a scope by construction; extraction enforces it).
         clientId: byId.get(c.factAId)?.clientId ?? byId.get(c.factBId)?.clientId ?? null,
       }));
-      return opts.clientId ? joined.filter((c) => c.clientId === opts.clientId) : joined;
+      return opts.firmOnly ? joined.filter((c) => c.clientId === null)
+        : opts.clientId ? joined.filter((c) => c.clientId === opts.clientId || (opts.includeFirm && c.clientId === null)) : joined;
     });
   }
 
@@ -611,12 +622,13 @@ export class StewardService {
 
       const status: StewardHealthReport['status'] = openMaterialConflicts.length
         ? 'conflicted'
-        : missingRequired.length || staleDocs.length
+        : missingRequired.length || staleDocs.length || factCounts.active === 0
           ? 'degraded'
           : 'ok';
 
       return {
         status,
+        assessment: openMaterialConflicts.length ? 'conflicted' : staleDocs.length ? 'stale' : missingRequired.length ? 'missing' : factCounts.active === 0 ? 'not_assessed' : 'assessed',
         factCounts,
         openConflicts: scoped.length,
         openMaterialConflicts,

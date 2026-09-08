@@ -248,12 +248,13 @@ function baseSnapshot(
     score: 90,
     label: "On track" as const,
     coveragePct: 100,
-    groundingPct: 100,
+    groundingPct: null,
     timelinessPct: 100,
     totalNodes: 1,
     ownedNodes: 1,
     totalGates: 0,
     groundedGates: 0,
+    datedNodes: 1,
     overdueNodes: 0,
   };
   return {

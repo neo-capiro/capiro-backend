@@ -555,6 +555,8 @@ model SpAgentMission {
   clientId        String?        @map("client_id") @db.Uuid
   name            String
   description     String?        @db.Text
+  // Durable classification; legacy rows remain discoverable from schedule/run history.
+  purpose         String?
   state           SpMissionState @default(draft)
   cadence         String? // "daily" | "weekly" | null (manual-only)
   nextRunAt       DateTime?      @map("next_run_at")

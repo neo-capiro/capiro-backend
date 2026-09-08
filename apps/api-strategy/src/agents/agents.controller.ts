@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { IsIn } from 'class-validator';
 import type { Request } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
@@ -22,6 +23,7 @@ import {
   CreateRunDto,
   ApproveExactDraftDto,
   ExecutionPlanDto,
+  ExecutionPreflightDto,
   MarkRunFailedDto,
   RejectApprovalDto,
   ResolveReservationDto,
@@ -29,6 +31,11 @@ import {
   RunCheckDto,
   UpdateMissionDto,
 } from './dto/agents.dto.js';
+
+class ConfigureWatchDto {
+  @IsIn(['paused', 'manual', 'daily', 'weekly'])
+  mode!: 'paused' | 'manual' | 'daily' | 'weekly';
+}
 
 /** Bearer TenantGuard verified but did not stash — the Execution Agent forwards
  *  it to the artifact-staging hop (parity with MeriController.bearerFrom). */
@@ -149,6 +156,11 @@ export class AgentsController {
   // covers the guard-less scheduler path. The caller bearer is forwarded so the
   // artifact-staging hop rides the authorising identity; a bearerless execute
   // parks the run (never a bearerless external hop).
+
+  @Get('execution/preflight')
+  preflightExecution(@CurrentTenant() tc: AuthTenantContext, @Query() dto: ExecutionPreflightDto) {
+    return this.execution.preflight(tc.tenantId, tc.clerkUserId, dto);
+  }
 
   @Get('execution/runs')
   @UseGuards(ExecutionAgentGuard)
@@ -380,6 +392,17 @@ export class AgentsController {
    * one aggregate query, not one getState() per row. Declared as a literal
    * segment so it can never be shadowed by `watch/strategies/:strategyId`.
    */
+  @Get('watch/strategies/:strategyId/monitoring')
+  getWatchMonitoring(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string) {
+    return this.watcher.monitoring(tc.tenantId, strategyId);
+  }
+
+  @Patch('watch/strategies/:strategyId/monitoring')
+  @UseGuards(StrategyWatcherGuard)
+  configureWatchMonitoring(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string, @Body() dto: ConfigureWatchDto) {
+    return this.watcher.configureMonitoring(tc.tenantId, tc.clerkUserId, strategyId, dto.mode);
+  }
+
   @Get('watch/pending-counts')
   @UseGuards(StrategyWatcherGuard)
   getWatchPendingCounts(@CurrentTenant() tc: AuthTenantContext) {
@@ -399,8 +422,8 @@ export class AgentsController {
    *  reconciliation against the current head. */
   @Post('watch/strategies/:strategyId/revalidate')
   @UseGuards(StrategyWatcherGuard)
-  revalidateWatch(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string) {
-    return this.watchReview.revalidate(tc.tenantId, tc.clerkUserId, strategyId, 'panel-open');
+  revalidateWatch(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string, @Query('force') force?: string) {
+    return this.watchReview.revalidate(tc.tenantId, tc.clerkUserId, strategyId, force === 'true' ? 'manual-check' : 'panel-open');
   }
 
   /** Accept ONE proposal: this call IS the approval, applies it, cuts one

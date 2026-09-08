@@ -60,12 +60,21 @@ export class StewardController {
     @Query('clientId') clientId?: string,
     @Query('documentId') documentId?: string,
     @Query('state') state?: string,
+    @Query('includeFirm') includeFirm?: string,
+    @Query('firmOnly') firmOnly?: string,
   ) {
     return this.steward.listFacts(tc.tenantId, {
       clientId: clientId || undefined,
       documentId: documentId || undefined,
       state: state || undefined,
+      includeFirm: includeFirm === 'true',
+      firmOnly: firmOnly === 'true',
     });
+  }
+
+  @Get('facts/:id')
+  factById(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.steward.factById(tc.tenantId, id);
   }
 
   @Post('facts/:id/reject')
@@ -82,10 +91,14 @@ export class StewardController {
     @CurrentTenant() tc: AuthTenantContext,
     @Query('clientId') clientId?: string,
     @Query('state') state?: string,
+    @Query('includeFirm') includeFirm?: string,
+    @Query('firmOnly') firmOnly?: string,
   ) {
     return this.steward.listConflicts(tc.tenantId, {
       clientId: clientId || undefined,
       state: state || undefined,
+      includeFirm: includeFirm === 'true',
+      firmOnly: firmOnly === 'true',
     });
   }
 

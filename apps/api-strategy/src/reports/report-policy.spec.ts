@@ -95,6 +95,16 @@ describe("executive report policy", () => {
     ]);
   });
 
+  it("retains completed and suggested steps outside the overdue delivery queue", () => {
+    const snapshot = minimalSnapshot();
+    snapshot.nodes.push({ ...snapshot.nodes[0]!, id: "completed", status: "completed" });
+    snapshot.nodes.push({ ...snapshot.nodes[0]!, id: "suggested", status: "suggested" });
+    const groups = roadmap(snapshot);
+    expect(groups[0]?.nodes.map((node) => node.id)).toEqual(["node-1"]);
+    expect(groups.find((group) => group.label === "Completed")?.nodes[0]?.id).toBe("completed");
+    expect(groups.find((group) => group.label.startsWith("Suggested"))?.nodes[0]?.id).toBe("suggested");
+  });
+
   it("stable-sorts object keys before hashing input", () => {
     expect(stableJson({ z: 1, a: { d: 4, b: 2 } })).toBe(
       '{"a":{"b":2,"d":4},"z":1}',
@@ -144,27 +154,29 @@ function minimalSnapshot(): ExecutiveReportSnapshot {
     },
     version: { id: null, createdAt: null, note: null },
     health: {
-      score: 65,
+      score: 62,
       label: "Needs attention",
       coveragePct: 100,
-      groundingPct: 100,
+      groundingPct: null,
       timelinessPct: 0,
       totalNodes: 1,
       ownedNodes: 1,
       totalGates: 0,
       groundedGates: 0,
+      datedNodes: 1,
       overdueNodes: 1,
     },
     allLiveHealth: {
-      score: 65,
+      score: 62,
       label: "Needs attention",
       coveragePct: 100,
-      groundingPct: 100,
+      groundingPct: null,
       timelinessPct: 0,
       totalNodes: 1,
       ownedNodes: 1,
       totalGates: 0,
       groundedGates: 0,
+      datedNodes: 1,
       overdueNodes: 1,
     },
     counts: {

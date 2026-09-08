@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkFiscalCycle } from '@capiro/strategy-verifier';
 import { phaseCoverageGaps, phasesInDateOrder } from './phase-coverage.js';
 import { strategyDate, strategyRelativeTime } from './date-format.js';
-import { strategyArtifactHref } from './artifact-link.js';
+import { strategyArtifactHref, strategyArtifactReference } from './artifact-link.js';
 
 describe('Selected strategy QA regressions', () => {
   it('flags the audited FY27 annual cycle dated in 2027, without inventing replacement deadlines', () => {
@@ -59,4 +59,13 @@ describe('Selected strategy QA regressions', () => {
       '/engagement/outreach/draft/outreach-1',
     );
   });
+  it('accepts matching Capiro output links and rejects foreign or wrong-type links', () => {
+    const origin = 'https://os.capiro.ai';
+    expect(strategyArtifactReference('workspace_draft', `${origin}/workspace/draft/draft-1?view=edit`, origin)).toBe('draft-1');
+    expect(strategyArtifactReference('outreach_record', '/engagement/outreach/draft/outreach-1', origin)).toBe('outreach-1');
+    expect(strategyArtifactReference('workspace_draft', `${origin}/engagement/outreach/draft/outreach-1`, origin)).toBeNull();
+    expect(strategyArtifactReference('workspace_draft', 'https://example.org/workspace/draft/draft-1', origin)).toBeNull();
+    expect(strategyArtifactReference('workspace_draft', 'javascript:alert(1)', origin)).toBeNull();
+  });
+
 });

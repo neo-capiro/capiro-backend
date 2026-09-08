@@ -147,6 +147,7 @@ function snapshot(): ExecutiveReportSnapshot {
     ownedNodes: 2,
     totalGates: 1,
     groundedGates: 1,
+    datedNodes: 2,
     overdueNodes: 0,
   };
   return {

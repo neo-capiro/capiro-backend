@@ -1,13 +1,19 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setGlobalClientFilter } from '../../../../state/client-filter.js';
 import { ContextDocumentVNext } from './ContextDocumentVNext.js';
 import { ContextLibraryVNext } from './ContextLibraryVNext.js';
 import { StewardReviewVNext } from './StewardReviewVNext.js';
 
 const mocks = vi.hoisted(() => ({
-  document: {} as any, documents: {} as any, facts: {} as any,
+  document: {} as any, documents: {} as any, facts: {} as any, clients: [] as Array<{ id: string; name: string }>,
   archive: vi.fn(), extract: vi.fn(), approve: vi.fn(), role: 'user_admin',
+}));
+vi.mock('./context-workflows-api.js', () => ({
+  useContextAssociation: () => ({ data: { state: 'active', strategy: { id: 'current-plan', title: 'Current plan' } } }),
+  useContextReassignmentTargets: () => ({ data: [{ id: 'next-plan', clientId: 'client-a', title: 'Next plan' }] }),
+  useReassignContextDocument: () => ({ mutate: vi.fn() }),
 }));
 vi.mock('../ScopeBar.js', () => ({ ScopeBar: () => null }));
 vi.mock('../../../adapters/legacy/useShellClientContext.js', () => ({
@@ -15,10 +21,11 @@ vi.mock('../../../adapters/legacy/useShellClientContext.js', () => ({
 }));
 vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ data: { role: mocks.role, features: { agenticMeri: true, contextSteward: true } } }) }));
 vi.mock('../strategies-api.js', () => ({
-  clientName: () => 'Client', useClientsLite: () => ({ data: [] }),
+  clientName: () => 'Client', useClientsLite: () => ({ data: mocks.clients }),
   useContextDocument: () => mocks.document,
   useContextDocuments: () => mocks.documents,
   useContextFacts: () => mocks.facts,
+  useContextFact: (id: string) => ({ data: mocks.facts.data?.find((fact: { id: string }) => fact.id === id), isSuccess: true }),
   useContextHealth: () => ({ data: undefined }),
   useContextConflicts: () => ({ data: [], isSuccess: true }),
   useContextSections: () => ({ data: [] }),
@@ -47,19 +54,65 @@ function renderDocument() {
 }
 
 beforeEach(() => {
+  setGlobalClientFilter(null);
   mocks.document = success(document);
   mocks.documents = success([document]);
   mocks.facts = success([]);
   mocks.archive.mockReset();
   mocks.approve.mockReset();
   mocks.role = 'user_admin';
+  mocks.clients = [{ id: 'client-a', name: 'Client A' }, { id: 'client-b', name: 'Client B' }];
 });
 
 describe('Context production regressions', () => {
+  it('clears a reassignment review when navigating directly to another cached document', () => {
+    mocks.document = success({ ...document, clientId: 'client-a', scopeRef: 'current-plan' });
+    render(<MemoryRouter initialEntries={['/strategies/context/document-1']}>
+      <Link to="/strategies/context/document-2">Next source</Link>
+      <Routes><Route path="/strategies/context/:documentId" element={<ContextDocumentVNext />} /></Routes>
+    </MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Change strategy' }));
+    fireEvent.change(screen.getByLabelText('New strategy'), { target: { value: 'next-plan' } });
+    expect(screen.getByRole('button', { name: 'Create working revision' })).toBeEnabled();
+
+    mocks.document = success({ ...mocks.document.data, id: 'document-2', title: 'Another cached source', checksum: 'b'.repeat(64) });
+    fireEvent.click(screen.getByRole('link', { name: 'Next source' }));
+
+    expect(screen.getByRole('heading', { name: 'Another cached source' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create working revision' })).not.toBeInTheDocument();
+  });
+  it('uses the selected client for document rows and summary counts while labeling shared firm context', () => {
+    mocks.documents = success([
+      { ...document, id: 'a', title: 'A source', clientId: 'client-a' },
+      { ...document, id: 'b', title: 'B source', clientId: 'client-b' },
+      { ...document, id: 'firm', title: 'Firm source', clientId: null, scope: 'firm' },
+    ]);
+    setGlobalClientFilter('client-a');
+    render(<MemoryRouter><ContextLibraryVNext /></MemoryRouter>);
+    expect(screen.getByText('A source')).toBeInTheDocument();
+    expect(screen.getByText('Firm source')).toBeInTheDocument();
+    expect(screen.queryByText('B source')).not.toBeInTheDocument();
+    expect(screen.getByText('2 documents · organized by topic')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Client B' }));
+    expect(screen.getByText('B source')).toBeInTheDocument();
+    expect(screen.queryByText('A source')).not.toBeInTheDocument();
+  });
+  it('offers canonical clients with no facts in the review selector', () => {
+    render(<MemoryRouter><StewardReviewVNext /></MemoryRouter>);
+    expect(screen.getByRole('option', { name: 'Client B' })).toBeInTheDocument();
+    expect(screen.queryByText('Healthy · no open conflicts')).not.toBeInTheDocument();
+  });
+  it('offers the firm filter even when the current result page contains only client records', () => {
+    mocks.documents = success([{ ...document, clientId: 'client-a' }]);
+    render(<MemoryRouter><ContextLibraryVNext /><Location /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Firm' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('client=firm');
+  });
+
   it('keeps a previously loaded source visible when a background refresh fails', () => {
     mocks.document = { ...mocks.document, isSuccess: false, isError: true, isRefetchError: true };
     renderDocument();
-    expect(screen.getByText('Trusted evidence')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Document reading view')).getByText('Trusted evidence')).toBeInTheDocument();
     expect(screen.getByText(/Refresh failed — showing data/)).toBeInTheDocument();
   });
 

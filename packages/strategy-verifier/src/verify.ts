@@ -220,6 +220,22 @@ function checkOrdering(nodes: VerifierNode[], byId: Map<string, VerifierNode>): 
   return out;
 }
 
+/** Shared review for saved plans, manual edits, and generated plans.
+ * Action overlaps stay advisory; this never changes dates or invents edges. */
+export function checkPlanDependencies(nodes: VerifierNode[]): Violation[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  return [
+    ...checkDeps(nodes, byId),
+    ...checkOrdering(nodes, byId),
+    ...nodes.filter((node) => (node.kind === 'gate' || node.kind === 'decision') && !node.dependsOnIds?.length)
+      .map((node): Violation => ({
+        code: 'prerequisites-review', severity: 'warning', nodeIds: [node.id],
+        message: `"${node.title}" has no prerequisite steps recorded.`,
+        suggestion: 'Review the work needed before this gate or decision. An independent external event may legitimately have no prerequisites.',
+      })),
+  ];
+}
+
 /** A submission must precede the markup that acts on it, within its FY. */
 function checkSubmissionMarkup(nodes: VerifierNode[], congress: VerifierRefRow[]): Violation[] {
   const markups = congress.filter(
@@ -331,7 +347,6 @@ function checkFocalFy(input: VerifyPlanInput): Violation[] {
  */
 export function verifyPlan(input: VerifyPlanInput): VerifyPlanResult {
   const nodes = input.nodes ?? [];
-  const byId = new Map(nodes.map((n) => [n.id, n]));
   const congress = input.congress ?? [];
   const fiscal: VerifierFiscal = input.fiscal ?? {
     today: null,
@@ -342,8 +357,7 @@ export function verifyPlan(input: VerifyPlanInput): VerifyPlanResult {
   const violations: Violation[] = [
     ...checkDates(nodes),
     ...checkFiscalCycle(nodes, input.objective),
-    ...checkDeps(nodes, byId),
-    ...checkOrdering(nodes, byId),
+    ...checkPlanDependencies(nodes),
     ...checkSubmissionMarkup(nodes, congress),
     ...checkRecess(nodes, congress),
     ...checkWindow(nodes, fiscal),

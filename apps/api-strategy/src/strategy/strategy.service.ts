@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  GoneException,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
@@ -86,6 +87,7 @@ export class StrategyService {
     if (!strategy) {
       throw new NotFoundException('Strategy not found');
     }
+    if (strategy.archivedAt) throw new GoneException({ statusCode: 410, message: 'This strategy is archived and is retained as history. Choose an active strategy or review its saved versions.', strategyId: strategy.id, title: strategy.title });
     return strategy;
   }
 

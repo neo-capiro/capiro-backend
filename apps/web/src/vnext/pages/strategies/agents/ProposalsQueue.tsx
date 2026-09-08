@@ -54,7 +54,7 @@ import type {
   RunFinding,
   StrategyNode,
 } from '../../../../pages/strategy/types.js';
-import { BannerGovernanceGlyph, fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
+import { proposalSummary, BannerGovernanceGlyph, fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
 
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -155,7 +155,7 @@ export function ProposalsQueue() {
 
   const strategyLabel = (strategyId: string): { title: string; client: string } => {
     const s = strategies.data?.find((r) => r.id === strategyId);
-    return { title: s?.title ?? 'Strategy', client: clientName(clients.data, s?.clientId) };
+    return { title: s?.title ?? 'Strategy unavailable', client: clientName(clients.data, s?.clientId) };
   };
 
   /* Open work (proposed + approved) grouped by strategy, newest group first. */
@@ -204,10 +204,10 @@ export function ProposalsQueue() {
           <BannerGovernanceGlyph />
         </span>
         <div>
-          <p className="st-dark-banner__title">Human approval is the control plane.</p>
+          <p className="st-dark-banner__title">You decide which proposed changes to apply.</p>
           <p className="st-dark-banner__sub">
-            Nothing touches a plan until a person approves and applies it. Applying cuts exactly one
-            new revision — and every applied change-set can be undone.
+            Proposals in this queue change a plan only after you approve and apply them. Each application
+            saves a revision and can be undone. Direct edits by you or Meri follow a separate workflow.
           </p>
         </div>
         <span className="st-dark-banner__chip">No auto-apply</span>
@@ -217,7 +217,7 @@ export function ProposalsQueue() {
       {staleNotices.map((n) => (
         <div key={n.id} className="st-agents__notice" role="status">
           <span className="st-agents__notice-text">
-            <b>&ldquo;{n.summary}&rdquo;</b> was not applied — this plan changed elsewhere, so the
+            <b>&ldquo;{proposalSummary(n.summary)}&rdquo;</b> was not applied — this plan changed elsewhere, so the
             change-set is now stale and has left this queue. Regenerate it (run the check again from
             the strategy) to propose against the current plan.
           </span>
@@ -302,7 +302,7 @@ export function ProposalsQueue() {
         ) : groups.length === 0 ? (
           <CapiroEmptyState
             title="Nothing to review"
-            description="The Watcher has no open proposals. Enable Watch on a strategy — or run a check from its rail — to get proactive suggestions here."
+            description="There are no open proposals. Open a strategy and use Strategy monitoring to enable manual or scheduled checks. An empty queue does not mean a check has run."
           />
         ) : visibleGroups.length === 0 ? (
           <CapiroEmptyState
@@ -539,7 +539,7 @@ function StrategyGroup({
             navigate(`/strategies/${strategyId}`);
           }}
         >
-          {label.title}
+          {detail.data?.title ?? (detail.isLoading ? 'Loading strategy…' : label.title)}
         </button>
         {label.client !== '—' && <span className="st-agents__group-client">{label.client}</span>}
         {detail.isLoading && <span className="st-agents__meta">loading plan…</span>}
@@ -661,15 +661,11 @@ function ChangeSetCard({
             <span className="st-agents__spacer" />
             <span className="st-agents__meta">
               Generated {fmtRelative(cs.createdAt)}
-              {' · '}
-              base revision{' '}
-              <span className="st-mono" title={cs.strategyVersionId}>
-                {shortId(cs.strategyVersionId)}
-              </span>
             </span>
           </div>
 
-          <p className="st-agents__summary">{cs.summary || 'Untitled change-set'}</p>
+          <p className="st-agents__summary">{proposalSummary(cs.summary)}</p>
+          <details className="st-agents__meta"><summary>Audit details</summary><p>Proposal: {cs.id}</p><p>Base revision: {cs.strategyVersionId}</p><p>Recorded summary: {cs.summary}</p></details>
 
           {/* ---- operations (read-only diff; checkboxes only while proposed) -- */}
           <div className="st-agents__ops">
@@ -870,7 +866,7 @@ function ChangeSetCard({
         onClose={() => setConfirm(null)}
       >
         <p className="st-agents__modal-copy">
-          <b>{cs.summary}</b>
+          <b>{proposalSummary(cs.summary)}</b>
         </p>
         <p className="st-agents__modal-copy">
           This is a critical-risk change-set. Approving it stages {selectedDiffs.length} change
@@ -918,6 +914,7 @@ function AppliedRow({
 }) {
   const navigate = useNavigate();
   const undo = useUndoChangeSet();
+  const detail = useStrategy(label.title === 'Strategy unavailable' ? cs.strategyId : null);
   const [confirming, setConfirming] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -936,7 +933,7 @@ function AppliedRow({
       <div className="st-card__body st-agents__applied">
         <RiskPill risk={cs.risk} />
         <div className="st-agents__applied-body">
-          <span className="st-agents__summary">{cs.summary || 'Untitled change-set'}</span>
+          <span className="st-agents__summary">{proposalSummary(cs.summary)}</span>
           <span className="st-agents__meta">
             <button
               type="button"
@@ -946,7 +943,7 @@ function AppliedRow({
                 navigate(`/strategies/${cs.strategyId}`);
               }}
             >
-              {label.title}
+              {detail.data?.title ?? (detail.isLoading ? 'Loading strategy…' : label.title)}
             </button>
             {label.client !== '—' ? ` · ${label.client}` : ''} · applied{' '}
             {fmtRelative(cs.appliedAt ?? cs.updatedAt)} by {appliedBy}

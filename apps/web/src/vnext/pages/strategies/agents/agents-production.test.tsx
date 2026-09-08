@@ -6,7 +6,7 @@ import { ProposalsQueue } from './ProposalsQueue.js';
 import { AgentsTabsVNext } from './AgentsTabsVNext.js';
 
 const mocks = vi.hoisted(() => ({
-  runs: [] as any[], firm: [] as any[], execute: vi.fn(), resume: vi.fn(), retry: vi.fn(), cancel: vi.fn(), transition: vi.fn(),
+  runs: [] as any[], firm: [] as any[], execute: vi.fn(), resume: vi.fn(), retry: vi.fn(), cancel: vi.fn(), transition: vi.fn(), reconcile: vi.fn(), policyAvailable: true,
 }));
 vi.mock('../strategies-api.js', () => ({
   clientName: () => '', memberName: () => 'Reviewer',
@@ -22,6 +22,8 @@ vi.mock('../strategies-api.js', () => ({
   useRetryRun: () => ({ mutate: mocks.retry }),
   useCancelRun: () => ({ mutate: mocks.cancel }),
   useTransitionRun: () => ({ mutate: mocks.transition }),
+  useRunPolicy: (id: string) => ({ data: !mocks.policyAvailable ? undefined : { state: mocks.runs.find((r) => r.id === id)?.state, actions: ['cancel', 'execute', 'resume', 'retry', 'reconcile'], timeoutMinutes: 15 } }),
+  useReconcileRun: () => ({ mutate: mocks.reconcile }),
 }));
 vi.mock('../ScopeBar.js', () => ({ ScopeBar: ({ status }: any) => <p>{status.label}</p> }));
 const run = {
@@ -29,7 +31,7 @@ const run = {
   trigger: 'manual', createdAt: '2026-09-01', tasks: [], summary: 'Reviewable plan',
 };
 beforeEach(() => {
-  mocks.runs = []; mocks.firm = [];
+  mocks.runs = []; mocks.firm = []; mocks.policyAvailable = true; mocks.reconcile.mockReset();
   mocks.execute.mockReset(); mocks.resume.mockReset(); mocks.retry.mockReset(); mocks.cancel.mockReset(); mocks.transition.mockReset();
 });
 function ChangeCriteriaRoute() {
@@ -61,7 +63,7 @@ describe('Agent production regressions', () => {
     render(<MemoryRouter><ExecutionRuns /><ChangeCriteriaRoute /></MemoryRouter>);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open criteria link' }));
-    expect(screen.getByRole('dialog', { name: 'Stage H security criteria' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Sending and approval rules' })).toBeInTheDocument();
   });
 
   it('retries a recoverable failure through the retry action instead of the waiting-only resume action', () => {
@@ -89,4 +91,30 @@ describe('Agent production regressions', () => {
     expect(screen.getByText('Human approval required')).toBeInTheDocument();
     expect(screen.queryByText('No pending review')).not.toBeInTheDocument();
   });
+  it('requires loaded server policy before staging or retrying', () => {
+    mocks.runs = [run]; mocks.policyAvailable = false;
+    render(<MemoryRouter><ExecutionRuns /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Execute plan' })).toBeDisabled();
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it('checks an old queued run only after an explicit action and does not retry or stage it', () => {
+    mocks.runs = [{ ...run, state: 'queued' }];
+    render(<MemoryRouter><ExecutionRuns /></MemoryRouter>);
+    expect(screen.getByText(/no recorded progress beyond/)).toBeInTheDocument();
+    expect(mocks.reconcile).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check run status' }));
+    expect(mocks.reconcile).toHaveBeenCalledWith({ id: run.id }, expect.any(Object));
+    expect(mocks.retry).not.toHaveBeenCalled(); expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it('prepares a reviewed replacement for version drift instead of resuming the obsolete plan', () => {
+    mocks.runs = [{ ...run, state: 'waiting_for_input', waitingReason: 'version drift: plan changed' }];
+    render(<MemoryRouter><ExecutionRuns /></MemoryRouter>);
+    expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare updated plan' }));
+    expect(mocks.retry).toHaveBeenCalledWith({ id: run.id }, expect.any(Object));
+    expect(mocks.resume).not.toHaveBeenCalled();
+  });
+
 });

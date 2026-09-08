@@ -84,6 +84,14 @@ describe("report timeline model", () => {
     expect(model.columns[0]!.label).toBe("Jul ’26");
   });
 
+  it("does not mark completed or suggested work as overdue on the timeline", () => {
+    const model = buildTimelineModel(snapshot(), [
+      node({ id: "completed", status: "completed", startsOn: "2026-07-01", endsOn: "2026-08-01" }),
+      node({ id: "suggested", status: "suggested", startsOn: "2026-07-01", endsOn: "2026-08-01" }),
+    ])!;
+    expect(model.rows.every((row) => !row.overdue)).toBe(true);
+  });
+
   it("switches to quarter columns for long plans and truncates extreme spans", () => {
     const long = buildTimelineModel(snapshot(), [
       node({ id: "a", startsOn: "2026-09-01", endsOn: "2028-03-01" }),

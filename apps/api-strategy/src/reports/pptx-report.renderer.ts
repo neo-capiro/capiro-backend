@@ -632,21 +632,21 @@ export class PptxReportRenderer {
         "Plan health and delivery confidence",
         "Deterministic assessment",
       );
-      const metrics: Array<[string, number, string]> = [
+      const metrics: Array<[string, number | null, string]> = [
         [
           "Ownership",
           snapshot.health.coveragePct,
           `${snapshot.health.ownedNodes}/${snapshot.health.totalNodes} steps assigned`,
         ],
         [
-          "Evidence grounding",
+          "Gate source coverage",
           snapshot.health.groundingPct,
-          `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates grounded`,
+          snapshot.health.totalGates ? `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates with sources` : "Not applicable: no gates",
         ],
         [
           "Timeliness",
           snapshot.health.timelinessPct,
-          `${snapshot.health.overdueNodes} steps overdue`,
+          `${snapshot.health.overdueNodes}/${snapshot.health.datedNodes} unfinished dated commitments overdue (UTC)`,
         ],
       ];
       slide.addText(String(snapshot.health.score), {
@@ -684,7 +684,7 @@ export class PptxReportRenderer {
           color: C.ink,
           margin: 0,
         });
-        slide.addText(`${value}%`, {
+        slide.addText(value === null ? "N/A" : `${value}%`, {
           x: 10.95,
           y,
           w: 1.1,
@@ -692,7 +692,7 @@ export class PptxReportRenderer {
           fontSize: 18,
           bold: true,
           align: "right",
-          color: healthColor(value),
+          color: value === null ? C.slate : healthColor(value),
           margin: 0,
         });
         slide.addShape(pptx.ShapeType.rect, {
@@ -703,13 +703,13 @@ export class PptxReportRenderer {
           fill: { color: C.mist },
           line: { color: C.mist },
         });
-        slide.addShape(pptx.ShapeType.rect, {
+        if (value !== null) slide.addShape(pptx.ShapeType.rect, {
           x: 3.45,
           y: y + 0.43,
-          w: Math.max(0.06, 8.62 * (value / 100)),
+          w: Math.max(0.06, 8.62 * ((value ?? 0) / 100)),
           h: 0.16,
-          fill: { color: healthColor(value) },
-          line: { color: healthColor(value) },
+          fill: { color: healthColor(value ?? 0) },
+          line: { color: healthColor(value ?? 0) },
         });
         slide.addText(note, {
           x: 3.45,
@@ -722,12 +722,12 @@ export class PptxReportRenderer {
         });
       });
       slide.addText(
-        "Health is calculated from plan ownership (40%), evidence grounding (35%), and timeliness (25%).",
+        `Health: ownership, gate sources, timeliness (40:35:25; omit N/A dimensions). ${snapshot.options.audience === "client" ? "Client-eligible facts only." : "References do not verify content."} Document context and outputs are separate.`,
         {
           x: 3.45,
-          y: 6.18,
+          y: 6.12,
           w: 8.7,
-          h: 0.28,
+          h: 0.5,
           fontSize: 9.5,
           color: C.slate,
           italic: true,
@@ -1180,7 +1180,7 @@ export class PptxReportRenderer {
           `${contextEvidence.length} approved context evidence items`,
           `${groundedNodes.length} source-linked plan steps`,
           `${snapshot.artifacts.length} connected outputs`,
-          `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates grounded`,
+          snapshot.health.totalGates ? `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates with sources` : "Not applicable: no gates",
         ],
         {
           x: 8.78,
@@ -1592,8 +1592,8 @@ function addSignalPanel(
     ],
     ["Schedule pressure", `${snapshot.health.overdueNodes} overdue`],
     [
-      "Decision grounding",
-      `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates`,
+      "Gate source coverage",
+      snapshot.health.totalGates ? `${snapshot.health.groundedGates}/${snapshot.health.totalGates} gates` : "N/A — no gates",
     ],
     [
       "Approved context",

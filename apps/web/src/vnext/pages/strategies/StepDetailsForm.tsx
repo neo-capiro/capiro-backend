@@ -253,6 +253,7 @@ export function StepDetailsForm({
         ) : null}
         <fieldset className="st-step-form__dependencies">
           <legend>Prerequisite steps</legend>
+          <p>Select work or decisions this step relies on. Actions may overlap; a gate or decision should resolve before dependent work starts. Review warnings on the timeline after saving.</p>
           {siblings
             .filter((node) => node.id !== step?.id)
             .map((node) => (

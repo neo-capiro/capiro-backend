@@ -727,6 +727,7 @@ export function normalizeExecutionRun(item: unknown): ExecutionRun | null {
     waitingReason: base.waitingReason,
     error: base.error,
     summary: executionRunSummary(base.findings),
+    nodeId: isRecord(base.findings?.execution) ? str(base.findings.execution.nodeId) : null,
     tasks: extractExecutionTasks(base.findings),
     startedAt: base.startedAt,
     finishedAt: base.finishedAt,

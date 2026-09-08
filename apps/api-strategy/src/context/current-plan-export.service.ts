@@ -1,3 +1,4 @@
+import { isStrategyStepOverdue } from '@capiro/strategy-verifier';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from '../strategy/live-node.js';
@@ -31,7 +32,7 @@ export class CurrentPlanExportService {
     if (!strategy) throw new NotFoundException('Strategy not found');
 
     const today = new Date().toISOString().slice(0, 10);
-    const todayMs = Date.parse(today);
+    const asOf = new Date(today);
 
     const frontmatter = [
       '---',
@@ -80,13 +81,7 @@ export class CurrentPlanExportService {
 
     // ---- Plan health: computed WITHOUT any LLM, from node state alone. ----
     const unowned = strategy.nodes.filter((n) => !n.ownerUserId).length;
-    // Overdue = past its end date and actually part of the plan. `active` is a
-    // LIVE (not terminal) status, so it counts; `suggested` is an unaccepted
-    // Meri proposal — not committed work — so it never counts as overdue.
-    const overdue = strategy.nodes.filter(
-      (n) => !n.openEnded && !['suggested', 'completed'].includes(n.status)
-        && (n.endsOn ?? n.startsOn).getTime() < todayMs,
-    ).length;
+    const overdue = strategy.nodes.filter((node) => isStrategyStepOverdue(node, asOf)).length;
     // Gates/decisions with no dependency edges have nothing guarding them.
     const gatesMissingPrereqs = strategy.nodes.filter(
       (n) => (n.kind === 'gate' || n.kind === 'decision') && n.dependsOnIds.length === 0,
@@ -97,6 +92,7 @@ export class CurrentPlanExportService {
       '',
       `- Unowned nodes: ${unowned}`,
       `- Overdue nodes: ${overdue}`,
+      '- Due-date rule: End date, or start date for single-day work; overdue only before today (UTC). Suggested, completed, ongoing and archived work is excluded.',
       // This projection does not evaluate node-level context or execution
       // eligibility. Never claim zero findings from a check that did not run.
       '- Nodes blocked by unresolved context: Not evaluated',

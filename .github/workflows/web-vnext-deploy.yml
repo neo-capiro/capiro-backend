@@ -11,6 +11,7 @@ on:
       - 'apps/web/nginx/**'
       - 'apps/web/Dockerfile'
       - 'packages/shared/**'
+      - 'packages/strategy-verifier/**'
       - 'pnpm-lock.yaml'
       - '.github/workflows/web-vnext-deploy.yml'
 
@@ -54,6 +55,9 @@ jobs:
 
       - name: Build shared package
         run: pnpm --filter @capiro/shared build
+
+      - name: Build strategy verifier
+        run: pnpm --filter @capiro/strategy-verifier build
 
       - name: Run vNext focused tests
         run: >-
@@ -347,3 +351,4 @@ jobs:
           echo "- Port / health: \`$EXPECTED_CONTAINER_PORT$EXPECTED_HEALTH_PATH\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Release: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Image: \`${{ steps.deploy.outputs.image }}\`" >> "$GITHUB_STEP_SUMMARY"
+

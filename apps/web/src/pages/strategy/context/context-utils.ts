@@ -357,14 +357,17 @@ export function normalizeOpenMaterialConflicts(v: unknown): OpenMaterialConflict
   return out;
 }
 
-/** GET /context/health?clientId= → the health strip's view. Unknown status → 'ok'. */
+/** Invalid health payloads fail closed; absent assessment never becomes proof. */
 export function normalizeContextHealth(data: unknown): ContextHealth {
-  const d = isRecord(data) ? data : {};
+  if (!isRecord(data) || !['ok', 'degraded', 'conflicted'].includes(String(data.status))) throw new Error('Context health response is unavailable');
+  const d = data;
   const num = (v: unknown): number | null =>
     typeof v === 'number' && Number.isFinite(v) ? v : null;
   const staleRaw = d.staleDocuments ?? d.staleDocs ?? d.staleCount;
   return {
     status: d.status === 'degraded' || d.status === 'conflicted' ? d.status : 'ok',
+    ...(typeof d.assessment === 'string' && ['missing', 'not_assessed', 'stale', 'conflicted', 'assessed'].includes(d.assessment) ? { assessment: d.assessment as ContextHealth['assessment'] } : {}),
+    ...(isRecord(d.factCounts) && typeof d.factCounts.active === 'number' ? { activeFacts: d.factCounts.active } : {}),
     missingRequired: Array.isArray(d.missingRequired)
       ? d.missingRequired.filter((s): s is string => typeof s === 'string')
       : [],

@@ -3,6 +3,7 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsISO8601,
   IsObject,
   IsOptional,
   IsString,
@@ -172,6 +173,15 @@ export class ApproveChangeSetDto {
 export const EXECUTION_KINDS = ['workspace', 'outreach'] as const;
 export type ExecutionKindValue = (typeof EXECUTION_KINDS)[number];
 
+/** Read-only readiness check. A mission is only needed after this passes. */
+export class ExecutionPreflightDto {
+  @IsUUID()
+  strategyId!: string;
+
+  @IsUUID()
+  nodeId!: string;
+}
+
 /**
  * Stage G: plan an Execution-Agent run for one node. A run belongs to a mission
  * (RunsService contract), so `missionId` anchors it and the strategy is derived
@@ -197,6 +207,11 @@ export class ExecutionPlanDto {
   @IsOptional()
   @IsUUID()
   pinnedVersionId?: string;
+
+  /** The node revision checked immediately before preparing the run. */
+  @IsOptional()
+  @IsISO8601()
+  expectedNodeUpdatedAt?: string;
 }
 
 /** P0-2: a reviewer declaring a stuck run dead ("Mark failed"). */

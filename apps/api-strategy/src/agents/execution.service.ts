@@ -50,6 +50,7 @@ import type {
   CreateRunDto,
   ExecutionKindValue,
   ExecutionPlanDto,
+  ExecutionPreflightDto,
   TransitionRunDto,
 } from './dto/agents.dto.js';
 
@@ -132,6 +133,7 @@ interface NodeTargetRef {
 /** The node fields plan/execute reason over (Prisma row subset). */
 interface NodeRow {
   id: string;
+  updatedAt?: Date | string;
   kind: string;
   subject: string;
   title: string;
@@ -145,6 +147,7 @@ interface NodeRow {
 }
 interface StrategyRow {
   id: string;
+  archivedAt?: Date | string | null;
   clientId: string | null;
   type: string;
   goal: string | null;
@@ -206,6 +209,33 @@ export class ExecutionService {
     );
   }
 
+  /** Read-only readiness: uses the same current-plan gate as planning/execution. */
+  async preflight(tenantId: string, userId: string | null, dto: ExecutionPreflightDto) {
+    const { strategy, targetNode, headVersionId } = await this.loadPlanState(tenantId, dto.strategyId, dto.nodeId);
+    const check = async (kind: ExecutionKindValue) => {
+      const flag = kind === 'workspace' ? AGENTIC_FLAGS.executionAgentWorkspace : AGENTIC_FLAGS.executionAgentOutreach;
+      const enabled = await this.flags.isAgenticFlagEnabled(tenantId, flag);
+      if (!enabled) return { enabled, eligible: false, reasons: [`${kind === 'workspace' ? 'Workspace preparation' : 'Outreach staging'} is not enabled for your team.`] };
+      const { g0, blockReason } = await this.evaluateG0(tenantId, {
+        kind, nodeId: targetNode.id, strategyId: strategy.id, missionId: '', pinnedVersionId: headVersionId,
+      }, strategy, targetNode, headVersionId);
+      const eligibility = g0.eligibility as EligibilityResult;
+      const chainErrors = g0.verifierChainErrors as Array<{ message: string }>;
+      const reasons = [...chainErrors.map((error) => `Fix this step or its prerequisites: ${error.message}`), ...eligibility.reasons];
+      if (blockReason && !reasons.length) reasons.push(blockReason);
+      const constraint = await this.preparationConstraint(tenantId, kind, strategy, targetNode);
+      if (constraint) reasons.push(constraint);
+      if (!userId) reasons.push('Sign in to prepare work for this step.');
+      return { enabled, eligible: reasons.length === 0, reasons };
+    };
+    const [workspace, outreach] = await Promise.all([check('workspace'), check('outreach')]);
+    return {
+      strategyId: strategy.id, nodeId: targetNode.id, checkedAt: new Date().toISOString(),
+      headVersionId, nodeUpdatedAt: targetNode.updatedAt ? new Date(targetNode.updatedAt).toISOString() : null,
+      workspace, outreach,
+    };
+  }
+
   // ---- plan ----------------------------------------------------------------
 
   /**
@@ -223,6 +253,21 @@ export class ExecutionService {
   ) {
     await this.assertKindEnabled(tenantId, dto.kind);
     const strategyId = await this.resolveTarget(tenantId, dto);
+    // A caller that reviewed readiness binds creation to that exact node/version.
+    // Recheck before createRun so an intervening edit does not leave an ineligible run.
+    if (dto.expectedNodeUpdatedAt) {
+      const state = await this.loadPlanState(tenantId, strategyId, dto.nodeId);
+      if (!state.targetNode.updatedAt || new Date(state.targetNode.updatedAt).toISOString() !== new Date(dto.expectedNodeUpdatedAt).toISOString()) {
+        throw new ConflictException('This step changed. Check readiness again before preparing work.');
+      }
+      const { blockReason } = await this.evaluateG0(tenantId, {
+        kind: dto.kind, nodeId: dto.nodeId, strategyId, missionId: dto.missionId,
+        pinnedVersionId: dto.pinnedVersionId ?? null,
+      }, state.strategy, state.targetNode, state.headVersionId);
+      if (blockReason) throw new ConflictException(blockReason);
+      const constraint = await this.preparationConstraint(tenantId, dto.kind, state.strategy, state.targetNode);
+      if (constraint) throw new ConflictException(constraint);
+    }
     const idempotencyKey = `exec:${dto.nodeId}:${dto.kind}`;
     const run = await this.runs.createRun(tenantId, userId, dto.missionId, {
       trigger: 'manual',
@@ -1674,6 +1719,14 @@ export class ExecutionService {
     return asObject(asObject(run.findings)?.results) ?? {};
   }
 
+  /** The same outreach constraints checked again immediately before staging. */
+  private async preparationConstraint(tenantId: string, kind: ExecutionKindValue, strategy: StrategyRow, node: NodeRow): Promise<string | null> {
+    if (kind !== 'outreach') return null;
+    if (!strategy.clientId) return 'Select a client for this strategy before staging outreach.';
+    const constraint = await this.checkClientConstraints(tenantId, strategy.clientId, node);
+    return constraint.blocked ? 'Client-approved instructions prohibit outreach. Review the client constraints in Context review.' : null;
+  }
+
   // ---- client constraint (do-not-contact) ----------------------------------
 
   /**
@@ -1732,12 +1785,17 @@ export class ExecutionService {
         select: { id: true, strategyId: true },
       });
       if (!mission) throw new NotFoundException('Mission not found');
+      if (dto.strategyId && mission.strategyId && dto.strategyId !== mission.strategyId) {
+        throw new BadRequestException('Mission belongs to another strategy');
+      }
       const strategyId = dto.strategyId ?? mission.strategyId;
       if (!strategyId) {
         throw new BadRequestException(
           'mission has no strategy — pass strategyId for a firm-level mission',
         );
       }
+      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId }, select: { id: true, archivedAt: true } });
+      if (!strategy || strategy.archivedAt != null) throw new NotFoundException('Active strategy not found');
       // P0-1: an archived node is not executable — it reads as not part of the
       // strategy, so no run can be planned against plan history.
       const node = await tx.spNode.findFirst({
@@ -1767,7 +1825,7 @@ export class ExecutionService {
           },
         },
       });
-      if (!strategy) throw new NotFoundException('Strategy not found');
+      if (!strategy || strategy.archivedAt != null) throw new NotFoundException('Active strategy not found');
       const s = strategy as unknown as StrategyRow;
       const targetNode = s.nodes.find((n) => n.id === nodeId);
       if (!targetNode) throw new BadRequestException('node is not part of the target strategy');
@@ -2019,11 +2077,9 @@ export class ExecutionService {
   }
 
   /**
-   * Workspace access. Today it is guaranteed by the executionAgentWorkspace flag
-   * (re-checked fail-closed above), so a workspace-kind plan that reaches G0 is
-   * entitled -> true. A finer-grained per-user workspace ACL check is a
-   * documented Stage-H seam; the pure eligibility module already gates on the
-   * `false` path, exercised exhaustively in the unit spec.
+   * Workspace create uses TenantGuard with no additional role ACL. The caller
+   * has passed that same guard; the per-kind feature flag is checked separately.
+   * Execute forwards the caller bearer so Workspace enforces its own policy.
    */
   private hasWorkspaceAccess(_kind: ExecutionKindValue): boolean {
     return true;

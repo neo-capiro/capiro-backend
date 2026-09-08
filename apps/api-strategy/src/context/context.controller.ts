@@ -16,7 +16,7 @@ import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 import { AgenticGuard } from '../flags/agentic.guard.js';
 import { ContextDocumentsService } from './context-documents.service.js';
 import { CurrentPlanExportService } from './current-plan-export.service.js';
-import { UploadContextDocumentDto, ApproveContextDocumentDto } from './dto/context.dto.js';
+import { UploadContextDocumentDto, ApproveContextDocumentDto, ReassignContextDocumentDto } from './dto/context.dto.js';
 
 /**
  * /strategy-api/context — Stage D context-pack documents + the read-only
@@ -45,18 +45,32 @@ export class ContextController {
     @Query('templateKey') templateKey?: string,
     @Query('state') state?: string,
     @Query('includeStale') includeStale?: string,
+    @Query('includeFirm') includeFirm?: string,
+    @Query('firmOnly') firmOnly?: string,
   ) {
     return this.documents.list(tc.tenantId, {
       clientId: clientId || undefined,
       templateKey: templateKey || undefined,
       state: state || undefined,
       includeStale: includeStale === 'true',
+      includeFirm: includeFirm === 'true',
+      firmOnly: firmOnly === 'true',
     });
   }
 
   @Get('documents/:id')
   byId(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.documents.get(tc.tenantId, id);
+  }
+
+  @Get('documents/:id/association')
+  association(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.documents.association(tc.tenantId, id);
+  }
+
+  @Post('documents/:id/reassign')
+  reassign(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ReassignContextDocumentDto) {
+    return this.documents.reassign(tc.tenantId, { clerkUserId: tc.clerkUserId, role: tc.role }, id, dto.expectedChecksum, dto.strategyId);
   }
 
   @Post('documents/:id/approve')

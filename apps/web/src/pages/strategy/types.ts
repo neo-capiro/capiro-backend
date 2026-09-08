@@ -568,6 +568,8 @@ export interface ContextConflict {
 
 /** GET /context/health?clientId=… — per-client Steward context health. */
 export interface ContextHealth {
+  assessment?: 'missing' | 'not_assessed' | 'stale' | 'conflicted' | 'assessed';
+  activeFacts?: number;
   status: 'ok' | 'degraded' | 'conflicted';
   /** Missing REQUIRED template keys/names for this client. */
   missingRequired: string[];
@@ -1011,6 +1013,7 @@ export interface ExecutionTask {
 
 /** sp_agent_run projected for the Execution surface (findings carry the tasks). */
 export interface ExecutionRun {
+  nodeId?: string | null;
   id: string;
   missionId: string;
   strategyId: string | null;
@@ -1042,6 +1045,8 @@ export interface ExecutionRun {
  * to this 'workspace'|'outreach' kind at the call site.
  */
 export interface PlanExecutionInput {
+  pinnedVersionId?: string;
+  expectedNodeUpdatedAt?: string;
   missionId: string;
   strategyId?: string;
   nodeId: string;
@@ -1051,4 +1056,23 @@ export interface PlanExecutionInput {
 /** POST /agents/execution/runs/:id/resume — carries the (inert) send-approval token. */
 export interface ResumeRunInput {
   approvalToken?: string;
+}
+
+export interface ExecutionPreflight {
+  strategyId: string;
+  nodeId: string;
+  checkedAt: string;
+  headVersionId: string | null;
+  nodeUpdatedAt: string | null;
+  workspace: { enabled: boolean; eligible: boolean; reasons: string[] };
+  outreach: { enabled: boolean; eligible: boolean; reasons: string[] };
+}
+
+export interface WatchMonitoring {
+  strategyId: string;
+  available: boolean;
+  schedulerEnabled: boolean;
+  mission: { id: string; state: MissionState; cadence: 'daily' | 'weekly' | null; nextRunAt: string | null } | null;
+  duplicateMissionCount: number;
+  lastRun: { id: string; state: RunState; startedAt: string; checkedAt: string | null; error: string | null; findingCount: number | null } | null;
 }

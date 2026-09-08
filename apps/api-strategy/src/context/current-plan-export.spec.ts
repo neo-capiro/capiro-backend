@@ -24,6 +24,8 @@ interface FakeNode {
   title: string;
   startsOn: Date;
   endsOn: Date | null;
+  openEnded?: boolean;
+  archivedAt?: Date | null;
   ownerUserId: string | null;
   status: string;
   dependsOnIds: string[];
@@ -204,6 +206,22 @@ describe('CurrentPlanExportService.exportCurrentPlan', () => {
     expect(markdown).toContain('- Nodes blocked by unresolved context: Not evaluated');
     expect(markdown).toContain('- Gates missing prerequisites: 1');
     expect(markdown).toContain('- Execution-ready nodes: Not evaluated');
+  });
+
+  it('uses the same due-today and lifecycle exclusions as reports and monitoring', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-08T23:59:59Z'));
+    try {
+      const base = { startsOn: new Date('2026-09-07'), endsOn: null };
+      const svc = makeService([
+        node({ ...base, id: 'single' }),
+        node({ ...base, id: 'active', status: 'active' }),
+        node({ ...base, id: 'today', endsOn: new Date('2026-09-08') }),
+        node({ ...base, id: 'suggested', status: 'suggested' }),
+        node({ ...base, id: 'completed', status: 'completed' }),
+        node({ ...base, id: 'ongoing', openEnded: true }),
+      ]);
+      expect((await svc.exportCurrentPlan(T, SID)).markdown).toContain('- Overdue nodes: 2');
+    } finally { jest.useRealTimers(); }
   });
 
   it('the generated document passes this module\'s OWN frontmatter validator and locates cleanly', async () => {
