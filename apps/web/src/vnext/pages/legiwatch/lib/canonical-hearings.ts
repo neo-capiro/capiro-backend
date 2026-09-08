@@ -70,6 +70,18 @@ export interface WeekRangeParams {
  * `from`/`to` bounds make historical weeks return their real rows — including
  * completed events — instead of paging a fixed forward-only window locally.
  */
+// The server's own per-page cap (live-hearings.service.ts MAX_PAGE_SIZE). A
+// week's TRUE total can exceed this — 230 tracked committees/subcommittees
+// can each hold a hearing in the same week — so a single fetch is not enough
+// to promise "every hearing this week is in this grid."
+const CALENDAR_PAGE_SIZE = 200;
+// Hard ceiling on follow-up pages so a runaway total can never hang the UI in
+// a fetch loop; 20 pages (4,000 rows) is far beyond any plausible week even
+// once full multi-source discovery is live. If this is ever actually hit, the
+// remainder is surfaced honestly (total > rows.length) rather than fetched
+// forever or silently dropped.
+const CALENDAR_MAX_PAGES = 20;
+
 export function useLwWeekCalendar(params: WeekRangeParams) {
   const api = useApi();
   return useQuery<LiveHearingCalendarPage, Error>({
@@ -78,17 +90,33 @@ export function useLwWeekCalendar(params: WeekRangeParams) {
       const q = new URLSearchParams();
       q.set('from', params.from);
       q.set('to', params.to);
-      // The week grid renders at most 7 days; 200 rows is the server's max page
-      // and comfortably bounds any real week. Overflow is surfaced honestly
-      // (total > rows.length) rather than silently hidden.
-      q.set('pageSize', '200');
-      q.set('page', '1');
+      q.set('pageSize', String(CALENDAR_PAGE_SIZE));
       if (params.eventStatus) q.set('eventStatus', params.eventStatus);
       if (params.chamber) q.set('chamber', params.chamber);
       if (params.committee) q.set('committee', params.committee);
       if (params.q) q.set('q', params.q);
       try {
-        return normalizeCalendarPage((await api.get<unknown>(`/api/legiwatch/live-hearings/calendar?${q.toString()}`)).data);
+        // The week grid must show every hearing in range, not just the first
+        // page — a single week can plausibly exceed one page's worth once
+        // hearings are tracked across all committees/subcommittees. Keep
+        // fetching subsequent pages until the server's own `total` is fully
+        // accounted for (or the safety ceiling above trips).
+        q.set('page', '1');
+        const first = normalizeCalendarPage(
+          (await api.get<unknown>(`/api/legiwatch/live-hearings/calendar?${q.toString()}`)).data,
+        );
+        const rows = [...first.items];
+        let page = 1;
+        while (rows.length < first.total && page < CALENDAR_MAX_PAGES) {
+          page += 1;
+          q.set('page', String(page));
+          const next = normalizeCalendarPage(
+            (await api.get<unknown>(`/api/legiwatch/live-hearings/calendar?${q.toString()}`)).data,
+          );
+          if (next.items.length === 0) break;
+          rows.push(...next.items);
+        }
+        return { ...first, items: rows };
       } catch (err) {
         throw new Error(liveHearingApiError(err));
       }

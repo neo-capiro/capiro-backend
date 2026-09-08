@@ -57,4 +57,29 @@ describe('sync-hearings zone-protection guard (legacy sync cannot revert a corre
     expect(stripProtectedTimeFields(row, 'America/New_York')).toBe(row);
     expect(stripProtectedTimeFields(row, null)).toBe(row);
   });
+
+  /**
+   * REGRESSION (production incident 2026-09-07): `prisma.committeeHearing
+   * .upsert()`'s `create` branch is only ever reachable when no row exists
+   * yet — but Prisma's client validates the `create` shape's required fields
+   * (`date` is NOT NULL, no default) regardless of which branch will actually
+   * run at the DB level. Both call sites in sync-hearings.ts once built
+   * `create` from the SAME `stripProtectedTimeFields()` output used for
+   * `update`, so the first protected row encountered each day threw
+   * "Argument `date` is missing" and aborted the entire script — every
+   * hearing behind it in that run silently never synced. The fix: `create`
+   * must always spread the unstripped fields, never the stripped ones.
+   */
+  it("a create payload built from the STRIPPED row would be missing `date` — this is the exact shape that crashed Prisma", () => {
+    const stripped = stripProtectedTimeFields(FULL_ROW, 'America/Los_Angeles');
+    const brokenCreatePayload = { id: 'cm-119-119533', ...stripped };
+    expect('date' in brokenCreatePayload).toBe(false);
+  });
+
+  it('a create payload built from the UNSTRIPPED fields always retains `date`, protected or not', () => {
+    const fixedCreatePayload = { id: 'cm-119-119533', ...FULL_ROW };
+    expect(fixedCreatePayload.date).toEqual(FULL_ROW.date);
+    // Same object, regardless of what the row's existing timezone is — the
+    // create branch never consults `existingTimezone` at all, by construction.
+  });
 });
