@@ -14,6 +14,7 @@ export function refreshOpportunityQueries(client: QueryClient) {
       'funding-opportunity-feed-detail',
       'funding-opportunity-action-plan',
       'client-funding-opportunities',
+      'funding-opportunity-tracked-clients',
       'engagement-tasks',
     ].map((key) => client.invalidateQueries({ queryKey: [key] })),
   );

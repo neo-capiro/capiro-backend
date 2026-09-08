@@ -596,6 +596,22 @@ export class FundingOpportunitiesController {
   }
 
   /**
+   * The clients this user is actually TRACKING, for the Tracking tab's client
+   * dropdown.
+   *
+   * Declared beside `opportunities/inbox` and BEFORE `opportunities/:source/:id`,
+   * which would otherwise capture the two-segment path (`source=inbox`,
+   * `id=tracked-clients`) — the same reason the inbox route carries its own
+   * comment. Same flag guard as the inbox: the dropdown belongs to the Tracking
+   * surface, so it is canaried with it, not with the module.
+   */
+  @Get('opportunities/inbox/tracked-clients')
+  @UseGuards(FundingOpportunitiesInboxFlagGuard)
+  trackedClients(@CurrentTenant() ctx: TenantContext) {
+    return this.inboxService.listTrackedClients(ctx.tenantId, ctx.userId);
+  }
+
+  /**
    * One agency procurement forecast, optionally scored for a client (P26).
    *
    * A SEPARATE route from `opportunities/:source/:id`, not a widening of it — a

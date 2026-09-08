@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroInput, CapiroTextarea } from '../../components/fields/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
@@ -39,17 +40,35 @@ export function FundingOpportunitiesPage() {
   const url = useUrlState();
   const [refreshing, setRefreshing] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareComposeOpen, setShareComposeOpen] = useState(false);
+  const [shareTo, setShareTo] = useState('');
+  const [shareSubject, setShareSubject] = useState('');
+  const [shareBody, setShareBody] = useState('');
+  const [shareSending, setShareSending] = useState(false);
   const shareAnchorRef = useRef<HTMLSpanElement | null>(null);
-  // Close the share fallback menu on any click outside it (native-share
-  // browsers never show the menu, so this only runs on the fallback path).
+  // Close the share dropdown / compose popover on any click outside it or on
+  // Escape — the same behaviour the module's other fov-popanchor popovers use.
   useEffect(() => {
-    if (!shareMenuOpen) return;
+    if (!shareMenuOpen && !shareComposeOpen) return;
     function onPointerDown(event: PointerEvent) {
-      if (!shareAnchorRef.current?.contains(event.target as Node)) setShareMenuOpen(false);
+      if (!shareAnchorRef.current?.contains(event.target as Node)) {
+        setShareMenuOpen(false);
+        setShareComposeOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setShareMenuOpen(false);
+        setShareComposeOpen(false);
+      }
     }
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [shareMenuOpen]);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [shareMenuOpen, shareComposeOpen]);
   const clientId = url.get('clientId') ?? undefined;
   const inboxAvailable = inboxFlag.ready && inboxFlag.enabled;
   const boardAvailable = inboxAvailable && pipelineFlag.ready && pipelineFlag.enabled;
@@ -67,6 +86,28 @@ export function FundingOpportunitiesPage() {
   });
   const visibleClients = (clients.data ?? []).filter((client) => client.status !== 'archived');
   const clientName = visibleClients.find((client) => client.id === clientId)?.name;
+  /**
+   * The clients the user is actually TRACKING, for the Tracking tab's dropdown.
+   *
+   * Distinct from `clients` (every accessible client, for Recommended/Browse):
+   * the Tracking surface narrows to what has been saved, so its dropdown must
+   * too. Fetched only while the Tracking tab is mounted — the endpoint does a
+   * distinct query the other tabs do not need.
+   */
+  const trackedClients = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['funding-opportunity-tracked-clients'],
+    queryFn: async () =>
+      (await api.get<Array<{ id: string; name: string }>>(
+        '/api/intelligence/opportunities/inbox/tracked-clients',
+      )).data,
+    staleTime: 15_000,
+    enabled: ready && enabled && view === 'pipeline',
+  });
+  // The Tracking dropdown's option list: tracked clients only, still intersected
+  // with the accessible list so a walled/archived client can never render.
+  const trackedClientOptions = visibleClients.filter((client) =>
+    (trackedClients.data ?? []).some((tracked) => tracked.id === client.id),
+  );
 
   function setClient(next: string | undefined) {
     url.set({ clientId: next ?? null, cursor: null, page: null, detail: null });
@@ -109,38 +150,66 @@ export function FundingOpportunitiesPage() {
     }
   }
   /**
-   * Share the current filtered view. Green-scope build (per user): native
-   * Web Share sheet when the browser offers one (gives Mail/Messages/copy for
-   * free, no backend), otherwise an inline menu with Email (mailto:) and
-   * Copy link. No AirDrop-specific handling — the sheet includes it only
-   * where the OS already does. AirDrop deliberately excluded from the
-   * fallback menu: it has no web API, so it would be a fake menu item.
+   * Share the current filtered view: a dropdown under the Share button with
+   * two items — "Send as email" (compose popover → the engagement single-mail
+   * send path from the user's own connected mailbox, mailto: fallback when no
+   * mailbox is connected) and "Copy link" (clipboard + toast, unchanged).
    */
-  const canNativeShare = typeof navigator.share === 'function';
-
-  async function shareViewLink() {
-    const url = window.location.href;
-    const shareData: ShareData = { title: document.title, url };
-    if (canNativeShare) {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch (err) {
-        // AbortError = the user closed the sheet; not a failure.
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        // Any other share failure falls through to the manual menu.
-      }
-    }
+  function toggleShareMenu() {
     setShareMenuOpen((open) => !open);
+    if (!shareMenuOpen) setShareComposeOpen(false);
   }
 
-  async function shareViaEmail() {
+  /** Prefill + open the compose popover; the To field starts empty on purpose. */
+  function openShareCompose() {
     setShareMenuOpen(false);
-    const subject = encodeURIComponent('Funding opportunities view — Capiro');
-    const body = encodeURIComponent(
-      `Take a look at this funding opportunities view in Capiro: ${window.location.href}`,
-    );
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    setShareSubject('Funding opportunities view — Capiro');
+    setShareBody(`Take a look at this funding opportunities view in Capiro: ${window.location.href}`);
+    setShareComposeOpen(true);
+  }
+
+  function closeShareCompose() {
+    setShareComposeOpen(false);
+  }
+
+  /**
+   * Send through the user's own connected mailbox via the existing engagement
+   * single-mail endpoint (POST /api/engagement/mail/send → sendSingleMail →
+   * MailSender with the Gmail / Microsoft Graph adapters). A BadRequest means
+   * no connected mailbox (sendSingleMail's own "Connect your email" message)
+   * or a rejected recipient — fall back to mailto: with everything prefilled.
+   */
+  async function sendShareEmail() {
+    const recipients = shareTo
+      .split(/[,;]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (recipients.length === 0) {
+      toast.error('Add at least one recipient email address.');
+      return;
+    }
+    setShareSending(true);
+    try {
+      await api.post('/api/engagement/mail/send', {
+        to: recipients.map((email) => ({ email })),
+        subject: shareSubject,
+        bodyHtml: `<p>${shareBody
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br />')}</p>`,
+      });
+      toast.success('Email sent from your connected mailbox.');
+      closeShareCompose();
+    } catch {
+      toast.success('No connected mailbox — opening your email app with the message prefilled.');
+      const subject = encodeURIComponent(shareSubject);
+      const body = encodeURIComponent(shareBody);
+      window.location.href = `mailto:${recipients.map(encodeURIComponent).join(',')}?subject=${subject}&body=${body}`;
+      closeShareCompose();
+    } finally {
+      setShareSending(false);
+    }
   }
 
   async function copyViewLink() {
@@ -177,18 +246,22 @@ export function FundingOpportunitiesPage() {
           <div className="fo-module-action-row">
             <span className="fov-popanchor" ref={shareAnchorRef}>
               <CapiroButton
-                onClick={() => void shareViewLink()}
-                aria-haspopup={canNativeShare ? undefined : 'menu'}
-                aria-expanded={canNativeShare ? undefined : shareMenuOpen}
+                onClick={toggleShareMenu}
+                aria-haspopup="menu"
+                aria-expanded={shareMenuOpen}
               >
                 Share
               </CapiroButton>
               {shareMenuOpen ? (
-                <div className="fov-popanchor__panel fov-popanchor__panel--left" role="menu" aria-label="Share this view">
+                <div
+                  className="fov-popanchor__panel fov-popanchor__panel--left"
+                  role="menu"
+                  aria-label="Share this view"
+                >
                   <ul className="fov-menu">
                     <li role="none">
-                      <button type="button" role="menuitem" onClick={() => void shareViaEmail()}>
-                        Email
+                      <button type="button" role="menuitem" onClick={openShareCompose}>
+                        Send as email
                       </button>
                     </li>
                     <li role="none">
@@ -197,6 +270,45 @@ export function FundingOpportunitiesPage() {
                       </button>
                     </li>
                   </ul>
+                </div>
+              ) : null}
+              {shareComposeOpen ? (
+                <div
+                  className="fov-popanchor__panel fov-popanchor__panel--left"
+                  role="dialog"
+                  aria-label="Send this view as email"
+                >
+                  <div className="fov-share-compose">
+                    <CapiroInput
+                      label="To"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={shareTo}
+                      onChange={(event) => setShareTo(event.target.value)}
+                    />
+                    <CapiroInput
+                      label="Subject"
+                      value={shareSubject}
+                      onChange={(event) => setShareSubject(event.target.value)}
+                    />
+                    <CapiroTextarea
+                      label="Body"
+                      rows={5}
+                      value={shareBody}
+                      onChange={(event) => setShareBody(event.target.value)}
+                    />
+                    <div className="fov-share-compose__actions">
+                      <CapiroButton
+                        loading={shareSending}
+                        onClick={() => void sendShareEmail()}
+                      >
+                        Send
+                      </CapiroButton>
+                      <CapiroButton variant="quiet" onClick={closeShareCompose}>
+                        Cancel
+                      </CapiroButton>
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </span>
@@ -272,17 +384,29 @@ export function FundingOpportunitiesPage() {
             >
               <option value="">
                 {view === 'pipeline'
-                  ? 'Show all clients'
+                  ? trackedClients.isSuccess && trackedClientOptions.length === 0
+                    ? 'No clients tracked yet'
+                    : 'Show all tracked clients'
                   : view === 'explore'
                     ? 'Research without a client'
                     : 'All accessible clients'}
               </option>
-              {clientId && !visibleClients.some((client) => client.id === clientId) ? (
-                <option value={clientId}>
-                  {clients.isLoading ? 'Loading selected client…' : 'Selected client unavailable'}
-                </option>
-              ) : null}
-              {visibleClients.map((client) => (
+              {view === 'pipeline'
+                ? clientId && !trackedClientOptions.some((client) => client.id === clientId)
+                  ? [
+                      <option key={clientId} value={clientId}>
+                        Selected client has nothing tracked
+                      </option>,
+                    ]
+                  : null
+                : clientId && !visibleClients.some((client) => client.id === clientId)
+                  ? [
+                      <option key={clientId} value={clientId}>
+                        {clients.isLoading ? 'Loading selected client…' : 'Selected client unavailable'}
+                      </option>,
+                    ]
+                  : null}
+              {(view === 'pipeline' ? trackedClientOptions : visibleClients).map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
                 </option>

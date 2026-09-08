@@ -329,7 +329,9 @@ export function FundingOpportunityInbox({
               {cursor
                 ? 'No results on this page'
                 : mode === 'tracking'
-                  ? `No ${label.toLowerCase()} opportunities${clientName ? ` for ${clientName}` : ''}`
+                  ? filter === 'tracked'
+                    ? `Not currently tracking opportunities${clientName ? ` for ${clientName}` : ''}`
+                    : `No ${label.toLowerCase()} opportunities${clientName ? ` for ${clientName}` : ''}`
                   : 'No new recommendations in this view'}
             </strong>
             <p className="fov-muted">

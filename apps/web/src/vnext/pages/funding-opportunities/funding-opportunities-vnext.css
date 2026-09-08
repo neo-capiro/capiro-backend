@@ -588,6 +588,11 @@
 .capiro-vnext-root .fov .fov-menu button:disabled { cursor: not-allowed; opacity: 0.45; }
 .capiro-vnext-root .fov .fov-menu button:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring-inset); }
 
+/* ── Share compose popover (Send as email) ───────────────────────────────── */
+
+.capiro-vnext-root .fov .fov-share-compose { display: grid; gap: 10px; width: 300px; }
+.capiro-vnext-root .fov .fov-share-compose__actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 .capiro-vnext-root .fov .fov-checklist { display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
 .capiro-vnext-root .fov .fov-checklist label {
   display: flex;

@@ -148,6 +148,8 @@ beforeEach(() => {
         ],
       };
     if (path.includes('/inbox?')) return { data: current };
+    if (path === '/api/intelligence/opportunities/inbox/tracked-clients')
+      return { data: [{ id: 'client-1', name: 'Acme Defense' }] };
     return { data: { freshness: [] } };
   });
 });
@@ -194,14 +196,91 @@ describe('simple vNext navigation', () => {
       .getAllByRole('combobox', { name: 'Client' })
       .find((el) => (el as HTMLSelectElement).value === '')!;
     expect(selector).toBeDefined();
-    // The Show All option is the first entry in the dropdown.
-    expect((selector as HTMLSelectElement).options[0]?.text).toBe('Show all clients');
+    // The Show All option is the first entry in the dropdown, and names the
+    // tracked set — not every accessible client.
+    expect((selector as HTMLSelectElement).options[0]?.text).toBe('Show all tracked clients');
     // The inbox is queried without a clientId so every tracked client appears.
     expect(
       apiGet.mock.calls.some(
         ([path]) => String(path).includes('/inbox') && !String(path).includes('clientId='),
       ),
     ).toBe(true);
+  });
+  test('Tracking asks for tracked clients only, and the dropdown omits untracked ones', async () => {
+    urlStore.set('view=pipeline');
+    mount();
+    await screen.findByTestId('fo-tracking');
+    await waitFor(() =>
+      expect(apiGet).toHaveBeenCalledWith(
+        '/api/intelligence/opportunities/inbox/tracked-clients',
+      ),
+    );
+    const selector = screen
+      .getAllByRole('combobox', { name: 'Client' })
+      .find((el) => (el as HTMLSelectElement).value === '')!;
+    const names = [...(selector as HTMLSelectElement).options].map((o) => o.text);
+    // Only the tracked client is offered; the accessible-but-untracked one is not.
+    expect(names).toContain('Acme Defense');
+    expect(names).not.toContain('Beta Systems');
+    expect(names).toContain('Show all tracked clients');
+  });
+  test('the tracked-clients endpoint is not called outside the Tracking tab', async () => {
+    urlStore.set('view=inbox');
+    mount();
+    await screen.findByRole('tab', { name: 'Recommended', selected: true });
+    await waitFor(() =>
+      expect(apiGet.mock.calls.some(([path]) => String(path).includes('/inbox?'))).toBe(true),
+    );
+    expect(
+      apiGet.mock.calls.some(([path]) =>
+        String(path).includes('/inbox/tracked-clients'),
+      ),
+    ).toBe(false);
+  });
+  test('a selected client with nothing tracked keeps its value with an explanatory option', async () => {
+    urlStore.set('view=pipeline&clientId=client-2');
+    mount();
+    await screen.findByTestId('fo-tracking');
+    await waitFor(() =>
+      expect(apiGet).toHaveBeenCalledWith(
+        '/api/intelligence/opportunities/inbox/tracked-clients',
+      ),
+    );
+    const selector = screen
+      .getAllByRole('combobox', { name: 'Client' })
+      .find((el) => (el as HTMLSelectElement).value === 'client-2')!;
+    const names = [...(selector as HTMLSelectElement).options].map((o) => o.text);
+    expect(names).toContain('Selected client has nothing tracked');
+    expect(names).not.toContain('Beta Systems');
+  });
+  test('an empty tracked list says no clients are tracked yet', async () => {
+    urlStore.set('view=pipeline');
+    apiGet.mockImplementation(async (path: string) => {
+      if (path === '/api/clients')
+        return {
+          data: [
+            { id: 'client-1', name: 'Acme Defense' },
+            { id: 'client-2', name: 'Beta Systems' },
+          ],
+        };
+      if (path === '/api/intelligence/opportunities/inbox/tracked-clients') return { data: [] };
+      if (path.includes('/inbox?')) return { data: current };
+      return { data: { freshness: [] } };
+    });
+    mount();
+    await screen.findByTestId('fo-tracking');
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole('combobox', { name: 'Client' })
+          .find((el) => (el as HTMLSelectElement).value === '')
+          ?.textContent,
+      ).toContain('No clients tracked yet'),
+    );
+    const selector = screen
+      .getAllByRole('combobox', { name: 'Client' })
+      .find((el) => (el as HTMLSelectElement).value === '')!;
+    expect((selector as HTMLSelectElement).options[0]?.text).toBe('No clients tracked yet');
   });
   test('switching to Tracking clears a pinned client (Show All is the landing state)', async () => {
     urlStore.set('view=inbox&clientId=client-1');
@@ -237,6 +316,21 @@ describe('simple vNext navigation', () => {
     expect(screen.getByText('Discuss with capture lead')).toBeInTheDocument();
     expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('filter=tracked'));
     expect(screen.queryByTestId('fo-pipeline')).not.toBeInTheDocument();
+  });
+  test('Tracking empty state says not tracking rather than interpolating the filter label', async () => {
+    urlStore.set('view=pipeline&clientId=client-1');
+    current = response({ clientId: 'client-1' });
+    mount();
+    expect(await screen.findByTestId('fo-inbox-empty')).toBeInTheDocument();
+    expect(screen.getByText('Not currently tracking opportunities for Acme Defense')).toBeInTheDocument();
+    expect(screen.queryByText(/No tracked opportunities/)).not.toBeInTheDocument();
+  });
+  test('non-tracked Tracking filters keep the existing empty-state wording', async () => {
+    urlStore.set('view=pipeline&clientId=client-1&filter=tracked_deadlines');
+    current = response({ clientId: 'client-1', filter: 'tracked_deadlines' });
+    mount();
+    expect(await screen.findByTestId('fo-inbox-empty')).toBeInTheDocument();
+    expect(screen.getByText('No due soon & overdue opportunities for Acme Defense')).toBeInTheDocument();
   });
   test('a leftover recommendation filter cannot show untracked suggestions in Tracking', async () => {
     urlStore.set('view=pipeline&clientId=client-1&filter=suggested');

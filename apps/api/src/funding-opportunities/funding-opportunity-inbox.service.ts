@@ -1137,6 +1137,41 @@ export class FundingOpportunityInboxService {
    * route, and it cannot widen what the inbox returns (a narrowing predicate
    * only ever removes rows).
    */
+  /**
+   * The clients the actor is actually TRACKING, as `{id, name}` sorted by name.
+   *
+   */
+  async listTrackedClients(
+    tenantId: string,
+    actorUserId: string,
+    sources?: readonly InboxSource[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const visibleClientIds = await this.visibleClientIds(tx, tenantId, actorUserId);
+      if (visibleClientIds.length === 0) return [];
+      const trackedIds = new Set(
+        (
+          await tx.clientFundingOpportunity.findMany({
+            where: {
+              tenantId,
+              clientId: { in: visibleClientIds },
+              ...(sources && sources.length > 0 ? { source: { in: [...sources] } } : {}),
+              AND: [buildInboxFilterWhere('tracked')],
+            },
+            select: { clientId: true },
+            distinct: ['clientId'],
+          })
+        ).map((r) => r.clientId),
+      );
+      const trackedVisible = visibleClientIds.filter((id) => trackedIds.has(id));
+      if (trackedVisible.length === 0) return [];
+      const names = await this.clientsById(tx, trackedVisible);
+      return trackedVisible
+        .map((id) => ({ id, name: names.get(id) ?? id }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }
+
   private parseSource(raw: string | undefined): InboxSource | null {
     if (raw == null || raw === '') return null;
     if ((INBOX_SOURCES as readonly string[]).includes(raw)) return raw as InboxSource;
