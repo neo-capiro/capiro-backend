@@ -28,7 +28,6 @@
     "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",
     "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",
     "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",
-    "diag:pe-budget-phase-10b31-real-canary": "tsx scripts/phase10b31-real-canary-review-profile.ts",
     "diag:tango-capabilities": "tsx scripts/diag-tango-capabilities.ts",
     "diag:tango-health": "tsx scripts/diag-tango-health.ts",
     "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",
