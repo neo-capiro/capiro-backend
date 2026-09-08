@@ -40,6 +40,23 @@ function renderRun(findings: ReturnType<typeof finding>[], status = 'partial') {
 beforeEach(() => { getMock.mockReset(); postMock.mockReset(); });
 
 describe('Meri durable review and attribution evidence', () => {
+  it('reloads durable findings after an apply request fails after saving an update', async () => {
+    const { run } = renderRun([
+      finding({ id: 'description', kind: 'profile_field', targetKey: 'description', source: 'public_web', proposedValue: 'Communications technology' }),
+      finding({ id: 'website', kind: 'profile_field', targetKey: 'website', source: 'public_web', proposedValue: 'https://example.org' }),
+    ], 'completed');
+    postMock.mockImplementation(async () => {
+      run.findings[0] = { ...run.findings[0]!, status: 'accepted', appliedAt: '2026-09-01T12:02:00.000Z' };
+      throw new Error('The remaining update could not be saved');
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept all safe changes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply 2 updates' }));
+    expect(await screen.findByText(/The remaining update could not be saved/)).toBeInTheDocument();
+    expect(await screen.findByText('Applied')).toBeInTheDocument();
+    expect(screen.getByText(/1 update has already been applied from this run/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply 1 update' })).toBeEnabled();
+  });
+
   it('clears pending selection when a real apply refresh returns the finding as accepted', async () => {
     const { run } = renderRun([finding({
       id: 'description-1', kind: 'profile_field', targetKey: 'description', source: 'public_web',

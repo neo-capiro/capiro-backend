@@ -153,7 +153,7 @@ export function useClientSubmissions(clientId: string): ClientSubmissions {
     settled: capabilitiesSettled && primeSettled && (list.length === 0 || historiesSettled),
     // A failed read is not "no submissions" — the caller keeps its skeleton or
     // says nothing rather than rendering a zero it cannot stand behind.
-    failed: capabilities.isError || histories.some((query) => query.isError),
+    failed: capabilities.isError || (prime.isError && list.length === 0) || histories.some((query) => query.isError),
     retry,
   };
 }

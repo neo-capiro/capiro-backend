@@ -183,3 +183,57 @@ describe('PastPerformanceCard (was Capabilities §7.3, row 12)', () => {
     await waitFor(() => expect(capabilitiesCalls).toBeGreaterThan(callsBeforeRetry));
   });
 });
+
+describe('Past performance data states', () => {
+  it('shows loading without assigning sample awards or dollar amounts to a client', () => {
+    getMock.mockImplementation(() => new Promise(() => {}));
+    renderPastPerformance();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading past performance');
+    expect(screen.queryByText('ULTRA autonomy integration')).not.toBeInTheDocument();
+    expect(screen.queryByText('$28.4M')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No submissions recorded/)).not.toBeInTheDocument();
+  });
+
+  it('renders the client’s saved submissions and capability names after loading', async () => {
+    getMock.mockImplementation(async (url: string) => ({
+      data: url.endsWith('/capabilities')
+        ? [{ id: 'cap-1', name: 'Communications' }]
+        : [
+            {
+              id: 'submission-1',
+              capabilityId: 'cap-1',
+              fiscalYear: '2026',
+              title: 'Recorded communications submission',
+              outcome: 'Awaiting decision',
+              outcomeType: 'in_progress',
+              createdAt: '2026-09-01T00:00:00Z',
+            },
+          ],
+    }));
+    renderPastPerformance();
+    expect(await screen.findByText('Recorded communications submission')).toBeInTheDocument();
+    expect(screen.getByText('Communications')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting decision')).toBeInTheDocument();
+    expect(screen.queryByText('ULTRA autonomy integration')).not.toBeInTheDocument();
+  });
+
+  it('shows a failed read with Retry and can recover to a confirmed empty state', async () => {
+    getMock.mockRejectedValue(new Error('Unavailable'));
+    renderPastPerformance();
+    expect(await screen.findByText('Past performance could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByText(/No submissions recorded/)).not.toBeInTheDocument();
+    getMock.mockResolvedValue({ data: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText(/No submissions recorded/)).toBeInTheDocument();
+  });
+
+  it('does not turn a failed history read into an empty record when no capabilities are returned', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/capabilities')) return { data: [] };
+      throw new Error('History unavailable');
+    });
+    renderPastPerformance();
+    expect(await screen.findByText('Past performance could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByText(/No submissions recorded/)).not.toBeInTheDocument();
+  });
+});

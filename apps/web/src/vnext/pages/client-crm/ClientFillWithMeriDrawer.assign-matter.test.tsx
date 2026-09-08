@@ -110,14 +110,14 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     postMock.mockResolvedValue({ data: { findingId: 'finding-1', matterId: 'matter-1', alreadyApplied: false } });
     renderDrawer();
 
-    await waitFor(() => expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Attach to Matter…'));
+    await waitFor(() => expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText('Attach to Matter'));
 
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const dialogs = screen.getAllByRole('dialog');
     const modal = dialogs[dialogs.length - 1]!;
     fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Attach' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     await waitFor(() =>
       expect(postMock).toHaveBeenCalledWith(
@@ -131,17 +131,17 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     postMock.mockResolvedValue({ data: { findingId: 'finding-1', matterId: 'matter-new', alreadyApplied: false } });
     renderDrawer();
 
-    await waitFor(() => expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Attach to Matter…'));
+    await waitFor(() => expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText('Attach to Matter'));
 
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const dialogs = screen.getAllByRole('dialog');
     const modal = dialogs[dialogs.length - 1]!;
-    fireEvent.click(within(modal).getByLabelText('Create a new matter'));
+    fireEvent.click(within(modal).getByLabelText('Create new'));
     fireEvent.change(within(modal).getByLabelText('Matter title'), {
       target: { value: 'FY27 autonomous systems funding request' },
     });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Create matter' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Create and apply' }));
 
     await waitFor(() =>
       expect(postMock).toHaveBeenCalledWith(
@@ -156,12 +156,12 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     const onOpenMatter = vi.fn();
     renderDrawer(onOpenMatter);
 
-    await waitFor(() => expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Attach to Matter…'));
+    await waitFor(() => expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText('Attach to Matter'));
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const modal = screen.getAllByRole('dialog').at(-1)!;
     fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Attach' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     await waitFor(() => expect(onOpenMatter).toHaveBeenCalledWith('matter-new'));
   });
@@ -176,12 +176,12 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     );
     renderDrawer();
 
-    await waitFor(() => expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Attach to Matter…'));
+    await waitFor(() => expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText('Attach to Matter'));
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const modal = screen.getAllByRole('dialog').at(-1)!;
     fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Attach' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     // The modal's own submit button is the "Applying…" indicator — no
     // separate optimistic UI, per the non-optimistic requirement.
@@ -189,7 +189,7 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     // Still pending in the underlying data — not removed/faded out ahead
     // of the server's real answer (non-optimistic per the requirement:
     // "show a short applying state and update after the server confirms").
-    expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument();
+    expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0);
 
     resolvePost!({ data: { findingId: 'finding-1', matterId: 'matter-1', alreadyApplied: false } });
     await waitFor(() => expect(screen.queryByText('Attach to a Matter')).not.toBeInTheDocument());
@@ -199,25 +199,25 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     postMock.mockRejectedValue({ response: { data: { message: 'Target advocacy matter not found' } } });
     renderDrawer();
 
-    await waitFor(() => expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Attach to Matter…'));
+    await waitFor(() => expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByText('Attach to Matter'));
     await waitFor(() => expect(screen.getByText('Attach to a Matter')).toBeInTheDocument());
     const modal = screen.getAllByRole('dialog').at(-1)!;
     fireEvent.change(within(modal).getByRole('combobox'), { target: { value: 'matter-1' } });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Attach' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Attach now' }));
 
     await waitFor(() => expect(within(modal).getByText('Target advocacy matter not found')).toBeInTheDocument());
     // The finding is still on screen, still actionable — nothing was
     // silently removed or marked applied on a failed request.
-    expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument();
-    expect(screen.getByText('Attach to Matter…')).toBeInTheDocument();
+    expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0);
+    expect(screen.getByText('Attach to Matter')).toBeInTheDocument();
   });
 
   it('keeps "Not advocacy" wired to the existing immediate-reject path, unaffected by the new assign-matter action', async () => {
     postMock.mockResolvedValue({ data: {} });
     renderDrawer();
 
-    await waitFor(() => expect(screen.getByText('FY27 autonomous systems funding request')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('FY27 autonomous systems funding request').length).toBeGreaterThan(0));
     fireEvent.click(screen.getByText('Not advocacy'));
 
     await waitFor(() =>
@@ -227,9 +227,9 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     );
   });
 
-  it('does not offer "Attach to Matter…" for an advocacy_outcome finding — only advocacy_record findings get direct Matter assignment', async () => {
+  it('does not offer "Attach to Matter" for an advocacy_outcome finding — only advocacy_record findings get direct Matter assignment', async () => {
     getMock.mockImplementation(async (url: string) => {
-      if (url.endsWith('/latest')) {
+      if (!url.endsWith('/advocacy-matters')) {
         return {
           data: fillRunFixture({
             findings: [
@@ -247,8 +247,8 @@ describe('ClientFillWithMeriDrawer — Attach to Matter / Create new Matter on a
     });
     renderDrawer();
 
-    await waitFor(() => expect(screen.getByText('HAC-D marked up +$18M')).toBeInTheDocument());
-    expect(screen.queryByText('Attach to Matter…')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText('HAC-D marked up +$18M').length).toBeGreaterThan(0));
+    expect(screen.queryByText('Attach to Matter')).not.toBeInTheDocument();
     // "Not advocacy" is still offered — only the Matter-assign action is
     // record-specific.
     expect(screen.getByText('Not advocacy')).toBeInTheDocument();

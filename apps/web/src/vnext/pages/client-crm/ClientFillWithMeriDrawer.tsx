@@ -168,7 +168,7 @@ export function ClientFillWithMeriDrawer({
           message={
             fill.phase === 'permission-denied'
               ? 'You do not have permission to run or apply this review. An administrator can complete it.'
-              : fill.run?.error ?? errorText(fill.startError, 'The review could not be started.')
+              : retryError ?? fill.run?.error ?? errorText(fill.startError, 'The review could not be started.')
           }
           attemptedAt={fill.run?.startedAt ?? null}
           onRetry={retryRun}
@@ -501,7 +501,9 @@ function CompletionSummary({
         <p>
           {applied
             ? `${applied} update${applied === 1 ? ' has' : 's have'} already been applied from this run. Those changes remain on the record; review the remaining proposals below.`
-            : 'Review the evidence and decide what belongs on the record. No updates from this run have been applied yet.'}
+            : fill.applyError
+              ? 'The last apply request did not complete. Refresh the findings to confirm which changes were saved before retrying.'
+              : 'Review the evidence and decide what belongs on the record. No updates from this run have been applied yet.'}
         </p>
       </div>
       {coverage ? (
@@ -753,6 +755,7 @@ function FindingsPanel({
       {fill.applyError ? (
         <p className="meri-fill-error-text meri-fill-findings__error">
           {errorText(fill.applyError, 'Could not apply the accepted changes.')}
+          {' '}Some updates may already be saved. <button onClick={() => void fill.refreshRun()}>Refresh findings</button>
         </p>
       ) : null}
       {fill.rejectError || fill.restoreError ? (

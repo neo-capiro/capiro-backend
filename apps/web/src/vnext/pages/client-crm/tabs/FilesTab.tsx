@@ -17,7 +17,6 @@ import {
   clientAccountOwnerLabel,
   type ClientAccountOwner,
 } from '../useClientAccountOwner.js';
-import { FILES, FOLDERS } from '../portfolio-fixtures.js';
 import { CLIENT_STORAGE_QUOTA_BYTES, CLIENT_STORAGE_WARN_THRESHOLD } from '@capiro/shared';
 import './files-tab.css';
 import { fileReadability } from './file-readability.js';
@@ -28,12 +27,8 @@ import { fileReadability } from './file-readability.js';
  * Data binding:
  *  - The file list reuses the canonical attachments query
  *    (`['client-attachments', client.id]` — same key as the profile, so
- *    uploads invalidate both surfaces). When the service returns rows they
- *    are mapped onto the design's row shape; while loading or on error, the
- *    design's FILES fixture renders so the surface stays pixel-reviewable
- *    (flagged UI-only). Once the query resolves and the client genuinely has
- *    no attachments, a real empty state renders instead — the fixture is a
- *    loading placeholder, never a stand-in for "no data".
+ *    uploads invalidate both surfaces). Confirmed rows are mapped onto the
+ *    design's row shape, with explicit loading, error, and empty states.
  *  - Upload, move, and delete port the same presign → S3 → confirm and
  *    folder-PATCH pipeline the canonical `ClientCrmFiles` surface uses
  *    (same query key, so both invalidate together and no second copy of the
@@ -44,7 +39,7 @@ import { fileReadability } from './file-readability.js';
  *    files, plus Unfiled. Folders in this product are labels on attachments —
  *    there is no folder table and no nesting — so the tree renders one flat
  *    level under the client root rather than inventing a hierarchy. The
- *    FOLDERS fixture renders only while that query is loading or errored.
+ *    tree shows loading or a retryable error until folder data is available.
  *  - "New folder" therefore cannot create an empty folder server-side. It
  *    either files the current selection into the new label (a real move
  *    PATCH, which is what makes the folder exist) or opens a draft folder you
@@ -87,7 +82,7 @@ interface FileRowModel {
   owner: string;
   status: string;
   tone: PillTone;
-  /** Fixture folder id, or the real folder label for attachments. */
+  /** The folder label stored on the attachment. */
   folder: string | null;
   /** Present only for real attachments — lets the row open/download the file. */
   downloadUrl: string | null;
@@ -117,26 +112,13 @@ const SORT_LABEL: Record<SortKey, string> = { modified: 'Created', name: 'Name',
 const FILE_COLUMNS = ['Document', 'Linked to', 'Created', 'Owner', 'Status'] as const;
 const SORT_NEXT: Record<SortKey, SortKey> = { modified: 'name', name: 'owner', owner: 'modified' };
 
-const TONE_OF: Record<string, PillTone> = {
-  gray: 'gray',
-  brand: 'brand',
-  blue: 'blue',
-  error: 'error',
-  warning: 'warning',
-  success: 'success',
-};
-const toneOf = (ui: string): PillTone => TONE_OF[ui] ?? 'gray';
-
-/** FOLDERS rows optionally carry kids/open — widen the union for access. */
-type FolderFixture = (typeof FOLDERS)[number] & { kids?: boolean; open?: boolean };
-
 /** What `GET /api/clients/:id/files/folders` returns (ClientFilesService.folders). */
 interface FolderGroup {
   folder: string | null;
   count: number;
 }
 
-/** A row in the folder tree, real or fixture. */
+/** A row in the folder tree. */
 interface FolderTreeNode {
   id: string;
   label: string;
@@ -172,46 +154,6 @@ function formatBytes(bytes: number): string {
   if (mb < 1) return '<1 MB';
   if (mb < 1024) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
   return `${(mb / 1024).toFixed(1)} GB`;
-}
-
-function fixtureTree(): FolderTreeNode[] {
-  return (FOLDERS as FolderFixture[]).map((f) => ({
-    id: f.id,
-    label: f.label,
-    count: f.count,
-    subs: f.subs,
-    depth: f.depth,
-    ...(f.kids === undefined ? {} : { kids: f.kids }),
-    ...(f.open === undefined ? {} : { open: f.open }),
-    crumb: f.crumb,
-    // Fixture rows below the root also scope real attachments by label, which
-    // is what the tab did before the tree was real.
-    ...(f.id === 'root' ? {} : { folder: f.label }),
-  }));
-}
-
-/* ── fixture + real-row mapping ───────────────────────────────────────────── */
-
-function fixtureRow(f: (typeof FILES)[number] & { smart?: boolean }): FileRowModel {
-  return {
-    id: f.id,
-    ext: f.ext,
-    name: f.name,
-    smart: Boolean(f.smart),
-    generated: f.owner === 'Meri',
-    linked: f.linked,
-    modified: f.modified,
-    modifiedTs: 0,
-    owner: f.owner,
-    status: f.status,
-    tone: toneOf(f.ui),
-    folder: f.folder,
-    downloadUrl: null,
-    previewUrl: null,
-    contentType: null,
-    viewerMode: 'all',
-    viewerUserIds: [],
-  };
 }
 
 function extOf(fileName: string): string {
@@ -448,8 +390,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
    * are actually unfiled.
    */
   const folders: FolderTreeNode[] = useMemo(() => {
-    if (!realTree) return fixtureTree();
-    const groups = foldersQuery.data ?? [];
+    const groups = realTree ? foldersQuery.data ?? [] : [];
     const named = groups
       .filter((group): group is { folder: string; count: number } => Boolean(group.folder?.trim()))
       .map((group) => ({ label: group.folder.trim(), count: group.count, draft: false }));
@@ -502,10 +443,6 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
     .map((f) => ({ label: f.label, depth: f.depth, count: f.count }));
 
   /**
-   * Does a row belong to the selected folder? Fixture file rows carry fixture
-   * folder ids; real attachments carry the folder label the backend stored.
-   */
-  /**
    * Filing a set of files. With no destination folder yet — a real
    * possibility now that the tree is real, and impossible when it was a
    * ten-folder fixture — a "move" modal would offer an empty list, so naming
@@ -519,11 +456,10 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
   const inCurrentFolder = useCallback(
     (row: FileRowModel): boolean => {
       if (current.id === 'root') return true;
-      if (!real) return row.folder === current.id;
       if (current.folder === null) return row.folder === null;
       return (row.folder ?? '').toLowerCase() === (current.folder ?? '').toLowerCase();
     },
-    [current, real],
+    [current],
   );
 
   const allRows: FileRowModel[] = useMemo(
@@ -565,9 +501,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    // Search spans every folder (prototype behaviour); otherwise scope to the
-    // selected folder — fixtures match on folder id, real attachments on the
-    // folder label (the fixture tree is designed UI, §11).
+    // Search spans every folder; otherwise match the selected stored label.
     let shown = needle
       ? allRows.filter((row) => `${row.name} ${row.linked}`.toLowerCase().includes(needle))
       : allRows.filter(inCurrentFolder);
@@ -918,7 +852,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
       ) : null}
 
       <div className={`cap-pf-files__grid${narrow ? ' is-narrow' : ''}`}>
-        {/* folder tree card (FOLDERS fixture — designed UI, §11) */}
+        {/* Folder tree from the client’s stored attachment labels. */}
         <section className="cap-pf-files__card">
           <div className="cap-pf-files__tree-head">
             <span className="cap-pf-files__eyebrow cap-pf-files__flex1">Folders</span>
@@ -952,9 +886,16 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
             </PfButton>
           </div>
           <div className="cap-pf-files__tree-list">
-            {folders.map((folder) => (
+            {realTree ? folders.map((folder) => (
               <FolderTreeRow key={folder.id} folder={folder} active={folder.id === folderId} onPick={() => pickFolder(folder.id)} />
-            ))}
+            )) : foldersQuery.isError ? (
+              <div role="alert" style={{ padding: '12px 16px' }}>
+                <p>Folders could not be loaded.</p>
+                <PfButton variant="link" onClick={() => void foldersQuery.refetch()}>Retry folders</PfButton>
+              </div>
+            ) : (
+              <p role="status" style={{ padding: '12px 16px' }}>Loading folders…</p>
+            )}
           </div>
           <div className="cap-pf-files__storage">
             <div className="cap-pf-files__eyebrow">Client storage</div>
@@ -970,11 +911,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                 Reported, not enforced: nothing today rejects an upload for
                 exceeding the total (the per-FILE cap, MAX_ATTACHMENT_BYTES, IS
                 enforced at presign). The meter therefore warns and can read
-                over 100% rather than blocking.
-
-                The fixture branch keeps the design's exact geometry — it is
-                what the offline capture harness diffs against the Figma frame,
-                and it is a loading placeholder, never a claim about a client. */}
+                over 100% rather than blocking. */}
             {loaded ? (
               <>
                 <div className={`cap-pf-files__storage-value${storageOver ? ' is-over' : ''}`}>
@@ -1023,7 +960,9 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                 {/* Subfolder count only where there are subfolders — real
                     folders never nest, so "0 subfolders" on every row would be
                     noise about a hierarchy this product does not have. */}
-                {current.draft
+                {!realTree
+                  ? foldersQuery.isError ? 'Folder counts unavailable' : 'Loading folder counts…'
+                  : current.draft
                   ? 'Draft folder · upload or move a file here to create it'
                   : `${current.count} file${current.count === 1 ? '' : 's'}${current.subs > 0 ? ` · ${current.subs} subfolders` : ''}`}
               </span>

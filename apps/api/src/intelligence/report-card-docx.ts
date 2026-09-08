@@ -2,6 +2,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
   HeadingLevel,
   Packer,
   Paragraph,
@@ -53,10 +54,6 @@ function usd(amount: number | null): string {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(amount);
-}
-
-function rangeDate(d: Date): string {
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function rule(): Paragraph {
@@ -163,6 +160,7 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
         year: 'numeric',
         month: 'long',
         day: 'numeric',
+        timeZone: 'UTC',
       }),
     ),
   );
@@ -329,21 +327,24 @@ export async function renderReportCardDocx(data: ReportCardData): Promise<Buffer
   }
 
   // ---- Footer ----
-  children.push(
-    new Paragraph({
-      spacing: { before: 260 },
-      border: { top: { color: RULE, style: BorderStyle.SINGLE, size: 6, space: 6 } },
-      children: [
-        new TextRun({
-          text: `Prepared by ${data.tenant.name || 'this firm'} · Confidential — for internal client use`,
-          italics: true,
-          size: 16,
-          color: GREY,
-        }),
-      ],
-    }),
-  );
+  const footer = new Footer({
+    children: [
+      new Paragraph({
+        border: { top: { color: RULE, style: BorderStyle.SINGLE, size: 6, space: 6 } },
+        children: [
+          new TextRun({
+            text: `Prepared by ${data.tenant.name || 'this firm'} · Confidential — for internal client use`,
+            italics: true,
+            size: 16,
+            color: GREY,
+          }),
+        ],
+      }),
+    ],
+  });
 
-  const doc = new Document({ sections: [{ properties: {}, children }] });
+  const doc = new Document({
+    sections: [{ properties: {}, footers: { default: footer }, children }],
+  });
   return Buffer.from(await Packer.toBuffer(doc));
 }

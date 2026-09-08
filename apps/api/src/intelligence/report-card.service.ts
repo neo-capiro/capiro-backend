@@ -206,10 +206,18 @@ export class ReportCardService {
       }),
     );
 
+    const rangeFmt = (d: Date): string =>
+      d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
+
     // AI forward-look
     const contextLines = [
       `CLIENT: ${client.name}`,
-      `PERIOD: trailing ${period === 'quarter' ? '90 days' : '365 days'} (${start.toLocaleDateString()} – ${now.toLocaleDateString()}); NOT a federal fiscal-year period`,
+      `PERIOD: trailing ${period === 'quarter' ? '90 days' : '365 days'} (${rangeFmt(start)} – ${rangeFmt(now)}); NOT a federal fiscal-year period`,
       `RECORDED MEETINGS: ${meetings.length} non-cancelled calendar records (${uniqueRoles.size} distinct attendee roles listed; attendance not independently verified)`,
       `OUTREACH: ${outreachSent} sent, ${(outreachOpenRate * 100).toFixed(0)}% open rate`,
       `COMPLETED TASK RECORDS UPDATED THIS PERIOD: ${tasksCompleted} (last update is not the completion date)`,
@@ -238,8 +246,6 @@ Based on this client's activity and intelligence data for the past ${period === 
     // is a trailing 90/365 days, not a calendar quarter, and the federal fiscal
     // year is offset from the calendar year — so it must not be presented as an
     // FY period to clients.
-    const rangeFmt = (d: Date): string =>
-      d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const periodLabel =
       period === 'quarter'
         ? `Trailing 90 days (${rangeFmt(start)} – ${rangeFmt(now)})`

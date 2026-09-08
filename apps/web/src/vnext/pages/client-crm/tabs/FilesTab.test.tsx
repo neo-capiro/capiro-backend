@@ -121,6 +121,29 @@ beforeEach(() => {
 });
 
 describe('ClientCrmFilesProto', () => {
+  it('shows loading instead of sample folders while the folder request is pending', () => {
+    getMock.mockImplementation(() => new Promise(() => {}));
+    renderFiles();
+    expect(screen.getByText('Loading folders…')).toBeInTheDocument();
+    expect(screen.queryByText('FY27 Strategy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deliverables')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 files')).not.toBeInTheDocument();
+  });
+
+  it('offers a folder retry instead of sample folders when loading fails', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/files/folders')) throw new Error('Folders unavailable');
+      return { data: [] };
+    });
+    renderFiles();
+    expect(await screen.findByText('Folders could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByText('FY27 Strategy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deliverables')).not.toBeInTheDocument();
+    mockApi({ folders: [{ folder: 'Saved folder', count: 2 }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry folders' }));
+    expect(await screen.findByRole('button', { name: /Saved folder\s*2/ })).toBeInTheDocument();
+  });
+
   it('shows a real empty state instead of the design fixture when the client has no files', async () => {
     mockApi({ attachments: [] });
     renderFiles();

@@ -7,6 +7,13 @@ import { ClientFacilitiesService } from './client-facilities.service.js';
 import * as facilityGeocode from './facility-geocode.util.js';
 import { CreateFacilityDto, UpdateFacilityDto } from './client-facilities.controller.js';
 
+// CRUD may start a background geocode. Keep that provider request in flight
+// locally so initial pending-state assertions are deterministic and no unit
+// test sends an address to Census. Resolution tests control the outcome below.
+jest.mock('../external/census-geocoder/census-geocoder.client.js', () => ({
+  geocodeAddress: jest.fn(() => new Promise(() => {})),
+}));
+
 const kbStub = { indexFacilityFireAndForget: () => {}, purgeFireAndForget: () => {} };
 
 const TENANT_A = '00000000-0000-0000-0000-00000000000a';
@@ -63,10 +70,8 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
         scopedFacilities().find((f) => matchWhere(f, where)) ?? null,
       // District Impact Engine (Phase 1 M1.2) — the create/update paths fire a
       // best-effort, non-blocking geocode that reads the row back by id. The
-      // fake resolves `null` here (never `undefined`/throw) so that
-      // fire-and-forget path short-circuits cleanly instead of making a real
-      // network call to the Census Geocoder from a unit test, or logging a
-      // harmless-but-noisy "findUnique is not a function" warning.
+      // fake keeps tenant-scoped lookup behavior intact; the Census client
+      // is mocked above so a complete address cannot trigger real network IO.
       findUnique: async ({ where }: { where: { id: string } }) =>
         scopedFacilities().find((f) => f.id === where.id) ?? null,
       create: async ({ data }: { data: Row }) => {

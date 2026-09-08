@@ -66,6 +66,30 @@ describe('renderReportCardDocx', () => {
     expect(buf[1]).toBe(0x4b);
   });
 
+  it('uses a page footer so the confidentiality line cannot become a separate body page', async () => {
+    const zip = await JSZip.loadAsync(await renderReportCardDocx(FULL));
+    const document = await zip.file('word/document.xml')!.async('string');
+    const footer = await zip.file('word/footer1.xml')!.async('string');
+    expect(document).toContain('w:footerReference');
+    expect(document).not.toContain('Prepared by Acme Government Affairs');
+    expect(footer).toContain('Prepared by Acme Government Affairs');
+    expect(footer).toContain('Confidential');
+  });
+
+  it('keeps the generated date aligned with UTC report dates regardless of the server timezone', async () => {
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    try {
+      const zip = await JSZip.loadAsync(await renderReportCardDocx(FULL));
+      const document = await zip.file('word/document.xml')!.async('string');
+      expect(document).toContain('August 30, 2026');
+      expect(document).not.toContain('August 29, 2026');
+    } finally {
+      if (previousZone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousZone;
+    }
+  });
+
   it('does not throw when outcomes, health trend and forward-look are all empty', async () => {
     const empty: ReportCardData = {
       ...FULL,

@@ -4,7 +4,9 @@ import type { ClientPerson } from '../../adapters/legacy/useClientOrganizationMo
 export function leadershipTitleConflicts(people: ClientPerson[]): Set<string> {
   const titles = new Map<string, ClientPerson[]>();
   for (const person of people) {
-    const title = person.title?.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+    const title = person.title?.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim()
+      // These are the same scoped office, not different leadership roles.
+      .replace(/^president of\s+/, 'president ');
     if (!title || /\b(former|previous|retired|emeritus)\b/.test(title)) continue;
     if (!/\b(president|ceo|cfo|coo|cto|chief executive officer|chief financial officer|chief operating officer|chief technology officer)\b/.test(title)) continue;
     // A department may have several VPs. Preserve scoped president/CEO titles.

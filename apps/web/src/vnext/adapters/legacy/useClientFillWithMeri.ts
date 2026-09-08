@@ -184,6 +184,11 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
       const applied = result?.applied ?? findingIds.length;
       const failed = result?.failed ?? 0;
       setApplyOutcome({ applied, failed });
+    },
+    onError: () => setApplyOutcome(null),
+    onSettled: async () => {
+      // A multi-finding apply can save earlier updates before a later write
+      // fails, or lose its response after committing. Reconcile on errors too.
       // §4: "Apply invalidates/reloads affected client queries." These are the
       // keys every client surface reads, including the canonical profile.
       for (const key of [
@@ -204,7 +209,7 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
         void qc.invalidateQueries({ queryKey: key });
       }
       void qc.invalidateQueries({ queryKey: ['clients'] });
-      void run.refetch();
+      await run.refetch();
     },
   });
 
@@ -384,6 +389,7 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     applyOutcome,
     startError: start.error,
     applyError: apply.error,
+    refreshRun: () => run.refetch(),
     start: (input?: { sources?: string[]; website?: string } | string[]) => {
       if (Array.isArray(input)) {
         start.mutate({ sources: input });

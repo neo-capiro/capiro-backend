@@ -220,8 +220,8 @@ describe('ClientCrmOrganizationProto — hierarchy settings (item 16)', () => {
 describe('Leadership role review', () => {
   it('flags overlapping leadership titles without choosing who is current or removing either contact', async () => {
     mockPeople([
-      person({ id: 'p1', name: 'Christopher Aebli', title: 'President, Communications & Spectrum Dominance', placementSource: 'manual' }),
-      person({ id: 'p2', name: 'Jon Rambeau', title: 'President, Communications and Spectrum Dominance', placementSource: 'manual' }),
+      person({ id: 'p1', name: 'Christopher Aebli', title: 'President of Communications & Spectrum Dominance', placementSource: 'manual' }),
+      person({ id: 'p2', name: 'Jon Rambeau', title: 'President, Communications & Spectrum Dominance', placementSource: 'manual' }),
     ]);
     renderOrg();
     expect(await screen.findByText(/2 contacts share a leadership title/)).toBeInTheDocument();

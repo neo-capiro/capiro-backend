@@ -39,6 +39,24 @@ function harness() {
 }
 
 describe('report-card source definitions', () => {
+  it('uses the same UTC date range in the report and AI context', async () => {
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    jest.useFakeTimers({ now: new Date('2026-09-08T00:00:00.000Z') });
+    try {
+      const { service, tx, insight } = harness();
+      tx.$queryRaw.mockResolvedValueOnce([{ enabled: true }]).mockResolvedValueOnce([{ count: 0 }]);
+      const data = await service.generateReportCard(CLIENT, TENANT);
+      const range = 'Jun 10, 2026 – Sep 8, 2026';
+      expect(data.period.label).toBe(`Trailing 90 days (${range})`);
+      expect(insight.generateFreeText.mock.calls[0]![0]).toContain(`(${range})`);
+    } finally {
+      jest.useRealTimers();
+      if (previousZone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousZone;
+    }
+  });
+
   it.each([true, false])(
     'reads curated membership from the active tracker when tracker_v2=%s',
     async (enabled) => {
