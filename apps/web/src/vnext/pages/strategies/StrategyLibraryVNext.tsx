@@ -49,6 +49,8 @@ export const TYPE_LABEL: Record<string, string> = {
   earmark: 'Earmark',
 };
 
+import { strategyRelativeTime } from './lib/date-format.js';
+
 type SortKey = 'recent' | 'steps';
 
 /*
@@ -109,6 +111,7 @@ export function StrategyLibraryVNext() {
   const deleteStrategy = useDeleteStrategy();
 
   const [sort, setSort] = useState<SortKey>('recent');
+  const [planFilter, setPlanFilter] = useState<'all' | 'unassigned' | 'empty'>('all');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   /* Two-step delete: the row's Delete control arms this, and only the armed
    * row's explicit Confirm actually mutates. No window.confirm (the module's
@@ -149,6 +152,8 @@ export function StrategyLibraryVNext() {
      * that could be mistaken for a truncated result. */
     if (selectedClientId) list = list.filter((r) => r.clientId === selectedClientId);
     if (ownerFilter !== 'all') list = list.filter((r) => r.ownerUserId === ownerFilter);
+    if (planFilter === 'unassigned') list = list.filter((row) => (row.summary?.unassignedCount ?? 0) > 0);
+    if (planFilter === 'empty') list = list.filter((row) => row.nodeCount === 0);
     const sorted = [...list];
     if (sort === 'recent') {
       sorted.sort((a, b) => (b.lastEditedAt ?? b.createdAt).localeCompare(a.lastEditedAt ?? a.createdAt));
@@ -157,23 +162,18 @@ export function StrategyLibraryVNext() {
       sorted.sort((a, b) => (b.nodeCount ?? 0) - (a.nodeCount ?? 0));
     }
     return sorted;
-  }, [rows, ownerFilter, sort, selectedClientId]);
+  }, [rows, ownerFilter, sort, selectedClientId, planFilter]);
 
   const scopedRows = selectedClientId ? rows.filter((r) => r.clientId === selectedClientId) : rows;
-  const activeCount = scopedRows.length;
-  const clientCount = useMemo(() => new Set(scopedRows.map((r) => r.clientId)).size, [scopedRows]);
-  const needsReview = useMemo(
-    () => Object.values(counts).reduce((n, c) => n + (c ?? 0), 0),
-    [counts],
-  );
-  /* Fleet-wide total steps from the list endpoint — real data (nodeCount on
-   * every StrategyListItem), used as a plan-size indicator in the stats band
-   * and as the plan-health sort proxy. This is NOT a health score — just the
-   * sum of steps across all loaded strategies. */
-  const totalSteps = useMemo(
-    () => rows.reduce((sum, r) => sum + (r.nodeCount ?? 0), 0),
-    [rows],
-  );
+  const plannedCount = scopedRows.filter((row) => row.nodeCount > 0).length;
+  const emptyCount = scopedRows.length - plannedCount;
+  const clientCount = new Set(scopedRows.map((row) => row.clientId)).size;
+  const needsReview = scopedRows.reduce((sum, row) => sum + (counts[row.id] ?? 0), 0);
+  const totalSteps = scopedRows.reduce((sum, row) => sum + row.nodeCount, 0);
+  const summaryAvailable = scopedRows.every((row) => row.summary !== undefined);
+  const unassignedCount = scopedRows.reduce((sum, row) => sum + (row.summary?.unassignedCount ?? 0), 0);
+  const assignedCount = scopedRows.reduce((sum, row) => sum + (row.summary?.assignedCount ?? 0), 0);
+  const ownerCoverage = summaryAvailable && totalSteps ? `${Math.round(assignedCount / totalSteps * 100)}%` : '—';
 
   if (strategies.isLoading) {
     return (
@@ -306,41 +306,27 @@ export function StrategyLibraryVNext() {
           </div>
         )}
 
-        {/* Four navigational stats (§7.1) — each is a filter or navigation, never decoration.
-            "Approaching gates" and "Plan coverage" stay honest gaps (see per-button comments
-            below) rather than faking a fleet-wide number this view cannot ground. */}
         <div className="st-stats">
-          <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
-            <p className="st-stat__value">{activeCount}</p>
-            <p className="st-stat__label">Active strategies</p>
-            <p className="st-stat__hint">Across {clientCount} {clientCount === 1 ? 'client' : 'clients'}</p>
+          <button type="button" className="st-stat" onClick={() => { setOwnerFilter('all'); setPlanFilter('all'); }}>
+            <p className="st-stat__value">{plannedCount}</p>
+            <p className="st-stat__label">Plans with steps</p>
+            <p className="st-stat__hint">{emptyCount} empty · Across {clientCount} {clientCount === 1 ? 'client' : 'clients'}</p>
           </button>
           <button type="button" className={needsReview > 0 ? 'st-stat st-stat--attention' : 'st-stat'} onClick={() => navigate('/strategies/agents/proposals')}>
             <p className="st-stat__value">{watchAvailable ? needsReview : '—'}</p>
-            <p className="st-stat__label">Needs review</p>
-            <p className="st-stat__hint">{watchAvailable ? 'Watcher proposals' : 'Watch status unavailable'}</p>
+            <p className="st-stat__label">Watcher proposals</p>
+            <p className="st-stat__hint">{watchAvailable ? 'Open agent review' : 'Watch status unavailable'}</p>
           </button>
-          {/* Approaching gates: the list endpoint carries `nodeCount` but not
-              gate nodes or due dates (those live on StrategyDetail.nodes).
-              Show the total step count from the list as a plan-size indicator
-              rather than a bare "—", and note that gate-level detail requires
-              opening the strategy. planHealthFromSummary gives us totalSteps;
-              the other dimensions stay null (unknown, not zero) until a
-              server-side fleet gates endpoint exists. */}
-          <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
-            <p className="st-stat__value">{totalSteps}</p>
-            <p className="st-stat__label">Plan steps</p>
-            <p className="st-stat__hint">Gate detail on open</p>
+          <button type="button" className="st-stat" disabled={!summaryAvailable} onClick={() => { setOwnerFilter('all'); setPlanFilter('unassigned'); }}>
+            <p className="st-stat__value">{summaryAvailable ? unassignedCount : '—'}</p>
+            <p className="st-stat__label">Unassigned work</p>
+            <p className="st-stat__hint">Show plans with unfinished, unassigned steps</p>
           </button>
-          {/* Plan coverage: owner assignment is per-node (StrategyDetail.nodes
-              [].ownerUserId), not carried on the list endpoint. Show the
-              fleet-wide step count as a scope indicator — the real coverage
-              percentage needs per-strategy detail to compute. */}
-          <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
-            <p className="st-stat__value">{totalSteps > 0 ? '—' : 0}</p>
-            <p className="st-stat__label">Plan coverage</p>
-            <p className="st-stat__hint">{totalSteps} steps total</p>
-          </button>
+          <div className="st-stat">
+            <p className="st-stat__value">{ownerCoverage}</p>
+            <p className="st-stat__label">Owner coverage</p>
+            <p className="st-stat__hint">{summaryAvailable ? `${assignedCount} of ${totalSteps} steps assigned` : 'Assignment data unavailable'}</p>
+          </div>
         </div>
 
         {/* List header: filters + sort (§7.1). Client scope comes from the context strip. */}
@@ -353,6 +339,11 @@ export function StrategyLibraryVNext() {
             </p>
           </div>
           <div className="st-actions">
+            <div className="st-segmented" role="group" aria-label="Plan filter">
+              <button aria-pressed={planFilter === 'all'} onClick={() => setPlanFilter('all')}>All plans</button>
+              <button aria-pressed={planFilter === 'unassigned'} disabled={!summaryAvailable} onClick={() => setPlanFilter('unassigned')}>Unassigned work</button>
+              <button aria-pressed={planFilter === 'empty'} onClick={() => setPlanFilter('empty')}>Empty plans</button>
+            </div>
             <div className="st-segmented" role="group" aria-label="Owner filter">
               <button aria-pressed={ownerFilter === 'all'} onClick={() => setOwnerFilter('all')}>All owners</button>
               {owners.map(([id, name]) => (
@@ -410,7 +401,7 @@ export function StrategyLibraryVNext() {
                   {filtered.length === 0 ? (
                     <tr className="st-library-emptyrow">
                       <td colSpan={6}>
-                        No strategies match the current {selectedClientId ? 'client and ' : ''}owner filter.
+                        No strategies match the current filters.
                       </td>
                     </tr>
                   ) : (
@@ -455,6 +446,7 @@ export function StrategyLibraryVNext() {
                   className="st-library-clearlink"
                   onClick={() => {
                     setOwnerFilter('all');
+                    setPlanFilter('all');
                     clientContext.setSelectedClientId(null);
                   }}
                 >
@@ -513,7 +505,12 @@ function StrategyRow({
       </td>
       <td>
         <span className="st-pill st-pill--accent">{TYPE_LABEL[strategy.type] ?? strategy.type}</span>
-        <div className="st-library-steps">{strategy.nodeCount} steps</div>
+        <div className="st-library-steps">{strategy.nodeCount === 0 ? 'Empty plan' : `${strategy.nodeCount} steps`}</div>
+        {strategy.summary && strategy.nodeCount > 0 ? <div className="st-library-steps">
+          {strategy.summary.completedCount === strategy.nodeCount ? 'Completed' : strategy.summary.reviewCount === strategy.nodeCount ? 'Draft / review' : 'Working plan'}
+          {strategy.summary.unassignedCount > 0 ? ` · ${strategy.summary.unassignedCount} unassigned` : ''}
+          {strategy.summary.reviewCount > 0 ? ` · ${strategy.summary.reviewCount} awaiting review` : ''}
+        </div> : null}
       </td>
       <td>
         <div className="st-library-owner">
@@ -572,16 +569,5 @@ function StrategyRow({
 }
 
 function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '—';
-  const diff = Date.now() - then;
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return days === 1 ? 'Yesterday' : `${days} days ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return strategyRelativeTime(iso);
 }
-

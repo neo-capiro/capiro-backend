@@ -47,6 +47,7 @@ export class StrategyService {
           // P0-1: count the LIVE plan only — a node archived by a non-destructive
           // restore must not inflate the library's step count.
           _count: { select: { nodes: { where: { ...LIVE_NODE_WHERE } } } },
+          nodes: { where: { ...LIVE_NODE_WHERE }, select: { ownerUserId: true, status: true } },
         },
       }),
     );
@@ -61,6 +62,12 @@ export class StrategyService {
       lastEditedAt: r.lastEditedAt,
       createdAt: r.createdAt,
       nodeCount: r._count.nodes,
+      summary: {
+        assignedCount: r.nodes.filter((node) => Boolean(node.ownerUserId)).length,
+        unassignedCount: r.nodes.filter((node) => !node.ownerUserId && node.status !== 'completed').length,
+        completedCount: r.nodes.filter((node) => node.status === 'completed').length,
+        reviewCount: r.nodes.filter((node) => ['draft', 'internal_review', 'suggested'].includes(node.status)).length,
+      },
     }));
   }
 

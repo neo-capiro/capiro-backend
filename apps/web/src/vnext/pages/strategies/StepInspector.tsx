@@ -18,7 +18,6 @@ import { CapiroInput } from '../../components/fields/index.js';
 import { CapiroSkeleton } from '../../components/feedback/index.js';
 import {
   memberName,
-  useAddNode,
   useAssistant,
   useCreateMission,
   useMissions,
@@ -31,13 +30,15 @@ import {
   useUpdateNode,
 } from './strategies-api.js';
 import { EXECUTION_MISSION_NAME, findExecutionMission } from '../../../pages/strategy/agents/agent-utils.js';
-import type { ArtifactType, StrategyNode } from '../../../pages/strategy/types.js';
+import type { ArtifactType, StrategyNode, StrategyNodeArtifact } from '../../../pages/strategy/types.js';
 import {
   CLIENT_EXPORT_READY_STATUSES,
   clientExportStatusLabel,
   isClientExportReadyStatus,
   type ClientExportReadyStatus,
 } from './lib/step-review.js';
+import { StepDetailsForm } from './StepDetailsForm.js';
+import { strategyArtifactHref } from './lib/artifact-link.js';
 import './step-inspector.css';
 
 const KIND_LABEL: Record<string, string> = {
@@ -69,6 +70,7 @@ const STATUS_LABEL: Record<string, string> = {
   internal_review: 'Internal review',
   active: 'Active',
   suggested: 'Suggested',
+  completed: 'Completed',
 };
 
 // Status → pill tone. The design fixture varies its state-pill tone per
@@ -84,6 +86,7 @@ const STATUS_PILL_TONE: Record<string, string> = {
   in_progress: 'st-pill--accent',
   internal_review: 'st-pill--warning',
   active: 'st-pill--success',
+  completed: 'st-pill--success',
   suggested: 'st-pill--warning',
 };
 
@@ -128,6 +131,9 @@ const SUGGESTED_PROMPTS = [
 
 export function StepInspector({
   strategyId,
+  clientId,
+  nodes = [],
+  artifacts = [],
   step,
   isNew,
   tab,
@@ -135,6 +141,9 @@ export function StepInspector({
   onClose,
 }: {
   strategyId: string;
+  clientId?: string;
+  nodes?: StrategyNode[];
+  artifacts?: StrategyNodeArtifact[];
   step: StrategyNode | null;
   isNew: boolean;
   tab: 'step' | 'meri';
@@ -208,6 +217,10 @@ export function StepInspector({
         <div hidden={tab !== 'step'}>
           <StepTab
             strategyId={strategyId}
+            clientId={clientId}
+            siblings={nodes}
+            artifacts={artifacts.filter((artifact) => artifact.nodeId === step?.id)}
+            onClose={onClose}
             step={step}
             isNew={isNew}
             ownerName={step ? memberName(members.data, step.ownerUserId) : 'Unassigned'}
@@ -273,20 +286,26 @@ export function StepInspector({
 /* ------------------------------------------------------------------ Step tab */
 
 function StepTab({
+  clientId, siblings, artifacts, onClose,
   strategyId,
   step,
   isNew,
   ownerName,
 }: {
   strategyId: string;
+  clientId?: string;
+  siblings: StrategyNode[];
+  artifacts: StrategyNodeArtifact[];
+  onClose: () => void;
   step: StrategyNode | null;
   isNew: boolean;
   ownerName: string;
 }) {
   const navigate = useNavigate();
   const updateNode = useUpdateNode(strategyId);
-  if (isNew) {
-    return <NewStepForm strategyId={strategyId} />;
+  const [editing, setEditing] = useState(false);
+  if (isNew || editing) {
+    return <div className="st-inspector__body"><StepDetailsForm strategyId={strategyId} clientId={clientId} step={step} siblings={siblings} onDone={() => { if (isNew) onClose(); else setEditing(false); }} /></div>;
   }
   if (!step) {
     return <div className="st-inspector__body"><CapiroSkeleton height={200} /></div>;
@@ -348,7 +367,7 @@ function StepTab({
         <p className="st-inspector__client-review-copy">
           {clientExportReady
             ? `This step is included in client-ready reports because it is ${
-                step.status === 'active' ? 'Active' : 'In progress'
+                STATUS_LABEL[step.status] ?? step.status
               }.`
             : 'Client-ready reports omit Suggested, Draft and Internal review steps. Review this step, then include it by marking it In progress or Active.'}
         </p>
@@ -397,13 +416,16 @@ function StepTab({
         </div>
         <div>
           <dt>Evidence</dt>
-          <dd>{evidence.length > 0 ? `${evidence.length} attached` : 'None attached'}</dd>
+          <dd>{evidence.length + artifacts.length > 0 ? `${evidence.length} sources · ${artifacts.length} linked outputs` : 'None attached'}</dd>
         </div>
       </dl>
 
-      <p className="st-section-label">Linked evidence</p>
+      <CapiroButton onClick={() => setEditing(true)}>Edit step</CapiroButton>
+      <p className="st-section-label">Linked outputs</p>
+      {artifacts.length > 0 ? <ul className="st-inspector__evidence">{artifacts.map((artifact) => <li key={artifact.id}><a href={strategyArtifactHref(artifact.artifactType, artifact.artifactRef)}>{artifact.artifactType === 'workspace_draft' ? 'Open Workspace draft' : 'Open outreach record'}</a></li>)}</ul> : <p className="st-inspector__empty">No outputs linked yet.</p>}
+      <p className="st-section-label">Evidence sources</p>
       {evidence.length === 0 ? (
-        <p className="st-inspector__empty">No linked evidence. Link a context document, Workspace draft, or outreach record to ground this step.</p>
+        <p className="st-inspector__empty">No provenance sources recorded. Linked outputs are listed separately above.</p>
       ) : (
         <ul className="st-inspector__evidence">
           {evidence.map((s, i) => {
@@ -668,60 +690,10 @@ function MeriTab({ strategyId, step }: { strategyId: string; step: StrategyNode 
 
 /* ------------------------------------------------------------------ utils */
 
-function NewStepForm({ strategyId }: { strategyId: string }) {
-  const navigate = useNavigate();
-  const addNode = useAddNode(strategyId);
-  const [kind, setKind] = useState<StrategyNode['kind']>('action');
-  const [title, setTitle] = useState('');
-  const [startsOn, setStartsOn] = useState('');
-  const valid = title.trim().length > 0 && startsOn.length > 0;
-  return (
-    <div className="st-inspector__body">
-      <form
-        className="st-newstep"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!valid || addNode.isPending) return;
-          addNode.mutate(
-            { kind, subject: 'deliverable', title: title.trim(), startsOn },
-            { onSuccess: () => navigate(`/strategies/${strategyId}`) },
-          );
-        }}
-      >
-        <label>
-          Kind
-          <select disabled={addNode.isPending} value={kind} onChange={(e) => setKind(e.target.value as StrategyNode['kind'])}>
-            <option value="action">Action</option>
-            <option value="gate">Gate</option>
-            <option value="milestone">Milestone</option>
-            <option value="decision">Decision</option>
-            <option value="risk">Risk</option>
-          </select>
-        </label>
-        <label>
-          Title
-          <input disabled={addNode.isPending} maxLength={300} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Step title" />
-        </label>
-        <label>
-          Start date
-          <input type="date" disabled={addNode.isPending} value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
-        </label>
-        <CapiroButton type="submit" variant="primary" disabled={!valid || addNode.isPending} loading={addNode.isPending}>
-          Add step
-        </CapiroButton>
-        {addNode.isError ? (
-          <p className="st-modal__alert" role="alert">
-            The step could not be added. {(addNode.error as Error)?.message || 'Please try again.'}
-          </p>
-        ) : null}
-      </form>
-    </div>
-  );
-}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 

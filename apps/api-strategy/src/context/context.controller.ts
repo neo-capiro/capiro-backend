@@ -16,7 +16,7 @@ import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 import { AgenticGuard } from '../flags/agentic.guard.js';
 import { ContextDocumentsService } from './context-documents.service.js';
 import { CurrentPlanExportService } from './current-plan-export.service.js';
-import { UploadContextDocumentDto } from './dto/context.dto.js';
+import { UploadContextDocumentDto, ApproveContextDocumentDto } from './dto/context.dto.js';
 
 /**
  * /strategy-api/context — Stage D context-pack documents + the read-only
@@ -57,6 +57,11 @@ export class ContextController {
   @Get('documents/:id')
   byId(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.documents.get(tc.tenantId, id);
+  }
+
+  @Post('documents/:id/approve')
+  approve(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ApproveContextDocumentDto) {
+    return this.documents.approve(tc.tenantId, { clerkUserId: tc.clerkUserId, role: tc.role }, id, dto.expectedChecksum);
   }
 
   @Post('documents/:id/archive')

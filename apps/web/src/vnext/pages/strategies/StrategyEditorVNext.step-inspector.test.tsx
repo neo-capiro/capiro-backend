@@ -18,7 +18,7 @@ import { StrategyEditorVNext } from './StrategyEditorVNext.js';
 import type { StrategyDetail, StrategyNode } from '../../../pages/strategy/types.js';
 
 const actions = vi.hoisted(() => ({
-  assistant: vi.fn(), add: vi.fn(), missions: vi.fn(), create: vi.fn(), update: vi.fn(), plan: vi.fn(),
+  edit: vi.fn(), remove: vi.fn(), assistant: vi.fn(), add: vi.fn(), missions: vi.fn(), create: vi.fn(), update: vi.fn(), plan: vi.fn(),
   assistantError: false, addError: false, empty: false, dueToday: false,
 }));
 
@@ -84,14 +84,16 @@ const detail: StrategyDetail = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-08-19T11:00:00.000Z',
   nodes: NODES,
-  artifacts: [],
+  artifacts: [{ id: 'artifact-1', strategyId: STRATEGY_ID, nodeId: 'n1', artifactType: 'workspace_draft', artifactRef: 'draft-1', createdAt: '2026-09-08' }],
 };
+
+vi.mock('../../../pages/strategy/client-targets-lite.js', () => ({ useClientTargetsLite: () => ({ data: [] }), targetDisplayLabel: () => 'Target', targetRefFromClientTarget: (x: unknown) => x }));
 
 vi.mock('./strategies-api.js', async () => {
   const actual = await vi.importActual<typeof import('./strategies-api.js')>('./strategies-api.js');
   return {
     ...actual,
-    useStrategy: () => ({ data: actions.empty ? { ...detail, nodes: [] } : actions.dueToday ? { ...detail, nodes: [node({ id: 'today', title: 'Accepted work due today', startsOn: '2026-08-19', status: 'active', ownerUserId: 'u1' })] } : detail, isLoading: false, isError: false, dataUpdatedAt: NOW.getTime() }),
+    useStrategy: () => ({ data: actions.empty ? { ...detail, nodes: [] } : actions.dueToday ? { ...detail, nodes: [node({ id: 'today', title: 'Accepted work due today', startsOn: '2026-08-19', status: 'active', ownerUserId: null })] } : detail, isLoading: false, isError: false, dataUpdatedAt: NOW.getTime() }),
     useFirmPhases: () => ({ data: [] }),
     useReferenceCalendars: () => ({
       data: { congress: [], ppbeLanes: [], ppbeCurrentPhases: [], source: { congress: 'baseline' } },
@@ -114,7 +116,8 @@ vi.mock('./strategies-api.js', async () => {
     useRecordArtifact: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
     useStrategyConversation: () => ({ data: [], isLoading: false }),
     useDismissContextGap: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-    useUpdateNode: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null, variables: undefined }),
+    useDeleteNode: () => ({ mutate: actions.remove, isPending: false }),
+    useUpdateNode: () => ({ mutate: actions.edit, isPending: false, isError: false, error: null, variables: undefined }),
   };
 });
 
@@ -134,6 +137,7 @@ function renderEditor() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  actions.add.mockReset();
   actions.assistantError = false;
   actions.addError = false;
   actions.empty = false;
@@ -185,17 +189,19 @@ describe('Strategy editor action persistence', () => {
     fireEvent.change(within(inspector).getByLabelText('Start date'), { target: { value: '2026-09-06' } });
     fireEvent.click(within(inspector).getByRole('button', { name: 'Add step' }));
     expect(actions.add).toHaveBeenCalledWith(
-      { kind: 'action', subject: 'deliverable', title: 'Review budget request', startsOn: '2026-09-06' },
+      expect.objectContaining({ kind: 'action', subject: 'deliverable', title: 'Review budget request', startsOn: '2026-09-06' }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
   it('shows an Add step failure and preserves the entered fields', () => {
-    actions.addError = true;
+    actions.add.mockImplementation((_input, handlers) => handlers.onError(new Error('Validation failed')));
     renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Retry this title' } });
-    expect(screen.getByRole('alert')).toHaveTextContent('The step could not be added');
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-09-06' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'New step details' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Validation failed');
     expect(screen.getByLabelText('Title')).toHaveValue('Retry this title');
   });
 
@@ -267,10 +273,32 @@ describe('Inspector tab draft preservation', () => {
 });
 
 
-it('shows accepted work due today in Next 30 days', () => {
+it('shows unassigned accepted work due today in Next 30 days', () => {
   actions.dueToday = true;
   renderEditor();
   const upcoming = screen.getByText('Next 30 days').closest('section')!;
   expect(within(upcoming).getByText('Accepted work due today')).toBeInTheDocument();
   expect(within(upcoming).getByRole('button', { name: 'Open step' })).toBeInTheDocument();
+});
+
+
+it('saves reviewed manual fields and requires confirmation before deleting a step', () => {
+  renderEditor();
+  fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit step' }));
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Reviewed program elements' } });
+  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'completed' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save step' }));
+  expect(actions.edit).toHaveBeenCalledWith({ nodeId: 'n1', input: expect.objectContaining({ title: 'Reviewed program elements', status: 'completed', expectedUpdatedAt: NODES[0]!.updatedAt }) }, expect.any(Object));
+  fireEvent.click(screen.getByRole('button', { name: 'Delete step' }));
+  expect(actions.remove).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm delete step' }));
+  expect(actions.remove).toHaveBeenCalledWith('n1', expect.any(Object));
+});
+
+it('shows canonical outputs even when a step has no provenance sources', () => {
+  renderEditor();
+  fireEvent.click(screen.getByRole('button', { name: /Identify target program elements/ }));
+  expect(screen.getByRole('link', { name: 'Open Workspace draft' })).toHaveAttribute('href', '/workspace/draft/draft-1');
+  expect(screen.getByText('0 sources · 1 linked outputs')).toBeInTheDocument();
 });

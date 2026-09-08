@@ -84,7 +84,8 @@ export class CurrentPlanExportService {
     // LIVE (not terminal) status, so it counts; `suggested` is an unaccepted
     // Meri proposal — not committed work — so it never counts as overdue.
     const overdue = strategy.nodes.filter(
-      (n) => n.endsOn !== null && n.endsOn.getTime() < todayMs && n.status !== 'suggested',
+      (n) => !n.openEnded && !['suggested', 'completed'].includes(n.status)
+        && (n.endsOn ?? n.startsOn).getTime() < todayMs,
     ).length;
     // Gates/decisions with no dependency edges have nothing guarding them.
     const gatesMissingPrereqs = strategy.nodes.filter(

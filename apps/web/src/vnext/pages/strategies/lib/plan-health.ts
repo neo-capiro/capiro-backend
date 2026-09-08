@@ -39,7 +39,7 @@ function gateGrounded(n: StrategyNode) {
 
 function isOverdue(n: StrategyNode, today: Date) {
   // Active means accepted/published, not completed; accepted overdue work still counts.
-  if (n.openEnded) return false;
+  if (n.openEnded || n.status === 'completed') return false;
   const due = n.endsOn ?? n.startsOn;
   if (!due) return false;
   const d = new Date(due);

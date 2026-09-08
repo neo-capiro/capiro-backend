@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from './versioning.service.js';
@@ -97,6 +97,10 @@ export class NodeService {
         where: { id: nodeId, strategyId, ...LIVE_NODE_WHERE },
       });
       if (!node) throw new NotFoundException('Node not found');
+
+      if (dto.expectedUpdatedAt && node.updatedAt.getTime() !== Date.parse(dto.expectedUpdatedAt)) {
+        throw new ConflictException('This step changed while you were editing. Cancel editing and reopen it to review the latest version.');
+      }
 
       // Cross-validate the (possibly partial) date change against current state.
       const newStarts = dto.startsOn !== undefined ? parseDbDate(dto.startsOn, 'startsOn') : node.startsOn;

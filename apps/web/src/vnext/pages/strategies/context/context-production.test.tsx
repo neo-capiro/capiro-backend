@@ -7,13 +7,13 @@ import { StewardReviewVNext } from './StewardReviewVNext.js';
 
 const mocks = vi.hoisted(() => ({
   document: {} as any, documents: {} as any, facts: {} as any,
-  archive: vi.fn(), extract: vi.fn(),
+  archive: vi.fn(), extract: vi.fn(), approve: vi.fn(), role: 'user_admin',
 }));
 vi.mock('../ScopeBar.js', () => ({ ScopeBar: () => null }));
 vi.mock('../../../adapters/legacy/useShellClientContext.js', () => ({
   useShellClientContext: () => ({ selectedClientId: null }),
 }));
-vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ data: { features: { agenticMeri: true, contextSteward: true } } }) }));
+vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ data: { role: mocks.role, features: { agenticMeri: true, contextSteward: true } } }) }));
 vi.mock('../strategies-api.js', () => ({
   clientName: () => 'Client', useClientsLite: () => ({ data: [] }),
   useContextDocument: () => mocks.document,
@@ -23,6 +23,7 @@ vi.mock('../strategies-api.js', () => ({
   useContextConflicts: () => ({ data: [], isSuccess: true }),
   useContextSections: () => ({ data: [] }),
   useContextLocate: () => ({ data: null }),
+  useApproveContextDocument: () => ({ mutate: mocks.approve }),
   useArchiveContextDocument: () => ({ mutate: mocks.archive }),
   useExtractContextFacts: () => ({ mutate: mocks.extract }),
   useRejectContextFact: () => ({ mutate: vi.fn() }),
@@ -50,6 +51,8 @@ beforeEach(() => {
   mocks.documents = success([document]);
   mocks.facts = success([]);
   mocks.archive.mockReset();
+  mocks.approve.mockReset();
+  mocks.role = 'user_admin';
 });
 
 describe('Context production regressions', () => {
@@ -100,4 +103,30 @@ describe('Context production regressions', () => {
     expect(params.has('client')).toBe(false);
     expect(params.has('q')).toBe(false);
   });
+});
+
+it('requires explicit review confirmation and binds approval to the viewed checksum', () => {
+  mocks.document = success({ ...document, frontmatter: { authority: 'working_draft', source_of_truth: false, confidentiality: 'client_confidential' } });
+  renderDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Approve for client reports' }));
+  expect(mocks.approve).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm approval' }));
+  expect(mocks.approve).toHaveBeenCalledWith({ id: document.id, expectedChecksum: document.checksum }, expect.any(Object));
+});
+it('explains the approval role requirement to a member', () => {
+  mocks.role = 'staff';
+  mocks.document = success({ ...document, frontmatter: { authority: 'working_draft', confidentiality: 'client_confidential' } });
+  renderDocument();
+  expect(screen.queryByRole('button', { name: 'Approve for client reports' })).not.toBeInTheDocument();
+  expect(screen.getByText('An administrator can approve this document.')).toBeInTheDocument();
+});
+
+it('does not silently approve a version refreshed after the review confirmation opened', () => {
+  mocks.document = success({ ...document, frontmatter: { authority: 'working_draft', source_of_truth: false, confidentiality: 'client_confidential' } });
+  const view = renderDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Approve for client reports' }));
+  mocks.document = success({ ...mocks.document.data, checksum: 'b'.repeat(64) });
+  view.rerender(<MemoryRouter initialEntries={['/strategies/context/document-1']}><Routes><Route path="/strategies/context/:documentId" element={<ContextDocumentVNext />} /></Routes></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm approval' }));
+  expect(mocks.approve).toHaveBeenCalledWith({ id: document.id, expectedChecksum: document.checksum }, expect.any(Object));
 });

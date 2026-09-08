@@ -28,6 +28,7 @@ export type ExecutionKind = 'workspace' | 'outreach';
 /** The node fields eligibility reasons over. Dates are normalized to
  *  YYYY-MM-DD | null by the caller (isoDate) before they reach this module. */
 export interface EligibilityNode {
+  status?: string;
   kind: string; // sp_node_kind: action | decision | gate | milestone | risk
   subject: string; // sp_node_subject
   ownerUserId: string | null;
@@ -81,6 +82,9 @@ export function evaluateEligibility(input: EligibilityInput): EligibilityResult 
       );
     }
   }
+
+  // Completed work must be reopened before creating more execution artifacts.
+  if (node.status === 'completed') reasons.push('step is completed; reopen it before preparing more work');
 
   // Common gates (both kinds).
   if (!hasOwner) {

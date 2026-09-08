@@ -1,3 +1,4 @@
+import { checkFiscalCycle } from '@capiro/strategy-verifier';
 import { createHash } from "node:crypto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -567,6 +568,8 @@ export class ReportSnapshotService {
       memberProfilesOmitted: memberProfiles.length - members.length,
     });
 
+    warnings.push(...checkFiscalCycle(nodes, `${loaded.strategy.title} ${loaded.strategy.goal ?? ''}`).map((issue) => ({ code: 'CALENDAR_CYCLE_REVIEW', message: issue.message })));
+
     const latestVersion = loaded.versions[0];
     const capacityErrors: ReportIssue[] = [];
     const withoutHash: Omit<ExecutiveReportSnapshot, "snapshotHash"> = {
@@ -798,7 +801,7 @@ export function reportReadinessErrors(
       code: "NO_REPORTABLE_PLAN_STEPS",
       message:
         snapshot.options.audience === "client"
-          ? "Move at least one reviewed plan step to In progress or Active before generating a client report."
+          ? "Move at least one reviewed plan step to In progress, Active or Completed before generating a client report."
           : "Add at least one live plan step before generating an executive report.",
     });
   }

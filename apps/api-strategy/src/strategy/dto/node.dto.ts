@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
@@ -31,6 +32,7 @@ export const NODE_STATUSES = [
   'internal_review',
   'active',
   'suggested',
+  'completed',
 ] as const;
 
 export type NodeKindValue = (typeof NODE_KINDS)[number];
@@ -154,6 +156,10 @@ export class CreateNodeDto {
  * `changeNote` is the human-facing version/flash label for this edit.
  */
 export class UpdateNodeDto {
+  @IsOptional()
+  @IsISO8601()
+  expectedUpdatedAt?: string;
+
   @ValidateIf((_o, value) => value !== undefined)
   @IsIn(NODE_KINDS)
   kind?: NodeKindValue;

@@ -232,7 +232,7 @@ describe('Working timeline — month-column grid', () => {
     expect(gate.className).toContain('st-step--instant');
     expect(gate.className).toContain('st-step--gate');
     expect(gate.title).toMatch(/Submit congressional funding request — \w{3} \d+/);
-    expect(gate.getAttribute('aria-label')).toMatch(/, on \w{3} \d+$/);
+    expect(gate.getAttribute('aria-label')).toMatch(/, on \w{3} \d+, \d{4}$/);
 
     // A step with a real end date is NOT marked — the modifier means "instant",
     // not "short".

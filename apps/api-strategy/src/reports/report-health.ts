@@ -60,9 +60,8 @@ export function computeReportHealth(
 
 function isOverdue(node: ReportNode, asOf: Date): boolean {
   // `active` means accepted/published in the strategy workflow, not complete.
-  // The node model has no terminal completion status, so any closed-ended plan
-  // step past its due date is overdue regardless of workflow status.
-  if (node.openEnded) return false;
+  // Completed work remains reportable but is no longer overdue.
+  if (node.openEnded || node.status === "completed") return false;
   const due = node.endsOn ?? node.startsOn;
   const dueMs = Date.parse(`${due}T00:00:00.000Z`);
   return Number.isFinite(dueMs) && dueMs < asOf.getTime();

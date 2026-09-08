@@ -28,7 +28,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../../components/actions/index.js';
 import './modal-shell.css';
 
@@ -118,13 +118,14 @@ export function StrategiesModalShell({
   primaryDanger = false,
 }: StrategiesModalShellProps) {
   const navigate = useNavigate();
+  const { search } = useLocation();
   const dialogRef = useRef<HTMLElement | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   /* Route sync: the ONLY way out of an overlay is back to its caller route. */
   const close = useCallback(() => {
-    navigate(closeTo);
-  }, [navigate, closeTo]);
+    navigate(closeTo.includes('?') ? closeTo : `${closeTo}${search}`);
+  }, [navigate, closeTo, search]);
 
   const requestClose = useCallback(() => {
     if (primaryBusy) return;

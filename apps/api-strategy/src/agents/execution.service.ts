@@ -351,6 +351,7 @@ export class ExecutionService {
     );
     const eligibility = evaluateEligibility({
       node: {
+        status: targetNode.status,
         kind: targetNode.kind,
         subject: targetNode.subject,
         ownerUserId: targetNode.ownerUserId,

@@ -145,6 +145,7 @@ const STATUS_PILL: Record<NodeStatus, [string, PillTone]> = {
   in_progress: ['In progress', 'blue'],
   internal_review: ['In review', 'warning'],
   active: ['Active', 'success'],
+  completed: ['Completed', 'success'],
 };
 
 /* A new server enum value must degrade to a readable label, never blank the

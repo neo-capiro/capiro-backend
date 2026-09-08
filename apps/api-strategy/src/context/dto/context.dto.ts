@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MaxLength, Matches } from 'class-validator';
 
 /**
  * Upload a context-pack document (raw markdown incl. YAML frontmatter). All
@@ -35,4 +35,10 @@ export class UploadContextDocumentDto {
   @IsString()
   @MaxLength(300)
   title?: string;
+}
+
+export class ApproveContextDocumentDto {
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  expectedChecksum!: string;
 }

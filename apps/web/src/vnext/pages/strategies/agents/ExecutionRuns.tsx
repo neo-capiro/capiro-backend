@@ -13,6 +13,7 @@
  *
  * The dark banner copy is product policy — do not reword.
  */
+import { strategyArtifactHref } from '../lib/artifact-link.js';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../../components/actions/index.js';
@@ -727,10 +728,9 @@ function TaskRow({ task, index }: { task: ExecutionTask; index: number }) {
         {task.blockedReason && <span className="st-agents__task-blocked">{task.blockedReason}</span>}
         {task.artifactRef && (
           <span className="st-agents__meta">
-            artifact{' '}
-            <span className="st-mono" title={task.artifactRef}>
-              {shortId(task.artifactRef)}
-            </span>
+            <a href={strategyArtifactHref(task.type === 'workspace_draft' ? 'workspace_draft' : 'outreach_record', task.artifactRef)}>
+              {task.type === 'workspace_draft' ? 'Open Workspace draft' : 'Open outreach record'}
+            </a>
           </span>
         )}
       </div>

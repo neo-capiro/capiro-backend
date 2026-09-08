@@ -15,8 +15,8 @@ export type ClientExportReadyStatus =
 
 export function isClientExportReadyStatus(
   status: NodeStatus,
-): status is ClientExportReadyStatus {
-  return CLIENT_EXPORT_READY_STATUSES.includes(
+): status is ClientExportReadyStatus | 'completed' {
+  return status === 'completed' || CLIENT_EXPORT_READY_STATUSES.includes(
     status as ClientExportReadyStatus,
   );
 }

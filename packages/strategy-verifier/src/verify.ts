@@ -1,3 +1,4 @@
+import { checkFiscalCycle } from './fiscal-cycle.js';
 import type {
   VerifierFiscal,
   VerifierNode,
@@ -340,6 +341,7 @@ export function verifyPlan(input: VerifyPlanInput): VerifyPlanResult {
   };
   const violations: Violation[] = [
     ...checkDates(nodes),
+    ...checkFiscalCycle(nodes, input.objective),
     ...checkDeps(nodes, byId),
     ...checkOrdering(nodes, byId),
     ...checkSubmissionMarkup(nodes, congress),

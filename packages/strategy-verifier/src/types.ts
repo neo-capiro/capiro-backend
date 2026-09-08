@@ -58,6 +58,7 @@ export interface VerifierFiscal {
 }
 
 export interface VerifyPlanInput {
+  objective?: string;
   strategyType: string; // appropriations | authorization | ...
   nodes: VerifierNode[];
   fiscal: VerifierFiscal;

@@ -25,15 +25,19 @@ FROM base AS build
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=@capiro/web... --filter=@capiro/shared...
 
+COPY packages/strategy-verifier/src packages/strategy-verifier/src
+COPY packages/strategy-verifier/tsconfig.json packages/strategy-verifier/tsconfig.json
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY apps/web/src apps/web/src
 COPY apps/web/public apps/web/public
 COPY apps/web/index.html apps/web/vite.config.ts apps/web/tsconfig.json apps/web/
 
+RUN pnpm --filter @capiro/strategy-verifier build
 RUN pnpm --filter @capiro/shared build
 # Cache-bust: GIT_SHA changes every commit, so the vite build layer below can
 # never be restored stale from the GHA build cache. Without this, buildx's

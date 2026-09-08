@@ -71,6 +71,7 @@ enum SpNodeStatus {
   internal_review
   active
   suggested
+  completed
 
   @@map("sp_node_status")
 }

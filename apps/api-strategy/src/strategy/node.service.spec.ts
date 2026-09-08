@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { NodeService } from './node.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { VersioningService } from './versioning.service.js';
@@ -534,5 +534,26 @@ describe('NodeService.update', () => {
     expect(tx.spStrategy.update).not.toHaveBeenCalled(); // bump() short-circuited too
     expect(versioning.cutVersion).not.toHaveBeenCalled();
     expect(versioning.logActivity).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('Reviewed manual edits', () => {
+  it('rejects a stale edit before cutting history or overwriting the latest step', async () => {
+    const store = makeStore(); seedStrategy(store, [{ id: 'N1', title: 'Latest title', startsOn: '2026-09-08' }]);
+    store.nodes.get('N1')!.updatedAt = new Date('2026-09-08T12:00:00Z');
+    const { svc, versioning } = makeService(store);
+    await expect(svc.update(T, U, 'S1', 'N1', { title: 'Stale title', expectedUpdatedAt: '2026-09-08T11:00:00Z' })).rejects.toBeInstanceOf(ConflictException);
+    expect(store.nodes.get('N1')!.title).toBe('Latest title');
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
+  });
+  it('persists completion and allows explicit reopening through the versioned service', async () => {
+    const store = makeStore(); seedStrategy(store, [{ id: 'N1', title: 'Work', startsOn: '2026-09-08' }]);
+    const { svc, versioning } = makeService(store);
+    await svc.update(T, U, 'S1', 'N1', { status: 'completed' });
+    expect(store.nodes.get('N1')!.status).toBe('completed');
+    await svc.update(T, U, 'S1', 'N1', { status: 'in_progress' });
+    expect(store.nodes.get('N1')!.status).toBe('in_progress');
+    expect(versioning.cutVersion).toHaveBeenCalledTimes(2);
   });
 });

@@ -232,7 +232,7 @@ function foldVerifier(violations: Violation[]): Finding[] {
 
 /**
  * (b) 'overdue' — a step whose end has passed while its status is anything but
- * 'active'. Proposes a concrete retime: same duration, restarted TOMORROW
+ * 'completed'. Proposes a concrete retime: same duration, restarted TOMORROW
  * (today + 1 — strictly in the future, never a date already in the past).
  *
  * "Tomorrow" is anchored to the RUN-day `today`, so the guarantee only holds
@@ -248,7 +248,7 @@ function checkOverdue(nodes: WatcherNode[], today: string): Finding[] {
   const out: Finding[] = [];
   for (const n of nodes) {
     if (!validIso(n.endsOn) || !validIso(n.startsOn)) continue;
-    if (n.endsOn >= today || n.status === 'active') continue;
+    if (n.endsOn >= today || n.status === 'completed') continue;
     const duration = Math.max(0, diffDaysIso(n.endsOn, n.startsOn));
     const newStartsOn = addDaysIso(today, 1);
     const newEndsOn = addDaysIso(newStartsOn, duration);
@@ -257,7 +257,7 @@ function checkOverdue(nodes: WatcherNode[], today: string): Finding[] {
       severity: 'warning',
       nodeIds: [n.id],
       message: `"${n.title}" ended ${n.endsOn} and is still ${n.status.replace('_', ' ')}.`,
-      suggestion: `Restart it ${newStartsOn}–${newEndsOn}, or mark it active if the work is done.`,
+      suggestion: `Restart it ${newStartsOn}–${newEndsOn}, or mark it Completed if the work is done.`,
       proposedOps: [{ op: 'retime', nodeId: n.id, startsOn: newStartsOn, endsOn: newEndsOn }],
       category: 'calendar',
       title: 'Overdue',

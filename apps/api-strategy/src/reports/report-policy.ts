@@ -69,7 +69,7 @@ export function includeNodeForAudience(
   audience: "client" | "internal",
 ): boolean {
   return (
-    audience === "internal" || status === "in_progress" || status === "active"
+    audience === "internal" || status === "in_progress" || status === "active" || status === "completed"
   );
 }
 

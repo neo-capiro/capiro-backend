@@ -16,6 +16,8 @@
  * queue. Step edits go through the step inspector and each produces a revision.
  * The save stamp reflects real persistence — never optimistic "Saved".
  */
+import { checkFiscalCycle } from '@capiro/strategy-verifier';
+import { phaseCoverageGaps } from './lib/phase-coverage.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
@@ -40,6 +42,7 @@ import {
 // VNextStrategiesRoutes.tsx, so this adds no new circular-import risk.
 import { TYPE_LABEL } from './StrategyLibraryVNext.js';
 import { computePlanHealth } from './lib/plan-health.js';
+import { strategyRelativeTime } from './lib/date-format.js';
 import {
   assignColumnLanes,
   axisPosition,
@@ -102,8 +105,25 @@ export function StrategyEditorVNext() {
   const members = useTenantMembers();
   const watchCounts = usePendingWatchCounts(true);
 
-  const [horizon, setHorizon] = useState<HorizonKey>('3fy');
-  const [layers, setLayers] = useState({ congress: true, ppbe: true, watch: true });
+  const horizonParam = searchParams.get('horizon');
+  const horizon: HorizonKey = horizonParam === '1fy' || horizonParam === '2fy' ? horizonParam : '3fy';
+  const visibleLayers = (searchParams.get('layers') ?? 'congress,ppbe,watch').split(',');
+  const layers = { congress: visibleLayers.includes('congress'), ppbe: visibleLayers.includes('ppbe'), watch: visibleLayers.includes('watch') };
+  const setHorizon = (value: HorizonKey) => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous); next.set('horizon', value); return next;
+  });
+  const setLayers = (update: (current: typeof layers) => typeof layers) => setSearchParams((previous) => {
+    const current = (previous.get('layers') ?? 'congress,ppbe,watch').split(',');
+    const updated = update({ congress: current.includes('congress'), ppbe: current.includes('ppbe'), watch: current.includes('watch') });
+    const next = new URLSearchParams(previous);
+    next.set('layers', Object.entries(updated).filter(([, enabled]) => enabled).map(([key]) => key).join(','));
+    return next;
+  });
+  const overlayPath = (name: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (name === 'phases') { params.set('phaseStartFy', String(axis.startFy)); params.set('phaseEndFy', String(axis.endFy)); }
+    return `/strategies/${strategyId}/${name}${params.size ? `?${params}` : ''}`;
+  };
 
   const watchState = useWatchReviewState(validId, layers.watch);
 
@@ -212,6 +232,7 @@ export function StrategyEditorVNext() {
     );
   }
 
+  const cycleIssues = checkFiscalCycle(detail.nodes, `${detail.title} ${detail.goal ?? ''}`);
   const objective = TYPE_LABEL[detail.type] ?? detail.type;
   const eyebrow = `${clientName(clients.data, detail.clientId)} · ${objective}`.toUpperCase();
   const openStep = detail.nodes.find((n) => n.id === openStepId) ?? null;
@@ -301,8 +322,8 @@ export function StrategyEditorVNext() {
             </div>
             {/* Row 2: export / history / saved stamp / Ask Meri. */}
             <div className="st-editor-header__row">
-              <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/export`)}>Export</CapiroButton>
-              <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/history`)}>History</CapiroButton>
+              <CapiroButton onClick={() => navigate(overlayPath('export'))}>Export</CapiroButton>
+              <CapiroButton onClick={() => navigate(overlayPath('history'))}>History</CapiroButton>
               <SaveStamp updatedAt={detail.lastEditedAt ?? detail.createdAt} />
               <CapiroButton
                 variant="primary"
@@ -318,6 +339,15 @@ export function StrategyEditorVNext() {
         {calendars.isError ? (
           <div role="alert">Reference calendars could not be loaded. <CapiroButton onClick={() => void calendars.refetch()}>Retry calendars</CapiroButton></div>
         ) : null}
+        {cycleIssues.length > 0 ? <div role="alert" className="st-modal__alert">
+          <strong>Budget cycle needs review.</strong> The plan contains annual budget or legislative steps dated after the usual cycle for its named fiscal year.
+          <details><summary>Review {cycleIssues.length} affected steps</summary><ul>{cycleIssues.map((issue) => <li key={issue.nodeIds[0]}><button type="button" className="st-library-clearlink" onClick={() => openInspector(issue.nodeIds[0]!)}>{issue.message}</button></li>)}</ul></details>
+          Review the cited year and edit the dates, or ask Meri to reconcile the plan against the correct fiscal cycle and dated primary sources.
+        </div> : null}
+        {layers.congress || layers.ppbe ? <p className="st-purpose">Calendar bands show planning reference windows. Confirm dated primary sources before treating them as official deadlines.</p> : null}
+        {firmPhases.data && phaseCoverageGaps(firmPhases.data, axis.startFy, axis.endFy).length > 0 ? <div role="status" className="st-modal__alert">
+          Firm phases do not cover the full visible horizon. <CapiroButton onClick={() => navigate(overlayPath('phases'))}>Review phase coverage</CapiroButton>
+        </div> : null}
         {firmPhases.isError ? (
           <div role="alert">Firm phases could not be loaded. <CapiroButton onClick={() => void firmPhases.refetch()}>Retry phases</CapiroButton></div>
         ) : null}
@@ -335,7 +365,7 @@ export function StrategyEditorVNext() {
             </div>
             <div className="st-actions">
               <PlanHealthChip detail={detail} onReview={() => navigate('/strategies/agents/proposals')} />
-              <CapiroButton variant="secondary" onClick={() => navigate('/strategies/phases')}>Firm phases</CapiroButton>
+              <CapiroButton variant="secondary" onClick={() => navigate(overlayPath('phases'))}>Firm phases</CapiroButton>
               <CapiroButton variant="primary" onClick={() => openInspector('__new__')}>Add step</CapiroButton>
             </div>
           </div>
@@ -355,7 +385,7 @@ export function StrategyEditorVNext() {
             watchAvailable={Boolean(watchState.data) && !watchState.isError}
             onStepClick={(id) => openInspector(id)}
             onWatchClick={() => navigate('/strategies/agents/proposals')}
-            onPhaseClick={() => navigate('/strategies/phases')}
+            onPhaseClick={() => navigate(overlayPath('phases'))}
           />
         </section>
 
@@ -380,6 +410,9 @@ export function StrategyEditorVNext() {
           // changes don't touch `openStepId`.
           key={openStepId}
           strategyId={detail.id}
+          clientId={detail.clientId}
+          nodes={detail.nodes}
+          artifacts={detail.artifacts}
           step={openStep}
           isNew={openStepId === '__new__'}
           tab={inspectorTab}
@@ -400,19 +433,14 @@ export function StrategyEditorVNext() {
  * fetch timestamp) — real client-observed freshness, not a fabricated pulse.
  */
 function formatRelativeTime(updatedAtMs: number): string {
-  const mins = Math.max(0, Math.round((Date.now() - updatedAtMs) / 60000));
-  if (mins < 1) return 'just now';
-  return `${mins} min ago`;
+  return strategyRelativeTime(updatedAtMs);
 }
 
 function SaveStamp({ updatedAt }: { updatedAt: string | null }) {
   // Honest persistence state (§7.2): reflect the last server write. There is no
   // optimistic "Saved" — edits land via mutations that update this timestamp.
   if (!updatedAt) return <span className="st-savestamp">Unsaved changes</span>;
-  const then = new Date(updatedAt).getTime();
-  const mins = Number.isNaN(then) ? null : Math.round((Date.now() - then) / 60000);
-  const label = mins == null ? 'Saved' : mins < 1 ? 'Saved just now' : `Saved ${mins} min ago`;
-  return <span className="st-savestamp">{label}</span>;
+  return <span className="st-savestamp">Saved {strategyRelativeTime(updatedAt)}</span>;
 }
 
 function PlanHealthChip({
@@ -445,7 +473,7 @@ function NextThirtyDays({
     const in30 = now + 30 * 86400000;
     return (
       detail.nodes
-        .filter((n) => n.ownerUserId && !n.openEnded)
+        .filter((n) => !n.openEnded && n.status !== 'completed')
         .filter((n) => {
           const due = new Date(n.endsOn ?? n.startsOn).getTime();
           return !Number.isNaN(due) && due >= now && due <= in30;
@@ -470,7 +498,7 @@ function NextThirtyDays({
             <CapiroButton onClick={() => onOpen(next.id)}>Open step</CapiroButton>
           </>
         ) : (
-          <p className="st-purpose">No owned, dated steps fall due in the next 30 days.</p>
+          <p className="st-purpose">No unfinished steps fall due in the next 30 days.</p>
         )}
       </div>
     </section>
@@ -1424,6 +1452,6 @@ function fyQuarterToDate(fy: number, q: number): Date {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 

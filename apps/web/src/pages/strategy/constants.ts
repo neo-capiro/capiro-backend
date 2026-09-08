@@ -105,6 +105,7 @@ export const NODE_STATUS_OPTIONS: Array<{ id: NodeStatus; label: string }> = [
   { id: 'internal_review', label: 'Internal Review' },
   { id: 'active', label: 'Active' },
   { id: 'suggested', label: 'Suggested' },
+  { id: 'completed', label: 'Completed' },
 ];
 
 /** "2 hours ago" / "Yesterday" / "Jan 24" — compact relative time for list rows. */
@@ -120,5 +121,5 @@ export function relativeTime(iso: string | null): string {
   const days = Math.floor(hrs / 24);
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days} days ago`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }

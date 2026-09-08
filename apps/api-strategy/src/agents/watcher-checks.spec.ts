@@ -123,9 +123,9 @@ describe('(b) overdue', () => {
     ]);
   });
 
-  it("an 'active' step past its end stays silent (status is the exemption)", () => {
+  it("a 'completed' step past its end stays silent (status is the exemption)", () => {
     const nodes = [
-      node({ id: 'N1', startsOn: '2026-07-10', endsOn: '2026-07-20', status: 'active' }),
+      node({ id: 'N1', startsOn: '2026-07-10', endsOn: '2026-07-20', status: 'completed' }),
     ];
     expect(byCode(runWatcherChecks(input({ nodes })), 'overdue')).toEqual([]);
   });
@@ -199,7 +199,7 @@ describe('(d) dependency-slippage', () => {
     // retime A to 2026-06-01–2026-06-06 (already past) while overdue proposes
     // 2026-07-25–2026-07-30 for the SAME node in the SAME run.
     const nodes = [
-      node({ id: 'B', startsOn: '2026-05-10', endsOn: '2026-06-01', status: 'active' }),
+      node({ id: 'B', startsOn: '2026-05-10', endsOn: '2026-06-01', status: 'completed' }),
       node({
         id: 'A',
         startsOn: '2026-05-01',
@@ -228,7 +228,7 @@ describe('(d) dependency-slippage', () => {
 
   it('a past-ended dependency of a slipped POINT event clamps startsOn to tomorrow and still omits endsOn', () => {
     const nodes = [
-      node({ id: 'B', startsOn: '2026-05-10', endsOn: '2026-06-01', status: 'active' }),
+      node({ id: 'B', startsOn: '2026-05-10', endsOn: '2026-06-01', status: 'completed' }),
       node({
         id: 'A',
         kind: 'milestone',

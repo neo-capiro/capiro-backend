@@ -304,3 +304,13 @@
     background: var(--st-white);
   }
 }
+
+/* Native manual editor, using the existing Strategies field tokens. */
+.st-step-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.st-step-form legend { font-weight: 600; margin-bottom: 12px; }
+.st-step-form label { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; font-size: 13px; }
+.st-step-form input:not([type="checkbox"]), .st-step-form select, .st-step-form textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--st-border, #d0d5dd); border-radius: 8px; background: var(--st-surface, white); color: inherit; font: inherit; }
+.st-step-form__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.st-step-form .st-step-form__check { flex-direction: row; align-items: flex-start; gap: 8px; }
+.st-step-form__dependencies { max-height: 220px; overflow: auto; }
+.st-step-form__delete { margin-top: 18px; }

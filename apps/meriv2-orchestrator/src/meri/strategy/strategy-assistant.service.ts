@@ -279,6 +279,7 @@ export class StrategyAssistantService {
         endsOn: r.endsOn ?? null,
       }));
     return {
+      objective: input.goal ?? '',
       strategyType: input.type,
       nodes: vnodes,
       fiscal: {

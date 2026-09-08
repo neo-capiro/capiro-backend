@@ -180,3 +180,8 @@ describe('evaluateEligibility — outreach kind', () => {
     expect(r.reasons).toContain('strategy has 1 open material conflict (blocks execution)');
   });
 });
+
+it('requires reopening completed work before staging another output', () => {
+  expect(evaluateEligibility(ws({ status: 'completed' }))).toMatchObject({ eligible: false });
+  expect(evaluateEligibility(ws({ status: 'in_progress' }))).toEqual({ eligible: true, reasons: [] });
+});

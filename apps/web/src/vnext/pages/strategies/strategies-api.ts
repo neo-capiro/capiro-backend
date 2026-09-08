@@ -1642,3 +1642,17 @@ export function useRecordArtifact(strategyId: string) {
     onSuccess: onOk,
   });
 }
+
+/** Human approval produces a new document revision and invalidates every derived context view. */
+export function useApproveContextDocument() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, expectedChecksum }: { id: string; expectedChecksum: string }) =>
+      normalizeDocument((await api.post<unknown>(`${BASE}/context/documents/${id}/approve`, { expectedChecksum })).data),
+    onSuccess: (doc) => {
+      void qc.invalidateQueries({ queryKey: ['strategy'] });
+      qc.setQueryData(['strategy', 'context-document', doc.id], doc);
+    },
+  });
+}

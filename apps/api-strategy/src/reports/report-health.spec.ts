@@ -82,3 +82,9 @@ function node(overrides: Partial<ReportNode> = {}): ReportNode {
     ...overrides,
   };
 }
+
+it('retains completed work in the report without treating it as overdue', () => {
+  const health = computeReportHealth([node({ status: 'completed', endsOn: '2020-01-01' })], new Date('2026-09-08'));
+  expect(health.totalNodes).toBe(1);
+  expect(health.overdueNodes).toBe(0);
+});

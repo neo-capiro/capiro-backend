@@ -35,6 +35,7 @@ import { CapiroTooltip } from '../../../components/menus/index.js';
 import {
   clientName,
   useArchiveContextDocument,
+  useApproveContextDocument,
   useClientsLite,
   useContextDocument,
   useContextDocuments,
@@ -108,7 +109,7 @@ function fmtDay(iso: string | null): string | null {
   if (!y || !m || !d) return null;
   const label = MONTHS[Number(m) - 1];
   if (!label || Number.isNaN(Number(d))) return null;
-  return `${label} ${Number(d)}`;
+  return `${label} ${Number(d)}, ${y}`;
 }
 
 function isForbidden(error: unknown): boolean {
@@ -129,6 +130,9 @@ export function ContextDocumentVNext() {
   const facts = useContextFacts({ documentId: documentId ?? undefined }, !!documentId);
   const activeFacts = useContextFacts({ documentId: documentId ?? undefined, state: 'active' }, !!documentId);
   const archive = useArchiveContextDocument();
+  const approve = useApproveContextDocument();
+  const [confirmingApproval, setConfirmingApproval] = useState(false);
+  const [reviewedChecksum, setReviewedChecksum] = useState<string | null>(null);
   const extract = useExtractContextFacts();
 
   /* ScopeBar status — same shared cross-app client scope + real ContextHealth
@@ -168,6 +172,8 @@ export function ContextDocumentVNext() {
 
   useEffect(() => {
     setConfirmingArchive(false);
+    setConfirmingApproval(false);
+    setReviewedChecksum(null);
   }, [documentId]);
 
   const setActiveRef = (ref: string | null) => {
@@ -328,6 +334,18 @@ export function ContextDocumentVNext() {
       ? `${activeFactCount} active fact${activeFactCount === 1 ? '' : 's'} still reference${activeFactCount === 1 ? 's' : ''} this document — archiving needs a steward decision in Steward review.`
       : null;
 
+  const approved = ['firm_approved', 'client_approved'].includes(String(d.frontmatter?.authority)) && d.frontmatter?.source_of_truth === true;
+  const approvalAdmin = me.data?.role === 'capiro_admin' || me.data?.role === 'user_admin';
+  const canApprove = approvalAdmin && d.state === 'active' && d.frontmatter?.confidentiality === 'client_confidential' && !isContextDocStale(d);
+  const onApprove = () => approve.mutate({ id: d.id, expectedChecksum: reviewedChecksum ?? '' }, {
+    onSuccess: (next) => {
+      setConfirmingApproval(false);
+      toast.success('Approved for client reports. The original is retained in history. Extract facts from this approved revision when needed.');
+      navigate(`/strategies/context/${next.id}`);
+    },
+    onError: (err) => toast.error(errorMessage(err, 'Approval failed. Reload the document and try again.')),
+  });
+
   const onExtract = () => {
     if (extract.isPending || extractDisabledReason !== null) return;
     extract.mutate(d.id, {
@@ -452,6 +470,17 @@ export function ContextDocumentVNext() {
           </div>
         </div>
 
+        {d.state === 'active' ? <div className="st-ctxdoc__note" role="status">
+          {approved ? 'Approved source of truth for client reports.' : <>
+            <p>This document is a working source. Review its contents before approving it for client reports.</p>
+            {canApprove ? confirmingApproval ? <div role="group" aria-label="Confirm document approval">
+              <p>Confirm that this version is accurate and may be used as a firm-approved source of truth in client reports. Approval preserves the original and does not change its expiry date.</p>
+              <CapiroButton loading={approve.isPending} onClick={onApprove}>Confirm approval</CapiroButton>
+              <CapiroButton disabled={approve.isPending} onClick={() => setConfirmingApproval(false)}>Cancel</CapiroButton>
+            </div> : <CapiroButton onClick={() => { setReviewedChecksum(d.checksum); setConfirmingApproval(true); }}>Approve for client reports</CapiroButton>
+              : <p>{!approvalAdmin ? 'An administrator can approve this document.' : 'Only current client-confidential documents can be approved for client reports.'}</p>}
+          </>}
+        </div> : null}
         {docRefetchFailed ? (
           <div className="st-ctxdoc__note is-warning" role="status">
             Refresh failed — showing data from {new Date(docDataUpdatedAt).toLocaleTimeString()}.

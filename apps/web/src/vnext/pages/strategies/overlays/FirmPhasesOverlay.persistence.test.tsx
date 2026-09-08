@@ -52,3 +52,12 @@ describe('Firm phase persistence', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
+
+it('previews extending an expired phase model and only persists after Save', () => {
+  render(<MemoryRouter initialEntries={['/strategies/phases?phaseStartFy=2026&phaseEndFy=2028']}><FirmPhasesOverlay /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Extend last phase through FY2028' }));
+  expect(screen.getByLabelText('Execute — end fiscal year')).toHaveValue(2029);
+  expect(state.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Save phases' }));
+  expect(state.save).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ label: 'Execute', endFy: 2029, endQ: 1 })]), expect.any(Object));
+});

@@ -48,7 +48,7 @@ export default defineConfig({
   // Vite serves dist/meri-skills.js raw over /@fs/ and the browser dies on
   // `exports.X = ...` (no named ESM exports). Include it explicitly.
   optimizeDeps: {
-    include: ['@capiro/shared', '@capiro/shared/meri-skills'],
+    include: ['@capiro/shared', '@capiro/shared/meri-skills', '@capiro/strategy-verifier'],
   },
   build: {
     // @capiro/shared compiles to CommonJS so that the NestJS CJS runtime can
@@ -57,7 +57,7 @@ export default defineConfig({
     commonjsOptions: {
       // Rollup's commonjs plugin sees resolved file paths, not import
       // specifiers, so we match the workspace dist path here.
-      include: [/packages\/shared\/dist/, /node_modules/],
+      include: [/packages\/(shared|strategy-verifier)\/dist/, /node_modules/],
       transformMixedEsModules: true,
     },
     rollupOptions: {

@@ -294,13 +294,13 @@ export class MeriService {
     // repair the orchestrator already ran index-side, against the REAL uuid
     // graph — a second, independent pass that never depends on the
     // orchestrator having run it (or having run it correctly).
-    let violations = this.verify(dto.type, nodeData, ground);
+    let violations = this.verify(dto.type, nodeData, ground, dto.goal ?? '');
     let errs = violations.filter((v) => v.severity === 'error');
     if (errs.length > 0) {
       const repair = repairDependencyOrder(toVerifierNodes(nodeData));
       if (!repair.refused && repair.changedIds.length > 0) {
         applyRepairedNodeDates(nodeData, repair.nodes);
-        violations = this.verify(dto.type, nodeData, ground);
+        violations = this.verify(dto.type, nodeData, ground, dto.goal ?? '');
         errs = violations.filter((v) => v.severity === 'error');
         this.logger.log(
           `strategy draft: deterministic repair retimed ${repair.changedIds.length} node(s), ${errs.length} error(s) remain`,
@@ -576,7 +576,7 @@ export class MeriService {
       const d = await loadStrategyDetail(tx, strategyId);
       // A6: verify the resulting persisted plan; annotate + log (additive — the
       // edit-set already applied; hard-blocking is the flagged web phase).
-      const v = this.verify(strategy.type, d.nodes, ground);
+      const v = this.verify(strategy.type, d.nodes, ground, `${strategy.title} ${strategy.goal ?? ''}`);
       // Stage E provenance fact-check (WARNING-only — never trips the A6 gate).
       v.push(...(await this.factCheckProvenance(tx, d.nodes, strategy.clientId)));
       if (this.blockOnErrors() && v.some((x) => x.severity === 'error')) {
@@ -751,7 +751,7 @@ export class MeriService {
     ground: Grounding,
   ) {
     const detail = await loadStrategyDetail(tx, strategyId);
-    const violations = this.verify(detail.type, detail.nodes, ground);
+    const violations = this.verify(detail.type, detail.nodes, ground, `${detail.title} ${detail.goal ?? ''}`);
     if (this.blockOnErrors() && violations.some((v) => v.severity === 'error')) {
       throw new UnprocessableEntityException(
         `This change would break the plan — ${violations
@@ -1104,7 +1104,7 @@ export class MeriService {
   }
 
   /** A6: run the shared realism verifier over a plan against this call's grounding. */
-  private verify(strategyType: string, nodes: VerifierNodeSource[], ground: Grounding): Violation[] {
+  private verify(strategyType: string, nodes: VerifierNodeSource[], ground: Grounding, objective = ''): Violation[] {
     const vnodes: VerifierNode[] = nodes.map((n) => ({
       id: String(n.id ?? ''),
       kind: String(n.kind ?? ''),
@@ -1115,6 +1115,7 @@ export class MeriService {
       dependsOnIds: Array.isArray(n.dependsOnIds) ? (n.dependsOnIds as string[]) : [],
     }));
     return verifyPlan({
+      objective,
       strategyType,
       nodes: vnodes,
       fiscal: {

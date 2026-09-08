@@ -11,12 +11,15 @@
  * Focus trap / Escape / dirty guard / route sync live in StrategiesModalShell.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../../components/actions/index.js';
 import { CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
 import { CapiroPlusIcon } from '../../../components/icons/index.js';
 import { relativeTime } from '../../../../pages/strategy/constants.js';
 import type { FirmPhase, FirmPhaseInput } from '../../../../pages/strategy/types.js';
 import { memberName, useFirmPhases, usePutFirmPhases, useTenantMembers } from '../strategies-api.js';
+import { phaseCoverageGaps, phasesInDateOrder, phaseQuarter } from '../lib/phase-coverage.js';
+import { currentFiscalYear } from '../lib/timeline.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
 
 const MIN_PHASES = 3;
@@ -114,6 +117,10 @@ function spanQuarters(row: Row): number | null {
 }
 
 export function FirmPhasesOverlay() {
+  const { strategyId } = useParams();
+  const [searchParams] = useSearchParams();
+  const startFy = Number(searchParams.get('phaseStartFy')) || currentFiscalYear();
+  const endFy = Number(searchParams.get('phaseEndFy')) || startFy + 2;
   const phases = useFirmPhases();
   const members = useTenantMembers();
   const put = usePutFirmPhases();
@@ -156,6 +163,7 @@ export function FirmPhasesOverlay() {
     if (rows.some((r) => !r.label.trim())) out.push('Every phase needs a name.');
     if (rows.some((r) => r.label.trim().length > 120)) out.push('Phase names must be 120 characters or fewer.');
     if (rows.some((r) => spanQuarters(r) === null)) out.push('Every phase must end after it starts.');
+    if (!phasesInDateOrder(rows)) out.push('Put phases in chronological order by their start quarter.');
     if (dupeKeys.size > 0) out.push('Phase names must be unique — highlighted rows are duplicates.');
     if (rows.some((r) => !Number.isInteger(r.startQ) || r.startQ < 1 || r.startQ > 4 || !Number.isInteger(r.endQ) || r.endQ < 1 || r.endQ > 4)) {
       out.push('Quarters run Q1–Q4.');
@@ -264,6 +272,14 @@ export function FirmPhasesOverlay() {
     });
   };
 
+  const coverageGaps = phaseCoverageGaps(rows ?? [], startFy, endFy);
+  const lastEnd = Math.max(...(rows ?? []).map((row) => phaseQuarter(row.endFy, row.endQ)));
+  const extendLast = () => setRows((current) => {
+    if (!current?.length) return current;
+    const last = [...current].sort((a, b) => phaseQuarter(b.endFy, b.endQ) - phaseQuarter(a.endFy, a.endQ))[0]!;
+    return current.map((row) => row._key === last._key ? { ...row, endFy: endFy + 1, endQ: 1 } : row);
+  });
+
   const canSave = dirty && problems.length === 0 && !put.isPending;
 
   const save = () => {
@@ -316,7 +332,7 @@ export function FirmPhasesOverlay() {
       eyebrow="Firm phases"
       title="The firm's shared phase ladder"
       subtitle="These phases underlie every strategy timeline. Saving replaces the whole ladder at once."
-      closeTo="/strategies"
+      closeTo={strategyId ? `/strategies/${strategyId}` : '/strategies'}
       maxWidth={960}
       dirty={dirty && !put.isPending}
       primaryLabel="Save phases"
@@ -373,6 +389,13 @@ export function FirmPhasesOverlay() {
               </p>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--st-gray-500)' }}>Use the arrows to reorder</p>
             </div>
+            {!phasesInDateOrder(rows) ? <CapiroButton disabled={put.isPending} onClick={() => setRows([...rows].sort((a, b) => phaseQuarter(a.startFy, a.startQ) - phaseQuarter(b.startFy, b.startQ)))}>Sort phases by start date</CapiroButton> : null}
+            {coverageGaps.length > 0 ? <div role="status" className="st-modal__alert">
+              <p>Uncovered time in the FY{startFy}–FY{endFy} horizon:</p>
+              <ul>{coverageGaps.map((gap) => <li key={gap}>{gap}</li>)}</ul>
+              {Number.isFinite(lastEnd) && lastEnd < phaseQuarter(endFy + 1, 1) ? <CapiroButton disabled={put.isPending} onClick={extendLast}>Extend last phase through FY{endFy}</CapiroButton> : null}
+              <p>Changes appear in the preview. Save phases to apply them to every strategy.</p>
+            </div> : null}
             <div className="st-phases__list">
               {rows.map((row, index) => {
                 const quarters = spanQuarters(row);

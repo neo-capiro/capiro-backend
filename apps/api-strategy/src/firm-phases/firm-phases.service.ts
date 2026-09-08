@@ -34,7 +34,11 @@ export class FirmPhasesService {
 
   /** Atomically replace the tenant's phase set (delete-all + re-insert in order). */
   async replace(tenantId: string, clerkUserId: string, dto: FirmPhasesDto) {
-    dto.rows.forEach((r) => {
+    dto.rows.forEach((r, i) => {
+      const previous = dto.rows[i - 1];
+      if (previous && qOrdinal(r.startFy, r.startQ) < qOrdinal(previous.startFy, previous.startQ)) {
+        throw new BadRequestException('Phases must be ordered by their start quarter');
+      }
       if (qOrdinal(r.startFy, r.startQ) >= qOrdinal(r.endFy, r.endQ)) {
         throw new BadRequestException(`Phase "${r.label}" must end after it starts`);
       }

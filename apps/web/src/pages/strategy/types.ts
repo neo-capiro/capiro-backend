@@ -21,7 +21,7 @@ export type NodeSubject =
   | 'agency'
   | 'outcome'
   | 'optics';
-export type NodeStatus = 'draft' | 'in_progress' | 'internal_review' | 'active' | 'suggested';
+export type NodeStatus = 'draft' | 'in_progress' | 'internal_review' | 'active' | 'suggested' | 'completed';
 export type ArtifactType = 'workspace_draft' | 'outreach_record';
 export type ReferenceKind = 'congress_milestone' | 'ppbe_lane_bar' | 'ppbe_current_phase';
 
@@ -36,6 +36,7 @@ export interface StrategyListItem {
   lastEditedAt: string | null;
   createdAt: string;
   nodeCount: number;
+  summary?: { assignedCount: number; unassignedCount: number; completedCount: number; reviewCount: number };
 }
 
 /** A9: per-node grounding — the pack section(s) a Meri-authored node cites. */
@@ -308,6 +309,8 @@ export interface CreateNodeInput {
 
 /** Partial node update (NOD-5/7, TLN-12). changeNote = version/flash label. */
 export interface UpdateNodeInput {
+  expectedUpdatedAt?: string;
+  dependsOnIds?: string[];
   kind?: NodeKind;
   subject?: NodeSubject;
   title?: string;

@@ -142,6 +142,7 @@ export function VNextStrategiesRoutes() {
 
           {/* Editor + its overlays. */}
           <Route path="/strategies/:strategyId" element={<StrategyEditorVNext />} />
+          <Route path="/strategies/:strategyId/phases" element={<Overlay caller={<StrategyEditorVNext />}><FirmPhasesOverlay /></Overlay>} />
           <Route path="/strategies/:strategyId/history" element={<Overlay caller={<StrategyEditorVNext />}><HistoryOverlay /></Overlay>} />
           <Route path="/strategies/:strategyId/export" element={<Overlay caller={<StrategyEditorVNext />}><ExportOverlay /></Overlay>} />
 

@@ -34,3 +34,12 @@ describe('FirmPhasesService.replace validation', () => {
     expect(withTenantUser).not.toHaveBeenCalled();
   });
 });
+
+ it('rejects a phase ladder whose listed order contradicts its dates', async () => {
+    const { prisma, withTenantUser } = stubPrisma();
+    await expect(new FirmPhasesService(prisma).replace('t', 'u', { rows: [
+      { label: 'Discovery', startFy: 2026, startQ: 2, endFy: 2026, endQ: 3 },
+      { label: 'Strategy', startFy: 2026, startQ: 1, endFy: 2026, endQ: 2 },
+    ] })).rejects.toThrow(/ordered/);
+    expect(withTenantUser).not.toHaveBeenCalled();
+ });

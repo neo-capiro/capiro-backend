@@ -27,7 +27,7 @@ const SUBJECTS = [
   'outcome',
   'optics',
 ] as const;
-const STATUSES = ['draft', 'in_progress', 'internal_review', 'active', 'suggested'] as const;
+const STATUSES = ['draft', 'in_progress', 'internal_review', 'active', 'suggested', 'completed'] as const;
 
 // ---- request shapes (what api-strategy forwards) ----
 
@@ -527,7 +527,7 @@ export function sanitizeDocumentSections(raw: unknown): DocumentDraftSection[] {
 function renderFiscal(f?: FiscalGrounding): string {
   if (!f) return '(fiscal window not provided)';
   const window = f.fyLabels?.length ? f.fyLabels.join(', ') : '(unknown)';
-  return `Today: ${f.today ?? '(unknown)'}. Shown FY window: ${window}. Focal FY: ${f.focalFy ?? '(unknown)'}. Place node dates as real YYYY-MM-DD within this window.`;
+  return `Today: ${f.today ?? '(unknown)'}. Shown FY window: ${window}. Focal FY: ${f.focalFy ?? '(unknown)'}. The focal FY is only a display default: an explicit FY in the user goal takes precedence. Federal FY N runs October 1 of N-1 through September 30 of N. Budget formulation, member requests, annual authorization and appropriations generally happen in calendar N-1, not N (e.g. FY27 requests and markups belong to the 2026 cycle). Do not move an FY27 annual cycle into 2027 to fit the visible window or to avoid past dates. Separate historical/completed steps from remaining work; never mark a step Completed without an explicit user confirmation. For elapsed deadlines, propose a sourced remaining route or ask for the next-cycle decision. Keep real YYYY-MM-DD dates and identify unverified windows.`;
 }
 
 function renderFirmPhases(rows?: FirmPhaseRow[]): string {
@@ -542,7 +542,7 @@ function renderFirmPhases(rows?: FirmPhaseRow[]): string {
 
 function renderReference(ref?: ReferenceGrounding): string {
   if (!ref) return '(reference calendars not provided)';
-  const lines: string[] = [];
+  const lines: string[] = ['These are planning reference windows, not verified official deadlines. Their year is part of the evidence: never cite a 2026 reference as support for a 2027 event. Reference windows alone cannot establish an actual budget release, committee deadline, markup or enactment date. Prefer an attached dated primary source; otherwise explicitly describe the date as estimated and needing confirmation.'];
   if (ref.congress?.length) {
     lines.push('Legislative milestones:');
     for (const r of ref.congress.slice(0, 24)) {

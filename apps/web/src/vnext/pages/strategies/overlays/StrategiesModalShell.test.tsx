@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
 
 afterEach(cleanup);
@@ -48,7 +48,7 @@ describe('StrategiesModalShell', () => {
       expect(overlay.classList.contains('capiro-vnext-uui')).toBe(true);
       const layout = getComputedStyle(overlay);
       expect(layout.position).toBe('fixed');
-      expect(layout.inset).toBe('0');
+      expect(Number.parseFloat(layout.inset)).toBe(0);
       expect(layout.display).toBe('flex');
       expect(layout.alignItems).toBe('center');
       expect(layout.justifyContent).toBe('center');
@@ -90,4 +90,14 @@ describe('StrategiesModalShell', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
+});
+
+function EditorLocation() { const location = useLocation(); return <output data-testid="editor-url">{location.pathname}{location.search}</output>; }
+it('returns to the editor with its horizon, layers and selected step intact', () => {
+  render(<MemoryRouter initialEntries={['/strategies/s/history?horizon=2fy&layers=ppbe&step=n1&tab=meri']}><Routes>
+    <Route path="/strategies/s" element={<EditorLocation />} />
+    <Route path="/strategies/s/history" element={<StrategiesModalShell eyebrow="History" title="History" primaryLabel="Done" closeTo="/strategies/s" maxWidth={900}>Versions</StrategiesModalShell>} />
+  </Routes></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(screen.getByTestId('editor-url')).toHaveTextContent('/strategies/s?horizon=2fy&layers=ppbe&step=n1&tab=meri');
 });

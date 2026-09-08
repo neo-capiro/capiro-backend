@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   Prisma,
   SpContextDocState,
@@ -56,7 +56,7 @@ export class ContextDocumentsService {
     this.assertScopeAllowed(scope, await this.isOrgAdmin(tenantId, user));
   }
 
-  async upload(tenantId: string, user: ContextUser, dto: UploadContextDocumentDto) {
+  async upload(tenantId: string, user: ContextUser, dto: UploadContextDocumentDto, reviewed?: { id: string; checksum: string }) {
     const parsed = parseFrontmatter(dto.content);
     if (parsed.errors.length > 0 || parsed.frontmatter === null) {
       throw this.badFrontmatter(
@@ -116,6 +116,13 @@ export class ContextDocumentsService {
     if (identityErrors.length > 0) throw this.badFrontmatter(identityErrors);
 
     return this.prisma.withTenantUser(tenantId, user.clerkUserId, async (tx) => {
+      if (reviewed) {
+        await tx.$queryRaw`SELECT id FROM sp_context_document WHERE id = ${reviewed.id}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE`;
+        const current = await tx.spContextDocument.findFirst({ where: { id: reviewed.id } });
+        if (!current || current.state !== 'active' || current.checksum !== reviewed.checksum || isStale(current.validUntil)) {
+          throw new ConflictException('This document changed or expired. Reload and review the current version before approving.');
+        }
+      }
       // IDEMPOTENT: same key-tuple + same content (checksum) on a row already
       // in the INCOMING state -> return it unchanged. No new row, no activity.
       // Matching is state-exact: an archived (or superseded) row must never be
@@ -242,8 +249,33 @@ export class ContextDocumentsService {
           supersedesId: created.supersedesId,
         },
       });
+      if (reviewed) await this.versioning.logActivity(tx, {
+        tenantId, actorUserId: user.clerkUserId, authorKind: 'person',
+        action: 'context_doc.approved', entityType: 'context_document', entityId: created.id,
+        before: { documentId: reviewed.id, checksum: reviewed.checksum },
+        after: { authority: 'firm_approved', source_of_truth: true, checksum },
+      });
       return created;
     });
+  }
+
+  /** Explicit human approval creates a revision; the imported original remains history. */
+  async approve(tenantId: string, user: ContextUser, id: string, expectedChecksum: string) {
+    if (!await this.isOrgAdmin(tenantId, user)) throw new ForbiddenException('Document approval requires an org admin');
+    const doc = await this.get(tenantId, id);
+    if (doc.state !== 'active' || doc.stale || doc.checksum !== expectedChecksum) {
+      throw new ConflictException('This document changed or expired. Reload and review the current version before approving.');
+    }
+    const parsed = parseFrontmatter(doc.content);
+    const fm = parsed.frontmatter;
+    if (!fm || parsed.errors.length || validateFrontmatter(fm).length) throw new BadRequestException('Document metadata must be valid before approval');
+    if (fm.confidentiality !== 'client_confidential') throw new BadRequestException('Firm-internal documents cannot be approved for client reports');
+    if (!fm.document_id) throw new BadRequestException('Document is missing its revision identity');
+    if (['firm_approved', 'client_approved'].includes(String(fm.authority)) && fm.source_of_truth === true) return doc;
+    // Replace only metadata; source text and stable heading/table refs remain exact.
+    const next = { ...fm, document_id: randomUUID(), authority: 'firm_approved', source_of_truth: true, supersedes: fm.document_id };
+    const content = `---\n${Object.entries(next).map(([key, value]) => `${key}: ${value === null ? 'null' : typeof value === 'boolean' ? value : `"${value}"`}`).join('\n')}\n---\n${parsed.body}`;
+    return this.upload(tenantId, user, { content, title: doc.title }, { id, checksum: expectedChecksum });
   }
 
   /**

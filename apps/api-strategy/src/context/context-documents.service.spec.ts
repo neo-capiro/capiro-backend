@@ -136,6 +136,7 @@ function makeTx(store: Store) {
     },
   };
   return {
+    $queryRaw: async () => [],
     spContextDocument,
     spActivityLog,
     spEventOutbox,
@@ -1150,5 +1151,30 @@ describe('ContextDocumentsService.archive', () => {
     expect(err).toBeInstanceOf(ConflictException);
     expect((err as Error).message).toMatch(/retained history/);
     expect(store.docs.get(v1.id)!.state).toBe('superseded');
+  });
+});
+
+
+describe('Context document approval', () => {
+  it('creates an approved revision, preserves the original and retires its active facts atomically', async () => {
+    const store = makeStore(); const { svc } = makeService(store);
+    const original = await svc.upload(T, ADMIN, { content: makeContent({ authority: 'working_draft', source_of_truth: 'false' }) });
+    store.facts.set('fact', { id: 'fact', documentId: original.id, state: 'active' });
+    const approved = await svc.approve(T, ADMIN, original.id, original.checksum);
+    expect(approved.id).not.toBe(original.id);
+    expect(approved.supersedesId).toBe(original.id);
+    expect(approved.frontmatter).toMatchObject({ authority: 'firm_approved', source_of_truth: true });
+    expect(store.docs.get(original.id)).toMatchObject({ state: 'superseded', content: original.content });
+    expect(store.facts.get('fact')?.state).toBe('stale');
+    expect(store.activity).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'context_doc.approved', actorUserId: ADMIN.clerkUserId })]));
+  });
+  it('rejects members, stale checksums, expired sources and internal confidentiality', async () => {
+    for (const scenario of ['member', 'changed', 'expired', 'internal']) {
+      const store = makeStore(); const { svc } = makeService(store);
+      const doc = await svc.upload(T, ADMIN, { content: makeContent({ authority: 'working_draft', source_of_truth: 'false', ...(scenario === 'expired' ? { valid_until: '2020-01-01' } : {}), ...(scenario === 'internal' ? { confidentiality: 'firm_internal' } : {}) }) });
+      await expect(svc.approve(T, scenario === 'member' ? MEMBER : ADMIN, doc.id, scenario === 'changed' ? '0'.repeat(64) : doc.checksum)).rejects.toThrow();
+      expect(store.docs.size).toBe(1);
+      expect(store.docs.get(doc.id)?.state).toBe('active');
+    }
   });
 });

@@ -42,7 +42,8 @@
     "rehype-sanitize": "^6",
     "remark-gfm": "^4",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "@capiro/strategy-verifier": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
