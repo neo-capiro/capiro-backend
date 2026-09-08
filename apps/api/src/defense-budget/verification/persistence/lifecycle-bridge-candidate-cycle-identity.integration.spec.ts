@@ -126,6 +126,12 @@ async function buildBridgeFixture(input: {
     sourcePath,
     sourceUrl: SOURCE_URL,
     sourceSha256,
+    // Phase 10B-31: this fixture's proof resolver is FilesystemProofResolver
+    // (not CompositeProofResolver), which never consults expectedSourceKey --
+    // this test exercises candidate cycle-identity persistence, not the
+    // metadata-agreement check, so any valid non-blank value satisfies the
+    // now-required field without affecting this file's assertions.
+    sourceKey: `defense-budget-observation-${input.sourceDocumentId}`,
     budgetFamily: 'rdte',
     exhibitType: 'R-2',
     authority: 'dod-comptroller',
@@ -578,7 +584,9 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
 
   it('the manifest registry, keyed by the RAW lifecycle cycle id, resolves for the matching readiness identity only', async () => {
     const registry = new PrismaCycleManifestRegistryV1(prisma);
-    await registry.register(RAW_CYCLE_ID, parseBudgetCycleManifestV1(fixtureA.manifestObject));
+    // Phase 10B-31: register() takes the raw manifest bytes, not a parsed
+    // object -- see prisma-cycle-manifest-registry-v1.ts's header comment.
+    await registry.register(RAW_CYCLE_ID, Buffer.from(JSON.stringify(fixtureA.manifestObject), 'utf8'));
     const loaded = await registry.loadManifestForIdentity(identity, RAW_CYCLE_ID);
     expect(loaded).not.toBeNull();
     expect(loaded!.documents.map((document) => document.documentKey)).toEqual([SOURCE_DOCUMENT_ID]);
@@ -619,16 +627,21 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
 
     // After acceptance the materializer proceeds past the status gate and
     // reloads the artifact. Nothing here may produce a projection plan: a
-    // single accepted R-2 member is not a complete RDT&E bundle. Today the
-    // reload itself is refused, because `loadVerifiedArtifact` compares the
-    // FILE byte SHA against `budget_extraction_candidate_v1.
-    // extraction_artifact_sha256`, which the verifier populates with the
-    // artifact CONTENT SHA (`resolution.extractionArtifactContentSha256`) --
-    // the same content-vs-byte disagreement the real FY2024 Army canary shows
+    // single accepted R-2 member is not a complete RDT&E bundle.
+    //
+    // Before the Phase 10B-31 hash-boundary fix, the reload itself was
+    // refused here, because `loadVerifiedArtifact` compared the FILE byte SHA
+    // against `budget_extraction_candidate_v1.extraction_artifact_sha256`,
+    // which the verifier populates with the artifact CONTENT SHA
+    // (`resolution.extractionArtifactContentSha256`) -- the same
+    // content-vs-byte disagreement the real FY2024 Army canary showed
     // (artifactContentSha256 95433cc2... vs artifactByteSha256 9a088be0...).
-    // That is a pre-existing contract mismatch in the post-acceptance
-    // materialization path, documented (not changed) by Phase 10B-28R; it is
-    // fail-closed, so it is asserted here exactly as observed.
+    // `PrismaMaterializationArtifactSourceV1.loadVerifiedArtifact` now
+    // recomputes and compares the CONTENT hash instead, so the reload
+    // succeeds; the bundle is still correctly reported incomplete (below),
+    // now for the real, unrelated reason (this fixture's cycle genuinely
+    // lacks the rest of the required RDT&E bundle), never silently hidden by
+    // the hash bug.
     let afterAcceptance: Awaited<ReturnType<typeof materializeRdteFamilyCertificationV1>> | null = null;
     let thrown: unknown = null;
     try {
@@ -636,13 +649,10 @@ describeDb('Phase 10B-28R -- lifecycle-bridge candidate cycle identity against a
     } catch (error) {
       thrown = error;
     }
-    if (afterAcceptance) {
-      expect(afterAcceptance.outcome).not.toBe('materialized');
-      expect(afterAcceptance.record).toBeNull();
-    } else {
-      expect(thrown).toBeInstanceOf(Error);
-      expect((thrown as Error).message).toMatch(/artifact byte SHA mismatch .* refusing to materialize/);
-    }
+    expect(thrown).toBeNull();
+    expect(afterAcceptance).not.toBeNull();
+    expect(afterAcceptance!.outcome).not.toBe('materialized');
+    expect(afterAcceptance!.record).toBeNull();
     const plans = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
       `SELECT COUNT(*)::int AS "n" FROM "defense_budget_projection_plan" WHERE "cycle_id" = $1`,
       RAW_CYCLE_ID,

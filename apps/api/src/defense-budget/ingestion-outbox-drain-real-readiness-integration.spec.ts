@@ -21,6 +21,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { DefenseBudgetExtractionArtifactV1 } from './contracts/extraction-artifact-v1.js';
+import { computeArtifactContentSha256 } from './contracts/extraction-artifact-v1.semantic.js';
 import type { BudgetCycleManifestV1 } from './contracts/budget-cycle-manifest-v1.js';
 import {
   buildRdteCycleArtifacts,
@@ -429,7 +430,10 @@ describe('real ingestion readiness integration', () => {
       metadata: { rdteRequiredIdentityKeys: [] },
     } as unknown as BudgetCycleManifestV1;
     const registry = new PrismaCycleManifestRegistryV1(prisma);
-    const registered = await registry.register(CYCLE, manifest);
+    // Phase 10B-31: register() takes the raw manifest bytes (the same bytes
+    // a real manifest file/locator would contain), not a parsed object --
+    // see prisma-cycle-manifest-registry-v1.ts's header comment.
+    const registered = await registry.register(CYCLE, Buffer.from(JSON.stringify(manifest), 'utf8'));
     const built = buildRdteCycleArtifacts({
       fiscalYear: 2027,
       manifestContentSha256: registered.manifestContentSha256,
@@ -437,7 +441,7 @@ describe('real ingestion readiness integration', () => {
       documents: goldenCloseoutDocuments(),
     });
     for (const item of built.artifacts) {
-      const artifact = {
+      const mutated = {
         ...item.artifact,
         assertions: item.artifact.assertions.map((assertion) =>
           assertion.assertionKind === 'funding'
@@ -460,12 +464,18 @@ describe('real ingestion readiness integration', () => {
               : assertion,
         ),
       } as DefenseBudgetExtractionArtifactV1;
+      // Phase 10B-31: `budget_extraction_candidate_v1.extraction_artifact_sha256`
+      // is the artifact's CONTENT hash, not a raw byte hash of the persisted
+      // file -- recompute it from this test's own (post-mutation) artifact,
+      // exactly as the real producer does, rather than reusing the byte hash
+      // `persistComposedArtifact` returns.
+      const artifact = { ...mutated, contentSha256: computeArtifactContentSha256(mutated) };
       const file = await persistComposedArtifact(writer, artifact);
       seedCandidate(prisma, {
         key: item.documentKey,
         artifact,
         locator: file.locator,
-        byteSha256: file.sha256,
+        byteSha256: artifact.contentSha256,
         manifestSha256: registered.manifestContentSha256,
         family: 'rdte',
       });
@@ -551,18 +561,22 @@ describe('real ingestion readiness integration', () => {
       familyGroup: 'om',
     };
     const registry = new PrismaCycleManifestRegistryV1(prisma);
-    const registered = await registry.register(CYCLE, omManifest());
+    const registered = await registry.register(CYCLE, Buffer.from(JSON.stringify(omManifest()), 'utf8'));
     for (const [key, exhibit] of [
       ['o1', 'O-1'],
       ['op5', 'OP-5'],
     ] as const) {
-      const artifact = omArtifact(key, exhibit);
+      // Phase 10B-31: same content-hash recompute as the RDT&E case above --
+      // `omArtifact`'s embedded contentSha256 is a fixed dummy value, so it
+      // must be replaced with the real recomputed hash before seeding.
+      const draft = omArtifact(key, exhibit);
+      const artifact = { ...draft, contentSha256: computeArtifactContentSha256(draft) };
       const file = await persistComposedArtifact(writer, artifact);
       seedCandidate(prisma, {
         key,
         artifact,
         locator: file.locator,
-        byteSha256: file.sha256,
+        byteSha256: artifact.contentSha256,
         manifestSha256: registered.manifestContentSha256,
         family: 'om',
       });

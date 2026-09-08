@@ -93,6 +93,15 @@ const APPROVED_VERIFICATION_OPERATOR_SCRIPTS = new Set([
   // this containment gate actually covers it going forward, per the same
   // "approved operators import no canonical writers" re-check below.
   'accept-defense-budget-ingestion-review-v1.ts',
+  // Phase 10B-31. Isolated evidence-replay harness: feeds a recovered
+  // production extraction artifact through the real persist-mode
+  // verification wiring against a local Postgres + local versioned S3
+  // store. It calls `persistCompletedVerification` (an audit write, the
+  // same call every drain/CLI verification path makes) but writes nothing
+  // to any canonical PE/PE-year table and has no `--promote` flag --
+  // non-promoting by construction, covered by the same
+  // "approved operators import no canonical writers" re-check below.
+  'phase10b31-replay-recovered-artifact.ts',
 ]);
 
 const CANONICAL_WRITER_PATTERNS = [

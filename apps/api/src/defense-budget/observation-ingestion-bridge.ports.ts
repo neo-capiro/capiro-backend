@@ -183,6 +183,14 @@ export interface SourceDocumentArchiveReadPort {
  * `attachSourceDocumentAndMarkIngested`'s caller must load back out of
  * storage before a replay can use `SourceDocumentArchiveReadPort` instead of
  * re-fetching the (potentially moved) live URL.
+ *
+ * Phase 10B-31: also carries `component` — the SAME already-loaded row's
+ * authoritative, persisted component — so a replay (which never re-runs
+ * `DocumentRegistrar.register()` and so never re-derives it from
+ * `expectedSource`) can still hand the parser the real, persisted value
+ * instead of silently defaulting it away. No new query: the real store
+ * implementation already loads the full row for the archive fields above and
+ * only needs to return one more of its columns.
  */
 export interface StoredSourceDocumentArchiveRecord {
   readonly sourceDocumentId: string;
@@ -190,6 +198,7 @@ export interface StoredSourceDocumentArchiveRecord {
   readonly archiveBucket: string | null;
   readonly archiveS3Key: string | null;
   readonly archiveVersionId: string | null;
+  readonly component: string | null;
 }
 
 /** What the parser-handoff adapter needs to identify and route a registered document. */
@@ -205,6 +214,34 @@ export interface ParserHandoffInput {
   readonly sourceFamily: SourceFamily;
   readonly title: string;
   readonly sourceUrl: string;
+  /**
+   * Phase 10B-31: the authoritative `SourceDocument.sourceKey` this document
+   * was (or will be) registered under -- always a real, non-null value (the
+   * column is non-nullable; every SourceDocument has one). Required, not
+   * optional: a caller that cannot supply the real sourceKey has no business
+   * handing a document off to production-proof verification, which will
+   * compare this value against the persisted row's own `sourceKey` (see
+   * `buildLifecycleBridgeSyntheticManifestV1`'s `expectedSourceKey` and
+   * `CompositeProofResolver.resolveSingleArtifactProof`'s metadata-agreement
+   * block). Never derive this from `sourcePath` or any other byte locator --
+   * the two are drawn from structurally disjoint token spaces and must never
+   * be conflated.
+   */
+  readonly sourceKey: string;
+  /**
+   * Phase 10B-31: the authoritative, persisted `SourceDocument.component` --
+   * `null` is a legitimate value (all-component master lists / committee
+   * documents genuinely have no single component), so this is a required key
+   * carrying an explicit `null` rather than an optional key a caller could
+   * forget to set. Forwarded so the parser/verification manifest's own
+   * `component` field can agree with the real row instead of silently
+   * defaulting to `'UNKNOWN'` for every document regardless of the real,
+   * known value -- see `DefaultParserHandoffAdapter.handoff()`, which
+   * validates this against the closed `BudgetComponentV1` vocabulary before
+   * forwarding it (fail-closed on an unrecognized non-null value, never a
+   * silent coercion to `'UNKNOWN'`).
+   */
+  readonly component: string | null;
 }
 
 /**

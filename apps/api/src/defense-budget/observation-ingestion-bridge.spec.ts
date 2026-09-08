@@ -351,6 +351,10 @@ function registerSourceDocumentArchive(
     archiveBucket: locator.bucket,
     archiveS3Key: locator.key,
     archiveVersionId: locator.versionId,
+    // Phase 10B-31: mirror the real store, which returns this same
+    // already-registered row's actual component -- a replay must see the
+    // real persisted value, never an absent/undefined one.
+    component: row.component as string | null,
   });
   ctx.putArchivedBytes(locator, bytes);
 }
@@ -379,6 +383,12 @@ describe('ObservationIngestionBridgeService', () => {
     expect(result.parserHandoffError).toBeNull();
     expect(ctx.handoffCalls).toHaveLength(1);
     expect(result.verifierDecision).toBe('PASS');
+    // [Phase 10B-31] ...and the handoff received the SAME sourceKey/component
+    // that were actually registered onto the SourceDocument, not an absent
+    // value the parser/manifest builder would otherwise silently default.
+    expect(ctx.handoffCalls[0]!.sourceKey).toBe(ctx.sourceDocumentRows[0]!.sourceKey);
+    expect(ctx.handoffCalls[0]!.component).toBe('AF');
+    expect(ctx.handoffCalls[0]!.component).toBe(ctx.sourceDocumentRows[0]!.component);
 
     // ...and the bridge reports full, durable ingestion success — this is the
     // Phase 10B-1 repair's core contract: SOURCE INGESTION COMPLETE, with NO
@@ -536,6 +546,70 @@ describe('ObservationIngestionBridgeService', () => {
     expect(ctx.handoffCalls[0]!.cycleId).toBe('cycle-1');
     expect(ctx.handoffCalls[0]!.fiscalYear).toBe(2024);
     expect(ctx.handoffCalls[0]!.sourceFamily).toBe('pb_r2');
+    // [Phase 10B-31] the registered document's real identity/component reach
+    // the handoff too, not just the lifecycle-classification fields above.
+    expect(ctx.handoffCalls[0]!.sourceKey).toBe('defense-budget-observation-dedup-obs-1');
+    expect(ctx.handoffCalls[0]!.component).toBe('AF');
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Phase 10B-31 repair: sourceKey/component metadata-contract fields   */
+  /* ------------------------------------------------------------------ */
+
+  it('[10B-31] a non-default component reaches the handoff unchanged on first ingestion, and the SAME persisted value reaches it again on replay', async () => {
+    const observation = makeObservation();
+    const expectedSource = makeExpectedSource({ component: 'NAVY' });
+    const ctx = buildBridge({
+      observation,
+      expectedSource,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [{ kind: 'throw', message: 'simulated parser runtime crash' }],
+    });
+
+    const first = await ctx.bridge.bridge(observation.id);
+    expect(first.sourceDocumentBound).toBe(true);
+    // First-time path: reads back the ACTUAL persisted row's component
+    // (registered.registry.document.component), not a re-derivation of
+    // expectedSource.component -- the two happen to be equal here, but the
+    // handoff call proves which one is actually wired.
+    expect(ctx.handoffCalls[0]!.component).toBe('NAVY');
+    expect(ctx.sourceDocumentRows[0]!.component).toBe('NAVY');
+
+    registerSourceDocumentArchive(ctx, first.sourceDocumentId!, OFFICIAL_BYTES);
+    const retry = await ctx.bridge.bridge(observation.id);
+    expect(retry.status).toBe('already_ingested');
+    // Replay path: reads the component back from the store's
+    // loadSourceDocumentArchive record (never re-derived from expectedSource
+    // a second time), and it is the SAME real, persisted value.
+    expect(ctx.handoffCalls[1]!.component).toBe('NAVY');
+    expect(ctx.handoffCalls[1]!.sourceKey).toBe(ctx.handoffCalls[0]!.sourceKey);
+  });
+
+  it('[10B-31] a null component (all-component/committee document) is forwarded as an explicit null, never silently substituted', async () => {
+    const observation = makeObservation();
+    const expectedSource = makeExpectedSource({ component: null });
+    const ctx = buildBridge({
+      observation,
+      expectedSource,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+    });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.ingestionSucceeded).toBe(true);
+    expect(ctx.sourceDocumentRows[0]!.component).toBeNull();
+    expect(ctx.handoffCalls[0]!.component).toBeNull();
+  });
+
+  it('[10B-31] sourceKey reaching the handoff is always the exact "defense-budget-observation-<dedupKey>" identity, matching what was actually registered', async () => {
+    const observation = makeObservation({ dedupKey: 'a-very-specific-dedup-key-123' });
+    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.sourceDocumentBound).toBe(true);
+    expect(ctx.handoffCalls[0]!.sourceKey).toBe('defense-budget-observation-a-very-specific-dedup-key-123');
+    expect(ctx.handoffCalls[0]!.sourceKey).toBe(ctx.sourceDocumentRows[0]!.sourceKey);
   });
 
   it('unknown observation id is rejected without any side effects', async () => {

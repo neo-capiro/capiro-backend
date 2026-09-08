@@ -46,6 +46,16 @@ export interface SourceDocumentParserHandoffInput {
   readonly authority: BudgetAuthorityV1;
   /** Defaults to 'UNKNOWN' when omitted — the bridge doesn't always know a service component. */
   readonly component?: BudgetComponentV1;
+  /**
+   * Phase 10B-31: the SourceDocument.sourceKey this document is registered
+   * under. Required (not defaulted) -- every caller of this function already
+   * has a real, registered `sourceDocumentId` and so already has its
+   * corresponding `sourceKey` (the column is non-nullable), whereas silently
+   * defaulting or omitting it is exactly how the synthetic manifest's
+   * `expectedSourceKey` would end up disagreeing with the persisted row that
+   * production-proof verification loads back out of the database.
+   */
+  readonly sourceKey: string;
   readonly budgetCycle: string;
   readonly documentType: string;
   readonly title: string;
@@ -101,6 +111,7 @@ export type LifecycleBridgeSyntheticManifestInputV1 = Pick<
   | 'sourcePath'
   | 'sourceUrl'
   | 'sourceSha256'
+  | 'sourceKey'
   | 'budgetFamily'
   | 'exhibitType'
   | 'authority'
@@ -160,6 +171,15 @@ export function buildLifecycleBridgeSyntheticManifestV1(input: LifecycleBridgeSy
         sourceLocator: input.sourcePath,
         ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
         expectedSourceSha256: input.sourceSha256,
+        // Phase 10B-31: the authoritative sourceKey this SourceDocument is
+        // registered under, so the metadata-agreement check in
+        // CompositeProofResolver compares against the real identity key
+        // instead of `sourceLocator` above -- which, for this synthetic,
+        // lifecycle-bridge manifest, is only the ephemeral local scratch path
+        // the bridge materialized bytes to, structurally never equal to the
+        // persisted sourceKey. See `expectedSourceKey` on
+        // `BudgetCycleManifestDocumentV1` for the full rationale.
+        expectedSourceKey: input.sourceKey,
         family: input.budgetFamily,
         exhibit: input.exhibitType,
         authority: input.authority,

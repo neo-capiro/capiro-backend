@@ -261,7 +261,11 @@ export class BudgetVerificationV1Service {
         candidateIdentity,
         result,
         proofBundle: resolution.proofBundle,
-        proofFindings: resolution.proofFindings,
+        // Phase 10B-31: the complete finding list -- candidate AND reference
+        // -artifact findings, not just the candidate's own -- so the one row
+        // the repository persists from this covers everything that could
+        // have driven the decision, not a partial view of it.
+        proofFindings: [...resolution.proofFindings, ...resolution.referenceArtifactsFindings],
         proofSnapshots: this.buildProofSnapshots(resolution, candidateCycleId),
         checks: result.checks,
         discrepancies: result.discrepancies,
@@ -329,9 +333,25 @@ export class BudgetVerificationV1Service {
       evidenceJson: Record<string, unknown>;
     }> = [];
 
+    // Phase 10B-31: `status` per kind below is no longer unconditionally
+    // 'verified' -- each reflects whether any CANDIDATE proof finding
+    // actually concerning that kind fired, using the schema's own documented
+    // vocabulary ("verified | not_applicable | missing | mismatch",
+    // BudgetVerificationProofV1.status in schema.prisma). Before this, a
+    // blocking source_metadata_mismatch could REJECT the whole run while the
+    // persisted source_document snapshot still read 'verified' -- correct
+    // for every OTHER field it also covers, but misleading for the one that
+    // actually disagreed, and with no way to tell which from this row alone.
+    const candidateFindings = resolution.proofFindings;
+    const findingsForCodes = (codes: readonly string[]) =>
+      candidateFindings.filter((f) => (codes as readonly string[]).includes(f.code));
+    const statusFor = (relevant: typeof candidateFindings, verifiedFallback: string) =>
+      relevant.some((f) => f.severity === 'blocking') ? 'mismatch' : verifiedFallback;
+
+    const manifestFindings = findingsForCodes(['manifest_sha_mismatch']);
     snapshots.push({
       proofKind: 'manifest',
-      status: 'verified',
+      status: statusFor(manifestFindings, 'verified'),
       evidenceJson: {
         locator: resolution.proofBundle.manifest.locator,
         contentSha256: resolution.proofBundle.manifest.contentSha256,
@@ -343,25 +363,39 @@ export class BudgetVerificationV1Service {
         ...(candidateCycleId !== resolution.proofBundle.manifest.cycleId
           ? { candidateCycleId }
           : {}),
+        ...(manifestFindings.length > 0 ? { findings: manifestFindings } : {}),
       },
     });
+    const artifactFindings = findingsForCodes([
+      'artifact_byte_sha_mismatch',
+      'artifact_content_sha_mismatch',
+      'artifact_source_sha_mismatch',
+    ]);
     snapshots.push({
       proofKind: 'extraction_artifact',
-      status: 'verified',
+      status: statusFor(artifactFindings, 'verified'),
       artifactId: resolution.proofBundle.extractionArtifact.artifactId,
       evidenceJson: {
         locator: resolution.proofBundle.extractionArtifact.locator,
         contentSha256: resolution.proofBundle.extractionArtifact.contentSha256,
         byteSha256: resolution.proofBundle.extractionArtifact.byteSha256,
+        ...(artifactFindings.length > 0 ? { findings: artifactFindings } : {}),
       },
     });
+    const sourceDocumentFindings = findingsForCodes([
+      'source_metadata_mismatch',
+      'source_document_not_found',
+      'source_sha_mismatch',
+      'source_bytes_unresolved',
+    ]);
     snapshots.push({
       proofKind: 'source_document',
-      status: 'verified',
+      status: statusFor(sourceDocumentFindings, 'verified'),
       sourceDocumentId: resolution.proofBundle.sourceDocument.id,
       evidenceJson: {
         sourceKey: resolution.proofBundle.sourceDocument.sourceKey,
         sourceSha256: resolution.proofBundle.sourceDocument.sourceSha256,
+        ...(sourceDocumentFindings.length > 0 ? { findings: sourceDocumentFindings } : {}),
       },
     });
     snapshots.push({
@@ -382,6 +416,13 @@ export class BudgetVerificationV1Service {
         },
       });
     }
+
+    // Note: the complete raw finding list (candidate + reference) is
+    // persisted as its own snapshot row too, from `proofFindings` below,
+    // once this reaches `PrismaBudgetVerificationRepositoryV1` --
+    // deliberately built there, not here, from the exact
+    // `PersistCompletedVerificationInputV1.proofFindings` field the caller
+    // already declares for it (see `verify()` below and the repository).
     return snapshots;
   }
 
@@ -487,7 +528,7 @@ export class BudgetVerificationV1Service {
         candidateIdentity,
         result,
         proofBundle: resolution.proofBundle,
-        proofFindings: resolution.proofFindings,
+        proofFindings: [...resolution.proofFindings, ...resolution.referenceArtifactsFindings],
         proofSnapshots: this.buildProofSnapshots(resolution, candidateCycleId),
         checks: result.checks,
         discrepancies: result.discrepancies,

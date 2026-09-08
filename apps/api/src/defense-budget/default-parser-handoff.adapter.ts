@@ -40,6 +40,8 @@ import type {
   ParserHandoffResult,
   VerifierDecision,
 } from './observation-ingestion-bridge.ports.js';
+import { BUDGET_COMPONENT_V1_VALUES } from './contracts/extraction-artifact-v1.js';
+import type { BudgetComponentV1 } from './contracts/extraction-artifact-v1.js';
 
 export interface DefaultParserHandoffAdapterOptions {
   readonly workDir: string;
@@ -50,6 +52,31 @@ function toVerifierDecision(decision: string): VerifierDecision {
   return (VERIFIER_DECISION_VALUES as readonly string[]).includes(decision)
     ? (decision as VerifierDecision)
     : 'UNKNOWN';
+}
+
+/**
+ * Phase 10B-31: translate the bridge's raw, persisted `component` (a free
+ * string column, `null` legitimate for all-component/committee documents)
+ * into the parser/manifest pipeline's closed `BudgetComponentV1` vocabulary.
+ *
+ * `null` -> `undefined` (the manifest builder's own documented default to
+ * `'UNKNOWN'` already covers "no component applies"). A non-null value that
+ * is NOT one of the 12 known component codes is a genuine data problem --
+ * the persisted SourceDocument disagrees with the closed vocabulary the
+ * manifest/artifact contract requires -- and fails closed with a precise
+ * error rather than silently coercing an unrecognized value to `'UNKNOWN'`,
+ * which would hide exactly the kind of real-vs-reported disagreement this
+ * repair exists to catch.
+ */
+export function toBudgetComponentOrThrow(component: string | null): BudgetComponentV1 | undefined {
+  if (component == null) return undefined;
+  if ((BUDGET_COMPONENT_V1_VALUES as readonly string[]).includes(component)) {
+    return component as BudgetComponentV1;
+  }
+  throw new Error(
+    `SourceDocument component "${component}" is not a recognized BudgetComponentV1 value ` +
+      `(${BUDGET_COMPONENT_V1_VALUES.join(', ')}); refusing to silently coerce it to UNKNOWN`,
+  );
 }
 
 @Injectable()
@@ -71,6 +98,14 @@ export class DefaultParserHandoffAdapter implements ParserHandoffPort {
       budgetFamily: routing.family,
       fiscalYear: input.fiscalYear,
       authority: routing.authority,
+      // Phase 10B-31: the authoritative sourceKey/component this
+      // SourceDocument actually carries, propagated so the synthetic manifest
+      // built inside `runParserHandoffForSourceDocument` agrees with what
+      // production-proof verification will load back out of the row itself,
+      // instead of silently defaulting an absent/never-passed component to
+      // 'UNKNOWN' or comparing sourceKey against an unrelated scratch path.
+      sourceKey: input.sourceKey,
+      component: toBudgetComponentOrThrow(input.component),
       budgetCycle: routing.budgetCycle,
       documentType: routing.documentType,
       title: input.title,

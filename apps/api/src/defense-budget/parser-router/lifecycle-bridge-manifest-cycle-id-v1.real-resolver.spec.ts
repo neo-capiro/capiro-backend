@@ -75,6 +75,7 @@ describe('Phase 10B-27 -- real handoff + real FilesystemProofResolver, productio
       sourceSha256: SOURCE_SHA,
       sourceLocator: SOURCE_URL,
       sourceUrl: SOURCE_URL,
+      sourceKey: SOURCE_DOCUMENT_ID,
       parserPolicy: 'deterministic_table',
       exhibitType: 'R-2',
       budgetFamily: 'rdte',
