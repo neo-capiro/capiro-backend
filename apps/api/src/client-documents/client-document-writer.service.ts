@@ -20,28 +20,34 @@ export class ClientDocumentWriterService {
     private readonly runtime: EngagementRuntimePolicyService,
   ) {}
 
-  createAttachmentFromBuffer(
+  // Arrow-function properties (not prototype methods): this boundary must keep
+  // asserting the runtime policy even if a caller tears a method off the
+  // instance (destructuring, passing it as a bare callback, etc). A detached
+  // prototype method would call through with `this` undefined and throw a raw
+  // TypeError instead of the intended ServiceUnavailableException, silently
+  // defeating the shadow-mode gate's fail-closed contract.
+  createAttachmentFromBuffer = (
     ctx: Parameters<EngagementService['createAttachmentFromBuffer']>[0],
     input: Parameters<EngagementService['createAttachmentFromBuffer']>[1],
-  ): ReturnType<EngagementService['createAttachmentFromBuffer']> {
+  ): ReturnType<EngagementService['createAttachmentFromBuffer']> => {
     this.runtime.assertExternalAction('attachment_external_write');
     return this.engagement.createAttachmentFromBuffer(ctx, input);
-  }
+  };
 
-  supersedeAttachment(
+  supersedeAttachment = (
     ctx: Parameters<EngagementService['supersedeAttachment']>[0],
     oldId: string,
     newId: string,
-  ): ReturnType<EngagementService['supersedeAttachment']> {
+  ): ReturnType<EngagementService['supersedeAttachment']> => {
     this.runtime.assertExternalAction('attachment_external_write');
     return this.engagement.supersedeAttachment(ctx, oldId, newId);
-  }
+  };
 
-  deleteAttachment(
+  deleteAttachment = (
     ctx: Parameters<EngagementService['deleteAttachment']>[0],
     id: string,
-  ): ReturnType<EngagementService['deleteAttachment']> {
+  ): ReturnType<EngagementService['deleteAttachment']> => {
     this.runtime.assertExternalAction('attachment_external_write');
     return this.engagement.deleteAttachment(ctx, id);
-  }
+  };
 }
