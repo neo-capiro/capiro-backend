@@ -781,12 +781,21 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* Sticky action bar: the candidate list grows with the firm's filings, so the
+   Cancel/Import actions ride the bottom edge of the scrolling modal instead of
+   sitting below the last row. The negative offsets bleed it across the modal's
+   18px padding so it reads as a footer bar, not a floating row. */
 .capiro-portfolio-lda__foot {
+  position: sticky;
+  bottom: -18px;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 16px;
+  margin: 16px -18px -18px;
+  padding: 12px 18px 18px;
+  background: var(--capiro-color-bg-surface);
+  border-top: 1px solid var(--capiro-color-border-quiet);
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────
