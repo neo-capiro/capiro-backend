@@ -372,9 +372,17 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
    * meeting NOTE and DEBRIEF are separate tables with NO foreign key from the
    * attachment (only Meeting/Tenant cascade into them), so erasing the transcript can
    * never cascade to them — they are retained indefinitely. Reuses the single erasure
-   * path, EngagementService.deleteAttachment (S3 object + row + client-KB chunks), and
-   * then nulls the now-dangling transcriptS3Key pointers on the meeting + session.
-   * Cross-tenant maintenance sweep. Returns the count erased.
+   * path, EngagementService.eraseAttachmentAsSystem (S3 object + row + client-KB
+   * chunks), and then nulls the now-dangling transcriptS3Key pointers on the meeting +
+   * session. Cross-tenant maintenance sweep. Returns the count erased.
+   *
+   * Erases by tenantId + attachment id only — no per-user ownership check, and no
+   * dependency on the original uploader still being a tenant member. This is a
+   * policy-driven purge, not a user-authorized delete: a meeting soft-deleted by
+   * calendar sync (status='deleted') still exists (only Meeting/Tenant hard-deletes
+   * cascade, and nothing ever hard-deletes a meeting), so gating on meeting/uploader
+   * visibility left affected transcripts permanently un-erasable and re-logged every
+   * sweep. See eraseAttachmentAsSystem's comment for the full rationale.
    */
   async reconcileExpiredTranscripts(): Promise<number> {
     const retentionDays = this.config.get('NOTETAKER_TRANSCRIPT_RETENTION_DAYS', { infer: true });
@@ -388,7 +396,6 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
           tenantId: true,
           meetingId: true,
           s3Key: true,
-          uploadedByUserId: true,
         },
         take: RECONCILE_SWEEP_BATCH_SIZE,
       }),
@@ -397,19 +404,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     let erased = 0;
     for (const row of expired) {
       try {
-        // deleteAttachment is tenant-scoped and needs a user context. For notetaker
-        // transcripts uploadedByUserId is the (then-active) requester; if that user
-        // has since left the tenant, hydrateContext returns null and we skip the row
-        // (retried next tick). A rare orphaned-user transcript may linger — logged,
-        // never silently dropped from the retention guarantee.
-        const ctx = await this.hydrateContext(row.tenantId, row.uploadedByUserId);
-        if (!ctx) {
-          this.logger.warn(
-            `retention: cannot erase transcript attachment ${row.id} — uploader unavailable; skipping`,
-          );
-          continue;
-        }
-        await this.engagement.deleteAttachment(ctx, row.id);
+        await this.engagement.eraseAttachmentAsSystem(row.tenantId, row.id);
         // Null the dangling pointers so nothing tries to fetch the deleted object.
         await this.prisma.withSystem(async (tx) => {
           if (row.meetingId) {
