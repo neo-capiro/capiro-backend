@@ -236,6 +236,11 @@ export class IntelligenceController {
     return this.service.getClientProfileV1(clientId, ctx.tenantId, ctx.userId);
   }
 
+  @Get('clients/:clientId/regulatory-profile')
+  getClientRegulatoryProfile(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.service.getClientRegulatoryProfile(clientId, ctx.tenantId);
+  }
+
   @Post('resolve-all')
   @Roles('user_admin')
   resolveAll(@CurrentTenant() ctx: TenantContext) {

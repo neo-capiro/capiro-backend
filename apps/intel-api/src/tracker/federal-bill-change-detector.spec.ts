@@ -13,6 +13,7 @@ import type { StateSourceDataRepository } from '../sourcedata/state-source-data.
  */
 
 interface TrackedBillRow {
+  stage?: string | null;
   id: string;
   tenantId: string;
   clientId: string;
@@ -166,6 +167,20 @@ const BASELINED_ROW: TrackedBillRow = {
 };
 
 describe('BillChangeDetectorService — federal rail, P0-04 explainMatch integration', () => {
+  it('reconciles a stale board stage without issuing a new alert or waiting for a new action', async () => {
+    const procedural = 'Motion to reconsider laid on the table Agreed to without objection.';
+    const bill: SourceBill = { ...BASE_BILL, status: 'passed_chamber', latestActionText: procedural, actionTexts: ['On passage Passed by voice vote.', procedural] };
+    const { prisma, alerts, tracked, tx } = makeHarness([{ ...BASELINED_ROW, stage: 'introduced', lastSeenStatus: 'passed_chamber', lastSeenActionText: procedural }], null);
+    const svc = new BillChangeDetectorService(prisma, makeFederalSourceRepo(bill), NO_STATE_REPO);
+    await svc.runDetectionCycle();
+    expect(tracked[0]?.stage).toBe('passed');
+    expect(alerts).toEqual([]);
+    expect(prisma.withTenant).toHaveBeenCalledWith('t1', expect.any(Function));
+    tx.trackedBill.update.mockClear();
+    await svc.runDetectionCycle();
+    expect(tx.trackedBill.update).not.toHaveBeenCalled();
+  });
+
   it('19. a program_element-only watchlist link produces a non-null whyItMatters and includes the topic label in matchedTags', async () => {
     const movedBill: SourceBill = {
       ...BASE_BILL,

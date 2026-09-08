@@ -7,6 +7,8 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const putMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock('../../components/feedback/toast.js', () => ({ useCapiroToast: () => toastMock }));
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, put: putMock }),
 }));
@@ -67,6 +69,8 @@ function renderShell(canAssign = true, profile = client) {
 beforeEach(() => {
   getMock.mockReset();
   putMock.mockReset();
+  toastMock.success.mockReset();
+  toastMock.error.mockReset();
   getMock.mockImplementation((url: string) => {
     if (url.endsWith('/options')) return Promise.resolve({ data: [sarah, jordan] });
     if (url.endsWith('/client-1')) {
@@ -147,5 +151,78 @@ describe('ClientProfileShell account owner', () => {
     expect(screen.getByText('Solar workforce training')).not.toBeVisible();
     fireEvent.click(screen.getByText('Show 1 more priority'));
     expect(screen.getByText('Solar workforce training')).toBeVisible();
+  });
+});
+
+describe('ClientProfileShell JSON export', () => {
+  it.each([false, true])('reports whether intelligence is omitted (unavailable: %s)', async (unavailable) => {
+    const originalGet = getMock.getMockImplementation()!;
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/clients/client-1') return Promise.resolve({ data: client });
+      if (url === '/api/intelligence/client-profile/client-1') {
+        return unavailable
+          ? Promise.reject({ response: { status: 503 } })
+          : Promise.resolve({ data: { clientId: client.id } });
+      }
+      return originalGet(url);
+    });
+    let exported: Blob | undefined;
+    let filename = '';
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      filename = this.download;
+    });
+    const revoke = vi.fn();
+    vi.stubGlobal('URL', class extends URL {
+      static createObjectURL(blob: Blob) { exported = blob; return 'blob:test-export'; }
+      static revokeObjectURL = revoke;
+    });
+    try {
+      renderShell(false);
+      fireEvent.click(screen.getByRole('button', { name: 'More actions for Overland AI' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Export client profile (JSON)' }));
+      await waitFor(() => expect(click).toHaveBeenCalledOnce());
+      const json = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsText(exported!);
+      });
+      const payload = JSON.parse(json);
+      expect(payload.complete).toBe(!unavailable);
+      expect(payload.omittedSources).toEqual(unavailable ? ['intelligence'] : []);
+      expect(payload.client.id).toBe(client.id);
+      expect(filename).toBe(`Overland_AI-profile${unavailable ? '-partial' : ''}.json`);
+      if (unavailable) {
+        expect(payload.intelligence).toBeNull();
+        expect(payload.sources.intelligence).toMatchObject({ status: 'unavailable', error: { code: 'source_unavailable', httpStatus: 503 } });
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('Partial JSON export'));
+        expect(toastMock.success).not.toHaveBeenCalled();
+      } else {
+        expect(payload.intelligence.clientId).toBe(client.id);
+        expect(payload.sources.intelligence.status).toBe('available');
+        expect(toastMock.success).toHaveBeenCalledWith('Client profile JSON exported.');
+      }
+      expect(revoke).toHaveBeenCalledWith('blob:test-export');
+    } finally {
+      click.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('does not download a profile when the required client source fails', async () => {
+    const originalGet = getMock.getMockImplementation()!;
+    getMock.mockImplementation((url: string) => url === '/api/clients/client-1'
+      ? Promise.reject(new Error('unavailable'))
+      : originalGet(url));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      renderShell(false);
+      fireEvent.click(screen.getByRole('button', { name: 'More actions for Overland AI' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Export client profile (JSON)' }));
+      await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('Client profile could not be exported. Please retry.'));
+      expect(click).not.toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+    }
   });
 });

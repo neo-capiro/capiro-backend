@@ -201,9 +201,14 @@ export interface SetAsideEligibility {
  */
 export function evaluateSetAsideEligibility(input: SetAsideEligibilityInput): SetAsideEligibility {
   const code = normalizeSetAsideCode(input.setAsideCode);
-  const label = input.setAsideLabel ?? input.setAsideCode ?? 'a set-aside';
 
-  if (!code && !input.setAsideLabel) {
+  // SAM/Tango can publish an explicit no-set-aside sentinel in either field.
+  // A real restriction code still wins if the description contradicts it.
+  const noRestriction = new Set(['', 'NONE', 'NA', 'NASETASIDE', 'NOSETASIDE', 'NOSETASIDEUSED', 'NOTSETASIDE', 'UNRESTRICTED', 'FULLANDOPEN', 'FULLANDOPENCOMPETITION']);
+  const label = noRestriction.has(normalizeSetAsideCode(input.setAsideLabel))
+    ? input.setAsideCode ?? 'a set-aside'
+    : input.setAsideLabel!;
+  if (noRestriction.has(code) && noRestriction.has(normalizeSetAsideCode(input.setAsideLabel))) {
     return {
       state: 'unknown',
       reason:

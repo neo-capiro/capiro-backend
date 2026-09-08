@@ -11,6 +11,8 @@ import type { AxiosInstance } from 'axios';
 
 export interface LdaFilingRow {
   filingUuid: string;
+  registrantId?: number | null;
+  ldaClientId?: number | null;
   filingType: string;
   filingYear: number;
   filingPeriod: string | null;
@@ -28,6 +30,7 @@ export interface LdaFilingRow {
 }
 
 export interface ClientLdaFilings {
+  truncated?: boolean;
   matched: boolean;
   ldaClientIds: number[];
   totalFilings: number;

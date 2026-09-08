@@ -53,6 +53,8 @@ interface BillRow {
   id: string;
   title: string;
   latest_action_text: string | null;
+  status?: string | null;
+  action_texts?: string[];
   latest_action_date: Date | null;
   subjects: string[];
   policy_area: string | null;
@@ -456,9 +458,10 @@ export class TrackerService {
     for (const t of tracked) {
       const bill = billById.get(t.billId);
       if (!bill) continue;
-      const stage = billStage(bill.latest_action_text);
+      const stage = billStage(bill.latest_action_text, bill.status, bill.action_texts);
       const prob = passageProbability({
         latestActionText: bill.latest_action_text,
+          status: bill.status, actionTexts: bill.action_texts,
         title: bill.title,
         latestActionDate: bill.latest_action_date,
       });
@@ -662,9 +665,10 @@ export class TrackerService {
         billId: bill.id,
         displayNum: humanizeBillId(bill.id),
         title: bill.title,
-        stage: billStage(bill.latest_action_text),
+        stage: billStage(bill.latest_action_text, bill.status, bill.action_texts),
         probability: passageProbability({
           latestActionText: bill.latest_action_text,
+          status: bill.status, actionTexts: bill.action_texts,
           title: bill.title,
           latestActionDate: bill.latest_action_date,
         }),
@@ -717,9 +721,10 @@ export class TrackerService {
       billId: b.id,
       displayNum: humanizeBillId(b.id),
       title: b.title,
-      stage: billStage(b.latest_action_text),
+      stage: billStage(b.latest_action_text, b.status, b.action_texts),
       probability: passageProbability({
         latestActionText: b.latest_action_text,
+        status: b.status, actionTexts: b.action_texts,
         title: b.title,
         latestActionDate: b.latest_action_date,
       }),
@@ -836,7 +841,9 @@ export class TrackerService {
   private async fetchBillRows(ids: string[]): Promise<BillRow[]> {
     if (!ids.length) return [];
     return this.prisma.$queryRaw<BillRow[]>`
-      SELECT cb.id, cb.title, cb.latest_action_text, cb.latest_action_date,
+      SELECT cb.id, cb.title, cb.status,
+             ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
+             cb.latest_action_text, cb.latest_action_date,
              cb.subjects, cb.policy_area, cb.sponsor_name, cb.sponsor_party,
              cb.cosponsors_count
       FROM congress_bill cb
@@ -846,7 +853,9 @@ export class TrackerService {
 
   private async fetchBillRowsRaw(whereOrderLimit: string, params: unknown[]): Promise<BillRow[]> {
     return this.prisma.$queryRawUnsafe<BillRow[]>(
-      `SELECT cb.id, cb.title, cb.latest_action_text, cb.latest_action_date,
+      `SELECT cb.id, cb.title, cb.status,
+             ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
+             cb.latest_action_text, cb.latest_action_date,
               cb.subjects, cb.policy_area, cb.sponsor_name, cb.sponsor_party,
               cb.cosponsors_count
        FROM congress_bill cb

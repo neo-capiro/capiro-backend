@@ -4,6 +4,7 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ClientFacilitiesService } from './client-facilities.service.js';
+import * as facilityGeocode from './facility-geocode.util.js';
 import { CreateFacilityDto, UpdateFacilityDto } from './client-facilities.controller.js';
 
 const kbStub = { indexFacilityFireAndForget: () => {}, purgeFireAndForget: () => {} };
@@ -230,7 +231,12 @@ describe('ClientFacilitiesService — CRUD', () => {
       return result;
     };
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
-    await svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1');
+    const provider = jest.spyOn(facilityGeocode, 'computeFacilityGeocode').mockImplementation(async () => {
+      expect(calls.at(-1)).toBe('end');
+      return { status: 'no_match', update: null, discrepancy: null } as any;
+    });
+    try { await svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1'); }
+    finally { provider.mockRestore(); }
     expect(calls.filter((x) => x === 'begin').length).toBeGreaterThanOrEqual(3);
     expect(calls.filter((x) => x === 'end').length).toBe(calls.filter((x) => x === 'begin').length);
   });
@@ -780,5 +786,19 @@ describe('congressional district is normalized to storage form on write', () => 
       })) as Row;
       expect(created.congressionalDistrict).toBe(sentinel);
     }
+  });
+});
+describe('facility QA verification guards', () => {
+  test('rejects state abbreviations used as state-legislative districts', async () => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    await expect(svc.createFacility(ctx(TENANT_A), 'client-1', { name: 'Campus', state: 'CA', stateHouseDistrict: 'CA' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.__store.facilities).toHaveLength(0);
+  });
+  test('invalidates geocode confirmation when the district is hand-edited', async () => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [{ id: 'f1', tenantId: TENANT_A, clientId: 'client-1', state: 'CA', congressionalDistrict: '08', geocodeStatus: 'matched', districtSource: 'geocoded', geocodedAt: new Date() }] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const row = await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', { congressionalDistrict: '47' });
+    expect(row).toMatchObject({ geocodeStatus: 'manual_review', districtSource: 'user', geocodedAt: null });
   });
 });

@@ -67,6 +67,13 @@ beforeEach(() => {
 });
 
 describe('ClientCrmHistoryProto', () => {
+  it('opens an outreach record on the supported route with client context', async () => {
+    getMock.mockResolvedValue({ data: [{ id: 'act-outreach', kind: 'outreach', occurredAt: '2026-08-13T12:00:00.000Z', title: 'Sent outreach', body: null, personId: null, sourceType: 'outreach', sourceId: 'outreach-42', pinned: false, dueAt: null, settledAt: null, origin: 'derived' }] });
+    renderHistory();
+    fireEvent.click(await screen.findByRole('button', { name: 'Open outreach' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/engagement/outreach/draft/outreach-42?clientId=client-1');
+  });
+
   it('shows a real empty state instead of the TIMELINE fixture when the client has no activity', async () => {
     getMock.mockResolvedValue({ data: [] });
     renderHistory();

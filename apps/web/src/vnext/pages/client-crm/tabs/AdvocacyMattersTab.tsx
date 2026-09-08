@@ -1,3 +1,4 @@
+import { advocacyAttributionNeedsReview } from '@capiro/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isTenantAdmin } from '@capiro/shared';
@@ -72,6 +73,7 @@ export interface AdvocacyMatterSummary {
  *  13 link types); matterId/matterTitle are null only for a genuinely
  *  unassigned record. */
 export interface AdvocacyTimelineEntry {
+  attributionNeedsReview?: boolean;
   id: string;
   kind: 'record' | 'link';
   title: string;
@@ -653,7 +655,7 @@ function TimelineRow({
         <span className="capiro-advocacy-timeline-row__meta">
           {TIMELINE_SUBTYPE_LABEL[entry.subtype] ?? entry.subtype}
           {entry.date ? ` · ${formatDateShort(entry.date)}` : ' · Undated'}
-          {entry.evidenceClass ? ` · ${EVIDENCE_LABEL[entry.evidenceClass] ?? entry.evidenceClass}` : ''}
+          {entry.attributionNeedsReview ? ' · Attribution needs review' : entry.evidenceClass ? ` · ${EVIDENCE_LABEL[entry.evidenceClass] ?? entry.evidenceClass}` : ''}
         </span>
         {onOpenMatter ? (
           <PfButton variant="link" size="sm" onClick={onOpenMatter} style={{ alignSelf: 'flex-start', padding: 0 }}>
@@ -832,7 +834,7 @@ function AdvocacyMatterDrawer({
                   Edit
                 </PfButton>
                 <PfButton variant="link" size="sm" onClick={() => setMerging(true)}>
-                  Merge into another matter
+                  Merge another matter into this one
                 </PfButton>
               </span>
             ) : null}
@@ -916,6 +918,7 @@ function AdvocacyMatterDrawer({
         <CapiroModal open title="Merge another matter into this one" onClose={() => setMerging(false)}>
           <MergeMatterForm
             options={otherMatters}
+            destinationTitle={detail.data?.title ?? 'this matter'}
             busy={mergeMatter.isPending}
             error={mergeMatter.isError ? describeError(mergeMatter.error) : null}
             onCancel={() => setMerging(false)}
@@ -1046,12 +1049,14 @@ function EditMatterForm({
 
 function MergeMatterForm({
   options,
+  destinationTitle,
   busy,
   error,
   onCancel,
   onSubmit,
 }: {
   options: AdvocacyMatterSummary[];
+  destinationTitle: string;
   busy: boolean;
   error: string | null;
   onCancel: () => void;
@@ -1061,13 +1066,13 @@ function MergeMatterForm({
   return (
     <div className="capiro-advocacy-form">
       <p className="capiro-advocacy-form-hint">
-        Choose the matter to merge INTO this one. Its records and links move here, and the source matter is removed.
-        This cannot be undone.
+        Choose a source matter to merge into “{destinationTitle}”. The destination matter is kept.
       </p>
       {options.length === 0 ? (
         <p className="capiro-advocacy-empty-note">No other matters exist for this client.</p>
       ) : (
         <select
+          aria-label="Source matter to merge"
           value={sourceMatterId}
           onChange={(e) => setSourceMatterId(e.target.value)}
           className="capiro-advocacy-field"
@@ -1080,6 +1085,13 @@ function MergeMatterForm({
           ))}
         </select>
       )}
+      {sourceMatterId ? (
+        <p className="capiro-advocacy-form-hint" role="status">
+          Merge “{options.find((m) => m.id === sourceMatterId)?.title}” into “{destinationTitle}”.
+          All records and links move to “{destinationTitle}”; the source matter is permanently removed.
+          This cannot be undone.
+        </p>
+      ) : null}
       {error ? <span className="capiro-advocacy-form-error">{error}</span> : null}
       <div className="capiro-advocacy-form-actions">
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
@@ -1092,7 +1104,7 @@ function MergeMatterForm({
           busy={busy}
           onClick={() => onSubmit(sourceMatterId)}
         >
-          Merge
+          Merge source into destination
         </PfButton>
       </div>
     </div>
@@ -1213,6 +1225,7 @@ function RecordRow({
   onDetach: () => void;
   onNotAdvocacy: () => void;
 }) {
+  const attributionReview = advocacyAttributionNeedsReview(record.sourceType, record.metadata);
   return (
     <div className="capiro-advocacy-record">
       <div className="capiro-advocacy-record__head">
@@ -1223,14 +1236,15 @@ function RecordRow({
               Corrected
             </span>
           ) : null}
-          <CapiroBadge tone="neutral">{EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
+          <CapiroBadge tone="neutral">{attributionReview ? 'Attribution needs review' : EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
         </span>
       </div>
       <span className="capiro-advocacy-record__meta">
         {record.activityDate ? formatDateShort(record.activityDate) : 'Undated'}
         {record.status ? ` · ${record.status}` : ''}
-        {record.confidence != null && record.confidence < 1 ? ` · ${Math.round(record.confidence * 100)}% confidence` : ''}
+        {!attributionReview && record.confidence != null && record.confidence < 1 ? ` · ${Math.round(record.confidence * 100)}% confidence` : ''}
       </span>
+      {attributionReview ? <p role="note" className="capiro-advocacy-form-hint">This public record has no verified organization-to-client mapping. Review the source before attributing it to this client. Matter assignment corrections are preserved.</p> : null}
       {record.summary ? (
         <span className="capiro-advocacy-record__summary">{record.summary}</span>
       ) : null}
@@ -1343,6 +1357,7 @@ function buildLifecycle(
     },
   ];
   for (const record of records) {
+    if (advocacyAttributionNeedsReview(record.sourceType, record.metadata)) continue;
     if (!record.activityDate) continue; // never fabricate a date for an undated record
     events.push({ id: record.id, stage: lifecycleStageForRecord(record), date: record.activityDate, label: record.title });
   }

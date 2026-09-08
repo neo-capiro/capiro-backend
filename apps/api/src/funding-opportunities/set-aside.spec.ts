@@ -267,3 +267,12 @@ describe('computeSamEligibility delegates to the shared evaluator', () => {
     expect(result.reason).not.toMatch(/explicitly records certification/);
   });
 });
+describe('source no-set-aside sentinels', () => {
+  test.each(['No Set aside used', 'No set-aside', 'None', 'N/A', 'Unrestricted', 'Full and open competition'])('normalizes %s without asserting general eligibility', (label) => {
+    expect(evaluateSetAsideEligibility(input({ setAsideCode: null, setAsideLabel: label }))).toMatchObject({ state: 'unknown', missingFacts: [], matchedCertifications: [] });
+    expect(evaluateSetAsideEligibility(input({ setAsideCode: label, setAsideLabel: null })).state).toBe('unknown');
+  });
+  test('keeps a real restriction when a contradictory label says none', () => {
+    expect(evaluateSetAsideEligibility(input({ setAsideCode: 'SDVOSBC', setAsideLabel: 'No Set aside used' })).state).toBe('needs_review');
+  });
+});

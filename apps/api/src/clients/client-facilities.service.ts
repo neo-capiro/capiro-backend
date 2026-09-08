@@ -184,6 +184,15 @@ export class ClientFacilitiesService {
     return resolved;
   }
 
+  private validateStateDistricts(input: Partial<CreateFacilityInput>) {
+    for (const field of ['stateHouseDistrict', 'stateSenateDistrict'] as const) {
+      const value = input[field]?.trim().toUpperCase();
+      if (value && Object.prototype.hasOwnProperty.call(US_HOUSE_SEATS, value)) {
+        throw new BadRequestException(`${field} must identify a legislative district, not a state abbreviation.`);
+      }
+    }
+  }
+
   async listFacilities(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const client = await tx.client.findFirst({
@@ -199,6 +208,7 @@ export class ClientFacilitiesService {
   }
 
   async createFacility(ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
+    this.validateStateDistricts(input);
     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
@@ -243,12 +253,18 @@ export class ClientFacilitiesService {
     id: string,
     input: UpdateFacilityInput,
   ) {
+    this.validateStateDistricts(input);
     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
-        select: { id: true, state: true, congressionalDistrict: true },
+        select: { id: true, state: true, congressionalDistrict: true, addressLine: true, city: true, zip: true,
+          stateHouseDistrict: true, stateSenateDistrict: true, districtSource: true },
       });
       if (!existing) throw new NotFoundException('Facility not found');
+      const addressChanged = (['addressLine', 'city', 'state', 'zip'] as const)
+        .some((key) => key in input && (input[key] ?? null) !== existing[key]);
+      const districtChanged = (['congressionalDistrict', 'stateHouseDistrict', 'stateSenateDistrict', 'districtSource'] as const)
+        .some((key) => key in input && (input[key] ?? null) !== existing[key]);
       // The DTO's cross-field check only sees fields present in the PATCH
       // body, so a single-field update (state-only or district-only) pairs
       // with a stored sibling it was never validated against. Re-check the
@@ -304,9 +320,11 @@ export class ClientFacilitiesService {
             : {}),
           ...('employeeCount' in input ? { employeeCount: input.employeeCount ?? null } : {}),
           ...('notes' in input ? { notes: input.notes ?? null } : {}),
-          ...('addressLine' in input || 'city' in input || 'state' in input || 'zip' in input
-            ? { geocodeStatus: 'pending', geocodeInputHash: null }
-            : {}),
+          ...(addressChanged
+            ? { geocodeStatus: 'pending', geocodeInputHash: null, geocodedAt: null }
+            : districtChanged
+              ? { geocodeStatus: 'manual_review', districtSource: 'user', geocodedAt: null }
+              : {}),
         },
       });
     });

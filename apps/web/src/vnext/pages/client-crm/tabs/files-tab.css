@@ -174,8 +174,8 @@
 .cap-pf-files--drawer .cap-pf-files__row > .cap-pf-files__checkbox-btn { display: none; }
 .cap-pf-files--drawer .cap-pf-files__row-name-btn { order: 1; gap: 10px; }
 .cap-pf-files--drawer .cap-pf-files__row-linked { order: 2; width: 220px; font-size: 12.5px; }
-.cap-pf-files--drawer .cap-pf-files__row > .cap-pf-files__row-84:nth-child(4) { order: 4; width: 80px; text-align: right; }
-.cap-pf-files--drawer .cap-pf-files__row > .cap-pf-files__row-84:nth-child(5) { order: 3; width: 88px; }
+.cap-pf-files--drawer .cap-pf-files__row-created { order: 3; width: 88px; }
+.cap-pf-files--drawer .cap-pf-files__row-owner { order: 4; width: 80px; text-align: right; }
 .cap-pf-files--drawer .cap-pf-files__row-status { order: 5; width: 104px; display: flex; justify-content: flex-end; }
 .cap-pf-files--drawer .cap-pf-files__row-menu { order: 6; }
 .cap-pf-files--drawer .cap-pf-files__ext-badge { width: 33px; height: 25px; border-radius: 5px; }

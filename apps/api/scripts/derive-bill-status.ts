@@ -113,12 +113,13 @@ async function main() {
     // 3. Recompute status for every bill in scope.
     const bills = await prisma.congressBill.findMany({
       where: { congress: { in: CONGRESSES } },
-      select: { id: true, latestActionText: true, latestActionDate: true, updateDate: true },
+      select: { id: true, latestActionText: true, latestActionDate: true, updateDate: true, actions: { select: { text: true } } },
     });
     for (const b of bills) {
       try {
         const res = deriveBillStatus({
           latestActionText: b.latestActionText,
+          actionTexts: b.actions.map((action) => action.text),
           ruleOutcome: targetOutcome.get(b.id) ?? null,
           passedChamber: passedChamber.has(b.id),
           failedChamber: failedChamber.has(b.id),

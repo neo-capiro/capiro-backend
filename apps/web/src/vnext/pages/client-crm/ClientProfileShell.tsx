@@ -651,28 +651,45 @@ function OverflowMenu({
   const exportProfile = async () => {
     setExporting(true);
     try {
-      const [clientRec, intelProfile] = await Promise.all([
+      const intelligenceEndpoint = `/api/intelligence/client-profile/${client.id}`;
+      const [clientRec, intelResult] = await Promise.all([
         api.get<Client>(`/api/clients/${client.id}`),
-        api.get(`/api/intelligence/client-profile/${client.id}`).catch(() => null),
+        api.get(intelligenceEndpoint).then(
+          (response) => ({ data: response.data, error: null }),
+          (error: unknown) => ({ data: null, error: {
+            code: 'source_unavailable',
+            message: 'Client intelligence could not be loaded.',
+            httpStatus: (error as { response?: { status?: number } } | null)?.response?.status ?? null,
+          } }),
+        ),
       ]);
+      const partial = intelResult.error !== null;
       const payload = {
         exportedAt: new Date().toISOString(),
+        schemaVersion: 1,
+        complete: !partial,
+        omittedSources: partial ? ['intelligence'] : [],
+        sources: {
+          client: { status: 'available' },
+          intelligence: { status: partial ? 'unavailable' : 'available', endpoint: intelligenceEndpoint, error: intelResult.error },
+        },
         client: clientRec.data,
-        intelligence: intelProfile?.data ?? null,
+        intelligence: intelResult.data,
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${client.name.replace(/[^a-zA-Z0-9_-]+/g, '_')}-profile.json`;
+      a.download = `${client.name.replace(/[^a-zA-Z0-9_-]+/g, '_')}-profile${partial ? '-partial' : ''}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setOpen(false);
+      if (partial) toast.error('Partial JSON export downloaded. Intelligence was unavailable; the file includes the omission and source error.');
+      else toast.success('Client profile JSON exported.');
     } catch {
-      // Keep the menu open so the user sees it didn't work; the error is
-      // transient (network/permissions) and doesn't need a persistent banner.
+      toast.error('Client profile could not be exported. Please retry.');
     } finally {
       setExporting(false);
     }
@@ -722,7 +739,7 @@ function OverflowMenu({
       },
     },
     { label: 'Profile & source health', onSelect: () => { setOpen(false); onDataHealth(); } },
-    { label: exporting ? 'Exporting…' : 'Export client profile', onSelect: exportProfile },
+    { label: exporting ? 'Exporting…' : 'Export client profile (JSON)', onSelect: exportProfile },
   ];
 
   // Item 9: only offered to users the API would actually let archive

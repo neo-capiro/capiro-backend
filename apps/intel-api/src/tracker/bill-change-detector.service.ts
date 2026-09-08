@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { humanizeStateBillKey, computeStateDeadlineRisk } from '@capiro/shared';
+import { humanizeStateBillKey, computeStateDeadlineRisk, billStage, type BillStage } from '@capiro/shared';
 import {
   SourceDataRepository,
   type SourceBill,
@@ -83,6 +83,7 @@ type TrackedRow = {
   clientId: string;
   billId: string;
   source: string;
+  stage?: string | null;
   lastSeenActionText: string | null;
   lastSeenActionDate: Date | null;
   lastSeenAt: Date | null;
@@ -100,6 +101,8 @@ type TrackedRow = {
 
 /** The watermarks snapshot() persists together (retry-safe: only after every event is durably written). */
 type Watermark = {
+  /** Federal board stage, reconciled even when the latest action is unchanged. */
+  stage?: BillStage;
   actionText: string | null;
   actionDate: Date | null;
   status: string | null;
@@ -151,6 +154,7 @@ export class BillChangeDetectorService {
           clientId: true,
           billId: true,
           source: true,
+          stage: true,
           lastSeenActionText: true,
           lastSeenActionDate: true,
           lastSeenAt: true,
@@ -244,6 +248,7 @@ export class BillChangeDetectorService {
       // estimate aging out of the 14-day window / a hearing passing is not seen
       // as a "change".
       const target: Watermark = {
+        stage: billStage(bill.latestActionText, bill.status, bill.actionTexts),
         actionText: bill.latestActionText,
         actionDate: bill.latestActionDate,
         status: bill.status ?? null,
@@ -315,6 +320,7 @@ export class BillChangeDetectorService {
       const events = dedupeByChangeType([...derivedEvents, ...actionEvents]);
 
       const watermarkMoved =
+        target.stage !== row.stage ||
         target.actionText !== (row.lastSeenActionText ?? null) ||
         (target.actionDate?.getTime() ?? null) !== (row.lastSeenActionDate?.getTime() ?? null) ||
         target.status !== (row.lastSeenStatus ?? null) ||
@@ -1198,6 +1204,7 @@ export class BillChangeDetectorService {
       tx.trackedBill.update({
         where: { id: trackedBillId },
         data: {
+          ...(wm.stage ? { stage: wm.stage } : {}),
           lastSeenActionText: wm.actionText,
           lastSeenActionDate: wm.actionDate,
           lastSeenStatus: wm.status,

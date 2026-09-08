@@ -445,6 +445,148 @@ export class IntelligenceService {
     }) as Promise<T>;
   }
 
+  /** The regulatory view does not depend on financial, graph, or AI profile sources. */
+  async getClientRegulatoryProfile(clientId: string, tenantId: string) {
+    const client = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true, status: true } }),
+    );
+    if (!client || client.status === 'archived') throw new NotFoundException('Client not found');
+    const now = new Date();
+    const results = await Promise.allSettled([
+      this.withSourceBudget('billRegulationLinks', clientId, this.getBillRegulationLinks(clientId, tenantId)),
+      this.withSourceBudget('clientRelevantRegulations', clientId, this.getClientRelevantRegulations(clientId, tenantId, now)),
+    ] as const);
+    const labels = ['Tracked-bill regulations', 'Client-relevant regulations'];
+    const sources = results.map((result, index) => {
+      if (result.status === 'rejected') {
+        this.logger.warn(`regulatory-profile source ${labels[index]} failed for client ${clientId}: ${String(result.reason)}`);
+      }
+      return { name: labels[index]!, status: result.status === 'fulfilled' ? 'available' as const : 'unavailable' as const };
+    });
+    if (results.every((result) => result.status === 'rejected')) {
+      throw new ServiceUnavailableException('Regulatory sources are unavailable. Please retry.');
+    }
+    const links = results[0].status === 'fulfilled' ? results[0].value : { links: [], totalBills: 0, totalRegulations: 0 };
+    const relevant = results[1].status === 'fulfilled' ? results[1].value : [];
+    return {
+      clientId,
+      generatedAt: now.toISOString(),
+      partial: sources.some((source) => source.status === 'unavailable'),
+      sources,
+      regulatoryLifecycle: this.buildRegulatoryLifecycle(links, relevant, now),
+    };
+  }
+
+  private buildRegulatoryLifecycle(
+    regLinks: Awaited<ReturnType<IntelligenceService['getBillRegulationLinks']>>,
+    clientRelevantRegs: Awaited<ReturnType<IntelligenceService['getClientRelevantRegulations']>>,
+    now: Date,
+  ) {
+    const regDocByNumber = new Map<
+      string,
+      {
+        documentNumber: string;
+        type: string;
+        title: string;
+        agencyNames: string[];
+        publicationDate: Date;
+        commentEndDate: Date | null;
+        effectiveDate: Date | null;
+        linkedBills: string[];
+        htmlUrl: string | null;
+      }
+    >();
+    // `?? []` on purpose: a degraded source must never be able to throw here.
+    // The fallback above is now type-checked, so this is the second line of
+    // defence, not the first.
+    for (const link of regLinks.links ?? []) {
+      for (const reg of link.regulations) {
+        const existing = regDocByNumber.get(reg.documentNumber);
+        if (existing) {
+          if (!existing.linkedBills.includes(link.bill.identifier)) {
+            existing.linkedBills.push(link.bill.identifier);
+          }
+          continue;
+        }
+        regDocByNumber.set(reg.documentNumber, {
+          documentNumber: reg.documentNumber,
+          type: (reg as { type?: string }).type ?? '',
+          title: reg.title,
+          agencyNames: reg.agencyNames,
+          publicationDate: new Date(reg.publicationDate),
+          commentEndDate: reg.commentEndDate ? new Date(reg.commentEndDate) : null,
+          effectiveDate: (reg as { effectiveDate?: Date | string | null }).effectiveDate
+            ? new Date((reg as { effectiveDate: Date | string }).effectiveDate)
+            : null,
+          linkedBills: [link.bill.identifier],
+          htmlUrl: (reg as { htmlUrl?: string | null }).htmlUrl ?? null,
+        });
+      }
+    }
+    // A client that tracks no bills (or whose tracked bills happen not to
+    // overlap any indexed Federal Register document) got NOTHING from the
+    // loop above — regDocByNumber stayed empty and the whole Regulatory panel
+    // read as "no active matters" regardless of real regulatory activity.
+    // clientRelevantRegs is matched independently of bill tracking (the same
+    // agency/sector/capability relevance already proven by
+    // getOverdueCommentAlerts/getCommentPeriodAlerts), so it adds coverage for
+    // exactly that gap. A document already found via a tracked bill keeps its
+    // `linkedBills`; one found only through client relevance gets none, which
+    // the rail already renders correctly (no "Linked …" line).
+    for (const reg of clientRelevantRegs) {
+      if (regDocByNumber.has(reg.documentNumber)) continue;
+      regDocByNumber.set(reg.documentNumber, {
+        documentNumber: reg.documentNumber,
+        type: reg.type,
+        title: reg.title,
+        agencyNames: reg.agencyNames,
+        publicationDate: new Date(reg.publicationDate),
+        commentEndDate: reg.commentEndDate ? new Date(reg.commentEndDate) : null,
+        effectiveDate: reg.effectiveDate ? new Date(reg.effectiveDate) : null,
+        linkedBills: [],
+        htmlUrl: (reg as { htmlUrl?: string | null }).htmlUrl ?? null,
+      });
+    }
+    // The rulemaking lifecycle rail tracks ONE Federal Register document's
+    // position through the standard FR pipeline. `federal_register_document.type`
+    // is one of RULE / PROPOSED_RULE / NOTICE / PRESIDENTIAL_DOCUMENT (see the
+    // sync normalizer + schema), which — together with the comment/effective
+    // dates — tells us the real stage. Previously `currentStage` was hardcoded
+    // to 'NPRM' for every regulation regardless of its actual type. Derivation
+    // lives in `@capiro/shared`'s `deriveRuleLifecycleStage` (Phase 1 M4.2) so
+    // this federal rail and the state-rule Meri tool (`get_state_rule_status`)
+    // can never disagree about what stage a rule is at.
+    const rails = Array.from(regDocByNumber.values())
+      .sort((a, b) => b.publicationDate.getTime() - a.publicationDate.getTime())
+      .slice(0, 8)
+      .map((reg) => {
+        const currentStage = deriveRuleLifecycleStage({
+          documentType: reg.type,
+          commentEndDate: reg.commentEndDate,
+          effectiveDate: reg.effectiveDate,
+          today: now,
+        });
+        return {
+          documentNumber: reg.documentNumber,
+          title: reg.title,
+          agencyNames: reg.agencyNames,
+          linkedBills: reg.linkedBills,
+          currentStage,
+          // For an open NPRM the actionable deadline is the comment close date.
+          // Once the rule is final/effective there is no open comment deadline.
+          deadline: currentStage === 'nprm' ? reg.commentEndDate : null,
+          stages: RULE_LIFECYCLE_STAGES.map((s) => ({ key: s.key, label: s.label })),
+          // The real Federal Register document link. Was fetched by
+          // getBillRegulationLinks and getClientRelevantRegulations alike but
+          // dropped here, so "Open matter →" on the frontend had nowhere to
+          // point even for a document with a real, known URL.
+          htmlUrl: reg.htmlUrl,
+        };
+      });
+
+    return { totalLinkedBills: regLinks.totalBills, totalRegulations: regDocByNumber.size, rails };
+  }
+
   async getClientProfileV1(clientId: string, tenantId: string, userId?: string) {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
@@ -1095,7 +1237,7 @@ export class IntelligenceService {
     ];
     const columnById = new Map(kanbanColumns.map((c) => [c.id, c]));
     for (const bill of trackedBills.bills) {
-      const stage = billStage(bill.latestActionText);
+      const stage = billStage(bill.latestActionText, bill.status, bill.actionTexts);
       const col = columnById.get(stage);
       if (!col) continue;
       col.count += 1;
@@ -1118,107 +1260,7 @@ export class IntelligenceService {
       col.bills = col.bills.slice(0, 12);
     }
 
-    const regDocByNumber = new Map<
-      string,
-      {
-        documentNumber: string;
-        type: string;
-        title: string;
-        agencyNames: string[];
-        publicationDate: Date;
-        commentEndDate: Date | null;
-        effectiveDate: Date | null;
-        linkedBills: string[];
-        htmlUrl: string | null;
-      }
-    >();
-    // `?? []` on purpose: a degraded source must never be able to throw here.
-    // The fallback above is now type-checked, so this is the second line of
-    // defence, not the first.
-    for (const link of regLinks.links ?? []) {
-      for (const reg of link.regulations) {
-        const existing = regDocByNumber.get(reg.documentNumber);
-        if (existing) {
-          if (!existing.linkedBills.includes(link.bill.identifier)) {
-            existing.linkedBills.push(link.bill.identifier);
-          }
-          continue;
-        }
-        regDocByNumber.set(reg.documentNumber, {
-          documentNumber: reg.documentNumber,
-          type: (reg as { type?: string }).type ?? '',
-          title: reg.title,
-          agencyNames: reg.agencyNames,
-          publicationDate: new Date(reg.publicationDate),
-          commentEndDate: reg.commentEndDate ? new Date(reg.commentEndDate) : null,
-          effectiveDate: (reg as { effectiveDate?: Date | string | null }).effectiveDate
-            ? new Date((reg as { effectiveDate: Date | string }).effectiveDate)
-            : null,
-          linkedBills: [link.bill.identifier],
-          htmlUrl: (reg as { htmlUrl?: string | null }).htmlUrl ?? null,
-        });
-      }
-    }
-    // A client that tracks no bills (or whose tracked bills happen not to
-    // overlap any indexed Federal Register document) got NOTHING from the
-    // loop above — regDocByNumber stayed empty and the whole Regulatory panel
-    // read as "no active matters" regardless of real regulatory activity.
-    // clientRelevantRegs is matched independently of bill tracking (the same
-    // agency/sector/capability relevance already proven by
-    // getOverdueCommentAlerts/getCommentPeriodAlerts), so it adds coverage for
-    // exactly that gap. A document already found via a tracked bill keeps its
-    // `linkedBills`; one found only through client relevance gets none, which
-    // the rail already renders correctly (no "Linked …" line).
-    for (const reg of clientRelevantRegs) {
-      if (regDocByNumber.has(reg.documentNumber)) continue;
-      regDocByNumber.set(reg.documentNumber, {
-        documentNumber: reg.documentNumber,
-        type: reg.type,
-        title: reg.title,
-        agencyNames: reg.agencyNames,
-        publicationDate: new Date(reg.publicationDate),
-        commentEndDate: reg.commentEndDate ? new Date(reg.commentEndDate) : null,
-        effectiveDate: reg.effectiveDate ? new Date(reg.effectiveDate) : null,
-        linkedBills: [],
-        htmlUrl: (reg as { htmlUrl?: string | null }).htmlUrl ?? null,
-      });
-    }
-    // The rulemaking lifecycle rail tracks ONE Federal Register document's
-    // position through the standard FR pipeline. `federal_register_document.type`
-    // is one of RULE / PROPOSED_RULE / NOTICE / PRESIDENTIAL_DOCUMENT (see the
-    // sync normalizer + schema), which — together with the comment/effective
-    // dates — tells us the real stage. Previously `currentStage` was hardcoded
-    // to 'NPRM' for every regulation regardless of its actual type. Derivation
-    // lives in `@capiro/shared`'s `deriveRuleLifecycleStage` (Phase 1 M4.2) so
-    // this federal rail and the state-rule Meri tool (`get_state_rule_status`)
-    // can never disagree about what stage a rule is at.
-    const regulatoryRails = Array.from(regDocByNumber.values())
-      .sort((a, b) => b.publicationDate.getTime() - a.publicationDate.getTime())
-      .slice(0, 8)
-      .map((reg) => {
-        const currentStage = deriveRuleLifecycleStage({
-          documentType: reg.type,
-          commentEndDate: reg.commentEndDate,
-          effectiveDate: reg.effectiveDate,
-          today: now,
-        });
-        return {
-          documentNumber: reg.documentNumber,
-          title: reg.title,
-          agencyNames: reg.agencyNames,
-          linkedBills: reg.linkedBills,
-          currentStage,
-          // For an open NPRM the actionable deadline is the comment close date.
-          // Once the rule is final/effective there is no open comment deadline.
-          deadline: currentStage === 'nprm' ? reg.commentEndDate : null,
-          stages: RULE_LIFECYCLE_STAGES.map((s) => ({ key: s.key, label: s.label })),
-          // The real Federal Register document link. Was fetched by
-          // getBillRegulationLinks and getClientRelevantRegulations alike but
-          // dropped here, so "Open matter →" on the frontend had nowhere to
-          // point even for a document with a real, known URL.
-          htmlUrl: reg.htmlUrl,
-        };
-      });
+    const regulatoryLifecycle = this.buildRegulatoryLifecycle(regLinks, clientRelevantRegs, now);
 
     // ── Hearings & markups: CLIENT-SCOPED (accuracy-critical) ──────────────
     // `hearings` (settled index 11) is the GLOBAL congressional calendar for the
@@ -1485,11 +1527,7 @@ export class IntelligenceService {
           issueCodes: trackedBills.issueCodes,
           columns: kanbanColumns,
         },
-        regulatoryLifecycle: {
-          totalLinkedBills: regLinks.totalBills,
-          totalRegulations: regLinks.totalRegulations,
-          rails: regulatoryRails,
-        },
+        regulatoryLifecycle,
         hearingsAndMarkups: hearingsList,
       },
       relationships: {
@@ -1757,9 +1795,11 @@ export class IntelligenceService {
     const rows = await this.prisma.ldaFiling.findMany({
       where: { clientId: { in: ldaClientIds } },
       orderBy: [{ filingYear: 'desc' }, { dtPosted: 'desc' }],
-      take: 500,
+      take: 501,
       select: {
         filingUuid: true,
+        registrantId: true,
+        clientId: true,
         filingType: true,
         filingYear: true,
         filingPeriod: true,
@@ -1823,7 +1863,9 @@ export class IntelligenceService {
     >();
     const registrants = new Map<string, { name: string; filings: number; income: number }>();
 
-    const filings = rows.map((r) => {
+    const truncated = rows.length > 500;
+    const visibleRows = rows.slice(0, 500);
+    const filings = visibleRows.map((r) => {
       const income = num(r.income);
       const expenses = num(r.expenses);
       totalIncome += income;
@@ -1848,6 +1890,8 @@ export class IntelligenceService {
 
       return {
         filingUuid: r.filingUuid,
+        registrantId: r.registrantId,
+        ldaClientId: r.clientId,
         filingType: r.filingType,
         filingYear: r.filingYear,
         filingPeriod: r.filingPeriod,
@@ -1864,11 +1908,12 @@ export class IntelligenceService {
       };
     });
 
-    const years = rows.map((r) => r.filingYear);
+    const years = visibleRows.map((r) => r.filingYear);
     return {
       matched: true,
       ldaClientIds,
-      totalFilings: rows.length,
+      totalFilings: visibleRows.length,
+      truncated,
       totalIncome,
       totalExpenses,
       firstFilingYear: years.length ? Math.min(...years) : null,
@@ -4192,6 +4237,8 @@ export class IntelligenceService {
         title: string;
         latestActionDate: Date | null;
         latestActionText: string | null;
+        status?: string | null;
+        actionTexts?: string[];
         sponsorName: string | null;
         sponsorParty: string | null;
         subjectNames: string[];
@@ -4244,6 +4291,8 @@ export class IntelligenceService {
       title: string;
       latestActionDate: Date | null;
       latestActionText: string | null;
+      status?: string | null;
+      actionTexts?: string[];
       sponsorName: string | null;
       sponsorParty: string | null;
       subjectNames: string[];
@@ -4256,12 +4305,15 @@ export class IntelligenceService {
         title: string;
         latest_action_date: Date | null;
         latest_action_text: string | null;
+        status?: string | null;
+        action_texts?: string[];
         sponsor_name: string | null;
         sponsor_party: string | null;
         subjects: string[];
       }>
     >`
-      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text,
+      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
+             ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
              cb.sponsor_name, cb.sponsor_party, cb.subjects
       FROM congress_bill cb
       WHERE cb.id = ANY(${ids}::text[])
@@ -4272,6 +4324,8 @@ export class IntelligenceService {
       title: b.title,
       latestActionDate: b.latest_action_date,
       latestActionText: b.latest_action_text,
+      status: b.status,
+      actionTexts: b.action_texts,
       sponsorName: b.sponsor_name,
       sponsorParty: b.sponsor_party,
       subjectNames: b.subjects ?? [],
@@ -4356,6 +4410,8 @@ export class IntelligenceService {
       title: string;
       latestActionDate: Date | null;
       latestActionText: string | null;
+      status?: string | null;
+      actionTexts?: string[];
       sponsorName: string | null;
       sponsorParty: string | null;
       subjectNames: string[];
@@ -4406,12 +4462,15 @@ export class IntelligenceService {
           title: string;
           latest_action_date: Date | null;
           latest_action_text: string | null;
+          status?: string | null;
+          action_texts?: string[];
           sponsor_name: string | null;
           sponsor_party: string | null;
           subjects: string[];
         }>
       >`
-        SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text,
+        SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
+               ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
                cb.sponsor_name, cb.sponsor_party, cb.subjects
         FROM congress_bill cb
         WHERE cb.id = ANY(${rankedIds}::text[])
@@ -4427,6 +4486,8 @@ export class IntelligenceService {
           title: b.title,
           latestActionDate: b.latest_action_date,
           latestActionText: b.latest_action_text,
+          status: b.status,
+          actionTexts: b.action_texts,
           sponsorName: b.sponsor_name,
           sponsorParty: b.sponsor_party,
           subjectNames: b.subjects ?? [],
@@ -4447,6 +4508,8 @@ export class IntelligenceService {
       title: string;
       latestActionDate: Date | null;
       latestActionText: string | null;
+      status?: string | null;
+      actionTexts?: string[];
       sponsorName: string | null;
       sponsorParty: string | null;
       subjectNames: string[];
@@ -4468,12 +4531,15 @@ export class IntelligenceService {
         title: string;
         latest_action_date: Date | null;
         latest_action_text: string | null;
+        status?: string | null;
+        action_texts?: string[];
         sponsor_name: string | null;
         sponsor_party: string | null;
         subjects: string[];
       }>
     >(Prisma.sql`
-      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text,
+      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text, cb.status,
+             ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS action_texts,
              cb.sponsor_name, cb.sponsor_party, cb.subjects
       FROM congress_bill cb
       WHERE cb.id IN (SELECT id FROM ${matchingIds} AS m)
@@ -4488,6 +4554,8 @@ export class IntelligenceService {
         title: b.title,
         latestActionDate: b.latest_action_date,
         latestActionText: b.latest_action_text,
+        status: b.status,
+        actionTexts: b.action_texts,
         sponsorName: b.sponsor_name,
         sponsorParty: b.sponsor_party,
         subjectNames: b.subjects ?? [],
@@ -6570,7 +6638,7 @@ export class IntelligenceService {
       this.logger.warn(
         `getClientRelevantRegulations failed for ${clientId}: ${err instanceof Error ? err.message : String(err)}`,
       );
-      return [];
+      throw err;
     }
   }
 

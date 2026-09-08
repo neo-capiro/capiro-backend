@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ClientCrmIntelligenceProto } from './IntelligenceTab.js';
+import { ClientCrmIntelligenceProto, facilityStatus } from './IntelligenceTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
@@ -63,7 +63,7 @@ describe('ClientCrmIntelligenceProto — legislative panel', () => {
 
     fireEvent.click(screen.getByText('Open full board →'));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch');
+    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=bills&client=client-1');
   });
 });
 
@@ -425,14 +425,15 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/federal-spending?tab=contracts&clientId=client-1');
   });
 
-  it('keeps the design fixture on screen while footprint queries are loading or errored', () => {
+  it('shows loading states without invented financial values', () => {
     getMock.mockImplementation(() => new Promise(() => {}));
     renderFootprint();
 
     // "$1.8M"/"$84.2M" also appear in the domain stats strip's own fixture cells.
-    expect(screen.getAllByText('$1.8M').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('$84.2M').length).toBeGreaterThan(0);
-    expect(screen.getByText('Northwest Government Affairs')).toBeInTheDocument();
+    expect(screen.queryByText('$1.8M')).not.toBeInTheDocument();
+    expect(screen.getByText('Loading lobbying activity…')).toBeInTheDocument();
+    expect(screen.queryByText('$84.2M')).not.toBeInTheDocument();
+    expect(screen.queryByText('Northwest Government Affairs')).not.toBeInTheDocument();
   });
 
   /**
@@ -460,7 +461,7 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     // before the district-nexus query settles and assert against a cell that
     // is still legitimately loading.
     await screen.findByText('$12.0M');
-    const awardsCell = screen.getByText('Federal awards · TTM');
+    const awardsCell = screen.getByText('Federal awards · on record');
     expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
 
     const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
@@ -711,9 +712,14 @@ const AGGREGATE_WITH_DEADLINES = {
   },
 };
 
+function regulatoryResponse(data: any) {
+  return { clientId: client.id, generatedAt: data.generatedAt, partial: false, sources: [],
+    regulatoryLifecycle: data.sections?.legislativeRegulatory?.regulatoryLifecycle ?? { rails: [] } };
+}
+
 function mockAggregate(data: unknown) {
   getMock.mockImplementation((url: string) => {
-    if (url === '/api/intelligence/clients/client-1/profile-v1') return Promise.resolve({ data });
+    if (url === '/api/intelligence/clients/client-1/regulatory-profile') return Promise.resolve({ data: regulatoryResponse(data) });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -827,8 +833,8 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     getMock.mockImplementation(() => new Promise(() => {})); // never resolves
     renderWithRoutes();
 
-    // The fixture is on screen for pixel review, but it must never become a
-    // calendar file full of invented events.
+    expect(screen.getByText('Loading regulatory matters…')).toBeInTheDocument();
+    expect(screen.queryByText('Autonomous Vehicle Safety Framework')).not.toBeInTheDocument();
     expect(screen.getByText('Calendar')).toBeDisabled();
   });
 });
@@ -851,8 +857,8 @@ describe('ClientCrmIntelligenceProto — Legislative & Regulatory (consolidated)
       if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
         return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
       }
-      if (url === '/api/intelligence/clients/client-1/profile-v1') {
-        return Promise.resolve({ data: AGGREGATE_WITH_DEADLINES });
+      if (url === '/api/intelligence/clients/client-1/regulatory-profile') {
+        return Promise.resolve({ data: regulatoryResponse(AGGREGATE_WITH_DEADLINES) });
       }
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
@@ -919,7 +925,7 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
       if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
         return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
       }
-      if (url === '/api/intelligence/clients/client-1/profile-v1') {
+      if (url === '/api/intelligence/clients/client-1/regulatory-profile') {
         return Promise.reject(new Error('aggregate service unavailable'));
       }
       return Promise.reject(new Error(`unexpected GET ${url}`));
@@ -966,5 +972,15 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
     expect(screen.queryByText('Northwest Government Affairs')).not.toBeInTheDocument();
     // The unrelated Federal awards card still renders its real data.
     expect(screen.getByText('$12,000,000')).toBeInTheDocument();
+  });
+});
+describe('facility verification evidence', () => {
+  it.each([null, 'pending', 'manual_review', 'no_match', 'ambiguous', 'error'])('does not confirm a facility with geocode status %s even when its supplied district resolves', (geocodeStatus) => {
+    expect(facilityStatus({ ...FACILITY, geocodeStatus } as any, REPRESENTATION[0]!.representation as any).label).toBe('Needs address verification');
+  });
+  it('rejects a manually edited district and mismatched House representative', () => {
+    expect(facilityStatus({ ...FACILITY, districtSource: 'user' } as any, REPRESENTATION[0]!.representation as any).label).toBe('Needs address verification');
+    const representation = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, district: 8 }, senate: [] } };
+    expect(facilityStatus(FACILITY as any, representation as any).label).toBe('Representation mismatch');
   });
 });

@@ -1128,10 +1128,27 @@ const CHAMBER_PASSAGE_RE =
   /passed\/agreed to in (the )?(house|senate)|passed (the )?(house|senate)|on passage[^.]*passed|agreed to in (the )?(house|senate)|(house|senate) agreed to|motion to suspend the rules and pass[^.]*agreed to/;
 
 /** Classify a bill's latest action text into a board stage (status-driven). */
-export function billStage(latestActionText: string | null | undefined): BillStage {
+export function billStage(
+  latestActionText: string | null | undefined,
+  status?: string | null,
+  actionTexts: readonly string[] = [],
+): BillStage {
   const txt = (latestActionText ?? '').toLowerCase();
-  if (/signed|enacted|public law|pl\s+\d/.test(txt)) return 'enacted';
-  if (CHAMBER_PASSAGE_RE.test(txt)) return 'passed';
+  const history = [txt, ...actionTexts.map((text) => text.toLowerCase())];
+  if (
+    status === 'enacted' ||
+    history.some((text) =>
+      /became (public )?law|signed by (the )?president|\benacted\b|public law no/.test(text),
+    )
+  )
+    return 'enacted';
+  if (
+    ['passed_chamber', 'resolving', 'to_president', 'vetoed'].includes(status ?? '') ||
+    history.some((text) => CHAMBER_PASSAGE_RE.test(text))
+  )
+    return 'passed';
+  if (['committee', 'reported', 'rule_pending', 'rule_failed', 'floor'].includes(status ?? ''))
+    return 'committee';
   if (/committee|referred|reported|markup/.test(txt)) return 'committee';
   return 'introduced';
 }
@@ -1142,11 +1159,13 @@ export function billStage(latestActionText: string | null | undefined): BillStag
  */
 export function passageProbability(bill: {
   latestActionText: string | null;
+  status?: string | null;
+  actionTexts?: readonly string[];
   title?: string | null;
   latestActionDate?: Date | null;
   nowMs?: number;
 }): number {
-  const stage = billStage(bill.latestActionText);
+  const stage = billStage(bill.latestActionText, bill.status, bill.actionTexts);
   if (stage === 'enacted') return 0.99;
   const mustPass =
     /national defense authorization|consolidated appropriations|making appropriations|defense appropriation|continuing appropriations|further (consolidated |additional )?appropriations/i.test(
@@ -1393,6 +1412,8 @@ export function matchesRole(raw: string | null | undefined, role: CommitteeRole)
 
 export function deriveBillStatus(input: {
   latestActionText?: string | null;
+  /** Full canonical actions preserve voice-vote passage and earlier milestones. */
+  actionTexts?: readonly string[];
   /** Outcome of the bill's most recent GOVERNING rule (from bill_rule_link + the rule's vote/status). */
   ruleOutcome?: 'adopted' | 'failed' | null;
   /** True when a roll_call_vote on THIS bill (not its rule) passed a chamber. */
@@ -1406,10 +1427,18 @@ export function deriveBillStatus(input: {
   failedChamber?: boolean;
 }): BillStatusResult {
   const t = (input.latestActionText ?? '').toLowerCase();
-  const mk = (status: BillStatus): BillStatusResult => ({ status, ...BILL_STATUS_META[status] });
+  const history = (input.actionTexts ?? []).map((text) => text.toLowerCase());
+  const mk = (status: BillStatus): BillStatusResult => ({
+    status,
+    ...BILL_STATUS_META[status],
+  });
 
   // Terminal / advanced states from the bill's own action text win first.
-  if (/became (public )?law|public law no|signed by (the )?president|\benacted\b/.test(t)) {
+  if (
+    [t, ...history].some((text) =>
+      /became (public )?law|public law no|signed by (the )?president|\benacted\b/.test(text),
+    )
+  ) {
     return mk('enacted');
   }
   if (/vetoed|veto message/.test(t)) return mk('vetoed');
@@ -1426,10 +1455,7 @@ export function deriveBillStatus(input: {
   }
 
   // A real chamber-passage vote (from roll_call_vote) or explicit passage text.
-  if (
-    input.passedChamber ||
-    /passed (the )?(house|senate)|passed\/agreed to in (house|senate)/.test(t)
-  ) {
+  if (input.passedChamber || [t, ...history].some((text) => CHAMBER_PASSAGE_RE.test(text))) {
     return mk('passed_chamber');
   }
 
@@ -2970,7 +2996,8 @@ function clientContextCitationRows(payload: Record<string, unknown>): unknown[] 
         ...row,
         id,
         title: firstCitationString(row, ['name', 'title']) ?? `${section}: ${id}`,
-        url: firstCitationString(row, CITATION_URL_FIELDS) ??
+        url:
+          firstCitationString(row, CITATION_URL_FIELDS) ??
           (reference ? firstCitationString(reference, CITATION_URL_FIELDS) : null),
         snippet: firstCitationString(row, CITATION_SNIPPET_FIELDS) ?? JSON.stringify(row),
       });
@@ -2979,7 +3006,10 @@ function clientContextCitationRows(payload: Record<string, unknown>): unknown[] 
   return rows;
 }
 
-function federalMarketCitationRows(tool: string, payload: Record<string, unknown>): unknown[] | null {
+function federalMarketCitationRows(
+  tool: string,
+  payload: Record<string, unknown>,
+): unknown[] | null {
   const labels: Record<string, string> = {
     search_federal_contract_awards: 'Federal contract award',
     search_federal_subawards: 'Federal subaward',
@@ -2990,13 +3020,23 @@ function federalMarketCitationRows(tool: string, payload: Record<string, unknown
     return payload.items.filter(citationObject).flatMap((row) => {
       const id = firstCitationString(row, ['id']);
       if (!id) return [];
-      return [{
-        ...row,
-        id,
-        title: firstCitationString(row, ['title', 'name', 'description', 'awardId', 'providerKey', 'vehicleId', 'forecastId']) ??
-          `${labels[tool]}: ${id}`,
-        snippet: firstCitationString(row, CITATION_SNIPPET_FIELDS) ?? JSON.stringify(row),
-      }];
+      return [
+        {
+          ...row,
+          id,
+          title:
+            firstCitationString(row, [
+              'title',
+              'name',
+              'description',
+              'awardId',
+              'providerKey',
+              'vehicleId',
+              'forecastId',
+            ]) ?? `${labels[tool]}: ${id}`,
+          snippet: firstCitationString(row, CITATION_SNIPPET_FIELDS) ?? JSON.stringify(row),
+        },
+      ];
     });
   }
   if (tool !== 'get_district_federal_market') return null;
@@ -3006,11 +3046,15 @@ function federalMarketCitationRows(tool: string, payload: Record<string, unknown
   return [
     ...districts.filter(citationObject).flatMap((row) => {
       const id = firstCitationString(row, ['districtKey']);
-      return id ? [{ ...row, id, title: `Federal market: ${id}`, snippet: JSON.stringify(row) }] : [];
+      return id
+        ? [{ ...row, id, title: `Federal market: ${id}`, snippet: JSON.stringify(row) }]
+        : [];
     }),
     ...stateSubawards.filter(citationObject).flatMap((row) => {
       const id = firstCitationString(row, ['state']);
-      return id ? [{ ...row, id, title: `State-level subawards: ${id}`, snippet: JSON.stringify(row) }] : [];
+      return id
+        ? [{ ...row, id, title: `State-level subawards: ${id}`, snippet: JSON.stringify(row) }]
+        : [];
     }),
     ...futureSignals.filter(citationObject),
   ];
@@ -3021,10 +3065,14 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
     return payload.messages.filter(citationObject).flatMap((message) => {
       const id = firstCitationString(message, ['id']);
       if (!id) return [];
-      return [{ ...message, id,
-        title: firstCitationString(message, ['subject']) ?? 'Email message',
-        snippet: firstCitationString(message, ['bodyText', 'preview']),
-      }];
+      return [
+        {
+          ...message,
+          id,
+          title: firstCitationString(message, ['subject']) ?? 'Email message',
+          snippet: firstCitationString(message, ['bodyText', 'preview']),
+        },
+      ];
     });
   }
   if (tool === 'get_client_context') {
@@ -3107,18 +3155,25 @@ export function extractCitationsFromToolResult(
       url: url && /^https?:\/\//i.test(url) ? url : null,
       snippet: snippetRaw ? truncateCitation(snippetRaw, 240) : null,
       tool: toolName,
-      ...(toolName === 'read_client_documents' && citationObject(rec.document) &&
-        typeof rec.clientId === 'string' && typeof rec.document.id === 'string' &&
-        typeof rec.document.contentHash === 'string' && citationObject(rec.coverage) &&
-        Array.isArray(rec.records)
-        ? { documentEvidence: {
-            clientId: rec.clientId,
-            documentId: rec.document.id,
-            contentHash: rec.document.contentHash,
-            record: rec.records.find((value) => citationObject(value) && value.recordId === id) as Record<string, unknown>,
-            coverage: rec.coverage,
-            observedAt: typeof rec.generatedAt === 'string' ? rec.generatedAt : null,
-          } }
+      ...(toolName === 'read_client_documents' &&
+      citationObject(rec.document) &&
+      typeof rec.clientId === 'string' &&
+      typeof rec.document.id === 'string' &&
+      typeof rec.document.contentHash === 'string' &&
+      citationObject(rec.coverage) &&
+      Array.isArray(rec.records)
+        ? {
+            documentEvidence: {
+              clientId: rec.clientId,
+              documentId: rec.document.id,
+              contentHash: rec.document.contentHash,
+              record: rec.records.find(
+                (value) => citationObject(value) && value.recordId === id,
+              ) as Record<string, unknown>,
+              coverage: rec.coverage,
+              observedAt: typeof rec.generatedAt === 'string' ? rec.generatedAt : null,
+            },
+          }
         : {}),
     });
     n += 1;
@@ -4897,3 +4952,39 @@ export {
 // Import FundingClaim helpers from '@capiro/shared/funding-claim' (subpath export).
 // Kept out of this single-file barrel so Vite/Rollup named-export tracing for the
 // main entry stays intact (same pattern as './money').
+
+// Organization attribution shared by client-profile discovery, grounding and UI.
+const LEGAL_SUFFIX =
+  /\b(incorporated|inc|corporation|corp|llc|llp|ltd|limited|plc|company|co)\b[.,\s]*$/i;
+
+function organizationKey(name: string): string {
+  let text = name.trim();
+  while (LEGAL_SUFFIX.test(text)) text = text.replace(LEGAL_SUFFIX, '').trim();
+  return text.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Full organization identity, never a shared surname or a trigram score. */
+export function matchesAdvocacyOrganization(clientName: string, organization: string): boolean {
+  const key = organizationKey(clientName);
+  return key.length >= 3 && key === organizationKey(organization);
+}
+
+/** The first witness segment is a person, not an organizational affiliation. */
+export function matchesTestimonyOrganization(clientName: string, witness: string): boolean {
+  return witness
+    .split(/[,;|\n]/)
+    .slice(1)
+    .some((part) => matchesAdvocacyOrganization(clientName, part));
+}
+
+/** Assignment corrections do not certify an organization's identity. */
+export function advocacyAttributionNeedsReview(sourceType: string, metadata: unknown): boolean {
+  if (!['fara', 'testimony'].includes(sourceType)) return false;
+  const record =
+    metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : {};
+  const match =
+    record.clientMatch && typeof record.clientMatch === 'object'
+      ? (record.clientMatch as Record<string, unknown>)
+      : {};
+  return match.method !== 'confirmed_client_intel_mapping';
+}

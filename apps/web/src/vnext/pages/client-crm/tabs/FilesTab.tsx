@@ -113,7 +113,8 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: 'meri', label: 'Meri artifacts' },
 ];
 
-const SORT_LABEL: Record<SortKey, string> = { modified: 'Modified', name: 'Name', owner: 'Owner' };
+const SORT_LABEL: Record<SortKey, string> = { modified: 'Created', name: 'Name', owner: 'Owner' };
+const FILE_COLUMNS = ['Document', 'Linked to', 'Created', 'Owner', 'Status'] as const;
 const SORT_NEXT: Record<SortKey, SortKey> = { modified: 'name', name: 'owner', owner: 'modified' };
 
 const TONE_OF: Record<string, PillTone> = {
@@ -782,7 +783,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
             <div className="cap-pf-files-drawer__list-scroll">
               <div className="cap-pf-files-drawer__list">
                 <div className="cap-pf-files-drawer__head" aria-hidden>
-                  <span>Document</span><span>Linked to</span><span>Modified</span><span>Owner</span><span>Status</span><span />
+                  {FILE_COLUMNS.map((label) => <span key={label}>{label}</span>)}<span />
                 </div>
                 {drawerGroup ? (
                   <div className="cap-pf-files-drawer__filter-note">
@@ -1046,7 +1047,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                 <Checkbox checked={allChecked} onToggle={toggleAll} ariaLabel="Select all files" />
                 <span className="cap-pf-files__flex1">Name</span>
                 <span className="cap-pf-files__col-linked">Linked to / location</span>
-                <span className="cap-pf-files__col-84">Modified</span>
+                <span className="cap-pf-files__col-84">{FILE_COLUMNS[2]}</span>
                 <span className="cap-pf-files__col-84">Owner</span>
                 <span className="cap-pf-files__col-status">Status</span>
                 <span className="cap-pf-files__col-menu" />
@@ -1469,8 +1470,8 @@ function FileRow({
         </span>
       </button>
       <span className="cap-pf-files__row-linked">{row.linked}</span>
-      <span className="cap-pf-files__row-84">{row.modified}</span>
-      <span className="cap-pf-files__row-84">{row.owner}</span>
+      <span className="cap-pf-files__row-84 cap-pf-files__row-created">{row.modified}</span>
+      <span className="cap-pf-files__row-84 cap-pf-files__row-owner">{row.owner}</span>
       <span className="cap-pf-files__row-status">
         <Pill tone={row.tone} style={{ maxWidth: '100%', height: 'auto', minHeight: 22,
           whiteSpace: 'normal', padding: '3px 6px', borderRadius: 8 }}>
@@ -1662,39 +1663,36 @@ function ManageAccessModal({
  * Clicking a file used to hand you a browser file-save prompt with no chance
  * to look at it first (`ResponseContentDisposition: 'attachment'` on the
  * download URL — a deliberate anti-XSS control, see createAttachmentDownloadUrl
- * in engagement.service.ts). This modal previews instead: an <iframe>/<img>
- * against `row.previewUrl` when the file's content type is on the server's
- * narrow inline-render allowlist (PDF/PNG/JPEG/GIF/WEBP), a plain "no preview"
- * fallback otherwise — Download always uses the unchanged, always-`attachment`
- * downloadUrl, so nothing about the existing security posture changes.
+ * in engagement.service.ts). Images use the server's allowlisted preview URL.
+ * PDFs offer a separate-tab viewer and Download because Chromium blocks its
+ * PDF plugin in a sandboxed iframe. Download retains attachment disposition.
  */
 function FilePreviewModal({ row, onClose }: { row: FileRowModel | null; onClose: () => void }) {
   if (!row) return null;
   const isImage = (row.contentType ?? '').toLowerCase().startsWith('image/');
+  const isPdf = (row.contentType ?? '').toLowerCase() === 'application/pdf';
   return (
     <CapiroModal open title={row.name} onClose={onClose} width={860}>
-      {row.previewUrl ? (
+      {row.previewUrl && isImage ? (
         <div className="cap-pf-files__preview-frame">
-          {isImage ? (
-            <img src={row.previewUrl} alt={row.name} className="cap-pf-files__preview-image" />
-          ) : (
-            <iframe
-              src={row.previewUrl}
-              title={row.name}
-              className="cap-pf-files__preview-iframe"
-              sandbox="allow-same-origin"
-            />
-          )}
+          <img src={row.previewUrl} alt={row.name} className="cap-pf-files__preview-image" />
         </div>
       ) : (
         <div className="cap-pf-files__preview-empty">
           <UIcon name="File04" size={28} />
           <p className="cap-pf-files__modal-text">
-            No preview available for this file type. Download it to view the full contents.
+            {isPdf
+              ? `PDF preview is unavailable in this view. ${row.previewUrl ? 'Open the PDF in a new tab or download it' : 'Download it'} to read the full contents.`
+              : 'No preview available for this file type. Download it to view the full contents.'}
           </p>
         </div>
       )}
       <div className="cap-pf-files__modal-actions">
+        {isPdf && row.previewUrl ? (
+          <CapiroButton variant="secondary" size="compact" onClick={() => window.open(row.previewUrl!, '_blank', 'noopener,noreferrer')}>
+            Open PDF in new tab
+          </CapiroButton>
+        ) : null}
         <CapiroButton
           variant="primary"
           size="compact"

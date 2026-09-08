@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -11,15 +11,6 @@ import {
   GRADIENT_DARK,
   type PillTone,
 } from '../portfolio-primitives.js';
-import {
-  DOMAIN_STATS,
-  MATTERS,
-  DEADLINES,
-  LDA,
-  DISTRICTS,
-  FACILITIES,
-  SPARK,
-} from '../portfolio-fixtures.js';
 import { lazy, Suspense } from 'react';
 import { formatDateShort, formatMoney, formatNumber, ldaPeriodLabel, partyLabel, titleCaseName } from '../../../lib/labels.js';
 import {
@@ -65,7 +56,8 @@ import {
   getClientRepresentation,
   type RepresentationResult,
 } from '../../../../pages/clients/intelligence-v1/representation-api.js';
-import type { ClientProfileV1 } from '../../../../pages/clients/intelligence-v1/mappers.js';
+import { getClientRegulatoryProfile, regulatoryProfileKey } from '../../../../pages/clients/intelligence-v1/regulatory-profile-api.js';
+import { summarizeLdaPeriods } from '../../../../pages/clients/intelligence-v1/lda-periods.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import './intelligence-tab.css';
 
@@ -84,20 +76,10 @@ import './intelligence-tab.css';
  * Past performance moved in from Capabilities §7.3 and sits under Federal
  * Footprint, with the rest of the client's federal delivery record.
  *
- * Real client-scoped data overrides the design's precise records (§14)
- * wherever a query answers. A design fixture may still stand in for the
- * initial loading flash (never a fake number in place of a slow real one
- * settling in) but must NEVER survive a confirmed query error — that gate is
- * `<source query>.isError`, checked explicitly beside every fixture fallback
- * below, not just "not yet successful." Where no endpoint exists at all
- * (Pursuit pipeline pills), the card was removed rather than left permanently
- * fake. Any section still flagged UI-only in the ship report is a genuine
- * fixture-during-loading, not a standing fabrication.
+ * Every section distinguishes loading, unavailable and empty sources.
+ * Only returned client data is shown.
  */
 
-const INTEL_TONE: Record<string, PillTone> = {
-  gray: 'gray', brand: 'brand', blue: 'blue', error: 'error', warning: 'warning', success: 'success',
-};
 
 /** MapLibre choropleth, lazy so the WebGL engine stays out of this chunk (see
  * bundle-boundaries.test.ts) for users who never open the District subtab.
@@ -248,7 +230,7 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
 
 /**
  * Resolve real domain-stats-strip cells from live queries, falling back to
- * null (which makes DomainStatsStrip render the fixture) when a query is not
+ * undefined (which makes DomainStatsStrip render dashes) when a query is not
  * ready or not applicable. Each case reuses the same query key the panel
  * below uses so cache is shared — zero extra network calls.
  */
@@ -266,10 +248,9 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     enabled: trackerReady && view === 'legislative',
     staleTime: 60_000,
   });
-  const aggQ = useQuery<ClientProfileV1>({
-    queryKey: ['client-intel-v1-aggregate', client.id],
-    queryFn: async () =>
-      (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
+  const aggQ = useQuery({
+    queryKey: regulatoryProfileKey(client.id),
+    queryFn: () => getClientRegulatoryProfile(api, client.id),
     enabled: view === 'legislative',
     staleTime: 2 * 60_000,
     retry: 1,
@@ -308,7 +289,7 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
   // 5-cell strip that fills in from whichever query answers first.
   if (view === 'legislative' && ((trackerReady && boardQ.isSuccess) || aggQ.isSuccess)) {
     const trackedBills = trackerReady && boardQ.isSuccess ? String(boardQ.data.total) : '—';
-    const rails = aggQ.isSuccess ? aggQ.data?.sections?.legislativeRegulatory?.regulatoryLifecycle?.rails ?? [] : null;
+    const rails = aggQ.isSuccess ? aggQ.data?.regulatoryLifecycle?.rails ?? [] : null;
     const activeMatters = rails ? String(rails.length) : '—';
     const deadlineSoon = rails
       ? String(
@@ -316,7 +297,8 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
             if (!r.deadline) return false;
             const on = deadlineDay(r.deadline);
             if (!on) return false;
-            return Math.ceil((on.getTime() - Date.now()) / 86_400_000) <= 14;
+            const days = Math.ceil((on.getTime() - Date.now()) / 86_400_000);
+            return days >= 0 && days < 14;
           }).length,
         )
       : '—';
@@ -339,15 +321,15 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
   // never followed it.
   if (view === 'footprint' && (ldaQ.isSuccess || nexusQ.isSuccess || fecQ.isSuccess)) {
     const lda = ldaQ.isSuccess ? ldaQ.data : null;
-    const ldaAmount = lda?.matched ? lda.filings.reduce((s, f) => s + f.amount, 0) : null;
+    const ldaAmount = lda?.matched && !lda.truncated ? summarizeLdaPeriods(lda.filings).amount : null;
     const pac = fecQ.isSuccess ? fecQ.data.pacGiving : null;
     return [
       [lda ? (lda.matched ? formatNumber(lda.totalFilings) : '0') : '—', 'LDA filings'],
-      [lda ? formatMoney(ldaAmount) : '—', 'Lobbying · TTM'],
+      [lda ? formatMoney(ldaAmount) : '—', 'Lobbying · last 4 completed quarters'],
       // Unlinked is "no confirmed mapping", never $0 — formatMoney(null) = '—'.
       [
         nexusQ.isSuccess ? formatMoney(nexusQ.data.linked ? nexusQ.data.totalAmount : null) : '—',
-        'Federal awards · TTM',
+        'Federal awards · on record',
       ],
       [
         fecQ.isSuccess ? formatMoney(pac?.tracked && pac.summary ? pac.summary.totalAmount : null) : '—',
@@ -463,6 +445,10 @@ export function LinkBtn({
  * loading with error) now checks this explicitly instead; see the module
  * doc-comment at the top of this file.
  */
+function LoadingSource({ what }: { what: string }) {
+  return <p className="capiro-intel-note" role="status" aria-busy="true">Loading {what}…</p>;
+}
+
 export function CouldNotLoad({ what, error, onRetry }: { what: string; error?: unknown; onRetry?: () => void }) {
   const detail = error instanceof Error && error.message ? error.message : `The service did not answer.`;
   return (
@@ -482,7 +468,12 @@ export function CouldNotLoad({ what, error, onRetry }: { what: string; error?: u
  * stand in for a client's numbers.
  */
 export function DomainStatsStrip({ view, realValues }: { view: string; realValues?: Array<[string, string]> }) {
-  const labelSource = (DOMAIN_STATS as unknown as Record<string, Array<[string, string]>>)[view] ?? [];
+  const labels: Record<string, string[]> = {
+    legislative: ['Tracked bills', 'Active matters', 'Deadline < 14 days', 'Material changes', 'Watchlist coverage'],
+    footprint: ['LDA filings', 'Lobbying · last 4 completed quarters', 'Federal awards · on record', 'PAC disbursements', 'Registrants'],
+    district: ['Districts', 'Contract obligations', 'Grant obligations', 'Employees mapped', 'Coverage'],
+  };
+  const labelSource = (labels[view] ?? []).map((label): [string, string] => ['—', label]);
   const cells: Array<[string, string]> =
     realValues && realValues.length > 0 ? realValues : labelSource.map(([, label]) => ['—', label]);
   const loading = !realValues || realValues.length === 0;
@@ -631,7 +622,7 @@ function LegislativePanel({
             </span>
           ) : null}
           <span className="capiro-intel-spacer" />
-          <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
+          <LinkBtn onClick={() => navigate(`/legiwatch?tab=bills&client=${encodeURIComponent(client.id)}`)}>Open full board →</LinkBtn>
         </div>
         {/* The "Upcoming hearing" footer that used to live here (relocated from
             the removed Recommendations card) always read a single hardcoded
@@ -775,7 +766,7 @@ function deadlineDay(value: string | Date): Date | null {
   return new Date(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
 }
 
-/** A deadline the rail can render — real or from the design fixture. */
+/** A deadline derived from a loaded regulatory source. */
 interface DeadlineView {
   key: string;
   date: string;
@@ -787,7 +778,7 @@ interface DeadlineView {
   documentNumber?: string;
 }
 
-/** A regulatory matter the Active-matters card can render — real or fixture. */
+/** A regulatory matter derived from a loaded regulatory source. */
 interface MatterView {
   key: string;
   title: string;
@@ -810,24 +801,6 @@ interface MatterView {
   htmlUrl: string | null;
 }
 
-const MATTER_FIXTURE_TONE: Record<string, PillTone> = { warning: 'warning', blue: 'blue', brand: 'brand' };
-
-function matterViewFromFixture(m: (typeof MATTERS)[number]): MatterView {
-  return {
-    key: m.title,
-    title: m.title,
-    agency: m.agency,
-    docket: m.docket,
-    stage: m.stage,
-    tone: MATTER_FIXTURE_TONE[m.ui] ?? 'gray',
-    detail: m.detail,
-    linked: m.linked,
-    steps: m.steps as Array<[string, string]>,
-    on: null,
-    htmlUrl: null,
-  };
-}
-
 /**
  * Divider between the Legislative content above and Regulatory below —
  * both now render on the same "Legislative & Regulatory" domain view. Not a
@@ -846,30 +819,15 @@ function RegulatorySectionHead() {
 function RegulatoryPanel({ client }: { client: Client }) {
   const api = useApi();
 
-  /**
-   * Item 5 (Calendar). The comment deadlines are real: the profile-v1
-   * aggregate's regulatory lifecycle rails are Federal Register rulemakings
-   * with real `deadline` dates, and it is the same query key + endpoint the
-   * canonical `ClientIntelV1Page` uses, so the two share one cache entry.
-   * Calendar exports THOSE dates — a .ics built from the design fixture would
-   * be a file of invented events sitting in someone's calendar, so the button
-   * is disabled whenever the fixture is what is on screen.
-   *
-   * This one query also backs the Active-matters card below: `rails` is the
-   * exact same array useDomainStats already counts as "Active matters", just
-   * unfiltered by deadline (the Deadline rail only keeps rails that have one).
-   */
-  const aggregate = useQuery<ClientProfileV1>({
-    queryKey: ['client-intel-v1-aggregate', client.id],
-    queryFn: async () =>
-      (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
-    staleTime: 2 * 60 * 1000,
+  const aggregate = useQuery({
+    queryKey: regulatoryProfileKey(client.id),
+    queryFn: () => getClientRegulatoryProfile(api, client.id),
+    staleTime: 2 * 60_000,
     retry: 1,
   });
-
-  const lifecycle = aggregate.data?.sections?.legislativeRegulatory?.regulatoryLifecycle;
+  const lifecycle = aggregate.data?.regulatoryLifecycle;
   const aggFailed = aggregate.isError;
-  const loaded = aggregate.data !== undefined && !aggFailed;
+  const loaded = aggregate.data !== undefined;
 
   const realDeadlines: DeadlineView[] = useMemo(() => {
     const rails = lifecycle?.rails ?? [];
@@ -935,23 +893,16 @@ function RegulatoryPanel({ client }: { client: Client }) {
       .sort((a, b) => (a.on?.getTime() ?? Infinity) - (b.on?.getTime() ?? Infinity));
   }, [lifecycle]);
 
-  // Fixture only while the aggregate is genuinely still loading (§14
-  // convention) — never on a confirmed error, which gets an honest
-  // CouldNotLoad in both cards below instead.
-  const showFixture = !loaded && !aggFailed;
-  const deadlines: DeadlineView[] = showFixture
-    ? DEADLINES.map((d) => ({
-        key: d.title,
-        date: d.date,
-        title: d.title,
-        ask: d.ask,
-        urgent: Boolean(d.urgent),
-      }))
-    : realDeadlines;
-  const matters: MatterView[] = showFixture ? MATTERS.map(matterViewFromFixture) : realMatters;
-
+  const deadlines = realDeadlines;
+  const matters = realMatters;
   return (
     <div className="cap-pf-grid-intel">
+      {aggregate.data?.partial ? (
+        <div role="alert" className="capiro-intel-note" style={{ gridColumn: '1 / -1' }}>
+          Regulatory coverage is incomplete. Unavailable: {aggregate.data.sources.filter((source) => source.status === 'unavailable').map((source) => source.name).join(', ')}.
+          <SecondaryBtn onClick={() => void aggregate.refetch()}>Retry regulatory sources</SecondaryBtn>
+        </div>
+      ) : null}
       {/* Active matters */}
       <Card>
         {/* "View all" was removed: there is no "all regulatory matters for
@@ -963,8 +914,10 @@ function RegulatoryPanel({ client }: { client: Client }) {
         <CardHead title="Active matters" />
         {aggFailed ? (
           <CouldNotLoad what="Active regulatory matters" error={aggregate.error} onRetry={() => void aggregate.refetch()} />
-        ) : !showFixture && matters.length === 0 ? (
-          <p className="capiro-intel-note">No active regulatory matters on record for this client right now.</p>
+        ) : !loaded ? (
+          <LoadingSource what="regulatory matters" />
+        ) : matters.length === 0 ? (
+          <p className="capiro-intel-note">{aggregate.data?.partial ? 'No matters returned by the available regulatory sources.' : 'No active regulatory matters on record for this client right now.'}</p>
         ) : (
           <div className="capiro-intel-panel-body-16" data-testid="capiro-intel-active-matters">
             {matters.map((m) => (
@@ -980,7 +933,7 @@ function RegulatoryPanel({ client }: { client: Client }) {
           title="Deadline rail"
           action={
             <LinkBtn
-              disabled={realDeadlines.length === 0}
+              disabled={aggFailed || !loaded || realDeadlines.length === 0}
               title={
                 realDeadlines.length === 0
                   ? aggFailed
@@ -996,11 +949,13 @@ function RegulatoryPanel({ client }: { client: Client }) {
         />
         {aggFailed ? (
           <CouldNotLoad what="The deadline rail" error={aggregate.error} onRetry={() => void aggregate.refetch()} />
+        ) : !loaded ? (
+          <LoadingSource what="regulatory deadlines" />
         ) : (
           <div className="capiro-intel-panel-body-16" data-testid="capiro-intel-deadline-rail">
             {deadlines.length === 0 ? (
               <p className="capiro-intel-note capiro-intel-note-inset">
-                No open comment deadlines for this client right now.
+                {aggregate.data?.partial ? 'No deadlines returned by the available regulatory sources.' : 'No open comment deadlines for this client right now.'}
               </p>
             ) : null}
             {deadlines.map((d) => (
@@ -1015,7 +970,7 @@ function RegulatoryPanel({ client }: { client: Client }) {
             <div className="capiro-intel-source-evidence">
               <div className="capiro-intel-eyebrow">Source &amp; evidence</div>
               <p className="capiro-intel-body" style={{ marginTop: 8 }}>
-                Federal Register lifecycle data is current. Detailed evidence and provenance open inside each matter.
+                Federal Register records loaded {aggregate.data?.generatedAt ? new Date(aggregate.data.generatedAt).toLocaleString() : 'for this view'}. Source publication and deadline dates are shown on each linked record.
               </p>
             </div>
           </div>
@@ -1149,22 +1104,11 @@ function FootprintPanel({ client }: { client: Client }) {
     staleTime: 2 * 60_000,
   });
   const realLda = ldaQ.isSuccess ? ldaQ.data : null;
-  // Backs BOTH the "Lobbying activity" headline card (incl. the Sparkline,
-  // which otherwise had no real/fixture gate of its own) and the disclosure
-  // history table below — a confirmed error on either must not fall back to
-  // the $1.8M/Sparkline or LDA-rows fixtures.
   const ldaFailed = ldaQ.isError;
-  const ldaAmount = realLda ? realLda.filings.reduce((sum, f) => sum + f.amount, 0) : null;
-  const ldaYoy = useMemo(() => {
-    if (!realLda || realLda.byYear.length < 2) return null;
-    const sorted = [...realLda.byYear].sort((a, b) => a.year - b.year);
-    const latest = sorted[sorted.length - 1]!;
-    const prior = sorted[sorted.length - 2]!;
-    const priorTotal = prior.income + prior.expenses;
-    if (priorTotal <= 0) return null;
-    const latestTotal = latest.income + latest.expenses;
-    return Math.round(((latestTotal - priorTotal) / priorTotal) * 100);
-  }, [realLda]);
+  const ldaPeriods = useMemo(() => realLda ? summarizeLdaPeriods(realLda.filings) : null, [realLda]);
+  const ldaAmount = realLda?.truncated ? null : ldaPeriods?.amount;
+  const ldaYoy = realLda?.truncated ? null : ldaPeriods?.yoy;
+  const filingsRef = useRef<HTMLDivElement>(null);
 
   // Same real district-nexus query DistrictPanel already fetches under this
   // exact key — react-query dedupes rather than double-fetching.
@@ -1185,13 +1129,12 @@ function FootprintPanel({ client }: { client: Client }) {
   const realPac = fecQ.isSuccess ? (fecQ.data.pacGiving ?? null) : null;
   const fecFailed = fecQ.isError;
 
-  const intelHref = `/clients?clientId=${encodeURIComponent(client.id)}&tab=intelligence#financial-footprint`;
 
   return (
     <div className="capiro-intel-stack-24">
       <div className="cap-pf-grid-3">
         {/* Lobbying activity */}
-        <FootCard title="Lobbying activity" action={<LinkBtn onClick={() => navigate(intelHref)}>Open LDA</LinkBtn>}>
+        <FootCard title="Lobbying activity" action={<LinkBtn onClick={() => { filingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); filingsRef.current?.focus({ preventScroll: true }); }}>Jump to filings</LinkBtn>}>
           {ldaFailed ? (
             <CouldNotLoad what="Lobbying activity" error={ldaQ.error} onRetry={() => void ldaQ.refetch()} />
           ) : realLda ? (
@@ -1199,15 +1142,16 @@ function FootprintPanel({ client }: { client: Client }) {
               <>
                 <div className="capiro-intel-headline">
                   <span className="capiro-intel-value-xl">
-                    ${(ldaAmount ?? 0).toLocaleString()}
+                    {ldaAmount != null ? `$${ldaAmount.toLocaleString()}` : '—'}
                   </span>
                   {ldaYoy != null ? (
-                    <Pill tone={ldaYoy >= 0 ? 'success' : 'error'}>{ldaYoy >= 0 ? '▲' : '▼'} {Math.abs(ldaYoy)}% YoY</Pill>
+                    <Pill tone={ldaYoy >= 0 ? 'success' : 'error'}>{ldaYoy >= 0 ? '▲' : '▼'} {Math.abs(ldaYoy)}% · {ldaPeriods?.comparisonLabel}</Pill>
                   ) : null}
                 </div>
                 <div className="capiro-intel-eyebrow capiro-intel-headline-caption">
-                  {realLda.totalFilings} filing{realLda.totalFilings === 1 ? '' : 's'}
-                  {realLda.firstFilingYear ? ` · ${realLda.firstFilingYear}–${realLda.latestFilingYear}` : ''}
+                  Reported amounts · {ldaPeriods?.windowLabel}
+                  <br />Latest filing per registrant, client and quarter; superseded amendments excluded.
+                  {ldaPeriods?.needsReview || realLda.truncated ? ' Period totals unavailable: incomplete or ambiguous filing data.' : ''}
                 </div>
               </>
             ) : (
@@ -1217,21 +1161,7 @@ function FootprintPanel({ client }: { client: Client }) {
               </p>
             )
           ) : (
-            // Fixture-during-loading only (ldaFailed is checked above) — this
-            // is also the only place Sparkline renders; no real quarterly-
-            // trend-shaped data exists (the LDA hook only exposes annual
-            // `byYear` aggregates), so there is nothing to wire it to.
-            <>
-              <div className="capiro-intel-headline">
-                <span className="capiro-intel-value-xl">$1.8M</span>
-                <Pill tone="success">▲ 18% YoY</Pill>
-              </div>
-              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">Trailing 12 months</div>
-              <Sparkline />
-              <div className="capiro-intel-spark-axis">
-                <span>Q3 24</span><span>Q4 24</span><span>Q1 25</span><span>Q2 25</span>
-              </div>
-            </>
+            <LoadingSource what="lobbying activity" />
           )}
         </FootCard>
 
@@ -1260,31 +1190,18 @@ function FootprintPanel({ client }: { client: Client }) {
               No confirmed contractor mapping exists for this client, so federal award totals cannot be attributed yet.
             </p>
           ) : (
-            <>
-              <div className="capiro-intel-headline">
-                <span className="capiro-intel-value-xl">$84.2M</span>
-                <Pill tone="gray" dotless>14 awards</Pill>
-              </div>
-              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">Obligations · trailing 12 months</div>
-              <div className="capiro-intel-bars">
-                {([['Army', '$51.4M', '86%'], ['Navy · ONR', '$18.6M', '31%'], ['DARPA', '$14.2M', '24%']] as const).map(([label, value, w]) => (
-                  <span key={label} style={{ display: 'block' }}>
-                    <span className="capiro-intel-bar-row">
-                      <span className="capiro-intel-bar-label">{label}</span>
-                      <span className="capiro-intel-bar-value">{value}</span>
-                    </span>
-                    <span className="capiro-intel-bar-track">
-                      <span className="capiro-intel-bar-fill" style={{ width: w, background: GRADIENT_DARK }} />
-                    </span>
-                  </span>
-                ))}
-              </div>
-            </>
+            <LoadingSource what="federal awards" />
           )}
         </FootCard>
 
         {/* Political giving — the client's OWN PAC disbursements (item 20). */}
-        <FootCard title="Political giving" action={<LinkBtn onClick={() => navigate(intelHref)}>Open FEC / PAC</LinkBtn>}>
+        <FootCard title="Political giving" action={realPac?.tracked ? (
+          <span>{realPac.committees.map((committee) => (
+            <a key={committee.committeeId} href={`https://www.fec.gov/data/committee/${encodeURIComponent(committee.committeeId)}/`} target="_blank" rel="noreferrer" className="capiro-intel-btn-link">
+              Open {committee.committeeName || committee.committeeId} on FEC
+            </a>
+          ))}</span>
+        ) : undefined}>
           {fecFailed ? (
             <CouldNotLoad what="Political giving" error={fecQ.error} onRetry={() => void fecQ.refetch()} />
           ) : realPac ? (
@@ -1338,32 +1255,19 @@ function FootprintPanel({ client }: { client: Client }) {
               </>
             )
           ) : (
-            <>
-              <div className="capiro-intel-headline-solo">$380K</div>
-              <div className="capiro-intel-eyebrow capiro-intel-headline-caption">PAC disbursements · current cycle</div>
-              <div className="capiro-intel-bars">
-                {([['Incumbent members', '$214K', '90%'], ['Leadership PACs', '$102K', '43%'], ['Party committees', '$64K', '27%']] as const).map(([label, value, w]) => (
-                  <span key={label} style={{ display: 'block' }}>
-                    <span className="capiro-intel-bar-row">
-                      <span className="capiro-intel-bar-label">{label}</span>
-                      <span className="capiro-intel-bar-value">{value}</span>
-                    </span>
-                    <span className="capiro-intel-bar-track">
-                      <span className="capiro-intel-bar-fill" style={{ width: w }} />
-                    </span>
-                  </span>
-                ))}
-              </div>
-            </>
+            <LoadingSource what="political giving" />
           )}
         </FootCard>
       </div>
 
       {/* Lobbying disclosure history */}
+      <div ref={filingsRef} tabIndex={-1} aria-label="Lobbying disclosure history">
       <Card>
-        <CardHead title="Lobbying disclosure history" action={<LinkBtn onClick={() => navigate(intelHref)}>View all filings</LinkBtn>} />
+        <CardHead title="Lobbying disclosure history" />
         {ldaFailed ? (
           <CouldNotLoad what="Lobbying disclosure history" error={ldaQ.error} onRetry={() => void ldaQ.refetch()} />
+        ) : !realLda ? (
+          <LoadingSource what="lobbying filings" />
         ) : (
           <div className="capiro-intel-table-wrap">
             <div className="capiro-intel-table-inner">
@@ -1396,17 +1300,7 @@ function FootprintPanel({ client }: { client: Client }) {
                       )}
                     </div>
                   ))
-                : LDA.map((r) => (
-                    <div key={`${r.period}-${r.registrant}`} className="capiro-intel-lda-row">
-                      <span className="capiro-intel-col-84 capiro-intel-lda-period">{r.period}</span>
-                      <span className="capiro-intel-col-64 capiro-intel-lda-type">{r.type}</span>
-                      <span className="capiro-intel-col-flex capiro-intel-lda-registrant">{r.registrant}</span>
-                      <span className="capiro-intel-col-84 capiro-intel-lda-amount">{r.amount}</span>
-                      <span className="capiro-intel-col-148 capiro-intel-lda-meta">{r.issues}</span>
-                      <span className="capiro-intel-col-196 capiro-intel-lda-meta-trunc">{r.entities}</span>
-                      <button type="button" className="capiro-intel-lda-view">View</button>
-                    </div>
-                  ))}
+                : null}
               {realLda && realLda.filings.length === 0 ? (
                 <p className="capiro-intel-note" style={{ padding: '16px 24px' }}>No LDA filings on record.</p>
               ) : null}
@@ -1414,6 +1308,8 @@ function FootprintPanel({ client }: { client: Client }) {
           </div>
         )}
       </Card>
+
+      </div>
 
       {/* Past performance — moved here from Capabilities §7.3. What the client
           has actually delivered belongs with its lobbying, awards and giving,
@@ -1434,19 +1330,6 @@ function FootCard({ title, action, children }: { title: string; action?: ReactNo
       </div>
       {children}
     </section>
-  );
-}
-
-function Sparkline() {
-  const max = Math.max(...SPARK);
-  const w = 240;
-  const h = 76;
-  const step = w / (SPARK.length - 1);
-  const points = SPARK.map((v, i) => `${i * step},${h - (v / max) * (h - 8)}`).join(' ');
-  return (
-    <svg className="capiro-intel-sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
-      <polyline points={points} fill="none" stroke="var(--capiro-color-text-primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
   );
 }
 
@@ -1546,16 +1429,17 @@ function buildRealDistricts(
   });
 }
 
-function facilityStatus(facility: ClientFacility, representation: RepresentationResult | undefined): { label: string; tone: PillTone } {
-  if (
-    !facility.congressionalDistrict ||
-    facility.geocodeStatus === 'no_match' ||
-    facility.geocodeStatus === 'ambiguous' ||
-    facility.geocodeStatus === 'error'
-  ) {
-    return { label: 'Needs review', tone: 'warning' };
-  }
+export function facilityStatus(facility: ClientFacility, representation: RepresentationResult | undefined): { label: string; tone: PillTone } {
+  const geocoded = facility.geocodeStatus === 'matched' && Boolean(facility.geocodedAt)
+    && ['geocoded', 'geocoder', 'census'].includes(facility.districtSource ?? '')
+    && Boolean(facility.state && facility.congressionalDistrict)
+    && Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude);
+  if (!geocoded) return { label: 'Needs address verification', tone: 'warning' };
   if (representation && !representation.unresolved && representation.federal.house) {
+    const house = representation.federal.house;
+    if (house.state !== facility.state || Number(house.district) !== Number(facility.congressionalDistrict)) {
+      return { label: 'Representation mismatch', tone: 'warning' };
+    }
     return { label: 'Confirmed', tone: 'success' };
   }
   return { label: 'Representative pending', tone: 'warning' };

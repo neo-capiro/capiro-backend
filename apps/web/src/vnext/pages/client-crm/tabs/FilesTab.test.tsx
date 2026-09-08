@@ -144,7 +144,7 @@ describe('ClientCrmFilesProto', () => {
     openSpy.mockRestore();
   });
 
-  it('shows an inline preview for a previewable content type', async () => {
+  it('offers a PDF viewer and download without a blocked sandboxed iframe', async () => {
     mockApi({
       attachments: [attachment({ previewUrl: 'https://files.example.com/att-1?inline' })],
     });
@@ -153,8 +153,12 @@ describe('ClientCrmFilesProto', () => {
     fireEvent.click(await screen.findByText('Budget Memo'));
 
     const dialog = await screen.findByRole('dialog', { name: 'Budget Memo' });
-    const iframe = dialog.querySelector('iframe');
-    expect(iframe).toHaveAttribute('src', 'https://files.example.com/att-1?inline');
+    expect(dialog.querySelector('iframe')).not.toBeInTheDocument();
+    expect(screen.getByText(/PDF preview is unavailable/)).toBeInTheDocument();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    fireEvent.click(screen.getByRole('button', { name: 'Open PDF in new tab' }));
+    expect(open).toHaveBeenCalledWith('https://files.example.com/att-1?inline', '_blank', 'noopener,noreferrer');
+    open.mockRestore();
     expect(screen.queryByText(/No preview available/)).not.toBeInTheDocument();
   });
 
@@ -165,7 +169,7 @@ describe('ClientCrmFilesProto', () => {
     fireEvent.click(await screen.findByText('Budget Memo'));
 
     const dialog = await screen.findByRole('dialog', { name: 'Budget Memo' });
-    await screen.findByText(/No preview available for this file type/);
+    await screen.findByText(/PDF preview is unavailable/);
     expect(dialog.querySelector('iframe')).not.toBeInTheDocument();
   });
 

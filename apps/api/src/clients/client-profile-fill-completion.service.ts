@@ -1,3 +1,4 @@
+import { matchesAdvocacyOrganization, matchesTestimonyOrganization } from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -1885,7 +1886,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     for (const row of candidates) {
       if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
       const isConfirmed = confirmedRegistrationNumbers.has(row.registrationNumber);
-      const roleMatch = resolveFaraMatchedRole(row.registrantSimilarity, row.principalSimilarity);
+      const registrantMatches = matchesAdvocacyOrganization(clientName, row.registrantName);
+      const principalMatches = row.foreignPrincipal.split(';').some((name) => matchesAdvocacyOrganization(clientName, name));
+      if (!isConfirmed && !registrantMatches && !principalMatches) continue;
+      const roleMatch = isConfirmed ? resolveFaraMatchedRole(row.registrantSimilarity, row.principalSimilarity) : {
+        role: principalMatches ? 'foreign_principal' as const : 'registrant' as const,
+        similarity: 1,
+      };
       const confidence = faraMatchConfidence(isConfirmed, roleMatch.similarity);
       const externalKey = `fara:${row.registrationNumber}`;
       const proposedValue = {
@@ -1899,7 +1906,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         sourceType: 'fara',
         sourceId: row.registrationNumber,
         sourceUrl: null,
-        evidenceClass: 'PUBLIC_VERIFIED',
+        evidenceClass: isConfirmed ? 'PUBLIC_VERIFIED' : 'INFERRED',
         confidence,
         metadata: {
           registrationNumber: row.registrationNumber,
@@ -1907,7 +1914,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           foreignPrincipal: row.foreignPrincipal,
           country: row.country,
           clientMatch: {
-            method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
+            method: isConfirmed ? 'confirmed_client_intel_mapping' : 'organization_name',
             confidence,
             similarity: isConfirmed ? null : roleMatch.similarity,
             // Which FARA identity field matched the client. 'foreign_principal'
@@ -2111,6 +2118,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       remainingBudget,
     );
     for (const row of plan.toEmit) {
+      if (!matchesTestimonyOrganization(clientName, row.witnessText)) continue;
       const inserted = await this.addTestimonyFinding(
         ctx,
         clientId,
@@ -2190,7 +2198,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       // canonical testimony document/organization row exists in this
       // repo. This finding's evidence is the witness string as recorded
       // on the hearing itself — never fabricated beyond that.
-      evidenceClass: 'PUBLIC_VERIFIED',
+      evidenceClass: isConfirmed ? 'PUBLIC_VERIFIED' : 'INFERRED',
       confidence,
       metadata: {
         hearingId: row.hearingId,
@@ -2198,7 +2206,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         committeeName: row.committeeName,
         chamber: row.chamber,
         clientMatch: {
-          method: isConfirmed ? 'confirmed_client_intel_mapping' : 'name_similarity',
+          method: isConfirmed ? 'confirmed_client_intel_mapping' : 'organization_name',
           confidence,
           similarity: isConfirmed ? null : similarity,
         },
@@ -4260,6 +4268,18 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     const title = requiredString(proposed.title, 'Advocacy title');
     const recordType = requiredString(proposed.recordType, 'Advocacy record type');
     const sourceType = requiredString(proposed.sourceType, 'Advocacy source type');
+    // Revalidate old pending suggestions as well as new ones. Similarity scores
+    // (and a corrected matter assignment) are not proof of client attribution.
+    if (sourceType === 'fara' || sourceType === 'testimony') {
+      const metadata = asRecord(proposed.metadata);
+      const sourceKey = sourceType === 'fara' ? asString(metadata.registrationNumber)
+        : `${asString(metadata.hearingId) ?? ''}::${asString(metadata.witness) ?? ''}`;
+      const confirmed = await this.getConfirmedIntelMappingKeys(ctx, clientId, sourceType);
+      if (!sourceKey || !confirmed.has(sourceKey)) {
+        throw new BadRequestException('Verify this record’s organization-to-client mapping before accepting it as advocacy. A name match alone is insufficient.');
+      }
+      proposed.metadata = { ...metadata, clientMatch: { ...asRecord(metadata.clientMatch), method: 'confirmed_client_intel_mapping', verifiedAt: new Date().toISOString() } };
+    }
     const evidenceClass = normalizeEvidenceClass(proposed.evidenceClass);
     const activityDate = asString(proposed.activityDate);
     let targetedMatterId: string | null = null;

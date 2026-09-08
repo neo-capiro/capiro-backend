@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { advocacyAttributionNeedsReview } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { asRecord, asString } from './client-profile-fill.helpers.js';
 import { EngagementService } from '../engagement/engagement.service.js';
@@ -123,6 +124,7 @@ export type AdvocacyHistoryRecord = AdvocacyMatterDetail['records'][number] & {
  *  every link always belongs to exactly one Matter (client_advocacy_matter_
  *  link.matter_id is NOT NULL at the schema level). */
 export interface AdvocacyTimelineEntry {
+  attributionNeedsReview?: boolean;
   id: string;
   kind: 'record' | 'link';
   title: string;
@@ -1174,7 +1176,8 @@ export class ClientAdvocacyMatterService {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const counts = await tx.$queryRawUnsafe<Array<{ total: number }>>(
         `SELECT COUNT(*)::int AS total FROM client_advocacy_record
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND not_advocacy = false`,
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND not_advocacy = false
+            AND (source_type NOT IN ('fara', 'testimony') OR metadata_jsonb #>> '{clientMatch,method}' = 'confirmed_client_intel_mapping')`,
         ctx.tenantId, clientId,
       );
       const rows = await tx.$queryRawUnsafe<Array<
@@ -1193,6 +1196,7 @@ export class ClientAdvocacyMatterService {
            LEFT JOIN client_advocacy_matter m
              ON m.id = r.matter_id AND m.tenant_id = r.tenant_id AND m.client_id = r.client_id
           WHERE r.tenant_id = $1::uuid AND r.client_id = $2::uuid AND r.not_advocacy = false
+            AND (r.source_type NOT IN ('fara', 'testimony') OR r.metadata_jsonb #>> '{clientMatch,method}' = 'confirmed_client_intel_mapping')
             AND ($3::uuid IS NULL OR r.id > $3::uuid)
           ORDER BY r.id ASC LIMIT $4`,
         ctx.tenantId, clientId, page.afterId ?? null, page.limit + 1,
@@ -1383,6 +1387,8 @@ export class ClientAdvocacyMatterService {
           id: string;
           recordType: string;
           title: string;
+          sourceType: string;
+          metadata: unknown;
           activityDate: Date | null;
           evidenceClass: string;
           confidence: number;
@@ -1390,7 +1396,7 @@ export class ClientAdvocacyMatterService {
           matterTitle: string | null;
         }>
       >(
-        `SELECT r.id, r.record_type AS "recordType", r.title, r.activity_date AS "activityDate",
+        `SELECT r.id, r.record_type AS "recordType", r.title, r.source_type AS "sourceType", r.metadata_jsonb AS metadata, r.activity_date AS "activityDate",
                 r.evidence_class AS "evidenceClass", r.confidence,
                 r.matter_id AS "matterId", m.title AS "matterTitle"
            FROM client_advocacy_record r
@@ -1433,6 +1439,7 @@ export class ClientAdvocacyMatterService {
       entries.push({
         id: r.id,
         kind: 'record',
+        attributionNeedsReview: advocacyAttributionNeedsReview(r.sourceType, r.metadata),
         title: r.title,
         subtype: r.recordType,
         date: r.activityDate?.toISOString() ?? null,

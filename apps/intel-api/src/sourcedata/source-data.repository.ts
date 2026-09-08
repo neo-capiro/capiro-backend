@@ -46,6 +46,7 @@ const ET_TODAY_SQL = `(CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date`
  * directly with `new SourceDataRepository(new PrismaService())`.
  */
 export interface SourceBill {
+  actionTexts?: string[];
   id: string;
   congress: number | null;
   billType: string | null;
@@ -148,6 +149,8 @@ export interface SemanticScore {
 }
 
 export interface RecommendationBillRow {
+  status?: string | null;
+  actionTexts?: string[];
   id: string;
   title: string | null;
   latestActionText: string | null;
@@ -164,6 +167,8 @@ export interface RecommendationBillRow {
 }
 
 export interface BillSearchRow {
+  status?: string | null;
+  actionTexts?: string[];
   id: string;
   title: string | null;
   latestActionText: string | null;
@@ -354,7 +359,8 @@ export class SourceDataRepository {
               congress,
               bill_type          AS "billType",
               bill_number        AS "billNumber",
-              title,
+              title, status,
+              ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = congress_bill.id) AS "actionTexts",
               latest_action_text AS "latestActionText",
               latest_action_date AS "latestActionDate",
               policy_area        AS "policyArea",
@@ -836,6 +842,7 @@ export class SourceDataRepository {
               cb.bill_type          AS "billType",
               cb.bill_number        AS "billNumber",
               cb.title,
+              ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS "actionTexts",
               cb.latest_action_text AS "latestActionText",
               cb.latest_action_date AS "latestActionDate",
               cb.policy_area        AS "policyArea",
@@ -1163,7 +1170,8 @@ export class SourceDataRepository {
   ): Promise<BillSearchRow[]> {
     return this.prisma.$queryRawUnsafe<BillSearchRow[]>(
       `SELECT cb.id,
-              cb.title,
+              cb.title, cb.status,
+              ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = cb.id) AS "actionTexts",
               cb.latest_action_text AS "latestActionText",
               cb.latest_action_date AS "latestActionDate"
          FROM congress_bill cb
@@ -1181,7 +1189,8 @@ export class SourceDataRepository {
     if (!ids.length) return [];
     return this.prisma.$queryRawUnsafe<RecommendationBillRow[]>(
       `SELECT id,
-              title,
+              title, status,
+              ARRAY(SELECT a.text FROM congress_bill_action a WHERE a.bill_id = congress_bill.id) AS "actionTexts",
               latest_action_text AS "latestActionText",
               latest_action_date AS "latestActionDate",
               subjects,

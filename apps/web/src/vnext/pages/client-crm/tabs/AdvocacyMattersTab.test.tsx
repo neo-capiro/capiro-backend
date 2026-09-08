@@ -94,6 +94,26 @@ beforeEach(() => {
 });
 
 describe('ClientCrmAdvocacyMattersProto', () => {
+  it('names the retained destination and sends the selected source to the merge API', async () => {
+    meRoleMock.mockReturnValue('user_admin');
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture(), matterFixture({ id: 'matter-2', title: 'Source matter' })] };
+      return { data: { ...matterFixture(), records: [], links: [] } };
+    });
+    postMock.mockResolvedValue({ data: {} });
+    renderMatters();
+    fireEvent.click(await screen.findByText('0605053A Program Element'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Merge another matter into this one' }));
+    const select = screen.getByRole('combobox', { name: 'Source matter to merge' });
+    fireEvent.change(select, { target: { value: 'matter-2' } });
+    expect(screen.getByText(/All records and links move to “0605053A Program Element”/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Merge source into destination' }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith(
+      '/api/clients/client-1/advocacy-matters/matter-1/merge',
+      { sourceMatterId: 'matter-2' },
+    ));
+  });
+
   it('shows a real empty state when the client has no advocacy matters', async () => {
     getMock.mockResolvedValue({ data: [] });
     renderMatters();

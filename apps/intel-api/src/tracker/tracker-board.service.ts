@@ -402,9 +402,9 @@ export class TrackerBoardService {
         latestActionDate: Date | null;
         policyArea: string | null;
         subjects: string[] | null;
-        /** P2-09: the state rail's canonical status. Null for federal bills,
-         *  whose status is derived from the action text instead. */
+        /** Canonical status and federal action history preserve reached stages. */
         status?: string | null;
+        actionTexts?: string[];
       }
     >
   > {
@@ -422,9 +422,9 @@ export class TrackerBoardService {
         latestActionDate: Date | null;
         policyArea: string | null;
         subjects: string[] | null;
-        /** P2-09: the state rail's canonical status. Null for federal bills,
-         *  whose status is derived from the action text instead. */
+        /** Canonical status and federal action history preserve reached stages. */
         status?: string | null;
+        actionTexts?: string[];
       }
     >();
     for (const b of congressBills) out.set(b.id, b);
@@ -586,7 +586,7 @@ export class TrackerBoardService {
           feedback,
         );
         if (fit.fit <= 0 || fit.belowFloor) continue;
-        const stage = billStage(b.latestActionText);
+        const stage = billStage(b.latestActionText, b.status, b.actionTexts);
         items.push({
           billId: b.id,
           displayNum: humanizeBillId(b.id),
@@ -595,6 +595,7 @@ export class TrackerBoardService {
           stageLabel: stageLabelOf(stage),
           passageProbability: passageProbability({
             latestActionText: b.latestActionText,
+            status: b.status, actionTexts: b.actionTexts,
             title: b.title,
             latestActionDate: b.latestActionDate,
             nowMs,
@@ -818,7 +819,7 @@ export class TrackerBoardService {
       const bill = billById.get(t.billId) ?? null;
       const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
-      const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
+      const stage = bill && !isStateBillKey(t.billId) ? billStage(latestActionText, bill.status, bill.actionTexts) : (t.stage as BillStage | null) ?? billStage(latestActionText);
       const matchedTags = bill
         ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false)
             .matchedTags
@@ -1029,7 +1030,7 @@ export class TrackerBoardService {
       const bill = billById.get(t.billId) ?? null;
       const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
-      const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
+      const stage = bill && !isStateBillKey(t.billId) ? billStage(latestActionText, bill.status, bill.actionTexts) : (t.stage as BillStage | null) ?? billStage(latestActionText);
       const ct = topicsByClient.get(t.clientId);
       const matchedTags =
         bill && ct
@@ -1332,9 +1333,10 @@ export class TrackerBoardService {
       billId: b.id,
       displayNum: humanizeBillId(b.id),
       title: b.title,
-      stage: billStage(b.latestActionText),
+      stage: billStage(b.latestActionText, b.status, b.actionTexts),
       probability: passageProbability({
         latestActionText: b.latestActionText,
+        status: b.status, actionTexts: b.actionTexts,
         title: b.title,
         latestActionDate: b.latestActionDate,
       }),
@@ -1364,7 +1366,7 @@ export class TrackerBoardService {
     const bill = await this.repo.getBillById(billId);
     if (!bill) throw new NotFoundException(`Bill ${billId} not found`);
     return {
-      stage: billStage(bill.latestActionText),
+      stage: billStage(bill.latestActionText, bill.status, bill.actionTexts),
       latestActionText: bill.latestActionText,
       latestActionDate: bill.latestActionDate,
     };
