@@ -220,7 +220,8 @@
     "verify:pe-phase-10": "tsx scripts/verify-pe-phase-10.ts",
     "rehearse:pe-phase-9-migrations": "bash scripts/pe-phase-9-migration-replay.sh",
     "probe:pe-phase-10-staging": "bash scripts/pe-phase-10-staging-probe.sh",
-    "ingest:cpf-cds:campaign": "tsx scripts/run-cpf-cds-campaign.ts"
+    "ingest:cpf-cds:campaign": "tsx scripts/run-cpf-cds-campaign.ts",
+    "replay:pe-budget-phase-10b31-recovered-artifact": "tsx scripts/phase10b31-replay-recovered-artifact.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",
