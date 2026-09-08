@@ -8,7 +8,7 @@ import {
 } from './meetings-api.js';
 import { Empty, MeriGlyph, SendMeriButton, eligibleForMeri } from './meetings-ui.js';
 import { GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
-import type { Meeting, MeetingNote } from './meetings-types.js';
+import { isCancelledMeeting, type Meeting, type MeetingNote } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
@@ -196,6 +196,18 @@ export function NotesTab({
       },
     });
 
+  if (isCancelledMeeting(m) && !hasNotes && !summarizing && !notes.isLoading) {
+    return (
+      <>
+        <StagePill label="Cancelled" tone="gray" />
+        <Empty icon={<CalendarClock size={20} />} title="Meeting cancelled"
+          body="There are no saved notes for this cancelled meeting."
+          action={scheduled ? <button type="button" className="btn sm" onClick={cancelMeri}>Cancel Meri</button> : undefined}
+        />
+      </>
+    );
+  }
+
   // Meeting is over and Meri is turning the transcript into notes — surface this
   // immediately on the Notes tab. Static tone panel, not a spinner: "follow the
   // prototype exactly" — the design's summarizing state is the same still-panel
@@ -314,14 +326,14 @@ export function NotesTab({
         <NoteRow key={n.id} meetingId={m.id} note={n} />
       ))}
 
-      <button
+      {!isCancelledMeeting(m) && <button
         type="button"
         className="btn sm btn-accent"
         style={{ gap: 6 }}
         onClick={onGoToDebrief}
       >
         Draft a debrief from these notes
-      </button>
+      </button>}
       <RuleReinforcement>
         Multiple notetakers are named. Notes are one shared summary; each person&apos;s own prep
         and debrief is retained separately.

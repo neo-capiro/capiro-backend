@@ -124,9 +124,7 @@ describe('PrepTab', () => {
       }),
     );
     expect(screen.getByText('Stale')).toBeInTheDocument();
-    expect(
-      screen.getByText(/context changed since this prep was generated/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/context changed since this prep was generated/i)).toBeInTheDocument();
     expect(screen.queryByText(/meri drafted this prep from your client context/i)).toBeNull();
   });
 
@@ -184,4 +182,103 @@ describe('PrepTab', () => {
       expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meeting-preps/p42/approve'),
     );
   });
+
+  test('legacy prep is explicitly missing source/attendee verification information', () => {
+    render(
+      buildTree(new QueryClient(), {
+        meeting: makeMeeting({ preps: [makePrep()] }),
+        aiConfigured: true,
+      }),
+    );
+    expect(
+      screen.getByText(/no source references or attendee verification record/),
+    ).toBeInTheDocument();
+  });
+
+  test('source links, original excerpts, roster and email evidence are visible', () => {
+    const prep = makePrep({
+      emailEvidence: ['Mia asked for a timeline.'],
+      generatedFrom: {
+        clientId: null,
+        grounding: {
+          version: 1,
+          contentEdited: false,
+          attendees: [{ id: 'a1', name: 'Mia LaPinta', email: 'mia@example.com' }],
+          sources: [
+            {
+              id: 'mail:mail1',
+              kind: 'mail',
+              title: 'Timeline request',
+              recordId: 'mail1',
+              observedAt: '2026-09-07',
+              excerpt: '{"snippet":"Mia asked for an implementation timeline."}',
+            },
+          ],
+          references: [{ section: 'emailEvidence', itemIndex: 0, sourceIds: ['mail:mail1'] }],
+          limitations: ['Only the email excerpt was available.'],
+        },
+      },
+    });
+    render(
+      buildTree(new QueryClient(), { meeting: makeMeeting({ preps: [prep] }), aiConfigured: true }),
+    );
+    expect(screen.getByText('Mia asked for a timeline.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Source 1: Timeline request' })).toHaveAttribute(
+      'href',
+      '#prep-p1-source-0',
+    );
+    expect(screen.getByText('Mia LaPinta', { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(/snippet: Mia asked for an implementation timeline/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Only the email excerpt was available.')).toBeInTheDocument();
+  });
+
+  test('edited and reassigned prep preserves historical sources with warnings but no stale claim links', () => {
+    const prep = makePrep({
+      generatedFrom: {
+        clientId: 'old-client',
+        grounding: {
+          version: 1,
+          contentEdited: true,
+          attendees: [],
+          sources: [
+            {
+              id: 'mail:mail1',
+              kind: 'mail',
+              title: 'Original context',
+              recordId: 'mail1',
+              observedAt: null,
+              excerpt: 'Original source text.',
+            },
+          ],
+          references: [{ section: 'summary', itemIndex: 0, sourceIds: ['mail:mail1'] }],
+          limitations: [],
+        },
+      },
+    });
+    render(
+      buildTree(new QueryClient(), { meeting: makeMeeting({ preps: [prep] }), aiConfigured: true }),
+    );
+    expect(screen.getByText(/edited after generation/)).toBeInTheDocument();
+    expect(screen.getByText(/client changed after this prep was generated/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Source 1:/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Original context')).toBeInTheDocument();
+  });
+
+  test.each(['cancelled', 'canceled'])(
+    '%s meeting preserves prep but disables regeneration',
+    (status) => {
+      render(
+        buildTree(new QueryClient(), {
+          meeting: makeMeeting({ status, preps: [makePrep()] }),
+          aiConfigured: true,
+        }),
+      );
+      expect(screen.getByText('A short prep summary.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /regenerate/i })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /regenerate/i }));
+      expect(apiPostMock).not.toHaveBeenCalled();
+    },
+  );
 });

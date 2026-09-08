@@ -348,6 +348,51 @@ describe('VNextMeetingsWorkspace', () => {
     });
   });
 
+  describe('QA-07 history rendering', () => {
+    function mockWindow(meetings: Meeting[]) {
+      useMeetingsMock.mockImplementation(({ from, to }: { from: string; to: string }) => ({
+        data: meetings.filter((m) => m.startsAt >= from && m.startsAt < to),
+        isLoading: false, isError: false, isFetching: false, refetch: vi.fn(),
+      }));
+    }
+
+    test('successive loads reveal older groups, retain current rows, and reset on navigation', () => {
+      mockWindow([
+        makeMeeting({ id: 'current', subject: 'Current week' }),
+        makeMeeting({ id: 'earlier', subject: 'Earlier week', startsAt: new Date(2026, 7, 5, 10).toISOString(), endsAt: new Date(2026, 7, 5, 11).toISOString() }),
+        makeMeeting({ id: 'oldest', subject: 'Oldest week', startsAt: new Date(2026, 6, 22, 10).toISOString(), endsAt: new Date(2026, 6, 22, 11).toISOString() }),
+      ]);
+      renderWorkspace('/engagement/meetings?date=2026-08-19&view=list');
+      expect(screen.getByText('Current week')).toBeInTheDocument();
+      expect(screen.queryByText('Earlier week')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /load earlier meetings/i }));
+      expect(screen.getByText('Earlier week')).toBeInTheDocument();
+      expect(screen.getByText('Current week')).toBeInTheDocument();
+      expect(screen.queryByText('Oldest week')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /load earlier meetings/i }));
+      expect(screen.getByText('Oldest week')).toBeInTheDocument();
+      expect(screen.getAllByText('Earlier week')).toHaveLength(1);
+      fireEvent.click(screen.getByRole('button', { name: 'Next period' }));
+      expect(screen.queryByText('Earlier week')).not.toBeInTheDocument();
+    });
+
+    test('an empty week can load existing older meetings', () => {
+      mockWindow([makeMeeting({ subject: 'Older only', startsAt: new Date(2026, 7, 5, 10).toISOString(), endsAt: new Date(2026, 7, 5, 11).toISOString() })]);
+      renderWorkspace('/engagement/meetings?date=2026-08-19&view=list');
+      expect(screen.getByText('No meetings in this period')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /load earlier meetings/i }));
+      expect(screen.getByText('Older only')).toBeInTheDocument();
+      expect(screen.queryByText('No meetings in this period')).not.toBeInTheDocument();
+    });
+  });
+
+  test.each(['cancelled', 'canceled'])('QA-10 displays %s instead of a prep/debrief obligation', (status) => {
+    useMeetingsMock.mockReturnValue({ data: [makeMeeting({ status })], isLoading: false, isError: false, isFetching: false });
+    renderWorkspace();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.queryByText(/needs prep|debrief not completed/i)).not.toBeInTheDocument();
+  });
+
   describe('period stepping', () => {
     test('Day view steps the cursor by exactly one real day', () => {
       renderWorkspace('/engagement/meetings?date=2026-08-19');

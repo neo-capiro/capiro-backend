@@ -37,6 +37,7 @@ export function createGovernedMeetingAiService(
             recentThreads: [],
             tasks: [],
             steeringContext: bundle.modelContextBlock,
+            evidenceSources: bundle.evidenceSources ?? [],
           };
           return target.generateMeetingPrep(sanitized, ctx);
         };

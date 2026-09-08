@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type { PrepEvidenceSource } from './meeting-prep-grounding.js';
 
 export type MeetingContextMode = 'prep' | 'debrief';
 
@@ -22,6 +23,7 @@ export interface MeetingGovernedContext {
   packetId: string | null;
   traceHash: string | null;
   modelContextBlock: string;
+  evidenceSources?: PrepEvidenceSource[];
   coverage: MeetingCoverageProjection;
 }
 

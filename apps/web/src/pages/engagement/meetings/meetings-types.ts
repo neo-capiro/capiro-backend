@@ -33,6 +33,18 @@ export interface MeetingAttendee {
 
 export interface MeetingPrep {
   id: string;
+  clientId?: string | null;
+  generatedFrom?: {
+    clientId?: string | null;
+    grounding?: {
+      version: 1;
+      contentEdited: boolean;
+      attendees: Array<{ id: string; name: string; email: string | null }>;
+      sources: Array<{ id: string; kind: string; title: string; recordId: string | null; observedAt: string | null; excerpt: string }>;
+      references: Array<{ section: string; itemIndex: number; sourceIds: string[] }>;
+      limitations: string[];
+    };
+  } | null;
   status: PrepStatus;
   agenda: string[];
   talkingPoints: string[];
@@ -215,9 +227,14 @@ export type MeetingViewMode = 'day' | 'month' | 'list';
  *  the parent EngagementPage so it round-trips through the URL). */
 export type DetailTab = 'prep' | 'notes' | 'debrief';
 
+/** Calendar providers use both spellings for a cancelled event. */
+export function isCancelledMeeting(m: { status?: string }): boolean {
+  return ['cancelled', 'canceled'].includes(m.status?.trim().toLowerCase() ?? '');
+}
+
 /** Whether a meeting is eligible for the Meri notetaker (spec §4.1). */
-export function eligibleForMeri(m: Pick<Meeting, 'isVirtual' | 'joinLink'>): boolean {
-  return m.isVirtual && Boolean(m.joinLink);
+export function eligibleForMeri(m: Pick<Meeting, 'isVirtual' | 'joinLink'> & { status?: string }): boolean {
+  return !isCancelledMeeting(m) && m.isVirtual && Boolean(m.joinLink);
 }
 
 /** Approved prep for a meeting, if any (the current prep is the latest one). */

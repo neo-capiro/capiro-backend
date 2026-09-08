@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
 import { useApprovePrep, useGeneratePrep, useUpdatePrep } from './meetings-api.js';
 import { exportArtifactPdf } from './meetings-print.js';
-import { formatDayTitle } from './meetings-format.js';
+import { formatMeetingDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting } from './meetings-types.js';
+import { isCancelledMeeting } from './meetings-types.js';
+import { PrepEvidence, PrepSourceLinks, prepSourceExcerpt } from './PrepEvidence.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
@@ -61,6 +63,7 @@ function splitLines(value: string): string[] {
 export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigured: boolean }) {
   const chrome = useMeetingPanelChrome();
   const prep = meeting.preps[0] ?? null;
+  const cancelled = isCancelledMeeting(meeting);
   const generate = useGeneratePrep();
   const approve = useApprovePrep();
   const update = useUpdatePrep();
@@ -84,6 +87,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   }, [meeting.id]);
 
   const runGenerate = async (additionalContext?: string) => {
+    if (cancelled) return;
     await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
     chrome.success('Prep generated.');
   };
@@ -94,7 +98,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         <StagePill {...prepStage(prep, true)} />
         <GeneratingState
           label="Meri is drafting prep…"
-          sub="Pulling from the client profile, synced email, and any prior debriefs. Meri won't invent details."
+          sub="Using the client profile and available activity. Review names and source support before use."
         />
       </>
     );
@@ -103,17 +107,23 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   if (!prep) {
     return (
       <>
-        <StagePill {...prepStage(null, false)} />
+        <StagePill
+          {...(cancelled ? { label: 'Cancelled', tone: 'gray' as const } : prepStage(null, false))}
+        />
         <Empty
           icon={<FileText size={20} />}
-          title="No prep generated yet"
-          body="Meri drafts prep from the client profile, synced email, and prior debriefs."
+          title={cancelled ? 'Meeting cancelled' : 'No prep generated yet'}
+          body={
+            cancelled
+              ? 'Prep generation is unavailable for cancelled meetings.'
+              : 'Meri drafts prep from the client profile and available activity.'
+          }
           action={
             <button
               type="button"
               className="btn sm btn-accent"
               style={{ marginTop: 2, gap: 6 }}
-              disabled={!aiConfigured}
+              disabled={!aiConfigured || cancelled}
               onClick={() => runGenerate()}
             >
               <MeriGlyph size={15} tone="white" />
@@ -143,7 +153,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
               type="button"
               className="btn sm btn-accent"
               style={{ marginTop: 2, gap: 6 }}
-              disabled={!aiConfigured}
+              disabled={!aiConfigured || cancelled}
               onClick={() => runGenerate()}
             >
               <MeriGlyph size={15} tone="white" />
@@ -156,17 +166,46 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   }
 
   const onExport = () =>
-    exportArtifactPdf(`Prep — ${meeting.subject}`, formatDayTitle(new Date(meeting.startsAt)), [
-      { heading: 'Summary', body: prep.summary ?? '' },
-      { heading: 'Agenda', items: prep.agenda },
-      { heading: 'Talking Points', items: prep.talkingPoints, ordered: true },
-      { heading: 'Watch-outs', items: prep.risks },
-      { heading: 'Follow-ups', items: prep.followUps },
-    ]);
+    exportArtifactPdf(
+      `Prep — ${meeting.subject}`,
+      formatMeetingDayTitle(meeting.startsAt, meeting.endsAt),
+      [
+        { heading: 'Summary', body: prep.summary ?? '' },
+        { heading: 'Agenda', items: prep.agenda },
+        { heading: 'Talking Points', items: prep.talkingPoints, ordered: true },
+        { heading: 'Watch-outs', items: prep.risks },
+        { heading: 'Follow-ups', items: prep.followUps },
+        { heading: 'Email evidence', items: prep.emailEvidence },
+        {
+          heading: 'Source review',
+          body: prep.generatedFrom?.grounding
+            ? 'Sources below were supplied for the original generation. Review names and whether each claim is supported. Edited text and changed client context require a fresh review.'
+            : 'This saved prep has no source references or attendee verification record. Review names and claims before use.',
+        },
+        ...(prep.generatedFrom?.grounding?.sources ?? []).map((source, index) => ({
+          heading: `Source ${index + 1}: ${source.title}`,
+          body: [
+            source.observedAt,
+            prepSourceExcerpt(source.excerpt),
+            source.recordId ? `Source record: ${source.recordId}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        })),
+      ],
+    );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <StagePill {...prepStage(prep, false)} style={{ marginBottom: 0 }} />
+      {cancelled && (
+        <p role="note" style={{ margin: 0, fontSize: 12 }}>
+          This meeting is cancelled. Existing prep remains available; generation is disabled.
+        </p>
+      )}
+      {!prep.generatedFrom?.grounding && (
+        <PrepEvidence prep={prep} clientId={meeting.client?.id ?? null} />
+      )}
       {prep.status === 'stale' ? (
         <div
           style={{
@@ -206,6 +245,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
           <SectionLabel style={{ marginBottom: 7 }}>Summary</SectionLabel>
           <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
             {prep.summary}
+            <PrepSourceLinks prep={prep} section="summary" />
           </p>
         </div>
       )}
@@ -223,7 +263,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
             }}
           >
             {prep.agenda.map((a, i) => (
-              <li key={i}>{a}</li>
+              <li key={i}>
+                {a}
+                <PrepSourceLinks prep={prep} section="agenda" itemIndex={i} />
+              </li>
             ))}
           </ul>
         </div>
@@ -265,7 +308,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
                 >
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                {t}
+                <span>
+                  {t}
+                  <PrepSourceLinks prep={prep} section="talkingPoints" itemIndex={i} />
+                </span>
               </li>
             ))}
           </ul>
@@ -294,7 +340,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
                   size={14}
                   style={{ color: 'var(--notable)', flexShrink: 0, marginTop: 1 }}
                 />
-                {r}
+                <span>
+                  {r}
+                  <PrepSourceLinks prep={prep} section="risks" itemIndex={i} />
+                </span>
               </div>
             ))}
           </div>
@@ -314,12 +363,31 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
             }}
           >
             {prep.followUps.map((f, i) => (
-              <li key={i}>{f}</li>
+              <li key={i}>
+                {f}
+                <PrepSourceLinks prep={prep} section="followUps" itemIndex={i} />
+              </li>
             ))}
           </ul>
         </div>
       )}
 
+      {prep.emailEvidence.length > 0 && (
+        <div>
+          <SectionLabel>Email evidence</SectionLabel>
+          <ul style={{ fontSize: 13, paddingLeft: 18 }}>
+            {prep.emailEvidence.map((item, index) => (
+              <li key={index}>
+                {item}
+                <PrepSourceLinks prep={prep} section="emailEvidence" itemIndex={index} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {prep.generatedFrom?.grounding && (
+        <PrepEvidence prep={prep} clientId={meeting.client?.id ?? null} />
+      )}
       <ArtifactActionBar
         refine
         refineValue={refine}
@@ -327,7 +395,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         refinePlaceholder="Add additional context you'd like Meri to use, then Regenerate."
         onRegenerate={() => void runGenerate(refine.trim() || undefined)}
         regenerating={generate.isPending}
-        regenerateDisabled={!aiConfigured}
+        regenerateDisabled={!aiConfigured || cancelled}
         onEdit={() => {
           setEditValues(prepEditValues(prep));
           setEditOpen(true);

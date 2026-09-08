@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import mammoth from 'mammoth';
+import type { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { extractPdfText } from '../meri/meri-attachment-extract.js';
@@ -26,6 +27,13 @@ import {
   docChunkSourceIdPrefix,
   type KbSourceType,
 } from './client-kb.helpers.js';
+
+type AttachmentIndexSnapshot = {
+  id: string;
+  clientId: string | null;
+  meetingId: string | null;
+  s3Key: string;
+};
 
 /**
  * Client knowledge base (assistant-parity F5).
@@ -233,8 +241,16 @@ export class ClientKbService {
         },
       }),
     );
-    if (!attachment || !attachment.clientId) {
+    if (!attachment) {
       await this.purge(tenantId, 'client_doc_chunk', attachmentId);
+      return;
+    }
+    if (!attachment.clientId) {
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        if (await this.lockAttachmentSnapshot(tx, tenantId, attachment)) {
+          await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
+        }
+      });
       return;
     }
     const quota = await this.countClientChunks(tenantId, attachment.clientId);
@@ -260,30 +276,44 @@ export class ClientKbService {
 
     // Clear a prior success before any operation which may fail. Filename-only
     // embeddings are useful for discovery but are not searchable document text.
-    await this.prisma.withTenant(tenantId, (tx) => tx.engagementAttachment.update({
-      where: { id: attachmentId }, data: { indexedAt: null },
-    }));
+    const started = await this.prisma.withTenant(tenantId, async (tx) => {
+      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return false;
+      await tx.engagementAttachment.update({
+        where: { id: attachmentId }, data: { indexedAt: null },
+      });
+      return true;
+    });
+    if (!started) return;
     let extraction: Awaited<ReturnType<ClientKbService['extractAttachmentTextForKb']>>;
     try {
       extraction = await this.extractAttachmentTextForKb(attachment);
     } catch (error) {
-      await this.prisma.withTenant(tenantId, (tx) => tx.engagementAttachment.update({
-        where: { id: attachmentId }, data: {
-          indexedAt: null, extractionStatus: 'failed',
-          extractionMetadata: { chars: 0, contentScope: 'unavailable', reason: 'text_extraction_failed' },
-        },
-      }));
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return;
+        await tx.engagementAttachment.update({
+          where: { id: attachmentId }, data: {
+            indexedAt: null, extractionStatus: 'failed',
+            extractionMetadata: { chars: 0, contentScope: 'unavailable', reason: 'text_extraction_failed' },
+          },
+        });
+      });
       throw error;
     }
     // Retain previous chunks if S3/parsing failed. Only replace evidence once
     // its current bytes were actually read (including a confirmed empty result).
-    await this.purge(tenantId, 'client_doc_chunk', attachmentId);
+    const current = await this.prisma.withTenant(tenantId, async (tx) => {
+      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return false;
+      await this.purgeAttachmentChunks(tx, tenantId, attachmentId);
+      return true;
+    });
+    if (!current) return;
     const text = extraction?.text?.trim() || null;
     const chunks = text
       ? chunkDocumentText(text)
       : [`Image or non-text attachment: ${attachment.fileName}`];
     const contentTruncated = Boolean(extraction?.truncated) || chunks.length >= KB_MAX_CHUNKS_PER_DOC;
     for (let i = 0; i < chunks.length; i += 1) {
+      let sourceCurrent = true;
       await embedAndUpsert(this.prisma, {
         tenantId,
         clientId: attachment.clientId,
@@ -300,7 +330,12 @@ export class ClientKbService {
           }),
         ),
         bypassRls: true,
+        beforeWrite: async (tx) => {
+          sourceCurrent = await this.lockAttachmentSnapshot(tx, tenantId, attachment);
+          return sourceCurrent;
+        },
       });
+      if (!sourceCurrent) return;
     }
 
     // Stamp content as indexed (Meetings v2 §5) — reached only after the
@@ -308,8 +343,9 @@ export class ClientKbService {
     // quota exceeded) correctly leave indexedAt null. Drives the Documents-tab
     // per-file "Indexed" badge. withTenant (not withSystem): the row is
     // tenant-scoped and RLS must allow the UPDATE for this tenant.
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.engagementAttachment.update({
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      if (!(await this.lockAttachmentSnapshot(tx, tenantId, attachment))) return;
+      await tx.engagementAttachment.update({
         where: { id: attachmentId },
         data: {
           indexedAt: text ? new Date() : null,
@@ -327,7 +363,44 @@ export class ClientKbService {
             extractedAt: new Date().toISOString(),
           },
         },
-      }),
+      });
+    });
+  }
+
+  /** Parent first, then attachment: same lock order as meeting reassignment.
+   * Keep these locks until the caller's write/purge/stamp commits. Checking
+   * before S3 or embedding calls would leave a window for an old job to write
+   * its previous client's evidence after reassignment already purged it. */
+  private async lockAttachmentSnapshot(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    snapshot: AttachmentIndexSnapshot,
+  ): Promise<boolean> {
+    if (snapshot.meetingId) {
+      const meetings = await tx.$queryRawUnsafe<Array<{ clientId: string | null; isInternal: boolean }>>(
+        `SELECT client_id AS "clientId", is_internal AS "isInternal" FROM meetings
+          WHERE tenant_id = $1::uuid AND id = $2::uuid FOR UPDATE`,
+        tenantId, snapshot.meetingId,
+      );
+      if (!meetings[0] || meetings[0].clientId !== snapshot.clientId
+        || (snapshot.clientId !== null && meetings[0].isInternal)) return false;
+    }
+    const attachments = await tx.$queryRawUnsafe<AttachmentIndexSnapshot[]>(
+      `SELECT id, client_id AS "clientId", meeting_id AS "meetingId", s3_key AS "s3Key"
+        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid FOR UPDATE`,
+      tenantId, snapshot.id,
+    );
+    const current = attachments[0];
+    return Boolean(current && current.clientId === snapshot.clientId
+      && current.meetingId === snapshot.meetingId && current.s3Key === snapshot.s3Key);
+  }
+
+  private async purgeAttachmentChunks(tx: Prisma.TransactionClient, tenantId: string, attachmentId: string): Promise<void> {
+    await tx.$executeRawUnsafe(
+      `DELETE FROM context_embeddings
+        WHERE tenant_id = $1::uuid AND source_type = $2
+          AND (source_id = $3 OR source_id LIKE $4)`,
+      tenantId, 'client_doc_chunk', attachmentId, docChunkSourceIdPrefix(attachmentId),
     );
   }
 

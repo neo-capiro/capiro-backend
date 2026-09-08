@@ -105,6 +105,23 @@ describe('NotesTab', () => {
     apiDeleteMock.mockReset();
   });
 
+  test('a cancelled meeting keeps its saved notes without offering a new debrief', async () => {
+    apiGetMock.mockResolvedValue({ data: [makeNote()] });
+    render(buildTree(new QueryClient(), defaultProps({ meeting: makeMeeting({ status: 'cancelled' }) })));
+    expect(await screen.findByText('We discussed the FY27 markup schedule.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /draft a debrief/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /send meri/i })).not.toBeInTheDocument();
+  });
+
+  test('a cancelled meeting with no notes states cancellation rather than promising attendance', async () => {
+    apiGetMock.mockResolvedValue({ data: [] });
+    render(buildTree(new QueryClient(), defaultProps({ meeting: makeMeeting({ status: 'canceled', meri: 'scheduled' }) })));
+    expect(await screen.findByText('Meeting cancelled')).toBeInTheDocument();
+    expect(screen.queryByText('Meri Attending')).not.toBeInTheDocument();
+    // An already scheduled session may still be removed by its owner.
+    expect(screen.getByRole('button', { name: 'Cancel Meri' })).toBeInTheDocument();
+  });
+
   test('a Meri-scheduled meeting with no notes yet shows the "Meri Attending" empty state', async () => {
     apiGetMock.mockResolvedValue({ data: [] });
     const qc = new QueryClient();

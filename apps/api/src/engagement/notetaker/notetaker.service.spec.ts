@@ -49,7 +49,7 @@ function makeTx() {
       findFirst: asyncMock({ role: 'standard_user' }),
     },
     meeting: {
-      findFirst: asyncMock({ id: 'm1', clientId: 'c1' }),
+      findFirst: asyncMock({ id: 'm1', clientId: 'c1', status: 'confirmed' }),
       updateMany: asyncMock({ count: 1 }),
     },
     meetingBotSession: {
@@ -244,6 +244,21 @@ describe('NotetakerService.dispatch (strict consent gate)', () => {
     expect(tx.meetingBotSession.create).not.toHaveBeenCalled();
     expect(bot.dispatchBot).not.toHaveBeenCalled();
   });
+
+  test.each(['cancelled', 'canceled', ' Cancelled '])(
+    'refuses a %s meeting before creating a session or dispatching a bot',
+    async (status) => {
+      const tx = makeTx();
+      tx.meeting.findFirst.mockResolvedValue({ id: 'm1', clientId: 'c1', status });
+      const { service, bot } = makeService(tx);
+
+      await expect(service.dispatch(ctx, 'm1', input)).rejects.toThrow(
+        'Cannot send a notetaker to a cancelled meeting',
+      );
+      expect(tx.meetingBotSession.create).not.toHaveBeenCalled();
+      expect(bot.dispatchBot).not.toHaveBeenCalled();
+    },
+  );
 
   test('refuses when a notetaker is already active for the meeting', async () => {
     const tx = makeTx();

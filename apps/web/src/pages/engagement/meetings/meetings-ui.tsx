@@ -16,6 +16,7 @@ import {
   completedDebrief,
   completedPrep,
   eligibleForMeri,
+  isCancelledMeeting,
   type Meeting,
   type ArtifactKind,
   type MeriState,
@@ -48,7 +49,7 @@ export function canShare(m: Meeting): boolean {
 
 /** Whether Meri's "Send Meri" affordance shows (virtual + not already captured). */
 export function showSendMeri(m: Meeting): boolean {
-  return m.isVirtual && m.provider !== 'In person' && m.meri !== 'done';
+  return !isCancelledMeeting(m) && m.isVirtual && m.provider !== 'In person' && m.meri !== 'done';
 }
 
 // ── Meri glyph — navy roundel + soft "m" mark (prototype MeriGlyph) ──
@@ -222,6 +223,7 @@ const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
 };
 
 export function MaterialBadges({ m, status }: { m: Meeting; status?: MeetingStatus }) {
+  if (isCancelledMeeting(m)) return <span className="pill">Cancelled</span>;
   const s = status ?? meetingStatus(m);
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -235,6 +237,7 @@ export function MaterialBadges({ m, status }: { m: Meeting; status?: MeetingStat
 /** Minimal shape both `Meeting` and the dashboard `DashMeeting` satisfy, so the
  *  SAME button renders on both surfaces (no drift). */
 export interface MeriActionTarget {
+  status?: string;
   meri?: MeriState | null;
   isVirtual?: boolean;
   joinLink?: string | null;
@@ -258,7 +261,7 @@ export function SendMeriButton({
    *  button onto a different design system without changing its behaviour. */
   className?: string;
 }) {
-  if (m.meri === 'done') return null;
+  if (isCancelledMeeting(m) || m.meri === 'done') return null;
   const canDetect = m.isVirtual && m.joinLink;
   const scheduled = m.meri === 'scheduled' || m.meri === 'attending';
   // The call has ended (all participants left, or the scheduled end passed) and
@@ -339,7 +342,7 @@ export function JoinButton({
   size = 'md',
   variant = 'solid',
 }: {
-  m: { isVirtual?: boolean; joinLink?: string | null };
+  m: { isVirtual?: boolean; joinLink?: string | null; status?: string };
   size?: 'sm' | 'md';
   /**
    * `solid` (default) keeps the historical dark fill for app.capiro.ai's
@@ -351,6 +354,7 @@ export function JoinButton({
    */
   variant?: 'solid' | 'secondary';
 }) {
+  if (isCancelledMeeting(m)) return null;
   const joinable = Boolean(m.isVirtual && m.joinLink);
   if (!joinable && variant !== 'secondary') return null;
   const pad = size === 'sm' ? '6px 12px' : '8px 14px';

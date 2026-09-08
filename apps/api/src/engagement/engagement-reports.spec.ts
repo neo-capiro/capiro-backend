@@ -74,6 +74,28 @@ function servicePinnedTo(targets: Array<Record<string, unknown>>): EngagementSer
 }
 
 describe('reportOverview — per-field override flags (additive)', () => {
+  test('cancelled calendar meetings are not counted as held meetings', async () => {
+    const meetings = ['confirmed', 'canceled', 'cancelled', ' Cancelled '].map((status, index) => ({
+      id: `m-${index}`,
+      status,
+      startsAt: new Date('2026-01-01T12:00:00Z'),
+      endsAt: new Date('2026-01-01T13:00:00Z'),
+      attendees: [],
+      preps: [],
+      tasks: [],
+    }));
+    const service = serviceWith({
+      engagementReportTargetOffice: { findMany: async () => [] },
+      meeting: { findMany: async () => meetings },
+      mailMessage: { findMany: async () => [] },
+      engagementTask: { findMany: async () => [] },
+    });
+
+    const report = await service.reportOverview(ctx, {});
+
+    expect(report.summary.meetingsHeld).toBe(1);
+  });
+
   test('a row with ONLY prep and submission manually overridden reports each field independently, not collapsed', async () => {
     const service = servicePinnedTo([
       targetOfficeRow({ prepStatus: 'complete', outreachStatus: 'auto', submissionStatus: 'in_progress' }),

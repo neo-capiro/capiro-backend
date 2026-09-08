@@ -566,7 +566,7 @@ export class GoogleSyncService {
               externalId: event.id!,
             },
           },
-          select: { id: true, clientId: true, isInternal: true, associationSignals: true, status: true },
+          select: { id: true, clientId: true, isInternal: true, associationScore: true, associationReason: true, associationSignals: true, status: true },
         });
         // Resurrection guard: a previously-deleted meeting must not be
         // revived when a full calendar refresh re-encounters its id.
@@ -591,7 +591,7 @@ export class GoogleSyncService {
           : false;
         const clientId = existing?.isInternal
           ? null
-          : existing?.clientId &&
+          : existing &&
               (hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
             ? existing.clientId
             : association.clientId;
@@ -624,9 +624,15 @@ export class GoogleSyncService {
             webLink: event.htmlLink ?? null,
             provider: 'google_calendar',
           } as Prisma.InputJsonValue,
-          associationScore: association.score,
-          associationReason: association.reason,
-          associationSignals: association.signals as Prisma.InputJsonValue,
+          associationScore: existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+            ? existing.associationScore : association.score,
+          associationReason: existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+            ? existing.associationReason : association.reason,
+          associationSignals: (
+            existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+              ? existing.associationSignals
+              : association.signals
+          ) as Prisma.InputJsonValue,
         };
         const meeting = existing
           ? await tx.meeting.update({

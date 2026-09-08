@@ -117,6 +117,7 @@ import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
 import { AmbiguousMailSendError, type EngagementMailSendResult } from './mail-send-result.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { docChunkSourceIdPrefix } from '../embeddings/client-kb.helpers.js';
 import { editRatio } from '../common/text-distance.js';
 import {
   billIdFromItemId,
@@ -1417,11 +1418,20 @@ export class EngagementService {
   }
 
   async updateMeeting(ctx: TenantContext, id: string, input: UpdateMeetingInput) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const attachmentIds: string[] = [];
+    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if ('clientId' in input) await this.lockMeetingClientAssignment(tx, ctx, id);
       const existing = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
       if (!existing) throw new NotFoundException('Meeting not found');
+
+      if ('clientId' in input) {
+        attachmentIds.push(...await this.reassignMeetingClient(
+          tx, ctx, existing, input.clientId ?? null, false,
+          'Meeting client changed from meeting edit form.',
+        ));
+      }
 
       // Re-derive the virtual-meeting classification (Meetings v2 §5) whenever the
       // location or description changes — e.g. editing in a Zoom link should flip
@@ -1443,7 +1453,6 @@ export class EngagementService {
       const updated = await tx.meeting.update({
         where: { id },
         data: {
-          ...('clientId' in input ? { clientId: input.clientId } : {}),
           ...('subject' in input ? { subject: input.subject?.trim() } : {}),
           ...('description' in input ? { description: input.description?.trim() || null } : {}),
           ...('location' in input ? { location: input.location?.trim() || null } : {}),
@@ -1472,6 +1481,79 @@ export class EngagementService {
 
       return (await this.decorateMeetings(tx, ctx, [updated]))[0];
     });
+    // Only enqueue after the entire association transaction committed. Old-client
+    // chunks were removed synchronously; failed indexing cannot leave old evidence.
+    for (const attachmentId of attachmentIds) {
+      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
+    }
+    return result;
+  }
+
+  /** Serialize parent reads and artifact writes with client reassignment. */
+  private async lockMeetingClientAssignment(
+    tx: Prisma.TransactionClient, ctx: TenantContext, meetingId: string,
+  ): Promise<void> {
+    // Read the prior client only after this lock. Otherwise a concurrent A→B
+    // followed by an A→A save can skip child propagation using a stale read.
+    await tx.$queryRaw(Prisma.sql`
+      SELECT id FROM meetings
+      WHERE id = ${meetingId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+      FOR UPDATE
+    `);
+  }
+
+  /** Move the meeting's denormalized children atomically with its client. */
+  private async reassignMeetingClient(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    existing: { id: string; clientId: string | null; isInternal?: boolean },
+    clientId: string | null,
+    isInternal: boolean,
+    reason: string,
+  ): Promise<string[]> {
+    if (clientId) {
+      await ensureExists(tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId }, select: { id: true },
+      }), 'Client not found');
+    }
+    const changed = existing.clientId !== clientId || Boolean(existing.isInternal) !== isInternal;
+    await tx.meeting.update({
+      where: { id: existing.id, tenantId: ctx.tenantId },
+      data: {
+        clientId, isInternal,
+        associationScore: clientId ? 1 : null,
+        associationReason: reason,
+        associationSignals: {
+          manual: true, clientId, previousClientId: existing.clientId,
+          isInternal, changedByUserId: ctx.userId,
+        },
+        ...(changed ? { visibility: MeetingVisibility.private, sharedAt: null, sharedByUserId: null } : {}),
+      },
+    });
+    if (!changed) return [];
+
+    const where = { tenantId: ctx.tenantId, meetingId: existing.id };
+    // Approval and content are historical facts; reassignment never rewrites
+    // them. Sharing is client-specific and must be explicitly granted again.
+    const data = { clientId, sharedAt: null, sharedByUserId: null };
+    await tx.meetingPrep.updateMany({ where, data });
+    await tx.meetingNote.updateMany({ where, data });
+    await tx.meetingDebrief.updateMany({ where, data });
+    const attachments = await tx.engagementAttachment.findMany({ where, select: { id: true } });
+    await tx.engagementAttachment.updateMany({ where, data: { ...data, indexedAt: null } });
+    await tx.engagementTask.updateMany({ where, data: { clientId } });
+    await tx.meetingBotSession.updateMany({ where, data: { clientId } });
+    for (const attachment of attachments) {
+      // Same exact/chunk identity contract as ClientKbService.purge, in THIS
+      // transaction so a failed cleanup also rolls back the client reassignment.
+      await tx.$executeRawUnsafe(
+        `DELETE FROM context_embeddings
+          WHERE tenant_id = $1::uuid AND source_type = $2
+            AND (source_id = $3 OR source_id LIKE $4)`,
+        ctx.tenantId, 'client_doc_chunk', attachment.id, docChunkSourceIdPrefix(attachment.id),
+      );
+    }
+    return clientId ? attachments.map((attachment) => attachment.id) : [];
   }
 
   /**
@@ -4832,7 +4914,7 @@ export class EngagementService {
           source: 'directory',
         });
         row.meetingIds.add(meeting.id);
-        if (meeting.endsAt <= now && meeting.status !== 'canceled')
+        if (meeting.endsAt <= now && !['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase()))
           row.heldMeetingIds.add(meeting.id);
         if (meeting.preps[0]) row.preparedMeetingIds.add(meeting.id);
         if (meeting.preps[0]?.status === MeetingPrepStatus.approved) {
@@ -4885,7 +4967,7 @@ export class EngagementService {
     );
     const heldMeetingIds = new Set(
       data.meetings
-        .filter((meeting) => meeting.endsAt <= now && meeting.status !== 'canceled')
+        .filter((meeting) => meeting.endsAt <= now && !['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase()))
         .map((meeting) => meeting.id),
     );
 
@@ -5091,6 +5173,7 @@ export class EngagementService {
     return this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
+        await this.lockMeetingClientAssignment(tx, ctx, meetingId);
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
         });
@@ -5165,6 +5248,7 @@ export class EngagementService {
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
@@ -5514,7 +5598,7 @@ export class EngagementService {
 
   /**
    * List a client's meeting debriefs (newest first) for the Outreach context
-   * builder. Matches the denormalized clientId OR the parent meeting's client,
+   * builder. Matches the canonical parent meeting's client,
    * decrypts bodies the caller may read, and access-filters the rest.
    */
   async listClientDebriefs(
@@ -5523,13 +5607,12 @@ export class EngagementService {
   ) {
     const clientId = query.clientId?.trim() || null;
     const emails = (query.recipientEmails ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean);
-    // Scope debriefs to the campaign's client AND/OR to meetings that involve
-    // the chosen recipients (by attendee email) — so a no-client outreach to
-    // congressional offices still surfaces relevant debriefs. Bodies remain
-    // access-filtered per item below.
+    // The campaign's selected client is authoritative. Recipient matching is
+    // for unscoped outreach only, so it cannot pull another client's debriefs
+    // into a scoped campaign. Bodies remain access-filtered per item below.
     const ors: Prisma.MeetingDebriefWhereInput[] = [];
-    if (clientId) ors.push({ clientId }, { meeting: { clientId } });
-    if (emails.length) ors.push({ meeting: { attendees: { some: { email: { in: emails } } } } });
+    if (clientId) ors.push({ meeting: { clientId } });
+    if (!clientId && emails.length) ors.push({ meeting: { attendees: { some: { email: { in: emails } } } } });
     if (ors.length === 0) return [];
     const debriefs = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.meetingDebrief.findMany({
@@ -5539,7 +5622,7 @@ export class EngagementService {
         },
         include: {
           author: { select: { id: true, email: true, firstName: true, lastName: true } },
-          meeting: { select: { id: true, subject: true, startsAt: true } },
+          meeting: { select: { id: true, clientId: true, subject: true, startsAt: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 25,
@@ -5552,7 +5635,7 @@ export class EngagementService {
         id: debrief.id,
         meetingId: debrief.meetingId,
         meeting: debrief.meeting,
-        clientId: debrief.clientId,
+        clientId: debrief.meeting.clientId,
         body: canReadBody
           ? this.notesCrypto.decrypt({
               bodyCiphertext: debrief.bodyCiphertext,
@@ -5692,7 +5775,7 @@ export class EngagementService {
       }
       // Meeting notes (body access-filtered per item).
       for (const n of notes) {
-        const cid = n.clientId ?? n.meeting?.clientId ?? null;
+        const cid = n.meeting?.clientId ?? null;
         const can = canReadEncryptedEntry(ctx, n);
         const body = can
           ? safeDecrypt({ bodyCiphertext: n.bodyCiphertext, iv: n.iv, authTag: n.authTag })
@@ -5709,7 +5792,7 @@ export class EngagementService {
       }
 
       const debriefItems: LibItem[] = debriefs.map((d) => {
-        const cid = d.clientId ?? d.meeting?.clientId ?? null;
+        const cid = d.meeting?.clientId ?? null;
         const can = canReadEncryptedEntry(ctx, d);
         const body = can
           ? safeDecrypt({ bodyCiphertext: d.bodyCiphertext, iv: d.iv, authTag: d.authTag })
@@ -5729,7 +5812,7 @@ export class EngagementService {
       // re-sort newest-first here since that query had to order by meetingId.
       const prepItems: LibItem[] = preps
         .map((p) => {
-          const cid = p.clientId ?? p.meeting?.clientId ?? null;
+          const cid = p.meeting?.clientId ?? null;
           const talking = prepLines(p.talkingPoints);
           const agenda = prepLines(p.agenda);
           const followUps = prepLines(p.followUps);
@@ -5758,6 +5841,16 @@ export class EngagementService {
   }
 
   async generateMeetingPrep(ctx: TenantContext, meetingId: string, additionalContext?: string) {
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const meeting = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { status: true },
+      });
+      if (!meeting) throw new NotFoundException('Meeting not found');
+      if (['cancelled', 'canceled'].includes(meeting.status.toLowerCase())) {
+        throw new BadRequestException('Prep cannot be generated for a cancelled meeting. Existing materials are still available.');
+      }
+    });
     // Mark any existing preps for this meeting as stale before generating a new one.
     // This ensures preps generated with outdated timezone formatting or before
     // context changes are visually flagged in the UI as needing review.
@@ -5789,10 +5882,8 @@ export class EngagementService {
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
 
-        // Use the current association rules, not only the stored meeting.clientId.
-        const attendeeEmails = meeting.attendees
-          .map((a) => a.email)
-          .filter((e): e is string => Boolean(e));
+        // Honor the canonical stored/manual assignment; infer only for an
+        // unassigned meeting that has not been explicitly cleared.
         const correctClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
 
         // Fetch the correct client based on the association result.
@@ -5912,9 +6003,23 @@ export class EngagementService {
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
-    const correctClientId = context.client?.id || context.meeting.clientId;
-    const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meetingPrep.create({
+    const correctClientId = context.meeting.isInternal ? null : context.client?.id ?? context.meeting.clientId;
+    const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Serialize with client reassignment while persisting an artifact generated
+      // outside the transaction. Never attach the old client's context to a new client.
+      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+      const current = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { clientId: true, isInternal: true, status: true },
+      });
+      if (!current) throw new NotFoundException('Meeting not found');
+      if ((current.isInternal ? null : current.clientId) !== correctClientId) {
+        throw new BadRequestException('The meeting client changed while prep was generating. Generate again for the current client.');
+      }
+      if (['cancelled', 'canceled'].includes(current.status.toLowerCase())) {
+        throw new BadRequestException('This meeting was cancelled while prep was generating.');
+      }
+      return tx.meetingPrep.create({
         data: {
           tenantId: ctx.tenantId,
           meetingId,
@@ -5931,6 +6036,8 @@ export class EngagementService {
           generatedFrom: {
             promptHash,
             meetingId,
+            clientId: correctClientId,
+            ...(generated.grounding ? { grounding: JSON.parse(JSON.stringify(generated.grounding)) as Prisma.InputJsonValue } : {}),
             recentMeetings: context.recentMeetings.map((meeting) => meeting.id),
             recentThreads: context.recentThreads.map((thread) => thread.id),
             congressionalDirectoryContactIds: directoryProfiles.map(
@@ -5942,8 +6049,8 @@ export class EngagementService {
             timeZone: (context.meeting as Record<string, unknown>).timeZone ?? null,
           },
         },
-      }),
-    );
+      });
+    });
     if (this.qualityTelemetry) {
       await this.qualityTelemetry.recordEvent(
         buildMeetingPrepTelemetryEvent(
@@ -5961,10 +6068,13 @@ export class EngagementService {
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
-        select: { id: true, meetingId: true },
+        select: { id: true, meetingId: true, generatedFrom: true },
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
+      const generatedFrom = prep.generatedFrom && typeof prep.generatedFrom === 'object' && !Array.isArray(prep.generatedFrom)
+        ? prep.generatedFrom : null;
+      const grounding = generatedFrom?.grounding;
 
       return tx.meetingPrep.update({
         where: { id: prepId },
@@ -5981,6 +6091,9 @@ export class EngagementService {
             : {}),
           status: MeetingPrepStatus.edited,
           editedByUserId: ctx.userId,
+          ...(generatedFrom && grounding && typeof grounding === 'object' && !Array.isArray(grounding)
+            ? { generatedFrom: { ...generatedFrom, grounding: { ...grounding, contentEdited: true } } as Prisma.InputJsonValue }
+            : {}),
         },
       });
     });
@@ -6057,7 +6170,11 @@ export class EngagementService {
   }
 
   async overrideAssociation(ctx: TenantContext, input: AssociationOverrideInput) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const attachmentIds: string[] = [];
+    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (input.entityType === AssociationEntityType.meeting) {
+        await this.lockMeetingClientAssignment(tx, ctx, input.entityId);
+      }
       // Marking a meeting "internal" clears its client and is a meetings-only path.
       if (input.internal) {
         if (input.entityType !== AssociationEntityType.meeting) {
@@ -6071,9 +6188,11 @@ export class EngagementService {
           },
         });
         if (!existing) throw new NotFoundException('Meeting not found');
-        return tx.meeting.update({
-          where: { id: input.entityId },
-          data: { isInternal: true, clientId: null },
+        await this.reassignMeetingClient(
+          tx, ctx, existing, null, true, input.reason ?? 'Meeting marked internal.',
+        );
+        return tx.meeting.findFirst({
+          where: { id: input.entityId, tenantId: ctx.tenantId },
         });
       }
 
@@ -6081,7 +6200,9 @@ export class EngagementService {
         throw new BadRequestException('clientId is required unless marking internal');
       }
       const clientId = input.clientId;
-      await ensureExists(tx.client.findUnique({ where: { id: clientId } }), 'Client not found');
+      await ensureExists(tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId }, select: { id: true },
+      }), 'Client not found');
 
       if (input.entityType === AssociationEntityType.meeting) {
         const existing = await tx.meeting.findFirst({
@@ -6092,11 +6213,10 @@ export class EngagementService {
           },
         });
         if (!existing) throw new NotFoundException('Meeting not found');
-        // Assigning a real client also clears any prior internal flag.
-        await tx.meeting.update({
-          where: { id: input.entityId },
-          data: { clientId, isInternal: false },
-        });
+        // Same transaction and child propagation as the meeting edit form.
+        attachmentIds.push(...await this.reassignMeetingClient(
+          tx, ctx, existing, clientId, false, input.reason ?? 'Manual association override.',
+        ));
         return tx.clientAssociationOverride.create({
           data: {
             tenantId: ctx.tenantId,
@@ -6140,6 +6260,10 @@ export class EngagementService {
 
       throw new BadRequestException('Only meeting and mail_thread overrides are supported now');
     });
+    for (const attachmentId of attachmentIds) {
+      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
+    }
+    return result;
   }
 
   async clientContext(ctx: TenantContext, clientId: string) {
@@ -6436,11 +6560,12 @@ export class EngagementService {
     const initialScan = await this.scanner.getStatus(this.bucket!, input.s3Key);
     const scanClean = initialScan === 'clean';
 
-    const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.create({
+    const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+      return tx.engagementAttachment.create({
         data: {
           tenantId: ctx.tenantId,
-          clientId: input.clientId ?? null,
+          clientId,
           meetingId: input.meetingId ?? null,
           mailMessageId: input.mailMessageId ?? null,
           fileName: input.fileName,
@@ -6459,8 +6584,8 @@ export class EngagementService {
           scanResultAt: initialScan === 'pending' ? null : new Date(),
           extractionStatus: 'pending',
         },
-      }),
-    );
+      });
+    });
     // Client KB (F5): client-linked documents become retrievable knowledge.
     if (attachment.clientId) {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
@@ -6865,11 +6990,12 @@ export class EngagementService {
         ContentType: input.contentType,
       }),
     );
-    const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.create({
+    const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+      return tx.engagementAttachment.create({
         data: {
           tenantId: ctx.tenantId,
-          clientId: input.clientId ?? null,
+          clientId,
           meetingId: input.meetingId ?? null,
           fileName: input.fileName,
           contentType: input.contentType,
@@ -6881,8 +7007,8 @@ export class EngagementService {
           sourceEntityId: input.sourceEntityId ?? null,
           uploadedByUserId: ctx.userId,
         },
-      }),
-    );
+      });
+    });
     if (attachment.clientId) {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
     }
@@ -7409,10 +7535,22 @@ export class EngagementService {
     const or: Prisma.MeetingWhereInput[] = [{ clientId }];
 
     if (emails.length) {
-      or.push(
-        { organizerEmail: { in: emails } },
-        { attendees: { some: { email: { in: emails } } } },
-      );
+      // Email evidence may suggest an unassigned meeting. It must never make
+      // a meeting explicitly assigned elsewhere (or cleared/internal) reappear.
+      or.push({
+        clientId: null,
+        isInternal: false,
+        AND: [
+          { OR: [
+            { associationSignals: { path: ['manual'], equals: Prisma.AnyNull } },
+            { associationSignals: { path: ['manual'], equals: false } },
+          ] },
+          { OR: [
+            { organizerEmail: { in: emails } },
+            { attendees: { some: { email: { in: emails } } } },
+          ] },
+        ],
+      });
     }
 
     return { OR: or };
@@ -7474,12 +7612,22 @@ export class EngagementService {
     meeting: {
       id: string;
       clientId: string | null;
+      isInternal?: boolean;
+      associationSignals?: Prisma.JsonValue;
       subject?: string | null;
       description?: string | null;
       organizerEmail?: string | null;
       attendees: Array<{ email: string | null }>;
     },
   ): Promise<string | null> {
+    if (meeting.isInternal) return null;
+    // The stored client is canonical. Generation must not independently choose
+    // another client and save that second attribution on the prep/debrief.
+    if (meeting.clientId) return meeting.clientId;
+    const signals = meeting.associationSignals;
+    if (signals && typeof signals === 'object' && !Array.isArray(signals) && signals.manual === true) {
+      return null;
+    }
     const attendeeEmails = meeting.attendees
       .map((attendee) => attendee.email)
       .filter((email): email is string => Boolean(email));
@@ -7501,7 +7649,7 @@ export class EngagementService {
       });
     }
 
-    return association.clientId || meeting.clientId;
+    return association.clientId;
   }
 
   private async validateOutreachParents(
@@ -7556,6 +7704,19 @@ export class EngagementService {
         await this.ensureOwnMailMessage(tx, ctx, input.mailMessageId);
       }
     });
+  }
+
+  private async attachmentClientAtWrite(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    input: { clientId?: string | null; meetingId?: string | null },
+  ): Promise<string | null> {
+    if (!input.meetingId) return input.clientId ?? null;
+    // Upload/scan/network work may outlive a reassignment. Serialize the actual
+    // insert with that reassignment and use the current parent, including null.
+    await this.lockMeetingClientAssignment(tx, ctx, input.meetingId);
+    const meeting = await this.ensureOwnMeeting(tx, ctx, input.meetingId);
+    return meeting.clientId;
   }
 
   private async ensureOwnMeeting(

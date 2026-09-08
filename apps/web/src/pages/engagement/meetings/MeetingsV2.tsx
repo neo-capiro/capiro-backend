@@ -30,6 +30,8 @@ import {
   isToday,
   localDateFromKey,
   meetingDayKey,
+  meetingQueryRange,
+  calendarToday,
   startOfMonth,
   startOfWeek,
 } from './meetings-format.js';
@@ -108,21 +110,7 @@ export function MeetingsV2({
     return { start: ws, end: addDays(ws, 6) };
   }, [viewMode, cursor]);
 
-  // Lower bound = the EARLIER of the first day's local midnight and its UTC
-  // midnight. Using the min ensures an all-day event stored at UTC midnight on
-  // the leading day (which is < local midnight for west-of-UTC users) is still
-  // fetched, without excluding early-morning timed events for east-of-UTC users.
-  const from = new Date(
-    Math.min(
-      new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()).getTime(),
-      Date.UTC(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()),
-    ),
-  ).toISOString();
-  const to = new Date(
-    range.end.getFullYear(),
-    range.end.getMonth(),
-    range.end.getDate() + 1,
-  ).toISOString();
+  const { from, to } = meetingQueryRange(range.start, range.end);
   const meetings = useMeetings({ from, to, clientId: clientId ?? undefined });
   const list = meetings.data ?? [];
 
@@ -383,7 +371,7 @@ export function MeetingsV2({
           </div>
           <button
             type="button"
-            onClick={() => onCursorChange(new Date())}
+            onClick={() => onCursorChange(calendarToday())}
             className="btn sm btn-ghost"
             style={{ gap: 5, color: 'var(--ink-3)' }}
           >

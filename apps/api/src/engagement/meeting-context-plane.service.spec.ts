@@ -115,19 +115,21 @@ function harness(options: {
   storedClientId?: string | null;
   derivedClientId?: string | null;
   isInternal?: boolean;
+  manuallyCleared?: boolean;
   packetOverrides?: Record<string, unknown>;
   contextOverrides?: Record<string, unknown>;
 } = {}) {
   const storedClientId = options.storedClientId === undefined ? CLIENT : options.storedClientId;
   const isInternal = options.isInternal === true;
   const derivedClientId = options.derivedClientId === undefined ? null : options.derivedClientId;
-  const effectiveClientId = isInternal ? null : storedClientId ?? derivedClientId;
+  const effectiveClientId = isInternal || options.manuallyCleared ? null : storedClientId ?? derivedClientId;
   const tx = {
     meeting: {
       findFirst: jest.fn().mockResolvedValue({
         id: MEETING,
         clientId: storedClientId,
         isInternal,
+        associationSignals: options.manuallyCleared ? { manual: true } : {},
         subject: 'FY27 client strategy session',
         description: 'Discuss implementation sequencing.',
         startsAt: new Date('2026-08-21T14:00:00.000Z'),
@@ -201,6 +203,9 @@ describe('MeetingContextPlaneService Phase 24', () => {
     expect(result.modelContextBlock).toContain('Prior follow-up');
     expect(result.modelContextBlock).toContain('The office asked for a concise implementation timeline.');
     expect(result.modelContextBlock).not.toContain('PRIVATE FULL MAIL BODY MUST NOT PROPAGATE');
+    expect(result.evidenceSources).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'mail:mail-1', title: 'Prior follow-up', recordId: 'mail-1' })]));
+    expect(JSON.stringify(result.evidenceSources)).not.toContain('PRIVATE FULL MAIL BODY MUST NOT PROPAGATE');
+    expect(result.evidenceSources).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'steering:client-1', title: 'Client Compass', excerpt: 'Protect the verified client objective and surface uncertainty.' })]));
     expect(h.associations.associate).not.toHaveBeenCalled();
     expect(h.gateway.requestContext).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -333,8 +338,8 @@ describe('MeetingContextPlaneService Phase 24', () => {
     expect(result.modelContextBlock).toContain('complete=false');
   });
 
-  test('an explicitly internal meeting uses general scope and does not expose client layers or mailbox history', async () => {
-    const h = harness({ storedClientId: null, isInternal: true });
+  test.each(['internal', 'manually cleared'])('an explicitly %s meeting uses general scope and does not expose client layers or mailbox history', async (mode) => {
+    const h = harness({ storedClientId: null, isInternal: mode === 'internal', manuallyCleared: mode === 'manually cleared', derivedClientId: CLIENT });
     h.gateway.requestContext.mockResolvedValue({
       kind: 'governed_packet',
       packet: packet({ clientId: null }),

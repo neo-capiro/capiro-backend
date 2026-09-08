@@ -123,6 +123,23 @@ describe('DebriefTab', () => {
     expect(screen.getByText('Debrief locked')).toBeInTheDocument();
   });
 
+  test.each(['cancelled', 'canceled'])('a %s meeting does not offer debrief generation', async (status) => {
+    mockGetResponses({ debriefs: [], notes: [] });
+    render(buildTree(new QueryClient(), { meeting: makeMeeting({ status }) }));
+    expect(await screen.findByText('Meeting cancelled')).toBeInTheDocument();
+    expect(screen.queryByText('Not started')).not.toBeInTheDocument();
+    expect(screen.queryByText(/choose a source for this meeting/i)).not.toBeInTheDocument();
+    expect(apiPostMock).not.toHaveBeenCalled();
+  });
+
+  test('cancellation preserves a saved debrief while removing regeneration', async () => {
+    mockGetResponses({ debriefs: [makeDebrief()], notes: [] });
+    render(buildTree(new QueryClient(), { meeting: makeMeeting({ status: 'cancelled', endsAt: '2099-01-01T10:30:00Z', meri: null }) }));
+    expect(await screen.findByText('Discussed the FY27 markup schedule.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /regenerate/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /export/i })).toBeEnabled();
+  });
+
   test('no debrief yet (unlocked) shows the "Not started" stage pill and the source picker', async () => {
     mockGetResponses({ debriefs: [], notes: [] });
     const qc = new QueryClient();

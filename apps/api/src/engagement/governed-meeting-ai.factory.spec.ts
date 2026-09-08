@@ -104,7 +104,8 @@ describe('createGovernedMeetingAiService Phase 24', () => {
 
   test('prep keeps current meeting/attendee/directory facts but replaces legacy private history', async () => {
     const h = harness();
-    await runWithMeetingGovernedContext(bundle('prep'), () =>
+    const context = { ...bundle('prep'), evidenceSources: [{ id: 'mail:1', kind: 'mail', title: 'Actual source', recordId: '1', observedAt: null, excerpt: 'Supplied excerpt' }] };
+    await runWithMeetingGovernedContext(context, () =>
       h.service.generateMeetingPrep(prepInput(), null),
     );
 
@@ -119,6 +120,7 @@ describe('createGovernedMeetingAiService Phase 24', () => {
     expect(input.recentMeetings).toEqual([]);
     expect(input.recentThreads).toEqual([]);
     expect(input.tasks).toEqual([]);
+    expect(input.evidenceSources).toEqual(context.evidenceSources);
     expect(input.steeringContext).toContain('<capiro_meeting_context_plane>');
     expect(JSON.stringify(input)).not.toContain('LEGACY COMPILER BLOCK');
     expect(JSON.stringify(input)).not.toContain('LEGACY MAIL THREAD');

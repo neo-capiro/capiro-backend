@@ -26,7 +26,7 @@ function serviceWith(
   patch: Record<string, unknown> = {},
 ): EngagementService {
   const prisma = {
-    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn(tx),
+    withTenant: (_tenantId: string, fn: (scoped: unknown) => unknown) => fn({ $queryRaw: async () => [], ...tx }),
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const s = service as unknown as Record<string, unknown>;
@@ -72,6 +72,7 @@ describe('note existence is not approval', () => {
       ) => {
         capturedOpts = opts;
         return fn({
+          $queryRaw: async () => [],
           meeting: { findFirst: async () => ({ id: 'm1', clientId: 'c1' }) },
           meetingNote: { create: async () => ({ id: 'n1' }) },
         });

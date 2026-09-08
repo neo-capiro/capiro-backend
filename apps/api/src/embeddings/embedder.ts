@@ -10,7 +10,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { EmbeddingProvider, EmbeddingProviderMetadata } from './embedding-provider.js';
 import { getDefaultEmbeddingProvider } from './embedding-provider.factory.js';
 
@@ -102,6 +102,10 @@ export interface EmbedAndUpsertArgs {
    *  worker and the sync scripts set this to true. Per-request API hooks
    *  should leave it false so RLS enforces tenant isolation. */
   bypassRls?: boolean;
+  /** Optional source-validity check inside the write transaction, after slow
+   * embedding finishes. May lock source rows so reassignment/deletion cannot
+   * race the embedding write. False means the source changed; skip the write. */
+  beforeWrite?: (tx: Prisma.TransactionClient) => Promise<boolean>;
 }
 
 export type EmbedOutcome = 'inserted' | 'updated' | 'skipped';
@@ -154,6 +158,7 @@ export async function embedAndUpsert(
     if (args.bypassRls) {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
     }
+    if (args.beforeWrite && !(await args.beforeWrite(tx))) return 'skipped' as const;
     if (existing.length === 0) {
       await tx.$executeRawUnsafe(
         `INSERT INTO context_embeddings

@@ -19,7 +19,7 @@
  *     approvedDebrief helpers (see libraryMaterialsLabel below for why this
  *     phase needs the APPROVED helpers specifically, not the "completed"
  *     ones MaterialBadges/meetingStatus use elsewhere in Meetings).
- *   - meetings-format.ts — formatDateShort, the same Date-column formatter
+ *   - meetings-format.ts — formatMeetingDayTitle, the same Date-column formatter
  *     the canonical MeetingLibraryView already uses for this exact field.
  *
  * Dropdown-button filters: the design mockup's own three filter buttons are
@@ -37,11 +37,8 @@
  * silently keeping its "All ..." text while actually filtering.
  *
  * URL contract: `q` (search), `client`, `type` (artifact kind), `vis`
- * (visibility), `from`/`to` (date range, YYYY-MM-DD), `page` — the same
- * "only serialize non-default" minimalism and dual-ref-guarded-effects
- * pattern VNextMeetingsWorkspace.tsx established for `view`/`date`/
- * `meeting`/`tab`. Fixes a real usability gap: today (canonical
- * MeetingLibraryView) a reload silently loses every filter.
+ * (visibility), `from`/`to` (date range, YYYY-MM-DD), `page`. The URL owns
+ * filters and pagination so reload and browser navigation retain them.
  *
  * Date-range + pagination are real controls the mockup gives no visual
  * treatment to. This phase lands the date range as an always-visible
@@ -52,21 +49,15 @@
  * below the table (Previous / Page X of Y / Next), shown only once there's
  * more than one page — matching the phase brief's own suggested placements.
  *
- * The client-scope selector in the module header above (uui-client-scope) is
- * NOT wired to this component's own client dropdown: Meetings has no
- * client-picker UI of its own and so must inherit that shell scope directly,
- * but Library's mockup gives it an independent "All clients" control with
- * its own URL param, so — for the same reason its search/type/visibility
- * filters are independent, URL-owned state — its client filter defaults
- * purely from the URL (else "All clients") rather than being seeded from or
- * coupled to the shell scope, avoiding a two-sources-of-truth conflict for
- * one field.
+ * The route shares one client scope between the module header and this
+ * dropdown, and restores it from explicit Library links. An empty `client=`
+ * records All clients so Back and reload preserve that choice as well.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronDown, Search } from 'lucide-react';
 import { useClientOptions, useMeetingLibrary } from '../../../pages/engagement/meetings/meetings-api.js';
-import { formatDateShort } from '../../../pages/engagement/meetings/meetings-format.js';
+import { formatMeetingDayTitle } from '../../../pages/engagement/meetings/meetings-format.js';
 import {
   approvedDebrief,
   approvedPrep,
@@ -213,95 +204,40 @@ function LibraryDropdown({
   );
 }
 
-export function VNextMeetingLibrary() {
+export function VNextMeetingLibrary({
+  clientId: selectedClientId,
+  clientLabel,
+  onClientChange,
+}: {
+  clientId?: string | null;
+  clientLabel?: string;
+  onClientChange?: (clientId: string | null) => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  const [q, setQ] = useState('');
-  const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const [type, setType] = useState<LibraryTypeFilter>('all');
-  const [vis, setVis] = useState<LibraryVisibilityFilter>('all');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [page, setPage] = useState(1);
+  const q = searchParams.get('q') ?? '';
+  const clientId = (selectedClientId === undefined ? searchParams.get('client') : selectedClientId) || undefined;
+  const type = parseTypeFilter(searchParams.get('type'));
+  const vis = parseVisibilityFilter(searchParams.get('vis'));
+  const fromDate = searchParams.get('from') ?? '';
+  const toDate = searchParams.get('to') ?? '';
+  const page = parsePage(searchParams.get('page'));
 
   const clients = useClientOptions();
 
-  // Same durable URL⇄state pattern VNextMeetingsWorkspace.tsx established
-  // for view/cursor/selected-meeting/tab — two guarded effects, each skipping
-  // the other's own write via a ref, serializing only non-default values.
-  const syncingFromUrlRef = useRef(false);
-  const lastProcessedUrlRef = useRef('');
-
-  useEffect(() => {
-    const urlKey = searchParams.toString();
-    if (lastProcessedUrlRef.current === urlKey) return;
-    lastProcessedUrlRef.current = urlKey;
-
-    const nextQ = searchParams.get('q') ?? '';
-    const nextClient = searchParams.get('client') ?? undefined;
-    const nextType = parseTypeFilter(searchParams.get('type'));
-    const nextVis = parseVisibilityFilter(searchParams.get('vis'));
-    const nextFrom = searchParams.get('from') ?? '';
-    const nextTo = searchParams.get('to') ?? '';
-    const nextPage = parsePage(searchParams.get('page'));
-
-    const hasChange =
-      nextQ !== q ||
-      nextClient !== clientId ||
-      nextType !== type ||
-      nextVis !== vis ||
-      nextFrom !== fromDate ||
-      nextTo !== toDate ||
-      nextPage !== page;
-    if (!hasChange) return;
-
-    syncingFromUrlRef.current = true;
-    setQ(nextQ);
-    setClientId(nextClient);
-    setType(nextType);
-    setVis(nextVis);
-    setFromDate(nextFrom);
-    setToDate(nextTo);
-    setPage(nextPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (syncingFromUrlRef.current) {
-      syncingFromUrlRef.current = false;
-      return;
+  // Read directly from the URL: a scoped deep link must never first issue an
+  // unfiltered request, and Back must not race a second state-to-URL effect.
+  function updateFilters(values: Record<string, string>, resetPage = true) {
+    const params = new URLSearchParams(searchParams);
+    for (const [key, value] of Object.entries(values)) {
+      if (value || key === 'client') params.set(key, value);
+      else params.delete(key);
     }
-    // openMeeting() below navigates AWAY to /engagement/meetings on a real
-    // row click. In the shipped app that swaps VNextEngagementRoutes' render
-    // switch to a different component (this one unmounts), so the scenario
-    // below never arises there — but nothing stops this effect from firing
-    // one more time first if this component is still mounted when the
-    // pathname changes (confirmed by this component's own test harness,
-    // which — unlike the real router — keeps it mounted across a navigate()
-    // call). Without this guard it would rewrite the URL right back to a
-    // bare /engagement/meeting-library, stomping the real navigation.
-    if (location.pathname !== '/engagement/meeting-library') return;
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (clientId) params.set('client', clientId);
-    if (type !== 'all') params.set('type', type);
-    if (vis !== 'all') params.set('vis', vis);
-    if (fromDate) params.set('from', fromDate);
-    if (toDate) params.set('to', toDate);
-    if (page !== 1) params.set('page', String(page));
-
-    const nextSearch = params.toString();
-    if (nextSearch === searchParams.toString()) return;
-
-    lastProcessedUrlRef.current = nextSearch;
-    navigate(
-      { pathname: '/engagement/meeting-library', search: nextSearch ? `?${nextSearch}` : '' },
-      { replace: true },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, clientId, type, vis, fromDate, toDate, page, navigate, location.pathname]);
+    if (resetPage) params.delete('page');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  }
 
   const library = useMeetingLibrary({
     // `undefined`, not '': the params object is part of the react-query key, so
@@ -337,26 +273,22 @@ export function VNextMeetingLibrary() {
   }
 
   function handleFromDateChange(value: string) {
-    setFromDate(value);
-    if (value && toDate && value > toDate) setToDate(value);
-    setPage(1);
+    updateFilters({ from: value, ...(value && toDate && value > toDate ? { to: value } : {}) });
   }
 
   function handleToDateChange(value: string) {
-    setToDate(value);
-    if (value && fromDate && value < fromDate) setFromDate(value);
-    setPage(1);
+    updateFilters({ to: value, ...(value && fromDate && value < fromDate ? { from: value } : {}) });
   }
 
   function clearDates() {
-    setFromDate('');
-    setToDate('');
-    setPage(1);
+    updateFilters({ from: '', to: '' });
   }
 
   const clientOptions: DropdownOption[] = [
     { value: '', label: 'All clients' },
     ...(clients.data ?? []).map((client) => ({ value: client.id, label: client.name })),
+    ...(clientId && !clients.data?.some((client) => client.id === clientId)
+      ? [{ value: clientId, label: clientLabel ?? 'Selected client' }] : []),
   ];
 
   return (
@@ -402,7 +334,7 @@ export function VNextMeetingLibrary() {
           <input
             type="text"
             value={q}
-            onChange={(event) => setQ(event.target.value)}
+            onChange={(event) => updateFilters({ q: event.target.value })}
             aria-label="Search your meeting library by subject or client"
             placeholder="Search by meeting or client…"
           />
@@ -413,8 +345,8 @@ export function VNextMeetingLibrary() {
           options={clientOptions}
           selectedValue={clientId ?? ''}
           onSelect={(value) => {
-            setClientId(value || undefined);
-            setPage(1);
+            if (onClientChange) onClientChange(value || null);
+            else updateFilters({ client: value });
           }}
         />
         <LibraryDropdown
@@ -423,8 +355,7 @@ export function VNextMeetingLibrary() {
           options={TYPE_OPTIONS}
           selectedValue={type === 'all' ? '' : type}
           onSelect={(value) => {
-            setType((value || 'all') as LibraryTypeFilter);
-            setPage(1);
+            updateFilters({ type: value });
           }}
         />
         <LibraryDropdown
@@ -433,8 +364,7 @@ export function VNextMeetingLibrary() {
           options={VISIBILITY_OPTIONS}
           selectedValue={vis === 'all' ? '' : vis}
           onSelect={(value) => {
-            setVis((value || 'all') as LibraryVisibilityFilter);
-            setPage(1);
+            updateFilters({ vis: value });
           }}
         />
       </div>
@@ -523,7 +453,7 @@ export function VNextMeetingLibrary() {
                 className="uui-library-row"
                 onClick={() => openMeeting(meeting)}
               >
-                <span className="uui-library-date">{formatDateShort(meeting.startsAt)}</span>
+                <span className="uui-library-date">{formatMeetingDayTitle(meeting.startsAt, meeting.endsAt)}</span>
                 <span className="uui-library-title">
                   <strong>{meeting.subject}</strong>
                   <small>{meeting.client?.name ?? 'No client'}</small>
@@ -541,13 +471,13 @@ export function VNextMeetingLibrary() {
 
       {total > PAGE_SIZE && (
         <div className="uui-library-pagination">
-          <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          <button type="button" disabled={page <= 1} onClick={() => updateFilters({ page: page === 2 ? '' : String(page - 1) }, false)}>
             Previous
           </button>
           <span>
             Page {page} of {totalPages}
           </span>
-          <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+          <button type="button" disabled={page >= totalPages} onClick={() => updateFilters({ page: String(page + 1) }, false)}>
             Next
           </button>
         </div>

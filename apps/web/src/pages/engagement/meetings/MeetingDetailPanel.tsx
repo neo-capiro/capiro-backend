@@ -10,7 +10,7 @@ import {
   useUnshareArtifacts,
   type ShareArtifactRef,
 } from './meetings-api.js';
-import { formatDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
+import { formatMeetingDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
 import {
   Ava,
   JoinButton,
@@ -23,7 +23,7 @@ import {
   meetingStatus,
   showSendMeri,
 } from './meetings-ui.js';
-import { approvedDebrief, type DetailTab, type Meeting } from './meetings-types.js';
+import { approvedDebrief, isCancelledMeeting, type DetailTab, type Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { SharedMeetingsSection } from './SharedMeetingsSection.js';
 // Confirm/toast chrome is injected per surface (AntD on the canonical
@@ -280,7 +280,7 @@ export function MeetingDetailPanel({
   // produce anything (meri 'failed' — consent declined, provider error,
   // no-show; no reason to keep waiting on the scheduled end time).
   const debriefLocked = m
-    ? new Date(m.endsAt).getTime() > Date.now() &&
+    ? !isCancelledMeeting(m) && new Date(m.endsAt).getTime() > Date.now() &&
       m.meri !== 'attended' &&
       m.meri !== 'done' &&
       m.meri !== 'failed'
@@ -407,7 +407,7 @@ export function MeetingDetailPanel({
                     (app.capiro.ai) already called formatTimeRange, so this
                     only changes the vNext surface. */}
                 <span>
-                  {formatDayTitle(new Date(m.startsAt))} ·{' '}
+                  {formatMeetingDayTitle(m.startsAt, m.endsAt)} ·{' '}
                   {isAllDayMeeting(m.startsAt, m.endsAt)
                     ? 'All day'
                     : formatTimeRange(m.startsAt, m.endsAt)}
@@ -622,6 +622,12 @@ export function MeetingDetailPanel({
                 — visible to your org.
               </span>
             </div>
+          )}
+
+          {isCancelledMeeting(m) && (
+            <p role="status" style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+              Cancelled meeting. Existing materials remain available; no prep or debrief is required.
+            </p>
           )}
 
           {/* Tabs */}

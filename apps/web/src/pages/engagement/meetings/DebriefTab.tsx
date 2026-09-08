@@ -12,10 +12,10 @@ import {
   useUploadAndExtract,
 } from './meetings-api.js';
 import { exportArtifactPdf } from './meetings-print.js';
-import { formatDayTitle } from './meetings-format.js';
+import { formatMeetingDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
-import type { Meeting, MeetingDebriefDraft } from './meetings-types.js';
+import { isCancelledMeeting, type Meeting, type MeetingDebriefDraft } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
@@ -377,6 +377,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   useEffect(() => setCheckedItems({}), [current?.id]);
 
+  const cancelled = isCancelledMeeting(meeting);
   const busy = generate.isPending || save.isPending || uploadExtract.isPending;
   // Belt-and-suspenders: the Debrief tab button is disabled while the meeting
   // is still in progress (MeetingDetailPanel), but this guards direct access
@@ -384,11 +385,12 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   // Unlocked once the scheduled end passed OR Meri detected the call ended early
   // (all participants left) — meri is then 'attended' (summarizing) or 'done'.
   const locked =
-    new Date(meeting.endsAt).getTime() > Date.now() &&
+    !cancelled && new Date(meeting.endsAt).getTime() > Date.now() &&
     meeting.meri !== 'attended' &&
-    meeting.meri !== 'done';
+    meeting.meri !== 'done' && meeting.meri !== 'failed';
 
   const draftAndSave = async (method: 'manual' | 'upload' | 'voice', sourceText: string) => {
+    if (cancelled) return;
     if (!sourceText.trim()) {
       chrome.warning('Add some notes or a transcript first.');
       return;
@@ -407,7 +409,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   };
 
   const onFile = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || cancelled) return;
     try {
       const isAudio =
         /^audio|^video/.test(file.type) || /\.(mp3|mp4|m4a|wav|webm|mpeg|mpga)$/i.test(file.name);
@@ -463,6 +465,9 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
       </>
     );
   }
+  if (cancelled && !current) {
+    return <Empty icon={<Lock size={20} />} title="Meeting cancelled" body="No debrief is required for a cancelled meeting." />;
+  }
   if (busy) {
     return (
       <>
@@ -486,7 +491,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   }
 
   // No debrief (or re-drafting) → source picker
-  if (!current || redraft) {
+  if (!current || (redraft && !cancelled)) {
     const hasNotes = Boolean(meriNotes);
     return (
       <>
@@ -538,7 +543,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   const parsed = parseDebriefBody(current.body);
   const status = meeting.debriefs.find((d) => d.id === current.id)?.status ?? current.status;
   const onExport = () =>
-    exportArtifactPdf(`Debrief — ${meeting.subject}`, formatDayTitle(new Date(meeting.startsAt)), [
+    exportArtifactPdf(`Debrief — ${meeting.subject}`, formatMeetingDayTitle(meeting.startsAt, meeting.endsAt), [
       { heading: 'Recap', body: parsed.recap },
       { heading: 'Action Items', items: parsed.actionItems },
       { heading: 'Notes', body: parsed.notes },
@@ -658,7 +663,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
       )}
 
       <ArtifactActionBar
-        onRegenerate={() => setRedraft(true)}
+        onRegenerate={cancelled ? undefined : () => setRedraft(true)}
         onEdit={() => {
           setEditBody(current.body ?? '');
           setEditOpen(true);

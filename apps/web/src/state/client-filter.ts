@@ -31,6 +31,9 @@ export function useClientFilter() {
   useEffect(() => {
     const listener = () => setSelected(selectedClientId);
     listeners.push(listener);
+    // A child can restore a URL scope before this subscriber's effect runs.
+    // Read once after subscribing so that initial update is not missed.
+    listener();
     return () => {
       listeners = listeners.filter((entry) => entry !== listener);
     };

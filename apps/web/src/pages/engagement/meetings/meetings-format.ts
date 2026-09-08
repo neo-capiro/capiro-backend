@@ -1,5 +1,32 @@
-// Date/label helpers for the Meetings module. All day-bucketing uses LOCAL
-// dates (YYYY-MM-DD keys parsed as local, never UTC — the Meetings-tab gotcha).
+// Calendar Date objects carry civil Y/M/D fields; meeting timestamps are instants.
+// Do not format a civil midnight as an instant: browser Date arithmetic and Intl
+// can have different default zones (including under browser timezone emulation).
+import { localDateKey, zonedInstantUtc, zonedMidnightUtc } from '../../../vnext/pages/workspace/hillday/hillday-time.js';
+
+// Resolve once and pass explicitly throughout bucketing, clocks, and query bounds.
+export const MEETINGS_TIME_ZONE = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export function calendarToday(): Date {
+  return localDateFromKey(localDateKey(new Date(), MEETINGS_TIME_ZONE));
+}
+
+export function meetingDateTimeToIso(date: string, time: string): string {
+  return zonedInstantUtc(date, time, MEETINGS_TIME_ZONE);
+}
+
+/** Inclusive civil dates → an exclusive instant window, including UTC-stored all-day events. */
+export function meetingQueryRange(start: Date, end: Date): { from: string; to: string } {
+  const first = dayKey(start);
+  const after = dayKey(addDays(end, 1));
+  return {
+    from: new Date(Math.min(Date.parse(zonedMidnightUtc(first, MEETINGS_TIME_ZONE)), Date.parse(`${first}T00:00:00Z`))).toISOString(),
+    to: new Date(Math.max(Date.parse(zonedMidnightUtc(after, MEETINGS_TIME_ZONE)), Date.parse(`${after}T00:00:00Z`))).toISOString(),
+  };
+}
+
+function civilDateForFormatting(d: Date): Date {
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
 
 export function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -40,15 +67,16 @@ export function isAllDayMeeting(startsAt: string, endsAt: string): boolean {
 }
 
 /**
- * Day-bucket key for a meeting. Timed events bucket by the viewer's LOCAL day.
+ * Day-bucket key for a meeting. Timed events use the explicit viewer zone.
  * All-day events are date-only stored at UTC midnight; bucketing them locally
  * shifts them to the PREVIOUS day for west-of-UTC (US) users (and can drop them
  * off the leading edge of a window), so bucket them by their UTC calendar date —
  * the YYYY-MM-DD they nominally fall on.
  */
 export function meetingDayKey(startsAt: string, endsAt: string): string {
+  if (!Number.isFinite(Date.parse(startsAt))) return '';
   if (isAllDayMeeting(startsAt, endsAt)) return startsAt.slice(0, 10);
-  return dayKey(new Date(startsAt));
+  return localDateKey(startsAt, MEETINGS_TIME_ZONE);
 }
 
 export function addDays(d: Date, n: number): Date {
@@ -73,7 +101,7 @@ export function isSameDay(a: Date, b: Date): boolean {
 }
 
 export function isToday(d: Date): boolean {
-  return isSameDay(d, new Date());
+  return isSameDay(d, calendarToday());
 }
 
 /**
@@ -101,7 +129,7 @@ export function isToday(d: Date): boolean {
  * it to " " (U+202F is in `\s`), so getByText('2:00 PM') matches; a raw string
  * comparison has to normalize the whitespace itself.
  */
-const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { timeZone: MEETINGS_TIME_ZONE, hour: 'numeric', minute: '2-digit' });
 
 /**
  * "2:00 PM". An unparseable instant renders an em dash instead of throwing:
@@ -125,18 +153,21 @@ export function formatTimeRange(startIso: string, endIso: string): string {
 }
 
 const WEEKDAY_LONG = new Intl.DateTimeFormat(undefined, {
+  timeZone: 'UTC',
   weekday: 'long',
   month: 'long',
   day: 'numeric',
 });
-const WEEKDAY_SHORT = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+const WEEKDAY_SHORT = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', weekday: 'short' });
 const DATE_SHORT = new Intl.DateTimeFormat(undefined, {
+  timeZone: MEETINGS_TIME_ZONE,
   weekday: 'short',
   month: 'short',
   day: 'numeric',
 });
-const MONTH_TITLE = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+const MONTH_TITLE = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', month: 'long', year: 'numeric' });
 const DAY_TITLE = new Intl.DateTimeFormat(undefined, {
+  timeZone: 'UTC',
   weekday: 'short',
   month: 'short',
   day: 'numeric',
@@ -144,12 +175,12 @@ const DAY_TITLE = new Intl.DateTimeFormat(undefined, {
 
 /** "Friday, July 10", prefixed "Today — " when it's today. */
 export function formatDayHeader(d: Date): string {
-  const base = WEEKDAY_LONG.format(d);
+  const base = WEEKDAY_LONG.format(civilDateForFormatting(d));
   return isToday(d) ? `Today — ${base}` : base;
 }
 
 export function formatWeekdayShort(d: Date): string {
-  return WEEKDAY_SHORT.format(d).toUpperCase();
+  return WEEKDAY_SHORT.format(civilDateForFormatting(d)).toUpperCase();
 }
 
 export function formatDateShort(iso: string): string {
@@ -157,14 +188,14 @@ export function formatDateShort(iso: string): string {
 }
 
 export function formatMonthTitle(d: Date): string {
-  return MONTH_TITLE.format(d);
+  return MONTH_TITLE.format(civilDateForFormatting(d));
 }
 
 export function formatDayTitle(d: Date): string {
-  return DAY_TITLE.format(d);
+  return DAY_TITLE.format(civilDateForFormatting(d));
 }
 
-const WEEK_RANGE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const WEEK_RANGE = new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric' });
 
 /**
  * Week/range label with the month on BOTH ends: "Jul 10 – Jul 16", and across a
@@ -172,7 +203,13 @@ const WEEK_RANGE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'nu
  * day-of-month, so a same-month range read "Jul 10 – 16" — month on one side.)
  */
 export function formatWeekRange(start: Date, end: Date): string {
-  return `${WEEK_RANGE.format(start)} – ${WEEK_RANGE.format(end)}`;
+  return `${WEEK_RANGE.format(civilDateForFormatting(start))} – ${WEEK_RANGE.format(civilDateForFormatting(end))}`;
+}
+
+/** Meeting/detail/export date uses the same bucket as the calendar, including all-day events. */
+export function formatMeetingDayTitle(startsAt: string, endsAt: string): string {
+  const key = meetingDayKey(startsAt, endsAt);
+  return key ? formatDayTitle(localDateFromKey(key)) : '—';
 }
 
 const PROVIDER_LABELS: Record<string, string> = {

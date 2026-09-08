@@ -14,6 +14,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { ownMeetingWhere } from './engagement-access.helpers.js';
+import type { PrepEvidenceSource } from './meeting-prep-grounding.js';
 import type {
   MeetingContextMode,
   MeetingCoverageProjection,
@@ -180,6 +181,7 @@ export class MeetingContextPlaneService {
     );
     const packetId = packetIdOf(result.packet);
     const traceHash = traceHashOf(result.packet);
+    const steering = projectSteering(result.packet);
 
     return {
       kind: result.kind,
@@ -189,9 +191,10 @@ export class MeetingContextPlaneService {
       packetId,
       traceHash,
       coverage,
+      evidenceSources: [...steering.sources, ...projection.sources],
       modelContextBlock: buildModelContextBlock({
         mode: input.mode,
-        packet: result.packet,
+        steering: steering.text,
         packetId,
         coverage,
         records: projection.text,
@@ -215,6 +218,7 @@ export class MeetingContextPlaneService {
           id: true,
           clientId: true,
           isInternal: true,
+          associationSignals: true,
           subject: true,
           description: true,
           startsAt: true,
@@ -229,11 +233,13 @@ export class MeetingContextPlaneService {
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
 
-      // EngagementService has always used the current association rules, not
-      // merely the denormalized meeting.clientId. Resolve the same canonical
-      // effective client before building the Context Plane subject so a derived
-      // client can never disagree with the provider input later in the request.
-      const effectiveClientId = meeting.isInternal
+      // Resolve the same canonical client as EngagementService: internal and
+      // manually cleared meetings stay unscoped; email inference is only for
+      // meetings which have never been explicitly assigned/cleared.
+      const signals = meeting.associationSignals;
+      const manuallyCleared = !meeting.clientId && signals && typeof signals === 'object'
+        && !Array.isArray(signals) && signals.manual === true;
+      const effectiveClientId = meeting.isInternal || manuallyCleared
         ? null
         : meeting.clientId ??
           (
@@ -345,11 +351,12 @@ function validateResolvedScope(
   }
 }
 
-function projectRecords(records: RetrievalRecord[]): { text: string; truncated: boolean } {
+function projectRecords(records: RetrievalRecord[]): { text: string; truncated: boolean; sources: PrepEvidenceSource[] } {
   if (records.length === 0) {
-    return { text: '(no supplemental institutional records returned)', truncated: false };
+    return { text: '(no supplemental institutional records returned)', truncated: false, sources: [] };
   }
   const blocks: string[] = [];
+  const sources: PrepEvidenceSource[] = [];
   let used = 0;
   let truncated = false;
   for (const record of records) {
@@ -360,11 +367,20 @@ function projectRecords(records: RetrievalRecord[]): { text: string; truncated: 
       break;
     }
     blocks.push(block);
+    sources.push({
+      id: `${record.domain}:${record.recordId}`,
+      kind: record.domain,
+      title: stringField(payload, 'subject') ?? stringField(payload, 'title') ?? stringField(payload, 'name') ?? 'Context record',
+      recordId: record.recordId,
+      observedAt: stringField(payload, 'updatedAt') ?? stringField(payload, 'sentAt') ?? stringField(payload, 'startsAt'),
+      excerpt: boundedJson(payload, RECORD_CHAR_BUDGET),
+    });
     used += block.length;
   }
   return {
     text: blocks.join('\n\n') || '(no supplemental institutional records returned)',
     truncated,
+    sources,
   };
 }
 
@@ -461,25 +477,43 @@ function projectCoverage(
   };
 }
 
+function projectSteering(packet: unknown): { text: string; sources: PrepEvidenceSource[] } {
+  const value = asRecord(packet);
+  const blocks: string[] = [];
+  const sources: PrepEvidenceSource[] = [];
+  let remaining = 10_000;
+  for (const raw of Array.isArray(value.rendered) ? value.rendered : []) {
+    const item = asRecord(raw);
+    const type = stringField(item, 'type') ?? 'context';
+    const body = stringField(item, 'body') ?? '';
+    if (!body) continue;
+    const prefix = `${blocks.length ? '\n\n' : ''}[${type}]\n`;
+    const excerpt = body.slice(0, Math.max(0, remaining - prefix.length));
+    if (!excerpt) break;
+    const block = prefix + excerpt;
+    blocks.push(block);
+    remaining -= block.length;
+    sources.push({
+      id: `steering:${stringField(item, 'id') ?? blocks.length}`,
+      kind: 'steering',
+      title: stringField(item, 'title') ?? 'Approved client and firm context',
+      recordId: stringField(item, 'id'),
+      observedAt: stringField(item, 'updatedAt'),
+      excerpt,
+    });
+    if (remaining <= 0) break;
+  }
+  return { text: blocks.join(''), sources };
+}
+
 function buildModelContextBlock(input: {
   mode: MeetingContextMode;
-  packet: unknown;
+  steering: string;
   packetId: string | null;
   coverage: MeetingCoverageProjection;
   records: string;
   releaseSwitchRollback: boolean;
 }): string {
-  const packet = asRecord(input.packet);
-  const rendered = (Array.isArray(packet.rendered) ? packet.rendered : [])
-    .map((raw) => {
-      const item = asRecord(raw);
-      const type = stringField(item, 'type') ?? 'context';
-      const body = stringField(item, 'body') ?? '';
-      return body ? `[${type}]\n${body}` : '';
-    })
-    .filter(Boolean)
-    .join('\n\n')
-    .slice(0, 10_000);
   const authority =
     input.mode === 'debrief'
       ? 'AUTHORITY: only source.text, visibleNotes, and confirmed current-meeting metadata may establish what happened, who attended, decisions, commitments, owners, deadlines, quotes, outcomes, or action items. This Context Plane block is background only.'
@@ -508,7 +542,7 @@ function buildModelContextBlock(input: {
     `truncated=${input.coverage.truncated}`,
     '',
     'GOVERNED STEERING:',
-    rendered || '(no approved steering items selected)',
+    input.steering || '(no approved steering items selected)',
     '',
     'SUPPLEMENTAL INSTITUTIONAL CONTEXT:',
     input.records,

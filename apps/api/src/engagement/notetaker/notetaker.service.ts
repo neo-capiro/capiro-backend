@@ -551,9 +551,12 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        select: { id: true, clientId: true },
+        select: { id: true, clientId: true, status: true },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      if (['cancelled', 'canceled'].includes(meeting.status?.trim().toLowerCase() ?? '')) {
+        throw new BadRequestException('Cannot send a notetaker to a cancelled meeting');
+      }
       const active = await tx.meetingBotSession.findFirst({
         where: { meetingId, tenantId: ctx.tenantId, status: { in: REMOVABLE_STATUSES } },
         select: { id: true },

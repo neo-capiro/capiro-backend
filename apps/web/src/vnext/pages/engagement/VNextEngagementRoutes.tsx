@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
@@ -62,6 +62,16 @@ export function VNextEngagementRoutes() {
   const navigate = useNavigate();
   const clientFilter = useClientFilter();
   const destination = engagementDestination(location.pathname);
+  const previousScope = useRef<{ locationKey: string; clientId: string | null } | null>(null);
+  const libraryParams = new URLSearchParams(location.search);
+  // Explicit links and browser history restore their scope. A change from the
+  // shared shell selector on the same URL takes precedence until serialized.
+  const globalScopeChanged = previousScope.current !== null
+    && previousScope.current.clientId !== clientFilter.selectedClientId
+    && previousScope.current.locationKey === location.key;
+  const selectedClientId = destination === 'library' && libraryParams.has('client') && !globalScopeChanged
+    ? libraryParams.get('client') || null
+    : clientFilter.selectedClientId;
   /* Arrow / Home / End across Meetings | Outreach | Reports. */
   const onTabsKeyDown = useRovingFocus();
 
@@ -70,16 +80,41 @@ export function VNextEngagementRoutes() {
     if (canonical) navigate(canonical, { replace: true });
   }, [location.pathname, location.search, navigate]);
 
+  useEffect(() => {
+    previousScope.current = { locationKey: location.key, clientId: selectedClientId };
+    if (destination !== 'library') return;
+    if (clientFilter.selectedClientId !== selectedClientId) {
+      clientFilter.setSelectedClientId(selectedClientId);
+    }
+    const params = new URLSearchParams(location.search);
+    if (params.has('client') && (params.get('client') || null) === selectedClientId) return;
+    // Keep an explicit empty value for All clients; an absent parameter means
+    // entering Library should inherit the current global scope.
+    if (params.has('client')) params.delete('page');
+    params.set('client', selectedClientId ?? '');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  }, [destination, location.key, location.pathname, location.search, selectedClientId,
+    clientFilter.selectedClientId, clientFilter.setSelectedClientId, navigate]);
+
+  function selectClient(clientId: string | null) {
+    clientFilter.setSelectedClientId(clientId);
+    if (destination !== 'library') return;
+    const params = new URLSearchParams(location.search);
+    params.set('client', clientId ?? '');
+    params.delete('page');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  }
+
   const clients = useQuery<Client[]>({
     queryKey: ['clients'],
     queryFn: async () => (await api.get<Client[]>('/api/clients')).data,
     staleTime: 60_000,
   });
   const activeClients = useMemo(
-    () => (clients.data ?? []).filter((client) => client.status !== 'archived').sort((a, b) => a.name.localeCompare(b.name)),
-    [clients.data],
+    () => (clients.data ?? []).filter((client) => client.status !== 'archived' || client.id === selectedClientId).sort((a, b) => a.name.localeCompare(b.name)),
+    [clients.data, selectedClientId],
   );
-  const scopeLabel = activeClients.find((client) => client.id === clientFilter.selectedClientId)?.name ?? 'All clients';
+  const scopeLabel = activeClients.find((client) => client.id === selectedClientId)?.name ?? (selectedClientId ? 'Selected client' : 'All clients');
   const navigateTab = (tab: 'meetings' | 'outreach' | 'reports') => {
     if (tab === 'meetings') navigate('/engagement/meetings');
     else if (tab === 'reports') navigate('/engagement/reports?period=current');
@@ -115,7 +150,7 @@ export function VNextEngagementRoutes() {
         />
       );
       break;
-    case 'library': body = <VNextMeetingLibrary />; break;
+    case 'library': body = <VNextMeetingLibrary clientId={selectedClientId} clientLabel={scopeLabel} onClientChange={selectClient} />; break;
     case 'reports': body = <VNextReportsTracker clientId={clientFilter.selectedClientId} />; break;
   }
 
@@ -126,8 +161,9 @@ export function VNextEngagementRoutes() {
           <div><h1>Engagement</h1><p>{subline(destination)}</p></div>
           <label className="uui-client-scope">
             <span>Client</span><span className="uui-client-scope__value">{scopeLabel}</span><ChevronDown size={16} />
-            <select value={clientFilter.selectedClientId ?? ''} onChange={(event) => clientFilter.setSelectedClientId(event.target.value || null)}>
+            <select value={selectedClientId ?? ''} onChange={(event) => selectClient(event.target.value || null)}>
               <option value="">All clients</option>
+              {selectedClientId && !activeClients.some((client) => client.id === selectedClientId) && <option value={selectedClientId}>{scopeLabel}</option>}
               {activeClients.map((client) => <option value={client.id} key={client.id}>{client.name}</option>)}
             </select>
           </label>

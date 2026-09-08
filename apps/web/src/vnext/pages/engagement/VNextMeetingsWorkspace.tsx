@@ -74,12 +74,16 @@ import {
   approvedDebrief,
   completedDebrief,
   completedPrep,
+  isCancelledMeeting,
   type DetailTab,
   type Meeting,
   type MeetingViewMode,
 } from '../../../pages/engagement/meetings/meetings-types.js';
 import {
   addDays,
+  calendarToday,
+  meetingDateTimeToIso,
+  meetingQueryRange,
   dayKey,
   formatDateShort,
   formatDayHeader,
@@ -153,15 +157,6 @@ function bestDetailTab(m: Meeting): DetailTab {
   return 'prep';
 }
 
-/** Naive local Y-M-D + H:M composer for the minimal New Meeting form — same
- *  local-time construction style as meetings-format.ts's localDateFromKey,
- *  just with a time-of-day added. */
-function localDateTimeToIso(dateKeyValue: string, time: string): string {
-  const [y, m, d] = dateKeyValue.split('-').map(Number);
-  const [hh, mm] = time.split(':').map(Number);
-  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0).toISOString();
-}
-
 type LifecycleTone = 'navy' | 'gray' | 'warn';
 interface LifecycleStatus {
   label: string;
@@ -184,6 +179,7 @@ interface LifecycleStatus {
  * warning; a future meeting defaults to needs-prep.
  */
 function meetingLifecycleStatus(m: Meeting): LifecycleStatus {
+  if (isCancelledMeeting(m)) return { label: 'Cancelled', tone: 'gray' };
   if (m.isInternal) return { label: 'Internal', tone: 'gray' };
   if (approvedDebrief(m) || completedDebrief(m)) return { label: 'Debrief complete', tone: 'navy' };
   if (m.meri === 'attending') return { label: 'Meri attending', tone: 'navy' };
@@ -515,7 +511,7 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
   const toast = useEngagementToast();
 
   const [viewMode, setViewMode] = useState<MeetingViewMode>('day');
-  const [cursor, setCursor] = useState<Date>(() => new Date());
+  const [cursor, setCursor] = useState<Date>(() => calendarToday());
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   // The drawer's active tab — owned here (not by MeetingDetailPanel, which is
   // fully controlled) and round-tripped through the `tab` URL param, the same
@@ -524,6 +520,7 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
   // actually owns it now that the real drawer is mounted.
   const [activeTab, setActiveTab] = useState<DetailTab>('prep');
   const [historyBatch, setHistoryBatch] = useState(0);
+  useEffect(() => setHistoryBatch(0), [clientId]);
   const [newMeetingOpen, setNewMeetingOpen] = useState(false);
   // `?compose=meeting` opens the create-meeting window on arrival, so the
   // post-send "Create meeting" action in Outreach lands on a real composer
@@ -585,6 +582,7 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
     if (!hasChange) return;
 
     syncingFromUrlRef.current = true;
+    if ((nextView !== null && nextView !== viewMode) || (nextDateKey !== null && nextDateKey !== currentCursorKey)) setHistoryBatch(0);
     if (nextView) setViewMode(nextView);
     if (nextDateKey) setCursor(localDateFromKey(nextDateKey));
     setSelectedMeetingId(nextMeeting ?? null);
@@ -637,16 +635,7 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
   const effectiveStart =
     viewMode === 'month' ? range.start : addDays(range.start, -historyBatch * HISTORY_STEP_DAYS);
 
-  // Lower bound = the EARLIER of local midnight and UTC midnight, so an
-  // all-day event stored at UTC midnight on the leading day isn't excluded
-  // for west-of-UTC users — same math as the canonical MeetingsV2.tsx.
-  const from = new Date(
-    Math.min(
-      new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), effectiveStart.getDate()).getTime(),
-      Date.UTC(effectiveStart.getFullYear(), effectiveStart.getMonth(), effectiveStart.getDate()),
-    ),
-  ).toISOString();
-  const to = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate() + 1).toISOString();
+  const { from, to } = meetingQueryRange(effectiveStart, range.end);
 
   const meetingsQuery = useMeetings({ from, to, clientId: clientId ?? undefined });
   const list = meetingsQuery.data ?? [];
@@ -668,36 +657,23 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
    *  the drawer, and must not take its white column chrome (UI-parity §5.1). */
   const drawerOpen = Boolean(selectedMeetingId) && !notFound && Boolean(selectedMeeting);
 
-  const periodLabel = useMemo(() => {
-    if (viewMode === 'month') return formatMonthTitle(cursor);
-    if (viewMode === 'day') return formatDayTitle(cursor);
-    const ws = startOfWeek(cursor);
-    return formatWeekRange(ws, addDays(ws, 6));
-  }, [viewMode, cursor]);
+  const periodLabel = viewMode === 'month'
+    ? formatMonthTitle(cursor)
+    : viewMode === 'day' ? formatDayTitle(cursor) : formatWeekRange(effectiveStart, range.end);
 
   const meetingsOn = (d: Date) =>
     list
       .filter((m) => meetingDayKey(m.startsAt, m.endsAt) === dayKey(d))
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i)),
-    [cursor],
-  );
-  // Day view always renders cursor's single day-key regardless of whether
-  // that day actually has meetings (so its own empty day-group can render
-  // under the week strip) — List view's bodyKeys is already filtered down to
-  // only the days that have something. That means `bodyKeys.length === 0`
-  // alone is a reliable "nothing in this period" signal for List, but never
-  // true for Day (the canonical MeetingsV2.tsx has this exact gap — its own
-  // test file documents Day view as exempt from ever tripping the empty
-  // state). Since this phase requires all 4 calendar states to be genuinely
-  // real for every view, `isEmpty` below checks Day view's actual day
-  // instead of trusting bodyKeys' length for it.
-  const bodyKeys =
-    viewMode === 'day'
-      ? [dayKey(cursor)]
-      : weekDays.map(dayKey).filter((k) => list.some((m) => meetingDayKey(m.startsAt, m.endsAt) === k));
+  // History must expand the rendered groups as well as the requested window.
+  const visibleStartKey = dayKey(effectiveStart);
+  const visibleEndKey = dayKey(range.end);
+  const bodyKeys = viewMode === 'day'
+    ? [dayKey(cursor)]
+    : [...new Set(list.map((m) => meetingDayKey(m.startsAt, m.endsAt)))]
+      .filter((key) => key >= visibleStartKey && key <= visibleEndKey)
+      .sort();
   const isEmptyPeriod = viewMode === 'day' ? meetingsOn(cursor).length === 0 : bodyKeys.length === 0;
 
   function resetHistory() {
@@ -725,7 +701,7 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
   function goToToday() {
     resetHistory();
     setViewMode('day');
-    setCursor(new Date());
+    setCursor(calendarToday());
   }
 
   function selectDateInStrip(d: Date) {
@@ -778,8 +754,8 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
         await api.post<Meeting>('/api/engagement/meetings', {
           clientId: clientId ?? undefined,
           subject: input.subject,
-          startsAt: localDateTimeToIso(input.dateKey, input.startTime),
-          endsAt: localDateTimeToIso(input.dateKey, input.endTime),
+          startsAt: meetingDateTimeToIso(input.dateKey, input.startTime),
+          endsAt: meetingDateTimeToIso(input.dateKey, input.endTime),
           attendees: [],
         })
       ).data,
@@ -787,7 +763,7 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
       void qc.invalidateQueries({ queryKey: [meetingsListKey] });
       setNewMeetingOpen(false);
       setSelectedMeetingId(created.id);
-      setCursor(new Date(created.startsAt));
+      setCursor(localDateFromKey(meetingDayKey(created.startsAt, created.endsAt ?? created.startsAt)));
       toast.show(`Meeting created · ${formatDateShort(created.startsAt)}, ${formatTime(created.startsAt)}`);
     },
   });
@@ -1002,25 +978,19 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
                 </div>
               );
             })}
-            {/* List-only: widening the fetch window actually reveals more
-                day-groups there. Day view always shows exactly cursor's one
-                day/one group regardless of how far back the window reaches
-                (the week strip is pinned to the current week too), so this
-                control would fetch more data that never renders anywhere —
-                real would-be-decorative risk this phase's states must avoid,
-                so it's scoped to where it does something. */}
-            {viewMode === 'list' && (
-              <button
-                type="button"
-                className="vmtg-load-more"
-                disabled={historyBatch >= MAX_HISTORY_BATCHES || meetingsQuery.isFetching}
-                onClick={() => setHistoryBatch((b) => Math.min(b + 1, MAX_HISTORY_BATCHES))}
-              >
-                <History size={14} />
-                {meetingsQuery.isFetching ? 'Loading…' : 'Load earlier meetings'}
-              </button>
-            )}
+
           </>
+        )}
+        {viewMode === 'list' && !meetingsQuery.isLoading && !meetingsQuery.isError && (
+          <button
+            type="button"
+            className="vmtg-load-more"
+            disabled={historyBatch >= MAX_HISTORY_BATCHES || meetingsQuery.isFetching}
+            onClick={() => setHistoryBatch((b) => Math.min(b + 1, MAX_HISTORY_BATCHES))}
+          >
+            <History size={14} />
+            {meetingsQuery.isFetching ? 'Loading…' : historyBatch >= MAX_HISTORY_BATCHES ? 'Earlier history limit reached' : 'Load earlier meetings'}
+          </button>
         )}
       </div>
 

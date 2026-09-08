@@ -1305,7 +1305,7 @@ export class MicrosoftGraphSyncService {
               externalId: event.id!,
             },
           },
-          select: { id: true, clientId: true, isInternal: true, associationSignals: true, status: true },
+          select: { id: true, clientId: true, isInternal: true, associationScore: true, associationReason: true, associationSignals: true, status: true },
         });
         // Resurrection guard: if this meeting was previously marked deleted
         // (via @removed from a Graph delta), do not revive it when a full
@@ -1326,7 +1326,7 @@ export class MicrosoftGraphSyncService {
         // be corrected.
         const clientId = existing?.isInternal
           ? null
-          : existing?.clientId &&
+          : existing &&
               (hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
             ? existing.clientId
             : association.clientId;
@@ -1376,9 +1376,15 @@ export class MicrosoftGraphSyncService {
             webLink: event.webLink ?? null,
             provider: 'microsoft_graph',
           } as Prisma.InputJsonValue,
-          associationScore: association.score,
-          associationReason: association.reason,
-          associationSignals: association.signals as Prisma.InputJsonValue,
+          associationScore: existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+            ? existing.associationScore : association.score,
+          associationReason: existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+            ? existing.associationReason : association.reason,
+          associationSignals: (
+            existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+              ? existing.associationSignals
+              : association.signals
+          ) as Prisma.InputJsonValue,
         };
         const meeting = existing
           ? await tx.meeting.update({

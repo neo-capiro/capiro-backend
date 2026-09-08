@@ -162,6 +162,20 @@ describe('MeetingDetailPanel', () => {
     await waitFor(() => expect(onTabChange).toHaveBeenCalledWith('prep'));
   });
 
+  test('cancelled meetings hide Join/Send Meri and keep previously saved debriefs accessible', () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onTabChange = vi.fn();
+    const meeting = makeMeeting({ status: 'cancelled', isVirtual: true, joinLink: 'https://meet.google.com/example',
+      startsAt: '2099-01-01T10:00:00.000Z', endsAt: '2099-01-01T10:30:00.000Z',
+      debriefs: [{ id: 'saved', status: 'approved', confidential: false, createdAt: '2026-01-01T00:00:00Z' }] });
+    render(buildTree(qc, defaultProps({ meeting, activeTab: 'debrief', onTabChange })));
+    expect(screen.queryByRole('button', { name: /send meri/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /join/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/cancelled meeting.*existing materials/i)).toBeInTheDocument();
+    expect(screen.getByTestId('tab-debrief')).toBeInTheDocument();
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+
   test('debrief unlocks once the meeting has ended', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const onTabChange = vi.fn();

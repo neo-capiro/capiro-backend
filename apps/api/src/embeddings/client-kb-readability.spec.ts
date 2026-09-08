@@ -8,27 +8,31 @@ jest.mock('./embedder.js', () => ({
 
 function fixture() {
   const update = jest.fn().mockResolvedValue({});
-  const findFirst = jest.fn().mockResolvedValue({
+  const attachment = {
     id: 'document-1',
     clientId: 'client-1',
     fileName: 'Scanned.pdf',
     contentType: 'application/pdf',
     meetingId: null,
     s3Key: 'tenant/doc',
-  });
+  };
+  const findFirst = jest.fn().mockResolvedValue(attachment);
   const extractAttachmentTextForKb = jest.fn();
   const purge = jest.fn().mockResolvedValue(undefined);
   const service = Object.create(ClientKbService.prototype) as ClientKbService;
   Object.assign(service, {
     prisma: {
       withTenant: jest.fn(async (_tenant, fn) =>
-        fn({ engagementAttachment: { findFirst, update } }),
+        fn({
+          engagementAttachment: { findFirst, update },
+          $queryRawUnsafe: jest.fn().mockResolvedValue([attachment]),
+          $executeRawUnsafe: purge,
+        }),
       ),
     },
     countClientChunks: jest.fn().mockResolvedValue(0),
     clientName: jest.fn().mockResolvedValue('Client'),
     extractAttachmentTextForKb,
-    purge,
   });
   return { service, update, extractAttachmentTextForKb, purge };
 }
