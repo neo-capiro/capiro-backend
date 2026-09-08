@@ -247,11 +247,16 @@ test("a committed page survives the next page's 429 and resumes there without re
     readCheckpoint: async () => checkpoint,
     writeCheckpoint: async (
       _key: string,
-      next: Omit<SubawardCheckpoint, 'rowsProcessed'> & {
+      next: Omit<SubawardCheckpoint, 'rowsProcessed' | 'totalReported'> & {
         rowsProcessed: number;
+        totalReported: number | null;
       },
     ) => {
-      checkpoint = { ...next, rowsProcessed: BigInt(next.rowsProcessed) };
+      checkpoint = {
+        ...next,
+        rowsProcessed: BigInt(next.rowsProcessed),
+        totalReported: next.totalReported == null ? null : BigInt(next.totalReported),
+      };
     },
     upsert: jest.fn(async () => 'written' as const),
   };

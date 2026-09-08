@@ -10,7 +10,7 @@ import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
 import {
   DISTRICT_NEXUS_SUPPLIER_FOOTPRINT_FEATURE,
   getSupplierFootprintStatus,
-  SUPPLIER_STATUS_LABEL,
+  supplierStatusLabel,
 } from '../../../pages/intelligence/district-nexus/supplier-footprint-api.js';
 import {
   formatMarketDate,
@@ -81,11 +81,12 @@ export function DistrictFederalMarketPanelVNext({
   const showSupplier = supplierEnabled && !supplierDenied;
   const supplierStatus = supplierQuery.isError ? 'unavailable' : supplierQuery.data?.status;
   const supplierAvailable = showSupplier && supplierStatus === 'available';
+  // Partial corpus coverage is explicit EVEN when matches exist: the label is
+  // qualified by sourceCompleteness, never collapsing "no matches yet" into a
+  // real empty result while the sync is still in progress.
   const supplierLabel = !clientId
     ? 'Select a client'
-    : supplierStatus
-      ? SUPPLIER_STATUS_LABEL[supplierStatus]
-      : 'Checking supplier coverage';
+    : supplierStatusLabel(supplierStatus, supplierQuery.data?.sourceCompleteness);
   const { state, districtNo } = splitDistrictKey(districtKey);
   const query = useQuery<FederalMarketGeographyResponse>({
     queryKey: ['district-nexus', 'federal-market-geography', clientId, districtKey],
@@ -154,7 +155,18 @@ export function DistrictFederalMarketPanelVNext({
         stateOnlySubawardAmount,
         futureSignals,
         showSupplier
-          ? `${supplierLabel}${supplierQuery.data?.note && !supplierQuery.isError ? `. ${supplierQuery.data.note}` : ''}`
+          ? `${supplierLabel}${
+              supplierQuery.data?.note && !supplierQuery.isError
+                ? `. ${supplierQuery.data.note}`
+                : ''
+            }${
+              supplierQuery.data?.sourceCompleteness &&
+              supplierQuery.data.sourceCompleteness !== 'complete' &&
+              supplierQuery.data.sourceCoverageNote &&
+              !supplierQuery.isError
+                ? ` ${supplierQuery.data.sourceCoverageNote}`
+                : ''
+            }`
           : 'Not enabled in this view',
       );
       let copied = false;
@@ -203,7 +215,11 @@ export function DistrictFederalMarketPanelVNext({
                   : supplierLabel}
               </strong>
               <small>
-                {supplierAvailable ? 'District-resolved only' : 'Client supplier coverage'}
+                {supplierAvailable
+                  ? supplierQuery.data?.sourceCompleteness === 'complete'
+                    ? 'District-resolved only'
+                    : 'District-resolved · records ingested so far'
+                  : 'Client supplier coverage'}
               </small>
             </div>
           ) : null}
@@ -219,6 +235,10 @@ export function DistrictFederalMarketPanelVNext({
             {supplierQuery.data.note}
             {supplierQuery.data.lastSuccessfulSyncAt
               ? ` Last subaward sync: ${formatMarketDate(supplierQuery.data.lastSuccessfulSyncAt)}.`
+              : ''}
+            {supplierQuery.data.sourceCompleteness !== 'complete' &&
+            supplierQuery.data.sourceCoverageNote
+              ? ` ${supplierQuery.data.sourceCoverageNote}`
               : ''}
           </div>
         ) : null}

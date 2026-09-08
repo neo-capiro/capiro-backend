@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { UNFILTERED_SUBAWARD_SYNC_KEY } from '../external/tango/tango-subaward-sync-key.js';
 import { expandFootprintRows, parseFootprintImport } from './district-nexus-economic-import.js';
 import type {
   ClientEconomicDistrictSummary,
@@ -672,6 +673,16 @@ export class DistrictNexusEconomicService {
    *    the economic types still gate the semantic),
    *  - actual source coverage: does the tenant's Federal Market subaward rail
    *    hold ANY rows (synced), and how fresh is the newest row,
+   *  - SOURCE COMPLETENESS, tracked separately from client matching: the
+   *    unfiltered whole-corpus walk's persisted checkpoint says whether the
+   *    corpus is complete, in progress, or of unknown completeness. With a
+   *    partial corpus a client with no matches gets "No matches in records
+   *    ingested so far." — never a "real empty result" claim — and a client
+   *    WITH matches still sees the partial-corpus qualification. Completeness
+   *    is derived only from the UNFILTERED walk's checkpoint key: a completed
+   *    filtered run (e.g. one fiscal year) never establishes global coverage,
+   *    and the provider total is the last one the walk actually observed,
+   *    never a hard-coded catalog count.
    *  - last successful refresh vs last failure (tango sync checkpoints when
    *    present, otherwise row freshness),
    *  - client identity basis: confirmed contracting mappings / UEI — without a
@@ -695,6 +706,43 @@ export class DistrictNexusEconomicService {
     `;
     const totalRows = Number(coverageRows[0]?.n ?? 0);
     const lastSyncedAt = coverageRows[0]?.last_synced_at ?? null;
+
+    // 1b) Source COMPLETENESS — kept separate from client matching. Only the
+    //     unfiltered whole-corpus walk's checkpoint can speak for global
+    //     coverage; filtered runs live under other sync keys and are never
+    //     consulted here.
+    const checkpointRows = await this.prisma.$queryRaw<
+      Array<{
+        completeness: string | null;
+        pageSize: number | null;
+        totalReported: bigint | null;
+        windowEnd: Date | null;
+      }>
+    >`
+      SELECT completeness, page_size AS "pageSize",
+             total_reported AS "totalReported", window_end AS "windowEnd"
+        FROM tango_subaward_sync_checkpoint
+       WHERE sync_key = ${UNFILTERED_SUBAWARD_SYNC_KEY}
+    `;
+    const walkCheckpoint = checkpointRows[0];
+    const sourceCompleteness: 'complete' | 'in_progress' | 'unknown' = !walkCheckpoint
+      ? 'unknown'
+      : walkCheckpoint.completeness === 'complete'
+        ? 'complete'
+        : walkCheckpoint.completeness === 'in_progress'
+          ? 'in_progress'
+          : 'unknown';
+    const providerTotalRecords = walkCheckpoint?.totalReported
+      ? Number(walkCheckpoint.totalReported)
+      : null;
+    const totalLabel =
+      providerTotalRecords != null ? ` of ${providerTotalRecords.toLocaleString('en-US')}` : '';
+    const sourceCoverageNote =
+      sourceCompleteness === 'in_progress'
+        ? `Subaward corpus sync is in progress: ${totalRows.toLocaleString('en-US')} records ingested so far${totalLabel}.`
+        : sourceCompleteness === 'unknown'
+          ? 'Subaward corpus completeness is unknown: matches are based on records ingested so far only.'
+          : `Subaward corpus is complete as of the last full sync${totalLabel}.`;
 
     // 2) Client identity basis: reviewed contracting mappings or the client UEI.
     const identity = await this.prisma.withTenant(tenantId, async (tx) => {
@@ -757,12 +805,19 @@ export class DistrictNexusEconomicService {
         'Subaward source is populated, but this client has no confirmed contracting identity (UEI or reviewed mapping) — attribution is impossible, not zero.';
     } else if (attributableRows === 0) {
       status = 'no_matching_records';
+      // A partial corpus cannot support a "real empty result" claim: the
+      // client may well have subawards in the not-yet-ingested remainder of
+      // the catalog. Only a completed unfiltered walk can.
       note =
-        'Source is populated and the client identity is confirmed, but no subaward rows match. This is a real empty result, distinct from a missing source.';
+        sourceCompleteness === 'complete'
+          ? 'Source is populated and the client identity is confirmed, but no subaward rows match. This is a real empty result, distinct from a missing source.'
+          : 'No matches in records ingested so far.';
     } else {
       status = 'available';
       note =
-        'Subaward place of performance is preferred; subawardee-location fallback remains explicitly weaker.';
+        sourceCompleteness === 'complete'
+          ? 'Subaward place of performance is preferred; subawardee-location fallback remains explicitly weaker.'
+          : 'Matches found in records ingested so far; the subaward corpus sync is still in progress.';
     }
 
     const stalenessDays = lastSyncedAt
@@ -784,6 +839,15 @@ export class DistrictNexusEconomicService {
       stalenessDays,
       endpoint: `/api/federal-market/clients/${encodeURIComponent(clientId)}/market/geography`,
       note,
+      /**
+       * Source completeness, derived ONLY from the unfiltered whole-corpus
+       * walk's persisted checkpoint — separate from client matching above.
+       * 'unknown' stays unknown; a completed FILTERED run never upgrades it.
+       */
+      sourceCompleteness,
+      sourceCoverageNote,
+      /** Last provider-reported catalog total the walk observed; null when never reported. */
+      providerTotalRecords,
     };
   }
 

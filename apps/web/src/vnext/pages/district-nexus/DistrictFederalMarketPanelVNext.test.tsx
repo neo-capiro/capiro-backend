@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -13,7 +13,12 @@ vi.mock('../../../lib/intel-feature-flags.js', () => ({
   useIntelFeatureEnabled: () => flags.supplier,
 }));
 
-let supplierStatus = 'available';
+type SupplierStatusShape = {
+  status: string;
+  sourceCompleteness?: 'complete' | 'in_progress' | 'unknown';
+  sourceCoverageNote?: string;
+};
+let supplierStatus: SupplierStatusShape = { status: 'available', sourceCompleteness: 'complete' };
 let supplierError: unknown = null;
 function setMarketResponse(value: unknown) {
   apiGetMock.mockImplementation((url: string) => {
@@ -22,10 +27,13 @@ function setMarketResponse(value: unknown) {
       return Promise.resolve({
         data: {
           clientId: 'client-1',
-          status: supplierStatus,
-          available: supplierStatus === 'available',
+          status: supplierStatus.status,
+          available: supplierStatus.status === 'available',
           note: 'Coverage is based on confirmed client identity.',
           lastSuccessfulSyncAt: null,
+          sourceCompleteness: supplierStatus.sourceCompleteness ?? 'unknown',
+          sourceCoverageNote:
+            supplierStatus.sourceCoverageNote ?? 'Coverage note from the service.',
         },
       });
     }
@@ -74,7 +82,7 @@ describe('DistrictFederalMarketPanelVNext', () => {
     });
     apiGetMock.mockReset();
     flags.supplier = true;
-    supplierStatus = 'available';
+    supplierStatus = { status: 'available', sourceCompleteness: 'complete' };
     supplierError = null;
   });
 
@@ -219,16 +227,15 @@ describe('visible supplier coverage uses the guarded backend status', () => {
   beforeEach(() => {
     flags.supplier = true;
     supplierError = null;
-    supplierStatus = 'available';
+    supplierStatus = { status: 'available', sourceCompleteness: 'complete' };
     apiGetMock.mockReset();
   });
   test.each([
     ['not_populated', 'Subaward data not ingested'],
     ['no_identity', 'Client identity needed'],
-    ['no_matching_records', 'No matching records'],
     ['unavailable', 'Supplier coverage unavailable'],
   ])('%s is distinct and hides unverified supplier totals', async (status, label) => {
-    supplierStatus = status;
+    supplierStatus = { status, sourceCompleteness: 'complete' };
     setMarketResponse(marketFixture);
     renderPanel();
     expect(await screen.findByText(label)).toBeInTheDocument();
@@ -279,6 +286,114 @@ describe('visible supplier coverage uses the guarded backend status', () => {
     renderPanel(null);
     await screen.findByText('Select a client');
     expect(screen.queryByText('$250K')).not.toBeInTheDocument();
+    expect(
+      apiGetMock.mock.calls.some(([url]) => String(url).includes('/supplier-footprint/')),
+    ).toBe(false);
+  });
+});
+
+describe('partial supplier coverage stays explicit even when matches exist', () => {
+  beforeEach(() => {
+    flags.supplier = true;
+    supplierError = null;
+    apiGetMock.mockReset();
+  });
+
+  test('an in-progress corpus with matches keeps the totals but qualifies them as records ingested so far', async () => {
+    supplierStatus = {
+      status: 'available',
+      sourceCompleteness: 'in_progress',
+      sourceCoverageNote:
+        'Subaward corpus sync is in progress: 25 records ingested so far of 2,743,636.',
+    };
+    setMarketResponse(marketFixture);
+    renderPanel();
+    expect(await screen.findByText('$250K')).toBeInTheDocument();
+    // Partial coverage is explicit even though matches exist.
+    expect(screen.getByText('District-resolved · records ingested so far')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Subaward corpus sync is in progress: 25 records ingested so far of 2,743,636/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('District-resolved only')).not.toBeInTheDocument();
+  });
+
+  test('an unmatched client on an in-progress corpus says "No matches in records ingested so far"', async () => {
+    supplierStatus = {
+      status: 'no_matching_records',
+      sourceCompleteness: 'in_progress',
+      sourceCoverageNote: 'Subaward corpus sync is in progress: 25 records ingested so far.',
+    };
+    setMarketResponse(marketFixture);
+    renderPanel();
+    expect(await screen.findByText('No matches in records ingested so far')).toBeInTheDocument();
+    // The old hard claim is gone while the corpus is partial.
+    expect(screen.queryByText('No matching records')).not.toBeInTheDocument();
+    expect(screen.queryByText('$250K')).not.toBeInTheDocument();
+    expect(screen.getByText('$400K')).toBeInTheDocument();
+  });
+
+  test('a complete corpus keeps the plain labels — the empty result is real', async () => {
+    supplierStatus = {
+      status: 'no_matching_records',
+      sourceCompleteness: 'complete',
+    };
+    setMarketResponse(marketFixture);
+    renderPanel();
+    expect(await screen.findByText('No matching records')).toBeInTheDocument();
+    expect(screen.queryByText(/ingested so far/i)).not.toBeInTheDocument();
+  });
+
+  test('unknown completeness keeps plain totals wording and surfaces the unknown-completeness note', async () => {
+    supplierStatus = {
+      status: 'available',
+      sourceCompleteness: 'unknown',
+      sourceCoverageNote:
+        'Subaward corpus completeness is unknown: matches are based on records ingested so far only.',
+    };
+    setMarketResponse(marketFixture);
+    renderPanel();
+    expect(await screen.findByText('$250K')).toBeInTheDocument();
+    // Unknown completeness must stay explicit in the note line…
+    expect(screen.getByText(/Subaward corpus completeness is unknown/i)).toBeInTheDocument();
+    // …but must not claim the sync is literally in progress.
+    expect(screen.queryByText(/sync is in progress/i)).not.toBeInTheDocument();
+    // Unknown is not proven complete, so the caption stays qualified too.
+    expect(screen.getByText('District-resolved · records ingested so far')).toBeInTheDocument();
+  });
+
+  test('the Ask Meri district prompt carries the partial-coverage qualification', async () => {
+    supplierStatus = {
+      status: 'available',
+      sourceCompleteness: 'in_progress',
+      sourceCoverageNote:
+        'Subaward corpus sync is in progress: 25 records ingested so far of 2,743,636.',
+    };
+    setMarketResponse(marketFixture);
+    renderPanel();
+    await screen.findByText('$250K');
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Meri' }));
+    // askMeri is async; let the clipboard write land before asserting on it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const prompt = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0] as string;
+    expect(prompt).toContain('Matches in records ingested so far');
+    expect(prompt).toContain('Subaward corpus sync is in progress: 25 records ingested so far');
+  });
+
+  test('a disabled flag hides partial-coverage wording exactly like every other supplier state', async () => {
+    flags.supplier = false;
+    supplierStatus = {
+      status: 'available',
+      sourceCompleteness: 'in_progress',
+      sourceCoverageNote: 'Subaward corpus sync is in progress.',
+    };
+    setMarketResponse(marketFixture);
+    renderPanel();
+    await screen.findByText('$400K');
+    expect(screen.queryByLabelText('Supplier coverage')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ingested so far/i)).not.toBeInTheDocument();
     expect(
       apiGetMock.mock.calls.some(([url]) => String(url).includes('/supplier-footprint/')),
     ).toBe(false);
