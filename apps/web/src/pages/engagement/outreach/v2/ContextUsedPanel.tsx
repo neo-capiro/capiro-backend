@@ -37,6 +37,7 @@ const SOURCE_LABELS: Record<string, string> = {
   bill: 'Federal bill',
   stateBill: 'State bill',
   programElement: 'Program element',
+  capability: 'Client capability',
   email: 'Email thread',
   document: 'Document',
   clientNote: 'Client profile note',

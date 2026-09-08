@@ -1291,6 +1291,7 @@ class OutreachSelectedContextItemDto {
     'debrief',
     'prep',
     'programElement',
+    'capability',
   ])
   kind!:
     | 'bill'
@@ -1302,7 +1303,8 @@ class OutreachSelectedContextItemDto {
     | 'document'
     | 'debrief'
     | 'prep'
-    | 'programElement';
+    | 'programElement'
+    | 'capability';
 
   @IsString()
   scope!: 'all' | string;

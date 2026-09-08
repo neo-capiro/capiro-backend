@@ -68,7 +68,8 @@ export type ContextKind =
   | 'document'
   | 'debrief'
   | 'prep'
-  | 'programElement';
+  | 'programElement'
+  | 'capability';
 
 /**
  * The Phase 1 selected-item contract: IDs and authenticated instructions only.
@@ -202,6 +203,8 @@ export class EvidenceSourceService {
         return this.resolveStateBill(item, input);
       case 'programElement':
         return this.resolveProgramElement(item, input);
+      case 'capability':
+        return this.resolveCapability(ctx, item, input);
       case 'email':
         return this.resolveEmail(ctx, item, input);
       case 'document':
@@ -1205,6 +1208,124 @@ export class EvidenceSourceService {
     return {
       evidence: [this.item(ref, bounded.text, item.scope)],
       failures: this.freshnessFailures('prep', item.id, asOf, input),
+    };
+  }
+
+  /**
+   * One capability from the client's own profile.
+   *
+   * Trust is `server_record`, not `authoritative_structured`: this is what the
+   * client told us about their own offering, so it proves what they claim to
+   * build and ask for — never that a program is funded, that a subcommittee
+   * agreed, or that a contract exists. The funding ask is rendered as a
+   * REQUEST for exactly that reason.
+   */
+  private async resolveCapability(
+    ctx: TenantContext,
+    item: SelectedContextItemRef,
+    input: ResolveSelectedItemsInput,
+  ): Promise<Partial<ResolveSelectedItemsResult>> {
+    const id = parsePrefixed(item.id, 'capability-');
+    if (!id) return { failures: [this.malformedId(item, 'capability')] };
+
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientCapability.findFirst({ where: { id, tenantId: ctx.tenantId } }),
+    );
+    if (!row) {
+      return {
+        failures: [
+          sourceFailure(
+            'capability',
+            'CAPABILITY_NOT_FOUND',
+            'critical',
+            'A client capability you selected is no longer available.',
+            item.id,
+          ),
+        ],
+      };
+    }
+    if (input.clientId && row.clientId !== input.clientId) {
+      return {
+        failures: [
+          sourceFailure(
+            'capability',
+            'CAPABILITY_OTHER_CLIENT',
+            'critical',
+            'A capability you selected belongs to a different client and cannot be used for this campaign.',
+            item.id,
+          ),
+        ],
+      };
+    }
+
+    const peList = [...new Set([...(row.peNumbers ?? []), row.peNumber].filter(Boolean))];
+    const lines = [
+      clip(row.description ?? undefined, 2000),
+      row.type ? `Type: ${row.type}` : null,
+      row.sector ? `Sector: ${row.sector}` : null,
+      row.serviceBranch ? `Service branch: ${row.serviceBranch}` : null,
+      row.trl != null ? `TRL: ${row.trl}` : null,
+      row.mrl != null ? `MRL: ${row.mrl}` : null,
+      peList.length ? `Program elements: ${peList.join(', ')}` : null,
+      row.appropriationAccount ? `Appropriation account: ${row.appropriationAccount}` : null,
+      row.targetSubcommittee ? `Target subcommittee: ${row.targetSubcommittee}` : null,
+      // Deliberately labeled a request: a stored ask is not appropriated money.
+      row.fundingAskLabel?.trim()
+        ? `Funding requested by the client: ${row.fundingAskLabel.trim()}`
+        : row.fundingAsk != null
+          ? `Funding requested by the client: $${row.fundingAsk.toLocaleString('en-US')}`
+          : null,
+      clip(row.justification ?? undefined, 1500)
+        ? `Client's justification: ${clip(row.justification ?? undefined, 1500)}`
+        : null,
+      clip(row.districtNexus ?? undefined, 1000)
+        ? `District/state nexus: ${clip(row.districtNexus ?? undefined, 1000)}`
+        : null,
+      clip(row.existingContracts ?? undefined, 1000)
+        ? `Existing contracts as stated by the client: ${clip(row.existingContracts ?? undefined, 1000)}`
+        : null,
+      clip(row.notes ?? undefined, 1000),
+    ].filter(Boolean) as string[];
+
+    const text = lines.join('\n');
+    if (!text.trim()) {
+      return {
+        failures: [
+          sourceFailure(
+            'capability',
+            'CAPABILITY_EMPTY',
+            'important',
+            `The capability "${row.name}" has no detail filled in on the client profile, so it was not used.`,
+            item.id,
+          ),
+        ],
+      };
+    }
+
+    const bounded = boundEvidenceText(text);
+    const asOf = isoOrNull(row.updatedAt) ?? isoOrNull(row.createdAt);
+    const ref = this.ref({
+      sourceType: 'capability',
+      sourceId: row.id,
+      title: `Capability: ${row.name}`,
+      trust: 'server_record',
+      authoritativeAsOf: asOf,
+      scope: item.scope,
+      now: input.now,
+      clientId: row.clientId,
+      provenance: {
+        capabilityType: row.type ?? null,
+        // Client-asserted, like a prep is a plan: it proves the claim was made
+        // to us, never that anyone outside the client agreed with it.
+        isClientAssertedNotVerified: true,
+        truncated: bounded.truncated,
+      },
+    });
+    return {
+      evidence: [this.item(ref, bounded.text, item.scope)],
+      // A capability is a standing profile fact, not a dated development, so
+      // staleness thresholds meant for bills/emails would only add noise.
+      failures: [],
     };
   }
 

@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import { useApi } from '../../../../lib/use-api.js';
 import { useMe } from '../../../../lib/me.js';
+import { useApproveReview, useRejectReview } from '../../../reviews/reviews-api.js';
 import { intelTrackerPaths } from '../../../clients/tracker/intel-tracker-api.js';
 import { OUTREACH_SUMMARY_MAX } from '../../../clients/tracker/alert-packet.js';
 import type { Client } from '../../../clients/clientTypes.js';
@@ -223,6 +224,18 @@ interface AttachmentsResponse {
   items: AttachmentItem[];
 }
 
+// GET /api/clients/:clientId/capabilities — only the fields the context pool
+// renders. The full row (funding ask, justification, PE list, district nexus)
+// is read server-side when the draft is generated, never sent from here.
+interface ClientCapabilityRow {
+  id: string;
+  name: string;
+  type?: string | null;
+  sector?: string | null;
+  serviceBranch?: string | null;
+  trl?: number | null;
+}
+
 interface MailThreadsResponse {
   items?: Array<{
     id: string;
@@ -338,6 +351,10 @@ export function NewOutreachWizard({
   const [sentResult, setSentResult] = useState<{ sent: number; failed: number } | null>(null);
   // Recipient key currently being (re)generated individually, if any.
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  // Recipient key whose held-draft review decision is in flight, if any.
+  const [decidingKey, setDecidingKey] = useState<string | null>(null);
+  const approveReview = useApproveReview();
+  const rejectReview = useRejectReview();
   // Phase 2 §3.f2/f3 — regenerations offered as candidates (server refused to
   // overwrite a manually authored current version), keyed by genKey. Ephemeral
   // UI state, not part of WizardV2State: a candidate that isn't accepted before
@@ -759,6 +776,18 @@ export function NewOutreachWizard({
     staleTime: 60_000,
   });
 
+  // The selected client's own capabilities, straight off their profile, so a
+  // draft can lead with what they actually build instead of the author retyping
+  // it as a custom note. Client-scoped by definition: no client, no tab content.
+  const capabilitiesQuery = useQuery<ClientCapabilityRow[]>({
+    enabled: step.id === 'pool' && !!state.clientId,
+    queryKey: ['outreach-pool-capabilities', state.clientId],
+    queryFn: async () =>
+      (await api.get<ClientCapabilityRow[]>(`/api/clients/${state.clientId}/capabilities`)).data,
+    retry: false,
+    staleTime: 60_000,
+  });
+
   // Documents for the Generate step's email-attachment picker (NOT the context
   // pool — that's the tenant-wide library above). With a client selected we show
   // that client's files; with no client we show the tenant's general (unlinked)
@@ -809,6 +838,18 @@ export function NewOutreachWizard({
       debrief: [],
       prep: [],
       programElement: (peWatchlistQuery.data ?? []).map(peToPoolItem),
+      capability: (capabilitiesQuery.data ?? []).map((c) => ({
+        id: `capability-${c.id}`,
+        kind: 'capability' as const,
+        title: c.name,
+        // No `body`: the server rehydrates a capability from the profile by id
+        // (§3.b1), so a client-supplied body would be rejected anyway.
+        tag: c.type ?? undefined,
+        sub:
+          [c.sector, c.serviceBranch, c.trl != null ? `TRL ${c.trl}` : null]
+            .filter(Boolean)
+            .join(' · ') || undefined,
+      })),
     };
 
     // ---- Docs & Notes, Debriefs, Preps: one tenant-wide library, per client ----
@@ -923,7 +964,13 @@ export function NewOutreachWizard({
     }
 
     return out;
-  }, [insightsQuery.data, mailQuery.data, contextLibraryQuery.data, peWatchlistQuery.data]);
+  }, [
+    insightsQuery.data,
+    mailQuery.data,
+    contextLibraryQuery.data,
+    peWatchlistQuery.data,
+    capabilitiesQuery.data,
+  ]);
 
   // Phase 2 §3.i — general legislative activity, kept OUT of `pool.bill` and
   // rendered as its own labeled section so it can never be mistaken for
@@ -945,7 +992,8 @@ export function NewOutreachWizard({
     insightsQuery.isLoading ||
     mailQuery.isLoading ||
     contextLibraryQuery.isLoading ||
-    peWatchlistQuery.isLoading;
+    peWatchlistQuery.isLoading ||
+    capabilitiesQuery.isLoading;
 
   // ---- Gating ----
   const canAdvance = (): boolean => {
@@ -2530,6 +2578,58 @@ export function NewOutreachWizard({
       };
     });
 
+  // Decide a held draft's review WITHOUT leaving the wizard. Same endpoints the
+  // /reviews queue uses, so the server authz boundary is unchanged: a 403 for a
+  // user who may not decide surfaces as a message, exactly as it does there.
+  const decideHeld = (genKey: string, decision: 'approved' | 'rejected') => {
+    const reviewId = state.generatedEmails[genKey]?.reviewRequestId;
+    if (!reviewId) return;
+    setDecidingKey(genKey);
+    const patch = (fields: Partial<GeneratedDraft>) =>
+      setState((prev) => {
+        const draft = prev.generatedEmails[genKey];
+        if (!draft) return prev;
+        return {
+          ...prev,
+          generatedEmails: { ...prev.generatedEmails, [genKey]: { ...draft, ...fields } },
+        };
+      });
+
+    if (decision === 'approved') {
+      approveReview.mutate(
+        { id: reviewId },
+        {
+          onSuccess: (res) => {
+            // Trust the server's returned lifecycle over a local guess — the
+            // release decides sendability, not this screen.
+            patch({
+              auditStatus: (res?.released?.auditStatus as GeneratedDraft['auditStatus']) ?? 'passed',
+              approvalStatus:
+                (res?.released?.approvalStatus as GeneratedDraft['approvalStatus']) ?? 'approved',
+              sendable: res?.released?.sendUnblocked ?? true,
+            });
+            message.success('Approved — this draft can be sent');
+          },
+          onError: (err) => message.error(err.message || 'Could not approve'),
+          onSettled: () => setDecidingKey(null),
+        },
+      );
+      return;
+    }
+
+    rejectReview.mutate(
+      { id: reviewId },
+      {
+        onSuccess: () => {
+          patch({ approvalStatus: 'rejected', sendable: false });
+          message.success('Rejected — edit the draft to create a new version');
+        },
+        onError: (err) => message.error(err.message || 'Could not reject'),
+        onSettled: () => setDecidingKey(null),
+      },
+    );
+  };
+
   // Copy a list member's edited subject/body to every member of that list
   // (board 7.3 "Apply to all in list").
   const applyToList = (listAid: string, sourceKey: string) =>
@@ -2760,6 +2860,9 @@ export function NewOutreachWizard({
               onRegenerateOne={regenerateOne}
               onImprove={improveOne}
               onRevert={revertOne}
+              onApproveHeld={(k) => decideHeld(k, 'approved')}
+              onRejectHeld={(k) => decideHeld(k, 'rejected')}
+              decidingKey={decidingKey}
               onEdit={updateDraft}
               onApplyToList={applyToList}
               regenerating={generateMutation.isPending}

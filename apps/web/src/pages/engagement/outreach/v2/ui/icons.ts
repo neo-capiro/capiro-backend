@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  Cpu,
   DollarSign,
   Edit2,
   Eye,
@@ -68,6 +69,7 @@ export const Icon = {
   Prep: Lightbulb,
   Debrief: ClipboardCheck,
   Document: Paperclip,
+  Capability: Cpu,
   // Generate & Review's stale-context banner + draft-status alerts — same
   // "no handover mapping, picked for fit" situation as the tab icons above.
   Zap,

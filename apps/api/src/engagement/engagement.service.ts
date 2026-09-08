@@ -392,7 +392,8 @@ export interface OutreachSelectedContextItemInput {
     | 'document'
     | 'debrief'
     | 'prep'
-    | 'programElement';
+    | 'programElement'
+    | 'capability';
   /** 'all' = shared across every recipient; else recipient-key string. */
   scope: 'all' | string;
   /** An authenticated per-item directive (max 2,000 chars). */
@@ -423,6 +424,7 @@ const SERVER_REHYDRATED_KINDS = new Set([
   'document',
   'prep',
   'debrief',
+  'capability',
 ]);
 
 /**

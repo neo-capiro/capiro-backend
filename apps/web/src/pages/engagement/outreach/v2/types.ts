@@ -21,7 +21,8 @@ export type ContextKind =
   | 'document'
   | 'debrief'
   | 'prep'
-  | 'programElement';
+  | 'programElement'
+  | 'capability';
 
 export interface ContextPoolItem {
   id: string;

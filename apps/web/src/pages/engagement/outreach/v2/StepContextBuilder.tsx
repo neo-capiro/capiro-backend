@@ -75,6 +75,7 @@ const TABS: Array<{ id: ContextKind; label: string; icon: typeof Icon.Bill }> = 
   { id: 'bill', label: 'Bills', icon: Icon.Bill },
   { id: 'stateBill', label: 'State Bills', icon: Icon.StateBill },
   { id: 'programElement', label: 'Program Elements', icon: Icon.ProgramElement },
+  { id: 'capability', label: 'Client capabilities', icon: Icon.Capability },
   { id: 'email', label: 'Past emails', icon: Icon.Email },
   { id: 'prep', label: 'Meeting preps', icon: Icon.Prep },
   { id: 'debrief', label: 'Debriefs', icon: Icon.Debrief },

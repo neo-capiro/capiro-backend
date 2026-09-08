@@ -48,6 +48,7 @@ const KIND_LABEL: Record<ContextKind, string> = {
   document: 'Doc/Note',
   prep: 'Prep',
   programElement: 'Program Element',
+  capability: 'Capability',
 };
 
 interface Props {

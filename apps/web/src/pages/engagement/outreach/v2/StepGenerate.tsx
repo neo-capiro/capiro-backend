@@ -72,6 +72,11 @@ interface Props {
   onImprove: (genKey: string, instruction: string) => void;
   /** Revert the last "Improve" on the named draft. */
   onRevert: (genKey: string) => void;
+  /** Decide a held draft's review in place, without going to the Reviews queue. */
+  onApproveHeld?: (genKey: string) => void;
+  onRejectHeld?: (genKey: string) => void;
+  /** Draft whose review decision is in flight. */
+  decidingKey?: string | null;
   /** Context (or template/tone) changed since these drafts were generated. */
   contextStale?: boolean;
   /**
@@ -205,6 +210,9 @@ export function StepGenerate({
   onRegenerateOne,
   onImprove,
   onRevert,
+  onApproveHeld,
+  onRejectHeld,
+  decidingKey,
   contextStale,
   affectedGenKeys,
   affectedReasonsByKey,
@@ -479,7 +487,15 @@ export function StepGenerate({
             )}
 
             <div className="flex flex-1 flex-col">
-              <DraftBanner banner={draftBanner(activeDraft)} draft={activeDraft} />
+              <DraftBanner
+                banner={draftBanner(activeDraft)}
+                draft={activeDraft}
+                deciding={!!activeKey && decidingKey === activeKey}
+                {...(activeKey && onApproveHeld
+                  ? { onApprove: () => onApproveHeld(activeKey) }
+                  : {})}
+                {...(activeKey && onRejectHeld ? { onReject: () => onRejectHeld(activeKey) } : {})}
+              />
               {activeDraft ? (
                 <>
                   <div className="mb-1.5 text-[13px] font-semibold text-ink-strong">Subject</div>
@@ -624,9 +640,15 @@ const BANNER_CLASS: Record<'warning' | 'error' | 'info', { box: string; text: st
 function DraftBanner({
   banner,
   draft,
+  onApprove,
+  onReject,
+  deciding,
 }: {
   banner: ReturnType<typeof draftBanner>;
   draft: GeneratedDraft | undefined;
+  onApprove?: () => void;
+  onReject?: () => void;
+  deciding?: boolean;
 }) {
   if (!banner) {
     // A non-blocking auditor warning is still worth surfacing.
@@ -669,9 +691,21 @@ function DraftBanner({
               appended to the subject/body a recipient sees. */}
           {draft?.contextNote ? <div className="mt-1.5">{draft.contextNote}</div> : null}
           {draft?.reviewRequestId ? (
-            <div className="mt-1.5">
-              <a href={`/reviews?id=${draft.reviewRequestId}`} className="underline">
-                Open this draft in Reviews
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {onApprove && (
+                <Button variant="primary" size="sm" isDisabled={deciding} onPress={onApprove}>
+                  <Icon.Check size={13} />
+                  {deciding ? 'Deciding…' : 'Approve & release'}
+                </Button>
+              )}
+              {onReject && (
+                <Button variant="secondary" size="sm" isDisabled={deciding} onPress={onReject}>
+                  <Icon.XClose size={13} />
+                  Reject
+                </Button>
+              )}
+              <a href={`/reviews?id=${draft.reviewRequestId}`} className="ml-1 underline">
+                Open in Reviews
               </a>
             </div>
           ) : null}

@@ -47,6 +47,13 @@ export interface ApproveResult {
     fileName?: string;
     artifactId?: string;
     heldForReview?: boolean;
+    // Exact-version outreach releases return the version's new lifecycle
+    // instead of a filed-attachment pointer (ReviewsService.approve).
+    draftVersionId?: string;
+    version?: number;
+    auditStatus?: string;
+    approvalStatus?: string;
+    sendUnblocked?: boolean;
   } | null;
 }
 
