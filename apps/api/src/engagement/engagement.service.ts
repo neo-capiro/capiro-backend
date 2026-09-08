@@ -98,6 +98,11 @@ import type {
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService, type DirectoryEmailMatch } from '../directory/directory.service.js';
+import {
+  archiveReportTarget, clearReportTargetOverride, createReportTarget, linkReportTarget,
+  updateReportTarget, upsertReportTargetOverride,
+  type ReportTargetInput, type ReportTargetLinkInput, type ReportStatusField,
+} from './report-targets.js';
 import type { OfficeRecommendation } from '../intelligence/office-recommender.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
@@ -265,14 +270,7 @@ export interface EngagementReportQuery {
   period?: string;
 }
 
-export interface CreateReportTargetOfficeInput {
-  clientId?: string | null;
-  memberPrincipal: string;
-  committee?: string | null;
-  staffer?: string | null;
-  building?: string | null;
-  leadOwner?: string | null;
-}
+export interface CreateReportTargetOfficeInput extends ReportTargetInput {}
 
 export interface UpsertReportTargetOfficeInput extends CreateReportTargetOfficeInput {
   officeKey: string;
@@ -807,6 +805,8 @@ const OUTBOUND_CAMPAIGN_VARIABLES = [
 
 interface ReportTargetDraft {
   targetId: string | null;
+  archivedAt: Date | null;
+  displayOverrides: string[];
   clientId: string | null;
   clientName: string | null;
   scopeKey: string;
@@ -4709,9 +4709,12 @@ export class EngagementService {
         tx.engagementReportTargetOffice.findMany({
           where: {
             tenantId: ctx.tenantId,
-            ...(clientId ? { OR: [{ clientId }, { scopeKey: 'all' }] } : {}),
+            ...(clientId ? { clientId } : {}),
           },
-          include: { client: { select: { id: true, name: true } } },
+          include: {
+            client: { select: { id: true, name: true } },
+            annualOverrides: { where: { reportYear: cycle.reportYear ?? -1 } },
+          },
           orderBy: [{ memberPrincipal: 'asc' }, { createdAt: 'asc' }],
         }),
         tx.meeting.findMany({
@@ -4761,7 +4764,7 @@ export class EngagementService {
             receivedAt: true,
             metadata: true,
             connection: { select: { accountEmail: true, displayName: true } },
-            thread: { select: { id: true, subject: true, clientId: true } },
+            thread: { select: { id: true, subject: true, clientId: true, client: { select: { name: true } } } },
           },
           orderBy: [{ sentAt: 'desc' }, { receivedAt: 'desc' }],
         }),
@@ -4803,8 +4806,15 @@ export class EngagementService {
 
     const rows = new Map<string, ReportTargetDraft>();
     const rowKey = (scopeKey: string, officeKey: string) => `${scopeKey}:${officeKey}`;
+    // Retain archived identities when collecting activity so they cannot spring
+    // back as new auto-generated targets. Counts in the summary remain factual.
+    const hiddenTargets = new Set(data.storedTargets.filter((target) =>
+      target.archivedAt && cycle.reportYear !== null && cycle.reportYear >= target.archivedAt.getUTCFullYear(),
+    ).map((target) => rowKey(target.scopeKey, target.officeKey)));
     const ensureRow = (input: {
       targetId?: string | null;
+      archivedAt?: Date | null;
+      displayOverrides?: string[];
       clientId?: string | null;
       clientName?: string | null;
       scopeKey: string;
@@ -4825,11 +4835,10 @@ export class EngagementService {
         existing.targetId = existing.targetId ?? input.targetId ?? null;
         existing.clientId = existing.clientId ?? input.clientId ?? null;
         existing.clientName = existing.clientName ?? input.clientName ?? null;
-        existing.committee = existing.committee || input.committee || null;
-        existing.staffer = existing.staffer || input.staffer || null;
-        existing.building = existing.building || input.building || null;
-        existing.leadOwner = existing.leadOwner || input.leadOwner || null;
-        existing.source = existing.source === 'manual' ? existing.source : input.source;
+        for (const field of ['committee', 'staffer', 'building', 'leadOwner'] as const) {
+          if (!existing.displayOverrides.includes(field)) existing[field] = existing[field] ?? input[field] ?? null;
+        }
+        existing.source = existing.targetId ? existing.source : input.source;
         existing.storedPrepStatus = mergeStoredStatus(
           existing.storedPrepStatus,
           input.storedPrepStatus,
@@ -4847,6 +4856,8 @@ export class EngagementService {
 
       const created: ReportTargetDraft = {
         targetId: input.targetId ?? null,
+        archivedAt: input.archivedAt ?? null,
+        displayOverrides: input.displayOverrides ?? [],
         clientId: input.clientId ?? null,
         clientName: input.clientName ?? null,
         scopeKey: input.scopeKey,
@@ -4874,8 +4885,12 @@ export class EngagementService {
     };
 
     for (const target of data.storedTargets) {
+      if (cycle.reportYear !== null && target.firstReportYear > cycle.reportYear) continue;
+      const override = target.annualOverrides[0];
       ensureRow({
         targetId: target.id,
+        archivedAt: target.archivedAt,
+        displayOverrides: target.displayOverrides,
         clientId: target.clientId,
         clientName: target.client?.name ?? null,
         scopeKey: target.scopeKey,
@@ -4886,14 +4901,15 @@ export class EngagementService {
         building: target.building,
         leadOwner: target.leadOwner,
         source: target.source,
-        storedPrepStatus: normalizeReportStatus(target.prepStatus),
-        storedOutreachStatus: normalizeReportStatus(target.outreachStatus),
-        storedSubmissionStatus: normalizeReportStatus(target.submissionStatus),
+        storedPrepStatus: normalizeReportStatus(override?.prepStatus),
+        storedOutreachStatus: normalizeReportStatus(override?.outreachStatus),
+        storedSubmissionStatus: normalizeReportStatus(override?.submissionStatus),
       });
     }
 
     const now = new Date();
     for (const meeting of data.meetings) {
+      if (['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase())) continue;
       const meetingEmails = unique([
         meeting.organizerEmail ?? '',
         ...meeting.attendees.map((attendee) => attendee.email ?? ''),
@@ -4949,6 +4965,7 @@ export class EngagementService {
       for (const match of matches) {
         const row = ensureRow({
           clientId: clientId ?? message.thread.clientId,
+          clientName: message.thread.client?.name ?? null,
           scopeKey: messageScopeKey,
           officeKey: reportOfficeKey(match),
           ...reportTargetDetails(match),
@@ -4974,6 +4991,7 @@ export class EngagementService {
     );
 
     const rowsOut = Array.from(rows.values())
+      .filter((row) => !hiddenTargets.has(rowKey(row.scopeKey, row.officeKey)))
       .map((row) => {
         const prepStatus = resolveReportStatus(row.storedPrepStatus, autoPrepStatus(row));
         const outreachStatus = resolveReportStatus(
@@ -4983,6 +5001,10 @@ export class EngagementService {
         const submissionStatus = resolveReportStatus(row.storedSubmissionStatus, 'not_started');
         return {
           targetId: row.targetId,
+          archivedAt: row.archivedAt,
+          manualOnly: row.officeKey.startsWith('manual:'),
+          requiresClientAssignment: !row.clientId,
+          displayOverrides: row.displayOverrides,
           clientId: row.clientId,
           clientName: row.clientName,
           scopeKey: row.scopeKey,
@@ -5034,99 +5056,30 @@ export class EngagementService {
     };
   }
 
-  async createReportTargetOffice(ctx: TenantContext, input: CreateReportTargetOfficeInput) {
-    const clientId = input.clientId?.trim() || null;
-    const scopeKey = reportScopeKey(clientId);
-    const memberPrincipal = requiredReportText(input.memberPrincipal, 'memberPrincipal', 240);
-    const officeKey = `manual:${randomUUID()}`;
-
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (clientId) {
-        await ensureExists(
-          tx.client.findFirst({
-            where: { id: clientId, tenantId: ctx.tenantId },
-            select: { id: true },
-          }),
-          'Client not found',
-        );
-      }
-
-      return tx.engagementReportTargetOffice.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          scopeKey,
-          officeKey,
-          memberPrincipal,
-          committee: optionalReportText(input.committee, 120),
-          staffer: optionalReportText(input.staffer, 160),
-          building: optionalReportText(input.building, 120),
-          leadOwner: optionalReportText(input.leadOwner, 120),
-          source: 'manual',
-          createdByUserId: ctx.userId,
-        },
-      });
-    });
+  createReportTargetOffice(ctx: TenantContext, input: CreateReportTargetOfficeInput) {
+    return createReportTarget(this.prisma, this.directory, ctx, input);
   }
 
-  async upsertReportTargetOffice(ctx: TenantContext, input: UpsertReportTargetOfficeInput) {
-    const clientId = input.clientId?.trim() || null;
-    const scopeKey = reportScopeKey(clientId);
-    const officeKey = requiredReportText(input.officeKey, 'officeKey', 240);
-    const memberPrincipal = requiredReportText(input.memberPrincipal, 'memberPrincipal', 240);
+  upsertReportTargetOffice(ctx: TenantContext, input: UpsertReportTargetOfficeInput) {
+    return upsertReportTargetOverride(this.prisma, this.directory, ctx, input);
+  }
 
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      if (clientId) {
-        await ensureExists(
-          tx.client.findFirst({
-            where: { id: clientId, tenantId: ctx.tenantId },
-            select: { id: true },
-          }),
-          'Client not found',
-        );
-      }
+  clearReportTargetOfficeOverrides(ctx: TenantContext, input: {
+    clientId: string; officeKey: string; reportYear: number; field: ReportStatusField;
+  }) {
+    return clearReportTargetOverride(this.prisma, ctx, input);
+  }
 
-      return tx.engagementReportTargetOffice.upsert({
-        where: {
-          tenantId_scopeKey_officeKey: {
-            tenantId: ctx.tenantId,
-            scopeKey,
-            officeKey,
-          },
-        },
-        update: {
-          memberPrincipal,
-          committee: optionalReportText(input.committee, 120),
-          staffer: optionalReportText(input.staffer, 160),
-          building: optionalReportText(input.building, 120),
-          leadOwner: optionalReportText(input.leadOwner, 120),
-          ...(input.prepStatus ? { prepStatus: normalizeReportStatus(input.prepStatus) } : {}),
-          ...(input.outreachStatus
-            ? { outreachStatus: normalizeReportStatus(input.outreachStatus) }
-            : {}),
-          ...(input.submissionStatus
-            ? { submissionStatus: normalizeReportStatus(input.submissionStatus) }
-            : {}),
-          source: input.source?.trim().slice(0, 80) || 'manual_override',
-        },
-        create: {
-          tenantId: ctx.tenantId,
-          clientId,
-          scopeKey,
-          officeKey,
-          memberPrincipal,
-          committee: optionalReportText(input.committee, 120),
-          staffer: optionalReportText(input.staffer, 160),
-          building: optionalReportText(input.building, 120),
-          leadOwner: optionalReportText(input.leadOwner, 120),
-          prepStatus: normalizeReportStatus(input.prepStatus),
-          outreachStatus: normalizeReportStatus(input.outreachStatus),
-          submissionStatus: normalizeReportStatus(input.submissionStatus),
-          source: input.source?.trim().slice(0, 80) || 'manual_override',
-          createdByUserId: ctx.userId,
-        },
-      });
-    });
+  linkReportTargetOfficeToDirectory(ctx: TenantContext, input: ReportTargetLinkInput) {
+    return linkReportTarget(this.prisma, this.directory, ctx, input);
+  }
+
+  updateReportTargetOffice(ctx: TenantContext, targetId: string, input: Partial<CreateReportTargetOfficeInput>) {
+    return updateReportTarget(this.prisma, ctx, targetId, input);
+  }
+
+  archiveReportTargetOffice(ctx: TenantContext, targetId: string) {
+    return archiveReportTarget(this.prisma, ctx, targetId);
   }
 
   createTask(ctx: TenantContext, input: CreateTaskInput) {
@@ -9792,7 +9745,7 @@ function normalizeReportPeriod(value?: string): ReportPeriod {
 }
 
 function reportPeriodWindow(period: ReportPeriod) {
-  if (period === 'all') return { period, label: 'All time', from: null, to: null };
+  if (period === 'all') return { period, label: 'All time', from: null, to: null, reportYear: null };
 
   const now = new Date();
   const year = now.getUTCFullYear() + (period === 'previous' ? -1 : 0);
@@ -9801,6 +9754,7 @@ function reportPeriodWindow(period: ReportPeriod) {
   return {
     period,
     label: period === 'previous' ? `Previous cycle (${year})` : `Current cycle (${year})`,
+    reportYear: year,
     from,
     to,
   };

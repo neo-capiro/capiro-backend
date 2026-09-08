@@ -791,32 +791,104 @@ const outreachPromptTemplates = [
 ] as const;
 
 class CreateReportTargetOfficeDto {
-  @IsOptional()
   @IsUUID()
-  clientId?: string | null;
+  clientId!: string;
 
+  @IsInt()
+  @Min(1900)
+  @Max(2200)
+  reportYear!: number;
+
+  @IsOptional()
   @IsString()
   @Length(1, 240)
-  memberPrincipal!: string;
+  directoryContactId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  manualOnly?: boolean;
 
   @IsOptional()
   @IsString()
-  @Length(1, 120)
+  @Length(1, 240)
+  memberPrincipal?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
   committee?: string | null;
 
   @IsOptional()
   @IsString()
-  @Length(1, 160)
+  @Length(0, 160)
   staffer?: string | null;
 
   @IsOptional()
   @IsString()
-  @Length(1, 120)
+  @Length(0, 120)
   building?: string | null;
 
   @IsOptional()
   @IsString()
-  @Length(1, 120)
+  @Length(0, 120)
+  leadOwner?: string | null;
+}
+
+class ClearReportTargetOfficeOverrideDto {
+  @IsUUID()
+  clientId!: string;
+  @IsString()
+  @Length(1, 240)
+  officeKey!: string;
+  @IsInt()
+  @Min(1900)
+  @Max(2200)
+  reportYear!: number;
+  @IsIn(['prepStatus', 'outreachStatus', 'submissionStatus'])
+  field!: 'prepStatus' | 'outreachStatus' | 'submissionStatus';
+}
+
+class LinkReportTargetOfficeDto {
+  @IsUUID()
+  clientId!: string;
+  @IsOptional()
+  @IsUUID()
+  targetId?: string;
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  officeKey?: string;
+  @IsString()
+  @Length(1, 240)
+  directoryContactId!: string;
+  @IsOptional()
+  @IsObject()
+  conflictResolutions?: Record<string, 'manual' | 'existing'>;
+}
+
+class UpdateReportTargetOfficeDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string | null;
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  memberPrincipal?: string;
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  committee?: string | null;
+  @IsOptional()
+  @IsString()
+  @Length(0, 160)
+  staffer?: string | null;
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  building?: string | null;
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
   leadOwner?: string | null;
 }
 
@@ -2567,6 +2639,36 @@ export class EngagementController {
     @Body() body: UpsertReportTargetOfficeDto,
   ) {
     return this.service.upsertReportTargetOffice(ctx, body);
+  }
+
+  @Delete('reports/target-offices/overrides')
+  clearReportTargetOfficeOverrides(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: ClearReportTargetOfficeOverrideDto,
+  ) {
+    return this.service.clearReportTargetOfficeOverrides(ctx, body);
+  }
+
+  @Post('reports/target-offices/link')
+  linkReportTargetOffice(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: LinkReportTargetOfficeDto,
+  ) {
+    return this.service.linkReportTargetOfficeToDirectory(ctx, body);
+  }
+
+  @Patch('reports/target-offices/:id')
+  updateReportTargetOffice(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: UpdateReportTargetOfficeDto,
+  ) {
+    return this.service.updateReportTargetOffice(ctx, id, body);
+  }
+
+  @Delete('reports/target-offices/:id')
+  archiveReportTargetOffice(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.archiveReportTargetOffice(ctx, id);
   }
 
   @Get('tasks')

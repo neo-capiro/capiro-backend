@@ -35,12 +35,25 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMe } from '../../lib/me.js';
 import { useApi } from '../../lib/use-api.js';
 import { useClientFilter } from '../../state/client-filter.js';
+import {
+  ReportTargetDirectory,
+  directoryTargetDefaults,
+  type DirectoryContactOption,
+} from '../../vnext/pages/engagement/ReportTargetDirectory.js';
 import type { Client } from '../clients/clientTypes.js';
 import { meetingsListKey } from './meetings/meetings-api.js';
 import { MeetingsV2 } from './meetings/MeetingsV2.js';
 import { OverviewTab } from './OverviewTab.js';
 import type { DetailTab, MeetingViewMode } from './meetings/meetings-types.js';
 import { OutreachView } from './OutreachView.js';
+import {
+  buildReportTargetCreateBody,
+  buildReportTargetAssignment,
+  buildReportTargetRestoreBody,
+  reportTargetClientLabel,
+  requireReportYear,
+  requireTargetClient,
+} from './report-target-actions.js';
 import {
   DebriefNotesView,
   extractMeetingJoinUrl,
@@ -323,12 +336,18 @@ interface EngagementReportRow {
   submissionStatus: ReportStatus;
   source: string;
   manuallyOverridden: boolean;
+  prepOverridden?: boolean;
+  outreachOverridden?: boolean;
+  submissionOverridden?: boolean;
+  archivedAt?: string | null;
+  displayOverrides?: string[];
   meetings: EngagementReportMeeting[];
 }
 
 interface EngagementReport {
   cycle: {
     period: ReportPeriod;
+    reportYear: number | null;
     label: string;
     from: string | null;
     to: string | null;
@@ -377,6 +396,7 @@ interface DebriefDraftState {
 
 interface TargetOfficeFormValues {
   clientId?: string;
+  manualOnly?: boolean;
   memberPrincipal: string;
   committee?: string;
   staffer?: string;
@@ -417,6 +437,22 @@ export function EngagementPage() {
   const [meetingsLibraryOpen, setMeetingsLibraryOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [targetOfficeModalOpen, setTargetOfficeModalOpen] = useState(false);
+  const [targetDirectoryContact, setTargetDirectoryContact] =
+    useState<DirectoryContactOption | null>(null);
+  const [targetEditedFields, setTargetEditedFields] = useState<Set<string>>(() => new Set());
+  const [linkTargetRow, setLinkTargetRow] = useState<EngagementReportRow | null>(null);
+  const [linkDirectoryContact, setLinkDirectoryContact] = useState<DirectoryContactOption | null>(
+    null,
+  );
+  const [linkClientId, setLinkClientId] = useState<string | undefined>();
+  const [assignTargetRow, setAssignTargetRow] = useState<EngagementReportRow | null>(null);
+  const [assignClientId, setAssignClientId] = useState<string | undefined>();
+  const [linkConflicts, setLinkConflicts] = useState<
+    Array<{ field: string; manual: unknown; existing: unknown }>
+  >([]);
+  const [linkConflictResolutions, setLinkConflictResolutions] = useState<
+    Record<string, 'manual' | 'existing'>
+  >({});
   const [notetakerModalOpen, setNotetakerModalOpen] = useState(false);
   // The meeting a consent-modal dispatch targets. Set when "Send Meri" is opened
   // from EITHER the detail panel or a meeting-list row — the row may not be the
@@ -433,6 +469,7 @@ export function EngagementPage() {
   const [taskForm] = Form.useForm<TaskFormValues>();
   const [prepForm] = Form.useForm<PrepFormValues>();
   const [targetOfficeForm] = Form.useForm<TargetOfficeFormValues>();
+  const targetManualOnly = Form.useWatch('manualOnly', targetOfficeForm) === true;
   const [notetakerForm] = Form.useForm<NotetakerFormValues>();
   // Live checkbox state so the consent modal's OK button stays disabled until
   // both required acknowledgements are checked.
@@ -646,8 +683,7 @@ export function EngagementPage() {
     Array<{ id: string; provider: string; status: string; accountEmail?: string | null }>
   >({
     queryKey: ['engagement-integrations'],
-    queryFn: async () =>
-      (await api.get('/api/engagement/integrations')).data,
+    queryFn: async () => (await api.get('/api/engagement/integrations')).data,
     staleTime: 60_000,
   });
   const connectedIntegrations = useMemo(
@@ -861,14 +897,15 @@ export function EngagementPage() {
   const createTargetOffice = useMutation({
     mutationFn: async (values: TargetOfficeFormValues) =>
       (
-        await api.post('/api/engagement/reports/target-offices', {
-          clientId: values.clientId || selectedClientId || undefined,
-          memberPrincipal: values.memberPrincipal,
-          committee: optionalText(values.committee),
-          staffer: optionalText(values.staffer),
-          building: optionalText(values.building),
-          leadOwner: optionalText(values.leadOwner),
-        })
+        await api.post(
+          '/api/engagement/reports/target-offices',
+          buildReportTargetCreateBody({
+            values,
+            directoryContactId: targetDirectoryContact?.id,
+            editedFields: targetEditedFields,
+            reportYear: report.data?.cycle.reportYear,
+          }),
+        )
       ).data,
     onSuccess: () => {
       message.success('Target office added');
@@ -891,20 +928,85 @@ export function EngagementPage() {
     }) =>
       (
         await api.post('/api/engagement/reports/target-offices/overrides', {
-          clientId:
-            row.scopeKey === 'all' ? undefined : (row.clientId ?? selectedClientId ?? undefined),
+          clientId: requireTargetClient(row.clientId),
+          reportYear: requireReportYear(report.data?.cycle.reportYear),
           officeKey: row.officeKey,
-          memberPrincipal: row.memberPrincipal,
-          committee: row.committee,
-          staffer: row.staffer,
-          building: row.building,
-          leadOwner: row.leadOwner,
           [field]: status,
           source: row.source === 'manual' ? 'manual' : 'manual_override',
         })
       ).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['engagement-report'] }),
     onError: (err) => message.error(errorMessage(err)),
+  });
+
+  const restoreReportTarget = useMutation({
+    mutationFn: async ({ row, field }: { row: EngagementReportRow; field: ReportStatusField }) =>
+      (
+        await api.delete('/api/engagement/reports/target-offices/overrides', {
+          data: buildReportTargetRestoreBody({
+            row,
+            field,
+            reportYear: report.data?.cycle.reportYear,
+          }),
+        })
+      ).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engagement-report'] }),
+    onError: (err) => message.error(errorMessage(err)),
+  });
+
+  const linkTargetOffice = useMutation({
+    mutationFn: async () => {
+      if (!linkTargetRow || !linkDirectoryContact) throw new Error('Select a Directory match.');
+      return (
+        await api.post('/api/engagement/reports/target-offices/link', {
+          targetId: linkTargetRow.targetId ?? undefined,
+          officeKey: linkTargetRow.officeKey,
+          clientId: requireTargetClient(linkTargetRow.clientId ?? linkClientId),
+          directoryContactId: linkDirectoryContact.id,
+          conflictResolutions: linkConflictResolutions,
+        })
+      ).data;
+    },
+    onSuccess: () => {
+      message.success('Target linked to Directory');
+      setLinkTargetRow(null);
+      qc.invalidateQueries({ queryKey: ['engagement-report'] });
+    },
+    onError: (err) => {
+      const data = (
+        err as { response?: { data?: { code?: string; conflicts?: typeof linkConflicts } } }
+      ).response?.data;
+      if (data?.code === 'TARGET_LINK_CONFLICT' && Array.isArray(data.conflicts)) {
+        setLinkConflicts(data.conflicts);
+        setLinkConflictResolutions({});
+        message.error('Choose which value to keep for each conflicting field.');
+      } else {
+        message.error(errorMessage(err));
+      }
+    },
+  });
+
+  const assignTargetClient = useMutation({
+    mutationFn: async ({
+      row,
+      clientId,
+    }: {
+      row: EngagementReportRow;
+      clientId: string | undefined;
+    }) => {
+      const request = buildReportTargetAssignment(row, clientId);
+      return (
+        await api.patch(
+          `/api/engagement/reports/target-offices/${encodeURIComponent(request.targetId)}`,
+          request.body,
+        )
+      ).data;
+    },
+    onSuccess: () => {
+      setAssignTargetRow(null);
+      message.success('Target assigned to client');
+      qc.invalidateQueries({ queryKey: ['engagement-report'] });
+    },
   });
 
   const updateTaskStatus = useMutation({
@@ -1229,7 +1331,9 @@ export function EngagementPage() {
   // buttons are the first real trigger.
   const openTargetOfficeModal = () => {
     targetOfficeForm.resetFields();
-    targetOfficeForm.setFieldsValue({ clientId: selectedClientId ?? undefined });
+    targetOfficeForm.setFieldsValue({ clientId: selectedClientId ?? undefined, manualOnly: false });
+    setTargetDirectoryContact(null);
+    setTargetEditedFields(new Set());
     setTargetOfficeModalOpen(true);
   };
 
@@ -1600,7 +1704,12 @@ export function EngagementPage() {
                         updateReportTarget.variables.row,
                         updateReportTarget.variables.field,
                       )
-                    : null
+                    : restoreReportTarget.isPending && restoreReportTarget.variables
+                      ? reportCellKey(
+                          restoreReportTarget.variables.row,
+                          restoreReportTarget.variables.field,
+                        )
+                      : null
                 }
                 onViewMeetings={setReportMeetingRow}
                 onStatusChange={(row, field, status) =>
@@ -1610,6 +1719,20 @@ export function EngagementPage() {
                     status,
                   })
                 }
+                onRestore={(row, field) => restoreReportTarget.mutate({ row, field })}
+                onLinkDirectory={(row) => {
+                  linkTargetOffice.reset();
+                  setLinkTargetRow(row);
+                  setLinkDirectoryContact(null);
+                  setLinkClientId(row.clientId ?? undefined);
+                  setLinkConflicts([]);
+                  setLinkConflictResolutions({});
+                }}
+                onAssignClient={(row) => {
+                  assignTargetClient.reset();
+                  setAssignTargetRow(row);
+                  setAssignClientId(undefined);
+                }}
               />
             ),
           },
@@ -1688,46 +1811,257 @@ export function EngagementPage() {
       <Modal
         rootClassName="redesign"
         title="Add target office"
+        destroyOnClose
         open={targetOfficeModalOpen}
         onCancel={() => setTargetOfficeModalOpen(false)}
         onOk={() => targetOfficeForm.submit()}
         confirmLoading={createTargetOffice.isPending}
+        okText={targetManualOnly ? 'Save manual-only target' : 'Add target office'}
+        okButtonProps={{
+          disabled:
+            !report.data?.cycle.reportYear || (!targetManualOnly && !targetDirectoryContact),
+        }}
         width={640}
       >
         <Form
           form={targetOfficeForm}
           layout="vertical"
-          onFinish={(values) => createTargetOffice.mutate(values)}
+          onFinish={(values: TargetOfficeFormValues) => createTargetOffice.mutate(values)}
+          onValuesChange={(changed: Partial<TargetOfficeFormValues>) =>
+            setTargetEditedFields((previous) => new Set([...previous, ...Object.keys(changed)]))
+          }
         >
-          <Form.Item name="clientId" label="Client">
+          <Form.Item
+            name="clientId"
+            label="Client"
+            rules={[{ required: true, message: 'Select the client this target belongs to.' }]}
+          >
             <Select
-              allowClear
+              placeholder="Select a client"
               showSearch={clientSelectOptions.length > 10}
               optionFilterProp="label"
               options={clientSelectOptions}
             />
           </Form.Item>
+          <Form.Item>
+            <ReportTargetDirectory
+              value={targetDirectoryContact}
+              disabled={targetManualOnly || createTargetOffice.isPending}
+              onClear={() => setTargetDirectoryContact(null)}
+              onSelect={(contact) => {
+                setTargetDirectoryContact(contact);
+                const defaults = directoryTargetDefaults(contact);
+                targetOfficeForm.setFieldsValue(
+                  Object.fromEntries(
+                    Object.entries(defaults).filter(([field]) => !targetEditedFields.has(field)),
+                  ),
+                );
+              }}
+            />
+          </Form.Item>
+          <Form.Item name="manualOnly" valuePropName="checked">
+            <Checkbox>
+              Save as manual-only — activity will not populate until linked to Directory
+            </Checkbox>
+          </Form.Item>
           <Form.Item
             name="memberPrincipal"
-            label="Member / Principal"
+            label={
+              <>
+                Member / Principal{' '}
+                {targetDirectoryContact && targetEditedFields.has('memberPrincipal') ? (
+                  <Tag>Edited</Tag>
+                ) : null}
+              </>
+            }
             rules={[{ required: true, min: 1 }]}
           >
-            <Input placeholder="Rep. Jane Smith (D-CA-12)" />
+            <Input placeholder="Rep. Jane Smith (D-CA-12)" maxLength={240} />
           </Form.Item>
           <div className="engagement-form-grid">
-            <Form.Item name="committee" label="Committee">
-              <Input placeholder="HASC" />
+            <Form.Item
+              name="committee"
+              label={
+                <>
+                  Committee{' '}
+                  {targetDirectoryContact && targetEditedFields.has('committee') ? (
+                    <Tag>Edited</Tag>
+                  ) : null}
+                </>
+              }
+            >
+              <Input placeholder="HASC" maxLength={120} />
             </Form.Item>
-            <Form.Item name="building" label="Building">
-              <Input placeholder="Rayburn" />
+            <Form.Item
+              name="building"
+              label={
+                <>
+                  Building{' '}
+                  {targetDirectoryContact && targetEditedFields.has('building') ? (
+                    <Tag>Edited</Tag>
+                  ) : null}
+                </>
+              }
+            >
+              <Input placeholder="Rayburn" maxLength={120} />
             </Form.Item>
             <Form.Item name="leadOwner" label="Lead">
-              <Input placeholder="Owner" />
+              <Input placeholder="Owner" maxLength={120} />
             </Form.Item>
           </div>
-          <Form.Item name="staffer" label="Staffer">
-            <Input placeholder="Staffer name" />
+          <Form.Item
+            name="staffer"
+            label={
+              <>
+                Staffer{' '}
+                {targetDirectoryContact && targetEditedFields.has('staffer') ? (
+                  <Tag>Edited</Tag>
+                ) : null}
+              </>
+            }
+          >
+            <Input placeholder="Staffer name" maxLength={160} />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        rootClassName="redesign"
+        title={
+          linkTargetRow
+            ? `Link target to Directory — ${linkTargetRow.memberPrincipal}`
+            : 'Link target to Directory'
+        }
+        destroyOnClose
+        open={Boolean(linkTargetRow)}
+        onCancel={() => setLinkTargetRow(null)}
+        onOk={() => linkTargetOffice.mutate()}
+        okText="Link target"
+        confirmLoading={linkTargetOffice.isPending}
+        okButtonProps={{
+          disabled:
+            !linkDirectoryContact ||
+            !(linkTargetRow?.clientId ?? linkClientId) ||
+            linkConflicts.some(({ field }) => !linkConflictResolutions[field]),
+        }}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Client" required>
+            <Select
+              value={linkTargetRow?.clientId ?? linkClientId}
+              disabled={Boolean(linkTargetRow?.clientId)}
+              placeholder="Assign this legacy target to a client"
+              options={clientSelectOptions}
+              onChange={(value: string) => {
+                linkTargetOffice.reset();
+                setLinkClientId(value);
+                setLinkConflicts([]);
+                setLinkConflictResolutions({});
+              }}
+            />
+          </Form.Item>
+          <Form.Item>
+            <ReportTargetDirectory
+              value={linkDirectoryContact}
+              disabled={linkTargetOffice.isPending}
+              onClear={() => {
+                linkTargetOffice.reset();
+                setLinkDirectoryContact(null);
+                setLinkConflicts([]);
+                setLinkConflictResolutions({});
+              }}
+              onSelect={(contact) => {
+                linkTargetOffice.reset();
+                setLinkDirectoryContact(contact);
+                setLinkConflicts([]);
+                setLinkConflictResolutions({});
+              }}
+            />
+          </Form.Item>
+          {linkTargetOffice.isError ? (
+            <Typography.Paragraph type="danger" role="alert">
+              {errorMessage(linkTargetOffice.error)}
+            </Typography.Paragraph>
+          ) : null}
+          {linkConflicts.length ? (
+            <Typography.Paragraph>
+              Both targets have saved values. Choose each value to keep before linking.
+            </Typography.Paragraph>
+          ) : null}
+          {linkConflicts.map(({ field, manual, existing }) => (
+            <Form.Item key={field} label={field} required>
+              <Select
+                placeholder="Choose the value to keep"
+                value={linkConflictResolutions[field]}
+                options={[
+                  {
+                    value: 'manual',
+                    label: `This target: ${typeof manual === 'string' ? manual : (JSON.stringify(manual) ?? 'Empty')}`,
+                  },
+                  {
+                    value: 'existing',
+                    label: `Existing Directory target: ${typeof existing === 'string' ? existing : (JSON.stringify(existing) ?? 'Empty')}`,
+                  },
+                ]}
+                onChange={(value: 'manual' | 'existing') =>
+                  setLinkConflictResolutions((previous) => ({ ...previous, [field]: value }))
+                }
+              />
+            </Form.Item>
+          ))}
+        </Form>
+      </Modal>
+
+      <Modal
+        rootClassName="redesign"
+        title={
+          assignTargetRow ? `Assign client — ${assignTargetRow.memberPrincipal}` : 'Assign client'
+        }
+        destroyOnClose
+        open={Boolean(assignTargetRow)}
+        onCancel={() => setAssignTargetRow(null)}
+        onOk={() =>
+          assignTargetRow &&
+          assignTargetClient.mutate({ row: assignTargetRow, clientId: assignClientId })
+        }
+        okText="Assign client"
+        confirmLoading={assignTargetClient.isPending}
+        okButtonProps={{ disabled: !assignClientId || clients.isLoading || clients.isError }}
+      >
+        <Typography.Paragraph>
+          Choose the client this unassigned target belongs to. Its saved fields, Directory identity
+          and reporting history will be preserved.
+        </Typography.Paragraph>
+        <Form layout="vertical">
+          <Form.Item label="Client" required>
+            <Select
+              aria-label="Assign target client"
+              placeholder="Select a client"
+              value={assignClientId}
+              loading={clients.isLoading}
+              disabled={clients.isLoading || clients.isError || assignTargetClient.isPending}
+              showSearch
+              optionFilterProp="label"
+              options={clientSelectOptions}
+              onChange={(value: string) => {
+                assignTargetClient.reset();
+                setAssignClientId(value);
+              }}
+            />
+          </Form.Item>
+          {clients.isError ? (
+            <Typography.Paragraph type="danger" role="alert">
+              Clients could not be loaded.{' '}
+              <Button type="link" onClick={() => clients.refetch()}>
+                Retry
+              </Button>
+            </Typography.Paragraph>
+          ) : null}
+          {assignTargetClient.isError ? (
+            <Typography.Paragraph type="danger" role="alert">
+              {errorMessage(assignTargetClient.error)}
+            </Typography.Paragraph>
+          ) : null}
         </Form>
       </Modal>
 
@@ -3562,7 +3896,7 @@ function MailView({ threads }: { threads: MailThread[] }) {
   );
 }
 
-function ReportsView({
+export function ReportsView({
   report,
   loading,
   period,
@@ -3575,6 +3909,9 @@ function ReportsView({
   onViewMeetings,
   onStatusChange,
   onAddTargetOffice,
+  onRestore,
+  onLinkDirectory,
+  onAssignClient,
 }: {
   report?: EngagementReport;
   loading: boolean;
@@ -3592,7 +3929,11 @@ function ReportsView({
     status: ReportStatus,
   ) => void;
   onAddTargetOffice: () => void;
+  onRestore: (row: EngagementReportRow, field: ReportStatusField) => void;
+  onLinkDirectory: (row: EngagementReportRow) => void;
+  onAssignClient: (row: EngagementReportRow) => void;
 }) {
+  const readOnly = !Number.isInteger(report?.cycle.reportYear);
   const rows = useMemo(() => {
     const base = report?.rows ?? [];
     const filtered =
@@ -3618,7 +3959,7 @@ function ReportsView({
       <div className="engagement-tab-heading">
         <Typography.Title level={3}>Reports</Typography.Title>
         <Typography.Text type="secondary">
-          {report?.cycle.label ?? 'Current Cycle (2026)'} Engagement Activity Overview
+          {report?.cycle.label ?? 'Reporting Cycle'} Engagement Activity Overview
         </Typography.Text>
       </div>
 
@@ -3644,7 +3985,12 @@ function ReportsView({
             </div>
           </div>
           <Space wrap className="engagement-report-controls">
-            <Button type="primary" icon={<PlusOutlined />} onClick={onAddTargetOffice}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onAddTargetOffice}
+              disabled={readOnly}
+            >
               Add target office
             </Button>
             <Select
@@ -3678,6 +4024,12 @@ function ReportsView({
           </Space>
         </div>
 
+        {period === 'all' ? (
+          <Typography.Paragraph type="secondary">
+            All Time is read-only. Select a reporting year to add targets or change statuses.
+          </Typography.Paragraph>
+        ) : null}
+
         {loading ? (
           <Empty description="Loading Report Activity..." />
         ) : rows.length ? (
@@ -3703,8 +4055,13 @@ function ReportsView({
                     <tr key={`${row.scopeKey}:${row.officeKey}`}>
                       <td>
                         <Typography.Text strong>{row.memberPrincipal}</Typography.Text>
+                        {row.displayOverrides?.includes('memberPrincipal') ? (
+                          <Tag title="Display wording was edited; Directory identity is unchanged">
+                            Edited
+                          </Tag>
+                        ) : null}
                         <Typography.Text type="secondary">
-                          {[row.clientName, row.committee, row.building]
+                          {[reportTargetClientLabel(row), row.committee, row.building]
                             .filter(Boolean)
                             .join(' | ')}
                         </Typography.Text>
@@ -3713,11 +4070,42 @@ function ReportsView({
                             Manual override
                           </Tag>
                         ) : null}
+                        {row.officeKey.startsWith('manual:') ? (
+                          <Space direction="vertical" size={0}>
+                            <Tag>Manual-only — no automatic activity</Tag>
+                            {!row.archivedAt ? (
+                              <Button
+                                type="link"
+                                size="small"
+                                disabled={readOnly}
+                                onClick={() => onLinkDirectory(row)}
+                              >
+                                Link to Directory
+                              </Button>
+                            ) : null}
+                          </Space>
+                        ) : null}
+                        {!row.clientId && row.targetId && !row.archivedAt ? (
+                          <Button
+                            type="link"
+                            size="small"
+                            disabled={readOnly}
+                            onClick={() => onAssignClient(row)}
+                          >
+                            Assign client
+                          </Button>
+                        ) : null}
                       </td>
-                      <td>{row.committee || '-'}</td>
-                      <td>{row.staffer || '-'}</td>
-                      <td>{row.building || '-'}</td>
-                      <td>{row.leadOwner || '-'}</td>
+                      {(['committee', 'staffer', 'building', 'leadOwner'] as const).map((field) => (
+                        <td key={field}>
+                          {row[field] || '-'}
+                          {row.displayOverrides?.includes(field) ? (
+                            <Tag title="Display wording was edited; Directory identity is unchanged">
+                              Edited
+                            </Tag>
+                          ) : null}
+                        </td>
+                      ))}
                       <td>
                         <button
                           type="button"
@@ -3730,22 +4118,43 @@ function ReportsView({
                       <td>
                         <ReportStatusSelect
                           status={row.prepStatus}
-                          disabled={updatingCell === reportCellKey(row, 'prepStatus')}
+                          disabled={
+                            readOnly ||
+                            !row.clientId ||
+                            Boolean(row.archivedAt) ||
+                            updatingCell === reportCellKey(row, 'prepStatus')
+                          }
                           onChange={(status) => onStatusChange(row, 'prepStatus', status)}
+                          onRestore={() => onRestore(row, 'prepStatus')}
+                          overridden={Boolean(row.prepOverridden)}
                         />
                       </td>
                       <td>
                         <ReportStatusSelect
                           status={row.outreachStatus}
-                          disabled={updatingCell === reportCellKey(row, 'outreachStatus')}
+                          disabled={
+                            readOnly ||
+                            !row.clientId ||
+                            Boolean(row.archivedAt) ||
+                            updatingCell === reportCellKey(row, 'outreachStatus')
+                          }
                           onChange={(status) => onStatusChange(row, 'outreachStatus', status)}
+                          onRestore={() => onRestore(row, 'outreachStatus')}
+                          overridden={Boolean(row.outreachOverridden)}
                         />
                       </td>
                       <td>
                         <ReportStatusSelect
                           status={row.submissionStatus}
-                          disabled={updatingCell === reportCellKey(row, 'submissionStatus')}
+                          disabled={
+                            readOnly ||
+                            !row.clientId ||
+                            Boolean(row.archivedAt) ||
+                            updatingCell === reportCellKey(row, 'submissionStatus')
+                          }
                           onChange={(status) => onStatusChange(row, 'submissionStatus', status)}
+                          onRestore={() => onRestore(row, 'submissionStatus')}
+                          overridden={Boolean(row.submissionOverridden)}
                         />
                       </td>
                       <td>{row.pendingActions}</td>
@@ -3769,7 +4178,12 @@ function ReportsView({
           </>
         ) : (
           <Empty description="No Target Offices Are Linked To This Reporting Period Yet.">
-            <Button type="primary" icon={<PlusOutlined />} onClick={onAddTargetOffice}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onAddTargetOffice}
+              disabled={readOnly}
+            >
               Add target office
             </Button>
           </Empty>
@@ -3783,20 +4197,29 @@ function ReportStatusSelect({
   status,
   disabled,
   onChange,
+  onRestore,
+  overridden,
 }: {
   status: ReportStatus;
   disabled: boolean;
   onChange: (status: ReportStatus) => void;
+  onRestore: () => void;
+  overridden: boolean;
 }) {
   return (
-    <Select<ReportStatus>
+    <Select<ReportStatus | 'restore'>
       size="small"
       popupMatchSelectWidth={false}
       className={`engagement-report-status-select engagement-report-status-select--${status}`}
       disabled={disabled}
       value={status}
-      onChange={onChange}
-      options={REPORT_STATUS_OPTIONS}
+      onChange={(value: ReportStatus | 'restore') =>
+        value === 'restore' ? onRestore() : onChange(value)
+      }
+      options={[
+        ...REPORT_STATUS_OPTIONS,
+        ...(overridden ? [{ value: 'restore' as const, label: 'Restore automatic tracking' }] : []),
+      ]}
     />
   );
 }
@@ -4463,7 +4886,7 @@ function exportEngagementReportPdf(report: EngagementReport) {
     '',
     'Office Engagement Tracker',
     ...report.rows.flatMap((row) => [
-      `${row.memberPrincipal}${row.clientName ? ` | ${row.clientName}` : ''}`,
+      `${row.memberPrincipal} | ${reportTargetClientLabel(row)}`,
       `Committee: ${row.committee || '-'} | Staffer: ${row.staffer || '-'} | Building: ${
         row.building || '-'
       } | Lead: ${row.leadOwner || '-'}`,
@@ -4508,7 +4931,7 @@ function exportEngagementReportCsv(rows: EngagementReportRow[], cycle?: Engageme
   const lines = rows.map((row) =>
     [
       row.memberPrincipal,
-      row.clientName,
+      reportTargetClientLabel(row),
       row.committee,
       row.staffer,
       row.building,

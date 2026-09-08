@@ -130,6 +130,13 @@ export function EngagementDialog({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        // An expanded picker consumes the first Escape to dismiss its options.
+        // This listener runs in capture, before the picker's own key handler.
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.closest('[role="combobox"][aria-expanded="true"]')
+        )
+          return;
         event.preventDefault();
         requestClose();
         return;

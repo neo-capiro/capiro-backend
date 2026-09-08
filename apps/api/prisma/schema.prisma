@@ -209,6 +209,7 @@ model Tenant {
   directoryContactNotes              DirectoryContactNote[]
   directoryContactFavorites          DirectoryContactFavorite[]
   engagementReportTargets            EngagementReportTargetOffice[]
+  engagementReportOverrides          EngagementReportTargetOverride[]
   outreachRecords                    OutreachRecord[]
   outreachTemplates                  OutreachTemplate[]
   outreachAudiences                  OutreachAudience[]
@@ -1486,6 +1487,9 @@ model EngagementReportTargetOffice {
   outreachStatus   String   @default("auto") @map("outreach_status")
   submissionStatus String   @default("auto") @map("submission_status")
   source           String   @default("manual")
+  firstReportYear  Int      @default(dbgenerated("EXTRACT(year FROM CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::integer")) @map("first_report_year")
+  displayOverrides String[] @default([]) @map("display_overrides")
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(6)
   createdByUserId  String?  @map("created_by_user_id") @db.Uuid
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -1493,10 +1497,33 @@ model EngagementReportTargetOffice {
   tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client    Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
   createdBy User?   @relation("EngagementReportTargetOfficeAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  annualOverrides EngagementReportTargetOverride[]
 
   @@unique([tenantId, scopeKey, officeKey], map: "engagement_report_targets_tenant_scope_office_key")
+  @@unique([id, tenantId], map: "engagement_report_targets_id_tenant_key")
   @@index([tenantId, clientId, prepStatus], map: "engagement_report_targets_tenant_client_prep_idx")
   @@map("engagement_report_target_offices")
+}
+
+// Identity and editable planning metadata persist across reporting years.
+// Only these status overrides are annual; the old target status columns remain
+// compatible with old API instances during the rollout (see migration triggers).
+model EngagementReportTargetOverride {
+  id               String @id @default(uuid()) @db.Uuid
+  tenantId         String @map("tenant_id") @db.Uuid
+  targetId         String @map("target_id") @db.Uuid
+  reportYear       Int @map("report_year")
+  prepStatus       String @default("auto") @map("prep_status")
+  outreachStatus   String @default("auto") @map("outreach_status")
+  submissionStatus String @default("auto") @map("submission_status")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  target EngagementReportTargetOffice @relation(fields: [targetId, tenantId], references: [id, tenantId], onDelete: Cascade, map: "engagement_report_overrides_target_tenant_fkey")
+
+  @@unique([targetId, reportYear], map: "engagement_report_overrides_target_year_key")
+  @@index([tenantId, reportYear], map: "engagement_report_overrides_tenant_year_idx")
+  @@map("engagement_report_target_overrides")
 }
 
 model OutreachRecord {

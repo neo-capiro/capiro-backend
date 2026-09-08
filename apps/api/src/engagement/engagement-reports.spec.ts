@@ -10,7 +10,7 @@
 // field rather than collapsed. Uses the same minimal-harness pattern as
 // engagement-meetings.spec.ts (real prototype over a stub prisma) so the
 // heavy constructor graph isn't wired.
-import { describe, expect, test } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from './engagement.service.js';
 
@@ -51,6 +51,15 @@ function targetOfficeRow(overrides: Record<string, unknown> = {}) {
     building: 'Rayburn',
     leadOwner: 'Neo',
     source: 'manual',
+    archivedAt: null,
+    displayOverrides: [],
+    firstReportYear: 2000,
+    annualOverrides: [{
+      reportYear: new Date().getUTCFullYear(),
+      prepStatus: overrides.prepStatus ?? 'auto',
+      outreachStatus: overrides.outreachStatus ?? 'auto',
+      submissionStatus: overrides.submissionStatus ?? 'auto',
+    }],
     prepStatus: 'auto',
     outreachStatus: 'auto',
     submissionStatus: 'auto',
@@ -66,7 +75,8 @@ function targetOfficeRow(overrides: Record<string, unknown> = {}) {
 // .directory` never needs stubbing either).
 function servicePinnedTo(targets: Array<Record<string, unknown>>): EngagementService {
   return serviceWith({
-    engagementReportTargetOffice: { findMany: async () => targets },
+    engagementReportTargetOffice: { findMany: async ({ where, include }: any) => targets.filter((target) => !where.clientId || target.clientId === where.clientId).map((target: any) => ({ ...target, annualOverrides: target.annualOverrides.filter((value: any) => value.reportYear === include.annualOverrides.where.reportYear) })) },
+    client: { findFirst: async () => ({ id: 'client-a' }) },
     meeting: { findMany: async () => [] },
     mailMessage: { findMany: async () => [] },
     engagementTask: { findMany: async () => [] },
@@ -179,5 +189,112 @@ describe('reportOverview — per-field override flags (additive)', () => {
     ]) {
       expect(row).toHaveProperty(key);
     }
+  });
+});
+
+
+describe('report years, client identity and archive history', () => {
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('advancing across UTC New Year changes current override selection without losing the plan', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-12-31T23:59:59Z'));
+    const service = servicePinnedTo([targetOfficeRow({ clientId: 'client-a', scopeKey: 'client-a',
+      annualOverrides: [
+        { reportYear: 2026, prepStatus: 'complete', outreachStatus: 'auto', submissionStatus: 'auto' },
+        { reportYear: 2027, prepStatus: 'in_progress', outreachStatus: 'auto', submissionStatus: 'auto' },
+      ],
+    })]);
+    expect((await service.reportOverview(ctx, {})).rows[0]?.prepStatus).toBe('complete');
+    jest.setSystemTime(new Date('2027-01-01T00:00:00Z'));
+    const current = await service.reportOverview(ctx, {});
+    expect(current.cycle.reportYear).toBe(2027);
+    expect(current.rows[0]?.prepStatus).toBe('in_progress');
+    expect((await service.reportOverview(ctx, { period: 'previous' })).rows[0]?.prepStatus).toBe('complete');
+    expect((await service.reportOverview(ctx, { period: 'all' })).rows[0]?.prepOverridden).toBe(false);
+  });
+
+  test('legacy unassigned plans appear only in All clients with a reconciliation marker', async () => {
+    const service = servicePinnedTo([targetOfficeRow(), targetOfficeRow({ id: 'assigned', clientId: 'client-a', scopeKey: 'client-a' })]);
+    const scoped = await service.reportOverview(ctx, { clientId: 'client-a' });
+    expect(scoped.rows.map((row) => row.targetId)).toEqual(['assigned']);
+    expect(scoped.rows[0]?.requiresClientAssignment).toBe(false);
+    const all = await service.reportOverview(ctx, {});
+    expect(all.rows.find((row) => row.targetId === 't-1')?.requiresClientAssignment).toBe(true);
+  });
+
+  test('archive removes active rows while retaining prior-cycle and All-time export rows', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-08T12:00:00Z'));
+    const service = servicePinnedTo([targetOfficeRow({ archivedAt: new Date('2026-09-08T11:00:00Z'),
+      annualOverrides: [{ reportYear: 2025, prepStatus: 'complete', outreachStatus: 'auto', submissionStatus: 'complete' }],
+    })]);
+    expect((await service.reportOverview(ctx, {})).rows).toHaveLength(0);
+    const previous = await service.reportOverview(ctx, { period: 'previous' });
+    expect(previous.rows[0]?.submissionStatus).toBe('complete');
+    expect(previous.rows[0]?.archivedAt).toEqual(new Date('2026-09-08T11:00:00Z'));
+    expect((await service.reportOverview(ctx, { period: 'all' })).rows).toHaveLength(1);
+  });
+
+  test('a plan starting this year is not retroactively added to an earlier report', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-08T12:00:00Z'));
+    const service = servicePinnedTo([targetOfficeRow({ firstReportYear: 2026 })]);
+    expect((await service.reportOverview(ctx, {})).rows).toHaveLength(1);
+    expect((await service.reportOverview(ctx, { period: 'previous' })).rows).toHaveLength(0);
+  });
+});
+
+
+function serviceWithDirectoryActivity(targets: any[], status = 'confirmed', messages: any[] = []) {
+  const meeting = {
+    id: 'meeting-a', clientId: 'client-a', client: { name: 'Client A' }, status,
+    startsAt: new Date('2026-04-01T12:00:00Z'), endsAt: new Date('2026-04-01T13:00:00Z'),
+    subject: 'Office meeting', location: null, metadata: {}, organizerEmail: null,
+    attendees: [{ email: 'staff@example.org' }], preps: [{ status: 'approved' }], tasks: [],
+  };
+  const service = serviceWith({
+    engagementReportTargetOffice: { findMany: async () => targets },
+    meeting: { findMany: async () => messages.length ? [] : [meeting] },
+    mailMessage: { findMany: async () => messages }, engagementTask: { findMany: async () => [] },
+  });
+  (service as any).directoryMatchesForReport = async () => [{
+    directoryContactId: 'member-123', attendeeEmail: 'staff@example.org',
+    member: { fullName: 'Avery Member', partyName: 'Democratic', chamber: 'House', state: 'CA', district: '12',
+      committees: [], officeLocation: '123 Rayburn HOB', addresses: [] },
+    staff: { id: 'staff-1', fullName: 'Alex Staffer', officeLocation: '123 Rayburn HOB' },
+  }];
+  return service;
+}
+
+describe('Directory activity contributes to the correct planned identity', () => {
+  test('planned office picks up staff activity without duplicating or overwriting edited fields', async () => {
+    const service = serviceWithDirectoryActivity([targetOfficeRow({ officeKey: 'directory:member-123', clientId: 'client-a', scopeKey: 'client-a',
+      memberPrincipal: 'Edited Avery', building: null, displayOverrides: ['building'],
+    })]);
+    const report = await service.reportOverview(ctx, {});
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({ memberPrincipal: 'Edited Avery', building: null, meetingsHeld: 1, prepStatus: 'complete', source: 'manual' });
+  });
+
+  test('cancelled meetings with approved preps never advance ordinary report progress', async () => {
+    const service = serviceWithDirectoryActivity([targetOfficeRow({ officeKey: 'directory:member-123', clientId: 'client-a', scopeKey: 'client-a' })], ' Cancelled ');
+    const report = await service.reportOverview(ctx, {});
+    expect(report.rows[0]).toMatchObject({ meetingsHeld: 0, prepStatus: 'not_started', meetings: [] });
+  });
+
+  test('archived canonical targets cannot regenerate from activity as ghost planning rows', async () => {
+    const service = serviceWithDirectoryActivity([targetOfficeRow({ officeKey: 'directory:member-123', clientId: 'client-a', scopeKey: 'client-a',
+      archivedAt: new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1)),
+    })]);
+    const report = await service.reportOverview(ctx, {});
+    expect(report.rows).toHaveLength(0);
+    expect(report.summary.meetingsHeld).toBe(1);
+  });
+
+  test('mail-only activity carries its actual client name and identity', async () => {
+    const service = serviceWithDirectoryActivity([], 'confirmed', [{
+      id: 'message-a', threadId: 'thread-a', fromEmail: 'staff@example.org', toRecipients: [], ccRecipients: [], bccRecipients: [],
+      sentAt: new Date(), receivedAt: null, metadata: {}, connection: null,
+      thread: { clientId: 'client-a', client: { name: 'Client A' } },
+    }]);
+    expect((await service.reportOverview(ctx, {})).rows[0]).toMatchObject({ clientId: 'client-a', clientName: 'Client A', scopeKey: 'client-a' });
   });
 });
