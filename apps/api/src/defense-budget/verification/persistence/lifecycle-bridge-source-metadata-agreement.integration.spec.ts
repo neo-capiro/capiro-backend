@@ -1,10 +1,11 @@
 /**
  * Phase 10B-31 -- permanent regression for the lifecycle-bridge
  * SourceDocument metadata-agreement check, proven against a REAL Postgres
- * through the REAL `DefaultParserHandoffAdapter`, the REAL synthetic
- * manifest builder (`buildLifecycleBridgeSyntheticManifestV1`, invoked
- * internally by the adapter's own call chain -- never called directly with
- * pre-corrected arguments here), the REAL `CompositeProofResolver` running in
+ * through the REAL `DefaultParserHandoffAdapter`, the REAL Python parser
+ * runtime, the REAL synthetic manifest builder
+ * (`buildLifecycleBridgeSyntheticManifestV1`, invoked internally by the
+ * adapter's own call chain -- never called directly with pre-corrected
+ * arguments here), the REAL `CompositeProofResolver` running in
  * `production_proof` mode, a REAL `SourceDocument` row read back out of
  * Postgres by the REAL Prisma client, and the REAL decision engine
  * (`computeDecisionV1`). No table-routed fakes, no in-memory maps, no
@@ -24,88 +25,203 @@
  * regression that proves it, end to end, through the real code paths that
  * process the real canary in production.
  *
- * ── What this deliberately does NOT prove ──────────────────────────────────
- * `requireImmutableArchive` is `true` for the R-2/rdte policy this spec
- * exercises. Every SourceDocument row created here carries NO archive
- * fields (`archiveBucket`/`archiveS3Key`/`archiveVersionId` all null) -- a
- * real, legitimately-supported case the codebase itself documents
+ * ── Two sections, two different signals ───────────────────────────────────
+ *
+ * Section A ("no archive" scenarios). Every SourceDocument row carries NO
+ * archive fields (`archiveBucket`/`archiveS3Key`/`archiveVersionId` all
+ * null) -- a real, legitimately-supported case the codebase itself documents
  * ("reviewed legacy artifacts whose source PDF is not archived", see
- * `archive-proof-resolver.ts`) -- so `CompositeProofResolver`'s archive step
- * ALWAYS short-circuits with a blocking `archive_version_missing` finding
- * BEFORE ever calling an S3 client (confirmed by reading
- * `ArchiveProofResolver.resolve`: it returns immediately when
- * `archiveBucket`/`archiveS3Key` are absent, making zero network calls).
- * Consequently `decision` resolves `REJECT` in EVERY scenario below,
- * regardless of whether the metadata-agreement bug is present or fixed --
- * `decision` is NOT the signal this spec reads. The signal is the specific
- * `source_metadata_mismatch` proof-finding code (present/absent, and its
- * exact message), read directly off the persisted `budget_verification_proof`
- * rows (the `source_document` snapshot's own status/evidence, and the
- * `proof_findings` snapshot Stage 2's evidence-durability fix introduced) --
- * exactly the mechanism this bug fix touches. Archive proof itself is a
- * separate, pre-existing, unaffected resolver; this spec does not attempt to
- * also prove it reaches `verified` (that would require either live
- * production AWS access or a non-adapter-literal wiring substitution, both
- * avoided here to keep this suite hermetic and side-effect-free). The
- * authoritative SOURCE BYTES resolution (priority 2 of
- * `resolveAuthoritativeLocator`: `SourceDocument.artifactPath`) is still
- * genuinely exercised for real -- every scenario's source bytes are read
- * back off local disk and SHA-256'd for real, so the SHA-based half of the
- * metadata check (`row.sha256 !== actualSourceSha256`) is fully live, not
- * skipped.
+ * `archive-proof-resolver.ts`). Because `requireImmutableArchive` is `true`
+ * for the R-2/rdte policy, `ArchiveProofResolver` short-circuits with a
+ * blocking `archive_version_missing` finding BEFORE ever calling an S3
+ * client, so `decision` is REJECT in EVERY Section A scenario regardless of
+ * whether the metadata bug is present or fixed. `decision` is NOT the
+ * signal there; the signal is the specific `source_metadata_mismatch`
+ * proof-finding code (present/absent, exact message), read off the persisted
+ * `budget_verification_proof` rows. Authoritative SOURCE BYTES resolution is
+ * still real (priority 2 of `resolveAuthoritativeLocator`:
+ * `SourceDocument.artifactPath`, read off local disk and SHA-256'd for real).
+ *
+ * Section B ("complete archive" scenarios). Every SourceDocument row carries
+ * COMPLETE, VALID archive evidence (bucket, key, exact version id) pointing
+ * at a disposable, versioned, S3-compatible object store (MinIO) reached
+ * ONLY through the pre-existing verifier-scoped test hook
+ * `BUDGET_VERIFICATION_S3_ENDPOINT` (`s3-proof-adapters.ts`,
+ * `createBudgetVerificationS3Client` -- the ONE S3 client construction path
+ * production uses). Nothing in the archive check is weakened or bypassed:
+ * the real `SdkS3ProofClient` (`@aws-sdk/client-s3` HeadObject/GetObject
+ * with an exact VersionId), the real `S3ByteLocatorReader`, and the real
+ * `ArchiveProofResolver` run unmodified against that store, so the archive
+ * proof genuinely resolves `verified` (head + bytes + SHA), the
+ * authoritative source bytes come from the versioned archive (priority 1 of
+ * `resolveAuthoritativeLocator`), and the parser-run proof genuinely
+ * resolves `verified` (the fresh parse's output bytes are persisted under the
+ * shared parser-artifact root, exactly as in the production drain). Section
+ * B therefore reaches a GENUINE overall decision through the complete path.
+ *
+ * Why the positive decision is REVIEW and not PASS -- by policy, not by
+ * shortfall: the rdte/R-2 `VerificationPolicyV1` names `rdte_summary_detail`
+ * as a required comparison rule, and that check is `NOT_RUN` whenever no
+ * independently proved R-1 reference artifact is supplied (a single R-2
+ * document never carries one), which the decision engine maps to at least
+ * REVIEW (`computeDecisionV1`, precedence 3). Independently, real R-2 pages
+ * carry review-severity `ambiguous_layout` omissions (repeated headers), so
+ * `completeness` is `NOT_RUN` as well. PASS is unreachable for a lone R-2
+ * document by design; REVIEW with ZERO proof findings, ZERO blocking
+ * discrepancies, and every proof snapshot `verified` is the correct, best
+ * outcome -- and it is exactly the outcome the Phase 10B-28 qualification
+ * of the real canary reached before the metadata bugs were exposed.
+ *
+ * The Section B source bytes are REAL R-2 pages: an 8-page slice
+ * (physical pages 126-133, PE 0601103A and the start of PE 0601104A) cut
+ * at test time with pdf-lib from the committed, byte-verified FY2024 Army
+ * R-2 canary PDF fixture, so the real R-2 segmenter/extractor produces real
+ * identities, funding assertions, and review omissions -- not a toy page.
+ * A second, different slice (pages 161-170) supplies "different bytes" for
+ * the substituted-archive control.
+ *
+ * ── Parser environment preflight ─────────────────────────────────────────
+ * `runParserHandoffForSourceDocument` launches the parser as
+ * `uv run --no-sync capiro-defense-budget-parser` in the parser project
+ * directory. If that directory's own `.venv` has not been synced, `uv run`
+ * silently falls through to whatever `capiro-defense-budget-parser`
+ * executable is on PATH -- on this program's shared workstation that was a
+ * FOREIGN venv carrying a Phase-7-era checkout of the parser with no OCR
+ * engine, which produced a materially different artifact (590 assertions /
+ * 39 blocking omissions) that was, for a time, mistaken for a production
+ * parser defect. `beforeAll` below refuses to run unless the runtime the
+ * launcher will actually invoke resolves to THIS worktree's parser source.
  *
  * ── RED/GREEN ────────────────────────────────────────────────────────────
- * This file's "matching" and "another component/year" scenarios are the
- * ones proven RED (see the qualification command / EXECUTION-LOG for the
- * captured revert-and-rerun output): reverting the Stage 2 source commits
- * (composite-proof-resolver.ts, default-parser-handoff.adapter.ts,
- * observation-ingestion-bridge.ports.ts/.service.ts,
- * source-document-parser-handoff.ts, budget-cycle-manifest-v1.ts,
- * prisma-observation-bridge.store.ts) and rerunning this UNMODIFIED file
- * reproduces a spurious `source_metadata_mismatch` on every scenario
- * (because the pre-fix code compares `sourceKey` against the ephemeral
- * `sourceLocator` unconditionally, which can never match); restoring the fix
- * makes those same scenarios show no such finding. Every call below is
- * therefore written without a compile-time-checked `ParserHandoffInput`
- * import so the identical test file runs unmodified against both the
- * reverted and fixed source (see `callHandoff`).
+ * `scripts/verify-pe-budget-phase-10b31-metadata-regression.ts` reverts the
+ * exact Stage 2 source files to the pre-fix baseline commit and reruns this
+ * UNMODIFIED file, asserting by exact test title which tests must FAIL under
+ * the revert and which must stay green (see that script's table). Every
+ * call below is therefore written without a compile-time-checked
+ * `ParserHandoffInput` import so the identical test file runs unmodified
+ * against both the reverted and fixed source (see `callHandoff`).
  *
- * Gate: runs only when DATABASE_URL names a LOCAL disposable database (see
- * docs: pgvector/pgvector:pg16, database `capiro`, `prisma migrate deploy`).
+ * Gates: runs only when DATABASE_URL names a LOCAL disposable database
+ * (pgvector/pgvector:pg16, database `capiro`, both prisma schemas migrated).
+ * Section B additionally REQUIRES `BUDGET_VERIFICATION_S3_ENDPOINT` to name
+ * a LOCAL versioned S3-compatible store (with matching AWS_ACCESS_KEY_ID /
+ * AWS_SECRET_ACCESS_KEY / AWS_REGION for it) and fails loudly -- never
+ * silently skips -- when it is absent, so the complete-path positive
+ * regression cannot quietly disappear from a "green" run.
+ * `pnpm --filter @capiro/api run verify:pe-budget-phase-10b31:db` provisions
+ * and tears down both containers itself.
+ *
+ * Section B also needs Node's `--experimental-vm-modules` flag on the jest
+ * process (`node --experimental-vm-modules node_modules/jest/bin/jest.js …`,
+ * as both `verify:pe-budget-phase-10b31` variants and the mutation script
+ * already do): the real `@aws-sdk/client-s3` request pipeline performs a
+ * dynamic `import()` (`@smithy/core` config submodule, `await
+ * import('node:http')`), which Jest's module VM refuses without that flag
+ * (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`). Section A never sends an
+ * S3 request and so never needed it. This is Jest's documented requirement
+ * for dynamic imports, not a suite-specific workaround.
  */
 import { randomUUID, createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import {
+  CreateBucketCommand,
+  HeadBucketCommand,
+  PutBucketVersioningCommand,
+  PutObjectCommand,
+  type S3Client,
+} from '@aws-sdk/client-s3';
 import { DefaultParserHandoffAdapter } from '../../default-parser-handoff.adapter.js';
+import {
+  BUDGET_VERIFICATION_S3_ENDPOINT_ENV,
+  createBudgetVerificationS3Client,
+} from '../trusted-proof/s3-proof-adapters.js';
+import { TrustedProofResolutionError } from '../trusted-proof/trusted-proof-types.js';
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
+const ARCHIVE_ENDPOINT = process.env[BUDGET_VERIFICATION_S3_ENDPOINT_ENV]?.trim();
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]', '::1'];
 
-function isLocalDatabaseUrl(url: string | undefined): url is string {
+/** The committed, byte-verified real FY2024 Army R-2 Vol 1 BA1 PDF (170 pages). */
+const REAL_R2_FIXTURE_PATH = join(
+  __dirname,
+  '..',
+  '..',
+  'rdte',
+  'cycle',
+  '__fixtures__',
+  'production-fy2024-army-r2-vol1-ba1-official.pdf',
+);
+const REAL_R2_FIXTURE_SHA256 = '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6';
+/** Physical page ranges (1-based, inclusive) cut from the fixture at test time. */
+const REAL_R2_SLICE = { start: 126, end: 133 } as const;
+const OTHER_R2_SLICE = { start: 161, end: 170 } as const;
+const ISOLATED_ARCHIVE_BUCKET = 'capiro-phase10b31-isolated-archive';
+
+function isLocalUrl(url: string | undefined): url is string {
   if (!url) return false;
   try {
-    const parsed = new URL(url);
-    return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(parsed.hostname);
+    return LOCAL_HOSTS.includes(new URL(url).hostname);
   } catch {
     return false;
   }
 }
 
-const describeDb = isLocalDatabaseUrl(DATABASE_URL) ? describe : describe.skip;
+const describeDb = isLocalUrl(DATABASE_URL) ? describe : describe.skip;
 
 function sha256Hex(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+/**
+ * Refuse to run against a parser runtime that is not THIS worktree's own
+ * synced environment (see the file header for the incident this prevents).
+ * Mirrors the launcher exactly: the same `uv run --no-sync` prefix, the same
+ * cwd, so whatever `uv` resolves here is what the adapter will run.
+ */
+function assertParserRuntimeIsThisWorktree(parserProjectDir: string): void {
+  const probe = spawnSync(
+    'uv',
+    ['run', '--no-sync', 'python', '-c', 'import capiro_defense_budget_parser as p; print(p.__file__)'],
+    { cwd: parserProjectDir, encoding: 'utf8', timeout: 120_000 },
+  );
+  if (probe.status !== 0) {
+    throw new Error(
+      `parser runtime preflight failed (uv run --no-sync python ... exited ${String(probe.status)}): ` +
+        `${probe.stderr}\nRun \`uv sync --locked\` in ${parserProjectDir} first.`,
+    );
+  }
+  const reported = resolve(probe.stdout.trim());
+  const expectedRoot = resolve(parserProjectDir);
+  if (!reported.toLowerCase().startsWith(expectedRoot.toLowerCase())) {
+    throw new Error(
+      `parser runtime preflight: \`uv run --no-sync\` in ${parserProjectDir} resolves the parser package to ` +
+        `"${reported}", which is OUTSIDE this worktree -- a foreign or stale parser install would be exercised. ` +
+        `Run \`uv sync --locked\` in ${parserProjectDir} so the project's own .venv is used.`,
+    );
+  }
+}
+
+async function slicePdf(sourceBytes: Buffer, start: number, end: number): Promise<Buffer> {
+  const src = await PDFDocument.load(sourceBytes);
+  const out = await PDFDocument.create();
+  const indices = Array.from({ length: end - start + 1 }, (_, i) => start - 1 + i);
+  for (const page of await out.copyPages(src, indices)) out.addPage(page);
+  return Buffer.from(await out.save());
+}
+
 describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement against a real database', () => {
-  jest.setTimeout(300_000);
+  jest.setTimeout(600_000);
 
   let prisma: PrismaClient;
   let outerDir: string;
   let parserArtifactRoot: string;
   let workDir: string;
+  let parserProjectDir: string;
   let pdfBytes: Buffer;
   let pdfSha256: string;
 
@@ -117,15 +233,9 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
     parserArtifactRoot = join(outerDir, 'parser-artifact-root');
     mkdirSync(parserArtifactRoot, { recursive: true });
     process.env.BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT = parserArtifactRoot;
-    process.env.DEFENSE_BUDGET_PARSER_PROJECT_DIR = join(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      '..',
-      'defense-budget-parser',
-    );
+    parserProjectDir = join(__dirname, '..', '..', '..', '..', '..', 'defense-budget-parser');
+    process.env.DEFENSE_BUDGET_PARSER_PROJECT_DIR = parserProjectDir;
+    assertParserRuntimeIsThisWorktree(parserProjectDir);
     // `FilesystemByteLocatorReader`'s approved-prefix list (production
     // wiring, `production-parser-verification-context.ts`) is exactly
     // `[parserArtifactRoot]` -- the manifest the router writes under
@@ -135,14 +245,14 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
     workDir = join(parserArtifactRoot, 'work');
     mkdirSync(workDir, { recursive: true });
 
-    // ONE real, valid, minimal one-page PDF (via pdf-lib -- a real dependency
-    // already used elsewhere in this app, not a hand-rolled binary format),
-    // reused as the source bytes for every scenario below. Its content does
-    // not need to resemble a real R-2 exhibit's layout: every scenario here
-    // deliberately leaves the archive unresolved (see the file header), so
-    // overall `decision` is REJECT regardless of how much (if any) of this
-    // text the real R-2 semantic extractor manages to recognize -- only the
-    // SourceDocument metadata-agreement findings are asserted on.
+    // Section A's source bytes: ONE real, valid, minimal one-page PDF (via
+    // pdf-lib -- a real dependency already used elsewhere in this app, not a
+    // hand-rolled binary format). Its content does not need to resemble a
+    // real R-2 exhibit's layout: every Section A scenario deliberately
+    // leaves the archive unresolved (see the file header), so overall
+    // `decision` is REJECT regardless of how much of this text the real R-2
+    // semantic extractor recognizes -- only the SourceDocument
+    // metadata-agreement findings are asserted on there.
     const doc = await PDFDocument.create();
     const page = doc.addPage([612, 792]);
     const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -213,12 +323,13 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
   }
 
   /**
-   * Registers a real SourceDocument row (the REAL SourceDocument reader --
-   * `CompositeProofResolver`'s `sourceDocumentClient` -- is the SAME real
-   * Prisma client reading this SAME table) and materializes real bytes at
-   * `artifactPath`, under the approved parser-artifact root, so
-   * `resolveAuthoritativeLocator`'s priority-2 branch resolves genuine,
-   * hashable bytes without needing any archive/S3 configuration.
+   * Section A: registers a real SourceDocument row with NO archive fields
+   * (the REAL SourceDocument reader -- `CompositeProofResolver`'s
+   * `sourceDocumentClient` -- is the SAME real Prisma client reading this
+   * SAME table) and materializes real bytes at `artifactPath`, under the
+   * approved parser-artifact root, so `resolveAuthoritativeLocator`'s
+   * priority-2 branch resolves genuine, hashable bytes without needing any
+   * archive/S3 configuration.
    */
   async function registerSourceDocument(
     sourceDocumentId: string,
@@ -248,28 +359,58 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
     });
   }
 
+  interface ProofRow {
+    proof_kind: string;
+    status: string;
+    evidence_jsonb: Record<string, unknown> & { findings?: Array<{ code: string; message: string; severity: string }> };
+  }
+  interface CheckRow {
+    code: string;
+    outcome: string;
+    required: boolean;
+    blocking: boolean;
+    message: string;
+  }
   interface RunResult {
     result: { decision: string; finalState: string; artifactLocator: string };
     sourceDocumentId: string;
     cycleId: string;
     candidateRows: Array<{ id: string; cycle_id: string; status: string; source_document_id: string; manifest_content_sha256: string }>;
-    sourceDocumentProof: { status: string; evidence_jsonb: { findings?: Array<{ code: string; message: string; severity: string }> } } | undefined;
-    proofFindings: { status: string; evidence_jsonb: { findings: Array<{ code: string; message: string; severity: string }> } } | undefined;
+    runRows: Array<{ id: string; decision: string; status: string; route: string }>;
+    checkRows: CheckRow[];
+    discrepancyCounts: Array<{ code: string; severity: string; n: number }>;
+    proofRows: ProofRow[];
+    sourceDocumentProof: ProofRow | undefined;
+    proofFindings: ProofRow | undefined;
   }
 
-  async function queryEvidence(sourceDocumentId: string): Promise<{
-    candidateRows: RunResult['candidateRows'];
-    sourceDocumentProof: RunResult['sourceDocumentProof'];
-    proofFindings: RunResult['proofFindings'];
-  }> {
+  async function queryEvidence(sourceDocumentId: string): Promise<Omit<RunResult, 'result' | 'sourceDocumentId' | 'cycleId'>> {
     const candidateRows = await prisma.$queryRawUnsafe<RunResult['candidateRows']>(
       `SELECT id, cycle_id, status, source_document_id, manifest_content_sha256
          FROM budget_extraction_candidate_v1 WHERE source_document_id = $1::uuid ORDER BY created_at ASC`,
       sourceDocumentId,
     );
-    const proofRows = await prisma.$queryRawUnsafe<
-      Array<{ proof_kind: string; status: string; evidence_jsonb: unknown }>
-    >(
+    const runRows = await prisma.$queryRawUnsafe<RunResult['runRows']>(
+      `SELECT id, decision, status, route FROM budget_verification_run_v1
+         WHERE candidate_id IN (SELECT id FROM budget_extraction_candidate_v1 WHERE source_document_id = $1::uuid)
+         ORDER BY created_at ASC`,
+      sourceDocumentId,
+    );
+    const checkRows = await prisma.$queryRawUnsafe<CheckRow[]>(
+      `SELECT code, outcome, required, blocking, message FROM budget_verification_check_v1
+         WHERE run_id IN (SELECT id FROM budget_verification_run_v1 WHERE candidate_id IN
+           (SELECT id FROM budget_extraction_candidate_v1 WHERE source_document_id = $1::uuid))
+         ORDER BY code ASC`,
+      sourceDocumentId,
+    );
+    const rawDiscrepancyCounts = await prisma.$queryRawUnsafe<Array<{ code: string; severity: string; n: bigint }>>(
+      `SELECT code, severity, COUNT(*)::bigint AS n FROM budget_verification_discrepancy_v1
+         WHERE run_id IN (SELECT id FROM budget_verification_run_v1 WHERE candidate_id IN
+           (SELECT id FROM budget_extraction_candidate_v1 WHERE source_document_id = $1::uuid))
+         GROUP BY code, severity ORDER BY code, severity`,
+      sourceDocumentId,
+    );
+    const proofRows = await prisma.$queryRawUnsafe<ProofRow[]>(
       `SELECT proof_kind, status, evidence_jsonb FROM budget_verification_proof
          WHERE run_id IN (SELECT id FROM budget_verification_run_v1 WHERE candidate_id IN
            (SELECT id FROM budget_extraction_candidate_v1 WHERE source_document_id = $1::uuid))
@@ -278,12 +419,16 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
     );
     return {
       candidateRows,
-      sourceDocumentProof: proofRows.find((r) => r.proof_kind === 'source_document') as RunResult['sourceDocumentProof'],
-      proofFindings: proofRows.find((r) => r.proof_kind === 'proof_findings') as RunResult['proofFindings'],
+      runRows,
+      checkRows,
+      discrepancyCounts: rawDiscrepancyCounts.map((d) => ({ code: d.code, severity: d.severity, n: Number(d.n) })),
+      proofRows,
+      sourceDocumentProof: proofRows.find((r) => r.proof_kind === 'source_document'),
+      proofFindings: proofRows.find((r) => r.proof_kind === 'proof_findings'),
     };
   }
 
-  /** One full scenario: register a SourceDocument row, run the real adapter, read back evidence. */
+  /** One full Section A scenario: register a SourceDocument row, run the real adapter, read back evidence. */
   async function runScenario(db: ScenarioDb, handoffOverrides: Partial<ScenarioHandoff> = {}): Promise<RunResult> {
     const sourceDocumentId = randomUUID();
     const cycleId = randomUUID();
@@ -306,6 +451,23 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
     return (run.proofFindings?.evidence_jsonb.findings ?? []).map((f) => f.code);
   }
 
+  /** The persisted complete finding list, reduced to the three columns that identify a finding. */
+  function findings(run: RunResult): Array<{ code: string; severity: string; message: string }> {
+    return (run.proofFindings?.evidence_jsonb.findings ?? []).map((f) => ({
+      code: f.code,
+      severity: f.severity,
+      message: f.message,
+    }));
+  }
+
+  function proof(run: RunResult, kind: string): ProofRow | undefined {
+    return run.proofRows.find((r) => r.proof_kind === kind);
+  }
+
+  function check(run: RunResult, code: string): CheckRow | undefined {
+    return run.checkRows.find((c) => c.code === code);
+  }
+
   describe('the repaired real path (GREEN)', () => {
     it('a SourceDocument whose sourceKey/component/fiscalYear/sha256 all genuinely match the manifest shows NO metadata-agreement finding, and persists under the raw lifecycle cycle UUID', async () => {
       const dedupKey = randomUUID();
@@ -319,7 +481,8 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
       });
 
       // Overall decision is REJECT solely due to archive_version_missing --
-      // see the file header. The SourceDocument-specific proof must be clean.
+      // see the file header (Section A). The SourceDocument-specific proof
+      // must be clean.
       expect(run.sourceDocumentProof?.status).toBe('verified');
       expect(mismatchCodes(run)).not.toContain('source_metadata_mismatch');
       expect(mismatchCodes(run)).toEqual(['archive_version_missing']);
@@ -390,10 +553,10 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
         { component: 'NAVY' },
       );
       expect(run.sourceDocumentProof?.status).toBe('mismatch');
-      const findings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
-      expect(findings).toHaveLength(1);
-      expect(findings[0]!.code).toBe('source_metadata_mismatch');
-      expect(findings[0]!.message).toBe(
+      const sdFindings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
+      expect(sdFindings).toHaveLength(1);
+      expect(sdFindings[0]!.code).toBe('source_metadata_mismatch');
+      expect(sdFindings[0]!.message).toBe(
         'SourceDocument component "ARMY" does not match manifest component "NAVY"',
       );
       expect(mismatchCodes(run)).toEqual(
@@ -417,9 +580,9 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
         { sourceKey: wrongKey },
       );
       expect(run.sourceDocumentProof?.status).toBe('mismatch');
-      const findings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
-      expect(findings.some((f) => f.code === 'source_metadata_mismatch')).toBe(true);
-      const sourceKeyFinding = findings.find((f) => f.message.includes('sourceKey'));
+      const sdFindings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
+      expect(sdFindings.some((f) => f.code === 'source_metadata_mismatch')).toBe(true);
+      const sourceKeyFinding = sdFindings.find((f) => f.message.includes('sourceKey'));
       expect(sourceKeyFinding?.message).toBe(
         `SourceDocument sourceKey "${realKey}" does not match manifest expectedSourceKey "${wrongKey}"`,
       );
@@ -439,8 +602,8 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
         { fiscalYear: 2025 },
       );
       expect(run.sourceDocumentProof?.status).toBe('mismatch');
-      const findings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
-      expect(findings.some((f) => f.code === 'source_metadata_mismatch' && f.message.includes('fiscalYear'))).toBe(
+      const sdFindings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
+      expect(sdFindings.some((f) => f.code === 'source_metadata_mismatch' && f.message.includes('fiscalYear'))).toBe(
         true,
       );
     });
@@ -463,8 +626,8 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
         sha256: staleSha256,
       });
       expect(run.sourceDocumentProof?.status).toBe('mismatch');
-      const findings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
-      const shaFinding = findings.find((f) => f.message.includes('stored SHA'));
+      const sdFindings = run.sourceDocumentProof?.evidence_jsonb.findings ?? [];
+      const shaFinding = sdFindings.find((f) => f.message.includes('stored SHA'));
       expect(shaFinding).toBeDefined();
       expect(shaFinding!.code).toBe('source_metadata_mismatch');
       expect(shaFinding!.message).toBe(
@@ -603,6 +766,375 @@ describeDb('Phase 10B-31 -- lifecycle-bridge SourceDocument metadata agreement a
       const newEvidence = await queryEvidence(sourceDocumentId);
       const newCandidate = newEvidence.candidateRows.find((c) => c.id === afterSecond[1]!.id);
       expect(newCandidate).toBeDefined();
+    });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Section B -- complete, valid archive evidence: the full path reaches */
+  /* a genuine overall decision.                                          */
+  /* ------------------------------------------------------------------ */
+
+  describe('complete archive evidence through the real adapter (isolated versioned archive store)', () => {
+    let s3: S3Client;
+    let realR2Slice: Buffer;
+    let realR2SliceSha256: string;
+    let otherR2Slice: Buffer;
+    let otherR2SliceSha256: string;
+
+    interface ArchiveLocation {
+      bucket: string;
+      key: string;
+      versionId: string;
+    }
+
+    beforeAll(async () => {
+      if (!isLocalUrl(ARCHIVE_ENDPOINT)) {
+        throw new Error(
+          `${BUDGET_VERIFICATION_S3_ENDPOINT_ENV} must name a LOCAL versioned S3-compatible store for the ` +
+            'complete-archive scenarios (with AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION set for it). ' +
+            'These scenarios never skip silently: run `pnpm --filter @capiro/api run verify:pe-budget-phase-10b31:db`, ' +
+            'which provisions and tears down the store itself.',
+        );
+      }
+      if (!existsSync(REAL_R2_FIXTURE_PATH)) {
+        throw new Error(`missing real-PDF fixture at ${REAL_R2_FIXTURE_PATH}`);
+      }
+      const fixtureBytes = readFileSync(REAL_R2_FIXTURE_PATH);
+      const fixtureSha = sha256Hex(fixtureBytes);
+      if (fixtureSha !== REAL_R2_FIXTURE_SHA256) {
+        throw new Error(`real-PDF fixture SHA drifted: expected ${REAL_R2_FIXTURE_SHA256}, got ${fixtureSha}`);
+      }
+      realR2Slice = await slicePdf(fixtureBytes, REAL_R2_SLICE.start, REAL_R2_SLICE.end);
+      realR2SliceSha256 = sha256Hex(realR2Slice);
+      otherR2Slice = await slicePdf(fixtureBytes, OTHER_R2_SLICE.start, OTHER_R2_SLICE.end);
+      otherR2SliceSha256 = sha256Hex(otherR2Slice);
+      expect(otherR2SliceSha256).not.toBe(realR2SliceSha256);
+
+      // The SAME client factory production uses -- proves the endpoint hook
+      // is the only thing pointing this at the isolated store.
+      s3 = createBudgetVerificationS3Client(process.env);
+      try {
+        await s3.send(new HeadBucketCommand({ Bucket: ISOLATED_ARCHIVE_BUCKET }));
+      } catch {
+        await s3.send(new CreateBucketCommand({ Bucket: ISOLATED_ARCHIVE_BUCKET }));
+      }
+      await s3.send(
+        new PutBucketVersioningCommand({
+          Bucket: ISOLATED_ARCHIVE_BUCKET,
+          VersioningConfiguration: { Status: 'Enabled' },
+        }),
+      );
+      const probe = await s3.send(
+        new PutObjectCommand({
+          Bucket: ISOLATED_ARCHIVE_BUCKET,
+          Key: `raw/phase10b31/versioning-probe/${randomUUID()}`,
+          Body: Buffer.from('versioning probe'),
+        }),
+      );
+      if (!probe.VersionId) {
+        throw new Error('the isolated archive store did not return a VersionId; bucket versioning is not effective');
+      }
+    });
+
+    afterAll(() => {
+      s3?.destroy();
+    });
+
+    /** Store bytes as one exact, versioned archive object and return its real location. */
+    async function archiveObject(sourceDocumentId: string, bytes: Buffer): Promise<ArchiveLocation> {
+      const key = `raw/phase10b31/${sourceDocumentId}/original.bin`;
+      const put = await s3.send(
+        new PutObjectCommand({
+          Bucket: ISOLATED_ARCHIVE_BUCKET,
+          Key: key,
+          Body: bytes,
+          ContentType: 'application/pdf',
+          ChecksumAlgorithm: 'SHA256',
+        }),
+      );
+      if (!put.VersionId) throw new Error('archive store returned no VersionId for the uploaded object');
+      return { bucket: ISOLATED_ARCHIVE_BUCKET, key, versionId: put.VersionId };
+    }
+
+    /**
+     * Section B row: COMPLETE archive evidence (bucket, key, exact version
+     * id), NO artifactPath -- mirroring the real production row
+     * (`artifact_path` null) so `resolveAuthoritativeLocator` takes its
+     * priority-1 branch (the versioned archive locator) and the authoritative
+     * source bytes are read back out of the archive store by the real
+     * `S3ByteLocatorReader`, exactly as in production.
+     */
+    async function registerArchivedSourceDocument(
+      sourceDocumentId: string,
+      db: ScenarioDb,
+      handoffBytes: Buffer,
+      archive: ArchiveLocation,
+    ): Promise<void> {
+      writeFileSync(join(workDir, `${sourceDocumentId}-source.pdf`), handoffBytes);
+      await prisma.sourceDocument.create({
+        data: {
+          id: sourceDocumentId,
+          sourceKey: db.sourceKey,
+          fiscalYear: db.fiscalYear,
+          budgetCycle: db.budgetCycle,
+          component: db.component,
+          documentType: db.documentType,
+          title: 'phase10b31 complete-archive fixture (real FY2024 Army R-2 pages 126-133)',
+          sourceUrl: 'https://example.invalid/phase10b31-metadata-agreement.pdf',
+          sha256: db.sha256,
+          byteSize: handoffBytes.length,
+          extractionMethod: 'deterministic_pdf',
+          archiveBucket: archive.bucket,
+          archiveS3Key: archive.key,
+          archiveVersionId: archive.versionId,
+          archivedAt: new Date(),
+        },
+      });
+    }
+
+    function archivedDb(overrides: Partial<ScenarioDb> = {}): ScenarioDb {
+      return {
+        sourceKey: `defense-budget-observation-${randomUUID()}`,
+        fiscalYear: 2024,
+        component: 'ARMY',
+        budgetCycle: 'pb',
+        documentType: 'r2',
+        sha256: realR2SliceSha256,
+        ...overrides,
+      };
+    }
+
+    interface ArchivedScenarioOptions {
+      db?: ScenarioDb;
+      handoffOverrides?: Partial<ScenarioHandoff>;
+      /** Bytes actually stored under the version the row points at (default: the real slice). */
+      archivedBytes?: Buffer;
+      /** Replace the row's archiveVersionId with this value after archiving. */
+      archiveVersionIdOverride?: string;
+    }
+
+    async function prepareArchivedScenario(options: ArchivedScenarioOptions = {}) {
+      const db = options.db ?? archivedDb();
+      const sourceDocumentId = randomUUID();
+      const cycleId = randomUUID();
+      const stored = await archiveObject(sourceDocumentId, options.archivedBytes ?? realR2Slice);
+      const archive: ArchiveLocation = options.archiveVersionIdOverride
+        ? { ...stored, versionId: options.archiveVersionIdOverride }
+        : stored;
+      // The parser always sees the REAL slice; what the archive holds is the
+      // scenario's own business.
+      await registerArchivedSourceDocument(sourceDocumentId, db, realR2Slice, archive);
+      const handoff: ScenarioHandoff = {
+        cycleId,
+        sourceDocumentId,
+        sourceSha256: realR2SliceSha256,
+        fiscalYear: db.fiscalYear,
+        sourceFamily: 'pb_r2',
+        sourceKey: db.sourceKey,
+        component: db.component,
+        ...(options.handoffOverrides ?? {}),
+      };
+      return { db, sourceDocumentId, cycleId, stored, archive, handoff };
+    }
+
+    async function runArchivedScenario(options: ArchivedScenarioOptions = {}): Promise<RunResult & { stored: ArchiveLocation; archive: ArchiveLocation }> {
+      const prepared = await prepareArchivedScenario(options);
+      const result = await callHandoff(prepared.handoff);
+      const evidence = await queryEvidence(prepared.sourceDocumentId);
+      return {
+        result: result as RunResult['result'],
+        sourceDocumentId: prepared.sourceDocumentId,
+        cycleId: prepared.cycleId,
+        stored: prepared.stored,
+        archive: prepared.archive,
+        ...evidence,
+      };
+    }
+
+    function expectArchiveVerifiedAgainst(run: RunResult, archive: ArchiveLocation, objectSha256: string): void {
+      const archiveProof = proof(run, 'archive');
+      expect(archiveProof?.status).toBe('verified');
+      expect(archiveProof?.evidence_jsonb).toMatchObject({
+        status: 'verified',
+        bucket: archive.bucket,
+        key: archive.key,
+        versionId: archive.versionId,
+        objectSha256,
+      });
+      expect(check(run, 'archive_proof')?.outcome).toBe('PASS');
+    }
+
+    it('complete archive evidence: a fresh real parse of real R-2 pages with matching SourceDocument metadata reaches overall decision REVIEW with zero proof findings and every proof snapshot verified', async () => {
+      const run = await runArchivedScenario();
+
+      expect(run.result.decision).toBe('REVIEW');
+      expect(run.result.finalState).toBe('TERMINAL_REVIEW');
+
+      // The complete persisted finding list is EMPTY -- no
+      // source_metadata_mismatch, no archive finding, no parser-proof finding.
+      expect(findings(run)).toEqual([]);
+      expect(run.proofFindings?.status).toBe('verified');
+      expect(proof(run, 'source_document')?.status).toBe('verified');
+      expect(proof(run, 'source_document')?.evidence_jsonb.findings).toBeUndefined();
+      expect(proof(run, 'manifest')?.status).toBe('verified');
+      expect(proof(run, 'extraction_artifact')?.status).toBe('verified');
+      expectArchiveVerifiedAgainst(run, run.archive, realR2SliceSha256);
+      expect(proof(run, 'archive')?.evidence_jsonb).toMatchObject({ byteSize: realR2Slice.length });
+
+      // Every required proof-bearing check genuinely PASSES; the two checks
+      // that are NOT_RUN are exactly the policy-designed REVIEW triggers.
+      for (const code of ['archive_proof', 'parser_run_proof', 'manifest_binding', 'contract_integrity', 'evidence_binding', 'identity_validation']) {
+        expect({ code, outcome: check(run, code)?.outcome }).toEqual({ code, outcome: 'PASS' });
+      }
+      expect(check(run, 'rdte_summary_detail')?.outcome).toBe('NOT_RUN');
+      expect(check(run, 'completeness')?.outcome).toBe('NOT_RUN');
+      expect(run.checkRows.filter((c) => c.outcome === 'FAIL')).toEqual([]);
+
+      // Only review-severity discrepancies (real R-2 ambiguous_layout omissions).
+      expect(run.discrepancyCounts.filter((d) => d.severity === 'blocking')).toEqual([]);
+      expect(run.discrepancyCounts.find((d) => d.code === 'review_omission')?.n ?? 0).toBeGreaterThan(0);
+
+      expect(run.candidateRows).toHaveLength(1);
+      expect(run.candidateRows[0]!.status).toBe('NEEDS_REVIEW');
+      expect(run.candidateRows[0]!.cycle_id).toBe(run.cycleId);
+      expect(run.runRows).toHaveLength(1);
+      expect(run.runRows[0]!.decision).toBe('REVIEW');
+    });
+
+    it('complete archive evidence, component tampered: REJECT on exactly one blocking source_metadata_mismatch (component), archive still verified', async () => {
+      const run = await runArchivedScenario({ handoffOverrides: { component: 'NAVY' } });
+      expect(run.result.decision).toBe('REJECT');
+      expect(run.result.finalState).toBe('TERMINAL_REJECTED');
+      expect(findings(run)).toEqual([
+        {
+          code: 'source_metadata_mismatch',
+          severity: 'blocking',
+          message: 'SourceDocument component "ARMY" does not match manifest component "NAVY"',
+        },
+      ]);
+      expect(proof(run, 'source_document')?.status).toBe('mismatch');
+      expectArchiveVerifiedAgainst(run, run.archive, realR2SliceSha256);
+      expect(check(run, 'parser_run_proof')?.outcome).toBe('PASS');
+      expect(run.candidateRows.map((c) => c.status)).toEqual(['REJECTED']);
+    });
+
+    it('complete archive evidence, sourceKey/identity tampered: REJECT on exactly one blocking source_metadata_mismatch (sourceKey), archive still verified', async () => {
+      const db = archivedDb();
+      const wrongKey = `defense-budget-observation-${randomUUID()}`;
+      const run = await runArchivedScenario({ db, handoffOverrides: { sourceKey: wrongKey } });
+      expect(run.result.decision).toBe('REJECT');
+      expect(findings(run)).toEqual([
+        {
+          code: 'source_metadata_mismatch',
+          severity: 'blocking',
+          message: `SourceDocument sourceKey "${db.sourceKey}" does not match manifest expectedSourceKey "${wrongKey}"`,
+        },
+      ]);
+      expectArchiveVerifiedAgainst(run, run.archive, realR2SliceSha256);
+      expect(run.candidateRows.map((c) => c.status)).toEqual(['REJECTED']);
+    });
+
+    it('complete archive evidence, fiscal year tampered: REJECT on exactly the fiscal-year metadata findings, archive still verified', async () => {
+      const run = await runArchivedScenario({ handoffOverrides: { fiscalYear: 2025 } });
+      expect(run.result.decision).toBe('REJECT');
+      // Two independent fiscal-year guards fire and nothing else does: the
+      // Phase 10B-31 metadata-agreement check (`source_metadata_mismatch`)
+      // and SourceDocumentProofResolver's own pre-existing fiscal-year
+      // comparison (coded `source_sha_mismatch` by that resolver).
+      expect(findings(run)).toEqual([
+        {
+          code: 'source_metadata_mismatch',
+          severity: 'blocking',
+          message: 'SourceDocument fiscalYear 2024 does not match manifest fiscalYear 2025',
+        },
+        {
+          code: 'source_sha_mismatch',
+          severity: 'blocking',
+          message: 'SourceDocument fiscal year 2024 does not match manifest fiscal year 2025',
+        },
+      ]);
+      expectArchiveVerifiedAgainst(run, run.archive, realR2SliceSha256);
+      expect(run.candidateRows.map((c) => c.status)).toEqual(['REJECTED']);
+    });
+
+    it('complete archive evidence, SourceDocument.sha256 tampered: REJECT on exactly the stored-SHA findings, archive still verified', async () => {
+      const staleSha256 = '0'.repeat(64);
+      const run = await runArchivedScenario({ db: archivedDb({ sha256: staleSha256 }) });
+      expect(run.result.decision).toBe('REJECT');
+      // The archive object itself is intact (its bytes hash to the resolved
+      // source SHA), so archive proof is verified; what fails closed is the
+      // persisted row's own identity binding to those bytes -- via THREE
+      // independent guards, in emission order: the Phase 10B-31 metadata
+      // check, SourceDocumentProofResolver's pre-existing row-SHA check, and
+      // the request-level `expectedSourcePdfSha256` TOCTOU guard (the proof
+      // bundle reports the ROW's SHA as the source SHA, so the router's
+      // expected value no longer agrees with it).
+      expect(findings(run)).toEqual([
+        {
+          code: 'source_metadata_mismatch',
+          severity: 'blocking',
+          message: `SourceDocument stored SHA ${staleSha256} does not match resolved source bytes SHA ${realR2SliceSha256}`,
+        },
+        {
+          code: 'source_sha_mismatch',
+          severity: 'blocking',
+          message: `SourceDocument SHA ${staleSha256} does not match actual source PDF SHA ${realR2SliceSha256}`,
+        },
+        {
+          code: 'source_sha_mismatch',
+          severity: 'blocking',
+          message: `expected source SHA ${realR2SliceSha256} does not match actual ${staleSha256}`,
+        },
+      ]);
+      expectArchiveVerifiedAgainst(run, run.archive, realR2SliceSha256);
+      expect(run.candidateRows.map((c) => c.status)).toEqual(['REJECTED']);
+    });
+
+    it('complete archive evidence, archived object bytes substituted under the referenced version: REJECT on the source-SHA binding findings (the archive check alone cannot see the substitution)', async () => {
+      // The row's archive pointer references a version that holds DIFFERENT
+      // real R-2 pages than the ones the row/handoff/artifact describe.
+      const run = await runArchivedScenario({ archivedBytes: otherR2Slice });
+      expect(run.result.decision).toBe('REJECT');
+
+      // The archive object hashes to itself, so ArchiveProofResolver reports
+      // it verified -- with the SUBSTITUTED bytes' SHA. Detection comes from
+      // binding those resolved bytes to the persisted row, the artifact, and
+      // the parser run, each of which still names the real slice.
+      expectArchiveVerifiedAgainst(run, run.archive, otherR2SliceSha256);
+
+      const all = findings(run);
+      expect(all.every((f) => f.severity === 'blocking')).toBe(true);
+      expect(new Set(all.map((f) => f.code))).toEqual(
+        new Set(['source_metadata_mismatch', 'source_sha_mismatch', 'artifact_source_sha_mismatch', 'parse_input_sha_mismatch']),
+      );
+      // Exactly ONE metadata-agreement finding, and it is the stored-SHA one:
+      // the sourceKey / component / fiscalYear guards do not fire spuriously.
+      expect(all.filter((f) => f.code === 'source_metadata_mismatch')).toEqual([
+        {
+          code: 'source_metadata_mismatch',
+          severity: 'blocking',
+          message: `SourceDocument stored SHA ${realR2SliceSha256} does not match resolved source bytes SHA ${otherR2SliceSha256}`,
+        },
+      ]);
+      expect(run.candidateRows.map((c) => c.status)).toEqual(['REJECTED']);
+    });
+
+    it('complete archive evidence, archive version id tampered to a nonexistent version: production proof aborts fail-closed before any candidate or run is persisted', async () => {
+      const prepared = await prepareArchivedScenario({
+        archiveVersionIdOverride: `nonexistent-${randomUUID()}`,
+      });
+      // In production_proof mode the authoritative source bytes MUST resolve
+      // from the versioned archive; a version that does not exist is not
+      // downgraded to a weaker source or to a REJECT row -- resolution stops
+      // with TrustedProofResolutionError before any result is constructed,
+      // and the bridge surfaces it as a downstream failure.
+      await expect(callHandoff(prepared.handoff)).rejects.toThrow(TrustedProofResolutionError);
+      await expect(callHandoff(prepared.handoff)).rejects.toThrow(
+        /authoritative source bytes could not be resolved for production proof/,
+      );
+      const evidence = await queryEvidence(prepared.sourceDocumentId);
+      expect(evidence.candidateRows).toEqual([]);
+      expect(evidence.runRows).toEqual([]);
     });
   });
 });

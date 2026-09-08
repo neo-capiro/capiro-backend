@@ -129,7 +129,7 @@
     "verify:pe-budget-phase-7": "prisma generate && tsc -p tsconfig.phase7.json --noEmit && jest --runInBand --forceExit src/defense-budget/promotion src/defense-budget/projection-plan src/program-element/snapshot && tsx scripts/verify-pe-budget-phase-7-negative-controls.ts && tsx scripts/verify-pe-budget-phase-7-safety.ts",
     "verify:pe-budget-phase-7:fast": "prisma generate && tsc -p tsconfig.phase7.json --noEmit && jest --runInBand --forceExit src/defense-budget/promotion src/defense-budget/projection-plan src/program-element/snapshot && tsx scripts/verify-pe-budget-phase-7-safety.ts",
     "verify:pe-budget-phase-7:db": "bash scripts/pe-budget-phase7-migration-rehearsal.sh",
-    "verify:pe-budget-phase-10b31": "jest --runInBand --forceExit src/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts && tsx scripts/verify-pe-budget-phase-10b31-metadata-regression.ts",
+    "verify:pe-budget-phase-10b31": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit src/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts && tsx scripts/verify-pe-budget-phase-10b31-metadata-regression.ts",
     "verify:pe-budget-phase-10b31:db": "bash scripts/phase10b31-metadata-regression-rehearsal.sh",
     "verify:pe-budget-phase-6:full": "bash scripts/verify-pe-budget-phase6-closeout.sh",
     "build:rdte-cycle": "tsx scripts/build-rdte-cycle.ts",

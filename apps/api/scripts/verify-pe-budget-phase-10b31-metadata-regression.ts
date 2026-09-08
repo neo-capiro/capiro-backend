@@ -15,9 +15,11 @@
  * (the null-component guard and pure candidate-identity idempotency were
  * already correct pre-fix, per the Stage 2 field-mapping investigation, so a
  * revert must not touch them) -- if either of those instead turned red, or if
- * any of the 7 fix-sensitive tests stayed green under the revert, that is
+ * any of the fix-sensitive tests stayed green under the revert, that is
  * itself reported as a finding: either this script's file list has drifted
- * from the real fix, or the fix is not doing what it claims.
+ * from the real fix, or the fix is not doing what it claims. The same table
+ * covers the complete-archive scenarios (real archive store, genuine overall
+ * decision) that prove the full production path reaches REVIEW.
  *
  * Uses the SAME crash-safe `SourceMutationJournal` the Phase 6/7 negative-
  * control runners use, so a killed run (external timeout, Ctrl-C) leaves a
@@ -27,20 +29,25 @@
  *
  * Requires DATABASE_URL to name a LOCAL disposable Postgres (see docs:
  * pgvector/pgvector:pg16, database `capiro`, `prisma migrate deploy` against
- * BOTH prisma/schema.prisma and prisma/phase6-projection/schema.prisma) --
- * refuses to run against anything else. Also requires the
- * apps/defense-budget-parser Python runtime pre-synced (`uv sync --locked`
- * there). The spec file manages its own scratch
+ * BOTH prisma/schema.prisma and prisma/phase6-projection/schema.prisma) AND
+ * BUDGET_VERIFICATION_S3_ENDPOINT to name a LOCAL versioned S3-compatible
+ * store (disposable MinIO; AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
+ * AWS_REGION set for it) -- refuses to run against anything else. Also
+ * requires the apps/defense-budget-parser Python runtime synced in THIS
+ * worktree (`uv sync --locked` there; the spec's own preflight refuses a
+ * foreign or stale parser install). The spec file manages its own scratch
  * BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT and DEFENSE_BUDGET_PARSER_PROJECT_DIR
  * per run (see its own `beforeAll`); this script does not need to set either.
+ * `verify:pe-budget-phase-10b31:db` provisions both containers and every
+ * variable above itself.
  *
- * This script makes ZERO AWS calls (every SourceDocument row the spec it
- * drives creates carries no archive fields, so `ArchiveProofResolver` never
- * reaches an S3 client -- see that spec's own file header) and ZERO
- * production-database calls (DATABASE_URL is required to be local). The only
- * side effects are: writing/restoring 9 tracked files in THIS worktree
- * (verified byte-for-byte restored before exit), and rows in the local
- * disposable Postgres the jest spec itself creates.
+ * This script makes ZERO AWS calls (the only S3 endpoint the spec it drives
+ * can reach is the local one named by BUDGET_VERIFICATION_S3_ENDPOINT, which
+ * this script refuses unless it is local) and ZERO production-database calls
+ * (DATABASE_URL is required to be local). The only side effects are:
+ * writing/restoring 9 tracked files in THIS worktree (verified byte-for-byte
+ * restored before exit), and rows/objects in the local disposable Postgres
+ * and MinIO the jest spec itself creates.
  */
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -83,6 +90,19 @@ const EXPECTED_RED_WHEN_REVERTED: Record<string, boolean> = {
   'hash mismatch: the persisted SourceDocument.sha256 disagrees with the real, resolved artifactPath bytes': true,
   'an identical repeat of the same scenario is a true idempotent replay: same candidate, same run, no duplicate rows': false,
   'reprocessing the same observation with corrected metadata does not overwrite the prior (historically rejected-for-mismatch) evidence, and creates no invalid duplicate association': true,
+  // Section B -- complete archive evidence through the real adapter. Every
+  // scenario asserts the EXACT persisted finding list (or the exact decision),
+  // so the two spurious findings the reverted code emits on every document
+  // (sourceKey-vs-sourceLocator, component-vs-'UNKNOWN') turn each of them
+  // RED -- except the nonexistent-archive-version control, which aborts in
+  // TrustedProofResolutionError BEFORE the metadata comparison in both states.
+  'complete archive evidence: a fresh real parse of real R-2 pages with matching SourceDocument metadata reaches overall decision REVIEW with zero proof findings and every proof snapshot verified': true,
+  'complete archive evidence, component tampered: REJECT on exactly one blocking source_metadata_mismatch (component), archive still verified': true,
+  'complete archive evidence, sourceKey/identity tampered: REJECT on exactly one blocking source_metadata_mismatch (sourceKey), archive still verified': true,
+  'complete archive evidence, fiscal year tampered: REJECT on exactly the fiscal-year metadata findings, archive still verified': true,
+  'complete archive evidence, SourceDocument.sha256 tampered: REJECT on exactly the stored-SHA findings, archive still verified': true,
+  'complete archive evidence, archived object bytes substituted under the referenced version: REJECT on the source-SHA binding findings (the archive check alone cannot see the substitution)': true,
+  'complete archive evidence, archive version id tampered to a nonexistent version: production proof aborts fail-closed before any candidate or run is persisted': false,
 };
 
 interface JestAssertion {
@@ -119,6 +139,29 @@ function requireLocalDatabaseUrl(): string {
   return url;
 }
 
+function requireLocalArchiveEndpoint(): string {
+  const url = process.env.BUDGET_VERIFICATION_S3_ENDPOINT?.trim();
+  if (!url) {
+    throw new Error(
+      'BUDGET_VERIFICATION_S3_ENDPOINT is not set. This script requires a LOCAL disposable versioned ' +
+        'S3-compatible store (minio/minio) for the complete-archive scenarios; use verify:pe-budget-phase-10b31:db.',
+    );
+  }
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    throw new Error(`BUDGET_VERIFICATION_S3_ENDPOINT "${url}" is not a valid URL.`);
+  }
+  if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname)) {
+    throw new Error(
+      `BUDGET_VERIFICATION_S3_ENDPOINT host "${hostname}" is not local. Refusing to run this mutation check ` +
+        'against anything but a local disposable object store.',
+    );
+  }
+  return url;
+}
+
 function gitShow(rev: string, relPath: string): Buffer {
   const result = spawnSync('git', ['show', `${rev}:${relPath}`], {
     cwd: REPO_ROOT,
@@ -138,6 +181,14 @@ function runSpec(): JestJsonResult {
     spawnSync(
       process.execPath,
       [
+        // The complete-archive scenarios drive the REAL `@aws-sdk/client-s3`
+        // client, whose request pipeline performs a dynamic `import()`
+        // (`@smithy/core` config submodule: `await import('node:http')`).
+        // Jest's module VM refuses dynamic imports unless Node runs with
+        // this flag -- the documented Jest requirement, not a workaround
+        // specific to this suite. `verify:pe-budget-phase-10b31` and the
+        // :db rehearsal set the same flag for the direct jest invocation.
+        '--experimental-vm-modules',
         path.join(API_ROOT, 'node_modules', 'jest', 'bin', 'jest.js'),
         '--runInBand',
         '--forceExit',
@@ -169,6 +220,7 @@ function assertionsByTitle(result: JestJsonResult): Map<string, JestAssertion> {
 
 function main(): void {
   requireLocalDatabaseUrl();
+  requireLocalArchiveEndpoint();
 
   // Matches the repo's existing `.p*-nc-restore/` gitignore pattern (see
   // root .gitignore) shared with the Phase 6/7 negative-control runners.
