@@ -9,6 +9,9 @@ const DefenseBudgetLifecycleHealthPage = lazy(async () => ({
 const DefenseBudgetLifecycleReviewQueuePage = lazy(async () => ({
   default: (await import('./DefenseBudgetLifecycleReviewQueuePage.js')).DefenseBudgetLifecycleReviewQueuePage,
 }));
+const ReviewedPartialPeTotalsPage = lazy(async () => ({
+  default: (await import('../program-elements/reviewed-partial/ReviewedPartialPeTotalsPage.js')).ReviewedPartialPeTotalsPage,
+}));
 
 function Loading() {
   return (
@@ -21,9 +24,13 @@ function Loading() {
 /**
  * Phase 8 Session 11 — Defense Budget Lifecycle module router.
  *
- * Two routes, both read-only:
- *   /defense-budget-lifecycle              cycle health + coverage
- *   /defense-budget-lifecycle/review-queue review queue (no write action)
+ * Three routes, all read-only:
+ *   /defense-budget-lifecycle                    cycle health + coverage
+ *   /defense-budget-lifecycle/review-queue       review queue (no write action)
+ *   /defense-budget-lifecycle/reviewed-partial   Phase 10B-35: bounded,
+ *     individually-reviewed partial PE totals -- a separate publication
+ *     class from cycle/expected-source coverage above; never implies
+ *     complete fiscal-year or family coverage.
  */
 export function VNextDefenseBudgetLifecycleRoutes() {
   return (
@@ -41,6 +48,14 @@ export function VNextDefenseBudgetLifecycleRoutes() {
         element={
           <Suspense fallback={<Loading />}>
             <DefenseBudgetLifecycleReviewQueuePage />
+          </Suspense>
+        }
+      />
+      <Route
+        path={`${DEFENSE_BUDGET_LIFECYCLE_ROOT}/reviewed-partial`}
+        element={
+          <Suspense fallback={<Loading />}>
+            <ReviewedPartialPeTotalsPage />
           </Suspense>
         }
       />
