@@ -6,7 +6,7 @@ import { EngagementService } from '../engagement/engagement.service.js';
  *
  * The existing implementations remain authoritative for transcript attachment
  * lifecycle, encrypted meeting notes, and grounded debrief drafting. Notetaker
- * receives this five-method object rather than the broad EngagementService.
+ * receives this six-method object rather than the broad EngagementService.
  */
 @Injectable()
 export class MeetingCapturePersistenceService {
@@ -36,5 +36,9 @@ export class MeetingCapturePersistenceService {
 
   createMeetingNote(...args: Parameters<EngagementService['createMeetingNote']>) {
     return this.engagement.createMeetingNote(...args);
+  }
+
+  createMeetingDebrief(...args: Parameters<EngagementService['createMeetingDebrief']>) {
+    return this.engagement.createMeetingDebrief(...args);
   }
 }

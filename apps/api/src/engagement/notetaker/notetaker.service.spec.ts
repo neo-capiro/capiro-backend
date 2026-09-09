@@ -449,9 +449,10 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
 
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
     expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
-    // Notes-first: the summary is written to Meeting Notes, not a debrief.
+    // Notes-first: the summary is written to Meeting Notes, and a Debrief is
+    // also auto-created from the same generated content (unapproved by default).
     expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
-    expect(engagement.createMeetingDebrief).not.toHaveBeenCalled();
+    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
   });
 
   test('bot.done with NO recording marks the session failed (never joined)', async () => {
@@ -469,7 +470,7 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     );
   });
 
-  test('transcript.done runs the notes pipeline once and deletes provider media', async () => {
+  test('transcript.done runs the notes pipeline once, auto-creates a debrief, and deletes provider media', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
     const { service, bot, engagement } = makeService(tx);
@@ -477,23 +478,57 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
     expect(engagement.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
     expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
-    expect(engagement.createMeetingDebrief).not.toHaveBeenCalled();
+    // The debrief reuses the exact same generated body as the note — one
+    // generation call, two persisted records.
+    const noteBody = ((engagement.createMeetingNote as jest.Mock).mock.calls[0]?.[2] as {
+      body: string;
+    })?.body;
+    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingDebrief).toHaveBeenCalledWith(
+      expect.anything(),
+      'm1',
+      expect.objectContaining({ body: noteBody }),
+    );
     expect(engagement.createAttachmentFromBuffer).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ meetingId: 'm1', contentType: 'text/plain', source: 'notetaker' }),
     );
     expect(bot.deleteMedia).toHaveBeenCalledWith('bot_1');
-    // Meeting row stamped with the stored transcript location.
+    // Meeting row stamped with the stored transcript location, session stamped
+    // with the auto-created debrief's id (restores debriefId's original purpose).
     expect(tx.meeting.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { transcriptS3Key: 'tenants/t1/engagement/x/t.txt' },
       }),
+    );
+    expect(tx.meetingBotSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ debriefId: 'd1', status: 'done' }) }),
     );
 
     // Duplicate transcript.done: drafting/done claim matches 0 rows → no second note.
     tx.meetingBotSession.updateMany.mockResolvedValue({ count: 0 });
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
     expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+  });
+
+  test('a debrief auto-create failure is best-effort: notes and session completion are unaffected', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
+    const { service, engagement } = makeService(tx);
+    (engagement.createMeetingDebrief as jest.Mock).mockRejectedValue(new Error('db blip') as never);
+
+    await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
+
+    expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
+    expect(tx.meetingBotSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ debriefId: null, status: 'done' }) }),
+    );
+    // No failSession call: the session must not be marked failed over a
+    // best-effort debrief hiccup once notes already succeeded.
+    expect(tx.meetingBotSession.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
   });
 
   test('an empty transcript fails the session instead of writing empty notes', async () => {
@@ -609,6 +644,7 @@ describe('NotetakerService.reconcileStaleTranscripts (self-heal a dropped transc
     );
     expect(engagement.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
     expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
     // The atomic claim (shared with the webhook path) must still fire — this is
     // what makes a same-moment real webhook delivery race harmlessly.
     expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(

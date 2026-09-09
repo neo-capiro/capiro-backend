@@ -1019,25 +1019,49 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    // Notes-first: Meri writes its summary to MEETING NOTES as the primary,
+    // must-succeed deliverable. The user reviews it on the Notes tab and can
+    // always edit further. We reuse the debrief-draft generator (recap / action
+    // items / notes) purely as the summary body and store it as a note.
+    let draft: { recap: string; actionItems: string[]; notes: string };
     try {
-      // Notes-first: Meri writes its summary to MEETING NOTES, not a debrief. The
-      // user reviews it on the Notes tab and can optionally turn it into a polished
-      // Debrief from there (the debrief may differ from the raw notes). We reuse
-      // the debrief-draft generator (recap / action items / notes) purely as the
-      // summary body and store it as a note; NO debrief is auto-created.
-      const draft = await this.engagement.generateMeetingDebriefDraft(ctx, session.meetingId, {
+      draft = await this.engagement.generateMeetingDebriefDraft(ctx, session.meetingId, {
         method: 'upload',
         sourceText: plainText,
       });
       await this.engagement.createMeetingNote(ctx, session.meetingId, {
         body: formatDebriefBody(draft),
       });
+    } catch (err) {
+      this.logger.warn(`notes save failed (session ${session.id}): ${(err as Error).message}`);
+      await this.failSession(tenantId, session.id, (err as Error).message);
+      return;
+    }
+
+    // Also auto-create a Debrief from the same generated content, reusing the
+    // draft above (no extra LLM cost). Best-effort: a failure here must never
+    // cost the user their already-saved notes. createMeetingDebrief defaults new
+    // rows to the unapproved `generated` status — the user still has to approve
+    // it (existing debrief-approve endpoint) before it reaches the Library or
+    // becomes shareable, matching the "never silently publish AI notes" intent.
+    let debriefId: string | null = null;
+    try {
+      const debrief = await this.engagement.createMeetingDebrief(ctx, session.meetingId, {
+        body: formatDebriefBody(draft),
+      });
+      debriefId = debrief.id;
+    } catch (err) {
+      this.logger.warn(`debrief auto-create failed (session ${session.id}): ${(err as Error).message}`);
+    }
+
+    try {
       await this.prisma.withTenant(tenantId, async (tx) => {
         await tx.meetingBotSession.update({
           where: { id: session.id },
           data: {
             transcriptId,
             transcriptS3Key,
+            debriefId,
             status: 'done',
             endedAt: new Date(),
           },
