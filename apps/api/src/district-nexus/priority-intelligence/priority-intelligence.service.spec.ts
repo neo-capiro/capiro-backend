@@ -310,6 +310,8 @@ function makePrisma(opts: {
   // transaction callback — both paths are exercised by this one service, so
   // both must resolve to the same benign defaults.
   const shared = {
+    congressMember: { findMany: jest.fn<() => Promise<unknown[]>>(async () => []) },
+    clientIntelMapping: { findMany: jest.fn<() => Promise<unknown[]>>(async () => []) },
     client: {
       findFirst: jest.fn<() => Promise<{ id: string; name: string; status: string }>>(async () => ({
         id: CLIENT,
@@ -386,6 +388,7 @@ describe('DistrictNexusPriorityIntelligenceService — loadMembers SQL', () => {
     expect(capturedCongressMemberSql).toHaveLength(2); // house query + senate query
     for (const sql of capturedCongressMemberSql) {
       expect(sql).toMatch(/cm\.state\s*=/);
+      expect(sql).toMatch(/cm\.is_current\s*=\s*true/);
       expect(sql).not.toMatch(/cm\.state_code/);
     }
     // The house query also casts the INTEGER district column to text before
@@ -632,5 +635,98 @@ describe('DistrictNexusPriorityIntelligenceService — member-rail failure isola
     expect(result.member.senatorBioguideIds).toEqual(['S005678', 'S009012']);
     expect(result.priorityIntelligence).toBeDefined();
     expect(result.computedAt).toEqual(expect.any(String));
+  });
+});
+
+describe('Priority Intelligence requester attribution at the public service boundary', () => {
+  test('keeps statewide requests public, credits named current members and deduplicates the combined signal', async () => {
+    const { prisma } = makePrisma({
+      congressMemberBehavior: (sql) =>
+        sql.includes("chamber = 'senate'")
+          ? [{ bioguide_id: 'A001' }, { bioguide_id: 'B001' }]
+          : [],
+    });
+    jest.mocked(prisma.congressMember.findMany).mockResolvedValue([
+      {
+        bioguideId: 'A001',
+        chamber: 'senate',
+        fullName: 'Alice Able',
+        firstName: 'Alice',
+        lastName: 'Able',
+        district: null,
+        isCurrent: true,
+      },
+      {
+        bioguideId: 'B001',
+        chamber: 'senate',
+        fullName: 'Bob Baker',
+        firstName: 'Bob',
+        lastName: 'Baker',
+        district: null,
+        isCurrent: true,
+      },
+      {
+        bioguideId: 'H001',
+        chamber: 'senate',
+        fullName: 'Henry Hale',
+        firstName: 'Henry',
+        lastName: 'Hale',
+        district: null,
+        isCurrent: false,
+      },
+    ] as never);
+    const requests = [
+      ['alice', 'Alice Able', '1000'],
+      ['bob', 'Bob Baker', '3000'],
+      ['joint', 'Able; Baker', '2000'],
+      ['historical', 'Henry Hale', '11000'],
+      ['unknown', 'Unknown requester', '5000'],
+    ].map(([id, requesterName, amount]) => ({
+      id,
+      requesterName,
+      requestedAmountUsd: amount,
+      chamber: 'senate',
+      fiscalYear: 2026,
+      requesterState: 'CA',
+      requesterDistrict: null,
+      state: 'CA',
+      city: 'Irvine',
+      recipientName: 'Town',
+      recipientNormalized: 'town',
+      projectTitle: 'Public works',
+      finalAmountUsd: null,
+      amountStageRaw: 'requested',
+      appropriationsAccountRaw: null,
+      _count: { sources: 2 },
+    }));
+    jest
+      .mocked(prisma.communityFundingRequest.findMany)
+      .mockImplementation((async (args: { distinct?: unknown }) =>
+        args.distinct ? [{ fiscalYear: 2026 }] : requests) as never);
+    const response = await new DistrictNexusPriorityIntelligenceService(
+      prisma,
+      makeNexusStub(),
+    ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'CA', '47');
+    const cpf = response.priorityIntelligence.cpfCds;
+    expect(cpf.districtRequests).toHaveLength(5);
+    expect(cpf.memberHistoricalPriorities).toEqual([
+      expect.objectContaining({
+        bioguideId: 'A001',
+        memberName: 'Alice Able',
+        requestedTotalUsd: 3000,
+        attributionMethod: 'source_requester_name',
+      }),
+      expect.objectContaining({
+        bioguideId: 'B001',
+        memberName: 'Bob Baker',
+        requestedTotalUsd: 5000,
+        attributionMethod: 'source_requester_name',
+      }),
+    ]);
+    expect(response.strongestPrioritySignals.join(' ')).toContain('$6,000 requested');
+    expect(response.strongestPrioritySignals.join(' ')).not.toContain('$8,000');
+    expect(cpf.warnings.join(' ')).toContain('2 request(s) could not be uniquely attributed');
+    expect(prisma.communityFundingRequestSource.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.congressMember.findMany).toHaveBeenCalledTimes(1);
   });
 });

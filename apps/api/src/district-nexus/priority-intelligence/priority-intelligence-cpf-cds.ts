@@ -25,6 +25,7 @@
  */
 
 import type { DistrictNexusChangeSeverity } from './priority-intelligence-change-policy.js';
+import { districtMatchesHouse } from '../../common/district-code.util.js';
 
 export type CommunityFundingChamber = 'house' | 'senate';
 
@@ -141,7 +142,10 @@ export function normalizeCpfCdsDistrict(value: string | null): string | null {
  *  - anything else: unresolved with reason — never guessed.
  */
 export function attributeGeography(
-  row: CommunityFundingRequestRow,
+  row: Pick<
+    CommunityFundingRequestRow,
+    'chamber' | 'requesterState' | 'requesterDistrict' | 'state'
+  >,
 ): CommunityFundingGeographyAttribution {
   const state = (row.requesterState ?? row.state ?? '').trim().toUpperCase();
 
@@ -231,113 +235,164 @@ export function filterForDistrict(
   });
 }
 
-/**
- * Member historical priorities aggregation for the Strategic Relevance
- * memberHistoricalPriorities component. Sums requested amounts BY MEMBER-YEAR
- * for display only. This output feeds strategic relevance — never nexus.
- * Senate statewide requests attribute to the state's senators collectively;
- * they do not fabricate a district.
- */
-export interface MemberPrioritySummary {
+/** A directory identity, distinct from the geography a request concerns. */
+export interface MemberPriorityIdentity {
   bioguideId: string;
   chamber: CommunityFundingChamber;
   state: string | null;
-  /** FYs with request activity, ascending. */
+  district: string | null;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  isCurrent: boolean;
+}
+
+export interface MemberPrioritySummary {
+  bioguideId: string;
+  memberName: string;
+  attributionMethod: 'source_requester_name';
+  chamber: CommunityFundingChamber;
+  state: string | null;
   fiscalYears: number[];
   requestedTotalUsd: number;
   finalTotalUsd: number;
-  /** True when any FY relied on statewide attribution (visible in UI). */
   includesStatewideAttribution: boolean;
 }
 
 export interface MemberPriorityAggregation {
   byMember: MemberPrioritySummary[];
-  /** Distinct canonical request ids aggregated — proves no double counting. */
   distinctRequestIds: string[];
+  /** Joint requests contribute once to this cross-member total. */
+  requestedTotalUsd: number;
+  unattributedRequestIds: string[];
+}
+
+function memberNameKey(value: string): string {
+  const parts = value.split(',');
+  const ordered = parts.length === 2 ? `${parts[1]?.trim()} ${parts[0]?.trim()}` : value;
+  return ordered
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[.,'’]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
- * @param memberGeography member bioguide + the geography the MEMBER represents
- *   (already resolved by the caller from the directory — senate members carry
- *   state only). A request attributes to a member when the request's
- *   attribution geography matches the member's represented geography.
+ * Match source-named requesters, never all representatives of a geography.
+ * Exact full names (either order) and unambiguous bare surnames are accepted.
+ * Unknown names, ambiguous surnames and conflicting state suffixes abstain.
+ * Historical roster rows must be present so an old surname cannot silently
+ * resolve to a different current member. No fiscal year implies a service term.
  */
+export function createRequesterResolver(members: MemberPriorityIdentity[]) {
+  // Build aliases once per directory batch, not once per request/member pair.
+  // Both read paths can examine thousands of requests in one state.
+  const scopes = new Map<string, Map<string, Map<string, MemberPriorityIdentity>>>();
+  for (const member of members) {
+    const scopeKey = `${member.chamber}:${member.state}`;
+    const aliases = scopes.get(scopeKey) ?? new Map<string, Map<string, MemberPriorityIdentity>>();
+    for (const name of [
+      member.fullName ?? '',
+      member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : '',
+      member.firstName && member.lastName ? `${member.lastName} ${member.firstName}` : '',
+      member.lastName ?? '',
+    ]) {
+      const key = memberNameKey(name);
+      if (!key) continue;
+      const identities = aliases.get(key) ?? new Map<string, MemberPriorityIdentity>();
+      identities.set(member.bioguideId, member);
+      aliases.set(key, identities);
+    }
+    scopes.set(scopeKey, aliases);
+  }
+  return (
+    request: Pick<ProjectedCpfCdsSignal, 'chamber' | 'requesterName' | 'geography'>,
+  ): MemberPriorityIdentity[] => {
+    const geography = request.geography;
+    if (geography.basis === 'unresolved') return [];
+    const aliases = scopes.get(`${request.chamber}:${geography.state}`);
+    const resolved = new Map<string, MemberPriorityIdentity>();
+    // Commas alone are not split: they can mean "Last, First".
+    for (const raw of request.requesterName.split(/;|\s+and\s+|\s*&\s*/i)) {
+      const suffix = raw.match(/\(([A-Z]{2})\)\s*$/i);
+      if (suffix && suffix[1]?.toUpperCase() !== geography.state) continue;
+      const name = raw
+        .replace(/\([A-Z]{2}\)\s*$/i, '')
+        .trim()
+        .replace(/^(?:senators?|sens?|representatives?|reps?|honorable|hon)\.?\s+/i, '');
+      const identities = aliases?.get(memberNameKey(name));
+      if (identities?.size !== 1) continue;
+      const member = [...identities.values()][0]!;
+      const memberDistrict = normalizeCpfCdsDistrict(member.district);
+      if (
+        request.chamber === 'house' &&
+        (geography.basis !== 'house_district' ||
+          (member.district != null && memberDistrict == null) ||
+          !districtMatchesHouse(
+            geography.district,
+            memberDistrict == null ? null : Number(memberDistrict),
+          ))
+      )
+        continue;
+      if (request.chamber === 'senate' && geography.basis === 'house_district') continue;
+      resolved.set(member.bioguideId, member);
+    }
+    return [...resolved.values()];
+  };
+}
+
 export function aggregateMemberPriorities(
   projections: ProjectedCpfCdsSignal[],
-  members: Array<{
-    bioguideId: string;
-    chamber: CommunityFundingChamber;
-    state: string | null;
-    district: string | null;
-  }>,
+  members: MemberPriorityIdentity[],
+  eligibleBioguideIds: ReadonlySet<string> = new Set(
+    members.filter((m) => m.isCurrent).map((m) => m.bioguideId),
+  ),
 ): MemberPriorityAggregation {
-  const byMember: MemberPrioritySummary[] = [];
-  const distinctRequestIds = new Set<string>();
-
-  // Canonical-request dedup FIRST: the same real request can arrive as several
-  // projections (multiple source occurrences). Deduplication is by canonical
-  // request id — provenance-row count can never inflate a member total.
-  const seenRequestIds = new Set<string>();
-  const dedupedProjections: ProjectedCpfCdsSignal[] = [];
+  const byMember = new Map<string, MemberPrioritySummary>();
+  const seen = new Set<string>();
+  const resolveRequesters = createRequesterResolver(members);
+  const distinctRequestIds: string[] = [];
+  const unattributedRequestIds: string[] = [];
+  let requestedTotalUsd = 0;
   for (const p of projections) {
-    if (seenRequestIds.has(p.requestId)) continue;
-    seenRequestIds.add(p.requestId);
-    dedupedProjections.push(p);
-  }
-
-  for (const member of members) {
-    const memberState = (member.state ?? '').trim().toUpperCase();
-    const memberDistrict =
-      member.chamber === 'house' ? normalizeCpfCdsDistrict(member.district) : null;
-    if (memberState.length !== 2) continue;
-
-    let requestedTotal = 0;
-    let finalTotal = 0;
-    const years = new Set<number>();
-    let includesStatewide = false;
-    let hasAny = false;
-
-    for (const p of dedupedProjections) {
-      let matches = false;
-      let statewide = false;
-      if (p.geography.basis === 'house_district') {
-        matches =
-          p.geography.state === memberState &&
-          member.chamber === 'house' &&
-          memberDistrict != null &&
-          p.geography.district === memberDistrict;
-      } else if (p.geography.basis === 'senate_project_district') {
-        matches =
-          p.geography.state === memberState &&
-          member.chamber === 'senate' &&
-          memberDistrict == null;
-      } else if (p.geography.basis === 'senate_statewide') {
-        matches = p.geography.state === memberState && member.chamber === 'senate';
-        statewide = matches;
-      }
-      if (!matches) continue;
-      hasAny = true;
-      if (statewide) includesStatewide = true;
-      years.add(p.fiscalYear);
-      requestedTotal += p.requestedAmountUsd;
-      if (p.finalAmountUsd != null) finalTotal += p.finalAmountUsd;
-      distinctRequestIds.add(p.requestId);
+    if (seen.has(p.requestId)) continue;
+    seen.add(p.requestId);
+    const requesters = resolveRequesters(p).filter(
+      (m) => eligibleBioguideIds.has(m.bioguideId) && m.isCurrent === true,
+    );
+    if (!requesters.length) {
+      unattributedRequestIds.push(p.requestId);
+      continue;
     }
-
-    if (hasAny) {
-      byMember.push({
+    distinctRequestIds.push(p.requestId);
+    requestedTotalUsd += p.requestedAmountUsd;
+    for (const member of requesters) {
+      const summary = byMember.get(member.bioguideId) ?? {
         bioguideId: member.bioguideId,
+        memberName: member.fullName || `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim(),
+        attributionMethod: 'source_requester_name' as const,
         chamber: member.chamber,
-        state: memberState,
-        fiscalYears: [...years].sort((a, b) => a - b),
-        requestedTotalUsd: requestedTotal,
-        finalTotalUsd: finalTotal,
-        includesStatewideAttribution: includesStatewide,
-      });
+        state: member.state,
+        fiscalYears: [],
+        requestedTotalUsd: 0,
+        finalTotalUsd: 0,
+        includesStatewideAttribution: false,
+      };
+      if (!summary.fiscalYears.includes(p.fiscalYear)) summary.fiscalYears.push(p.fiscalYear);
+      summary.fiscalYears.sort((a, b) => a - b);
+      summary.requestedTotalUsd += p.requestedAmountUsd;
+      if (p.finalAmountUsd != null) summary.finalTotalUsd += p.finalAmountUsd;
+      summary.includesStatewideAttribution ||= p.geography.basis === 'senate_statewide';
+      byMember.set(member.bioguideId, summary);
     }
   }
-
-  return { byMember, distinctRequestIds: [...distinctRequestIds] };
+  return {
+    byMember: [...byMember.values()],
+    distinctRequestIds,
+    requestedTotalUsd,
+    unattributedRequestIds,
+  };
 }
 
 /** Severity decision for a CPF/CDS change — delegates to the central policy. */

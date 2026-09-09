@@ -40,6 +40,12 @@ import {
   normalizeDistrictForCensus,
 } from '../common/district-code.util.js';
 import { currentCongressNumber } from '../common/congress.util.js';
+import { loadPriorityMemberDirectory } from './priority-intelligence/priority-intelligence-member-directory.js';
+import {
+  attributeGeography,
+  normalizeCpfCdsDistrict,
+  createRequesterResolver,
+} from './priority-intelligence/priority-intelligence-cpf-cds.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -716,9 +722,8 @@ export class DistrictNexusStrategicService {
     // Structured CPF/CDS evidence now exists in community_funding_request.
     // Qualifying, deterministic evidence feeds full credit; the corpus being
     // absent stays 'unavailable' (coverage gap, not zero). Requests attribute
-    // to a member only via the same deterministic geography rules the R4 read
-    // model uses (house: source-backed state+district; senate: statewide or
-    // independently source-backed project district). Requested dollars are
+    // to members only when the source requester name resolves uniquely and
+    // the source geography is compatible with their representation. Requested dollars are
     // member-priority CONTEXT — they never enter Nexus Strength and never
     // count as awarded money.
     {
@@ -1207,32 +1212,12 @@ export class DistrictNexusStrategicService {
     };
   }
 
-  /**
-   * Release 4 — structured member-priority evidence from the canonical CPF/CDS
-   * tables. Deterministic only:
-   *   - house members: request.requester_state == member state AND
-   *     requester_district == member district (both source-backed);
-   *   - senators: requester_state == member state (statewide attribution,
-   *     labeled in evidence);
-   * No fuzzy matching, no LLM, no client attribution — this is member-priority
-   * context feeding the centrally versioned strategic score component.
-   * Empty corpus (no rows at all) keeps the R2 'unavailable' semantics.
-   *
-   * Query shape: the corpus check + a SINGLE bounded findMany per chamber
-   * (statewide pull), then in-memory deterministic attribution. This method
-   * runs once PER DISTRICT inside scoreDistrict, so per-member findMany calls
-   * here would fan out N+1 across the client's district map — the batched
-   * pull keeps the total query count constant regardless of district count.
-   * Bounded at 5000 canonical rows per chamber: the production corpus is
-   * ~30k rows across all states/FYs (audit), so a single state's slice fits
-   * with headroom.
-   */
+  /** Source-named requester evidence only; public geography alone earns no member credit. */
   private async loadMemberPriorityEvidence(
     bioguides: ReadonlySet<string>,
     stateCode: string,
     districtKey: string,
   ): Promise<StrategicComponentInput> {
-    const evidence: StrategicEvidence[] = [];
     try {
       const hasAnyCorpus = await this.prisma.communityFundingRequest.findFirst({
         select: { id: true },
@@ -1242,165 +1227,111 @@ export class DistrictNexusStrategicService {
           strength: 'unavailable',
           evidenceCount: 0,
           evidence: [],
-          rationale:
-            'CPF/CDS corpus is not loaded in this environment; marked unavailable (coverage gap), not zero.',
+          rationale: 'CPF/CDS corpus is not loaded; member history is unavailable, not zero.',
         };
       }
-
-      const bioguideList = [...bioguides];
-      if (!bioguideList.length) {
+      if (!bioguides.size) {
         return {
           strength: 'absent',
           evidenceCount: 0,
           evidence: [],
-          rationale: 'No member of congress resolved for this district.',
+          rationale: 'No current member resolved for this district.',
         };
       }
-
-      // Members for these bioguides (state/district/chamber) — one query.
-      const memberRows = await this.prisma.$queryRaw<
-        Array<{
-          bioguide_id: string;
-          chamber: string;
-          state_code: string | null;
-          district: string | null;
-        }>
-      >`
-        SELECT bioguide_id::text AS bioguide_id, chamber::text AS chamber,
-               state AS state_code, district::text AS district
-        FROM congress_member
-        WHERE bioguide_id::text IN (${Prisma.join(bioguideList)})
-      `;
-
-      // ONE bounded statewide pull per chamber, then in-memory attribution.
-      // House rows without a source-backed district are skipped by the same
-      // deterministic rule the R4 read model uses (sentinel '90'/'98'/'ZZ'
-      // codes are not districts and never attribute).
       const state = stateCode.trim().toUpperCase();
-      const canonicalDistrict = districtKey.split('-')[1] ?? '';
-      const [houseRows, senateRows] = await Promise.all([
-        this.prisma.communityFundingRequest.findMany({
-          where: { chamber: 'house', requesterState: state },
-          orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }],
-          take: 5000,
-          select: {
-            fiscalYear: true,
-            requesterName: true,
-            requesterDistrict: true,
-            recipientName: true,
-            requestedAmountUsd: true,
-          },
-        }),
-        this.prisma.communityFundingRequest.findMany({
-          where: { chamber: 'senate', requesterState: state },
-          orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }],
-          take: 5000,
-          select: {
-            fiscalYear: true,
-            requesterName: true,
-            recipientName: true,
-            requestedAmountUsd: true,
-          },
-        }),
-      ]);
-
-      const memberDistrict = new Map<string, string>();
-      const senatorBioguides: string[] = [];
-      for (const member of memberRows) {
-        const memberState = (member.state_code ?? '').trim().toUpperCase();
-        if (memberState !== state) continue;
-        if (member.chamber === 'senate') {
-          senatorBioguides.push(member.bioguide_id);
+      const district = normalizeCpfCdsDistrict(districtKey.split('-')[1] ?? null);
+      // One historical/current directory pull and two bounded canonical pulls,
+      // regardless of the number of members. Historical names prevent a bare
+      // surname from silently resolving to a different current member.
+      const directory = await loadPriorityMemberDirectory(this.prisma, state);
+      const resolveRequesters = createRequesterResolver(directory);
+      const select = {
+        id: true,
+        fiscalYear: true,
+        requesterName: true,
+        requesterState: true,
+        requesterDistrict: true,
+        state: true,
+        recipientName: true,
+        requestedAmountUsd: true,
+      } as const;
+      const [houseRows, senateRows] = await Promise.all(
+        (['house', 'senate'] as const).map((chamber) =>
+          this.prisma.communityFundingRequest
+            .findMany({
+              where: { chamber, requesterState: state },
+              orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }, { id: 'asc' }],
+              take: 5000,
+              select,
+            })
+            .then((rows) => rows.map((row) => ({ ...row, chamber }))),
+        ),
+      );
+      const evidence: StrategicEvidence[] = [];
+      const seen = new Set<string>();
+      const scanLimited = houseRows!.length === 5000 || senateRows!.length === 5000;
+      let total = 0;
+      let unresolved = 0;
+      let count = 0;
+      for (const row of [...houseRows!, ...senateRows!]) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        const geography = attributeGeography(row);
+        if (geography.basis === 'unresolved') continue;
+        if (geography.state !== state) continue;
+        if (
+          (geography.basis === 'house_district' || geography.basis === 'senate_project_district') &&
+          geography.district !== district
+        )
+          continue;
+        const requesters = resolveRequesters({ ...row, geography });
+        if (!requesters.length) {
+          unresolved++;
           continue;
         }
-        const d = member.district?.trim().toUpperCase() ?? '';
-        // Canonical at-large/sentinel handling mirrors the R4 read model:
-        // 'AL'/'00' → '00'; sentinels (90/98/ZZ) never attribute.
-        if (d === 'AL' || d === '00' || d === 'AT LARGE') {
-          memberDistrict.set(member.bioguide_id, '00');
-        } else if (/^\d{1,2}$/.test(d) && Number(d) > 0 && Number(d) <= 98) {
-          memberDistrict.set(member.bioguide_id, d.padStart(2, '0'));
-        }
-      }
-
-      const relevant: Array<{
-        bioguideId: string;
-        statewide: boolean;
-        fiscalYear: number;
-        requesterName: string;
-        recipientName: string;
-        requestedAmountUsd: string;
-      }> = [];
-      for (const r of houseRows) {
-        const district = r.requesterDistrict?.trim().toUpperCase() ?? '';
-        const padded =
-          district === 'AL' || district === '00' || district === 'AT LARGE'
-            ? '00'
-            : /^\d{1,2}$/.test(district) && Number(district) > 0 && Number(district) <= 98
-              ? district.padStart(2, '0')
-              : null;
-        if (!padded || padded !== canonicalDistrict) continue;
-        for (const [bioguideId, md] of memberDistrict) {
-          if (md !== padded) continue;
-          relevant.push({
-            bioguideId,
-            statewide: false,
-            fiscalYear: r.fiscalYear,
-            requesterName: r.requesterName,
-            recipientName: r.recipientName,
-            requestedAmountUsd: r.requestedAmountUsd.toString(),
+        const currentRequesters = requesters.filter(
+          (member) => member.isCurrent && bioguides.has(member.bioguideId),
+        );
+        if (!currentRequesters.length) continue;
+        // One canonical request, even when two members jointly requested it.
+        count++;
+        total += Number(row.requestedAmountUsd);
+        if (evidence.length < 10)
+          evidence.push({
+            component: 'memberHistoricalPriorities',
+            sourceType: row.chamber === 'senate' ? 'cds_request' : 'cpf_request',
+            sourceRecordId: row.id,
+            label: `${row.fiscalYear} ${row.requesterName}: ${row.recipientName}`,
+            observedAt: null,
+            summary: `${geography.basis === 'senate_statewide' ? 'Senate statewide' : row.chamber === 'senate' ? 'Senate project district' : 'House district'} request, $${Math.round(Number(row.requestedAmountUsd)).toLocaleString('en-US')} requested (not awarded); requester identity matched to the source name.`,
+            refs: {
+              chamber: row.chamber,
+              fiscalYear: row.fiscalYear,
+              requesterBioguideIds: currentRequesters.map((m) => m.bioguideId).join(','),
+              attributionMethod: 'source_requester_name',
+            },
           });
-        }
       }
-      for (const r of senateRows) {
-        for (const bioguideId of senatorBioguides) {
-          relevant.push({
-            bioguideId,
-            statewide: true,
-            fiscalYear: r.fiscalYear,
-            requesterName: r.requesterName,
-            recipientName: r.recipientName,
-            requestedAmountUsd: r.requestedAmountUsd.toString(),
-          });
-        }
-      }
-
-      if (!relevant.length) {
+      if (!count)
         return {
-          strength: 'absent',
+          strength: unresolved || scanLimited ? 'unavailable' : 'absent',
           evidenceCount: 0,
           evidence: [],
-          rationale:
-            'No canonical CPF/CDS requests attributable to this district/member under deterministic geography rules.',
+          rationale: scanLimited
+            ? 'The bounded CPF/CDS scan is incomplete; individual member history is unavailable, not zero.'
+            : unresolved
+              ? 'CPF/CDS requests exist, but requester names cannot be uniquely resolved to members; individual history is unavailable, not zero.'
+              : 'No source-named CPF/CDS request history found for the current members of this district.',
         };
-      }
-
-      // Deterministic geography basis summary; statewide requests are labeled.
-      const total = relevant.reduce((sum, r) => sum + Number(r.requestedAmountUsd), 0);
-      for (const r of relevant.slice(0, 10)) {
-        evidence.push({
-          component: 'memberHistoricalPriorities',
-          sourceType: r.statewide ? 'cds_request' : 'cpf_request',
-          label: `${r.fiscalYear} ${r.requesterName}: ${r.recipientName}`,
-          sourceRecordId: `${r.bioguideId}:${r.fiscalYear}`,
-          observedAt: null,
-          summary: `${r.statewide ? 'Senate statewide' : 'House district'} request, $${Math.round(Number(r.requestedAmountUsd)).toLocaleString('en-US')} requested (requested, not awarded).`,
-          refs: {
-            chamber: r.statewide ? 'senate' : 'house',
-            fiscalYear: r.fiscalYear,
-          },
-        });
-      }
-
       return {
         strength: 'sourceAuthoritative',
-        evidenceCount: relevant.length,
+        evidenceCount: count,
         evidence,
-        rationale: `${relevant.length} canonical CPF/CDS request(s) ($${Math.round(total).toLocaleString('en-US')} requested across FYs) attributable under deterministic member-geography rules. Member-priority context only — never Nexus Strength.`,
+        rationale: `${count} distinct canonical CPF/CDS request(s), $${Math.round(total).toLocaleString('en-US')} requested in the records examined, matched by source requester name. Joint requests counted once; ${unresolved} unresolved request(s) excluded. Member-priority context only — never Nexus Strength.${scanLimited ? ' Source scan reached its per-chamber limit; coverage is partial.' : ''}`,
       };
     } catch (error) {
       this.logger.warn(
-        `memberHistoricalPriorities evidence load failed; component marked unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        `memberHistoricalPriorities evidence load failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
         strength: 'unavailable',

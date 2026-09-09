@@ -70,6 +70,9 @@ export interface CommunityFundingAvailability {
 
 export interface MemberPrioritySummary {
   bioguideId: string;
+  memberName?: string;
+  /** Older API responses did not establish individual requester identity. */
+  attributionMethod?: 'source_requester_name';
   chamber: 'house' | 'senate';
   state: string | null;
   fiscalYears: number[];

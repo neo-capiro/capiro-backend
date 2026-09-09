@@ -554,3 +554,47 @@ describe('DistrictPriorityIntelligencePanelVNext', () => {
     expect(screen.getByText(/Public economic metrics not ingested/i)).toBeTruthy();
   });
 });
+
+describe('source-named member history display', () => {
+  test.each([undefined, 'source_requester_name'] as const)(
+    'only renders verified per-member totals (%s)',
+    async (attributionMethod) => {
+      const data = baseResponse();
+      data.priorityIntelligence.cpfCds.warnings = [
+        'Some requester names could not be uniquely attributed.',
+      ];
+      data.priorityIntelligence.cpfCds.memberHistoricalPriorities = [
+        {
+          bioguideId: 'A001',
+          memberName: 'Alice Able',
+          attributionMethod,
+          chamber: 'senate',
+          state: 'VA',
+          fiscalYears: [2026],
+          requestedTotalUsd: 11382000,
+          finalTotalUsd: 0,
+          includesStatewideAttribution: true,
+        },
+      ];
+      apiGetMock.mockResolvedValue({ data });
+      renderPanel();
+      await screen.findByText('Member priorities');
+      expect(
+        screen.getByText('Some requester names could not be uniquely attributed.'),
+      ).toBeInTheDocument();
+      if (attributionMethod) {
+        expect(screen.getByText('Alice Able')).toBeInTheDocument();
+        expect(
+          screen.getByText(/joint requests can appear under each named requester/),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/11,382,000/)).toBeInTheDocument();
+      } else {
+        expect(screen.queryByText('Alice Able')).not.toBeInTheDocument();
+        expect(screen.queryByText(/11,382,000/)).not.toBeInTheDocument();
+        expect(
+          screen.getByText(/Individual member request history could not be verified/),
+        ).toBeInTheDocument();
+      }
+    },
+  );
+});

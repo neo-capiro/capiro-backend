@@ -19,6 +19,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DistrictNexusService } from '../district-nexus.service.js';
 import { stateFipsForAbbr } from '../../common/us-states.js';
+import { loadPriorityMemberDirectory } from './priority-intelligence-member-directory.js';
 
 /**
  * GSA FRPP stores congressional districts in the source form produced by the
@@ -291,7 +292,9 @@ export class DistrictNexusPriorityIntelligenceService {
         FROM congress_member cm
         WHERE cm.state = ${stateName}
           AND cm.chamber = 'house'
+          AND cm.is_current = true
           AND LPAD(COALESCE(cm.district::text, ''), 2, '0') = ${districtPadded}
+        ORDER BY cm.bioguide_id
         LIMIT 8`,
     );
     const senateRows = await this.prisma.withTenant(
@@ -302,6 +305,8 @@ export class DistrictNexusPriorityIntelligenceService {
         FROM congress_member cm
         WHERE cm.state = ${stateName}
           AND cm.chamber = 'senate'
+          AND cm.is_current = true
+        ORDER BY cm.bioguide_id
         LIMIT 4`,
     );
     const house = houseRows.map((r) => r.bioguide_id).filter((b): b is string => Boolean(b));
@@ -327,6 +332,7 @@ export class DistrictNexusPriorityIntelligenceService {
     districtRequests: ProjectedCpfCdsSignal[];
     clientRequests: ProjectedCpfCdsSignal[];
     memberPriorities: MemberPrioritySummary[];
+    memberRequestedTotalUsd: number;
     warnings: string[];
   }> {
     const warnings: string[] = [];
@@ -359,6 +365,7 @@ export class DistrictNexusPriorityIntelligenceService {
         districtRequests: [],
         clientRequests: [],
         memberPriorities: [],
+        memberRequestedTotalUsd: 0,
         warnings,
       };
     }
@@ -368,7 +375,7 @@ export class DistrictNexusPriorityIntelligenceService {
       where: {
         OR: [{ requesterState: stateCode }, { state: stateCode }],
       },
-      orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }],
+      orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }, { id: 'asc' }],
       take: 400,
       select: {
         id: true,
@@ -459,26 +466,33 @@ export class DistrictNexusPriorityIntelligenceService {
       includeSenateStatewide: true,
     });
 
-    const membersForAggregation: Array<{
-      bioguideId: string;
-      chamber: 'house' | 'senate';
-      state: string | null;
-      district: string | null;
-    }> = [
-      ...memberBioguides.houseMemberBioguideIds.map((bioguideId) => ({
-        bioguideId,
-        chamber: 'house' as const,
-        state: stateCode,
-        district: districtPadded,
-      })),
-      ...memberBioguides.senatorBioguideIds.map((bioguideId) => ({
-        bioguideId,
-        chamber: 'senate' as const,
-        state: stateCode,
-        district: null,
-      })),
-    ];
-    const aggregation = aggregateMemberPriorities(projections, membersForAggregation);
+    const eligibleMembers = new Set([
+      ...memberBioguides.houseMemberBioguideIds,
+      ...memberBioguides.senatorBioguideIds,
+    ]);
+    let memberPriorities: MemberPrioritySummary[] = [];
+    let memberRequestedTotalUsd = 0;
+    try {
+      const directory = await loadPriorityMemberDirectory(this.prisma, stateCode);
+      const aggregation = aggregateMemberPriorities(districtRequests, directory, eligibleMembers);
+      memberPriorities = aggregation.byMember;
+      memberRequestedTotalUsd = aggregation.requestedTotalUsd;
+      if (aggregation.unattributedRequestIds.length) {
+        warnings.push(
+          `${aggregation.unattributedRequestIds.length} request(s) could not be uniquely attributed to a current member from the source requester name. They remain public district/state context.`,
+        );
+      }
+    } catch (error) {
+      warnings.push(
+        'Individual member attribution is unavailable; public CPF/CDS requests remain visible.',
+      );
+      this.logEchoFailure('member requester identities', error);
+    }
+    if (requestRows.length === 400) {
+      warnings.push(
+        'This view is limited to the 400 most recent state requests; member totals cover those records only.',
+      );
+    }
 
     const clientRequests = projections.filter((p) => p.clientAttribution != null);
 
@@ -486,7 +500,8 @@ export class DistrictNexusPriorityIntelligenceService {
       availability,
       districtRequests,
       clientRequests,
-      memberPriorities: aggregation.byMember,
+      memberPriorities,
+      memberRequestedTotalUsd,
       warnings,
     };
   }
@@ -952,6 +967,7 @@ export class DistrictNexusPriorityIntelligenceService {
       districtRequests: ProjectedCpfCdsSignal[];
       clientRequests: ProjectedCpfCdsSignal[];
       memberPriorities: MemberPrioritySummary[];
+      memberRequestedTotalUsd: number;
     },
     federalProperty: GsaFederalPresence,
     sectorSignals: {
@@ -971,9 +987,9 @@ export class DistrictNexusPriorityIntelligenceService {
       );
     }
     if (cpfCds.memberPriorities.length) {
-      const total = cpfCds.memberPriorities.reduce((sum, m) => sum + m.requestedTotalUsd, 0);
+      const total = cpfCds.memberRequestedTotalUsd;
       signals.push(
-        `member request history: $${Math.round(total).toLocaleString('en-US')} requested across ${cpfCds.memberPriorities.length} member(s)`,
+        `member request history: $${Math.round(total).toLocaleString('en-US')} requested in source-attributed records for ${cpfCds.memberPriorities.length} current member(s); joint requests counted once`,
       );
     }
     if ((federalProperty.detailedAssetCount ?? 0) > 0) {

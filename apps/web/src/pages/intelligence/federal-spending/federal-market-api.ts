@@ -135,6 +135,8 @@ export interface FederalMarketGeographyResponse {
     sourceUrl: string | null;
   }>;
   awardedMoneyIncludesFutureOpportunities: false;
+  /** Optional while API/web revisions roll independently. */
+  futureSignalsAvailability?: 'available' | 'unavailable';
   warnings: string[];
   generatedAt: string;
 }
@@ -192,6 +194,14 @@ export function formatMarketMoney(value: number | null): string {
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+export function futureSignalsAvailable(data: FederalMarketGeographyResponse): boolean {
+  if (data.futureSignalsAvailability != null) {
+    return data.futureSignalsAvailability === 'available';
+  }
+  // Previous API revisions reported lookup failures only through this warning.
+  return !data.warnings.includes('future opportunity geography unavailable');
 }
 
 export function formatMarketDate(value: string | null): string {

@@ -48,6 +48,25 @@ describe('DistrictFederalMarketPanel', () => {
     apiGetMock.mockReset();
   });
 
+  test('a failed future lookup remains unavailable in the legacy panel', async () => {
+    apiGetMock.mockResolvedValue({
+      data: {
+        districts: [],
+        stateSubawards: [],
+        futureSignals: [],
+        futureSignalsAvailability: 'unavailable',
+        warnings: ['future opportunity geography unavailable'],
+        awardedMoneyIncludesFutureOpportunities: false,
+        generatedAt: '2026-09-09T00:00:00Z',
+      },
+    });
+    renderPanel();
+    await screen.findByText('Future procurement signals are temporarily unavailable.');
+    expect(
+      screen.getByText('Future signals').parentElement?.querySelector('strong'),
+    ).toHaveTextContent('Unavailable');
+  });
+
   test('shows only decision-useful district facts and keeps state-level evidence visibly separate', async () => {
     apiGetMock.mockResolvedValue({
       data: {
