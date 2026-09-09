@@ -278,7 +278,7 @@ describe('ClientCrmPage — breadcrumb freshness (item 11)', () => {
   it('reports when the sources were actually read, not a hardcoded 2h', async () => {
     renderPage();
 
-    expect(await screen.findByText(/^Sources read /)).toBeInTheDocument();
+    expect(await screen.findByText(/^Profile sections read /)).toBeInTheDocument();
     expect(screen.queryByText('Intel refreshed 2h ago')).not.toBeInTheDocument();
   });
 
@@ -291,7 +291,7 @@ describe('ClientCrmPage — breadcrumb freshness (item 11)', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('1 source unavailable')).toBeInTheDocument();
+    expect(await screen.findByText('1 profile section unavailable')).toBeInTheDocument();
     // A failed source is not a gap — we do not know what it holds, and calling
     // an outage a gap sends the user to re-enter data that may already exist.
     expect(await screen.findByRole('button', { name: '5 profile gaps' })).toBeInTheDocument();
@@ -330,9 +330,12 @@ describe('ClientCrmPage — Sync', () => {
     );
     // And a real re-read of the sources, not a setTimeout.
     await waitFor(() => expect(sourceReads).toBeGreaterThan(initialReads));
+    expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/district-nexus-spend');
+    expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/fec-money-flow');
+    expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/lda-filings');
 
     // The toast reports what came back; the old copy was hardcoded.
-    expect(await screen.findByText(/6 of 6 sources answered/)).toBeInTheDocument();
+    expect(await screen.findByText(/9 of 9 sources answered/)).toBeInTheDocument();
     expect(screen.queryByText('Sources refreshed · 6 of 6 connected')).not.toBeInTheDocument();
   });
 
@@ -350,12 +353,12 @@ describe('ClientCrmPage — Sync', () => {
     });
     renderPage();
 
-    await screen.findByText('1 source unavailable');
+    await screen.findByText('1 profile section unavailable');
     fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
 
     // Reported from the refetch results, so a source that failed mid-sync is
     // counted rather than read as "still loading".
-    expect(await screen.findByText('5 of 6 sources answered · 1 unavailable')).toBeInTheDocument();
+    expect(await screen.findByText('8 of 9 sources answered · 1 unavailable')).toBeInTheDocument();
   });
 
   it('still reports the re-read when the slow recompute fails', async () => {
@@ -371,7 +374,7 @@ describe('ClientCrmPage — Sync', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
 
     expect(
-      await screen.findByText('6 of 6 sources answered · recommendations unavailable'),
+      await screen.findByText('9 of 9 sources answered · recommendations unavailable'),
     ).toBeInTheDocument();
   });
 });

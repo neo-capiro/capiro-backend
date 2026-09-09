@@ -24,6 +24,9 @@ import { toCanonicalAlert } from './canonical-alert.adapter.js';
 import { classifyTrajectory } from './trajectory-classifier.model.js';
 import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
+import { fecCycles } from './fec-cycles.js';
+import { pacCoverage, type PacCoverage } from './fec-pac-coverage.js';
+import { buildClientAwardScope, clientAwardScopeSql } from '../funding-opportunities/client-award-scope.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
 import {
   buildKeywordMatchTerms,
@@ -2691,6 +2694,35 @@ export class IntelligenceService {
     }));
   }
 
+  /** Search the imported PAC catalog by official committee ID or name. */
+  async searchFecCommittees(query: string) {
+    const q = query.trim();
+    if (!q) return [];
+    const rows = await this.prisma.$queryRaw<Array<{
+      id: string;
+      name: string;
+      committee_type: string | null;
+      cycles: number[];
+      last_synced_at: Date | null;
+    }>>`
+      SELECT id, name, committee_type, cycles, last_synced_at
+      FROM fec_committee
+      WHERE committee_type IN ('Q', 'N', 'O', 'V', 'W')
+        AND (id = ${q.toUpperCase()} OR similarity(name, ${q}) > 0.2)
+      ORDER BY (id = ${q.toUpperCase()}) DESC, similarity(name, ${q}) DESC, name
+      LIMIT 25
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      committeeType: row.committee_type,
+      // The catalog does not currently store official active/terminated status.
+      active: null,
+      cycle: row.cycles.length ? Math.max(...row.cycles) : null,
+      sourceSyncedAt: row.last_synced_at?.toISOString() ?? null,
+    }));
+  }
+
   /**
    * Search federal_contractor for the manual-attach panel. The contractor row's
    * uuid is the externalId pinned into a source='contracting' mapping (matching
@@ -2877,6 +2909,21 @@ export class IntelligenceService {
       throw new BadRequestException(
         'Award-bearing federal mappings require a reviewed relationship type and an explicit award roll-up decision.',
       );
+    }
+
+    if (input.source === 'fec_committee') {
+      const committeeId = input.externalId.trim().toUpperCase();
+      if (!/^C\d{8}$/.test(committeeId)) {
+        throw new BadRequestException('Select a valid FEC PAC committee ID.');
+      }
+      const committee = await this.prisma.fecCommittee.findUnique({
+        where: { id: committeeId },
+        select: { name: true, committeeType: true },
+      });
+      if (!committee || !['Q', 'N', 'O', 'V', 'W'].includes(committee.committeeType ?? '')) {
+        throw new BadRequestException('Select a PAC from the imported FEC committee catalog.');
+      }
+      input = { ...input, externalId: committeeId, externalName: committee.name };
     }
 
     const mapping = await this.prisma.withTenant(tenantId, async (tx) => {
@@ -3356,6 +3403,7 @@ export class IntelligenceService {
     tenantId: string,
   ): Promise<{
     tracked: boolean;
+    coverage: PacCoverage;
     committees: Array<{
       committeeId: string;
       committeeName: string | null;
@@ -3369,6 +3417,7 @@ export class IntelligenceService {
     }>;
     summary: { totalAmount: number; disbursementCount: number; recipientCount: number };
   }> {
+    const cycles = fecCycles();
     const committeeMappings = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
         where: { clientId, source: 'fec_committee', confirmed: true },
@@ -3381,11 +3430,23 @@ export class IntelligenceService {
     if (committeeIds.length === 0) {
       return {
         tracked: false,
+        coverage: pacCoverage([], cycles, [], false),
         committees: [],
         summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
       };
     }
 
+    const [catalog, syncStates] = await Promise.all([
+      this.prisma.fecCommittee.findMany({
+        where: { id: { in: committeeIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.fecPacSyncState.findMany({
+        where: { committeeId: { in: committeeIds }, cycle: { in: cycles } },
+        select: { committeeId: true, cycle: true, status: true, completedAt: true },
+      }),
+    ]);
+    const names = new Map(catalog.map((committee) => [committee.id, committee.name]));
     const rows = await this.prisma.$queryRaw<
       Array<{
         committee_id: string;
@@ -3405,9 +3466,9 @@ export class IntelligenceService {
         COUNT(*)::int AS disbursement_count
       FROM fec_pac_contribution
       WHERE committee_id = ANY(${committeeIds}::text[])
+        AND cycle = ANY(${cycles}::int[])
       GROUP BY committee_id, recipient_name
       ORDER BY total_amount DESC
-      LIMIT 500
     `;
 
     const grouped = new Map<
@@ -3424,6 +3485,16 @@ export class IntelligenceService {
         }>;
       }
     >();
+    // Keep every mapped committee visible, even before its first transaction.
+    for (const committeeId of committeeIds) {
+      grouped.set(committeeId, {
+        committeeId,
+        committeeName: names.get(committeeId) ?? null,
+        totalAmount: 0,
+        disbursementCount: 0,
+        recipients: [],
+      });
+    }
     for (const r of rows) {
       const g = grouped.get(r.committee_id) ?? {
         committeeId: r.committee_id,
@@ -3432,8 +3503,9 @@ export class IntelligenceService {
         disbursementCount: 0,
         recipients: [],
       };
-      g.totalAmount += r.total_amount;
-      g.disbursementCount += r.disbursement_count;
+      g.committeeName ??= r.committee_name;
+      g.totalAmount += Number(r.total_amount);
+      g.disbursementCount += Number(r.disbursement_count);
       if (r.recipient_name) {
         g.recipients.push({
           recipientName: r.recipient_name,
@@ -3446,6 +3518,7 @@ export class IntelligenceService {
     const committees = Array.from(grouped.values()).sort((a, b) => b.totalAmount - a.totalAmount);
     return {
       tracked: true,
+      coverage: pacCoverage(committeeIds, cycles, syncStates, rows.length > 0),
       committees,
       summary: {
         totalAmount: committees.reduce((s, c) => s + c.totalAmount, 0),
@@ -3478,7 +3551,12 @@ export class IntelligenceService {
         },
         contributionType: 'individual_employer_linked' as const,
         committees: [],
-        pacGiving: { tracked: false as const, committees: [] as never[] },
+        pacGiving: {
+          tracked: false as const,
+          committees: [] as never[],
+          summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
+          coverage: pacCoverage([], fecCycles(), [], false),
+        },
         disclaimer: FEC_DISCLAIMER,
       };
     }
@@ -6182,13 +6260,9 @@ export class IntelligenceService {
    * rows are written. The client/mapping lookup IS tenant-scoped.
    */
   /**
-   * Legacy District Nexus contract-spend rail (pre-v2), kept live alongside
-   * v2 through first release. Release 1 fix (§10): this used to match spend
-   * through the confirmed mapping's `externalName` alone — no UEI path, and
-   * no rail-level exclusivity, unlike the rest of District Nexus. It now
-   * resolves the SAME canonical identity rail `district-nexus.service.ts`
-   * uses (`buildDistrictNexusIdentity`), so legacy spend and v2 can never
-   * disagree about which award rows belong to this client.
+   * Profile contract footprint and the Federal Spending drilldown share one
+   * reviewed scope. Exact approved names recover only rows missing a UEI;
+   * a populated, conflicting award UEI never falls through to a name match.
    */
   async getDistrictNexusSpend(clientId: string, tenantId: string) {
     // 1. Resolve the client's confirmed contracting mappings + own UEI.
@@ -6230,9 +6304,14 @@ export class IntelligenceService {
     const contractorUeis = await this.resolveContractorUeisForAlerts(
       districtNexusContractorIdsToResolve([seed]),
     );
-    const identity = buildDistrictNexusIdentity(seed, contractorUeis);
+    const scope = buildClientAwardScope({
+      uei: client?.uei ?? null,
+      contractingMappings: mappings,
+      assistanceMappings: [],
+    }, contractorUeis);
+    const predicate = clientAwardScopeSql(scope.contract);
 
-    if (identity.contract.basis === 'none') {
+    if (!predicate) {
       return {
         linked: false as const,
         reason: 'no_confirmed_contracting_mapping',
@@ -6246,8 +6325,7 @@ export class IntelligenceService {
       };
     }
 
-    // 2. Aggregate award spend by place-of-performance district (global
-    // table, read-only) — exactly one basis, never OR'd (§2/§4).
+    // 2. Use the same reviewed contract predicate as the award drilldown.
     const spendRows = await this.prisma.$queryRaw<
       Array<{
         pop_state: string | null;
@@ -6255,25 +6333,14 @@ export class IntelligenceService {
         award_count: bigint;
         total_amount: number | null;
       }>
-    >(
-      identity.contract.basis === 'exact_uei'
-        ? Prisma.sql`
-            SELECT pop_state, pop_congressional_district AS pop_district,
-                   COUNT(*)::bigint AS award_count,
-                   COALESCE(SUM(amount), 0)::float8 AS total_amount
-            FROM federal_award
-            WHERE recipient_uei = ANY(${identity.contract.ueis}::text[])
-            GROUP BY pop_state, pop_congressional_district
-          `
-        : Prisma.sql`
-            SELECT pop_state, pop_congressional_district AS pop_district,
-                   COUNT(*)::bigint AS award_count,
-                   COALESCE(SUM(amount), 0)::float8 AS total_amount
-            FROM federal_award
-            WHERE lower(contractor_name) = ANY(${identity.contract.fallbackNames}::text[])
-            GROUP BY pop_state, pop_congressional_district
-          `,
-    );
+    >(Prisma.sql`
+      SELECT pop_state, pop_congressional_district AS pop_district,
+             COUNT(*)::bigint AS award_count,
+             COALESCE(SUM(amount), 0)::float8 AS total_amount
+      FROM federal_award
+      WHERE ${predicate}
+      GROUP BY pop_state, pop_congressional_district
+    `);
 
     // 3. Join CensusDistrict demographics for the districts we resolved.
     const districtKeys = spendRows
@@ -6413,7 +6480,7 @@ export class IntelligenceService {
       unmappedAmount,
       districts,
       disclaimer:
-        'Federal contract spend (USAspending) matched to this client via confirmed contractor mappings, grouped by place-of-performance congressional district. Awards without a resolved district are shown as unmapped. Public data; for intelligence, not legal or compliance advice.',
+        'Imported federal contract spend (USAspending; current ingestion covers Department of Defense contracts) matched by UEI or reviewed exact names on awards missing UEIs, grouped by place-of-performance congressional district. Awards without a resolved district are shown as unmapped. Public data; for intelligence, not legal or compliance advice.',
     };
   }
 

@@ -91,7 +91,21 @@ export function matchBasisLabel(basis: string | null): string {
   return MATCH_BASIS_LABELS[basis] ?? basis;
 }
 
-export type MappingSource = 'lda' | 'fec_employer' | 'contracting' | 'assistance_recipient';
+export type MappingSource = 'lda' | 'fec_employer' | 'fec_committee' | 'contracting' | 'assistance_recipient';
+
+/** Catalog-backed PAC search; the id is the FEC committee id, never a name. */
+export interface FecCommitteeSearchResult {
+  id: string;
+  name: string;
+  committeeType: string | null;
+  active: boolean | null;
+  cycle: number | null;
+  sourceSyncedAt: string | null;
+}
+
+export function fecCommitteeStatus(active: boolean | null): string {
+  return active === true ? 'Active' : active === false ? 'Inactive' : 'Status unavailable';
+}
 
 /**
  * The mapping-source vocabulary, in one place. Used by the manual-attach
@@ -101,6 +115,7 @@ export type MappingSource = 'lda' | 'fec_employer' | 'contracting' | 'assistance
 export const MAPPING_SOURCE_OPTIONS: Array<{ label: string; value: MappingSource }> = [
   { label: 'LDA registrant (issue codes)', value: 'lda' },
   { label: 'FEC employer (contributions)', value: 'fec_employer' },
+  { label: 'FEC committee (PAC giving)', value: 'fec_committee' },
   { label: 'Federal contractor (contracts)', value: 'contracting' },
   { label: 'Assistance recipient (grants)', value: 'assistance_recipient' },
 ];
@@ -152,6 +167,12 @@ export const CLIENT_INTEL_QUERY_KEYS = [
   'client-intel-v1-aggregate',
   'intel-setup-completeness',
   'intel-issue-code-signal',
+  'client-district-nexus',
+  'client-district-nexus-v2',
+  'pf-district-nexus-v2',
+  'client-fec-money-flow',
+  'client-lda-filings',
+  'federal-market',
 ];
 
 export function invalidateClientIntel(qc: QueryClient) {

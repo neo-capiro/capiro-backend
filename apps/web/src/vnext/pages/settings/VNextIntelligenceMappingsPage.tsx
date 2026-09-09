@@ -17,6 +17,8 @@ import {
   MATCH_BASIS_LABELS,
   REQUIRES_INDIVIDUAL_REVIEW,
   asMappingSource,
+  fecCommitteeStatus,
+  type FecCommitteeSearchResult,
   formatMappingSpend as formatSpend,
   invalidateClientIntel,
   mappingApiErrorMessage as apiErrorMessage,
@@ -977,6 +979,15 @@ function ManualMapModal({
     enabled: open && source === 'fec_employer' && query.trim().length > 0,
   });
 
+  const fecCommitteeSearch = useQuery<FecCommitteeSearchResult[]>({
+    queryKey: ['fec-committee-search', query],
+    queryFn: async () =>
+      (await api.get<FecCommitteeSearchResult[]>(
+        `/api/intelligence/fec-committees/search?q=${encodeURIComponent(query)}`,
+      )).data,
+    enabled: open && source === 'fec_committee' && query.trim().length > 0,
+  });
+
   const contractorSearch = useQuery<ContractorSearchResponse>({
     queryKey: ['contractor-search', query],
     queryFn: async () =>
@@ -1002,11 +1013,13 @@ function ManualMapModal({
   const isFetching =
     source === 'lda'
       ? ldaSearch.isFetching
-      : source === 'fec_employer'
-        ? fecSearch.isFetching
-        : source === 'contracting'
-          ? contractorSearch.isFetching
-          : assistanceRecipientSearch.isFetching;
+      : source === 'fec_committee'
+        ? fecCommitteeSearch.isFetching
+        : source === 'fec_employer'
+          ? fecSearch.isFetching
+          : source === 'contracting'
+            ? contractorSearch.isFetching
+            : assistanceRecipientSearch.isFetching;
 
   const attachMutation = useMutation({
     mutationFn: async (r: { id: string; name: string }) =>
@@ -1022,22 +1035,28 @@ function ManualMapModal({
       const sourceLabel =
         source === 'lda'
           ? 'LDA'
-          : source === 'fec_employer'
-            ? 'FEC employer'
-            : source === 'contracting'
-              ? 'federal contractor'
-              : 'assistance recipient';
+          : source === 'fec_committee'
+            ? 'FEC committee'
+            : source === 'fec_employer'
+              ? 'FEC employer'
+              : source === 'contracting'
+                ? 'federal contractor'
+                : 'assistance recipient';
       const feeds =
         source === 'lda'
           ? 'issue-code matching'
-          : source === 'fec_employer'
-            ? 'contribution panel'
-            : source === 'contracting'
-              ? 'contract/obligation footprint'
-              : 'grant/assistance footprint';
+          : source === 'fec_committee'
+            ? 'political giving panel'
+            : source === 'fec_employer'
+              ? 'contribution panel'
+              : source === 'contracting'
+                ? 'contract/obligation footprint'
+                : 'grant/assistance footprint';
       const awardBearing = source === 'contracting' || source === 'assistance_recipient';
       toast.success(
-        awardBearing && !rollUpAwards
+        source === 'fec_committee'
+          ? `Mapping attached — "${r.name}" is linked. PAC giving will appear after its source records are imported.`
+          : awardBearing && !rollUpAwards
           ? `Mapping attached — "${r.name}" is now a confirmed ${sourceLabel} relationship. Its awards will not be attributed to this client.`
           : `Mapping attached — "${r.name}" is now a confirmed ${sourceLabel} mapping. It feeds this client's ${feeds} immediately.`,
       );
@@ -1068,7 +1087,7 @@ function ManualMapModal({
           Use this for records the automatic matcher can&apos;t find — a renamed or legacy entity
           (&quot;RAYTHEON TECHNOLOGIES&quot; under a client named &quot;RTX&quot;). Pick the client,
           search the federal registry, and pin the exact record. It&apos;s saved as a confirmed
-          mapping and folded into that client&apos;s footprint right away.
+          mapping. PAC giving appears after the committee&apos;s source records are imported.
         </span>
 
         <SvSegmented
@@ -1136,7 +1155,9 @@ function ManualMapModal({
               placeholder={
                 source === 'lda'
                   ? '2 · Search LDA registry by name or id (e.g. raytheon, or 4321)'
-                  : source === 'fec_employer'
+                  : source === 'fec_committee'
+                    ? 'Search PAC name or exact FEC committee ID (e.g. C00763623)'
+                    : source === 'fec_employer'
                     ? '2 · Search FEC contributor-employers by name (e.g. raytheon)'
                     : source === 'contracting'
                       ? '2 · Search federal contractors by name (e.g. raytheon)'
@@ -1200,6 +1221,28 @@ function ManualMapModal({
                 ],
               }))}
             />
+          ) : source === 'fec_committee' ? (
+            fecCommitteeSearch.isError ? (
+              <SvCallout kind="warning" title={`Committee search failed — ${apiErrorMessage(fecCommitteeSearch.error)}`} />
+            ) : (
+              <SearchResultTable
+                loading={fecCommitteeSearch.isFetching}
+                emptyText="No PAC committee matched the imported catalog. Try its exact FEC committee ID or an alternate name; the catalog may still need a source refresh."
+                headers={['Committee ID', 'PAC name', 'Type', 'Status', 'Cycle', 'Source updated', '']}
+                rows={(fecCommitteeSearch.data ?? []).map((r) => ({
+                  key: r.id,
+                  cells: [
+                    <a key="id" href={`https://www.fec.gov/data/committee/${encodeURIComponent(r.id)}/`} target="_blank" rel="noreferrer">{r.id}</a>,
+                    r.name,
+                    r.committeeType ?? '—',
+                    fecCommitteeStatus(r.active),
+                    r.cycle ?? '—',
+                    r.sourceSyncedAt ? new Date(r.sourceSyncedAt).toLocaleDateString() : 'Unknown',
+                    attachButton(r),
+                  ],
+                }))}
+              />
+            )
           ) : source === 'contracting' ? (
             <>
               {contractorSearch.data?.unsupportedIdentifier ? (

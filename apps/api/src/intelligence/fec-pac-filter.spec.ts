@@ -1,42 +1,34 @@
 import { describe, expect, test } from '@jest/globals';
+import { isPacGiving, type ScheduleBRow } from '../../scripts/fec-pac-sync.js';
 
-/**
- * Unit test for the sync-fec-pac row filter (Schedule B). The sync keeps only
- * candidate-directed disbursements (PAC -> candidate giving), dropping operational
- * spend with no recipient. This mirrors the predicate in scripts/sync-fec-pac.ts;
- * the script itself is integration-tested via ECS, but the filter is pure logic
- * worth pinning so a refactor can't silently start ingesting operational spend.
- */
-interface ScheduleBRow {
-  candidate_name?: string;
-  recipient_committee_id?: string;
-  recipient_name?: string;
-  disbursement_amount?: number;
-}
+const contribution: ScheduleBRow = {
+  filing_form: 'F3X',
+  line_number: '23',
+  recipient_name: 'Candidate committee',
+  disbursement_amount: 5000,
+};
 
-function keepRow(r: ScheduleBRow): boolean {
-  const amount = r.disbursement_amount;
-  if (!amount || amount <= 0) return false;
-  if (!r.candidate_name && !r.recipient_committee_id && !r.recipient_name) return false;
-  return true;
-}
-
-describe('sync-fec-pac Schedule B row filter', () => {
-  test('keeps a candidate-directed disbursement', () => {
-    expect(keepRow({ candidate_name: 'Jane Doe', disbursement_amount: 5000 })).toBe(true);
+describe('PAC giving source classification', () => {
+  test('keeps a federal contribution even when the recipient ID was not resolved', () => {
+    expect(isPacGiving(contribution)).toBe(true);
   });
-
-  test('keeps a recipient-committee disbursement', () => {
-    expect(keepRow({ recipient_committee_id: 'C00123', disbursement_amount: 2500 })).toBe(true);
+  test('preserves negative corrections', () => {
+    expect(isPacGiving({ ...contribution, disbursement_amount: -50 })).toBe(true);
   });
-
-  test('drops operational spend with no recipient', () => {
-    expect(keepRow({ recipient_name: '', disbursement_amount: 1200 })).toBe(false);
+  test('excludes named operating vendors and refunds even if a committee ID is present', () => {
+    expect(
+      isPacGiving({ ...contribution, recipient_name: 'Named vendor', line_number: '21B' }),
+    ).toBe(false);
+    expect(
+      isPacGiving({ ...contribution, line_number: '28C', recipient_committee_id: 'C00100321' }),
+    ).toBe(false);
   });
-
-  test('drops zero / negative / missing amounts', () => {
-    expect(keepRow({ candidate_name: 'X', disbursement_amount: 0 })).toBe(false);
-    expect(keepRow({ candidate_name: 'X', disbursement_amount: -50 })).toBe(false);
-    expect(keepRow({ candidate_name: 'X' })).toBe(false);
+  test('excludes double-counted memo entries', () => {
+    expect(isPacGiving({ ...contribution, memo_code: 'X' })).toBe(false);
+    expect(isPacGiving({ ...contribution, memoed_subtotal: true })).toBe(false);
+  });
+  test('does not count zero or missing amounts', () => {
+    expect(isPacGiving({ ...contribution, disbursement_amount: 0 })).toBe(false);
+    expect(isPacGiving({ ...contribution, disbursement_amount: undefined })).toBe(false);
   });
 });

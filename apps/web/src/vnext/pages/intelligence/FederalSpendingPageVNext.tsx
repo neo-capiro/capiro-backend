@@ -157,7 +157,15 @@ export function FederalSpendingPageVNext() {
       }),
     retry: 1,
     staleTime: 60_000,
-    placeholderData: (previous) => previous,
+    // Pagination may retain the same scope's rows; a new client or filter must
+    // never display the previous scope's money under its new label.
+    placeholderData: (previous, previousQuery) => {
+      const previousScope = previousQuery?.queryKey.slice(0, -1);
+      const scope = ['federal-market', tab, query, agency, recipient, state,
+        districtApplies ? district : undefined, fiscalYear,
+        clientApplies ? clientId : undefined];
+      return previousScope?.every((value, index) => value === scope[index]) ? previous : undefined;
+    },
   });
 
   const visibleClients = (clients.data ?? []).filter((client) => client.status !== 'archived');

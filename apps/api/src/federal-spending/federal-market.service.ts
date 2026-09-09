@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isResolvableContractorId } from '../funding-opportunities/award-history-identity.js';
+import {
+  buildClientAwardScope,
+  clientAwardScopeSql,
+  type ClientAwardScope,
+} from '../funding-opportunities/client-award-scope.js';
 import type {
   FederalContractMarketRow,
   FederalForecastMarketRow,
@@ -18,8 +24,8 @@ const MAX_PAGE_SIZE = 100;
 const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACTIVE' } as const;
 
 interface ClientFederalScope {
-  ueis: string[];
-  names: string[];
+  contract: ClientAwardScope;
+  subaward: ClientAwardScope;
 }
 
 interface CountRow {
@@ -49,22 +55,6 @@ function districtKey(state: string | null, district: string | null): string | nu
   }
   if (!/^\d{1,2}$/.test(raw)) return null;
   return `${s}-${raw.padStart(2, '0')}`;
-}
-
-function lower(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean))];
-}
-
-function dedupe(values: Array<string | null | undefined>): string[] {
-  return [
-    ...new Set(
-      values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)),
-    ),
-  ];
-}
-
-function isUei(value: string | null | undefined): value is string {
-  return /^[A-Z0-9]{12}$/.test((value ?? '').trim().toUpperCase());
 }
 
 function whereSql(clauses: Prisma.Sql[]): Prisma.Sql {
@@ -557,7 +547,7 @@ export class FederalMarketService {
     clientId?: string,
   ): Promise<ClientFederalScope | null> {
     if (!clientId) return null;
-    return this.prisma.withTenant(tenantId, async (tx) => {
+    const { client, mappings } = await this.prisma.withTenant(tenantId, async (tx) => {
       const client = await tx.client.findFirst({
         where: { id: clientId, ...VISIBLE_CLIENT_FILTER },
         select: { id: true, uei: true },
@@ -571,18 +561,45 @@ export class FederalMarketService {
           rollUpAwards: true,
           source: { in: ['contracting', 'assistance_recipient'] },
         },
-        select: { externalId: true, externalName: true },
+        select: {
+          source: true,
+          externalId: true,
+          externalName: true,
+          matchBasis: true,
+          matchTier: true,
+        },
       });
-      return {
-        ueis: dedupe([
-          isUei(client.uei) ? client.uei.toUpperCase() : null,
-          ...mappings.map((mapping) =>
-            isUei(mapping.externalId) ? mapping.externalId.toUpperCase() : null,
-          ),
-        ]),
-        names: lower(mappings.map((mapping) => mapping.externalName ?? '')),
-      };
+      return { client, mappings };
     });
+    const contractingMappings = mappings.filter((mapping) => mapping.source === 'contracting');
+    const contractorIds = [...new Set(
+      contractingMappings.map((mapping) => mapping.externalId).filter(isResolvableContractorId),
+    )];
+    // Contracting external IDs are contractor UUIDs, not UEIs. Resolve the global
+    // reference table outside the tenant transaction, just as the profile does.
+    const contractors = contractorIds.length
+      ? await this.prisma.$queryRaw<Array<{ id: string; uei: string | null }>>(Prisma.sql`
+          SELECT id::text AS id, uei FROM federal_contractor
+          WHERE id = ANY(${contractorIds}::uuid[])
+        `)
+      : [];
+    const scope = buildClientAwardScope({
+      uei: client.uei,
+      contractingMappings,
+      assistanceMappings: mappings.filter((mapping) => mapping.source === 'assistance_recipient'),
+    }, new Map(contractors.map((contractor) => [contractor.id, contractor.uei])));
+    return {
+      contract: scope.contract,
+      // Subawards cover both assistance and contract recipients. Keep each
+      // participant's UEI/name paired in the predicate below.
+      subaward: {
+        ueis: [...new Set([...scope.contract.ueis, ...scope.assistance.ueis])],
+        missingUeiNames: [...new Set([
+          ...scope.contract.missingUeiNames,
+          ...scope.assistance.missingUeiNames,
+        ])],
+      },
+    };
   }
 
   private commonAwardClauses(query: FederalMarketQuery): Prisma.Sql[] {
@@ -624,25 +641,14 @@ export class FederalMarketService {
   }
 
   private contractScopeSql(scope: ClientFederalScope): Prisma.Sql | null {
-    const options: Prisma.Sql[] = [];
-    if (scope.ueis.length) options.push(Prisma.sql`recipient_uei = ANY(${scope.ueis}::text[])`);
-    if (scope.names.length)
-      options.push(Prisma.sql`lower(contractor_name) = ANY(${scope.names}::text[])`);
-    return options.length ? Prisma.sql`(${Prisma.join(options, ' OR ')})` : null;
+    return clientAwardScopeSql(scope.contract);
   }
 
   private subawardScopeSql(scope: ClientFederalScope): Prisma.Sql | null {
-    const options: Prisma.Sql[] = [];
-    if (scope.ueis.length) {
-      options.push(
-        Prisma.sql`(prime_recipient_uei = ANY(${scope.ueis}::text[]) OR subawardee_uei = ANY(${scope.ueis}::text[]))`,
-      );
-    }
-    if (scope.names.length) {
-      options.push(
-        Prisma.sql`(lower(prime_recipient_name) = ANY(${scope.names}::text[]) OR lower(subawardee_name) = ANY(${scope.names}::text[]))`,
-      );
-    }
+    const options = [
+      clientAwardScopeSql(scope.subaward, Prisma.sql`prime_recipient_uei`, Prisma.sql`prime_recipient_name`),
+      clientAwardScopeSql(scope.subaward, Prisma.sql`subawardee_uei`, Prisma.sql`subawardee_name`),
+    ].filter((option): option is Prisma.Sql => option != null);
     return options.length ? Prisma.sql`(${Prisma.join(options, ' OR ')})` : null;
   }
 

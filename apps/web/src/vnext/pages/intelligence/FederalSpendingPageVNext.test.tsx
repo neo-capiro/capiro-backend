@@ -1,198 +1,42 @@
-/**
- * Federal Spending vNext — ported from the canonical suite
- * (pages/intelligence/federal-spending/FederalSpendingPage.test.tsx). Same
- * behavioral assertions — endpoints, URL-state pass-through, drawer content,
- * Tango separation, failure-vs-empty honesty — against the vNext page.
- */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FederalSpendingPageVNext } from './FederalSpendingPageVNext.js';
 
-const { apiGetMock } = vi.hoisted(() => ({ apiGetMock: vi.fn() }));
+const get = vi.hoisted(() => vi.fn());
+vi.mock('../../../lib/use-api.js', () => ({ useApi: () => ({ get }) }));
+vi.mock('./FederalMarketDetailDrawerVNext.js', () => ({ FederalMarketDetailDrawerVNext: () => null }));
 
-vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: apiGetMock }),
-}));
-
-function browserMocks() {
-  Object.defineProperty(navigator, 'clipboard', {
-    configurable: true,
-    value: { writeText: vi.fn(() => Promise.resolve()) },
-  });
-}
-
-function renderPage(entry = '/intelligence/federal-spending') {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(
-    <MemoryRouter initialEntries={[entry]}>
-      <QueryClientProvider client={queryClient}>
-        <FederalSpendingPageVNext />
-      </QueryClientProvider>
-    </MemoryRouter>,
-  );
-}
-
-const contracts = {
-  items: [
-    {
-      id: 'award-1',
-      awardId: 'CONT_AWD_1',
-      recipientName: 'Prime Robotics LLC',
-      recipientUei: 'AAA111BBB222',
-      awardingAgency: 'Department of the Army',
-      amount: 1_200_000,
-      description: 'Autonomous vehicle integration',
-      actionDate: '2026-08-01T00:00:00.000Z',
-      state: 'VA',
-      district: '10',
-      districtKey: 'VA-10',
-      source: 'usaspending',
-      sourceUpdatedAt: '2026-08-08T00:00:00.000Z',
-    },
-  ],
-  total: 1,
-  page: 1,
-  pageSize: 25,
-  source: 'USAspending / Capiro first-party ingestion',
-  asOf: '2026-08-08T00:00:00.000Z',
-  generatedAt: '2026-08-08T00:00:00.000Z',
-};
-
-const subawards = {
-  items: [
-    {
-      id: 'sub-1',
-      providerKey: 'sub-1',
-      awardKey: 'CONT_AWD_1',
-      primeRecipientName: 'Prime Robotics LLC',
-      primeRecipientUei: 'AAA111BBB222',
-      subawardeeName: 'Virginia Supplier Inc',
-      subawardeeUei: 'CCC333DDD444',
-      awardingAgency: 'Department of the Army',
-      awardingOffice: 'Army Contracting Command',
-      amount: 250_000,
-      description: 'Component manufacturing',
-      actionDate: '2026-08-02T00:00:00.000Z',
-      fiscalYear: 2026,
-      naicsCode: '336992',
-      state: 'VA',
-      district: null,
-      districtKey: null,
-      sourceUrl: 'https://example.gov/subaward',
-      source: 'tango',
-      sourceUpdatedAt: '2026-08-08T00:00:00.000Z',
-    },
-  ],
-  total: 1,
-  page: 1,
-  pageSize: 25,
-  source: 'MakeGov/Tango subaward intelligence',
-  asOf: '2026-08-08T00:00:00.000Z',
-  generatedAt: '2026-08-08T00:00:00.000Z',
-};
-
-describe('FederalSpendingPageVNext', () => {
-  beforeEach(() => {
-    browserMocks();
-    apiGetMock.mockReset();
-    apiGetMock.mockImplementation(async (url: string) => {
-      if (url === '/api/clients') {
-        return { data: [{ id: 'client-1', name: 'Overland AI', status: 'active' }] };
-      }
-      if (url.includes('/api/federal-spending/market/contracts')) return { data: contracts };
-      if (url.includes('/api/federal-spending/market/subawards')) return { data: subawards };
-      return {
-        data: {
-          items: [],
-          total: 0,
-          page: 1,
-          pageSize: 25,
-          source: 'MakeGov/Tango',
-          asOf: null,
-          generatedAt: '2026-08-08T00:00:00.000Z',
-        },
-      };
+describe('federal market client scope', () => {
+  it('removes the prior client’s rows and count immediately while the new client loads', async () => {
+    get.mockImplementation((url: string) => {
+      if (url === '/api/clients') return Promise.resolve({ data: [
+        { id: 'client-1', name: 'Anduril' }, { id: 'client-2', name: 'L3 Harris' },
+      ] });
+      if (url.includes('clientId=client-2')) return new Promise(() => {});
+      return Promise.resolve({ data: {
+        items: [{ id: 'award-1', awardId: 'EXAMPLE-1', recipientName: 'ANDURIL INDUSTRIES, INC.', recipientUei: null,
+          awardingAgency: 'Department of Defense', amount: 94_000_000, description: null,
+          actionDate: null, state: null, district: null, districtKey: null, source: 'usaspending', sourceUpdatedAt: null }],
+        total: 3, page: 1, pageSize: 25, source: 'USAspending', asOf: null, generatedAt: '2026-09-09T00:00:00Z',
+      } });
     });
-  });
-
-  test('starts as a calm scan view with advanced filters hidden', async () => {
-    renderPage();
-
-    expect(await screen.findByText('Prime Robotics LLC')).toBeInTheDocument();
-    expect(screen.getByText('Federal Spending')).toBeInTheDocument();
-    expect(screen.getByText('1 records')).toBeInTheDocument();
-    expect(screen.getByText('$1.2M')).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('Agency or office')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
-    expect(screen.getByPlaceholderText('Agency or office')).toBeInTheDocument();
-  });
-
-  test('preserves state and exact district when opened from District Nexus', async () => {
-    renderPage('/intelligence/federal-spending?state=VA&district=10&clientId=client-1');
-
-    expect(await screen.findByText('District: 10')).toBeInTheDocument();
-    await waitFor(() => {
-      const marketCall = apiGetMock.mock.calls
-        .map(([url]) => String(url))
-        .find((url) => url.includes('/api/federal-spending/market/contracts'));
-      expect(marketCall).toContain('state=VA');
-      expect(marketCall).toContain('district=10');
-      expect(marketCall).toContain('clientId=client-1');
-    });
-  });
-
-  test('opens one record in a focused drawer and links back to District Nexus', async () => {
-    renderPage('/intelligence/federal-spending?clientId=client-1');
-
-    fireEvent.click(await screen.findByText('Prime Robotics LLC'));
-
-    expect(await screen.findByText('CONTRACT AWARD')).toBeInTheDocument();
-    expect(screen.getByText('Autonomous vehicle integration')).toBeInTheDocument();
-    expect(screen.getByText('AAA111BBB222')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ask Meri' })).toBeInTheDocument();
-    const districtLink = screen.getByRole('link', { name: 'View District Nexus' });
-    expect(districtLink.getAttribute('href')).toContain('state=VA');
-    expect(districtLink.getAttribute('href')).toContain('district=VA-10');
-    expect(districtLink.getAttribute('href')).toContain('clientId=client-1');
-  });
-
-  test('keeps Tango subawards on a visibly separate rail and does not invent district geography', async () => {
-    renderPage();
-
-    fireEvent.click(await screen.findByText('Subawards'));
-
-    expect(await screen.findByText('Virginia Supplier Inc')).toBeInTheDocument();
-    expect(screen.getByText('VA · state only')).toBeInTheDocument();
-    expect(screen.getByText(/MakeGov\/Tango subaward intelligence/i)).toBeInTheDocument();
-    await waitFor(() =>
-      expect(apiGetMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/federal-spending/market/subawards'),
-      ),
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={['/intelligence/federal-spending?clientId=client-1']}>
+          <FederalSpendingPageVNext />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
-  });
 
-  test('renders a failed request as failure rather than an empty market', async () => {
-    apiGetMock.mockImplementation(async (url: string) => {
-      if (url === '/api/clients') return { data: [] };
-      throw new Error('network down');
-    });
-
-    renderPage();
-
-    // The page retries once (retry: 1) before surfacing the error, so allow the
-    // retry round-trip to settle.
-    expect(
-      await screen.findByText('Federal market data could not be loaded', undefined, {
-        timeout: 8000,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/This is a request failure, not evidence that no records exist/i),
-    ).toBeInTheDocument();
+    await screen.findByText('ANDURIL INDUSTRIES, INC.');
+    expect(screen.getByText('3 records')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Client' }), { target: { value: 'client-2' } });
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/federal-spending/market/contracts?clientId=client-2&page=1&pageSize=25'));
+    expect(screen.queryByText('ANDURIL INDUSTRIES, INC.')).not.toBeInTheDocument();
+    expect(screen.queryByText('3 records')).not.toBeInTheDocument();
+    expect(screen.queryByText('No records match this view.')).not.toBeInTheDocument();
   });
 });

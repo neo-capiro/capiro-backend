@@ -50,6 +50,9 @@ import {
 import { getClientLdaFilings } from '../../../../pages/clients/intelligence-v1/lda-filings-api.js';
 import {
   getClientFecMoneyFlow,
+  pacGivingAmount,
+  pacGivingPeriod,
+  pacGivingStatus,
   topPacRecipients,
 } from '../../../../pages/clients/intelligence-v1/fec-money-flow-api.js';
 import {
@@ -329,11 +332,13 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
       // Unlinked is "no confirmed mapping", never $0 — formatMoney(null) = '—'.
       [
         nexusQ.isSuccess ? formatMoney(nexusQ.data.linked ? nexusQ.data.totalAmount : null) : '—',
-        'Federal awards · on record',
+        'Federal contracts · on record',
       ],
       [
-        fecQ.isSuccess ? formatMoney(pac?.tracked && pac.summary ? pac.summary.totalAmount : null) : '—',
-        'PAC disbursements',
+        fecQ.isSuccess ? formatMoney(pac ? pacGivingAmount(pac) : null) : '—',
+        pac && pac.tracked && pacGivingStatus(pac) !== 'complete'
+          ? 'PAC political contributions · incomplete'
+          : 'PAC political contributions',
       ],
       [lda ? (lda.matched ? formatNumber(lda.registrants.length) : '0') : '—', 'Registrants'],
     ];
@@ -384,7 +389,7 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
   },
   footprint: {
     title: 'Federal footprint',
-    sub: 'Lobbying activity, federal awards, political giving, past performance, and the government entities connected to the client.',
+    sub: 'Lobbying activity, federal contracts, political giving, past performance, and the government entities connected to the client.',
     // actions computed in ClientCrmIntelligenceProto — see the comment there.
   },
   district: {
@@ -470,7 +475,7 @@ export function CouldNotLoad({ what, error, onRetry }: { what: string; error?: u
 export function DomainStatsStrip({ view, realValues }: { view: string; realValues?: Array<[string, string]> }) {
   const labels: Record<string, string[]> = {
     legislative: ['Tracked bills', 'Active matters', 'Deadline < 14 days', 'Material changes', 'Watchlist coverage'],
-    footprint: ['LDA filings', 'Lobbying · last 4 completed quarters', 'Federal awards · on record', 'PAC disbursements', 'Registrants'],
+    footprint: ['LDA filings', 'Lobbying · last 4 completed quarters', 'Federal contracts · on record', 'PAC political contributions', 'Registrants'],
     district: ['Districts', 'Contract obligations', 'Grant obligations', 'Employees mapped', 'Coverage'],
   };
   const labelSource = (labels[view] ?? []).map((label): [string, string] => ['—', label]);
@@ -1128,6 +1133,8 @@ function FootprintPanel({ client }: { client: Client }) {
   });
   const realPac = fecQ.isSuccess ? (fecQ.data.pacGiving ?? null) : null;
   const fecFailed = fecQ.isError;
+  const pacStatus = realPac ? pacGivingStatus(realPac) : null;
+  const pacAmount = realPac ? pacGivingAmount(realPac) : null;
 
 
   return (
@@ -1165,13 +1172,13 @@ function FootprintPanel({ client }: { client: Client }) {
           )}
         </FootCard>
 
-        {/* Federal awards */}
+        {/* Federal contracts in the imported award source. */}
         <FootCard
-          title="Federal awards"
-          action={<LinkBtn onClick={() => navigate(`/intelligence/federal-spending?tab=contracts&clientId=${client.id}`)}>View awards</LinkBtn>}
+          title="Federal contracts"
+          action={<LinkBtn onClick={() => navigate(`/intelligence/federal-spending?tab=contracts&clientId=${client.id}`)}>View contracts</LinkBtn>}
         >
           {nexusFailed ? (
-            <CouldNotLoad what="Federal awards" error={nexusQ.error} onRetry={() => void nexusQ.refetch()} />
+            <CouldNotLoad what="Federal contracts" error={nexusQ.error} onRetry={() => void nexusQ.refetch()} />
           ) : realNexus ? (
             <>
               <div className="capiro-intel-headline">
@@ -1181,16 +1188,22 @@ function FootprintPanel({ client }: { client: Client }) {
                 <Pill tone="gray" dotless>{realNexus.totalAwards} award{realNexus.totalAwards === 1 ? '' : 's'}</Pill>
               </div>
               <div className="capiro-intel-eyebrow capiro-intel-headline-caption">
-                Confirmed contractor mapping · {realNexus.districtCount} district{realNexus.districtCount === 1 ? '' : 's'}
+                Matched contractor identity · {realNexus.districtCount} district{realNexus.districtCount === 1 ? '' : 's'}
+                <br />Imported Department of Defense contracts; source history may be incomplete.
               </div>
+              {realNexus.totalAwards === 0 ? (
+                <p className="capiro-intel-note" style={{ padding: 0 }}>
+                  No matching contracts are in the imported records. This does not establish that the client has no federal contracts.
+                </p>
+              ) : null}
               {/* No real per-agency breakdown source exists yet — dropped rather than fabricated (was Army/Navy/DARPA %). */}
             </>
           ) : nexusQ.isSuccess ? (
             <p className="capiro-intel-note" style={{ padding: 0, marginTop: 16 }}>
-              No confirmed contractor mapping exists for this client, so federal award totals cannot be attributed yet.
+              No confirmed contractor mapping exists for this client, so federal contract totals cannot be attributed yet.
             </p>
           ) : (
-            <LoadingSource what="federal awards" />
+            <LoadingSource what="federal contracts" />
           )}
         </FootCard>
 
@@ -1209,25 +1222,35 @@ function FootprintPanel({ client }: { client: Client }) {
               /* "No committee mapped" is not "$0 given" — never render it as one. */
               <p className="capiro-intel-note" style={{ padding: 0, marginTop: 16 }}>
                 No FEC committee is mapped to this client, so its PAC giving cannot be reported.
+                <br /><LinkBtn onClick={() => navigate(`/settings/intelligence-mappings?clientId=${client.id}&source=fec_committee`)}>Map a PAC committee</LinkBtn>
               </p>
             ) : (
               <>
                 <div className="capiro-intel-headline-solo">
-                  {realPac.summary ? `$${realPac.summary.totalAmount.toLocaleString()}` : '—'}
+                  {pacAmount != null ? `$${pacAmount.toLocaleString()}` : '—'}
                 </div>
                 <div className="capiro-intel-eyebrow capiro-intel-headline-caption">
-                  PAC disbursements
-                  {realPac.summary
-                    ? ` · ${realPac.summary.disbursementCount} disbursement${realPac.summary.disbursementCount === 1 ? '' : 's'}`
+                  PAC political contributions
+                  {realPac.summary && pacAmount != null
+                    ? ` · ${realPac.summary.disbursementCount} contribution${realPac.summary.disbursementCount === 1 ? '' : 's'}`
                     : ''}
+                  <br /><span>{pacGivingPeriod(realPac)}</span>
+                  {realPac.coverage?.lastSyncedAt ? <><br />Source updated {new Date(realPac.coverage.lastSyncedAt).toLocaleString()}</> : null}
                 </div>
+                {pacStatus !== 'complete' ? (
+                  <p className="capiro-intel-note" role="status" style={{ padding: 0 }}>
+                    <strong>{pacStatus === 'error' ? 'Source update failed.' : pacStatus === 'pending' ? 'Awaiting source import.' : 'Partial source coverage.'}</strong>{' '}
+                    {realPac.coverage?.message ?? 'A complete source import has not been verified for every mapped committee and reporting cycle.'}
+                    {pacAmount != null ? ' The amount shown reflects the available records.' : ' A giving total is not yet available.'}
+                  </p>
+                ) : null}
                 <div className="capiro-intel-bars">
                   {/* Real top recipients. The fixture's Incumbent/Leadership/Party
                       buckets have no equivalent in the data — recipients are named
                       rows, not categories — so they are not reproduced. */}
-                  {topPacRecipients(realPac).length === 0 ? (
+                  {topPacRecipients(realPac).length === 0 && pacStatus === 'complete' && realPac.summary?.disbursementCount === 0 ? (
                     <p className="capiro-intel-note" style={{ padding: 0 }}>
-                      A committee is mapped, but it has no disbursements on record.
+                      No political contributions were reported for the mapped committees in these completed source imports.
                     </p>
                   ) : (
                     topPacRecipients(realPac).map((r, i, all) => (
@@ -1244,7 +1267,7 @@ function FootprintPanel({ client }: { client: Client }) {
                             style={{
                               // Bars are relative to the largest recipient, so the
                               // width is a real comparison rather than a designed %.
-                              width: (all[0]?.totalAmount ?? 0) > 0 ? `${Math.round((r.totalAmount / all[0]!.totalAmount) * 100)}%` : '0%',
+                              width: (all[0]?.totalAmount ?? 0) > 0 ? `${Math.max(0, Math.min(100, Math.round((r.totalAmount / all[0]!.totalAmount) * 100)))}%` : '0%',
                             }}
                           />
                         </span>
@@ -1254,6 +1277,8 @@ function FootprintPanel({ client }: { client: Client }) {
                 </div>
               </>
             )
+          ) : fecQ.isSuccess ? (
+            <CouldNotLoad what="Political giving" error={new Error('The source response did not include PAC giving.')} onRetry={() => void fecQ.refetch()} />
           ) : (
             <LoadingSource what="political giving" />
           )}
