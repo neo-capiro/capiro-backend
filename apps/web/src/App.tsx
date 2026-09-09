@@ -433,7 +433,11 @@ export function App() {
         <Route path="/directory/department-of-war" element={<DirectoryPage />} />
         <Route path="/directory/state-legislators" element={<DirectoryPage />} />
         {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
+        {/* `/directory/people/:id` is an alias of the member profile — the
+            LegiWatch Committee Room (#1494) navigates to it; an unrouted alias
+            landed every member drilldown on the 404 catch-all (LW-06). */}
         <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
+        <Route path="/directory/people/:memberId" element={<MemberDirectoryProfilePage />} />
         <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
         <Route path="/directory/committees/:committeeId" element={<CommitteeDirectoryPage />} />
         <Route path="/directory/state-legislators/:id" element={<StateLegislatorProfilePage />} />

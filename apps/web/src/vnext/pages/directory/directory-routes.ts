@@ -111,7 +111,11 @@ export function matchDirectoryProfilePath(pathname: string): DirectoryProfileMat
 
   if (params.length === 1 && params[0]) {
     const param = decodeSegment(params[0]);
-    if (section === 'members') return { kind: 'member', memberId: param };
+    // `people` is an accepted alias of `members` — the LegiWatch Committee Room
+    // (handoff #1494) drills into member profiles at /directory/people/:id, and
+    // an unrouted alias landed every such click on the client-side 404 (LW-06).
+    // One identity, one profile body, two spoken URLs.
+    if (section === 'members' || section === 'people') return { kind: 'member', memberId: param };
     if (section === 'staff') return { kind: 'staff', staffId: param };
     if (section === 'committees') return { kind: 'committee', committeeId: param };
     if (section === 'state-legislators') return { kind: 'stateLegislator', id: param };

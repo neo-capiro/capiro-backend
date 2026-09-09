@@ -86,6 +86,13 @@ function renderAt(path: string) {
               path="/directory/members/:memberId"
               element={<div data-testid="canonical-member-profile" />}
             />
+            {/* LW-06 alias leaf: App.tsx mounts this so react-router has a
+                matching leaf for /directory/people/:id — the vNext interceptor
+                must claim it before it renders. */}
+            <Route
+              path="/directory/people/:memberId"
+              element={<div data-testid="canonical-member-profile-people" />}
+            />
             <Route
               path="/directory/staff/:staffId"
               element={<div data-testid="canonical-staff-profile" />}
@@ -119,6 +126,14 @@ function renderAt(path: string) {
 describe('VNextRouter — directory profile routes claimed (Phase 2)', () => {
   it('claims /directory/members/:memberId with the parsed id', async () => {
     renderAt('/directory/members/member-500');
+    expect(await screen.findByTestId('vnext-member-profile')).toHaveTextContent('member-500');
+    expect(screen.queryByTestId('canonical-member-profile')).not.toBeInTheDocument();
+  });
+
+  it('claims the /directory/people/:id alias as a member profile (LW-06)', async () => {
+    // The LegiWatch Committee Room drills into member profiles at
+    // /directory/people/:id; before the alias this landed on the 404 catch-all.
+    renderAt('/directory/people/member-500');
     expect(await screen.findByTestId('vnext-member-profile')).toHaveTextContent('member-500');
     expect(screen.queryByTestId('canonical-member-profile')).not.toBeInTheDocument();
   });

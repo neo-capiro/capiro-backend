@@ -5,6 +5,7 @@ import {
   DIRECTORY_ROUTES,
   DIRECTORY_TABS,
   isDirectoryListPath,
+  matchDirectoryProfilePath,
   resolveLegacyDirectoryTarget,
 } from './directory-routes.js';
 import { VNEXT_ROUTE_GAPS, VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
@@ -48,6 +49,13 @@ describe('Directory vNext route contract', () => {
     // appearing in Committee Staff must never mint a second record.
     expect(DIRECTORY_PROFILE_ROUTES.staff('staff-800')).toBe('/directory/staff/staff-800');
     expect(DIRECTORY_PROFILE_ROUTES.member('m-1')).toBe('/directory/members/m-1');
+    // LW-06: the /directory/people/:id alias (LegiWatch Committee Room drilldown)
+    // must resolve as a member profile, not fall through to the 404 catch-all.
+    expect(matchDirectoryProfilePath('/directory/people/m-1')).toEqual({
+      kind: 'member',
+      memberId: 'm-1',
+    });
+    expect(matchDirectoryProfilePath('/directory/people')).toBeNull();
     expect(DIRECTORY_PROFILE_ROUTES.committee('c-1')).toBe('/directory/committees/c-1');
     expect(DIRECTORY_PROFILE_ROUTES.departmentOfWarPerson('p-9')).toBe(
       '/directory/department-of-war/p-9',
