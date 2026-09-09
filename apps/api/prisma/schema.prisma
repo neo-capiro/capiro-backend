@@ -11292,6 +11292,12 @@ model BudgetExtractionCandidateV1 {
   discrepancies     BudgetVerificationDiscrepancyV1[]
   reviewDecisions   BudgetReviewDecisionV1[]
   scopedFactReviews BudgetScopedFactReviewV1[]
+  /// Phase 10B-35c: present when a LATER candidate was recorded as this one's
+  /// correction (at most one, enforced by a unique index on the link table).
+  correctedBy       BudgetCandidateCorrectionV1? @relation("CandidateCorrectionOld")
+  /// Phase 10B-35c: present when this candidate IS the correction of an
+  /// earlier one (at most one, enforced by a unique index on the link table).
+  corrects          BudgetCandidateCorrectionV1? @relation("CandidateCorrectionNew")
 
   @@unique([cycleId, manifestContentSha256, manifestDocumentKey, sourceDocumentId, sourceSha256, extractionArtifactId, extractionArtifactSha256, verifierVersion, policyVersion, policySha256], map: "budget_v1_candidate_identity_key")
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
@@ -11474,6 +11480,34 @@ model BudgetScopedFactReviewV1 {
   @@index([candidateId, createdAt], map: "budget_scoped_fact_review_v1_candidate_idx")
   @@index([scopeKind, scopeKey, status], map: "budget_scoped_fact_review_v1_scope_idx")
   @@map("budget_scoped_fact_review_v1")
+}
+
+/// Phase 10B-35c -- the formal, auditable "candidate X corrects candidate Y"
+/// link. See the migration's own header comment for why this is a dedicated
+/// append-only table rather than a column on `BudgetExtractionCandidateV1`
+/// itself. At most one row per `oldCandidateId` (idempotency/concurrency
+/// invariant, enforced by a unique index, not just application code) and at
+/// most one row per `newCandidateId`.
+model BudgetCandidateCorrectionV1 {
+  id                                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  oldCandidateId                    String   @unique(map: "budget_candidate_correction_v1_one_per_old_candidate") @map("old_candidate_id") @db.Uuid
+  newCandidateId                    String   @unique(map: "budget_candidate_correction_v1_one_per_new_candidate") @map("new_candidate_id") @db.Uuid
+  oldCandidateStatusAtCorrection    String   @map("old_candidate_status_at_correction")
+  oldCandidateSourceDocumentId      String   @map("old_candidate_source_document_id") @db.Uuid
+  oldCandidateSourceSha256          String   @map("old_candidate_source_sha256") @db.Char(64)
+  newCandidateSourceDocumentId      String   @map("new_candidate_source_document_id") @db.Uuid
+  newCandidateSourceSha256          String   @map("new_candidate_source_sha256") @db.Char(64)
+  supersededScopedFactReviewIds     Json     @default("[]") @map("superseded_scoped_fact_review_ids_jsonb")
+  actor                             String
+  reason                            String
+  createdAt                         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  oldCandidate BudgetExtractionCandidateV1 @relation("CandidateCorrectionOld", fields: [oldCandidateId], references: [id], onDelete: Restrict)
+  newCandidate BudgetExtractionCandidateV1 @relation("CandidateCorrectionNew", fields: [newCandidateId], references: [id], onDelete: Restrict)
+
+  @@index([oldCandidateId, createdAt], map: "budget_candidate_correction_v1_old_idx")
+  @@index([newCandidateId], map: "budget_candidate_correction_v1_new_idx")
+  @@map("budget_candidate_correction_v1")
 }
 
 // ===========================================================================

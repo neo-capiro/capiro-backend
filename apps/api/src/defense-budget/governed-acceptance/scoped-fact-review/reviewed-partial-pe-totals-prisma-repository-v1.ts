@@ -36,6 +36,18 @@ type PrismaRow = Parameters<typeof toRow>[0];
  * itself flip a stale row to `superseded`/`revoked` (that still requires an
  * explicit revoke); it only stops SERVING a row bound to a
  * no-longer-reviewable candidate.
+ *
+ * Phase 10B-35c addition, same rationale: a candidate that has since been
+ * formally CORRECTED (has a row in `budget_candidate_correction_v1` as the
+ * `old_candidate_id`) must also stop serving here, even though its own
+ * `status` column is deliberately left untouched by the correction mechanism
+ * (see that migration's header comment) and therefore stays
+ * `NEEDS_REVIEW`/`REVIEW_ACCEPTED` -- a status this filter alone would still
+ * treat as reviewable. Without this second filter, a scoped approval
+ * recorded against an old candidate AFTER it was already corrected (nothing
+ * stops that at insert time -- `check_budget_scoped_fact_review_v1_binding`
+ * only checks whole-candidate status, not correction links) would keep being
+ * served indefinitely alongside the corrected candidate's own data.
  */
 const REVIEWABLE_CANDIDATE_STATUSES_V1 = ['NEEDS_REVIEW', 'REVIEW_ACCEPTED'] as const;
 type ReviewableCandidateStatusV1 = (typeof REVIEWABLE_CANDIDATE_STATUSES_V1)[number];
@@ -131,12 +143,19 @@ export class PrismaReviewedPartialPeTotalsRepositoryV1 implements ReviewedPartia
           { scope: { path: ['fiscalYear'], equals: filter.fiscalYear } },
           ...(filter.component != null ? [{ scope: { path: ['component'], equals: filter.component } }] : []),
           { candidate: { status: { in: [...REVIEWABLE_CANDIDATE_STATUSES_V1] } } },
+          // Phase 10B-35c: a corrected candidate's row is never served, even
+          // though its whole-candidate `status` is deliberately left
+          // untouched by the correction mechanism.
+          { candidate: { is: { correctedBy: { is: null } } } },
         ],
       },
-      include: { candidate: { select: { status: true } } },
+      include: { candidate: { select: { status: true, correctedBy: { select: { id: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
-    const eligible = rows.filter((r) => isReviewableCandidateStatus((r as unknown as { candidate: { status: string } }).candidate.status));
+    const eligible = rows.filter((r) => {
+      const candidate = (r as unknown as { candidate: { status: string; correctedBy: { id: string } | null } }).candidate;
+      return isReviewableCandidateStatus(candidate.status) && candidate.correctedBy == null;
+    });
     const typed = eligible.map((r) => toRow(r as unknown as PrismaRow));
     return filter.component != null
       ? typed.filter((r) => (r.scope as { component?: string }).component === filter.component)
