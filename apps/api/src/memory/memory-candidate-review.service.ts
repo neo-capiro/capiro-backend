@@ -37,6 +37,7 @@ export interface ReviewableMemoryCandidate {
   candidateKind: MemoryCandidateKind;
   scope: string;
   clientId: string | null;
+  clientName?: string | null;
   proposedByUserId: string;
   sourceKind: string;
   createdAt: string;
@@ -214,7 +215,22 @@ export class MemoryCandidateReviewService {
           },
         });
       }
-      return visible;
+      // Resolve labels only for the rows that survived candidate authorization
+      // and reviewer assignment. The workspace's current client is unrelated.
+      const clientIds = [...new Set(visible.flatMap((candidate) =>
+        candidate.scope === 'client' && candidate.clientId ? [candidate.clientId] : [],
+      ))];
+      const clients = clientIds.length
+        ? await tx.client.findMany({
+            where: { tenantId: ctx.tenantId, id: { in: clientIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+      const names = new Map(clients.map((client) => [client.id, client.name]));
+      return visible.map((candidate) => ({
+        ...candidate,
+        clientName: candidate.clientId ? names.get(candidate.clientId) ?? null : null,
+      }));
     });
 
     return { enabled: true, candidates };

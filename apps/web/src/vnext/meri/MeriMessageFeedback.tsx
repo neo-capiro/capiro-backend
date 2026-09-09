@@ -32,6 +32,8 @@ export function MeriMessageFeedback({
   const [reasons, setReasons] = useState<FeedbackReasonCode[]>([]);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
@@ -44,19 +46,30 @@ export function MeriMessageFeedback({
     requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
-  const submitDown = async () => {
+  const submit = async (payload: MessageFeedbackPayload, closeOnSuccess = false) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
+    setError(null);
     try {
-      await onSubmit({
-        rating: 'down',
-        ...(reasons.length ? { reasons } : {}),
-        ...(note.trim() ? { note: note.trim().slice(0, 1000) } : {}),
-      });
-      close();
+      await onSubmit(payload);
+      if (closeOnSuccess) close();
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : 'Feedback could not be saved. Please try again.',
+      );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
+
+  const submitDown = () =>
+    submit({
+      rating: 'down',
+      ...(reasons.length ? { reasons } : {}),
+      ...(note.trim() ? { note: note.trim().slice(0, 1000) } : {}),
+    }, true);
 
   const toggleReason = (reason: FeedbackReasonCode) => {
     setReasons((current) =>
@@ -87,7 +100,8 @@ export function MeriMessageFeedback({
         title="Helpful"
         aria-pressed={currentRating === 'up'}
         style={thumbStyle(currentRating === 'up')}
-        onClick={() => void onSubmit({ rating: currentRating === 'up' ? null : 'up' })}
+        disabled={submitting}
+        onClick={() => void submit({ rating: currentRating === 'up' ? null : 'up' })}
       >
         <MeriIcon name="ThumbsUp" size={13} />
       </button>
@@ -99,13 +113,19 @@ export function MeriMessageFeedback({
         title="Not helpful"
         aria-pressed={currentRating === 'down'}
         style={thumbStyle(currentRating === 'down')}
+        disabled={submitting}
         onClick={() => {
-          if (currentRating === 'down') void onSubmit({ rating: null });
-          else setOpen(true);
+          if (currentRating === 'down') void submit({ rating: null });
+          else {
+            setError(null);
+            setOpen(true);
+          }
         }}
       >
         <MeriIcon name="ThumbsDown" size={13} />
       </button>
+
+      {error && !open && <span role="alert">{error}</span>}
 
       {open && (
         <div
@@ -167,7 +187,8 @@ export function MeriMessageFeedback({
             >
               Select any reasons that apply. Do not include confidential source text in the note.
             </p>
-            <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
+            {error && <p role="alert">{error}</p>}
+            <fieldset disabled={submitting} style={{ margin: 0, padding: 0, border: 0 }}>
               <legend
                 style={{
                   padding: 0,
@@ -225,6 +246,7 @@ export function MeriMessageFeedback({
                 OPTIONAL NOTE
               </span>
               <textarea
+                disabled={submitting}
                 value={note}
                 onChange={(event) => setNote(event.currentTarget.value.slice(0, 1000))}
                 maxLength={1000}

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -20,6 +20,7 @@ type WorkspaceRow = {
   clientId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  _count?: { conversations: number };
 };
 
 export interface SavedPromptInput {
@@ -99,6 +100,7 @@ function publicWorkspace(row: WorkspaceRow) {
     id: row.id,
     name: row.name,
     clientId: row.clientId,
+    ...(row._count ? { threadCount: row._count.conversations } : {}),
     createdAt: row.createdAt?.toISOString?.() ?? '',
     updatedAt: row.updatedAt?.toISOString?.() ?? '',
   };
@@ -163,6 +165,9 @@ export class MeriVNextLibraryService {
         where: { tenantId: ctx.tenantId, userId: ctx.userId },
         orderBy: { updatedAt: 'desc' },
         take: 100,
+        include: { _count: { select: { conversations: { where: {
+          tenantId: ctx.tenantId, userId: ctx.userId, archivedAt: null,
+        } } } } },
       }),
     )) as WorkspaceRow[];
     return { workspaces: rows.map(publicWorkspace) };
@@ -180,7 +185,7 @@ export class MeriVNextLibraryService {
     const row = (await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.meriWorkspace.create({ data: { tenantId: ctx.tenantId, userId: ctx.userId, name, clientId } }),
     )) as WorkspaceRow;
-    return publicWorkspace(row);
+    return { ...publicWorkspace(row), threadCount: 0 };
   }
 
   async updateWorkspace(ctx: TenantContext, workspaceId: string, input: Partial<WorkspaceInput>) {
@@ -200,10 +205,23 @@ export class MeriVNextLibraryService {
       if (!client) throw new NotFoundException('Client not found');
     }
     if (!Object.keys(data).length) return publicWorkspace(existing);
-    const row = (await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meriWorkspace.update({ where: { id: existing.id }, data }),
-    )) as WorkspaceRow;
-    return publicWorkspace(row);
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Lock the owning workspace before checking membership. Assignments take
+      // this same lock, so its client cannot change underneath a new member.
+      const locked = await tx.meriWorkspace.updateMany({
+        where: { id: existing.id, tenantId: ctx.tenantId, userId: ctx.userId },
+        data: { updatedAt: new Date() },
+      });
+      if (!locked.count) throw new NotFoundException('Workspace not found');
+      const current = await tx.meriWorkspace.findFirstOrThrow({
+        where: { id: existing.id, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
+      if (data.clientId !== undefined && data.clientId !== current.clientId &&
+        await tx.clioConversation.count({ where: { tenantId: ctx.tenantId, userId: ctx.userId, workspaceId: existing.id } })) {
+        throw new ConflictException('Remove this workspace’s chats before changing its client. You can move them to an All clients workspace.');
+      }
+      return publicWorkspace(await tx.meriWorkspace.update({ where: { id: existing.id }, data }));
+    });
   }
 
   async deleteWorkspace(ctx: TenantContext, workspaceId: string) {
@@ -212,6 +230,13 @@ export class MeriVNextLibraryService {
     )) as WorkspaceRow | null;
     if (!existing) throw new NotFoundException('Workspace not found');
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Use the same workspace-before-conversation lock order as assignment.
+      // Deleting while a member is moving must not create an opposing lock cycle.
+      const locked = await tx.meriWorkspace.updateMany({
+        where: { id: existing.id, tenantId: ctx.tenantId, userId: ctx.userId },
+        data: { updatedAt: new Date() },
+      });
+      if (!locked.count) throw new NotFoundException('Workspace not found');
       await tx.clioConversation.updateMany({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, workspaceId: existing.id },
         data: { workspaceId: null },
@@ -249,25 +274,32 @@ export class MeriVNextLibraryService {
   }
 
   async assignConversation(ctx: TenantContext, conversationId: string, workspaceId: string | null) {
-    if (workspaceId) {
-      const workspace = (await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.meriWorkspace.findFirst({ where: { id: workspaceId, tenantId: ctx.tenantId, userId: ctx.userId } }),
-      )) as WorkspaceRow | null;
-      if (!workspace) throw new NotFoundException('Workspace not found');
-    }
-    const conversation = (await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.findFirst({
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      let workspace: WorkspaceRow | null = null;
+      if (workspaceId) {
+        const owned = await tx.meriWorkspace.updateMany({
+          where: { id: workspaceId, tenantId: ctx.tenantId, userId: ctx.userId },
+          data: { updatedAt: new Date() },
+        });
+        if (!owned.count) throw new NotFoundException('Workspace not found');
+        workspace = await tx.meriWorkspace.findFirst({ where: { id: workspaceId, tenantId: ctx.tenantId, userId: ctx.userId } });
+        if (!workspace) throw new NotFoundException('Workspace not found');
+      }
+      const conversation = await tx.clioConversation.findFirst({
         where: { id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId, archivedAt: null },
-        select: { id: true },
-      }),
-    )) as { id: string } | null;
-    if (!conversation) throw new NotFoundException('Meri conversation not found');
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioConversation.update({
-        where: { id: conversation.id },
+        select: { id: true, clientId: true },
+      });
+      if (!conversation) throw new NotFoundException('Meri conversation not found');
+      if (workspace?.clientId && workspace.clientId !== conversation.clientId) {
+        throw new ConflictException('This workspace is for a different client. Choose a workspace for this chat’s client or an All clients workspace.');
+      }
+      const updated = await tx.clioConversation.updateMany({
+        where: { id: conversation.id, tenantId: ctx.tenantId, userId: ctx.userId,
+          archivedAt: null, clientId: conversation.clientId },
         data: { workspaceId },
-      }),
-    );
-    return { id: conversation.id, workspaceId };
+      });
+      if (!updated.count) throw new ConflictException('The chat changed while it was being moved. Reload it and try again.');
+      return { id: conversation.id, workspaceId };
+    });
   }
 }

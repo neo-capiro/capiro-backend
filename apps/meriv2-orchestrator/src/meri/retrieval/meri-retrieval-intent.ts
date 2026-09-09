@@ -1,3 +1,5 @@
+import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
+
 export const MERI_SUBJECT_SCOPES = [
   'client',
   'portfolio',
@@ -28,14 +30,6 @@ export interface MeriRetrievalIntent {
   targetHint: string | null;
   reasonCodes: string[];
 }
-
-const PORTFOLIO_PATTERNS = [
-  /\b(?:across|among)\s+(?:all\s+)?(?:(?:my|our|the\s+firm(?:'s)?)\s+)?clients?\b/i,
-  /\b(?:all|every|entire)\s+(?:of\s+)?(?:(?:my|our)\s+)?(?:clients?|portfolio)\b/i,
-  /\bportfolio(?:-wide|\s+(?:scan|brief|check|changes?|updates?))?\b/i,
-  /\bsearch\s+across\s+clients?\b/i,
-  /\bclient\s+book\b/i,
-];
 
 const CHANGE_PATTERNS = [
   /\bwhat(?:'s|\s+has)?\s+changed\b/i,
@@ -111,108 +105,12 @@ const TEMPORAL_PATTERNS = [
   /\brecent\b/i,
 ];
 
-const GENERIC_TARGET_WORDS = new Set([
-  'a',
-  'all',
-  'an',
-  'any',
-  'client',
-  'clients',
-  'current',
-  'every',
-  'it',
-  'me',
-  'my',
-  'our',
-  'portfolio',
-  'the',
-  'them',
-  'this',
-  'us',
-  'you',
-  'your',
-]);
-
-const TARGET_STOP_WORDS = new Set([
-  'and',
-  'but',
-  'could',
-  'find',
-  'give',
-  'has',
-  'have',
-  'is',
-  'look',
-  'research',
-  'search',
-  'should',
-  'tell',
-  'then',
-  'that',
-  'their',
-  'they',
-  'what',
-  'which',
-  'who',
-  'would',
-]);
-
-const EXPLICIT_NAMED_SUBJECT_RE =
-  /\b(?:tell\s+me\s+about|research|profile|brief\s+(?:on|about)|look\s+up)\b/i;
-
 function matchesAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
 
-function cleanTargetCandidate(value: string): string | null {
-  const words = value
-    .replace(/[?!.;,]+$/g, '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  const kept: string[] = [];
-  for (const word of words) {
-    if (kept.length > 0 && TARGET_STOP_WORDS.has(word.toLowerCase())) break;
-    kept.push(word);
-    if (kept.length >= 6) break;
-  }
-  const candidate = kept.join(' ').trim();
-  if (!candidate) return null;
-  const first = candidate.toLowerCase().split(/\s+/)[0] ?? '';
-  return first && !GENERIC_TARGET_WORDS.has(first) ? candidate : null;
-}
-
-function looksLikeExplicitEntityName(target: string | null): boolean {
-  if (!target) return false;
-  return (
-    /\d/.test(target) ||
-    /(?:^|\s)[A-Z][A-Za-z0-9&.'-]*/.test(target) ||
-    /\b(?:inc|llc|corp|corporation|company|co|ltd|limited|group|holdings?|advisors?|systems?|technologies?)\b/i.test(
-      target,
-    ) ||
-    /\.[a-z]{2,}$/i.test(target)
-  );
-}
-
 export function meriRetrievalTargetHint(text: string): string | null {
-  const domain = text.match(
-    /\b(?:https?:\/\/)?(?:www\.)?([a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z]{2,})(?:\/\S*)?\b/i,
-  )?.[1];
-  if (domain) return domain.replace(/[),.;!?]+$/g, '');
-
-  const patterns = [
-    /\bwhat\s+does\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,5}?)\s+(?:do|make|build|provide|sell|offer)\b/gi,
-    /\b(?:strategy|research|profile|brief)\s+(?:on|for|about)\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,7})/gi,
-    /\b(?:about|from|with|at|for|on)\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,7})/gi,
-    /\b(?:compare|versus|vs\.?)\b.*?\b(?:to|with|against)\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,7})/gi,
-  ];
-  let candidate: string | null = null;
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      candidate = cleanTargetCandidate(match[1] ?? '') ?? candidate;
-    }
-  }
-  return candidate;
+  return explicitMeriSubjectHint(text);
 }
 
 function hasExplicitFocusedClientComparison(text: string): boolean {
@@ -233,7 +131,7 @@ export function classifyMeriRetrievalIntent(
 ): MeriRetrievalIntent {
   const text = request.trim();
   const reasonCodes: string[] = [];
-  const portfolio = matchesAny(text, PORTFOLIO_PATTERNS);
+  const portfolio = hasExplicitMeriPortfolioScope(text);
   const change = matchesAny(text, CHANGE_PATTERNS);
   const relationship = matchesAny(text, RELATIONSHIP_PATTERNS);
   const federalMarket = matchesAny(text, FEDERAL_MARKET_PATTERNS);
@@ -241,18 +139,9 @@ export function classifyMeriRetrievalIntent(
   const exhaustive = matchesAny(text, EXHAUSTIVE_PATTERNS);
   const externalDiscovery = matchesAny(text, EXTERNAL_DISCOVERY_PATTERNS);
   const companyDescription = matchesAny(text, COMPANY_DESCRIPTION_PATTERNS);
-  const targetHint = meriRetrievalTargetHint(text);
+  const targetHint = explicitMeriSubjectHint(text, Boolean(selectedClientId));
   const namedTarget = Boolean(targetHint);
-  const explicitNamedSubject = Boolean(
-    namedTarget &&
-      (externalDiscovery ||
-        relationship ||
-        federalMarket ||
-        comparison ||
-        companyDescription ||
-        EXPLICIT_NAMED_SUBJECT_RE.test(text) ||
-        looksLikeExplicitEntityName(targetHint)),
-  );
+  const explicitNamedSubject = namedTarget;
   const focusedClientComparison = hasExplicitFocusedClientComparison(text);
 
   if (portfolio) reasonCodes.push('explicit_portfolio_scope');

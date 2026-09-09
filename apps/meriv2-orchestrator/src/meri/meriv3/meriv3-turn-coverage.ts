@@ -11,7 +11,14 @@ export interface MeriToolCoverageReceipt {
   tool: string;
   status: Status;
   recordsReturned: number | null;
+  /** Records actually inspected by the source, only when explicitly reported. */
   recordsEvaluated: number | null;
+  /** Matching records in this query/section, including records outside this page. */
+  recordsMatched?: number | null;
+  /** Returned records shown to the model after any evidence projection. */
+  recordsDisplayed?: number | null;
+  /** Returned records omitted from model evidence; never inferred from total matches. */
+  recordsOmitted?: number | null;
   paginationComplete: boolean | null;
   truncated: boolean;
   lastSyncAt?: string;
@@ -74,69 +81,69 @@ function receipt(
   source: string,
   raw: Record<string, unknown>,
   payload: Record<string, unknown>,
+  options: { isolated?: boolean; displayed?: number | null; projected?: boolean } = {},
 ): MeriToolCoverageReceipt {
-  const projection = object(payload.projection);
-  const pagination = object(payload.pagination);
+  // Multi-source manifests and profile sections have independent count scopes.
+  // A payload-wide total, array or projection must never fill a missing section count.
+  const fallback = options.isolated ? {} : payload;
+  const projection = object(fallback.projection);
+  const pagination = object(raw.pagination) ?? object(fallback.pagination);
   const returned = count(
+    raw.sourceReturned,
+    projection?.sourceRecordCount,
     raw.returned,
     raw.recordsReturned,
-    payload.returned,
-    ...['records', 'results', 'documents', 'data', 'items'].map((key) =>
-      Array.isArray(payload[key]) ? payload[key].length : undefined,
+    fallback.returned,
+    fallback.recordsReturned,
+    ...['records', 'results', 'documents', 'data', 'items', 'messages'].map((key) =>
+      Array.isArray(fallback[key]) ? fallback[key].length : undefined,
     ),
   );
-  const evaluated = count(raw.recordsEvaluated, raw.total, payload.total, payload.totalMatches);
+  const evaluated = count(raw.recordsEvaluated, fallback.recordsEvaluated);
+  const matched = count(raw.totalMatches, raw.total, fallback.totalMatches, fallback.total);
+  const displayed = count(options.displayed, raw.recordsDisplayed, projection?.shownRecordCount,
+    fallback.recordsDisplayed,
+    // A section projection preserves its original sourceReturned separately.
+    raw.sourceReturned !== undefined ? raw.returned : undefined,
+    ...['records', 'results', 'documents', 'data', 'items', 'messages'].map((key) =>
+      Array.isArray(fallback[key]) ? fallback[key].length : undefined,
+    ));
+  // A receipt-only returned count does not prove that any record body was
+  // displayed. Keep that count unknown unless the visible payload establishes it.
+  const omitted = returned !== null && displayed !== null && displayed <= returned
+    ? returned - displayed : null;
   const hasMore =
-    raw.hasMore === true ||
-    raw.nextCursor != null ||
-    pagination?.hasMore === true ||
-    payload.hasMore === true ||
-    payload.nextCursor != null;
+    raw.hasMore === true || raw.nextCursor != null || pagination?.hasMore === true ||
+    fallback.hasMore === true || fallback.nextCursor != null;
   const truncated =
-    raw.truncated === true ||
-    payload.truncated === true ||
-    payload.contentTruncated === true ||
-    projection?.truncated === true;
+    (omitted !== null && omitted > 0) ||
+    raw.truncated === true || raw.truncatedByProjection === true || options.projected === true ||
+    fallback.truncated === true || fallback.contentTruncated === true || projection?.truncated === true;
   const paginationComplete =
     hasMore || raw.paginationComplete === false || pagination?.complete === false
       ? false
       : raw.paginationComplete === true || pagination?.complete === true
-        ? true
-        : null;
-  const sourceStatus = String(raw.sourceStatus ?? raw.status ?? payload.status ?? '');
-  const failed = Boolean(payload.error || payload.blocked || /^(error|failed)$/.test(sourceStatus));
-  const unavailable = /^(unavailable|disabled|unsupported|not_configured)$/.test(sourceStatus);
+        ? true : null;
+  const sourceStatus = String(raw.sourceStatus ?? raw.status ?? fallback.sourceStatus ?? fallback.status ?? '');
+  const unavailable = /^(unavailable|disabled|unsupported|not_configured|unauthorized)$/.test(sourceStatus);
+  const failed = Boolean(raw.error || fallback.error || fallback.blocked || /^(error|failed)$/.test(sourceStatus));
   const fullyRead =
-    (raw.coverageComplete === true || raw.complete === true) &&
-    !truncated &&
-    !hasMore &&
-    paginationComplete !== false &&
-    sourceStatus !== 'degraded';
-  const status: Status = failed
-    ? 'error'
-    : unavailable
-      ? 'unavailable'
-      : fullyRead
-        ? 'complete'
-        : 'partial';
+    (raw.coverageComplete === true || raw.complete === true) && !truncated && !hasMore &&
+    paginationComplete !== false && raw.partial !== true && fallback.partial !== true &&
+    !['partial', 'degraded', 'unknown'].includes(sourceStatus);
+  const status: Status = unavailable ? 'unavailable' : failed ? 'error' : fullyRead ? 'complete' : 'partial';
   return {
-    source,
-    tool,
-    status,
-    // A projected payload may expose fewer records than the source receipt.
-    recordsReturned:
-      projection?.truncated === true
-        ? count(projection.shownRecordCount, payload.returned)
-        : returned,
+    source, tool, status,
+    recordsReturned: returned,
     recordsEvaluated: evaluated,
-    paginationComplete,
-    truncated,
+    recordsMatched: matched,
+    recordsDisplayed: displayed,
+    recordsOmitted: omitted,
+    paginationComplete, truncated,
     ...(date(raw.lastSyncAt) ? { lastSyncAt: date(raw.lastSyncAt) } : {}),
-    ...(typeof raw.stopReason === 'string'
-      ? { detail: raw.stopReason }
-      : failed
-        ? { detail: 'source_read_failed' }
-        : {}),
+    ...(typeof raw.stopReason === 'string' ? { detail: raw.stopReason }
+      : typeof fallback.sourceReason === 'string' ? { detail: fallback.sourceReason }
+      : failed ? { detail: 'source_read_failed' } : {}),
   };
 }
 
@@ -156,7 +163,8 @@ export function observeMeriTurnToolCoverage(
     const unavailable = Array.isArray(payload.searchedMailboxes) && mailboxes.length === 0;
     return [{ ...receipt(tool, 'mail', {
       returned: observed.returned,
-      recordsEvaluated: observed.total,
+      recordsEvaluated: count(payload.recordsEvaluated),
+      totalMatches: observed.total,
       hasMore: observed.hasMore,
       truncated: payload.truncated === true,
       complete: mailCoverageKnown && observed.status === 'complete',
@@ -170,10 +178,18 @@ export function observeMeriTurnToolCoverage(
   }
   const coverage = object(payload.coverage);
   if (Array.isArray(coverage?.sources)) {
-    return coverage.sources.flatMap((value) => {
+    const sources = coverage.sources;
+    return sources.flatMap((value) => {
       const source = object(value);
       return source && typeof source.domain === 'string'
-        ? [receipt(tool, source.domain, source, payload)]
+        ? [receipt(tool, source.domain, source, payload, {
+            isolated: sources.length > 1,
+            // Domain-bearing projected rows can be counted at the source scope.
+            ...(Array.isArray(payload.records) && payload.records.every((row) => typeof object(row)?.domain === 'string')
+              ? { displayed: payload.records.filter((row) => object(row)?.domain === source.domain).length }
+              : {}),
+            projected: object(payload.projection)?.truncated === true,
+          })]
         : [];
     });
   }
@@ -191,12 +207,39 @@ export function observeMeriTurnToolCoverage(
           complete: section.status === 'complete' && section.representation === 'full',
           paginationComplete: section.status === 'complete' && section.nextCursor == null,
         },
-        payload,
+        {},
+        {
+          isolated: true,
+          displayed: Array.isArray(object(payload.profile)?.[name])
+            ? (object(payload.profile)![name] as unknown[]).length : null,
+          projected: section.truncatedByProjection === true,
+        },
       );
       return [{ ...observed, detail: `profile_section:${name}` }];
     });
   }
-  return domains(tool).map((domain) => receipt(tool, domain, coverage ?? {}, payload));
+  if (tool === 'search_sam_opportunities') {
+    const freshness = Array.isArray(payload.sourceFreshness)
+      ? payload.sourceFreshness.map(object).find((row) => row?.source === 'sam_gov') : null;
+    return [receipt(tool, 'contracts_opportunities', {
+      ...(coverage ?? {}), lastSyncAt: freshness?.lastSyncedAt,
+    }, payload)];
+  }
+  const coveredDomains = domains(tool);
+  if (coveredDomains.length <= 1) return coveredDomains.map((domain) => receipt(tool, domain, coverage ?? {}, payload));
+  // The catalog records a tool's capabilities, not a per-source inventory. A
+  // combined grants/contracts result cannot assign its entire count to both.
+  const { returned: _returned, recordsReturned: _recordsReturned, sourceReturned: _sourceReturned,
+    total: _total, totalMatches: _totalMatches, recordsEvaluated: _recordsEvaluated,
+    recordsDisplayed: _recordsDisplayed, ...health } = coverage ?? {};
+  return coveredDomains.map((domain) => receipt(tool, domain, {
+    ...health,
+    complete: false,
+    coverageComplete: false,
+    sourceStatus: health.sourceStatus ?? payload.sourceStatus ?? payload.status,
+    error: health.error ?? payload.error ?? payload.blocked,
+    stopReason: health.stopReason ?? payload.sourceReason ?? 'per_source_counts_not_reported',
+  }, {}, { isolated: true, projected: object(payload.projection)?.truncated === true }));
 }
 
 /**
@@ -215,14 +258,14 @@ export function reconcileMeriTurnCoverage(
   reads = [
     ...reads.filter((read) => !read.mailPage),
     ...coalesceMeriMailPages(mailPages.map((read) => ({
-      tool: read.tool, domains: ['mail'], returned: read.recordsReturned ?? 0,
-      total: read.recordsEvaluated, hasMore: read.paginationComplete === false,
+      tool: read.tool, domains: ['mail'], returned: read.recordsDisplayed ?? read.recordsReturned ?? 0,
+      total: read.recordsMatched ?? null, hasMore: read.paginationComplete === false,
       truncated: read.truncated, status: read.status === 'error' ? 'error'
         : read.status === 'unavailable' ? 'unavailable' : read.status === 'complete' ? 'complete' : 'partial',
       sourceHealth: [], mailPage: read.mailPage, detail: read.detail,
     }))).map((observed): MeriToolCoverageReceipt => ({
       source: 'mail', tool: observed.tool, status: observed.status,
-      recordsReturned: observed.returned, recordsEvaluated: observed.total,
+      recordsReturned: observed.returned, recordsEvaluated: null, recordsMatched: observed.total,
       paginationComplete: !observed.hasMore, truncated: observed.truncated,
       ...(observed.detail ? { detail: observed.detail } : {}),
     })),

@@ -1,3 +1,5 @@
+import { normalizeMeriSourceLocator } from './meri-source-api.js';
+import { persistedMeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { meriRetrievalMetadata } from '../../components/chat/meri-retrieval-metadata.js';
 import type {
   ChatMessage,
@@ -27,6 +29,8 @@ export interface PersistedChartArtifact {
 }
 
 export interface PersistedMessage {
+  userId?: string;
+  clientId?: string | null;
   id?: string;
   role?: string;
   body?: string;
@@ -115,6 +119,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/** The history API authorizes message ownership; malformed or foreign ratings stay unselected. */
+export function mapPersistedFeedback(message: PersistedMessage): 'up' | 'down' | null {
+  if (message.role !== 'assistant') return null;
+  const feedback = asRecord(message.metadata?.feedback);
+  if (message.userId && feedback?.userId && feedback.userId !== message.userId) return null;
+  return feedback?.rating === 'up' || feedback?.rating === 'down' ? feedback.rating : null;
+}
+
 export function mapPersistedCitations(message: PersistedMessage): MeriCitation[] {
   const raw = Array.isArray(message.metadata?.citations) ? message.metadata.citations : [];
   return raw
@@ -132,6 +144,7 @@ export function mapPersistedCitations(message: PersistedMessage): MeriCitation[]
       url: typeof item.url === 'string' ? item.url : null,
       snippet: typeof item.snippet === 'string' ? item.snippet : null,
       tool: typeof item.tool === 'string' ? item.tool : 'unknown',
+      ...(normalizeMeriSourceLocator(item.source) ? { source: normalizeMeriSourceLocator(item.source) } : {}),
     }));
 }
 
@@ -236,6 +249,8 @@ function isUuid(value: unknown): value is string {
   );
 }
 
+export const mapPersistedTurnScope = persistedMeriTurnScope;
+
 export function mapPersistedContextPacketId(message: PersistedMessage): string | undefined {
   const metadata = message.metadata;
   if (isUuid(metadata?.contextPacketId)) return metadata.contextPacketId;
@@ -313,7 +328,7 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
     client,
     latestMessage,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
-    ...(typeof raw.workspaceId === 'string' ? { workspaceId: raw.workspaceId } : {}),
+    ...(typeof raw.workspaceId === 'string' || raw.workspaceId === null ? { workspaceId: raw.workspaceId } : {}),
     ...(raw.workspace &&
     typeof raw.workspace === 'object' &&
     typeof (raw.workspace as Record<string, unknown>).id === 'string' &&
@@ -328,7 +343,7 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
                 : null,
           },
         }
-      : {}),
+      : raw.workspace === null ? { workspace: null } : {}),
   };
 }
 

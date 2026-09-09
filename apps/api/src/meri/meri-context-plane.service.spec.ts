@@ -151,3 +151,55 @@ describe('MeriContextPlaneService Phase 19 planning', () => {
     expect(plan.requestedDomains).not.toContain('outreach');
   });
 });
+
+
+describe('MW-07 explicit subject contract', () => {
+  const instructions = [
+    'QA Sep 9: In one sentence, explain the difference between authorization and appropriations.',
+    'Extract fields from the attached synthetic QA brief.',
+    'Create a Word document and PDF using the synthetic brief.',
+    'Reply with exactly READY. Do not use tools or save memory.',
+    'Make a brief for QA in PDF format.',
+    'Draft for our meeting on READY status.',
+    'Assess PDF extraction results.',
+    'Reply with exactly "Search across clients".',
+    'Rewrite this sentence: Search across clients.',
+    'Reply with exactly "Research READY". Do not use tools or save memory.',
+    'Summarize the attached brief titled "Research QA".',
+    'Rewrite this sentence: Research PDF extraction results.',
+    'Reply with exactly "Research READY. Tell me about PDF".',
+    'Rewrite this paragraph: Research QA. Tell me about READY.',
+    'Summarize the attachment: QA, FY2027, BLUE-ORBIT-47.',
+  ];
+  test.each(instructions)('keeps a general instruction general: %s', (task) => {
+    expect(planMeriTurn({ task, uiClientId: null, uiClientName: null })).toMatchObject({
+      subjectScope: 'general', targetHint: null,
+    });
+  });
+  test.each(instructions)('preserves explicit client focus: %s', (task) => {
+    expect(planMeriTurn({ task, uiClientId: 'client-acme', uiClientName: 'Acme Defense' })).toMatchObject({
+      subjectScope: 'client', targetHint: null,
+    });
+  });
+  test.each([
+    ['Research https://www.saronic.com/ and provide a PDF.', 'saronic.com'],
+    ['Could you please research "RTX"?', 'RTX'],
+    ['Research "Johnson and Johnson"', 'Johnson and Johnson'],
+    ['what does overland ai do', 'overland ai'],
+    ['Give me a summary of my emails from Powers Interactive', 'Powers Interactive'],
+    ['Compare my client with Shield AI', 'Shield AI'],
+    ['What is our relationship with Anduril?', 'Anduril'],
+    ['What is our engagement history with Anduril?', 'Anduril'],
+    ['Check my inbox and tell me about Anduril', 'Anduril'],
+    ['Compare RTX and LMT', 'RTX'],
+  ])('still resolves an explicit external inquiry: %s', (task, targetHint) => {
+    expect(planMeriTurn({ task, uiClientId: 'client-acme', uiClientName: 'Acme Defense' })).toMatchObject({
+      subjectScope: 'external_entity', targetHint,
+    });
+  });
+  test.each(['Compare all our clients for a PDF briefing', 'Compare all clients', 'Search across clients'])('portfolio comparison remains portfolio-wide: %s', (task) => {
+    expect(planMeriTurn({ task, uiClientId: 'client-acme', uiClientName: 'Acme Defense' })).toMatchObject({
+      subjectScope: 'portfolio', targetHint: null,
+    });
+  });
+});

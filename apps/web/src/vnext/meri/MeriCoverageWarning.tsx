@@ -85,6 +85,10 @@ export function MeriCoverageWarning({ retrieval }: { retrieval: ChatMessageRetri
   const searched = retrieval.coverage.searchedDomains ?? [];
   const turn = retrieval.coverage.phase === 'turn';
   const restored = retrieval.coverage.restoredSources ?? [];
+  const required = retrieval.plan.requiredDomains ?? [];
+  const supplementary = required.length === 0 && retrieval.plan.requireCompleteCoverage === false;
+  const failed = missing.filter((domain) => searched.includes(domain));
+  const notSearched = missing.filter((domain) => !searched.includes(domain));
 
   return (
     <div
@@ -108,13 +112,17 @@ export function MeriCoverageWarning({ retrieval }: { retrieval: ChatMessageRetri
             color: spec.fg,
           }}
         >
-          {turn && tone === 'missing' ? 'INITIAL CONTEXT GAP REMAINS' : spec.label}
+          {supplementary ? 'CONTEXT LIMITATIONS' : turn && tone === 'missing' ? 'INITIAL CONTEXT GAP REMAINS' : spec.label}
         </span>
       </div>
 
       {missing.length ? (
         <div style={{ marginTop: 9, fontSize: 13, lineHeight: '19px', color: '#344054' }}>
-          {turn ? 'Initial context still missing: ' : 'Not searched: '}{missing.map(domainLabel).join(', ')}.
+          {turn ? `Initial context still missing: ${missing.map(domainLabel).join(', ')}.` : <>
+            {failed.length ? <div>Could not read: {failed.map(domainLabel).join(', ')}.</div> : null}
+            {notSearched.length ? <div>Not searched: {notSearched.map(domainLabel).join(', ')}.</div> : null}
+          </>}
+          {supplementary ? <div>These sources were requested as supplementary context. Their gaps do not establish that this question requires them.</div> : null}
         </div>
       ) : null}
       {restored.length ? (

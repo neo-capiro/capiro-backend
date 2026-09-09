@@ -92,11 +92,13 @@ export function projectMemoryContent(
         sourceType: provenance.sourceType ?? null,
         sourceId: text(provenance.sourceId, 200),
         sourceRef: text(provenance.sourceRef, 600),
+        sourceExcerpt: text(provenance.sourceExcerpt, 400),
         contentHash: provenance.contentHash ?? null,
         sourceVersion: text(provenance.sourceVersion, 200),
         metadataTruncated:
           String(provenance.sourceId ?? '').length > 200 ||
           String(provenance.sourceRef ?? '').length > 600 ||
+          String(provenance.sourceExcerpt ?? '').length > 400 ||
           String(provenance.sourceVersion ?? '').length > 200,
       },
       payload: {
@@ -108,6 +110,8 @@ export function projectMemoryContent(
         scope: record.payload.scope ?? null,
         clientId: record.payload.clientId ?? null,
         governance: record.payload.governance ?? null,
+        contentStatus: record.payload.contentStatus ?? (value.trim() ? 'available' : 'empty'),
+        contentLimitation: record.payload.contentLimitation ?? null,
         content: {
           hash,
           totalCharacters: value.length,

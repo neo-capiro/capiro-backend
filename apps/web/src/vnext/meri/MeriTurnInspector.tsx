@@ -1,3 +1,4 @@
+import type { MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon } from './meri-icons.js';
 import { MeriThinkingTab, type MeriThinkingTabProps } from './MeriThinkingTab.js';
@@ -22,6 +23,8 @@ export type MeriTurnInspectorTab = 'thinking' | 'evidence' | 'approvals';
 export interface MeriTurnInspectorData {
   /** The message id of the assistant turn this inspector is scoped to. */
   turnId: string;
+  turnScope?: MeriTurnScope;
+  contextPacketId?: string;
   thinking: MeriThinkingTabProps;
   evidence: MeriEvidenceTabProps;
   approvals: PendingApproval[];

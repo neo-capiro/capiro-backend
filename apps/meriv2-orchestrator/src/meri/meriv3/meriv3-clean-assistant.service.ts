@@ -41,6 +41,8 @@ interface CitationEvidence {
   title: string;
   url: string | null;
   snippet: string | null;
+  source?: MeriCitation['source'];
+  documentEvidence?: MeriCitation['documentEvidence'];
 }
 
 const RESULT_ARRAY_KEYS = [
@@ -125,7 +127,7 @@ function resultRows(result: unknown, tool: string): Record<string, unknown>[] {
         // Shared retrieval keeps titles and links inside an evidence envelope.
         // Reuse the canonical extractor so Form-B references beyond the initial
         // five prompt citations receive the same authoritative source identity.
-        return extractCitationsFromToolResult(tool, { records: [row] }, 1, 1).map((citation) => ({
+        return extractCitationsFromToolResult(tool, { ...result, records: [row] }, 1, 1).map((citation) => ({
           ...citation,
           sourceTool: tool,
         }));
@@ -157,6 +159,10 @@ function evidenceFromLedger(entries: readonly LedgerEntry[]): CitationEvidence[]
   const evidence: CitationEvidence[] = [];
   const seen = new Set<string>();
   for (const entry of entries) {
+    // Reuse source-owned extraction at the release limit. Five prompt candidates
+    // are a display budget, not a limit on records the provider may cite.
+    const canonical = new Map(extractCitationsFromToolResult(entry.tool, entry.result, 1, MAX_RELEASE_CITATIONS)
+      .map((citation) => [citation.id, citation]));
     for (const row of resultRows(entry.result, entry.tool)) {
       const id = firstString(row, ID_FIELDS);
       const title = firstString(row, TITLE_FIELDS);
@@ -166,6 +172,7 @@ function evidenceFromLedger(entries: readonly LedgerEntry[]): CitationEvidence[]
       if (seen.has(key)) continue;
       seen.add(key);
       const urlRaw = firstString(row, URL_FIELDS);
+      const locator = canonical.get(id);
       evidence.push({
         callTool: entry.tool,
         sourceTool,
@@ -173,6 +180,8 @@ function evidenceFromLedger(entries: readonly LedgerEntry[]): CitationEvidence[]
         title: truncate(title, 200) ?? title,
         url: urlRaw && /^https?:\/\//i.test(urlRaw) ? urlRaw : null,
         snippet: truncate(firstString(row, SNIPPET_FIELDS), 240),
+        ...(locator?.source ? { source: locator.source } : {}),
+        ...(locator?.documentEvidence ? { documentEvidence: locator.documentEvidence } : {}),
       });
     }
   }
@@ -215,6 +224,8 @@ export function buildMeriV3ReleaseCitations(
           url: source.url,
           snippet: source.snippet,
           tool: source.sourceTool,
+          ...(source.source ? { source: source.source } : {}),
+          ...(source.documentEvidence ? { documentEvidence: source.documentEvidence } : {}),
         }
       : citation;
     const key = `${updated.tool}:${updated.id}`;
@@ -250,6 +261,8 @@ export function buildMeriV3ReleaseCitations(
         url: source.url,
         snippet: source.snippet,
         tool: source.sourceTool,
+        ...(source.source ? { source: source.source } : {}),
+        ...(source.documentEvidence ? { documentEvidence: source.documentEvidence } : {}),
       };
       reservedNumbers.add(nextN);
       nextN += 1;

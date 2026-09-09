@@ -1,3 +1,4 @@
+import { mapPersistedFeedback } from '../../vnext/meri/meri-route-state.js';
 import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
 import type React from 'react';
 import { useAuth } from '@clerk/clerk-react';
@@ -115,6 +116,7 @@ export function MeriWorkspaceThreadRail({
           appendChatMessage({
             id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             role: message.role === 'user' ? 'user' : 'assistant',
+            feedback: mapPersistedFeedback(message),
             content: message.body || '',
             createdAt: new Date(message.createdAt),
             ...(attachments.length ? { attachments } : {}),

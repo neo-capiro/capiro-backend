@@ -193,6 +193,12 @@ export class LearningSignalCandidateService {
     // (never persisted verbatim — fetched, embedded, discarded). Read-only:
     // never touches memory_items, never resolves anything itself.
     const factText = await this.resolveFactText(tenantId, signal, evidenceRefs);
+    if (signal.sourceSurface === 'crm.fill_with_meri' && !factText) {
+      return this.recordOutcome(tenantId, signal, {
+        eligibility: 'insufficient_evidence',
+        reason: 'The accepted client finding has no available fact content in the same client scope; no metadata-only memory candidate was created.',
+      });
+    }
     const conflictMatch = factText
       ? await this.conflictDetection.findBestActiveMemoryMatch(
           { tenantId, clientId: signal.clientId, actorUserId: signal.actorUserId },
@@ -248,6 +254,7 @@ export class LearningSignalCandidateService {
           clientId: signal.clientId,
           key: candidateKey,
           value: buildCandidateValueSummary(signal, provenance, authority, factText),
+          sourceExcerpt: factText,
           source: 'learning_signal',
           confidence: authority.proposedConfidence,
           sourceType: LEARNING_SIGNAL_SOURCE_TYPE,
@@ -426,6 +433,7 @@ export class LearningSignalCandidateService {
           SELECT proposed_value_jsonb AS "proposedValue"
           FROM client_profile_fill_finding
           WHERE id = ${findingRef.id}::uuid AND tenant_id = ${tenantId}::uuid
+            AND client_id = ${signal.clientId}::uuid AND status = 'accepted'
           LIMIT 1
         `,
       );
@@ -441,7 +449,7 @@ export class LearningSignalCandidateService {
       if (!messageRef?.id) return null;
       const message = await this.prisma.withTenant(tenantId, (tx) =>
         tx.clioMessage.findFirst({
-          where: { id: messageRef.id, tenantId },
+          where: { id: messageRef.id, tenantId, userId: signal.actorUserId },
           select: { metadata: true },
         }),
       );
@@ -505,16 +513,18 @@ export class LearningSignalCandidateService {
  * `client_profile_fill_finding.proposed_value_jsonb` has no single fixed
  * shape — it varies by `kind` (a person finding carries name/email/role, a
  * capability finding carries name/type/description, ...). Rather than
- * special-case every kind, join every top-level string-valued field into
+ * special-case every kind, preserve structured field values, including lists and numeric attributes, in
  * one embeddable line — good enough for a similarity search, not intended
  * to be a polished human-facing sentence.
  */
 function factTextFromValue(value: unknown): string | null {
   if (typeof value === 'string') return value.trim() || null;
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (!value || typeof value !== 'object') return null;
   const parts = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => typeof v === 'string' && v.trim())
-    .map(([k, v]) => `${k}: ${(v as string).trim()}`);
+    .filter(([, v]) => v != null && (typeof v !== 'string' || v.trim()))
+    .map(([k, v]) => `${k}: ${typeof v === 'string' ? v.trim() : JSON.stringify(v)}`);
   return parts.length ? parts.join('; ') : null;
 }
 

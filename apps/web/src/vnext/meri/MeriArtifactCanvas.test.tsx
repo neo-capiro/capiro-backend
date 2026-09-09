@@ -79,7 +79,10 @@ describe('MeriArtifactCanvas Word preview', () => {
 
   test('downloads the authenticated canonical DOCX binary without replacing its persisted spec', async () => {
     const blob = new Blob(['PK'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: async () => blob });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({
+      'Content-Type': blob.type,
+      'Content-Disposition': 'attachment; filename="saved-qa-briefing.docx"',
+    }), blob: async () => blob });
     vi.stubGlobal('fetch', fetchMock);
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:word-document');
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -91,9 +94,10 @@ describe('MeriArtifactCanvas Word preview', () => {
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledWith(blob));
     expect(fetchMock).toHaveBeenCalledWith('https://api.example.test/api/clio/artifacts/artifact-qa-briefing/download', {
       headers: { Authorization: 'Bearer test' },
+      signal: expect.any(AbortSignal), cache: 'no-store', redirect: 'error',
     });
-    expect(filename).toBe('capiro-2-0-pdf-page-22-internal-qa-briefing.docx');
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:word-document');
+    expect(filename).toBe('saved-qa-briefing.docx');
+    expect(revokeObjectURL).not.toHaveBeenCalled();
     expect(artifact.bodyText).toBe(JSON.stringify(wordSpec));
   });
 
