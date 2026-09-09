@@ -5516,6 +5516,20 @@ export class EngagementService {
           : null,
         confidential: note.confidential,
         accessLevel: note.accessLevel,
+        // Phase 2 §d / EM-05: the client's MeetingNote type declares
+        // status/approvedAt/approvedByUserId/sharedAt/sharedByUserId and the
+        // per-note Draft/Edited/Approved/Shared pill (NotesTab) keys off
+        // them, but this serializer never sent them — every note rendered as
+        // "Draft" with an enabled Approve button even when the server-side
+        // decorateMeetings projection (tab dot, Library, Share dialog) said
+        // Approved. Serialize the same approval/share lifecycle fields
+        // noteMetadataSelect() exposes on the meeting payload so all four
+        // surfaces agree on one version and approval state.
+        status: note.status,
+        approvedAt: note.approvedAt,
+        approvedByUserId: note.approvedByUserId,
+        sharedAt: note.sharedAt,
+        sharedByUserId: note.sharedByUserId,
         keyVersion: note.keyVersion,
         authorUserId: note.authorUserId,
         author: note.author,

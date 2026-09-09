@@ -343,3 +343,120 @@ describe('approveMeetingPrep — unchanged: no per-item author check', () => {
     // note: prep keeps its existing no-author-check gate unchanged).
   });
 });
+
+describe('listMeetingNotes serialization — EM-05: the panel must see the same approval state as the tab/Library/Share dialog', () => {
+  // Prod 2026-09-08 (EM-05, "Capiro Walktrhough" meeting): the Notes panel
+  // showed "Draft" + an enabled Approve button for a note the DB had as
+  // `approved`, while the tab dot, Meeting Library, and Share dialog all said
+  // Approved. Root cause: this serializer dropped status/approvedAt/
+  // approvedByUserId/sharedAt/sharedByUserId, so the client's
+  // MeetingNoteStatus was always undefined and NotesTab's pill fell through
+  // to "Draft". The web unit tests never caught it because they mock the API
+  // response WITH status present. This spec pins the wire contract to the
+  // real serializer so the four surfaces can never silently diverge again.
+  const noteRow = (overrides: Record<string, unknown> = {}) => ({
+    id: 'n1',
+    meetingId: 'm1',
+    clientId: null,
+    bodyCiphertext: 'ct',
+    iv: 'iv',
+    authTag: 'tag',
+    keyVersion: 'v1',
+    // Non-confidential + author-is-caller so canReadEncryptedEntry passes and
+    // the decrypt path is exercised (the stub below decrypts to a fixed body).
+    confidential: false,
+    accessLevel: 'tenant_admins_and_author',
+    authorUserId: 'user-1',
+    author: { id: 'user-1', email: 'a@b.c', firstName: 'A', lastName: 'B' },
+    createdAt: new Date('2026-09-08T19:39:32.912Z'),
+    updatedAt: new Date('2026-09-08T19:39:36.793Z'),
+    ...overrides,
+  });
+
+  function listService(rows: Array<Record<string, unknown>>) {
+    return serviceWith(
+      {
+        meeting: { findFirst: async () => ({ id: 'm1' }) },
+        meetingNote: { findMany: async () => rows },
+      },
+      {
+        notesCrypto: {
+          encrypt: () => ({ bodyCiphertext: 'ct', iv: 'iv', authTag: 'tag', keyVersion: 'v1' }),
+          decrypt: () => 'decrypted note body',
+        },
+      },
+    );
+  }
+
+  test('an approved note is serialized with its approval lifecycle fields — never flattened to Draft', async () => {
+    const approvedAt = new Date('2026-09-08T19:39:36.802Z');
+    const service = listService([
+      noteRow({
+        status: 'approved',
+        approvedAt,
+        approvedByUserId: 'user-1',
+        sharedAt: null,
+        sharedByUserId: null,
+      }),
+    ]);
+
+    const serialized = (await service.listMeetingNotes(ctx, 'm1'))[0]!;
+
+    expect(serialized.status).toBe('approved');
+    expect(serialized.approvedAt).toBe(approvedAt);
+    expect(serialized.approvedByUserId).toBe('user-1');
+    expect(serialized.sharedAt).toBeNull();
+    expect(serialized.sharedByUserId).toBeNull();
+    expect(serialized.body).toBe('decrypted note body');
+    expect(serialized.restricted).toBe(false);
+  });
+
+  test('a draft note serializes status "draft" and unstamped approval fields — the panel pill and Approve button then reflect the real state', async () => {
+    const service = listService([
+      noteRow({
+        status: 'draft',
+        approvedAt: null,
+        approvedByUserId: null,
+        sharedAt: null,
+        sharedByUserId: null,
+      }),
+    ]);
+
+    const serialized = (await service.listMeetingNotes(ctx, 'm1'))[0]!;
+
+    expect(serialized.status).toBe('draft');
+    expect(serialized.approvedAt).toBeNull();
+    expect(serialized.approvedByUserId).toBeNull();
+    expect(serialized.sharedAt).toBeNull();
+    expect(serialized.sharedByUserId).toBeNull();
+  });
+
+  test('a shared approved note carries sharedAt/sharedByUserId so the pill can show Shared over Approved', async () => {
+    const sharedAt = new Date('2026-09-08T20:00:00.000Z');
+    const service = listService([
+      noteRow({
+        status: 'approved',
+        approvedAt: new Date('2026-09-08T19:39:36.802Z'),
+        approvedByUserId: 'user-1',
+        sharedAt,
+        sharedByUserId: 'user-2',
+      }),
+    ]);
+
+    const serialized = (await service.listMeetingNotes(ctx, 'm1'))[0]!;
+
+    expect(serialized.status).toBe('approved');
+    expect(serialized.sharedAt).toBe(sharedAt);
+    expect(serialized.sharedByUserId).toBe('user-2');
+  });
+
+  test('an edited note (approved then hand-edited) serializes status "edited" so the panel labels the re-approval state explicitly', async () => {
+    const service = listService([
+      noteRow({ status: 'edited', approvedAt: null, approvedByUserId: null }),
+    ]);
+
+    const serialized = (await service.listMeetingNotes(ctx, 'm1'))[0]!;
+
+    expect(serialized.status).toBe('edited');
+  });
+});
