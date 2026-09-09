@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  candidateRejectRequiresReason,
+  memoryCandidateTargetLabel,
   memoryQueueErrorMessage,
   memoryReviewCandidateTitle,
   memoryReviewOutcomeMessage,
@@ -55,8 +55,9 @@ function isGovernedMemoryItem(item: MeriContextPacketItem): boolean {
 
 function scopeLabel(scope: string): string {
   if (scope === 'client') return 'CLIENT MEMORY';
-  if (scope === 'personal') return 'PERSONAL MEMORY';
-  return 'FIRM MEMORY';
+  if (scope === 'personal' || scope === 'user_private') return 'PERSONAL MEMORY';
+  if (scope === 'firm') return 'FIRM MEMORY';
+  return 'MEMORY SCOPE UNAVAILABLE';
 }
 
 function kindLabel(kind: string): string {
@@ -96,11 +97,13 @@ function proposalBody(candidate: OwnedMemoryCandidate): Array<{ heading: string;
 function QueueCard({
   eyebrow,
   title,
+  target,
   children,
   actions,
 }: {
   eyebrow: string;
   title: string;
+  target?: string;
   children?: ReactNode;
   actions?: ReactNode;
 }) {
@@ -126,6 +129,11 @@ function QueueCard({
         {eyebrow}
       </div>
       <div style={{ color: '#182230', fontSize: 13, fontWeight: 650, lineHeight: 1.35 }}>{title}</div>
+      {target ? (
+        <p style={{ margin: '6px 0 0', color: '#344054', fontSize: 12, fontWeight: 600 }}>
+          Target: {target}
+        </p>
+      ) : null}
       {children}
       {actions ? <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>{actions}</div> : null}
     </article>
@@ -223,10 +231,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
   });
 
   const rejectCandidate = (candidate: ReviewableMemoryCandidate) => {
-    if (!candidateRejectRequiresReason(candidate)) {
-      decision.mutate({ id: candidate.id, decision: 'reject' });
-      return;
-    }
+    // The canonical review API requires a reason for every rejection kind.
     setRejectReason('');
     setRejecting(candidate);
   };
@@ -286,6 +291,10 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
         <div className="vnext-meri__section-label" style={{ marginBottom: 8 }}>
           NEEDS YOUR REVIEW · {reviewCandidates.length}
         </div>
+        <p style={{ margin: '0 0 10px', color: '#667085', fontSize: 12, lineHeight: 1.55 }}>
+          Across your firm: proposals you are authorized to review. The client picker does not
+          filter this queue or change a proposal's target.
+        </p>
         {review.isLoading ? <MeriPanelState tone="loading">Loading review queue…</MeriPanelState> : null}
         {review.isError ? (
           <MeriPanelState tone="error">The institutional review queue could not be loaded.</MeriPanelState>
@@ -299,6 +308,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
               key={candidate.id}
               eyebrow={scopeLabel(candidate.scope) + ' · ' + kindLabel(candidate.candidateKind)}
               title={memoryReviewCandidateTitle(candidate)}
+              target={memoryCandidateTargetLabel(candidate)}
               actions={
                 <>
                   {candidate.capabilities.approve ? (
@@ -383,6 +393,9 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
         <div className="vnext-meri__section-label" style={{ marginBottom: 8 }}>
           YOUR PROPOSALS · {ownedProposals.length}
         </div>
+        <p style={{ margin: '0 0 10px', color: '#667085', fontSize: 12, lineHeight: 1.55 }}>
+          Your proposals across clients and firm memory, independent of the client picker.
+        </p>
         {proposals.isLoading ? <MeriPanelState tone="loading">Loading your proposals…</MeriPanelState> : null}
         {proposals.isError ? (
           <MeriPanelState tone="error">Your proposal history could not be loaded.</MeriPanelState>
@@ -396,6 +409,7 @@ export function MeriMemoryTab({ packet }: { packet: MeriContextPacket | null }) 
               key={candidate.id}
               eyebrow={scopeLabel(candidate.scope) + ' · ' + ownedMemoryCandidateStatusLabel(candidate.status).toUpperCase()}
               title={ownedMemoryCandidateTitle(candidate)}
+              target={memoryCandidateTargetLabel(candidate)}
               actions={
                 candidate.capabilities.withdraw ? (
                   <QueueButton

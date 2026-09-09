@@ -1,3 +1,4 @@
+import type { MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
@@ -36,6 +37,7 @@ interface VNextMeriConversationProps {
   onOpenSourceDetail: (
     citations: import('../../components/chat/chat-store.js').MeriCitation[],
     index: number,
+    scope: MeriTurnScope,
   ) => void;
   /** Opens the rail's v6 turn inspector, focused on one turn's data. */
   onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;

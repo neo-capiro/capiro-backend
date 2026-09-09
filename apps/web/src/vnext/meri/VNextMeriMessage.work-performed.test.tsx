@@ -81,6 +81,35 @@ function props(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Meri message work performed', () => {
+  test('hands the source panel and inspector the same reloaded historical scope after picker changes', () => {
+    const turnScope = { kind: 'client' as const, clientId: 'l3', clientName: 'L3 Harris', targetHint: null };
+    const original = props({ message: message({
+      turnScope: JSON.parse(JSON.stringify(turnScope)), contextPacketId: 'original-packet',
+      content: 'Evidence [7].', citations: [{ n: 7, id: 'doc', title: 'Original evidence',
+        type: 'source', tool: 'read_client_documents', url: null, snippet: 'Original excerpt' }],
+    }) });
+    const { rerender } = render(<VNextMeriMessage {...original} />);
+    for (const selectedClientValue of ['l3', 'anduril', '', 'l3']) {
+      rerender(<VNextMeriMessage {...original} controller={controller({ selectedClientValue })} />);
+      fireEvent.click(screen.getByRole('button', { name: '[7]' }));
+      fireEvent.click(screen.getByRole('button', { name: /view full source/i }));
+      expect(original.onOpenSourceDetail).toHaveBeenLastCalledWith(original.message.citations, 0, turnScope);
+      fireEvent.click(screen.getByRole('button', { name: 'Show work' }));
+      expect(original.onOpenTurnInspector).toHaveBeenLastCalledWith(
+        expect.objectContaining({ turnScope, contextPacketId: 'original-packet' }), 'thinking',
+      );
+    }
+  });
+
+  test('renders generated-file Markdown links as authenticated download controls while retaining source links', () => {
+    render(<VNextMeriMessage {...props({ message: message({
+      content: '[Download Word](/api/clio/artifacts/saved-briefing/download) and [External source](https://congress.gov).',
+    }), controller: controller({ authHeaders: async () => ({ Authorization: 'Bearer current-user' }) }) })} />);
+    expect(screen.getByRole('button', { name: 'Download Word' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Download Word' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'External source' })).toHaveAttribute('href', 'https://congress.gov');
+  });
+
   test('shows ordinary pending progress as status without attributing a tool or research run', () => {
     const { rerender } = render(
       <VNextMeriMessage

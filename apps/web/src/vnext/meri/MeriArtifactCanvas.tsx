@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js';
 import { MeriIcon } from './meri-icons.js';
 import { MeriWordArtifactPreview, meriWordArtifactText, readMeriWordArtifact } from './MeriWordArtifactPreview.js';
+import { saveMeriDownloadBlob } from '../../components/chat/meri-artifact-download.js';
+import { useMeriArtifactDownload } from '../../components/chat/useMeriArtifactDownload.js';
 
 /**
  * MeriArtifactCanvas — the in-rail "ARTIFACT" panel content, replacing the
@@ -28,8 +30,6 @@ interface MeriArtifactCanvasProps {
 
 export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeaders }: MeriArtifactCanvasProps) {
   const [copied, setCopied] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const title = artifact.title?.trim() || 'Document';
   const body = artifact.bodyText ?? '';
@@ -47,6 +47,12 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
       .replace(/^-+|-+$/g, '')
       .toLowerCase() || 'document';
 
+  const { downloading, downloadError, downloadOfficeDoc } = useMeriArtifactDownload({
+    artifactId: artifact.id, apiBaseUrl, getAuthHeaders,
+    expectedFormat: docKind?.ext,
+    fallbackFilename: docKind ? `${slugify()}.${docKind.ext}` : undefined,
+  });
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(copyText);
@@ -59,41 +65,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
 
   const downloadMarkdown = () => {
     const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${slugify()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const downloadOfficeDoc = async () => {
-    if (!artifact.id || !apiBaseUrl) {
-      setDownloadError('This document is not available for download yet — try regenerating it in chat.');
-      return;
-    }
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      const headers = getAuthHeaders ? await getAuthHeaders() : {};
-      const res = await fetch(`${apiBaseUrl}/api/clio/artifacts/${artifact.id}/download`, { headers });
-      if (!res.ok) throw new Error(`Download failed (${res.status})`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${slugify()}.${docKind!.ext}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : 'Download failed — please retry.');
-    } finally {
-      setDownloading(false);
-    }
+    saveMeriDownloadBlob(blob, `${slugify()}.md`);
   };
 
   const download = isOfficeDoc ? downloadOfficeDoc : downloadMarkdown;

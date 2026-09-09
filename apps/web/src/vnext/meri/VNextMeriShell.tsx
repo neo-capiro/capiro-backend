@@ -1,3 +1,4 @@
+import type { MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.js';
@@ -89,6 +90,7 @@ export function VNextMeriShell({
   const [activeSourceDetail, setActiveSourceDetail] = useState<{
     citations: MeriCitation[];
     index: number;
+    turnScope: MeriTurnScope;
   } | null>(null);
   const [contextSheet, setContextSheet] = useState<{
     open: boolean;
@@ -309,8 +311,8 @@ export function VNextMeriShell({
               onOpenMemory={() => expandSection('memory')}
               threadRailCollapsed={threadRailCollapsed}
               onExpandThreadRail={() => setThreadRailCollapsed(false)}
-              onOpenSourceDetail={(citations, index) => {
-                setActiveSourceDetail({ citations, index });
+              onOpenSourceDetail={(citations, index, turnScope) => {
+                setActiveSourceDetail({ citations, index, turnScope });
                 setRailCollapsed(false);
               }}
               onOpenTurnInspector={openTurnInspector}

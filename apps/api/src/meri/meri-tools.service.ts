@@ -6796,7 +6796,7 @@ export class MeriToolsService {
       const artifact = await this.prisma
         .withTenant(ctx.tenantId, (tx) =>
           tx.clioArtifact.findFirst({
-            where: { id, tenantId: ctx.tenantId },
+            where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
             select: { metadata: true },
           }),
         )

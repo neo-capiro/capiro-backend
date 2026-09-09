@@ -1,3 +1,4 @@
+import { meriTurnScopeLabel, meriPacketScopeLabel, type MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { useEffect, useMemo, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
 import { config } from '../../env.js';
@@ -10,7 +11,7 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary, contextItemLabel } from './meri-context-packet.js';
 import { meriCoverageReason, meriCoverageSourceLabel } from '../../components/chat/meri-retrieval-metadata.js';
-import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
+import { fetchMeriContextPacket, fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
 import { MeriMemoryTab, useMeriGovernedMemoryQueues } from './MeriMemoryTab.js';
 import { MeriPanelState } from './MeriPanelState.js';
 import {
@@ -22,6 +23,7 @@ import {
 interface ActiveSourceDetail {
   citations: MeriCitation[];
   index: number;
+  turnScope?: MeriTurnScope;
 }
 
 /**
@@ -158,6 +160,24 @@ export function VNextMeriContextRail({
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
   const [packetError, setPacketError] = useState(false);
+  const [turnPacket, setTurnPacket] = useState<MeriContextPacket | null>(null);
+  const [turnPacketLoading, setTurnPacketLoading] = useState(false);
+  const [turnPacketError, setTurnPacketError] = useState(false);
+  const inspectorPacketId = activeTurnInspector?.data.contextPacketId;
+
+  useEffect(() => {
+    let cancelled = false;
+    setTurnPacket(null);
+    setTurnPacketError(false);
+    setTurnPacketLoading(Boolean(inspectorPacketId));
+    if (inspectorPacketId) {
+      void fetchMeriContextPacket(api, inspectorPacketId)
+        .then((next) => { if (!cancelled) setTurnPacket(next); })
+        .catch(() => { if (!cancelled) setTurnPacketError(true); })
+        .finally(() => { if (!cancelled) setTurnPacketLoading(false); });
+    }
+    return () => { cancelled = true; };
+  }, [api, inspectorPacketId, controller.activeConversationId]);
 
   useEffect(() => {
     const conversationId = controller.activeConversationId;
@@ -168,6 +188,7 @@ export function VNextMeriContextRail({
       return;
     }
     let cancelled = false;
+    setPacket(null);
     setPacketLoading(true);
     setPacketError(false);
     void fetchLatestMeriContextPacket(api, conversationId)
@@ -232,8 +253,7 @@ export function VNextMeriContextRail({
   // v6 prototype: the right rail's title is always "Behind the answer" —
   // both the Context and Memory tabs live under it.
   const panelTitle = 'Behind the answer';
-  const selectedClient = controller.clients.find((client) => client.id === controller.selectedClientValue) ?? null;
-  const scopeLabel = selectedClient ? selectedClient.name : 'Portfolio — all clients';
+  const scopeLabel = meriPacketScopeLabel(packet, controller.clients);
 
   if (activeArtifact) {
     return (
@@ -272,7 +292,7 @@ export function VNextMeriContextRail({
             <MeriSourceDetail
               citations={activeSourceDetail.citations}
               initialIndex={activeSourceDetail.index}
-              scopeLabel={scopeLabel}
+              scopeLabel={meriTurnScopeLabel(activeSourceDetail.turnScope, controller.clients)}
               onClose={onCloseSourceDetail}
             />
           </div>
@@ -289,7 +309,7 @@ export function VNextMeriContextRail({
           <div className="vnext-meri__rail-panel-head">
             <span className="vnext-meri__rail-panel-title-group">
               <span className="vnext-meri__rail-panel-title">Behind the answer</span>
-              <span className="vnext-meri__rail-panel-eyebrow">{scopeLabel.toUpperCase()}</span>
+              <span className="vnext-meri__rail-panel-eyebrow">{meriTurnScopeLabel(activeTurnInspector.data.turnScope, controller.clients).toUpperCase()}</span>
             </span>
             <div className="vnext-meri__rail-panel-tabs">
               {TURN_TABS.map((tab) => {
@@ -323,6 +343,15 @@ export function VNextMeriContextRail({
             </button>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <button
+              type="button"
+              className="vnext-meri__rail-action-btn"
+              disabled={!inspectorPacketId || turnPacketLoading}
+              title={!inspectorPacketId ? 'No context packet was recorded for this turn.' : undefined}
+              onClick={() => onOpenContext(turnPacket, turnPacketLoading, turnPacketError)}
+            >
+              {turnPacketLoading ? 'Loading turn context…' : 'Open this turn’s context packet'}
+            </button>
             <MeriTurnInspector
               data={activeTurnInspector.data}
               activeTab={turnActiveTab}
@@ -374,7 +403,7 @@ export function VNextMeriContextRail({
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div className="vnext-meri__rail-section">
               <div className="vnext-meri__rail-footer" style={{ marginTop: 0, marginBottom: 14 }}>
-                CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL
+                CONTEXT CAPTURED FOR THE ANSWER · WRITES REQUIRE APPROVAL
               </div>
               {packet?.degraded ? (
                 <div className="vnext-meri__ctx-degraded" role="status">
@@ -440,7 +469,7 @@ export function VNextMeriContextRail({
                     ))}
                   </div>
                 ) : null}
-                <button type="button" className="vnext-meri__rail-action-btn" onClick={() => onOpenContext(packet, packetLoading, packetError)} disabled={!controller.activeConversationId} title={!controller.activeConversationId ? 'Create or open a thread to inspect its context.' : undefined}>
+                <button type="button" className="vnext-meri__rail-action-btn" onClick={() => onOpenContext(packet, packetLoading, packetError)} disabled={!controller.activeConversationId || packetLoading} title={!controller.activeConversationId ? 'Create or open a thread to inspect its context.' : undefined}>
                   <MeriIcon name="Sliders02" size={14} color="#344054" />
                   Open context packet
                 </button>

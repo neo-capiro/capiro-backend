@@ -18,6 +18,7 @@ export interface OwnedMemoryCandidate {
   id: string;
   scope: string;
   clientId: string | null;
+  clientName?: string | null;
   sourceKind: string;
   status: OwnedMemoryCandidateStatus;
   createdAt: string;
@@ -80,6 +81,7 @@ export interface ReviewableMemoryCandidate {
   candidateKind: MemoryCandidateKind;
   scope: string;
   clientId: string | null;
+  clientName?: string | null;
   proposedByUserId: string;
   sourceKind: string;
   createdAt: string;
@@ -111,6 +113,24 @@ export interface ReviewQueueResponse {
 
 export function memoryReviewCandidateTitle(candidate: ReviewableMemoryCandidate): string {
   return candidate.proposal.canonicalItem?.title ?? candidate.proposal.key ?? 'Memory proposal';
+}
+
+/** A queue target comes from its authorized proposal, never the current picker. */
+export function memoryCandidateTargetLabel(candidate: {
+  scope: string;
+  clientId: string | null;
+  clientName?: string | null;
+  restricted?: boolean;
+}): string {
+  if (candidate.restricted) return 'Restricted client memory';
+  if (candidate.scope === 'client') {
+    return candidate.clientId && candidate.clientName?.trim()
+      ? candidate.clientName.trim()
+      : 'Client unavailable';
+  }
+  if (candidate.scope === 'personal' || candidate.scope === 'user_private') return 'Personal memory';
+  if (candidate.scope === 'firm') return 'Firm memory';
+  return 'Target unavailable';
 }
 
 export function memoryCandidateKindLabel(kind: MemoryCandidateKind): string {

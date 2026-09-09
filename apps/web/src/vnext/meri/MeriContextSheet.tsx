@@ -1,3 +1,4 @@
+import { meriPacketScopeLabel } from '../../components/chat/meri-turn-scope.js';
 import { useEffect } from 'react';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextPacket, MeriContextPacketItem } from './meri-vnext-api.js';
@@ -123,7 +124,7 @@ export function MeriContextSheet({
       ? `Compiled server-side for this turn. ${packet.items.length} item${
           packet.items.length === 1 ? '' : 's'
         } included, ${packet.exclusions.length} excluded, ${packet.unauthorizedCount} unauthorized. ` +
-        `Resolved from the packet id persisted with this message — never from the conversation's latest.`
+        `Scope and contents come from this stored packet; changing the client picker does not change them.`
       : '';
 
   return (
@@ -145,7 +146,7 @@ export function MeriContextSheet({
         <div className="vnext-meri__sheet-header">
           <span className="vnext-meri__sheet-header-copy">
             <span id="meri-sheet-desc" className="vnext-meri__sheet-eyebrow">
-              {sheetEyebrow}
+              {sheetEyebrow} · {meriPacketScopeLabel(packet)}
             </span>
             <span id="meri-sheet-title" className="vnext-meri__sheet-title">
               {sheetTitle}

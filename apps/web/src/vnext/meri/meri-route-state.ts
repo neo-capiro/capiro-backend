@@ -1,3 +1,4 @@
+import { persistedMeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { meriRetrievalMetadata } from '../../components/chat/meri-retrieval-metadata.js';
 import type {
   ChatMessage,
@@ -27,6 +28,7 @@ export interface PersistedChartArtifact {
 }
 
 export interface PersistedMessage {
+  clientId?: string | null;
   id?: string;
   role?: string;
   body?: string;
@@ -235,6 +237,8 @@ function isUuid(value: unknown): value is string {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
   );
 }
+
+export const mapPersistedTurnScope = persistedMeriTurnScope;
 
 export function mapPersistedContextPacketId(message: PersistedMessage): string | undefined {
   const metadata = message.metadata;

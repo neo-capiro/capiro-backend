@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { MeriCitation } from '../../components/chat/chat-store.js';
 import { MeriIcon } from './meri-icons.js';
 
@@ -37,6 +37,7 @@ interface MeriSourceDetailProps {
 
 export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose }: MeriSourceDetailProps) {
   const [index, setIndex] = useState(initialIndex);
+  useEffect(() => { setIndex(initialIndex); }, [citations, initialIndex]);
 
   const count = citations.length;
   const clamped = count > 0 ? ((index % count) + count) % count : 0;
@@ -190,7 +191,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
           {[
             ['SOURCE', providerLabel(citation)],
             ['RETRIEVED', 'THIS TURN'],
-            ['SCOPE', scopeLabel],
+            ['TURN SCOPE', scopeLabel],
             ['CITATION', `${citation.title} · ${locatorLabel(citation)}`],
           ].map(([label, value]) => (
             <div key={label} style={{ display: 'flex', gap: 12 }}>

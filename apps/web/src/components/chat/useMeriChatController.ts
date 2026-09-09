@@ -1,3 +1,4 @@
+import { readMeriTurnScope, type MeriTurnScope } from './meri-turn-scope.js';
 import { meriRetrievalMetadata } from './meri-retrieval-metadata.js';
 import {
   useCallback,
@@ -47,6 +48,7 @@ import {
   setChatMessageGroundingCaveat,
   setChatMessageGroundingStatement,
   setChatMessageContextPacketId,
+  setChatMessageTurnScope,
   setChatMessageSuggestions,
   setChatMessageFeedback,
   replaceChatMessageId,
@@ -177,6 +179,7 @@ type SseEvent =
       // instead of 400ing on the optimistic id.
       messageId?: string;
       contextPacketId?: string;
+      turnScope?: MeriTurnScope;
       retrieval?: ChatMessageRetrieval;
     }
   | { type: 'error'; message: string; accepted?: false }
@@ -596,7 +599,7 @@ export function useMeriChatController({
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(actAsTenantSlug ? { 'x-capiro-impersonate-tenant': actAsTenantSlug } : {}),
     };
-  }, [getToken, actAsTenantSlug]);
+  }, [getToken, actAsTenantSlug, identityKey]);
 
   // Load alerts on mount so the closed launcher can show its pending badge;
   // recheck when Meri opens in case a scheduled briefing arrived meanwhile.
@@ -2267,6 +2270,8 @@ export function useMeriChatController({
               if (typeof event.contextPacketId === 'string' && event.contextPacketId) {
                 setChatMessageContextPacketId(assistantId, event.contextPacketId);
               }
+              const turnScope = readMeriTurnScope(event.turnScope);
+              if (turnScope) setChatMessageTurnScope(assistantId, turnScope);
               // Capture the backend retrieval plan (subjectScope, coverage)
               // so the thread scope label reflects the actual retrieval scope
               // instead of always printing "Client context · <client>".

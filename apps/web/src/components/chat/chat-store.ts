@@ -1,3 +1,4 @@
+import type { MeriTurnScope } from './meri-turn-scope.js';
 import { meriRetrievalMetadata } from './meri-retrieval-metadata.js';
 import { useEffect, useState } from 'react';
 import type { MeriRect } from './meri-geometry.js';
@@ -156,6 +157,8 @@ export interface ChatMessage {
   groundingStatement?: string;
   /** Immutable server context packet that grounded this specific assistant turn. */
   contextPacketId?: string;
+  /** Captured retrieval scope for this message; never the current picker. */
+  turnScope?: MeriTurnScope;
   /** Backend retrieval plan for this assistant turn (absent on legacy turns). */
   retrieval?: ChatMessageRetrieval;
   /**
@@ -413,6 +416,13 @@ export function setChatMessageGroundingCaveat(id: string, groundingCaveat: Groun
 
 export function setChatMessageGroundingStatement(id: string, groundingStatement: string): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, groundingStatement } : m));
+  state = { ...state, messages };
+  notify();
+}
+
+/** Attach the server scope receipt to this assistant turn. */
+export function setChatMessageTurnScope(id: string, turnScope: MeriTurnScope): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, turnScope } : m));
   state = { ...state, messages };
   notify();
 }
