@@ -28,6 +28,7 @@ import {
   Upload,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
+import { consumeLegiWatchHandoff, prefillToWorkflowPatch } from './outreach/legiwatch-prefill.js';
 // Campaign list only (handover §6.2). The legacy workflow screens further
 // down this file — outbound campaign, follow-up, prep distribution, small
 // group — are not part of the prototype and keep their existing antd markup.
@@ -650,6 +651,36 @@ export function OutreachView({
     message,
     selectedClientId,
   ]);
+
+  // LegiWatch "Stage outreach" handoff (LW-05): HearingActions wrote
+  // sessionStorage['lw:outreach-context'] and navigated here with
+  // ?source=legiwatch&hearingId=…&client=…. Consume it exactly once, hydrate
+  // the New Outreach campaign wizard (client preselected, hearing context
+  // attached), and fail LOUDLY if the payload is present but stale/malformed —
+  // never a silent fallback to a blank wizard. The mode→URL sync effect below
+  // then settles the URL to /new/wizard.
+  const legiwatchHandoffDoneRef = useRef(false);
+  useEffect(() => {
+    if (legiwatchHandoffDoneRef.current) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('source') !== 'legiwatch') return;
+    legiwatchHandoffDoneRef.current = true;
+
+    const expectedClientId = params.get('client');
+    const result = consumeLegiWatchHandoff(expectedClientId);
+    if (!result.ok) {
+      message.error(result.message);
+      return;
+    }
+
+    const patch = prefillToWorkflowPatch(result.handoff.prefill);
+    setMode('campaign');
+    setWorkflow((current) => ({
+      ...current,
+      ...patch,
+      step: 1,
+    }));
+  }, [location.search, message]);
 
   useEffect(() => {
     const locked = mode !== 'landing';

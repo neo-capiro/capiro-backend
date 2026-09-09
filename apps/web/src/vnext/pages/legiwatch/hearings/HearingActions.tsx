@@ -167,7 +167,10 @@ export function HearingActions({
                 action,
                 // Explicit: staged, not sent.
                 message: 'Outreach staged for your review. Nothing has been sent.',
-                href: `/outreach?${qs.toString()}`,
+                // The outreach list lives at /engagement/outreach — the only
+                // registered route tree is /engagement/* (App.tsx). A bare
+                // /outreach 404s.
+                href: `/engagement/outreach?${qs.toString()}`,
               });
             },
             onError: fail,

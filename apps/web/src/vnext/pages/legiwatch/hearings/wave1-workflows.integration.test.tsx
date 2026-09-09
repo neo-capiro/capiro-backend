@@ -979,6 +979,18 @@ describe('W1-7 actions and W1-8 export', () => {
 
     expect(await screen.findByText(/Nothing has been sent/)).toBeTruthy();
     expect(calls.some((c) => c.url.endsWith('/actions/outreach-prefill'))).toBe(true);
+
+    // The handoff payload must be written for the outreach side to consume.
+    const stored = sessionStorage.getItem('lw:outreach-context');
+    expect(stored).toBeTruthy();
+    expect(JSON.parse(stored as string).prefill.clientId).toBe(CLIENT_A);
+
+    // LW-05: "Open →" must land on the real outreach route — a bare /outreach
+    // is not a registered route and 404s.
+    fireEvent.click(screen.getByRole('button', { name: 'Open →' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('current-location')).toHaveTextContent('/engagement/outreach'),
+    );
   });
 
   it('disables client-scoped actions until a client lens is chosen', () => {
