@@ -5,37 +5,43 @@
  *   1. load both candidates through the existing `BudgetVerificationRepositoryV1`
  *      (read-only contract, same one `ScopedFactReviewV1Service` uses);
  *   2. evaluate `evaluateCandidateCorrectionEligibilityV1`;
- *   3. dry-run by default -- `commit: true`:
- *        a. calls `ScopedFactReviewRepositoryV1.supersedeAllForCandidate()`
- *           against the OLD candidate FIRST (idempotent -- it only touches
- *           rows currently `status='active'`, so calling it twice, or
- *           calling it when there was never anything active, is always a
- *           safe no-op);
- *        b. THEN attempts to insert the link row. The DB's unique index on
- *           `old_candidate_id` is the single source of truth for "has this
- *           old candidate already been corrected" -- this method never
- *           trusts a prior read for that decision.
+ *   3. dry-run by default -- `commit: true` calls
+ *      `CandidateCorrectionRepositoryV1.commitCorrection()`, which
+ *      ATOMICALLY (one DB transaction) supersedes the OLD candidate's
+ *      currently-active scoped-fact-review rows AND inserts the link row.
+ *      The DB's unique index on `old_candidate_id` (and, independently, on
+ *      `new_candidate_id`) is the single source of truth for "has this
+ *      pairing already been claimed" -- this method never trusts a prior
+ *      read for that decision, and a refused/conflicting attempt performs
+ *      ZERO writes because the whole transaction rolls back together. (An
+ *      earlier version called supersede-then-insert as two separate
+ *      top-level statements; independent review found that a losing insert
+ *      -- e.g. the new candidate was already claimed by correcting a
+ *      DIFFERENT old candidate -- left the supersession already committed,
+ *      silently destroying a real decision with no link to explain why.
+ *      Fixed 2026-09-09 by moving both writes into one transaction.)
  *
  * Never touches `budget_review_decision_v1`, never changes ANY candidate's
  * status, never writes canonical/legacy tables, never issues a bulk
  * operation (exactly one named old/new pair per call).
  *
  * Idempotency / concurrency, precisely:
- *   - Same (old, new) pair replayed (e.g. a CLI retry after a network blip
- *     between steps 3a and 3b) -> the second attempt's insert loses the
- *     unique-index race to the first, reads back the existing row, finds
- *     `newCandidateId` matches what was just requested, and returns
- *     `mode: 'already_recorded'` with the ORIGINAL persisted result --
- *     never a second row, never an error.
- *   - A DIFFERENT new candidate for the same old candidate (two genuinely
- *     concurrent correction attempts, or an operator error) -> the losing
- *     attempt's insert also loses the race, reads back the existing row,
- *     finds `newCandidateId` does NOT match, and throws
+ *   - Same (old, new) pair replayed (e.g. a CLI retry) -> the second
+ *     attempt's transaction loses the unique-index race to the first, rolls
+ *     back entirely (nothing re-superseded, no second row), reads back the
+ *     existing link, finds `newCandidateId` matches what was just
+ *     requested, and returns `mode: 'already_recorded'` with the ORIGINAL
+ *     persisted result.
+ *   - A DIFFERENT new (or old) candidate collision (two genuinely concurrent
+ *     correction attempts, or an operator error) -> the losing attempt's
+ *     transaction rolls back entirely -- its own supersession attempt is
+ *     undone along with the failed insert -- reads back the existing link,
+ *     finds it does not match, and throws
  *     `already_corrected_by_different_candidate` naming the winning link --
- *     an explicit, auditable resolution. The loser's own new candidate row
- *     is NOT deleted or hidden; it simply is not registered as THE
- *     correction, and can itself be linked to a further correction attempt
- *     by an operator who reviews the conflict.
+ *     an explicit, auditable resolution with no side effect left behind.
+ *     The loser's own new candidate row is NOT deleted or hidden; it simply
+ *     is not registered as THE correction, and can itself be linked to a
+ *     further correction attempt by an operator who reviews the conflict.
  */
 import type { ReadCandidateV1, BudgetVerificationRepositoryV1 } from '../../verification/persistence/verification-repository.js';
 import {
@@ -46,7 +52,6 @@ import type {
   CandidateCorrectionRepositoryV1,
   CandidateCorrectionRowV1,
 } from './candidate-correction-repository-v1.js';
-import type { ScopedFactReviewRepositoryV1 } from '../scoped-fact-review/scoped-fact-review-repository-v1.js';
 
 export type CandidateCorrectionErrorCodeV1 =
   | 'old_candidate_not_found'
@@ -90,7 +95,6 @@ export interface CandidateCorrectionPreviewV1 {
 export class CandidateCorrectionV1Service {
   constructor(
     private readonly verification: BudgetVerificationRepositoryV1,
-    private readonly reviews: ScopedFactReviewRepositoryV1,
     private readonly corrections: CandidateCorrectionRepositoryV1,
     private readonly clock: () => string = () => new Date().toISOString(),
   ) {}
@@ -156,22 +160,13 @@ export class CandidateCorrectionV1Service {
       );
     }
 
-    // Step 3a: always attempt the sweep first. Idempotent by construction --
-    // `supersedeAllForCandidate` only touches rows that are `status='active'`
-    // right now, so a retry (or the zero-active-approvals case) is a
-    // harmless no-op.
+    // Atomically (one DB transaction): supersede the old candidate's active
+    // scoped-fact-review rows AND insert the correction link. If the insert
+    // loses the unique-index race on EITHER column, the whole transaction
+    // rolls back -- the supersession never happens either. See this file's
+    // top-of-file comment for why this must be one operation, not two.
     const reasonForSupersession = `superseded: candidate ${oldCandidate.id} corrected by candidate ${newCandidate.id} (${input.reason})`;
-    const supersededScopedFactReviewIds = await this.reviews.supersedeAllForCandidate({
-      candidateId: oldCandidate.id,
-      actor: input.actor,
-      reason: reasonForSupersession,
-      now: this.clock(),
-    });
-
-    // Step 3b: the DB unique index on old_candidate_id is the single source
-    // of truth. Never pre-decide from the read above -- always attempt, then
-    // resolve against whatever the storage layer actually accepted.
-    const insertResult = await this.corrections.insertLink({
+    const commitResult = await this.corrections.commitCorrection({
       oldCandidateId: oldCandidate.id,
       newCandidateId: newCandidate.id,
       oldCandidateStatusAtCorrection: oldCandidate.status,
@@ -179,22 +174,24 @@ export class CandidateCorrectionV1Service {
       oldCandidateSourceSha256: oldCandidate.sourceSha256,
       newCandidateSourceDocumentId: newCandidate.sourceDocumentId,
       newCandidateSourceSha256: newCandidate.sourceSha256,
-      supersededScopedFactReviewIds,
       actor: input.actor,
       reason: input.reason,
+      supersessionReason: reasonForSupersession,
+      now: this.clock(),
     });
 
-    if (insertResult.outcome === 'inserted') {
+    if (commitResult.outcome === 'inserted') {
       return {
         ...basePreview,
         mode: 'committed',
-        supersededScopedFactReviewIds,
-        persisted: insertResult.row,
+        supersededScopedFactReviewIds: commitResult.supersededScopedFactReviewIds,
+        persisted: commitResult.row,
       };
     }
 
     // Lost the race (or this is a literal retry of an already-completed
-    // correction). Read back whichever row actually won and decide.
+    // correction) -- the transaction rolled back, so THIS attempt superseded
+    // nothing and inserted nothing. Read back whichever row actually won and decide.
     const winner = await this.corrections.readByOldCandidateId(oldCandidate.id);
     if (winner == null) {
       // Should be unreachable (a unique-violation on insert implies a row

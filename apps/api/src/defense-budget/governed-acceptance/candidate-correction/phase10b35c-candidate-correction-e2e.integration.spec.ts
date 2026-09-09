@@ -62,7 +62,7 @@ import {
 import { PrismaScopedFactReviewRepositoryV1 } from '../scoped-fact-review/scoped-fact-review-repository-v1.js';
 import { PrismaReviewedPartialPeTotalsRepositoryV1 } from '../scoped-fact-review/reviewed-partial-pe-totals-prisma-repository-v1.js';
 import { ReviewedPartialPeTotalsReadServiceV1 } from '../scoped-fact-review/reviewed-partial-pe-totals-read.service.js';
-import { SCOPED_FACT_REVIEW_SCOPE_KIND_PE_TOTAL_V1 } from '../scoped-fact-review/scoped-fact-review-policy-v1.js';
+import { SCOPED_FACT_REVIEW_SCOPE_KIND_PE_TOTAL_V1, scopedFactReviewScopeKeyV1 } from '../scoped-fact-review/scoped-fact-review-policy-v1.js';
 import { CandidateCorrectionV1Service, CandidateCorrectionError } from './candidate-correction-v1.service.js';
 import { PrismaCandidateCorrectionRepositoryV1 } from './candidate-correction-repository-v1.js';
 
@@ -260,6 +260,78 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
     return { id, sourceSha256 };
   }
 
+  /** Directly-inserted, real `budget_verification_run_v1` row bound to a
+   * given candidate (only used by scenarios that never touch the extraction
+   * artifact -- same rationale as `directCandidate`). */
+  async function directRun(candidateId: string, candidate: { sourceSha256: string; extractionArtifactSha256: string; manifestContentSha256: string }): Promise<string> {
+    const id = randomUUID();
+    await prisma.budgetVerificationRunV1.create({
+      data: {
+        id,
+        candidateId,
+        verifierVersion: 'phase10b35c-test-v1',
+        policyVersion: '1.0.0',
+        policySha256: fakeHash(`run-policy:${id}`),
+        decision: 'REVIEW',
+        status: 'NEEDS_REVIEW',
+        route: 'human_review',
+        riskScore: 0,
+        startedAt: new Date(),
+        completedAt: new Date(),
+        manifestContentSha256: candidate.manifestContentSha256,
+        extractionArtifactSha256: candidate.extractionArtifactSha256,
+        sourceSha256: candidate.sourceSha256,
+        resultSnapshot: {},
+      },
+    });
+    return id;
+  }
+
+  /** Directly-inserted, real ACTIVE `budget_scoped_fact_review_v1` approval,
+   * satisfying `check_budget_scoped_fact_review_v1_binding`'s real identity
+   * checks against a real candidate/run -- used only by scenarios that don't
+   * need the real parser pipeline (same rationale as `directCandidate`). */
+  async function directActiveScopedApproval(input: {
+    candidateId: string;
+    runId: string;
+    sourceDocumentId: string;
+    sourceSha256: string;
+    extractionArtifactId: string;
+    extractionArtifactSha256: string;
+    manifestContentSha256: string;
+    peCode: string;
+    reviewerId: string;
+  }): Promise<string> {
+    const reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
+    const scope = { scopeKind: SCOPED_FACT_REVIEW_SCOPE_KIND_PE_TOTAL_V1, peCode: input.peCode, fiscalYear: 2024, fundingField: 'request' as const, component: 'ARMY' };
+    const result = await reviews.insertDecision({
+      candidateId: input.candidateId,
+      runId: input.runId,
+      sourceDocumentId: input.sourceDocumentId,
+      sourceSha256: input.sourceSha256,
+      extractionArtifactId: input.extractionArtifactId,
+      extractionArtifactSha256: input.extractionArtifactSha256,
+      manifestContentSha256: input.manifestContentSha256,
+      policyId: 'rdte_r2_pe_total_review_policy_v1',
+      policyVersion: '1',
+      policySha256: fakeHash(`review-policy:${input.candidateId}`),
+      scopeKind: SCOPED_FACT_REVIEW_SCOPE_KIND_PE_TOTAL_V1,
+      scopeKey: scopedFactReviewScopeKeyV1(scope),
+      scope,
+      assertionIds: [],
+      evidenceIds: [],
+      projection: null,
+      independence: null,
+      limitations: [],
+      decision: 'approve',
+      reviewerId: input.reviewerId,
+      rationale: 'phase10b35c e2e regression: real active approval seeded directly for the different-old-candidates-same-new-candidate race',
+      decisionHash: fakeHash(`decision:${input.candidateId}:${input.peCode}`),
+      now: new Date().toISOString(),
+    });
+    return result.row.id;
+  }
+
   describe('core + sweep: real corrected candidate, real link, real supersession of a real active approval, real serving boundary', () => {
     const sourceDocumentId = randomUUID();
     const sourceKey = `phase10b35c-e2e-${randomUUID()}`;
@@ -324,7 +396,7 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
       verification = createPrismaBudgetVerificationRepository(prisma);
       reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
       corrections = new PrismaCandidateCorrectionRepositoryV1(prisma as never);
-      correctionService = new CandidateCorrectionV1Service(verification, reviews, corrections);
+      correctionService = new CandidateCorrectionV1Service(verification, corrections);
       reviewService = new ScopedFactReviewV1Service(verification, new PrismaLocatorReader(prisma), new FilesystemArtifactLoader(), reviews);
       readService = new ReviewedPartialPeTotalsReadServiceV1(new PrismaReviewedPartialPeTotalsRepositoryV1(prisma));
     }, 15 * 60 * 1000);
@@ -489,7 +561,7 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
       const newId = await directCandidate({ sourceDocumentId: src.id, sourceSha256: src.sourceSha256, status: 'NEEDS_REVIEW' });
 
       const verification = createPrismaBudgetVerificationRepository(prisma);
-      const service = new CandidateCorrectionV1Service(verification, new PrismaScopedFactReviewRepositoryV1(prisma as never), new PrismaCandidateCorrectionRepositoryV1(prisma as never));
+      const service = new CandidateCorrectionV1Service(verification, new PrismaCandidateCorrectionRepositoryV1(prisma as never));
 
       const preview = await service.correct({ oldCandidateId: oldId, newCandidateId: newId, actor: 'neo@capiro.ai', reason: 'should be refused' }, { commit: false });
       expect(preview.eligibility.eligible).toBe(false);
@@ -512,7 +584,7 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
       const newId = await directCandidate({ sourceDocumentId: srcB.id, sourceSha256: srcB.sourceSha256, status: 'NEEDS_REVIEW' });
 
       const verification = createPrismaBudgetVerificationRepository(prisma);
-      const service = new CandidateCorrectionV1Service(verification, new PrismaScopedFactReviewRepositoryV1(prisma as never), new PrismaCandidateCorrectionRepositoryV1(prisma as never));
+      const service = new CandidateCorrectionV1Service(verification, new PrismaCandidateCorrectionRepositoryV1(prisma as never));
 
       await expect(
         service.correct({ oldCandidateId: oldId, newCandidateId: newId, actor: 'neo@capiro.ai', reason: 'should be refused: different source' }, { commit: true }),
@@ -535,8 +607,8 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
       // would each construct their own), sharing only the real database --
       // the real unique index is the only thing that can arbitrate this, not
       // any in-process lock.
-      const serviceA = new CandidateCorrectionV1Service(verification, new PrismaScopedFactReviewRepositoryV1(prisma as never), new PrismaCandidateCorrectionRepositoryV1(prisma as never));
-      const serviceB = new CandidateCorrectionV1Service(verification, new PrismaScopedFactReviewRepositoryV1(prisma as never), new PrismaCandidateCorrectionRepositoryV1(prisma as never));
+      const serviceA = new CandidateCorrectionV1Service(verification, new PrismaCandidateCorrectionRepositoryV1(prisma as never));
+      const serviceB = new CandidateCorrectionV1Service(verification, new PrismaCandidateCorrectionRepositoryV1(prisma as never));
 
       const [resultA, resultB] = await Promise.allSettled([
         serviceA.correct({ oldCandidateId: oldId, newCandidateId: candidateA, actor: 'operator-a', reason: 'race attempt A' }, { commit: true }),
@@ -569,6 +641,102 @@ describeE2E('Phase 10B-35c -- candidate correction: real link, real supersession
       const loserCandidateRow = await verification.readCandidate(loserCandidateId);
       expect(loserCandidateRow).not.toBeNull();
       expect(loserCandidateRow!.status).toBe('NEEDS_REVIEW');
+    });
+  });
+
+  describe('regression (2026-09-09): two DIFFERENT old candidates, each holding a real active decision, racing to correct into the SAME new candidate', () => {
+    it('the LOSING attempt performs ZERO writes -- its own active decision is never superseded by a correction that never got recorded', async () => {
+      // This is the exact scenario independent review found broken pre-fix:
+      // supersedeAllForCandidate() used to run as its own committed statement
+      // BEFORE the link insert, so a losing insert (here: the new_candidate_id
+      // unique index, not old_candidate_id -- these are two DIFFERENT old
+      // candidates) left the loser's real decision already flipped to
+      // 'superseded' with no link row to explain why. commitCorrection now
+      // runs both in one transaction, so a losing attempt must roll back
+      // BOTH writes.
+      const src = await directSourceDocument();
+      const old1 = await directCandidate({ sourceDocumentId: src.id, sourceSha256: src.sourceSha256, status: 'NEEDS_REVIEW' });
+      const old2 = await directCandidate({ sourceDocumentId: src.id, sourceSha256: src.sourceSha256, status: 'NEEDS_REVIEW' });
+      const sharedNew = await directCandidate({ sourceDocumentId: src.id, sourceSha256: src.sourceSha256, status: 'NEEDS_REVIEW' });
+
+      const verification = createPrismaBudgetVerificationRepository(prisma);
+      const old1Row = (await verification.readCandidate(old1))!;
+      const old2Row = (await verification.readCandidate(old2))!;
+      const run1 = await directRun(old1, old1Row);
+      const run2 = await directRun(old2, old2Row);
+
+      // Different scope keys (different PE codes) so both approvals can be
+      // simultaneously active -- the "one active approve per scope" index is
+      // per-scope, not what this test is about.
+      const approval1 = await directActiveScopedApproval({
+        candidateId: old1,
+        runId: run1,
+        sourceDocumentId: old1Row.sourceDocumentId,
+        sourceSha256: old1Row.sourceSha256,
+        extractionArtifactId: old1Row.extractionArtifactId,
+        extractionArtifactSha256: old1Row.extractionArtifactSha256,
+        manifestContentSha256: old1Row.manifestContentSha256,
+        // Deliberately NOT TARGET_PE.peCode ('0601102A') -- that scope has a
+        // real active approval elsewhere in this same shared-Postgres file
+        // (the "fresh scoped approval on the NEW candidate" test above), and
+        // the one-active-approval-per-scope index is database-wide, not
+        // per-candidate. Use scope keys unique to this regression test.
+        peCode: '0609991A',
+        reviewerId: 'operator-a',
+      });
+      const approval2 = await directActiveScopedApproval({
+        candidateId: old2,
+        runId: run2,
+        sourceDocumentId: old2Row.sourceDocumentId,
+        sourceSha256: old2Row.sourceSha256,
+        extractionArtifactId: old2Row.extractionArtifactId,
+        extractionArtifactSha256: old2Row.extractionArtifactSha256,
+        manifestContentSha256: old2Row.manifestContentSha256,
+        peCode: '0609992A',
+        reviewerId: 'operator-b',
+      });
+
+      const reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
+      const serviceA = new CandidateCorrectionV1Service(verification, new PrismaCandidateCorrectionRepositoryV1(prisma as never));
+      const serviceB = new CandidateCorrectionV1Service(verification, new PrismaCandidateCorrectionRepositoryV1(prisma as never));
+
+      const [resultA, resultB] = await Promise.allSettled([
+        serviceA.correct({ oldCandidateId: old1, newCandidateId: sharedNew, actor: 'operator-a', reason: 'race: old1 claims sharedNew' }, { commit: true }),
+        serviceB.correct({ oldCandidateId: old2, newCandidateId: sharedNew, actor: 'operator-b', reason: 'race: old2 claims sharedNew' }, { commit: true }),
+      ]);
+
+      const fulfilled = [resultA, resultB].filter((o) => o.status === 'fulfilled');
+      const rejected = [resultA, resultB].filter((o) => o.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const winnerIsA = resultA.status === 'fulfilled';
+      const winnerOld = winnerIsA ? old1 : old2;
+      const loserOld = winnerIsA ? old2 : old1;
+      const winnerApprovalId = winnerIsA ? approval1 : approval2;
+      const loserApprovalId = winnerIsA ? approval2 : approval1;
+
+      // THE regression proof: the loser's own real decision must remain
+      // exactly as it was -- 'active', never touched.
+      const loserApproval = await reviews.readById(loserApprovalId);
+      expect(loserApproval!.status).toBe('active');
+      expect(loserApproval!.revokedAt).toBeNull();
+      expect(loserApproval!.revokedBy).toBeNull();
+      expect(loserApproval!.revocationReason).toBeNull();
+
+      const winnerApproval = await reviews.readById(winnerApprovalId);
+      expect(winnerApproval!.status).toBe('superseded');
+
+      const loserLinkRows = await prisma.budgetCandidateCorrectionV1.findMany({ where: { oldCandidateId: loserOld } });
+      expect(loserLinkRows).toEqual([]);
+
+      const winnerLinkRows = await prisma.budgetCandidateCorrectionV1.findMany({ where: { oldCandidateId: winnerOld } });
+      expect(winnerLinkRows).toHaveLength(1);
+      expect(winnerLinkRows[0]!.newCandidateId).toBe(sharedNew);
+
+      const loserError = (rejected[0] as PromiseRejectedResult).reason;
+      expect(loserError).toBeInstanceOf(CandidateCorrectionError);
+      expect((loserError as CandidateCorrectionError).code).toBe('already_corrected_by_different_candidate');
     });
   });
 });

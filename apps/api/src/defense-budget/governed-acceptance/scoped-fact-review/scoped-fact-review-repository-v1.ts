@@ -268,21 +268,40 @@ export class PrismaScopedFactReviewRepositoryV1 implements ScopedFactReviewRepos
   }
 
   async supersedeAllForCandidate(input: { candidateId: string; actor: string; reason: string; now: string }): Promise<string[]> {
-    const rows = await this.prisma.budgetScopedFactReviewV1.findMany({
-      where: { candidateId: input.candidateId, status: 'active' },
-      select: { id: true },
-    });
-    for (const r of rows) {
-      await this.prisma.budgetScopedFactReviewV1.update({
-        where: { id: r.id },
-        data: {
-          status: 'superseded',
-          revokedAt: new Date(input.now),
-          revokedBy: input.actor,
-          revocationReason: input.reason,
-        },
-      });
-    }
-    return rows.map((r) => r.id);
+    return supersedeAllForCandidateWithClientV1(this.prisma, input);
   }
+}
+
+/** The minimal Prisma surface `supersedeAllForCandidateWithClientV1` touches --
+ * deliberately narrower than `ScopedFactReviewPrismaLikeV1` so it accepts
+ * either a top-level `PrismaClient` or a `$transaction` callback's `tx`
+ * client, letting a caller in another module (e.g. the candidate-correction
+ * repository) run this exact logic inside ITS OWN transaction rather than
+ * duplicating it. */
+export type ScopedFactReviewSupersedeClientV1 = Pick<PrismaClient, 'budgetScopedFactReviewV1'>;
+
+/** Extracted from `PrismaScopedFactReviewRepositoryV1.supersedeAllForCandidate`
+ * so it can be composed into a larger atomic transaction by another
+ * repository (see `commitCandidateCorrectionAtomicallyV1`) without either
+ * duplicating this logic or requiring cross-repository transaction plumbing. */
+export async function supersedeAllForCandidateWithClientV1(
+  client: ScopedFactReviewSupersedeClientV1,
+  input: { candidateId: string; actor: string; reason: string; now: string },
+): Promise<string[]> {
+  const rows = await client.budgetScopedFactReviewV1.findMany({
+    where: { candidateId: input.candidateId, status: 'active' },
+    select: { id: true },
+  });
+  for (const r of rows) {
+    await client.budgetScopedFactReviewV1.update({
+      where: { id: r.id },
+      data: {
+        status: 'superseded',
+        revokedAt: new Date(input.now),
+        revokedBy: input.actor,
+        revocationReason: input.reason,
+      },
+    });
+  }
+  return rows.map((r) => r.id);
 }

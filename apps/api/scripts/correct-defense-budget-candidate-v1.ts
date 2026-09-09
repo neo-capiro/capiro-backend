@@ -35,7 +35,6 @@
 import * as fs from 'node:fs';
 import { CandidateCorrectionV1Service, CandidateCorrectionError } from '../src/defense-budget/governed-acceptance/candidate-correction/candidate-correction-v1.service.js';
 import { PrismaCandidateCorrectionRepositoryV1 } from '../src/defense-budget/governed-acceptance/candidate-correction/candidate-correction-repository-v1.js';
-import { PrismaScopedFactReviewRepositoryV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-repository-v1.js';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
@@ -86,9 +85,8 @@ async function main(): Promise<void> {
       '../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js'
     );
     const verification = createPrismaBudgetVerificationRepository(prisma);
-    const reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
     const corrections = new PrismaCandidateCorrectionRepositoryV1(prisma as never);
-    const service = new CandidateCorrectionV1Service(verification, reviews, corrections);
+    const service = new CandidateCorrectionV1Service(verification, corrections);
 
     const dryRun = await service.correct(
       { oldCandidateId: args.oldCandidateId, newCandidateId: args.newCandidateId, actor: args.actor, reason },
