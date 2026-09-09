@@ -16,7 +16,7 @@ import type { FeedItem, FeedResponse } from '../../../pages/clients/tracker/inte
 const apiGet = vi.fn<(url: string) => Promise<{ data: unknown }>>();
 const apiPost = vi.fn<(url: string, body?: unknown) => Promise<{ data: unknown }>>();
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: async () => 'test-token', orgId: null, userId: 'u-1' }),
+  useAuth: () => ({ isLoaded: true, getToken: async () => 'test-token', orgId: null, userId: 'u-1' }),
   useUser: () => ({ user: { id: 'u-1' } }),
 }));
 vi.mock('../../../lib/use-api.js', () => ({

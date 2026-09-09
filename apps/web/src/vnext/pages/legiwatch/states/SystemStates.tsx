@@ -105,32 +105,29 @@ export function LwStateStale({
   );
 }
 
-/** EMPTY — filters, not ingestion, produced the result. Source health stays
- *  visible and Reset stays in reach. */
-export function LwStateEmpty({ onReset }: { onReset?: () => void }) {
+/** EMPTY — no available rows match. This result does not establish source health. */
+export function LwStateEmpty({ onReset, title = 'No alerts matched these filters' }: { onReset?: () => void; title?: string }) {
   return (
     <div className="lw-state" role="status">
       <LwPill tone="gray">EMPTY</LwPill>
-      <h3 className="lw-state__title">No alerts matched these filters</h3>
+      <h3 className="lw-state__title">{title}</h3>
       <p className="lw-state__body">
-        The current filters produced no rows — ingestion is still running and sources are healthy.
-        Loosen a filter or reset to the saved view.
+        No available records matched the current filters. Loosen a filter or reset to the saved view.
       </p>
       {onReset ? <LwButton onClick={onReset}>Reset filters</LwButton> : null}
     </div>
   );
 }
 
-/** ALL CLEAR — genuinely nothing to action. Calm success with source health
- *  and last scan time — visibly different from no data. */
+/** No watchlist matches in this feed response; never a global health assurance. */
 export function LwStateAllClear({ lastScan }: { lastScan?: string }) {
   return (
     <div className="lw-state" role="status">
-      <LwPill tone="success">ALL CLEAR</LwPill>
-      <h3 className="lw-state__title">Nothing needs action right now</h3>
+      <LwPill tone="gray">NO MATCHES</LwPill>
+      <h3 className="lw-state__title">No watchlist matches in this feed</h3>
       <p className="lw-state__body">
-        Every source is current and nothing matched the watchlist since the last scan
-        {lastScan ? ` (${lastScan})` : ''}. New movement lands here first.
+        No available alerts matched this view{lastScan ? ` (feed updated ${lastScan})` : ''}.
+        This result does not establish source health or capture status.
       </p>
     </div>
   );

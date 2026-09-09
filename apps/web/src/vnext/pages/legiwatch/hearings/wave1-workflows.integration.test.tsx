@@ -16,6 +16,10 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, orgId: 'org-test', userId: 'user-test' }),
+}));
+
 interface Call {
   method: 'get' | 'put' | 'post' | 'delete';
   url: string;
@@ -704,7 +708,7 @@ describe('W1-3 Archive', () => {
       return {};
     });
     renderIn(<ArchiveSubTab clientId="" />);
-    expect(await screen.findByText('No transcript is available for this proceeding.')).toBeTruthy();
+    expect(await screen.findByText('No public transcript or linked saved transcript is available in these results.')).toBeTruthy();
   });
 
   it('escapes untrusted snippet markup, keeping only <mark>', () => {

@@ -101,7 +101,7 @@ export function transcriptAvailability(
     return {
       available: false,
       state: 'completed-without-capture',
-      note: 'Completed, but no capture was requested — Capiro has no transcript for this proceeding.',
+      note: 'Completed without an automatic capture transcript. Check saved hearing sessions for browser transcripts.',
     };
   }
   if (status === 'COMPLETED' && (captureStatus === 'COMPLETE' || captureStatus === 'COMPLETE_WITH_GAPS' || captureStatus === 'ENDED')) {

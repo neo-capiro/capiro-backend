@@ -19,6 +19,7 @@
  * hearing_subscription is `@@unique([tenantId, userId, hearingId])` — one user's
  * "I scheduled this" must not appear as another colleague's.
  */
+import { committeeParentCode, storedCommitteeIdentity } from '../hearing-discovery/hearing-committee-identity.js';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
@@ -418,6 +419,7 @@ export class LiveHearingsService {
         congress: number | null;
         chamber: string;
         committeeName: string;
+        committeeCode: string | null;
         committeeSystemCode: string | null;
         subcommitteeSystemCode: string | null;
         title: string;
@@ -443,8 +445,7 @@ export class LiveHearingsService {
         congress: row.congress,
         chamber: row.chamber,
         committeeName: row.committeeName,
-        committeeSystemCode: row.committeeSystemCode,
-        subcommitteeSystemCode: row.subcommitteeSystemCode,
+        ...storedCommitteeIdentity(row),
         title: row.title,
         eventType: row.type,
         eventStatus: row.eventStatus,
@@ -523,13 +524,53 @@ export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereIn
   if (query.committee) {
     // Accept a system code or a display name; the corpus has rows keyed either
     // way (the legacy sync writes committee_code, Phase 3 writes both).
-    where.OR = [
+    const code = query.committee.trim().toLowerCase();
+    const parent = committeeParentCode(code);
+    // A full committee includes children identified by Congress.gov's exact
+    // four-letter family + two-digit body code, including legacy imports.
+    const family = parent === code
+      ? Array.from({ length: 100 }, (_, n) => `${code.slice(0, 4)}${String(n).padStart(2, '0')}`)
+      : null;
+    where.OR = family ? [
+      { committeeSystemCode: { in: family } },
+      { subcommitteeSystemCode: { in: family } },
+      { committeeSystemCode: null, committeeCode: { in: family } },
+      { committeeName: { contains: query.committee, mode: 'insensitive' } },
+    ] : [
       { committeeSystemCode: query.committee },
       { committeeCode: query.committee },
       { committeeName: { contains: query.committee, mode: 'insensitive' } },
     ];
   }
-  if (query.subcommittee) where.subcommitteeSystemCode = query.subcommittee;
+  if (query.subcommittee) {
+    const code = query.subcommittee.trim().toLowerCase();
+    const parent = committeeParentCode(code);
+    // Canonical identity takes precedence. Older Congress.gov imports put an
+    // explicitly published child code in committeeCode / committeeSystemCode.
+    // Recover those exact codes, never every proceeding under the parent.
+    const child: Prisma.CommitteeHearingWhereInput = {
+      OR: [
+        { subcommitteeSystemCode: code },
+        {
+          subcommitteeSystemCode: null,
+          OR: [
+            { committeeSystemCode: code },
+            {
+              committeeCode: code,
+              OR: [
+                { committeeSystemCode: null },
+                ...(parent ? [{ committeeSystemCode: parent }] : []),
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      child,
+    ];
+  }
   if (query.eventType) where.type = query.eventType;
   if (query.eventStatus) where.eventStatus = query.eventStatus;
   if (query.streamState) where.streamAvailability = query.streamState;

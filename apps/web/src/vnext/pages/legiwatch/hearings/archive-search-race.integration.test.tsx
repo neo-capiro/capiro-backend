@@ -17,6 +17,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, orgId: 'org-test', userId: 'user-test' }),
+}));
+
 interface PendingRequest {
   url: string;
   signal: AbortSignal | undefined;

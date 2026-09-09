@@ -49,6 +49,10 @@ import {
   type CalendarExportResult,
 } from './legiwatch-calendar-export.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+import {
+  discoverSavedHearingSessions,
+  type SavedSessionsDiscovery,
+} from './legiwatch-saved-sessions.js';
 
 /** Server-side page ceiling for every list this service returns. */
 const MAX_PAGE_SIZE = 100;
@@ -162,6 +166,7 @@ export interface ArchiveSearchInput {
  */
 export type ArchiveSearchPage = {
   rows: Array<Record<string, unknown>>;
+  savedSessionsState: SavedSessionsDiscovery['savedSessionsState'];
   total: number;
   /**
    * The archive's size BEFORE the query and facets narrow it. `total` is
@@ -533,6 +538,24 @@ export class LegiWatchWave1Service {
 
   // ── W1-3 · archive + global hearing research ─────────────────────────────
 
+  /** Accessible saved captures; public capture/transcript state stays separate. */
+  async savedSessions(ctx: TenantContext, hearingId: string) {
+    await this.requireHearing(hearingId);
+    const discovery = await this.discoverSavedSessions(ctx, hearingId);
+    return {
+      hearingId,
+      savedSessionsState: discovery.savedSessionsState,
+      sessions: discovery.sessions.filter((session) => session.hearingId === hearingId),
+      associationPolicy: 'explicit_hearing_id_or_unique_official_source',
+    };
+  }
+
+  private discoverSavedSessions(ctx: TenantContext, hearingId: string | null = null): Promise<SavedSessionsDiscovery> {
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      discoverSavedHearingSessions(tx, ctx.tenantId, ctx.clerkUserId, hearingId),
+    );
+  }
+
   /**
    * Server-side search over the durable historical hearing corpus.
    *
@@ -574,8 +597,11 @@ export class LegiWatchWave1Service {
     // LIKE patterns built from it need no escaping.
     const normPhrase = phrase ? phrase.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() : '';
     const terms = normPhrase ? normPhrase.split(' ') : [];
+    // One tenant-scoped discovery serves rows, counts, facets and any fallback
+    // search. Never fetch tenant transcripts into the public research corpus.
+    const saved = await this.discoverSavedSessions(ctx);
 
-    const strict = await this.runArchiveSearch(ctx, input, {
+    const strict = await this.runArchiveSearch(ctx, input, saved, {
       phrase,
       ftsQuery: phrase,
       normPhrase: normPhrase || null,
@@ -587,7 +613,7 @@ export class LegiWatchWave1Service {
     // once to an any-term query — and label it, so the UI can say these are
     // partial matches instead of passing them off as exact ones. One extra
     // round trip, and only on the otherwise-empty case.
-    const partial = await this.runArchiveSearch(ctx, input, {
+    const partial = await this.runArchiveSearch(ctx, input, saved, {
       phrase,
       ftsQuery: terms.join(' or '),
       normPhrase: normPhrase || null,
@@ -610,6 +636,7 @@ export class LegiWatchWave1Service {
   private async runArchiveSearch(
     ctx: TenantContext,
     input: ArchiveSearchInput,
+    saved: SavedSessionsDiscovery,
     match: {
       phrase: string | null;
       ftsQuery: string | null;
@@ -678,13 +705,18 @@ export class LegiWatchWave1Service {
     if (input.subcommittee)
       filters.push(`AND h.subcommittee_system_code = ${bind(input.subcommittee)}`);
     if (input.eventStatus) filters.push(`AND h.event_status = ${bind(input.eventStatus)}`);
+    const savedTranscriptHearingIds = [...new Set(saved.sessions
+      .filter((session) => session.transcriptSegmentCount > 0)
+      .map((session) => session.hearingId))];
     if (input.hasTranscript === true)
       filters.push(
-        `AND (ot.id IS NOT NULL OR EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id))`,
+        `AND (ot.id IS NOT NULL OR EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id)
+          OR h.id = ANY(${bind(savedTranscriptHearingIds)}::text[]))`,
       );
     if (input.hasTranscript === false)
       filters.push(
-        `AND ot.id IS NULL AND NOT EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id)`,
+        `AND ot.id IS NULL AND NOT EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id)
+          AND NOT (h.id = ANY(${bind(savedTranscriptHearingIds)}::text[]))`,
       );
     if (input.intelligenceType)
       filters.push(
@@ -912,7 +944,14 @@ export class LegiWatchWave1Service {
     const total = totals[0]?.total ?? 0;
 
     return {
-      rows: rows.map((row) => this.toArchiveResult(row)),
+      rows: rows.map((row) => ({
+        ...this.toArchiveResult(row),
+        savedSessions: saved.sessions.filter((session) => session.hearingId === row.id),
+        savedTranscriptAvailable: saved.savedSessionsState === 'unavailable'
+          ? null
+          : savedTranscriptHearingIds.includes(String(row.id)),
+      })),
+      savedSessionsState: saved.savedSessionsState,
       total,
       corpusTotal: corpusTotals[0]?.total ?? 0,
       page,

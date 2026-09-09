@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { storedCommitteeIdentity } from '../hearing-discovery/hearing-committee-identity.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsService, type CalendarEvent } from './live-hearings.service.js';
 
@@ -372,6 +373,7 @@ export class CommitteeDirectoryService {
               date: { gte: startOfUtcDay(recentCutoff), lte: startOfUtcDay(futureCutoff) },
               OR: [
                 { committeeSystemCode: { in: codes } },
+                { committeeCode: { in: codes } },
                 { subcommitteeSystemCode: { in: codes } },
               ],
             },
@@ -437,13 +439,12 @@ export class CommitteeDirectoryService {
     for (const event of events) {
       // Parent rooms include their subcommittee proceedings; subcommittee rooms
       // additionally receive their own count.
-      addEvent(event.committeeSystemCode, event);
-      if (
-        event.subcommitteeSystemCode &&
-        normalizeCode(event.subcommitteeSystemCode) !== normalizeCode(event.committeeSystemCode)
-      ) {
-        addEvent(event.subcommitteeSystemCode, event);
-      }
+      const identity = storedCommitteeIdentity(event);
+      const eventCodes = new Set([
+        normalizeCode(identity.committeeSystemCode),
+        normalizeCode(identity.subcommitteeSystemCode),
+      ]);
+      for (const code of eventCodes) addEvent(code, event);
     }
 
     const rows = committees.map((committee): CommitteeDirectoryRow => {

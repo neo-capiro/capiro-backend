@@ -154,6 +154,21 @@ describe('CommitteeDirectoryService', () => {
     expect(subcommittee).toMatchObject({ upcomingEventCount: 1 });
   });
 
+  it('counts exact legacy child codes once for the child and parent, without assigning parent-only events to a child', async () => {
+    const { service, prisma } = fixture();
+    const event = { title: 'Oversight', date: future, startsAt: future, eventStatus: 'scheduled', type: 'hearing' };
+    prisma.committeeHearing.findMany.mockResolvedValue([
+      { ...event, id: 'legacy-child', committeeCode: 'hsag16', committeeSystemCode: null, subcommitteeSystemCode: null },
+      { ...event, id: 'misplaced-child', committeeCode: 'hsag16', committeeSystemCode: 'hsag16', subcommitteeSystemCode: null },
+      { ...event, id: 'parent-only', committeeCode: 'hsag00', committeeSystemCode: 'hsag00', subcommitteeSystemCode: null },
+    ]);
+    const result = await service.committees();
+    expect(result.rows.find((row) => row.systemCode === 'hsag00')?.upcomingEventCount).toBe(3);
+    expect(result.rows.find((row) => row.systemCode === 'hsag16')?.upcomingEventCount).toBe(2);
+    expect(prisma.committeeHearing.findMany.mock.calls[0]?.[0].where.OR)
+      .toContainEqual({ committeeCode: { in: ['hsag00', 'hsag16', 'ssas00'] } });
+  });
+
   it('marks parent source coverage as inherited instead of fabricating a source', async () => {
     const { service } = fixture();
 

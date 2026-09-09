@@ -383,17 +383,35 @@ describe('LiveHearingsService — event and updates', () => {
   });
 });
 
+describe('LiveHearingsService — explicit legacy child identity', () => {
+  it('returns the same stored proceedings and normalized identities from child and parent calendars', async () => {
+    const { service } = makeService({ hearings: [
+      hearing({ id: 'legacy-airland-may', date: day('2026-05-12'), committeeSystemCode: null, committeeCode: 'ssas14' }),
+      hearing({ id: 'legacy-airland-june', date: day('2026-06-09'), committeeSystemCode: 'ssas14', committeeCode: 'ssas14' }),
+      hearing({ id: 'full-committee', committeeSystemCode: 'ssas00', committeeCode: 'ssas00' }),
+    ] });
+    const child = await service.calendar(ctxA, { subcommittee: 'ssas14', from: '2025-09-09', to: '2026-09-08' });
+    expect(child.total).toBe(2);
+    expect(child.rows.map((row) => [row.id, row.date, row.committeeSystemCode, row.subcommitteeSystemCode])).toEqual([
+      ['legacy-airland-may', '2026-05-12', 'ssas00', 'ssas14'],
+      ['legacy-airland-june', '2026-06-09', 'ssas00', 'ssas14'],
+    ]);
+    const parent = await service.calendar(ctxA, { committee: 'ssas00', from: '2025-09-09', to: '2026-09-08' });
+    expect(parent.rows.map((row) => row.id)).toEqual(child.rows.map((row) => row.id));
+  });
+});
+
 describe('buildWhere', () => {
   it('maps a lowercase chamber to the display case stored in the column', () => {
     expect(buildWhere({ chamber: 'senate' }).chamber).toBe('Senate');
   });
 
   it('accepts a system code or a display name for committee', () => {
-    const where = buildWhere({ committee: 'hsif00' });
+    const where = buildWhere({ committee: 'Energy and Commerce' });
     expect(where.OR).toEqual([
-      { committeeSystemCode: 'hsif00' },
-      { committeeCode: 'hsif00' },
-      { committeeName: { contains: 'hsif00', mode: 'insensitive' } },
+      { committeeSystemCode: 'Energy and Commerce' },
+      { committeeCode: 'Energy and Commerce' },
+      { committeeName: { contains: 'Energy and Commerce', mode: 'insensitive' } },
     ]);
   });
 
@@ -401,6 +419,36 @@ describe('buildWhere', () => {
     const where = buildWhere({ committee: 'hsif00', q: 'nuclear' });
     expect(where.OR).toBeDefined();
     expect(Array.isArray(where.AND)).toBe(true);
+  });
+
+  it('returns only the requested child across canonical and legacy code shapes', () => {
+    const where = buildWhere({ committee: 'ssas00', subcommittee: 'ssas14', q: 'modernization' });
+    const candidate = (overrides: Row) => hearing({
+      title: 'Air Force modernization', committeeCode: 'ssas00', committeeSystemCode: 'ssas00',
+      subcommitteeSystemCode: null, ...overrides,
+    });
+    expect(matches(candidate({ subcommitteeSystemCode: 'ssas14' }), where as Row)).toBe(true);
+    expect(matches(candidate({ committeeCode: 'ssas14' }), where as Row)).toBe(true);
+    expect(matches(candidate({}), where as Row)).toBe(false);
+    expect(matches(candidate({ subcommitteeSystemCode: 'ssas15', committeeCode: 'ssas14' }), where as Row)).toBe(false);
+    expect(matches(candidate({ subcommitteeSystemCode: 'ssas14', title: 'Unrelated oversight' }), where as Row)).toBe(false);
+    expect(matches(candidate({ committeeSystemCode: 'ssap00', committeeCode: 'ssas14' }), where as Row)).toBe(false);
+  });
+
+  it('includes explicitly child-coded legacy records in the parent calendar', () => {
+    const where = buildWhere({ committee: 'ssas00' }) as Row;
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas14' }), where)).toBe(true);
+    expect(matches(hearing({ committeeSystemCode: 'ssas14' }), where)).toBe(true);
+    expect(matches(hearing({ committeeSystemCode: 'ssap00', committeeCode: 'ssas14' }), where)).toBe(false);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssap14' }), where)).toBe(false);
+  });
+
+  it('reads a legacy child code without pulling in parent or sibling proceedings', () => {
+    const where = buildWhere({ subcommittee: 'ssas14' }) as Row;
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas14' }), where)).toBe(true);
+    expect(matches(hearing({ committeeSystemCode: 'ssas14' }), where)).toBe(true);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas00' }), where)).toBe(false);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas15' }), where)).toBe(false);
   });
 
   it('builds an inclusive day range', () => {

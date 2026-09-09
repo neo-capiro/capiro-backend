@@ -76,6 +76,20 @@ jobs:
     # and a bounded larger heap so the absolute-zero gate is deterministic.
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+    services:
+      saved-session-postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: legiwatch_test
+          POSTGRES_PASSWORD: legiwatch_test
+          POSTGRES_DB: legiwatch_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U legiwatch_test -d legiwatch_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -86,9 +100,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The api and intel-api suites import their generated Prisma clients.
-      # `generate` never connects to a database, so no DATABASE_URL is needed —
-      # and every suite below is mock-backed, which is what lets this whole gate
-      # run without a Postgres service.
+      # `generate` never connects to a database. The saved-session association
+      # suite below uses a disposable PostgreSQL service and temporary fixtures.
       - name: Generate Prisma clients
         run: |
           pnpm --filter @capiro/api exec prisma generate
@@ -107,6 +120,18 @@ jobs:
       # typechecked packages must agree; these two lists are that agreement.
       - name: Typecheck (apps/api, apps/intel-api, apps/web)
         run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
+
+      - name: Tests — saved hearing association SQL
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5432/legiwatch_test
+        run: >
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          --json --outputFile=$GITHUB_WORKSPACE/saved-session-sql-summary.json
+          src/live-hearings/legiwatch-saved-sessions-pg.integration.spec.ts
+
+      - name: Assert saved hearing association SQL is clean
+        if: always()
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 17
 
       # ---------------------------------------------------------------- api --
       # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
@@ -134,6 +159,7 @@ jobs:
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
+          --testPathIgnorePatterns=legiwatch-saved-sessions-pg.integration.spec.ts
           src/tracker/
           src/intelligence/alert-memo/
           src/intelligence/canonical-alert.adapter.spec.ts
@@ -149,7 +175,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 31 409
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 33 424
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -263,4 +289,4 @@ jobs:
       # the tight signal here, the suite count is the coarse one.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 120 500
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 123 523
