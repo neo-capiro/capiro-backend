@@ -308,6 +308,16 @@ export interface OutreachRecipientInput {
   state?: string;
   district?: string;
   party?: string;
+  /**
+   * EM-03: a manually-added recipient carries no directory/domain signal for
+   * government-affairs-policy.registry's selectPolicy() to key off, so
+   * generation fails closed (AudiencePolicyRequiredError) unless the person
+   * who added it says which audience this is. Optional here because most
+   * recipients resolve their audience server-side from directory/domain
+   * signals and never need this; when present it is passed straight through
+   * as GenerationRequest.explicitAudience, which already always wins.
+   */
+  audienceType?: string;
   directoryContactId?: string;
   directoryContactName?: string;
   committee?: string;
@@ -3772,6 +3782,14 @@ export class EngagementService {
       length: null,
       direction: input.direction ?? null,
       audienceKind: o.isGroup ? 'group' : 'individual',
+      // EM-03: an explicit per-recipient audience choice (set on a manually
+      // added recipient who has no directory/domain signal to infer from)
+      // always wins in selectPolicy() — see GenerationRequest.explicitAudience.
+      // Only applied for an individual slot: one manual member's guess must
+      // never override a shared-thread group's own server-verified audience.
+      ...(!o.isGroup && recipient.audienceType
+        ? { explicitAudience: recipient.audienceType as GenerationRequest['explicitAudience'] }
+        : {}),
       ...(o.isGroup && recipient.groupMembers
         ? { groupMemberCount: recipient.groupMembers.length }
         : {}),
@@ -10325,6 +10343,11 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         record.direction === 'on-behalf' || record.direction === 'to-clients'
           ? (record.direction as 'on-behalf' | 'to-clients')
           : undefined;
+      // EM-03: not re-validated against GA_AUDIENCES here — the DTO already
+      // did that on the way in. A stale/tampered value simply won't match a
+      // real policy id in selectPolicy() and falls through to the normal
+      // "choose an audience" error, so there is no unsafe path to guard.
+      const audienceType = readString(record.audienceType);
       const email = normalizeEmailAddress(readString(record.email));
       const name = readString(record.name);
       const office = readString(record.office);
@@ -10352,6 +10375,7 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         ...(id ? { id: id.slice(0, 240) } : {}),
         ...(clientId ? { clientId: clientId.slice(0, 80) } : {}),
         ...(direction ? { direction } : {}),
+        ...(audienceType ? { audienceType: audienceType.slice(0, 80) } : {}),
         ...(name ? { name: name.slice(0, 160) } : {}),
         ...(email ? { email } : {}),
         ...(office ? { office: office.slice(0, 240) } : {}),

@@ -105,6 +105,14 @@ export interface OutreachRecipient {
   state?: string;
   district?: string;
   party?: string;
+  /**
+   * EM-03: required for a manually-added recipient, which has no
+   * directory/domain signal for the server's audience resolver to key off —
+   * generation fails closed without one. Optional here because every
+   * directory-sourced recipient resolves its audience server-side and never
+   * sets this.
+   */
+  audienceType?: string;
   directoryContactId?: string;
   directoryContactName?: string;
   committee?: string;
@@ -593,6 +601,22 @@ export function OutreachView({
       return;
     }
 
+    // Q02: a referenced draft that failed to load (404 — deleted, or a
+    // colleague's owner-private draft the Client Timeline should never have
+    // offered) must NOT be treated the same as "no draft, start fresh". This
+    // branch used to fall straight through to '/new/wizard' below, silently
+    // opening a brand-new blank campaign in place of the one the user
+    // clicked — discarding its identity and client with no error shown. Bail
+    // out to the Outreach list with an explicit notice instead.
+    if (draftRecordIdFromPath && draftRecord.isError && mode === 'campaign') {
+      message.error('This outreach campaign could not be opened. It may have been removed or belongs to someone else.');
+      setMode('landing');
+      setWorkflow({ ...EMPTY_WORKFLOW, clientId: selectedClientId });
+      lastProcessedUrlRef.current = '/engagement/outreach';
+      navigate({ pathname: '/engagement/outreach' }, { replace: true });
+      return;
+    }
+
     let nextPath = '/engagement/outreach';
     if (mode === 'campaign') {
       if (workflow.record?.id) {
@@ -623,6 +647,8 @@ export function OutreachView({
     draftRecordIdFromPath,
     draftRecord.isError,
     outreachV3SessionId,
+    message,
+    selectedClientId,
   ]);
 
   useEffect(() => {

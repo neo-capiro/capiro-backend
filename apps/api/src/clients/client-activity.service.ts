@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import { isISO8601 } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
+import { ownOutreachRecordWhere } from '../engagement/engagement-access.helpers.js';
 
 /**
  * Client relationship history — the normalized CRM activity read model
@@ -115,7 +116,16 @@ export class ClientActivityService {
           select: { id: true, fileName: true, createdAt: true, source: true },
         }),
         tx.outreachRecord.findMany({
-          where: { tenantId: ctx.tenantId, clientId },
+          // Timeline must only surface drafts THIS caller can actually open.
+          // getOutreachRecord() (the single-record read the "Open outreach"
+          // action calls) enforces ownOutreachRecordWhere — owner-private,
+          // reserved outreach_v3 roots excluded. Without the same predicate
+          // here, this list showed every same-tenant colleague's draft too;
+          // clicking one 404'd against the single-record read, and the
+          // wizard's URL-sync effect silently treated that 404 as "no draft
+          // exists" and started a brand-new blank campaign instead of
+          // opening the referenced one (Q02).
+          where: { tenantId: ctx.tenantId, clientId, ...ownOutreachRecordWhere(ctx.userId) },
           orderBy: { createdAt: 'desc' },
           take: limit,
           select: { id: true, title: true, subject: true, createdAt: true, type: true, status: true },
