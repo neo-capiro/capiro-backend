@@ -77,6 +77,12 @@ describe('isGenerationUrl', () => {
       '/api/engagement/outreach-v3/sessions/s1/generation/full',
       // "Refine with Meri": one governed gateway call, measured at 61s live.
       '/api/engagement/outreach-v3/sessions/s1/drafts/a1/refine',
+      // Strategy Execution Agent execute/resume (F03): Meri draft + external
+      // staging hop. Observed live: "timeout of 30000ms exceeded" while the
+      // server completed and the UI kept inviting a second Execute plan.
+      '/strategy-api/agents/execution/runs/run-1/execute',
+      '/strategy-api/agents/execution/runs/run-1/resume',
+      '/strategy-api/agents/execution/runs/run-1/resume?force=1',
     ];
     for (const url of generationUrls) {
       expect(isGenerationUrl(url), url).toBe(true);
@@ -91,6 +97,11 @@ describe('isGenerationUrl', () => {
       // Ordinary workspace CRUD must stay on the tight 30s default.
       '/api/workspace/drafts/abc',
       '/api/workspace/documents/doc123/comments',
+      // Execution list/policy/cancel are fast — only execute/resume escalate.
+      '/strategy-api/agents/execution/runs',
+      '/strategy-api/agents/execution/runs/run-1/policy',
+      '/strategy-api/agents/execution/runs/run-1/cancel',
+      '/strategy-api/agents/execution/plan',
       undefined,
     ];
     for (const url of ordinaryUrls) {

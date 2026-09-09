@@ -1046,7 +1046,11 @@ export function useExecuteRun() {
       normalizeExecutionRun(
         (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/execute`)).data,
       ),
-    onSuccess: invalidate,
+    // F03: invalidate on success AND error. A client timeout aborts the browser
+    // request while the server may already be executing / parking Needs
+    // attention. onSuccess-only left Ready for review + Execute plan on screen
+    // until a full reload.
+    onSettled: invalidate,
   });
 }
 
@@ -1066,7 +1070,8 @@ export function useResumeRun() {
         (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/resume`, vars.input ?? {}))
           .data,
       ),
-    onSuccess: invalidate,
+    // Same F03 reconciliation: a timed-out resume must still refetch run state.
+    onSettled: invalidate,
   });
 }
 

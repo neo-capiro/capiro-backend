@@ -13,6 +13,7 @@ import {
   findExecutionMission,
   findWatchMission,
   httpStatus,
+  isAmbiguousRequestError,
   WATCH_MISSION_NAME,
   isAwaitingSendApproval,
   isPriorApprovalInvalidated,
@@ -390,6 +391,18 @@ describe('classifyWaitingReason (execution blocked-state, precise reason preserv
       'version_drift',
     );
     expect(classifyWaitingReason('node is ineligible for execution').kind).toBe('ineligible');
+    // F03: missing required client context + the live assurance-hold copy.
+    expect(
+      classifyWaitingReason('required client context is missing: strategy_brief, client_constraints'),
+    ).toMatchObject({
+      kind: 'missing_prerequisites',
+      label: 'Missing required context',
+    });
+    expect(
+      classifyWaitingReason(
+        'generated artifact verification did not pass — no Workspace or Outreach artifact was created; restore required context/provenance and retry',
+      ).kind,
+    ).toBe('missing_prerequisites');
   });
 
   it('degrades an unknown/empty reason to "other" with a sane default (never a blank blocked state)', () => {
@@ -397,6 +410,29 @@ describe('classifyWaitingReason (execution blocked-state, precise reason preserv
     expect(empty.kind).toBe('other');
     expect(empty.reason).toBe('Waiting for input.');
     expect(classifyWaitingReason('something odd').kind).toBe('other');
+  });
+});
+
+describe('isAmbiguousRequestError (F03 timeout reconciliation)', () => {
+  it('treats client timeouts and dropped connections without a response as ambiguous', () => {
+    expect(isAmbiguousRequestError({ code: 'ECONNABORTED', message: 'timeout of 30000ms exceeded' })).toBe(
+      true,
+    );
+    expect(isAmbiguousRequestError({ message: 'timeout of 175000ms exceeded' })).toBe(true);
+    expect(isAmbiguousRequestError({ code: 'ETIMEDOUT' })).toBe(true);
+    expect(isAmbiguousRequestError({ message: 'Network Error' })).toBe(true);
+  });
+
+  it('does NOT treat a real HTTP error response as ambiguous', () => {
+    expect(
+      isAmbiguousRequestError({
+        code: 'ERR_BAD_RESPONSE',
+        message: 'Request failed with status code 409',
+        response: { status: 409, data: { message: 'run is waiting_for_input' } },
+      }),
+    ).toBe(false);
+    expect(isAmbiguousRequestError(new Error('Could not execute the plan.'))).toBe(false);
+    expect(isAmbiguousRequestError(null)).toBe(false);
   });
 });
 

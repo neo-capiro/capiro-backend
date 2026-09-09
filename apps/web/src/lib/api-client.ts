@@ -56,7 +56,14 @@ const GENERATION_URL_PATTERNS: RegExp[] = [
   /clio\/research/i, // deep-research create / clarify (non-stream POSTs)
   /workspace\/assistant/i, // in-editor Meri assistant: bounded multi-round tool loop on Sonnet, runs well past 30s on a "thinking" turn
   /comments\/[^/]+\/suggest/i, // "Let Meri draft an edit": single AI rewrite, can exceed 30s
-];
+  // Strategy Execution Agent: execute/resume run a Meri document draft +
+  // Workspace/Outreach staging hop. Observed live (F03): "Execute plan" died
+  // with "timeout of 30000ms exceeded" while the server finished into
+  // waiting_for_input / Needs attention; the UI kept Ready for review + Execute
+  // plan until a full reload. Match only the long-running action routes — list
+  // / policy / cancel stay on the tight default.
+  /\/agents\/execution\/runs\/[^/]+\/(execute|resume)(?:\?|$)/i,
+]
 
 export function isGenerationUrl(url: string | undefined): boolean {
   if (!url) return false;

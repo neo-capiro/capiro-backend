@@ -40,6 +40,7 @@ import {
 import {
   classifyWaitingReason,
   isAwaitingSendApproval,
+  isAmbiguousRequestError,
   isPriorApprovalInvalidated,
   sendApprovalTask,
 } from '../../../../pages/strategy/agents/agent-utils.js';
@@ -449,7 +450,12 @@ function RunCard({
       { id: run.id },
       {
         onSuccess: () => setActionError(null),
-        onError: (err) => setActionError(errorMessage(err, 'Could not execute the plan.')),
+        onError: (err) =>
+          setActionError(
+            isAmbiguousRequestError(err)
+              ? 'The request timed out before the result returned. Checking the recorded run status — do not execute again until that status is current.'
+              : errorMessage(err, 'Could not execute the plan.'),
+          ),
       },
     );
   };
@@ -459,7 +465,12 @@ function RunCard({
       { id: run.id },
       {
         onSuccess: () => setActionError(null),
-        onError: (err) => setActionError(errorMessage(err, 'Could not resume the run.')),
+        onError: (err) =>
+          setActionError(
+            isAmbiguousRequestError(err)
+              ? 'The request timed out before the result returned. Checking the recorded run status — do not resume again until that status is current.'
+              : errorMessage(err, 'Could not resume the run.'),
+          ),
       },
     );
   };
@@ -605,15 +616,41 @@ function RunCard({
         {block && (
           <div className="st-agents__block">
             <div className="st-agents__block-text">
-              <b>{block.kind === 'ineligible' ? 'Update this step before preparing work' : block.label}.</b> {block.kind === 'ineligible' ? 'Check the step type, subject, owner and dates in the editor, then return here to resume.' : block.kind === 'material_conflict' ? 'Resolve conflicting client information in Context review, then resume.' : block.kind === 'version_drift' ? 'Review the updated strategy and prepare a new plan before continuing.' : block.reason}
-              <details><summary>Reported reason</summary>{block.reason}</details>
+              <b>{block.kind === 'ineligible' ? 'Update this step before preparing work' : block.label}.</b>{' '}
+              {block.kind === 'ineligible'
+                ? 'Check the step type, subject, owner and dates in the editor, then return here to resume.'
+                : block.kind === 'material_conflict'
+                  ? 'Resolve conflicting client information in Context review, then resume.'
+                  : block.kind === 'missing_prerequisites'
+                    ? 'Restore the required client context (strategy brief and client constraints) in Context review before retrying. Execute plan stays unavailable until prerequisites are current.'
+                    : block.kind === 'version_drift'
+                      ? 'Review the updated strategy and prepare a new plan before continuing.'
+                      : block.reason}
+              <details>
+                <summary>Reported reason</summary>
+                {block.reason}
+              </details>
             </div>
-            {repairPath && (block.kind === 'ineligible' || block.kind === 'version_drift') && <CapiroButton size="compact" onClick={() => navigate(repairPath)}>Review step</CapiroButton>}
-            {block.kind === 'material_conflict' && <CapiroButton size="compact" onClick={() => navigate('/strategies/context/steward')}>Review context</CapiroButton>}
-            {block.kind === 'version_drift' && can('retry') && <CapiroButton size="compact" disabled={busy} onClick={onRetry}>Prepare updated plan</CapiroButton>}
-            {block.kind !== 'version_drift' && can('resume') && <CapiroButton size="compact" disabled={busy} onClick={onResume}>
-              {resume.isPending ? 'Resuming…' : 'Resume'}
-            </CapiroButton>}
+            {repairPath && (block.kind === 'ineligible' || block.kind === 'version_drift') && (
+              <CapiroButton size="compact" onClick={() => navigate(repairPath)}>
+                Review step
+              </CapiroButton>
+            )}
+            {(block.kind === 'material_conflict' || block.kind === 'missing_prerequisites') && (
+              <CapiroButton size="compact" onClick={() => navigate('/strategies/context/steward')}>
+                Review context
+              </CapiroButton>
+            )}
+            {block.kind === 'version_drift' && can('retry') && (
+              <CapiroButton size="compact" disabled={busy} onClick={onRetry}>
+                Prepare updated plan
+              </CapiroButton>
+            )}
+            {block.kind !== 'version_drift' && can('resume') && (
+              <CapiroButton size="compact" disabled={busy} onClick={onResume}>
+                {resume.isPending ? 'Resuming…' : 'Resume'}
+              </CapiroButton>
+            )}
           </div>
         )}
 

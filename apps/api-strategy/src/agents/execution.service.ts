@@ -221,7 +221,18 @@ export class ExecutionService {
       }, strategy, targetNode, headVersionId);
       const eligibility = g0.eligibility as EligibilityResult;
       const chainErrors = g0.verifierChainErrors as Array<{ message: string }>;
-      const reasons = [...chainErrors.map((error) => `Fix this step or its prerequisites: ${error.message}`), ...eligibility.reasons];
+      const missingRequired = Array.isArray(g0.missingRequired)
+        ? (g0.missingRequired as string[]).filter((k) => typeof k === 'string' && k.trim())
+        : [];
+      const reasons = [
+        ...chainErrors.map((error) => `Fix this step or its prerequisites: ${error.message}`),
+        ...eligibility.reasons,
+        // F03: explain missing required client context in readiness BEFORE the
+        // step is offered as Ready to prepare / Ready for review.
+        ...(missingRequired.length
+          ? [`required client context is missing: ${missingRequired.join(', ')}`]
+          : []),
+      ];
       if (blockReason && !reasons.length) reasons.push(blockReason);
       const constraint = await this.preparationConstraint(tenantId, kind, strategy, targetNode);
       if (constraint) reasons.push(constraint);
@@ -379,12 +390,13 @@ export class ExecutionService {
     const ground = await this.meri.grounding(tenantId);
     const health = await this.steward.health(tenantId, strategy.clientId);
     const openMaterialConflicts = health.openMaterialConflicts.length;
+    const missingRequired = [...(health.missingRequired ?? [])];
     // The wire-shape subset MeriService.stewardContext forwards to the
     // orchestrator (Stage-G document-draft reuses the SAME shape) — narrowed
     // from the richer StewardHealthReport (factCounts/staleDocs are internal).
     const stewardHealth: StewardHealth = {
       status: health.status,
-      missingRequired: health.missingRequired,
+      missingRequired,
       openMaterialConflicts: health.openMaterialConflicts,
     };
 
@@ -420,19 +432,27 @@ export class ExecutionService {
       })),
       eligibility,
       openMaterialConflicts,
+      // F03: surface missing required client context in the gate picture so
+      // preflight/plan can explain it BEFORE marking the step Ready for review.
+      missingRequired,
     };
 
     // ANY blocking condition parks the run WITHOUT staging. Precedence gives the
     // most specific precise reason; findings.g0 carries the full picture.
+    // missingRequired is checked before bare eligibility so a plan that would
+    // otherwise be "ready" still parks with a plain-words context gap (F03) —
+    // instead of inviting Execute plan and only failing later in the verifier.
     const blockReason = versionDrift
       ? 'plan changed since approval'
       : chainErrors.length
         ? `plan verification failed: ${chainErrors.map((e) => e.message).join('; ')}`
         : openMaterialConflicts > 0
           ? 'unresolved material conflict'
-          : !eligibility.eligible
-            ? `node no longer eligible: ${eligibility.reasons.join('; ')}`
-            : null;
+          : missingRequired.length > 0
+            ? `required client context is missing: ${missingRequired.join(', ')}`
+            : !eligibility.eligible
+              ? `node no longer eligible: ${eligibility.reasons.join('; ')}`
+              : null;
 
     return { g0, blockReason, grounding: ground, stewardHealth };
   }

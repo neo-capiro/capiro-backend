@@ -443,6 +443,8 @@ function makeTx(store: Store) {
 interface ServiceOpts {
   flagEnabled?: boolean;
   openMaterialConflicts?: Rec[];
+  /** F03: Steward missing required template keys (defaults to []). */
+  missingRequired?: string[];
   createWorkspaceDraftRef?: string;
   createOutreachRecordRef?: string;
   /** Stage-G grounded generation: defaults to null (the deterministic-fallback
@@ -511,7 +513,7 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
     openConflicts: 0,
     openMaterialConflicts: opts.openMaterialConflicts ?? [],
     staleDocs: [],
-    missingRequired: [],
+    missingRequired: opts.missingRequired ?? [],
   };
   const health = jest.fn(async (_t: string, _c: string | null) => healthValue);
   // Stage-G: read-only grounding facts for generation — defaults to [], mirroring
@@ -1917,5 +1919,32 @@ describe('Execution readiness before creating records', () => {
     const run = await svc.plan(T, U, 'bearer', wsPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: checked.headVersionId! }));
     expect(run.state).toBe('ready_for_review');
     expect(createWorkspaceDraft).not.toHaveBeenCalled();
+  });
+
+  // F03: missing required client context must block readiness AND park plan()
+  // BEFORE Ready for review — never invite Execute plan and only fail later in
+  // the generation verifier.
+  it('explains missing required client context in readiness and parks plan without Ready for review', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, updatedAt: new Date(revision) });
+    const { svc, createWorkspaceDraft, draftExecutionDocument } = makeService(store, {
+      missingRequired: ['strategy_brief', 'client_constraints'],
+    });
+
+    const checked = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
+    expect(checked.workspace.eligible).toBe(false);
+    expect(checked.workspace.reasons.join(' ')).toMatch(
+      /required client context is missing: strategy_brief, client_constraints/,
+    );
+
+    const parked = await svc.plan(T, U, 'bearer', wsPlan());
+    expect(parked.state).toBe('waiting_for_input');
+    expect(parked.waitingReason).toBe(
+      'required client context is missing: strategy_brief, client_constraints',
+    );
+    expect(createWorkspaceDraft).not.toHaveBeenCalled();
+    expect(draftExecutionDocument).not.toHaveBeenCalled();
   });
 });

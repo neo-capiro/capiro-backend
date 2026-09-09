@@ -51,6 +51,7 @@ import { relativeTime } from '../constants.js';
 import {
   classifyWaitingReason,
   isAwaitingSendApproval,
+  isAmbiguousRequestError,
   isPriorApprovalInvalidated,
   sendApprovalTask,
 } from './agent-utils.js';
@@ -271,8 +272,15 @@ function ExecutionRunCard({
         onSuccess: () =>
           message.success('Plan executed — artifacts staged for review. Nothing was sent.'),
         // A parked/ineligible outcome surfaces the server's precise reason (the
-        // run refetch re-renders it as a blocked state below).
-        onError: (err) => message.error(errorMessage(err, 'Could not execute the plan.')),
+        // run refetch re-renders it as a blocked state below). F03: a client
+        // timeout is ambiguous — the server may already have moved the run, so
+        // tell the operator to wait for reconciliation instead of re-executing.
+        onError: (err) =>
+          message.error(
+            isAmbiguousRequestError(err)
+              ? 'The request timed out before the result returned. Checking the recorded run status — do not execute again until that status is current.'
+              : errorMessage(err, 'Could not execute the plan.'),
+          ),
       },
     );
   };
@@ -282,7 +290,12 @@ function ExecutionRunCard({
       { id: run.id },
       {
         onSuccess: () => message.success('Run resumed.'),
-        onError: (err) => message.error(errorMessage(err, 'Could not resume the run.')),
+        onError: (err) =>
+          message.error(
+            isAmbiguousRequestError(err)
+              ? 'The request timed out before the result returned. Checking the recorded run status — do not resume again until that status is current.'
+              : errorMessage(err, 'Could not resume the run.'),
+          ),
       },
     );
   };

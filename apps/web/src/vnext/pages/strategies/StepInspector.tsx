@@ -572,6 +572,9 @@ function readinessReason(reason: string): string {
   if (reason.startsWith('node has no target date')) return 'Set a start date or deadline in the step details.';
   if (reason === 'caller has no workspace access') return 'Workspace access is required. Ask your team administrator.';
   if (reason.startsWith('strategy has') && reason.includes('open material conflict')) return 'Resolve conflicting information in Context review before preparing this work.';
+  if (reason.startsWith('required client context is missing')) {
+    return 'Upload the required client context (strategy brief and client constraints) in Context review before preparing this work.';
+  }
   if (reason.startsWith('step is completed')) return 'Reopen this completed step before preparing more work.';
   return reason;
 }

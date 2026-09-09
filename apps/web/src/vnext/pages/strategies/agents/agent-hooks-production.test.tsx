@@ -2,7 +2,14 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useMissions, usePlanExecution, useRetryRun, useTransitionRun } from '../strategies-api.js';
+import {
+  useExecuteRun,
+  useMissions,
+  usePlanExecution,
+  useResumeRun,
+  useRetryRun,
+  useTransitionRun,
+} from '../strategies-api.js';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => api }));
@@ -55,6 +62,41 @@ describe('Agent API wiring regressions', () => {
     const hook = renderHook(() => useRetryRun(), { wrapper });
     await act(async () => { await hook.result.current.mutateAsync({ id: 'run-one' }); });
     expect(api.post).toHaveBeenCalledWith('/strategy-api/agents/execution/runs/run-one/retry');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['strategy', 'execution-runs'] });
+  });
+
+  // F03: a client timeout aborts the browser request while the server may already
+  // have moved the run. onSuccess-only left Ready for review + Execute plan on
+  // screen until a full reload — invalidate on settle so the list reconciles live.
+  it('refreshes execution runs after a timed-out Execute plan (ambiguous client abort)', async () => {
+    const { wrapper, invalidate } = harness();
+    const timeout = Object.assign(new Error('timeout of 30000ms exceeded'), {
+      code: 'ECONNABORTED',
+    });
+    api.post.mockRejectedValue(timeout);
+    const hook = renderHook(() => useExecuteRun(), { wrapper });
+    await act(async () => {
+      await hook.result.current.mutateAsync({ id: 'run-one' }).catch(() => undefined);
+    });
+    expect(api.post).toHaveBeenCalledWith('/strategy-api/agents/execution/runs/run-one/execute');
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['strategy', 'execution-runs'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['strategy', 'run-policy'] });
+  });
+
+  it('refreshes execution runs after a timed-out Resume (ambiguous client abort)', async () => {
+    const { wrapper, invalidate } = harness();
+    const timeout = Object.assign(new Error('timeout of 30000ms exceeded'), {
+      code: 'ECONNABORTED',
+    });
+    api.post.mockRejectedValue(timeout);
+    const hook = renderHook(() => useResumeRun(), { wrapper });
+    await act(async () => {
+      await hook.result.current.mutateAsync({ id: 'run-one' }).catch(() => undefined);
+    });
+    expect(api.post).toHaveBeenCalledWith(
+      '/strategy-api/agents/execution/runs/run-one/resume',
+      {},
+    );
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['strategy', 'execution-runs'] });
   });
 });

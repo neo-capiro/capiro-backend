@@ -765,6 +765,7 @@ export type ExecutionBlockKind =
   | 'version_drift'
   | 'ineligible'
   | 'material_conflict'
+  | 'missing_prerequisites'
   | 'interactive_session'
   | 'other';
 
@@ -796,6 +797,22 @@ export function classifyWaitingReason(reason: string | null): ExecutionBlock {
       reason: r || 'An open material context conflict blocks execution.',
     };
   }
+  // F03: missing required client context / assurance hold that asks to restore
+  // context. Prefer this over bare "other" so Needs attention can route to
+  // Context review instead of inviting a blind Resume/Execute.
+  if (
+    /required client context is missing|missing required context|restore required context|generated artifact verification did not pass/.test(
+      lc,
+    )
+  ) {
+    return {
+      kind: 'missing_prerequisites',
+      label: 'Missing required context',
+      reason:
+        r ||
+        'Required client context is missing. Restore the strategy brief and client constraints, then retry.',
+    };
+  }
   if (/version|drift|changed since|stale plan|plan changed/.test(lc)) {
     return {
       kind: 'version_drift',
@@ -811,6 +828,28 @@ export function classifyWaitingReason(reason: string | null): ExecutionBlock {
     };
   }
   return { kind: 'other', label: 'Waiting for input', reason: r || 'Waiting for input.' };
+}
+
+/**
+ * True when a request failed without a server response body that proves the
+ * outcome — typically an axios client timeout (ECONNABORTED / "timeout of
+ * Nms exceeded") or a dropped connection. The server may still have finished
+ * the work; the UI must reconcile run state instead of treating the failure as
+ * "nothing happened" (F03).
+ */
+export function isAmbiguousRequestError(err: unknown): boolean {
+  const anyErr = err as {
+    code?: unknown;
+    message?: unknown;
+    response?: unknown;
+  } | null;
+  if (!anyErr || typeof anyErr !== 'object') return false;
+  // A real HTTP response means the server answered — not ambiguous.
+  if (anyErr.response != null) return false;
+  const code = typeof anyErr.code === 'string' ? anyErr.code.toUpperCase() : '';
+  if (code === 'ECONNABORTED' || code === 'ETIMEDOUT' || code === 'ECONNRESET') return true;
+  const msg = typeof anyErr.message === 'string' ? anyErr.message.toLowerCase() : '';
+  return /timeout of \d+ms exceeded|network error|failed to fetch/.test(msg);
 }
 
 /** True when a run parked specifically on the (inert) send-approval gate. */
