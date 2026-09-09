@@ -15,13 +15,27 @@ import { OrchestratorClient } from '../src/hearing/orchestrator.client.js';
  */
 
 const BASE = 'https://orch.test';
+const SECRET = 'shared_secret_abc';
 
 function makeClient(): OrchestratorClient {
   const config = {
     get: (key: string) =>
-      key === 'MERIV2_ORCHESTRATOR_URL' ? BASE : key === 'MERIV2_TIMEOUT_MS' ? '8000' : undefined,
+      key === 'MERIV2_ORCHESTRATOR_URL'
+        ? BASE
+        : key === 'MERIV2_TIMEOUT_MS'
+          ? '8000'
+          : key === 'INTERNAL_SERVICE_SECRET'
+            ? SECRET
+            : undefined,
   } as never;
-  return new OrchestratorClient(config);
+  // The BYOK resolver is a REQUIRED constructor dependency: every call path here
+  // awaits `aiCredentials.resolve(tenantId)` before fetching. Omitting it made
+  // all four of these tests throw "Cannot read properties of undefined (reading
+  // 'resolve')" — so this whole contract guard, the one that exists because a
+  // silent wire mismatch once produced ZERO AI enrichment on every live hearing,
+  // had been failing on main rather than guarding anything.
+  const aiCredentials = { resolve: async () => null } as never;
+  return new OrchestratorClient(config, aiCredentials);
 }
 
 type FetchCall = { url: string; init: RequestInit };
@@ -67,7 +81,7 @@ describe('OrchestratorClient.extract — tag_live_policy_mentions contract', () 
     const out = await client.extract({
       tenantId: 'tenant_1',
       sessionId: 'sess_1',
-      authToken: 'jwt_abc',
+      clerkUserId: 'user_1',
       segment: { startMs: 0, endMs: 8200, text: 'fund H.R. 1', speakerLabel: 'Chair' },
       sessionContext: {
         clientId: 'client_1',
@@ -99,10 +113,19 @@ describe('OrchestratorClient.extract — tag_live_policy_mentions contract', () 
     // transport concerns must NOT leak into the tool input
     expect(body.input.authToken).toBeUndefined();
     expect(body.input.tenantId).toBeUndefined();
-    // headers still carry auth + tenant
+    // Service-to-service auth: the shared secret plus an explicitly DELEGATED
+    // tenant and user. Replaying the browser's Clerk JWT was retired because
+    // those live ~60s while a hearing socket lives up to four hours, so nearly
+    // every call after the first minute went out with an expired credential and
+    // graceful-degrade turned that into silently missing enrichment. This test
+    // asserted the retired header, and a broken constructor kept it from ever
+    // running — so it locked in nothing.
     const headers = calls[0]?.init.headers as Record<string, string>;
-    expect(headers.authorization).toBe('Bearer jwt_abc');
+    expect(headers['x-internal-service-secret']).toBe(SECRET);
+    expect(headers['x-capiro-delegated-tenant']).toBe('tenant_1');
+    expect(headers['x-capiro-delegated-user']).toBe('user_1');
     expect(headers['x-tenant-id']).toBe('tenant_1');
+    expect(headers.authorization).toBeUndefined();
 
     // Axis 3: fields are read from data.result — populated, not empty.
     expect(out.entityMentions).toHaveLength(1);
@@ -118,7 +141,7 @@ describe('OrchestratorClient.extract — tag_live_policy_mentions contract', () 
     const out = await client.extract({
       tenantId: 'tenant_1',
       sessionId: 'sess_1',
-      authToken: 'jwt_abc',
+      clerkUserId: 'user_1',
       segment: { startMs: 0, endMs: 1000, text: 'x' },
       sessionContext: { issueIds: [], billIds: [], programElementIds: [] },
     });
@@ -147,7 +170,7 @@ describe('OrchestratorClient.summarizeHearing — generate_post_hearing_summary 
     const out = await client.summarizeHearing({
       tenantId: 'tenant_1',
       sessionId: 'sess_1',
-      authToken: 'jwt_abc',
+      clerkUserId: 'user_1',
       title: 'HASC Hearing',
       quotes: [{ text: 'fund it', speakerName: 'Rep. Smith', timestampMs: 10 }],
       mentions: [{ type: 'bill', label: 'H.R. 1', ref: null }],
@@ -182,12 +205,68 @@ describe('OrchestratorClient.summarizeHearing — generate_post_hearing_summary 
     const out = await client.summarizeHearing({
       tenantId: 'tenant_1',
       sessionId: 'sess_1',
-      authToken: 'jwt_abc',
+      clerkUserId: 'user_1',
       title: 'HASC Hearing',
       quotes: [],
       mentions: [],
       actionItems: [],
     });
     expect(out).toBeNull();
+  });
+
+  it('with a client: scope rides at the top level, the client block inside input, clientContext threads back', async () => {
+    const clientId = '22222222-2222-4222-8222-222222222222';
+    const calls = mockFetch({
+      ok: true,
+      json: {
+        tool: 'generate_post_hearing_summary',
+        result: {
+          executiveSummary: 'Anduril-specific summary.',
+          tone: 'contentious',
+          risks: [],
+          opportunities: [],
+          recommendedNextSteps: [],
+          draftClientEmail: { subject: 'Recap', body: 'Hi.' },
+          clientContext: 'applied',
+        },
+      },
+    });
+    const client = makeClient();
+    const out = await client.summarizeHearing({
+      tenantId: 'tenant_1',
+      sessionId: 'sess_1',
+      clerkUserId: 'user_1',
+      title: 'HASC Hearing',
+      quotes: [],
+      mentions: [],
+      actionItems: [],
+      client: {
+        clientId,
+        name: 'Anduril',
+        relevance: {
+          band: 'HIGH',
+          whyItMatters: 'Debated directly.',
+          matchedPriorities: [{ label: 'autonomous systems', kind: 'watchlist' }],
+          implications: [],
+        },
+      },
+    });
+
+    const body = JSON.parse(calls[0]?.init.body as string);
+    // The orchestrator resolves client steering + the ethical wall from these two;
+    // they are transport, not tool input.
+    expect(body.clientId).toBe(clientId);
+    expect(body.surface).toBe('memo');
+    expect(Object.keys(body.input).sort()).toEqual([
+      'actionItems',
+      'client',
+      'mentions',
+      'quotes',
+      'sessionId',
+      'title',
+    ]);
+    expect(body.input.client.name).toBe('Anduril');
+    expect(body.input.client.relevance.band).toBe('HIGH');
+    expect(out?.clientContext).toBe('applied');
   });
 });

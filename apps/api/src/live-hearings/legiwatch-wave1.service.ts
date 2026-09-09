@@ -1365,6 +1365,42 @@ export class LegiWatchWave1Service {
     });
   }
 
+  /**
+   * Client context for the post-hearing brief, for a BACKEND-SERVICE caller
+   * (intel-api, over the internal shared-secret channel) that holds a tenantId
+   * but no user. Returns the client's name plus the same relevance result the
+   * user-facing route serves, or a null relevance when the session has no
+   * canonical hearing (ad-hoc browser capture) or the hearing is unknown here.
+   * The client must belong to the tenant — `assertClientInTenant` 404s otherwise.
+   */
+  async clientBriefContext(
+    tenantId: string,
+    clientId: string,
+    hearingId: string | null,
+  ): Promise<{ clientName: string | null; relevance: ClientRelevanceResult | null }> {
+    const client = await this.assertClientInTenant(tenantId, clientId);
+    if (!hearingId) return { clientName: client.name, relevance: null };
+    const hearing = await this.prisma.committeeHearing.findUnique({
+      where: { id: hearingId },
+      select: { id: true },
+    });
+    if (!hearing) return { clientName: client.name, relevance: null };
+    const [rows, segments] = await Promise.all([
+      this.relevanceRows({ tenantId }, hearingId, clientId),
+      this.transcriptSegmentCount(hearingId),
+    ]);
+    return {
+      clientName: client.name,
+      relevance: buildClientRelevance({
+        clientId,
+        clientName: client.name,
+        hearingId,
+        rows,
+        hasTranscript: segments > 0,
+      }),
+    };
+  }
+
   /** The All-Clients ranked view over the caller's own client list. */
   async allClientsRelevance(
     ctx: TenantContext,
@@ -1413,7 +1449,9 @@ export class LegiWatchWave1Service {
    * the query.
    */
   private async relevanceRows(
-    ctx: TenantContext,
+    // Only the tenant is needed here (RLS scope). Narrowed so a backend-service
+    // caller holding a bare tenantId can read without fabricating a user context.
+    ctx: Pick<TenantContext, 'tenantId'>,
     hearingId: string,
     clientId: string | null,
   ): Promise<RelevanceRow[]> {

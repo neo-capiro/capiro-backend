@@ -19,6 +19,7 @@ import { HearingBriefService } from './hearing-brief.service.js';
 import { StreamResolverService } from './stream-resolver.service.js';
 import { ConfirmConsentDto, CreateSessionDto } from './dto/session.dto.js';
 import { ResolveStreamDto } from './dto/resolve-stream.dto.js';
+import { BriefQueryDto } from './dto/brief.dto.js';
 
 /**
  * Live Hearing REST surface (tenant-scoped via TenantGuard). The live audio
@@ -131,11 +132,17 @@ export class HearingController {
 
   /** H4: generate the client-ready post-hearing brief. */
   @Get(':id/brief')
-  async briefFor(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+  async briefFor(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Query() query: BriefQueryDto,
+  ) {
     await this.sessions.getAccessible(ctx.tenantId, id, ctx.clerkUserId);
     // Delegates the caller's identity to MeriV2 rather than relaying their raw
-    // Clerk token; the downstream call uses INTERNAL_SERVICE_SECRET.
-    return this.brief.generate(ctx.tenantId, id, ctx.clerkUserId);
+    // Clerk token; the downstream call uses INTERNAL_SERVICE_SECRET. `clientId`
+    // is the client the recap is written FOR — its steering and stored relevance
+    // ground the narrative; without it the brief is client-agnostic.
+    return this.brief.generate(ctx.tenantId, id, ctx.clerkUserId, query.clientId ?? null);
   }
 
   /**

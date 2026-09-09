@@ -8,6 +8,7 @@ import { OrchestratorClient } from './orchestrator.client.js';
 import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
 import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
+import { ClientBriefContextClient } from './client-brief-context.client.js';
 import { HearingGateway } from './hearing.gateway.js';
 import { StreamResolverService } from './stream-resolver.service.js';
 import { WatchlistModule } from '../watchlist/watchlist.module.js';
@@ -33,6 +34,7 @@ import { CaptureModule } from './capture/capture.module.js';
     HearingAiCredentialResolver,
     PostHearingService,
     HearingBriefService,
+    ClientBriefContextClient,
     StreamResolverService,
     HearingGateway,
   ],

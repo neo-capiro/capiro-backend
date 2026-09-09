@@ -122,4 +122,106 @@ describe('generate_post_hearing_summary tool', () => {
     );
     expect(out.recommendedNextSteps).toEqual(['follow up']);
   });
+
+  it('reports clientContext "none" and no client block when no client is supplied', async () => {
+    const prompts: string[] = [];
+    const llm: LlmClient = {
+      completeJson: async ({ prompt }) => {
+        prompts.push(prompt);
+        return { executiveSummary: 'x' };
+      },
+      completeWithSchema,
+    };
+    const tool = createGeneratePostHearingSummaryTool(llm);
+    const out = await tool.handler(
+      { sessionId: 's1', title: 'T', quotes: [], mentions: [], actionItems: [] },
+      ctx,
+    );
+    expect(out.clientContext).toBe('none');
+    expect(prompts[0]).not.toContain('Client:');
+  });
+
+  it('writes for the named client: relevance, matched priorities and implications reach the prompt', async () => {
+    const prompts: string[] = [];
+    const llm: LlmClient = {
+      completeJson: async ({ prompt, system }) => {
+        prompts.push(prompt);
+        expect(system).toMatch(/write FOR that client/);
+        return { executiveSummary: 'x' };
+      },
+      completeWithSchema,
+    };
+    const tool = createGeneratePostHearingSummaryTool(llm);
+    const out = await tool.handler(
+      {
+        sessionId: 's1',
+        title: 'HASC Hearing',
+        quotes: [{ text: 'fund it', timestampMs: 10 }],
+        mentions: [],
+        actionItems: [],
+        client: {
+          clientId: 'c1',
+          name: 'Anduril',
+          relevance: {
+            band: 'HIGH',
+            whyItMatters: 'The autonomy line the client sells was debated directly.',
+            matchedPriorities: [{ label: 'autonomous systems', kind: 'watchlist' }],
+            implications: ['A funding cut would hit FY27 orders'],
+          },
+        },
+      },
+      ctx,
+    );
+    const prompt = prompts[0] ?? '';
+    expect(prompt).toContain('Client: Anduril');
+    expect(prompt).toContain('band HIGH');
+    expect(prompt).toContain('autonomy line the client sells');
+    expect(prompt).toContain('autonomous systems (watchlist)');
+    expect(prompt).toContain('- A funding cut would hit FY27 orders');
+    // The client block precedes the hearing so the model reads the lens first.
+    expect(prompt.indexOf('Client: Anduril')).toBeLessThan(prompt.indexOf('Hearing: "HASC Hearing"'));
+    expect(out.clientContext).toBe('applied');
+  });
+
+  it('is honest when a client is named but nothing client-specific is available', async () => {
+    const prompts: string[] = [];
+    const llm: LlmClient = {
+      completeJson: async ({ prompt }) => {
+        prompts.push(prompt);
+        return { executiveSummary: 'x' };
+      },
+      completeWithSchema,
+    };
+    const tool = createGeneratePostHearingSummaryTool(llm);
+    const out = await tool.handler(
+      {
+        sessionId: 's1',
+        title: 'T',
+        quotes: [],
+        mentions: [],
+        actionItems: [],
+        client: { clientId: 'c1', name: 'Anduril', relevance: null },
+      },
+      ctx,
+    );
+    expect(out.clientContext).toBe('unavailable');
+    expect(prompts[0]).toContain('none on record for this hearing');
+  });
+
+  it('a NONE relevance band is an honest absence, not applied context — unless steering exists', async () => {
+    const llm: LlmClient = {
+      completeJson: async () => ({ executiveSummary: 'x' }),
+      completeWithSchema,
+    };
+    const tool = createGeneratePostHearingSummaryTool(llm);
+    const client = {
+      clientId: 'c1',
+      name: 'Anduril',
+      relevance: { band: 'NONE' as const, whyItMatters: 'No match.', matchedPriorities: [], implications: [] },
+    };
+    const base = { sessionId: 's1', title: 'T', quotes: [], mentions: [], actionItems: [], client };
+    expect((await tool.handler(base, ctx)).clientContext).toBe('unavailable');
+    const steered: MeriContext = { ...ctx, clientSteering: { compass: 'Protect the autonomy line.' } };
+    expect((await tool.handler(base, steered)).clientContext).toBe('applied');
+  });
 });

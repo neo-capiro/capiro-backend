@@ -8,8 +8,14 @@ const apiPost = vi.fn();
 
 vi.mock('./use-api.js', () => ({ useApi: () => ({ get: apiGet, post: apiPost }) }));
 
-const { briefToMarkdown, isMediaUrl, mediaKindOf, useHearingTranscript, useSaveRecap } =
-  await import('./hearing-watch-api.js');
+const {
+  briefToMarkdown,
+  isMediaUrl,
+  mediaKindOf,
+  useGenerateBrief,
+  useHearingTranscript,
+  useSaveRecap,
+} = await import('./hearing-watch-api.js');
 
 function withQueryClient() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -161,6 +167,74 @@ describe('briefToMarkdown', () => {
 
     expect(markdown).toContain('1 claim in this recap traces to a transcript segment');
     expect(markdown).not.toContain('further anchor');
+  });
+});
+
+describe('briefToMarkdown — client context', () => {
+  const base = {
+    sessionId: 's1',
+    title: 'HASC Hearing',
+    generatedAt: '2026-09-08T12:00:00.000Z',
+    executiveSummary: 'Summary.',
+    keyMoments: [],
+    relevantQuotes: [],
+    supporters: [],
+    opponents: [],
+    tone: 'neutral',
+    risks: [],
+    opportunities: [],
+    recommendedNextSteps: [],
+    draftClientEmail: { subject: 's', body: 'b' },
+    synthesisSource: 'orchestrator' as const,
+  };
+
+  test('names the client the recap was written for and that its context applied', () => {
+    const markdown = briefToMarkdown({
+      ...base,
+      clientContext: { clientId: 'c-1', clientName: 'Anduril', status: 'applied', relevanceBand: 'HIGH' },
+    });
+    expect(markdown).toContain('_Prepared for Anduril · client priorities applied_');
+  });
+
+  test('is honest in the filed document when no client context was available', () => {
+    const markdown = briefToMarkdown({
+      ...base,
+      clientContext: { clientId: 'c-1', clientName: null, status: 'unavailable', relevanceBand: null },
+    });
+    expect(markdown).toContain(
+      '_Prepared for the selected client · no client-specific context was available — read as a general recap_',
+    );
+  });
+
+  test('writes no client line for a client-agnostic brief, including one from an older intel-api', () => {
+    expect(briefToMarkdown(base)).not.toContain('Prepared for');
+    expect(
+      briefToMarkdown({
+        ...base,
+        clientContext: { clientId: null, clientName: null, status: 'none', relevanceBand: null },
+      }),
+    ).not.toContain('Prepared for');
+  });
+});
+
+describe('useGenerateBrief', () => {
+  beforeEach(() => {
+    apiGet.mockReset();
+    apiGet.mockResolvedValue({ data: null });
+  });
+
+  test('asks intel-api for the brief written FOR the chosen client', async () => {
+    const { result } = renderHook(() => useGenerateBrief(), { wrapper: withQueryClient() });
+    result.current.mutate({ sessionId: 'session-1', clientId: 'client-9' });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1));
+    expect(apiGet.mock.calls[0]![0]).toBe('/intel-api/hearings/session-1/brief?clientId=client-9');
+  });
+
+  test('omits the client parameter when no client is given (client-agnostic brief)', async () => {
+    const { result } = renderHook(() => useGenerateBrief(), { wrapper: withQueryClient() });
+    result.current.mutate({ sessionId: 'session-1' });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1));
+    expect(apiGet.mock.calls[0]![0]).toBe('/intel-api/hearings/session-1/brief');
   });
 });
 

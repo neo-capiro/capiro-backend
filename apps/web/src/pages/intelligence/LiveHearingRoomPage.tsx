@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { ArrowLeftOutlined, AudioOutlined, SaveOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, AudioOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
 import { useHearingWakeLock } from '../../lib/use-hearing-wake-lock.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
@@ -1160,12 +1160,22 @@ export function LiveHearingRoomPage({
 }
 
 /**
- * L6 — Save Recap. Generates the post-hearing brief, previews it, and files it to
- * a client's Documents (which auto-indexes into that client's Meri knowledge)
- * through the dedicated hearing-recap endpoint, carrying the sessionId so the
- * server can prove tenant ownership and private-session access.
+ * L6 — Save Recap. Client FIRST, then generation: the brief is written FOR the
+ * chosen client — intel-api grounds risks/opportunities in the firm's stored
+ * relevance for this hearing × client, and the orchestrator compiles that
+ * client's steering — so it cannot be generated before the client is known, and
+ * it regenerates when the client changes. (It used to generate on mount, before
+ * the picker rendered, so the "client" only ever chose where a generic recap
+ * was filed.) The preview carries honest labels — Meri synthesis vs
+ * source-verified assembly; client context applied vs unavailable — because the
+ * two look identical otherwise. Saving files the recap to the client's Documents
+ * (auto-indexed into that client's Meri knowledge) through the dedicated
+ * hearing-recap endpoint, carrying the sessionId so the server can prove tenant
+ * ownership and private-session access.
+ *
+ * Exported for the recap tests; only LiveHearingRoomPage renders it.
  */
-function SaveRecapModal({
+export function SaveRecapModal({
   sessionId,
   sessionTitle,
   defaultClientId,
@@ -1185,15 +1195,56 @@ function SaveRecapModal({
   const [failed, setFailed] = useState(false);
   const [clientId, setClientId] = useState(defaultClientId ?? '');
 
+  // Generation is async and the client can change mid-flight. Only the LATEST
+  // request may populate the preview: a stale success would label a recap that
+  // was written for client A as the one for client B. The mutate ref keeps the
+  // effect's dependency list to the two facts that define a request.
+  const requestRef = useRef(0);
+  const mutateRef = useRef(gen.mutate);
+  mutateRef.current = gen.mutate;
+
+  const generate = useCallback(
+    (forClientId: string) => {
+      const requestId = ++requestRef.current;
+      setBrief(null);
+      setFailed(false);
+      mutateRef.current(
+        { sessionId, clientId: forClientId },
+        {
+          onSuccess: (value) => {
+            if (requestRef.current !== requestId) return;
+            if (value) setBrief(value);
+            else setFailed(true);
+          },
+          onError: () => {
+            if (requestRef.current !== requestId) return;
+            setFailed(true);
+          },
+        },
+      );
+    },
+    [sessionId],
+  );
+
   useEffect(() => {
-    gen.mutate(sessionId, {
-      onSuccess: (value) => (value ? setBrief(value) : setFailed(true)),
-      onError: () => setFailed(true),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+    if (!clientId) {
+      // No client, no recap — and any in-flight request is now stale.
+      requestRef.current += 1;
+      setBrief(null);
+      setFailed(false);
+      return;
+    }
+    generate(clientId);
+  }, [sessionId, clientId, generate]);
 
   const clientName = clients.find((c) => c.id === clientId)?.name ?? '';
+  const generating = Boolean(clientId) && !brief && !failed;
+  const synthesized = brief?.synthesisSource === 'orchestrator';
+  const clientContext = brief?.clientContext;
+  const matchedBand =
+    clientContext?.relevanceBand && ['HIGH', 'MEDIUM', 'LOW'].includes(clientContext.relevanceBand)
+      ? clientContext.relevanceBand
+      : null;
   const onSave = () => {
     if (!brief || !clientId) return;
     save.mutate(
@@ -1245,33 +1296,79 @@ function SaveRecapModal({
         </Button>,
       ]}
     >
-      {!brief && !failed ? (
+      <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>
+        Written for
+      </div>
+      <Select
+        aria-label="Recap client"
+        style={{ minWidth: 300 }}
+        placeholder="Choose a client"
+        value={clientId || undefined}
+        options={clients.map((c) => ({ value: c.id, label: c.name }))}
+        onChange={setClientId}
+        showSearch
+        optionFilterProp="label"
+      />
+      <Divider style={{ margin: '12px 0' }} />
+      {!clientId ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Choose the client this recap is for"
+          description="Meri writes the recap against that client's priorities and the firm's stored relevance for this hearing. Pick a client to generate it."
+        />
+      ) : generating ? (
         <div style={{ textAlign: 'center', padding: 32 }}>
           <Spin />
-          <div style={{ marginTop: 12 }}>Meri is writing the recap…</div>
+          <div style={{ marginTop: 12 }}>Meri is writing the recap for {clientName || 'this client'}…</div>
         </div>
       ) : failed ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="No recap available yet"
-          description="This session has no transcribed content to summarize."
-        />
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Alert
+            type="warning"
+            showIcon
+            message="No recap available yet"
+            description="This session has no transcribed content to summarize."
+          />
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => generate(clientId)}>
+            Try again
+          </Button>
+        </Space>
       ) : (
         <div>
-          <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>
-            Save to client
-          </div>
-          <Select
-            style={{ minWidth: 300 }}
-            placeholder="Choose a client"
-            value={clientId || undefined}
-            options={clients.map((c) => ({ value: c.id, label: c.name }))}
-            onChange={setClientId}
-            showSearch
-            optionFilterProp="label"
-          />
-          <Divider style={{ margin: '12px 0' }} />
+          <Space wrap size={6} style={{ marginBottom: 8 }}>
+            {synthesized ? (
+              <Tag color="green">Meri synthesis</Tag>
+            ) : (
+              <Tag color="orange">Source-verified assembly — Meri was unavailable</Tag>
+            )}
+            {clientContext?.status === 'applied' ? (
+              <Tag color="blue">
+                {clientName || 'Client'} priorities applied
+                {matchedBand ? ` · relevance ${matchedBand}` : ''}
+              </Tag>
+            ) : clientContext?.status === 'unavailable' ? (
+              <Tag>No client context available — general recap</Tag>
+            ) : null}
+            <Button
+              size="small"
+              type="link"
+              icon={<ReloadOutlined />}
+              onClick={() => generate(clientId)}
+              style={{ padding: 0 }}
+            >
+              Regenerate
+            </Button>
+          </Space>
+          {!synthesized && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 8 }}
+              message="This recap was assembled from the transcript, not analysed"
+              description="Meri's synthesis was unavailable when it ran. It is fully sourced, so you can still save it — or regenerate to retry."
+            />
+          )}
           <Paragraph strong style={{ marginBottom: 6 }}>
             {brief!.title}
           </Paragraph>
