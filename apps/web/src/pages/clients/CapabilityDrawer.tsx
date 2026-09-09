@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import { CAPABILITY_TAG_SUGGESTIONS } from '@capiro/shared';
 import { useApi } from '../../lib/use-api.js';
+import { attachmentContentType } from '../../lib/attachment-content-type.js';
 import type { ClientAttachment } from './clientTypes.js';
 import type { Capability, SubmissionHistory } from './capability-types.js';
 
@@ -321,7 +322,12 @@ function CapabilityDocumentsTab({
   });
 
   const uploadOne = async (file: File) => {
-    const contentType = file.type || 'application/octet-stream';
+    // See attachment-content-type.ts: an empty file.type (common for .txt/.csv/
+    // .docx depending on OS picker) must not fall back to
+    // 'application/octet-stream' — that is the one content type the server's
+    // allowlist rejects, so the upload 400'd on files the server would have
+    // happily accepted, and the drawer had nothing to show for why.
+    const contentType = attachmentContentType(file);
     const presigned = (
       await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
         '/api/engagement/attachments/upload-url',
