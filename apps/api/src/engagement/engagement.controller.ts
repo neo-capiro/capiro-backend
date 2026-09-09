@@ -1644,10 +1644,15 @@ export class OutreachSendJobDto extends SendBatchEmailDto {
  * `baseVersionId` is the optimistic-concurrency token: the server refuses (409)
  * if it is no longer the artifact's current version, so two tabs cannot silently
  * overwrite each other.
+ *
+ * EM-04 — omit `baseVersionId` only when the artifact has never had a version
+ * (failed generation the user is authoring by hand). The server creates v1 and
+ * audits it; a missing base against a non-empty artifact is still a 409.
  */
 export class CreateDraftVersionDto {
+  @IsOptional()
   @IsUUID()
-  baseVersionId!: string;
+  baseVersionId?: string;
 
   @IsString()
   @Length(0, 300)
@@ -1659,6 +1664,30 @@ export class CreateDraftVersionDto {
 
   @IsIn(['manual', 'improve', 'revert'])
   editKind!: 'manual' | 'improve' | 'revert';
+}
+
+/**
+ * Ensure a draft-artifact row exists for one generation slot WITHOUT a version
+ * (EM-04). Used when generation failed/blocked so the user still has a stable
+ * target to hand-author against. No text is persisted here — the first version
+ * is written via CreateDraftVersionDto with no baseVersionId.
+ */
+export class EnsureDraftArtifactDto {
+  @IsString()
+  @Length(1, 512)
+  generationKey!: string;
+
+  @IsString()
+  @Length(1, 256)
+  recipientKey!: string;
+
+  @IsOptional()
+  @IsIn(['individual', 'group'])
+  audienceKind?: 'individual' | 'group';
+
+  @IsOptional()
+  @IsObject()
+  recipientSnapshot?: Record<string, unknown>;
 }
 
 /** Phase 2 §3.f2 — accept a candidate regeneration as the new current version. */
@@ -2479,6 +2508,30 @@ export class EngagementController {
     @Param('outreachRecordId') outreachRecordId: string,
   ) {
     return this.drafts.listForOutreach(ctx, outreachRecordId);
+  }
+
+  /**
+   * EM-04 — ensure a draft-artifact row exists for one generation slot WITHOUT
+   * a version. Called when generation failed/blocked so the user still has a
+   * stable target to hand-author against. Idempotent: re-calling with the same
+   * generationKey returns the existing artifact.
+   */
+  @Throttle({ long: { ttl: 60_000, limit: 240 } })
+  @Post('outreach/:outreachRecordId/draft-artifacts')
+  ensureDraftArtifact(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('outreachRecordId') outreachRecordId: string,
+    @Body() body: EnsureDraftArtifactDto,
+  ) {
+    return this.drafts.ensureArtifact(ctx, {
+      outreachRecordId,
+      generationKey: body.generationKey,
+      recipientKey: body.recipientKey,
+      audienceKind: body.audienceKind ?? 'individual',
+      recipientSnapshot: body.recipientSnapshot ?? {},
+      subject: '',
+      body: '',
+    });
   }
 
   /**

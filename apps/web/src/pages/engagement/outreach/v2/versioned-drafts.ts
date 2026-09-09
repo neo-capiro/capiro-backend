@@ -112,6 +112,7 @@ export function isDraftSendable(draft: GeneratedDraft | undefined): boolean {
 export type DraftBlockReason =
   | 'missing'
   | 'dirty'
+  | 'save_failed'
   | 'pending'
   | 'held'
   | 'unavailable'
@@ -123,6 +124,10 @@ export type DraftBlockReason =
 
 export function draftBlockReason(draft: GeneratedDraft | undefined): DraftBlockReason {
   if (!draft) return 'missing';
+  // EM-04 — a failed autosave must not keep claiming "Saving… verified". The
+  // draft is still dirty (text diverges from any audited version), but the
+  // actionable state is the save failure, not an in-flight verification.
+  if (draft.localStatus === 'save_failed') return 'save_failed';
   if (draft.dirty) return 'dirty';
   // Phase 1 §3.j2 — must match isDraftSendable's ordering, or the banner would
   // explain a different reason than the one that actually blocked the send.
@@ -145,6 +150,8 @@ export function draftBlockReason(draft: GeneratedDraft | undefined): DraftBlockR
 export const DRAFT_BLOCK_COPY: Record<Exclude<DraftBlockReason, null>, string> = {
   missing: 'No draft yet for this recipient.',
   dirty: 'Saving your changes — this draft will be verified before it can be sent.',
+  save_failed:
+    'Could not save this draft. Edit again to retry — it will be verified before it can be sent.',
   pending: 'Verification in progress.',
   held: 'Pending review — a reviewer must approve this draft before it can be sent.',
   unavailable: 'Verification unavailable; this draft cannot be sent.',

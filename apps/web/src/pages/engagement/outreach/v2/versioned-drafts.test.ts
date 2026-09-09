@@ -114,6 +114,16 @@ describe('draftBlockReason — the banner never mislabels a hold as a failure', 
     expect(draftBlockReason(undefined)).toBe('missing');
   });
 
+  it('EM-04: a failed autosave is save_failed, not perpetual dirty/Saving…', () => {
+    const stuck = {
+      ...markDirty(audited(), { body: 'hand edit' }),
+      localStatus: 'save_failed' as const,
+    };
+    expect(draftBlockReason(stuck)).toBe('save_failed');
+    expect(DRAFT_BLOCK_COPY.save_failed).toMatch(/could not save/i);
+    expect(DRAFT_BLOCK_COPY.save_failed).not.toMatch(/saving your changes/i);
+  });
+
   it('held copy talks about REVIEW, not generation failure', () => {
     expect(DRAFT_BLOCK_COPY.held).toMatch(/review/i);
     expect(DRAFT_BLOCK_COPY.held).not.toMatch(/failed/i);

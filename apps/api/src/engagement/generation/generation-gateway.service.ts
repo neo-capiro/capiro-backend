@@ -311,7 +311,7 @@ export class GenerationGatewayService {
       policy = this.resolvePolicy(request);
     } catch (e) {
       if (e instanceof AudiencePolicyRequiredError) {
-        return this.blocked(request, 'AUDIENCE_POLICY_REQUIRED', e.message, now, null);
+        return this.blocked(ctx, request, 'AUDIENCE_POLICY_REQUIRED', e.message, now, null);
       }
       throw e;
     }
@@ -320,6 +320,7 @@ export class GenerationGatewayService {
     const head = creds[0];
     if (!head) {
       return this.blocked(
+       ctx,
         request,
         'AI_NOT_CONFIGURED',
         'Drafting is not configured for this workspace.',
@@ -358,6 +359,7 @@ export class GenerationGatewayService {
     // mismatched spec under a false label.
     if (request.pinned && request.pinned.promptSpecVersion !== GATEWAY_PROMPT_SPEC_VERSION) {
       return this.blocked(
+       ctx,
         request,
         'PINNED_PROMPT_SPEC_MISMATCH',
         'This campaign was pinned to a different generation version than is currently running. Retry shortly, or start a new campaign.',
@@ -370,6 +372,7 @@ export class GenerationGatewayService {
     const pinnedCreds = creds.filter((c) => c.provider === pinned.provider);
     if (!pinnedCreds.length) {
       return this.blocked(
+       ctx,
         request,
         'PINNED_PROVIDER_UNAVAILABLE',
         `This campaign is pinned to ${pinned.provider}, which is currently unavailable. Retry later or start a new campaign to switch providers.`,
@@ -399,6 +402,7 @@ export class GenerationGatewayService {
     } catch (e) {
       if (e instanceof ForbiddenException) {
         return this.blocked(
+          ctx,
           request,
           'CONTEXT_PLANE_DENIED',
           'Governed context could not be authorized for this draft.',
@@ -409,6 +413,7 @@ export class GenerationGatewayService {
       const message = (e as Error).message ?? '';
       if (message.startsWith('context_plane_phase20_operation_not_adopted')) {
         return this.blocked(
+          ctx,
           request,
           'CONTEXT_PLANE_NOT_ADOPTED',
           'Outreach generation is not yet adopted onto the Context Plane.',
@@ -465,6 +470,7 @@ export class GenerationGatewayService {
     } catch (e) {
       if (e instanceof EvidencePacketPersistError) {
         return this.blocked(
+          ctx,
           request,
           e.code,
           'This draft could not be recorded, so it was not generated. Try again — no partial draft was kept.',
@@ -480,17 +486,12 @@ export class GenerationGatewayService {
 
     // ── 6a. Critical source failures stop here, BEFORE any spend ──
     if (packet.criticalFailureCount > 0) {
-      return {
-        outcome: 'blocked',
-        generationKey: recipient.generationKey,
-        recipientKey: recipient.recipientKey,
-        subject: '',
-        body: '',
-        manifest,
-        sendable: false,
+      // EM-04: still seed an empty artifact so the user can hand-author recovery.
+      return this.failedResult(ctx, request, {
         error: 'CRITICAL_SOURCE_FAILURE',
+        manifest,
         pinned,
-      };
+      });
     }
 
     // ── 5. Style profile (never raw examples) ──
@@ -548,31 +549,19 @@ export class GenerationGatewayService {
             .map((i) => i.code)
             .join(', ')}`,
         );
-        return {
-          outcome: 'blocked',
-          generationKey: recipient.generationKey,
-          recipientKey: recipient.recipientKey,
-          subject: '',
-          body: '',
-          manifest,
-          sendable: false,
+        return this.failedResult(ctx, request, {
           error: e.code,
-          planIssues: e.issues,
+          manifest,
           pinned,
-        };
+          planIssues: e.issues,
+        });
       }
       this.logger.warn(`message plan failed: ${(e as Error).message}`);
-      return {
-        outcome: 'error',
-        generationKey: recipient.generationKey,
-        recipientKey: recipient.recipientKey,
-        subject: '',
-        body: '',
-        manifest,
-        sendable: false,
+      return this.failedResult(ctx, request, {
         error: 'PLAN_GENERATION_FAILED',
+        manifest,
         pinned,
-      };
+      });
     }
 
     // ── 6. Draft through the pinned provider/model ──
@@ -651,17 +640,11 @@ export class GenerationGatewayService {
       if (skeleton) {
         const parsedSections = parseSkeletonDraft(completion.text);
         if (!parsedSections) {
-          return {
-            outcome: 'error',
-            generationKey: recipient.generationKey,
-            recipientKey: recipient.recipientKey,
-            subject: '',
-            body: '',
-            manifest,
-            sendable: false,
+          return this.failedResult(ctx, request, {
             error: 'DRAFT_OUTPUT_INVALID',
+            manifest,
             pinned,
-          };
+          });
         }
         const assembled = assembleSkeletonBody(skeleton, parsedSections.sections);
         // A required section the model left empty means the assembled email
@@ -672,17 +655,11 @@ export class GenerationGatewayService {
           this.logger.warn(
             `skeleton draft missing required section(s): ${assembled.missingRequiredSlots.join(', ')}`,
           );
-          return {
-            outcome: 'error',
-            generationKey: recipient.generationKey,
-            recipientKey: recipient.recipientKey,
-            subject: '',
-            body: '',
-            manifest,
-            sendable: false,
+          return this.failedResult(ctx, request, {
             error: 'DRAFT_SECTIONS_INCOMPLETE',
+            manifest,
             pinned,
-          };
+          });
         }
         // The skeleton's own subject wins when it has one. An author who typed a
         // subject line meant it; only fall back to a model-written subject when
@@ -697,17 +674,11 @@ export class GenerationGatewayService {
       } else {
         const parsed = parseDraft(completion.text);
         if (!parsed) {
-          return {
-            outcome: 'error',
-            generationKey: recipient.generationKey,
-            recipientKey: recipient.recipientKey,
-            subject: '',
-            body: '',
-            manifest,
-            sendable: false,
+          return this.failedResult(ctx, request, {
             error: 'DRAFT_OUTPUT_INVALID',
+            manifest,
             pinned,
-          };
+          });
         }
         subject = parsed.subject;
         body = parsed.body;
@@ -722,17 +693,11 @@ export class GenerationGatewayService {
       // §4.24: the packet SURVIVES a provider failure. The generation is an
       // error, and no sendable output exists.
       this.logger.warn(`gateway draft failed: ${(e as Error).message}`);
-      return {
-        outcome: 'error',
-        generationKey: recipient.generationKey,
-        recipientKey: recipient.recipientKey,
-        subject: '',
-        body: '',
-        manifest,
-        sendable: false,
+      return this.failedResult(ctx, request, {
         error: 'GENERATION_FAILED',
+        manifest,
         pinned,
-      };
+      });
     }
 
     // ── 8. Deterministic verifiers ──
@@ -843,17 +808,12 @@ export class GenerationGatewayService {
           (persistErr as Error).message
         }`,
       );
-      return {
-        outcome: 'error',
-        generationKey: recipient.generationKey,
-        recipientKey: recipient.recipientKey,
-        subject: '',
-        body: '',
-        manifest,
-        sendable: false,
+      // EM-04: still seed an empty artifact so the user can recover by hand.
+      return this.failedResult(ctx, request, {
         error: 'DRAFT_PERSIST_FAILED',
+        manifest,
         pinned,
-      };
+      });
     }
   }
 
@@ -1001,13 +961,77 @@ export class GenerationGatewayService {
   }
 
   /** A blocked result with a minimal (possibly packet-less) manifest. */
-  private blocked(
+
+  /**
+   * EM-04 — when generation fails/blocks against a durable outreach record, still
+   * ensure an empty artifact row exists so the user can hand-author a version.
+   * Best-effort: a seed failure must never replace the structured error the UI
+   * already has to show. Returns the artifact id (or undefined).
+   */
+  private async seedFailedSlotArtifact(
+    ctx: TenantContext,
+    request: GenerationRequest,
+  ): Promise<string | undefined> {
+    if (!request.outreachRecordId) return undefined;
+    try {
+      const artifact = await this.drafts.ensureArtifact(ctx, {
+        outreachRecordId: request.outreachRecordId,
+        generationKey: request.recipient.generationKey,
+        recipientKey: request.recipient.recipientKey,
+        audienceKind: request.audienceKind,
+        recipientSnapshot: request.recipient.snapshot ?? {},
+        subject: '',
+        body: '',
+      });
+      return artifact.id;
+    } catch (err) {
+      this.logger.warn(
+        `EM-04 failed-slot artifact seed failed for ${request.recipient.generationKey}: ${
+          (err as Error).message
+        }`,
+      );
+      return undefined;
+    }
+  }
+
+
+  /** EM-04-aware structured error result. Seeds an empty artifact when possible. */
+  private async failedResult(
+    ctx: TenantContext,
+    request: GenerationRequest,
+    opts: {
+      error: string;
+      subject?: string;
+      body?: string;
+      manifest: GenerationSourceManifest;
+      pinned: PinnedGenerationIdentity;
+      planIssues?: GenerationResult['planIssues'];
+    },
+  ): Promise<GenerationResult> {
+    const artifactId = await this.seedFailedSlotArtifact(ctx, request);
+    return {
+      outcome: 'error',
+      generationKey: request.recipient.generationKey,
+      recipientKey: request.recipient.recipientKey,
+      subject: opts.subject ?? '',
+      body: opts.body ?? '',
+      manifest: opts.manifest,
+      sendable: false,
+      error: opts.error,
+      pinned: opts.pinned,
+      ...(opts.planIssues?.length ? { planIssues: opts.planIssues } : {}),
+      ...(artifactId ? { artifactId } : {}),
+    };
+  }
+
+  private async blocked(
+    ctx: TenantContext,
     request: GenerationRequest,
     code: string,
     message: string,
     now: Date,
     policy: GaPolicy | null,
-  ): GenerationResult {
+  ): Promise<GenerationResult> {
     const pinned: PinnedGenerationIdentity = request.pinned ?? {
       provider: '',
       model: '',
@@ -1023,6 +1047,8 @@ export class GenerationGatewayService {
       code,
       userMessage: message,
     };
+    // EM-04: empty artifact so a failed/blocked slot can still be hand-authored.
+    const artifactId = await this.seedFailedSlotArtifact(ctx, request);
     return {
       outcome: 'blocked',
       generationKey: request.recipient.generationKey,
@@ -1060,6 +1086,7 @@ export class GenerationGatewayService {
       sendable: false,
       error: code,
       pinned,
+      ...(artifactId ? { artifactId } : {}),
     };
   }
 

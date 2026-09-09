@@ -290,6 +290,11 @@ interface GenerateResult {
    * per-slot entry and fall back to `errorMessage`.
    */
   failureReasons: Map<string, string>;
+  /**
+   * EM-04 — genKey → empty artifact id seeded on a failed/blocked generation
+   * so a hand-edit can POST the first version without a baseVersionId.
+   */
+  failureArtifacts?: Map<string, string>;
   errorMessage?: string;
   /**
    * Phase 2 §3.f2 — regenerations the server refused to apply directly (the
@@ -442,10 +447,15 @@ export function NewOutreachWizard({
       // because flushDraftVersion awaited its own writes.
       const gate = canEnterSendStep(genModel.slots, stateRef.current.generatedEmails);
       if (!gate.ok) {
+        const saveFailed = gate.dirty.some(
+          (k) => stateRef.current.generatedEmails[k]?.localStatus === 'save_failed',
+        );
         message.warning(
-          gate.dirty.length
-            ? 'Still saving your edits — each edited draft has to be verified before it can be sent.'
-            : `${gate.blocked.length} draft(s) are not cleared for sending yet. Resolve them in Generate & Review first.`,
+          saveFailed
+            ? 'Some edits could not be saved. Fix or re-edit those drafts — each must verify before it can be sent.'
+            : gate.dirty.length
+              ? 'Still saving your edits — each edited draft has to be verified before it can be sent.'
+              : `${gate.blocked.length} draft(s) are not cleared for sending yet. Resolve them in Generate & Review first.`,
         );
         return;
       }
@@ -1272,6 +1282,7 @@ export function NewOutreachWizard({
           candidates: [],
           failed: [],
           failureReasons: new Map(),
+          failureArtifacts: new Map(),
         };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
@@ -1479,6 +1490,13 @@ export function NewOutreachWizard({
       const failureReasons = new Map(
         outs.flatMap((o) => (o.ok ? o.failures : [])).map((f) => [f.genKey, f.reason]),
       );
+      // EM-04 — artifact ids seeded on failed/blocked slots for hand-author recovery.
+      const failureArtifacts = new Map(
+        outs
+          .flatMap((o) => (o.ok ? o.failures : []))
+          .filter((f): f is typeof f & { artifactId: string } => Boolean(f.artifactId))
+          .map((f) => [f.genKey, f.artifactId]),
+      );
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.
@@ -1492,6 +1510,7 @@ export function NewOutreachWizard({
         candidates,
         failed,
         failureReasons,
+        failureArtifacts,
         errorMessage: firstFailure?.message,
       };
     },
@@ -1600,6 +1619,9 @@ export function NewOutreachWizard({
             generatedEmails[genKey],
             failedPlaceholder(),
             res.failureReasons.get(genKey) ?? res.errorMessage,
+            res.failureArtifacts?.get(genKey)
+              ? { artifactId: res.failureArtifacts.get(genKey) }
+              : undefined,
           );
         }
         return {
@@ -2220,8 +2242,67 @@ export function NewOutreachWizard({
    * automatic retry would either clobber the winner or spin forever.
    */
   const flushDraftVersion = async (genKey: string): Promise<void> => {
-    const draft = state.generatedEmails[genKey];
-    if (!versionedOutreach || !draft?.artifactId || !draft.versionId || !draft.dirty) return;
+    let draft = state.generatedEmails[genKey];
+    // EM-04: a dirty failed slot may have no versionId yet (generation never
+    // produced one). It can still flush once it has an artifactId — the server
+    // accepts a missing baseVersionId only against an empty artifact.
+    if (!versionedOutreach || !draft?.dirty) return;
+    if (draft.localStatus === 'conflict') return;
+
+    // Ensure an artifact exists for never-versioned failed slots.
+    if (!draft.artifactId) {
+      if (!draftId) return;
+      const slot = genModel.slots.find((s) => s.genKey === genKey);
+      const recipient = slot?.genRecipients[0];
+      try {
+        const { data: art } = await api.post<{ id: string }>(
+          `/api/engagement/outreach/${draftId}/draft-artifacts`,
+          {
+            generationKey: genKey,
+            recipientKey: slot?.resultId ?? recipient?.email ?? recipient?.name ?? genKey,
+            audienceKind: slot?.appliesTo === 'group' ? 'group' : 'individual',
+            recipientSnapshot: recipient
+              ? {
+                  name: recipient.name ?? null,
+                  email: recipient.email ?? null,
+                  title: recipient.title ?? null,
+                }
+              : {},
+          },
+        );
+        draft = { ...draft, artifactId: art.id };
+        setState((prev) => {
+          const d = prev.generatedEmails[genKey];
+          if (!d) return prev;
+          return {
+            ...prev,
+            generatedEmails: {
+              ...prev.generatedEmails,
+              [genKey]: { ...d, artifactId: art.id },
+            },
+          };
+        });
+      } catch (err) {
+        message.error(
+          apiErrorMessage(err) ||
+            'Could not prepare this draft for saving. Try again or regenerate.',
+        );
+        setState((prev) => {
+          const d = prev.generatedEmails[genKey];
+          if (!d) return prev;
+          return {
+            ...prev,
+            generatedEmails: {
+              ...prev.generatedEmails,
+              [genKey]: { ...d, localStatus: 'save_failed', sendable: false },
+            },
+          };
+        });
+        return;
+      }
+    }
+
+    if (!draft.artifactId) return;
 
     const existing = versionWritesRef.current.get(genKey);
     if (existing) return existing;
@@ -2249,7 +2330,10 @@ export function NewOutreachWizard({
           sendable: boolean;
           contextNote?: string;
         }>(`/api/engagement/outreach/draft-artifacts/${draft.artifactId}/versions`, {
-          baseVersionId: draft.versionId,
+          // EM-04: omit baseVersionId when this is the first hand-authored version
+          // of a never-generated slot. The server only accepts that against
+          // currentVersion === 0; otherwise it 409s.
+          ...(draft.versionId ? { baseVersionId: draft.versionId } : {}),
           subject: draft.subject,
           body: draft.body,
           editKind: 'manual',

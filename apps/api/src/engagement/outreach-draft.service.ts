@@ -82,7 +82,13 @@ export interface UpsertGeneratedVersionInput {
 }
 
 export interface CreateEditedVersionInput {
-  baseVersionId: string;
+  /**
+   * Optimistic-concurrency token for an EXISTING current version. Omit (or
+   * pass null) only when the artifact has never had a version — the EM-04
+   * recovery path for a failed generation the user is authoring by hand.
+   * A missing base against a non-empty artifact is a 409.
+   */
+  baseVersionId?: string | null;
   subject: string;
   body: string;
   editKind: DraftEditKind;
@@ -249,6 +255,12 @@ export class OutreachDraftService {
    * A stale `baseVersionId` is a 409 carrying the CURRENT version id but never
    * the current body: the loser of an edit race must not learn the winner's
    * content from an error response.
+   *
+   * EM-04 — when generation never produced a version (failed/blocked slot),
+   * the client may omit `baseVersionId`. That is only legal against an
+   * artifact whose `currentVersion` is still 0: the hand-authored text
+   * becomes v1, audited on its own empty ledger. A missing base against a
+   * non-empty artifact is a 409 (someone else already wrote a version).
    */
   async createEditedVersion(
     ctx: TenantContext,
@@ -275,6 +287,44 @@ export class OutreachDraftService {
       // Lock BEFORE validating the base version, so a concurrent writer cannot
       // slip a version in between the staleness check and the insert.
       const nextVersion = await this.lockAndBumpArtifact(tx, ctx, artifactId);
+
+      // Initial hand-authored version for a slot that never generated (EM-04).
+      // No base to inherit provenance from — empty ledger, no provider/prompt.
+      // The post-commit audit still runs; sendability is earned the normal way.
+      if (!input.baseVersionId) {
+        if (nextVersion !== 1) {
+          const current = await tx.outreachDraftVersion.findFirst({
+            where: { tenantId: ctx.tenantId, artifactId, version: nextVersion - 1 },
+            select: { id: true, version: true },
+          });
+          throw new ConflictException({
+            statusCode: 409,
+            error: 'OUTREACH_DRAFT_VERSION_STALE',
+            message:
+              'A newer version of this draft exists. Load the latest version before editing again.',
+            currentVersionId: current?.id ?? null,
+            currentVersion: current?.version ?? null,
+          });
+        }
+        return tx.outreachDraftVersion.create({
+          data: {
+            tenantId: ctx.tenantId,
+            artifactId,
+            version: nextVersion,
+            sourceVersionId: null,
+            subject: input.subject,
+            body: input.body,
+            contentHash: contentHashOf(input.subject, input.body),
+            generationStatus: 'manually_authored',
+            auditStatus: 'pending',
+            approvalStatus: 'not_required',
+            auditLedger: [] as unknown as Prisma.InputJsonValue,
+            createdByUserId: ctx.userId,
+          },
+          select: VERSION_SELECT,
+        });
+      }
+
       const base = await tx.outreachDraftVersion.findFirst({
         where: { id: input.baseVersionId, tenantId: ctx.tenantId, artifactId },
         select: {

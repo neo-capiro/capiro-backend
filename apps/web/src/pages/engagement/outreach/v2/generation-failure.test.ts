@@ -31,6 +31,17 @@ describe('a slot with no draft yet', () => {
     expect(out.subject).toBe(PLACEHOLDER.subject);
     expect(out.status).toBe('error');
   });
+
+  it('EM-04: attaches a seeded artifactId so a hand-edit can create v1', () => {
+    const out = applyGenerationFailure(undefined, PLACEHOLDER, 'AUDIENCE_POLICY_REQUIRED', {
+      artifactId: 'art-seed-1',
+    });
+    expect(out.artifactId).toBe('art-seed-1');
+    expect(out.status).toBe('error');
+    expect(out.generationStatus).toBe('generation_failed');
+    expect(out.sendable).toBe(false);
+    expect(out.dirty).toBe(false);
+  });
 });
 
 describe('a slot that already holds a draft', () => {

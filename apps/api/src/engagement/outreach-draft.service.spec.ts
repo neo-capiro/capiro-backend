@@ -432,6 +432,52 @@ describe('createEditedVersion', () => {
     ).rejects.toThrow();
     expect(h.created).toHaveLength(0);
   });
+
+  test('EM-04: omitting baseVersionId on an empty artifact creates manually_authored v1', async () => {
+    const h = makeHarness({ artifactCurrentVersion: 0, versions: [] });
+    const dto = await h.service.createEditedVersion(ctx, 'art-1', {
+      subject: 'Hand-written subject',
+      body: 'Hand-written body for the failed slot.',
+      editKind: 'manual',
+    });
+    const version = h.created.find((c) => c.table === 'version')!;
+    expect(version.version).toBe(1);
+    expect(version.sourceVersionId).toBeNull();
+    expect(version.generationStatus).toBe('manually_authored');
+    expect(version.subject).toBe('Hand-written subject');
+    expect(version.body).toBe('Hand-written body for the failed slot.');
+    // No base to inherit from — empty ledger / no provider provenance.
+    expect(version.auditLedger).toEqual([]);
+    expect(version.provider).toBeUndefined();
+    // Still audited post-commit; not sendable until the verdict lands.
+    expect(dto.sendable).toBe(false);
+    expect(h.auditCalls).toHaveLength(1);
+  });
+
+  test('EM-04: omitting baseVersionId against a non-empty artifact is a 409', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 1,
+      versions: [{ id: 'v-1', version: 1, subject: 'EXISTING', body: 'secret body' }],
+    });
+    let caught: unknown;
+    try {
+      await h.service.createEditedVersion(ctx, 'art-1', {
+        subject: 'mine',
+        body: 'mine',
+        editKind: 'manual',
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ConflictException);
+    const body = (caught as ConflictException).getResponse() as Record<string, unknown>;
+    expect(body.error).toBe('OUTREACH_DRAFT_VERSION_STALE');
+    expect(body.currentVersionId).toBe('v-1');
+    // Existing content must not leak through the conflict response.
+    expect(JSON.stringify(body)).not.toContain('secret body');
+    expect(JSON.stringify(body)).not.toContain('EXISTING');
+    expect(h.created.filter((c) => c.table === 'version')).toHaveLength(0);
+  });
 });
 
 describe('upsertGeneratedVersionOrCandidate (Phase 2 §3.f2)', () => {

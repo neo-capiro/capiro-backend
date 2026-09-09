@@ -424,6 +424,20 @@ export interface BatchDraftResult {
    * the generation gateway; absent on the flag-off path.
    */
   manifest?: GenerationSourceManifest;
+  /**
+   * EM-04 — empty artifact id seeded on a failed/blocked generation so the
+   * user can hand-author a first version without a baseVersionId. Absent when
+   * the seed failed or versioning is off.
+   */
+  artifactId?: string;
+  versionId?: string;
+  version?: number;
+  generationStatus?: string;
+  auditStatus?: string;
+  approvalStatus?: string;
+  reviewRequestId?: string;
+  sendable?: boolean;
+  generationKey?: string;
 }
 
 /**
@@ -438,6 +452,8 @@ export interface GenerationSlotFailure {
   genKey: string;
   /** Human-readable reason, already derived from `error` + `planIssues`. */
   reason: string;
+  /** EM-04 — empty artifact seeded for hand-author recovery, when present. */
+  artifactId?: string;
 }
 
 const RETRY = 'Regenerate to try again.';
@@ -559,7 +575,11 @@ export function partitionGenerationResults(
       });
     } else {
       failedGenKeys.push(s.genKey);
-      failures.push({ genKey: s.genKey, reason: describeGenerationFailure(r) });
+      failures.push({
+        genKey: s.genKey,
+        reason: describeGenerationFailure(r),
+        ...(r.artifactId ? { artifactId: r.artifactId } : {}),
+      });
     }
   }
   return {
@@ -642,24 +662,35 @@ export function buildGenerateTasks(slots: GenSlot[], batchMax: number): Generate
  * not a verdict on the old text. Flipping `status` to 'error' here would drop a
  * previously-good draft out of the send projection — turning a failed retry into a
  * second, quieter form of losing work.
+ *
+ * EM-04 — when the server seeds an empty artifact for a never-versioned failed
+ * slot, `artifactId` is attached so a subsequent hand-edit can POST the first
+ * version without a baseVersionId. An existing prior artifactId is preserved.
  */
 export function applyGenerationFailure(
   prior: GeneratedDraft | undefined,
   placeholder: { subject: string; body: string },
   reason?: string,
+  opts?: { artifactId?: string },
 ): GeneratedDraft {
   const hasText = Boolean(prior && (prior.subject?.trim() || prior.body?.trim()));
+  const artifactId = prior?.artifactId ?? opts?.artifactId;
   if (!hasText) {
     return {
       ...prior,
       subject: placeholder.subject,
       body: placeholder.body,
       status: 'error',
+      generationStatus: prior?.generationStatus ?? 'generation_failed',
+      sendable: false,
+      dirty: false,
+      ...(artifactId ? { artifactId } : {}),
       ...(reason ? { failureReason: reason } : {}),
     };
   }
   return {
     ...(prior as GeneratedDraft),
+    ...(artifactId ? { artifactId } : {}),
     ...(reason ? { failureReason: reason } : {}),
   };
 }
