@@ -7,11 +7,20 @@
  *
  * Dry-run by default (reads the row, reports whether it is currently active
  * and therefore revocable, writes nothing). --commit performs the revocation
- * (active -> revoked). A row that is already revoked/superseded is refused.
+ * (active -> revoked) through ScopedFactReviewV1Service, matching the
+ * review:defense-budget-scoped-fact-v1 CLI's own pattern -- a row that is
+ * already revoked/superseded, including one that lost a concurrent revoke
+ * race against another operator, is refused with a typed error, never
+ * reported as a silent success.
  */
 import * as fs from 'node:fs';
-import { ScopedFactReviewError } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-v1.service.js';
+import {
+  ScopedFactReviewV1Service,
+  ScopedFactReviewError,
+  FilesystemScopedFactReviewArtifactLoaderV1,
+} from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-v1.service.js';
 import { PrismaScopedFactReviewRepositoryV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-repository-v1.js';
+import { PrismaScopedFactReviewCandidateLocatorReaderV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-prisma-locator-reader-v1.js';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
@@ -52,7 +61,15 @@ async function main(): Promise<void> {
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
   try {
+    const { createPrismaBudgetVerificationRepository } = await import(
+      '../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js'
+    );
+    const verification = createPrismaBudgetVerificationRepository(prisma);
+    const locators = new PrismaScopedFactReviewCandidateLocatorReaderV1(prisma);
+    const artifacts = new FilesystemScopedFactReviewArtifactLoaderV1();
     const reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
+    const service = new ScopedFactReviewV1Service(verification, locators, artifacts, reviews);
+
     const existing = await reviews.readById(args.id);
     if (existing == null) {
       console.error(`no such scoped fact review: ${args.id}`);
@@ -67,7 +84,7 @@ async function main(): Promise<void> {
       console.error('Dry-run complete — no writes performed.');
       process.exit(EXIT_OK);
     }
-    const row = await reviews.revoke({ id: args.id, actor: args.actor, reason });
+    const row = await service.revoke({ id: args.id, actor: args.actor, reason });
     console.log(JSON.stringify({ mode: 'committed', after: row }, null, 2));
     console.error('Revocation committed.');
   } catch (err) {
