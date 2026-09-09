@@ -41,12 +41,12 @@ function buildHarness() {
     },
     clioMessage: {
       create: jest.fn(async ({ data }: any) => ({ id: `msg-${data.role}-${Math.random()}` })),
-      findMany: jest.fn(async () => []),
+      findMany: jest.fn(async (): Promise<any[]> => []),
       update: jest.fn(async () => ({})),
       deleteMany: jest.fn(async () => ({})),
     },
     clioAttachment: {
-      findMany: jest.fn(async () => []),
+      findMany: jest.fn(async (): Promise<any[]> => []),
       updateMany: jest.fn(async () => ({})),
     },
     clioArtifact: {
@@ -664,5 +664,87 @@ describe('MeriV3 public work receipt persistence', () => {
     expect(persisted).toMatchObject({
       id: frames().find((frame) => frame.type === 'done')?.messageId,
     });
+  });
+});
+
+describe('MeriV3 attachment source continuity', () => {
+  const ref = { id: 'attachment-1', filename: 'TAG-letter.docx', kind: 'docx', status: 'parsed' };
+  const document = { ...ref, textContent: 'FortressHUMS / UH-72 LUT. Requested evaluation in FY2027, not enacted.', reason: null, messageId: 'upload-turn', byteSize: 240 };
+  const ctx = { tenantId: TENANT, userId: USER } as never;
+
+  it('replays the same attachment text and ID on a follow-up and a fresh service reload', async () => {
+    for (let reload = 0; reload < 2; reload += 1) {
+      const h = buildHarness();
+      h.tx.clioMessage.findMany.mockResolvedValue([
+        { id: 'followup', role: 'user', body: 'Draft the letter from that attachment.', metadata: {} },
+        { id: 'upload-turn', role: 'user', body: 'Read this file.', metadata: { attachments: [ref] } },
+      ]);
+      h.tx.clioAttachment.findMany.mockResolvedValue([document]);
+      const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
+      expect(replay.history[0].text).toContain(document.textContent);
+      expect(replay.history[0].text).toContain('"attachmentId":"attachment-1"');
+      expect(replay.history[0].text).toContain('Reading this attachment does not save');
+      expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      }));
+    }
+  });
+
+  it('retains original attachment metadata during regeneration and passes the source text to the provider', async () => {
+    const h = buildHarness();
+    const user = { id: 'upload-turn', role: 'user', body: 'Draft from the attachment.', metadata: { attachments: [ref] } };
+    h.tx.clioMessage.findMany.mockResolvedValue([user]);
+    h.tx.clioAttachment.findMany.mockResolvedValue([document]);
+    await h.service.streamMessage(ctx, CONVERSATION, '', h.sse, undefined, 'regenerate', [], 'token');
+    expect(h.tx.clioMessage.update).not.toHaveBeenCalled();
+    expect(h.tx.clioAttachment.updateMany).not.toHaveBeenCalled();
+    expect(h.client.streamChat).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({
+      messages: [expect.objectContaining({ text: expect.stringContaining(document.textContent) })],
+    }) }));
+  });
+
+  it('rehydrates an attachment older than the summary boundary without treating the summary as the original', async () => {
+    const h = buildHarness();
+    (h.tx.clioMessage as any).findFirst = jest.fn(async () => ({ createdAt: new Date('2026-09-09') }));
+    h.tx.clioMessage.findMany.mockImplementation(async (query?: any) => query?.where?.metadata
+      ? [{ id: 'upload-turn', metadata: { attachments: [ref] } }]
+      : [{ id: 'followup', role: 'user', body: 'What exact program was in the letter?', metadata: {} }]);
+    h.tx.clioAttachment.findMany.mockResolvedValue([document]);
+    const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, 'summary-end');
+    expect(replay.history[0].text).toContain(document.textContent);
+    expect(replay.history[0].text).toContain('retained after chat summary');
+    expect(h.tx.clioAttachment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tenantId: TENANT, userId: USER, messageId: { in: ['upload-turn'] } }),
+    }));
+  });
+
+  it('discloses a missing attachment instead of silently omitting it from the provider input', async () => {
+    const h = buildHarness();
+    h.tx.clioMessage.findMany.mockResolvedValue([{ id: 'upload-turn', role: 'user', body: 'Read the file.', metadata: { attachments: [ref] } }]);
+    const replay = await (h.service as any).buildReplay(ctx, CONVERSATION, null);
+    expect(replay.history[0].text).toContain('TAG-letter.docx');
+    expect(replay.history[0].text).toContain('unavailable for this turn');
+  });
+
+  it('rejects a foreign-chat source before persisting a user turn and never moves the attachment', async () => {
+    const h = buildHarness();
+    h.tx.clioAttachment.findMany.mockResolvedValue([{ ...document, messageId: 'other-chat-message' }]);
+    await expect((h.service as any).persistUserMessage(ctx, { id: CONVERSATION, clientId: null }, 'Read it', [ref.id])).rejects.toThrow('another chat');
+    expect(h.tx.clioMessage.create).not.toHaveBeenCalled();
+    expect(h.tx.clioAttachment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('claims an unattached upload atomically and refuses a lost concurrent claim', async () => {
+    for (const count of [1, 0]) {
+      const h = buildHarness();
+      h.tx.clioAttachment.findMany.mockResolvedValue([{ ...document, messageId: null }]);
+      h.tx.clioAttachment.updateMany.mockResolvedValue({ count });
+      const persisted = (h.service as any).persistUserMessage(ctx, { id: CONVERSATION, clientId: null }, 'Read it', [ref.id]);
+      if (count === 1) await expect(persisted).resolves.toEqual(expect.any(String));
+      else await expect(persisted).rejects.toThrow('used in another chat');
+      expect(h.tx.clioAttachment.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ messageId: null, tenantId: TENANT, userId: USER }),
+      }));
+    }
   });
 });

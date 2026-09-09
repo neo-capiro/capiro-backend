@@ -39,6 +39,9 @@ const schemas = [
   'create_task',
   'update_task',
   'save_memory',
+  'save_note',
+  'save_chat_attachments',
+  'read_client_documents',
   'forget_memory',
   'mcp__hubspot__search_companies',
   'unused_legacy_tool',
@@ -68,6 +71,77 @@ function plan(recipeTool: MeriRetrievalPlan['recipeTool'] = 'query_relationship_
 }
 
 describe('MeriSemanticToolGateway', () => {
+  test.each([
+    'Please find the attached documents. Save this information in Sightline Intelligence.',
+    'Save these files under Sightline.',
+    'Ingest the uploaded documents into the selected client record.',
+  ])('keeps the client attachment filing tool in the enabled surface: %s', (request) => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining([
+        'save_chat_attachments',
+        'lookup_client_registry',
+        'read_client_documents',
+      ]),
+    );
+  });
+
+  test('a follow-up retains attachment filing from recent user context', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({
+      schemas,
+      tenantId: 'tenant-1',
+      request: 'Yes, save them there.',
+      recentUserContext: 'Here are the attached documents for Sightline Intelligence.',
+      plan: plan(null),
+    });
+    expect(selected.decision.exposedNames).toContain('save_chat_attachments');
+  });
+
+  test.each([
+    'For client Sightline I want to log the notes from the Sen Wyden Engagement.',
+    'How should I file my notes under Sightline?',
+    'These notes should be saved under the selected client. Please save them.',
+  ])('makes the note-writing path available for client filing language: %s', (request) => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining(['save_note', 'lookup_client_registry']),
+    );
+  });
+
+  test('reading an attachment does not itself select a client write', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({
+      schemas,
+      tenantId: 'tenant-1',
+      request: 'Read the attached letter and draft a response.',
+      plan: plan(null),
+    });
+    expect(selected.decision.exposedNames).not.toContain('save_chat_attachments');
+  });
+
   test.each([
     'Recommend opportunities for this client',
     'Assess grant eligibility',

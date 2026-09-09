@@ -1,4 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
+import { ApprovalPendingError, createDelegatedTool } from '@capiro/meriv2-core';
 import {
   MERI_CAPABILITY_REGISTRY,
   MERI_FEDERAL_MARKET_TOOL_DEFINITIONS,
@@ -9,6 +10,7 @@ import {
 import { MeriRegistryService } from './meri-registry.service.js';
 import type { ApiClientContextRepo } from './api-client-context.repo.js';
 import type { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
+import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog.js';
 
 const ctx = {
   tenantId: 'tenant-1',
@@ -28,6 +30,61 @@ function registry() {
 }
 
 describe('native capability registration contract', () => {
+  it('advertises attachment filing with a callable write handler only in full chat', () => {
+    const { service } = registry();
+    const metadata = MERI_CAPABILITY_REGISTRY.find((tool) => tool.name === 'save_chat_attachments');
+    expect(metadata).toMatchObject({ backend: 'meri', readOnly: false, surfaces: ['full_chat'] });
+    const handler = service.registry.get('save_chat_attachments');
+    expect(handler).toMatchObject({ name: 'save_chat_attachments', readOnly: false });
+    expect(typeof handler?.handler).toBe('function');
+    expect(service.registry.executionMetadata('save_chat_attachments')).toMatchObject({
+      executionMode: 'approval_required',
+      externalEffect: 'crm_mutation',
+    });
+    expect(
+      selectMeriCapabilitySchemas(
+        MERI_CAPABILITY_REGISTRY,
+        'full_chat',
+        service.registry.list(),
+      ).map((tool) => tool.name),
+    ).toContain('save_chat_attachments');
+    expect(
+      selectMeriCapabilitySchemas(
+        MERI_CAPABILITY_REGISTRY,
+        'in_editor',
+        service.registry.list(),
+      ).map((tool) => tool.name),
+    ).not.toContain('save_chat_attachments');
+  });
+
+  it('holds attachment filing for canonical approval before calling the API executor', async () => {
+    const { service, execute } = registry();
+    await expect(
+      service.registry.invoke(
+        'save_chat_attachments',
+        { clientId: 'client-1', conversationId: 'conversation-1', attachmentIds: ['attachment-1'] },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(ApprovalPendingError);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('the delegated attachment handler preserves authenticated caller, selected records and control', async () => {
+    const { execute } = registry();
+    const spec = WRITE_DELEGATED_TOOLS.find((tool) => tool.name === 'save_chat_attachments')!;
+    const delegated = createDelegatedTool(spec, { execute });
+    const input = {
+      clientId: 'client-1',
+      conversationId: 'conversation-1',
+      attachmentIds: ['attachment-1', 'attachment-2'],
+    };
+    const control = { signal: new AbortController().signal, deadlineAt: Date.now() + 10_000 };
+    // Tests the bridge contract directly; production reaches this handler only
+    // through the governed registry or the API's persisted approval execution.
+    await delegated.handler(input, ctx, control);
+    expect(execute).toHaveBeenCalledWith(ctx, 'save_chat_attachments', input, control);
+  });
+
   it('every capability intended for full chat has an actual callable registration', () => {
     const { service } = registry();
     expect(() => assertMeriCapabilityHandlers(service.registry.list())).not.toThrow();

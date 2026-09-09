@@ -71,6 +71,7 @@ export const FORBIDDEN_SCHEDULED_TOOLS: ReadonlySet<string> = new Set<string>([
   'send_email',
   'reply_email',
   'save_note',
+  'save_chat_attachments',
   'save_memory',
   'draft_policy_memo',
   'create_meeting_brief',

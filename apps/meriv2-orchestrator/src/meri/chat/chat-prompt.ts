@@ -10,6 +10,7 @@ import {
 } from '@capiro/meriv2-core';
 import type { MeriCitation } from '@capiro/shared';
 import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
+import { MERI_CLIENT_FILING_INSTRUCTIONS } from './client-filing-confirmation.js';
 
 /**
  * Full Meri chat (Workstream C4) — pure prompt/label logic, kept dependency-light
@@ -276,7 +277,8 @@ const TOOL_LABELS: Record<string, string> = {
   cancel_scheduled_task: 'Proposed cancelling a scheduled task',
   // Pre-approved (PASS) write tools — these run immediately, so the trace names
   // the completed action rather than a proposal.
-  save_note: 'Saved a note',
+  save_note: 'Save a note',
+  save_chat_attachments: 'File chat attachments under a client',
   save_memory: 'Saved a memory',
   create_word: 'Generated a Word document',
   create_excel: 'Generated an Excel workbook',
@@ -347,8 +349,9 @@ export function composeChatSystemPrompt(
     'Adding a NEW client to the book of business is a TWO-STEP flow. Step 1: call lookup_client_registry with the name (read-only) — it checks the existing book of business AND the LDA lobbying-disclosure registry. Relay what it reports: an existing client means do NOT create; close LDA candidates mean ask the user which registered entity applies (or none). Step 2: propose create_client with the RESOLVED inputs (the confirmed ldaClientId, or skipLdaCheck: true if the user said none apply). Never propose create_client without the lookup. In the SAME message where you propose it, ask whether — once approved — the user also wants the full profile filled via web research and internal data; if they agree, then after approval: scrape_web_page their website, pull search_lda_filings / search_federal_awards background, show the proposed values with a source for each, and propose update_client_profile. If an approved create_client comes back as a failed action (duplicate, unresolved LDA ambiguity, slot limit), the banner text says why — re-run lookup_client_registry and resolve it with the user rather than retrying blindly.',
     'Putting PEOPLE on a client profile: call find_contacts (read-only) — it returns the real correspondents from the connected Outlook/Gmail mailboxes and calendars with their actual email addresses, organization, last-contact date and message counts. NEVER harvest names from list_emails / search_emails previews for this: those give you a display name and nothing else, so you end up proposing contacts like "Derek" and "Steve" with no surname, no address, and no way for anyone to reach them. find_contacts marks who is already on the People tab (`onProfile`) — propose only the ones who are missing, and cite the contact as coming from synced mail/calendar. If find_contacts returns nobody, say the mailboxes hold no correspondents for that client rather than inventing names from memory.',
     'Enrichment writes MERGE, so re-running them is safe: a person already on the profile is matched (on email, else exact name) and updated in place, and a duplicate capability/facility name is skipped. Read the result — peopleCreated, peopleUpdated, skipped — and report what ACTUALLY changed. Do not claim you added five people when four already existed and were merged.',
-    'Document, note, and task tools run IMMEDIATELY (no approval hold): create_word, create_excel, create_powerpoint, create_meeting_brief, draft_policy_memo, save_note, save_memory, create_task, update_task. To produce a Word doc, spreadsheet, deck, brief, or memo as a file, you MUST call the matching tool — describing the content in prose does NOT create a file.',
+    'To produce a Word doc, spreadsheet, deck, brief, memo, or saved note, you MUST call the matching available tool — describing the content in prose does NOT create or save a file. The authoritative action result determines whether it ran, awaits approval, failed, or has an unknown outcome; never infer execution from the tool name.',
     'When you call a document tool, REPORT ITS ACTUAL RESULT — never assume success. If the tool returns a "downloadUrl" (its note says the document is available for download), tell the user the file is ready and reference the download. If it returns "downloadUrl": null or a note that it was NOT persisted, tell the user the document could not be generated and to try again — do NOT claim a downloadable file exists when the tool did not return one.',
+    MERI_CLIENT_FILING_INSTRUCTIONS,
     '',
     '# Primary sources outrank secondary coverage',
     'When a news summary and a primary source disagree (bill text, committee report, CBO score, roll call, floor transcript), the primary source wins — say so and cite it. News coverage of legislation is frequently wrong on mechanics: what a bill actually does, vote counts, and timing.',

@@ -21,6 +21,12 @@ import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { ConnectorMark } from './meri-connector-logos.js';
+import { attachmentChipSpec } from './MeriAttachmentChip.js';
+import {
+  MeriClientNoteDialog,
+  clientNoteComposerText,
+  type MeriClientNoteDraft,
+} from './MeriClientNoteDialog.js';
 import { useMeriComposerDraft } from './meri-composer-drafts.js';
 import { MERI_REASONING_MODES, useMeriReasoningMode } from './meri-reasoning-state.js';
 import { meriStartWorkCards } from './meri-start-work.js';
@@ -79,18 +85,9 @@ function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
   return (
     attachment.status === 'error' ||
     attachment.status === 'scanned' ||
-    attachment.status === 'unsupported'
+    attachment.status === 'unsupported' ||
+    (attachment.status !== 'uploading' && !attachment.id)
   );
-}
-
-/**
- * vNext-native kind→icon mapping — same convention as MeriAttachmentChip's
- * attachmentChipSpec (image→Eye, docx→File04, otherwise File05). Replaces the
- * antd attachmentKindIcon the legacy composer renders; antd may not render on
- * the vNext surface.
- */
-function stagedAttachmentIconName(kind: StagedAttachment['kind']): 'Eye' | 'File04' | 'File05' {
-  return kind === 'image' ? 'Eye' : kind === 'docx' ? 'File04' : 'File05';
 }
 
 export function VNextMeriComposer({
@@ -111,6 +108,13 @@ export function VNextMeriComposer({
   const [dragActive, setDragActive] = useState(false);
   const dragCounterRef = useRef(0);
   const [workspaceImportOpen, setWorkspaceImportOpen] = useState(false);
+  const [clientNoteOpen, setClientNoteOpen] = useState(false);
+  const [clientNotePreparation, setClientNotePreparation] = useState<{
+    note: MeriClientNoteDraft;
+    completed: boolean;
+  } | null>(null);
+  const [clientNoteError, setClientNoteError] = useState<string | null>(null);
+  const clientNoteRequestRef = useRef(0);
   const [workspaceDrafts, setWorkspaceDrafts] = useState<MeriWorkspaceImportDraft[]>([]);
   const [workspaceImportLoading, setWorkspaceImportLoading] = useState(false);
   const [workspaceImportError, setWorkspaceImportError] = useState<string | null>(null);
@@ -133,6 +137,8 @@ export function VNextMeriComposer({
     isStreaming,
     clients,
     selectedClientValue,
+    persistedClientId,
+    changeSessionClient,
     activeConversationId,
     stagedAttachments,
     attachmentNotice,
@@ -171,6 +177,13 @@ export function VNextMeriComposer({
     workspaceRequestEpochRef.current += 1;
     workspaceOpenRef.current = false;
     setWorkspaceImportOpen(false);
+  }, []);
+  const closeClientNote = useCallback(() => {
+    clientNoteRequestRef.current += 1;
+    setClientNoteOpen(false);
+    setClientNotePreparation(null);
+    setClientNoteError(null);
+    window.setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
 
   useEffect(() => {
@@ -224,6 +237,37 @@ export function VNextMeriComposer({
   const queryClient = useQueryClient();
   const managedApps = useManagedMcpApps();
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
+
+  // The setter catches transport errors itself. Confirm the rendered scope
+  // after it resolves before preparing a request that the server can execute.
+  useEffect(() => {
+    if (!clientNotePreparation?.completed || scopePersistStatus === 'saving') return;
+    const { note } = clientNotePreparation;
+    if (
+      scopePersistStatus === 'error' ||
+      selectedClientValue !== note.client.id ||
+      (activeConversationId && persistedClientId !== note.client.id)
+    ) {
+      setClientNotePreparation(null);
+      setClientNoteError(
+        `The conversation could not be set to ${note.client.name}. Your notes are still here. Try again.`,
+      );
+      return;
+    }
+    const text = clientNoteComposerText(note);
+    setDraft((current) => (current.trim() ? `${current}\n\n${text}` : text));
+    closeClientNote();
+    toast.success(`Note prepared for ${note.client.name}. Send the message to request filing.`);
+  }, [
+    clientNotePreparation,
+    selectedClientValue,
+    persistedClientId,
+    activeConversationId,
+    scopePersistStatus,
+    setDraft,
+    closeClientNote,
+    toast,
+  ]);
 
   // LIBRARY: Saved prompts. Same query key convention as MeriStartWork, so a
   // delete from the composer's pane invalidates the landing's cards too.
@@ -439,12 +483,17 @@ export function VNextMeriComposer({
   const activePane = addPane ? (LIBRARY_PANES.find((pane) => pane.id === addPane) ?? null) : null;
 
   const uploadsInFlight = stagedAttachments.some((attachment) => attachment.status === 'uploading');
+  const unavailableAttachments = stagedAttachments.filter(stagedAttachmentFailed);
   const busy = isStreaming || submitting;
   // Unified send gate: route/session ownership and first-send ownership are
   // enforced inside the send path. This predicate covers the remaining
   // durable-transition gate (scope persistence). Both the Send button and
   // the keyboard path (Enter / Cmd+Enter) use this same predicate.
-  const canSend = maySend(busy, scopePersistStatus) && !uploadsInFlight && !reasoningSaving;
+  const canSend =
+    maySend(busy, scopePersistStatus) &&
+    !uploadsInFlight &&
+    !reasoningSaving &&
+    unavailableAttachments.length === 0;
   // v6: the quiet "Context" label (with attachment count when files are
   // staged). Client scope is carried by the top-bar scope chip, not repeated
   // here per the prototype.
@@ -485,6 +534,7 @@ export function VNextMeriComposer({
     if (previousWorkspaceScopeRef.current === workspaceScopeKey) return;
     previousWorkspaceScopeRef.current = workspaceScopeKey;
     closeWorkspaceImport();
+    closeClientNote();
     setWorkspaceDrafts([]);
     setWorkspaceDocuments({});
     setWorkspaceExpanded({});
@@ -494,7 +544,7 @@ export function VNextMeriComposer({
     workspaceDocumentRequestsRef.current.clear();
     setWorkspaceImportError(null);
     setWorkspaceImportLoading(false);
-  }, [workspaceScopeKey, closeWorkspaceImport]);
+  }, [workspaceScopeKey, closeWorkspaceImport, closeClientNote]);
 
   useEffect(() => {
     if (!workspaceImportOpen) return;
@@ -633,7 +683,7 @@ export function VNextMeriComposer({
     async (forced?: string) => {
       const content = (forced ?? draft).trim();
       // Unified send gate: same predicate as the Send button and keyboard path.
-      if (!maySend(busy, scopePersistStatus) || uploadsInFlight || reasoningSaving) return;
+      if (!canSend) return;
       if (!content) {
         toast.success('Write a message, then press Send.');
         return;
@@ -655,16 +705,7 @@ export function VNextMeriComposer({
         setSubmitting(false);
       }
     },
-    [
-      busy,
-      draft,
-      sendMessage,
-      toast,
-      uploadsInFlight,
-      reasoningSaving,
-      scopePersistStatus,
-      clearForSubmission,
-    ],
+    [canSend, draft, sendMessage, toast, clearForSubmission],
   );
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
@@ -737,19 +778,21 @@ export function VNextMeriComposer({
                 type="button"
                 role="menuitem"
                 className="vnext-meri__add-popover-item"
+                disabled={busy}
                 onClick={() => {
                   setAddOpen(false);
-                  setDraft((current) => (current ? `${current}\n\nNote: ` : 'Note: '));
-                  window.setTimeout(() => textareaRef.current?.focus(), 0);
+                  setClientNoteOpen(true);
                 }}
               >
                 <span className="vnext-meri__add-popover-tile">
                   <MeriIcon name="Edit01" size={13} color="var(--m-gray-600)" />
                 </span>
                 <span className="vnext-meri__add-popover-item-body">
-                  <span className="vnext-meri__add-popover-item-label">Add note</span>
+                  <span className="vnext-meri__add-popover-item-label">File a client note</span>
                   <span className="vnext-meri__add-popover-item-desc">
-                    ADDS EDITABLE TEXT TO THIS MESSAGE
+                    {selectedClient
+                      ? `PREPARE A NOTE FOR ${selectedClient.name}`
+                      : 'CHOOSE A CLIENT AND ADD NOTES'}
                   </span>
                 </span>
               </button>
@@ -960,29 +1003,23 @@ export function VNextMeriComposer({
             {stagedAttachments.map((attachment) => {
               const failed = stagedAttachmentFailed(attachment);
               const truncated = attachment.status === 'truncated';
+              // Keep the full reason in readable text below, not hidden in a tooltip.
+              const presentation = attachmentChipSpec({ ...attachment, reason: null });
               return (
                 <span
                   key={attachment.localId}
-                  className={`vnext-meri__attachment${failed ? ' is-error' : truncated ? ' is-truncated' : ' is-ready'}`}
+                  className={`vnext-meri__attachment${failed ? ' is-error' : truncated ? ' is-truncated' : attachment.status === 'uploading' ? ' is-uploading' : ' is-ready'}`}
                 >
                   <span
                     aria-hidden="true"
                     style={{ display: 'flex', color: failed ? '#B42318' : '#98A2B3' }}
                   >
-                    <MeriIcon name={stagedAttachmentIconName(attachment.kind)} size={14} />
+                    <MeriIcon name={presentation.icon} size={14} />
                   </span>
                   <span title={attachment.filename} className="vnext-meri__attachment-name">
                     {truncateFilenameMiddle(attachment.filename, 28)}
                   </span>
-                  <span className="vnext-meri__attachment-state">
-                    {attachment.status === 'uploading'
-                      ? 'UPLOADING'
-                      : failed
-                        ? 'UNAVAILABLE'
-                        : truncated
-                          ? 'TRUNCATED'
-                          : 'READY'}
-                  </span>
+                  <span className="vnext-meri__attachment-state">{presentation.state}</span>
                   <button
                     type="button"
                     className="vnext-meri__attachment-remove"
@@ -994,6 +1031,32 @@ export function VNextMeriComposer({
                 </span>
               );
             })}
+          </div>
+        ) : null}
+
+        {stagedAttachments.length > 0 ? (
+          <div className="vnext-meri__attachment-details" aria-live="polite">
+            {stagedAttachments
+              .filter((attachment) => attachment.reason)
+              .map((attachment) => (
+                <div key={attachment.localId}>
+                  <strong>{attachment.filename}:</strong> {attachment.reason}
+                </div>
+              ))}
+            {unavailableAttachments.length > 0 ? (
+              <div role="alert">
+                {unavailableAttachments.length}{' '}
+                {unavailableAttachments.length === 1 ? 'file is' : 'files are'} unavailable. Remove
+                unavailable files to send the ready files, or upload a readable copy.
+              </div>
+            ) : uploadsInFlight ? (
+              <div>Uploading and reading files. You can send when processing finishes.</div>
+            ) : (
+              <div>
+                Attached for this chat. Ask Meri to save documents or notes under a client if you
+                want them filed there.
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -1051,6 +1114,7 @@ export function VNextMeriComposer({
           <button
             type="button"
             className="vnext-meri__composer-context-label"
+            disabled={busy}
             onClick={() => setAddOpen((open) => !open)}
             aria-haspopup="menu"
             aria-expanded={addOpen}
@@ -1202,11 +1266,47 @@ export function VNextMeriComposer({
     </div>
   ) : null;
 
+  const clientNoteDialog = clientNoteOpen ? (
+    <MeriClientNoteDialog
+      key={workspaceScopeKey}
+      clients={clients}
+      initialClientId={selectedClient?.id ?? null}
+      onCancel={closeClientNote}
+      preparing={Boolean(clientNotePreparation)}
+      error={clientNoteError}
+      currentClientId={selectedClientValue || null}
+      stagedAttachmentCount={stagedAttachments.length}
+      onPrepare={(note) => {
+        const request = ++clientNoteRequestRef.current;
+        setClientNoteError(null);
+        setClientNotePreparation({ note, completed: false });
+        void Promise.resolve()
+          .then(() => changeSessionClient(note.client.id))
+          .then(() => {
+            if (clientNoteRequestRef.current === request) {
+              setClientNotePreparation((current) =>
+                current ? { ...current, completed: true } : null,
+              );
+            }
+          })
+          .catch(() => {
+            if (clientNoteRequestRef.current === request) {
+              setClientNotePreparation(null);
+              setClientNoteError(
+                'The client could not be selected. Your notes are still here. Try again.',
+              );
+            }
+          });
+      }}
+    />
+  ) : null;
+
   if (variant === 'landing') {
     return (
       <>
         <div className="vnext-meri__landing-composer">{composer}</div>
         {workspaceImportDialog}
+        {clientNoteDialog}
       </>
     );
   }
@@ -1217,6 +1317,7 @@ export function VNextMeriComposer({
         <div className="vnext-meri__composer-pinned-inner">{composer}</div>
       </div>
       {workspaceImportDialog}
+      {clientNoteDialog}
     </>
   );
 }

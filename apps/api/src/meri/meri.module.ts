@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
+import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
@@ -74,6 +76,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
 @Module({
   imports: [
     EngagementModule,
+    ClientDocumentsModule,
     AiCredentialsModule,
     LdaIntelModule,
     LobbyIntelModule,
@@ -106,6 +109,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriVNextLibraryController,
   ],
   providers: [
+    MeriClientFilingService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,
     { provide: RAW_MERI_SERVICE, useClass: MeriService },

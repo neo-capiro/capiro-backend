@@ -36,6 +36,7 @@ describe('clio-schedule helpers (W3)', () => {
       expect(validateAllowList(['search_congress_bills', 'send_email']).ok).toBe(false);
       expect(validateAllowList(['save_memory']).ok).toBe(false);
       expect(validateAllowList(['create_word']).ok).toBe(false);
+      expect(validateAllowList(['save_chat_attachments']).ok).toBe(false);
     });
     it('keeps only known read-only tools', () => {
       const r = validateAllowList(['search_congress_bills', 'not_a_real_tool']);
@@ -48,6 +49,7 @@ describe('clio-schedule helpers (W3)', () => {
     it('is true for read-only tools and false if any side-effect leaks in', () => {
       expect(isAllowListSafe(['search_congress_bills', 'query_intelligence'])).toBe(true);
       expect(isAllowListSafe(['search_congress_bills', 'send_email'])).toBe(false);
+      expect(isAllowListSafe(['save_chat_attachments'])).toBe(false);
     });
   });
 

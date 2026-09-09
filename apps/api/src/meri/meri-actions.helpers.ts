@@ -14,6 +14,7 @@ export type ToolActionKind = 'read' | 'write' | 'send';
 const SEND_TOOLS = new Set(['send_email', 'reply_email']);
 const WRITE_TOOLS = new Set([
   'save_note',
+  'save_chat_attachments',
   'save_memory',
   'draft_policy_memo',
   'create_meeting_brief',
@@ -41,6 +42,7 @@ const VERBS: Record<string, string> = {
   send_email: 'sent an email',
   reply_email: 'replied to an email',
   save_note: 'saved a note',
+  save_chat_attachments: 'filed documents under a client',
   save_memory: 'updated memory',
   draft_policy_memo: 'drafted a policy memo',
   create_meeting_brief: 'created a meeting brief',

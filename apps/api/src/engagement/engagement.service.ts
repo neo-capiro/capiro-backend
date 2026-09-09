@@ -6938,8 +6938,13 @@ export class EngagementService {
       source?: string;
       sourceEntityType?: string | null;
       sourceEntityId?: string | null;
+      /** Server-owned retry identity. Never taken directly from an upload request. */
+      idempotencyKey?: string;
+      /** Chat originals retain the same scan/readiness policy as manual uploads. */
+      untrustedUpload?: boolean;
+      privateToUploader?: boolean;
     },
-  ): Promise<{ id: string; fileName: string; s3Key: string }> {
+  ): Promise<{ id: string; fileName: string; s3Key: string; lifecycleStatus?: string; scanStatus?: string | null; indexedAt?: Date | null; reused?: boolean }> {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
       throw new BadRequestException(
@@ -6954,7 +6959,42 @@ export class EngagementService {
       meetingId: input.meetingId ?? undefined,
     });
     const safeName = safeFileName(input.fileName);
-    const s3Key = `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    // The content digest is part of the identity: retries cannot overwrite an
+    // existing document with different bytes. A deterministic primary key and
+    // object key also cover concurrent calls and a retry after S3 succeeded but
+    // the database write failed, without a second document store or migration.
+    const digest = input.idempotencyKey
+      ? createHash('sha256').update(JSON.stringify([
+        'client-document-v1', ctx.tenantId, ctx.userId, input.clientId ?? null,
+        input.meetingId ?? null, input.idempotencyKey, input.contentType,
+        input.privateToUploader ?? false,
+        createHash('sha256').update(input.buffer).digest('hex'),
+      ])).digest('hex') : null;
+    const stableId = digest
+      ? `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`
+      : null;
+    if (stableId) {
+      const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.findFirst({ where: {
+          id: stableId, tenantId: ctx.tenantId, uploadedByUserId: ctx.userId,
+          clientId: input.clientId ?? null,
+        } }),
+      );
+      if (existing) return {
+        id: existing.id, fileName: existing.fileName, s3Key: existing.s3Key,
+        lifecycleStatus: existing.lifecycleStatus, scanStatus: existing.scanStatus,
+        indexedAt: existing.indexedAt, reused: true,
+      };
+    }
+    const s3Key = stableId
+      ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
+      : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    const verifiedContentType = input.untrustedUpload
+      ? this.attachmentContent.detectContentType(input.buffer) : null;
+    if (input.untrustedUpload && verifiedContentType &&
+        this.attachmentContent.contentTypeConflicts(input.contentType, verifiedContentType)) {
+      throw new BadRequestException('The original file contents do not match its document type.');
+    }
     await this.s3.send(
       new PutObjectCommand({
         Bucket: this.bucket,
@@ -6963,10 +7003,14 @@ export class EngagementService {
         ContentType: input.contentType,
       }),
     );
+    const initialScan = input.untrustedUpload
+      ? await this.scanner.getStatus(this.bucket, s3Key) : null;
+    const scanReady = initialScan === 'clean' ||
+      (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
     const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
-      return tx.engagementAttachment.create({
-        data: {
+      const data = {
+          ...(stableId ? { id: stableId } : {}),
           tenantId: ctx.tenantId,
           clientId,
           meetingId: input.meetingId ?? null,
@@ -6979,13 +7023,43 @@ export class EngagementService {
           sourceEntityType: input.sourceEntityType ?? null,
           sourceEntityId: input.sourceEntityId ?? null,
           uploadedByUserId: ctx.userId,
-        },
-      });
+          ...(input.privateToUploader ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] } : {}),
+          ...(input.untrustedUpload ? {
+            lifecycleStatus: scanReady ? 'ready' : initialScan === 'pending' ? 'quarantined' : 'blocked',
+            verifiedContentType,
+            calculatedSha256: this.attachmentContent.sha256(input.buffer),
+            scanProvider: this.scanner.providerName,
+            scanStatus: initialScan,
+            scanResultAt: initialScan === 'pending' ? null : new Date(),
+            extractionStatus: 'pending',
+          } : {}),
+        };
+      return stableId
+        ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+        : tx.engagementAttachment.create({ data });
+    }).catch(async (error: unknown) => {
+      // Prisma may emulate an upsert when tenant predicates are injected. The
+      // primary key still prevents duplicates; recover the concurrent winner
+      // after that transaction rolled back instead of reporting a false failure.
+      if (stableId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const winner = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.engagementAttachment.findFirst({ where: {
+            id: stableId, tenantId: ctx.tenantId, clientId: input.clientId ?? null,
+            uploadedByUserId: ctx.userId,
+          } }),
+        );
+        if (winner) return winner;
+      }
+      throw error;
     });
-    if (attachment.clientId) {
+    if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
     }
-    return { id: attachment.id, fileName: attachment.fileName, s3Key };
+    return {
+      id: attachment.id, fileName: attachment.fileName, s3Key: attachment.s3Key,
+      lifecycleStatus: attachment.lifecycleStatus, scanStatus: attachment.scanStatus,
+      indexedAt: attachment.indexedAt, reused: false,
+    };
   }
 
   /**

@@ -7,7 +7,13 @@ describe('classifyToolAction', () => {
     expect(classifyToolAction('reply_email')).toBe('send');
   });
   test('write tools', () => {
-    for (const t of ['save_note', 'save_memory', 'draft_policy_memo', 'create_meeting_brief']) {
+    for (const t of [
+      'save_note',
+      'save_chat_attachments',
+      'save_memory',
+      'draft_policy_memo',
+      'create_meeting_brief',
+    ]) {
       expect(classifyToolAction(t)).toBe('write');
     }
   });
@@ -42,6 +48,7 @@ describe('actionVerb', () => {
   test('known + unknown', () => {
     expect(actionVerb('send_email')).toBe('sent an email');
     expect(actionVerb('save_note')).toBe('saved a note');
+    expect(actionVerb('save_chat_attachments')).toBe('filed documents under a client');
     expect(actionVerb('create_task')).toBe('created an engagement task');
     expect(actionVerb('update_task')).toBe('updated an engagement task');
     expect(actionVerb('mystery_tool')).toBe('ran mystery_tool');

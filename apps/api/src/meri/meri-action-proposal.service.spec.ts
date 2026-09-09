@@ -18,6 +18,11 @@ import type {
   MeriPolicyPackService,
 } from './meri-policy-pack.service.js';
 
+// This suite exercises action authority with the explicit tool/policy doubles
+// below; their unrelated Nest dependency graphs are covered in module tests.
+jest.mock('./meri-tools.service.js', () => ({ MeriToolsService: class {} }));
+jest.mock('./meri-policy-pack.service.js', () => ({ MeriPolicyPackService: class {} }));
+
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const PROPOSAL = '33333333-3333-4333-8333-333333333333';
@@ -304,6 +309,55 @@ function harness(
 }
 
 describe('MeriActionProposalService', () => {
+  it('keeps a confirmed client note receipt without exposing its body', async () => {
+    const h = harness({ row: null, executeResult: { tool: 'save_note', status: 'saved',
+      note: { id: 'note-1', clientId: TENANT, title: 'Engagement notes', body: 'Private note body' },
+      documentId: 'note-1', clientId: TENANT, clientName: 'Sightline',
+      location: `/clients?clientId=${TENANT}&tab=documents`, indexingStatus: 'pending' } });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
+    const result = await h.service.create(ctx, { tool: 'save_note', input: { body: 'Private note body', clientId: TENANT }, surface: 'chat' });
+    expect(result.disposition).toBe('executed');
+    expect(result.proposal.resultSummary).toMatchObject({ tool: 'save_note', status: 'saved',
+      documentId: 'note-1', clientName: 'Sightline', note: { id: 'note-1' } });
+    expect(JSON.stringify(result.proposal.resultSummary)).not.toContain('Private note body');
+  });
+
+  it('does not treat a resolved promise without a durable save receipt as success', async () => {
+    const h = harness({ row: null, executeResult: { ok: true } });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
+    const result = await h.service.create(ctx, { tool: 'save_note', input: { body: 'Notes' }, surface: 'chat' });
+    expect(result.disposition).toBe('failed');
+    expect(result.proposal.status).toBe('outcome_unknown');
+    expect(result.proposal.error?.code).toBe('client_filing_receipt_missing');
+  });
+
+  it.each(['create', 'approve'] as const)('preserves a partial batch and its retry state through %s', async (path) => {
+    const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
+    const h = harness({ row: path === 'approve' ? makeRow({ tool: 'save_chat_attachments', input }) : null,
+      executeResult: { tool: 'save_chat_attachments', status: 'partial', clientId: TENANT, clientName: 'Sightline',
+        savedCount: 1, pendingCount: 0, failedCount: 1,
+        files: [{ attachmentId: USER, fileName: 'letter.docx', status: 'saved', documentId: 'doc-1' },
+          { attachmentId: PROPOSAL, fileName: 'brief.pdf', status: 'failed', reason: 'Try again' }] } });
+    h.setPolicy({ outcome: path === 'approve' ? 'WARN' : 'PASS', reasons: ['File documents'] });
+    const result = path === 'approve' ? await h.service.approveAndExecute(ctx, PROPOSAL)
+      : (await h.service.create(ctx, { tool: 'save_chat_attachments', input, surface: 'chat' })).proposal;
+    expect(result.status).toBe('failed_retryable');
+    expect(result.resultSummary).toMatchObject({ status: 'partial', savedCount: 1, failedCount: 1, files: [
+      expect.objectContaining({ documentId: 'doc-1', status: 'saved' }), expect.objectContaining({ status: 'failed' }),
+    ] });
+  });
+
+  it('retains processing state when all original files are stored but some scans are pending', async () => {
+    const h = harness({ row: null, executeResult: { tool: 'save_chat_attachments', status: 'partial', clientId: TENANT,
+      files: [{ attachmentId: USER, status: 'saved', documentId: 'd1' }, { attachmentId: PROPOSAL, status: 'pending', documentId: 'd2' }] } });
+    h.setPolicy({ outcome: 'PASS', reasons: ['File documents'] });
+    const result = await h.service.create(ctx, { tool: 'save_chat_attachments', input: {}, surface: 'chat' });
+    expect(result.disposition).toBe('executed');
+    expect(result.proposal.resultSummary).toMatchObject({ status: 'partial', files: [
+      expect.objectContaining({ status: 'saved' }), expect.objectContaining({ status: 'pending' }),
+    ] });
+  });
+
   it('creates the trusted fingerprint, policy, tenant, user, and expiry server-side', async () => {
     const h = harness({ row: null });
     h.setPolicy({
@@ -528,6 +582,238 @@ describe('MeriActionProposalService', () => {
   });
 });
 
+describe('MeriActionProposalService — retries retain the original policy authority', () => {
+  const input = { clientId: TENANT, conversationId: PROPOSAL, attachmentIds: [USER, PROPOSAL] };
+  const partialReceipt = {
+    tool: 'save_chat_attachments',
+    status: 'partial',
+    clientId: TENANT,
+    savedCount: 1,
+    failedCount: 1,
+    pendingCount: 0,
+    files: [
+      { attachmentId: USER, fileName: 'letter.docx', status: 'saved', documentId: 'doc-1' },
+      {
+        attachmentId: PROPOSAL,
+        fileName: 'brief.pdf',
+        status: 'failed',
+        reason: 'Temporarily unavailable',
+      },
+    ],
+  };
+  const completeReceipt = {
+    tool: 'save_chat_attachments',
+    status: 'saved',
+    clientId: TENANT,
+    savedCount: 2,
+    failedCount: 0,
+    pendingCount: 0,
+    files: [
+      {
+        attachmentId: USER,
+        fileName: 'letter.docx',
+        status: 'saved',
+        documentId: 'doc-1',
+        reused: true,
+      },
+      { attachmentId: PROPOSAL, fileName: 'brief.pdf', status: 'saved', documentId: 'doc-2' },
+    ],
+  };
+
+  async function failedPassAction() {
+    const h = harness({ row: null, executeResult: partialReceipt });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Client filing is allowed by the governing policy'] });
+    const created = await h.service.create(ctx, {
+      tool: 'save_chat_attachments',
+      input,
+      surface: 'chat',
+    });
+    expect(created.proposal.status).toBe('failed_retryable');
+    expect(created.proposal.attemptCount).toBe(1);
+    expect(h.getRow()?.policyDecision).toBe('PASS');
+    return h;
+  }
+
+  it('re-evaluates and retries a partial PASS execution under the unchanged PASS policy', async () => {
+    const h = await failedPassAction();
+    h.tools.execute.mockResolvedValueOnce(completeReceipt);
+
+    const retried = await h.service.approveAndExecute(ctx, PROPOSAL);
+
+    expect(retried.status).toBe('succeeded');
+    expect(retried.attemptCount).toBe(2);
+    expect(retried.resultSummary).toMatchObject({ savedCount: 2, failedCount: 0 });
+    expect(h.policyPacks.decideForAction).toHaveBeenCalledTimes(2);
+    expect(h.policyPacks.decideForAction).toHaveBeenLastCalledWith(
+      ctx,
+      'save_chat_attachments',
+      input,
+    );
+    expect(h.tools.execute).toHaveBeenNthCalledWith(2, ctx, 'save_chat_attachments', input);
+  });
+
+  it.each(['WARN', 'BLOCK'] as const)(
+    'blocks a PASS retry when fresh policy changes to %s',
+    async (outcome) => {
+      const h = await failedPassAction();
+      h.setPolicy({ outcome, reasons: ['Policy changed'] });
+      const retried = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(retried.status).toBe('blocked');
+      expect(retried.error?.code).toBe('policy_binding_changed');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(['binding', 'decisionHash', 'contextHash', 'packId', 'packVersion'] as const)(
+    'blocks a PASS retry when the bound %s changes despite the same outcome',
+    async (field) => {
+      const h = await failedPassAction();
+      const changed = authoritativeDecision('save_chat_attachments', {
+        outcome: 'PASS',
+        reasons: ['Policy still allows this action'],
+      });
+      changed[field] = `changed-${field}`;
+      (h.policyPacks.decideForAction as jest.Mock).mockResolvedValueOnce(changed);
+      const retried = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(retried.status).toBe('blocked');
+      expect(retried.error?.code).toBe('policy_binding_changed');
+      expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    { status: 'proposed', policyDecision: 'PASS', attemptCount: 0 },
+    { status: 'failed_retryable', policyDecision: 'PASS', attemptCount: 0 },
+    { status: 'failed_retryable', policyDecision: 'WARN', attemptCount: 1 },
+  ])(
+    'does not treat $status/$policyDecision with $attemptCount attempts as a prior PASS retry',
+    async (state) => {
+      const h = harness({
+        row: makeRow({ tool: 'save_chat_attachments', input, ...state }),
+        executeResult: completeReceipt,
+      });
+      h.setPolicy({ outcome: 'PASS', reasons: ['Current policy allows this action'] });
+      const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+      expect(result.status).toBe('blocked');
+      expect(result.error?.code).toBe('policy_binding_changed');
+      expect(h.tools.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps the immutable input fingerprint check on an otherwise eligible PASS retry', async () => {
+    const h = await failedPassAction();
+    h.getRow()!.input = { ...input, clientId: USER };
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('blocked');
+    expect(result.error?.code).toBe('fingerprint_mismatch');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+    expect(h.policyPacks.decideForAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('still retries an approved WARN action under the unchanged WARN authority', async () => {
+    const h = harness({
+      row: makeRow({
+        tool: 'save_chat_attachments',
+        input,
+        status: 'failed_retryable',
+        attemptCount: 1,
+      }),
+      executeResult: completeReceipt,
+    });
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('succeeded');
+    expect(result.attemptCount).toBe(2);
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MeriActionProposalService — note storage and readiness', () => {
+  it('reports a durably stored note as pending indexing while keeping execution succeeded', async () => {
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_note',
+        status: 'pending',
+        clientId: TENANT,
+        documentId: 'note-1',
+        note: { id: 'note-1', clientId: TENANT, title: 'Engagement notes' },
+        indexingStatus: 'pending',
+        message: 'Saved. Search indexing is still in progress.',
+      },
+    });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Notes', clientId: TENANT },
+      surface: 'chat',
+    });
+    expect(result.disposition).toBe('executed');
+    expect(result.proposal.status).toBe('succeeded');
+    expect(result.proposal.resultSummary).toMatchObject({
+      status: 'pending',
+      documentId: 'note-1',
+      indexingStatus: 'pending',
+    });
+  });
+
+  it('preserves the stored ID and failure detail when note preparation requires a retry', async () => {
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_note',
+        status: 'failed',
+        clientId: TENANT,
+        documentId: 'note-1',
+        note: { id: 'note-1', clientId: TENANT },
+        indexingStatus: 'failed',
+        message: 'Document stored, but text indexing failed. Retry to finish preparing it.',
+      },
+    });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Notes', clientId: TENANT },
+      surface: 'chat',
+    });
+    expect(result.disposition).toBe('failed');
+    expect(result.proposal.status).toBe('failed_retryable');
+    expect(result.proposal.error?.code).toBe('client_filing_incomplete');
+    expect(result.proposal.error?.message).toContain('text indexing failed');
+    expect(result.proposal.resultSummary).toMatchObject({
+      status: 'failed',
+      documentId: 'note-1',
+      indexingStatus: 'failed',
+    });
+  });
+
+  it('retains a confirmed personal note receipt when it has no client association', async () => {
+    const h = harness({
+      row: null,
+      executeResult: {
+        tool: 'save_note',
+        status: 'saved',
+        note: { id: 'personal-note-1', clientId: null },
+        clientId: null,
+        message: 'Saved to your notes.',
+      },
+    });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Internal note'] });
+    const result = await h.service.create(ctx, {
+      tool: 'save_note',
+      input: { body: 'Personal notes' },
+      surface: 'chat',
+    });
+    expect(result.disposition).toBe('executed');
+    expect(result.proposal.status).toBe('succeeded');
+    expect(result.proposal.resultSummary).toMatchObject({
+      tool: 'save_note',
+      status: 'saved',
+      note: { id: 'personal-note-1', clientId: null },
+    });
+    expect(result.proposal.preview.client).toBeUndefined();
+  });
+});
+
 describe('MeriActionProposalService.list', () => {
   it("never returns another tenant or user's proposals", async () => {
     const own = makeRow({ id: PROPOSAL });
@@ -552,8 +838,7 @@ describe('MeriActionProposalService.list', () => {
     } as unknown as PrismaService;
     const tools = {} as unknown as MeriToolsService;
     const config = {
-      get: (key: string) =>
-        key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined,
+      get: (key: string) => (key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined),
     } as unknown as ConfigService<AppConfig, true>;
     const service = new MeriActionProposalService(
       prisma,

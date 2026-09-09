@@ -1,3 +1,4 @@
+import { assertAttachmentConversation, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -129,8 +130,7 @@ import {
 import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
-import mammoth from 'mammoth';
-import { extractPdfText } from './meri-attachment-extract.js';
+import { extractMeriDocument } from './meri-attachment-document.js';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_IMAGE_BYTES,
@@ -139,7 +139,6 @@ import {
   formatAttachmentContext,
   imageHistoryPlaceholder,
   imageMediaTypeFromSniff,
-  resolveDocumentStatus,
   validateAttachment,
   validateVisionSet,
   verifyMagicBytes,
@@ -515,7 +514,7 @@ export class MeriService implements MeriTurnMaintenance {
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioAttachment.findMany({
         where: { id: { in: ids }, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: { id: true, filename: true, kind: true, status: true, textContent: true },
+        select: { id: true, filename: true, kind: true, status: true, reason: true, textContent: true },
       }),
     );
     const documents = rows
@@ -525,9 +524,15 @@ export class MeriService implements MeriTurnMaintenance {
         filename: r.filename,
         kind: r.kind,
         // Clamp per-document so a large upload can't blow the prompt budget.
-        text: r.textContent!.trim().slice(0, 12_000),
+        text: r.textContent!.trim().length > 12_000
+          ? `${r.textContent!.trim().slice(0, 12_000)}\n…[truncated]`
+          : r.textContent!.trim(),
+        status: r.status,
+        truncated: r.status === 'truncated' || r.textContent!.trim().length > 12_000,
+        reason: r.reason,
       }));
-    return { documents };
+    const included = new Set(documents.map(document => document.id));
+    return { documents, unavailableAttachmentIds: ids.filter(id => !included.has(id)) };
   }
 
   private async ensureClientVisible(ctx: TenantContext, clientId: string) {
@@ -609,17 +614,19 @@ export class MeriService implements MeriTurnMaintenance {
           kind: string;
           status: string;
           byteSize: number;
+          messageId?: string | null;
         }> = [];
         if (attachmentIds.length) {
           attachmentRows = await tx.clioAttachment.findMany({
             where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId },
-            select: { id: true, filename: true, kind: true, status: true, byteSize: true },
+            select: { id: true, filename: true, kind: true, status: true, byteSize: true, messageId: true },
           });
           if (attachmentRows.length !== new Set(attachmentIds).size) {
             throw new BadRequestException(
               'One or more attachments were not found (they may have expired) — re-upload and try again',
             );
           }
+          await assertAttachmentConversation(tx, ctx, conversationId, attachmentRows);
           const vision = validateVisionSet(
             attachmentRows
               .filter((r) => r.kind === 'image')
@@ -643,10 +650,13 @@ export class MeriService implements MeriTurnMaintenance {
           },
         });
         if (attachmentRows.length) {
-          await tx.clioAttachment.updateMany({
-            where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId },
+          const claimed = await tx.clioAttachment.updateMany({
+            where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null },
             data: { messageId: userMessage.id },
           });
+          if (claimed.count !== attachmentRows.filter(row => row.messageId == null).length) {
+            throw new BadRequestException('An attachment was used in another chat. Upload the file again.');
+          }
         }
       });
     } else {
@@ -796,19 +806,19 @@ export class MeriService implements MeriTurnMaintenance {
       if (refs.length) attachmentRefsByMessage.set(m.id, refs);
     }
     const lastUserMessage = [...history].reverse().find((m) => m.role === 'user') ?? null;
-    const docTextById = new Map<string, { filename: string; text: string }>();
+    const docTextById = new Map<string, { id: string; filename: string; text: string; status: string; reason: string | null }>();
     const currentTurnImages: Array<{ filename: string; mediaType: string; dataBase64: string }> =
       [];
     if (attachmentRefsByMessage.size) {
       const allRefIds = [...attachmentRefsByMessage.values()].flat().map((r) => r.id);
       const docRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioAttachment.findMany({
-          where: { id: { in: allRefIds }, kind: { not: 'image' }, textContent: { not: null } },
-          select: { id: true, filename: true, textContent: true },
+          where: { id: { in: allRefIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: { not: 'image' }, textContent: { not: null } },
+          select: { id: true, filename: true, textContent: true, status: true, reason: true },
         }),
       );
       for (const row of docRows) {
-        docTextById.set(row.id, { filename: row.filename, text: row.textContent ?? '' });
+        docTextById.set(row.id, { id: row.id, filename: row.filename, text: row.textContent ?? '', status: row.status, reason: row.reason });
       }
       const lastUserImageIds = (
         (lastUserMessage && attachmentRefsByMessage.get(lastUserMessage.id)) ??
@@ -819,7 +829,7 @@ export class MeriService implements MeriTurnMaintenance {
       if (lastUserImageIds.length) {
         const imageRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioAttachment.findMany({
-            where: { id: { in: lastUserImageIds }, kind: 'image' },
+            where: { id: { in: lastUserImageIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'image' },
             select: { id: true, filename: true, mediaType: true, data: true },
           }),
         );
@@ -840,13 +850,21 @@ export class MeriService implements MeriTurnMaintenance {
       const parts = [m.body];
       for (const ref of refs) {
         const doc = docTextById.get(ref.id);
-        if (doc) parts.push(formatAttachmentContext(doc.filename, doc.text));
+        if (doc) parts.push(formatAttachmentContext(doc.filename, doc.text, undefined, doc));
         else if (ref.kind === 'image' && m.id !== lastUserMessage?.id) {
           parts.push(imageHistoryPlaceholder(ref.filename));
+        } else if (ref.kind !== 'image') {
+          parts.push(`Attachment ${JSON.stringify(ref.filename)} (ID ${ref.id}) is unavailable for this turn. Ask for that file again; do not claim to have read it.`);
         }
       }
       return { role: m.role as 'user' | 'assistant', body: parts.join('\n\n') };
     });
+
+    if (summaryBoundary || history.length >= 80) {
+      const carried = await compactedAttachmentContext(this.prisma, ctx, conversationId, history.map(message => message.id));
+      const latest = [...replayHistory].reverse().find(message => message.role === 'user');
+      if (carried && latest) latest.body += `\n\n${carried}`;
+    }
 
     // Deep-Research promote gate (2026-07-15): a "build me a full report/brief"
     // ask is a DELIVERABLE, not a chat turn. Ordinary chat — on BOTH the legacy
@@ -2145,7 +2163,7 @@ export class MeriService implements MeriTurnMaintenance {
     if (args.conversation.clientId) {
       clientKbSnapshot =
         (await this.clientKb
-          .buildSnapshot(ctx.tenantId, args.conversation.clientId)
+          .buildSnapshot(ctx.tenantId, args.conversation.clientId, ctx.userId)
           .catch(() => null)) ?? undefined;
     }
 
@@ -2986,7 +3004,7 @@ export class MeriService implements MeriTurnMaintenance {
       // a plain profile fallback when the KB is disabled or unavailable.
       let snapshotLoaded = false;
       try {
-        const snapshot = await this.clientKb.buildSnapshot(ctx.tenantId, clientId);
+        const snapshot = await this.clientKb.buildSnapshot(ctx.tenantId, clientId, ctx.userId);
         if (snapshot) {
           contextParts.push(snapshot);
           sources.push({
@@ -4787,15 +4805,17 @@ export class MeriService implements MeriTurnMaintenance {
    * Validates (size cap, type allowlist, magic-byte sniff — a `.pdf` that is
    * actually HTML is rejected), extracts text for documents (pdf via unpdf,
    * docx via mammoth, plain text verbatim) with page/char caps and an explicit
-   * truncation marker, detects scanned PDFs, and stores the result as a
+   * truncation marker, reads scanned pages with the canonical bounded provider
+   * reader, and stores the result as a
    * tenant-scoped ClioAttachment row the stream request references by id.
-   * Image bytes are stored raw so vision blocks can be rebuilt on regenerate.
+   * Original bytes are retained for authorized client filing; image bytes also
+   * rebuild vision blocks on regenerate.
    *
    * Extraction happens here — on the upload request, off the chat streaming
    * path — and the pdf page loop awaits between pages so the event loop is
    * never blocked for the whole document.
    *
-   * Unusable files (unsupported / scanned / spoofed) return an explicit
+   * Unusable files (unsupported / unreadable scans / spoofed) return an explicit
    * user-visible status + reason instead of an opaque 4xx, and are not stored.
    */
   async uploadAttachment(
@@ -4885,29 +4905,20 @@ export class MeriService implements MeriTurnMaintenance {
       };
     }
 
-    let raw = '';
-    let pages: number | null = null;
+    let resolved: Awaited<ReturnType<typeof extractMeriDocument>>;
     try {
-      if (validation.kind === 'text') {
-        raw = file.buffer.toString('utf8');
-      } else if (validation.kind === 'docx') {
-        raw = (await mammoth.extractRawText({ buffer: file.buffer })).value;
-      } else if (validation.kind === 'pdf') {
-        const extracted = await extractPdfText(file.buffer);
-        raw = extracted.text;
-        pages = extracted.pages;
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Attachment extraction failed [${validation.kind}] ${filename}: ${err instanceof Error ? err.message : err}`,
-      );
+      resolved = await extractMeriDocument({
+        bytes: file.buffer, kind: validation.kind, tenantId: ctx.tenantId, userId: ctx.userId,
+        resolveCredential: () => this.aiCredentials.resolveProvider(ctx, 'openai'),
+      });
+    } catch {
+      this.logger.warn(`Attachment extraction failed [${validation.kind}]`);
       return reject(
         validation.kind,
         `Could not read this ${validation.kind === 'pdf' ? 'PDF' : 'document'} — it may be corrupted, encrypted, or password-protected.`,
       );
     }
-
-    const resolved = resolveDocumentStatus(validation.kind, raw);
+    const pages = resolved.pages;
     if (resolved.status === 'scanned' || resolved.status === 'unsupported') {
       return {
         id: null,
@@ -4928,8 +4939,11 @@ export class MeriService implements MeriTurnMaintenance {
           filename,
           kind: validation.kind,
           status: resolved.status,
-          mediaType: file.mimetype || null,
+          mediaType: validation.kind === 'pdf' ? 'application/pdf'
+            : validation.kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'text/plain',
           byteSize: file.buffer.length,
+          data: file.buffer,
           pages,
           textContent: resolved.text,
           reason: resolved.reason,

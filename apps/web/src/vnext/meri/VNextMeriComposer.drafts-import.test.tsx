@@ -1,6 +1,14 @@
-import { act, fireEvent, render as renderRaw, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render as renderRaw,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import type { StagedAttachment } from '../../components/chat/chat-attachments.js';
 
 const mocks = vi.hoisted(() => {
   const get = vi.fn();
@@ -121,6 +129,225 @@ beforeEach(() => {
   mocks.auth.userId = 'user';
   mocks.impersonation.actAsTenantSlug = null;
   window.sessionStorage.clear();
+  mocks.toast.success.mockClear();
+});
+
+describe('client-note filing preparation', () => {
+  const clients = [
+    { id: 'client-sightline', name: 'Sightline Intelligence' },
+    { id: 'client-other', name: 'Other Client' },
+  ];
+  const withClients = (selectedClientValue: string | null = 'client-sightline', id = 'thread-a') =>
+    ({
+      ...controller(id),
+      clients,
+      selectedClientValue,
+      persistedClientId: selectedClientValue,
+      changeSessionClient: vi.fn().mockResolvedValue(undefined),
+    }) as unknown as MeriChatController;
+  const openNote = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /File a client note/ }));
+    return screen.getByRole('dialog', { name: 'File a client note' });
+  };
+
+  test('requires actual notes and a target, then prepares an explicit request without claiming a save', async () => {
+    const value = withClients();
+    await render(composer(value));
+    enter('Existing draft instructions');
+    const dialog = openNote();
+    expect(within(dialog).getByRole('combobox', { name: 'Client' })).toHaveValue(
+      'client-sightline',
+    );
+    const prepare = within(dialog).getByRole('button', { name: 'Add to message' });
+    expect(prepare).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Notes' }), {
+      target: { value: '   ' },
+    });
+    expect(prepare).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Notes' }), {
+      target: { value: 'Policy lead will send the follow-up by September 14. BLUE-ORBIT-47' },
+    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Title (optional)' }), {
+      target: { value: 'Sen. Wyden engagement' },
+    });
+    fireEvent.click(prepare);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(value.changeSessionClient).toHaveBeenCalledWith('client-sightline');
+    const message = (textarea() as HTMLTextAreaElement).value;
+    expect(message).toContain('Existing draft instructions');
+    expect(message).toContain('Save the following note under client "Sightline Intelligence".');
+    expect(message).toContain('Sen. Wyden engagement');
+    expect(message).toContain('BLUE-ORBIT-47');
+    expect(value.sendMessage).not.toHaveBeenCalled();
+    expect(mocks.toast.success).toHaveBeenCalledWith(
+      'Note prepared for Sightline Intelligence. Send the message to request filing.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(value.sendMessage).toHaveBeenCalledWith(message));
+  });
+
+  test('portfolio scope requires choosing a client and cancel preserves the composer', async () => {
+    await render(composer(withClients(null)));
+    enter('Preserve this draft');
+    const dialog = openNote();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Notes' }), {
+      target: { value: 'Actual notes' },
+    });
+    const prepare = within(dialog).getByRole('button', { name: 'Add to message' });
+    expect(prepare).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Client' }), {
+      target: { value: 'client-other' },
+    });
+    expect(prepare).not.toBeDisabled();
+    fireEvent.keyDown(within(dialog).getByRole('textbox', { name: 'Notes' }), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(textarea()).toHaveValue('Preserve this draft');
+  });
+
+  test('a picker change does not retarget an open note, while thread navigation closes it', async () => {
+    const view = await render(composer(withClients()));
+    openNote();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Notes' }), {
+      target: { value: 'Sightline note' },
+    });
+    const changedScope = withClients('client-other');
+    const pending = deferred<void>();
+    changedScope.changeSessionClient = vi.fn(() => pending.promise);
+    await view.rerender(composer(changedScope));
+    expect(screen.getByRole('combobox', { name: 'Client' })).toHaveValue('client-sightline');
+    fireEvent.click(screen.getByRole('button', { name: 'Add to message' }));
+    await waitFor(() =>
+      expect(changedScope.changeSessionClient).toHaveBeenCalledWith('client-sightline'),
+    );
+    expect(textarea()).toHaveValue('');
+    await view.rerender(composer(withClients('client-sightline')));
+    await act(async () => pending.resolve());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect((textarea() as HTMLTextAreaElement).value).toContain('client "Sightline Intelligence"');
+    expect((textarea() as HTMLTextAreaElement).value).not.toContain('Other Client');
+    openNote();
+    await view.rerender(composer(withClients('client-other', 'thread-b')));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(textarea()).toHaveValue('');
+  });
+
+  test('a failed scope change preserves notes and cannot prepare or send under a different client', async () => {
+    const initial = withClients(null);
+    const pending = deferred<void>();
+    initial.changeSessionClient = vi.fn(() => pending.promise);
+    const view = await render(composer(initial));
+    const dialog = openNote();
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Client' }), {
+      target: { value: 'client-sightline' },
+    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Notes' }), {
+      target: { value: 'Keep these unsaved notes' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add to message' }));
+    await waitFor(() =>
+      expect(initial.changeSessionClient).toHaveBeenCalledWith('client-sightline'),
+    );
+    await view.rerender(composer({ ...initial, scopePersistStatus: 'error' }));
+    await act(async () => pending.resolve());
+    expect(screen.getByRole('alert')).toHaveTextContent('Your notes are still here');
+    expect(screen.getByRole('textbox', { name: 'Notes' })).toHaveValue('Keep these unsaved notes');
+    expect(textarea()).toHaveValue('');
+    expect(initial.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('a delayed client-scope response cannot fill a different thread', async () => {
+    const initial = withClients();
+    const pending = deferred<void>();
+    initial.changeSessionClient = vi.fn(() => pending.promise);
+    const view = await render(composer(initial));
+    const dialog = openNote();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Notes' }), {
+      target: { value: 'Original-thread notes' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add to message' }));
+    await waitFor(() => expect(initial.changeSessionClient).toHaveBeenCalled());
+    await view.rerender(composer(withClients('client-other', 'thread-b')));
+    await act(async () => pending.resolve());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(textarea()).toHaveValue('');
+  });
+});
+
+describe('attachment readiness and coverage', () => {
+  const file = (
+    status: StagedAttachment['status'],
+    overrides: Partial<StagedAttachment> = {},
+  ): StagedAttachment => ({
+    localId: 'file-a',
+    id: 'attachment-a',
+    filename: 'letter.docx',
+    kind: 'docx',
+    status,
+    reason: null,
+    pages: 2,
+    chars: 240,
+    ...overrides,
+  });
+  const withFiles = (files: StagedAttachment[], sendMessage = vi.fn().mockResolvedValue(true)) =>
+    ({
+      ...controller('thread-a', sendMessage),
+      stagedAttachments: files,
+      removeStagedAttachment: vi.fn(),
+      handleAttachFiles: vi.fn(),
+    }) as unknown as MeriChatController;
+
+  test('shows actual parse counts and truncation details for every file', async () => {
+    await render(
+      composer(
+        withFiles([
+          file('parsed'),
+          file('truncated', {
+            localId: 'file-b',
+            filename: 'appendix.pdf',
+            kind: 'pdf',
+            pages: 40,
+            reason: '40 of 210 pages were read.',
+          }),
+        ]),
+      ),
+    );
+    expect(screen.getByText('PARSED · 2 PAGES')).toBeInTheDocument();
+    expect(screen.getByText('TRUNCATED · 40 PAGES')).toBeInTheDocument();
+    expect(screen.getByText(/40 of 210 pages were read/)).toBeInTheDocument();
+    expect(screen.getByText(/Attached for this chat/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled();
+  });
+
+  test.each(['uploading', 'scanned', 'unsupported', 'error'] as const)(
+    '%s files cannot be silently omitted by Send or Enter',
+    async (status) => {
+      const send = vi.fn().mockResolvedValue(true);
+      const pendingFile = file(status, {
+        id: null,
+        reason: status === 'error' ? 'Encrypted PDF. Upload an unlocked copy.' : null,
+      });
+      const value = withFiles(
+        [file('parsed'), { ...pendingFile, localId: 'file-b', filename: 'unreadable.pdf' }],
+        send,
+      );
+      const view = await render(composer(value));
+      enter('Extract the facts from every attachment.');
+      expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+      fireEvent.keyDown(textarea(), { key: 'Enter' });
+      expect(send).not.toHaveBeenCalled();
+      if (status !== 'uploading')
+        expect(screen.getByRole('alert')).toHaveTextContent('Remove unavailable files');
+      if (status === 'error') expect(screen.getByText(/Encrypted PDF/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Remove unreadable.pdf' }));
+      expect(value.removeStagedAttachment).toHaveBeenCalledWith('file-b');
+      await view.rerender(composer(withFiles([file('parsed')], send)));
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      await waitFor(() =>
+        expect(send).toHaveBeenCalledWith('Extract the facts from every attachment.'),
+      );
+    },
+  );
 });
 
 describe('conversation composer drafts', () => {

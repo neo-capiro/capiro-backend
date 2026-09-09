@@ -57,6 +57,7 @@ import {
   readOpenAiResponsesErrorTelemetry,
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
+import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
 import type {
   MeriV3ChatInput,
   MeriV3ChatResult,
@@ -563,7 +564,7 @@ export class MeriV3AssistantService {
     const released = this.finalizeReply({
       ctx,
       dto,
-      reply: finalText,
+      reply: enforceClientFilingConfirmation({ reply: finalText, request: lastUserText, entries: ledgerEntries }),
       artifactBodies: artifacts.map((artifact) => artifact.bodyText ?? ''),
       citations,
       ledgerEntries,
@@ -928,6 +929,13 @@ export class MeriV3AssistantService {
             proposalId: proposal.proposalId,
             message: `This action is inert until the user approves proposal ${proposal.proposalId}.`,
           };
+        }
+        if (authority.disposition === 'failed') {
+          const detail = proposal.error?.message || 'The action did not confirm a successful save.';
+          args.steps.push({ tool: args.name, label, status: 'error', detail });
+          args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
+          return { error: true, status: proposal.status, proposalId: proposal.proposalId,
+            resultSummary: proposal.resultSummary, message: detail };
         }
         args.noteComplianceOutcome('BLOCK');
         const detail = proposal.reason || 'Blocked by the authoritative policy pack.';

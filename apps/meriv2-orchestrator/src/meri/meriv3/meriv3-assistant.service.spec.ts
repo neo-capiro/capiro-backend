@@ -85,6 +85,20 @@ describe('MeriV3AssistantService', () => {
     jest.restoreAllMocks();
   });
 
+  test('does not emit or persist a client note success before any write ran', async () => {
+    const complete = jest.fn().mockResolvedValue(response({ outputText: 'I have saved your notes under Sightline.' }));
+    const createProposal = jest.fn();
+    const assistant = build(registry([]), complete, createProposal);
+    const onEvent = jest.fn();
+    const result = await assistant.run(context, { toolPolicy: 'none', clientId: 'client-1',
+      messages: [{ role: 'user', text: 'How do I log Sen Wyden engagement notes under Sightline? I have not provided the notes yet.' }],
+    }, { onEvent });
+    expect(createProposal).not.toHaveBeenCalled();
+    expect(result.reply).toContain('I have not saved');
+    expect(onEvent.mock.calls.filter(([event]) => event.type === 'text').map(([event]) => event.text).join('')).not.toContain('I have saved');
+    expect(complete.mock.calls[0][0].instructions).toContain('does not supply note content');
+  });
+
   test('saves inherited document evidence used only in the generated artifact, preserving [56]', async () => {
     const citation = { n: 56, type: 'source', id: 'doc-page-22', title: 'Capiro 2.0.pdf', url: null,
       snippet: 'Meeting preparation', tool: 'read_client_documents', documentEvidence: {

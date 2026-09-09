@@ -15,12 +15,14 @@ function fixture() {
     contentType: 'application/pdf',
     meetingId: null,
     s3Key: 'tenant/doc',
+    viewerMode: 'all', lifecycleStatus: 'ready', scanStatus: 'clean', supersededByAttachmentId: null,
   };
   const findFirst = jest.fn().mockResolvedValue(attachment);
   const extractAttachmentTextForKb = jest.fn();
   const purge = jest.fn().mockResolvedValue(undefined);
   const service = Object.create(ClientKbService.prototype) as ClientKbService;
   Object.assign(service, {
+    config: { get: jest.fn().mockReturnValue(false) },
     prisma: {
       withTenant: jest.fn(async (_tenant, fn) =>
         fn({

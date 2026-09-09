@@ -16,9 +16,15 @@ export interface PdfExtraction {
   pages: number;
   pagesRead: number;
   truncated: boolean;
+  /** Pages with no native text that could not be read completely. */
+  unreadablePages: number[];
+  visuallyReadPages: number[];
 }
 
-export async function extractPdfText(buffer: Buffer | Uint8Array): Promise<PdfExtraction> {
+export async function extractPdfText(buffer: Buffer | Uint8Array, options: {
+  readScannedPage?: (page: number, pageCount: number) => Promise<{ text: string; partial: boolean }>;
+  signal?: AbortSignal;
+} = {}): Promise<PdfExtraction> {
   const bytes = buffer instanceof Uint8Array && !(buffer instanceof Buffer)
     ? buffer
     : new Uint8Array(buffer);
@@ -28,13 +34,26 @@ export async function extractPdfText(buffer: Buffer | Uint8Array): Promise<PdfEx
   let chars = 0;
   let pagesRead = 0;
   let truncated = false;
+  const unreadablePages: number[] = [];
+  const visuallyReadPages: number[] = [];
   try {
     for (let i = 1; i <= pageCount && chars < DOC_TEXT_MAX_CHARS; i += 1) {
+      if (options.signal?.aborted) { truncated = true; break; }
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const pageText = (content.items as Array<{ str?: string }>)
+      let pageText = (content.items as Array<{ str?: string }>)
         .map((item) => item.str ?? '')
         .join(' ');
+      if (!pageText.trim()) {
+        if (options.readScannedPage) {
+          const visual = await options.readScannedPage(i, pdf.numPages);
+          pageText = visual.text;
+          if (pageText.trim()) visuallyReadPages.push(i);
+          if (!pageText.trim() || visual.partial) unreadablePages.push(i);
+        } else {
+          unreadablePages.push(i);
+        }
+      }
       const separatorChars = parts.length ? 1 : 0;
       const remaining = DOC_TEXT_MAX_CHARS - chars - separatorChars;
       if (remaining <= 0) { truncated = true; break; }
@@ -45,7 +64,8 @@ export async function extractPdfText(buffer: Buffer | Uint8Array): Promise<PdfEx
       truncated ||= part.length < pageText.length;
     }
     return { text: parts.join('\n'), pages: pdf.numPages, pagesRead,
-      truncated: truncated || pagesRead < pdf.numPages };
+      truncated: truncated || pagesRead < pdf.numPages,
+      unreadablePages, visuallyReadPages };
   } finally {
     await pdf.loadingTask.destroy();
   }

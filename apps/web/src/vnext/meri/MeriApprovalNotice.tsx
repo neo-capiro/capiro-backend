@@ -1,4 +1,8 @@
-import type { MeriActionProposalStatus, PendingApproval } from '../../components/chat/useMeriChatController.js';
+import type {
+  MeriActionProposalStatus,
+  PendingApproval,
+} from '../../components/chat/useMeriChatController.js';
+import { clientSaveReceipt } from '../../components/chat/meri-client-save-receipt.js';
 import { MeriIcon } from './meri-icons.js';
 
 /**
@@ -38,10 +42,12 @@ const STATUS_SENTENCE: Record<MeriActionProposalStatus, (label: string) => strin
 
 function noticeSentence(approvals: PendingApproval[]): string {
   if (approvals.length > 1) {
-    return `Meri has ${approvals.length} governed actions from this turn awaiting your review.`;
+    return `Meri has ${approvals.length} governed actions from this conversation. Review their status and results.`;
   }
   const only = approvals[0];
   if (!only) return '';
+  const receipt = clientSaveReceipt(only);
+  if (receipt) return receipt.summary;
   const label = (only.preview.label || only.tool.replace(/_/g, ' ')).trim();
   return STATUS_SENTENCE[only.status](label);
 }

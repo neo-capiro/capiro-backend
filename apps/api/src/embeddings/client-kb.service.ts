@@ -6,6 +6,9 @@ import type { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { extractPdfText } from '../meri/meri-attachment-extract.js';
+import { AttachmentContentService, type AttachmentReadinessRow } from '../engagement/attachment-content.service.js';
+import { ownMailMessageWhere, ownMeetingWhere } from '../engagement/engagement-access.helpers.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import {
   EMBEDDING_MODEL,
   embedAndUpsert,
@@ -33,7 +36,15 @@ type AttachmentIndexSnapshot = {
   clientId: string | null;
   meetingId: string | null;
   s3Key: string;
+  viewerMode: string;
+  lifecycleStatus: string;
+  scanStatus: string | null;
+  supersededByAttachmentId: string | null;
+  fileName: string;
+  contentType: string | null;
 };
+
+const attachmentReadiness = new AttachmentContentService();
 
 /**
  * Client knowledge base (assistant-parity F5).
@@ -68,6 +79,49 @@ export class ClientKbService {
 
   private enabled(): boolean {
     return this.config.get('CLIO_CLIENT_KB_ENABLED', { infer: true });
+  }
+
+  private documentReady(row: AttachmentReadinessRow): boolean {
+    return ['ready', 'legacy_ready'].includes(row.lifecycleStatus)
+      && attachmentReadiness.readiness(row,
+        this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true })).usable;
+  }
+
+  private canIndexDocument(row: AttachmentIndexSnapshot): boolean {
+    // This shared index is consumed without a document-specific user context.
+    // Private source bodies stay in the authorized document reader.
+    return row.viewerMode === 'all' && row.supersededByAttachmentId === null
+      && this.documentReady({ ...row, contentType: row.contentType ?? '' });
+  }
+
+  private async visibleDocuments(tx: Prisma.TransactionClient, tenantId: string,
+    clientId: string, userId?: string, limit?: number) {
+    if (!userId) return [];
+    // Snapshot reads need only five filenames. Exclude unusable rows before
+    // applying that bound so newer quarantined files cannot crowd them out.
+    // The canonical readiness check below remains authoritative.
+    const readinessFilter: Prisma.EngagementAttachmentWhereInput = limit === undefined ? {} : {
+      lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      ...(this.config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true })
+        ? { scanStatus: 'clean' }
+        : { OR: [{ scanStatus: null }, { scanStatus: { not: 'threat' } }] }),
+    };
+    const rows = await tx.engagementAttachment.findMany({
+      where: { tenantId, clientId, supersededByAttachmentId: null,
+        ...readinessFilter,
+        AND: [
+          { OR: [{ viewerMode: 'all' }, { viewerMode: 'restricted', viewerUserIds: { has: userId } },
+            { uploadedByUserId: userId }] },
+          { OR: [{ meetingId: null }, { meeting: ownMeetingWhere(userId) }] },
+          { OR: [{ mailMessageId: null }, { mailMessage: ownMailMessageWhere(userId) }] },
+        ],
+      },
+      select: { id: true, fileName: true, createdAt: true, contentType: true,
+        lifecycleStatus: true, scanStatus: true, verifiedContentType: true },
+      orderBy: { createdAt: 'desc' },
+      ...(limit === undefined ? {} : { take: limit }),
+    });
+    return rows.filter(row => this.documentReady({ ...row, contentType: row.contentType ?? '' }));
   }
 
   // ── Fire-and-forget lifecycle hooks (called from write paths) ───────────
@@ -238,10 +292,18 @@ export class ClientKbService {
           s3Key: true,
           meetingId: true,
           createdAt: true,
+          viewerMode: true,
+          lifecycleStatus: true,
+          scanStatus: true,
+          supersededByAttachmentId: true,
         },
       }),
     );
     if (!attachment) {
+      await this.purge(tenantId, 'client_doc_chunk', attachmentId);
+      return;
+    }
+    if (!this.canIndexDocument(attachment)) {
       await this.purge(tenantId, 'client_doc_chunk', attachmentId);
       return;
     }
@@ -386,12 +448,15 @@ export class ClientKbService {
         || (snapshot.clientId !== null && meetings[0].isInternal)) return false;
     }
     const attachments = await tx.$queryRawUnsafe<AttachmentIndexSnapshot[]>(
-      `SELECT id, client_id AS "clientId", meeting_id AS "meetingId", s3_key AS "s3Key"
+      `SELECT id, client_id AS "clientId", meeting_id AS "meetingId", s3_key AS "s3Key",
+              viewer_mode AS "viewerMode", lifecycle_status AS "lifecycleStatus",
+              scan_status AS "scanStatus", superseded_by_attachment_id AS "supersededByAttachmentId",
+              file_name AS "fileName", content_type AS "contentType"
         FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid FOR UPDATE`,
       tenantId, snapshot.id,
     );
     const current = attachments[0];
-    return Boolean(current && current.clientId === snapshot.clientId
+    return Boolean(current && this.canIndexDocument(current) && current.clientId === snapshot.clientId
       && current.meetingId === snapshot.meetingId && current.s3Key === snapshot.s3Key);
   }
 
@@ -429,7 +494,9 @@ export class ClientKbService {
     const bytes = Buffer.from(await res.Body!.transformToByteArray());
     if (isText) return { text: bytes.toString('utf8'), truncated: false };
     if (isDocx) return { text: (await mammoth.extractRawText({ buffer: bytes })).value, truncated: false };
-    return extractPdfText(bytes);
+    const extracted = await extractPdfText(bytes);
+    return { ...extracted,
+      truncated: extracted.truncated || extracted.unreadablePages.length > 0 };
   }
 
   // ── Purge / status / backfill ────────────────────────────────────────────
@@ -554,15 +621,17 @@ export class ClientKbService {
 
   async search(
     tenantId: string,
-    input: { query: string; clientId: string; kind?: string; limit?: number },
+    input: { query: string; clientId: string; kind?: string; limit?: number; userId?: string },
   ): Promise<Array<{ kind: string; id: string; title: string; snippet: string; score: number }>> {
     const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
     const kindFilter =
       input.kind && (KB_SOURCE_TYPES as readonly string[]).includes(input.kind) ? input.kind : null;
     const vector = await embedText(normalize(input.query));
     const literal = vectorLiteral(vector);
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRawUnsafe<
+    const rows = await this.prisma.withTenant(tenantId, async (tx) => {
+      if (!await clientMemoryAllowed(tx, tenantId, input.userId ?? null, input.clientId)) return [];
+      const allowedDocuments = await this.visibleDocuments(tx, tenantId, input.clientId, input.userId);
+      return tx.$queryRawUnsafe<
         Array<{ source_type: string; source_id: string; content_text: string; score: number }>
       >(
         `SELECT source_type, source_id, content_text,
@@ -570,7 +639,8 @@ export class ClientKbService {
            FROM context_embeddings
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid
             AND source_type IN (${KB_SOURCE_TYPES.map((t) => `'${t}'`).join(', ')})
-            ${kindFilter ? 'AND source_type = $4' : ''}
+            AND ($4::text IS NULL OR source_type = $4::text)
+            AND (source_type <> 'client_doc_chunk' OR split_part(source_id, ':', 1) = ANY($5::text[]))
             AND model = $3
           ORDER BY embedding <=> '${literal}'::vector
           LIMIT ${limit}`,
@@ -578,10 +648,11 @@ export class ClientKbService {
           tenantId,
           input.clientId,
           EMBEDDING_MODEL,
-          ...(kindFilter ? [kindFilter] : []),
+          kindFilter,
+          allowedDocuments.map(document => document.id),
         ] as unknown[]),
-      ),
-    );
+      );
+    });
     return rows
       .filter((r) => Number(r.score) > 0.2)
       .map((r) => {
@@ -598,8 +669,9 @@ export class ClientKbService {
   }
 
   /** Always-on KB snapshot for client-scoped conversations (≤~1.2k tokens). */
-  async buildSnapshot(tenantId: string, clientId: string): Promise<string | null> {
+  async buildSnapshot(tenantId: string, clientId: string, userId?: string): Promise<string | null> {
     if (!this.enabled()) return null;
+    if (!await this.prisma.withTenant(tenantId, tx => clientMemoryAllowed(tx, tenantId, userId ?? null, clientId))) return null;
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
         where: { id: clientId },
@@ -636,14 +708,8 @@ export class ClientKbService {
           },
         }),
       ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.engagementAttachment.findMany({
-          where: { clientId },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: { fileName: true, createdAt: true },
-        }),
-      ),
+      this.prisma.withTenant(tenantId, tx =>
+        this.visibleDocuments(tx, tenantId, clientId, userId, 5)),
     ]);
     return buildKbSnapshot({ client, people, facilities, recentDocs });
   }
