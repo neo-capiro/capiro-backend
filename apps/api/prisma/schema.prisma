@@ -3777,14 +3777,33 @@ model FecPacContribution {
   disbursementDate     DateTime? @map("disbursement_date") @db.Date
   disbursementType     String?   @map("disbursement_type")
   memoText             String?   @map("memo_text")
+  // Nullable for legacy rows; replaced after a complete committee/cycle refresh.
+  sourceSubId          String?   @map("source_sub_id")
+  sourceTransactionId  String?   @map("source_transaction_id")
+  sourceFileNumber     String?   @map("source_file_number")
   cycle                Int
   lastSyncedAt         DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
-  @@unique([committeeId, recipientName, amount, disbursementDate, cycle], map: "fec_pac_contribution_dedup_key")
+  @@unique([committeeId, cycle, sourceSubId], map: "fec_pac_contribution_source_key")
   @@index([committeeId], map: "fec_pac_contribution_committee_id_idx")
   @@index([candidateName], map: "fec_pac_contribution_candidate_name_idx")
   @@index([cycle], map: "fec_pac_contribution_cycle_idx")
   @@map("fec_pac_contribution")
+}
+// Global source coverage. A missing row denotes unverified legacy data, not zero giving.
+model FecPacSyncState {
+  committeeId       String    @map("committee_id")
+  cycle             Int
+  runId             String    @map("run_id")
+  status            String    // running | complete | error
+  startedAt         DateTime  @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  lastError         String?   @map("last_error")
+  sourceRowCount    Int       @default(0) @map("source_row_count")
+  contributionCount Int       @default(0) @map("contribution_count")
+
+  @@id([committeeId, cycle])
+  @@map("fec_pac_sync_state")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

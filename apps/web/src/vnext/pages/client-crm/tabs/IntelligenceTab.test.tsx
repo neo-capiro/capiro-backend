@@ -421,7 +421,7 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     await waitFor(() => expect(screen.getByText('$12,000,000')).toBeInTheDocument());
     expect(screen.getByText('3 awards')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('View awards'));
+    fireEvent.click(screen.getByText('View contracts'));
     expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/federal-spending?tab=contracts&clientId=client-1');
   });
 
@@ -461,14 +461,14 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     // before the district-nexus query settles and assert against a cell that
     // is still legitimately loading.
     await screen.findByText('$12.0M');
-    const awardsCell = screen.getByText('Federal awards · on record');
+    const awardsCell = screen.getByText('Federal contracts · on record');
     expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
 
     const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
     expect(within(ldaCell as HTMLElement).getByText('1')).toBeInTheDocument();
 
     // FEC never answered — its own cell stays an honest dash, not $0 and not blank.
-    const pacCell = screen.getByText('PAC disbursements').closest('.capiro-intel-stats-cell');
+    const pacCell = screen.getByText('PAC political contributions').closest('.capiro-intel-stats-cell');
     expect(within(pacCell as HTMLElement).getByText('—')).toBeInTheDocument();
   });
 
@@ -548,6 +548,49 @@ describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)'
     );
     expect(screen.queryByText('$0')).not.toBeInTheDocument();
     expect(screen.queryByText('Incumbent members')).not.toBeInTheDocument();
+  });
+
+  it.each(['pending', 'partial', 'error'])('does not present incomplete %s ingestion as zero giving', async (status) => {
+    mockFootprintApis({ fec: { pacGiving: {
+      tracked: true,
+      committees: [{ committeeId: 'C00763623', committeeName: 'Example PAC', totalAmount: 0, disbursementCount: 0, recipients: [] }],
+      summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
+      coverage: { status, cycles: [2024, 2026], lastSyncedAt: null, message: 'The source import has not completed.' },
+    } } });
+    renderFootprint();
+
+    await screen.findByText(/The source import has not completed/);
+    expect(screen.queryByText('$0')).not.toBeInTheDocument();
+    expect(screen.getByText('2024, 2026 election cycles')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Example PAC on FEC' })).toHaveAttribute('href', 'https://www.fec.gov/data/committee/C00763623/');
+    expect(screen.queryByText(/No political contributions were reported/)).not.toBeInTheDocument();
+  });
+
+  it('shows zero only when every mapped committee and cycle has a completed empty import', async () => {
+    mockFootprintApis({ fec: { pacGiving: {
+      tracked: true,
+      committees: [],
+      summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
+      coverage: { status: 'complete', cycles: [2026], lastSyncedAt: '2026-09-09T07:20:00Z', message: null },
+    } } });
+    renderFootprint();
+
+    await screen.findByText(/No political contributions were reported/);
+    expect(screen.getAllByText('$0').length).toBeGreaterThan(0);
+    expect(screen.getByText('2026 election cycle')).toBeInTheDocument();
+  });
+
+  it('retains the available amount but labels incomplete source coverage when an update fails', async () => {
+    mockFootprintApis({ fec: { pacGiving: {
+      ...PAC_GIVING_REAL.pacGiving,
+      coverage: { status: 'error', cycles: [2026], lastSyncedAt: null, message: 'The source import failed.' },
+    } } });
+    renderFootprint();
+
+    await screen.findByText('Source update failed.');
+    expect(screen.getByText('$90,000')).toBeInTheDocument();
+    expect(screen.getByText(/The amount shown reflects the available records/)).toBeInTheDocument();
+    expect(screen.getByText('PAC political contributions · incomplete')).toBeInTheDocument();
   });
 });
 

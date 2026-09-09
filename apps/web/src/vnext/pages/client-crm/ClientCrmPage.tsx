@@ -36,6 +36,7 @@ import { useMe } from '../../../lib/me.js';
 import { hasAtLeast } from '@capiro/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useClientDataHealth } from './client-data-health.js';
+import { refreshClientFootprint } from './client-intelligence-refresh.js';
 import { refreshOfficeRecommendations } from '../../../pages/clients/targets-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroModal } from '../../components/overlays/index.js';
@@ -126,14 +127,16 @@ export function ClientCrmPage({ client }: { client: Client }) {
   /**
    * Sync — a real re-read of this client's sources.
    *
-   * Two things actually happen, and the toast reports what came back rather
+   * Three things actually happen, and the toast reports what came back rather
    * than the old hardcoded "6 of 6 connected" (which was a 1500ms setTimeout
    * and no request at all):
    *
    *  1. Every source behind the profile is refetched — the same reads the Data
    *     health drawer and the breadcrumb freshness label use, so the "Sources
    *     read N ago" stamp beside this button moves for real.
-   *  2. Office recommendations are force-recomputed server-side
+   *  2. The stored contract, PAC and lobbying sources are re-read into the
+   *     same query caches used by the Federal Footprint cards.
+   *  3. Office recommendations are force-recomputed server-side
    *     (`POST /clients/:id/target-recommendations/refresh`) — the only real
    *     per-client recompute this product exposes. It is slow by design (the
    *     server caches precisely because computing is expensive), and it is
@@ -153,8 +156,9 @@ export function ClientCrmPage({ client }: { client: Client }) {
     let total = 0;
     let failed = 0;
     try {
-      const [read, recompute] = await Promise.all([
+      const [read, footprint, recompute] = await Promise.all([
         health.refetchAll(),
+        refreshClientFootprint(qc, api, client.id),
         refreshOfficeRecommendations(api, client.id).then(
           () => true,
           () => false,
@@ -163,8 +167,8 @@ export function ClientCrmPage({ client }: { client: Client }) {
       // Counts come from the refetch results themselves — sampling the
       // rendered state here would race the re-render and under-report
       // failures (see refetchAll's docblock).
-      total = read.total;
-      failed = read.failures;
+      total = read.total + footprint.total;
+      failed = read.failures + footprint.failures;
       recomputed = recompute;
       if (recompute) {
         void qc.invalidateQueries({ queryKey: ['client-target-recommendations', client.id] });

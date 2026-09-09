@@ -43,6 +43,32 @@ export interface PacGiving {
   committees: PacCommittee[];
   /** Absent on the untracked path — see the file docblock. */
   summary?: { totalAmount: number; disbursementCount: number; recipientCount: number };
+  coverage?: {
+    status: 'unmapped' | 'pending' | 'partial' | 'error' | 'complete';
+    cycles: number[];
+    lastSyncedAt: string | null;
+    message: string | null;
+  };
+}
+
+/** A mapped committee without verified ingestion is not evidence of zero giving. */
+export function pacGivingStatus(giving: PacGiving): NonNullable<PacGiving['coverage']>['status'] {
+  if (!giving.tracked) return 'unmapped';
+  return giving.coverage?.status ?? ((giving.summary?.disbursementCount ?? 0) > 0 ? 'partial' : 'pending');
+}
+
+export function pacGivingAmount(giving: PacGiving): number | null {
+  if (!giving.tracked || !giving.summary) return null;
+  return pacGivingStatus(giving) === 'complete' || giving.summary.disbursementCount > 0
+    ? giving.summary.totalAmount
+    : null;
+}
+
+export function pacGivingPeriod(giving: PacGiving): string {
+  const cycles = [...new Set(giving.coverage?.cycles ?? [])].sort((a, b) => a - b);
+  return cycles.length > 0
+    ? `${cycles.join(', ')} election cycle${cycles.length === 1 ? '' : 's'}`
+    : 'Reporting period unavailable';
 }
 
 export interface ClientFecMoneyFlow {

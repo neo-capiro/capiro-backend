@@ -482,6 +482,11 @@ export class IntelligenceController {
     return this.service.searchFecEmployers(q.q);
   }
 
+  @Get('fec-committees/search')
+  searchFecCommittees(@Query() q: LdaSearchQueryDto) {
+    return this.service.searchFecCommittees(q.q);
+  }
+
   // Free-text / by-uuid search of federal_contractor for the manual-attach
   // panel. The contractor uuid is the externalId pinned into a 'contracting'
   // mapping (matching fetchContractorById's id::uuid lookup).
