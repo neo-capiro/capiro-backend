@@ -13,6 +13,8 @@ export interface MeriWorkspace {
   id: string;
   name: string;
   clientId: string | null;
+  /** Count of the caller's active chats, from the canonical membership query. */
+  threadCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,20 +54,32 @@ export interface MeriContextPacket {
   degradedReason?: string;
 }
 
-export async function listMeriSavedPrompts(api: AxiosInstance): Promise<MeriSavedPrompt[]> {
-  const response = await api.get<{ prompts?: MeriSavedPrompt[] }>('/api/clio/vnext/saved-prompts');
+export async function listMeriSavedPrompts(api: AxiosInstance, signal?: AbortSignal): Promise<MeriSavedPrompt[]> {
+  const response = await api.get<{ prompts?: MeriSavedPrompt[] }>('/api/clio/vnext/saved-prompts', { signal });
   return Array.isArray(response.data.prompts) ? response.data.prompts : [];
 }
 
 export async function createMeriSavedPrompt(
   api: AxiosInstance,
   input: Pick<MeriSavedPrompt, 'title' | 'body'>,
+  signal?: AbortSignal,
 ): Promise<MeriSavedPrompt> {
-  return (await api.post<MeriSavedPrompt>('/api/clio/vnext/saved-prompts', input)).data;
+  return (await api.post<MeriSavedPrompt>('/api/clio/vnext/saved-prompts', input, { signal })).data;
 }
 
-export async function deleteMeriSavedPrompt(api: AxiosInstance, promptId: string): Promise<void> {
-  await api.delete(`/api/clio/vnext/saved-prompts/${encodeURIComponent(promptId)}`);
+export async function deleteMeriSavedPrompt(api: AxiosInstance, promptId: string, signal?: AbortSignal): Promise<void> {
+  await api.delete(`/api/clio/vnext/saved-prompts/${encodeURIComponent(promptId)}`, { signal });
+}
+
+export async function updateMeriSavedPrompt(
+  api: AxiosInstance,
+  promptId: string,
+  input: Pick<MeriSavedPrompt, 'title' | 'body'>,
+  signal?: AbortSignal,
+): Promise<MeriSavedPrompt> {
+  return (await api.patch<MeriSavedPrompt>(
+    `/api/clio/vnext/saved-prompts/${encodeURIComponent(promptId)}`, input, { signal },
+  )).data;
 }
 
 export async function listMeriWorkspaces(api: AxiosInstance): Promise<MeriWorkspace[]> {
@@ -76,22 +90,28 @@ export async function listMeriWorkspaces(api: AxiosInstance): Promise<MeriWorksp
 export async function createMeriWorkspace(
   api: AxiosInstance,
   input: Pick<MeriWorkspace, 'name' | 'clientId'>,
+  signal?: AbortSignal,
 ): Promise<MeriWorkspace> {
-  return (await api.post<MeriWorkspace>('/api/clio/vnext/workspaces', input)).data;
+  return (await api.post<MeriWorkspace>('/api/clio/vnext/workspaces', input, { signal })).data;
 }
 
-export async function deleteMeriWorkspace(api: AxiosInstance, workspaceId: string): Promise<void> {
-  await api.delete(`/api/clio/vnext/workspaces/${encodeURIComponent(workspaceId)}`);
+export async function deleteMeriWorkspace(api: AxiosInstance, workspaceId: string, signal?: AbortSignal): Promise<void> {
+  await api.delete(`/api/clio/vnext/workspaces/${encodeURIComponent(workspaceId)}`, { signal });
 }
 
 export async function assignMeriConversationWorkspace(
   api: AxiosInstance,
   conversationId: string,
   workspaceId: string | null,
-): Promise<void> {
-  await api.patch(`/api/clio/vnext/conversations/${encodeURIComponent(conversationId)}/workspace`, {
+  signal?: AbortSignal,
+): Promise<{ id: string; workspaceId: string | null }> {
+  const response = await api.patch<{ id: string; workspaceId: string | null }>(`/api/clio/vnext/conversations/${encodeURIComponent(conversationId)}/workspace`, {
     workspaceId,
-  });
+  }, { signal });
+  if (response.data?.id !== conversationId || response.data.workspaceId !== workspaceId) {
+    throw new Error('The server did not confirm the workspace change. Reload and try again.');
+  }
+  return response.data;
 }
 
 export async function getMeriVNextPreferences(api: AxiosInstance): Promise<MeriVNextPreference> {

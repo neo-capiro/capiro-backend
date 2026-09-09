@@ -257,7 +257,10 @@ export function buildMeriRetrievalPlan(
     .filter((client) => client.status === 'active')
     .map((client) => ({ ...client, id: client.id ?? client.name }));
   const timeWindow = inferTimeWindow(request);
-  const targetHint = intent.targetHint ?? priorTargetHint ?? null;
+  // Only the existing explicit portfolio-overlap follow-up inherits an entity.
+  // A formatting or client-scoped turn must not silently carry an old subject.
+  const targetHint = intent.targetHint
+    ?? (recipeTool === 'query_portfolio_overlap' ? priorTargetHint ?? null : null);
   const mailHistoryFocus =
     recipeTool === 'query_relationship_brief' && MAIL_HISTORY_RE.test(request);
   const quickCompanyProfile =

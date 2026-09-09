@@ -37,6 +37,7 @@ import type { MeriEvidenceTabProps } from './MeriEvidenceTab.js';
 import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
 import { MeriArtifactDownloadLink } from './MeriArtifactDownloadLink.js';
 import { config } from '../../env.js';
+import { MeriSavePromptButton } from './MeriSavedPromptWorkflow.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
@@ -160,6 +161,7 @@ export function VNextMeriMessage({
           className="vnext-meri__user-meta"
           style={{ display: 'flex', alignItems: 'center', gap: 10 }}
         >
+          <MeriSavePromptButton body={message.content} />
           {canEdit ? (
             <button
               type="button"
@@ -310,7 +312,7 @@ function VNextMeriAssistantMessage({
     ...(message.runtimeStatus ? { runtimeStatus: message.runtimeStatus } : {}),
   };
   const hasThinkingData =
-    thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent);
+    thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent) || Boolean(thinkingData.runtimeStatus);
   const evidenceTabData: MeriEvidenceTabProps = {
     sources: evidenceSources,
     verifyStats: evidenceStats,
@@ -666,6 +668,16 @@ function VNextMeriAssistantMessage({
               </button>
             ) : null}
           </div>
+        ) : null}
+        {!messageIsStreaming && !message.content && hasThinkingData ? (
+          <button
+            type="button"
+            className="vnext-meri__show-work"
+            onClick={() => openThisTurnInspector('thinking')}
+          >
+            Show work
+            <MeriIcon name="LayersThree01" size={13} />
+          </button>
         ) : null}
         {message.chartArtifacts?.length ? (
           <div className="vnext-meri__analysis-slot" aria-label="Analysis charts">

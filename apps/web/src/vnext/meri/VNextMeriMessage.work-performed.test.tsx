@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { ChatMessage } from '../../components/chat/chat-store.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { meriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
 import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => ({}) }));
@@ -81,6 +82,37 @@ function props(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Meri message work performed', () => {
+  test('keeps stopped-before-text work inspectable without offering copy or feedback for an empty response', () => {
+    const original = props({ message: message({ content: '', planSteps: [], trustSteps: [], orchestratorIntent: null,
+      runtimeStatus: meriRuntimeStatus({ finishReason: 'aborted', partial: true }),
+    }) });
+    render(<VNextMeriMessage {...original} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Stopped.');
+    fireEvent.click(screen.getByRole('button', { name: 'Show work' }));
+    expect(original.onOpenTurnInspector).toHaveBeenCalledWith(expect.objectContaining({
+      thinking: expect.objectContaining({ runtimeStatus: expect.objectContaining({ lifecycle: 'stopped' }) }),
+    }), 'thinking');
+    expect(screen.queryByRole('button', { name: 'Copy answer' })).not.toBeInTheDocument();
+  });
+
+  test.each([
+    ['stop', false, 'completed', 'Completed.'],
+    ['aborted', true, 'stopped', 'Stopped. This response is partial.'],
+    ['error', true, 'failed', 'Failed. This response is incomplete.'],
+  ])('uses saved %s lifecycle in the transcript and inspector without tools', (finishReason, partial, lifecycle, text) => {
+    const original = props({ message: message({
+      planSteps: [], trustSteps: [], orchestratorIntent: null,
+      runtimeStatus: meriRuntimeStatus({ finishReason, partial }),
+    }) });
+    render(<VNextMeriMessage {...original} />);
+    expect(screen.getByRole('status')).toHaveTextContent(String(text));
+    fireEvent.click(screen.getByRole('button', { name: 'Show work' }));
+    expect(original.onOpenTurnInspector).toHaveBeenCalledWith(
+      expect.objectContaining({ thinking: expect.objectContaining({ runtimeStatus: expect.objectContaining({ lifecycle }) }) }),
+      'thinking',
+    );
+  });
+
   test('hands the source panel and inspector the same reloaded historical scope after picker changes', () => {
     const turnScope = { kind: 'client' as const, clientId: 'l3', clientName: 'L3 Harris', targetHint: null };
     const original = props({ message: message({

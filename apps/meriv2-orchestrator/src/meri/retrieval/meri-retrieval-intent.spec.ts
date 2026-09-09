@@ -202,6 +202,9 @@ describe('meriRetrievalTargetHint', () => {
     ['Give me a strategy on Kinetic Industries Inc.', 'Kinetic Industries Inc'],
     ['Compare my client with Shield AI', 'Shield AI'],
     ['Research https://www.saronic.com/ and tell me what they do', 'saronic.com'],
+    ['What is our relationship with Anduril?', 'Anduril'],
+    ['What is our engagement history with Anduril?', 'Anduril'],
+    ['Check my inbox and tell me about Anduril', 'Anduril'],
   ])('extracts %s', (request, expected) => {
     expect(meriRetrievalTargetHint(request)).toBe(expected);
   });
@@ -233,5 +236,36 @@ describe('meriRetrievalIntentPrompt', () => {
     expect(prompt).toContain('Enumerate the authorized client roster');
     expect(prompt).toContain('A few top search hits are not a portfolio scan');
     expect(prompt).toContain('Complete coverage required: yes.');
+  });
+});
+
+
+describe('MW-07 fallback uses the same explicit subject contract', () => {
+  test.each([
+    'QA Sep 9: In one sentence, explain authorization versus appropriations.',
+    'Extract fields from the attached synthetic QA brief.',
+    'Create a Word document and PDF using the synthetic brief.',
+    'Reply with exactly READY. Do not use tools or save memory.',
+    'Make a brief for QA in PDF format.',
+    'Draft for our meeting on READY status.',
+    'Assess PDF extraction results.',
+    'Reply with exactly "Search across clients".',
+    'Rewrite this sentence: Search across clients.',
+    'Reply with exactly "Research READY". Do not use tools or save memory.',
+    'Summarize the attached brief titled "Research QA".',
+    'Rewrite this sentence: Research PDF extraction results.',
+    'Reply with exactly "Research READY. Tell me about PDF".',
+    'Rewrite this paragraph: Research QA. Tell me about READY.',
+  ])('does not turn instruction words into named subjects: %s', (task) => {
+    expect(classifyMeriRetrievalIntent(task)).toMatchObject({ subjectScope: 'general', targetHint: null });
+    expect(classifyMeriRetrievalIntent(task, 'client-a')).toMatchObject({
+      subjectScope: 'client', targetHint: null, includeFocusedClientContext: true,
+    });
+    expect(meriRetrievalTargetHint(task)).toBeNull();
+  });
+  test('explicit client-purpose instructions remain authoritative during a comparison', () => {
+    expect(classifyMeriRetrievalIntent('Compare RTX and LMT for this client', 'client-a')).toMatchObject({
+      subjectScope: 'client', targetHint: null, includeFocusedClientContext: true,
+    });
   });
 });

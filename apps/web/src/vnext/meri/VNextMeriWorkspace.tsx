@@ -43,6 +43,7 @@ import {
 import {
   mapPersistedAttachments,
   mapPersistedCharts,
+  mapPersistedFeedback,
   mapPersistedCitations,
   mapPersistedContextPacketId,
   mapPersistedTurnScope,
@@ -85,6 +86,7 @@ function historyMessage(value: unknown): ChatMessage | null {
     content: message.body || '',
     createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
     runtimeStatus: meriRuntimeStatus(message.metadata),
+    feedback: mapPersistedFeedback(message),
     ...mapPersistedWorkPerformed(message),
     turnScope: mapPersistedTurnScope(message),
     ...(attachments.length ? { attachments } : {}),

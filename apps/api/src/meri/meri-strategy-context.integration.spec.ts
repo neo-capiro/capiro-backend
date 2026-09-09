@@ -11,6 +11,8 @@ jest.mock('../retrieval/retrieval-v2.service.js', () => ({
 
 import type { TenantContext } from '@capiro/shared';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import { MeriContextPlaneRuntimeService, currentMeriGovernedRuntime } from './meri-context-plane-runtime.js';
+import { captureMeriTurnScope } from './meri-turn-scope.js';
 import { ContextResolverService } from '../context/context-resolver.service.js';
 import type { ContextResolutionRequest } from '../context/context-resolver.types.js';
 import { StrategyWorkRetrievalAdapter } from '../retrieval/adapters/strategy-work-retrieval.adapter.js';
@@ -45,7 +47,7 @@ function setup(archivedClientIds: string[] = []) {
     return [sourceRow];
   });
   const tx = {
-    clioConversation: { findFirst: jest.fn().mockResolvedValue({ clientId: 'client-a' }) },
+    clioConversation: { findFirst: jest.fn().mockResolvedValue({ clientId: 'client-a', client: { id: 'client-a', name: 'Acme Defense' } }) },
     client: {
       findFirst: jest.fn().mockResolvedValue({ name: 'Acme Defense' }),
       findMany: jest.fn(async ({ where }: { where: { id?: { in: string[] } } }) =>
@@ -84,7 +86,8 @@ function setup(archivedClientIds: string[] = []) {
     ),
   };
   const meri = new MeriContextPlaneService(prisma as never, gateway as never);
-  return { meri, gateway, resolver, retrieve, sqlRead, tx };
+  const runtime = new MeriContextPlaneRuntimeService(prisma as never, meri);
+  return { meri, runtime, gateway, resolver, retrieve, sqlRead, tx };
 }
 
 describe('Meri strategy context from chat scope through source adapter', () => {
@@ -139,11 +142,15 @@ describe('Meri strategy context from chat scope through source adapter', () => {
     expect(result.retrieval.coverage.searchedDomains).toContain('strategies_work');
   });
 
-  it('expands portfolio scope into explicit authorized client IDs for the strategy adapter', async () => {
+  it.each(['Review strategies across our clients', 'Compare all clients'])('expands portfolio scope into explicit authorized client IDs: %s', async (task) => {
     const { meri, retrieve } = setup();
     const result = await meri.resolveChat(ctx, {
       conversationId: 'conversation-1',
-      task: 'Review strategies across our clients',
+      task,
+    });
+    expect(result.retrieval.plan.subjectScope).toBe('portfolio');
+    expect(captureMeriTurnScope({ clientId: 'client-a' }, result.retrieval)).toEqual({
+      kind: 'portfolio', clientId: null, clientName: null, targetHint: null,
     });
     expect(retrieve.mock.calls[0]![0]).toMatchObject({
       queryClass: 'portfolio_scan',
@@ -234,5 +241,51 @@ describe('Meri strategy context from chat scope through source adapter', () => {
       },
     });
     expect(result.retrievalRequest?.query).toBe('committee');
+  });
+});
+
+
+describe('MW-07 scope through the active chat runtime and durable receipt', () => {
+  test.each([
+    'QA Sep 9: In one sentence, explain authorization versus appropriations.',
+    'Extract fields from the attached synthetic QA brief.',
+    'Create a Word document and PDF using the synthetic brief.',
+    'Reply with exactly READY. Do not use tools or save memory.',
+    'Reply with exactly "Research READY". Do not use tools or save memory.',
+    'Summarize the attached brief titled "Research QA".',
+    'Rewrite this sentence: Research PDF extraction results.',
+  ])('preserves client retrieval and saved turn metadata: %s', async (task) => {
+    const { runtime, retrieve } = setup();
+    const metadata = await runtime.runChatTurn(ctx, {
+      conversationId: 'conversation-1', body: task, mode: 'new',
+    }, async () => {
+      const state = currentMeriGovernedRuntime()!;
+      expect(state.activeClient).toEqual({ id: 'client-a', name: 'Acme Defense' });
+      expect(state.context.retrieval.plan).toMatchObject({ subjectScope: 'client', targetHint: null });
+      return { turnScope: captureMeriTurnScope({ clientId: 'client-a', client: state.activeClient }, state.context.retrieval) };
+    });
+    expect(retrieve.mock.calls[0]![0].caller).toMatchObject({
+      clientIds: ['client-a'], authorizedClientIds: clients,
+    });
+    // Same existing JSON metadata contract consumed after reload; it contains
+    // the original receipt, not text to reclassify using a later picker value.
+    expect(JSON.parse(JSON.stringify(metadata))).toEqual({
+      turnScope: { kind: 'client', clientId: 'client-a', clientName: 'Acme Defense', targetHint: null },
+    });
+  });
+  test('retains general scope without selecting an acronym entity or a client', async () => {
+    const { runtime, tx, gateway } = setup();
+    tx.clioConversation.findFirst.mockResolvedValue({ clientId: null, client: null });
+    await runtime.runChatTurn(ctx, {
+      conversationId: 'conversation-1', body: 'Reply with exactly READY. Do not use tools or save memory.', mode: 'new',
+    }, async () => {
+      const state = currentMeriGovernedRuntime()!;
+      expect(state.activeClient).toBeNull();
+      expect(captureMeriTurnScope({ clientId: null }, state.context.retrieval)).toEqual({
+        kind: 'general', clientId: null, clientName: null, targetHint: null,
+      });
+    });
+    expect(gateway.requestContext.mock.calls[0]![0].resolverRequest).toMatchObject({ subjectScope: 'general' });
+    expect(gateway.requestContext.mock.calls[0]![0].resolverRequest.subject).toBeUndefined();
   });
 });

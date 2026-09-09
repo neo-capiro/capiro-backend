@@ -1,5 +1,6 @@
 import type { MeriTurnScope } from './meri-turn-scope.js';
 import { meriRetrievalMetadata } from './meri-retrieval-metadata.js';
+import { mergeMeriRuntimeStatus } from './meri-runtime-status.js';
 import { useEffect, useState } from 'react';
 import type { MeriRect } from './meri-geometry.js';
 import type { TrustStep } from './WorkPerformed.js';
@@ -390,7 +391,7 @@ export function setChatMessageRuntimeStatus(
     ...state,
     messages: state.messages.map((message) =>
       message.id === id
-        ? { ...message, runtimeStatus: { ...message.runtimeStatus, ...runtimeStatus } }
+        ? { ...message, runtimeStatus: mergeMeriRuntimeStatus(message.runtimeStatus, runtimeStatus) }
         : message,
     ),
   };

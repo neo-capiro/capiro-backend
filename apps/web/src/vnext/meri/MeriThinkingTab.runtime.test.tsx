@@ -16,7 +16,8 @@ describe('turn inspector reasoning labels', () => {
         runtimeStatus={meriRuntimeStatus({ reasoningMode: 'standard' })}
       />,
     );
-    expect(screen.getByText('WORKING · STANDARD SELECTED')).toBeInTheDocument();
+    expect(screen.getByText('TURN DETAILS')).toBeInTheDocument();
+    expect(screen.getByText('STANDARD SELECTED')).toBeInTheDocument();
     expect(screen.queryByText(/DEEP/)).toBeNull();
   });
 
@@ -24,7 +25,8 @@ describe('turn inspector reasoning labels', () => {
     render(
       <MeriThinkingTab plan="Read the client evidence" steps={[]} intent="general" tier="deep" />,
     );
-    expect(screen.getByText('WORKING')).toBeInTheDocument();
+    expect(screen.getByText('TURN DETAILS')).toBeInTheDocument();
+    expect(screen.queryByText('WORKING')).toBeNull();
     expect(screen.queryByText(/DEEP|STANDARD|MAX/)).toBeNull();
   });
 
@@ -47,7 +49,8 @@ describe('turn inspector reasoning labels', () => {
         })}
       />,
     );
-    expect(screen.getByText('WORKING · MAX SELECTED')).toBeInTheDocument();
+    expect(screen.getByText('TURN DETAILS')).toBeInTheDocument();
+    expect(screen.getByText('MAX SELECTED')).toBeInTheDocument();
     expect(screen.getByText('Requested effort').nextElementSibling).toHaveTextContent('max');
     expect(screen.getByText('Final effort').nextElementSibling).toHaveTextContent('high');
     expect(screen.getByText('Effective model').nextElementSibling).toHaveTextContent(

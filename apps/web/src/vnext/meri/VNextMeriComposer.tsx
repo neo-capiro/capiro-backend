@@ -8,7 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   truncateFilenameMiddle,
   type StagedAttachment,
@@ -30,11 +30,8 @@ import {
 import { useMeriComposerDraft } from './meri-composer-drafts.js';
 import { MERI_REASONING_MODES, useMeriReasoningMode } from './meri-reasoning-state.js';
 import { meriStartWorkCards } from './meri-start-work.js';
-import {
-  deleteMeriSavedPrompt,
-  listMeriSavedPrompts,
-  type MeriSavedPrompt,
-} from './meri-vnext-api.js';
+import { listMeriSavedPrompts, type MeriSavedPrompt } from './meri-vnext-api.js';
+import { MeriSavedPromptManager } from './MeriSavedPromptWorkflow.js';
 import {
   workspaceDocumentComposerText,
   workspaceImportDocumentsResponse,
@@ -109,6 +106,7 @@ export function VNextMeriComposer({
   const dragCounterRef = useRef(0);
   const [workspaceImportOpen, setWorkspaceImportOpen] = useState(false);
   const [clientNoteOpen, setClientNoteOpen] = useState(false);
+  const [managePromptsOpen, setManagePromptsOpen] = useState(false);
   const [clientNotePreparation, setClientNotePreparation] = useState<{
     note: MeriClientNoteDraft;
     completed: boolean;
@@ -234,7 +232,6 @@ export function VNextMeriComposer({
   // controller.setWriteMode directly (not from this composer).
 
   const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
-  const queryClient = useQueryClient();
   const managedApps = useManagedMcpApps();
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
 
@@ -273,7 +270,7 @@ export function VNextMeriComposer({
   // delete from the composer's pane invalidates the landing's cards too.
   const promptsQuery = useQuery({
     queryKey: ['meri-vnext', identityKey, 'saved-prompts'],
-    queryFn: () => listMeriSavedPrompts(api),
+    queryFn: ({ signal }) => listMeriSavedPrompts(api, signal),
     staleTime: 30_000,
   });
   const skillsQuery = useQuery({
@@ -301,20 +298,6 @@ export function VNextMeriComposer({
   const currentReasoning =
     MERI_REASONING_MODES.find((option) => option.mode === reasoningMode) ?? MERI_REASONING_MODES[1];
 
-  const deletePrompt = useCallback(
-    async (promptId: string) => {
-      try {
-        await deleteMeriSavedPrompt(api, promptId);
-        await queryClient.invalidateQueries({
-          queryKey: ['meri-vnext', identityKey, 'saved-prompts'],
-        });
-      } catch {
-        toast.error('The saved prompt could not be deleted.');
-      }
-    },
-    [api, identityKey, queryClient, toast],
-  );
-
   const fillFromLibrary = useCallback(
     (text: string, notice: string) => {
       setDraft(text);
@@ -334,16 +317,14 @@ export function VNextMeriComposer({
         desc: prompt.body,
         icon: 'Bookmark',
         hasBadge: false,
-        canDel: true,
-        delLabel: `Delete ${prompt.title}`,
+        canDel: false,
         run: () =>
           fillFromLibrary(
             prompt.body,
             `"${prompt.title}" filled the composer. Saved prompts never auto-send.`,
           ),
-        del: () => void deletePrompt(prompt.id),
       })),
-    [deletePrompt, fillFromLibrary, promptsQuery.data],
+    [fillFromLibrary, promptsQuery.data],
   );
 
   const librarySkillItems = useMemo<MeriLibraryPaneItem[]>(
@@ -915,7 +896,15 @@ export function VNextMeriComposer({
                 <span className="vnext-meri__add-popover-eyebrow">
                   {activePane.label.toUpperCase()}
                 </span>
+                {activePane.id === 'prompts' ? <button type="button"
+                  className="vnext-meri__confirm-cancel" onClick={() => {
+                    setAddOpen(false);
+                    setAddPane(null);
+                    setManagePromptsOpen(true);
+                  }}>Manage prompts</button> : null}
               </div>
+              {activePane.id === 'prompts' && promptsQuery.isLoading ? <div role="status" className="vnext-meri__add-popover-pane-empty">Loading saved prompts…</div> : null}
+              {activePane.id === 'prompts' && promptsQuery.isError ? <div role="alert" className="vnext-meri__add-popover-pane-empty">Saved prompts could not be loaded. <button type="button" onClick={() => void promptsQuery.refetch()}>Retry</button></div> : null}
               <div className="vnext-meri__add-popover-pane-body">
                 {activePane.items.map((item) => (
                   <div key={item.key} className="vnext-meri__add-popover-pane-row">
@@ -960,7 +949,7 @@ export function VNextMeriComposer({
                   </div>
                 ))}
               </div>
-              {activePane.items.length === 0 ? (
+              {activePane.items.length === 0 && !(activePane.id === 'prompts' && (promptsQuery.isLoading || promptsQuery.isError)) ? (
                 <div className="vnext-meri__add-popover-pane-empty">{activePane.emptyText}</div>
               ) : null}
               <div className="vnext-meri__add-popover-separator" />
@@ -1074,7 +1063,7 @@ export function VNextMeriComposer({
             disabled={busy}
             placeholder={
               isStreaming
-                ? 'Meri is still researching. You can stop or add guidance…'
+                ? 'Meri is working. Use Stop to end this response, then send another message.'
                 : hasThread
                   ? 'Ask about this thread, or draft an action…'
                   : 'Ask across your clients, or start a piece of work…'
@@ -1301,12 +1290,19 @@ export function VNextMeriComposer({
     />
   ) : null;
 
+  const savedPromptDialog = managePromptsOpen ? <MeriSavedPromptManager
+    onClose={() => setManagePromptsOpen(false)}
+    disabled={busy}
+    onReuse={(body) => { if (!busy) fillFromLibrary(body, 'Prompt filled in the composer. Review it and press Send when ready.'); }}
+  /> : null;
+
   if (variant === 'landing') {
     return (
       <>
         <div className="vnext-meri__landing-composer">{composer}</div>
         {workspaceImportDialog}
         {clientNoteDialog}
+        {savedPromptDialog}
       </>
     );
   }
@@ -1318,6 +1314,7 @@ export function VNextMeriComposer({
       </div>
       {workspaceImportDialog}
       {clientNoteDialog}
+      {savedPromptDialog}
     </>
   );
 }

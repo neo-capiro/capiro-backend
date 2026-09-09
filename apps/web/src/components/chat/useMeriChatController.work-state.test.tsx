@@ -13,7 +13,7 @@ vi.mock('../../state/impersonation.js', () => ({ useImpersonation: () => stableI
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'https://api.test' } }));
 
 import { useMeriChatController } from './useMeriChatController.js';
-import { resetChatStoreForTests, setChatSession } from './chat-store.js';
+import { getChatStateSnapshot, resetChatStoreForTests, setActiveConversation, setChatOpen, setChatSession, setConversations } from './chat-store.js';
 
 function wrapper({ children }: { children: ReactNode }) {
   return <MemoryRouter>{children}</MemoryRouter>;
@@ -90,6 +90,48 @@ function routeFetch(stream: (init?: RequestInit) => Response | Promise<Response>
 }
 
 describe('Meri work belongs to its pending turn', () => {
+  test('a workspace client conflict restores the saved scope and shows the actionable message', async () => {
+    setConversations([{ id: 'conversation-1', title: 'Client chat', clientId: 'client-a',
+      client: { id: 'client-a', name: 'Client A' }, workspaceId: 'workspace-a',
+      updatedAt: '2026-09-09T00:00:00Z', latestMessage: null }]);
+    setActiveConversation('conversation-1');
+    setChatOpen(true);
+    const message = 'Remove this chat from its client workspace, or move it to an All clients workspace, before changing the client.';
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === 'PATCH'
+        ? new Response(JSON.stringify({ statusCode: 409, message, error: 'Conflict' }), { status: 409 })
+        : new Response(JSON.stringify(String(input).endsWith('/api/clients')
+          ? [{ id: 'client-a', name: 'Client A' }, { id: 'client-b', name: 'Client B' }]
+          : String(input).endsWith('/conversations') ? getChatStateSnapshot().conversations : []), { status: 200 })));
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(result.current.selectedClientValue).toBe('client-a'));
+    await act(async () => result.current.changeSessionClient('client-b'));
+    expect(result.current.selectedClientValue).toBe('client-a');
+    expect(result.current.scopePersistStatus).toBe('error');
+    expect(result.current.metaError).toBe(`Could not change the client scope: ${message}`);
+    expect(getChatStateSnapshot().conversations[0]).toMatchObject({ clientId: 'client-a', workspaceId: 'workspace-a' });
+  });
+
+  test.each(['error_then_done', 'http_failure', 'silent_close'] as const)('does not mark %s as completed', async (outcome) => {
+    const stream = controlledStream();
+    routeFetch(() => outcome === 'http_failure' ? new Response('Unavailable', { status: 503 }) : stream.response);
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    let pending!: Promise<boolean>;
+    act(() => { pending = result.current.sendMessage('Read the client evidence'); });
+    await act(async () => {
+      if (outcome !== 'http_failure') {
+        stream.emit({ type: 'start', reasoningMode: 'standard' });
+        if (outcome === 'error_then_done') stream.emit({ type: 'error', message: 'Failed safely' }, { type: 'done', messageId: 'saved-failure' });
+        stream.close();
+      }
+      await pending;
+    });
+    expect(result.current.messages.find((message) => message.role === 'assistant')?.runtimeStatus).toMatchObject({
+      lifecycle: outcome === 'silent_close' ? 'incomplete' : 'failed', partial: true,
+    });
+    expect(result.current.isStreaming).toBe(false);
+  });
+
   beforeEach(() => {
     resetChatStoreForTests();
     setChatSession('conversation-1');
@@ -186,6 +228,7 @@ describe('Meri work belongs to its pending turn', () => {
     });
     await waitFor(() => expect(result.current.trustSteps).toHaveLength(1));
     act(() => result.current.handleStop());
+    expect(result.current.messages.find((message) => message.role === 'assistant')?.runtimeStatus?.lifecycle).toBe('stopped');
     await act(async () => {
       // The stream deliberately ignores AbortSignal to reproduce the already
       // fulfilled browser-read race without relying on network timing.
@@ -199,7 +242,7 @@ describe('Meri work belongs to its pending turn', () => {
     expect(result.current.trustSteps).toHaveLength(1);
     expect(result.current.messages.find((message) => message.role === 'assistant')).toMatchObject({
       content: 'One observed result.',
-      runtimeStatus: { partial: true, stopped: true },
+      runtimeStatus: { lifecycle: 'stopped', partial: true, stopped: true },
       trustSteps: [expect.objectContaining({ tool: 'procurement_forecast' })],
     });
   });
@@ -243,11 +286,12 @@ describe('Meri work belongs to its pending turn', () => {
     });
     const assistants = result.current.messages.filter((message) => message.role === 'assistant');
     expect(assistants[0]).toMatchObject({
-      runtimeStatus: { stopped: true },
+      runtimeStatus: { lifecycle: 'stopped', stopped: true },
       trustSteps: [expect.objectContaining({ tool: 'old_lookup' })],
     });
     expect(assistants[1]).toMatchObject({
       id: 'new-result',
+      runtimeStatus: { lifecycle: 'completed' },
       trustSteps: [expect.objectContaining({ tool: 'new_lookup' })],
     });
   });

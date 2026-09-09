@@ -66,7 +66,7 @@ import {
   type ScopePersistStatus,
 } from './meri-route-guards.js';
 import { formatMeriHttpError } from './meri-http-error.js';
-import { meriRuntimeStatus, type MeriRuntimeStatus } from './meri-runtime-status.js';
+import { mergeMeriRuntimeStatus, meriRuntimeStatus, type MeriRuntimeStatus } from './meri-runtime-status.js';
 import {
   readRecoveredResearch,
   readResearchReportEvidence,
@@ -478,6 +478,7 @@ export function useMeriChatController({
   } | null>(null);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const metadataRequestRef = useRef<object | null>(null);
+  const feedbackRequestsRef = useRef(new Map<string, Promise<void>>());
   const [metaError, setMetaError] = useState<string | null>(null);
   // Server-confirmed client scope. The send path must use persistedClientId,
   // NOT the optimistic sessionClientId, to decide whether a send is safe.
@@ -854,7 +855,12 @@ export function useMeriChatController({
         );
         if (!res.ok) {
           const text = await res.text().catch(() => '');
-          throw new Error(text || `HTTP ${res.status}`);
+          let message = text;
+          try {
+            const body = JSON.parse(text) as { message?: unknown };
+            if (typeof body.message === 'string') message = body.message;
+          } catch { /* Plain-text errors remain readable. */ }
+          throw new Error(message || `HTTP ${res.status}`);
         }
         const updated = await res.json();
         // INTENT CHECK: if a newer scope change (C) started while this
@@ -1973,6 +1979,7 @@ export function useMeriChatController({
         role: 'assistant',
         content: '',
         createdAt: new Date(),
+        runtimeStatus: meriRuntimeStatus({ type: 'start' }),
       });
 
       setStreaming(true);
@@ -2026,12 +2033,14 @@ export function useMeriChatController({
         if (!res.ok) {
           const text = await res.text().catch(() => '');
           if (!isCurrentTurn()) return false;
+          turnRuntimeStatus = meriRuntimeStatus({ type: 'error' });
           updateChatMessage(assistantId, formatMeriHttpError(res.status, text, res.statusText));
           return false;
         }
 
         if (!res.body) {
           if (!isCurrentTurn()) return false;
+          turnRuntimeStatus = meriRuntimeStatus({ type: 'error' });
           updateChatMessage(assistantId, 'No response body received.');
           return false;
         }
@@ -2096,7 +2105,7 @@ export function useMeriChatController({
               setTurnProgress(null);
               const status = meriRuntimeStatus(event);
               if (status) {
-                turnRuntimeStatus = { ...turnRuntimeStatus, ...status };
+                turnRuntimeStatus = mergeMeriRuntimeStatus(turnRuntimeStatus, status);
                 setChatMessageRuntimeStatus(assistantId, turnRuntimeStatus);
               }
               setOrchestratorTier(event.tier ?? null);
@@ -2114,7 +2123,7 @@ export function useMeriChatController({
               // or on a session switch, and nowhere else.
             } else if (event.type === 'runtime') {
               const status = meriRuntimeStatus(event);
-              turnRuntimeStatus = status ? { ...turnRuntimeStatus, ...status } : turnRuntimeStatus;
+              turnRuntimeStatus = status ? mergeMeriRuntimeStatus(turnRuntimeStatus, status) : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
             } else if (event.type === 'pending_approval') {
               // MeriV2 gate-held write — the server already created the durable
@@ -2261,9 +2270,13 @@ export function useMeriChatController({
               }));
             } else if (event.type === 'done') {
               if (event.messageId) accepted = true;
-              const status = meriRuntimeStatus(event);
+              const status = meriRuntimeStatus(
+                turnRuntimeStatus?.lifecycle === 'failed' && !event.finishReason
+                  ? { ...event, finishReason: 'error', partial: true }
+                  : event,
+              );
               turnCompletionReceived = true;
-              turnRuntimeStatus = status ? { ...turnRuntimeStatus, ...status } : turnRuntimeStatus;
+              turnRuntimeStatus = status ? mergeMeriRuntimeStatus(turnRuntimeStatus, status) : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
               // Evidence must resolve the immutable packet from this response,
               // never whichever packet happened to be compiled most recently.
@@ -2304,6 +2317,9 @@ export function useMeriChatController({
               break outer;
             } else if (event.type === 'error') {
               accepted = event.accepted !== false;
+              const status = meriRuntimeStatus(event)!;
+              turnRuntimeStatus = mergeMeriRuntimeStatus(turnRuntimeStatus, status);
+              setChatMessageRuntimeStatus(assistantId, turnRuntimeStatus);
               updateChatMessage(assistantId, `Error: ${event.message}`);
               // Errors after a persisted user turn can still be followed by
               // done with the assistant id, work receipt and partial status.
@@ -2348,6 +2364,7 @@ export function useMeriChatController({
       } catch (err) {
         if (!isCurrentTurn() || (err instanceof Error && err.name === 'AbortError'))
           return accepted;
+        turnRuntimeStatus = mergeMeriRuntimeStatus(turnRuntimeStatus, meriRuntimeStatus({ type: 'error' })!);
         updateChatMessage(assistantId, 'Failed to get a response. Please try again.');
       } finally {
         // Meri v6 thinking-persistence piece 1: attach whatever plan/trust-step/
@@ -2372,6 +2389,7 @@ export function useMeriChatController({
             effectiveEffort: null,
             adjusted: false,
             ...turnRuntimeStatus,
+            lifecycle: controller.signal.aborted ? 'stopped' : turnRuntimeStatus?.lifecycle === 'failed' ? 'failed' : 'incomplete',
             partial: true,
             stopped: controller.signal.aborted,
           });
@@ -2428,27 +2446,49 @@ export function useMeriChatController({
   // call on disconnect (P0-4); the partial answer streamed so far is kept.
   const submitFeedback = useCallback(
     async (messageId: string, feedback: MessageFeedbackPayload) => {
-      const previous = messages.find((message) => message.id === messageId)?.feedback ?? null;
       const requestIdentityKey = identityKeyRef.current;
-      setChatMessageFeedback(messageId, feedback.rating);
+      const requestSession = currentSessionRef.current;
+      const requestEpoch = routeEpochRef.current;
+      const key = `${requestIdentityKey}:${messageId}`;
+      const stillOwnsMessage = () =>
+        mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+        currentSessionRef.current === requestSession && routeEpochRef.current === requestEpoch;
+      // Serialize changes to one message so network order matches user intent.
+      // Read the rollback value from the live store after the prior save settles.
+      const task = (feedbackRequestsRef.current.get(key) ?? Promise.resolve())
+        .catch(() => undefined)
+        .then(async () => {
+          if (!stillOwnsMessage()) return;
+          const message = getChatStateSnapshot().messages.find((entry) => entry.id === messageId);
+          if (!message || message.role !== 'assistant') return;
+          const previous = message.feedback ?? null;
+          setChatMessageFeedback(messageId, feedback.rating);
+          try {
+            const headers = await authHeaders();
+            if (!stillOwnsMessage()) return;
+            const response = await fetch(
+              `${config.apiBaseUrl}/api/clio/messages/${encodeURIComponent(messageId)}/feedback`,
+              {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify(feedback),
+              },
+            );
+            if (!response.ok) throw new Error(`Feedback save failed (${response.status})`);
+          } catch {
+            if (!stillOwnsMessage()) return;
+            setChatMessageFeedback(messageId, previous);
+            throw new Error('Feedback could not be saved. Please try again.');
+          }
+        });
+      feedbackRequestsRef.current.set(key, task);
       try {
-        const headers = await authHeaders();
-        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
-        const response = await fetch(
-          `${config.apiBaseUrl}/api/clio/messages/${messageId}/feedback`,
-          {
-            method: 'POST',
-            headers: { ...headers, 'Content-Type': 'application/json' },
-            body: JSON.stringify(feedback),
-          },
-        );
-        if (!response.ok) throw new Error(`Feedback save failed (${response.status})`);
-      } catch {
-        setChatMessageFeedback(messageId, previous);
-        throw new Error('Feedback could not be saved. Please try again.');
+        await task;
+      } finally {
+        if (feedbackRequestsRef.current.get(key) === task) feedbackRequestsRef.current.delete(key);
       }
     },
-    [authHeaders, messages],
+    [authHeaders],
   );
 
   /**
@@ -2556,6 +2596,15 @@ export function useMeriChatController({
     researchStoppedRef.current = true;
     researchSessionRef.current = null;
     abortRef.current?.abort();
+    if (!researchId && !isResearchStreaming) {
+      const current = getChatStateSnapshot();
+      const message = [...current.messages].reverse().find((entry) => entry.role === 'assistant');
+      if (current.isStreaming && message && (!message.runtimeStatus?.lifecycle || message.runtimeStatus.lifecycle === 'running')) {
+        // Stop is immediate even if an already-fulfilled stream read settles
+        // later. Only this active ordinary turn gets the cancellation receipt.
+        setChatMessageRuntimeStatus(message.id, meriRuntimeStatus({ finishReason: 'aborted', partial: true })!);
+      }
+    }
     setStreaming(false);
     setTurnProgress(null);
     setResearchAwaitingAnswers(false);
@@ -2592,7 +2641,7 @@ export function useMeriChatController({
           refreshResearchRecovery((version) => version + 1);
       }
     })();
-  }, [authHeaders, researchRecovery]);
+  }, [authHeaders, researchRecovery, isResearchStreaming]);
 
   // Regenerate the last assistant answer, or edit-and-resend the last user
   // message (P0-4). Both trim the local thread, then re-run via sendMessage.

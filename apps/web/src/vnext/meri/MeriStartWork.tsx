@@ -9,6 +9,7 @@ import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
 import { meriStartWorkCards, type MeriStartWorkCard } from './meri-start-work.js';
 import { listMeriSavedPrompts } from './meri-vnext-api.js';
+import { MeriSavedPromptManager } from './MeriSavedPromptWorkflow.js';
 
 /**
  * MeriStartWork — START WORK section on the empty-thread landing: a SKILLS /
@@ -42,6 +43,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
   const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const [tab, setTab] = useState<StartTab>('SKILLS');
   const [hoveredTitle, setHoveredTitle] = useState<string | null>(null);
+  const [managePromptsOpen, setManagePromptsOpen] = useState(false);
 
   const skillsQuery = useQuery({
     queryKey: ['meri-vnext', identityKey, 'skills'],
@@ -50,7 +52,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
   });
   const promptsQuery = useQuery({
     queryKey: ['meri-vnext', identityKey, 'saved-prompts'],
-    queryFn: () => listMeriSavedPrompts(api),
+    queryFn: ({ signal }) => listMeriSavedPrompts(api, signal),
     staleTime: 30_000,
   });
 
@@ -99,6 +101,8 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
           START WORK
         </span>
         <span style={{ flex: 1, height: 1, background: '#F2F4F7' }} />
+        {tab === 'PROMPTS' ? <button type="button" className="vnext-meri__confirm-cancel"
+          onClick={() => setManagePromptsOpen(true)}>Manage prompts</button> : null}
         <div role="tablist" aria-label="Start work" style={{ display: 'flex', gap: 4 }}>
           {(['SKILLS', 'PROMPTS'] as StartTab[]).map((label) => {
             const on = tab === label;
@@ -151,6 +155,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
             style={{ gridColumn: '1 / -1' }}
           >
             {tab === 'SKILLS' ? 'Skills could not be loaded.' : 'Saved prompts could not be loaded.'}
+            <button type="button" onClick={() => void (tab === 'SKILLS' ? skillsQuery : promptsQuery).refetch()}>Retry</button>
           </div>
         ) : null}
         {!loading && !errored && cards.length === 0 ? (
@@ -232,6 +237,15 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
           </button>
         ))}
       </div>
+      {managePromptsOpen ? <MeriSavedPromptManager
+        onClose={() => setManagePromptsOpen(false)}
+        disabled={disabled}
+        onReuse={(body) => {
+          if (disabled) return;
+          if (onFillIntent) onFillIntent(body);
+          else window.dispatchEvent(new CustomEvent('meri-fill-draft', { detail: body }));
+        }}
+      /> : null}
     </div>
   );
 }

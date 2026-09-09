@@ -4,6 +4,7 @@ import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.j
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { mergeMeriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
 import { useMeriSourceSelection } from './useMeriSourceSelection.js';
 import { MERI_LOGO_SRC } from './meri-presentation.js';
 import type { MeriContextSection, MeriWindowChrome } from './meri-prefs.js';
@@ -232,10 +233,20 @@ export function VNextMeriShell({
    * what the dialogs themselves ultimately call; Shell does not gate them a
    * second time.
    */
+  const inspectedMessage = controller.messages.find((message) => message.id === turnInspectorData?.turnId);
+  const inspectedRuntime = inspectedMessage?.runtimeStatus
+    ? mergeMeriRuntimeStatus(turnInspectorData?.thinking.runtimeStatus, inspectedMessage.runtimeStatus)
+    : turnInspectorData?.thinking.runtimeStatus;
   const activeTurnInspector: ActiveTurnInspector | null = turnInspectorData
     ? {
         activeTab: turnInspectorTab,
-        data: { ...turnInspectorData, approvals: controller.pendingApprovals },
+        data: {
+          ...turnInspectorData,
+          // Reopened/rehydrated execution state belongs to the exact message;
+          // preserve the inspector's captured client scope and evidence.
+          thinking: { ...turnInspectorData.thinking, runtimeStatus: inspectedRuntime },
+          approvals: controller.pendingApprovals,
+        },
         approvingProposalId: controller.approvingProposalId,
         onApprove: (proposalId: string) => void controller.handleApprovePending(proposalId),
         onApproveAll: () => void controller.handleApproveAll(),

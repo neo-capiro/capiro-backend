@@ -29,6 +29,7 @@ export interface PersistedChartArtifact {
 }
 
 export interface PersistedMessage {
+  userId?: string;
   clientId?: string | null;
   id?: string;
   role?: string;
@@ -116,6 +117,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+/** The history API authorizes message ownership; malformed or foreign ratings stay unselected. */
+export function mapPersistedFeedback(message: PersistedMessage): 'up' | 'down' | null {
+  if (message.role !== 'assistant') return null;
+  const feedback = asRecord(message.metadata?.feedback);
+  if (message.userId && feedback?.userId && feedback.userId !== message.userId) return null;
+  return feedback?.rating === 'up' || feedback?.rating === 'down' ? feedback.rating : null;
 }
 
 export function mapPersistedCitations(message: PersistedMessage): MeriCitation[] {
@@ -319,7 +328,7 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
     client,
     latestMessage,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
-    ...(typeof raw.workspaceId === 'string' ? { workspaceId: raw.workspaceId } : {}),
+    ...(typeof raw.workspaceId === 'string' || raw.workspaceId === null ? { workspaceId: raw.workspaceId } : {}),
     ...(raw.workspace &&
     typeof raw.workspace === 'object' &&
     typeof (raw.workspace as Record<string, unknown>).id === 'string' &&
@@ -334,7 +343,7 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
                 : null,
           },
         }
-      : {}),
+      : raw.workspace === null ? { workspace: null } : {}),
   };
 }
 
