@@ -14,8 +14,9 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { ReviewsService } from './reviews.service.js';
+import { OutreachReviewTransactionsService } from '../outreach-review/outreach-review-transactions.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { EngagementService } from '../engagement/engagement.service.js';
+import type { ClientDocumentWriterService } from '../client-documents/client-document-writer.service.js';
 import type { OutreachDraftService } from '../engagement/outreach-draft.service.js';
 
 const admin: TenantContext = {
@@ -82,10 +83,19 @@ function makeService(review: Record<string, unknown> | null) {
   const tx = {
     reviewRequest: {
       findFirst: async () => review,
+      // Two stamp shapes, one meaning: the legacy content-keyed path stamps
+      // with update(), the exact-version path stamps with a guarded
+      // updateMany() inside the review transaction. Both record the stamp so
+      // the ordering assertions read the same for either surface.
       update: async (a: { data: Record<string, unknown> }) => {
         order.push('stamp');
         stamps.push(a.data);
         return { id: 'rr-1', ...a.data };
+      },
+      updateMany: async (a: { data: Record<string, unknown> }) => {
+        order.push('stamp');
+        stamps.push(a.data);
+        return { count: 1 };
       },
       create: async () => ({ id: 'rr-1' }),
       findMany: async () => [],
@@ -125,12 +135,19 @@ function makeService(review: Record<string, unknown> | null) {
     getVersionForReviewerUnchecked: async () => DRAFT_VERSION,
   } as unknown as OutreachDraftService;
 
-  const engagement = {
+  const clientDocuments = {
     createAttachmentFromBuffer: jest.fn(async () => ({ id: 'att-1', fileName: 'x.docx' })),
-  } as unknown as EngagementService;
+  } as unknown as ClientDocumentWriterService;
+
+  // The REAL transaction boundary, composed over the SAME prisma double rather
+  // than stubbed. Everything below turns on where the release and the stamp
+  // happen relative to each other; a stubbed decide() would let `order` and
+  // `maxDepth` record whatever the stub chose to do, and the assertions would
+  // pass no matter what production code did.
+  const outreachReviews = new OutreachReviewTransactionsService(prisma, outreachDrafts);
 
   return {
-    service: new ReviewsService(prisma, engagement, outreachDrafts),
+    service: new ReviewsService(prisma, clientDocuments, outreachReviews),
     order,
     stamps,
     decisions,
@@ -263,10 +280,11 @@ describe('detail — the protected draft view (§3.f2)', () => {
 /**
  * Phase 0 §3.d3 — the module wiring rule, asserted structurally.
  *
- * ReviewsModule already imports EngagementModule. If EngagementModule ever
+ * Reviews reaches Engagement only through narrow boundary modules
+ * (ClientDocumentsModule, OutreachReviewModule). If EngagementModule ever
  * imports ReviewsModule back, Nest hits a module cycle and the API fails to boot
  * — a failure that unit tests with hand-built providers would never catch.
- * OutreachDraftService is EXPORTED instead, and ReviewsService injects it.
+ * OutreachDraftService is EXPORTED instead, for those boundaries to inject.
  */
 describe('module wiring (no Engagement <-> Reviews cycle)', () => {
   const engagementModule = readFileSync(
@@ -282,7 +300,7 @@ describe('module wiring (no Engagement <-> Reviews cycle)', () => {
     expect(importsBlock).not.toContain('Reviews');
   });
 
-  test('EngagementModule EXPORTS OutreachDraftService so Reviews can inject it', () => {
+  test('EngagementModule EXPORTS OutreachDraftService so the boundary can inject it', () => {
     const exportsBlock = /exports:\s*\[([\s\S]*?)\]/.exec(engagementModule)?.[1] ?? '';
     expect(exportsBlock).toContain('OutreachDraftService');
   });

@@ -1,8 +1,8 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ReviewsService } from './reviews.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { EngagementService } from '../engagement/engagement.service.js';
-import type { OutreachDraftService } from '../engagement/outreach-draft.service.js';
+import type { ClientDocumentWriterService } from '../client-documents/client-document-writer.service.js';
+import type { OutreachReviewTransactionsService } from '../outreach-review/outreach-review-transactions.service.js';
 import type { TenantContext } from '@capiro/shared';
 
 const admin: TenantContext = {
@@ -33,20 +33,28 @@ function makeService(pending: Record<string, unknown> | null) {
   const prisma = {
     withTenant: jest.fn(async (_t: string, fn: (t: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaService;
-  const engagement = {
+  // Memos are filed through the governed client-document boundary, not through
+  // EngagementService directly. Its private fields mean a hand-built double can
+  // only be cast in, so keep the double itself untyped and cast at the call.
+  const clientDocuments = {
     createAttachmentFromBuffer: jest.fn(async () => ({ id: 'att-9', fileName: 'memo.docx' })),
-  } as unknown as EngagementService;
-  // Phase 0: ReviewsService also takes OutreachDraftService. These cases cover
-  // the alert-memo/research surfaces only, so a stub that THROWS if touched is
-  // the right double - it proves the outreach path is not entered for them.
-  const outreachDrafts = {
-    decideWithinTx: jest.fn(async () => {
-      throw new Error('outreach draft path must not be used for this surface');
+  };
+  // ReviewsService also takes OutreachReviewTransactionsService. These cases
+  // cover the alert-memo/research surfaces only, so a stub that THROWS if
+  // touched is the right double - it proves the exact-version review path is
+  // not entered for them.
+  const outreachReviews = {
+    decide: jest.fn(async () => {
+      throw new Error('exact-version review path must not be used for this surface');
     }),
     getVersionForReviewerUnchecked: jest.fn(async () => null),
-  } as unknown as OutreachDraftService;
-  const service = new ReviewsService(prisma, engagement, outreachDrafts);
-  return { service, updates, execRaw, engagement };
+  } as unknown as OutreachReviewTransactionsService;
+  const service = new ReviewsService(
+    prisma,
+    clientDocuments as unknown as ClientDocumentWriterService,
+    outreachReviews,
+  );
+  return { service, updates, execRaw, clientDocuments };
 }
 
 const heldMemo = {
@@ -61,8 +69,8 @@ describe('ReviewsService (G4 named-reviewer routing)', () => {
   it('createSystem is fail-open (never throws, returns null on failure)', async () => {
     const boom = new ReviewsService(
       { withTenant: jest.fn().mockRejectedValue(new Error('db down')) } as unknown as PrismaService,
-      {} as EngagementService,
-      {} as OutreachDraftService,
+      {} as unknown as ClientDocumentWriterService,
+      {} as unknown as OutreachReviewTransactionsService,
     );
     await expect(
       boom.createSystem('t1', {
@@ -77,9 +85,9 @@ describe('ReviewsService (G4 named-reviewer routing)', () => {
   });
 
   it('approve by an admin RELEASES the held memo (files the docx) and stamps approved', async () => {
-    const { service, updates, engagement } = makeService(heldMemo);
+    const { service, updates, clientDocuments } = makeService(heldMemo);
     const res = await service.approve(admin, 'rr-1');
-    expect(engagement.createAttachmentFromBuffer).toHaveBeenCalled();
+    expect(clientDocuments.createAttachmentFromBuffer).toHaveBeenCalled();
     expect(res.released).toMatchObject({ attachmentId: 'att-9' });
     expect(updates[0]!.data).toMatchObject({ status: 'approved', decidedBy: 'admin-1' });
   });
@@ -99,14 +107,14 @@ describe('ReviewsService (G4 named-reviewer routing)', () => {
   });
 
   it('reject stamps rejected and does NOT file anything', async () => {
-    const { service, updates, engagement } = makeService(heldMemo);
+    const { service, updates, clientDocuments } = makeService(heldMemo);
     await service.reject(admin, 'rr-1');
-    expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
+    expect(clientDocuments.createAttachmentFromBuffer).not.toHaveBeenCalled();
     expect(updates[0]!.data).toMatchObject({ status: 'rejected', decidedBy: 'admin-1' });
   });
 
   it('research approve clears heldForReview on the artifact (no docx)', async () => {
-    const { service, execRaw, engagement } = makeService({
+    const { service, execRaw, clientDocuments } = makeService({
       id: 'rr-2',
       surface: 'research',
       clientId: null,
@@ -114,7 +122,7 @@ describe('ReviewsService (G4 named-reviewer routing)', () => {
       payload: { artifactId: 'art-1' },
     });
     const res = await service.approve(admin, 'rr-2');
-    expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
+    expect(clientDocuments.createAttachmentFromBuffer).not.toHaveBeenCalled();
     expect(execRaw).toHaveBeenCalled(); // the metadata UPDATE
     expect(res.released).toMatchObject({ artifactId: 'art-1', heldForReview: false });
   });
