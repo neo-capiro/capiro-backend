@@ -17,6 +17,32 @@ import type {
 
 type PrismaRow = Parameters<typeof toRow>[0];
 
+/**
+ * Candidate statuses that may still serve an already-recorded scoped
+ * approval. Mirrors the whole-candidate eligibility gate enforced (a) at
+ * insert time by the `check_budget_scoped_fact_review_v1_binding` DB trigger
+ * and (b) by `scoped-fact-review-policy-v1.ts`'s `candidate_not_reviewable`
+ * refusal -- but applied again here, at READ time.
+ *
+ * Why this is needed in addition to those insert-time gates: neither of them
+ * re-runs when a candidate's status changes AFTER a scoped approval was
+ * already recorded. If a separate, unrelated whole-candidate review process
+ * later marks the SAME candidate REJECTED (or moves it to any other
+ * non-reviewable status), the scoped-approval row itself is untouched --
+ * `status` stays `'active'` and `decision` stays `'approve'` -- because
+ * nothing links the two beyond the moment-of-insert trigger check. Without
+ * this filter this endpoint would keep serving that stale approval
+ * indefinitely, until a human remembered to run the revoke CLI. This does not
+ * itself flip a stale row to `superseded`/`revoked` (that still requires an
+ * explicit revoke); it only stops SERVING a row bound to a
+ * no-longer-reviewable candidate.
+ */
+const REVIEWABLE_CANDIDATE_STATUSES_V1 = ['NEEDS_REVIEW', 'REVIEW_ACCEPTED'] as const;
+type ReviewableCandidateStatusV1 = (typeof REVIEWABLE_CANDIDATE_STATUSES_V1)[number];
+function isReviewableCandidateStatus(status: string): status is ReviewableCandidateStatusV1 {
+  return (REVIEWABLE_CANDIDATE_STATUSES_V1 as readonly string[]).includes(status);
+}
+
 function toRow(r: {
   id: string;
   candidateId: string;
@@ -93,18 +119,25 @@ export class PrismaReviewedPartialPeTotalsRepositoryV1 implements ReviewedPartia
     // fiscal-year filter is applied at the DB layer; the component filter is
     // ALSO re-applied in-process below as a belt-and-suspenders check, so a
     // future Prisma/DB version difference in JSON-path filtering can never
-    // silently widen the result set beyond what was requested.
+    // silently widen the result set beyond what was requested. The candidate
+    // status filter is likewise applied at BOTH layers (DB `where` clause
+    // below, plus the in-process re-check below that) -- see
+    // `REVIEWABLE_CANDIDATE_STATUSES_V1`'s doc comment for why a read-time
+    // recheck is required at all.
     const rows = await this.prisma.budgetScopedFactReviewV1.findMany({
       where: {
         AND: [
           { scopeKind, status: 'active', decision: 'approve' },
           { scope: { path: ['fiscalYear'], equals: filter.fiscalYear } },
           ...(filter.component != null ? [{ scope: { path: ['component'], equals: filter.component } }] : []),
+          { candidate: { status: { in: [...REVIEWABLE_CANDIDATE_STATUSES_V1] } } },
         ],
       },
+      include: { candidate: { select: { status: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    const typed = rows.map((r) => toRow(r as unknown as PrismaRow));
+    const eligible = rows.filter((r) => isReviewableCandidateStatus((r as unknown as { candidate: { status: string } }).candidate.status));
+    const typed = eligible.map((r) => toRow(r as unknown as PrismaRow));
     return filter.component != null
       ? typed.filter((r) => (r.scope as { component?: string }).component === filter.component)
       : typed;
