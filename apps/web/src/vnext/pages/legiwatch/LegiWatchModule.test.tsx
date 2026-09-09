@@ -2,6 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, orgId: 'org-test', userId: 'user-test' }),
+}));
 import { LegiWatchModule } from './LegiWatchModule.js';
 
 /**

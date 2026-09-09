@@ -108,6 +108,11 @@ export class LegiWatchWave1Controller {
 
   // ── W1-3 · archive + global hearing research ─────────────────────────────
 
+  @Get('events/:id/sessions')
+  savedSessions(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.wave1.savedSessions(ctx, id);
+  }
+
   /** Server-side search/facet/page over the durable historical corpus. */
   @Get('archive/search')
   searchArchive(@CurrentTenant() ctx: TenantContext, @Query() query: ArchiveSearchQueryDto) {

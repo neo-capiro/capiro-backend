@@ -130,7 +130,7 @@ export class SourceRegistryService {
         sourceUrl: `${CONGRESS_BASE}/committee-meeting/${congress}`,
         adapterKey: 'congress-gov',
         priority: PRIORITY_CONGRESS_GOV,
-        parserVersion: 'congress-gov/2026-08-20',
+        parserVersion: 'congress-gov/2026-09-09',
       }),
       this.sources.ensureSource({
         committeeSystemCode: null,

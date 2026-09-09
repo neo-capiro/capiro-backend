@@ -489,7 +489,7 @@ export function CommitteeRoomRoute() {
   const parentCode = c.parent?.systemCode ?? c.parentSystemCode ?? null;
   const parentDisplayName = c.parent?.name ?? c.parentName ?? null;
   const ranges = windowRanges();
-  const sourceRead = c.sourceHealth !== 'unknown' || c.lastSourceSuccessAt != null;
+  const inheritedSource = Boolean(c.sourceHealthInheritedFrom);
 
   const upcomingCount = c.upcomingEventCount ?? c.upcomingEvents.length;
   const recentCount = c.recentEventCount ?? c.recentEvents.length;
@@ -622,7 +622,7 @@ export function CommitteeRoomRoute() {
           <div className="lwcr-ledger__sub">
             {c.sourceHealthInheritedFrom
               ? `Inherited from ${c.sourceHealthInheritedFrom.toUpperCase()}`
-              : 'Own source'}
+              : sourceHref ? 'Own source' : 'No monitored source'}
           </div>
         </div>
         <div className="lwcr-ledger__cell">
@@ -630,7 +630,9 @@ export function CommitteeRoomRoute() {
           <div className="lwcr-ledger__value">
             {c.lastSourceSuccessAt ? stampLabel(c.lastSourceSuccessAt) : 'Never read'}
           </div>
-          <div className="lwcr-ledger__sub">Calendar page and Congress.gov</div>
+          <div className="lwcr-ledger__sub">
+            {inheritedSource ? 'Parent monitored source only' : 'Monitored source only'}
+          </div>
         </div>
         <div className="lwcr-ledger__cell">
           <div className="lwcr-eyebrow">Committee record</div>
@@ -683,33 +685,34 @@ export function CommitteeRoomRoute() {
               </div>
 
               {c.upcomingEvents.length === 0 && c.recentEvents.length === 0 ? (
-                /* the confident empty state: a monitored zero, NOT an unread source */
+                /* An empty local result cannot establish that no official proceedings exist. */
                 <>
                   <div className="lwcr-card__body">
-                    {sourceRead ? (
-                      <>
-                        <p className="lwcr-claim">
-                          This {c.isSubcommittee ? 'subcommittee' : 'committee'} has published no
-                          proceedings.
-                        </p>
-                        <p className="lwcr-provenance">
-                          Capiro read the {c.isSubcommittee ? 'subcommittee' : 'committee'}&rsquo;s own
-                          calendar page and Congress.gov
-                          {c.lastSourceSuccessAt ? ` at ${stampLabel(c.lastSourceSuccessAt)}` : ''} and
-                          looked a full year in each direction. Neither source lists a hearing, markup or
-                          briefing. The absence is the {c.isSubcommittee ? 'subcommittee' : 'committee'}&rsquo;s
-                          record, not a gap in coverage.
-                        </p>
-                      </>
-                    ) : (
-                      <p className="lwcr-claim">This committee&rsquo;s source has not been read yet.</p>
-                    )}
+                    <p className="lwcr-claim">No proceedings are available in Capiro for these windows.</p>
+                    <p className="lwcr-provenance">
+                      {inheritedSource ? (
+                        <>
+                          Subcommittee coverage is incomplete or unverified. The source health and last
+                          success shown here belong to {c.sourceHealthInheritedFrom?.toUpperCase()},
+                          the parent committee. They do not confirm a successful check of this
+                          subcommittee&rsquo;s calendar.
+                        </>
+                      ) : c.sourceHealth === 'failing' || c.sourceHealth === 'degraded' ? (
+                        <>The monitored source needs attention, so coverage may be incomplete.</>
+                      ) : !c.lastSourceSuccessAt ? (
+                        <>No successful check of this committee&rsquo;s monitored source is recorded.</>
+                      ) : (
+                        <>A successful source check does not verify complete proceedings coverage.</>
+                      )}
+                      {' '}An empty result does not establish that no hearings, markups or briefings
+                      occurred. Check the official committee records for additional proceedings.
+                    </p>
                     <div className="lwcr-windows">
                       <div className="lwcr-window">
                         <div className="lwcr-window__eyebrow">Upcoming window</div>
                         <div className="lwcr-window__count">
                           <span className="lwcr-window__num">{upcomingCount}</span>
-                          <span className="lwcr-window__published">published</span>
+                          <span className="lwcr-window__published">in Capiro</span>
                         </div>
                         <div className="lwcr-window__range">{ranges.upcoming}</div>
                       </div>
@@ -717,12 +720,12 @@ export function CommitteeRoomRoute() {
                         <div className="lwcr-window__eyebrow">Past window</div>
                         <div className="lwcr-window__count">
                           <span className="lwcr-window__num">{recentCount}</span>
-                          <span className="lwcr-window__published">published</span>
+                          <span className="lwcr-window__published">in Capiro</span>
                         </div>
                         <div className="lwcr-window__range">{ranges.past}</div>
                       </div>
                     </div>
-                    {!following && sourceRead ? (
+                    {!following ? (
                       <div className="lwcr-emptycta">
                         <button
                           type="button"
@@ -730,7 +733,7 @@ export function CommitteeRoomRoute() {
                           onClick={() => setFollowOpen(true)}
                         >
                           <DashboardIcon name="Bookmark" size={16} color="var(--lw-meta)" />
-                          Follow to be notified when it schedules
+                          Follow for newly discovered proceedings
                         </button>
                         <span className="lwcr-emptycta__note">
                           Notification on new hearing is on by default.
@@ -1155,8 +1158,9 @@ export function CommitteeRoomRoute() {
             </div>
             {c.sourceHealthInheritedFrom ? (
               <p className="lwcr-chain__note">
-                This {c.isSubcommittee ? 'subcommittee' : 'committee'} has no source row of its own,
-                so it inherits its parent&rsquo;s health rather than showing a fabricated one.
+                This room uses its parent committee&rsquo;s source health. No independent check of
+                this subcommittee&rsquo;s calendar is recorded, and child-committee coverage remains
+                unverified.
               </p>
             ) : null}
             {sourceHref ? (

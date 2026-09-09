@@ -23,6 +23,10 @@ import { MemoryRouter, BrowserRouter, Route, Routes, useLocation } from 'react-r
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isLoaded: true, orgId: 'org-test', userId: 'user-test' }),
+}));
+
 const apiGet = vi.fn<(url: string) => Promise<{ data: unknown }>>();
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: (url: string) => apiGet(url) }),
@@ -489,7 +493,7 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001#seg-long-seg-501');
     await screen.findByText('Archive segment 501');
     await waitFor(() => expect(scroll.mock.instances).toContain(document.getElementById('lw-seg-long-seg-501')));
-    expect(screen.getByText('501 segments')).toBeTruthy();
+    expect(screen.getByText('501 segments from automatic capture')).toBeTruthy();
     scroll.mockRestore();
   });
 
@@ -653,6 +657,29 @@ describe('LW-QA-018 — Committee Room provenance strip (redesigned)', () => {
     renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
     return screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
   }
+
+  it('reports empty inherited child coverage as unverified, not verified absence', async () => {
+    const room = await renderRoom({
+      isSubcommittee: true, sourceHealth: 'healthy', sourceHealthInheritedFrom: 'ssas00',
+      parentSystemCode: 'ssas00', recentEvents: [], upcomingEvents: [],
+    });
+    expect(within(room).getByText('No proceedings are available in Capiro for these windows.')).toBeTruthy();
+    expect(within(room).getByText(/Subcommittee coverage is incomplete or unverified/)).toBeTruthy();
+    expect(within(room).getByText('Parent monitored source only')).toBeTruthy();
+    expect(within(room).queryByText(/has published no/)).toBeNull();
+    expect(within(room).queryByText(/Calendar page and Congress.gov/)).toBeNull();
+    expect(within(room).getAllByText('in Capiro')).toHaveLength(2);
+  });
+
+  it.each(['healthy', 'failing', 'degraded', 'unknown'])('never turns empty %s source results into a complete-coverage assertion', async (sourceHealth) => {
+    const room = await renderRoom({ sourceHealth, recentEvents: [], upcomingEvents: [] });
+    expect(within(room).getByText('No proceedings are available in Capiro for these windows.')).toBeTruthy();
+    expect(within(room).queryByText(/has published no/)).toBeNull();
+    expect(within(room).queryByText(/not a gap in coverage/)).toBeNull();
+    if (sourceHealth === 'failing' || sourceHealth === 'degraded') {
+      expect(within(room).getByText(/monitored source needs attention/)).toBeTruthy();
+    }
+  });
 
   it('maps health from the OUTER response level and reads the four real fields', async () => {
     const room = await renderRoom({});

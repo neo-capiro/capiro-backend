@@ -33,6 +33,7 @@ import {
   relatedAgendaBills,
 } from './congress-gov-parse.js';
 import { fetchJson, sleep } from './source-http.js';
+import { publishedCommitteeIdentity } from '../hearing-committee-identity.js';
 import type {
   CommitteeSourceAdapter,
   DiscoveryContext,
@@ -91,7 +92,7 @@ export interface CongressGovAdapterOptions {
 
 export class CongressGovAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'congress-gov';
-  readonly parserVersion = 'congress-gov/2026-08-20';
+  readonly parserVersion = 'congress-gov/2026-09-09';
 
   constructor(private readonly options: CongressGovAdapterOptions) {}
 
@@ -174,7 +175,8 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
       return null;
     }
     const chamber = normalizeChamber(d.chamber ?? item.chamber);
-    const systemCode = d.committees?.[0]?.systemCode ?? null;
+    const identity = publishedCommitteeIdentity(d.committees);
+    const systemCode = identity.committeeSystemCode;
     const committeeName =
       (systemCode ? this.options.resolveCommitteeName?.(systemCode) : null) ??
       d.committees?.[0]?.name ??
@@ -207,9 +209,7 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
       congress: d.congress ?? item.congress ?? congress,
       chamber,
       committeeSystemCode: systemCode,
-      // Congress.gov's committees[] does not distinguish parent from sub; a
-      // second entry, when present, is the subcommittee.
-      subcommitteeSystemCode: d.committees?.[1]?.systemCode ?? null,
+      subcommitteeSystemCode: identity.subcommitteeSystemCode,
       committeeName,
       title: d.title?.trim() || null,
       eventType: d.type?.trim() || null,

@@ -56,6 +56,7 @@ import {
   inferHouseType,
   parseByDay,
 } from '../src/hearing-discovery/adapters/house-docs-parse.js';
+import { publishedCommitteeIdentity } from '../src/hearing-discovery/hearing-committee-identity.js';
 import { BROWSER_UA } from '../src/hearing-discovery/adapters/source-http.js';
 dotenvConfig();
 
@@ -419,7 +420,8 @@ async function main() {
             const startsAt = isDateOnlySentinel(instant) ? null : instant;
 
             const chamber = normalizeChamber(d.chamber, item.chamber);
-            const sysCode = d.committees?.[0]?.systemCode ?? null;
+            const identity = publishedCommitteeIdentity(d.committees);
+            const sysCode = identity.committeeSystemCode;
             const committeeName =
               (sysCode ? committeeNames.get(sysCode) : null) ??
               d.committees?.[0]?.name ??
@@ -451,6 +453,8 @@ async function main() {
               chamber,
               committeeName,
               committeeCode: sysCode,
+              committeeSystemCode: identity.committeeSystemCode ?? undefined,
+              subcommitteeSystemCode: identity.subcommitteeSystemCode ?? undefined,
               date,
               startsAt,
               time: formatTime(d.date),
@@ -530,7 +534,8 @@ async function main() {
 
             const title = detail.title ?? '(untitled)';
             const chamber = normalizeChamber(detail.chamber, item.chamber);
-            const sysCode = detail.committees?.[0]?.systemCode ?? null;
+            const identity = publishedCommitteeIdentity(detail.committees);
+            const sysCode = identity.committeeSystemCode;
             const committeeName =
               (sysCode ? committeeNames.get(sysCode) : null) ??
               detail.committees?.[0]?.name ??
@@ -571,6 +576,8 @@ async function main() {
                   chamber,
                   committeeName,
                   committeeCode: sysCode,
+                  committeeSystemCode: identity.committeeSystemCode ?? undefined,
+                  subcommitteeSystemCode: identity.subcommitteeSystemCode ?? undefined,
                   date,
                   startsAt,
                   type: 'hearing',
@@ -592,6 +599,8 @@ async function main() {
                   chamber,
                   committeeName,
                   committeeCode: sysCode,
+                  committeeSystemCode: identity.committeeSystemCode ?? undefined,
+                  subcommitteeSystemCode: identity.subcommitteeSystemCode ?? undefined,
                   date,
                   startsAt,
                   type: 'hearing',

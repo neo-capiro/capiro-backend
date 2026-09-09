@@ -11,6 +11,7 @@
  */
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
+import { useHearingQueryIdentity, type SavedHearingSession } from './saved-hearing-sessions.js';
 
 const BASE = '/api/legiwatch/live-hearings';
 const enc = encodeURIComponent;
@@ -141,6 +142,9 @@ export interface ArchiveResult {
     gapSeconds: number | null;
   };
   intelligenceCount: number;
+  /** Accessible tenant recordings; never counted as public-capture content. */
+  savedSessions?: SavedHearingSession[];
+  savedTranscriptAvailable?: boolean | null;
   transcriptHit: {
     segmentId: string;
     startMs: number;
@@ -161,6 +165,7 @@ export interface ArchiveResult {
 export interface ArchiveSearchPage {
   rows: ArchiveResult[];
   total: number;
+  savedSessionsState?: 'available' | 'unavailable';
   /**
    * The whole archive under this tenant, counted BEFORE the query and facets
    * are applied. It is what separates "nothing matched your search" from "the
@@ -273,7 +278,7 @@ export const w1Keys = {
     ['lw-w1', 'detail', hearingId, clientId] as const,
   relevance: (hearingId: string, clientId: string) =>
     ['lw-w1', 'relevance', hearingId, clientId] as const,
-  archive: (params: unknown) => ['lw-w1', 'archive', params] as const,
+  archive: (params: unknown, identity: string | null) => ['lw-w1', 'archive', params, identity] as const,
   committeeFollow: (systemCode: string) => ['lw-w1', 'committee-follow', systemCode] as const,
   committeeIntel: (systemCode: string, params: unknown) =>
     ['lw-w1', 'committee-intel', systemCode, params] as const,
@@ -477,9 +482,11 @@ export function useArchiveSearch(
 ): UseQueryResult<ArchiveSearchPage, Error> {
   const api = useApi();
   const identity = searchIdentity(params);
+  const { identity: callerIdentity, ready } = useHearingQueryIdentity();
   return useQuery<ArchiveSearchPage, Error>({
-    queryKey: w1Keys.archive(params),
+    queryKey: w1Keys.archive(params, callerIdentity),
     queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to search saved hearing content.');
       const qs = new URLSearchParams();
       for (const [key, value] of Object.entries(params)) {
         if (value === undefined || value === null || value === '') continue;
@@ -489,10 +496,11 @@ export function useArchiveSearch(
         await api.get<ArchiveSearchPage>(`${BASE}/archive/search?${qs.toString()}`, { signal })
       ).data;
     },
-    enabled,
+    enabled: enabled && ready,
     // The corpus is historical; it does not change under the user mid-session.
     staleTime: 60_000,
     placeholderData: (previous, previousQuery) => {
+      if (!ready || previousQuery?.queryKey[3] !== callerIdentity) return undefined;
       const previousParams = previousQuery?.queryKey[2] as ArchiveSearchParams | undefined;
       if (!previousParams || searchIdentity(previousParams) !== identity) return undefined;
       return previous;

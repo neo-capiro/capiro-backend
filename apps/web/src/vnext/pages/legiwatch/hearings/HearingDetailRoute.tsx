@@ -39,6 +39,7 @@ import { FollowDialog } from './FollowDialog.js';
 import { AttendDialog, ATTENDANCE_LABEL } from './AttendDialog.js';
 import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { HearingActions, type ActionRefs } from './HearingActions.js';
+import { SavedHearingSessions } from './SavedHearingSessions.js';
 import { useAttendance, useFollowConfig, useHearingUpdates } from '../lib/wave1-api.js';
 import { useHearingWakeLock } from '../../../../lib/use-hearing-wake-lock.js';
 
@@ -253,6 +254,8 @@ export function HearingDetailRoute() {
         </dl>
       </section>
 
+      <SavedHearingSessions hearingId={hearingId} />
+
       {/* 3. Live & Capture — explicit, honest state (LEGIWATCH-V2-HANDOFF §5.4) */}
       <section className="lw-card" style={{ padding: 18 }} aria-label="Live and capture">
         <div className="lw-card__head">
@@ -268,7 +271,7 @@ export function HearingDetailRoute() {
               {e.capture.gapSeconds ? ` · ${Math.round(e.capture.gapSeconds / 60)} min gaps` : ''}
             </span>
           ) : (
-            <span className="lw-card__meta">No capture requested</span>
+            <span className="lw-card__meta">No automatic capture requested</span>
           )}
         </div>
         {/* W1-1 / W1-2. Follow and Attend are DIFFERENT products and are two
@@ -320,7 +323,7 @@ export function HearingDetailRoute() {
       <section className="lw-card" style={{ padding: 18 }} aria-label="Transcript">
         <div className="lw-card__head">
           <h2 className="lw-card__title">Transcript</h2>
-          <span className="lw-card__meta">{segments.length} segments</span>
+          <span className="lw-card__meta">{segments.length} segments from automatic capture</span>
         </div>
         {!availability.available ? (
           <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>{availability.note}</p>
@@ -399,7 +402,7 @@ export function HearingDetailRoute() {
               ? 'Intelligence extraction is in progress — findings appear here as segments are processed.'
               : availability.available
                 ? 'No intelligence was extracted for this proceeding.'
-                : 'Intelligence requires a transcript — none is available for this proceeding.'}
+                : 'No automatic-capture transcript is available here. Saved sessions above may contain transcript and intelligence.'}
           </p>
         ) : intel.length > 0 ? (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>

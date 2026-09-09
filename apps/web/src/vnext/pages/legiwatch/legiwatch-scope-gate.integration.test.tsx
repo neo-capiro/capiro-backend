@@ -20,7 +20,7 @@ const apiGet = vi.fn<(url: string) => Promise<{ data: unknown }>>();
 // useIntelFeature chain, etc.) still import Clerk transitively; stub useAuth so
 // any import-time wiring stays inert (same posture as meri-route-identity.test).
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: async () => 'test-token', orgId: null, userId: 'u-1' }),
+  useAuth: () => ({ isLoaded: true, getToken: async () => 'test-token', orgId: null, userId: 'u-1' }),
   useUser: () => ({ user: { id: 'u-1' } }),
 }));
 vi.mock('../../../lib/use-api.js', () => ({

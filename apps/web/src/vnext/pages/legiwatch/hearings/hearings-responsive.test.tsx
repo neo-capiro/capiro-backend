@@ -21,7 +21,7 @@ vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: (url: string) => apiGet(url) }),
 }));
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: async () => 't', orgId: null, userId: 'u-1' }),
+  useAuth: () => ({ isLoaded: true, getToken: async () => 't', orgId: null, userId: 'u-1' }),
   useUser: () => ({ user: { id: 'u-1' } }),
 }));
 

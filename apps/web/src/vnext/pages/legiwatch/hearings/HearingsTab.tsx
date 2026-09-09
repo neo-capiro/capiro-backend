@@ -26,6 +26,7 @@ import { ArchiveSubTab } from './ArchiveSubTab.js';
 import {
   useHearingSessionHistory,
 } from '../../../../lib/hearing-watch-api.js';
+import { useLiveHearingsCoverage } from '../../../../pages/radar/live-hearings/live-hearings-api.js';
 import {
   useLwWeekCalendar,
   isLiveEvent,
@@ -37,7 +38,6 @@ import { LwPill, LwSeg, LwButton, LwSkeleton } from '../lib/primitives.js';
 import {
   LwStateEmpty,
   LwStateUnavailable,
-  LwStateAllClear,
 } from '../states/SystemStates.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { useCalendarExportBulk, downloadIcs } from '../lib/wave1-api.js';
@@ -151,6 +151,10 @@ export function HearingsTab({ scope }: { scope: string }) {
   };
   const history = useHearingSessionHistory();
   const exportWeek = useCalendarExportBulk();
+  const sessions = history.data?.pages.flatMap((page) => page.items) ?? [];
+  const interrupted = sessions.filter((session) => captureNeedsAttention(session.status));
+  // Do not hide an interrupted capture just because three newer sessions exist.
+  const visibleSessions = sessions.filter((session, index) => index < 3 || captureNeedsAttention(session.status));
 
   // The user's saved desktop preference (LegiWatch Settings → default view).
   const [view, setView] = useState<ViewMode>('calendar');
@@ -224,35 +228,6 @@ export function HearingsTab({ scope }: { scope: string }) {
     navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`);
   };
 
-  if (calendar.isLoading) {
-    return (
-      <div className="lw-body">
-        <div className="lw-hearings-cols">
-          <div className="lw-card" style={{ padding: 18 }}>
-            <LwSkeleton height={32} />
-            <div style={{ height: 12 }} />
-            <LwSkeleton height={206} delay={2} />
-          </div>
-          <div className="lw-card" style={{ padding: 18 }}>
-            <LwSkeleton height={120} delay={3} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (calendar.isError) {
-    return (
-      <div className="lw-body">
-        <LwStateUnavailable
-          source="Hearing schedule"
-          reason="The canonical committee calendar could not be loaded for this week. Sessions and recordings below are unaffected."
-          onRetry={() => void calendar.refetch()}
-        />
-      </div>
-    );
-  }
-
   // Sub-view strip (segmented control, v2 prototype) + public/private legend
   // chip. Rendered for every sub-view so navigation is always reachable.
   const subStrip = (
@@ -289,7 +264,18 @@ export function HearingsTab({ scope }: { scope: string }) {
       <div className={sub === 'sessions' ? 'lw-hearings-cols lw-hearings-cols--single' : 'lw-schedule'}>
         {/* Schedule sub-view is full-width (the calendar runs the whole content
             width). The Sessions sub-view keeps the two-column rail. */}
-        {sub === 'sessions' ? null : (
+        {sub === 'sessions' ? null : calendar.isLoading ? (
+          <div className="lw-card" style={{ padding: 18 }} role="status" aria-label="Loading hearing schedule">
+            <LwSkeleton height={32} />
+            <LwSkeleton height={206} delay={2} />
+          </div>
+        ) : calendar.isError ? (
+          <LwStateUnavailable
+            source="Hearing schedule"
+            reason="The committee calendar could not be loaded for this week. Saved capture sessions and source health are shown separately."
+            onRetry={() => void calendar.refetch()}
+          />
+        ) : (
         <div className="lw-schedule">
           <div className="lw-controls">
             <LwSeg
@@ -474,7 +460,7 @@ export function HearingsTab({ scope }: { scope: string }) {
               </div>
               {filtered.length === 0 ? (
                 <div style={{ padding: 18 }}>
-                  <LwStateEmpty onReset={() => { setCommittee(''); setKind(''); setSearch(''); }} />
+                  <LwStateEmpty title="No proceedings matched these filters" onReset={() => { setCommittee(''); setKind(''); setSearch(''); }} />
                 </div>
               ) : (
                 filtered.map((e) => {
@@ -552,11 +538,11 @@ export function HearingsTab({ scope }: { scope: string }) {
             <div className="lw-card__head">
               <h2 className="lw-card__title">My Sessions</h2>
               <span className="lw-card__meta">
-                {live ? '1 live' : 'None live'} · {history.data?.pages?.[0]?.total ?? 0} total
+                {history.data ? `${history.data.pages[0]?.total ?? 0} saved sessions` : 'Saved capture sessions'}
               </span>
             </div>
 
-            {live ? (
+            {!calendar.isError && live ? (
               <div className="lw-session lw-on-ink">
                 <span className="lw-session__badge">
                   <span className="lw-session__dot is-live" aria-hidden="true" />
@@ -575,14 +561,37 @@ export function HearingsTab({ scope }: { scope: string }) {
               </div>
             ) : (
               <div style={{ padding: '16px 18px' }}>
-                <LwStateAllClear lastScan="just now" />
+                <p className="lw-state__body">
+                  {calendar.isLoading ? 'Checking live proceedings in the selected week…'
+                    : calendar.isError ? 'Live proceeding status is unavailable for the selected week.'
+                      : 'No live proceedings in the selected week and filters.'}
+                </p>
+              </div>
+            )}
+
+            {history.isLoading ? (
+              <div className="lw-recs__empty" role="status">Checking saved capture sessions…</div>
+            ) : history.isError ? (
+              <LwStateUnavailable source="Capture session status"
+                reason="Saved session status could not be refreshed. Capture attention is unverified."
+                onRetry={() => void history.refetch()} />
+            ) : (
+              <div className="lw-state" role={interrupted.length ? 'alert' : 'status'} style={{ padding: '12px 18px' }}>
+                {interrupted.length ? <LwPill tone="warning">CAPTURE ATTENTION</LwPill> : null}
+                <p className="lw-state__body">
+                  {interrupted.length
+                    ? `${interrupted.length} interrupted capture${interrupted.length === 1 ? '' : 's'} in loaded session history. Open the affected session below to review saved content and recovery options.`
+                    : 'No interrupted captures in loaded session history.'}
+                  {history.hasNextPage ? ' Older sessions have not been checked yet.' : ''}
+                </p>
               </div>
             )}
 
             <div className="lw-history__label">Recent session history</div>
             <div className="lw-history__rows">
-              {(history.data?.pages?.[0]?.items ?? []).slice(0, 3).map((s) => {
-                const rec = ['failed-recoverable', 'failed'].includes(s.status);
+              {visibleSessions.map((s) => {
+                const rec = captureNeedsAttention(s.status);
+                const resumable = s.status === 'failed-recoverable';
                 const done = ['completed', 'ended'].includes(s.status);
                 const browserSession = ['browser_mic', 'browser_tab'].includes(s.audioSource);
                 const path = s.hearingId && !browserSession
@@ -605,23 +614,30 @@ export function HearingsTab({ scope }: { scope: string }) {
                     <div>
                       <div className="lw-hrow__title">{s.title}</div>
                       <div className="lw-hrow__sub">
-                        {done ? 'Completed' : rec ? 'Capture interrupted · can resume' : s.status}
+                        {done ? 'Completed' : resumable ? 'Capture interrupted · can resume' : rec ? 'Capture failed · review saved session' : s.status}
                         {s.watchlistMatchCount != null ? ` · ${s.watchlistMatchCount} matches` : ''}
                       </div>
                     </div>
                     <span className="lw-hrow__pill">
                       <LwPill tone={rec ? 'warning' : done ? 'success' : 'gray'}>
-                        {rec ? 'RECOVERABLE' : done ? (s.recapSaved ? 'RECAP READY' : 'COMPLETE') : s.status.toUpperCase()}
+                        {resumable ? 'RECOVERABLE' : rec ? 'NEEDS REVIEW' : done ? (s.recapSaved ? 'RECAP READY' : 'COMPLETE') : s.status.toUpperCase()}
                       </LwPill>
                     </span>
                   </div>
                 );
               })}
-              {(history.data?.pages?.[0]?.items ?? []).length === 0 ? (
+              {!history.isLoading && !history.isError && sessions.length === 0 ? (
                 <div className="lw-recs__empty">No sessions yet. Start capture from the schedule.</div>
+              ) : null}
+              {history.hasNextPage ? (
+                <LwButton disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>
+                  {history.isFetchingNextPage ? 'Loading older sessions…' : 'Check older capture sessions'}
+                </LwButton>
               ) : null}
             </div>
           </section>
+
+          <CommitteeSourceStatus />
 
           <section className="lw-card" aria-label="Scheduled recordings">
             <div className="lw-card__head">
@@ -629,7 +645,13 @@ export function HearingsTab({ scope }: { scope: string }) {
               <span className="lw-card__meta">Selected week</span>
             </div>
             <div className="lw-recs__rows">
-              {scheduledAttendance.length === 0 ? (
+              {calendar.isLoading ? (
+                <div className="lw-recs__empty" role="status">Loading scheduled attendance…</div>
+              ) : calendar.isError ? (
+                <LwStateUnavailable source="Scheduled attendance"
+                  reason="The selected week's calendar could not be refreshed. Scheduled attendance is unverified."
+                  onRetry={() => void calendar.refetch()} />
+              ) : scheduledAttendance.length === 0 ? (
                 <div className="lw-recs__empty">No attendance is scheduled for the selected week. Open a hearing to check automatic or browser attendance.</div>
               ) : scheduledAttendance.map((event) => (
                 <button key={event.id} type="button" className="lw-hrow" onClick={() => openHearing(event)}
@@ -656,6 +678,53 @@ export function HearingsTab({ scope }: { scope: string }) {
 
 
     </div>
+  );
+}
+
+function captureNeedsAttention(status: string): boolean {
+  return status === 'failed-recoverable' || status === 'failed';
+}
+
+/** Source ingestion is independent of live rows, watchlist matches and capture. */
+function CommitteeSourceStatus() {
+  const coverage = useLiveHearingsCoverage();
+  const summary = coverage.data?.summary;
+  const failing = coverage.data?.sources.filter((source) => source.sourceHealth === 'failing') ?? [];
+  return (
+    <section className="lw-card" aria-label="Committee source health">
+      <div className="lw-card__head">
+        <h2 className="lw-card__title">Committee source health</h2>
+        <LwButton disabled={coverage.isFetching} onClick={() => void coverage.refetch()}>
+          {coverage.isFetching ? 'Refreshing source status…' : 'Refresh source status'}
+        </LwButton>
+      </div>
+      {coverage.isLoading ? (
+        <div className="lw-recs__empty" role="status">Checking committee source health…</div>
+      ) : coverage.isError ? (
+        <LwStateUnavailable source="Committee source health"
+          reason="Source status could not be refreshed. Current ingestion health is unverified." />
+      ) : !summary || summary.total === 0 ? (
+        <div className="lw-state" role="status">
+          <LwPill tone="gray">SOURCE STATUS UNKNOWN</LwPill>
+          <p className="lw-state__body">No registered source-health records are available. Complete coverage is unverified.</p>
+        </div>
+      ) : (
+        <div className="lw-state" role={summary.failing > 0 ? 'alert' : 'status'}>
+          <LwPill tone={summary.failing > 0 ? 'error' : summary.healthy < summary.total ? 'warning' : 'gray'}>
+            {summary.failing > 0 ? 'SOURCE FAILURES' : summary.healthy < summary.total ? 'SOURCE HEALTH PARTIAL' : 'REGISTERED SOURCE STATUS'}
+          </LwPill>
+          <p className="lw-state__body">
+            {summary.healthy} of {summary.total} registered committee sources report healthy.{' '}
+            {summary.degraded} degraded · {summary.failing} failing · {summary.unknown} unknown.
+          </p>
+          {failing.length ? <p className="lw-state__body">Failing: {failing.map((source) => source.committeeName ?? source.committeeSystemCode ?? source.sourceUrl).join('; ')}.</p> : null}
+          <p className="lw-state__body">
+            Registered source health does not establish complete coverage of every committee calendar or proceeding.
+            {coverage.dataUpdatedAt ? ` Status retrieved ${new Date(coverage.dataUpdatedAt).toLocaleString()}.` : ''}
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
 

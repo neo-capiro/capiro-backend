@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
 import { isCanceled, useArchiveSearch, w1Error, type ArchiveResult } from '../lib/wave1-api.js';
+import { SavedSessionLinks } from './SavedHearingSessions.js';
 
 const PAGE_SIZE = 20;
 
@@ -119,6 +120,11 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
 
   return (
     <div className="lw-archive">
+      {search.data?.savedSessionsState === 'unavailable' ? (
+        <p role="alert" className="lw-card__meta">
+          Saved hearing sessions could not be checked. Transcript results may be incomplete.
+        </p>
+      ) : null}
       <div className="lw-search" style={{ marginBottom: 12 }}>
         <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>
           ⌕
@@ -239,7 +245,7 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
         ) : null}
       </div>
 
-      {isTyping || search.isLoading || wasCanceled ? (
+      {isTyping || search.isPending || wasCanceled ? (
         <>
           <p className="lw-card__meta" style={{ marginTop: 0 }} role="status" aria-live="polite">
             Searching…
@@ -397,6 +403,9 @@ function ArchiveResultCard({
             Transcript
           </LwPill>
         ) : null}
+        {row.savedTranscriptAvailable ? (
+          <LwPill tone="brand" size="22">Saved transcript</LwPill>
+        ) : null}
         {row.intelligenceCount > 0 ? (
           <LwPill tone="brand" size="22">
             {row.intelligenceCount} findings
@@ -446,9 +455,11 @@ function ArchiveResultCard({
         </p>
       ) : null}
 
-      {!row.transcript.available ? (
+      {row.savedSessions?.length ? <SavedSessionLinks sessions={row.savedSessions} /> : null}
+
+      {!row.transcript.available && !row.savedTranscriptAvailable ? (
         <p className="lw-card__meta" style={{ margin: '6px 0 0', fontSize: 12 }}>
-          No transcript is available for this proceeding.
+          No public transcript or linked saved transcript is available in these results.
         </p>
       ) : null}
     </article>
