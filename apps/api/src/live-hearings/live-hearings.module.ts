@@ -11,6 +11,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
+import { InternalLegiWatchController } from './internal-legiwatch.controller.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import { LegiWatchWave2Controller } from './legiwatch-wave2.controller.js';
 import { LegiWatchWave2SavedViewsService } from './legiwatch-wave2-saved-views.service.js';
@@ -50,6 +51,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LiveHearingsPhase7Controller,
     LiveHearingsPhase8Controller,
     LegiWatchWave1Controller,
+    InternalLegiWatchController,
     LegiWatchWave2Controller,
     LegiWatchWave3Controller,
     LegiWatchPhase9RolloutController,

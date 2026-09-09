@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
+import {
+  ClientBriefContextClient,
+  type BriefRelevanceBand,
+  type ClientBriefContext,
+  type PostHearingClientInput,
+} from './client-brief-context.client.js';
 
 /**
  * H4 — Post-Hearing Brief generator (the MVP deliverable).
@@ -15,7 +21,25 @@ import { OrchestratorClient } from './orchestrator.client.js';
  * The narrative synthesis (summary/tone/risks/email) is delegated to the MeriV2
  * orchestrator when configured; if it is not reachable, the brief degrades to a
  * deterministic, data-only assembly (still fully sourced) rather than failing.
+ *
+ * CLIENT-AWARE (2026-09): when the caller names a client, the brief is written
+ * FOR that client. apps/api supplies the client's name and its stored relevance
+ * for this hearing (why it matters, matched priorities, implications — the same
+ * result the hearing detail page shows); the orchestrator compiles that client's
+ * steering. Until this the docstring above promised "client-specific
+ * risks/opportunities" that nothing downstream could deliver: generation never
+ * knew which client, and the invoke path never compiled client steering.
  */
+export type HearingBriefClientContextStatus = 'applied' | 'unavailable' | 'none';
+
+export interface HearingBriefClientContext {
+  clientId: string | null;
+  clientName: string | null;
+  /** See PostHearingClientContextStatus in @capiro/meriv2-core for the semantics. */
+  status: HearingBriefClientContextStatus;
+  relevanceBand: BriefRelevanceBand | null;
+}
+
 export interface HearingBrief {
   sessionId: string;
   title: string;
@@ -43,7 +67,11 @@ export interface HearingBrief {
   draftClientEmail: { subject: string; body: string };
   claimMap: Array<{ claimId: string; segmentId: string; timestampMs: number }>;
   synthesisSource: 'orchestrator' | 'deterministic';
+  clientContext: HearingBriefClientContext;
 }
+
+/** Bands that carry a real matched signal; NONE/INSUFFICIENT are honest absences. */
+const MATCHED_BANDS: ReadonlySet<BriefRelevanceBand> = new Set(['HIGH', 'MEDIUM', 'LOW']);
 
 @Injectable()
 export class HearingBriefService {
@@ -53,6 +81,7 @@ export class HearingBriefService {
     private readonly prisma: PrismaService,
     private readonly crypto: HearingCryptoService,
     private readonly orchestrator: OrchestratorClient,
+    private readonly clientContext: ClientBriefContextClient,
   ) {}
 
   async generate(
@@ -61,23 +90,38 @@ export class HearingBriefService {
     /** Delegated to MeriV2 for service-to-service auth; no raw user token is
      *  relayed any more. */
     clerkUserId: string,
+    /** The client the recap is written FOR; null keeps the client-agnostic brief. */
+    clientId: string | null = null,
   ): Promise<HearingBrief | null> {
     const session = await this.prisma.withTenant(tenantId, (tx) =>
       tx.liveHearingSession.findFirst({ where: { id: sessionId, tenantId } }),
     );
     if (!session) return null;
 
-    const [quotes, actionItems, mentions, cards] = await this.prisma.withTenant(tenantId, (tx) =>
-      Promise.all([
-        tx.keyQuote.findMany({ where: { tenantId, sessionId }, orderBy: { startMs: 'asc' } }),
-        tx.liveActionItem.findMany({ where: { tenantId, sessionId } }),
-        tx.entityMention.findMany({ where: { tenantId, sessionId } }),
-        tx.liveSummaryCard.findMany({
-          where: { tenantId, sessionId },
-          orderBy: { startMs: 'asc' },
-        }),
-      ]),
-    );
+    // The client-context hop runs alongside the derived-table reads, not after
+    // them, so it cannot lengthen the critical path beyond its own bound.
+    const clientContextPromise: Promise<ClientBriefContext | null> = clientId
+      ? this.clientContext.fetch({
+          tenantId,
+          clientId,
+          hearingId: session.hearingId ?? null,
+        })
+      : Promise.resolve(null);
+
+    const [[quotes, actionItems, mentions, cards], clientCtx] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        Promise.all([
+          tx.keyQuote.findMany({ where: { tenantId, sessionId }, orderBy: { startMs: 'asc' } }),
+          tx.liveActionItem.findMany({ where: { tenantId, sessionId } }),
+          tx.entityMention.findMany({ where: { tenantId, sessionId } }),
+          tx.liveSummaryCard.findMany({
+            where: { tenantId, sessionId },
+            orderBy: { startMs: 'asc' },
+          }),
+        ]),
+      ),
+      clientContextPromise,
+    ]);
 
     const revealedQuotes = quotes.map((q) => ({
       segmentId: q.segmentId,
@@ -146,12 +190,28 @@ export class HearingBriefService {
         .map((c) => c.title),
     );
 
+    const client: PostHearingClientInput | null = clientId
+      ? {
+          clientId,
+          name: clientCtx?.clientName ?? null,
+          relevance: clientCtx?.relevance
+            ? {
+                band: clientCtx.relevance.band,
+                whyItMatters: clientCtx.relevance.whyItMatters,
+                matchedPriorities: clientCtx.relevance.matchedPriorities,
+                implications: clientCtx.relevance.implications,
+              }
+            : null,
+        }
+      : null;
+
     // Try orchestrator synthesis; fall back to deterministic assembly.
     const synth = await this.synthesize(tenantId, sessionId, clerkUserId, {
       title: session.title,
       quotes: revealedQuotes,
       mentions: revealedMentions.filter((m) => isRevealed(m.label)),
       actionItems: revealedActionItems.filter(isRevealed),
+      client,
     });
 
     const claimMap = quotes.map((q) => ({
@@ -159,6 +219,18 @@ export class HearingBriefService {
       segmentId: q.segmentId,
       timestampMs: q.startMs,
     }));
+
+    // Authoritative here, not in the tool: an older orchestrator that predates
+    // `clientContext` (or the deterministic path) must still yield an honest
+    // status, and matched relevance is client context whether or not the model ran.
+    const relevanceMatched = Boolean(
+      client?.relevance && MATCHED_BANDS.has(client.relevance.band),
+    );
+    const status: HearingBriefClientContextStatus = !clientId
+      ? 'none'
+      : synth.clientContext === 'applied' || relevanceMatched
+        ? 'applied'
+        : 'unavailable';
 
     return {
       sessionId,
@@ -185,6 +257,12 @@ export class HearingBriefService {
       draftClientEmail: synth.draftClientEmail,
       claimMap,
       synthesisSource: synth.source,
+      clientContext: {
+        clientId,
+        clientName: clientCtx?.clientName ?? null,
+        status,
+        relevanceBand: client?.relevance?.band ?? null,
+      },
     };
   }
 
@@ -197,6 +275,7 @@ export class HearingBriefService {
       quotes: Array<{ text: string; speakerName?: string; timestampMs: number }>;
       mentions: Array<{ type: string; label: string; ref: string | null }>;
       actionItems: string[];
+      client: PostHearingClientInput | null;
     },
   ): Promise<{
     executiveSummary: string;
@@ -206,6 +285,7 @@ export class HearingBriefService {
     recommendedNextSteps: string[];
     draftClientEmail: { subject: string; body: string };
     source: 'orchestrator' | 'deterministic';
+    clientContext: HearingBriefClientContextStatus | null;
   }> {
     // Log the INPUT VOLUME unconditionally. A recap can be poor for two entirely
     // different reasons — synthesis unavailable, or synthesis starved of source
@@ -215,7 +295,8 @@ export class HearingBriefService {
     // storage rule, since EntityMention has no encrypted text column yet).
     this.logger.log(
       `brief inputs session=${sessionId} quotes=${data.quotes.length} ` +
-        `mentions=${data.mentions.length} actionItems=${data.actionItems.length}`,
+        `mentions=${data.mentions.length} actionItems=${data.actionItems.length} ` +
+        `client=${data.client?.clientId ?? '-'} relevance=${data.client?.relevance?.band ?? '-'}`,
     );
     if (this.orchestrator.configured) {
       try {
@@ -227,8 +308,11 @@ export class HearingBriefService {
           quotes: data.quotes,
           mentions: data.mentions,
           actionItems: data.actionItems,
+          client: data.client,
         });
-        if (out) return { ...out, source: 'orchestrator' };
+        if (out) {
+          return { ...out, source: 'orchestrator', clientContext: out.clientContext ?? null };
+        }
         // summarizeHearing returns null on failure and logs its own reason. Record
         // the DECISION here too, so the degradation is visible from this service's
         // logs alone rather than only from the client's.
@@ -246,12 +330,21 @@ export class HearingBriefService {
           `using deterministic assembly`,
       );
     }
-    // Deterministic fallback — fully sourced, no fabricated narrative.
+    // Deterministic fallback — fully sourced, no fabricated narrative. The one
+    // client-specific sentence it may carry is the firm's STORED relevance
+    // rationale for this hearing, verbatim — a fact on record, not a synthesis.
     const topMentions = uniq(data.mentions.map((m) => m.label)).slice(0, 8);
+    const rel = data.client?.relevance;
+    const relevanceLine =
+      rel && rel.whyItMatters.trim() && MATCHED_BANDS.has(rel.band)
+        ? ` Relevance to ${data.client?.name ?? 'the client'} (${rel.band}, from the firm's stored ` +
+          `relevance analysis): ${rel.whyItMatters.trim()}`
+        : '';
     return {
       executiveSummary:
         `Hearing "${data.title}" produced ${data.quotes.length} flagged moment(s)` +
         (topMentions.length ? ` touching: ${topMentions.join(', ')}.` : '.') +
+        relevanceLine +
         ' This recap is a source-verified assembly, not a narrative synthesis:' +
         ' the summariser was unavailable when it ran, so every line below is' +
         ' verbatim from the transcript rather than analysed. Regenerating the' +
@@ -275,6 +368,7 @@ export class HearingBriefService {
           `\n\nWe will follow up with a fuller analysis.\n\nBest,\nCapiro`,
       },
       source: 'deterministic',
+      clientContext: null,
     };
   }
 

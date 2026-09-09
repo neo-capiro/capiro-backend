@@ -353,6 +353,19 @@ export interface HearingBrief {
   draftClientEmail: { subject: string; body: string };
   claimMap?: Array<{ claimId: string; segmentId: string; timestampMs: number }>;
   synthesisSource: 'orchestrator' | 'deterministic';
+  /**
+   * Whether the recap was written FOR a client and actually shaped by that
+   * client's context: `applied` (matched relevance and/or client steering
+   * reached the model), `unavailable` (a client was named but nothing
+   * client-specific could be loaded), `none` (generic recap). Optional only so a
+   * brief from an older intel-api still renders.
+   */
+  clientContext?: {
+    clientId: string | null;
+    clientName: string | null;
+    status: 'applied' | 'unavailable' | 'none';
+    relevanceBand: string | null;
+  };
 }
 
 const fmtBriefTs = (ms: number): string => {
@@ -376,6 +389,18 @@ export function briefToMarkdown(brief: HearingBrief): string {
     }_`,
     '',
   );
+  // The recap is filed into a client's Documents, so the document itself must
+  // say who it was written for and whether that client's context actually
+  // shaped it — a reader months later cannot see the modal's labels.
+  const cc = brief.clientContext;
+  if (cc?.clientId) {
+    const forWhom = cc.clientName ?? 'the selected client';
+    const how =
+      cc.status === 'applied'
+        ? 'client priorities applied'
+        : 'no client-specific context was available — read as a general recap';
+    L.push(`_Prepared for ${forWhom} · ${how}_`, '');
+  }
   L.push('## Executive summary', brief.executiveSummary || '_(pending)_', '');
   if (brief.supporters.length) L.push(`**Supporters:** ${brief.supporters.join(', ')}`, '');
   if (brief.opponents.length) L.push(`**Opponents:** ${brief.opponents.join(', ')}`, '');
@@ -429,15 +454,23 @@ export function briefToMarkdown(brief: HearingBrief): string {
   return L.join('\n').trim();
 }
 
+/**
+ * Generate the post-hearing brief. `clientId` is the client it is written FOR —
+ * intel-api grounds risks/opportunities in that client's stored relevance and
+ * the orchestrator compiles its steering. Without it the brief is client-agnostic,
+ * which the Save Recap modal no longer does: it picks the client first.
+ */
 export function useGenerateBrief() {
   const api = useApi();
   return useMutation({
-    mutationFn: async (sessionId: string) =>
-      (
+    mutationFn: async (input: { sessionId: string; clientId?: string | null }) => {
+      const q = input.clientId ? `?clientId=${encodeURIComponent(input.clientId)}` : '';
+      return (
         await api.get<HearingBrief | null>(
-          `/intel-api/hearings/${encodeURIComponent(sessionId)}/brief`,
+          `/intel-api/hearings/${encodeURIComponent(input.sessionId)}/brief${q}`,
         )
-      ).data,
+      ).data;
+    },
   });
 }
 

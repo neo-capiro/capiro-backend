@@ -12,7 +12,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { ToolInputValidationError, ToolNotFoundError } from '@capiro/meriv2-core';
+import {
+  ToolInputValidationError,
+  ToolNotFoundError,
+  type ContextSurface,
+} from '@capiro/meriv2-core';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { OrchestratorTenantContext } from '../auth/tenant-context.js';
@@ -25,6 +29,60 @@ import {
 
 interface InvokeBody {
   input?: unknown;
+  /**
+   * Optional context scope for the invocation. Without them `resolve()` compiles
+   * firm identity + user voice only, on the `ga-chat` surface — so every tool
+   * invoked here was client-blind, even ones producing a client deliverable
+   * (the post-hearing brief was the first to need otherwise). Both are
+   * additive: absent means exactly the previous behaviour.
+   */
+  clientId?: unknown;
+  surface?: unknown;
+}
+
+/**
+ * Every ContextSurface, as a runtime allowlist. Typed against the union so a
+ * surface added to the contract without being listed here fails to compile
+ * rather than silently becoming un-invokable.
+ */
+const INVOKE_SURFACES: readonly ContextSurface[] = [
+  'chat',
+  'ga-chat',
+  'tool-invoke',
+  'in-editor',
+  'workspace-editor',
+  'strategy',
+  'steward',
+  'outreach',
+  'memo',
+  'district-brief',
+  'research',
+  'workspace-gen',
+];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Validate the optional scope fields; a malformed value is a 400, never a silent default. */
+export function parseInvokeScope(body: InvokeBody | undefined): {
+  clientId?: string;
+  surface?: ContextSurface;
+} {
+  const scope: { clientId?: string; surface?: ContextSurface } = {};
+  if (body?.clientId !== undefined && body.clientId !== null) {
+    if (typeof body.clientId !== 'string' || !UUID_RE.test(body.clientId)) {
+      throw new BadRequestException('clientId must be a UUID');
+    }
+    scope.clientId = body.clientId;
+  }
+  if (body?.surface !== undefined && body.surface !== null) {
+    if (
+      typeof body.surface !== 'string' ||
+      !(INVOKE_SURFACES as readonly string[]).includes(body.surface)
+    ) {
+      throw new BadRequestException(`surface must be one of: ${INVOKE_SURFACES.join(', ')}`);
+    }
+    scope.surface = body.surface as ContextSurface;
+  }
+  return scope;
 }
 
 /**
@@ -87,7 +145,10 @@ export class MeriController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ): Promise<{ tool: string; result: unknown }> {
-    const meriCtx = await this.resolver.resolve(tc);
+    const scope = parseInvokeScope(body);
+    // `undefined` surface keeps resolve()'s own default; a clientId turns on the
+    // client-steering/client-people layers and the ethical-wall check.
+    const meriCtx = await this.resolver.resolve(tc, scope.clientId, scope.surface);
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
     const exec = () => this.registryService.registry.invoke(name, body?.input ?? {}, meriCtx);

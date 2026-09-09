@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { FinalSegment, ExtractionResult } from './hearing.types.js';
 import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
+import type { PostHearingClientInput } from './client-brief-context.client.js';
 
 /**
  * Calls the MeriV2 orchestrator tool registry to turn a final transcript
@@ -134,6 +135,8 @@ export class OrchestratorClient {
     quotes: Array<{ text: string; speakerName?: string; timestampMs: number }>;
     mentions: Array<{ type: string; label: string; ref: string | null }>;
     actionItems: string[];
+    /** The client the recap is written FOR; absent/null = client-agnostic brief. */
+    client?: PostHearingClientInput | null;
   }): Promise<{
     executiveSummary: string;
     tone: string;
@@ -141,6 +144,8 @@ export class OrchestratorClient {
     opportunities: string[];
     recommendedNextSteps: string[];
     draftClientEmail: { subject: string; body: string };
+    /** Absent from an orchestrator that predates client-aware briefs. */
+    clientContext?: 'applied' | 'unavailable' | 'none';
   } | null> {
     // Every `return null` below is logged. This method degrades to a
     // deterministic recap on failure, and the caller ALSO swallows null quietly,
@@ -178,7 +183,15 @@ export class OrchestratorClient {
               quotes: params.quotes,
               mentions: params.mentions,
               actionItems: params.actionItems,
+              ...(params.client ? { client: params.client } : {}),
             },
+            // Transport-level scope, not tool input: from `clientId` the
+            // orchestrator compiles this client's steering and checks the ethical
+            // wall; `memo` is the external-deliverable surface — a recap is filed
+            // into the client's Documents, so its context provenance must be
+            // recorded, not best-effort. Omitted for a client-agnostic brief so
+            // that request stays byte-identical to before.
+            ...(params.client ? { clientId: params.client.clientId, surface: 'memo' } : {}),
           }),
           signal: controller.signal,
         },
@@ -198,6 +211,7 @@ export class OrchestratorClient {
           opportunities: string[];
           recommendedNextSteps: string[];
           draftClientEmail: { subject: string; body: string };
+          clientContext?: 'applied' | 'unavailable' | 'none';
         };
       } | null;
       if (!envelope?.result) {

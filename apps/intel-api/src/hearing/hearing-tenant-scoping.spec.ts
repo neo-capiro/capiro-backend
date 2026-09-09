@@ -180,7 +180,10 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
       model('liveHearingSession').findFirst.mockResolvedValue({ id: 's1', title: 'Markup' });
       const crypto = { configured: false } as unknown as HearingCryptoService;
       const orchestrator = { configured: false } as unknown as OrchestratorClient;
-      const service = new HearingBriefService(prisma, crypto, orchestrator);
+      // Client context is fetched from apps/api over the internal channel; an
+      // unconfigured client is the client-agnostic path this test exercises.
+      const clientContext = { configured: false, fetch: async () => null } as never;
+      const service = new HearingBriefService(prisma, crypto, orchestrator, clientContext);
 
       await service.generate('tenant-1', 's1', 'jwt');
 
