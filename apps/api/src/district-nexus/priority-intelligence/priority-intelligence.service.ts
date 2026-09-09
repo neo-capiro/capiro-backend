@@ -620,10 +620,14 @@ export class DistrictNexusPriorityIntelligenceService {
       .sort((a, b) => b.assetCount - a.assetCount)
       .slice(0, 8);
 
+    // Use the entire aggregate, not the bounded asset preview or economic rail.
+    const boundaryCongresses = [...new Set(groups.map((r) => r.boundaryCongress))].sort((a, b) =>
+      a === b ? 0 : a == null ? 1 : b == null ? -1 : a - b,
+    );
     const warnings: string[] = [];
-    if (groups.some((r) => r.boundaryCongress == null)) {
+    if (boundaryCongresses.includes(null)) {
       warnings.push(
-        'FRPP rows carry no boundary Congress for their district column — district vintage is source-unknown (not inferred).',
+        'FRPP rows with no source boundary Congress are present — district vintage is source-unknown (not inferred).',
       );
     }
 
@@ -668,6 +672,7 @@ export class DistrictNexusPriorityIntelligenceService {
       agenciesByAssetCount,
       topAssets,
       fiscalYears,
+      boundaryCongresses,
       warnings,
     };
   }

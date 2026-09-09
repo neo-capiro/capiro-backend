@@ -66,6 +66,8 @@ export interface GsaFederalPresence {
   topAssets: GsaPropertySummary[];
   /** FYs present for this district. */
   fiscalYears: number[];
+  /** Distinct source values across ALL rows in the latest FY aggregate, including unknowns. */
+  boundaryCongresses: Array<number | null>;
   warnings: string[];
 }
 

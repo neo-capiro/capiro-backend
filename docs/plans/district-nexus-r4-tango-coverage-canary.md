@@ -1,98 +1,147 @@
-# District Nexus R4 — authenticated browser canary plan (post-deploy, authorization-gated)
+# District Nexus R4 — authenticated browser canary
 
-Scope guard: this canary runs ONLY after the PR merges and ships to capiro-dev with explicit
-authorization. It performs no writes, no ingestion, no flag mutations, and touches no prod
-account. Read-only page loads only.
+This is a read-only check of the authorized capiro-dev surface. Confirm the host is
+serving the intended environment and release before starting. Do not access
+capiro-prod-os-capiro, ingest data, change tenant flags, or enable schedules.
 
-## Preconditions
+## Browser findings (2026-09-09) and repair scope
 
-1. PR merged + deployed; api/intel-api/web-vnext TDs rolled to the merge SHA (standard R4 ship
-   path: three parallel arm64 buildx builds, registration scripts, digest checks).
-2. Migration `20280908010000_tango_subaward_checkpoint_pagination` applied via
-   `capiro-dev-api-migrate` (bare `["migrate"]`), re-pinned to the ship SHA first. Verify live
-   columns: `SELECT column_name FROM information_schema.columns WHERE
-   table_name='tango_subaward_sync_checkpoint' ORDER BY ordinal_position;` must now include
-   `page_size`, `page_size_source`, `total_reported`.
-3. Canopy tenant: `capiro-internal` (17b63099-bc0f-4ac5-b596-496161e9481e). Client: Anduril
-   (`d1b0cb55-…` — the same client used for the FL-08 service-method canary).
-4. All four ingestion schedules remain DISABLED; no further live ingestion in this canary.
-5. Re-pin `c1-sql-master` to the ship image (standard post-ship cadence) for the evidence queries.
+The authenticated browser check reached the real District Nexus drawers:
 
-## Canary steps (authenticated browser session, os.capiro.ai)
+- **L3Harris Technologies / FL-08:** GSA rendered 590 assets, 550 owned / 40 leased,
+  and 505,731 sq ft (FY2024). Supplier coverage rendered "No matches in records
+  ingested so far." with a partial corpus note showing 50 of 2,743,636 records.
+- **Anduril / CA-47:** GSA rendered 73 assets, 65 owned / 8 leased, and 1,759,253 sq ft.
+  Supplier coverage required a confirmed contracting identity and retained the
+  partial corpus note. Anduril's selectable districts were CA-47 and GA-06; the
+  old instruction to select Anduril / FL-08 was not reproducible in the UI.
+- Requested and enacted amounts remained distinct; Senate CDS entries displayed
+  statewide labels and GSA source-unknown warnings were visible.
+- Three defects were observed: GSA's source line borrowed boundary Congress 119
+  from the economic rail despite its unknown-source warning; manufacturing metrics
+  omitted their measurement names; Federal Market showed about $2B in FL-08
+  contracts while the canonical District Nexus contract total was absent.
 
-User logs in with their own credentials; agent assists read-only. Surface:
-`https://os.capiro.ai` → client Anduril → District Nexus → district FL-08.
+The repair uses GSA's full latest-FY aggregate for its source boundary values,
+adds sector measurement labels, and makes Federal Market contracts use District
+Nexus's existing canonical award identity policy. A disposable database regression
+compares both contract readers against the same facts. Repeat live contract
+reconciliation after deployment; the browser observation alone does not establish
+which live mappings produced the discrepancy.
 
-1. **FL-08 GSA totals** — Federal Property panel:
-   - `detailedAssetCount` 590 and `detailedSquareFeetTotal` 505,731 sq ft visible in the
-     priority-intelligence panel (or the equivalent rendered totals).
-   - Distinct from the service-method canary: here we verify the NUMBERS RENDER in the
-     authenticated UI, not just that the service method returns them.
-   - `recentChanges: 0` remains correct (all FL-08 ledger rows are first-publication baseline).
+These observations are browser rendering evidence, not an independent live
+database or network-payload audit. This repair was not deployed by the canary
+session. Matches-present supplier coverage and a flag-off control tenant were
+not exercised in that browser check.
 
-2. **Partial supplier coverage** — Federal Market panel:
-   - The Subawards cell shows the supplier status; with the corpus at 25/2,743,636 the panel
-     must show the partial-coverage wording — either "No matches in records ingested so far."
-     (if Anduril has no matches in the 25 rows) or "Matches in records ingested so far" with
-     the caption "District-resolved · records ingested so far" (if matches exist).
-   - The note line must render `sourceCoverageNote`, e.g. "Subaward corpus sync is in
-     progress: 25 records ingested so far of 2,743,636."
-   - MUST NOT show a bare "real empty result" claim while completeness is in_progress.
-   - Capture: the panel screenshot + the network response of
-     `/api/intelligence/clients/<id>/district-nexus-v2/supplier-footprint/status` (check
-     `sourceCompleteness`, `sourceCoverageNote`, `providerTotalRecords` fields present).
+## Preconditions for the repair canary
 
-3. **Requested vs final CPF/CDS amounts** — Community Funding panel:
-   - Amounts displayed must use the requested-vs-final distinction vocabulary (requested ≠
-     enacted). Check both a House CPF and a Senate CDS entry render with their amount stage.
-   - Capture: network response of the priority-intelligence endpoint showing `cpfCds` rows
-     with `amountStage`-carrying fields.
+1. After merge/deploy authorization, verify API and web serve the repair commit
+   or a verified descendant. Record the actual release SHA and timestamp.
+   This display/identity repair adds no migration.
+2. R4 and migration
+   `20280908010000_tango_subaward_checkpoint_pagination` were already shipped.
+   Verify their continued presence rather than replaying recovery by default.
+3. Use the internal tenant and a client visible to the signed-in user:
+   - L3Harris Technologies:
+     `0e042626-ecde-44b3-88f1-9c2aed31d910`, district FL-08.
+   - Anduril:
+     `d1b0cb55-fd3a-49ef-847a-7bbe9175dc44`, district CA-47.
+   Reconfirm these selections exist; do not manufacture a client relationship.
+4. All four ingestion schedules remain disabled and external tenant activation
+   remains unchanged. Use an authenticated session, or let the user sign in.
 
-4. **Statewide Senate labels** — CDS entries from Senate requests must carry the statewide
-   label (statewide by construction unless a project district is source-backed). A
-   state-attributed Senate project without the source-backed district must NOT appear as a
-   district-resolved row.
+## Checks
 
-5. **Source warnings** — the priority-intelligence panel renders `warnings` (e.g. the
-   source-unknown boundary-Congress warning) — visible in the panel, not suppressed.
+1. **GSA totals and vintage.** Open District Nexus, choose L3Harris, then FL-08.
+   The last observed FY2024 totals were 590 assets / 505,731 sq ft. If ingestion
+   has changed, reconcile against the current source aggregate instead of treating
+   the old numbers as permanent fixtures.
+   - The source line must say "district vintage source-unknown (not inferred)"
+     when any contributing GSA boundary value is null or metadata is absent.
+   - Economic boundary Congress 119 must not become GSA's boundary.
+   - If a later source supplies a known boundary, render that source's value;
+     label multiple known boundaries as mixed.
+   - Source warnings remain visible. First-publication baseline ledger entries
+     must not appear as new material changes.
 
-6. **Flag-off behavior** — with `district_nexus_supplier_footprint` disabled for a control
-   tenant (or by inspecting the fail-closed path), the supplier surface must vanish entirely:
-   - no "Supplier coverage" cell, no partial-coverage wording, no call to the supplier status
-     endpoint in the network tab.
-   - The 404-deny path (flag row absent) must also hide the surface (web treats it as denial).
-   - This can be verified against a tenant where the flag is off; do NOT mutate flags to test.
+2. **Sector measurements.** In Industry & workforce, every row must name its
+   measurement, retaining units, source, year, and public-context labeling.
+   - For the observed CBP FY2023 FL-08 snapshot: annual payroll was
+     1,453,285,000 USD, first-quarter payroll 355,377,000 USD, and employment
+     18,543 people.
+   - Annual and quarterly payroll must not have indistinguishable labels or be
+     added together. Unknown metric keys must remain identifiable.
 
-## Evidence separation (report format)
+3. **Contract reconciliation.** For the same L3Harris / FL-08 selection and
+   equivalent date/source filters, compare Federal Market's contract count and
+   amount with the canonical District Nexus contract rail and its evidence.
+   - Both readers use `federal_award`, place-of-performance geography, and the
+     same contract identity policy. Without a date filter, the drawer reads all
+     ingested dates; do not compare it to a time-filtered explorer.
+   - Verified UEIs take precedence over every name match. Contracting mapping
+     UUIDs resolve through `federal_contractor.uei`; assistance mappings do not
+     supply contract identifiers. Only reviewed, non-fuzzy names can be a fallback
+     when no verified UEI exists.
+   - Capture matching response fields or visible values where available. Explain
+     any remaining mismatch before claiming this check passes. Do not broaden
+     identity matching or add subawards/future opportunities to make totals agree.
 
-- **Browser canary (this document):** authenticated UI rendering + network payloads — proves
-  the deployed surface, not just service methods.
-- **Service-method canary (already done 2026-09-08 on ship image):** FL-08 590/505,731 via
-  `getClientDistrictPriorityIntelligence` in a Nest app context.
-- **Unit/integration evidence (PR):** jest/vitest/migration rehearsal results in the PR body.
-- These three classes stay distinct in the report; none substitutes for another.
+4. **Partial supplier coverage and identity.**
+   - L3Harris's previously observed no-match case must retain
+     "No matches in records ingested so far." while the unfiltered corpus is partial.
+   - A client with real matched rows should show its figures qualified as
+     "records ingested so far"; do not create matches for this test.
+   - Anduril's no-identity case must explain the missing confirmed identity.
+   - All cases retain `sourceCoverageNote` and current observed counts. The last
+     verified corpus was 50 / 2,743,636; it is not complete.
+   - Never label a partial no-match case as a complete, genuinely empty corpus.
+     If an appropriate matched client is unavailable, mark that case unverified.
 
-## Bounded resume (post-canary, separate authorization)
+5. **CPF/CDS, Senate, and warnings.** Verify requested versus final/enacted amounts,
+   source year, statewide Senate attribution when no project district is
+   source-backed, and visible source-unknown warnings. Missing final amounts
+   must not become zero-dollar awards.
 
-If and only if the operator authorizes further ingestion, the exact recovery command for the
-legacy checkpoint is:
+6. **Flag-off control.** Use an existing authorized control tenant with the child
+   flag off; do not mutate flags. Priority Intelligence must be hidden when its
+   child flag is off. Supplier coverage must be hidden when its flag is off or
+   the endpoint returns the flag-denial 404. Where supported, verify no supplier
+   status request is issued for a disabled surface. If there is no available
+   control tenant, mark live verification incomplete and report automated flag
+   tests separately.
 
+## Evidence record
+
+For each check, record the environment/release, tenant, client, district, observed
+result, pass/fail/unverified, and screenshot or response evidence when available.
+
+Keep these separate:
+
+- Authenticated browser rendering and any actually captured network payloads.
+- Live service-method/database checks, including the earlier FL-08 590 / 505,731
+  proof on the R4 ship.
+- Local unit/integration results attached to the repair PR.
+
+A service-method result or bundle marker does not establish that the UI rendered
+correctly. Automated fixtures do not replace missing live identity/control cases.
+
+## Further Tango ingestion — separate authorization
+
+The legacy recovery already completed: the last verified checkpoint was
+`next_page=3`, `page_size=25`, `page_size_source=resume_flag`,
+`completeness=in_progress`, with 50 distinct stored records.
+
+If further ingestion is explicitly authorized, first verify the current checkpoint,
+provider quota, task image, and that no competing run is active. The ordinary
+bounded resume is:
+
+```text
+sync-tango-subawards --commit --limit 25
 ```
-aws ecs run-task \
-  --cluster capiro-dev \
-  --task-definition capiro-dev-api-sync-tango-subawards:<rev pinned to merge SHA> \
-  --launch-type FARGATE \
-  --network-configuration "$NETCFG" \
-  --overrides '{"containerOverrides":[{"name":"api-sync-tango-subawards","command":["sync-tango-subawards","--commit","--limit","25","--resume-page-size","25"]}]}'
-```
 
-- `--resume-page-size 25` is the operator assertion that the 2026-09-08 first run walked at
-  size 25 — evidence: its run log shows `pages=1, processed=25` with the request limit
-  `min(100, 25) = 25` (log line `TANGO_SUBAWARD_SYNC_DONE … "pages":1`), and the checkpoint's
-  `next_page=2` was written from that single 25-row page.
-- The command persists `page_size=25, page_size_source='resume_flag'` on first checkpoint
-  write, making all later resumes provable.
-- Alternative if the operator declines the assertion: leave the legacy checkpoint untouched;
-  run bounded fresh walks under a DIFFERENT filter (e.g. `--fiscal-year`) which lands on a
-  different sync key, and the unfiltered corpus stays honestly `in_progress`/partial.
-- Quota reality: 25 requests/window — keep `--limit` ≤ 25×page-size per run.
+Do not repeat `--resume-page-size 25` for an already migrated checkpoint, reset the
+walk, or change its page size. The previously observed quota was 25 requests per
+window; recheck it before execution. Verify the resulting checkpoint, distinct
+identities, SyncRun, and INGESTION_METRIC after the bounded run. Schedules remain
+disabled unless separately authorized.

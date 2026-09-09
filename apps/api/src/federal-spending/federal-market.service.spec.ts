@@ -100,7 +100,15 @@ describe('FederalMarketService geography composition', () => {
 
   it('passes a client scope through both awarded-money rails', async () => {
     const { service, internal } = harness();
-    internal.clientScope.mockResolvedValue({ ueis: ['AAA111BBB222'], names: [] });
+    internal.clientScope.mockResolvedValue({
+      ueis: ['AAA111BBB222'],
+      names: [],
+      contractIdentityInput: {
+        uei: 'AAA111BBB222',
+        contractingMappings: [],
+        assistanceMappings: [],
+      },
+    });
 
     await service.geography('tenant-1', { clientId: 'client-1' });
 

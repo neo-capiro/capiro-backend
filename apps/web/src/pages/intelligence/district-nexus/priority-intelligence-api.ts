@@ -111,6 +111,9 @@ export interface GsaFederalPresence {
   agenciesByAssetCount: Array<{ agency: string; assetCount: number }>;
   topAssets: GsaPropertySummary[];
   fiscalYears: number[];
+  /** All source boundary values in the latest FY aggregate; null means unknown.
+   * Optional while older API images are still serving during a rollout. */
+  boundaryCongresses?: Array<number | null>;
   warnings: string[];
 }
 

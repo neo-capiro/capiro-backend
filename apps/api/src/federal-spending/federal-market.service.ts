@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  buildAwardIdentityRails,
+  isResolvableContractorId,
+  type AwardIdentityInput,
+} from '../funding-opportunities/award-history-identity.js';
 import type {
   FederalContractMarketRow,
   FederalForecastMarketRow,
@@ -20,6 +25,7 @@ const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACT
 interface ClientFederalScope {
   ueis: string[];
   names: string[];
+  contractIdentityInput: AwardIdentityInput;
 }
 
 interface CountRow {
@@ -160,7 +166,7 @@ export class FederalMarketService {
     const { page, pageSize, offset } = paging(query);
     const clauses = this.commonAwardClauses(query);
     if (scope) {
-      const identity = this.contractScopeSql(scope);
+      const identity = await this.contractScopeSql(scope);
       if (!identity) return this.emptyPage(page, pageSize, 'usaspending');
       clauses.push(identity);
     }
@@ -506,7 +512,7 @@ export class FederalMarketService {
     const contractClauses = this.commonAwardClauses(query);
     const subawardClauses = this.commonSubawardClauses(query);
     if (scope) {
-      const contractIdentity = this.contractScopeSql(scope);
+      const contractIdentity = await this.contractScopeSql(scope);
       const subawardIdentity = this.subawardScopeSql(scope);
       if (contractIdentity) contractClauses.push(contractIdentity);
       else contractClauses.push(Prisma.sql`FALSE`);
@@ -571,7 +577,13 @@ export class FederalMarketService {
           rollUpAwards: true,
           source: { in: ['contracting', 'assistance_recipient'] },
         },
-        select: { externalId: true, externalName: true },
+        select: {
+          source: true,
+          externalId: true,
+          externalName: true,
+          matchBasis: true,
+          matchTier: true,
+        },
       });
       return {
         ueis: dedupe([
@@ -581,6 +593,11 @@ export class FederalMarketService {
           ),
         ]),
         names: lower(mappings.map((mapping) => mapping.externalName ?? '')),
+        contractIdentityInput: {
+          uei: client.uei,
+          contractingMappings: mappings.filter((mapping) => mapping.source === 'contracting'),
+          assistanceMappings: [],
+        },
       };
     });
   }
@@ -623,12 +640,31 @@ export class FederalMarketService {
     return clauses;
   }
 
-  private contractScopeSql(scope: ClientFederalScope): Prisma.Sql | null {
-    const options: Prisma.Sql[] = [];
-    if (scope.ueis.length) options.push(Prisma.sql`recipient_uei = ANY(${scope.ueis}::text[])`);
-    if (scope.names.length)
-      options.push(Prisma.sql`lower(contractor_name) = ANY(${scope.names}::text[])`);
-    return options.length ? Prisma.sql`(${Prisma.join(options, ' OR ')})` : null;
+  private async contractScopeSql(scope: ClientFederalScope): Promise<Prisma.Sql | null> {
+    // Same canonical contract identity as District Nexus: contracting mappings
+    // refer to contractor UUIDs, and a verified UEI suppresses ALL name matches.
+    // Resolve global contractors after the tenant-scoped read has completed.
+    const ids = [
+      ...new Set(
+        scope.contractIdentityInput.contractingMappings
+          .map((mapping) => mapping.externalId)
+          .filter(isResolvableContractorId),
+      ),
+    ];
+    const contractors = ids.length
+      ? await this.prisma.federalContractor.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, uei: true },
+        })
+      : [];
+    const rail = buildAwardIdentityRails(
+      scope.contractIdentityInput,
+      new Map(contractors.map((contractor) => [contractor.id, contractor.uei])),
+    ).contract;
+    if (rail.basis === 'exact_uei') return Prisma.sql`recipient_uei = ANY(${rail.ueis}::text[])`;
+    if (rail.basis === 'reviewed_name_fallback')
+      return Prisma.sql`lower(contractor_name) = ANY(${rail.fallbackNames}::text[])`;
+    return null;
   }
 
   private subawardScopeSql(scope: ClientFederalScope): Prisma.Sql | null {

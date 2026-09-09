@@ -102,6 +102,7 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
     const gsa = response.priorityIntelligence.federalProperty;
     expect(gsa).toMatchObject({
       availability: { status: 'loaded' },
+      boundaryCongresses: [null],
       detailedAssetCount: 601,
       detailedSquareFeetTotal: 60100,
       summarizedInstallationCount: 2,
@@ -141,6 +142,43 @@ describe('FRPP FIPS geography at the real priority read boundary', () => {
       'GSA FRPP federal property data not ingested',
     );
   });
+  test.each([
+    { source: [119, null], expected: [119, null] },
+    { source: [119, 118, 119], expected: [118, 119] },
+    { source: [118, 118], expected: [118] },
+  ])(
+    'reports all aggregate boundary values $expected, not just the preview',
+    async ({ source, expected }) => {
+      const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
+      Object.assign(prisma.gsaRealProperty, {
+        findMany: jest.fn(async (args: { select?: unknown }) =>
+          args.select
+            ? [{ fiscalYear: 2024 }]
+            : [{ rpUid: 'preview', fiscalYear: 2024, boundaryCongress: 119 }],
+        ),
+        groupBy: jest.fn(async () =>
+          source.map((boundaryCongress) => ({
+            grain: 'detailed_asset',
+            reportingAgency: 'GSA',
+            legalInterest: 'Owned',
+            boundaryCongress,
+            _count: { _all: 100 },
+            _sum: { squareFeet: 10000 },
+          })),
+        ),
+      });
+      const response = await new DistrictNexusPriorityIntelligenceService(
+        prisma,
+        makeNexusStub(),
+      ).getClientDistrictPriorityIntelligence(TENANT, CLIENT, 'FL', '08');
+      const gsa = response.priorityIntelligence.federalProperty;
+      expect(gsa.boundaryCongresses).toEqual(expected);
+      expect(gsa.topAssets).toHaveLength(1);
+      expect(gsa.warnings.some((warning) => warning.includes('source-unknown'))).toBe(
+        source.includes(null),
+      );
+    },
+  );
   test('a completed committed import with no district matches is loaded and empty, never not ingested', async () => {
     const { prisma } = makePrisma({ congressMemberBehavior: 'empty' });
     jest.mocked(prisma.gsaRealPropertySourceRun.findMany).mockResolvedValue([

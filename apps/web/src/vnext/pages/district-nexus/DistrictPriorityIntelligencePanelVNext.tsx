@@ -8,6 +8,10 @@ import {
   type CpfCdsRequestSignal,
 } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
 import { splitDistrictKey } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
+import {
+  gsaBoundaryLabel,
+  sectorMetricLabel,
+} from '../../../pages/intelligence/district-nexus/priority-intelligence-format.js';
 
 /**
  * District Nexus Release 4 — "Federal & local priorities" drawer rail.
@@ -317,9 +321,7 @@ function FederalPresenceBlock({ data: d }: { data: ClientPriorityIntelligenceRes
       </div>
       <div className="dnx-muted">
         Source: GSA FRPP {sourceLabel} · FY{g.fiscalYears.join(', FY')} ·{' '}
-        {d.geographyVintage.boundaryCongress == null
-          ? 'district vintage source-unknown (not inferred)'
-          : `boundary congress ${d.geographyVintage.boundaryCongress}`}
+        {gsaBoundaryLabel(g.boundaryCongresses)}
       </div>
       {g.topAssets.slice(0, 4).map((a) => (
         <div key={a.rpUid} className="dnx-muted" style={{ fontSize: 12 }}>
@@ -359,7 +361,7 @@ function SectorBlock({ data: d }: { data: ClientPriorityIntelligenceResponse }) 
       ) : (
         visible.map((m) => (
           <div key={`${m.source}:${m.metricKey}:${m.naicsCode ?? ''}`}>
-            {m.label}:{' '}
+            {m.label} · {sectorMetricLabel(m.metricKey)}:{' '}
             <b>
               {Math.round(m.metricValue!).toLocaleString('en-US')}
               {m.unit ? ` ${m.unit}` : ''}
