@@ -440,23 +440,26 @@ describe('Phase 10B-25 Defect 1 — R-2A structural project identity', () => {
     expect(result.identities.some((i) => i.parentPeCode === '')).toBe(false);
   });
 
-  it('10. real fixture pages 126, 161, 164 are correctly out-of-scope for the R-2A extractor (genuine Exhibit R-2 pages)', () => {
+  it('10. real fixture pages 126, 161, 164 are explicit exhibit boundaries for the R-2A extractor (genuine Exhibit R-2 pages)', () => {
     const pages = readRealFixturePages();
     for (const pageNumber of [126, 161, 164]) {
       const page = pages.find((p) => p.page === pageNumber);
       expect(page).toBeDefined();
       const result = extractR2aStructuralHeaderV1(page!);
-      // Never resolved as a valid R-2A identity page, and never surfaced
-      // as an omission either -- these pages structurally never carry a
-      // project cell or the R-2A marker, so the R-2A extractor's own
-      // grouping never touches them at all (their pre-existing
-      // ambiguous_layout findings originate from the unrelated R-2
-      // PE-level extractor stage, untouched by this change).
-      expect(result.status).toBe('not_r2a_page');
+      // Phase 10B-35: never resolved as a valid R-2A identity page, never
+      // an omission, and -- unlike the pre-fix `not_r2a_page` -- never a
+      // silent continuation of the previous project either. These pages
+      // carry the Exhibit R-2 header and a PE cell with no project cell,
+      // so they close whatever project section was open (their
+      // ambiguous_layout findings originate from the R-2 PE-level
+      // extractor stage, which owns them).
+      expect(result.status).toBe('exhibit_boundary');
+      if (result.status === 'exhibit_boundary') expect(result.kind).toBe('pe_summary');
     }
-    const { omissions } = groupR2aPagesByStructuralIdentityV1(pages);
+    const { omissions, groups } = groupR2aPagesByStructuralIdentityV1(pages);
     for (const pageNumber of [126, 161, 164]) {
       expect(omissions.some((o) => o.page === pageNumber)).toBe(false);
+      expect(groups.some((g) => g.pages.some((p) => p.page === pageNumber))).toBe(false);
     }
   });
 
