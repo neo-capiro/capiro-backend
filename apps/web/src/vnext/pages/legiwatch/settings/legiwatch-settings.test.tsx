@@ -111,7 +111,9 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
   it('opens real watchlist setup with the current client scope', async () => {
     renderSettings('/legiwatch?tab=settings&client=client-A');
     fireEvent.click(await screen.findByRole('button', { name: 'Open watchlist / monitoring setup' }));
-    expect(screen.getByTestId('settings-location')).toHaveTextContent('/radar?tab=watchlist&client=client-A');
+    // LW-07: the setup button stays inside /legiwatch — /radar?tab=watchlist
+    // redirected back here through a silent fall-through to Hearings.
+    expect(screen.getByTestId('settings-location')).toHaveTextContent('/legiwatch?tab=settings&client=client-A');
   });
 
   it('renders the display preferences from the stored prefs doc', async () => {

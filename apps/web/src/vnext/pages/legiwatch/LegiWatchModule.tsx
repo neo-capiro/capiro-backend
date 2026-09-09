@@ -23,7 +23,7 @@ import { ChevronDown, Crosshair } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, type LegiWatchTab } from './lib/types.js';
+import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, TAB_ALIASES, type LegiWatchTab } from './lib/types.js';
 import { useLwFeed, useLwFeedItems, defaultBucketCount } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
 import { HearingsTab } from './hearings/HearingsTab.js';
@@ -155,8 +155,12 @@ export function LegiWatchModule() {
   const [lensOpen, setLensOpen] = useState(false);
 
   // §7.2/§7.9 — removed tabs redirect to hearings; unknown tabs land on hearings.
+  // LW-07: legacy watch-management names (watchlist/watchlists/watches/presets)
+  // alias to the settings tab — the module's real watchlist / preset management
+  // view — instead of silently falling through to Hearings.
   const rawTab = searchParams.get('tab');
   const tab: LegiWatchTab = useMemo(() => {
+    if (rawTab && TAB_ALIASES[rawTab]) return TAB_ALIASES[rawTab];
     if (!rawTab || REMOVED_TABS.has(rawTab)) return 'hearings';
     return (LEGIWATCH_TABS as readonly string[]).includes(rawTab) ? (rawTab as LegiWatchTab) : 'hearings';
   }, [rawTab]);
@@ -404,7 +408,7 @@ export function LegiWatchModule() {
         // stays mounted; the dependent tab's body is what's replaced.
         <WatchlistGatePanel
           clientName={selectedClient?.name ?? ''}
-          onConfigure={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(scope)}`)}
+          onConfigure={() => navigate(scope ? `/legiwatch?tab=settings&client=${encodeURIComponent(scope)}` : '/legiwatch?tab=settings')}
           onExplore={() => {
             // §14: browse mode stays INSIDE /legiwatch — URL-persisted so it
             // survives refresh, back/forward, and deep links. Never exits to CRM.
@@ -420,7 +424,7 @@ export function LegiWatchModule() {
             <span style={{ fontSize: 13, color: 'var(--lw-body)' }}>
               Public LegiWatch data remains available. Client-specific alerts and relevance require a monitoring model.
             </span>
-            <LwButton size="36" onClick={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(scope)}`)}>
+            <LwButton size="36" onClick={() => navigate(scope ? `/legiwatch?tab=settings&client=${encodeURIComponent(scope)}` : '/legiwatch?tab=settings')}>
               Set up the watchlist
             </LwButton>
           </div>
@@ -452,7 +456,7 @@ export function LegiWatchModule() {
           defaultClientId={scope || undefined}
           onConfigure={() => {
             setOverlay(null);
-            navigate(scope ? `/radar?tab=watchlist&client=${encodeURIComponent(scope)}` : '/radar?tab=watchlist');
+            navigate(scope ? `/legiwatch?tab=settings&client=${encodeURIComponent(scope)}` : '/legiwatch?tab=settings');
           }}
         />
       ) : overlay === 'states' ? (

@@ -124,8 +124,23 @@ export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
   'analytics',
 ];
 
-/** §7.2 / §7.9 — removed tabs redirect to hearings. */
-export const REMOVED_TABS = new Set(['overview', 'watchlist', 'watchlists']);
+/** §7.2 / §7.9 — removed tabs redirect to hearings. `watchlist`/`watchlists`
+ *  are NOT removed-fall-through: they are aliases for the settings tab (LW-07),
+ *  where the real watchlist / preset management (WatchPresetsCard) lives. */
+export const REMOVED_TABS = new Set(['overview']);
+
+/** LW-07 — legacy watch-management tab names resolve to the settings tab, the
+ *  module's real watchlist / monitoring management view. Both advertised entry
+ *  points (Create watch modal's "Open the client's full watchlist →" and the
+ *  /radar?tab=watchlist redirect) historically landed on Hearings because the
+ *  tab fell through REMOVED_TABS silently; these aliases make the destinations
+ *  resolve instead of dead-ending. */
+export const TAB_ALIASES: Record<string, LegiWatchTab> = {
+  watchlist: 'settings',
+  watchlists: 'settings',
+  watches: 'settings',
+  presets: 'settings',
+};
 
 /** react-query key namespace for this module. Shared records (alerts, bills,
  *  hearings) reuse the canonical keys from their owning client files so a

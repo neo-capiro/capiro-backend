@@ -262,7 +262,7 @@ export function LegiWatchSettingsTab() {
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet — per-client alert prefs exist under each client</span>
         </div>
         <div style={{ marginTop: 14 }}>
-          <LwButton size="36" onClick={() => navigate(scope ? `/radar?tab=watchlist&client=${encodeURIComponent(scope)}` : '/radar?tab=watchlist')}>
+          <LwButton size="36" onClick={() => navigate(scope ? `/legiwatch?tab=settings&client=${encodeURIComponent(scope)}` : '/legiwatch?tab=settings')}>
             Open watchlist / monitoring setup
           </LwButton>
         </div>
@@ -389,7 +389,7 @@ function WatchPresetsCard() {
           onClose={() => setEditing(null)}
           onConfigure={() => {
             setEditing(null);
-            navigate(editing.clientIds[0] ? `/radar?tab=watchlist&client=${encodeURIComponent(editing.clientIds[0])}` : '/radar?tab=watchlist');
+            navigate(editing.clientIds[0] ? `/legiwatch?tab=settings&client=${encodeURIComponent(editing.clientIds[0])}` : '/legiwatch?tab=settings');
           }}
         />
       ) : null}

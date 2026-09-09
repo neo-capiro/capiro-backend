@@ -6,6 +6,7 @@
  * UI-free sanitizers (richtext.ts).
  */
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UploadCloud } from 'lucide-react';
 import { useMe, type MeResponse } from '../../../lib/me.js';
@@ -57,6 +58,7 @@ function saveErrorMessage(err: unknown): string {
  */
 export function VNextPersonalPage() {
   const api = useApi();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useCapiroToast();
   const me = useMe();
@@ -357,6 +359,20 @@ export function VNextPersonalPage() {
               Save signature
             </CapiroButton>
           </div>
+        </div>
+      </SvCard>
+
+      <SvCard
+        title="Watchlist / monitoring setup"
+        description="Manage LegiWatch watch presets — pause, resume, or archive the watches that drive your clients' legislative intelligence."
+      >
+        <div className="stv-row">
+          <CapiroButton
+            variant="primary"
+            onClick={() => navigate('/legiwatch?tab=settings')}
+          >
+            Open watchlist / monitoring setup
+          </CapiroButton>
         </div>
       </SvCard>
 
