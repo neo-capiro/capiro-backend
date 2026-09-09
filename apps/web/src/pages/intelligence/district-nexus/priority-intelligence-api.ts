@@ -70,6 +70,9 @@ export interface CommunityFundingAvailability {
 
 export interface MemberPrioritySummary {
   bioguideId: string;
+  memberName?: string;
+  /** Older API responses did not establish individual requester identity. */
+  attributionMethod?: 'source_requester_name';
   chamber: 'house' | 'senate';
   state: string | null;
   fiscalYears: number[];
@@ -111,6 +114,9 @@ export interface GsaFederalPresence {
   agenciesByAssetCount: Array<{ agency: string; assetCount: number }>;
   topAssets: GsaPropertySummary[];
   fiscalYears: number[];
+  /** All source boundary values in the latest FY aggregate; null means unknown.
+   * Optional while older API images are still serving during a rollout. */
+  boundaryCongresses?: Array<number | null>;
   warnings: string[];
 }
 

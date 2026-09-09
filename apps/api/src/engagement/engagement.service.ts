@@ -308,6 +308,16 @@ export interface OutreachRecipientInput {
   state?: string;
   district?: string;
   party?: string;
+  /**
+   * EM-03: a manually-added recipient carries no directory/domain signal for
+   * government-affairs-policy.registry's selectPolicy() to key off, so
+   * generation fails closed (AudiencePolicyRequiredError) unless the person
+   * who added it says which audience this is. Optional here because most
+   * recipients resolve their audience server-side from directory/domain
+   * signals and never need this; when present it is passed straight through
+   * as GenerationRequest.explicitAudience, which already always wins.
+   */
+  audienceType?: string;
   directoryContactId?: string;
   directoryContactName?: string;
   committee?: string;
@@ -3772,6 +3782,14 @@ export class EngagementService {
       length: null,
       direction: input.direction ?? null,
       audienceKind: o.isGroup ? 'group' : 'individual',
+      // EM-03: an explicit per-recipient audience choice (set on a manually
+      // added recipient who has no directory/domain signal to infer from)
+      // always wins in selectPolicy() — see GenerationRequest.explicitAudience.
+      // Only applied for an individual slot: one manual member's guess must
+      // never override a shared-thread group's own server-verified audience.
+      ...(!o.isGroup && recipient.audienceType
+        ? { explicitAudience: recipient.audienceType as GenerationRequest['explicitAudience'] }
+        : {}),
       ...(o.isGroup && recipient.groupMembers
         ? { groupMemberCount: recipient.groupMembers.length }
         : {}),
@@ -6920,8 +6938,13 @@ export class EngagementService {
       source?: string;
       sourceEntityType?: string | null;
       sourceEntityId?: string | null;
+      /** Server-owned retry identity. Never taken directly from an upload request. */
+      idempotencyKey?: string;
+      /** Chat originals retain the same scan/readiness policy as manual uploads. */
+      untrustedUpload?: boolean;
+      privateToUploader?: boolean;
     },
-  ): Promise<{ id: string; fileName: string; s3Key: string }> {
+  ): Promise<{ id: string; fileName: string; s3Key: string; lifecycleStatus?: string; scanStatus?: string | null; indexedAt?: Date | null; reused?: boolean }> {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
       throw new BadRequestException(
@@ -6936,7 +6959,42 @@ export class EngagementService {
       meetingId: input.meetingId ?? undefined,
     });
     const safeName = safeFileName(input.fileName);
-    const s3Key = `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    // The content digest is part of the identity: retries cannot overwrite an
+    // existing document with different bytes. A deterministic primary key and
+    // object key also cover concurrent calls and a retry after S3 succeeded but
+    // the database write failed, without a second document store or migration.
+    const digest = input.idempotencyKey
+      ? createHash('sha256').update(JSON.stringify([
+        'client-document-v1', ctx.tenantId, ctx.userId, input.clientId ?? null,
+        input.meetingId ?? null, input.idempotencyKey, input.contentType,
+        input.privateToUploader ?? false,
+        createHash('sha256').update(input.buffer).digest('hex'),
+      ])).digest('hex') : null;
+    const stableId = digest
+      ? `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`
+      : null;
+    if (stableId) {
+      const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.findFirst({ where: {
+          id: stableId, tenantId: ctx.tenantId, uploadedByUserId: ctx.userId,
+          clientId: input.clientId ?? null,
+        } }),
+      );
+      if (existing) return {
+        id: existing.id, fileName: existing.fileName, s3Key: existing.s3Key,
+        lifecycleStatus: existing.lifecycleStatus, scanStatus: existing.scanStatus,
+        indexedAt: existing.indexedAt, reused: true,
+      };
+    }
+    const s3Key = stableId
+      ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
+      : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    const verifiedContentType = input.untrustedUpload
+      ? this.attachmentContent.detectContentType(input.buffer) : null;
+    if (input.untrustedUpload && verifiedContentType &&
+        this.attachmentContent.contentTypeConflicts(input.contentType, verifiedContentType)) {
+      throw new BadRequestException('The original file contents do not match its document type.');
+    }
     await this.s3.send(
       new PutObjectCommand({
         Bucket: this.bucket,
@@ -6945,10 +7003,14 @@ export class EngagementService {
         ContentType: input.contentType,
       }),
     );
+    const initialScan = input.untrustedUpload
+      ? await this.scanner.getStatus(this.bucket, s3Key) : null;
+    const scanReady = initialScan === 'clean' ||
+      (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
     const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
-      return tx.engagementAttachment.create({
-        data: {
+      const data = {
+          ...(stableId ? { id: stableId } : {}),
           tenantId: ctx.tenantId,
           clientId,
           meetingId: input.meetingId ?? null,
@@ -6961,13 +7023,43 @@ export class EngagementService {
           sourceEntityType: input.sourceEntityType ?? null,
           sourceEntityId: input.sourceEntityId ?? null,
           uploadedByUserId: ctx.userId,
-        },
-      });
+          ...(input.privateToUploader ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] } : {}),
+          ...(input.untrustedUpload ? {
+            lifecycleStatus: scanReady ? 'ready' : initialScan === 'pending' ? 'quarantined' : 'blocked',
+            verifiedContentType,
+            calculatedSha256: this.attachmentContent.sha256(input.buffer),
+            scanProvider: this.scanner.providerName,
+            scanStatus: initialScan,
+            scanResultAt: initialScan === 'pending' ? null : new Date(),
+            extractionStatus: 'pending',
+          } : {}),
+        };
+      return stableId
+        ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+        : tx.engagementAttachment.create({ data });
+    }).catch(async (error: unknown) => {
+      // Prisma may emulate an upsert when tenant predicates are injected. The
+      // primary key still prevents duplicates; recover the concurrent winner
+      // after that transaction rolled back instead of reporting a false failure.
+      if (stableId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const winner = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.engagementAttachment.findFirst({ where: {
+            id: stableId, tenantId: ctx.tenantId, clientId: input.clientId ?? null,
+            uploadedByUserId: ctx.userId,
+          } }),
+        );
+        if (winner) return winner;
+      }
+      throw error;
     });
-    if (attachment.clientId) {
+    if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
     }
-    return { id: attachment.id, fileName: attachment.fileName, s3Key };
+    return {
+      id: attachment.id, fileName: attachment.fileName, s3Key: attachment.s3Key,
+      lifecycleStatus: attachment.lifecycleStatus, scanStatus: attachment.scanStatus,
+      indexedAt: attachment.indexedAt, reused: false,
+    };
   }
 
   /**
@@ -10325,6 +10417,11 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         record.direction === 'on-behalf' || record.direction === 'to-clients'
           ? (record.direction as 'on-behalf' | 'to-clients')
           : undefined;
+      // EM-03: not re-validated against GA_AUDIENCES here — the DTO already
+      // did that on the way in. A stale/tampered value simply won't match a
+      // real policy id in selectPolicy() and falls through to the normal
+      // "choose an audience" error, so there is no unsafe path to guard.
+      const audienceType = readString(record.audienceType);
       const email = normalizeEmailAddress(readString(record.email));
       const name = readString(record.name);
       const office = readString(record.office);
@@ -10352,6 +10449,7 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         ...(id ? { id: id.slice(0, 240) } : {}),
         ...(clientId ? { clientId: clientId.slice(0, 80) } : {}),
         ...(direction ? { direction } : {}),
+        ...(audienceType ? { audienceType: audienceType.slice(0, 80) } : {}),
         ...(name ? { name: name.slice(0, 160) } : {}),
         ...(email ? { email } : {}),
         ...(office ? { office: office.slice(0, 240) } : {}),

@@ -8,6 +8,10 @@ import {
   type CpfCdsRequestSignal,
 } from '../../../pages/intelligence/district-nexus/priority-intelligence-api.js';
 import { splitDistrictKey } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
+import {
+  gsaBoundaryLabel,
+  sectorMetricLabel,
+} from '../../../pages/intelligence/district-nexus/priority-intelligence-format.js';
 
 /**
  * District Nexus Release 4 — "Federal & local priorities" drawer rail.
@@ -86,6 +90,9 @@ export function DistrictPriorityIntelligencePanelVNext({
   if (!d) return null;
 
   const cpf = d.priorityIntelligence.cpfCds;
+  const memberHistory = cpf.memberHistoricalPriorities.filter(
+    (member) => member.attributionMethod === 'source_requester_name',
+  );
 
   return (
     <div className="dnx-priority">
@@ -105,17 +112,19 @@ export function DistrictPriorityIntelligencePanelVNext({
 
       {/* ── Member priorities ─────────────────────────────────────────── */}
       <div className="dnx-list-label">Member priorities</div>
-      {cpf.memberHistoricalPriorities.length === 0 ? (
+      {memberHistory.length === 0 ? (
         <div className="dnx-hint dnx-info">
           {cpf.availability.status === 'unavailable'
             ? 'CPF/CDS corpus not ingested in this environment — unavailable, not zero.'
-            : 'No member request history attributable under deterministic rules for this district.'}
+            : cpf.districtRequests.length === 0 && cpf.memberHistoricalPriorities.length === 0
+              ? 'No member request history attributable under deterministic rules for this district.'
+              : 'Individual member request history could not be verified from the source requester names. Public requests remain listed below.'}
         </div>
       ) : (
         <ul className="dnx-kv" style={{ margin: '0 0 10px', paddingLeft: 16 }}>
-          {cpf.memberHistoricalPriorities.map((m) => (
+          {memberHistory.map((m) => (
             <li key={m.bioguideId} style={{ marginBottom: 4 }}>
-              <span style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{m.bioguideId}</span>{' '}
+              <span>{m.memberName || m.bioguideId}</span>{' '}
               {m.chamber === 'senate' ? 'senate' : `house ${m.state ?? ''}`}
               {' — '}
               <b>requested</b> ${Math.round(m.requestedTotalUsd).toLocaleString('en-US')}
@@ -134,8 +143,20 @@ export function DistrictPriorityIntelligencePanelVNext({
           ))}
         </ul>
       )}
+      {memberHistory.length > 0 ? (
+        <div className="dnx-muted" style={{ marginBottom: 10 }}>
+          Source-named requests matched to current members. Totals cover requests loaded for this
+          view; joint requests can appear under each named requester and should not be added
+          together.
+        </div>
+      ) : null}
 
       {/* ── CPF/CDS requests ──────────────────────────────────────────── */}
+      {cpf.warnings.map((warning, index) => (
+        <div key={index} className="dnx-hint dnx-warning" style={{ marginBottom: 8 }}>
+          {warning}
+        </div>
+      ))}
       <div className="dnx-list-label">CPF / CDS requests</div>
       {cpf.districtRequests.length === 0 ? (
         <div className="dnx-hint dnx-info">
@@ -317,9 +338,7 @@ function FederalPresenceBlock({ data: d }: { data: ClientPriorityIntelligenceRes
       </div>
       <div className="dnx-muted">
         Source: GSA FRPP {sourceLabel} · FY{g.fiscalYears.join(', FY')} ·{' '}
-        {d.geographyVintage.boundaryCongress == null
-          ? 'district vintage source-unknown (not inferred)'
-          : `boundary congress ${d.geographyVintage.boundaryCongress}`}
+        {gsaBoundaryLabel(g.boundaryCongresses)}
       </div>
       {g.topAssets.slice(0, 4).map((a) => (
         <div key={a.rpUid} className="dnx-muted" style={{ fontSize: 12 }}>
@@ -359,7 +378,7 @@ function SectorBlock({ data: d }: { data: ClientPriorityIntelligenceResponse }) 
       ) : (
         visible.map((m) => (
           <div key={`${m.source}:${m.metricKey}:${m.naicsCode ?? ''}`}>
-            {m.label}:{' '}
+            {m.label} · {sectorMetricLabel(m.metricKey)}:{' '}
             <b>
               {Math.round(m.metricValue!).toLocaleString('en-US')}
               {m.unit ? ` ${m.unit}` : ''}

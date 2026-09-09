@@ -14,6 +14,7 @@ import {
 } from '../../../pages/intelligence/district-nexus/supplier-footprint-api.js';
 import {
   formatMarketDate,
+  futureSignalsAvailable,
   formatMarketMoney,
   getFederalMarketGeography,
   type FederalMarketGeographyResponse,
@@ -35,6 +36,7 @@ function promptForDistrict(
   districtSubawardAmount: number | null,
   stateOnlySubawardAmount: number | null,
   futureSignals: FutureRow[],
+  futureAvailable: boolean,
   supplierContext: string,
 ): string {
   const signalSummary = futureSignals
@@ -44,7 +46,7 @@ function promptForDistrict(
         `${signal.source === 'agency_forecast' ? 'forecast' : 'SAM opportunity'}: ${signal.title}`,
     )
     .join('; ');
-  return `Assess the federal market context for ${districtKey}. Source-backed prime contract obligations shown here: ${formatMarketMoney(contractAmount)}. Supplier coverage: ${supplierContext}. ${districtSubawardAmount == null ? '' : `District-resolved subawards: ${formatMarketMoney(districtSubawardAmount)}.`} ${stateOnlySubawardAmount == null ? '' : `State-only subawards that Capiro has NOT attributed to this district: ${formatMarketMoney(stateOnlySubawardAmount)}.`} Future signals: ${signalSummary || 'none in this view'}. Explain why this district may matter to the selected client, relevant government-affairs implications, and the next actions. Keep state-only subawards separate from district facts and never add future opportunities to awarded totals.`;
+  return `Assess the federal market context for ${districtKey}. Source-backed prime contract obligations shown here: ${formatMarketMoney(contractAmount)}. Supplier coverage: ${supplierContext}. ${districtSubawardAmount == null ? '' : `District-resolved subawards: ${formatMarketMoney(districtSubawardAmount)}.`} ${stateOnlySubawardAmount == null ? '' : `State-only subawards that Capiro has NOT attributed to this district: ${formatMarketMoney(stateOnlySubawardAmount)}.`} Future signals: ${futureAvailable ? signalSummary || 'none in this view' : 'unavailable; lookup failed, not zero'}. Explain why this district may matter to the selected client, relevant government-affairs implications, and the next actions. Keep state-only subawards separate from district facts and never add future opportunities to awarded totals.`;
 }
 
 function signalGeography(signal: FutureRow): string {
@@ -137,6 +139,7 @@ export function DistrictFederalMarketPanelVNext({
     const stateOnlySubawardCount = stateSubawards
       .filter((row) => row.state === state)
       .reduce((sum, row) => sum + row.subawardCount, 0);
+    const futureAvailable = futureSignalsAvailable(data);
     const futureSignals = data.futureSignals
       .filter(
         (signal) =>
@@ -154,6 +157,7 @@ export function DistrictFederalMarketPanelVNext({
         districtSubawardAmount,
         stateOnlySubawardAmount,
         futureSignals,
+        futureAvailable,
         showSupplier
           ? `${supplierLabel}${
               supplierQuery.data?.note && !supplierQuery.isError
@@ -225,7 +229,7 @@ export function DistrictFederalMarketPanelVNext({
           ) : null}
           <div>
             <span>Future signals</span>
-            <strong>{futureSignals.length}</strong>
+            <strong>{futureAvailable ? futureSignals.length : 'Unavailable'}</strong>
             <small>Not awarded money</small>
           </div>
         </div>
@@ -268,7 +272,11 @@ export function DistrictFederalMarketPanelVNext({
           </div>
         ) : null}
 
-        {futureSignals.length ? (
+        {!futureAvailable ? (
+          <div className="dnx-muted" style={{ marginTop: 10 }}>
+            Future procurement signals are temporarily unavailable.
+          </div>
+        ) : futureSignals.length ? (
           <div className="dnx-market-signals">
             <strong className="dnx-market-signals-title">Upcoming signals</strong>
             {futureSignals.map((signal) => (

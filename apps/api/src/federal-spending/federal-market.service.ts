@@ -150,7 +150,7 @@ export class FederalMarketService {
     const { page, pageSize, offset } = paging(query);
     const clauses = this.commonAwardClauses(query);
     if (scope) {
-      const identity = this.contractScopeSql(scope);
+      const identity = await this.contractScopeSql(scope);
       if (!identity) return this.emptyPage(page, pageSize, 'usaspending');
       clauses.push(identity);
     }
@@ -496,7 +496,7 @@ export class FederalMarketService {
     const contractClauses = this.commonAwardClauses(query);
     const subawardClauses = this.commonSubawardClauses(query);
     if (scope) {
-      const contractIdentity = this.contractScopeSql(scope);
+      const contractIdentity = await this.contractScopeSql(scope);
       const subawardIdentity = this.subawardScopeSql(scope);
       if (contractIdentity) contractClauses.push(contractIdentity);
       else contractClauses.push(Prisma.sql`FALSE`);
@@ -536,6 +536,7 @@ export class FederalMarketService {
           ((a.contractAmount ?? 0) + (a.subawardAmount ?? 0)),
       ),
       futureSignals: future.status === 'fulfilled' ? future.value : [],
+      futureSignalsAvailability: future.status === 'fulfilled' ? 'available' : 'unavailable',
       awardedMoneyIncludesFutureOpportunities: false,
       warnings,
       generatedAt: new Date().toISOString(),
@@ -778,6 +779,21 @@ export class FederalMarketService {
        LIMIT 50
     `);
 
+    const samClauses: Prisma.Sql[] = [
+      Prisma.sql`active = TRUE`,
+      Prisma.sql`(response_deadline IS NULL OR response_deadline >= CURRENT_TIMESTAMP)`,
+    ];
+    // SAM publishes both nested state.code and older flat state shapes.
+    // Filter before LIMIT so unrelated states cannot consume the whole preview.
+    if (query.state)
+      samClauses.push(Prisma.sql`
+      UPPER(COALESCE(
+        place_of_performance_jsonb->'state'->>'code',
+        place_of_performance_jsonb->>'state_code',
+        CASE WHEN jsonb_typeof(place_of_performance_jsonb->'state') = 'string'
+          THEN place_of_performance_jsonb->>'state' END
+      )) = ${query.state.toUpperCase()}
+    `);
     const samRows = await this.prisma.$queryRaw<
       Array<{
         id: string;
@@ -790,11 +806,10 @@ export class FederalMarketService {
     >(Prisma.sql`
       SELECT id::text AS id, title, agency,
              response_deadline AS "responseDeadline",
-             place_of_performance AS place,
+             place_of_performance_jsonb AS place,
              source_url AS "sourceUrl"
         FROM sam_opportunity
-       WHERE active = TRUE
-         AND (response_deadline IS NULL OR response_deadline >= CURRENT_TIMESTAMP)
+       ${whereSql(samClauses)}
        ORDER BY response_deadline ASC NULLS LAST
        LIMIT 100
     `);
@@ -815,10 +830,20 @@ export class FederalMarketService {
     });
     for (const row of samRows) {
       const place = placeRecord(row.place);
-      const state = stringValue(place.state ?? place.state_code)?.toUpperCase() ?? null;
+      const state =
+        stringValue(
+          placeRecord(place.state).code ?? place.state_code ?? place.state,
+        )?.toUpperCase() ?? null;
       const district = stringValue(place.congressional_district ?? place.congressional_code);
       if (query.state && state !== query.state.toUpperCase()) continue;
-      if (query.district && district !== query.district) continue;
+      // State-only notices remain explicitly state-level. Never assign the
+      // requested district to a record which did not publish one.
+      if (
+        query.district &&
+        district &&
+        districtKey(state, district) !== districtKey(state, query.district)
+      )
+        continue;
       signals.push({
         id: `sam:${row.id}`,
         source: 'sam_gov',

@@ -149,6 +149,8 @@ export interface FederalMarketGeographyResponse {
    */
   stateSubawards?: FederalMarketStateSubawardRow[];
   futureSignals: FederalMarketFutureSignal[];
+  /** A successful empty lookup is distinct from a failed lookup. */
+  futureSignalsAvailability?: 'available' | 'unavailable';
   /** Future opportunities and forecasts are never included in awarded-dollar totals. */
   awardedMoneyIncludesFutureOpportunities: false;
   /** Independent rail failures. A healthy rail still renders when another one fails. */

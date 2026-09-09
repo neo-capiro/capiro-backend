@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
+import { clientSaveReceipt } from '../../components/chat/meri-client-save-receipt.js';
 import { MeriIcon } from './meri-icons.js';
 import { MeriPanelState } from './MeriPanelState.js';
 import { MeriActionConfirm, MeriBulkActionConfirm } from './MeriActionConfirm.js';
@@ -46,7 +47,13 @@ export interface MeriApprovalsTabProps {
   onDismiss: (proposalId: string) => void;
 }
 
-export function MeriApprovalsTab({ approvals, approvingProposalId, onApprove, onApproveAll, onDismiss }: MeriApprovalsTabProps) {
+export function MeriApprovalsTab({
+  approvals,
+  approvingProposalId,
+  onApprove,
+  onApproveAll,
+  onDismiss,
+}: MeriApprovalsTabProps) {
   const actionBusy = Boolean(approvingProposalId);
   const [confirmFor, setConfirmFor] = useState<PendingApproval | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -68,7 +75,9 @@ export function MeriApprovalsTab({ approvals, approvingProposalId, onApprove, on
   if (approvals.length === 0) {
     return (
       <div className="vnext-meri__evidence-tab-body">
-        <MeriPanelState tone="empty">Nothing is awaiting your approval for this conversation.</MeriPanelState>
+        <MeriPanelState tone="empty">
+          Nothing is awaiting your approval for this conversation.
+        </MeriPanelState>
       </div>
     );
   }
@@ -82,26 +91,65 @@ export function MeriApprovalsTab({ approvals, approvingProposalId, onApprove, on
           </span>
           <span className="vnext-meri__pending-approvals-banner-body">
             <span className="vnext-meri__pending-approvals-banner-title">
-              Your approval is required before Meri executes a governed action.
+              {proposedCount > 0
+                ? 'Your approval is required before Meri executes a governed action.'
+                : 'Actions and results for this conversation.'}
             </span>
             <span className="vnext-meri__pending-approvals-banner-caption">
-              REVIEW THE ACTION, SCOPE, AND RISK. MERI WILL NOT EXECUTE A HELD WRITE WITHOUT YOUR
-              EXPLICIT APPROVAL.
+              {proposedCount > 0
+                ? 'REVIEW THE ACTION, SCOPE, AND RISK. MERI WILL NOT EXECUTE A HELD WRITE WITHOUT YOUR EXPLICIT APPROVAL.'
+                : 'EACH ACTION SHOWS ITS CURRENT STATUS AND CONFIRMED RESULT BELOW.'}
             </span>
           </span>
         </div>
         {approvals.map((proposal) => {
-          const canApprove = proposal.status === 'proposed' || proposal.status === 'failed_retryable';
-          const canDismiss = proposal.status === 'proposed' || proposal.status === 'failed_retryable';
-          const outcome = proposalOutcome(proposal.resultSummary) || proposal.error?.message || null;
+          const canApprove =
+            proposal.status === 'proposed' || proposal.status === 'failed_retryable';
+          const canDismiss =
+            proposal.status === 'proposed' || proposal.status === 'failed_retryable';
+          const receipt = clientSaveReceipt(proposal);
+          const outcome =
+            receipt?.summary ||
+            proposalOutcome(proposal.resultSummary) ||
+            proposal.error?.message ||
+            null;
           const active = approvingProposalId === proposal.proposalId;
           return (
             <div key={proposal.proposalId} className="vnext-meri__pending-approval-card">
               <div className="vnext-meri__pending-approval-status">
-                {proposalStatusLabel(proposal.status)} · {proposal.preview.label.toUpperCase()}
+                {receipt ? receipt.label.toUpperCase() : proposalStatusLabel(proposal.status)} ·{' '}
+                {proposal.preview.label.toUpperCase()}
               </div>
               <div className="vnext-meri__pending-approval-reason">{proposal.reason}</div>
               {outcome ? <div className="vnext-meri__attachment-notice">{outcome}</div> : null}
+              {receipt?.location ? (
+                <a className="vnext-meri__rail-action-btn" href={receipt.location}>
+                  Open saved note
+                </a>
+              ) : null}
+              {receipt?.files.length ? (
+                <ul className="vnext-meri__save-receipt-files">
+                  {receipt.files.map((file, index) => (
+                    <li key={`${index}-${file.name}`}>
+                      <span>
+                        {file.name} —{' '}
+                        {file.status === 'pending'
+                          ? 'Processing'
+                          : file.status === 'saved'
+                            ? 'Saved'
+                            : 'Failed'}
+                      </span>
+                      {file.reason ? <span>{file.reason}</span> : null}
+                      {file.location ? (
+                        <a href={file.location}>Open saved document: {file.name}</a>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {receipt && proposal.error?.message ? (
+                <div className="vnext-meri__attachment-notice">{proposal.error.message}</div>
+              ) : null}
               {canApprove || canDismiss ? (
                 <div className="vnext-meri__pending-approval-actions">
                   {canApprove ? (
@@ -136,7 +184,12 @@ export function MeriApprovalsTab({ approvals, approvingProposalId, onApprove, on
           );
         })}
         {proposedCount > 1 ? (
-          <button type="button" className="vnext-meri__rail-action-btn" disabled={actionBusy} onClick={() => setBulkOpen(true)}>
+          <button
+            type="button"
+            className="vnext-meri__rail-action-btn"
+            disabled={actionBusy}
+            onClick={() => setBulkOpen(true)}
+          >
             Approve all proposed actions
           </button>
         ) : null}

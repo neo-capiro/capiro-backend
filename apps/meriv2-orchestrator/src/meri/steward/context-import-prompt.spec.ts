@@ -119,6 +119,72 @@ describe('context import whole-result source validation', () => {
     expect(result.conflicts).toEqual(output().conflicts);
   });
 
+  // F01 regression: live evidence showed EVERY import failing with "Meri
+  // could not finish reading this file" even for a plain, short synthetic
+  // .txt source. Root cause traced to CloudWatch (ContextImportService warn
+  // "failed source validation" on every attempt): the model's reproduced
+  // quote/content differs from the raw source only by lossless typographic
+  // normalization (curly quotes, NBSP, joined line breaks) — never a
+  // fabrication — and the raw `.includes()`/`!==` grounding checks treated
+  // that cosmetic drift as invented evidence.
+  it('accepts evidence that differs from the source only by typographic normalization (F01)', () => {
+    const source = "Owner: Program Director\nDates: Effective 2026-09-01 through 2026-12-31.";
+    const input: StrategyContextImportInput = {
+      ...INPUT,
+      sections: [{ ref: 'text:1', text: source }],
+    };
+    // Model reproduces the same words with curly apostrophes/quotes are N/A
+    // here, but joins the two lines with a single space and swaps the
+    // straight hyphen for a non-breaking-space + en dash, as real providers do.
+    const modelQuote = 'Owner: Program Director Dates: Effective 2026\u201109\u201101 through 2026\u201112\u201131.';
+    const raw = {
+      documents: [
+        {
+          documentType: 'strategy_brief',
+          title: CONTEXT_IMPORT_LABELS.strategy_brief,
+          sections: [
+            {
+              heading: 'Source details',
+              content: modelQuote,
+              evidence: [{ sourceRef: 'text:1', quote: modelQuote }],
+            },
+          ],
+        },
+      ],
+      warnings: [],
+      conflicts: [],
+    };
+    const result = sanitizeContextImportResult(raw, input);
+    expect(result.documents[0]?.sections[0]?.content).toBe(modelQuote);
+  });
+
+  it('still rejects a genuinely fabricated quote that only shares some words with the source (F01)', () => {
+    const source = 'Owner: Program Director. Dates: Effective 2026-09-01.';
+    const input: StrategyContextImportInput = {
+      ...INPUT,
+      sections: [{ ref: 'text:1', text: source }],
+    };
+    const fabricated = 'Owner: Program Director. Dates: Effective 2099-01-01.';
+    const raw = {
+      documents: [
+        {
+          documentType: 'strategy_brief',
+          title: CONTEXT_IMPORT_LABELS.strategy_brief,
+          sections: [
+            {
+              heading: 'Source details',
+              content: fabricated,
+              evidence: [{ sourceRef: 'text:1', quote: fabricated }],
+            },
+          ],
+        },
+      ],
+      warnings: [],
+      conflicts: [],
+    };
+    expect(() => sanitizeContextImportResult(raw, input)).toThrow('does not match');
+  });
+
   it('allows all existing document types, without requiring every type in one file', () => {
     for (const type of CONTEXT_IMPORT_TYPES) {
       const raw = output();

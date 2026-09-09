@@ -67,7 +67,7 @@ export type MeriActionAuthorityResult =
   | { disposition: 'executed'; proposal: PublicMeriActionProposal; executionResult: unknown }
   | { disposition: 'pending_approval'; proposal: PublicMeriActionProposal }
   | { disposition: 'blocked'; proposal: PublicMeriActionProposal }
-  | { disposition: 'failed'; proposal: PublicMeriActionProposal };
+  | { disposition: 'failed'; proposal: PublicMeriActionProposal; executionResult?: unknown };
 
 const TERMINAL_STATUSES = new Set<MeriActionProposalStatus>([
   'succeeded', 'failed_terminal', 'outcome_unknown', 'blocked', 'dismissed', 'expired',
@@ -100,7 +100,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
   }
   const source = result as Record<string, unknown>;
   const summary: Record<string, Prisma.InputJsonValue> = { ok: source.ok !== false };
-  for (const key of ['id', 'status', 'name', 'title', 'clientId', 'clientName', 'message']) {
+  for (const key of ['tool', 'id', 'status', 'name', 'title', 'clientId', 'clientName', 'documentId', 'location', 'indexingStatus', 'reused', 'savedCount', 'pendingCount', 'failedCount', 'message']) {
     const value = source[key];
     if (typeof value === 'string') summary[key] = bounded(value, 300) ?? '';
     else if (typeof value === 'number' || typeof value === 'boolean') summary[key] = value;
@@ -119,7 +119,53 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     else if (typeof source[key] === 'number') counts[key] = source[key] as number;
   }
   if (Object.keys(counts).length) summary.counts = counts;
+  // Durable filing receipts must survive a proposal round trip. Keep only
+  // identity/status/navigation fields; note bodies and uploaded bytes stay out
+  // of the public action history.
+  if (source.note && typeof source.note === 'object' && !Array.isArray(source.note)) {
+    const note = source.note as Record<string, unknown>;
+    summary.note = Object.fromEntries(['id', 'clientId', 'title']
+      .filter((key) => typeof note[key] === 'string' || (key === 'clientId' && note[key] === null))
+      .map((key) => [key, note[key] === null ? null : bounded(note[key], 200) ?? '']));
+  }
+  if (source.tool === 'save_chat_attachments' && Array.isArray(source.files)) {
+    summary.files = source.files.slice(0, 10).map((file: unknown) => {
+      if (!file || typeof file !== 'object' || Array.isArray(file)) return {};
+      const row = file as Record<string, unknown>;
+      return Object.fromEntries(['attachmentId', 'fileName', 'status', 'documentId', 'location', 'reason', 'indexingStatus']
+        .filter((key) => typeof row[key] === 'string')
+        .map((key) => [key, bounded(row[key], key === 'reason' ? 500 : 300) ?? '']));
+    });
+  }
   return summary as Prisma.InputJsonValue;
+}
+
+function filingExecutionFailure(tool: string, result: unknown): {
+  status: 'failed_retryable' | 'outcome_unknown'; errorCode: string; errorMessage: string;
+} | null {
+  if (tool !== 'save_note' && tool !== 'save_chat_attachments') return null;
+  const value = result && typeof result === 'object' && !Array.isArray(result)
+    ? result as Record<string, unknown> : {};
+  if (tool === 'save_chat_attachments' && (value.status === 'failed'
+    || (Array.isArray(value.files) && value.files.some((file: unknown) =>
+      !!file && typeof file === 'object' && (file as Record<string, unknown>).status === 'failed')))) {
+    return { status: 'failed_retryable', errorCode: 'client_filing_incomplete',
+      errorMessage: 'Some files could not be filed. Review each file result and retry the failed files; completed files will not be duplicated.' };
+  }
+  const note = value.note && typeof value.note === 'object' ? value.note as Record<string, unknown> : {};
+  if (tool === 'save_note' && value.status === 'failed') {
+    return { status: 'failed_retryable', errorCode: 'client_filing_incomplete',
+      errorMessage: bounded(value.message, 900) ?? 'The note is unavailable under the document readiness policy.' };
+  }
+  const confirmed = tool === 'save_note'
+    ? ['saved', 'pending'].includes(String(value.status)) && (typeof note.id === 'string' || typeof value.documentId === 'string')
+    : ['saved', 'pending', 'partial'].includes(String(value.status)) && Array.isArray(value.files) && value.files.length > 0
+      && value.files.every((file: unknown) => !!file && typeof file === 'object'
+        && ['saved', 'pending'].includes(String((file as Record<string, unknown>).status))
+        && typeof (file as Record<string, unknown>).documentId === 'string');
+  if (confirmed) return null;
+  return { status: 'outcome_unknown', errorCode: 'client_filing_receipt_missing',
+    errorMessage: 'The save did not return a confirmed record. Check the client records before retrying.' };
 }
 
 function errorStatus(error: unknown): number | null {
@@ -362,6 +408,11 @@ export class MeriActionProposalService {
     try {
       assertMeriToolRequestActive();
       const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input);
+      const incomplete = filingExecutionFailure(tool, result);
+      if (incomplete) {
+        const failed = await this.finalize(ctx, row.id, { ...incomplete, resultSummary: resultSummary(result) });
+        return { disposition: 'failed', proposal: this.toPublic(failed), executionResult: result };
+      }
       const completed = await this.finalize(ctx, row.id, {
         status: 'succeeded',
         resultSummary: resultSummary(result),
@@ -510,8 +561,15 @@ export class MeriActionProposalService {
     }
 
     const current = await this.policyPacks.decideForAction(ctx, row.tool, canonical);
+    // PASS actions can already have executed and failed safely in create(). A
+    // retry keeps that original authority; it does not turn a new PASS action
+    // into an approval or accept a changed policy outcome.
+    const sameOutcome =
+      (row.policyDecision === 'WARN' && current.outcome === 'WARN') ||
+      (status === 'failed_retryable' && row.attemptCount > 0 &&
+        row.policyDecision === 'PASS' && current.outcome === 'PASS');
     const sameAuthority =
-      current.outcome === 'WARN' &&
+      sameOutcome &&
       row.policyBinding === current.binding &&
       row.policyDecisionHash === current.decisionHash &&
       row.policyContextHash === current.contextHash &&
@@ -540,6 +598,10 @@ export class MeriActionProposalService {
 
     try {
       const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical);
+      const incomplete = filingExecutionFailure(row.tool, result);
+      if (incomplete) return this.toPublic(await this.finalize(ctx, row.id, {
+        ...incomplete, resultSummary: resultSummary(result),
+      }));
       return this.toPublic(await this.finalize(ctx, row.id, { status: 'succeeded', resultSummary: resultSummary(result) }));
     } catch (error) {
       const failure = classifyExecutionFailure(row.tool, error);

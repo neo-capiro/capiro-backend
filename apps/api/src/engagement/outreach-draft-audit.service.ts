@@ -664,10 +664,39 @@ export class OutreachDraftAuditService {
     return raw.filter((e): e is LedgerEntry => !!e && typeof e === 'object' && 'tool' in e);
   }
 
+  /**
+   * Plain-English labels for the internal check ids surfaced above. This
+   * banner is the ONLY place a hold reason reaches the person deciding
+   * whether to trust the draft — a raw id like `stale_source_caveat` reads
+   * as a system error, not an explanation, and forces them to guess or ask
+   * someone technical what it means. Unknown/future ids fall back to a
+   * generic phrase rather than leaking the raw code.
+   */
+  private static readonly CHECK_LABELS: Record<string, string> = {
+    unresolved_placeholder: 'an unfilled placeholder (like a bracketed name or number) was left in the text',
+    numeric_grounding: 'a number or dollar figure in the draft could not be matched to a source',
+    bill_identifier_grounding: 'a bill or legislation reference could not be matched to a source',
+    enactment_claim: 'the draft claims something has already become law, which is not confirmed',
+    authorization_vs_appropriation: 'the draft may be confusing authorized funding with money actually appropriated',
+    recipient_commitment_claim: 'the draft claims the recipient made a commitment that is not confirmed',
+    attendance_claim: 'the draft claims someone attended an event that is not confirmed',
+    date_grounding: 'a date in the draft could not be matched to a source',
+    stale_source_caveat: 'the draft relies on information that may be out of date and needs an "as of" note',
+    group_common_facts: 'a fact stated for the whole group may not be true for every recipient',
+    federal_etiquette_scope: 'the draft may not follow the etiquette rules required for this audience',
+    jurisdiction_vocabulary: 'the draft may use the wrong terminology for this audience\'s jurisdiction',
+  };
+
+  private describeCheck(id: string): string {
+    return OutreachDraftAuditService.CHECK_LABELS[id] ?? `an automated check (${id}) flagged something to verify`;
+  }
+
   private contextNote(checks: SanitizedCheck[]): string {
-    const names = [...new Set(checks.map((c) => c.check))].join(', ');
+    const reasons = [...new Set(checks.map((c) => c.check))].map((id) => this.describeCheck(id));
+    const reasonText =
+      reasons.length === 1 ? reasons[0] : reasons.slice(0, -1).join('; ') + '; and ' + reasons[reasons.length - 1];
     return (
-      `⚠️ Unverified — ${checks.length} grounding finding(s) held for review (${names}). ` +
+      `⚠️ Held for review: ${reasonText}. ` +
       `Treat flagged claims as unconfirmed until a reviewer clears them.`
     );
   }

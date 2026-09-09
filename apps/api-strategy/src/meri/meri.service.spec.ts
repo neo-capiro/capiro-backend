@@ -68,6 +68,10 @@ function makeStore() {
     nextId,
     nodesFor,
     clientRows: [{ ok: 1 }] as Array<{ ok: number }>,
+    // F02: tenant_memberships/users rows resolveOwnerNames' withSystem query
+    // reads. Empty by default (matches every pre-existing seeded node, which
+    // has ownerUserId: null) — tests exercising an owned node set this.
+    members: [] as Array<{ clerkUserId: string; firstName: string | null; lastName: string | null }>,
   };
 }
 type Store = ReturnType<typeof makeStore>;
@@ -274,9 +278,18 @@ function makePrisma(store: Store) {
     fn(makeTx(store, t)),
   );
   const $queryRaw = jest.fn(async () => [{ ok: 1 }]);
+  // F02: resolveOwnerNames reads tenant_memberships/users on the SYSTEM
+  // connection (FORCE-RLS, owned by apps/api) — mirrors
+  // context-documents.service.ts's isOrgAdmin. The fake tx here only serves
+  // that one $queryRaw shape; every other prisma call in this suite goes
+  // through withTenant/withTenantUser above.
+  const withSystem = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+    fn({ $queryRaw: jest.fn(async () => store.members) }),
+  );
   return {
-    prisma: { withTenantUser, withTenant, $queryRaw } as unknown as PrismaService,
+    prisma: { withTenantUser, withTenant, withSystem, $queryRaw } as unknown as PrismaService,
     withTenantUser,
+    withSystem,
     $queryRaw,
   };
 }
@@ -297,7 +310,7 @@ function makeService(
     stewardHealth?: StewardHealthReport;
   } = {},
 ) {
-  const { prisma, withTenantUser, $queryRaw } = makePrisma(store);
+  const { prisma, withTenantUser, withSystem, $queryRaw } = makePrisma(store);
   const versioning = {
     cutVersion: jest.fn(async () => ({ id: 'v-1' })),
     logActivity: jest.fn(async () => undefined),
@@ -350,6 +363,7 @@ function makeService(
     conversations,
     versioning,
     withTenantUser,
+    withSystem,
     $queryRaw,
     attachmentsResolve,
     stewardFactsFn,
@@ -652,6 +666,52 @@ describe('MeriService.assistant', () => {
     instruction: 'Rework the plan',
     clientMessageId: 'aaaaaaaa-0000-4000-8000-000000000001',
   } as AssistantDto;
+
+  // F02 regression: live QA evidence showed Meri answering an ownership
+  // question with a wrong answer contradicting the editor/inspector/plan
+  // health surfaces (which all read sp_node.owner_user_id directly). Root
+  // cause: the orchestrator body never carried owner display names at all,
+  // so its rendered plan text had zero ownership signal. Assert the actual
+  // wire body api-strategy sends now resolves and forwards ownerNames.
+  it('resolves and forwards owner display names to the orchestrator (F02)', async () => {
+    const store = makeStore();
+    const sid = 'S1';
+    store.strategies.set(sid, {
+      id: sid, tenantId: T, clientId: 'C1', title: 'QA strategy', type: 'appropriations',
+      goal: null, meriContext: null, meriSummary: null, targetDate: null, ownerUserId: U,
+    });
+    store.nodes.set('N1', {
+      id: 'N1', tenantId: T, strategyId: sid, kind: 'action', subject: 'deliverable',
+      title: 'QA ONLY internal checklist', note: null, ownerUserId: 'user_neo',
+      status: 'in_progress', startsOn: new Date('2027-02-01T00:00:00.000Z'), endsOn: null,
+      openEnded: false, meriAuthored: false, createdAt: new Date('2027-01-01T00:00:00.000Z'),
+    });
+    store.members = [{ clerkUserId: 'user_neo', firstName: 'Neo', lastName: 'Martinez' }];
+    const orchestrator = { assistant: jest.fn(async () => ({ reply: 'No unassigned steps.', edits: [] })) };
+    const { svc } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', sid, {
+      scope: 'strategy',
+      instruction: 'Which steps still need an owner?',
+      clientMessageId: 'aaaaaaaa-0000-4000-8000-000000000099',
+    } as AssistantDto);
+
+    const body = (orchestrator.assistant as jest.Mock).mock.calls[0]![0] as { ownerNames: Record<string, string> };
+    expect(body.ownerNames).toEqual({ user_neo: 'Neo Martinez' });
+  });
+
+  it('never queries the member directory for a plan with no assigned owners (empty ids short-circuit)', async () => {
+    const store = makeStore();
+    seedStrategy(store); // every seeded node has ownerUserId: null
+    const orchestrator = { assistant: jest.fn(async () => ({ reply: 'ok', edits: [] })) };
+    const { svc, withSystem } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', dto);
+
+    expect(withSystem).not.toHaveBeenCalled();
+    const body = (orchestrator.assistant as jest.Mock).mock.calls[0]![0] as { ownerNames: Record<string, string> };
+    expect(body.ownerNames).toEqual({});
+  });
 
   it('applies an add/update/remove/retime edit-set as one version', async () => {
     const store = makeStore();

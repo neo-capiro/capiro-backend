@@ -10,6 +10,20 @@ const ctx = {
 };
 
 describe('canonical tool execution metadata', () => {
+  it('attachment filing remains a governed client mutation in metadata and model instructions', () => {
+    const metadata = toolExecutionMetadataFor('save_chat_attachments', false);
+    expect(metadata).toMatchObject({
+      readOnly: false,
+      executionMode: 'approval_required',
+      externalEffect: 'crm_mutation',
+      displayVerb: 'Save documents to client',
+    });
+    const prompt = actionBehaviorPrompt([metadata]);
+    expect(prompt).toContain('waits for explicit approval');
+    expect(prompt).toContain('Save documents to client (save_chat_attachments)');
+    expect(prompt).not.toContain('Runs immediately');
+  });
+
   it('classifies reads, internal artifacts, CRM writes, and external sends deterministically', () => {
     expect(toolExecutionMetadataFor('search_state_bills', true)).toEqual(
       expect.objectContaining({

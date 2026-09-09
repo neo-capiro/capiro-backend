@@ -1906,7 +1906,8 @@ model ClioAttachment {
   textContent String?  @map("text_content") @db.Text
   /// Human-readable reason when status is scanned/unsupported.
   reason      String?  @db.VarChar(300)
-  /// Raw image bytes (image kind only) for vision-block assembly.
+  /// Original upload bytes for vision replay and durable client-document filing.
+  /// Historical document rows may be null and require the user to reattach.
   data        Bytes?
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 

@@ -55,6 +55,70 @@ describe('strategy-prompt — attachment grounding (CRT-5/MRI-7)', () => {
 });
 
 /*
+ * F02 regression: live QA evidence showed Meri answering an ownership
+ * question ("which steps still need an owner?") with a WRONG answer that
+ * contradicted the timeline/inspector/plan-health surfaces, which all read
+ * sp_node.owner_user_id directly and agreed the step HAD an owner. Root
+ * cause: renderPlan (the function that turns StrategyState into the text
+ * Meri actually reads) never rendered ownerUserId at all — the model had
+ * zero ownership signal in its context and guessed. Fixed by always
+ * rendering 'Owner: <name>' / 'Owner: unassigned' explicitly, resolving the
+ * display name from the ownerNames map api-strategy now forwards (mirrors
+ * the web editor's memberName: first+last name, id as last-resort fallback).
+ */
+describe('strategy-prompt — plan ownership rendering (F02)', () => {
+  function assistantInput(nodes: StrategyAssistantInput['strategy']['nodes']): StrategyAssistantInput {
+    return {
+      scope: 'strategy',
+      instruction: 'which steps still need an owner?',
+      clientId: 'c1',
+      strategy: { id: 's1', title: 'QA strategy', type: 'appropriations', nodes },
+    } as StrategyAssistantInput;
+  }
+
+  it('renders the resolved owner name for an assigned step, matching the editor', () => {
+    const input = assistantInput([
+      {
+        id: 'n1', kind: 'action', subject: 'deliverable', title: 'QA ONLY internal checklist',
+        ownerUserId: 'user_neo', status: 'in_progress', startsOn: '2027-01-01',
+      },
+    ]);
+    input.ownerNames = { user_neo: 'Neo Martinez' };
+    const sys = buildAssistantSystemPrompt(input, '(pack)');
+    expect(sys).toContain('Owner: Neo Martinez');
+    expect(sys).not.toContain('Owner: unassigned');
+  });
+
+  it('renders "Owner: unassigned" only for a step with a null ownerUserId', () => {
+    const input = assistantInput([
+      { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Unowned step', ownerUserId: null, status: 'draft', startsOn: '2027-01-01' },
+    ]);
+    const sys = buildAssistantSystemPrompt(input, '(pack)');
+    expect(sys).toContain('Owner: unassigned');
+  });
+
+  it('falls back to the raw clerk id when ownerNames has no entry (never silently drops ownership)', () => {
+    const input = assistantInput([
+      { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Step', ownerUserId: 'user_unknown', status: 'draft', startsOn: '2027-01-01' },
+    ]);
+    const sys = buildAssistantSystemPrompt(input, '(pack)');
+    expect(sys).toContain('Owner: user_unknown');
+  });
+
+  it('never renders "no steps have owners" language when every step is actually assigned', () => {
+    const input = assistantInput([
+      { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Step A', ownerUserId: 'user_neo', status: 'in_progress', startsOn: '2027-01-01' },
+      { id: 'n2', kind: 'action', subject: 'deliverable', title: 'Step B', ownerUserId: 'user_neo', status: 'draft', startsOn: '2027-02-01' },
+    ]);
+    input.ownerNames = { user_neo: 'Neo Martinez' };
+    const sys = buildAssistantSystemPrompt(input, '(pack)');
+    const ownerLines = sys.split('\n').filter((line) => line.includes('· Owner:'));
+    expect(ownerLines).toHaveLength(2);
+    expect(ownerLines.every((line) => line.includes('Owner: Neo Martinez'))).toBe(true);
+  });
+});
+
+/*
  * A3: dependsOn coming off the wire is 0-based indexes into the node array AS THE
  * MODEL RETURNED IT. sanitizeDraftNodes filters, sorts by startsOn, and truncates —
  * all of which change array positions — so dependsOn must be remapped from

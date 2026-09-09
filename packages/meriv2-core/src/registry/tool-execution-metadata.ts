@@ -32,6 +32,7 @@ const IMMEDIATE_INTERNAL = new Set([
 
 const EXTERNAL_SEND = new Set(['send_email', 'reply_email']);
 const CRM_MUTATION = new Set([
+  'save_chat_attachments',
   'create_client',
   'update_client_profile',
   'create_task',
@@ -55,6 +56,7 @@ const DISPLAY_VERBS: Readonly<Record<string, string>> = {
   schedule_task: 'Schedule automation',
   cancel_scheduled_task: 'Cancel automation',
   save_note: 'Save note',
+  save_chat_attachments: 'Save documents to client',
   save_memory: 'Remember',
   confirm_memory: 'Confirm memory',
   correct_memory: 'Correct memory',

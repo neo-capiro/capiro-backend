@@ -178,6 +178,34 @@ describe('DistrictFederalMarketPanelVNext', () => {
     expect(screen.getByTestId('economic-footprint-panel')).toBeInTheDocument();
   });
 
+  test.each([undefined, 'unavailable'])(
+    'future lookup failure is unavailable, including older API responses (%s)',
+    async (availability) => {
+      setMarketResponse({
+        data: {
+          ...marketFixture.data,
+          futureSignalsAvailability: availability,
+          warnings: ['future opportunity geography unavailable'],
+        },
+      });
+      renderPanel();
+      await screen.findByText('$400K');
+      expect(screen.getByText('Future signals').parentElement).toHaveTextContent('Unavailable');
+      expect(
+        screen.getByText('Future signals').parentElement?.querySelector('strong'),
+      ).not.toHaveTextContent('0');
+      expect(
+        screen.getByText('Future procurement signals are temporarily unavailable.'),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Ask Meri' }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const prompt = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[0] as string;
+      expect(prompt).toContain('Future signals: unavailable');
+      expect(prompt).not.toContain('Future signals: none in this view');
+    },
+  );
+
   test('a market failure does not claim the district is empty and does not suppress Release 3', async () => {
     apiGetMock.mockRejectedValue(new Error('failed'));
 
@@ -398,4 +426,23 @@ describe('partial supplier coverage stays explicit even when matches exist', () 
       apiGetMock.mock.calls.some(([url]) => String(url).includes('/supplier-footprint/')),
     ).toBe(false);
   });
+});
+
+describe('future signal availability is independent of other rails', () => {
+  test.each([
+    ['available', ['subaward geography unavailable'], '0'],
+    ['unavailable', [], 'Unavailable'],
+  ])(
+    '%s controls the count even without a legacy warning',
+    async (availability, warnings, label) => {
+      setMarketResponse({
+        data: { ...marketFixture.data, futureSignalsAvailability: availability, warnings },
+      });
+      renderPanel();
+      await screen.findByText('$400K');
+      expect(
+        screen.getByText('Future signals').parentElement?.querySelector('strong'),
+      ).toHaveTextContent(label as string);
+    },
+  );
 });

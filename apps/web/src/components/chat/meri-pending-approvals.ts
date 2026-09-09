@@ -1,4 +1,5 @@
 import type { PendingApproval } from './useMeriChatController.js';
+import { clientSaveReceipt } from './meri-client-save-receipt.js';
 
 /**
  * Pure state transitions for the held-write cards.
@@ -55,7 +56,8 @@ export function describeApprovalResult(resultSummary: unknown): string | null {
   // update_client_profile's summary reports counts of what it actually wrote
   // — worth echoing so "approved" is never mistaken for "and it did what I
   // described".
-  const counts = r.counts && typeof r.counts === 'object' ? (r.counts as Record<string, unknown>) : {};
+  const counts =
+    r.counts && typeof r.counts === 'object' ? (r.counts as Record<string, unknown>) : {};
   const written = typeof counts.fieldsWritten === 'number' ? counts.fieldsWritten : 0;
   const people = typeof counts.peopleCreated === 'number' ? counts.peopleCreated : 0;
   const caps = typeof counts.capabilitiesCreated === 'number' ? counts.capabilitiesCreated : 0;
@@ -79,6 +81,8 @@ export function describeApprovalResult(resultSummary: unknown): string | null {
  * external send may have already happened).
  */
 export function describeApprovalOutcome(p: PendingApproval): string {
+  const receipt = clientSaveReceipt(p);
+  if (receipt) return receipt.summary;
   switch (p.status) {
     case 'succeeded': {
       const detail = describeApprovalResult(p.resultSummary);

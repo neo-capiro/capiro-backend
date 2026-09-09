@@ -10,7 +10,8 @@ const mockEmbed = jest.fn();
 
 function fixture() {
   const snapshot = { id: 'document-1', clientId: 'client-1' as string | null, meetingId: 'meeting-1',
-    s3Key: 'tenant/doc', fileName: 'Evidence.txt', contentType: 'text/plain' };
+    s3Key: 'tenant/doc', fileName: 'Evidence.txt', contentType: 'text/plain',
+    viewerMode: 'all', lifecycleStatus: 'ready', scanStatus: 'clean', supersededByAttachmentId: null };
   const state = { attachment: { ...snapshot }, meeting: { clientId: 'client-1' as string | null, isInternal: false },
     chunks: [] as string[], indexedAt: null as Date | null };
   const operations: string[] = [];
@@ -51,6 +52,7 @@ function fixture() {
   const extract = jest.fn().mockResolvedValue({ text: 'Current document content with traceable evidence', truncated: false });
   const service = Object.create(ClientKbService.prototype) as ClientKbService;
   Object.assign(service, { prisma, extractAttachmentTextForKb: extract,
+    config: { get: jest.fn().mockReturnValue(false) },
     countClientChunks: jest.fn().mockResolvedValue(0), clientName: jest.fn().mockResolvedValue('Client One') });
   function reassign(clientId: string | null, isInternal = false) {
     expect(inTransaction).toBe(false);
@@ -141,4 +143,21 @@ describe('in-flight document indexing during meeting reassignment', () => {
     expect(f.update).toHaveBeenCalledTimes(1);
     expect(f.operations).not.toContain('purge');
   });
+
+  it.each(['private', 'quarantined'])(
+    'does not write a chunk if the document becomes %s during provider work', async change => {
+      const f = fixture();
+      mockEmbed.mockImplementation(async () => {
+        if (change === 'private') f.state.attachment.viewerMode = 'restricted';
+        else {
+          f.state.attachment.lifecycleStatus = 'quarantined';
+          f.state.attachment.scanStatus = 'pending';
+        }
+        return Array(1024).fill(0);
+      });
+      await f.service.indexAttachment('tenant-1', 'document-1');
+      expect(f.operations).not.toContain('insert');
+      expect(f.state.indexedAt).toBeNull();
+    },
+  );
 });

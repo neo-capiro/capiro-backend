@@ -40,6 +40,7 @@ import { refreshClientFootprint } from './client-intelligence-refresh.js';
 import { refreshOfficeRecommendations } from '../../../pages/clients/targets-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroModal } from '../../components/overlays/index.js';
+import { useCapiroToast } from '../../components/feedback/toast.js';
 import './client-crm.css';
 import './client-record-surface.css';
 import './portfolio-proto.css';
@@ -382,6 +383,7 @@ function ClientCrmDrawerBody({
 function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () => void }) {
   const api = useApi();
   const qc = useQueryClient();
+  const toast = useCapiroToast();
   const update = useMutation({
     mutationFn: async (submission: ClientFormSubmit) => {
       const updated = (await api.put<Client>(`/api/clients/${client.id}`, submission.payload)).data;
@@ -393,8 +395,15 @@ function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () 
       qc.setQueryData(['client', updated.id], updated);
       void qc.invalidateQueries({ queryKey: ['clients'] });
       void qc.invalidateQueries({ queryKey: ['client', updated.id] });
+      toast.success('Client updated');
       onClose();
     },
+    // Previously silent on failure: the button just stopped spinning and the
+    // dialog stayed open with no message, which reads as "the save button is
+    // inconsistent" — success closes the dialog, failure looks identical to a
+    // slow click. Surface the real server/network error and keep the dialog
+    // open (with the user's in-progress edits intact) so they can retry.
+    onError: (err) => toast.error(errorMessage(err)),
   });
 
   return (
@@ -407,6 +416,15 @@ function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () 
       onSubmit={(submission) => update.mutate(submission)}
     />
   );
+}
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const data = (error as { response?: { data?: { message?: unknown } } }).response?.data;
+    if (typeof data?.message === 'string') return data.message;
+    if (Array.isArray(data?.message)) return data.message.join(', ');
+  }
+  return error instanceof Error ? error.message : 'Could not save the client profile';
 }
 
 async function uploadClientLogo(api: ReturnType<typeof useApi>, clientId: string, file: File) {

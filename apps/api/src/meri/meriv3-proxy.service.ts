@@ -1,3 +1,4 @@
+import { assertAttachmentConversation, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -227,7 +228,7 @@ export class MeriV3ProxyService {
     if (conversation.clientId) {
       clientKbSnapshot =
         (await this.clientKb
-          .buildSnapshot(ctx.tenantId, conversation.clientId)
+          .buildSnapshot(ctx.tenantId, conversation.clientId, ctx.userId)
           .catch(() => null)) ?? undefined;
     }
     let skillAddendum: string | undefined;
@@ -593,15 +594,17 @@ export class MeriV3ProxyService {
         kind: string;
         status: string;
         byteSize: number;
+        messageId?: string | null;
       }> = [];
       if (attachmentIds.length) {
         rows = await tx.clioAttachment.findMany({
           where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId },
-          select: { id: true, filename: true, kind: true, status: true, byteSize: true },
+          select: { id: true, filename: true, kind: true, status: true, byteSize: true, messageId: true },
         });
         if (rows.length !== new Set(attachmentIds).size) {
           throw new BadRequestException('One or more attachments were not found');
         }
+        await assertAttachmentConversation(tx, ctx, conversation.id, rows);
         const vision = validateVisionSet(
           rows
             .filter((row) => row.kind === 'image')
@@ -624,10 +627,13 @@ export class MeriV3ProxyService {
         select: { id: true },
       });
       if (rows.length) {
-        await tx.clioAttachment.updateMany({
-          where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId },
+        const claimed = await tx.clioAttachment.updateMany({
+          where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId, messageId: null },
           data: { messageId: message.id },
         });
+        if (claimed.count !== rows.filter(row => row.messageId == null).length) {
+          throw new BadRequestException('An attachment was used in another chat. Upload the file again.');
+        }
       }
       return message.id;
     });
@@ -675,17 +681,18 @@ export class MeriV3ProxyService {
     }
     const lastUser = [...messages].reverse().find((message) => message.role === 'user') ?? null;
     const allIds = [...refsByMessage.values()].flat().map((ref) => ref.id);
-    const documentText = new Map<string, { filename: string; text: string }>();
+    const documentText = new Map<string, { id: string; filename: string; text: string; status: string; reason: string | null }>();
     const currentTurnImages: Array<{ mediaType: string; dataBase64: string }> = [];
     if (allIds.length) {
       const documents = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioAttachment.findMany({
-          where: { id: { in: allIds }, kind: { not: 'image' }, textContent: { not: null } },
-          select: { id: true, filename: true, textContent: true },
+          where: { id: { in: allIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: { not: 'image' }, textContent: { not: null } },
+          select: { id: true, filename: true, textContent: true, status: true, reason: true },
         }),
       );
       for (const document of documents) {
         documentText.set(document.id, {
+          id: document.id, status: document.status, reason: document.reason,
           filename: document.filename,
           text: document.textContent ?? '',
         });
@@ -696,7 +703,7 @@ export class MeriV3ProxyService {
       if (imageIds.length) {
         const images = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioAttachment.findMany({
-            where: { id: { in: imageIds }, kind: 'image' },
+            where: { id: { in: imageIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'image' },
             select: { mediaType: true, data: true },
           }),
         );
@@ -714,9 +721,11 @@ export class MeriV3ProxyService {
       const parts = [message.body];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
-        if (document) parts.push(formatAttachmentContext(document.filename, document.text));
+        if (document) parts.push(formatAttachmentContext(document.filename, document.text, undefined, document));
         else if (ref.kind === 'image' && message.id !== lastUser?.id) {
           parts.push(imageHistoryPlaceholder(ref.filename));
+        } else if (ref.kind !== 'image') {
+          parts.push(`Attachment ${JSON.stringify(ref.filename)} (ID ${ref.id}) is unavailable for this turn. Ask for that file again; do not claim to have read it.`);
         }
       }
       return {
@@ -724,6 +733,11 @@ export class MeriV3ProxyService {
         text: parts.join('\n\n'),
       };
     });
+    if (boundary || messages.length >= 80) {
+      const carried = await compactedAttachmentContext(this.prisma, ctx, conversationId, messages.map(message => message.id));
+      const latest = [...history].reverse().find(message => message.role === 'user');
+      if (carried && latest) latest.text += `\n\n${carried}`;
+    }
     return { history, currentTurnImages, hasSummaryBoundary: Boolean(boundary) };
   }
 

@@ -205,6 +205,7 @@ const SIDE_EFFECTING_TEST = new Set([
   'create_meeting_brief',
   'draft_policy_memo',
   'save_note',
+  'save_chat_attachments',
   'send_email',
   'reply_email',
   'save_memory',

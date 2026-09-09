@@ -3931,7 +3931,16 @@ export const MERI_CAPABILITY_REGISTRY = [
   },
   {
     name: 'save_note',
-    description: 'Save a user-scoped Meri note and optionally an encrypted Capiro meeting note.',
+    description:
+      'Save supplied note content in Capiro. Provide the intended clientId when filing under a client; optionally associate a meeting. Never call without the actual note body or claim success before the saved-record receipt.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_chat_attachments',
+    description:
+      'File selected chat attachments under the intended Capiro client, preserving each original document and its extracted text. Requires clientId, conversationId, and attachmentIds from the attached-file context. Use for explicit requests to save or ingest uploaded documents into a client record; report each confirmed saved, duplicate, or failed result and do not claim pending approval is a completed save.',
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],

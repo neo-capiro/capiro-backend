@@ -73,6 +73,7 @@ describe('FederalMarketService geography composition', () => {
       }),
     ]);
     expect(result.futureSignals).toHaveLength(1);
+    expect(result).toMatchObject({ futureSignalsAvailability: 'available' });
     expect(result.warnings).toEqual([]);
   });
 
@@ -97,6 +98,7 @@ describe('FederalMarketService geography composition', () => {
     expect(result.districts).toHaveLength(1);
     expect(result.districts[0]?.contractAmount).toBe(400_000);
     expect(result.futureSignals).toEqual([]);
+    expect(result).toMatchObject({ futureSignalsAvailability: 'unavailable' });
     expect(result.warnings).toEqual([
       'subaward geography unavailable',
       'future opportunity geography unavailable',

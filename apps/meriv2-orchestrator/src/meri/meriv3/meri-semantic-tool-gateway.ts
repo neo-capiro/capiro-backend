@@ -161,8 +161,17 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
     tools: ['search_memory', 'save_memory', 'confirm_memory', 'correct_memory', 'forget_memory'],
   },
   {
-    pattern: /\b(?:save|record|add)\b.{0,20}\bnote\b/i,
-    tools: ['save_note'],
+    pattern:
+      /\b(?:save|record|add|log|file|store)\b[\s\S]{0,100}\bnotes?\b|\bnotes?\b[\s\S]{0,100}\b(?:save|record|add|log|file|store)\b/i,
+    tools: ['save_note', 'lookup_client_registry'],
+  },
+  {
+    // Intent may span sentences ("attached documents ... save this information
+    // in Sightline Intelligence") or a later turn. Offering a schema does not
+    // authorize a write: the canonical registry still enforces approval.
+    pattern:
+      /^(?=[\s\S]*\b(?:save|file|store|ingest|import|log)\b)(?=[\s\S]*\b(?:attachments?|attached|documents?|files?|uploads?)\b)/i,
+    tools: ['save_chat_attachments', 'lookup_client_registry', 'read_client_documents'],
   },
   {
     pattern: /\b(?:create|add|onboard)\b.{0,20}\bclient\b/i,

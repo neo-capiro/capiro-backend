@@ -22,6 +22,7 @@ const TOOL_LABELS: Record<string, string> = {
   correct_memory: 'Correct memory',
   forget_memory: 'Forget memory',
   save_note: 'Save note',
+  save_chat_attachments: 'Save documents to client',
   save_memory: 'Save memory',
   create_word: 'Create Word document',
   create_excel: 'Create spreadsheet',
@@ -133,6 +134,11 @@ export function buildMeriActionPreview(args: {
 
   for (const key of ['people', 'facilities', 'capabilities', 'recipients', 'attachments']) {
     if (Array.isArray(input[key])) counts[key] = input[key].length;
+  }
+  if (tool === 'save_chat_attachments' && Array.isArray(input.attachmentIds)) {
+    counts.attachments = new Set(
+      input.attachmentIds.filter((id): id is string => typeof id === 'string' && !!id.trim()),
+    ).size;
   }
 
   if (tool === 'update_client_profile') {

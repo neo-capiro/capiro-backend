@@ -108,6 +108,7 @@ const EXPECTED_TOOLS = [
   'create_meeting_brief',
   'draft_policy_memo',
   'save_note',
+  'save_chat_attachments',
   'send_email',
   'list_emails',
   'search_emails',
@@ -178,6 +179,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   create_meeting_brief: ['meetingId'],
   draft_policy_memo: ['clientId'],
   save_note: ['body'],
+  save_chat_attachments: ['clientId', 'conversationId', 'attachmentIds'],
   send_email: ['to', 'subject', 'body'],
   reply_email: ['threadId', 'body'],
   get_email_thread: ['threadId'],
@@ -351,6 +353,7 @@ describe('Meri tool registration', () => {
       'reply_email',
       'update_client_profile',
       'save_note',
+      'save_chat_attachments',
       'save_memory',
       'confirm_memory',
       'correct_memory',
@@ -408,6 +411,17 @@ describe('Meri tool registration', () => {
         expect(properties[field]).toBeDefined();
       }
     }
+  });
+
+  it('advertises the same nonempty bounded attachment batch that the filing service accepts', () => {
+    const schema = schemas().find((tool) => tool.name === 'save_chat_attachments');
+    const properties = schema!.input_schema.properties as Record<string, unknown>;
+    expect(properties.attachmentIds).toMatchObject({
+      type: 'array',
+      minItems: 1,
+      maxItems: 10,
+      items: { type: 'string', minLength: 1 },
+    });
   });
 
   it('tools without required inputs declare an empty required array', () => {

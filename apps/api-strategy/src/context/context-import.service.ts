@@ -380,6 +380,25 @@ export function splitContextSections(sections: ContextImportSection[]): ContextI
   return chunks;
 }
 
+/**
+ * F01 fix: mirrors normalizeForMatch in the orchestrator's
+ * context-import-prompt.ts. This is an independent re-validation boundary
+ * (comment above: "independent of orchestrator checks"), so it needs the
+ * same typographic tolerance or it re-introduces the exact failure it was
+ * meant to catch differently — a correct extraction rejected because the
+ * model's reproduced quote has curly quotes/NBSP/joined-whitespace relative
+ * to the raw source, not because anything was fabricated.
+ */
+function normalizeForMatch(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u00A0\s]+/g, ' ')
+    .trim();
+}
+
 /** Revalidate the model at the persistence boundary, independent of orchestrator checks. */
 export function validateImportAnalysis(response: ContextImportAnalysis, sections: ContextImportSection[], existingIds: Set<string>) {
   const invalid = () => new UnprocessableEntityException('Meri could not reliably match the organized information to this file. Please try again.');
@@ -395,11 +414,12 @@ export function validateImportAnalysis(response: ContextImportAnalysis, sections
       if (++sectionCount > 80) throw invalid();
       if (!section || typeof section.heading !== 'string' || section.heading.length > 200 || typeof section.content !== 'string' || !section.content.trim() || section.content.length > 12_000 || !Array.isArray(section.evidence) || !section.evidence.length || section.evidence.length > 20) throw invalid();
       for (const evidence of section.evidence) {
-        if (!evidence || typeof evidence.sourceRef !== 'string' || typeof evidence.quote !== 'string' || !evidence.quote.trim() || !byRef.get(evidence.sourceRef)?.includes(evidence.quote)) throw invalid();
+        const sourceText = evidence && typeof evidence.sourceRef === 'string' ? byRef.get(evidence.sourceRef) : undefined;
+        if (!evidence || typeof evidence.sourceRef !== 'string' || typeof evidence.quote !== 'string' || !evidence.quote.trim() || !sourceText || !normalizeForMatch(sourceText).includes(normalizeForMatch(evidence.quote))) throw invalid();
       }
       // Imported facts are excerpts. The model selects and organizes evidence;
       // invented paraphrases or instructions never acquire active fact status.
-      if (section.content !== section.evidence.map((e) => e.quote).join('\n\n')) throw invalid();
+      if (normalizeForMatch(section.content) !== normalizeForMatch(section.evidence.map((e) => e.quote).join('\n\n'))) throw invalid();
       totalChars += section.content.length;
     }
   }

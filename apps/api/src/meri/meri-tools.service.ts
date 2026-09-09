@@ -122,6 +122,7 @@ import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.he
 import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
+import { MeriClientFilingService } from './meri-client-filing.service.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -228,6 +229,7 @@ export class MeriToolsService {
     @Optional() private readonly sharedRetrieval?: RetrievalV2Service,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
     @Optional() private readonly clientAdvocacy?: ClientAdvocacyMatterService,
+    @Optional() private readonly clientFiling?: MeriClientFilingService,
   ) {}
 
   manifest() {
@@ -620,7 +622,7 @@ export class MeriToolsService {
       ),
       save_note: obj(
         {
-          body: str('Note body'),
+          body: { ...str('Exact note body to save. For longer source documents, use save_chat_attachments.'), minLength: 1, maxLength: 40_000 },
           title: str('Optional note title'),
           clientId: str('Optional client UUID'),
           meetingId: str('Optional meeting UUID for an encrypted meeting note'),
@@ -629,6 +631,14 @@ export class MeriToolsService {
           conversationId: str('Optional conversation UUID for attribution'),
         },
         ['body'],
+      ),
+      save_chat_attachments: obj(
+        {
+          clientId: str('Explicit destination client UUID; resolve the client before proposing a save.'),
+          conversationId: str('Current Meri conversation UUID containing the user attachments.'),
+          attachmentIds: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'string', minLength: 1 }, description: '1–10 attachment IDs from this conversation. Saves the original files to client Documents, with a per-file receipt.' },
+        },
+        ['clientId', 'conversationId', 'attachmentIds'],
       ),
       send_email: obj(
         {
@@ -1213,6 +1223,7 @@ export class MeriToolsService {
       const results = await this.clientKb.search(ctx.tenantId, {
         query,
         clientId,
+        userId: ctx.userId,
         kind: typeof input.kind === 'string' ? input.kind : undefined,
         limit: typeof input.limit === 'number' ? input.limit : undefined,
       });
@@ -1502,6 +1513,8 @@ export class MeriToolsService {
         return this.draftPolicyMemo(ctx, input);
       case 'save_note':
         return this.saveNote(ctx, input);
+      case 'save_chat_attachments':
+        return this.saveChatAttachments(ctx, input);
       case 'send_email':
         return this.sendEmail(ctx, input);
       case 'list_emails':
@@ -5230,7 +5243,19 @@ export class MeriToolsService {
     };
   }
 
+  private async saveChatAttachments(ctx: TenantContext, input: Record<string, unknown>) {
+    if (!this.clientFiling) throw new BadGatewayException('Client filing is unavailable');
+    return this.clientFiling.saveAttachments(ctx, {
+      clientId: await this.ensureClientVisible(ctx, requiredString(input, 'clientId', 80)),
+      conversationId: requiredString(input, 'conversationId', 80),
+      attachmentIds: input.attachmentIds,
+    });
+  }
+
   private async saveNote(ctx: TenantContext, input: Record<string, unknown>) {
+    if (typeof input.body === 'string' && input.body.trim().length > 40_000) {
+      throw new BadRequestException('Notes must be at most 40,000 characters. Attach longer documents to save their full contents.');
+    }
     const body = requiredString(input, 'body', 40_000);
     const title = optionalString(input, 'title', 160);
     const conversationId = optionalString(input, 'conversationId', 80);
@@ -5246,6 +5271,7 @@ export class MeriToolsService {
         throw new BadRequestException('clientId does not match the meeting client');
       }
       clientId = clientId ?? meeting.clientId;
+      if (conversationId) await this.ensureConversationForTool(ctx, conversationId, clientId);
       meetingNote = await this.engagement.createMeetingNote(ctx, meetingId, {
         body,
         confidential: optionalBoolean(input, 'confidential') ?? true,
@@ -5253,6 +5279,11 @@ export class MeriToolsService {
       });
     } else if (clientId) {
       clientId = await this.ensureClientVisible(ctx, clientId);
+      if (!this.clientFiling) throw new BadGatewayException('Client filing is unavailable');
+      return this.clientFiling.saveNote(ctx, {
+        clientId, conversationId: conversationId ?? undefined, title: title ?? undefined, body,
+        confidential: optionalBoolean(input, 'confidential') ?? undefined,
+      });
     }
 
     if (conversationId) await this.ensureConversationForTool(ctx, conversationId, clientId);
@@ -5278,6 +5309,7 @@ export class MeriToolsService {
 
     return {
       tool: 'save_note',
+      status: 'saved',
       generatedAt: new Date().toISOString(),
       note: clioNote,
       meetingNote,

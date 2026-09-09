@@ -194,6 +194,211 @@ describe('filterForDistrict', () => {
 });
 
 describe('aggregateMemberPriorities', () => {
+  it('credits only the source-named senator, not everyone representing the state', () => {
+    const members = [
+      {
+        bioguideId: 'A001',
+        chamber: 'senate' as const,
+        state: 'CA',
+        district: null,
+        fullName: 'Alice Able',
+        firstName: 'Alice',
+        lastName: 'Able',
+        isCurrent: true,
+      },
+      {
+        bioguideId: 'B001',
+        chamber: 'senate' as const,
+        state: 'CA',
+        district: null,
+        fullName: 'Bob Baker',
+        firstName: 'Bob',
+        lastName: 'Baker',
+        isCurrent: true,
+      },
+    ];
+    const request = projectRequest(
+      row({
+        chamber: 'senate',
+        requesterState: 'CA',
+        requesterDistrict: null,
+        requesterName: 'Alice Able',
+      }),
+      [],
+      null,
+    );
+    expect(aggregateMemberPriorities([request], members).byMember.map((m) => m.bioguideId)).toEqual(
+      ['A001'],
+    );
+  });
+
+  it('leaves an unidentified requester unattributed even when geography matches', () => {
+    const members = [
+      {
+        bioguideId: 'A001',
+        chamber: 'senate' as const,
+        state: 'CA',
+        district: null,
+        fullName: 'Alice Able',
+        firstName: 'Alice',
+        lastName: 'Able',
+        isCurrent: true,
+      },
+    ];
+    const request = projectRequest(
+      row({
+        chamber: 'senate',
+        requesterState: 'CA',
+        requesterDistrict: null,
+        requesterName: 'Unknown requester',
+      }),
+      [],
+      null,
+    );
+    expect(aggregateMemberPriorities([request], members).byMember).toEqual([]);
+  });
+
+  it('deduplicates a joint request across member totals and provenance occurrences', () => {
+    const members = [
+      {
+        bioguideId: 'A001',
+        chamber: 'senate' as const,
+        state: 'CA',
+        district: null,
+        fullName: 'Alice Able',
+        firstName: 'Alice',
+        lastName: 'Able',
+        isCurrent: true,
+      },
+      {
+        bioguideId: 'B001',
+        chamber: 'senate' as const,
+        state: 'CA',
+        district: null,
+        fullName: 'Bob Baker',
+        firstName: 'Bob',
+        lastName: 'Baker',
+        isCurrent: true,
+      },
+    ];
+    const request = projectRequest(
+      row({
+        chamber: 'senate',
+        requesterState: 'CA',
+        requesterDistrict: null,
+        requesterName: 'Able; Baker',
+        requestedAmountUsd: '1000',
+      }),
+      [],
+      null,
+    );
+    const result = aggregateMemberPriorities([request, request], members);
+    expect(result.byMember.map((m) => m.requestedTotalUsd)).toEqual([1000, 1000]);
+    expect(result.requestedTotalUsd).toBe(1000);
+    expect(result.distinctRequestIds).toEqual(['req-1']);
+  });
+
+  it.each(['Able', 'Unknown Able', 'Alice Able (TX)'])(
+    'abstains on ambiguous, unmatched or conflicting requester %s',
+    (requesterName) => {
+      const members = [
+        {
+          bioguideId: 'A001',
+          chamber: 'senate' as const,
+          state: 'CA',
+          district: null,
+          fullName: 'Alice Able',
+          firstName: 'Alice',
+          lastName: 'Able',
+          isCurrent: true,
+        },
+        {
+          bioguideId: 'H001',
+          chamber: 'senate' as const,
+          state: 'CA',
+          district: null,
+          fullName: 'Henry Able',
+          firstName: 'Henry',
+          lastName: 'Able',
+          isCurrent: false,
+        },
+      ];
+      const request = projectRequest(
+        row({ chamber: 'senate', requesterState: 'CA', requesterDistrict: null, requesterName }),
+        [],
+        null,
+      );
+      const result = aggregateMemberPriorities([request], members);
+      expect(result.byMember).toEqual([]);
+      expect(result.unattributedRequestIds).toEqual(['req-1']);
+    },
+  );
+
+  it.each(['Alice Able', 'Able, Alice', 'Sen. Alice Able (CA)'])(
+    'resolves the source full name %s without surname fallback',
+    (requesterName) => {
+      const members = [
+        {
+          bioguideId: 'A001',
+          chamber: 'senate' as const,
+          state: 'CA',
+          district: null,
+          fullName: 'Able, Alice',
+          firstName: 'Alice',
+          lastName: 'Able',
+          isCurrent: true,
+        },
+        {
+          bioguideId: 'H001',
+          chamber: 'senate' as const,
+          state: 'CA',
+          district: null,
+          fullName: 'Henry Able',
+          firstName: 'Henry',
+          lastName: 'Able',
+          isCurrent: false,
+        },
+      ];
+      const request = projectRequest(
+        row({ chamber: 'senate', requesterState: 'CA', requesterDistrict: null, requesterName }),
+        [],
+        null,
+      );
+      expect(
+        aggregateMemberPriorities([request], members).byMember.map((m) => m.bioguideId),
+      ).toEqual(['A001']);
+    },
+  );
+
+  it('a former requester stays public context and never becomes a current member history', () => {
+    const members = [
+      {
+        bioguideId: 'H001',
+        chamber: 'senate' as const,
+        state: 'CA',
+        district: null,
+        fullName: 'Henry Able',
+        firstName: 'Henry',
+        lastName: 'Able',
+        isCurrent: false,
+      },
+    ];
+    const request = projectRequest(
+      row({
+        chamber: 'senate',
+        requesterState: 'CA',
+        requesterDistrict: null,
+        requesterName: 'Henry Able',
+      }),
+      [],
+      null,
+    );
+    expect(aggregateMemberPriorities([request], members).byMember).toEqual([]);
+    expect(filterForDistrict([request], 'CA', '47', { includeSenateStatewide: true })).toEqual([
+      request,
+    ]);
+  });
+
   it('counts each canonical request once per member and separates requested from final', () => {
     const projections = [
       projectRequest(row({ requestedAmountUsd: '100000', finalAmountUsd: '80000' }), [], null),
@@ -201,7 +406,16 @@ describe('aggregateMemberPriorities', () => {
       projectRequest(row({ requestedAmountUsd: '100000', finalAmountUsd: '80000' }), [], null),
     ];
     const result = aggregateMemberPriorities(projections, [
-      { bioguideId: 'B001', chamber: 'house', state: 'AL', district: '2' },
+      {
+        bioguideId: 'B001',
+        chamber: 'house',
+        state: 'AL',
+        district: '2',
+        fullName: 'Anna Smith',
+        firstName: 'Anna',
+        lastName: 'Smith',
+        isCurrent: true,
+      },
     ]);
     expect(result.byMember).toHaveLength(1);
     expect(result.byMember[0]!.requestedTotalUsd).toBe(100000);
@@ -217,8 +431,26 @@ describe('aggregateMemberPriorities', () => {
       ),
     ];
     const result = aggregateMemberPriorities(projections, [
-      { bioguideId: 'B001', chamber: 'house', state: 'AL', district: '2' },
-      { bioguideId: 'S001', chamber: 'senate', state: 'AL', district: null },
+      {
+        bioguideId: 'B001',
+        chamber: 'house',
+        state: 'AL',
+        district: '2',
+        fullName: 'Anna Smith',
+        firstName: 'Anna',
+        lastName: 'Smith',
+        isCurrent: true,
+      },
+      {
+        bioguideId: 'S001',
+        chamber: 'senate',
+        state: 'AL',
+        district: null,
+        fullName: 'John Smith',
+        firstName: 'John',
+        lastName: 'Smith',
+        isCurrent: true,
+      },
     ]);
     const house = result.byMember.find((m) => m.bioguideId === 'B001');
     const senate = result.byMember.find((m) => m.bioguideId === 'S001');
@@ -236,9 +468,48 @@ describe('aggregateMemberPriorities', () => {
       ),
     ];
     const result = aggregateMemberPriorities(projections, [
-      { bioguideId: 'B001', chamber: 'house', state: 'AL', district: '2' },
+      {
+        bioguideId: 'B001',
+        chamber: 'house',
+        state: 'AL',
+        district: '2',
+        fullName: 'Anna Smith',
+        firstName: 'Anna',
+        lastName: 'Smith',
+        isCurrent: true,
+      },
     ]);
     expect(result.byMember[0]!.requestedTotalUsd).toBe(300);
     expect(result.byMember[0]!.finalTotalUsd).toBe(150);
+  });
+});
+
+describe('source-named at-large House requester', () => {
+  it('preserves the canonical null member district convention without inventing request geography', () => {
+    const member = {
+      bioguideId: 'A001',
+      chamber: 'house' as const,
+      state: 'AK',
+      district: null,
+      fullName: 'Alice Able',
+      firstName: 'Alice',
+      lastName: 'Able',
+      isCurrent: true,
+    };
+    const request = row({
+      chamber: 'house',
+      requesterName: 'Alice Able',
+      requesterState: 'AK',
+      requesterDistrict: 'AL',
+    });
+    expect(
+      aggregateMemberPriorities([projectRequest(request, [], null)], [member]).byMember,
+    ).toHaveLength(1);
+    expect(
+      aggregateMemberPriorities(
+        [projectRequest({ ...request, requesterDistrict: null }, [], null)],
+        [member],
+      ).byMember,
+    ).toHaveLength(0);
   });
 });

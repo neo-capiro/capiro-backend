@@ -1,125 +1,152 @@
-/**
- * Regression coverage for a defect found via independent review of the
- * priority-intelligence hotfix: `loadMemberPriorityEvidence` ran the exact
- * same class of bug being fixed elsewhere in this PR — it selected the
- * non-existent `congress_member.state_code` column (real column: `state`)
- * and read the INTEGER `district` column as if it were already text (no
- * `::text` cast), so `member.district?.trim()` would throw on a real row
- * even if the column reference didn't fail first.
- *
- * Unlike the priority-intelligence endpoint, this method already wraps its
- * body in a try/catch that degrades to `strength: 'unavailable'` on any
- * error — so this defect never 500'd anything. It silently made the
- * Strategic Relevance "member historical priorities" evidence component
- * permanently unavailable instead, which is a real live degradation just a
- * quieter one.
- */
-import { describe, expect, jest, test } from '@jest/globals';
 import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import type { DistrictNexusService } from './district-nexus.service.js';
+import type { StrategicComponentInput } from './district-nexus-strategic-scoring.js';
 
-function sqlTextOf(strings: TemplateStringsArray): string {
-  return Array.isArray(strings) ? strings.join('?') : String(strings);
-}
-
-function makeService(opts: {
-  memberRows: Array<{
-    bioguide_id: string;
-    chamber: string;
-    state_code: string | null;
-    district: string | null;
-  }>;
-  requestRows?: Array<Record<string, unknown>>;
-}) {
-  const capturedSql: string[] = [];
+const alice = {
+  bioguideId: 'A001',
+  fullName: 'Alice Able',
+  firstName: 'Alice',
+  lastName: 'Able',
+  chamber: 'senate',
+  district: null as number | null,
+  isCurrent: true,
+};
+const bob = {
+  ...alice,
+  bioguideId: 'B001',
+  fullName: 'Bob Baker',
+  firstName: 'Bob',
+  lastName: 'Baker',
+};
+const request = {
+  id: 'request-1',
+  fiscalYear: 2026,
+  chamber: 'senate',
+  requesterName: 'Alice Able',
+  requesterState: 'CA',
+  requesterDistrict: null as string | null,
+  state: 'CA',
+  recipientName: 'Town',
+  requestedAmountUsd: '1000',
+};
+function harness(members = [alice, bob], requests = [request]) {
   const prisma = {
-    $queryRaw: jest.fn(async (strings: TemplateStringsArray, ..._values: unknown[]) => {
-      const sql = sqlTextOf(strings);
-      capturedSql.push(sql);
-      return opts.memberRows;
-    }),
+    congressMember: { findMany: jest.fn().mockResolvedValue(members) },
     communityFundingRequest: {
-      findFirst: jest.fn<() => Promise<{ id: string } | null>>(async () => ({ id: 'seed' })),
-      findMany: jest.fn<() => Promise<Array<Record<string, unknown>>>>(
-        async () => opts.requestRows ?? [],
+      findFirst: jest.fn().mockResolvedValue({ id: 'seed' }),
+      findMany: jest.fn(async ({ where }: { where: { chamber: string } }) =>
+        requests.filter((r) => r.chamber === where.chamber),
       ),
     },
-  } as unknown as PrismaService;
-  const svc = new DistrictNexusStrategicService(
-    prisma,
+  };
+  const service = new DistrictNexusStrategicService(
+    prisma as unknown as PrismaService,
     {} as ClientPeRelevanceService,
     {} as DistrictNexusService,
   );
-  const loadMemberPriorityEvidence = (
-    svc as unknown as {
+  const load = (
+    service as unknown as {
       loadMemberPriorityEvidence: (
-        bioguides: ReadonlySet<string>,
-        stateCode: string,
-        districtKey: string,
-      ) => Promise<{ strength: string; evidenceCount: number; rationale: string }>;
+        ids: ReadonlySet<string>,
+        state: string,
+        district: string,
+      ) => Promise<StrategicComponentInput>;
     }
-  ).loadMemberPriorityEvidence.bind(svc);
-  return { loadMemberPriorityEvidence, capturedSql };
+  ).loadMemberPriorityEvidence.bind(service);
+  return { prisma, load: (ids = new Set(['A001', 'B001'])) => load(ids, 'CA', 'CA-47') };
 }
 
-describe('DistrictNexusStrategicService — loadMemberPriorityEvidence congress_member query', () => {
-  test('queries congress_member.state (not the non-existent state_code) and casts district to text', async () => {
-    const { loadMemberPriorityEvidence, capturedSql } = makeService({
-      memberRows: [{ bioguide_id: 'M001234', chamber: 'house', state_code: 'FL', district: '08' }],
-    });
-
-    await loadMemberPriorityEvidence(new Set(['M001234']), 'FL', 'FL-08');
-
-    const memberSql = capturedSql.find((sql) => sql.includes('congress_member'));
-    expect(memberSql).toBeDefined();
-    expect(memberSql).toMatch(/\bstate\b\s+AS\s+state_code/i);
-    expect(memberSql).not.toMatch(/FROM congress_member[\s\S]*?\bstate_code\b(?!\s+AS)/i);
-    expect(memberSql).toMatch(/district::text AS district/i);
-  });
-
-  test('a house member with a real district does not throw when computing at-large/sentinel handling', async () => {
-    // Before the fix, `district` came back as a raw INTEGER from the pg
-    // driver (no ::text cast), and member.district?.trim() would throw
-    // "d.trim is not a function" on any real row reaching this line.
-    const { loadMemberPriorityEvidence } = makeService({
-      memberRows: [{ bioguide_id: 'M001234', chamber: 'house', state_code: 'FL', district: '08' }],
-      requestRows: [],
-    });
-
-    await expect(loadMemberPriorityEvidence(new Set(['M001234']), 'FL', 'FL-08')).resolves.toEqual(
-      expect.objectContaining({ strength: expect.any(String) }),
-    );
-  });
-
-  test('a query failure still degrades to unavailable, never throws out of this method', async () => {
-    const prisma = {
-      $queryRaw: jest.fn(async () => {
-        throw new Error('column cm.state_code does not exist');
+describe('Strategic member history uses source requester identity', () => {
+  test('queries the canonical full-name state and preserves historical candidates for ambiguity', async () => {
+    const { prisma, load } = harness();
+    await load();
+    expect(prisma.congressMember.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { state: 'California', chamber: { in: ['house', 'senate'] } },
       }),
-      communityFundingRequest: {
-        findFirst: jest.fn<() => Promise<{ id: string } | null>>(async () => ({ id: 'seed' })),
-        findMany: jest.fn<() => Promise<Array<Record<string, unknown>>>>(async () => []),
-      },
-    } as unknown as PrismaService;
-    const svc = new DistrictNexusStrategicService(
-      prisma,
-      {} as ClientPeRelevanceService,
-      {} as DistrictNexusService,
     );
-    const loadMemberPriorityEvidence = (
-      svc as unknown as {
-        loadMemberPriorityEvidence: (
-          bioguides: ReadonlySet<string>,
-          stateCode: string,
-          districtKey: string,
-        ) => Promise<{ strength: string; evidenceCount: number; rationale: string }>;
-      }
-    ).loadMemberPriorityEvidence.bind(svc);
-
-    const result = await loadMemberPriorityEvidence(new Set(['M001234']), 'FL', 'FL-08');
+    expect(prisma.congressMember.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.communityFundingRequest.findMany).toHaveBeenCalledTimes(2);
+  });
+  test('only the named senator receives evidence with a canonical source record id', async () => {
+    const { load } = harness();
+    const result = await load();
+    expect(result.strength).toBe('sourceAuthoritative');
+    expect(result.evidenceCount).toBe(1);
+    expect(result.evidence).toEqual([
+      expect.objectContaining({
+        sourceRecordId: 'request-1',
+        refs: expect.objectContaining({ requesterBioguideIds: 'A001' }),
+      }),
+    ]);
+    expect(result.rationale).toContain('$1,000');
+    expect((await load(new Set(['B001']))).strength).toBe('absent');
+  });
+  test('joint requester evidence and totals count one canonical request, not two members', async () => {
+    const { load } = harness(
+      [alice, bob],
+      [
+        { ...request, requesterName: 'Able; Baker' },
+        { ...request, requesterName: 'Able; Baker' },
+      ],
+    );
+    const result = await load();
+    expect(result.evidenceCount).toBe(1);
+    expect(result.rationale).toContain('$1,000');
+    expect(result.evidence?.[0]?.refs?.requesterBioguideIds).toBe('A001,B001');
+  });
+  test('a former member cannot confer credit on a current member of the same state', async () => {
+    const { load } = harness([{ ...alice, isCurrent: false }, bob]);
+    expect((await load()).strength).toBe('absent');
+  });
+  test('unknown requester names stay unavailable instead of receiving geographic credit', async () => {
+    const { load } = harness([alice, bob], [{ ...request, requesterName: 'Unknown person' }]);
+    const result = await load();
     expect(result.strength).toBe('unavailable');
     expect(result.evidenceCount).toBe(0);
+  });
+  test.each(['90', '98', 'ZZ', null])(
+    'House requests without a valid source district (%s) supply no evidence',
+    async (district) => {
+      const house = { ...alice, chamber: 'house', district: 47 };
+      const { load } = harness(
+        [house],
+        [{ ...request, chamber: 'house', requesterDistrict: district }],
+      );
+      expect((await load()).evidenceCount).toBe(0);
+    },
+  );
+  test('a valid House source district and named requester preserve positive evidence', async () => {
+    const { load } = harness(
+      [{ ...alice, chamber: 'house', district: 47 }],
+      [{ ...request, chamber: 'house', requesterDistrict: '47' }],
+    );
+    expect((await load()).evidenceCount).toBe(1);
+  });
+  test('a directory failure still degrades to unavailable', async () => {
+    const { prisma, load } = harness();
+    prisma.congressMember.findMany.mockRejectedValue(new Error('directory unavailable'));
+    expect((await load()).strength).toBe('unavailable');
+  });
+  test('a bounded scan without member matches is incomplete, not evidence of absence', async () => {
+    const { load } = harness(
+      [alice, bob],
+      Array.from({ length: 5000 }, (_, n) => ({
+        ...request,
+        id: `request-${n}`,
+        requesterName: 'Bob Baker',
+      })),
+    );
+    const result = await load(new Set(['A001']));
+    expect(result.strength).toBe('unavailable');
+    expect(result.rationale).toContain('scan is incomplete');
+  });
+
+  test('an empty corpus is unavailable', async () => {
+    const { prisma, load } = harness();
+    prisma.communityFundingRequest.findFirst.mockResolvedValue(null);
+    expect((await load()).strength).toBe('unavailable');
   });
 });

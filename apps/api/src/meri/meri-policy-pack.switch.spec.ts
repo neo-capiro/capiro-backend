@@ -56,6 +56,7 @@ describe('policy context derivation', () => {
     expect(policyChannelForTool('create_client')).toBe('crm');
     expect(policyChannelForTool('update_client_profile')).toBe('crm');
     expect(policyChannelForTool('create_task')).toBe('crm');
+    expect(policyChannelForTool('save_chat_attachments')).toBe('crm');
     expect(policyChannelForTool('draft_policy_memo')).toBe('document');
   });
 

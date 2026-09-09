@@ -37,6 +37,7 @@ import type { Client, ClientPerson } from '../../../clients/clientTypes.js';
 import type { DirectoryApiResponse, DirectoryEntry } from '../../../directory/directoryData.js';
 import type { OutreachRecipient } from '../../OutreachView.js';
 import { recipientKey } from './types.js';
+import { Select as AudienceSelect } from './ui/Select.js';
 import {
   EMAIL_RE,
   individualTarget,
@@ -3177,6 +3178,23 @@ function ClientRows({
 // Tab 3 — Manual Add
 // =====================================================================
 
+// EM-03: same option list/labels as the V3 Outreach wizard's manual-add
+// audience picker (TargetWorkspace.tsx's MANUAL_AUDIENCE_OPTIONS) — one
+// vocabulary for "which government-affairs etiquette applies" across both
+// wizards, so the value a person picks here means the same thing there.
+const MANUAL_AUDIENCE_OPTIONS = [
+  { value: '', label: 'Choose one\u2026' },
+  { value: 'congressional_office', label: 'Federal congressional office' },
+  { value: 'federal_agency', label: 'Federal agency' },
+  { value: 'defense_acquisition_office', label: 'Defense acquisition office' },
+  { value: 'state_legislator', label: 'State legislator' },
+  { value: 'state_agency', label: 'State agency' },
+  { value: 'local_official', label: 'Local official' },
+  { value: 'coalition', label: 'Coalition partner' },
+  { value: 'client_executive', label: 'Client executive' },
+  { value: 'internal_colleague', label: 'Internal colleague' },
+];
+
 function ManualTab({
   onAdd,
   builderKind,
@@ -3189,7 +3207,17 @@ function ManualTab({
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [email, setEmail] = useState('');
-  const valid = first.trim().length > 0 && last.trim().length > 0 && EMAIL_RE.test(email.trim());
+  // EM-03: a manually-added recipient has no directory/domain signal for the
+  // server's audience resolver to key off, so generation used to fail closed
+  // with a message and NO way to recover from this screen — capturing the
+  // audience here, before the recipient is even added, fixes that at the
+  // source rather than only in the error-recovery path.
+  const [audienceType, setAudienceType] = useState('');
+  const valid =
+    first.trim().length > 0 &&
+    last.trim().length > 0 &&
+    EMAIL_RE.test(email.trim()) &&
+    audienceType.length > 0;
 
   const add = () => {
     if (!valid) return;
@@ -3198,10 +3226,12 @@ function ManualTab({
       name: `${first.trim()} ${last.trim()}`,
       email: email.trim(),
       relevanceReason: 'Manually added',
+      audienceType,
     });
     setFirst('');
     setLast('');
     setEmail('');
+    setAudienceType('');
   };
 
   return (
@@ -3209,8 +3239,8 @@ function ManualTab({
       {builderBanner}
       <div className="mt-4 text-xs text-ink-tertiary">
         {builderKind
-          ? `Add a recipient who isn't in the directory — they'll be picked into your new ${builderKind}. First name, last name, and email are all required.`
-          : "Add a recipient who isn't in the directory. First name, last name, and email are all required."}
+          ? `Add a recipient who isn't in the directory — they'll be picked into your new ${builderKind}. First name, last name, email, and audience are all required.`
+          : "Add a recipient who isn't in the directory. First name, last name, email, and audience are all required."}
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <UiInput
@@ -3241,9 +3271,21 @@ function ManualTab({
             if (e.key === 'Enter') add();
           }}
         />
+        <AudienceSelect
+          aria-label="Audience type"
+          className="w-[220px]"
+          selectedKey={audienceType}
+          onSelectionChange={setAudienceType}
+          options={MANUAL_AUDIENCE_OPTIONS}
+          placeholder="Audience type"
+        />
         <UiButton variant="secondary" isDisabled={!valid} onPress={add}>
           {builderKind ? `Add to ${builderKind}` : 'Add'}
         </UiButton>
+      </div>
+      <div className="mt-1.5 text-xs text-ink-tertiary">
+        Capiro applies different government-affairs etiquette by audience and will not guess —
+        choose one so this recipient's draft generates correctly.
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ const EXPECTED_WRITE_TOOLS = [
   'create_meeting_brief',
   'draft_policy_memo',
   'save_note',
+  'save_chat_attachments',
   'send_email',
   'reply_email',
   'save_memory',
@@ -27,10 +28,10 @@ const EXPECTED_WRITE_TOOLS = [
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (18 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (19 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(18);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(19);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {

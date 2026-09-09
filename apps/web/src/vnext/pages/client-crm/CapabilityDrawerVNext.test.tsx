@@ -16,8 +16,9 @@ import type { Capability } from '../../../pages/clients/capability-types.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const patchMock = vi.hoisted(() => vi.fn());
+const postMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock, patch: patchMock }),
+  useApi: () => ({ get: getMock, patch: patchMock, post: postMock }),
 }));
 
 const capability: Capability = {
@@ -70,6 +71,7 @@ function renderDrawer(overrides: Partial<Parameters<typeof CapabilityDrawerVNext
 beforeEach(() => {
   getMock.mockReset();
   patchMock.mockReset();
+  postMock.mockReset();
   patchMock.mockResolvedValue({ data: {} });
   getMock.mockResolvedValue({ data: [] });
 });
@@ -185,6 +187,55 @@ describe('CapabilityDrawerVNext', () => {
     expect(getMock).toHaveBeenCalledWith('/api/engagement/attachments', {
       params: { clientId: 'client-4' },
     });
+  });
+
+  it('uploads a file the browser reported no type for under its inferred content type (Q03)', async () => {
+    // Regression for Q03: an empty file.type — real on some OS pickers for
+    // .txt/.csv/.docx — must not fall back to 'application/octet-stream',
+    // the one content type the server's allowlist rejects with a 400. That
+    // 400 previously surfaced with no visible error (see attachment-content-type.ts).
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
+    postMock.mockImplementation((url: string) => {
+      if (url === '/api/engagement/attachments/upload-url') {
+        return Promise.resolve({
+          data: {
+            url: 'https://s3.example.com/upload',
+            fields: { key: 'tenants/x' },
+            s3Key: 'tenants/x/qa-client-profile-disposable.txt',
+          },
+        });
+      }
+      if (url === '/api/engagement/attachments/confirm') {
+        return Promise.resolve({ data: { id: 'att-3', fileName: 'qa-client-profile-disposable.txt' } });
+      }
+      return Promise.reject(new Error(`unexpected POST ${url}`));
+    });
+    renderDrawer();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    const fileInput = screen.getByLabelText('Upload document') as HTMLInputElement;
+    fireEvent.change(fileInput, {
+      target: {
+        files: [
+          new File(['synthetic qa content'], 'qa-client-profile-disposable.txt', { type: '' }),
+        ],
+      },
+    });
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/engagement/attachments/upload-url',
+        expect.objectContaining({ contentType: 'text/plain' }),
+      ),
+    );
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/engagement/attachments/confirm',
+        expect.objectContaining({ contentType: 'text/plain', source: 'capability:cap-9' }),
+      ),
+    );
+
+    vi.unstubAllGlobals();
   });
 
   it('shows the delete control only when a handler is provided, and wires it', () => {

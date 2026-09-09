@@ -389,6 +389,13 @@ describe('the page explains the constraint rather than just enforcing it', () =>
     join(__dirname, '../../../web/src/pages/settings/IntelligenceMappingsPage.tsx'),
     'utf8',
   );
+  // AWARD_BEARING_SOURCES itself now lives in intelligence-mappings-shared.ts
+  // (extracted so the vNext Settings module can reuse it) and the page just
+  // imports it; the set's literal values are checked against that file.
+  const sharedSrc = readFileSync(
+    join(__dirname, '../../../web/src/pages/settings/intelligence-mappings-shared.ts'),
+    'utf8',
+  );
 
   test('both bulk buttons carry an explanation of what they skip', () => {
     // Matched on the rendered LABEL, not the bare phrase: the phrase also appears
@@ -409,8 +416,16 @@ describe('the page explains the constraint rather than just enforcing it', () =>
     expect(src).toContain('Review individually');
   });
 
+  test('the page imports the shared set rather than declaring its own copy', () => {
+    expect(src).toContain("import {");
+    expect(src).toMatch(/AWARD_BEARING_SOURCES[,\s]/);
+    expect(src).toContain('intelligence-mappings-shared');
+  });
+
   test('the web mirror of the award-bearing set matches the API', () => {
-    const mirrored = /const AWARD_BEARING_SOURCES = new Set<string>\(\[([^\]]*)\]\)/.exec(src);
+    const mirrored = /const AWARD_BEARING_SOURCES = new Set<string>\(\[([^\]]*)\]\)/.exec(
+      sharedSrc,
+    );
     expect(mirrored).not.toBeNull();
     const values = [...mirrored![1]!.matchAll(/'([^']+)'/g)].map((m) => m[1]!).sort();
     expect(values).toEqual([...AWARD_BEARING_MAPPING_SOURCES].sort());

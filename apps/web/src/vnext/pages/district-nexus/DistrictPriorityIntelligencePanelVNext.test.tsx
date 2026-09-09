@@ -130,6 +130,82 @@ describe('DistrictPriorityIntelligencePanelVNext', () => {
     apiGetMock.mockReset();
   });
 
+  test('does not label GSA with the economic rail boundary Congress', async () => {
+    const d = baseResponse();
+    d.geographyVintage.boundaryCongress = 119;
+    Object.assign(d.priorityIntelligence.federalProperty, {
+      availability: { status: 'loaded' },
+      detailedAssetCount: 590,
+      detailedSquareFeetTotal: 505731,
+      fiscalYears: [2024],
+      boundaryCongresses: [null],
+    });
+    apiGetMock.mockResolvedValue({ data: d });
+    renderPanel();
+    const source = await screen.findByText(/Source: GSA FRPP/);
+    expect(source).toHaveTextContent('district vintage source-unknown (not inferred)');
+    expect(source).not.toHaveTextContent('119');
+    expect(screen.getByText(/505,731 sq ft/)).toBeTruthy();
+  });
+
+  test.each([
+    [[118], 'source boundary Congress 118'],
+    [[118, 119], 'mixed source boundary Congresses 118, 119'],
+    [[118, null], 'district vintage source-unknown (not inferred)'],
+    [undefined, 'district vintage source-unknown (not inferred)'],
+  ])(
+    'uses GSA aggregate vintages %j without guessing from preview assets',
+    async (vintages, label) => {
+      const d = baseResponse();
+      d.geographyVintage.boundaryCongress = 120;
+      Object.assign(d.priorityIntelligence.federalProperty, {
+        availability: { status: 'loaded' },
+        detailedAssetCount: 1,
+        fiscalYears: [2024],
+        boundaryCongresses: vintages,
+      });
+      apiGetMock.mockResolvedValue({ data: d });
+      renderPanel();
+      expect(await screen.findByText(/Source: GSA FRPP/)).toHaveTextContent(label);
+    },
+  );
+
+  test('names each sector measurement, including annual versus first-quarter payroll', async () => {
+    const d = baseResponse();
+    d.priorityIntelligence.sectorSignals.availability.status = 'loaded';
+    d.priorityIntelligence.sectorSignals.metrics = [
+      ['annual_payroll_usd', 1453285000, 'USD'],
+      ['q1_payroll_usd', 355377000, 'USD'],
+      ['employment', 18543, 'people'],
+      ['new_source_measure', 5, 'units'],
+    ].map(([metricKey, metricValue, unit]) => ({
+      family: 'manufacturing_industry',
+      label: 'Manufacturing (NAICS 31–33)',
+      source: 'cbp',
+      dataset: 'cbp',
+      sourceYear: 2023,
+      boundaryCongress: 119,
+      naicsCode: '31-33',
+      metricKey: String(metricKey),
+      metricValue: Number(metricValue),
+      unit: String(unit),
+      sourceRecordId: null,
+      sourceUrl: null,
+      observedAt: null,
+      lastSyncedAt: null,
+    }));
+    apiGetMock.mockResolvedValue({ data: d });
+    renderPanel();
+    expect(await screen.findByText(/Manufacturing .*Annual payroll:/)).toHaveTextContent(
+      '1,453,285,000 USD',
+    );
+    expect(screen.getByText(/Manufacturing .*First-quarter payroll:/)).toHaveTextContent(
+      '355,377,000 USD',
+    );
+    expect(screen.getByText(/Manufacturing .*Employment:/)).toHaveTextContent('18,543 people');
+    expect(screen.getByText(/Manufacturing .*new source measure:/)).toHaveTextContent('CBP (2023)');
+  });
+
   test('fetches the R4 endpoint for the client + district', async () => {
     apiGetMock.mockResolvedValue({ data: baseResponse() });
     renderPanel();
@@ -477,4 +553,48 @@ describe('DistrictPriorityIntelligencePanelVNext', () => {
     expect(screen.getByText(/GSA FRPP data not ingested/i)).toBeTruthy();
     expect(screen.getByText(/Public economic metrics not ingested/i)).toBeTruthy();
   });
+});
+
+describe('source-named member history display', () => {
+  test.each([undefined, 'source_requester_name'] as const)(
+    'only renders verified per-member totals (%s)',
+    async (attributionMethod) => {
+      const data = baseResponse();
+      data.priorityIntelligence.cpfCds.warnings = [
+        'Some requester names could not be uniquely attributed.',
+      ];
+      data.priorityIntelligence.cpfCds.memberHistoricalPriorities = [
+        {
+          bioguideId: 'A001',
+          memberName: 'Alice Able',
+          attributionMethod,
+          chamber: 'senate',
+          state: 'VA',
+          fiscalYears: [2026],
+          requestedTotalUsd: 11382000,
+          finalTotalUsd: 0,
+          includesStatewideAttribution: true,
+        },
+      ];
+      apiGetMock.mockResolvedValue({ data });
+      renderPanel();
+      await screen.findByText('Member priorities');
+      expect(
+        screen.getByText('Some requester names could not be uniquely attributed.'),
+      ).toBeInTheDocument();
+      if (attributionMethod) {
+        expect(screen.getByText('Alice Able')).toBeInTheDocument();
+        expect(
+          screen.getByText(/joint requests can appear under each named requester/),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/11,382,000/)).toBeInTheDocument();
+      } else {
+        expect(screen.queryByText('Alice Able')).not.toBeInTheDocument();
+        expect(screen.queryByText(/11,382,000/)).not.toBeInTheDocument();
+        expect(
+          screen.getByText(/Individual member request history could not be verified/),
+        ).toBeInTheDocument();
+      }
+    },
+  );
 });
