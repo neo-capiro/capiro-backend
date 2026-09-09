@@ -18,7 +18,11 @@
 import type { DragEvent } from 'react';
 import type { WsAsk } from '../types.js';
 import { Icon } from '../kit.js';
-import { BudgetBlock, type BudgetIdentifiers } from './BudgetBlock.js';
+import {
+  BudgetBlock,
+  describeBudgetProvenance,
+  type BudgetIdentifiers,
+} from './BudgetBlock.js';
 import { SectionRichText } from './rich-text.js';
 import { anonText } from './anonymize.js';
 import type { SectionView } from './section-model.js';
@@ -175,12 +179,24 @@ export function SectionBlock({
             Not regenerated
           </span>
         )}
-        {smart && (
-          <span className="pill info">
-            <Icon name="Sparkles" size={10} />
-            Auto-populated
-          </span>
-        )}
+        {/* F04: "Auto-populated" only when budget identifiers are actually present.
+            An empty Funding section must not wear a sparkle pill that implies
+            R-1/UPL validation. */}
+        {smart &&
+          (describeBudgetProvenance(budget).hasAnyIdentifier ? (
+            <span className="pill info">
+              <Icon name="Sparkles" size={10} />
+              Auto-populated
+            </span>
+          ) : (
+            <span
+              className="pill notable"
+              title="Funding identifiers are not linked on this draft"
+            >
+              <Icon name="AlertTriangle" size={10} />
+              Needs data
+            </span>
+          ))}
         <div style={{ flex: 1 }} />
         <button
           onClick={onRemove}
