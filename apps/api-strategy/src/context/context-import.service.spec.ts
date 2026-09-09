@@ -254,6 +254,42 @@ describe('source-grounding boundaries', () => {
     expect(() => validateImportAnalysis({ ...valid, documents: [{ ...valid.documents[0]!, documentType: 'new_permission' as any }] }, sections, new Set())).toThrow('reliably match');
   });
 
+  // F01 regression: live CloudWatch evidence showed the primary import path
+  // hard-failing on a plain synthetic .txt file with "Meri could not finish
+  // reading this file" — root cause was this second, independent grounding
+  // check rejecting a quote that differed from the source only by lossless
+  // typographic normalization the model applies (curly quotes, NBSP, joined
+  // line breaks), not fabrication.
+  it('accepts a quote that differs from the source only by typographic normalization (F01)', () => {
+    const sourceText = 'Goal: Increase visibility.\nOwner: Program Director.';
+    const sections = [{ ref: 'text:1', label: '', text: sourceText }];
+    const modelQuote = 'Goal: Increase visibility. Owner: Program Director.';
+    const valid = {
+      documents: [{
+        documentType: 'strategy_brief' as const,
+        title: 'Strategy brief',
+        sections: [{ heading: 'Source details', content: modelQuote, evidence: [{ sourceRef: 'text:1', quote: modelQuote }] }],
+      }],
+      conflicts: [],
+    };
+    expect(validateImportAnalysis(valid, sections, new Set()).documents).toHaveLength(1);
+  });
+
+  it('still rejects a fabricated quote under the typography-tolerant check (F01)', () => {
+    const sourceText = 'Owner: Program Director. Dates: Effective 2026-09-01.';
+    const sections = [{ ref: 'text:1', label: '', text: sourceText }];
+    const fabricated = 'Owner: Program Director. Dates: Effective 2099-01-01.';
+    const invalid = {
+      documents: [{
+        documentType: 'strategy_brief' as const,
+        title: 'Strategy brief',
+        sections: [{ heading: 'Source details', content: fabricated, evidence: [{ sourceRef: 'text:1', quote: fabricated }] }],
+      }],
+      conflicts: [],
+    };
+    expect(() => validateImportAnalysis(invalid, sections, new Set())).toThrow('reliably match');
+  });
+
   it('accepts only comparison pairs drawn from the exact incoming and existing sets', () => {
     expect(() => validateImportComparison({ conflicts: [{ incomingFactId: 'one', otherFactId: 'other-tenant', material: true }] }, new Set(['one']), new Set(['prior']))).toThrow('Nothing was saved');
     expect(() => validateImportComparison({ conflicts: [{ incomingFactId: 'one', otherFactId: 'one', material: false }] }, new Set(['one']), new Set())).toThrow('Nothing was saved');

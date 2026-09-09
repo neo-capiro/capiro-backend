@@ -134,6 +134,12 @@ export interface StrategyAssistantInput {
   attachments?: StrategyAttachment[];
   clientId: string;
   strategy: StrategyState;
+  /** F02 fix: clerkUserId -> display name, resolved by api-strategy
+   *  (mirrors the web editor's memberName). Keyed the same as
+   *  StrategyStateNode.ownerUserId so renderPlan can show the SAME
+   *  owner the editor/inspector/plan-health surfaces show, instead of
+   *  omitting ownership from the plan text entirely. */
+  ownerNames?: Record<string, string>;
   fiscal?: FiscalGrounding;
   firmPhases?: FirmPhaseRow[];
   reference?: ReferenceGrounding;
@@ -568,12 +574,19 @@ function renderAttachments(rows?: StrategyAttachment[]): string {
     .join('\n\n');
 }
 
-function renderPlan(s: StrategyState): string {
+function renderPlan(s: StrategyState, ownerNames?: Record<string, string>): string {
   if (!s.nodes.length) return '(the plan currently has no steps)';
   return s.nodes
     .map(
       (n) =>
-        `- [${n.id}] ${n.kind}/${n.subject} · "${n.title}"${n.startsOn ? ` · ${n.startsOn}${n.endsOn ? `→${n.endsOn}` : ''}` : ''} · ${n.status}${
+        `- [${n.id}] ${n.kind}/${n.subject} · "${n.title}"${n.startsOn ? ` · ${n.startsOn}${n.endsOn ? `→${n.endsOn}` : ''}` : ''} · ${n.status}` +
+        // F02 fix: owner is now always rendered explicitly — 'Owner: <name>'
+        // when assigned, 'Owner: unassigned' otherwise — never silently
+        // omitted. Before this, the plan text had NO ownership signal at
+        // all, so a question like "which steps need an owner" had nothing
+        // to ground on and the model guessed, contradicting the editor/
+        // inspector/plan-health surfaces that read owner_user_id directly.
+        ` · Owner: ${n.ownerUserId ? (ownerNames?.[n.ownerUserId] ?? n.ownerUserId) : 'unassigned'}${
           n.dependsOnIds?.length
             ? ` · depends on ${n.dependsOnIds.map((d) => `[${d}]`).join(', ')}`
             : ''
@@ -742,7 +755,7 @@ export function composeAssistantSystemPrompt(
       surface: 'strategy',
     }),
     `# Current strategy\n${input.strategy.title} (${input.strategy.type})${input.strategy.goal ? `\nGoal: ${input.strategy.goal}` : ''}`,
-    `# Current plan\n${renderPlan(input.strategy)}`,
+    `# Current plan\n${renderPlan(input.strategy, input.ownerNames)}`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,

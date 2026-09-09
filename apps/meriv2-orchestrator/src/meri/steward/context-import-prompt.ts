@@ -113,6 +113,29 @@ function fail(message: string): never {
   throw new ContextImportValidationError(message);
 }
 
+/**
+ * F01 fix: grounding compares a quote the model just produced against the
+ * raw source text with `.includes()`. Models routinely apply lossless
+ * typographic normalization when they reproduce text — straight quotes/
+ * hyphens become curly/en/em variants, NBSP appears, multi-line text gets
+ * joined with a single space — none of which changes the words. Comparing
+ * RAW strings made every one of those cosmetic substitutions read as a
+ * fabricated quote and hard-failed the whole import (observed live:
+ * ContextImportService warn "failed source validation" on every attempt
+ * against a plain synthetic .txt source). Normalizing BOTH sides before the
+ * substring check keeps the actual anti-fabrication invariant (the words
+ * must still appear, in order) while tolerating formatting-only drift.
+ */
+function normalizeForMatch(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u00A0\s]+/g, ' ')
+    .trim();
+}
+
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     fail(`${label} must be an object.`);
@@ -388,13 +411,17 @@ export function sanitizeContextImportResult(
         exactKeys(entry, ['sourceRef', 'quote'], 'AI source evidence');
         const sourceRef = text(entry.sourceRef, 512, 'AI source reference');
         const quote = text(entry.quote, 8_000, 'AI source quote');
-        if (!sources.get(sourceRef)?.includes(quote)) {
+        const sourceText = sources.get(sourceRef);
+        // Grounding tolerates lossless typographic drift (curly quotes, NBSP,
+        // line-join spacing) the model introduces when it reproduces text —
+        // see normalizeForMatch. The words must still appear, in order.
+        if (!sourceText || !normalizeForMatch(sourceText).includes(normalizeForMatch(quote))) {
           fail('AI source evidence does not match the uploaded file.');
         }
         return { sourceRef, quote };
       });
       const expectedContent = evidence.map((entry) => entry.quote).join('\n\n');
-      if (content !== expectedContent) {
+      if (normalizeForMatch(content) !== normalizeForMatch(expectedContent)) {
         fail('AI section contains text that is not fully supported by its quoted source.');
       }
       return { heading, content, evidence };
