@@ -88,6 +88,13 @@ export function BillUpdatesDrawer({
 
 function BillUpdatesBody({ clientId, bill }: { clientId: string; bill: BoardBill }) {
   const navigate = useNavigate();
+  // Q07 (evidence #58/#65): this drawer's own "Open full board" button used to
+  // navigate('/legiwatch') bare — no tab, no client — landing on the Hearings
+  // tab with the client filter dropped (the exact reported symptom: wrong
+  // section, all-clients context lost). The board footer's sibling button
+  // (IntelligenceTab's LegislativePanel) already targets the real Bills tab
+  // scoped to this client; this drawer needs the identical destination.
+  const openFullBoardHref = `/legiwatch?tab=bills&client=${encodeURIComponent(clientId)}`;
   // Lazy: only fetched while the drawer is open (this body mounts with the drawer).
   const hearingsQ = useBillHearings(clientId, bill.billId, true);
   const hearings = useMemo(() => hearingsQ.data?.hearings ?? [], [hearingsQ.data]);
@@ -173,7 +180,7 @@ function BillUpdatesBody({ clientId, bill }: { clientId: string; bill: BoardBill
         {trackedAt ? <div style={{ fontSize: 13, color: '#667085' }}>Tracked {trackedAt}</div> : null}
         <button
           type="button"
-          onClick={() => navigate('/legiwatch')}
+          onClick={() => navigate(openFullBoardHref)}
           style={{ alignSelf: 'flex-start', fontSize: 14, fontWeight: 600, color: '#101828', cursor: 'pointer' }}
         >
           Open full board →

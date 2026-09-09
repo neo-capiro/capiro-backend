@@ -167,16 +167,20 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       <SecondaryBtn onClick={() => setFacilitiesOpen(true)}>Manage facilities</SecondaryBtn>
     ) : view === 'legislative' ? (
       <>
-        {/* The real source/alert configuration for a client's legislative
-            intelligence is the tracker's Configure panel — watchlist topics and
-            terms, per-trigger alert toggles, channels. It lives on the canonical
-            Radar page at ?tab=watchlist, scoped by ?client= — NOT at
-            /legiwatch?tab=watchlist: vNext's LegiWatch module treats `watchlist`
-            as a removed tab (see REMOVED_TABS in legiwatch/lib/types.ts) and
-            silently redirects it to Hearings, so this button did nothing until
-            it was pointed at /radar instead. There is no second config store
+        {/* Q07 (evidence #58/#65): the real source/alert configuration for a
+            client's legislative intelligence is the tracker's Configure panel —
+            watchlist topics and terms, per-trigger alert toggles, channels. It
+            used to navigate to /radar?tab=watchlist, but on os.capiro.ai /radar
+            is a query-preserving redirect straight to /legiwatch, and vNext's
+            LegiWatch module treats `watchlist` as a REMOVED tab (see
+            REMOVED_TABS in legiwatch/lib/types.ts) — it silently redirects to
+            Hearings, losing both the intended Bills/watchlist view and the
+            client filter. LegiWatch's own Bills tab (?tab=bills) is the real,
+            still-live watchlist/tracked-bill destination — see the sibling
+            "Open full board" button below, which already targets it — and it
+            keeps the client scope via ?client=. There is no second config store
             for this domain to open instead. */}
-        <SecondaryBtn onClick={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(client.id)}`)}>
+        <SecondaryBtn onClick={() => navigate(`/legiwatch?tab=bills&client=${encodeURIComponent(client.id)}`)}>
           Configure
         </SecondaryBtn>
         {/* Header "Track bill" opens the bill-search modal — the same

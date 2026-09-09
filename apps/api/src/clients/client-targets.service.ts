@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService } from '../directory/directory.service.js';
+import type { DirectoryStaffDetail } from '../directory/directory-detail.types.js';
 import { RepresentationResolverService } from './representation-resolver.service.js';
 
 export interface AddTargetInput {
@@ -17,12 +18,46 @@ export interface RepresentedFacility {
   name: string;
 }
 
+/**
+ * Q09 (evidence #127/#129/#133): a `sourceDirectory: 'staff'` target can be
+ * EITHER a personal-office staffer (works in one Member's own office — e.g.
+ * a District Director in Rep. Young Kim's CA-40 office) OR real committee
+ * staff (works for a committee office, not any one Member). These are
+ * different jobs with different engagement paths, and the directory record
+ * already distinguishes them — nothing is inferred that isn't in the data.
+ */
+export type StaffKind = 'personal_office' | 'committee' | null;
+
+/**
+ * Classify a staffer's current position using the SAME distinction the
+ * directory itself draws: a personal-office position denormalizes the
+ * Member it belongs to onto `positions[].member` (see
+ * `directory.service.ts#mapStaffPositions` — `member` is populated straight
+ * from the position's own `member` relation, non-null only when the
+ * position is attached to a specific Member's personal office). A committee
+ * position has no such Member — LegiStorm's committee offices are their own
+ * entities, not one Member's office — and real committee membership shows up
+ * separately in `committeeAssociations`.
+ *
+ * Falls back from the current position to a former one only when there is
+ * no current position at all (mirrors `resolveStaffSnapshot`'s own
+ * `current` selection), and returns `null` (unknown) rather than guessing
+ * when neither signal is present.
+ */
+export function classifyStaffKind(staff: DirectoryStaffDetail): StaffKind {
+  const current = staff.positions.find((p) => p.isCurrent) ?? staff.positions[0];
+  if (current?.member) return 'personal_office';
+  if (staff.committeeAssociations.length > 0) return 'committee';
+  return null;
+}
+
 type TargetSnapshot = {
   memberName: string | null;
   party: string | null;
   state: string | null;
   chamber: string | null;
   committee: string | null;
+  staffKind: StaffKind;
 };
 
 const EMPTY_SNAPSHOT: TargetSnapshot = {
@@ -31,6 +66,7 @@ const EMPTY_SNAPSHOT: TargetSnapshot = {
   state: null,
   chamber: null,
   committee: null,
+  staffKind: null,
 };
 
 /**
@@ -75,10 +111,46 @@ export class ClientTargetsService {
       clientId,
       rows,
     );
+    const staffKindByTarget = await this.resolveStaffKinds(rows);
     return rows.map((row) => ({
       ...row,
       representedFacilities: representedFacilitiesByTarget.get(row.id) ?? null,
+      // Q09: prefer the FRESH classification over the row's own denormalized
+      // snapshot — a target added before this fix shipped, or one whose
+      // staffer changed roles since, still shows correctly without needing
+      // to be re-added. Falls back to whatever was stored at add-time only
+      // if a fresh read is unavailable (directory error), never to a guess.
+      staffKind: staffKindByTarget.get(row.id) ?? row.staffKind ?? null,
     }));
+  }
+
+  /**
+   * Q09 (evidence #127/#129/#133) — classify every 'staff' target's CURRENT
+   * personal-office-vs-committee status, fresh from the directory, the same
+   * "never trust the point-in-time denormalized snapshot" discipline
+   * `resolveRepresentedFacilities` already applies to district/facility data.
+   * Non-staff targets are skipped entirely (`classifyStaffKind` has no
+   * meaning for a member or state legislator row).
+   */
+  private async resolveStaffKinds(
+    targets: Array<{ id: string; memberId: string; sourceDirectory: string }>,
+  ): Promise<Map<string, StaffKind>> {
+    const result = new Map<string, StaffKind>();
+    const staffTargets = targets.filter((t) => t.sourceDirectory === 'staff');
+    if (!staffTargets.length) return result;
+
+    await Promise.all(
+      staffTargets.map(async (t) => {
+        try {
+          const staff = await this.directory.getStaffDetail(t.memberId);
+          result.set(t.id, classifyStaffKind(staff));
+        } catch {
+          // Directory unavailable / staffer not found — leave unset so the
+          // caller falls back to the row's own stored value.
+        }
+      }),
+    );
+    return result;
   }
 
   /**
@@ -220,6 +292,7 @@ export class ClientTargetsService {
           state: snapshot.state,
           chamber: snapshot.chamber,
           committee: snapshot.committee,
+          staffKind: snapshot.staffKind,
           source,
           addedByUserId: ctx.userId ?? null,
         },
@@ -245,6 +318,9 @@ export class ClientTargetsService {
             : m.state ?? null,
         chamber: m.chamber ?? null,
         committee: m.committees?.[0] ?? null,
+        // Not a staff target — the personal-office/committee distinction has
+        // no meaning for a member row.
+        staffKind: null,
       };
     } catch {
       // Directory unavailable — store the id-only target; the UI can still
@@ -274,6 +350,8 @@ export class ClientTargetsService {
         state: stateCode ? (leg.district ? `${stateCode}-${leg.district}` : stateCode) : null,
         chamber: leg.chamber ?? null,
         committee: firstCommittee,
+        // Not a staff target.
+        staffKind: null,
       };
     } catch {
       return { ...EMPTY_SNAPSHOT };
@@ -299,6 +377,12 @@ export class ClientTargetsService {
         chamber: null,
         // The office/committee the staffer works in is the useful "where" for a target.
         committee: current?.officeName ?? current?.title ?? null,
+        // Q09 (evidence #127/#129/#133): personal-office staff (attached to a
+        // specific Member's own office — e.g. a District Director in Rep.
+        // Young Kim's CA-40 office) and committee staff are NOT the same
+        // thing, and this directory record is exactly what distinguishes
+        // them — see classifyStaffKind's doc comment.
+        staffKind: classifyStaffKind(staff),
       };
     } catch {
       // Not found / directory unavailable — store id-only.

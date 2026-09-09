@@ -3253,6 +3253,16 @@ model ClientTarget {
   state           String?
   chamber         String?  @db.VarChar(24)
   committee       String?
+  // Q09 (evidence #127/#129/#133): for a 'staff' target, whether the
+  // directory record shows a personal-office staffer (attached to a
+  // specific Member's own office) or real committee staff — see
+  // classifyStaffKind in client-targets.service.ts. Denormalized at add
+  // time like the other snapshot fields above, but listTargets() always
+  // prefers a freshly-resolved value over this stored one so a staffer who
+  // changes roles is reflected without the target needing to be re-added.
+  // null for non-'staff' targets, and for a 'staff' target the directory
+  // could not classify.
+  staffKind       String?  @map("staff_kind") @db.VarChar(16)
   // Engagement priority tier (1 = highest .. 3), null = untiered. Drives the
   // tiered visual grouping in the Targets tab.
   tier            Int?     @db.SmallInt
