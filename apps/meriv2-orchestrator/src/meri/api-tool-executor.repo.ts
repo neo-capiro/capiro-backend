@@ -4,6 +4,46 @@ import type { MeriContext, ToolExecutor, ToolExecutionControl } from '@capiro/me
 import { createMeriExecutionControl } from './meri-execution-control.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 
+const RETRYABLE_MAIL_READS = new Set(['list_emails', 'search_emails', 'get_email_thread']);
+const MAX_MAIL_RETRY_DELAY_MS = 5_000;
+
+/** Only the API's explicit database-capacity response is safe to retry here. */
+function mailCapacityRetryDelay(toolName: string, response: Response, body: string): number | null {
+  if (!RETRYABLE_MAIL_READS.has(toolName) || response.status !== 503) return null;
+  let payload: unknown;
+  try { payload = JSON.parse(body); } catch { return null; }
+  if (!payload || typeof payload !== 'object' ||
+      (payload as Record<string, unknown>).statusCode !== 503 ||
+      (payload as Record<string, unknown>).message !== 'The database is temporarily busy. Please retry.') {
+    return null;
+  }
+  const retryAfter = response.headers?.get('retry-after')?.trim();
+  if (!retryAfter) return null;
+  const delay = /^\d+$/.test(retryAfter)
+    ? Number(retryAfter) * 1_000
+    : Date.parse(retryAfter) - Date.now();
+  // Honor the server's delay; do not shorten a long Retry-After and hammer it.
+  return Number.isFinite(delay) && delay >= 0 && delay <= MAX_MAIL_RETRY_DELAY_MS
+    ? Math.max(100, delay)
+    : null;
+}
+
+function waitForMailRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(signal.reason); return; }
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /**
  * `ToolExecutor` that delegates a named tool to apps/api's existing
  * authenticated executor: `POST /api/clio/tools/:name`, backed by
@@ -51,7 +91,7 @@ export class ApiToolExecutorRepo implements ToolExecutor {
     try {
       execution.assertActive();
       const url = `${this.apiBaseUrl}/api/clio/tools/${encodeURIComponent(toolName)}`;
-      const res = await fetch(url, {
+      const request = {
         method: 'POST',
         headers: {
           authorization: `Bearer ${creds.bearerToken}`,
@@ -71,15 +111,26 @@ export class ApiToolExecutorRepo implements ToolExecutor {
         },
         body: JSON.stringify(input),
         signal: execution.signal,
-      });
-      if (!res.ok) {
+      } satisfies RequestInit;
+      // One retry only, inside the original deadline and cancellation signal.
+      // Failed writes and business/authorization refusals always retain the
+      // existing single-attempt path; a 503 alone is not transient evidence.
+      for (let attempt = 0; ; attempt += 1) {
+        execution.assertActive();
+        const res = await fetch(url, request);
+        if (res.ok) return (await res.json()) as unknown;
         const body = await res.text().catch(() => '');
         this.logger.warn(`Delegated tool "${toolName}" -> ${res.status}`);
+        const retryDelay = attempt === 0 ? mailCapacityRetryDelay(toolName, res, body) : null;
+        if (retryDelay !== null &&
+            (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)) {
+          await waitForMailRetry(retryDelay, execution.signal);
+          continue;
+        }
         throw new Error(
           `Delegated tool "${toolName}" failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
         );
       }
-      return (await res.json()) as unknown;
     } finally {
       execution.dispose();
     }

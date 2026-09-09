@@ -75,7 +75,7 @@ describe('Meri public coverage contract', () => {
       />,
     );
     expect(screen.getByText('REQUIRED SOURCE MISSING')).toBeInTheDocument();
-    expect(screen.getByText('10 records returned · 26 records evaluated.')).toBeInTheDocument();
+    expect(screen.getByText('10 records returned · 26 records inspected.')).toBeInTheDocument();
     expect(screen.getByText('1 of 2 requested entities searched.')).toBeInTheDocument();
     expect(screen.getByText('Additional result pages were not fully read.')).toBeInTheDocument();
     expect(screen.getByText('Some records or text were shortened or omitted.')).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('Meri public coverage contract', () => {
       />,
     );
     expect(screen.getByRole('region', { name: 'Initial context coverage' })).toBeInTheDocument();
-    expect(screen.getByText('0 records returned · 0 records evaluated.')).toBeInTheDocument();
+    expect(screen.getByText('0 records returned · 0 records inspected.')).toBeInTheDocument();
     expect(screen.queryByText('No evidence was recorded for this turn.')).not.toBeInTheDocument();
   });
 
@@ -154,9 +154,10 @@ describe('Meri public coverage contract', () => {
     expect(health.queryByText('Read failed')).not.toBeInTheDocument();
     expect(screen.getByText(/Institutional Knowledge: Read failed/)).toBeInTheDocument();
     const reads = within(screen.getByRole('table', { name: 'Subsequent tool reads' }));
-    expect(reads.getByText('3 / 404')).toBeInTheDocument();
+    expect(reads.getByText('Returned: 3')).toBeInTheDocument();
+    expect(reads.getByText('Inspected: 404')).toBeInTheDocument();
     expect(reads.getByText(/More pages remain/)).toBeInTheDocument();
-    expect(screen.getByText('10 records returned · 26 records evaluated.')).toBeInTheDocument();
+    expect(screen.getByText('10 records returned · 26 records inspected.')).toBeInTheDocument();
   });
 
   it('distinguishes a failed attempt from a source never searched on existing saved turns', () => {

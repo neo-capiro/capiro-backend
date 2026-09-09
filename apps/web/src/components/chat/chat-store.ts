@@ -7,6 +7,7 @@ import type { TrustStep } from './WorkPerformed.js';
 export type MeriSurfaceMode = 'closed' | 'docked' | 'undocked';
 
 export interface MeriCitation {
+  source?: import('@capiro/shared').MeriSourceLocator;
   n: number;
   type: string;
   id: string;
@@ -111,6 +112,9 @@ export interface ChatMessageRetrieval {
       status: 'complete' | 'partial' | 'error' | 'unavailable';
       recordsReturned: number | null;
       recordsEvaluated: number | null;
+      recordsMatched?: number | null;
+      recordsDisplayed?: number | null;
+      recordsOmitted?: number | null;
       paginationComplete: boolean | null;
       truncated: boolean;
       lastSyncAt?: string;
@@ -126,6 +130,16 @@ export interface ChatMessageRetrieval {
     searchedEntityCount?: number | null;
     recordsEvaluated?: number;
     recordsReturned?: number;
+    recordsDisplayed?: number;
+    recordsOmitted?: number;
+    sourceCounts?: Array<{
+      source: string;
+      recordsReturned: number | null;
+      recordsEvaluated: number | null;
+      recordsMatched: number | null;
+      recordsDisplayed: number | null;
+      recordsOmitted: number | null;
+    }>;
     paginationComplete?: boolean;
     truncated?: boolean;
     sourceHealth?: Array<{

@@ -1,3 +1,4 @@
+import { normalizeMeriSourceLocator } from './meri-source-api.js';
 import { persistedMeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { meriRetrievalMetadata } from '../../components/chat/meri-retrieval-metadata.js';
 import type {
@@ -134,6 +135,7 @@ export function mapPersistedCitations(message: PersistedMessage): MeriCitation[]
       url: typeof item.url === 'string' ? item.url : null,
       snippet: typeof item.snippet === 'string' ? item.snippet : null,
       tool: typeof item.tool === 'string' ? item.tool : 'unknown',
+      ...(normalizeMeriSourceLocator(item.source) ? { source: normalizeMeriSourceLocator(item.source) } : {}),
     }));
 }
 

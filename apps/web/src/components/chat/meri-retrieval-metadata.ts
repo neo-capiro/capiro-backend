@@ -99,6 +99,8 @@ export function meriRetrievalMetadata(value: unknown): ChatMessageRetrieval | un
             status: read.status as 'complete' | 'partial' | 'error' | 'unavailable',
             recordsReturned: count(read.recordsReturned) ?? null,
             recordsEvaluated: count(read.recordsEvaluated) ?? null,
+            ...Object.fromEntries(['recordsMatched', 'recordsDisplayed', 'recordsOmitted']
+              .filter((key) => key in read).map((key) => [key, count(read[key]) ?? null])),
             paginationComplete: typeof read.paginationComplete === 'boolean' ? read.paginationComplete : null,
             truncated: read.truncated === true,
             ...(typeof read.lastSyncAt === 'string' && Number.isFinite(Date.parse(read.lastSyncAt))
@@ -120,6 +122,8 @@ export function meriRetrievalMetadata(value: unknown): ChatMessageRetrieval | un
         [
           'recordsEvaluated',
           'recordsReturned',
+          'recordsDisplayed',
+          'recordsOmitted',
           'requestedEntityCount',
           'searchedEntityCount',
         ].flatMap((key) =>
@@ -130,6 +134,13 @@ export function meriRetrievalMetadata(value: unknown): ChatMessageRetrieval | un
               : [],
         ),
       ),
+      ...(Array.isArray(coverage.sourceCounts) ? { sourceCounts: coverage.sourceCounts.flatMap((item) => {
+        const row = record(item);
+        if (!row || typeof row.source !== 'string') return [];
+        return [{ source: row.source, recordsReturned: count(row.recordsReturned) ?? null,
+          recordsEvaluated: count(row.recordsEvaluated) ?? null, recordsMatched: count(row.recordsMatched) ?? null,
+          recordsDisplayed: count(row.recordsDisplayed) ?? null, recordsOmitted: count(row.recordsOmitted) ?? null }];
+      }) } : {}),
       ...(typeof coverage.paginationComplete === 'boolean'
         ? { paginationComplete: coverage.paginationComplete }
         : {}),
@@ -155,6 +166,19 @@ export function meriCoverageReason(reason: string): string {
   const descriptions: Record<string, string> = {
     complete: 'Requested retrieval completed',
     partial: 'Some requested information was not fully retrieved',
+    adapter_execution_failed: 'The source read failed; its records were not available for this answer',
+    section_unavailable: 'This profile section could not be read',
+    model_tool_evidence_budget: 'Some returned evidence did not fit in the answer context',
+    coverage_manifest_incomplete: 'Complete coverage of the requested information is not established',
+    source_coverage_missing: 'The source did not report what it read',
+    retrieval_incomplete: 'Some requested information remains unread',
+    source_limit_reached: 'The source read stopped at its record limit',
+    source_freshness_unavailable: 'Source freshness could not be checked',
+    all_federal_source_never_synced: 'The federal opportunity catalog has not completed an initial sync',
+    source_freshness_unknown: 'Source freshness is unknown',
+    latest_source_sync_incomplete: 'The latest source sync did not complete successfully',
+    source_sync_stale: 'The source has not completed a successful sync in at least 48 hours',
+    per_source_counts_not_reported: 'This tool returned combined results without separate counts for each source',
     model_context_projection_truncated: 'Some retrieved content was shortened before the answer',
     truncated: 'Some results were shortened or omitted',
     pagination_incomplete: 'More result pages remain',

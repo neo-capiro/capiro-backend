@@ -309,7 +309,8 @@ describe('LearningSignalCandidateService', () => {
   });
 
   it('eligible CRM signal: scope is client, clientId is exactly the signal\'s own clientId — never widened to firm', async () => {
-    const { service, candidates } = buildHarness(crmSignal());
+    const { service, tx, candidates } = buildHarness(crmSignal());
+    (tx.$queryRaw as any).mockResolvedValueOnce([]).mockResolvedValueOnce([{ proposedValue: { value: 'Accepted government identity' } }]);
     await service.generateForSignal(TENANT, SIGNAL);
     const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
     expect(record.scope).toBe('client');
@@ -356,16 +357,17 @@ describe('LearningSignalCandidateService', () => {
       expect(record.value).toContain('wrong_tone');
     });
 
-    it('no fact text and no reasons: falls back to an explicit review-the-evidence notice rather than fabricating a fact', async () => {
+    it('no CRM fact text: records insufficient evidence without generating another metadata-only candidate', async () => {
       const { service, candidates } = buildHarness(crmSignal());
-      await service.generateForSignal(TENANT, SIGNAL);
-      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
-      expect(record.value).toContain('No structured fact text was available');
+      const result = await service.generateForSignal(TENANT, SIGNAL);
+      expect(result).toMatchObject({ eligibility: 'insufficient_evidence', memoryCandidateId: null });
+      expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
     });
   });
 
   it('SECURITY: a client A signal can never be proposed as a client B candidate — clientId always comes from the loaded signal row', async () => {
-    const { service, candidates } = buildHarness(crmSignal({ clientId: CLIENT }));
+    const { service, tx, candidates } = buildHarness(crmSignal({ clientId: CLIENT }));
+    (tx.$queryRaw as any).mockResolvedValueOnce([]).mockResolvedValueOnce([{ proposedValue: { value: 'Accepted client A identity' } }]);
     await service.generateForSignal(TENANT, SIGNAL);
     const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
     expect(record.clientId).toBe(CLIENT);
@@ -565,3 +567,4 @@ describe('LearningSignalCandidateService', () => {
     });
   });
 });
+

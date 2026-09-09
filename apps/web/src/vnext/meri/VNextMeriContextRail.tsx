@@ -60,6 +60,7 @@ interface VNextMeriContextRailProps {
   /** Set when a citation's "View full source" was clicked; swaps out the normal section stack. */
   activeSourceDetail: ActiveSourceDetail | null;
   onCloseSourceDetail: () => void;
+  onSourceIndexChange?: (index: number) => void;
   /** Set while a streamed document is open; swaps out the normal section stack. */
   activeArtifact: CanvasArtifact | null;
   onCloseArtifact: () => void;
@@ -150,6 +151,7 @@ export function VNextMeriContextRail({
   onOpenContext,
   activeSourceDetail,
   onCloseSourceDetail,
+  onSourceIndexChange,
   activeArtifact,
   onCloseArtifact,
   activeTurnInspector,
@@ -160,6 +162,14 @@ export function VNextMeriContextRail({
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
   const [packetError, setPacketError] = useState(false);
+  const [showAllContext, setShowAllContext] = useState(false);
+  const [showAllExclusions, setShowAllExclusions] = useState(false);
+  const [showAllAttachments, setShowAllAttachments] = useState(false);
+  useEffect(() => {
+    setShowAllContext(false);
+    setShowAllExclusions(false);
+    setShowAllAttachments(false);
+  }, [controller.activeConversationId, packet?.packetId]);
   const [turnPacket, setTurnPacket] = useState<MeriContextPacket | null>(null);
   const [turnPacketLoading, setTurnPacketLoading] = useState(false);
   const [turnPacketError, setTurnPacketError] = useState(false);
@@ -290,6 +300,8 @@ export function VNextMeriContextRail({
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <MeriSourceDetail
+              getAuthHeaders={controller.authHeaders}
+              onIndexChange={onSourceIndexChange}
               citations={activeSourceDetail.citations}
               initialIndex={activeSourceDetail.index}
               scopeLabel={meriTurnScopeLabel(activeSourceDetail.turnScope, controller.clients)}
@@ -423,12 +435,13 @@ export function VNextMeriContextRail({
                 {packetError ? <MeriPanelState tone="error">Context provenance could not be loaded.</MeriPanelState> : null}
                 {contextItems.length ? (
                   <div className="vnext-meri__ctx-list">
-                    {contextItems.slice(0, 5).map((item) => (
+                    {contextItems.slice(0, showAllContext ? undefined : 5).map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         className="vnext-meri__ctx-item"
                         title={`Preview ${item.title}`}
+                        aria-label={`Preview ${item.title}`}
                         onClick={() => onOpenContext(packet, packetLoading, packetError, item.id)}
                       >
                         <span className="vnext-meri__ctx-item-tile"><MeriIcon name="File05" size={14} color="#101828" /></span>
@@ -441,10 +454,11 @@ export function VNextMeriContextRail({
                     ))}
                   </div>
                 ) : !packetLoading && !packetError ? <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState> : null}
+                {contextItems.length > 5 ? <MeriContextListExpansion label="context items" count={contextItems.length} expanded={showAllContext} onToggle={() => setShowAllContext((value) => !value)} /> : null}
                 {packet && packet.exclusions.length ? (
                   <div className="vnext-meri__ctx-list" aria-label="Context not included">
                     <span className="vnext-meri__section-label">NOT INCLUDED IN INITIAL CONTEXT · {packet.exclusions.length}</span>
-                    {packet.exclusions.slice(0, 5).map((exclusion, index) => (
+                    {packet.exclusions.slice(0, showAllExclusions ? undefined : 5).map((exclusion, index) => (
                       <div key={exclusion.id ?? `${exclusion.label}-${index}`} className="vnext-meri__ctx-exclusion">
                         <MeriIcon name="File05" size={13} color="#98A2B3" />
                         <div className="vnext-meri__ctx-exclusion-body">
@@ -455,10 +469,11 @@ export function VNextMeriContextRail({
                     ))}
                   </div>
                 ) : null}
+                {packet && packet.exclusions.length > 5 ? <MeriContextListExpansion label="excluded items" count={packet.exclusions.length} expanded={showAllExclusions} onToggle={() => setShowAllExclusions((value) => !value)} /> : null}
                 {pendingAttachments.length ? (
                   <div className="vnext-meri__ctx-list" aria-label="Pending attachments">
                     <span className="vnext-meri__section-label">PENDING ATTACHMENTS</span>
-                    {pendingAttachments.slice(0, 5).map((attachment) => (
+                    {pendingAttachments.slice(0, showAllAttachments ? undefined : 5).map((attachment) => (
                       <div key={attachment.id} className="vnext-meri__ctx-item">
                         <span className="vnext-meri__ctx-item-tile"><MeriIcon name="File05" size={14} color="#101828" /></span>
                         <div className="vnext-meri__ctx-item-body">
@@ -469,6 +484,7 @@ export function VNextMeriContextRail({
                     ))}
                   </div>
                 ) : null}
+                {pendingAttachments.length > 5 ? <MeriContextListExpansion label="pending attachments" count={pendingAttachments.length} expanded={showAllAttachments} onToggle={() => setShowAllAttachments((value) => !value)} /> : null}
                 <button type="button" className="vnext-meri__rail-action-btn" onClick={() => onOpenContext(packet, packetLoading, packetError)} disabled={!controller.activeConversationId || packetLoading} title={!controller.activeConversationId ? 'Create or open a thread to inspect its context.' : undefined}>
                   <MeriIcon name="Sliders02" size={14} color="#344054" />
                   Open context packet
@@ -480,4 +496,15 @@ export function VNextMeriContextRail({
       </div>
     </aside>
   );
+}
+
+function MeriContextListExpansion({ label, count, expanded, onToggle }: {
+  label: string; count: number; expanded: boolean; onToggle: () => void;
+}) {
+  return <div>
+    <p>Showing {expanded ? count : 5} of {count} {label}{expanded ? '' : ` · ${count - 5} more`}.</p>
+    <button type="button" className="vnext-meri__rail-action-btn" aria-expanded={expanded} onClick={onToggle}>
+      {expanded ? `Show fewer ${label}` : `Show all ${count} ${label}`}
+    </button>
+  </div>;
 }

@@ -46,18 +46,34 @@ function service(adapters: readonly RetrievalSourceAdapter[]): RetrievalV2Servic
 }
 
 describe('RetrievalV2Service', () => {
-  it.each([true, false])('uses oldest source sync across pages and preserves unknown freshness (allKnown=%s)', async (allKnown) => {
-    const older = new Date('2026-01-01');
-    const newer = new Date('2026-09-01');
-    const adapter: RetrievalSourceAdapter = {
-      key: 'core-prisma', domains: ['clients'], retrieve: jest.fn()
-        .mockResolvedValueOnce(page({ hasMore: true, nextCursor: 'next', coverageComplete: false, paginationComplete: false, lastSyncAt: allKnown ? older : undefined }))
-        .mockResolvedValueOnce(page({ lastSyncAt: newer })),
-    };
-    const response = await service([adapter]).retrieve(baseRequest({ queryClass: 'exhaustive_search' }));
-    expect(response.coverage.sources[0]!.lastSyncAt).toEqual(allKnown ? older : undefined);
-    expect(response.observability.freshnessByDomain.clients).toEqual(allKnown ? older : null);
-  });
+  it.each([true, false])(
+    'uses oldest source sync across pages and preserves unknown freshness (allKnown=%s)',
+    async (allKnown) => {
+      const older = new Date('2026-01-01');
+      const newer = new Date('2026-09-01');
+      const adapter: RetrievalSourceAdapter = {
+        key: 'core-prisma',
+        domains: ['clients'],
+        retrieve: jest
+          .fn()
+          .mockResolvedValueOnce(
+            page({
+              hasMore: true,
+              nextCursor: 'next',
+              coverageComplete: false,
+              paginationComplete: false,
+              lastSyncAt: allKnown ? older : undefined,
+            }),
+          )
+          .mockResolvedValueOnce(page({ lastSyncAt: newer })),
+      };
+      const response = await service([adapter]).retrieve(
+        baseRequest({ queryClass: 'exhaustive_search' }),
+      );
+      expect(response.coverage.sources[0]!.lastSyncAt).toEqual(allKnown ? older : undefined);
+      expect(response.observability.freshnessByDomain.clients).toEqual(allKnown ? older : null);
+    },
+  );
 
   it('makes a missing domain adapter explicit in coverage instead of silently omitting it', async () => {
     const response = await service([]).retrieve(
@@ -161,7 +177,11 @@ describe('RetrievalV2Service', () => {
     const adapter: RetrievalSourceAdapter = {
       key: 'core-prisma',
       domains: ['clients'],
-      retrieve: jest.fn().mockRejectedValue(new Error('secret database detail')) as RetrievalSourceAdapter['retrieve'],
+      retrieve: jest
+        .fn()
+        .mockRejectedValue(
+          new Error('secret database detail'),
+        ) as RetrievalSourceAdapter['retrieve'],
     };
 
     const response = await service([adapter]).retrieve(baseRequest());
@@ -203,5 +223,48 @@ describe('RetrievalV2Service', () => {
       sourceHealth: { clients: 'healthy' },
       freshnessByDomain: { clients: lastSyncAt },
     });
+  });
+});
+
+it('counts one governed-memory record set once while draining its distinct returned pages', async () => {
+  const adapter: RetrievalSourceAdapter = {
+    key: 'knowledge-plane-temporal-graph',
+    domains: ['institutional_knowledge'],
+    retrieve: jest
+      .fn()
+      .mockResolvedValueOnce(
+        page({
+          domain: 'institutional_knowledge',
+          records: [{ ...record('a'), domain: 'institutional_knowledge' }],
+          total: 2,
+          returned: 1,
+          recordsEvaluated: 2,
+          evaluatedRecordSetId: 'snapshot-a',
+          hasMore: true,
+          nextCursor: 'next',
+          coverageComplete: false,
+          paginationComplete: false,
+        }),
+      )
+      .mockResolvedValueOnce(
+        page({
+          domain: 'institutional_knowledge',
+          records: [{ ...record('b'), domain: 'institutional_knowledge' }],
+          total: 2,
+          returned: 1,
+          recordsEvaluated: 2,
+          evaluatedRecordSetId: 'snapshot-a',
+        }),
+      ),
+  };
+  const response = await service([adapter]).retrieve(
+    baseRequest({ requestedDomains: ['institutional_knowledge'], requireComplete: true }),
+  );
+  expect(response.coverage.sources[0]).toMatchObject({
+    total: 2,
+    returned: 2,
+    recordsEvaluated: 2,
+    pagesRead: 2,
+    coverageComplete: true,
   });
 });

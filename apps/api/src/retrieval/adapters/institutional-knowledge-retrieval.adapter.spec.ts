@@ -571,7 +571,7 @@ describe('canonical institutional recall governance', () => {
     });
     const request = { ...selectedClientRequest(), pageSize: 1 };
     const first = await adapter.retrieve(dataset, request);
-    expect(first.nextCursor).toBe('memory:1');
+    expect(first.nextCursor).toMatch(/^memory:v2:1:[a-f0-9]{64}$/);
     queryRaw.mockResolvedValue([
       approved({ status: 'revoked' }),
       approved({ id: 'memory-next', status: 'revoked' }),
@@ -637,5 +637,186 @@ describe('canonical memory exact row narrowing', () => {
     expect(sql.text).toContain('AND mi.id =');
     expect(sql.text).toContain('mi.governed_status');
     expect(sql.values).toContain(itemId);
+  });
+});
+
+describe('Phase 3 fact content and bounded recall', () => {
+  const fact = (id: string, body: string) =>
+    approved({
+      id,
+      key: `learning-signal:crm.fill_with_meri:crm_finding_accepted:${id}`,
+      sourceType: 'learning_signal_capture',
+      sourceId: `signal-${id}`,
+      sourceRef: `client_profile_fill_finding:${id}`,
+      sourceExcerpt: body,
+      sections: [{ key: 'memory', heading: 'Memory', body }],
+    });
+
+  it('returns actual approved capability, person and facility facts across every page with exact lineage', async () => {
+    const rows = [
+      fact('capability', 'name: FortressHUMS; description: UH-72 vibration monitoring'),
+      fact('person', 'name: Dana Chen; role: VP of government affairs'),
+      fact('facility', 'name: Orlando integration laboratory; city: Orlando; state: FL'),
+      approved({ id: 'pending', status: 'pending_review' }),
+      approved({ id: 'revoked', status: 'revoked' }),
+      approved({ id: 'withdrawn', status: 'withdrawn' }),
+      approved({ id: 'rejected', status: 'rejected' }),
+      approved({ id: 'superseded', status: 'superseded' }),
+    ];
+    const { adapter, dataset } = setup({ governed: rows });
+    const request = { ...selectedClientRequest(), pageSize: 1 };
+    const found = [];
+    let cursor: string | undefined;
+    let result;
+    do {
+      result = await adapter.retrieve(dataset, request, cursor);
+      found.push(...result.records);
+      cursor = result.nextCursor;
+    } while (cursor);
+    expect(found).toHaveLength(3);
+    expect(found.map((record) => record.payload.value).join(' ')).toContain(
+      'UH-72 vibration monitoring',
+    );
+    expect(found.map((record) => record.payload.value).join(' ')).toContain('Dana Chen');
+    expect(found.map((record) => record.payload.value).join(' ')).toContain(
+      'Orlando integration laboratory',
+    );
+    for (const record of found) {
+      expect(record.payload).toMatchObject({ contentStatus: 'available', clientId: 'client-1' });
+      expect(record.payload.title).not.toContain('learning-signal:');
+      expect(record.provenance).toMatchObject({
+        sourceType: 'learning_signal_capture',
+        sourceVersion: 'candidate:1',
+      });
+    }
+    expect(result).toMatchObject({ total: 3, coverageComplete: true });
+  });
+
+  it('identifies the observed legacy learning JSON without inventing or replacing the approved body', async () => {
+    const value = JSON.stringify({
+      summary: 'crm_finding_accepted on crm.fill_with_meri, proposed layer client-steering.',
+      proposedMemoryClass: 'client_steering',
+      proposedMemoryAuthority: 'analyst_verified',
+      proposedConfidence: 0.55,
+      hasNote: false,
+      reasons: [],
+      sourceKind: 'capability',
+      sourceSystem: 'client_document',
+      note: 'Review the referenced evidence objects for full context before approving.',
+    });
+    const { adapter, dataset } = setup({ governed: [fact('legacy', value)] });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result.records[0]?.payload).toMatchObject({ value, contentStatus: 'metadata_only' });
+    expect(result.records[0]?.payload.contentLimitation).toContain(
+      'original source must be reviewed',
+    );
+    expect(result.records[0]?.payload.governance).toMatchObject({ status: 'active' });
+  });
+
+  it('retains a fact-bearing note in a structured learning record rather than declaring it metadata-only', async () => {
+    const value = JSON.stringify({
+      summary: 'crm_finding_accepted on crm.fill_with_meri',
+      sourceKind: 'facility',
+      note: 'Orlando integration laboratory operates in Florida.',
+    });
+    const { adapter, dataset } = setup({ governed: [fact('facility-note', value)] });
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result.records[0]?.payload).toMatchObject({
+      value,
+      contentStatus: 'available',
+      contentLimitation: null,
+    });
+  });
+
+  it('rejects a stale or cross-scope result cursor rather than skipping or mixing changed items', async () => {
+    const { adapter, dataset, queryRaw } = setup({
+      governed: [approved(), approved({ id: 'second' })],
+    });
+    const first = await adapter.retrieve(dataset, { ...selectedClientRequest(), pageSize: 1 });
+    queryRaw.mockResolvedValue([
+      approved({ id: 'new-first' }),
+      approved(),
+      approved({ id: 'second' }),
+    ]);
+    const next = await adapter.retrieve(
+      dataset,
+      { ...selectedClientRequest(), pageSize: 1 },
+      first.nextCursor,
+    );
+    expect(next).toMatchObject({
+      records: [],
+      coverageComplete: false,
+      stopReason: 'governed_memory_changed_restart_search',
+    });
+  });
+
+  it('bounds a hung embedding provider before opening the fresh authorized transaction', async () => {
+    jest.useFakeTimers();
+    try {
+      const { adapter, dataset, withTenantUser } = setup({
+        governed: [approved()],
+        embed: () => new Promise(() => {}),
+      });
+      const pending = adapter.retrieve(dataset, {
+        ...selectedClientRequest(),
+        queryClass: 'semantic_recall',
+      });
+      await jest.advanceTimersByTimeAsync(1_999);
+      expect(withTenantUser).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      const result = await pending;
+      expect(withTenantUser).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        returned: 1,
+        sourceStatus: 'degraded',
+        coverageComplete: false,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('rechecks canonical eligibility after an aborted semantic transaction and discloses lexical-only recovery', async () => {
+    const { adapter, dataset, withTenantUser } = setup({ governed: [approved()] });
+    const original = withTenantUser.getMockImplementation()!;
+    withTenantUser.mockImplementationOnce(async (tenant, user, callback) => {
+      await original(tenant, user, callback);
+      throw new Error('transaction was aborted');
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(withTenantUser).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({
+      returned: 1,
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      stopReason: 'governed_memory_semantic_projection_incomplete',
+    });
+  });
+
+  it('reports canonical read failure distinctly without raw exception details or an empty-success claim', async () => {
+    const { adapter, dataset, queryRaw } = setup();
+    queryRaw.mockRejectedValue(new Error('secret SQL connection string'));
+    const result = await adapter.retrieve(dataset, selectedClientRequest());
+    expect(result).toMatchObject({
+      sourceStatus: 'error',
+      records: [],
+      coverageComplete: false,
+      stopReason: 'governed_memory_canonical_read_failed',
+    });
+    expect(JSON.stringify(result)).not.toContain('secret');
+  });
+
+  it('rejects a non-UUID exact selector before SQL or provider work', async () => {
+    const { adapter, dataset, withTenantUser, embeddingProvider } = setup();
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      memoryItemId: 'learning-signal:wrong',
+    });
+    expect(result.stopReason).toBe('invalid_memory_item_id');
+    expect(withTenantUser).not.toHaveBeenCalled();
+    expect(embeddingProvider.embed).not.toHaveBeenCalled();
   });
 });

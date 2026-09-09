@@ -1,21 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MeriCitation } from '../../components/chat/chat-store.js';
 import { MeriIcon } from './meri-icons.js';
+import { meriSourceLocator, readMeriSource, safeMeriSourceUrl, type MeriFullSource } from './meri-source-api.js';
 
-/**
- * MeriSourceDetail — the SOURCE DETAIL right-panel content: prev/next
- * navigation across a turn's real citations, an excerpt, and provenance.
- * Pixel-parity port of the prototype's `panelIsSource` block, rebuilt against
- * the real MeriCitation shape rather than the hardcoded evidence-sources
- * fixture it originally rendered.
- *
- * Three prototype fields have no real backing and are dropped rather than
- * fabricated: the "why it matters" narrative (no such field exists — the
- * excerpt below is the real thing citation data can say), a numeric
- * client-fit match percentage, a second hardcoded evidence citation, and an
- * local context-membership switch. The Context Packet is read-only here;
- * there is no thread-context-membership mutation endpoint to call.
- */
+/** Complete source inspection through exact, authorized canonical readers.
+ * The answer's original excerpt/scope remain separate from current source data;
+ * unsupported kinds navigate to the existing record when a safe URL exists. */
 
 const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 
@@ -33,15 +23,52 @@ interface MeriSourceDetailProps {
   /** Real client scope label, when one is set — used in the provenance row rather than a fabricated one. */
   scopeLabel: string;
   onClose: () => void;
+  onIndexChange?: (index: number) => void;
+  getAuthHeaders?: () => Promise<Record<string, string>>;
 }
 
-export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose }: MeriSourceDetailProps) {
+export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose, getAuthHeaders, onIndexChange }: MeriSourceDetailProps) {
   const [index, setIndex] = useState(initialIndex);
   useEffect(() => { setIndex(initialIndex); }, [citations, initialIndex]);
 
   const count = citations.length;
   const clamped = count > 0 ? ((index % count) + count) % count : 0;
   const citation = citations[clamped];
+  const locator = citation ? meriSourceLocator(citation) : undefined;
+  const locatorKey = JSON.stringify(locator ?? null);
+  const auth = useRef(getAuthHeaders);
+  auth.current = getAuthHeaders;
+  const activeRequest = useRef<AbortController | null>(null);
+  const [storedPages, setPages] = useState<MeriFullSource[]>([]);
+  const [pagesLocatorKey, setPagesLocatorKey] = useState('');
+  const pages = pagesLocatorKey === locatorKey ? storedPages : [];
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const readPage = async (cursor?: string) => {
+    if (!locator || !auth.current) return;
+    activeRequest.current?.abort();
+    const request = new AbortController();
+    activeRequest.current = request;
+    setLoading(true); setError(null);
+    try {
+      const result = await readMeriSource(locator, auth.current, cursor, request.signal);
+      if (!request.signal.aborted) { setPages((previous) => cursor ? [...previous, result] : [result]); setPagesLocatorKey(locatorKey); }
+    } catch (reason) {
+      if (!request.signal.aborted) setError(reason instanceof Error ? reason.message : 'The source could not be read.');
+    } finally { if (!request.signal.aborted) setLoading(false); }
+  };
+  useEffect(() => {
+    setPages([]); setError(null); setLoading(false);
+    void readPage();
+    return () => activeRequest.current?.abort();
+    // The locator contains immutable cited IDs; changing the global client
+    // picker or an auth callback identity must not retarget/restart this read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locatorKey, reload]);
+  const first = pages[0];
+  const nextCursor = pages[pages.length - 1]?.nextCursor;
+  const sourceUrl = safeMeriSourceUrl(first?.location) ?? safeMeriSourceUrl(citation?.url);
 
   if (!citation) return null;
 
@@ -76,7 +103,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
             title="Previous source"
             aria-label="Previous source"
             disabled={count <= 1}
-            onClick={() => setIndex((i) => i - 1)}
+            onClick={() => { const next = (clamped - 1 + count) % count; setIndex(next); onIndexChange?.(next); }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -96,7 +123,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
             title="Next source"
             aria-label="Next source"
             disabled={count <= 1}
-            onClick={() => setIndex((i) => i + 1)}
+            onClick={() => { const next = (clamped + 1) % count; setIndex(next); onIndexChange?.(next); }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -149,9 +176,9 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
           >
             {locatorLabel(citation)}
           </span>
-          {citation.url ? (
+          {sourceUrl ? (
             <a
-              href={citation.url}
+              href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -174,9 +201,43 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
         </div>
       </div>
 
+      <section aria-label="Full source" style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0', fontSize: 12.5, lineHeight: '19px', color: '#344054' }}>
+        <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '.09em', color: '#667085' }}>FULL SOURCE</div>
+        {!locator ? <p>{sourceUrl ? 'Open source to read the complete original record. This source type does not have an in-panel reader.' : 'A complete-source reader is not available for this citation. The original excerpt is preserved below.'}</p> : null}
+        {locator && !getAuthHeaders ? <p>Source authentication is unavailable. Reopen Meri and retry.</p> : null}
+        {first?.versionStatus ? <p role={first.versionStatus === 'changed_since_citation' ? 'status' : undefined}>
+          {first.versionStatus === 'matches_cited_version' ? 'This source matches the cited version.'
+            : first.versionStatus === 'changed_since_citation' ? 'This source changed after the answer was created. You are reading the current version; the original answer excerpt is preserved below.'
+            : 'You are reading the current source. A complete snapshot of the version used for the answer was not recorded.'}
+        </p> : null}
+        {first?.notice ? <p>{first.notice}</p> : null}
+        {first?.recordId ? <div style={{ overflowWrap: 'anywhere', color: '#667085', fontSize: 11 }}>Record: {first.recordId}{first.updatedAt ? <><br />Updated: {first.updatedAt}</> : null}</div> : null}
+        {first?.governance ? <p>Governance: {Object.entries(first.governance).filter(([key]) => /status|authority|scope|conflict/i.test(key)).map(([key, value]) => `${key}: ${String(value)}`).join(' · ')}</p> : null}
+        {pages.map((page, pageIndex) => <div key={`${page.recordId}:${pageIndex}`} style={{ marginTop: 14 }}>
+          {page.message ? <>
+            <div style={{ fontWeight: 600 }}>Message {page.message.messageNumber} of {page.totalMessages}: {page.message.subject}</div>
+            <div>{page.message.from.name ? `${page.message.from.name} · ` : ''}{page.message.from.email}</div>
+            <div>Sent: {page.message.sentAt ?? 'Not recorded'} · Received: {page.message.receivedAt ?? 'Not recorded'}</div>
+            <div style={{ fontSize: 11, overflowWrap: 'anywhere' }}>Message ID: {page.message.id} · Thread ID: {page.message.threadId}</div>
+            <div style={{ fontSize: 11 }}>Characters {page.message.offset + (page.message.bodyLength ? 1 : 0)}–{page.message.endOffset} of {page.message.bodyLength}</div>
+            {page.message.bodyCompleteness !== 'full' && page.message.bodyCompleteness !== 'complete' ? <p>Stored body completeness: {page.message.bodyCompleteness}. This does not establish that the provider supplied the entire message.</p> : null}
+            <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', marginTop: 10 }}>{page.message.bodyText || 'No message body is stored.'}</div>
+          </> : null}
+          {page.section ? <div>{page.sectionLabel ?? `Section ${page.section}`} of {page.sectionCount}</div> : null}
+          {page.truncated || (page.readability?.status && !['text_readable', 'ocr_readable'].includes(page.readability.status)) ? <p>Readability: {page.readability?.status ?? 'partial'}. {page.readability?.note ?? 'Some source content may be unreadable.'}</p> : null}
+          {page.disclosure ? <p>{page.disclosure}</p> : null}
+          {page.text !== undefined ? <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{page.text || 'No factual text is available in this source.'}</div> : null}
+        </div>)}
+        {error ? <p role="alert">{error}</p> : null}
+        {loading ? <p role="status">Reading source…</p> : null}
+        {nextCursor ? <button type="button" disabled={loading} onClick={() => void readPage(nextCursor)}>Read more source content</button> : null}
+        {locator && !loading && (error || first) ? <button type="button" onClick={() => setReload((value) => value + 1)} style={{ marginLeft: nextCursor ? 8 : 0 }}>Restart source read</button> : null}
+        {first?.status === 'available' && !nextCursor && !loading ? <p style={{ color: '#667085' }}>End of the currently available source content.</p> : null}
+      </section>
+
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
-          EXCERPT
+          ORIGINAL ANSWER EXCERPT
         </div>
         <div style={{ marginTop: 9, fontSize: 13, lineHeight: '20px', color: '#344054' }}>
           {citation.snippet ?? 'No excerpt was returned for this source.'}
@@ -190,7 +251,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
             ['SOURCE', providerLabel(citation)],
-            ['RETRIEVED', 'THIS TURN'],
+            ['RETRIEVED', citation.source?.observedAt ?? 'Answer turn; exact time not recorded'],
             ['TURN SCOPE', scopeLabel],
             ['CITATION', `${citation.title} · ${locatorLabel(citation)}`],
           ].map(([label, value]) => (

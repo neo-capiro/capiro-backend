@@ -131,3 +131,26 @@ describe('historical Meri source, inspector and packet scope', () => {
     expect(screen.getByText('ANDURIL')).toBeInTheDocument();
   });
 });
+
+
+test('discloses abbreviated context and exclusion lists and opens every expanded context item', async () => {
+  const expandedPacket = { ...packet,
+    items: Array.from({ length: 7 }, (_, index) => ({ id: `context-${index}`, label: `Client fact ${index + 1}`,
+      type: 'fact', scope: 'client' as const, authority: 'approved', userScoped: false, rationale: null, selection: 'automatic' as const })),
+    exclusions: Array.from({ length: 6 }, (_, index) => ({ id: `excluded-${index}`, label: `Omitted record ${index + 1}`, type: 'fact', reason: 'source_limit_reached' })),
+  };
+  mocks.latest.mockResolvedValue(expandedPacket);
+  const base = props();
+  render(<VNextMeriContextRail {...base} />);
+  await waitFor(() => expect(screen.getByText('Showing 5 of 7 context items · 2 more.')).toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: 'Preview Client fact 7' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Show all 7 context items' }));
+  expect(screen.getByText('Showing 7 of 7 context items.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Preview Client fact 7' }));
+  expect(base.onOpenContext).toHaveBeenCalledWith(expandedPacket, false, false, 'context-6');
+  expect(screen.queryByText('Omitted record 6')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Show all 6 excluded items' }));
+  expect(screen.getByText('Omitted record 6')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Show fewer context items' }));
+  expect(screen.queryByRole('button', { name: 'Preview Client fact 7' })).not.toBeInTheDocument();
+});

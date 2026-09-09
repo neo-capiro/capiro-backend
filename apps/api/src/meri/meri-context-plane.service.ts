@@ -33,6 +33,8 @@ interface ResolvedTurnPlan {
   targetHint: string | null;
   queryClass: RetrievalQueryClass;
   requestedDomains: RetrievalDomain[];
+  /** Sources needed by the task; other requested rails are supplementary context. */
+  requiredDomains?: RetrievalDomain[];
   query: string | undefined;
   requireComplete: boolean;
   windowStart?: Date;
@@ -224,6 +226,7 @@ export class MeriContextPlaneService {
       plan,
       context: result.context,
       packet: result.packet,
+      projectedRecords: projection.records,
       projectionTruncated:
         projection.truncated || steeringEvidence.some((record) => record.projection.truncated),
     });
@@ -412,6 +415,7 @@ export function planMeriTurn(input: {
       // Selecting a task-specific rail must not hide the client's objectives,
       // current strategy, relationships or governed constraints. These are
       // inputs to the provider's analysis, not a second reasoning workflow.
+      requiredDomains: explicitDomains,
       requestedDomains: subjectScope === 'client'
         ? uniqueDomains([...CLIENT_ANALYSIS_DOMAINS, ...explicitDomains])
         : explicitDomains,
@@ -742,7 +746,7 @@ function toMeriPacketItem(raw: unknown): MeriContextPacketItem {
   };
 }
 
-function toMeriRetrievalProjection(input: {
+export function toMeriRetrievalProjection(input: {
   plan: ResolvedTurnPlan;
   context: {
     resolution: {
@@ -764,6 +768,9 @@ function toMeriRetrievalProjection(input: {
         sources: Array<{
           domain: RetrievalDomain;
           sourceStatus: RetrievalSourceStatus;
+          total?: number | null;
+          returned?: number;
+          recordsEvaluated?: number;
           lastSyncAt?: Date;
           stopReason: string;
           coverageComplete: boolean;
@@ -776,6 +783,7 @@ function toMeriRetrievalProjection(input: {
     };
   };
   packet: unknown;
+  projectedRecords: Array<{ domain: string }>;
   projectionTruncated: boolean;
 }): MeriGovernedTurnContext['retrieval'] {
   const packet = packetRecord(input.packet);
@@ -797,7 +805,7 @@ function toMeriRetrievalProjection(input: {
           input.context.resolution.subjectEntity?.canonicalName ?? input.plan.targetHint ?? null,
         recipeTool: null,
         requireCompleteCoverage: input.plan.requireComplete,
-        requiredDomains: requested,
+        requiredDomains: input.plan.requiredDomains ?? (input.plan.requireComplete ? requested : []),
         timeWindow: input.plan.timeWindow,
       },
       coverage: {
@@ -880,7 +888,7 @@ function toMeriRetrievalProjection(input: {
         input.context.resolution.subjectEntity?.canonicalName ?? input.plan.targetHint ?? null,
       recipeTool: null,
       requireCompleteCoverage: input.plan.requireComplete,
-      requiredDomains: requested,
+      requiredDomains: input.plan.requiredDomains ?? (input.plan.requireComplete ? requested : []),
       timeWindow: input.plan.timeWindow,
     },
     coverage: {
@@ -894,6 +902,19 @@ function toMeriRetrievalProjection(input: {
       searchedEntityCount: coverage.searchedEntityCount,
       recordsEvaluated: coverage.recordsEvaluated,
       recordsReturned: coverage.recordsReturned,
+      recordsDisplayed: input.projectedRecords.length,
+      recordsOmitted: Math.max(0, coverage.recordsReturned - input.projectedRecords.length),
+      sourceCounts: coverage.sources.map((source) => {
+        const displayed = input.projectedRecords.filter((record) => record.domain === source.domain).length;
+        return {
+          source: source.domain,
+          recordsReturned: source.returned ?? null,
+          recordsEvaluated: source.recordsEvaluated ?? null,
+          recordsMatched: source.total ?? null,
+          recordsDisplayed: displayed,
+          recordsOmitted: source.returned === undefined ? null : Math.max(0, source.returned - displayed),
+        };
+      }),
       paginationComplete: coverage.paginationComplete,
       truncated:
         input.projectionTruncated || coverage.sources.some((source) => source.truncated),
@@ -968,6 +989,10 @@ function buildMeriContextPrompt(input: {
     `partialDomains=${c.partialDomains.join(',') || '(none)'}`,
     `recordsEvaluated=${c.recordsEvaluated}`,
     `recordsReturned=${c.recordsReturned}`,
+    `recordsDisplayed=${c.recordsDisplayed ?? 'unknown'}`,
+    `recordsOmitted=${c.recordsOmitted ?? 'unknown'}`,
+    `sourceCounts=${JSON.stringify(c.sourceCounts ?? [])}`,
+    'Counts stay within their source, query and phase. Matched is not inspected; returned is not necessarily shown to the model. Never sum repeated or overlapping reads. Omitted counts describe returned records absent from model evidence, not all matching records left unread.',
     `paginationComplete=${c.paginationComplete}`,
     `truncated=${c.truncated}`,
     `sourceHealth=${JSON.stringify(c.sourceHealth)}`,

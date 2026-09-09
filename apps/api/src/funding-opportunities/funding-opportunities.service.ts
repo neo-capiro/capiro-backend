@@ -2265,7 +2265,7 @@ export class FundingOpportunitiesService {
    * silence reads as "fresh", and "SAM.gov has never synced" is the single most
    * useful thing to say to somebody looking at an empty contract list.
    */
-  private async readFreshness(): Promise<OpportunitySourceFreshness[]> {
+  async readFreshness(): Promise<OpportunitySourceFreshness[]> {
     const rails: Array<{ source: OpportunitySource; verb: string; label: string }> = [
       { source: 'grants_gov', verb: 'sync-grants', label: 'Grants.gov opportunities' },
       {

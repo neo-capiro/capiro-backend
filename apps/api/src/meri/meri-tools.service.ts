@@ -2169,6 +2169,13 @@ export class MeriToolsService {
     };
   }
 
+  /** Fixed read-only entry point for the authorized evidence panel. */
+  async readGovernedMemorySource(ctx: TenantContext, input: {
+    memoryItemId: string; clientId?: string; contentCursor?: string;
+  }) {
+    return this.searchMemory(ctx, { ...input, query: 'Read this governed memory' });
+  }
+
   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 400);
     if (!query) return { error: 'Provide a search query.' };
@@ -2181,6 +2188,9 @@ export class MeriToolsService {
     const cursor = optionalString(input, 'cursor', 8192);
     const memoryItemId = optionalString(input, 'memoryItemId', 80);
     const contentCursor = optionalString(input, 'contentCursor', 1024);
+    if (memoryItemId && !CLIENT_ID_UUID_RE.test(memoryItemId)) {
+      throw new BadRequestException('memoryItemId must be the exact canonical memory UUID');
+    }
     if (contentCursor && !memoryItemId) throw new BadRequestException('contentCursor requires memoryItemId');
     if (memoryItemId && cursor) throw new BadRequestException('Use contentCursor for an exact memory read');
     let pageSize = memoryItemId ? 1 : Math.min(k, 3);
@@ -2227,7 +2237,12 @@ export class MeriToolsService {
       requestedPageSize: k,
       effectivePageSize: pageSize,
       nextCursor: source?.nextCursor ?? null,
-      contentStatus: records.length ? 'available' : memoryItemId ? 'unavailable_or_ineligible' : source?.sourceStatus === 'healthy' ? 'empty' : 'unavailable',
+      governanceCoverage: {
+        searched: 'Eligible active governed memory, including stale or controlling conflicted records when policy allows',
+        excluded: 'Pending proposals, rejected, withdrawn, revoked, superseded and non-controlling conflicts are not active recall. Their absence here does not establish that no such proposals or historical records exist.',
+      },
+      factContentUnavailableCount: records.filter((record) => record.payload.contentStatus !== 'available').length,
+      contentStatus: records.length ? records.every((record) => record.payload.contentStatus === 'metadata_only') ? 'metadata_only' : 'available' : memoryItemId ? 'unavailable_or_ineligible' : source?.sourceStatus === 'healthy' ? 'empty' : 'unavailable',
       contentTruncated: records.some((record) => (record.payload.content as { truncated?: boolean } | undefined)?.truncated === true),
       results: records.map((record) => ({
         id: record.recordId, memoryItemId: record.recordId,
@@ -6021,10 +6036,38 @@ export class MeriToolsService {
       limit,
     });
 
+    // Same all-federal rail and ledger as Funding Opportunities. A successful
+    // local search says nothing about current SAM.gov coverage by itself.
+    const sourceFreshness = await this.opportunityTools.readSamSourceFreshness();
+    const source = sourceFreshness[0];
+    const sourceReason = !source || source.countsUnavailable
+      ? 'source_freshness_unavailable'
+      : source.neverSynced
+        ? 'all_federal_source_never_synced'
+        : !source.lastSyncedAt || source.hoursSinceLastSuccess === null || source.hoursSinceLastSuccess < 0
+          ? 'source_freshness_unknown'
+          : source.lastRunStatus !== 'success' || source.lastRunDegraded !== false
+            ? 'latest_source_sync_incomplete'
+            // The canonical all-federal schedule is daily. Two missed daily
+            // windows are stale, even when the last recorded attempt succeeded.
+            : source.hoursSinceLastSuccess >= 48
+              ? 'source_sync_stale'
+              : null;
+    const sourceStatus = sourceReason === null ? 'healthy'
+      : sourceReason === 'source_freshness_unavailable' || sourceReason === 'source_freshness_unknown'
+        ? 'unknown' : 'degraded';
+
     return {
       tool: 'search_sam_opportunities',
       generatedAt: new Date().toISOString(),
       total: result.total,
+      sourceFreshness,
+      sourceStatus,
+      sourceReason,
+      notes: [
+        'Results cover Capiro’s synchronized SAM.gov catalog. No matching records does not establish that no current federal opportunity exists.',
+        ...(sourceReason ? ['Source coverage is incomplete or unknown; inspect sourceFreshness before making current-opportunity or absence claims.'] : []),
+      ],
       results: result.data.map((opp) => ({
         ...opp,
         description: summarizeText(opp.description, 300),

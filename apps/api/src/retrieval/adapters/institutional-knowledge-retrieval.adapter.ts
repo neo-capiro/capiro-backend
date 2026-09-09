@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
@@ -10,6 +11,7 @@ import { TemporalKnowledgeGraphService } from '../../knowledge/graph/temporal-kn
 import type { TemporalKnowledgeGraphEdge } from '../../knowledge/graph/temporal-knowledge-graph.types.js';
 import type { KnowledgeJsonObject } from '../../knowledge/knowledge.types.js';
 import { governedRecallEligibilitySql } from '../../memory/memory-recall-suppression.helpers.js';
+import { describeMemoryRecallContent } from '../../memory/memory-recall-content.helpers.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { RetrievalSourceAdapter } from '../retrieval-source.adapter.js';
@@ -23,6 +25,8 @@ import type {
 const MAX_GRAPH_ROWS_PER_CALL = 500;
 const MAX_MEMORY_ROWS_PER_CALL = 500;
 const DEFAULT_MEMORY_PAGE_SIZE = 50;
+const MEMORY_EMBEDDING_BUDGET_MS = 2_000;
+const MEMORY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MEMORY_QUERY_CLASSES = new Set(['lookup', 'semantic_recall']);
 
 interface GovernedMemoryRow extends GovernedMemoryRecord {
@@ -109,36 +113,51 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
       );
     }
 
-    const offset = parseMemoryCursor(cursor);
-    if (offset === null) {
+    const parsedCursor = parseMemoryCursor(cursor);
+    if (parsedCursor === null) {
       return this.unsupported(dataset, requestedEntityCount, 'invalid_memory_cursor');
     }
+    if (request.memoryItemId && !MEMORY_UUID.test(request.memoryItemId)) {
+      return this.unsupported(dataset, requestedEntityCount, 'invalid_memory_item_id');
+    }
+    const offset = parsedCursor.offset;
     const pageSize = Math.min(
       Math.max(request.pageSize ?? DEFAULT_MEMORY_PAGE_SIZE, 1),
       MAX_MEMORY_ROWS_PER_CALL,
     );
 
-    return this.prisma.withTenantUser(
-      request.caller.tenantId,
-      request.caller.userId,
-      async (tx) => {
-        const allowedClientIds: string[] = [];
-        for (const clientId of requestedClientIds) {
-          if (
-            await clientMemoryAllowed(tx, request.caller.tenantId, request.caller.userId, clientId)
-          ) {
-            allowedClientIds.push(clientId);
+    // The provider must never consume the interactive DB transaction timeout.
+    // Only the user's query is sent; canonical facts and access checks are read
+    // freshly after this bounded attempt, including on every continuation.
+    const vector = await this.queryEmbedding(request);
+    let canonicalRows: GovernedMemoryRow[] = [];
+    try {
+      return await this.prisma.withTenantUser(
+        request.caller.tenantId,
+        request.caller.userId,
+        async (tx) => {
+          const allowedClientIds: string[] = [];
+          for (const clientId of requestedClientIds) {
+            if (
+              await clientMemoryAllowed(
+                tx,
+                request.caller.tenantId,
+                request.caller.userId,
+                clientId,
+              )
+            ) {
+              allowedClientIds.push(clientId);
+            }
           }
-        }
-        if (allowedClientIds.length !== requestedClientIds.length) {
-          return this.memoryUnauthorized(
-            dataset,
-            requestedEntityCount,
-            'requested_client_scope_failed_ethical_wall',
-          );
-        }
+          if (allowedClientIds.length !== requestedClientIds.length) {
+            return this.memoryUnauthorized(
+              dataset,
+              requestedEntityCount,
+              'requested_client_scope_failed_ethical_wall',
+            );
+          }
 
-        const rows = await tx.$queryRaw<GovernedMemoryRow[]>(Prisma.sql`
+          const rows = await tx.$queryRaw<GovernedMemoryRow[]>(Prisma.sql`
           SELECT mi.id::text AS id, mi.tenant_id::text AS "tenantId",
                  mi.client_id::text AS "clientId", mi.owner_user_id::text AS "ownerUserId",
                  mi.title AS key, mi.type, mi.slug, mi.sections_jsonb AS sections,
@@ -172,83 +191,141 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
           LIMIT ${MAX_MEMORY_ROWS_PER_CALL + 1}
         `);
 
-        const hardTruncated = rows.length > MAX_MEMORY_ROWS_PER_CALL;
-        const eligible = rows
-          .slice(0, MAX_MEMORY_ROWS_PER_CALL)
-          .filter(
-            (row) =>
-              MEMORY_CLASSES.includes(row.memoryClass) &&
-              row.legacyStatus === 'active' &&
-              (row.visibility === 'tenant' || row.ownerUserId === request.caller.userId) &&
-              (!row.clientId || allowedClientIds.includes(row.clientId)) &&
-              (!row.effectiveFrom || new Date(row.effectiveFrom).getTime() <= Date.now()) &&
-              filterGovernedMemory(row, {
-                tenantId: request.caller.tenantId,
-                userId: request.caller.userId,
-                clientId: row.clientId,
-                ethicalWallAllowed: !!row.clientId && allowedClientIds.includes(row.clientId),
-              }).include,
-          )
-          .map((row) => ({
-            ...row,
-            sections: memorySections(row.sections),
-            value: memorySections(row.sections)
-              .map((section) => section.body)
-              .join('\n\n'),
-          }));
+          const hardTruncated = rows.length > MAX_MEMORY_ROWS_PER_CALL;
+          const eligible = rows
+            .slice(0, MAX_MEMORY_ROWS_PER_CALL)
+            .filter(
+              (row) =>
+                MEMORY_CLASSES.includes(row.memoryClass) &&
+                row.legacyStatus === 'active' &&
+                (row.visibility === 'tenant' || row.ownerUserId === request.caller.userId) &&
+                (!row.clientId || allowedClientIds.includes(row.clientId)) &&
+                (!row.effectiveFrom || new Date(row.effectiveFrom).getTime() <= Date.now()) &&
+                filterGovernedMemory(row, {
+                  tenantId: request.caller.tenantId,
+                  userId: request.caller.userId,
+                  clientId: row.clientId,
+                  ethicalWallAllowed: !!row.clientId && allowedClientIds.includes(row.clientId),
+                }).include,
+            )
+            .map((row) => ({
+              ...row,
+              sections: memorySections(row.sections),
+              value: memorySections(row.sections)
+                .map((section) => section.body)
+                .join('\n\n'),
+            }));
 
-        const ranked = await this.rankMemories(tx, request, eligible);
-        const pageRows = ranked.slice(offset, offset + pageSize);
-        const hasMore = offset + pageSize < ranked.length;
-        const nextCursor = hasMore ? `memory:${offset + pageSize}` : undefined;
-        // Degraded means the SEMANTIC PROJECTION itself could not run (the
-        // embedding provider returned no usable vector), not that a sparse
-        // subset of rows lacks an embedding. A single un-embedded approved row
-        // must not poison coverage for the whole scan — it falls back to
-        // lexical ranking and stays available (see rankMemories).
-        const semanticDegraded =
-          request.queryClass === 'semantic_recall' &&
-          ranked.some((entry) => entry.semanticUnavailable);
-        const sourceDegraded = hardTruncated || semanticDegraded;
-        const paginationComplete = !hasMore && !hardTruncated;
-        const records = pageRows.map(({ row, semanticScore }) => memoryRecord(row, semanticScore));
-        const lastSyncAt = eligible.reduce<Date | undefined>(
-          (latest, row) => (!latest || row.updatedAt > latest ? row.updatedAt : latest),
-          undefined,
+          canonicalRows = eligible;
+          const ranked = await this.rankMemories(tx, request, eligible, vector);
+          const snapshot = memorySnapshot(
+            request,
+            ranked.map(({ row }) => row),
+          );
+          if (parsedCursor.snapshot && parsedCursor.snapshot !== snapshot) {
+            return {
+              ...this.unsupported(
+                dataset,
+                requestedEntityCount,
+                'governed_memory_changed_restart_search',
+              ),
+              sourceStatus: 'degraded' as const,
+            };
+          }
+          const pageRows = ranked.slice(offset, offset + pageSize);
+          const hasMore = offset + pageSize < ranked.length;
+          const nextCursor = hasMore ? `memory:v2:${offset + pageSize}:${snapshot}` : undefined;
+          // Degraded means the SEMANTIC PROJECTION itself could not run (the
+          // embedding provider returned no usable vector), not that a sparse
+          // subset of rows lacks an embedding. A single un-embedded approved row
+          // must not poison coverage for the whole scan — it falls back to
+          // lexical ranking and stays available (see rankMemories).
+          const semanticDegraded =
+            request.metadata?.memorySemanticFallback === true ||
+            (request.queryClass === 'semantic_recall' &&
+              ranked.some((entry) => entry.semanticUnavailable));
+          const sourceDegraded = hardTruncated || semanticDegraded;
+          const paginationComplete = !hasMore && !hardTruncated;
+          const records = pageRows.map(({ row, semanticScore }) =>
+            memoryRecord(row, semanticScore),
+          );
+          const lastSyncAt = eligible.reduce<Date | undefined>(
+            (latest, row) => (!latest || row.updatedAt > latest ? row.updatedAt : latest),
+            undefined,
+          );
+
+          return {
+            domain: dataset.domain,
+            records,
+            total: hardTruncated ? undefined : eligible.length,
+            returned: records.length,
+            hasMore,
+            nextCursor,
+            truncated: hardTruncated,
+            sourceStatus: sourceDegraded ? 'degraded' : 'healthy',
+            lastSyncAt,
+            recordsEvaluated: eligible.length,
+            evaluatedRecordSetId: `memory:${snapshot}`,
+            requestedEntityCount,
+            searchedEntityCount: allowedClientIds.length,
+            pagesRead: 1,
+            paginationComplete,
+            coverageComplete: paginationComplete && !sourceDegraded,
+            stopReason: hardTruncated
+              ? 'governed_memory_safety_cap_reached'
+              : semanticDegraded
+                ? 'governed_memory_semantic_projection_incomplete'
+                : hasMore
+                  ? 'governed_memory_page_boundary_reached'
+                  : 'governed_memory_scan_complete',
+          };
+        },
+      );
+    } catch {
+      // An SQL projection error can abort a PostgreSQL transaction even when
+      // caught inside its callback. Read canonical evidence again without the
+      // optional semantic query; do not turn that into an empty healthy scan.
+      if (canonicalRows.length && vector) {
+        return this.retrieveGovernedMemory(
+          dataset,
+          {
+            ...request,
+            queryClass: 'lookup',
+            metadata: { ...request.metadata, memorySemanticFallback: true },
+          },
+          cursor,
         );
+      }
+      return {
+        ...this.unsupported(dataset, requestedEntityCount, 'governed_memory_canonical_read_failed'),
+        sourceStatus: 'error',
+      };
+    }
+  }
 
-        return {
-          domain: dataset.domain,
-          records,
-          total: eligible.length,
-          returned: records.length,
-          hasMore,
-          nextCursor,
-          truncated: hardTruncated,
-          sourceStatus: sourceDegraded ? 'degraded' : 'healthy',
-          lastSyncAt,
-          recordsEvaluated: eligible.length,
-          requestedEntityCount,
-          searchedEntityCount: allowedClientIds.length,
-          pagesRead: 1,
-          paginationComplete,
-          coverageComplete: paginationComplete && !sourceDegraded,
-          stopReason: hardTruncated
-            ? 'governed_memory_safety_cap_reached'
-            : semanticDegraded
-              ? 'governed_memory_semantic_projection_incomplete'
-              : hasMore
-                ? 'governed_memory_page_boundary_reached'
-                : 'governed_memory_scan_complete',
-        };
-      },
-    );
+  private async queryEmbedding(request: RetrievalRequest): Promise<number[] | null> {
+    if (request.queryClass !== 'semantic_recall' || !request.query?.trim()) return null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const vector = await Promise.race([
+        this.embeddingProvider.embed(request.query.trim()),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), MEMORY_EMBEDDING_BUDGET_MS);
+        }),
+      ]);
+      return vector?.length && vector.every(Number.isFinite) ? vector : null;
+    } catch {
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private async rankMemories(
     tx: Prisma.TransactionClient,
     request: RetrievalRequest,
     rows: GovernedMemoryRow[],
+    vector: number[] | null,
   ): Promise<
     Array<{
       row: GovernedMemoryRow;
@@ -273,12 +350,6 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
         .sort((a, b) => compareMemoryRank(a.row, b.row, lexical));
     }
 
-    let vector: number[] | null = null;
-    try {
-      vector = await this.embeddingProvider.embed((request.query ?? '').trim());
-    } catch {
-      vector = null;
-    }
     if (!vector?.length || vector.some((value) => !Number.isFinite(value))) {
       // The semantic projection itself could not run — this IS a coverage
       // degradation (the caller treats the source as degraded).
@@ -498,6 +569,11 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
 }
 
 function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): RetrievalRecord {
+  const content = describeMemoryRecallContent({
+    title: row.key,
+    value: row.value,
+    sourceType: row.sourceType,
+  });
   const reviewBase = row.lastConfirmedAt ?? row.createdAt;
   const reviewDueAt =
     row.reviewDueAt ??
@@ -515,7 +591,9 @@ function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): Ret
       scope: row.scope,
       clientId: row.clientId,
       memoryItemId: row.id,
-      title: row.key,
+      title: content.title,
+      contentStatus: content.contentStatus,
+      contentLimitation: content.contentLimitation,
       type: row.type,
       slug: row.slug,
       sectionCount: row.sections.length,
@@ -569,12 +647,27 @@ function memoryRecord(row: GovernedMemoryRow, semanticScore: number | null): Ret
   };
 }
 
-function parseMemoryCursor(cursor?: string): number | null {
-  if (!cursor) return 0;
-  const match = /^memory:(\d+)$/.exec(cursor);
+function parseMemoryCursor(cursor?: string): { offset: number; snapshot?: string } | null {
+  if (!cursor) return { offset: 0 };
+  const match = /^memory:v2:(\d+):([a-f0-9]{64})$/.exec(cursor);
   if (!match) return null;
   const offset = Number(match[1]);
-  return Number.isSafeInteger(offset) && offset >= 0 ? offset : null;
+  return Number.isSafeInteger(offset) && offset >= 0 ? { offset, snapshot: match[2] } : null;
+}
+
+function memorySnapshot(request: RetrievalRequest, rows: GovernedMemoryRow[]): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        request.caller.tenantId,
+        request.caller.userId,
+        [...(request.caller.clientIds ?? [])].sort(),
+        request.query ?? '',
+        request.memoryItemId ?? null,
+        rows.map((row) => [row.id, isoDate(row.updatedAt), row.status, row.value]),
+      ]),
+    )
+    .digest('hex');
 }
 
 function lexicalScores(rows: GovernedMemoryRow[], query: string): Map<string, number> {

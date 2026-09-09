@@ -93,6 +93,7 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
   const programElement = {
     listSamOpportunities: jest.fn().mockResolvedValue({ data: [], total: 0 }),
   };
+  const opportunityTools = { readSamSourceFreshness: jest.fn().mockResolvedValue([]) };
   const clientCapabilities = {
     listCapabilities: jest.fn().mockResolvedValue([]),
     listClientHistory: jest.fn().mockResolvedValue([]),
@@ -164,10 +165,7 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     { projectClioMemory: jest.fn(), removeClioMemory: jest.fn() } as never, // memoryIngest
     { proposeSaveMemory: jest.fn() } as never, // memoryCandidates
     { confirmMemory: jest.fn(), correctMemory: jest.fn(), forgetMemory: jest.fn() } as never, // memoryStore
-    // P37 opportunityTools. This suite exercises none of the six, so an empty
-    // double is honest here — a stub that returned a plausible envelope would
-    // be a second implementation nobody keeps in step with the real one.
-    {} as never, // opportunityTools
+    opportunityTools as never,
     extra.sharedRetrieval as never,
     extra.contextPlane as never,
     clientAdvocacy as never,
@@ -182,6 +180,7 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     intelligence,
     regulatoryDockets,
     programElement,
+    opportunityTools,
     clientCapabilities,
     clientPeople,
     clientFacilities,
@@ -310,6 +309,12 @@ describe('query_regulatory_dockets', () => {
 });
 
 describe('search_sam_opportunities', () => {
+  const freshSam = {
+    source: 'sam_gov', verb: 'sync-sam-opportunities-all-federal',
+    lastSyncedAt: '2026-09-09T07:55:00.000Z', lastRunStatus: 'success',
+    hoursSinceLastSuccess: 5, neverSynced: false,
+    lastRunDegraded: false, countsUnavailable: false,
+  };
   it('passes filters and summarizes long descriptions', async () => {
     const m = makeMocks();
     m.programElement.listSamOpportunities.mockResolvedValue({
@@ -327,6 +332,30 @@ describe('search_sam_opportunities', () => {
       limit: 20,
     });
     expect(result.results[0]!.description.length).toBeLessThanOrEqual(300);
+  });
+
+  it.each([
+    ['clean recent source', freshSam, 'healthy', null],
+    ['stale source', { ...freshSam, hoursSinceLastSuccess: 48 }, 'degraded', 'source_sync_stale'],
+    ['failed attempt', { ...freshSam, lastRunStatus: 'error', lastRunDegraded: true }, 'degraded', 'latest_source_sync_incomplete'],
+    ['partial attempt', { ...freshSam, lastRunStatus: 'partial' }, 'degraded', 'latest_source_sync_incomplete'],
+    ['running attempt', { ...freshSam, lastRunStatus: 'running' }, 'degraded', 'latest_source_sync_incomplete'],
+    ['never synchronized', { ...freshSam, neverSynced: true, lastSyncedAt: null }, 'degraded', 'all_federal_source_never_synced'],
+    ['unreadable health', { ...freshSam, countsUnavailable: true }, 'unknown', 'source_freshness_unavailable'],
+  ])('preserves zero matches separately from %s', async (_label, freshness, status, reason) => {
+    const m = makeMocks();
+    m.opportunityTools.readSamSourceFreshness.mockResolvedValue([freshness]);
+    const result = await m.service.execute(ctx, 'search_sam_opportunities', { query: 'unmatched' });
+    expect(result).toMatchObject({
+      total: 0, results: [], sourceFreshness: [freshness], sourceStatus: status, sourceReason: reason,
+    });
+    expect((result as { notes: string[] }).notes.join(' ')).toContain('does not establish');
+  });
+
+  it('propagates a failed catalog read instead of manufacturing zero matches', async () => {
+    const m = makeMocks();
+    m.programElement.listSamOpportunities.mockRejectedValue(new Error('catalog unavailable'));
+    await expect(m.service.execute(ctx, 'search_sam_opportunities', {})).rejects.toThrow('catalog unavailable');
   });
 });
 
@@ -958,6 +987,26 @@ describe('search_memory canonical recall dispatch', () => {
     const schema = m.service.anthropicToolSchemas().find((tool) => tool.name === 'search_memory')!;
     expect(schema.input_schema.properties).toHaveProperty('cursor');
     expect(schema.input_schema.properties).toHaveProperty('clientId');
+  });
+
+  it('the source panel reads exact canonical memory and preserves metadata-only disclosure', async () => {
+    const legacy = { ...record, payload: { ...record.payload, contentStatus: 'metadata_only',
+      contentLimitation: 'The original source must be reviewed.', value: '{"summary":"crm_finding_accepted on crm.fill_with_meri"}' } };
+    const retrieve = jest.fn().mockResolvedValue({ records: [legacy], coverage: { complete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy' }] } });
+    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] }) } });
+    const result = await m.service.readGovernedMemorySource(ctx, { memoryItemId: record.recordId, clientId }) as any;
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ queryClass: 'lookup', memoryItemId: record.recordId, pageSize: 1 }));
+    expect(result.contentStatus).toBe('metadata_only');
+    expect(result.factContentUnavailableCount).toBe(1);
+    expect(result.records[0].payload.contentLimitation).toBe('The original source must be reviewed.');
+    expect(result.governanceCoverage.excluded).toContain('Pending proposals');
+  });
+
+  it('rejects invalid exact memory IDs before dispatching the source-panel read', async () => {
+    const retrieve = jest.fn();
+    const m = makeMocks({ sharedRetrieval: { retrieve } });
+    await expect(m.service.readGovernedMemorySource(ctx, { memoryItemId: 'not-a-uuid' })).rejects.toThrow('exact canonical memory UUID');
+    expect(retrieve).not.toHaveBeenCalled();
   });
 
   it('rejects a client that is no longer in the current authorization envelope', async () => {

@@ -28,11 +28,28 @@ export function contextItemLabel(label: string, type?: string): string {
     ? meriCoverageReason(label) : label;
 }
 
+/** Older packets sometimes contain only a type/ID. Preserve distinct, honest
+ * labels using known scope/date and packet position instead of invented content. */
+function contextItemTitles(packet: MeriContextPacket): string[] {
+  const labels = packet.items.map((item) => contextItemLabel(item.label, item.type));
+  return packet.items.map((item, index) => {
+    const label = labels[index]!;
+    const generic = /^(Learning signal|Context item|learning_signal)$/i.test(label) || item.label === item.type;
+    const repeated = labels.filter((candidate) => candidate === label).length > 1;
+    if (!generic && !repeated) return label;
+    const when = item.asOf && Number.isFinite(Date.parse(item.asOf))
+      ? new Date(item.asOf).toISOString().slice(0, 10) : null;
+    return [label.replace(/_/g, ' ').replace(/^./, (letter) => letter.toUpperCase()),
+      `item ${index + 1}`, scope(item.scope), when].filter(Boolean).join(' · ');
+  });
+}
+
 export function evidenceContextPacket(packet: MeriContextPacket): MeriEvidenceContextPacket {
+  const titles = contextItemTitles(packet);
   return {
     degraded: packet.degraded ? meriCoverageReason(packet.degradedReason ?? 'Initial context provenance is unavailable for this answer.') : null,
-    included: packet.items.map((item) => ({
-      name: contextItemLabel(item.label, item.type),
+    included: packet.items.map((item, index) => ({
+      name: titles[index]!,
       type: item.type.replace(/_/g, ' ').toUpperCase(),
       scope: scope(item.scope),
       auto: item.selection !== 'explicit',
@@ -56,9 +73,10 @@ export function evidenceContextPacket(packet: MeriContextPacket): MeriEvidenceCo
 
 export function activeContextLabels(packet: MeriContextPacket | null): Array<{ id: string; title: string; kind: string }> {
   if (!packet) return [];
-  return packet.items.map((item) => ({
+  const titles = contextItemTitles(packet);
+  return packet.items.map((item, index) => ({
     id: item.id,
-    title: contextItemLabel(item.label, item.type),
+    title: titles[index]!,
     kind: item.type.replace(/_/g, ' ').toUpperCase(),
   }));
 }

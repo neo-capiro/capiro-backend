@@ -148,11 +148,11 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain("never imply one rail's status maps onto the other's");
   });
 
-  it('tells the model document tools RUN (no approval hold) and to report the real result — never a phantom download', () => {
+  it('requires authoritative document tool outcomes rather than assuming execution or a download', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
-    // Document tools are PASS-classified: they run immediately, they are NOT held.
-    expect(prompt).toContain('run IMMEDIATELY (no approval hold)');
-    expect(prompt).toContain('create_word');
+    // Current action policy determines execution; provider prose cannot bypass it.
+    expect(prompt).toContain('authoritative action result determines whether it ran');
+    expect(prompt).toContain('never infer execution from the tool name');
     // The crux of the false-"ready for download" bug: report the actual result.
     expect(prompt).toContain('REPORT ITS ACTUAL RESULT');
     expect(prompt).toContain(
@@ -237,4 +237,16 @@ describe('held-write honesty (the "submitted for processing" fabrication)', () =
     expect(prompt).toContain('do not silently re-propose');
     expect(prompt).toContain('were never approved');
   });
+});
+
+
+it('requires specific material evidence and canonical fact reads in both chat prompt projections', () => {
+  const prompt = buildChatSystemPrompt({ clientId: 'client-1' }, ctx);
+  expect(prompt).toContain('every material amount, fiscal year, legislative stage, deadline, or ranked opportunity');
+  expect(prompt).toContain('specific claim');
+  expect(prompt).toContain('assumptions or unverified');
+  expect(prompt).toContain('metadata_only or empty');
+  expect(prompt).toContain('exact memoryItemId');
+  expect(prompt).toContain('nextCursor');
+  expect(prompt).toContain('non-controlling conflicts');
 });

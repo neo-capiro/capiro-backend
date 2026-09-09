@@ -282,3 +282,46 @@ describe('shared retrieval citations in the final chat release', () => {
     ).toBe('Evidence [1].');
   });
 });
+
+describe('release source locators beyond the prompt citation budget', () => {
+  const clientId = '11111111-1111-4111-8111-111111111111';
+  const documentId = '22222222-2222-4222-8222-222222222222';
+  const observedAt = '2026-09-09T12:00:00.000Z';
+
+  it('preserves parent document identity and content version for a sixth cited section', () => {
+    const result = { clientId, generatedAt: observedAt,
+      document: { id: documentId, contentHash: 'sha256:original-content' },
+      coverage: { returned: 7, complete: true },
+      records: Array.from({ length: 7 }, (_, index) => ({ domain: 'client_documents',
+        recordId: `doc-section-${index + 1}`, payload: { title: `Document section ${index + 1}`, text: `Section ${index + 1} content` },
+      })),
+    };
+    const initial = extractCitationsFromToolResult('read_client_documents', result, 1);
+    expect(initial).toHaveLength(5);
+    const release = buildMeriV3ReleaseCitations(initial, [{ tool: 'read_client_documents', result, serialized: JSON.stringify(result) }]);
+    const sixth = release.aliases.get('read_client_documents:doc-section-6');
+    expect(sixth).toMatchObject({ n: 6, source: { kind: 'document', recordId: documentId,
+      clientId, version: 'sha256:original-content', observedAt },
+      documentEvidence: { documentId, clientId, contentHash: 'sha256:original-content',
+        record: result.records[5], observedAt },
+    });
+    expect(normalizeMeriV3FormBCitations('Finding [S:read_client_documents:doc-section-6].', release.aliases)).toBe('Finding [6].');
+    expect(JSON.parse(JSON.stringify(sixth)).source).toEqual(sixth!.source);
+  });
+
+  it('keeps a profile child’s exact client, section and version after the fifth candidate', () => {
+    const rows = Array.from({ length: 7 }, (_, index) => ({
+      id: `33333333-3333-4333-8333-33333333333${index}`, name: `Capability ${index + 1}`,
+      updatedAt: '2026-09-08T10:00:00.000Z',
+      source: { kind: 'document', recordId: documentId, clientId: 'forged-by-row' },
+    }));
+    const result = { clientId, generatedAt: observedAt, profile: { capabilities: rows } };
+    const initial = extractCitationsFromToolResult('get_client_context', result, 1);
+    const release = buildMeriV3ReleaseCitations(initial, [{ tool: 'get_client_context', result, serialized: JSON.stringify(result) }]);
+    const sixth = release.aliases.get(`get_client_context:${rows[5]!.id}`)!;
+    expect(sixth.source).toEqual({ kind: 'client', recordId: rows[5]!.id, clientId,
+      section: 'capabilities', version: '2026-09-08T10:00:00.000Z', observedAt });
+    expect(normalizeMeriV3FormBCitations(`Finding [S:get_client_context:${rows[5]!.id}].`, release.aliases)).toBe('Finding [6].');
+    expect(JSON.stringify(release.citations.map((citation) => citation.source))).not.toContain('forged-by-row');
+  });
+});

@@ -194,6 +194,8 @@ export interface RetrievalSourceResult {
   sourceStatus: RetrievalSourceStatus;
   lastSyncAt?: Date;
   recordsEvaluated: number;
+  /** Same bounded record set may be re-evaluated on several pages; count it once. */
+  evaluatedRecordSetId?: string;
   requestedEntityCount: number;
   searchedEntityCount: number;
   pagesRead: number;
