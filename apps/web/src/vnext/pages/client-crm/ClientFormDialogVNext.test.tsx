@@ -31,7 +31,7 @@ function renderDialog(props: Partial<Parameters<typeof ClientFormDialogVNext>[0]
   const onSubmit = vi.fn<(submission: ClientFormSubmit) => void>();
   const onCancel = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const utils = render(
+  const view = (nextProps = props) => (
     <QueryClientProvider client={queryClient}>
       <div className="capiro-vnext-root">
         <ClientFormDialogVNext
@@ -40,12 +40,13 @@ function renderDialog(props: Partial<Parameters<typeof ClientFormDialogVNext>[0]
           submitting={false}
           onCancel={onCancel}
           onSubmit={onSubmit}
-          {...props}
+          {...nextProps}
         />
       </div>
     </QueryClientProvider>,
   );
-  return { ...utils, onSubmit, onCancel };
+  const utils = render(view());
+  return { ...utils, onSubmit, onCancel, rerenderDialog: (nextProps: typeof props) => utils.rerender(view({ ...props, ...nextProps })) };
 }
 
 function fillRequiredStepOne() {
@@ -107,6 +108,41 @@ describe('ClientFormDialogVNext', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0]?.[0].payload.intakeData?.ein).toBe('123456');
+  });
+
+  it('preserves a cleared EIN, edited classifications and wizard step during a background client refresh', async () => {
+    const saved = { id: 'saved', name: 'Example', website: 'example.test', description: 'Example organization',
+      applicantTypes: [], naicsCodes: ['336414', '541330'], intakeData: { ein: '237130', primaryNaics: '541512', profileNotes: 'Original note' } } as unknown as Client;
+    const { onSubmit, rerenderDialog } = renderDialog({ mode: 'edit', client: saved });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /^EIN/ }), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'HUBZone' }));
+    rerenderDialog({ client: { ...saved, updatedAt: '2026-09-08T12:00:00Z', intakeData: { ...saved.intakeData, profileNotes: 'Updated in background' } } });
+    expect(screen.getByRole('textbox', { name: /^EIN/ })).toHaveValue('');
+    expect(screen.getByRole('checkbox', { name: 'HUBZone' })).toBeChecked();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    const payload = onSubmit.mock.calls[0]?.[0].payload;
+    expect(payload?.intakeData).not.toHaveProperty('ein');
+    expect(payload?.intakeData).not.toHaveProperty('primaryNaics');
+    expect(payload?.naicsCodes).toEqual(['336414', '541330']);
+    expect(payload?.setAsideCertifications).toContain('HZC');
+    expect(payload?.intakeData?.profileNotes).toBe('Updated in background');
+  });
+
+  it('loads fresh values when reopened and does not carry an open draft to a different client', () => {
+    const saved = { id: 'saved', name: 'Example', website: 'example.test', description: 'Example organization',
+      intakeData: { ein: '237130' } } as Client;
+    const { rerenderDialog } = renderDialog({ mode: 'edit', client: saved });
+    fireEvent.change(screen.getByLabelText(/^Legal name/), { target: { value: 'Unsaved name' } });
+    rerenderDialog({ open: false });
+    rerenderDialog({ open: true, client: { ...saved, name: 'Fresh saved name' } });
+    expect(screen.getByLabelText(/^Legal name/)).toHaveValue('Fresh saved name');
+    fireEvent.change(screen.getByLabelText(/^Legal name/), { target: { value: 'Another unsaved name' } });
+    rerenderDialog({ client: { ...saved, id: 'other-client', name: 'Different client' } });
+    expect(screen.getByLabelText(/^Legal name/)).toHaveValue('Different client');
   });
 
   it('requires correcting new mutually exclusive nonprofit tax statuses', async () => {

@@ -1,6 +1,11 @@
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useApi } from '../../../lib/use-api.js';
+import { CapiroModal } from '../../components/overlays/index.js';
+import { CapiroButton } from '../../components/actions/index.js';
 import { Card, CardHead, Pill, type PillTone } from './portfolio-primitives.js';
 import {
+  deleteSubmissionHistory,
   OUTCOME_TONE,
   OUTCOME_TYPE_LABEL,
 } from '../../../pages/clients/submission-history-api.js';
@@ -23,8 +28,22 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
  * federal record) rather than on Capabilities, where it used to be §7.3.
  */
 export function PastPerformanceCard({ client }: { client: Client }) {
+  const api = useApi();
+  const queryClient = useQueryClient();
   const { rows, settled, failed, retry } = useClientSubmissions(client.id);
   const [showAll, setShowAll] = useState(false);
+  const [removing, setRemoving] = useState<SubmissionWithCapability | null>(null);
+  const remove = useMutation({
+    mutationFn: ({ clientId, id }: { clientId: string; id: string }) =>
+      deleteSubmissionHistory(api, clientId, id),
+    onSuccess: async (_result, { clientId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['client-submission-history-prime', clientId] }),
+        queryClient.invalidateQueries({ queryKey: ['client-submission-history', clientId] }),
+      ]);
+      setRemoving(null);
+    },
+  });
   const genuinelyEmpty = settled && !failed && rows.length === 0;
   const hasMore = settled && !failed && rows.length > 3;
   const visibleRows = hasMore && !showAll ? rows.slice(0, 3) : rows;
@@ -87,10 +106,26 @@ export function PastPerformanceCard({ client }: { client: Client }) {
               <span style={{ flex: '0 0 auto', width: 132 }}>Outcome</span>
               <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
             </div>
-            {visibleRows.map((row) => <SubmissionRow key={row.id} row={row} />)}
+            {visibleRows.map((row) => <SubmissionRow key={row.id} row={row} removing={remove.isPending}
+              onRemove={() => { remove.reset(); setRemoving(row); }} />)}
           </div>
         </div>
       )}
+      {removing ? (
+        <CapiroModal open title="Remove submission?" onClose={() => {
+          if (!remove.isPending) { remove.reset(); setRemoving(null); }
+        }}>
+          <p>Permanently remove “{removing.title}” ({removing.fiscalYear}) from {client.name}&apos;s past performance?</p>
+          <p>The capability and its documents will remain. This cannot be undone.</p>
+          {remove.isError ? <p role="alert">Could not remove this submission. Try again.</p> : null}
+          <div className="capiro-crm__form-actions">
+            <CapiroButton variant="primary" loading={remove.isPending} disabled={remove.isPending}
+              onClick={() => remove.mutate({ clientId: client.id, id: removing.id })}>Remove submission</CapiroButton>
+            <CapiroButton variant="secondary" disabled={remove.isPending}
+              onClick={() => { remove.reset(); setRemoving(null); }}>Cancel</CapiroButton>
+          </div>
+        </CapiroModal>
+      ) : null}
     </Card>
   );
 }
@@ -110,7 +145,7 @@ function LinkBtn({ children, onClick }: { children: React.ReactNode; onClick?: (
   );
 }
 
-function SubmissionRow({ row }: { row: SubmissionWithCapability }) {
+function SubmissionRow({ row, onRemove, removing }: { row: SubmissionWithCapability; onRemove: () => void; removing: boolean }) {
   const [hover, setHover] = useState(false);
   const tone = (OUTCOME_TONE[row.outcomeType] ?? 'gray') as PillTone;
   return (
@@ -140,6 +175,10 @@ function SubmissionRow({ row }: { row: SubmissionWithCapability }) {
             {row.meta}
           </span>
         ) : null}
+        <button type="button" aria-label={`Remove submission ${row.title}`} onClick={onRemove} disabled={removing}
+          style={{ display: 'block', marginTop: 6, fontSize: 12, fontWeight: 600, color: '#B42318' }}>
+          Remove
+        </button>
       </span>
       <span
         style={{

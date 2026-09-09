@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,8 +13,9 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
  */
 
 const getMock = vi.hoisted(() => vi.fn());
+const deleteMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock }),
+  useApi: () => ({ get: getMock, delete: deleteMock }),
 }));
 
 const client: Client = {
@@ -51,17 +52,96 @@ function mockCapabilityApi(history: unknown[]) {
 
 function renderPastPerformance() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <PastPerformanceCard client={client} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...view, queryClient };
 }
 
 beforeEach(() => {
   getMock.mockReset();
+  deleteMock.mockReset();
+});
+
+describe('Saved submission removal', () => {
+  const submission = {
+    id: 'submission-1', clientId: 'client-1', capabilityId: 'cap-1', fiscalYear: 'FY27',
+    title: 'Test submission', meta: null, outcome: 'Awaiting decision', outcomeType: 'in_progress',
+    notes: null, createdAt: '2026-03-01T00:00:00Z', updatedAt: '2026-03-01T00:00:00Z',
+  };
+
+  it('requires a named confirmation and leaves all records intact when cancelled', async () => {
+    mockCapabilityApi([submission]);
+    renderPastPerformance();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove submission Test submission' }));
+    const dialog = screen.getByRole('dialog', { name: 'Remove submission?' });
+    expect(within(dialog).getByText(/“Test submission” \(FY27\).*Overland AI/)).toBeInTheDocument();
+    expect(deleteMock).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Test submission')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting decision')).toBeInTheDocument();
+    expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  it('removes only the confirmed row, prevents duplicate requests and refreshes canonical history caches', async () => {
+    const retained = { ...submission, id: 'submission-2', title: 'Real submission' };
+    const history = [submission, retained];
+    mockCapabilityApi(history);
+    let finishDelete!: () => void;
+    deleteMock.mockImplementation(() => new Promise((resolve) => {
+      finishDelete = () => {
+        history.splice(0, 1);
+        resolve({ data: { deleted: true } });
+      };
+    }));
+    const { queryClient } = renderPastPerformance();
+    queryClient.setQueryData(['client-submission-history', 'client-1', 'inactive-capability'], [submission]);
+    queryClient.setQueryData(['client-submission-history', 'other-client', 'cap-1'], [retained]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove submission Test submission' }));
+    const confirm = screen.getByRole('button', { name: 'Remove submission', exact: true });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(confirm).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(deleteMock).toHaveBeenCalledTimes(1);
+    expect(deleteMock).toHaveBeenCalledWith('/api/clients/client-1/history/submission-1');
+    finishDelete();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByText('Test submission')).not.toBeInTheDocument();
+    expect(screen.getByText('Real submission')).toBeInTheDocument();
+    expect(screen.getByText('1 record')).toBeInTheDocument();
+    expect(queryClient.getQueryData(['client-submission-history', 'client-1', 'cap-1'])).toEqual([retained]);
+    expect(queryClient.getQueryState(['client-submission-history', 'client-1', 'inactive-capability'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['client-submission-history', 'other-client', 'cap-1'])?.isInvalidated).toBe(false);
+    expect(getMock.mock.calls.filter(([url]) => url.endsWith('/submission-history'))).toHaveLength(2);
+  });
+
+  it('keeps the row visible after a failed removal and allows retry', async () => {
+    const history = [submission];
+    mockCapabilityApi(history);
+    deleteMock.mockRejectedValueOnce(new Error('Service unavailable'));
+    renderPastPerformance();
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove submission Test submission' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove submission', exact: true }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not remove this submission. Try again.');
+    expect(screen.getByText('Test submission')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting decision')).toBeInTheDocument();
+    expect(screen.getByText('1 record')).toBeInTheDocument();
+    deleteMock.mockImplementationOnce(async () => {
+      history.length = 0;
+      return { data: { deleted: true } };
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove submission', exact: true }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByText('Test submission')).not.toBeInTheDocument();
+    expect(screen.getByText(/No submissions recorded/)).toBeInTheDocument();
+    expect(deleteMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('PastPerformanceCard (was Capabilities §7.3, row 12)', () => {

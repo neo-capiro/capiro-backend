@@ -127,15 +127,24 @@ export function ClientFormDialogVNext({
   // closes that window without adding any perceptible delay to a normal
   // single click.
   const [stepTransitioning, setStepTransitioning] = useState(false);
+  const initializedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initializedFor.current = null;
+      return;
+    }
+    // Background client refetches must not erase an open draft or reset its
+    // step. Reopening the editor or switching clients starts a fresh draft.
+    const editorKey = `${mode}:${client?.id ?? ''}`;
+    if (initializedFor.current === editorKey) return;
+    initializedFor.current = editorKey;
     setValues(clientToFormValues(client ?? undefined));
     setErrors({});
     setLogoFile(null);
     setCurrentStep(0);
     setPriorityInputError(undefined);
-  }, [client, open]);
+  }, [client, mode, open]);
 
   const isLastStep = currentStep === CLIENT_FORM_STEP_TITLES.length - 1;
 

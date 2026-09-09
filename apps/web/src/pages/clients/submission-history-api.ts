@@ -74,6 +74,19 @@ export async function createCapabilityHistory(
   ).data;
 }
 
+/** Remove only the saved submission; capability and source documents are retained. */
+export async function deleteSubmissionHistory(
+  api: AxiosInstance,
+  clientId: string,
+  submissionId: string,
+): Promise<{ deleted: boolean }> {
+  return (
+    await api.delete<{ deleted: boolean }>(
+      `/api/clients/${encodeURIComponent(clientId)}/history/${encodeURIComponent(submissionId)}`,
+    )
+  ).data;
+}
+
 /** Outcome type → the design's pill tone vocabulary. */
 export const OUTCOME_TONE: Record<string, 'success' | 'warning' | 'error' | 'gray'> = {
   success: 'success',
