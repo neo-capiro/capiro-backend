@@ -12,6 +12,7 @@ import {
   type PillTone,
 } from '../portfolio-primitives.js';
 import { useApi } from '../../../../lib/use-api.js';
+import { errorMessage } from '../../../../lib/error-message.js';
 import { CapabilityDrawerVNext } from '../CapabilityDrawerVNext.js';
 import { CapabilityCreateFormVNext } from '../CapabilityCreateFormVNext.js';
 import type { Capability } from '../../../../pages/clients/capability-types.js';
@@ -19,6 +20,7 @@ import { readClientRegistrations } from '../../../../pages/clients/client-regist
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
+import { useCapiroToast } from '../../../components/feedback/toast.js';
 import './capabilities-tab.css';
 
 /**
@@ -65,8 +67,21 @@ import './capabilities-tab.css';
 export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
-  const [editing, setEditing] = useState<Capability | null>(null);
+  // Track the OPEN CAPABILITY BY ID, not by snapshot object (Q04). The editor
+  // patches capabilities inline (TRL, tags, PE numbers, ...); each save
+  // invalidates and refetches the list, which is what flips the closed card's
+  // maturity pill correctly. But a snapshot object held in state would keep
+  // pointing at the pre-save value forever, so the OPEN editor kept showing
+  // "Not set" / the previous TRL even after the list already updated —
+  // deriving from the live query on every render keeps both in lockstep. Same
+  // fix already applied to the canonical antd drawer in ClientProfilePage.tsx.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Bridges the create→edit hand-off: right after POST, the new record isn't
+  // in the list query's cache yet (the invalidation refetch is still in
+  // flight), so deriving purely from `capabilities.data` would render nothing
+  // for one tick. Used only as a fallback until the fresh list contains it.
+  const [justCreated, setJustCreated] = useState<Capability | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Capability | null>(null);
   const [registrationsOpen, setRegistrationsOpen] = useState(false);
 
@@ -76,11 +91,23 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
     queryFn: async () => (await api.get<Capability[]>(`/api/clients/${client.id}/capabilities`)).data,
   });
 
+  const editing =
+    editingId == null
+      ? null
+      : capabilities.data?.find((c) => c.id === editingId) ??
+        (justCreated && justCreated.id === editingId ? justCreated : null);
+
+  const closeEditor = () => {
+    setEditingId(null);
+    setCreating(false);
+    setJustCreated(null);
+  };
+
   const remove = useMutation({
     mutationFn: async (id: string) => (await api.delete(`/api/clients/${client.id}/capabilities/${id}`)).data,
     onSuccess: () => {
       setPendingDelete(null);
-      setEditing(null);
+      closeEditor();
       void qc.invalidateQueries({ queryKey: ['client-capabilities', client.id] });
     },
   });
@@ -127,7 +154,7 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
                   type="button"
                   disabled={!area.capability}
                   className="cap-pf-caps-drawer__card"
-                  onClick={() => area.capability && setEditing(area.capability)}
+                  onClick={() => area.capability && setEditingId(area.capability.id)}
                 >
                   <span className="cap-pf-caps-drawer__icon" aria-hidden>▦</span>
                   <span className="cap-pf-caps-drawer__copy">
@@ -167,7 +194,7 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
       <CapabilityAreasCard
         areas={areas}
         loading={capabilities.isLoading}
-        onOpenArea={(cap) => setEditing(cap)}
+        onOpenArea={(cap) => setEditingId(cap.id)}
         onAddCapability={() => setCreating(true)}
       />
 
@@ -191,19 +218,13 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
       <CapiroModal
         open={Boolean(editing || creating)}
         title={editing ? `Capability — ${editing.name}` : 'New capability'}
-        onClose={() => {
-          setEditing(null);
-          setCreating(false);
-        }}
+        onClose={closeEditor}
       >
         {editing ? (
           <CapabilityDrawerVNext
             capability={editing}
             clientId={client.id}
-            onClose={() => {
-              setEditing(null);
-              setCreating(false);
-            }}
+            onClose={closeEditor}
             onUpdated={refresh}
             onDelete={() => setPendingDelete(editing)}
           />
@@ -214,9 +235,13 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
             onCreated={(capability) => {
               // Stay in the same modal and continue on the saved record: the
               // editor owns PE numbers, match keywords, and documents, none of
-              // which can be set before the capability has an id.
+              // which can be set before the capability has an id. `justCreated`
+              // covers the one tick before the invalidated list refetch lands
+              // the new record in `capabilities.data` — `editing` above falls
+              // back to it so the editor isn't briefly blank.
               setCreating(false);
-              setEditing(capability);
+              setJustCreated(capability);
+              setEditingId(capability.id);
             }}
           />
         )}
@@ -523,13 +548,30 @@ function CapabilityFitCard({
 }) {
   const api = useApi();
   const qc = useQueryClient();
+  const toast = useCapiroToast();
   const fitQ = useQuery<CapabilityFitResult>({
     queryKey: ['client-capability-fit', client.id],
     queryFn: async () => (await api.get(`/api/clients/${client.id}/capability-fit`)).data as CapabilityFitResult,
   });
   const refreshM = useMutation({
-    mutationFn: async () => (await api.post(`/api/clients/${client.id}/capability-fit/refresh`)).data,
+    // Refresh fans out to the PE relevance service (30s transaction budget on
+    // its own, see client-pe-relevance.service.ts), plus tracker and funding-
+    // opportunity scoring, inside one request (Q06). The 30s axios default
+    // used everywhere else in this app is a client-side race against the
+    // server's own near-maximum processing time — same bug class already
+    // fixed for AI-generation endpoints in api-client.ts's GENERATION_TIMEOUT_MS
+    // (a request that times out client-side while the server keeps computing
+    // and persists moments later). Give this one the same escalated ceiling.
+    mutationFn: async () =>
+      (await api.post(`/api/clients/${client.id}/capability-fit/refresh`, undefined, { timeout: 60_000 })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['client-capability-fit', client.id] }),
+    // Q06: a timeout/network failure here previously left the button
+    // reverting from "Refreshing…" straight back to "Refresh" with the query
+    // never invalidated and no visible reason — the exact "second refresh,
+    // same silent outcome" reported. Toast covers the in-the-moment case;
+    // isError below drives a persistent banner so the failure survives even
+    // if the toast is missed or the user steps away mid-refresh.
+    onError: (err) => toast.error(errorMessage(err, 'Could not refresh capability fit. Please try again.')),
   });
 
   // Older callers/tests may return the capabilities array for every GET. Treat
@@ -538,11 +580,17 @@ function CapabilityFitCard({
   const matches = result?.matches ?? [];
   const loading = fitQ.isLoading;
   const refreshing = refreshM.isPending;
+  const refreshFailed = refreshM.isError;
   const refreshButton = (
     <SecondaryBtn onClick={() => refreshM.mutate()} disabled={refreshing}>
-      {refreshing ? 'Refreshing…' : 'Refresh'}
+      {refreshing ? 'Refreshing…' : refreshFailed ? 'Retry refresh' : 'Refresh'}
     </SecondaryBtn>
   );
+  const refreshErrorBanner = refreshFailed ? (
+    <div className="cap-pf-caps__fit-error">
+      <span>{errorMessage(refreshM.error, 'Refresh failed — capability fit was not recomputed.')}</span>
+    </div>
+  ) : null;
 
   if (drawer) {
     return (
@@ -568,6 +616,7 @@ function CapabilityFitCard({
               <span>{result?.emptyReason ?? 'Capability-to-program matching has not been computed yet.'}</span>
             </>
           )}
+          {refreshErrorBanner}
         </span>
         {!loading ? <span className="cap-pf-caps-drawer__fit-action">{refreshButton}</span> : null}
       </section>
@@ -581,6 +630,7 @@ function CapabilityFitCard({
         title="Where capabilities create fit"
         description="The matches Capiro draws from this record, and the reason behind each one."
       />
+      {refreshErrorBanner}
       {loading ? (
         <div className="cap-pf-caps__fit-loading">Loading capability fit…</div>
       ) : matches.length > 0 && result && (result.status === 'ready' || result.status === 'stale') ? (

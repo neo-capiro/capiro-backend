@@ -127,6 +127,39 @@ describe('CapabilityDrawerVNext', () => {
     expect(patchMock).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Q05 — removing a PE chip leaves an inconsistent capability list.
+   *
+   * Repro: click an existing chip's × WITHOUT ever focusing the token input
+   * (the ordinary way to remove one — you don't need to type anything).
+   * Root cause: removal only updated local `draft` state and relied on the
+   * input's blur handler to PATCH — but a plain chip click never focuses
+   * that input, so no blur ever fires, so the removal was silently dropped
+   * on the floor (confirmed live by reopening the capability afterward,
+   * where the stale PE number was still there). Fixed: removal PATCHes
+   * immediately, with no dependency on a later blur that may never come.
+   */
+  it('Q05: removing a PE chip persists immediately, even with no input focus/blur', async () => {
+    renderDrawer();
+
+    // The starting chip from the fixture — remove it via its × ONLY, exactly
+    // the QA repro (no typing, no focusing the token input at all).
+    expect(screen.getByText('0603713N')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 0603713N' }));
+
+    // Must not depend on a later blur: the PATCH lands right away, and the
+    // chip is gone from the DOM immediately — not just after some other
+    // field's blur eventually fires.
+    await waitFor(() =>
+      expect(patchMock).toHaveBeenCalledWith('/api/clients/client-4/capabilities/cap-9', {
+        peNumbers: [],
+      }),
+    );
+    expect(screen.queryByText('0603713N')).not.toBeInTheDocument();
+    // No stray blur-triggered second PATCH for this field.
+    expect(patchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('saves Description on blur through click-to-edit', async () => {
     renderDrawer();
     fireEvent.click(screen.getByText('Buoy-hosted passive sonar mesh.'));

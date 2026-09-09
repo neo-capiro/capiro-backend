@@ -420,6 +420,24 @@
   color: var(--pf-error-fg);
 }
 
+/* Q06 — persistent "refresh failed" banner on the capability-fit card, both
+   the full Card layout and the drawer's compact strip. Distinct from the
+   named empty states (profile_too_thin / not-computed) above: those describe
+   the DATA, this describes a FAILED ATTEMPT to get fresh data. */
+.cap-pf-caps__fit-error {
+  padding: 10px 24px;
+  font-size: 13px;
+  color: var(--pf-error-fg);
+  background: #fef3f2;
+  border-bottom: 1px solid #fee4e2;
+}
+.cap-pf-caps-drawer__fit-copy .cap-pf-caps__fit-error {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border-bottom: none;
+}
+
 .cap-pf-caps__modal-actions {
   display: flex;
   gap: 8px;

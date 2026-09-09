@@ -22,8 +22,9 @@ import type { Capability } from '../../../../pages/clients/capability-types.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
+const patchMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock, post: postMock }),
+  useApi: () => ({ get: getMock, post: postMock, patch: patchMock }),
 }));
 
 const client: Client = {
@@ -101,6 +102,7 @@ function renderDrawer() {
 beforeEach(() => {
   getMock.mockReset();
   postMock.mockReset();
+  patchMock.mockReset();
 });
 
 function capabilityNamed(id: string, name: string): Capability {
@@ -173,5 +175,117 @@ describe('ClientCrmCapabilitiesProto (drawer — the branch a real client profil
     expect(screen.getByText(/The capability record itself is removed\./)).toBeInTheDocument();
     expect(screen.getByText(/just no longer linked to a capability/)).toBeInTheDocument();
     expect(screen.queryByText(/linked documents are removed/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Q04 — Capability TRL display does not update after saving.
+   *
+   * Repro: open a capability with no TRL set, click TRL 1. The closed card's
+   * maturity pill flips ("Research") because it reads live from the refetched
+   * list, but the still-OPEN editor kept showing "Not set — click to set"
+   * until you closed and reopened it. Selecting a second value (TRL 9) showed
+   * the same lag — the editor stayed on the FIRST saved value while the list
+   * had already moved to "Fielded". Root cause: the editor was held as a
+   * snapshot object (`editing`) captured at open time, never re-derived after
+   * the save's list refetch. Fixed by tracking the open capability by id and
+   * deriving the rendered object from the live query on every render — same
+   * fix already applied to the canonical antd drawer.
+   */
+  it('Q04: the open editor reflects each freshly saved TRL value without closing and reopening', async () => {
+    const noTrl = capabilityNamed('cap-1', 'Autonomous ground maneuver');
+    noTrl.trl = null;
+    mockApis([noTrl]);
+    let currentList = [noTrl];
+    patchMock.mockImplementation(async (_url: string, patch: Record<string, unknown>) => {
+      currentList = [{ ...currentList[0]!, ...patch }];
+      getMock.mockImplementation((url: string) => {
+        if (url === '/api/clients/client-1/capabilities') return Promise.resolve({ data: currentList });
+        if (url === '/api/clients/client-1/capability-fit') return Promise.resolve({ data: FIT_EMPTY });
+        if (url === '/api/engagement/attachments') return Promise.resolve({ data: [] });
+        return Promise.reject(new Error(`unexpected GET ${url}`));
+      });
+      return { data: currentList[0] };
+    });
+    renderDrawer();
+
+    // Open the capability — TRL starts unset.
+    fireEvent.click(await screen.findByText('Autonomous ground maneuver'));
+    expect(await screen.findByText('Not set — click to set')).toBeInTheDocument();
+
+    // Select TRL 1. The OPEN editor (not just the closed card) must update.
+    fireEvent.click(screen.getByRole('button', { name: 'TRL 1: Basic principles' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/capabilities/cap-1', { trl: 1 }));
+    await waitFor(() => expect(screen.queryByText('Not set — click to set')).not.toBeInTheDocument());
+    expect(await screen.findByText('TRL 1 · Basic principles')).toBeInTheDocument();
+
+    // Select TRL 9. The editor must move off TRL 1, not stay stuck on it.
+    fireEvent.click(screen.getByRole('button', { name: 'TRL 9: Operational proven' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/capabilities/cap-1', { trl: 9 }));
+    await waitFor(() => expect(screen.queryByText('TRL 1 · Basic principles')).not.toBeInTheDocument());
+    expect(await screen.findByText('TRL 9 · Operational proven')).toBeInTheDocument();
+  });
+
+  /**
+   * Q05 — removing a PE chip leaves an inconsistent capability list.
+   *
+   * End-to-end repro against a real query cache + refetch loop (the unit-level
+   * assertion lives in CapabilityDrawerVNext.test.tsx): add PE "invalid-pe"
+   * (normalized to INVALID-PE), remove it via the chip's × only (no typing,
+   * no input focus), switch to the Documents tab and back — the removal must
+   * not have been lost, and the closed card's own "PE ..." line (backed by
+   * the same list query) must never disgree with what the reopened editor
+   * shows.
+   */
+  it('Q05: removing a PE chip persists across a tab switch and matches the closed card', async () => {
+    const cap = capabilityNamed('cap-1', 'Autonomous ground maneuver');
+    mockApis([cap]);
+    let currentList = [cap];
+    patchMock.mockImplementation(async (_url: string, patch: Record<string, unknown>) => {
+      currentList = [{ ...currentList[0]!, ...patch }];
+      getMock.mockImplementation((url: string) => {
+        if (url === '/api/clients/client-1/capabilities') return Promise.resolve({ data: currentList });
+        if (url === '/api/clients/client-1/capability-fit') return Promise.resolve({ data: FIT_EMPTY });
+        if (url === '/api/engagement/attachments') return Promise.resolve({ data: [] });
+        return Promise.reject(new Error(`unexpected GET ${url}`));
+      });
+      return { data: currentList[0] };
+    });
+    renderDrawer();
+
+    fireEvent.click(await screen.findByText('Autonomous ground maneuver'));
+    const peInput = screen.getByLabelText('PE numbers');
+    fireEvent.change(peInput, { target: { value: 'invalid-pe' } });
+    fireEvent.keyDown(peInput, { key: 'Enter' });
+    fireEvent.blur(peInput);
+    await waitFor(() =>
+      expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/capabilities/cap-1', {
+        peNumbers: ['INVALID-PE'],
+      }),
+    );
+    expect(await screen.findByText('INVALID-PE')).toBeInTheDocument();
+
+    // Remove via the chip's × ONLY — the QA repro's exact interaction.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove INVALID-PE' }));
+    await waitFor(() =>
+      expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/capabilities/cap-1', {
+        peNumbers: [],
+      }),
+    );
+
+    // Switch to Documents and back WITHOUT ever touching the PE input again —
+    // this is what threw the un-persisted removal away before the fix.
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
+    expect(screen.queryByText('INVALID-PE')).not.toBeInTheDocument();
+
+    // Close and reopen — reads straight from the (by-now refetched) list,
+    // proving this isn't a display-only removal that the server never saw.
+    fireEvent.click(screen.getByRole('button', { name: 'Close drawer' }));
+    fireEvent.click(await screen.findByText('Autonomous ground maneuver'));
+    expect(screen.queryByText('INVALID-PE')).not.toBeInTheDocument();
+
+    // The closed card's own PE line must agree — no split between the two.
+    fireEvent.click(screen.getByRole('button', { name: 'Close drawer' }));
+    expect(screen.queryByText('PE INVALID-PE')).not.toBeInTheDocument();
   });
 });

@@ -250,11 +250,16 @@ export function TrlScale({ value, onSave }: { value: number | null; onSave: (v: 
 /**
  * Inline editable token list (tags / PE numbers / match keywords) — the
  * vNext-native equivalent of the canonical drawer's `Select mode="tags"` rows.
- * Enter or comma commits the pending token; blur commits it and SAVES, and only
- * when the list actually changed (one PATCH per edit session, not per
- * keystroke — the canonical save-on-blur contract). Optional `upper` uppercases
- * each token (PE codes); tokens are de-duped. `suggestions` feed a native
- * datalist so curated tags stay one keystroke away.
+ * Enter/comma stages a token locally; blur commits it and SAVES once, only if
+ * changed (one PATCH per typing session, not per keystroke). Optional `upper`
+ * uppercases each token (PE codes); tokens are de-duped. `suggestions` feed a
+ * native datalist so curated tags stay one keystroke away.
+ *
+ * Removal (Q05) can't wait for that same blur: clicking a chip's × is often
+ * the ONLY interaction with the field, so the token `<input>` never gets
+ * focus, never blurs, and a remove that only touched `draft` silently never
+ * reached the server. `remove` PATCHes immediately instead; `add` keeps
+ * deferring to blur since typing implies more interaction with the input.
  */
 function InlineTokenList({
   label,
@@ -307,9 +312,14 @@ function InlineTokenList({
     return next;
   };
 
+  // Saves immediately (Q05, see doc comment above). Stays `dirty` so the
+  // resync-from-props check above doesn't stomp this optimistic update
+  // before the PATCH's refetch lands a fresh value.
   const remove = (token: string) => {
+    const next = normalize(draft.filter((t) => t !== token));
     setDirty(true);
-    setDraft(draft.filter((t) => t !== token));
+    setDraft(next);
+    onSave(next);
   };
 
   return (

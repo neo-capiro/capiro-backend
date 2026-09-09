@@ -7,8 +7,14 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
+const toastErrorMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, post: postMock }),
+}));
+// Spy the toast so Q06 can assert a failure is announced (no-op outside a
+// provider would swallow it silently and make the regression unobservable).
+vi.mock('../../../components/feedback/toast.js', () => ({
+  useCapiroToast: () => ({ success: vi.fn(), error: toastErrorMock }),
 }));
 
 const client: Client = {
@@ -43,6 +49,7 @@ function renderCapabilities(clientOverride?: Client) {
 beforeEach(() => {
   getMock.mockReset();
   postMock.mockReset();
+  toastErrorMock.mockReset();
 });
 
 describe('ClientCrmCapabilitiesProto', () => {
@@ -228,6 +235,49 @@ describe('ClientCrmCapabilitiesProto — capability fit', () => {
     postMock.mockResolvedValue({ data: emptyFit });
     renderCapabilities();
     fireEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
-    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/capability-fit/refresh'));
+    // Q06: the 30s axios default races the server's PE-relevance 30s budget.
+    // Refresh must escalate the timeout so the browser outlasts the server.
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/clients/client-1/capability-fit/refresh',
+        undefined,
+        { timeout: 60_000 },
+      ),
+    );
+  });
+
+  // Q06 — after a capability delete the fit cache is intentionally cleared
+  // (status → empty / "not computed"). Refresh then used to fail silently
+  // (client timeout against the PE fan-out, no onError) so the UI reverted
+  // to "Not computed yet" with no explanation and a second click did the
+  // same. A failed refresh must now surface an actionable failure state.
+  it('surfaces a failed refresh as an actionable error instead of silent not-computed', async () => {
+    mockFit({
+      ...emptyFit,
+      status: 'empty',
+      emptyReason: 'Not computed yet.',
+      computedAt: null,
+    });
+    postMock.mockRejectedValue({
+      message: 'timeout of 30000ms exceeded',
+      code: 'ECONNABORTED',
+    });
+    renderCapabilities();
+
+    // Pre-condition: the empty/not-computed surface is what delete left behind.
+    expect(await screen.findByText('Not computed yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    // Toast announces the failure in the moment.
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        expect.stringMatching(/timeout of 30000ms exceeded|Could not refresh capability fit/i),
+      ),
+    );
+    // Persistent banner + retry affordance survive even if the toast is missed.
+    expect(await screen.findByText(/Refresh failed|timeout of 30000ms exceeded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry refresh' })).toBeInTheDocument();
+    // Still must not invent fixture matches while failed.
+    expect(screen.queryByText('Autonomous ground maneuver')).not.toBeInTheDocument();
   });
 });
