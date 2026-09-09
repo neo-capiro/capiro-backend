@@ -56,6 +56,11 @@ import {
   withoutMeriContext,
   type PersistedMessage,
 } from './meri-route-state.js';
+import {
+  consumeMeriHandoffPacket,
+  legiwatchHandoffRequest,
+  withoutLegiwatchParams,
+} from './meri-legiwatch-handoff.js';
 
 interface ClientOption {
   id: string;
@@ -136,6 +141,9 @@ export function VNextMeriWorkspace() {
   const [routeClients, setRouteClients] = useState<ClientOption[]>([]);
   const [routeClientsError, setRouteClientsError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  // Set when a LegiWatch handoff is actually consumed on `/meri/new`; cleared
+  // with it so the chip can never outlive the handoff that produced it.
+  const [handoffChip, setHandoffChip] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyEpoch, setHistoryEpoch] = useState(0);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
@@ -631,6 +639,15 @@ export function VNextMeriWorkspace() {
         }
 
         if (isRootRoute) {
+          // A LegiWatch "Ask Meri" handoff owns the root route when its
+          // identifiers are present. Hydrating `newestConversation` here would
+          // silently land the user in an unrelated thread.
+          const handoff = legiwatchHandoffRequest(location.search);
+          if (handoff) {
+            const target = `/meri/new?${withoutMeriContext(location.search)}`;
+            navigate(target, { replace: true });
+            return;
+          }
           const recent = newestConversation(history);
           if (!recent) {
             navigate('/meri/new', { replace: true });
@@ -862,6 +879,64 @@ export function VNextMeriWorkspace() {
     routeReady,
     selectedClientId,
     sendMessage,
+    setSelectedClientId,
+  ]);
+
+  // Consume a LegiWatch "Ask Meri" handoff exactly once. The boot effect has
+  // already routed `/meri?source=legiwatch…` here, so `/meri/new` plus these
+  // params is the handoff's own URL. Anything that cannot be honored fails
+  // loudly: a silent fallback would hydrate an unrelated thread and lose the
+  // hearing context without a trace.
+  useEffect(() => {
+    if (!routeReady || !isNewRoute) return;
+    const handoff = legiwatchHandoffRequest(location.search);
+    if (!handoff) return;
+    const requestKey = `lw:${handoff.hearingId}\u0000${handoff.clientId ?? ''}`;
+    if (handledContextRef.current === requestKey) return;
+    handledContextRef.current = requestKey;
+
+    const finish = (error: string | null, chip: string | null) => {
+      navigate(
+        { pathname: location.pathname, search: withoutLegiwatchParams(location.search) },
+        { replace: true },
+      );
+      if (error) setRouteError(error);
+      else if (chip) setHandoffChip(chip);
+    };
+
+    if (handoff.clientId) {
+      if (routeClientsError || routeClients.length === 0) {
+        finish('The hearing handoff could not be verified against your client roster. No thread was opened.', null);
+        return;
+      }
+      if (!routeClients.some((client) => client.id === handoff.clientId)) {
+        finish('The client selected in LegiWatch is not available here. No thread was opened.', null);
+        return;
+      }
+      setSelectedClientId(handoff.clientId);
+    }
+
+    const entry = consumeMeriHandoffPacket(handoff.hearingId);
+    const packetTitle =
+      entry && typeof entry === 'object' && typeof (entry as { hearingTitle?: unknown }).hearingTitle === 'string'
+        ? (entry as { hearingTitle: string }).hearingTitle
+        : null;
+    const chip = packetTitle
+      ? `Hearing attached: ${packetTitle}`
+      : `Hearing attached: ${handoff.hearingId}`;
+    if (!entry) {
+      finish('The hearing context packet was not found. Open the hearing in LegiWatch and choose Ask Meri again.', chip);
+      return;
+    }
+    finish(null, chip);
+  }, [
+    isNewRoute,
+    location.pathname,
+    location.search,
+    navigate,
+    routeClients,
+    routeClientsError,
+    routeReady,
     setSelectedClientId,
   ]);
 
@@ -1097,6 +1172,11 @@ export function VNextMeriWorkspace() {
       {routeError ? (
         <div className="vnext-meri__route-error" role="alert">
           {routeError}
+        </div>
+      ) : null}
+      {handoffChip ? (
+        <div className="vnext-meri__handoff-chip" role="status">
+          {handoffChip}
         </div>
       ) : null}
       <VNextMeriShell

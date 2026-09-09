@@ -83,16 +83,23 @@ export function HearingActions({
           { insightId: refs.insightId, segmentId: refs.segmentId, clientId: effectiveClientId || undefined },
           {
             onSuccess: (packet) => {
-              // Hand the grounded packet to the Meri surface. Meri owns the
-              // conversation; this only supplies references and the selection.
+              // Hand the grounded packet to the Meri surface, which consumes it
+              // exactly once at the deep link's destination (`/meri/new` via
+              // the root-route redirect). The status message below is
+              // deliberately phrased as "prepared", not "opened": Meri renders
+              // its own loud error there if the packet cannot be honored.
+              const hearingTitle =
+                typeof packet.hearing?.title === 'string' ? packet.hearing.title : undefined;
               try {
                 sessionStorage.setItem(
                   'lw:meri-context',
-                  JSON.stringify({ packet, createdAt: Date.now() }),
+                  JSON.stringify({ hearingId, hearingTitle, packet, createdAt: Date.now() }),
                 );
               } catch {
                 // A private-mode storage failure must not lose the action; the
-                // deep link below still carries the identifiers Meri needs.
+                // deep link below still carries the identifiers Meri needs, and
+                // Meri fails loudly (no silent newest-thread fallback) when the
+                // packet is missing.
               }
               const qs = new URLSearchParams({
                 source: 'legiwatch',
@@ -104,7 +111,7 @@ export function HearingActions({
               setStatus({
                 kind: 'done',
                 action,
-                message: 'Hearing context prepared for Meri.',
+                message: 'Hearing context prepared. Finish opening Meri to continue.',
                 href: `/meri?${qs.toString()}`,
               });
             },
