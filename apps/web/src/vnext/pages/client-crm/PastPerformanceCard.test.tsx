@@ -103,7 +103,7 @@ describe('Saved submission removal', () => {
     queryClient.setQueryData(['client-submission-history', 'client-1', 'inactive-capability'], [submission]);
     queryClient.setQueryData(['client-submission-history', 'other-client', 'cap-1'], [retained]);
     fireEvent.click(await screen.findByRole('button', { name: 'Remove submission Test submission' }));
-    const confirm = screen.getByRole('button', { name: 'Remove submission', exact: true });
+    const confirm = screen.getByRole('button', { name: 'Remove submission' });
     fireEvent.click(confirm);
     await waitFor(() => expect(confirm).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
@@ -127,7 +127,7 @@ describe('Saved submission removal', () => {
     deleteMock.mockRejectedValueOnce(new Error('Service unavailable'));
     renderPastPerformance();
     fireEvent.click(await screen.findByRole('button', { name: 'Remove submission Test submission' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove submission', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove submission' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not remove this submission. Try again.');
     expect(screen.getByText('Test submission')).toBeInTheDocument();
     expect(screen.getByText('Awaiting decision')).toBeInTheDocument();
@@ -136,7 +136,7 @@ describe('Saved submission removal', () => {
       history.length = 0;
       return { data: { deleted: true } };
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Remove submission', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove submission' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByText('Test submission')).not.toBeInTheDocument();
     expect(screen.getByText(/No submissions recorded/)).toBeInTheDocument();

@@ -43,7 +43,7 @@ function renderDialog(props: Partial<Parameters<typeof ClientFormDialogVNext>[0]
           {...nextProps}
         />
       </div>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
   const utils = render(view());
   return { ...utils, onSubmit, onCancel, rerenderDialog: (nextProps: typeof props) => utils.rerender(view({ ...props, ...nextProps })) };
