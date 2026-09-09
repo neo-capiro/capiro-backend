@@ -297,6 +297,9 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
         state: null,
         chamber: null,
         committee: null,
+        // Not yet known — same as representedFacilities below, resolved
+        // fresh server-side on the next list fetch.
+        staffKind: null,
         tier: null,
         source: v.source,
         addedByUserId: null,

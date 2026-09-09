@@ -20,6 +20,18 @@ export type TargetDirectory = 'congress' | 'state' | 'staff';
 /** Engagement priority tier (1 = highest .. 3); null = untiered. */
 export type TargetTier = 1 | 2 | 3 | null;
 
+/**
+ * Q09 (evidence #127/#129/#133): for a 'staff' target, which kind of staffer
+ * the directory record shows — a personal-office staffer (attached to one
+ * Member's own office, e.g. a District Director in Rep. Young Kim's CA-40
+ * office) or real committee staff. `null` for every non-'staff' target
+ * (the distinction has no meaning there) and for a 'staff' target the
+ * directory could not classify. Resolved FRESH server-side on every list
+ * read, same discipline as `representedFacilities` below — never trust a
+ * stale value from whenever the target was added.
+ */
+export type StaffKind = 'personal_office' | 'committee' | null;
+
 export interface ClientTarget {
   id: string;
   clientId: string;
@@ -34,6 +46,8 @@ export interface ClientTarget {
   /** "House"/"Senate" (congress) or "upper"/"lower" (state). */
   chamber: string | null;
   committee: string | null;
+  /** See `StaffKind`'s doc comment. */
+  staffKind: StaffKind;
   /** Engagement priority tier (1..3) or null (untiered). */
   tier: TargetTier;
   source: TargetSource;

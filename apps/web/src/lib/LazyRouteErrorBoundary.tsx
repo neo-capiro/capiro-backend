@@ -98,6 +98,29 @@ export class LazyRouteErrorBoundary extends Component<
         </div>
       );
     }
+    if (this.state.error) {
+      // Q08 (evidence #129-133): an error has been caught but we have not
+      // (yet) settled into the `recovery` UI above — either we are in the
+      // single-instant window between getDerivedStateFromError setting
+      // `error` and componentDidCatch deciding reload vs recover, or we
+      // ordered a `reload` and are waiting for window.location.reload() to
+      // actually unload the page (NOT synchronous — the JS thread keeps
+      // running and React keeps rendering in the meantime). Previously this
+      // branch didn't exist, so render() fell through to `this.props.children`
+      // — the SAME still-broken lazy-loaded component. React.lazy() memoizes
+      // a rejected import promise permanently, so re-rendering the identical
+      // children threw again immediately, and that second synchronous throw
+      // produced a blank page instead of either the automatic reload or the
+      // recovery screen (confirmed via a repro test: rendering the boundary
+      // around a component that throws a chunk-load error, with reload()
+      // stubbed to not actually navigate, surfaces the SECOND throw escaping
+      // the boundary entirely). Once any error has been caught, NEVER
+      // re-attempt the broken children — show a neutral loading placeholder
+      // (harmless: about to be replaced either by the real navigation, or by
+      // the recovery UI once componentDidCatch's setState({recovery:true})
+      // lands) until the state machine finishes deciding.
+      return <div className="capiro-vnext-route-loading">Loading…</div>;
+    }
     return this.props.children;
   }
 }

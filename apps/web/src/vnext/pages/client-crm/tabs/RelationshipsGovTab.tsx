@@ -61,17 +61,38 @@ const DISPOSITION_TONE: Record<string, PillTone> = {
   Opposed: 'error',
 };
 
+/** Static labels for directories where every target IS the same kind of thing. */
 const DIRECTORY_LABEL: Record<TargetDirectory, string> = {
   congress: 'Member of Congress',
   state: 'State legislator',
-  staff: 'Committee Staff',
+  // Q09 (evidence #127/#129/#133): 'staff' is NOT one thing — a personal-office
+  // staffer (works in one Member's own office) and real committee staff are
+  // different jobs. This is the label ONLY when the directory record could not
+  // classify which one (staffKind: null) — see `directoryLabel` below, which
+  // every render site must call instead of indexing this map directly for a
+  // 'staff' target.
+  staff: 'Congressional staff',
 };
+
+/**
+ * The real per-target label: for 'staff' targets, branches on the directory's
+ * OWN classification (`staffKind`, resolved fresh server-side — see
+ * client-targets.service.ts#classifyStaffKind) rather than assuming every
+ * staffer is committee staff. For every other directory, the static label
+ * above already describes every target in it correctly.
+ */
+function directoryLabel(t: ClientTarget): string {
+  if (t.sourceDirectory !== 'staff') return DIRECTORY_LABEL[t.sourceDirectory];
+  if (t.staffKind === 'personal_office') return 'Personal-office staff';
+  if (t.staffKind === 'committee') return 'Committee staff';
+  return DIRECTORY_LABEL.staff;
+}
 
 const targetName = (t: ClientTarget) => t.memberName ?? t.memberId;
 
 function targetRole(t: ClientTarget): string {
   const parts = [t.chamber, t.committee].filter(Boolean);
-  return parts.length ? parts.join(' · ') : DIRECTORY_LABEL[t.sourceDirectory];
+  return parts.length ? parts.join(' · ') : directoryLabel(t);
 }
 
 /** Real `ClientTarget` → the drawer's record. Only fields with a real column
@@ -205,7 +226,7 @@ function GovernmentRelationshipsDrawer({
         action={<button type="button" onClick={onAdd}>Add relationship</button>}
       />
       <RelationshipTable
-        title="Committee staff"
+        title="Congressional staff"
         targets={staff}
         loading={loading}
         error={error}
@@ -213,7 +234,9 @@ function GovernmentRelationshipsDrawer({
         onOpen={onOpen}
       />
       <p className="rel-gov-drawer__note">
-        Targets come from the client&apos;s active strategies. Committee staff are Directory records already attached to those offices; no staffer is inferred onto an office.
+        Targets come from the client&apos;s active strategies. Congressional staff (personal-office or
+        committee — see each row&apos;s Type column) are Directory records already attached to those
+        offices; no staffer is inferred onto an office.
       </p>
     </div>
   );
@@ -263,7 +286,7 @@ function RelationshipTable({
                   <Avatar initials={initialsFor(targetName(target))} size={32} />
                   <strong>{targetName(target)}</strong>
                 </span>
-                <span>{DIRECTORY_LABEL[target.sourceDirectory]}</span>
+                <span>{directoryLabel(target)}</span>
                 <span>{[target.state, target.chamber].filter(Boolean).join(' · ') || '—'}</span>
                 <span>{target.committee ?? '—'}</span>
                 <span className="rel-gov-drawer__tier">
@@ -345,7 +368,7 @@ function RealTargetCard({
         <button type="button" onClick={onOpen} className="rel-gov-card-link rel-gov-card-link--interactive">
           <Tile initials={initialsFor(targetName(t))} size={40} dark round />
           <span style={{ flex: 1, minWidth: 0 }}>
-            <span className="rel-gov-card-eyebrow">{DIRECTORY_LABEL[t.sourceDirectory]}</span>
+            <span className="rel-gov-card-eyebrow">{directoryLabel(t)}</span>
             <span className="rel-gov-card-name">{targetName(t)}</span>
             <span className="rel-gov-card-role">{targetRole(t)}</span>
             {t.party || t.state ? (
@@ -568,6 +591,8 @@ function TargetRecommendationsCard({
         state: null,
         chamber: null,
         committee: null,
+        // Not a staff target — resolved fresh server-side either way.
+        staffKind: null,
         tier: null,
         source: 'meri',
         addedByUserId: null,

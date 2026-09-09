@@ -49,6 +49,7 @@ const TARGET = {
   state: 'WA',
   chamber: 'House',
   committee: 'Armed Services',
+  staffKind: null,
   tier: 1,
   source: 'manual',
   addedByUserId: 'user-1',
@@ -349,5 +350,104 @@ describe('ClientCrmGovernmentProto — target recommendations rail', () => {
 
     expect(screen.getByTestId('location')).toHaveTextContent('tab=intelligence');
     expect(screen.getByTestId('location')).toHaveTextContent('view=legislative');
+  });
+});
+
+/**
+ * Q09 (evidence #127/#129/#133): "Relationships → Government identifies
+ * Abigail Fachtmann as Committee Staff. Her detail says District Director;
+ * the recovered directory profile places her in Young Kim's CA-40 office,
+ * without a committee affiliation." The label must come from the directory's
+ * own classification (`staffKind`, resolved server-side), never a single
+ * hardcoded "Committee Staff" for every staff target.
+ */
+describe('ClientCrmGovernmentProto — Q09 personal-office vs committee staff labeling', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  const PERSONAL_OFFICE_STAFF = {
+    id: 'ct-2',
+    clientId: 'client-1',
+    memberId: 'staff-396593',
+    memberName: 'Abigail Fachtmann',
+    sourceDirectory: 'staff',
+    party: null,
+    state: null,
+    chamber: null,
+    committee: null,
+    staffKind: 'personal_office',
+    tier: null,
+    source: 'manual',
+    addedByUserId: 'user-1',
+    addedAt: '2026-05-04T00:00:00.000Z',
+    representedFacilities: null,
+  };
+
+  const COMMITTEE_STAFF = {
+    id: 'ct-3',
+    clientId: 'client-1',
+    memberId: 'staff-800',
+    memberName: 'Grace Hopper',
+    sourceDirectory: 'staff',
+    party: null,
+    state: null,
+    chamber: null,
+    committee: 'House Armed Services Committee',
+    staffKind: 'committee',
+    tier: null,
+    source: 'manual',
+    addedByUserId: 'user-1',
+    addedAt: '2026-05-04T00:00:00.000Z',
+    representedFacilities: null,
+  };
+
+  it('labels a personal-office staffer by her real role, never as Committee Staff (the exact reported case)', async () => {
+    mockApis({ targets: [PERSONAL_OFFICE_STAFF] });
+    renderGov();
+
+    await waitFor(() => expect(screen.getAllByText('Abigail Fachtmann').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Personal-office staff').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Committee staff')).not.toBeInTheDocument();
+    expect(screen.queryByText('Committee Staff')).not.toBeInTheDocument();
+  });
+
+  it('still labels a genuine committee staffer as Committee staff', async () => {
+    mockApis({ targets: [COMMITTEE_STAFF] });
+    renderGov();
+
+    await waitFor(() => expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Committee staff').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Personal-office staff')).not.toBeInTheDocument();
+  });
+
+  it('falls back to a neutral label when the directory could not classify the staffer (staffKind: null)', async () => {
+    mockApis({ targets: [{ ...PERSONAL_OFFICE_STAFF, staffKind: null }] });
+    renderGov();
+
+    await waitFor(() => expect(screen.getAllByText('Abigail Fachtmann').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Congressional staff').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Personal-office staff')).not.toBeInTheDocument();
+    expect(screen.queryByText('Committee staff')).not.toBeInTheDocument();
+  });
+
+  it('the Relationships drawer table also distinguishes the two — never a blanket "Committee staff" section', async () => {
+    mockApis({ targets: [PERSONAL_OFFICE_STAFF, COMMITTEE_STAFF] });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/clients']}>
+          <ClientCrmGovernmentProto client={client} drawer />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(screen.getAllByText('Abigail Fachtmann').length).toBeGreaterThan(0));
+    // The section is now titled generically — it holds BOTH kinds of staffer.
+    expect(screen.getByText('Congressional staff')).toBeInTheDocument();
+    // Each row states its own real kind in the Type column.
+    within(screen.getByText('Abigail Fachtmann').closest('button')!).getByText('Personal-office staff');
+    within(screen.getByText('Grace Hopper').closest('button')!).getByText('Committee staff');
   });
 });

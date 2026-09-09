@@ -705,17 +705,19 @@ describe('ClientCrmIntelligenceProto — Configure (item 4, "3 Compose extend")'
     postMock.mockReset();
   });
 
-  it('opens the real tracker Configure panel scoped to this client', () => {
+  it('opens LegiWatch Bills, scoped to this client (Q07 — was /radar?tab=watchlist, unreachable + removed tab)', () => {
     mockLegislativeApis();
     renderWithRoutes('legislative');
 
     fireEvent.click(screen.getByText('Configure'));
 
-    // ?tab=watchlist is the Configure panel on the canonical Radar page (NOT
-    // /legiwatch — vNext's LegiWatch module treats `watchlist` as a removed
-    // tab and silently redirects it to Hearings); ?client= scopes it, or the
-    // panel lands on the client picker instead of this client.
-    expect(screen.getByTestId('location')).toHaveTextContent('/radar?tab=watchlist&client=client-1');
+    // Q07 (evidence #58/#65): /radar is a query-preserving redirect straight to
+    // /legiwatch, and vNext's LegiWatch module treats `watchlist` as a REMOVED
+    // tab (silently redirected to Hearings) — so the old /radar?tab=watchlist
+    // destination never actually opened a bills/watchlist view. LegiWatch's own
+    // Bills tab is the real, still-live destination; ?client= keeps this client's
+    // scope instead of landing on all clients.
+    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=bills&client=client-1');
   });
 });
 
