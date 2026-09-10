@@ -551,6 +551,13 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
     optionalDomains: [],
     recommendedTools: ['list_members', 'get_representation'],
   },
+  query_regulatory_docket_brief: {
+    tool: 'query_regulatory_docket_brief',
+    description: 'Rulemaking status brief: federal docket activity plus state register implementation status.',
+    requiredDomains: ['regulatory'],
+    optionalDomains: [],
+    recommendedTools: ['query_regulatory_dockets', 'get_state_rule_status'],
+  },
 };
 
 const DATASETS_BY_TOOL = new Map<string, MeriDatasetDefinition[]>();

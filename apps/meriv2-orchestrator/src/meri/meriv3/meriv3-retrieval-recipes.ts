@@ -15,6 +15,7 @@ import { executeMeriPeDeepDive } from './meriv3-retrieval-pe-deep-dive.js';
 import { executeMeriBillWatch } from './meriv3-retrieval-bill-watch.js';
 import { executeMeriHearingWatch } from './meriv3-retrieval-hearing-watch.js';
 import { executeMeriRepresentationLookup } from './meriv3-retrieval-representation.js';
+import { executeMeriRegulatoryDocketBrief } from './meriv3-retrieval-docket-brief.js';
 import type { MeriRetrievalRecipeContext } from './meriv3-retrieval-recipe-utils.js';
 
 export {
@@ -173,5 +174,7 @@ export async function executeMeriRetrievalRecipe(
       return executeMeriHearingWatch(input, ctx);
     case 'query_representation_lookup':
       return executeMeriRepresentationLookup(input, ctx);
+    case 'query_regulatory_docket_brief':
+      return executeMeriRegulatoryDocketBrief(input, ctx);
   }
 }

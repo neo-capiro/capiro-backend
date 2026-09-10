@@ -321,6 +321,24 @@ export const MERI_SKILL_REGISTRY = [
     readOnly: true,
     knowledgePlaneReplacement: 'directory graph retrieval',
   },
+  {
+    id: 'regulatory_docket_brief',
+    label: 'Regulatory Docket Brief',
+    description:
+      'Where a rulemaking stands: federal docket activity plus state register implementation status, with both lanes checked and named in the coverage manifest.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_regulatory_docket_brief',
+    permittedScopes: ['general'],
+    starterPrompt:
+      'Where does the rulemaking on [rule or docket keyword] stand? Cover the federal docket and any state register activity.',
+    requiredEntitlements: [],
+    semanticDomains: ['regulatory'],
+    requiresClient: false,
+    readOnly: true,
+    knowledgePlaneReplacement: 'regulatory graph retrieval',
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

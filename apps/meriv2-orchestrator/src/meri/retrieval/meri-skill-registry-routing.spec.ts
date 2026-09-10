@@ -164,4 +164,15 @@ describe('Meri Quick Action routing contract', () => {
     expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
     expect(planFor(prompt).recipeTool).toBe('query_representation_lookup');
   });
+
+  test('Regulatory Docket Brief routes to the federal + state rulemaking fan-out', () => {
+    const definition = skill('regulatory_docket_brief');
+    const prompt = hydrateMeriStarterPrompt(definition).replace(
+      '[rule or docket keyword]',
+      'PFAS discharge limits',
+    );
+
+    expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
+    expect(planFor(prompt).recipeTool).toBe('query_regulatory_docket_brief');
+  });
 });

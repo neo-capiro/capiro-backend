@@ -19,6 +19,7 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_bill_watch',
   'query_hearing_watch',
   'query_representation_lookup',
+  'query_regulatory_docket_brief',
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
@@ -101,6 +102,9 @@ const HEARING_WATCH_RE =
 
 const REPRESENTATION_RE =
   /\bwho\s+(?:represents|is\s+our\s+representative|are\s+our\s+representatives)\b|\b(?:house|senate)\s+representative\b|\brepresentatives?\s+(?:for|of)\b|\bcongressional\s+district\b|\bmembers\s+of\s+(?:congress|the\s+house|the\s+senate)\b/i;
+
+const DOCKET_BRIEF_RE =
+  /\b(?:rulemaking|rule\s+making|regulatory\s+docket|docket\s+(?:brief|status)|proposed\s+rule|final\s+rule|comment\s+period)\b|\bwhere\s+does\b.*\brule\b|\bregulatory\s+(?:brief|status|watch)\b/i;
 
 const MAIL_HISTORY_RE =
   /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
@@ -240,6 +244,9 @@ function recipeFor(
   // Representation Lookup: "who represents this district/state?" is a roster
   // + mapping question, distinct from committee/acquisition staffing.
   if (REPRESENTATION_RE.test(request)) return 'query_representation_lookup';
+  // Regulatory Docket Brief: "where does this rulemaking stand?" fans across
+  // federal dockets plus state register status in one deterministic sweep.
+  if (DOCKET_BRIEF_RE.test(request)) return 'query_regulatory_docket_brief';
   if (
     intent.subjectScope === 'portfolio' &&
     (intent.queryClass === 'change_detection' || intent.queryClass === 'portfolio_scan')
