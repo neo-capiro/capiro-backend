@@ -83,8 +83,16 @@ export class CurrentPlanExportService {
     const unowned = strategy.nodes.filter((n) => !n.ownerUserId).length;
     const overdue = strategy.nodes.filter((node) => isStrategyStepOverdue(node, asOf)).length;
     // Gates/decisions with no dependency edges have nothing guarding them.
+    // Counted SEPARATELY and labelled by kind: the Gate metric is gate-only —
+    // a dependency-free decision must not inflate it (F05). This is the
+    // prerequisite-EDGE diagnostic only; source-evidence coverage (the
+    // editor's grounded-gate metric) is a different check in
+    // computeStrategyHealth and is unaffected by this label.
     const gatesMissingPrereqs = strategy.nodes.filter(
-      (n) => (n.kind === 'gate' || n.kind === 'decision') && n.dependsOnIds.length === 0,
+      (n) => n.kind === 'gate' && n.dependsOnIds.length === 0,
+    ).length;
+    const decisionsMissingPrereqs = strategy.nodes.filter(
+      (n) => n.kind === 'decision' && n.dependsOnIds.length === 0,
     ).length;
 
     const planHealth = [
@@ -97,6 +105,7 @@ export class CurrentPlanExportService {
       // eligibility. Never claim zero findings from a check that did not run.
       '- Nodes blocked by unresolved context: Not evaluated',
       `- Gates missing prerequisites: ${gatesMissingPrereqs}`,
+      `- Decisions missing prerequisites: ${decisionsMissingPrereqs}`,
       '- Execution-ready nodes: Not evaluated',
     ].join('\n');
 

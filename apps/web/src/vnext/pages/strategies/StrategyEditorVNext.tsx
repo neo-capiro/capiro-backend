@@ -43,6 +43,7 @@ import {
 // VNextStrategiesRoutes.tsx, so this adds no new circular-import risk.
 import { TYPE_LABEL } from './StrategyLibraryVNext.js';
 import { computePlanHealth } from './lib/plan-health.js';
+import { classifyStrategyLoadError } from './lib/strategy-load.js';
 import { strategyRelativeTime } from './lib/date-format.js';
 import {
   assignColumnLanes,
@@ -221,16 +222,97 @@ export function StrategyEditorVNext() {
       </div>
     );
   }
-  if (strategy.isError && (strategy.error as { response?: { status?: number } })?.response?.status === 410) {
-    return <div className="st-page"><CapiroEmptyState title="This strategy is archived" description="Its saved versions and source documents remain in history. Choose an active strategy to edit a plan or generate a report."
-      action={<CapiroButton variant="secondary" onClick={() => navigate('/strategies')}>Back to strategies</CapiroButton>} /></div>;
-  }
-  if (strategy.isError || !detail) {
+  /*
+   * F08 — classified unavailable states. The backend distinguishes strategy
+   * states by HTTP status (strategy.service.ts): 410 = soft-archived with
+   * retention info, 404 = unknown id (NOT proof of deletion), 403 = access
+   * denial, 401 = expired session (owned by the app's auth recovery).
+   * Everything else (5xx, network, timeout) is transient. Terminal states get
+   * a truthful explanation and a library exit — never a retry loop: a deleted
+   * strategy cannot be un-deleted by refetching.
+   */
+  if (strategy.isError) {
+    const loadState = classifyStrategyLoadError(strategy.error);
+    if (loadState === 'archived') {
+      return (
+        <div className="st-page">
+          <CapiroEmptyState
+            title="This strategy was removed from the active library"
+            description="Deleting a strategy is non-destructive: its saved versions and source documents are retained as history. Choose an active strategy to edit a plan or generate a report."
+            action={
+              <CapiroButton variant="secondary" onClick={() => navigate('/strategies')}>
+                Back to strategies
+              </CapiroButton>
+            }
+          />
+        </div>
+      );
+    }
+    if (loadState === 'missing') {
+      return (
+        <div className="st-page">
+          <CapiroEmptyState
+            title="This strategy is unavailable"
+            description="It may have been removed, or the link does not point at a strategy in your workspace. Open the library to choose an active strategy."
+            action={
+              <CapiroButton variant="secondary" onClick={() => navigate('/strategies')}>
+                Back to strategies
+              </CapiroButton>
+            }
+          />
+        </div>
+      );
+    }
+    if (loadState === 'forbidden') {
+      return (
+        <div className="st-page">
+          <CapiroEmptyState
+            variant="no-access"
+            title="You don’t have access to this strategy"
+            description="Your account cannot open this strategy. If you need access, ask an admin for your workspace."
+            action={
+              <CapiroButton variant="secondary" onClick={() => navigate('/strategies')}>
+                Back to strategies
+              </CapiroButton>
+            }
+          />
+        </div>
+      );
+    }
+    if (loadState === 'unauthenticated') {
+      // Session expiry is owned by the app-level auth recovery (Clerk sign-in
+      // flow), not a strategy state — never render the transient "try again"
+      // copy as if the strategy itself failed, and still offer the exit.
+      return (
+        <div className="st-page">
+          <CapiroEmptyState
+            title="Your session has expired"
+            description="Sign in again to reopen Strategies. Your saved strategies are unchanged."
+            action={
+              <CapiroButton variant="secondary" onClick={() => navigate('/strategies')}>
+                Back to strategies
+              </CapiroButton>
+            }
+          />
+        </div>
+      );
+    }
     return (
       <div className="st-page">
         <CapiroErrorState
-          title="This strategy could not be loaded"
-          description="The plan did not load. Your data is intact — retry to reopen the editor."
+          title="We couldn’t load this strategy"
+          description="The plan did not load. Try again — if it keeps failing, reopen it from the library."
+          onRetry={() => void strategy.refetch()}
+        />
+      </div>
+    );
+  }
+  if (!detail) {
+    return (
+      <div className="st-page">
+        <CapiroErrorState
+          title="We couldn’t load this strategy"
+          description="The plan did not load. Try again — if it keeps failing, reopen it from the library."
           onRetry={() => void strategy.refetch()}
         />
       </div>

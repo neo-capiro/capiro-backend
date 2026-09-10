@@ -89,6 +89,7 @@ import {
   normalizeLocate,
   normalizeSections,
 } from '../../../pages/strategy/context/context-utils.js';
+import { strategyDetailRetry } from './lib/strategy-load.js';
 
 const BASE = '/strategy-api';
 
@@ -111,6 +112,11 @@ export function useStrategy(id: string | null) {
     enabled: !!id,
     queryFn: async () =>
       (await api.get<StrategyDetail>(`${BASE}/strategies/${id}`)).data,
+    // F08: a deleted (410), unknown (404), forbidden (403) or unauthenticated
+    // (401) detail load is terminal — react-query must not re-fire the doomed
+    // GET on window refocus/mount cycles. Transient failures keep the app's
+    // bounded default (`retry: 1`, main.tsx) via the same predicate.
+    retry: strategyDetailRetry,
   });
 }
 

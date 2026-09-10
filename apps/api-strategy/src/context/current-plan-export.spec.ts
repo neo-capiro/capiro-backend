@@ -160,7 +160,7 @@ describe('CurrentPlanExportService.exportCurrentPlan', () => {
     expect(markdown).not.toMatch(/^## Plan health$[\s\S]*^## Plan health$/m);
   });
 
-  it('computes plan health WITHOUT any LLM: unowned, overdue, gates missing prerequisites', async () => {
+  it('computes plan health WITHOUT any LLM: unowned, overdue, gates/decisions missing prerequisites reported separately', async () => {
     const svc = makeService([
       // Unowned AND overdue (ended long ago, status draft).
       node({
@@ -205,7 +205,73 @@ describe('CurrentPlanExportService.exportCurrentPlan', () => {
     expect(markdown).toContain('- Overdue nodes: 2');
     expect(markdown).toContain('- Nodes blocked by unresolved context: Not evaluated');
     expect(markdown).toContain('- Gates missing prerequisites: 1');
+    expect(markdown).toContain('- Decisions missing prerequisites: 0');
     expect(markdown).toContain('- Execution-ready nodes: Not evaluated');
+  });
+
+  it('counts gates and decisions missing prerequisites SEPARATELY — a decision without prerequisites never inflates the Gate metric', async () => {
+    // Two dependency-free gates and three dependency-free decisions.
+    const svc = makeService([
+      node({ id: 'G1', startsOn: new Date('2099-01-01'), kind: 'gate', subject: 'ask' }),
+      node({ id: 'G2', startsOn: new Date('2099-02-01'), kind: 'gate', subject: 'ask' }),
+      node({ id: 'D1', startsOn: new Date('2099-01-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'D2', startsOn: new Date('2099-02-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'D3', startsOn: new Date('2099-03-01'), kind: 'decision', subject: 'ask' }),
+    ]);
+
+    const { markdown } = await svc.exportCurrentPlan(T, SID);
+
+    expect(markdown).toMatch(/^- Gates missing prerequisites: 2$/m);
+    expect(markdown).toMatch(/^- Decisions missing prerequisites: 3$/m);
+  });
+
+  it('giving one gate a prerequisite changes ONLY the gate count, not the decision count', async () => {
+    const base = [
+      node({ id: 'G1', startsOn: new Date('2099-01-01'), kind: 'gate', subject: 'ask' }),
+      node({ id: 'G2', startsOn: new Date('2099-02-01'), kind: 'gate', subject: 'ask' }),
+      node({ id: 'D1', startsOn: new Date('2099-01-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'D2', startsOn: new Date('2099-02-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'D3', startsOn: new Date('2099-03-01'), kind: 'decision', subject: 'ask' }),
+    ];
+    const before = (await makeService(base).exportCurrentPlan(T, SID)).markdown;
+    const after = (
+      await makeService([
+        { ...node({ id: 'G1', startsOn: new Date('2099-01-01'), kind: 'gate', subject: 'ask' }), dependsOnIds: ['G2'] },
+        ...base.slice(1),
+      ]).exportCurrentPlan(T, SID)
+    ).markdown;
+
+    expect(before).toMatch(/^- Gates missing prerequisites: 2$/m);
+    expect(after).toMatch(/^- Gates missing prerequisites: 1$/m);
+    expect(before).toMatch(/^- Decisions missing prerequisites: 3$/m);
+    expect(after).toMatch(/^- Decisions missing prerequisites: 3$/m);
+  });
+
+  it('the gate count never exceeds the number of exported Gate rows, and a zero-gate plan prints zero gates even when decisions exist', async () => {
+    // No gates at all: decisions (with and without prerequisites) must not
+    // leak into the Gate metric — the zero-gate case prints 0/3.
+    const zeroGates = await makeService([
+      node({ id: 'D1', startsOn: new Date('2099-01-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'D2', startsOn: new Date('2099-02-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'D3', startsOn: new Date('2099-03-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'A1', startsOn: new Date('2099-04-01'), kind: 'action', subject: 'deliverable' }),
+    ]).exportCurrentPlan(T, SID);
+    expect(zeroGates.markdown).toMatch(/^- Gates missing prerequisites: 0$/m);
+    expect(zeroGates.markdown).toMatch(/^- Decisions missing prerequisites: 3$/m);
+    const gateRows = zeroGates.markdown.match(/\| [^|]+ \| Gate \|/g) ?? [];
+    expect(gateRows).toHaveLength(0);
+
+    // Mixed plan: gate rows on the wire bound the metric (1 gate row, at most 1
+    // missing-prerequisite gate reported).
+    const mixed = await makeService([
+      node({ id: 'G1', startsOn: new Date('2099-01-01'), kind: 'gate', subject: 'ask' }),
+      node({ id: 'D1', startsOn: new Date('2099-02-01'), kind: 'decision', subject: 'ask' }),
+      node({ id: 'A1', startsOn: new Date('2099-03-01'), kind: 'action', subject: 'deliverable' }),
+    ]).exportCurrentPlan(T, SID);
+    const mixedGateRows = mixed.markdown.match(/\| [^|]+ \| Gate \|/g) ?? [];
+    const reportedGates = /^- Gates missing prerequisites: (\d+)$/m.exec(mixed.markdown);
+    expect(reportedGates).not.toBeNull();
+    expect(Number(reportedGates![1])).toBeLessThanOrEqual(mixedGateRows.length);
   });
 
   it('uses the same due-today and lifecycle exclusions as reports and monitoring', async () => {

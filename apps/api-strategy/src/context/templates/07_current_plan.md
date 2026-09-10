@@ -32,4 +32,5 @@ generated_by: "Capiro"
 - Overdue nodes:
 - Nodes blocked by unresolved context:
 - Gates missing prerequisites:
+- Decisions missing prerequisites:
 - Execution-ready nodes:
