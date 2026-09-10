@@ -674,7 +674,17 @@ export class GoogleSyncService {
     accessToken: string,
     input: { reset?: boolean },
   ): Promise<Record<string, SyncStats>> {
-    const needsCaptureReplay = (state.mail?.captureVersion ?? 0) < MAIL_CAPTURE_VERSION;
+    // A live backfill continuation (an unfinished messages.list page chain) is
+    // authoritative over the capture-version migration: neither the drain-via-
+    // history early return below nor the reset path may discard or bypass it.
+    // Check the untouched incoming state — mailState/labelStates get rebuilt
+    // (and possibly wiped) further down.
+    const originalBackfill = state.mail?.labels?.[MAIL_BACKFILL_SCOPE];
+    const hasLiveBackfillContinuation = Boolean(
+      originalBackfill?.backfillPageToken || originalBackfill?.backfillDone === false,
+    );
+    const needsCaptureReplay =
+      (state.mail?.captureVersion ?? 0) < MAIL_CAPTURE_VERSION && !hasLiveBackfillContinuation;
     let priorHistoryId = state.mail?.historyId ?? null;
     if (!input.reset && needsCaptureReplay && !state.mail?.captureReplayReady && priorHistoryId) {
       // Drain pending changes (including deletions) before retiring the old
