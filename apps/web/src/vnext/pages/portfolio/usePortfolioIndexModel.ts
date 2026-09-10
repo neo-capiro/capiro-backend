@@ -200,6 +200,7 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     queryFn: async () =>
       (await api.get<PortfolioRollupResponse>('/api/intelligence/portfolio-rollup')).data,
     staleTime: 60_000,
+    refetchOnMount: 'always',
   });
 
   const trackerCounts = useQuery<{ counts: Record<string, number> }>({

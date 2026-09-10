@@ -23,8 +23,8 @@ export async function buildFillRunSummary(
   return { total: rows.reduce((sum, row) => sum + Number(row.count), 0), byKind, byStatus };
 }
 
-/** Retry failed verification after a specialist retry, preserving reviewed findings. */
-export async function requeueFailedFillReviewChecks(
+/** Re-run verification after research changes, preserving all reviewed findings. */
+export async function requeueFillReviewChecks(
   tx: Pick<Prisma.TransactionClient, '$executeRawUnsafe'>,
   runId: string,
   tenantId: string,
@@ -34,9 +34,10 @@ export async function requeueFailedFillReviewChecks(
         SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
             error_code = NULL, error_message = NULL, claimed_at = NULL,
             heartbeat_at = NULL, worker_id = NULL,
+            output_summary_jsonb = '{}'::jsonb,
             max_attempts = GREATEST(max_attempts, attempt + 3), updated_at = now()
       WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-        AND task_type IN ('reconciliation', 'completion_audit') AND status = 'failed'`,
+        AND task_type IN ('reconciliation', 'completion_audit') AND status <> 'cancelled'`,
     runId,
     tenantId,
   );

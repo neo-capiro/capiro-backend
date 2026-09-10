@@ -191,8 +191,7 @@ vi.mock('../../../pages/program-element/api.js', () => ({
   getProgramElementsList: async () => ({ data: [], total: 0, page: 1, limit: 100 }),
 }));
 
-function renderIndex(search = '') {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderIndex(search = '', queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/clients${search}`]}>
@@ -212,6 +211,16 @@ function renderIndex(search = '') {
 }
 
 describe('PortfolioIndexPage', () => {
+  it('refreshes recently cached legacy counts when returning to the portfolio', async () => {
+    apiOverride = makeApi();
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    cache.setQueryData(['intelligence', 'portfolio-rollup'], { rollup: {
+      'c-1': { attentionCount: 0, intelCount: 0, workCount: 0, nextTouch: null },
+    } });
+    renderIndex('', cache);
+    expect(await screen.findByLabelText('5 tracked bills')).toHaveTextContent('5');
+  });
+
   it('uses profile strategies and tracker-v2 counts instead of legacy rollup counters (Q12)', async () => {
     trackerFlag.enabled = true;
     apiOverride = makeApi({ strategies: Array.from({ length: 4 }, (_, i) => ({ id: `s-${i}`, clientId: 'c-1' })) });

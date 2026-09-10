@@ -1,5 +1,5 @@
 import { matchesAdvocacyOrganization, matchesTestimonyOrganization } from '@capiro/shared';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
@@ -22,7 +22,7 @@ import {
 } from './client-profile-fill.helpers.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { buildFillRunSummary, requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
+import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 import {
   ClientAdvocacyMatterService,
   type FederalRegisterCorrelationSuggestion,
@@ -516,6 +516,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async cancelRun(ctx: TenantContext, clientId: string, runId: string) {
+    await this.assertClient(ctx, clientId);
     const hasAdvanced = await this.hasCompletionTasks(ctx.tenantId, runId);
     if (!hasAdvanced) return this.workflow.cancelRun(ctx, clientId, runId);
 
@@ -524,7 +525,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       await tx.$queryRawUnsafe(
         `SELECT id FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid FOR UPDATE`,
-        runId, ctx.tenantId, clientId,
+        runId,
+        ctx.tenantId,
+        clientId,
       );
       await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_extension_task
@@ -562,12 +565,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   }
 
   async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
+    await this.assertClient(ctx, clientId);
     const changed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
             AND status <> 'cancelled' FOR UPDATE`,
-        runId, ctx.tenantId, clientId,
+        runId,
+        ctx.tenantId,
+        clientId,
       );
       if (!runs.length) throw new BadRequestException('This run cannot be retried');
       const count = await tx.$executeRawUnsafe(
@@ -584,13 +590,14 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         clientId,
       );
       if (Number(count) === 1) {
-        await requeueFailedFillReviewChecks(tx, runId, ctx.tenantId);
+        await requeueFillReviewChecks(tx, runId, ctx.tenantId);
         await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run
               SET status = 'running', stage = 'research', completed_at = NULL,
                   error = NULL, last_progress_at = now(), updated_at = now()
             WHERE id = $1::uuid AND tenant_id = $2::uuid`,
-          runId, ctx.tenantId,
+          runId,
+          ctx.tenantId,
         );
       }
       return Number(count);
@@ -1025,7 +1032,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
                    t.created_at AS "createdAt",
                    t.updated_at AS "updatedAt"`,
         TASK_CLAIM_BATCH,
-        this.workerId,
+        // A fresh lease also fences callbacks after a deferred task is reclaimed.
+        `${this.workerId}:${randomUUID()}`,
       ),
     );
   }
@@ -1098,7 +1106,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       case 'reconciliation':
         return this.reconcileFindings(ctx, task.clientId, task.runId);
       case 'completion_audit':
-        return this.runCompletionAudit(ctx, task.clientId, task.runId);
+        return this.runCompletionAudit(ctx, task.clientId, task.runId, task);
       default:
         throw new Error(`Unsupported completion task ${String(task.taskType)}`);
     }
@@ -4015,6 +4023,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     ctx: TenantContext,
     clientId: string,
     runId: string,
+    task: CompletionTaskRow,
   ): Promise<number> {
     const snapshot = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const client = await tx.client.findFirst({
@@ -4099,30 +4108,36 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         runId,
       ),
     );
-    const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
-      kind: 'profile_completion',
-      targetKey: 'profile-completion',
-      source: 'completion_audit',
-      factKind: 'fact',
-      currentValue: null,
-      proposedValue: {
-        ...completion,
-        warnings: failedTasks.map((task) => ({
-          task: task.taskType,
-          message: task.errorMessage ?? 'Source unavailable',
-        })),
-        calculatedAt: new Date().toISOString(),
-      },
-      confidence: 1,
-      status: 'informational',
-      evidence: [
-        {
-          label: `${completion.score}% of the defined client profile domains are complete`,
-          source: 'Capiro deterministic completion audit',
-          metadata: { completed: completion.completed, missing: completion.missing },
+    const inserted = await this.addFinding(
+      ctx.tenantId,
+      clientId,
+      runId,
+      {
+        kind: 'profile_completion',
+        targetKey: 'profile-completion',
+        source: 'completion_audit',
+        factKind: 'fact',
+        currentValue: null,
+        proposedValue: {
+          ...completion,
+          warnings: failedTasks.map((task) => ({
+            task: task.taskType,
+            message: task.errorMessage ?? 'Source unavailable',
+          })),
+          calculatedAt: new Date().toISOString(),
         },
-      ],
-    });
+        confidence: 1,
+        status: 'informational',
+        evidence: [
+          {
+            label: `${completion.score}% of the defined client profile domains are complete`,
+            source: 'Capiro deterministic completion audit',
+            metadata: { completed: completion.completed, missing: completion.missing },
+          },
+        ],
+      },
+      task,
+    );
     return inserted ? 1 : 0;
   }
 
@@ -4141,6 +4156,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       evidence: unknown[];
       status: 'pending' | 'informational';
     },
+    task?: Pick<CompletionTaskRow, 'id' | 'workerId'>,
   ): Promise<boolean> {
     const contentHash = createHash('sha256')
       .update(
@@ -4153,6 +4169,22 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       )
       .digest('hex');
     return this.prisma.withTenant(tenantId, async (tx) => {
+      if (task) {
+        // Serialize the audit write with retry/cancel so an invalidated audit
+        // cannot append a stale score after its replacement has finished.
+        const lease = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM client_profile_fill_extension_task
+            WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
+              AND run_id = $4::uuid AND status = 'running' AND worker_id = $5
+            FOR UPDATE`,
+          task.id,
+          tenantId,
+          clientId,
+          runId,
+          task.workerId,
+        );
+        if (!lease.length) return false;
+      }
       const terminal = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id
            FROM client_profile_fill_finding
@@ -4717,12 +4749,14 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
             SET status = $4, output_summary_jsonb = $5::jsonb,
                 completed_at = now(), heartbeat_at = NULL, worker_id = NULL,
                 error_code = NULL, error_message = NULL, updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid`,
+          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
+            AND status = 'running' AND worker_id = $6`,
         task.id,
         task.runId,
         task.tenantId,
         status,
         JSON.stringify(summary),
+        task.workerId,
       ),
     );
   }
@@ -4734,11 +4768,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
             SET status = 'queued', next_attempt_at = now() + interval '2 seconds',
                 claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 error_code = 'waiting_for_dependency', error_message = $4, updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid`,
+          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
+            AND status = 'running' AND worker_id = $5`,
         task.id,
         task.runId,
         task.tenantId,
         reason,
+        task.workerId,
       ),
     );
   }
@@ -4759,12 +4795,14 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
                 error_code = 'task_error', error_message = $5,
                 claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 updated_at = now()
-          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid`,
+          WHERE id = $1::uuid AND run_id = $2::uuid AND tenant_id = $3::uuid
+            AND status = 'running' AND worker_id = $6`,
         task.id,
         task.runId,
         task.tenantId,
         terminal ? 'failed' : 'queued',
         this.safeError(error),
+        task.workerId,
       ),
     );
   }
@@ -4776,7 +4814,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
             SET heartbeat_at = now(), updated_at = now()
           WHERE id = $1::uuid AND status = 'running' AND worker_id = $2`,
         task.id,
-        this.workerId,
+        task.workerId,
       ),
     );
   }
