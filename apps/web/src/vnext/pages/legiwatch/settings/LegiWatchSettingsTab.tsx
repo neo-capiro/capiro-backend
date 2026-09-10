@@ -20,7 +20,7 @@
  * Display preference changes SECONDARY rendering only — hearing detail always
  * preserves and shows the OFFICIAL event timezone (lib/hearing-datetime.ts).
  */
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
@@ -36,6 +36,9 @@ import {
   type WatchPreset,
 } from '../lib/wave2-api.js';
 import { CreateWatchOverlay } from '../overlays/CreateWatchOverlay.js';
+import { isWatchlistSetup, watchlistSetupPath } from '../lib/watchlist-navigation.js';
+
+const WatchlistSetup = lazy(async () => ({ default: (await import('./WatchlistSetup.js')).WatchlistSetup }));
 
 /** Display-timezone options (§12). 'local' follows the browser; the other two
  *  are the zones Congress actually schedules in. Canonical event truth is
@@ -92,6 +95,14 @@ function normalize(raw: unknown): ResolvedPrefs {
 }
 
 export function LegiWatchSettingsTab() {
+  const [params] = useSearchParams();
+  if (isWatchlistSetup(params)) {
+    return <Suspense fallback={<LwStateLoading rows={4} />}><WatchlistSetup /></Suspense>;
+  }
+  return <LegiWatchPreferences />;
+}
+
+function LegiWatchPreferences() {
   const [searchParams] = useSearchParams();
   const scope = searchParams.get('client') ?? '';
   const api = useApi();
@@ -262,7 +273,7 @@ export function LegiWatchSettingsTab() {
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet — per-client alert prefs exist under each client</span>
         </div>
         <div style={{ marginTop: 14 }}>
-          <LwButton size="36" onClick={() => navigate(scope ? `/radar?tab=watchlist&client=${encodeURIComponent(scope)}` : '/radar?tab=watchlist')}>
+          <LwButton size="36" onClick={() => navigate(watchlistSetupPath(scope))}>
             Open watchlist / monitoring setup
           </LwButton>
         </div>
@@ -343,7 +354,7 @@ function WatchPresetsCard() {
                       onClick={() =>
                         setStatus.mutate(
                           { id: preset.id, status: 'paused' },
-                          { onError: (err) => setStatusError(w2Error(err)) },
+                          { onSuccess: () => setStatusError(null), onError: (err) => setStatusError(w2Error(err)) },
                         )
                       }
                       disabled={setStatus.isPending}
@@ -355,7 +366,7 @@ function WatchPresetsCard() {
                       onClick={() =>
                         setStatus.mutate(
                           { id: preset.id, status: 'active' },
-                          { onError: (err) => setStatusError(w2Error(err)) },
+                          { onSuccess: () => setStatusError(null), onError: (err) => setStatusError(w2Error(err)) },
                         )
                       }
                       disabled={setStatus.isPending}
@@ -368,7 +379,7 @@ function WatchPresetsCard() {
                       onClick={() =>
                         setStatus.mutate(
                           { id: preset.id, status: 'archived' },
-                          { onError: (err) => setStatusError(w2Error(err)) },
+                          { onSuccess: () => setStatusError(null), onError: (err) => setStatusError(w2Error(err)) },
                         )
                       }
                       disabled={setStatus.isPending}
@@ -387,9 +398,9 @@ function WatchPresetsCard() {
         <CreateWatchOverlay
           editPreset={editing}
           onClose={() => setEditing(null)}
-          onConfigure={() => {
+          onConfigure={(clientId) => {
             setEditing(null);
-            navigate(editing.clientIds[0] ? `/radar?tab=watchlist&client=${encodeURIComponent(editing.clientIds[0])}` : '/radar?tab=watchlist');
+            navigate(watchlistSetupPath(clientId));
           }}
         />
       ) : null}

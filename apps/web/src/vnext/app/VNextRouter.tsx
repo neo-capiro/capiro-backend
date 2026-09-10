@@ -155,7 +155,7 @@ function VNextRouterBranches({ location }: { location: ReturnType<typeof useLoca
 
   // LegiWatch: the native vNext module (Hearings · Feed · Bills · Digest ·
   // Analytics) plus the live hearing room route. Tabs stay URL-addressable;
-  // removed surfaces (overview, watchlist) redirect to the Hearings landing.
+  // Legacy watchlist links resolve to canonical client targeting in Settings.
   if (isVNextLegiWatchPath(location.pathname)) {
     return <VNextLegiWatchRoutes />;
   }

@@ -23,9 +23,10 @@ import { ChevronDown, Crosshair } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, type LegiWatchTab } from './lib/types.js';
+import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, TAB_ALIASES, type LegiWatchTab } from './lib/types.js';
 import { useLwFeed, useLwFeedItems, defaultBucketCount } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
+import { watchlistSetupPath } from './lib/watchlist-navigation.js';
 import { HearingsTab } from './hearings/HearingsTab.js';
 import { CommitteesTab } from './committees/CommitteesTab.js';
 import { FeedTab } from './feed/FeedTab.js';
@@ -155,8 +156,11 @@ export function LegiWatchModule() {
   const [lensOpen, setLensOpen] = useState(false);
 
   // §7.2/§7.9 — removed tabs redirect to hearings; unknown tabs land on hearings.
+  // Settings dispatches legacy watchlist links to canonical client targeting;
+  // watches/presets open its separate additive preset management card.
   const rawTab = searchParams.get('tab');
   const tab: LegiWatchTab = useMemo(() => {
+    if (rawTab && Object.prototype.hasOwnProperty.call(TAB_ALIASES, rawTab)) return TAB_ALIASES[rawTab] ?? 'hearings';
     if (!rawTab || REMOVED_TABS.has(rawTab)) return 'hearings';
     return (LEGIWATCH_TABS as readonly string[]).includes(rawTab) ? (rawTab as LegiWatchTab) : 'hearings';
   }, [rawTab]);
@@ -199,13 +203,13 @@ export function LegiWatchModule() {
   // Cold start detection (§7.12): a scoped client whose watchlist read returns
   // the server's "never configured" shape (suggestedIssueAreas present, no
   // topics). The watchlist read is the canonical relevance source (§6.5).
-  const watchlist = useQuery<{ topics?: unknown[]; suggestedIssueAreas?: string[] } | null>({
+  const watchlist = useQuery<{ topics?: unknown[]; issueAreas?: string[]; suggestedIssueAreas?: string[] } | null>({
     queryKey: ['lw-vnext', 'watchlist-peek', scope],
     queryFn: async () => {
       if (!scope) return null;
       try {
         return (
-          await api.get<{ topics?: unknown[]; suggestedIssueAreas?: string[] }>(
+          await api.get<{ topics?: unknown[]; issueAreas?: string[]; suggestedIssueAreas?: string[] }>(
             `/intel-api/tracker/watchlists/${encodeURIComponent(scope)}`,
           )
         ).data;
@@ -222,7 +226,8 @@ export function LegiWatchModule() {
     tracker.ready &&
     tracker.enabled &&
     watchlist.data != null &&
-    (watchlist.data.topics == null || watchlist.data.topics.length === 0);
+    (watchlist.data.topics == null || watchlist.data.topics.length === 0) &&
+    (watchlist.data.issueAreas == null || watchlist.data.issueAreas.length === 0);
   // PR C §13: the watchlist gate no longer replaces the WHOLE module. It only
   // limits the watchlist-dependent surfaces (feed/digest/analytics — the tabs
   // whose content is client-relevance-ranked). Hearings, Bills, Committees,
@@ -248,6 +253,7 @@ export function LegiWatchModule() {
       (prev) => {
         const p = new URLSearchParams(prev);
         p.set('tab', next);
+        if (p.get('sub') === 'watchlist') p.delete('sub');
         if (next !== 'feed') p.delete('alert');
         return p;
       },
@@ -404,7 +410,7 @@ export function LegiWatchModule() {
         // stays mounted; the dependent tab's body is what's replaced.
         <WatchlistGatePanel
           clientName={selectedClient?.name ?? ''}
-          onConfigure={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(scope)}`)}
+          onConfigure={() => navigate(watchlistSetupPath(scope))}
           onExplore={() => {
             // §14: browse mode stays INSIDE /legiwatch — URL-persisted so it
             // survives refresh, back/forward, and deep links. Never exits to CRM.
@@ -420,7 +426,7 @@ export function LegiWatchModule() {
             <span style={{ fontSize: 13, color: 'var(--lw-body)' }}>
               Public LegiWatch data remains available. Client-specific alerts and relevance require a monitoring model.
             </span>
-            <LwButton size="36" onClick={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(scope)}`)}>
+            <LwButton size="36" onClick={() => navigate(watchlistSetupPath(scope))}>
               Set up the watchlist
             </LwButton>
           </div>
@@ -450,9 +456,9 @@ export function LegiWatchModule() {
         <CreateWatchOverlay
           onClose={() => setOverlay(null)}
           defaultClientId={scope || undefined}
-          onConfigure={() => {
+          onConfigure={(clientId) => {
             setOverlay(null);
-            navigate(scope ? `/radar?tab=watchlist&client=${encodeURIComponent(scope)}` : '/radar?tab=watchlist');
+            navigate(watchlistSetupPath(clientId));
           }}
         />
       ) : overlay === 'states' ? (

@@ -53,7 +53,7 @@ export function CreateWatchOverlay({
   editPreset,
 }: {
   onClose: () => void;
-  onConfigure: () => void;
+  onConfigure: (clientId?: string) => void;
   defaultClientId?: string;
   /** When set, the wizard edits this existing preset instead of creating one. */
   editPreset?: WatchPreset;
@@ -259,7 +259,9 @@ export function CreateWatchOverlay({
               </ul>
             )}
           </div>
-          <LwButton onClick={onConfigure}>Open the client's full watchlist →</LwButton>
+          <LwButton onClick={() => onConfigure(clientIds.length === 1 ? clientIds[0] : undefined)}>
+            Open the client's full watchlist →
+          </LwButton>
         </div>
       ) : step === 1 ? (
         <div>
