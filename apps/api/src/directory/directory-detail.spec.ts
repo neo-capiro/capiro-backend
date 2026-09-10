@@ -175,6 +175,21 @@ describe('DirectoryService member detail', () => {
     await expect(makeService().getMemberDetail('500')).resolves.toMatchObject({ id: 'member-500' });
     await expect(makeService().getMemberDetail('member-999')).rejects.toThrow(/not found/i);
   });
+
+  test('resolves an official roster Bioguide ID to the same canonical member and related data', async () => {
+    const service = makeService();
+    const canonical = await service.getMemberDetail('member-500');
+    expect(await service.getMemberDetail('R000500')).toEqual(canonical);
+    expect(await service.getMemberDetail('r000500')).toEqual(canonical);
+    expect(canonical.id).toBe('member-500');
+    expect(canonical.committees[0]?.person.id).toBe('member-500');
+  });
+
+  test.each(['R000999', 'c0b2e59a-74ee-4b6b-8712-2e17e09ad41b', 'staff-800', 'Mike Rogers'])(
+    'does not guess a member for an unknown or non-member identity: %s', async (id) => {
+      await expect(makeService().getMemberDetail(id)).rejects.toThrow(/not found/i);
+    },
+  );
 });
 
 describe('DirectoryService staff detail', () => {

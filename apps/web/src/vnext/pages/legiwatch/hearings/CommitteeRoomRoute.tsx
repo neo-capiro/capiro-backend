@@ -46,11 +46,13 @@ import {
   CommitteeIntelligenceHistorySection,
 } from './CommitteeFollow.js';
 import { useCommitteeFollow } from '../lib/wave1-api.js';
+import { DIRECTORY_PROFILE_ROUTES } from '../../directory/directory-routes.js';
 
 /* ── wire shapes ─────────────────────────────────────────────────────────── */
 
 interface RoomMember {
   id: string;
+  profileId: string | null;
   name: string;
   party?: string | null;
   side: string;
@@ -137,8 +139,14 @@ function normalizeMemberRow(v: unknown): RoomMember | null {
   const name =
     typeof r.name === 'string' ? r.name : typeof r.fullName === 'string' ? r.fullName : null;
   if (!id || !name) return null;
+  // The API's `id` belongs to congressCommitteeMembership. Only the explicit
+  // Bioguide identity (or an already canonical Directory ID) can open a person.
+  const bioguideId = typeof r.bioguideId === 'string' && /^[a-z]\d{6}$/i.test(r.bioguideId)
+    ? r.bioguideId.toUpperCase()
+    : null;
   return {
     id,
+    profileId: bioguideId ?? (/^member-\d+$/.test(id) ? id : null),
     name,
     party: typeof r.party === 'string' ? r.party : null,
     side: typeof r.side === 'string' ? r.side : '',
@@ -871,7 +879,9 @@ export function CommitteeRoomRoute() {
                                 } as React.CSSProperties)
                               : undefined
                           }
-                          onClick={() => navigate(`/directory/people/${encodeURIComponent(m.id)}`)}
+                          disabled={!m.profileId}
+                          title={m.profileId ? undefined : 'A member profile identity is unavailable for this roster entry.'}
+                          onClick={() => m.profileId && navigate(DIRECTORY_PROFILE_ROUTES.member(m.profileId))}
                         >
                           <span className="lwcr-mono44">{initials(m.name)}</span>
                           <span className="lwcr-leader__body">
@@ -880,8 +890,9 @@ export function CommitteeRoomRoute() {
                             <span className="lwcr-leader__sub">
                               {caucusName(m.party)} · {m.side ? m.side : 'Member'}
                             </span>
+                            {!m.profileId ? <span className="lwcr-leader__sub">Profile unavailable</span> : null}
                           </span>
-                          <DashboardIcon name="ArrowNarrowRight" size={16} color="var(--lw-faint)" />
+                          {m.profileId ? <DashboardIcon name="ArrowNarrowRight" size={16} color="var(--lw-faint)" /> : null}
                         </button>
                       );
                     })}
@@ -936,7 +947,9 @@ export function CommitteeRoomRoute() {
                           key={m.id}
                           type="button"
                           className="lwcr-member"
-                          onClick={() => navigate(`/directory/people/${encodeURIComponent(m.id)}`)}
+                          disabled={!m.profileId}
+                          title={m.profileId ? undefined : 'A member profile identity is unavailable for this roster entry.'}
+                          onClick={() => m.profileId && navigate(DIRECTORY_PROFILE_ROUTES.member(m.profileId))}
                         >
                           <span className="lwcr-member__rank">{m.rank ?? i + 1}</span>
                           <span
@@ -954,6 +967,7 @@ export function CommitteeRoomRoute() {
                           </span>
                           <span className="lwcr-member__name">{m.name}</span>
                           {m.role ? <span className="lwcr-member__role">{m.role}</span> : null}
+                          {!m.profileId ? <span className="lwcr-member__role">Profile unavailable</span> : null}
                         </button>
                       );
                     })}
