@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CapiroButton } from '../../components/actions/index.js';
 import { useAddNode, useDeleteNode, useTenantMembers, useUpdateNode } from './strategies-api.js';
 import {
@@ -36,12 +36,34 @@ export function StepDetailsForm({
   step,
   siblings,
   onDone,
+  onDirtyChange,
+  onSavingChange,
+  onRequestLeave,
 }: {
   strategyId: string;
   clientId?: string;
   step: StrategyNode | null;
   siblings: StrategyNode[];
   onDone: () => void;
+  /**
+   * F09 (2026-09-10 plan §7): the form reports its dirty state up so the
+   * editor can guard EVERY transition that would discard it. `dirty` is
+   * computed against the captured initial model — save semantics
+   * normalization (trimmed strings, null-for-empty, unordered dependency ids)
+   * so reverting a field returns the form to clean and default new-step
+   * values never count as edits.
+   */
+  onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * F09: saving state reports up so the guard can block conflicting
+   * close/discard actions while a mutation is in flight.
+   */
+  onSavingChange?: (saving: boolean) => void;
+  /**
+   * F09: the guard's requestLeave — Cancel editing routes through it so a
+   * dirty draft asks Keep/Discard instead of discarding silently.
+   */
+  onRequestLeave?: (action: () => void) => void;
 }) {
   const add = useAddNode(strategyId);
   const update = useUpdateNode(strategyId);
@@ -63,7 +85,94 @@ export function StepDetailsForm({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busy = add.isPending || update.isPending || remove.isPending;
-  const badWindow = Boolean(endsOn && !(kind === 'risk' && openEnded) && endsOn < startsOn);
+  useEffect(() => {
+    onSavingChange?.(busy);
+  }, [busy, onSavingChange]);
+
+  /*
+   * F09 dirty model — the baseline is the SAVED step, normalized exactly the
+   * way `save()` serializes it: trimmed title/note, empty→null owner, risk
+   * open-ended end handling, sorted dependency ids, and the target reference.
+   * An untouched NEW form matches its own defaults and is therefore clean.
+   */
+  const dirty = useMemo(() => {
+    const baseline = step
+      ? {
+          title: step.title,
+          note: step.note ?? '',
+          kind: step.kind,
+          subject: step.subject,
+          owner: step.ownerUserId ?? '',
+          status: step.status,
+          startsOn: step.startsOn.slice(0, 10),
+          endsOn: (step.kind === 'risk' && step.openEnded ? null : step.endsOn?.slice(0, 10)) ?? '',
+          openEnded: step.openEnded ?? false,
+          dependsOnIds: [...step.dependsOnIds].sort(),
+          target: step.targetRef ?? null,
+        }
+      : null;
+    const current = {
+      title: title.trim(),
+      note: note.trim(),
+      kind,
+      subject,
+      owner,
+      status,
+      startsOn,
+      endsOn: kind === 'risk' && openEnded ? '' : endsOn,
+      openEnded,
+      dependsOnIds: [...dependsOnIds].sort(),
+      target,
+    };
+    if (!baseline) {
+      // New step: default values must not make an untouched form dirty —
+      // only a deviation from the defaults does.
+      const defaults = {
+        title: '',
+        note: '',
+        kind: 'action' as NodeKind,
+        subject: 'deliverable' as NodeSubject,
+        owner: '',
+        status: 'draft' as NodeStatus,
+        startsOn: '',
+        endsOn: '',
+        openEnded: false,
+        dependsOnIds: [] as string[],
+        target: null,
+      };
+      return (
+        current.title !== defaults.title ||
+        current.note !== defaults.note ||
+        current.kind !== defaults.kind ||
+        current.subject !== defaults.subject ||
+        current.owner !== defaults.owner ||
+        current.status !== defaults.status ||
+        current.startsOn !== defaults.startsOn ||
+        current.endsOn !== defaults.endsOn ||
+        current.openEnded !== defaults.openEnded ||
+        current.dependsOnIds.join(',') !== defaults.dependsOnIds.join(',') ||
+        current.target !== defaults.target
+      );
+    }
+    return (
+      current.title !== baseline.title ||
+      current.note !== baseline.note ||
+      current.kind !== baseline.kind ||
+      current.subject !== baseline.subject ||
+      current.owner !== baseline.owner ||
+      current.status !== baseline.status ||
+      current.startsOn !== baseline.startsOn ||
+      current.endsOn !== baseline.endsOn ||
+      current.openEnded !== baseline.openEnded ||
+      current.dependsOnIds.join(',') !== baseline.dependsOnIds.join(',') ||
+      current.target !== baseline.target
+    );
+  }, [step, title, note, kind, subject, owner, status, startsOn, endsOn, openEnded, dependsOnIds, target]);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const fail = (cause: unknown) => {
     const response = (cause as { response?: { data?: { message?: string | string[] } } })?.response
       ?.data?.message;
@@ -73,6 +182,7 @@ export function StepDetailsForm({
         : response || (cause as Error)?.message || 'The step could not be saved.',
     );
   };
+  const badWindow = Boolean(endsOn && !(kind === 'risk' && openEnded) && endsOn < startsOn);
   const save = () => {
     if (busy || !title.trim() || !startsOn || badWindow) return;
     setError(null);
@@ -99,12 +209,26 @@ export function StepDetailsForm({
             changeNote: `Updated ${title.trim()}`,
           },
         },
-        { onSuccess: onDone, onError: fail },
+        {
+          // F09: a successful save clears the guard BEFORE the form leaves
+          // edit mode (no second confirmation); failed saves keep the draft.
+          onSuccess: () => {
+            onDirtyChange?.(false);
+            onDone();
+          },
+          onError: fail,
+        },
       );
     else
       add.mutate(
         { ...input, title: title.trim(), kind, subject, startsOn },
-        { onSuccess: onDone, onError: fail },
+        {
+          onSuccess: () => {
+            onDirtyChange?.(false);
+            onDone();
+          },
+          onError: fail,
+        },
       );
   };
 
@@ -287,7 +411,11 @@ export function StepDetailsForm({
         >
           {busy ? 'Saving…' : step ? 'Save step' : 'Add step'}
         </CapiroButton>
-        <CapiroButton type="button" disabled={busy} onClick={onDone}>
+        <CapiroButton
+          type="button"
+          disabled={busy}
+          onClick={() => (onRequestLeave ? onRequestLeave(onDone) : onDone())}
+        >
           Cancel editing
         </CapiroButton>
       </div>

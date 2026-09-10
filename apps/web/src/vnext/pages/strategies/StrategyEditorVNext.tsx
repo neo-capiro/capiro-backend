@@ -43,6 +43,7 @@ import {
 // VNextStrategiesRoutes.tsx, so this adds no new circular-import risk.
 import { TYPE_LABEL } from './StrategyLibraryVNext.js';
 import { computePlanHealth } from './lib/plan-health.js';
+import { PlanHealthDiagnostics } from './PlanHealthDiagnostics.js';
 import { classifyStrategyLoadError } from './lib/strategy-load.js';
 import { strategyRelativeTime } from './lib/date-format.js';
 import {
@@ -93,6 +94,8 @@ export function StrategyEditorVNext() {
   const { strategyId } = useParams<{ strategyId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  // F07: strategy-local diagnostics panel — opened by both health controls.
+  const [healthPanelOpen, setHealthPanelOpen] = useState(false);
 
   // Guard: the backend `spStrategy.id` column is UUID-typed. A non-UUID id
   // (stale seed, truncated link) makes Prisma throw a 500 before any row
@@ -466,7 +469,7 @@ export function StrategyEditorVNext() {
               </p>
             </div>
             <div className="st-actions">
-              <PlanHealthChip detail={detail} onReview={() => navigate('/strategies/agents/proposals')} />
+              <PlanHealthChip detail={detail} onReview={() => setHealthPanelOpen(true)} />
               <CapiroButton variant="secondary" onClick={() => navigate(overlayPath('phases'))}>Firm phases</CapiroButton>
               <CapiroButton variant="primary" onClick={() => openInspector('__new__')}>Add step</CapiroButton>
             </div>
@@ -494,8 +497,17 @@ export function StrategyEditorVNext() {
         {/* Bottom cards: Next 30 days + Plan health (§7.2). */}
         <div className="st-editor-cards">
           <NextThirtyDays detail={detail} members={members.data} onOpen={(id) => openInspector(id)} />
-          <PlanHealthCard detail={detail} onReview={() => navigate('/strategies/agents/proposals')} />
+          <PlanHealthCard detail={detail} onReview={() => setHealthPanelOpen(true)} />
         </div>
+        <PlanHealthDiagnostics
+          detail={detail}
+          health={computePlanHealth(detail) ?? { score: 0, totalSteps: 0, ownedSteps: 0, totalGates: 0, groundedGates: 0, datedSteps: 0, overdueSteps: 0, groundingPct: null, timelinessPct: null }}
+          open={healthPanelOpen}
+          onClose={() => setHealthPanelOpen(false)}
+          onOpenStep={(id) => { setHealthPanelOpen(false); openInspector(id); }}
+          onWatchProposals={() => navigate('/strategies/agents/proposals')}
+          members={members}
+        />
         </div>
       </div>
 
@@ -518,7 +530,19 @@ export function StrategyEditorVNext() {
           step={openStep}
           isNew={openStepId === '__new__'}
           tab={inspectorTab}
-          onTabChange={(tab) => openInspector(openStepId ?? '__strategy__', tab)}
+          /* F09: a Step→Meri tab switch keeps the form MOUNTED (hidden) —
+             it must not prompt. It only flips the ?tab= param on the SAME
+             step, so it bypasses the guard. */
+          onTabChange={(tab) => {
+            if (tab === 'meri' && openStepId) {
+              const next = new URLSearchParams(searchParams);
+              next.set('step', openStepId);
+              next.set('tab', 'meri');
+              setSearchParams(next, { replace: true });
+              return;
+            }
+            openInspector(openStepId ?? '__strategy__', tab);
+          }}
           onClose={closeInspector}
         />
       ) : null}
@@ -599,7 +623,7 @@ function NextThirtyDays({
             <CapiroButton onClick={() => onOpen(next.id)}>Open step</CapiroButton>
           </>
         ) : (
-          <p className="st-purpose">No unfinished plan commitments fall due in the next 30 days. Suggested work is in the review queue.</p>
+          <p className="st-purpose">No unfinished plan commitments fall due in the next 30 days. Review suggested steps in the timeline.</p>
         )}
       </div>
     </section>
@@ -634,7 +658,7 @@ function PlanHealthCard({
           <p>All live plan items. Client reports use approved, client-eligible sources. Linked outputs and approved context are assessed separately.</p>
           <details><summary>How this score is calculated</summary><p>Ownership, gate source coverage and timeliness use weights 40:35:25. Dimensions with no applicable items are excluded and the remaining weights rescaled. A source reference does not verify its contents.</p></details>
         </div>
-        <CapiroButton onClick={onReview}>Review proposals</CapiroButton>
+        <CapiroButton onClick={onReview}>Review diagnostics</CapiroButton>
       </div>
     </section>
   );

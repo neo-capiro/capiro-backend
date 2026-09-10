@@ -39,6 +39,7 @@ import {
   type ClientExportReadyStatus,
 } from './lib/step-review.js';
 import { StepDetailsForm } from './StepDetailsForm.js';
+import { useStepFormGuard, StepFormGuardDialog, type StepFormGuardState } from './lib/step-form-guard.js';
 import { strategyArtifactHref, strategyArtifactReference } from './lib/artifact-link.js';
 import { errorMessage } from '../../../lib/error-message.js';
 import './step-inspector.css';
@@ -153,6 +154,12 @@ export function StepInspector({
   onClose: () => void;
 }) {
   const members = useTenantMembers();
+  // F09: the leave guard lives HERE — high enough to cover every transition
+  // that can unmount the form (inspector close, step switch, add-step,
+  // strategy navigation, browser Back) while the composer below stays
+  // mounted across Step/Meri tab switches.
+  const guard = useStepFormGuard();
+  const guardedClose = () => guard.requestLeave(onClose);
 
   // Composer (input + send + its draft state), lifted out of MeriTab so it
   // stays mounted — and the draft survives — across Step/Meri tab switches.
@@ -194,7 +201,7 @@ export function StepInspector({
           <p className="st-eyebrow">{isNew ? 'New step' : step ? 'Selected step' : 'Strategy assistant'}</p>
           <h2 className="st-inspector__title">{isNew ? 'Add a step' : step?.title ?? 'Ask Meri'}</h2>
         </div>
-        <button type="button" className="st-inspector__close" aria-label="Close inspector" onClick={onClose}>
+        <button type="button" className="st-inspector__close" aria-label="Close inspector" onClick={guardedClose}>
           ×
         </button>
       </div>
@@ -226,12 +233,20 @@ export function StepInspector({
             clientId={clientId}
             siblings={nodes}
             artifacts={artifacts.filter((artifact) => artifact.nodeId === step?.id)}
-            onClose={onClose}
+            onClose={guardedClose}
             step={step}
             isNew={isNew}
             ownerName={step ? memberName(members.data, step.ownerUserId) : 'Unassigned'}
+            guard={guard}
           />
         </div>
+      ) : null}
+      {guard.pending ? (
+        <StepFormGuardDialog
+          onKeepEditing={guard.keepEditing}
+          onDiscard={guard.discardChanges}
+          saving={guard.saving}
+        />
       ) : null}
       {tab === 'meri' ? <MeriTab strategyId={strategyId} step={step} /> : null}
 
@@ -300,6 +315,7 @@ function StepTab({
   step,
   isNew,
   ownerName,
+  guard,
 }: {
   strategyId: string;
   clientId?: string;
@@ -309,12 +325,26 @@ function StepTab({
   step: StrategyNode | null;
   isNew: boolean;
   ownerName: string;
+  guard: StepFormGuardState;
 }) {
   const navigate = useNavigate();
   const updateNode = useUpdateNode(strategyId);
   const [editing, setEditing] = useState(false);
   if (isNew || editing) {
-    return <div className="st-inspector__body"><StepDetailsForm strategyId={strategyId} clientId={clientId} step={step} siblings={siblings} onDone={() => { if (isNew) onClose(); else setEditing(false); }} /></div>;
+    /* F09: Cancel editing and the form's own completion route through the
+     * guard — a dirty draft asks first; clean closes immediately. The form
+     * reports dirty/saving up so the guard is armed exactly while needed. */
+    const leaveForm = () => { if (isNew) onClose(); else setEditing(false); };
+    return <div className="st-inspector__body"><StepDetailsForm
+      strategyId={strategyId}
+      clientId={clientId}
+      step={step}
+      siblings={siblings}
+      onDone={leaveForm}
+      onDirtyChange={guard.setDirty}
+      onSavingChange={guard.setSaving}
+      onRequestLeave={guard.requestLeave}
+    /></div>;
   }
   if (!step) {
     return <div className="st-inspector__body"><CapiroSkeleton height={200} /></div>;
