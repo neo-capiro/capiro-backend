@@ -143,4 +143,15 @@ describe('Meri Quick Action routing contract', () => {
     expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
     expect(planFor(prompt).recipeTool).toBe('query_bill_watch');
   });
+
+  test('Hearing Watch routes to the committee-hearings fan-out', () => {
+    const definition = skill('hearing_watch');
+    const prompt = hydrateMeriStarterPrompt(definition).replace(
+      '[client name]',
+      'TitanForge Industries',
+    );
+
+    expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
+    expect(planFor(prompt).recipeTool).toBe('query_hearing_watch');
+  });
 });

@@ -13,6 +13,7 @@ import { executeMeriRelationshipBrief } from './meriv3-retrieval-relationship.js
 import { executeMeriFundingOpportunityMatch } from './meriv3-retrieval-funding-match.js';
 import { executeMeriPeDeepDive } from './meriv3-retrieval-pe-deep-dive.js';
 import { executeMeriBillWatch } from './meriv3-retrieval-bill-watch.js';
+import { executeMeriHearingWatch } from './meriv3-retrieval-hearing-watch.js';
 import type { MeriRetrievalRecipeContext } from './meriv3-retrieval-recipe-utils.js';
 
 export {
@@ -167,5 +168,7 @@ export async function executeMeriRetrievalRecipe(
       return executeMeriPeDeepDive(input, ctx);
     case 'query_bill_watch':
       return executeMeriBillWatch(input, ctx);
+    case 'query_hearing_watch':
+      return executeMeriHearingWatch(input, ctx);
   }
 }

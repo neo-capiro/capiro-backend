@@ -537,6 +537,13 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
       'search_state_bills',
     ],
   },
+  query_hearing_watch: {
+    tool: 'query_hearing_watch',
+    description: 'Committee-hearing calendar watch for one client, with the LegiWatch handoff surfaced when present.',
+    requiredDomains: ['hearings'],
+    optionalDomains: [],
+    recommendedTools: ['search_committee_hearings'],
+  },
 };
 
 const DATASETS_BY_TOOL = new Map<string, MeriDatasetDefinition[]>();

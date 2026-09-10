@@ -285,6 +285,24 @@ export const MERI_SKILL_REGISTRY = [
     readOnly: true,
     knowledgePlaneReplacement: 'legislation graph retrieval',
   },
+  {
+    id: 'hearing_watch',
+    label: 'Hearing Watch',
+    description:
+      'Committee hearings on the calendar that matter to a client, with any LegiWatch hearing handoff surfaced so the answer cites the hearing you were viewing.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_hearing_watch',
+    permittedScopes: ['client', 'general'],
+    starterPrompt:
+      'What committee hearings are coming up that [client name] should care about?',
+    requiredEntitlements: [],
+    semanticDomains: ['identity', 'hearings'],
+    requiresClient: true,
+    readOnly: true,
+    knowledgePlaneReplacement: 'legislation graph retrieval',
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

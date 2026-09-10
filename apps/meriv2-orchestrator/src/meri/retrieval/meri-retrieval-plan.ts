@@ -17,6 +17,7 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_funding_opportunity_match',
   'query_pe_deep_dive',
   'query_bill_watch',
+  'query_hearing_watch',
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
@@ -93,6 +94,9 @@ const PE_DEEP_DIVE_RE =
 
 const BILL_WATCH_RE =
   /\bbills?\b.*\b(?:affect(?:ing)?|touching|relevant\s+to)\b|\b(?:tracked|watch(?:ed|ing)?)\s+bills?\b|\b(?:what\s+happened|what'?s\s+new|status)\b.*\b(?:bills?|legislation)\b|\bblegislative\s+(?:update|watch|status)\b/i;
+
+const HEARING_WATCH_RE =
+  /\bhearings?\b|\bcommittee\s+hearings?\b/i;
 
 const MAIL_HISTORY_RE =
   /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
@@ -225,6 +229,10 @@ function recipeFor(
   // federal + state bill fan-out (hearings are calendar-driven — separate
   // recipe).
   if (BILL_WATCH_RE.test(request)) return 'query_bill_watch';
+  // Hearing Watch: calendar-driven committee-hearing questions route to the
+  // single-source hearing fan-out (bill status is a different clock —
+  // separate recipe).
+  if (HEARING_WATCH_RE.test(request)) return 'query_hearing_watch';
   if (
     intent.subjectScope === 'portfolio' &&
     (intent.queryClass === 'change_detection' || intent.queryClass === 'portfolio_scan')
