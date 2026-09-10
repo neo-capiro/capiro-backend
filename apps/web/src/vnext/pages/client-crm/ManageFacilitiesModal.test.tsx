@@ -91,17 +91,28 @@ describe('ManageFacilitiesModal', () => {
     expect(row).toHaveTextContent('Seattle, WA');
     expect(row).toHaveTextContent('WA-07');
     expect(row).toHaveTextContent('240 employees');
-    expect(row).toHaveTextContent('Geocoded');
+    expect(row).toHaveTextContent('Geocoder: Matched');
   });
 
   it('shows the automatic source, geocoded federal district, and state legislative districts', async () => {
     renderModal();
 
     const row = (await screen.findByText('Seattle HQ')).closest('li')!;
-    expect(row).toHaveTextContent('Source: Automatic');
+    expect(row).toHaveTextContent('U.S. House source: Census');
     expect(row).toHaveTextContent('Geocoder: Matched');
-    expect(row).toHaveTextContent('State House 41');
-    expect(row).toHaveTextContent('State Senate 46');
+    expect(row).toHaveTextContent('State House: 41');
+    expect(row).toHaveTextContent('State Senate: 46');
+  });
+
+  it('keeps the geocoder match separate from manual districts and hides state-only district values', async () => {
+    getMock.mockResolvedValue({ data: [{ ...FACILITY, districtSource: 'user', stateHouseDistrict: 'WA', stateSenateDistrict: 'WA' }] });
+    renderModal();
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    expect(row).toHaveTextContent('Geocoder: Matched');
+    expect(row).toHaveTextContent('U.S. House source: Manual');
+    expect(row).toHaveTextContent('State House: Not resolved');
+    expect(row).toHaveTextContent('State Senate: Not resolved');
+    expect(row).toHaveTextContent('district was supplied manually');
   });
 
   it('shows the Census standardized address recommendation for a matched facility', async () => {
@@ -156,28 +167,28 @@ describe('ManageFacilitiesModal', () => {
     [
       'manual',
       { districtSource: 'user', geocodeStatus: 'error' },
-      'Source: Manual',
+      'U.S. House source: Manual',
       'Geocoder: Error',
     ],
     [
       'unresolved',
       { districtSource: null, geocodeStatus: 'no_match', congressionalDistrict: null },
-      'Source: Unresolved',
+      'U.S. House source: Not resolved',
       'Geocoder: No match',
     ],
     [
       'pending',
       { districtSource: null, geocodeStatus: 'pending', congressionalDistrict: null },
-      'Source: Pending',
+      'U.S. House source: Not resolved',
       'Geocoder: Pending',
     ],
     [
       'ambiguous',
       { districtSource: null, geocodeStatus: 'ambiguous' },
-      'Source: Ambiguous',
+      'U.S. House source: Not recorded',
       'Geocoder: Ambiguous',
     ],
-    ['error', { districtSource: null, geocodeStatus: 'error' }, 'Source: Error', 'Geocoder: Error'],
+    ['error', { districtSource: null, geocodeStatus: 'error' }, 'U.S. House source: Not recorded', 'Geocoder: Error'],
   ])('keeps the %s resolution state visible', async (_name, overrides, source, geocoder) => {
     getMock.mockResolvedValue({ data: [{ ...FACILITY, ...overrides }] });
     renderModal();
@@ -207,7 +218,19 @@ describe('ManageFacilitiesModal', () => {
         '/api/clients/client-1/facilities/fac-1/resolve-district',
       ),
     );
-    await waitFor(() => expect(row).toHaveTextContent('Source: Automatic'));
+    await waitFor(() => expect(row).toHaveTextContent('U.S. House source: Census'));
+  });
+
+  it('offers resolution for manual-review records with a saved federal district', async () => {
+    const manual = { ...FACILITY, districtSource: 'user', geocodeStatus: 'manual_review', stateHouseDistrict: 'WA' };
+    getMock.mockResolvedValue({ data: [manual] });
+    postMock.mockResolvedValue({ data: { ...manual, geocodeStatus: 'matched', stateHouseDistrict: '41' } });
+    renderModal();
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    expect(row).toHaveTextContent('Geocoder: Review required');
+    fireEvent.click(within(row).getByRole('button', { name: 'Resolve district' }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/facilities/fac-1/resolve-district'));
+    expect(patchMock).not.toHaveBeenCalled();
   });
 
   it('polls facilities while a district resolution is pending', async () => {

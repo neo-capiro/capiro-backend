@@ -12,6 +12,7 @@ const SCREENS: readonly VNextVisualScreen[] = [
   'empty',
   'dashboard',
   'client-crm',
+  'client-facilities',
   'congressional-staff',
   'congressional-staff-empty',
   'strategies',

@@ -63,6 +63,7 @@ import { getClientRegulatoryProfile, regulatoryProfileKey } from '../../../../pa
 import { summarizeLdaPeriods } from '../../../../pages/clients/intelligence-v1/lda-periods.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import './intelligence-tab.css';
+import { FacilityVerification } from '../FacilityVerification.js';
 
 /**
  * Intelligence tab (spec §10). Three domains, stacked on one page: Legislative
@@ -1459,19 +1460,15 @@ function buildRealDistricts(
 }
 
 export function facilityStatus(facility: ClientFacility, representation: RepresentationResult | undefined): { label: string; tone: PillTone } {
-  const geocoded = facility.geocodeStatus === 'matched' && Boolean(facility.geocodedAt)
-    && ['geocoded', 'geocoder', 'census'].includes(facility.districtSource ?? '')
-    && Boolean(facility.state && facility.congressionalDistrict)
-    && Number.isFinite(facility.latitude) && Number.isFinite(facility.longitude);
-  if (!geocoded) return { label: 'Needs address verification', tone: 'warning' };
+  const district = formatFacilityDistrict(facility.state, facility.congressionalDistrict);
+  if (!district) return { label: 'U.S. House district missing', tone: 'warning' };
   if (representation && !representation.unresolved && representation.federal.house) {
     const house = representation.federal.house;
-    if (house.state !== facility.state || Number(house.district) !== Number(facility.congressionalDistrict)) {
-      return { label: 'Representation mismatch', tone: 'warning' };
-    }
-    return { label: 'Confirmed', tone: 'success' };
+    const houseDistrict = house.district == null ? '' : formatFacilityDistrict(house.state, String(house.district));
+    if (houseDistrict !== district) return { label: 'Representation mismatch', tone: 'warning' };
+    return { label: 'Matches saved district', tone: 'success' };
   }
-  return { label: 'Representative pending', tone: 'warning' };
+  return { label: 'Representative not resolved', tone: 'warning' };
 }
 
 function DistrictPanel({ client }: { client: Client }) {
@@ -1763,7 +1760,9 @@ function DistrictPanel({ client }: { client: Client }) {
             repByFacilityId={repByFacilityId}
           />
         </div>
-      ) : null}
+      ) : (
+        <FacilitiesRepresentationCard facilities={facilitiesQ.data ?? []} repByFacilityId={repByFacilityId} />
+      )}
     </div>
   );
 }
@@ -1864,13 +1863,15 @@ function FacilitiesRepresentationCard({
             const repName = representation && !representation.unresolved ? representation.federal.house?.fullName : null;
             return (
               <div key={f.id} className="capiro-intel-fac-row">
-                <span className="capiro-intel-fac-name">{f.name}</span>
-                <span className="capiro-intel-fac-district">{formatFacilityDistrict(f.state, f.congressionalDistrict) || 'Not geocoded'}</span>
-                <span className="capiro-intel-fac-emp">{f.employeeCount != null ? formatNumber(f.employeeCount) : 'Needs count'}</span>
-                <span className="capiro-intel-fac-rep">{repName ?? 'Not resolved'}</span>
-                <span className="capiro-intel-fac-status">
+                <div className="capiro-intel-fac-location">
+                  <span className="capiro-intel-fac-name">{f.name}</span>
+                  <FacilityVerification facility={f} />
+                </div>
+                <div className="capiro-intel-fac-representation">
+                  <span className="capiro-intel-fac-emp">{f.employeeCount != null ? `${formatNumber(f.employeeCount)} employees` : 'Employee count not reported'}</span>
+                  <span className="capiro-intel-fac-rep">U.S. House representative: {repName ?? 'Not resolved'}</span>
                   <Pill tone={tone}>{label}</Pill>
-                </span>
+                </div>
               </div>
             );
           })

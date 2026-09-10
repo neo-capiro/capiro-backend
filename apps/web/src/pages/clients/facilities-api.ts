@@ -253,8 +253,18 @@ export function formatFacilityDistrict(
 ): string {
   const st = (state ?? '').trim().toUpperCase();
   const dist = (district ?? '').trim();
-  if (st && dist) return `${st}-${dist}`;
-  return st || dist || '';
+  const seats = US_HOUSE_SEATS[st];
+  if (!seats || !DISTRICT_PATTERN.test(dist)) return '';
+  const number = Number(dist);
+  if (seats === 1 && (number === 0 || number === 1)) return `${st}-00`;
+  if (number < 1 || number > seats) return '';
+  return `${st}-${String(number).padStart(2, '0')}`;
+}
+
+/** Preserve named state districts, but never present a postal code as a district. */
+export function formatFacilityStateDistrict(district: string | null | undefined): string {
+  const value = (district ?? '').trim();
+  return US_HOUSE_SEATS[value.toUpperCase()] ? '' : value;
 }
 
 /** US states + DC + territories, two-letter postal codes (for the facility state dropdown). */

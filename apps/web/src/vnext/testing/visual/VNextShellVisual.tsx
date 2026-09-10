@@ -42,7 +42,7 @@ import { ClientCrmCapabilitiesProto } from '../../pages/client-crm/tabs/Capabili
 import { ClientCrmOrganizationProto } from '../../pages/client-crm/tabs/RelationshipsOrgTab.js';
 import { ClientCrmGovernmentProto } from '../../pages/client-crm/tabs/RelationshipsGovTab.js';
 import { ClientCrmHistoryProto } from '../../pages/client-crm/tabs/RelationshipsHistoryTab.js';
-import { ClientCrmAdvocacyMattersProto } from '../../pages/client-crm/tabs/AdvocacyMattersTab.js';
+import { ClientCrmAdvocacyMattersProto, AdvocacyMatterDrawer } from '../../pages/client-crm/tabs/AdvocacyMattersTab.js';
 import { ClientCrmWorkProto } from '../../pages/client-crm/tabs/WorkTab.js';
 import { ClientCrmIntelligenceProto } from '../../pages/client-crm/tabs/IntelligenceTab.js';
 import { ClientCrmFilesProto } from '../../pages/client-crm/tabs/FilesTab.js';
@@ -59,6 +59,9 @@ import {
   PfToast,
 } from '../../pages/client-crm/portfolio-overlays.js';
 import { PEOPLE, TARGETS, NODES, FOLDERS } from '../../pages/client-crm/portfolio-fixtures.js';
+import { ManageFacilitiesModal } from '../../pages/client-crm/ManageFacilitiesModal.js';
+import { CapiroToastProvider } from '../../components/feedback/toast.js';
+import { QA_FACILITIES, QA_ADVOCACY_MATTER } from '../fixtures/client-profile-qa.js';
 import '../../pages/client-crm/client-crm.css';
 import '../../pages/client-crm/client-record-surface.css';
 import '../../pages/client-crm/portfolio-proto.css';
@@ -142,6 +145,10 @@ harnessQueryClient.setQueryData(['client-fill-with-meri', CLIENT_CRM_VISUAL_CLIE
 harnessQueryClient.setQueryData(['client-fill-with-meri', CLIENT_CRM_VISUAL_CLIENT.id, 'run', visualFillRun.id], visualFillRun);
 harnessQueryClient.setQueryData(['client-advocacy-matters', CLIENT_CRM_VISUAL_CLIENT.id], []);
 
+harnessQueryClient.setQueryData(['client-facilities', CLIENT_CRM_VISUAL_CLIENT.id], QA_FACILITIES);
+harnessQueryClient.setQueryData(['client-advocacy-matter', CLIENT_CRM_VISUAL_CLIENT.id, QA_ADVOCACY_MATTER.id], QA_ADVOCACY_MATTER);
+harnessQueryClient.setQueryData(['client-representation', CLIENT_CRM_VISUAL_CLIENT.id], []);
+
 const visualRoutes = VNEXT_ROUTE_MANIFEST.filter((route) => route.id !== 'settings');
 const settingsRoute = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'settings') ?? null;
 
@@ -167,6 +174,7 @@ export type VNextVisualScreen =
   | 'empty'
   | 'dashboard'
   | 'client-crm'
+  | 'client-facilities'
   | 'congressional-staff'
   | 'congressional-staff-empty'
   | 'strategies'
@@ -188,6 +196,7 @@ const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
   empty: '/clients?clientId=visual-fixture',
   dashboard: '/',
   'client-crm': '/clients?clientId=visual-fixture',
+  'client-facilities': '/clients?clientId=visual-fixture&tab=intelligence',
   'congressional-staff': DIRECTORY_ROUTES.congressionalStaff,
   'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
   strategies: '/strategies',
@@ -212,7 +221,7 @@ export function VNextShellVisual({
   crmTab?: CrmSurface;
   intelView?: IntelligenceView;
   relView?: RelationshipView;
-  crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast' | 'fill';
+  crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast' | 'fill' | 'advocacy' | 'facilities';
   /** Forces Needs Attention into one of the six named states (754:2885) —
    * ModuleStateView is shared across all four modules, so this exercises the
    * same render path every module's state block uses. Dashboard-only. */
@@ -279,6 +288,8 @@ export function VNextShellVisual({
             >
               <ClientCrmSurfaceFixture client={CLIENT_CRM_VISUAL_CLIENT} route={crmRoute} />
             </ClientProfileShell>
+          ) : screen === 'client-facilities' ? (
+            <ClientCrmIntelligenceProto client={CLIENT_CRM_VISUAL_CLIENT} view="district" />
           ) : screen === 'dashboard' ? (
             <DashboardVNextView model={dashboardModel} />
           ) : screen === 'congressional-staff' ? (
@@ -330,6 +341,16 @@ export function VNextShellVisual({
           ) : null}
           {screen === 'client-crm' && crmOverlay === 'toast' ? (
             <PfToast message="Meri proposed 7 field changes for review" onDone={() => undefined} />
+          ) : null}
+          {screen === 'client-crm' && crmOverlay === 'advocacy' ? (
+            <AdvocacyMatterDrawer clientId={CLIENT_CRM_VISUAL_CLIENT.id} matterId={QA_ADVOCACY_MATTER.id}
+              isAdmin matterOptions={[QA_ADVOCACY_MATTER]} onClose={() => undefined} onChanged={() => undefined} />
+          ) : null}
+          {screen === 'client-crm' && crmOverlay === 'facilities' ? (
+            <CapiroToastProvider>
+              <ManageFacilitiesModal open clientId={CLIENT_CRM_VISUAL_CLIENT.id}
+                clientName={CLIENT_CRM_VISUAL_CLIENT.name} onClose={() => undefined} />
+            </CapiroToastProvider>
           ) : null}
           {screen === 'client-crm' && crmOverlay === 'fill' ? (
             <ClientFillWithMeriDrawer

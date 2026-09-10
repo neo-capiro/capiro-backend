@@ -126,6 +126,18 @@
   .capiro-vnext-root .capiro-facmod__grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  .capiro-vnext-root .capiro-facmod__row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .capiro-vnext-root .capiro-facmod__who {
+    flex-basis: 100%;
+  }
+  .capiro-vnext-root .capiro-facmod__name,
+  .capiro-vnext-root .capiro-facmod__meta {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 .capiro-vnext-root .capiro-facmod__field {

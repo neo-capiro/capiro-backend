@@ -537,17 +537,36 @@
 .capiro-vnext-root .capiro-intel-district-sub { display: block; margin-top: 4px; font-size: 12px; color: var(--capiro-color-text-muted); }
 .capiro-vnext-root .capiro-intel-district-score { flex: 0 0 auto; font-size: 14px; font-weight: 600; color: var(--capiro-color-text-primary); }
 
+/* Evidence and representative matching remain separate at every width. */
 .capiro-vnext-root .capiro-intel-fac-row {
   display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--capiro-color-border-quiet);
-  text-align: left;
 }
-.capiro-vnext-root .capiro-intel-fac-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; color: var(--capiro-color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.capiro-vnext-root .capiro-intel-fac-district { flex: 0 0 auto; width: 64px; font-size: 13px; color: var(--capiro-color-text-body-secondary); }
-.capiro-vnext-root .capiro-intel-fac-emp { flex: 0 0 auto; min-width: 40px; font-size: 13px; color: var(--capiro-color-text-body-secondary); text-align: right; }
-.capiro-vnext-root .capiro-intel-fac-rep { flex: 0 0 auto; width: 118px; font-size: 13px; color: var(--capiro-color-text-body-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.capiro-vnext-root .capiro-intel-fac-status { flex: 0 0 auto; width: 140px; display: flex; justify-content: flex-end; }
+.capiro-vnext-root .capiro-intel-fac-location {
+  flex: 2 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-intel-fac-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .capiro-intel-fac-representation {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--capiro-color-text-secondary);
+  overflow-wrap: anywhere;
+}

@@ -20,4 +20,16 @@ describe('offline visual shell providers', () => {
       expect(screen.getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
     },
   );
+  it.each(['advocacy', 'facilities'] as const)('renders the %s QA overlay with its real components', (crmOverlay) => {
+    render(<VNextShellVisual screen="client-crm" crmOverlay={crmOverlay} />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    if (crmOverlay === 'advocacy') {
+      expect(screen.getByText('Attribution needs review')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Merge another matter into this one' })).toBeInTheDocument();
+    } else {
+      expect(screen.getByText('U.S. House source: Manual')).toBeInTheDocument();
+      expect(screen.getByText('Geocoder: Review required')).toBeInTheDocument();
+    }
+  });
+
 });

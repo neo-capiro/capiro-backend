@@ -39,6 +39,31 @@ const outputDir = path.resolve(process.env.VNEXT_VISUAL_OUTPUT_DIR ?? 'artifacts
  * PNG is the easiest way to accidentally claim one.
  */
 const targets = [
+  // Q16/Q17 bug-regression captures, not Figma pixel baselines.
+  ...[1440, 390].flatMap((width) => [
+    {
+      name: `client-attribution-q17-${width}`,
+      path: '/vnext-shell.html?screen=client-crm&crmOverlay=advocacy',
+      width, height: 1400,
+      expect: '.capiro-advocacy-record__head',
+      qaLayout: 'attribution',
+    },
+    {
+      name: `client-facility-evidence-q16-${width}`,
+      path: '/vnext-shell.html?screen=client-facilities',
+      width, height: 1400,
+      expect: '.capiro-intel-fac-location .capiro-facility-verification',
+      qaLayout: 'facility-evidence',
+    },
+    {
+      name: `client-facilities-q16-${width}`,
+      path: '/vnext-shell.html?screen=client-crm&crmOverlay=facilities',
+      width, height: 1400,
+      expect: '.capiro-facmod__list .capiro-facility-verification',
+      qaLayout: 'facilities',
+    },
+  ]),
+
   {
     name: 'component-gallery-desktop',
     path: '/vnext-workshop.html',
@@ -241,6 +266,34 @@ try {
       }
       if (pageErrors.length) {
         throw new Error(`${target.name}: page threw during load: ${pageErrors.join(' | ')}`);
+      }
+
+
+      if (target.qaLayout) {
+        const failures = await evaluate(cdp, `(() => {
+          const failures = [];
+          const visibleOverflow = [...document.querySelectorAll('[role="dialog"]')].some(el => el.scrollWidth > el.clientWidth + 2);
+          if (visibleOverflow) failures.push('dialog has horizontal overflow');
+          if (${JSON.stringify(target.qaLayout)} === 'attribution') {
+            const title = document.querySelector('.capiro-advocacy-record__title').getBoundingClientRect();
+            const badges = document.querySelector('.capiro-advocacy-record__badges').getBoundingClientRect();
+            const badge = document.querySelector('.capiro-advocacy-record__badges .capiro-badge').getBoundingClientRect();
+            const head = document.querySelector('.capiro-advocacy-record__head').getBoundingClientRect();
+            if (title.width < head.width - 2) failures.push('badges squeeze the record title');
+            if (badges.top < title.bottom) failures.push('badge shares and crowds the title line');
+            if (badge.height > 44) failures.push('attribution badge is oversized');
+            const buttons = [...document.querySelectorAll('[aria-label="Matter actions"] button')].map(el => el.getBoundingClientRect());
+            if (buttons.length !== 2) failures.push('matter actions are missing');
+            if (buttons.length === 2 && buttons[1].left < buttons[0].right + 6 && buttons[1].top < buttons[0].bottom + 6) failures.push('matter actions overlap or lack spacing');
+          } else {
+            const text = document.querySelector(${JSON.stringify(target.qaLayout === 'facilities' ? '.capiro-facmod__list' : '.capiro-intel-stack-24')}).textContent;
+            for (const label of ['Geocoder: Matched', 'U.S. House source: Manual', 'State House: Not resolved', 'State Senate: Not resolved', 'Geocoder: Review required']) {
+              if (!text.includes(label)) failures.push('missing evidence label: ' + label);
+            }
+          }
+          return failures;
+        })()`);
+        if (failures.length) throw new Error(target.name + ': ' + failures.join('; '));
       }
 
       const { data } = await cdp.send('Page.captureScreenshot', {

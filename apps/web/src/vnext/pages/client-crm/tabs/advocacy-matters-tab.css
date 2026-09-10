@@ -255,9 +255,10 @@
   align-items: center;
 }
 .capiro-vnext-root .capiro-advocacy-drawer-actions {
-  margin-left: auto;
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .capiro-vnext-root .capiro-advocacy-summary {
   margin: 0;
@@ -377,10 +378,14 @@
 }
 .capiro-vnext-root .capiro-advocacy-record__head {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
+  min-width: 0;
 }
 .capiro-vnext-root .capiro-advocacy-record__title {
+  width: 100%;
+  overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 500;
   color: var(--capiro-color-text-primary);
@@ -388,8 +393,22 @@
 }
 .capiro-vnext-root .capiro-advocacy-record__badges {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  flex: 0 0 auto;
+  max-width: 100%;
+}
+.capiro-vnext-root .capiro-advocacy-record__badges .capiro-badge {
+  flex: 0 1 auto;
+  align-self: flex-start;
+  max-width: 100%;
+  height: auto;
+  min-height: 24px;
+  border-radius: 6px;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0;
 }
 .capiro-vnext-root .capiro-advocacy-record__corrected {
   font-size: 11px;
@@ -413,6 +432,7 @@
 }
 .capiro-vnext-root .capiro-advocacy-record__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 4px;
 }

@@ -78,6 +78,15 @@ function renderDistrict() {
   );
 }
 
+function readBlob(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
 const FACILITY = {
   id: 'fac-1',
   clientId: 'client-1',
@@ -171,7 +180,7 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     mockDistrictApis();
     renderDistrict();
 
-    await waitFor(() => expect(screen.getByText('Confirmed')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Matches saved district')).toBeInTheDocument());
     expect(screen.getAllByText('Seattle HQ').length).toBeGreaterThan(0);
   });
 
@@ -513,7 +522,7 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     // The mutation wraps the fetched blob in a fresh Blob (to set the download's
     // content type), so it is not the SAME object as the mocked response —
     // assert on the bytes it carries instead.
-    await expect(blobs[0]!.text()).resolves.toBe('fake-docx-bytes');
+    await expect(readBlob(blobs[0]!)).resolves.toBe('fake-docx-bytes');
 
     createUrl.mockRestore();
     revokeUrl.mockRestore();
@@ -860,7 +869,7 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     fireEvent.click(screen.getByText('Calendar'));
 
     expect(clickSpy).toHaveBeenCalledTimes(1);
-    const ics = await blobs[0]!.text();
+    const ics = await readBlob(blobs[0]!);
     expect(ics).toContain('BEGIN:VCALENDAR');
     expect(ics).toContain('DTSTART;VALUE=DATE:20270211');
     // RFC 5545 escaping: the ';' inside the rule title must be escaped, or the
@@ -1020,12 +1029,32 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
   });
 });
 describe('facility verification evidence', () => {
-  it.each([null, 'pending', 'manual_review', 'no_match', 'ambiguous', 'error'])('does not confirm a facility with geocode status %s even when its supplied district resolves', (geocodeStatus) => {
-    expect(facilityStatus({ ...FACILITY, geocodeStatus } as any, REPRESENTATION[0]!.representation as any).label).toBe('Needs address verification');
+  it('separates a Census match, manual district and representative match in the actual card', async () => {
+    mockDistrictApis({ facilities: [{ ...FACILITY, districtSource: 'user', stateHouseDistrict: 'WA', stateSenateDistrict: 'First Bristol and Plymouth' }] });
+    renderDistrict();
+    expect(await screen.findByText('Geocoder: Matched')).toBeInTheDocument();
+    expect(screen.getByText('U.S. House source: Manual')).toBeInTheDocument();
+    expect(screen.getByText('State House: Not resolved')).toBeInTheDocument();
+    expect(screen.getByText('State Senate: First Bristol and Plymouth')).toBeInTheDocument();
+    expect(screen.getByText('Matches saved district')).toBeInTheDocument();
+    expect(screen.queryByText('Confirmed')).not.toBeInTheDocument();
+    expect(screen.queryByText('Needs address verification')).not.toBeInTheDocument();
   });
-  it('rejects a manually edited district and mismatched House representative', () => {
-    expect(facilityStatus({ ...FACILITY, districtSource: 'user' } as any, REPRESENTATION[0]!.representation as any).label).toBe('Needs address verification');
-    const representation = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, district: 8 }, senate: [] } };
-    expect(facilityStatus(FACILITY as any, representation as any).label).toBe('Representation mismatch');
+
+  it('does not turn a state-only facility into a district or a confirmed representative', async () => {
+    mockDistrictApis({ facilities: [{ ...FACILITY, congressionalDistrict: null, stateHouseDistrict: 'CA', stateSenateDistrict: 'FL' }] });
+    renderDistrict();
+    expect(await screen.findByText('U.S. House: Not resolved')).toBeInTheDocument();
+    expect(screen.getByText('U.S. House district missing')).toBeInTheDocument();
+    expect(screen.queryByText('WA')).not.toBeInTheDocument();
+  });
+
+  it('flags mismatched and missing representative district values, including at-large null', () => {
+    for (const district of [8, null]) {
+      const representation = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, district }, senate: [] } };
+      expect(facilityStatus(FACILITY as any, representation as any).label).toBe('Representation mismatch');
+    }
+    const atLarge = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, state: 'AK', district: null }, senate: [] } };
+    expect(facilityStatus({ ...FACILITY, state: 'AK', congressionalDistrict: '00' } as any, atLarge as any).label).toBe('Representation mismatch');
   });
 });

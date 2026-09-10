@@ -23,6 +23,7 @@ import { CapiroDrawer, CapiroModal } from '../../../components/overlays/index.js
 import { CapiroBadge } from '../../../components/badges/index.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import './advocacy-matters-tab.css';
+import { CapiroButton } from '../../../components/actions/index.js';
 
 /**
  * Advocacy Matters — Relationships / Matters sub-tab.
@@ -718,7 +719,7 @@ function MatterRow({
   );
 }
 
-function AdvocacyMatterDrawer({
+export function AdvocacyMatterDrawer({
   clientId,
   matterId,
   isAdmin,
@@ -838,17 +839,17 @@ function AdvocacyMatterDrawer({
             ) : (
               <CapiroBadge tone="neutral">Manually created</CapiroBadge>
             )}
-            {isAdmin ? (
-              <span className="capiro-advocacy-drawer-actions">
-                <PfButton variant="link" size="sm" onClick={() => setEditing(true)}>
-                  Edit
-                </PfButton>
-                <PfButton variant="link" size="sm" onClick={() => setMerging(true)}>
-                  Merge another matter into this one
-                </PfButton>
-              </span>
-            ) : null}
           </div>
+          {isAdmin ? (
+            <div className="capiro-advocacy-drawer-actions" role="group" aria-label="Matter actions">
+              <CapiroButton variant="secondary" size="compact" onClick={() => setEditing(true)}>
+                Edit
+              </CapiroButton>
+              <CapiroButton variant="secondary" size="compact" aria-label="Merge another matter into this one" onClick={() => setMerging(true)}>
+                Merge matter…
+              </CapiroButton>
+            </div>
+          ) : null}
           {detail.data.summary ? (
             <p className="capiro-advocacy-summary">{detail.data.summary}</p>
           ) : null}
@@ -1247,7 +1248,7 @@ function RecordRow({
               Corrected
             </span>
           ) : null}
-          <CapiroBadge tone="neutral">{attributionReview ? 'Attribution needs review' : EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
+          <CapiroBadge tone={attributionReview ? 'warning' : 'neutral'}>{attributionReview ? 'Attribution needs review' : EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
         </span>
       </div>
       <span className="capiro-advocacy-record__meta">

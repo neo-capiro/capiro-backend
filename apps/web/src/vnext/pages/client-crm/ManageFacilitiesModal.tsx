@@ -9,7 +9,6 @@ import {
   resolveClientFacilityDistrict,
   updateClientFacility,
   DISTRICT_PATTERN,
-  GEOCODE_STATUS_LABEL,
   US_HOUSE_SEATS,
   US_STATE_CODES,
   formatFacilityDistrict,
@@ -21,6 +20,7 @@ import { CapiroModal } from '../../components/overlays/index.js';
 import { CapiroInput, CapiroSelect } from '../../components/fields/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import './manage-facilities-modal.css';
+import { FacilityVerification } from './FacilityVerification.js';
 
 /**
  * "Manage facilities" — vNext client-facility manager.
@@ -117,6 +117,7 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['client-facilities', clientId] });
+    void qc.invalidateQueries({ queryKey: ['client-representation', clientId] });
     // The scored district models are derived from facilities, so they go stale
     // on every write here.
     void qc.invalidateQueries({ queryKey: ['client-district-nexus', clientId] });
@@ -301,15 +302,6 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
   );
 }
 
-type ResolutionTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
-
-type FacilityResolutionState = {
-  source: string;
-  sourceTone: ResolutionTone;
-  geocoder: string;
-  geocoderTone: ResolutionTone;
-};
-
 function isFacilityResolutionPending(facility: ClientFacility): boolean {
   return facility.geocodeStatus === 'pending';
 }
@@ -318,49 +310,13 @@ function isManualFacility(facility: ClientFacility): boolean {
   return facility.districtSource === 'user' || facility.districtSource === 'manual';
 }
 
-function facilityResolutionState(facility: ClientFacility): FacilityResolutionState {
-  const status = facility.geocodeStatus;
-  const manual = isManualFacility(facility);
-  const source = manual
-    ? { label: 'Manual', tone: 'warning' as const }
-    : status === 'pending'
-      ? { label: 'Pending', tone: 'info' as const }
-      : status === 'ambiguous'
-        ? { label: 'Ambiguous', tone: 'warning' as const }
-        : status === 'error'
-          ? { label: 'Error', tone: 'danger' as const }
-          : status === 'no_match'
-            ? { label: 'Unresolved', tone: 'warning' as const }
-            : facility.districtSource === 'geocoded' ||
-                facility.districtSource === 'geocoder' ||
-                status === 'matched'
-              ? { label: 'Automatic', tone: 'success' as const }
-              : facility.congressionalDistrict
-                ? { label: 'Manual', tone: 'warning' as const }
-                : { label: 'Unresolved', tone: 'warning' as const };
-
-  const geocoder =
-    status === 'matched'
-      ? { label: 'Matched', tone: 'success' as const }
-      : status === 'no_match'
-        ? { label: 'No match', tone: 'warning' as const }
-        : status === 'pending'
-          ? { label: 'Pending', tone: 'info' as const }
-          : status === 'ambiguous'
-            ? { label: 'Ambiguous', tone: 'warning' as const }
-            : status === 'error'
-              ? { label: 'Error', tone: 'danger' as const }
-              : { label: 'Not run', tone: 'neutral' as const };
-
-  return {
-    source: source.label,
-    sourceTone: source.tone,
-    geocoder: geocoder.label,
-    geocoderTone: geocoder.tone,
-  };
-}
-
 function canResolveFacility(facility: ClientFacility): boolean {
+  // The resolver preserves an explicitly supplied U.S. House district while
+  // refreshing the address and state districts. Older manual-review records
+  // need this recovery action even when their federal district is populated.
+  if (facility.districtSource === 'user' && facility.geocodeStatus === 'manual_review') {
+    return true;
+  }
   if (
     isFacilityResolutionPending(facility) ||
     (isManualFacility(facility) && Boolean(facility.congressionalDistrict))
@@ -386,24 +342,9 @@ function FacilityResolutionSummary({
   choosing?: boolean;
   onChoose?: (candidateIndex: number) => void;
 }) {
-  const state = facilityResolutionState(facility);
   return (
-    <span className="capiro-facmod__resolution" aria-label={`District resolution: ${state.source}`}>
-      <span className={`capiro-facmod__source capiro-facmod__source--${state.sourceTone}`}>
-        Source: {state.source}
-      </span>
-      <span className={`capiro-facmod__geocoder capiro-facmod__geocoder--${state.geocoderTone}`}>
-        Geocoder: {state.geocoder}
-      </span>
-      {facility.stateHouseDistrict ? <span>State House {facility.stateHouseDistrict}</span> : null}
-      {facility.stateSenateDistrict ? (
-        <span>State Senate {facility.stateSenateDistrict}</span>
-      ) : null}
-      {facility.geocodeStatus === 'matched' && facility.geocodeMatchedAddress ? (
-        <span className="capiro-facmod__recommendation">
-          Census address: {facility.geocodeMatchedAddress}
-        </span>
-      ) : null}
+    <span className="capiro-facmod__resolution">
+      <FacilityVerification facility={facility} />
       {facility.geocodeStatus === 'ambiguous' && facility.geocodeCandidates?.length ? (
         <span className="capiro-facmod__recommendation">
           <span>Choose a Census address:</span>
@@ -438,7 +379,7 @@ function FacilityResolutionSummary({
   );
 }
 
-/** "Seattle, WA · WA-07 · 240 employees · Geocoded" — every part omitted when absent. */
+/** "Seattle, WA · WA-07 · 240 employees" — every part omitted when absent. */
 function facilityMeta(facility: ClientFacility): string {
   const district = formatFacilityDistrict(facility.state, facility.congressionalDistrict);
   const place = [facility.city, facility.state].filter(Boolean).join(', ');
@@ -448,7 +389,6 @@ function facilityMeta(facility: ClientFacility): string {
     facility.employeeCount != null
       ? `${facility.employeeCount.toLocaleString('en-US')} employees`
       : null,
-    facility.geocodeStatus ? (GEOCODE_STATUS_LABEL[facility.geocodeStatus] ?? null) : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : 'No location recorded';
 }
