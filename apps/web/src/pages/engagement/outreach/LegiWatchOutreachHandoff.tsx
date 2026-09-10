@@ -110,7 +110,7 @@ export function LegiWatchOutreachHandoff({ clients, aiConfigured }: {
     <h2 id="legiwatch-outreach-review-title">Review hearing outreach</h2>
     <p>For {hearing.data.clientName}</p>
     <h3>{hearing.data.context.hearing.title}</h3>
-    <p style={{ whiteSpace: 'pre-wrap' }}>{prefill.contextItems[0].note}</p>
+    <p style={{ whiteSpace: 'pre-wrap' }}>{prefill.contextItems[0]?.note}</p>
     <p>Continue to an unsaved campaign with this client and hearing context attached. Nothing has been created or sent. Save as draft in the campaign to keep your edits.</p>
     <Button type="primary" onClick={() => setStartedIdentity(identity)}>Continue to campaign</Button>
     <Button onClick={exit}>Cancel</Button>
