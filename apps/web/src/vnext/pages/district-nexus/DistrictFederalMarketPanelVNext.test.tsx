@@ -74,6 +74,45 @@ function renderPanel(clientId: string | null = 'client-1') {
   return { ...view, rerenderPanel: () => view.rerender(element()) };
 }
 
+/**
+ * The API title-decode boundary's exact output for a provider title. Mirrors
+ * readableMarketTitle from the API's federal-market-future-signals.ts so these
+ * tests pin the real cross-layer contract: what the API ships, the panel
+ * renders verbatim.
+ */
+function apiTitle(providerTitle: string): string {
+  return providerTitle
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/?[^>]+>/g, ' ')
+    .replace(/&(#x?[0-9a-f]+|[a-z][a-z0-9]*);/gi, (match, token: string) => {
+      const key = token.toLowerCase();
+      const named: Record<string, string> = {
+        amp: '&',
+        lt: '<',
+        gt: '>',
+        quot: '"',
+        apos: "'",
+        nbsp: ' ',
+      };
+      if (Object.prototype.hasOwnProperty.call(named, key)) return named[key]!;
+      if (key.startsWith('#x')) {
+        const code = Number.parseInt(key.slice(2), 16);
+        if (Number.isFinite(code) && code >= 0 && code <= 0x10ffff)
+          return String.fromCodePoint(code);
+        return match;
+      }
+      if (key.startsWith('#')) {
+        const code = Number.parseInt(key.slice(1), 10);
+        if (Number.isFinite(code) && code >= 0 && code <= 0x10ffff)
+          return String.fromCodePoint(code);
+        return match;
+      }
+      return match;
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 describe('DistrictFederalMarketPanelVNext', () => {
   beforeEach(() => {
     Object.defineProperty(navigator, 'clipboard', {
@@ -148,15 +187,19 @@ describe('DistrictFederalMarketPanelVNext', () => {
     );
   });
 
-  test('renders readable forecast titles without provider HTML', async () => {
+  test('renders API-decoded titles verbatim, preserving literal angle brackets', async () => {
+    // Fixture is the API boundary's ACTUAL output for this provider title
+    // (readableMarketTitle): the panel must render it byte-for-byte — no
+    // second decode, no tag stripping. "Budget <2028> funding" is content,
+    // not markup.
     setMarketResponse({
       data: {
         ...marketFixture.data,
         futureSignals: [
           {
-            id: 'forecast:html',
+            id: 'forecast:boundary',
             source: 'agency_forecast',
-            title: 'Army autonomy<br />acquisition & sustainment',
+            title: apiTitle('Budget &lt;2028&gt; funding'),
             agency: 'Army',
             state: 'VA',
             districtKey: null,
@@ -168,8 +211,47 @@ describe('DistrictFederalMarketPanelVNext', () => {
       },
     });
     renderPanel();
-    expect(await screen.findByText('Army autonomy acquisition & sustainment')).toBeInTheDocument();
-    expect(screen.queryByText(/<br/i)).not.toBeInTheDocument();
+    expect(await screen.findByText('Budget <2028> funding')).toBeInTheDocument();
+    expect(screen.queryByText('Budget funding')).not.toBeInTheDocument();
+  });
+
+  test('renders API titles with hostile inputs verbatim without crashing', async () => {
+    // Out-of-range code point and prototype-key entity survive the API
+    // boundary unchanged (no throw, no function interpolation); the panel
+    // renders those exact strings.
+    setMarketResponse({
+      data: {
+        ...marketFixture.data,
+        futureSignals: [
+          {
+            id: 'forecast:hostile',
+            source: 'agency_forecast',
+            title: apiTitle('Opportunity &#x110000;'),
+            agency: 'Army',
+            state: 'VA',
+            districtKey: null,
+            date: '2027-04-01',
+            geographyBasis: 'state_text',
+            sourceUrl: null,
+          },
+          {
+            id: 'forecast:proto',
+            source: 'agency_forecast',
+            title: apiTitle('Provider &constructor; notice'),
+            agency: 'Army',
+            state: 'VA',
+            districtKey: null,
+            date: '2027-04-02',
+            geographyBasis: 'state_text',
+            sourceUrl: null,
+          },
+        ],
+      },
+    });
+    renderPanel();
+    expect(await screen.findByText('Opportunity &#x110000;')).toBeInTheDocument();
+    expect(screen.getByText('Provider &constructor; notice')).toBeInTheDocument();
+    expect(screen.queryByText(/native code/)).not.toBeInTheDocument();
   });
 
   test('surfaces partial market warnings without replacing healthy district data', async () => {
