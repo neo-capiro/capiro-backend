@@ -16,6 +16,7 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_portfolio_overlap',
   'query_funding_opportunity_match',
   'query_pe_deep_dive',
+  'query_bill_watch',
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
@@ -89,6 +90,9 @@ const OPPORTUNITY_FIT_RE =
 
 const PE_DEEP_DIVE_RE =
   /\bprogram\s+element\b|\bPE\s+[0-9A-Z]{6,}\b|\bbrief\s+(?:me\s+)?on\s+(?:the\s+)?(?:PE|program\s+element)\b|\bdeep\s+dive\s+on\s+(?:the\s+)?(?:PE|program\s+element)\b/i;
+
+const BILL_WATCH_RE =
+  /\bbills?\b.*\b(?:affect(?:ing)?|touching|relevant\s+to)\b|\b(?:tracked|watch(?:ed|ing)?)\s+bills?\b|\b(?:what\s+happened|what'?s\s+new|status)\b.*\b(?:bills?|legislation)\b|\bblegislative\s+(?:update|watch|status)\b/i;
 
 const MAIL_HISTORY_RE =
   /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
@@ -217,6 +221,10 @@ function recipeFor(
   // PE Deep Dive: “brief me on Program Element X” style requests route to the
   // deterministic five-reader PE fan-out before generic lookup lanes.
   if (PE_DEEP_DIVE_RE.test(request)) return 'query_pe_deep_dive';
+  // Bill Watch: status-driven legislative questions route to the tracked +
+  // federal + state bill fan-out (hearings are calendar-driven — separate
+  // recipe).
+  if (BILL_WATCH_RE.test(request)) return 'query_bill_watch';
   if (
     intent.subjectScope === 'portfolio' &&
     (intent.queryClass === 'change_detection' || intent.queryClass === 'portfolio_scan')

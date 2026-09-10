@@ -526,6 +526,17 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
       'search_program_elements',
     ],
   },
+  query_bill_watch: {
+    tool: 'query_bill_watch',
+    description: 'Bill status watch for one client: tracked list, federal bills, and state bills where the client has a footprint.',
+    requiredDomains: ['legislation'],
+    optionalDomains: [],
+    recommendedTools: [
+      'search_tracked_bills',
+      'search_congress_bills',
+      'search_state_bills',
+    ],
+  },
 };
 
 const DATASETS_BY_TOOL = new Map<string, MeriDatasetDefinition[]>();

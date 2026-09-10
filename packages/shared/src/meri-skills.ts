@@ -267,6 +267,24 @@ export const MERI_SKILL_REGISTRY = [
     semanticDomains: ['budget', 'awards', 'legislation'],
     readOnly: true,
   },
+  {
+    id: 'bill_watch',
+    label: 'Bill Watch',
+    description:
+      'Track the status of federal and state bills affecting a client: what we watch, what Congress is doing, and state legislation where the client has a footprint.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_bill_watch',
+    permittedScopes: ['client', 'general'],
+    starterPrompt:
+      'What is the status of bills affecting [client name]? Include federal bills and any state legislation where we have a footprint.',
+    requiredEntitlements: [],
+    semanticDomains: ['identity', 'legislation'],
+    requiresClient: true,
+    readOnly: true,
+    knowledgePlaneReplacement: 'legislation graph retrieval',
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {
