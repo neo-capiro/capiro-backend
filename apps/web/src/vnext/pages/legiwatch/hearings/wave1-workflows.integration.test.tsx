@@ -940,7 +940,7 @@ describe('W1-7 actions and W1-8 export', () => {
     renderActions();
     fireEvent.click(screen.getByRole('button', { name: 'Ask Meri' }));
 
-    expect(await screen.findByText(/Hearing context prepared for Meri/)).toBeTruthy();
+    expect(await screen.findByText(/Hearing context prepared\. Finish opening Meri/)).toBeTruthy();
     expect(
       calls.some((c) => c.method === 'post' && c.url.endsWith('/actions/ask-meri')),
     ).toBe(true);
@@ -1187,7 +1187,7 @@ describe('request behavior', () => {
       </QueryClientProvider>
     );
     const { rerender } = render(tree({ key: 'stable' }));
-    await screen.findByText(/Hearing context prepared for Meri/);
+    await screen.findByText(/Hearing context prepared\. Finish opening Meri/);
     rerender(tree({ key: 'stable' }));
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(calls.filter((c) => c.url.endsWith('/actions/ask-meri')).length).toBe(1);

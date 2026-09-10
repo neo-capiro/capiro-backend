@@ -1,35 +1,31 @@
+import { useLayoutEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import {
-  claimMeriIdentity,
-  resetChatStoreForTests,
-} from '../../components/chat/chat-store.js';
+import { claimMeriIdentity, resetChatStoreForTests } from '../../components/chat/chat-store.js';
+import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { setGlobalClientFilter } from '../../state/client-filter.js';
 import { VNextMeriWorkspace } from './VNextMeriWorkspace.js';
-
-/**
- * LW-04: the LegiWatch "Ask Meri" handoff.
- *
- * `/meri?source=legiwatch&hearingId=…&client=…` must never hydrate
- * `newestConversation` — that is the original bug, which landed the user in an
- * unrelated thread with portfolio scope. The handoff routes to `/meri/new`,
- * where client scope is applied and the sessionStorage packet is consumed once.
- */
+import { restoreMeriComposerDraft, useMeriComposerDraft } from './meri-composer-drafts.js';
+import {
+  consumeMeriHandoffPacket,
+  hearingDraftScopeError,
+  legiwatchHandoffRequest,
+  LW_MERI_CONTEXT_KEY,
+  LW_MERI_CONTEXT_MAX_AGE_MS,
+  writeMeriHandoffPacket,
+  type LegiwatchHandoffPacket,
+} from './meri-legiwatch-handoff.js';
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(async () => 'token'),
-  orgId: 'org-a' as string | null,
-  userId: 'user-a' as string | null,
+  orgId: 'org-a',
+  userId: 'user-a',
   impersonatedTenantSlug: null as string | null,
-  selectedClientId: null as string | null,
-  setSelectedClientId: vi.fn(),
   api: { post: vi.fn(), get: vi.fn(), patch: vi.fn() },
-  navigate: vi.fn(),
-  pathname: '/meri',
-  search: '',
-  shellProps: null as Record<string, unknown> | null,
+  navigate: null as ReturnType<typeof useNavigate> | null,
 }));
-
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: mocks.getToken, orgId: mocks.orgId, userId: mocks.userId }),
 }));
@@ -38,230 +34,342 @@ vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
 vi.mock('../../state/impersonation.js', () => ({
   useImpersonation: () => ({ actAsTenantSlug: mocks.impersonatedTenantSlug }),
 }));
-vi.mock('../../state/client-filter.js', () => ({
-  useClientFilter: () => ({
-    selectedClientId: mocks.selectedClientId,
-    setSelectedClientId: mocks.setSelectedClientId,
-  }),
-}));
-vi.mock('react-router-dom', () => ({
-  useLocation: () => ({ pathname: mocks.pathname, search: mocks.search }),
-  useNavigate: () => mocks.navigate,
-}));
 vi.mock('./VNextMeriIntegrations.js', () => ({ VNextMeriIntegrations: () => null }));
-vi.mock('./VNextMeriShell.js', () => ({
-  VNextMeriShell: (props: Record<string, unknown>) => {
-    mocks.shellProps = props;
-    return null;
-  },
-}));
+vi.mock('./VNextMeriShell.js', () => ({ VNextMeriShell: ComposerProbe }));
 
-let queryClient: QueryClient;
-
-function renderRoute() {
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <VNextMeriWorkspace />
-    </QueryClientProvider>,
+function ComposerProbe({ controller }: { controller: MeriChatController }) {
+  const identity = `${mocks.impersonatedTenantSlug ?? mocks.orgId}:${mocks.userId}`;
+  const { draft, setDraft, clearForSubmission } = useMeriComposerDraft(
+    identity,
+    controller.sessionId,
+  );
+  return (
+    <div>
+      <output aria-label="Client scope">{controller.selectedClientValue || 'all'}</output>
+      <textarea aria-label="Message" value={draft} onChange={(e) => setDraft(e.target.value)} />
+      <button
+        onClick={async () => {
+          const restore = clearForSubmission();
+          try {
+            if ((await controller.sendMessage(draft)) === false) restore();
+          } catch {
+            restore();
+          }
+        }}
+      >
+        Send
+      </button>
+    </div>
   );
 }
-
-function ok(body: unknown) {
-  return Promise.resolve({ ok: true, json: async () => body, text: async () => '' });
+function LocationProbe() {
+  const location = useLocation();
+  mocks.navigate = useNavigate();
+  useLayoutEffect(() => {
+    window.history.replaceState({}, '', `${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+  return (
+    <output aria-label="Route">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
 }
-
-const NEWEST_THREAD = {
-  id: 'newest-thread',
-  title: 'Unrelated newest thread',
-  clientId: null,
-  client: null,
-  latestMessage: null,
-  updatedAt: '2026-09-09T00:00:00.000Z',
-};
-
-/**
- * Full history with a newest thread, so a regression to `newestConversation`
- * visibly hydrates `newest-thread` instead of failing on an empty list.
- */
-function stubFetch() {
-  return vi.fn((url: string, init?: RequestInit) => {
-    if (url.endsWith('/api/clients')) {
-      return ok([{ id: 'client-anduril', name: 'Anduril' }]);
+const HANDOFF_QS =
+  '?source=legiwatch&hearingId=hearing-123&client=client-anduril&segmentId=segment-1&insightId=insight-1&handoffId=launch-1';
+function envelope(): LegiwatchHandoffPacket {
+  return {
+    hearingId: 'hearing-123',
+    identityKey: 'org-a:user-a',
+    handoffId: 'launch-1',
+    createdAt: Date.now(),
+    packet: {
+      source: 'legiwatch-hearing',
+      hearing: {
+        id: 'hearing-123',
+        title: 'Fauci Hearing',
+        calendarDate: '2026-07-29',
+        officialPageUrl: 'https://senate.gov/hearing-123',
+      },
+      client: { id: 'client-anduril', name: 'Anduril' },
+      transcriptSegment: {
+        id: 'segment-1',
+        text: 'A distinct selected transcript excerpt',
+        speakerLabel: 'Witness',
+        startMs: 1200,
+        endMs: 5000,
+      },
+      intelligenceFinding: {
+        id: 'insight-1',
+        title: 'A selected finding',
+        summary: 'The selected summary',
+        evidenceText: 'Quoted supporting evidence',
+        segmentId: 'segment-1',
+      },
+      clientRelevance: [
+        {
+          insightId: 'insight-1',
+          rationale: 'Relevant to the selected client',
+          band: 'high',
+          score: 90,
+        },
+      ],
+      question: null,
+      evidenceReferences: {
+        hearingId: 'hearing-123',
+        segmentIds: ['segment-1'],
+        insightIds: ['insight-1'],
+      },
+    },
+  };
+}
+function stubFetch(historyUnavailable = false) {
+  const history = [
+    {
+      id: 'newest-thread',
+      title: 'Unrelated newest thread',
+      clientId: null as string | null,
+      client: null,
+      latestMessage: null,
+      updatedAt: '2026-09-09T00:00:00.000Z',
+    },
+  ];
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const ok = (value: unknown) => new Response(JSON.stringify(value), { status: 200 });
+    if (url.endsWith('/api/clients')) return ok([{ id: 'client-anduril', name: 'Anduril' }]);
+    if (url.endsWith('/api/clio/conversations')) {
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        const thread = { ...history[0]!, id: 'created-thread', clientId: body.clientId ?? null };
+        history.push(thread);
+        return ok(thread);
+      }
+      if (historyUnavailable) return new Response('History unavailable', { status: 503 });
+      return ok(history);
     }
-    if (url.includes('/api/clio/conversations') && init?.method !== 'POST') {
-      if (url.includes('/messages')) return ok([]);
-      return ok([NEWEST_THREAD]);
-    }
+    if (url.includes('/messages')) return ok([]);
+    if (url.endsWith('/stream'))
+      return new Response('data: {"type":"done","messageId":"answer-1"}\n\n', {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
     return ok({});
   });
 }
-
-const HANDOFF_QS = '?source=legiwatch&hearingId=hearing-123&client=client-anduril';
-
-function writePacket() {
-  sessionStorage.setItem(
-    'lw:meri-context',
-    JSON.stringify({
-      hearingId: 'hearing-123',
-      hearingTitle: 'Fauci Hearing',
-      packet: { source: 'legiwatch' },
-      createdAt: Date.now(),
-    }),
+function renderRoute(initial = `/meri${HANDOFF_QS}`) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initial]}>
+        <VNextMeriWorkspace />
+        <LocationProbe />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
+function message() {
+  return screen.getByRole('textbox', { name: 'Message' }) as HTMLTextAreaElement;
+}
 
-describe('LW-04 LegiWatch → Meri handoff', () => {
+describe('LW-04 LegiWatch → Meri real route and send', () => {
   beforeEach(() => {
     resetChatStoreForTests();
-    window.sessionStorage.clear();
+    sessionStorage.clear();
+    setGlobalClientFilter(null);
     mocks.orgId = 'org-a';
     mocks.userId = 'user-a';
     mocks.impersonatedTenantSlug = null;
-    mocks.selectedClientId = null;
-    mocks.setSelectedClientId.mockClear();
-    mocks.navigate.mockClear();
-    mocks.pathname = '/meri';
-    mocks.search = '';
-    mocks.shellProps = null;
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
-    });
     mocks.api.get.mockResolvedValue({
-      data: { tenant: { name: 'Tenant Under Test' }, features: { meriv3Chat: true } },
+      data: { tenant: { name: 'Tenant under test' }, features: { meriv3Chat: true } },
     });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  test('handoff params on /meri never hydrate the newest conversation', async () => {
     claimMeriIdentity('org-a:user-a');
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  test('prepares actual evidence without opening history or sending, then sends it once under the selected client', async () => {
     const fetchMock = stubFetch();
     vi.stubGlobal('fetch', fetchMock);
-    mocks.pathname = '/meri';
-    mocks.search = HANDOFF_QS;
-
-    await act(async () => {
-      renderRoute();
-    });
-
-    // The boot effect redirects the handoff to /meri/new; it never hydrates
-    // the newest durable thread.
+    writeMeriHandoffPacket(envelope());
+    renderRoute();
+    await waitFor(() =>
+      expect(message().value).toContain('A distinct selected transcript excerpt'),
+    );
+    expect(screen.getByLabelText('Client scope').textContent).toBe('client-anduril');
+    expect(screen.getByLabelText('Route').textContent).toBe('/meri/new');
+    for (const text of [
+      'Quoted supporting evidence',
+      'Relevant to the selected client',
+      'https://senate.gov/hearing-123',
+    ])
+      expect(message().value).toContain(text);
+    expect(sessionStorage.getItem(LW_MERI_CONTEXT_KEY)).toBeNull();
     expect(
       fetchMock.mock.calls.some(
-        ([url]) => String(url).includes('newest-thread') || String(url).includes('/messages'),
+        ([url, init]) => url.includes('/messages') || init?.method === 'POST',
       ),
     ).toBe(false);
-    await waitFor(() => {
-      expect(mocks.navigate).toHaveBeenCalled();
-    });
-    const redirect = mocks.navigate.mock.calls
-      .map(([to]) => String(to))
-      .find((to) => to.startsWith('/meri/new'));
-    expect(redirect).toBeTruthy();
-    expect(redirect).toContain('source=legiwatch');
-  });
-
-  test('handoff on /meri/new applies client scope and consumes the packet once', async () => {
-    claimMeriIdentity('org-a:user-a');
-    const fetchMock = stubFetch();
-    vi.stubGlobal('fetch', fetchMock);
-    writePacket();
-    mocks.pathname = '/meri/new';
-    mocks.search = HANDOFF_QS;
-
-    await act(async () => {
-      renderRoute();
-    });
-
-    await waitFor(() => {
-      expect(mocks.setSelectedClientId).toHaveBeenCalledWith('client-anduril');
-    });
-    // The packet is consumed (removed) exactly once.
-    expect(sessionStorage.getItem('lw:meri-context')).toBeNull();
-
-    // Params are stripped after the handoff is honored.
-    await waitFor(() => {
-      const stripped = mocks.navigate.mock.calls.some(([to]) => {
-        if (typeof to !== 'string') {
-          const target = to as { pathname?: string; search?: string };
-          return (
-            target.pathname === '/meri/new' &&
-            !(target.search ?? '').includes('source=legiwatch')
-          );
-        }
-        return to.startsWith('/meri/new') && !to.includes('source=legiwatch');
-      });
-      expect(stripped).toBe(true);
-    });
-    // And no route error: the handoff succeeded.
-    expect(document.querySelector('.vnext-meri__route-error')).toBeNull();
-  });
-
-  test('a missing packet with handoff params fails loudly, never silently', async () => {
-    claimMeriIdentity('org-a:user-a');
-    vi.stubGlobal('fetch', stubFetch());
-    // No packet written.
-    mocks.pathname = '/meri/new';
-    mocks.search = HANDOFF_QS;
-
-    await act(async () => {
-      renderRoute();
-    });
-
-    await waitFor(() => {
-      expect(document.querySelector('.vnext-meri__route-error')).not.toBeNull();
-    });
-    expect(document.querySelector('.vnext-meri__route-error')?.textContent).toContain(
-      'hearing context packet was not found',
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/stream'))).toHaveLength(1),
     );
-  });
-
-  test('an unknown handoff client fails loudly, never silently', async () => {
-    claimMeriIdentity('org-a:user-a');
-    vi.stubGlobal('fetch', stubFetch());
-    writePacket();
-    mocks.pathname = '/meri/new';
-    mocks.search = '?source=legiwatch&hearingId=hearing-123&client=client-gone';
-
-    await act(async () => {
-      renderRoute();
-    });
-
-    await waitFor(() => {
-      expect(document.querySelector('.vnext-meri__route-error')).not.toBeNull();
-    });
-    expect(document.querySelector('.vnext-meri__route-error')?.textContent).toContain(
-      'not available here',
+    const create = fetchMock.mock.calls.find(
+      ([url, init]) => url.endsWith('/conversations') && init?.method === 'POST',
     );
-    // The unknown client was never applied as scope.
-    expect(mocks.setSelectedClientId).not.toHaveBeenCalledWith('client-gone');
+    expect(JSON.parse(String(create?.[1]?.body)).clientId).toBe('client-anduril');
+    const stream = fetchMock.mock.calls.find(([url]) => url.endsWith('/stream'));
+    expect(JSON.parse(String(stream?.[1]?.body)).body).toContain(
+      'A distinct selected transcript excerpt',
+    );
+    expect(JSON.parse(String(stream?.[1]?.body)).body).toContain('Hearing ID: hearing-123');
+    await waitFor(() =>
+      expect(screen.getByLabelText('Route').textContent).toBe('/meri/t/created-thread'),
+    );
+    expect(document.querySelector('.vnext-meri__handoff-chip')).toBeNull();
   });
-
-  test('root route without handoff params keeps the newest-thread behavior', async () => {
-    claimMeriIdentity('org-a:user-a');
-    const fetchMock = stubFetch();
+  test('a history outage does not discard the verified roster or block a record-free hearing draft', async () => {
+    const fetchMock = stubFetch(true);
     vi.stubGlobal('fetch', fetchMock);
-    mocks.pathname = '/meri';
-    mocks.search = '';
-
-    await act(async () => {
+    writeMeriHandoffPacket(envelope());
+    renderRoute();
+    await waitFor(() => expect(message().value).toContain('Hearing ID: hearing-123'));
+    expect(screen.getByLabelText('Client scope').textContent).toBe('client-anduril');
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    await waitFor(() => expect(screen.getByLabelText('Route').textContent).toBe('/meri/new'));
+  });
+  test('All clients resets an unrelated inherited client selection', async () => {
+    setGlobalClientFilter('client-anduril');
+    const entry = envelope();
+    entry.packet.client = null;
+    entry.packet.clientRelevance = [];
+    writeMeriHandoffPacket(entry);
+    vi.stubGlobal('fetch', stubFetch());
+    renderRoute(`/meri/new${HANDOFF_QS.replace('&client=client-anduril', '')}`);
+    await waitFor(() => expect(message().value).toContain('Client scope: All clients'));
+    expect(screen.getByLabelText('Client scope').textContent).toBe('all');
+  });
+  test.each(['missing', 'wrong-account', 'wrong-client', 'expired'] as const)(
+    'rejects %s context without preparing or sending content',
+    async (scenario) => {
+      const entry = envelope();
+      if (scenario === 'wrong-account') entry.identityKey = 'org-other:user-a';
+      if (scenario === 'wrong-client') entry.packet.client = { id: 'client-other', name: 'Other' };
+      if (scenario === 'expired') entry.createdAt -= LW_MERI_CONTEXT_MAX_AGE_MS + 1;
+      if (scenario !== 'missing') writeMeriHandoffPacket(entry);
+      const fetchMock = stubFetch();
+      vi.stubGlobal('fetch', fetchMock);
       renderRoute();
-    });
-
-    // No-regression: the ordinary root route still hydrates the newest thread.
-    await waitFor(() => {
-      expect(
-        fetchMock.mock.calls.some(([url]) => String(url).includes('newest-thread/messages')),
-      ).toBe(true);
-    });
-    await waitFor(() => {
-      expect(
-        mocks.navigate.mock.calls.some(
-          ([to]) => String(to) === '/meri/t/newest-thread',
+      await waitFor(() =>
+        expect(document.querySelector('.vnext-meri__route-error')?.textContent).toContain(
+          'missing, expired, or does not match',
         ),
-      ).toBe(true);
-    });
+      );
+      expect(message().value).toBe('');
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    },
+  );
+  test('preserves an existing unsent draft and clearly refuses to replace it', async () => {
+    restoreMeriComposerDraft('org-a:user-a', null, 'My unfinished question');
+    writeMeriHandoffPacket(envelope());
+    vi.stubGlobal('fetch', stubFetch());
+    renderRoute();
+    await waitFor(() =>
+      expect(document.querySelector('.vnext-meri__route-error')?.textContent).toContain(
+        'Your draft was preserved',
+      ),
+    );
+    expect(message().value).toBe('My unfinished question');
   });
+  test('malformed LegiWatch links never fall through to the newest thread', async () => {
+    const fetchMock = stubFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    renderRoute('/meri?source=legiwatch');
+    await waitFor(() => expect(document.querySelector('.vnext-meri__route-error')).not.toBeNull());
+    expect(screen.getByLabelText('Route').textContent).toBe('/meri/new');
+    expect(fetchMock.mock.calls.some(([url]) => url.includes('/messages'))).toBe(false);
+  });
+  test('a recovered client hearing draft blocks Send under All clients until scope is corrected', async () => {
+    const fetchMock = stubFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    writeMeriHandoffPacket(envelope());
+    const first = renderRoute();
+    await waitFor(() => expect(message().value).toContain('Hearing ID: hearing-123'));
+    first.unmount();
+    setGlobalClientFilter(null);
+    renderRoute('/meri/new');
+    await waitFor(() => expect(message().value).toContain('Hearing ID: hearing-123'));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() =>
+      expect(document.querySelector('.vnext-meri__route-error')?.textContent).toContain(
+        'Select Anduril before sending',
+      ),
+    );
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    expect(message().value).toContain('Hearing ID: hearing-123');
+    act(() => setGlobalClientFilter('client-anduril'));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/stream'))).toHaveLength(1),
+    );
+  });
+  test('ordinary root navigation still opens the newest thread', async () => {
+    const fetchMock = stubFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    renderRoute('/meri');
+    await waitFor(() =>
+      expect(screen.getByLabelText('Route').textContent).toBe('/meri/t/newest-thread'),
+    );
+    expect(fetchMock.mock.calls.some(([url]) => url.includes('newest-thread/messages'))).toBe(true);
+  });
+  test('a simultaneous generic launch cannot automatically send a different prompt', async () => {
+    writeMeriHandoffPacket(envelope());
+    const fetchMock = stubFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    renderRoute(`/meri/new${HANDOFF_QS}&meriPrompt=Unrelated+request&meriClient=client-anduril`);
+    await waitFor(() => expect(message().value).toContain('Hearing ID: hearing-123'));
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    await waitFor(() => expect(screen.getByLabelText('Route').textContent).toBe('/meri/new'));
+  });
+  test('prepared draft survives an integrations detour without leaking to another identity', async () => {
+    writeMeriHandoffPacket(envelope());
+    vi.stubGlobal('fetch', stubFetch());
+    const view = renderRoute();
+    await waitFor(() => expect(message().value).toContain('Hearing ID: hearing-123'));
+    await act(async () => mocks.navigate?.('/meri/integrations'));
+    await act(async () => mocks.navigate?.('/meri/new'));
+    await waitFor(() => expect(message().value).toContain('Hearing ID: hearing-123'));
+    view.unmount();
+    mocks.orgId = 'org-other';
+    renderRoute('/meri/new');
+    await waitFor(() => expect(message().value).toBe(''));
+    expect(document.querySelector('.vnext-meri__handoff-chip')).toBeNull();
+  });
+});
+describe('one-time handoff validation', () => {
+  beforeEach(() => sessionStorage.clear());
+  test('ordinary prompts do not require session storage', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('disabled');
+    });
+    expect(hearingDraftScopeError('org-a:user-a', 'My ordinary question', null)).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+  test.each(['hearing', 'nonce', 'segment', 'insight', 'future', 'malformed'] as const)(
+    'rejects %s mismatch',
+    (scenario) => {
+      const entry = envelope();
+      if (scenario === 'hearing') entry.packet.hearing.id = 'other';
+      if (scenario === 'nonce') entry.handoffId = 'previous-launch';
+      if (scenario === 'segment') entry.packet.evidenceReferences.segmentIds = ['other'];
+      if (scenario === 'insight') entry.packet.intelligenceFinding = { id: 'other' };
+      if (scenario === 'future') entry.createdAt = Date.now() + 60_000;
+      writeMeriHandoffPacket(entry);
+      if (scenario === 'malformed') sessionStorage.setItem(LW_MERI_CONTEXT_KEY, '{broken');
+      expect(
+        consumeMeriHandoffPacket(legiwatchHandoffRequest(HANDOFF_QS)!, 'org-a:user-a'),
+      ).toBeNull();
+      expect(sessionStorage.getItem(LW_MERI_CONTEXT_KEY)).toBeNull();
+    },
+  );
 });
