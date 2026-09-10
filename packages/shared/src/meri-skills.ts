@@ -165,6 +165,22 @@ export const MERI_SKILL_REGISTRY = [
     readOnly: true,
     knowledgePlaneReplacement: 'portfolio graph retrieval',
   },
+  {
+    id: 'mail_history',
+    label: 'Mail History',
+    description:
+      'The correspondence timeline between us and a person or organization: key threads, commitments made, and open items, with message dates.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_relationship_brief',
+    permittedScopes: ['general', 'client', 'external_entity'],
+    starterPrompt:
+      'Search my mailbox history with [person or organization] and produce a correspondence timeline. For each key thread: the subject, the dates, what was asked or promised, and any commitments or open items still outstanding. Cite message dates for every claim. Check every required authorized mail source before concluding; do not claim there is no correspondence unless the coverage manifest supports it.',
+    requiredEntitlements: [],
+    semanticDomains: ['mail', 'clients', 'contacts', 'documents', 'tasks', 'action_items'],
+    readOnly: true,
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

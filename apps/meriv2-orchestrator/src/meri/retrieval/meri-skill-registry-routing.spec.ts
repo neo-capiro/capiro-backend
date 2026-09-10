@@ -73,4 +73,16 @@ describe('Meri Quick Action routing contract', () => {
 
     expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
   });
+
+  test('Mail History routes to the relationship fan-out with the mail lane', () => {
+    const definition = skill('mail_history');
+    const prompt = hydrateMeriStarterPrompt(definition).replace(
+      '[person or organization]',
+      'Victory Six',
+    );
+    const plan = planFor(prompt);
+
+    expect(plan.recipeTool).toBe(definition.canonicalRecipe);
+    expect(prompt).toMatch(/mailbox history/);
+  });
 });
