@@ -29,7 +29,11 @@ import {
 import { VNextMeriIntegrations } from './VNextMeriIntegrations.js';
 import { VNextMeriShell } from './VNextMeriShell.js';
 import { readDraftReasoningMode } from './meri-reasoning-state.js';
-import { moveMeriComposerDraft, restoreMeriComposerDraft } from './meri-composer-drafts.js';
+import {
+  moveMeriComposerDraft,
+  restoreMeriComposerDraft,
+  useMeriComposerDraft,
+} from './meri-composer-drafts.js';
 import {
   mayApplyIdentityResult,
   mayApplyRecordFreeCreation,
@@ -58,6 +62,14 @@ import {
   withoutMeriContext,
   type PersistedMessage,
 } from './meri-route-state.js';
+import {
+  consumeMeriHandoffPacket,
+  legiwatchHandoffRequest,
+  legiwatchHandoffPrompt,
+  writeHearingDraftScope,
+  hearingDraftScopeError,
+  withoutLegiwatchParams,
+} from './meri-legiwatch-handoff.js';
 
 interface ClientOption {
   id: string;
@@ -134,12 +146,22 @@ export function VNextMeriWorkspace() {
   const requestedThreadId = threadIdFromPath(location.pathname);
   const isNewRoute = location.pathname === '/meri/new';
   const isRootRoute = location.pathname === '/meri';
+  const rootHandoffSearch =
+    isRootRoute && legiwatchHandoffRequest(location.search) ? location.search : null;
   const isIntegrationsRoute = location.pathname === '/meri/integrations';
 
   const [routeReady, setRouteReady] = useState(false);
   const [routeClients, setRouteClients] = useState<ClientOption[]>([]);
   const [routeClientsError, setRouteClientsError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  // Set when a LegiWatch handoff is actually consumed on `/meri/new`; cleared
+  // with it so the chip can never outlive the handoff that produced it.
+  const [handoffChip, setHandoffChip] = useState<{ hearingId: string; title: string } | null>(null);
+  const { draft: hearingDraft, setDraft: setHearingDraft } = useMeriComposerDraft(
+    identityKey,
+    null,
+  );
+  const handledLegiwatchRef = useRef<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyEpoch, setHistoryEpoch] = useState(0);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
@@ -214,6 +236,8 @@ export function VNextMeriWorkspace() {
     setSelectedClientId(null);
     setRouteClientsError(null);
     setRouteError(null);
+    setHandoffChip(null);
+    handledLegiwatchRef.current = null;
     setHistoryError(null);
     setRouteReady(false);
   }, [identityKey, queryClient, setSelectedClientId]);
@@ -234,6 +258,8 @@ export function VNextMeriWorkspace() {
     // creation. Once the URL changes, clear its payload before any destination
     // hydration can publish a session id.
     if (previousPath !== null && previousPath !== location.pathname) {
+      setHandoffChip(null);
+      handledLegiwatchRef.current = null;
       pendingSendRef.current = null;
       pendingSendEpochRef.current = null;
       pendingSendSessionIdRef.current = null;
@@ -559,6 +585,11 @@ export function VNextMeriWorkspace() {
     setRouteError(null);
     setHistoryError(null);
     setRouteClientsError(null);
+    // A record-free hearing launch does not need to resolve durable history.
+    if (rootHandoffSearch !== null) {
+      navigate(`/meri/new${withoutMeriContext(rootHandoffSearch)}`, { replace: true });
+      return;
+    }
 
     void (async () => {
       try {
@@ -574,11 +605,7 @@ export function VNextMeriWorkspace() {
           );
           setHistoryError(message);
           setConversations([]);
-          if (isNewRoute || isIntegrationsRoute) {
-            setRouteReady(true);
-            return;
-          }
-          throw historyResult.reason;
+          if (!isNewRoute && !isIntegrationsRoute) throw historyResult.reason;
         }
 
         const clients = clientsResult.status === 'fulfilled' ? clientsResult.value : [];
@@ -588,8 +615,8 @@ export function VNextMeriWorkspace() {
             ? errorMessage(clientsResult.reason, 'Client scope could not be loaded.')
             : null,
         );
-        setConversations(historyResult.value);
-        const history = historyResult.value;
+        const history = historyResult.status === 'fulfilled' ? historyResult.value : [];
+        setConversations(history);
 
         if (isIntegrationsRoute) {
           // Integrations is addressable but must not select/create a conversation
@@ -666,6 +693,7 @@ export function VNextMeriWorkspace() {
     isIntegrationsRoute,
     isNewRoute,
     isRootRoute,
+    rootHandoffSearch,
     loadClients,
     loadConversations,
     navigate,
@@ -678,6 +706,15 @@ export function VNextMeriWorkspace() {
   // ref lock closes the double-click gap before React can publish the busy state.
   const sendMessage = useCallback(
     async (...args: SendArgs) => {
+      const scopeError = hearingDraftScopeError(
+        identityKey,
+        args[0],
+        controller.sessionId ? controller.selectedClientValue || null : selectedClientId,
+      );
+      if (scopeError) {
+        setRouteError(scopeError);
+        throw new Error(scopeError);
+      }
       if (controller.sessionId) {
         setMeriSurfaceMode('undocked');
         return controller.sendMessage(...args);
@@ -750,7 +787,15 @@ export function VNextMeriWorkspace() {
       // effect below restores that thread's draft if acceptance later fails.
       return true;
     },
-    [controller.sendMessage, controller.sessionId, createRecordFreeSession, isCreatingThread],
+    [
+      controller.sendMessage,
+      controller.sessionId,
+      controller.selectedClientValue,
+      createRecordFreeSession,
+      identityKey,
+      isCreatingThread,
+      selectedClientId,
+    ],
   );
 
   useEffect(() => {
@@ -808,6 +853,7 @@ export function VNextMeriWorkspace() {
   // closed rather than silently sending the prompt across the whole portfolio.
   useEffect(() => {
     if (!routeReady || !isNewRoute) return;
+    if (legiwatchHandoffRequest(location.search)) return;
     const request = meriContextRequest(location.search);
     if (!request) {
       handledContextRef.current = null;
@@ -866,6 +912,87 @@ export function VNextMeriWorkspace() {
     routeReady,
     selectedClientId,
     sendMessage,
+    setSelectedClientId,
+  ]);
+
+  // Put the verified evidence in the canonical composer draft. The user's Send
+  // persists and streams that same text through the ordinary Meri controller;
+  // merely showing a chip would lose the packet before it ever reached Meri.
+  useEffect(() => {
+    if (!routeReady || !isNewRoute) return;
+    const handoff = legiwatchHandoffRequest(location.search);
+    if (!handoff) {
+      handledLegiwatchRef.current = null;
+      return;
+    }
+    const requestKey = `${identityKey}\u0000${location.search}`;
+    if (handledLegiwatchRef.current === requestKey) return;
+    const finish = (error: string | null) => {
+      handledLegiwatchRef.current = requestKey;
+      navigate(
+        {
+          pathname: location.pathname,
+          search: withoutMeriContext(withoutLegiwatchParams(location.search)),
+        },
+        { replace: true },
+      );
+      setRouteError(error);
+      if (error) setHandoffChip(null);
+    };
+
+    if (hearingDraft.trim()) {
+      finish(
+        'You already have an unsent draft. Send it or clear it, then choose Ask Meri from the hearing again. Your draft was preserved.',
+      );
+      return;
+    }
+    if (handoff.clientId) {
+      if (routeClientsError || routeClients.length === 0) {
+        finish(
+          'The hearing handoff could not be verified against your client roster. Nothing was sent.',
+        );
+        return;
+      }
+      if (!routeClients.some((client) => client.id === handoff.clientId)) {
+        finish('The client selected in LegiWatch is not available here. Nothing was sent.');
+        return;
+      }
+    }
+    // All clients is explicit too: never inherit an unrelated previous lens.
+    if (selectedClientId !== handoff.clientId) {
+      setSelectedClientId(handoff.clientId);
+      return;
+    }
+    const entry = consumeMeriHandoffPacket(handoff, identityKey);
+    if (!entry) {
+      finish(
+        'The hearing context is missing, expired, or does not match this account and selection. Open the hearing in LegiWatch and choose Ask Meri again.',
+      );
+      return;
+    }
+    try {
+      writeHearingDraftScope(identityKey, entry.packet);
+    } catch {
+      finish(
+        'The hearing client scope could not be saved. Open the hearing and choose Ask Meri again.',
+      );
+      return;
+    }
+    setHearingDraft(legiwatchHandoffPrompt(entry.packet));
+    setHandoffChip({ hearingId: handoff.hearingId, title: String(entry.packet.hearing.title) });
+    finish(null);
+  }, [
+    hearingDraft,
+    identityKey,
+    isNewRoute,
+    location.pathname,
+    location.search,
+    navigate,
+    routeClients,
+    routeClientsError,
+    routeReady,
+    selectedClientId,
+    setHearingDraft,
     setSelectedClientId,
   ]);
 
@@ -1101,6 +1228,11 @@ export function VNextMeriWorkspace() {
       {routeError ? (
         <div className="vnext-meri__route-error" role="alert">
           {routeError}
+        </div>
+      ) : null}
+      {handoffChip && hearingDraft.split('\n').includes(`Hearing ID: ${handoffChip.hearingId}`) ? (
+        <div className="vnext-meri__handoff-chip" role="status">
+          Question prepared for {handoffChip.title}. Review it below and send when ready.
         </div>
       ) : null}
       <VNextMeriShell
