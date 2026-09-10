@@ -23,7 +23,7 @@ import {
   type ClientProfileFillGovernedContext,
 } from './client-profile-fill-context-plane.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
+import { buildFillRunSummary, requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
 
 export const CLIENT_PROFILE_FILL_TASK_TYPES = [
@@ -85,7 +85,6 @@ interface FillEngineInternals {
     documentText: string,
   ): Promise<number>;
   maybeSeedWebsite(ctx: TenantContext, clientId: string, seedWebsite?: string | null): Promise<void>;
-  buildSummary(tenantId: string, runId: string): Promise<Record<string, unknown>>;
 }
 
 interface WorkflowRunRow {
@@ -1251,7 +1250,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         );
         if (taskRows.some((task) => task.status === 'queued' || task.status === 'running')) return;
         const status = deriveClientProfileFillRunStatus(taskRows.map((row) => row.status));
-        const summary = await this.engine.buildSummary(run.tenantId, run.id);
+        const summary = await buildFillRunSummary(tx, run.id, run.tenantId);
         await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run
               SET status = $3,

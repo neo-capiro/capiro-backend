@@ -23,6 +23,8 @@ jobs:
   q10-q12:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

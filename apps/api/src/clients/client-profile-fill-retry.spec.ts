@@ -37,6 +37,39 @@ function build(tx: any = {}, workflow: any = {}) {
 }
 
 describe('Fill specialist retry and completion (Q11)', () => {
+  it('finalizes a core-only run and its finding summary in the same transaction', async () => {
+    const tx = {
+      $queryRawUnsafe: jest.fn(async (sql: string) => {
+        if (sql.includes('GROUP BY kind'))
+          return [{ kind: 'profile_field', state: 'accepted', count: 2 }];
+        if (sql.includes('SELECT status')) return [{ status: 'completed' }];
+        return [{ id: 'run-1', tenantId: 'tenant-1' }];
+      }),
+      $executeRawUnsafe: jest.fn().mockResolvedValue(1),
+    };
+    const prisma = { withSystem: jest.fn((fn) => fn(tx)) };
+    const engine = {
+      buildSummary: jest.fn(() => {
+        throw new Error('Nested transaction');
+      }),
+    };
+    const service = new ClientProfileFillWorkflowService(
+      prisma as any,
+      engine as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    ) as any;
+    await service.finalizeReadyRuns();
+    expect(engine.buildSummary).not.toHaveBeenCalled();
+    expect(prisma.withSystem).toHaveBeenCalledTimes(2); // Candidate scan, then one locked transaction.
+    const [, runId, tenantId, status, summary] = tx.$executeRawUnsafe.mock.calls[0];
+    expect([runId, tenantId, status]).toEqual(['run-1', 'tenant-1', 'completed']);
+    expect(JSON.parse(summary)).toMatchObject({ total: 2, byStatus: { accepted: 2 } });
+  });
+
   it.each(['resolve', 'recordRunContext'])(
     'times out stalled %s and does not start a late specialist',
     async (blockedStep) => {

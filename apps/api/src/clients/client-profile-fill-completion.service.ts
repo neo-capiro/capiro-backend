@@ -22,7 +22,7 @@ import {
 } from './client-profile-fill.helpers.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
+import { buildFillRunSummary, requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
 import {
   ClientAdvocacyMatterService,
   type FederalRegisterCorrelationSuggestion,
@@ -4828,25 +4828,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           (row) => row.status === 'completed' || row.status === 'skipped',
         ).length;
         const status = failed > 0 ? (completed > 0 ? 'partial' : 'failed') : 'completed';
-        const summaryRows = await tx.$queryRawUnsafe<Array<{ kind: string; state: string; count: number }>>(
-          `SELECT kind, status AS state, COUNT(*)::int AS count
-             FROM client_profile_fill_finding
-            WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-            GROUP BY kind, status`,
-          run.runId,
-          run.tenantId,
-        );
-        const byKind: Record<string, number> = {};
-        const byStatus: Record<string, number> = {};
-        for (const row of summaryRows) {
-          byKind[row.kind] = (byKind[row.kind] ?? 0) + Number(row.count);
-          byStatus[row.state] = (byStatus[row.state] ?? 0) + Number(row.count);
-        }
-        const summary = {
-          total: summaryRows.reduce((sum, row) => sum + Number(row.count), 0),
-          byKind,
-          byStatus,
-        };
+        const summary = await buildFillRunSummary(tx, run.runId, run.tenantId);
         await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run
               SET status = $3,
