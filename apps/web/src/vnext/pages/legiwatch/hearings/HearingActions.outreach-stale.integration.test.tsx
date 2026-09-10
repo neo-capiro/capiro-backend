@@ -61,11 +61,11 @@ describe('Stage outreach producer completion guards', () => {
     await waitFor(() => expect(pending).toHaveLength(1));
     ui.update({ pendingAction: { action: 'stage_outreach', refs: { segmentId: 'moment-2' } } });
     await waitFor(() => expect(pending).toHaveLength(2));
-    await act(async () => { pending[1]({ clientId: 'client-1', moment: 'moment-2' }); });
+    await act(async () => { pending[1]!({ clientId: 'client-1', moment: 'moment-2' }); });
     expect(await screen.findByRole('button', { name: 'Open →' })).toBeInTheDocument();
     const stored = JSON.parse(sessionStorage.getItem('lw:outreach-context')!);
     expect(stored.prefill.moment).toBe('moment-2');
-    await act(async () => { pending[0]({ clientId: 'client-1', moment: 'moment-1' }); });
+    await act(async () => { pending[0]!({ clientId: 'client-1', moment: 'moment-1' }); });
     expect(JSON.parse(sessionStorage.getItem('lw:outreach-context')!).prefill.moment).toBe('moment-2');
     fireEvent.click(screen.getByRole('button', { name: 'Open →' }));
     expect(screen.getByTestId('location')).toHaveTextContent(`contextId=${stored.id}`);

@@ -22,10 +22,12 @@ describe('LegiWatch handoff identities and wizard data', () => {
     const state = prefillToWizardState(result.handoff.prefill);
     expect(state.clientId).toBe('client-1');
     expect(state.campaignName).toBe('Procurement gap');
-    expect(state.contextItems[0].note).toContain('Shipbuilding readiness');
-    expect(state.contextItems[0].note).toContain('\n\nFinding: Procurement gap');
-    expect(state.contextItems[0].note).toContain('/legiwatch/hearings/hearing-1');
-    expect(state.contextItems[0]).toMatchObject({ kind: 'note', scope: 'all', noteUse: 'fact' });
+    const item = state.contextItems[0];
+    if (!item) throw new Error('Expected hearing context in the wizard');
+    expect(item.note).toContain('Shipbuilding readiness');
+    expect(item.note).toContain('\n\nFinding: Procurement gap');
+    expect(item.note).toContain('/legiwatch/hearings/hearing-1');
+    expect(item).toMatchObject({ kind: 'note', scope: 'all', noteUse: 'fact' });
     clearLegiWatchHandoff(result.handoff.id);
     expect(sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY)).toBeNull();
   });
@@ -51,6 +53,7 @@ describe('LegiWatch handoff identities and wizard data', () => {
     const result = readLegiWatchHandoff('client-1', 'hearing-1', 'handoff-1');
     if (!result.ok) throw new Error('Unexpected rejection');
     const item = prefillToWizardState(result.handoff.prefill).contextItems[0];
+    if (!item) throw new Error('Expected the bounded hearing context note');
     expect(item.note.length).toBeLessThanOrEqual(8000);
     expect(item.note).toContain('Excerpt; open the hearing');
     expect(item.note).toContain('/legiwatch/hearings/hearing-1');
