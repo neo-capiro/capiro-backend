@@ -148,6 +148,30 @@ describe('DistrictFederalMarketPanelVNext', () => {
     );
   });
 
+  test('renders readable forecast titles without provider HTML', async () => {
+    setMarketResponse({
+      data: {
+        ...marketFixture.data,
+        futureSignals: [
+          {
+            id: 'forecast:html',
+            source: 'agency_forecast',
+            title: 'Army autonomy<br />acquisition & sustainment',
+            agency: 'Army',
+            state: 'VA',
+            districtKey: null,
+            date: '2027-04-01',
+            geographyBasis: 'state_text',
+            sourceUrl: null,
+          },
+        ],
+      },
+    });
+    renderPanel();
+    expect(await screen.findByText('Army autonomy acquisition & sustainment')).toBeInTheDocument();
+    expect(screen.queryByText(/<br/i)).not.toBeInTheDocument();
+  });
+
   test('surfaces partial market warnings without replacing healthy district data', async () => {
     setMarketResponse({
       data: {

@@ -59,6 +59,7 @@ describeDb('District Nexus canary SQL contracts', () => {
       'agency',
       'placeOfPerformance',
       'anticipatedAwardDate',
+      'isActive',
       'sourceUrl',
     ]);
     await createTable('CongressMember', [
@@ -122,6 +123,31 @@ describeDb('District Nexus canary SQL contracts', () => {
     const result = await market().geography('tenant', { state: 'VA', district: '10' });
     expect(result.futureSignalsAvailability).toBe('available');
     expect(result.futureSignals).toEqual([]);
+  });
+  test('excludes past and inactive forecasts from upcoming signals while keeping availability', async () => {
+    await db.$executeRawUnsafe(`INSERT INTO tango_procurement_forecast
+      (id, title, organization_agency_name, agency, place_of_performance, anticipated_award_date, is_active) VALUES
+      ('past', 'Past forecast', 'Agency', 'Agency', 'Florida', '2020-01-01', true),
+      ('inactive', 'Inactive future', 'Agency', 'Agency', 'Florida', (CURRENT_DATE + interval '30 days')::date, false),
+      ('upcoming', 'Live upcoming<br />signal', 'Agency', 'Agency', 'Florida', (CURRENT_DATE + interval '14 days')::date, true),
+      ('undated', 'Undated forecast', 'Agency', 'Agency', 'Florida', null, true)`);
+    try {
+      const result = await market().geography('tenant', { state: 'FL', district: '08' });
+      expect(result.futureSignalsAvailability).toBe('available');
+      const forecastIds = result.futureSignals
+        .filter((s) => s.source === 'agency_forecast')
+        .map((s) => s.id)
+        .sort();
+      expect(forecastIds).toEqual(['forecast:undated', 'forecast:upcoming'].sort());
+      expect(result.futureSignals.some((s) => s.id === 'forecast:past')).toBe(false);
+      expect(result.futureSignals.some((s) => s.id === 'forecast:inactive')).toBe(false);
+      const upcoming = result.futureSignals.find((s) => s.id === 'forecast:upcoming');
+      expect(upcoming?.title).toBe('Live upcoming signal');
+    } finally {
+      await db.$executeRawUnsafe(
+        `DELETE FROM tango_procurement_forecast WHERE id IN ('past','inactive','upcoming','undated')`,
+      );
+    }
   });
   test('a real database error is unavailable, never a successful zero', async () => {
     await db.$executeRawUnsafe(

@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { isResolvableContractorId } from '../funding-opportunities/award-history-identity.js';
 import {
-  buildClientAwardScope,
-  clientAwardScopeSql,
-  type ClientAwardScope,
-} from '../funding-opportunities/client-award-scope.js';
+  buildAwardIdentityRails,
+  isResolvableContractorId,
+  type AwardIdentityRail,
+} from '../funding-opportunities/award-history-identity.js';
+import { awardIdentityRailSql } from '../funding-opportunities/award-identity-rail-sql.js';
+import {
+  isActiveForecastFlag,
+  isUpcomingForecastDate,
+  rankFutureSignalsByDate,
+  readableMarketTitle,
+} from './federal-market-future-signals.js';
 import type {
   FederalContractMarketRow,
   FederalForecastMarketRow,
@@ -24,8 +30,9 @@ const MAX_PAGE_SIZE = 100;
 const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACTIVE' } as const;
 
 interface ClientFederalScope {
-  contract: ClientAwardScope;
-  subaward: ClientAwardScope;
+  /** District Nexus / award-history rail exclusivity — never OR UEI with names. */
+  contract: AwardIdentityRail;
+  assistance: AwardIdentityRail;
 }
 
 interface CountRow {
@@ -573,9 +580,11 @@ export class FederalMarketService {
       return { client, mappings };
     });
     const contractingMappings = mappings.filter((mapping) => mapping.source === 'contracting');
-    const contractorIds = [...new Set(
-      contractingMappings.map((mapping) => mapping.externalId).filter(isResolvableContractorId),
-    )];
+    const contractorIds = [
+      ...new Set(
+        contractingMappings.map((mapping) => mapping.externalId).filter(isResolvableContractorId),
+      ),
+    ];
     // Contracting external IDs are contractor UUIDs, not UEIs. Resolve the global
     // reference table outside the tenant transaction, just as the profile does.
     const contractors = contractorIds.length
@@ -584,22 +593,21 @@ export class FederalMarketService {
           WHERE id = ANY(${contractorIds}::uuid[])
         `)
       : [];
-    const scope = buildClientAwardScope({
-      uei: client.uei,
-      contractingMappings,
-      assistanceMappings: mappings.filter((mapping) => mapping.source === 'assistance_recipient'),
-    }, new Map(contractors.map((contractor) => [contractor.id, contractor.uei])));
-    return {
-      contract: scope.contract,
-      // Subawards cover both assistance and contract recipients. Keep each
-      // participant's UEI/name paired in the predicate below.
-      subaward: {
-        ueis: [...new Set([...scope.contract.ueis, ...scope.assistance.ueis])],
-        missingUeiNames: [...new Set([
-          ...scope.contract.missingUeiNames,
-          ...scope.assistance.missingUeiNames,
-        ])],
+    // Federal Market drawer + explorer share District Nexus rail exclusivity so
+    // L3Harris-style verified UEIs cannot be OR'd with reviewed names. Client
+    // profile totals that recover historical missing-UEI rows keep using
+    // buildClientAwardScope in intelligence.service instead.
+    const rails = buildAwardIdentityRails(
+      {
+        uei: client.uei,
+        contractingMappings,
+        assistanceMappings: mappings.filter((mapping) => mapping.source === 'assistance_recipient'),
       },
+      new Map(contractors.map((contractor) => [contractor.id, contractor.uei])),
+    );
+    return {
+      contract: rails.contract,
+      assistance: rails.assistance,
     };
   }
 
@@ -642,14 +650,28 @@ export class FederalMarketService {
   }
 
   private contractScopeSql(scope: ClientFederalScope): Prisma.Sql | null {
-    return clientAwardScopeSql(scope.contract);
+    return awardIdentityRailSql(scope.contract);
   }
 
   private subawardScopeSql(scope: ClientFederalScope): Prisma.Sql | null {
-    const options = [
-      clientAwardScopeSql(scope.subaward, Prisma.sql`prime_recipient_uei`, Prisma.sql`prime_recipient_name`),
-      clientAwardScopeSql(scope.subaward, Prisma.sql`subawardee_uei`, Prisma.sql`subawardee_name`),
-    ].filter((option): option is Prisma.Sql => option != null);
+    const participantColumns: Array<[Prisma.Sql, Prisma.Sql]> = [
+      [Prisma.sql`prime_recipient_uei`, Prisma.sql`prime_recipient_name`],
+      [Prisma.sql`subawardee_uei`, Prisma.sql`subawardee_name`],
+    ];
+    // Own UEI is attached to both rails by buildAwardIdentityRails. De-dupe
+    // identical predicates so prime/subawardee each match once per identity.
+    const options: Prisma.Sql[] = [];
+    const seen = new Set<string>();
+    for (const [ueiColumn, nameColumn] of participantColumns) {
+      for (const rail of [scope.contract, scope.assistance]) {
+        const predicate = awardIdentityRailSql(rail, ueiColumn, nameColumn);
+        if (!predicate) continue;
+        const key = `${predicate.text}::${JSON.stringify(predicate.values)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        options.push(predicate);
+      }
+    }
     return options.length ? Prisma.sql`(${Prisma.join(options, ' OR ')})` : null;
   }
 
@@ -752,7 +774,13 @@ export class FederalMarketService {
   }
 
   private async futureSignals(query: FederalMarketQuery): Promise<FederalMarketFutureSignal[]> {
-    const forecastClauses: Prisma.Sql[] = [];
+    const now = new Date();
+    const forecastClauses: Prisma.Sql[] = [
+      // Explicit false only — null active is not proven inactive.
+      Prisma.sql`(is_active IS NULL OR is_active = TRUE)`,
+      // Past anticipated awards are not "upcoming". Unknown dates stay eligible.
+      Prisma.sql`(anticipated_award_date IS NULL OR anticipated_award_date >= CURRENT_DATE)`,
+    ];
     if (query.state)
       forecastClauses.push(Prisma.sql`place_of_performance ILIKE ${`%${query.state}%`}`);
     if (query.agency)
@@ -766,6 +794,7 @@ export class FederalMarketService {
         agency: string | null;
         place: string | null;
         date: Date | null;
+        active: boolean | null;
         sourceUrl: string | null;
       }>
     >(Prisma.sql`
@@ -773,6 +802,7 @@ export class FederalMarketService {
              COALESCE(organization_agency_name, agency) AS agency,
              place_of_performance AS place,
              anticipated_award_date AS date,
+             is_active AS active,
              source_url AS "sourceUrl"
         FROM tango_procurement_forecast ${whereSql(forecastClauses)}
        ORDER BY anticipated_award_date ASC NULLS LAST
@@ -814,20 +844,23 @@ export class FederalMarketService {
        LIMIT 100
     `);
 
-    const signals: FederalMarketFutureSignal[] = forecasts.map((row) => {
+    const signals: FederalMarketFutureSignal[] = [];
+    for (const row of forecasts) {
+      if (!isActiveForecastFlag(row.active)) continue;
+      if (!isUpcomingForecastDate(row.date, now)) continue;
       const state = stateFromText(row.place);
-      return {
+      signals.push({
         id: `forecast:${row.id}`,
         source: 'agency_forecast',
-        title: row.title,
+        title: readableMarketTitle(row.title),
         agency: row.agency,
         state,
         districtKey: null,
         date: row.date ? row.date.toISOString().slice(0, 10) : null,
         geographyBasis: state ? 'state_text' : 'unresolved',
         sourceUrl: row.sourceUrl,
-      };
-    });
+      });
+    }
     for (const row of samRows) {
       const place = placeRecord(row.place);
       const state =
@@ -847,7 +880,7 @@ export class FederalMarketService {
       signals.push({
         id: `sam:${row.id}`,
         source: 'sam_gov',
-        title: row.title,
+        title: readableMarketTitle(row.title),
         agency: row.agency,
         state,
         districtKey: districtKey(state, district),
@@ -856,6 +889,7 @@ export class FederalMarketService {
         sourceUrl: row.sourceUrl,
       });
     }
-    return signals.slice(0, 100);
+    // Rank eligible SAM + forecast rows together before truncating the preview.
+    return rankFutureSignalsByDate(signals).slice(0, 100);
   }
 }

@@ -1,9 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import {
-  buildClientAwardScope,
-  clientAwardScopeSql,
-} from '../funding-opportunities/client-award-scope.js';
+import { buildAwardIdentityRails } from '../funding-opportunities/award-history-identity.js';
+import { awardIdentityRailSql } from '../funding-opportunities/award-identity-rail-sql.js';
 import { FederalMarketService } from './federal-market.service.js';
 
 type Internals = {
@@ -108,8 +106,8 @@ describe('FederalMarketService geography composition', () => {
   it('passes a client scope through both awarded-money rails', async () => {
     const { service, internal } = harness();
     internal.clientScope.mockResolvedValue({
-      contract: { ueis: ['AAA111BBB222'], missingUeiNames: [] },
-      subaward: { ueis: ['AAA111BBB222'], missingUeiNames: [] },
+      contract: { basis: 'exact_uei', ueis: ['AAA111BBB222'], fallbackNames: [], notes: [] },
+      assistance: { basis: 'none', ueis: [], fallbackNames: [], notes: [] },
     });
 
     await service.geography('tenant-1', { clientId: 'client-1' });
@@ -150,7 +148,7 @@ describe('FederalMarketService client award identity', () => {
     };
   }
 
-  it('uses the profile predicate after resolving contractor UUIDs and excludes unreviewed rollups', async () => {
+  it('uses rail-exclusive UEI identity after resolving contractor UUIDs (L3Harris canary)', async () => {
     const mappings = [
       {
         source: 'contracting',
@@ -190,8 +188,8 @@ describe('FederalMarketService client award identity', () => {
       [contractorId, null],
       [subsidiaryId, 'SUB123456789'],
     ]);
-    const profilePredicate = clientAwardScopeSql(
-      buildClientAwardScope(
+    const railPredicate = awardIdentityRailSql(
+      buildAwardIdentityRails(
         {
           uei: 'QM4EZDV15JL8',
           contractingMappings: mappings,
@@ -200,13 +198,19 @@ describe('FederalMarketService client award identity', () => {
         resolved,
       ).contract,
     )!;
+    // Verified UEIs present → names suppressed. Must not recover missing-UEI
+    // name rows the way client-profile scope intentionally does.
+    expect(railPredicate.text).toBe('recipient_uei = ANY($1::text[])');
+    expect(railPredicate.values).toEqual([['QM4EZDV15JL8', 'SUB123456789']]);
     const awardQueries = queries.filter((query) => query.text.includes('FROM federal_award'));
     expect(awardQueries).toHaveLength(2);
     for (const query of awardQueries) {
-      expect(query.text).toContain(`WHERE ${profilePredicate.text}`);
-      expect(query.values.slice(0, profilePredicate.values.length)).toEqual(
-        profilePredicate.values,
-      );
+      expect(query.text).toContain(`WHERE ${railPredicate.text}`);
+      expect(query.values.slice(0, railPredicate.values.length)).toEqual(railPredicate.values);
+      // SELECT still projects contractor_name; the identity WHERE must not.
+      expect(query.text).toContain('WHERE recipient_uei = ANY');
+      expect(query.text).not.toMatch(/WHERE[\s\S]*lower\(contractor_name\)/);
+      expect(query.text).not.toContain('NULLIF');
     }
   });
 
@@ -234,7 +238,9 @@ describe('FederalMarketService client award identity', () => {
     expect(countQuery.text).not.toContain('lower(contractor_name)');
   });
 
-  it('pairs each subaward participant name with its own missing-UEI guard', async () => {
+  it('applies rail-exclusive identity to each subaward participant column', async () => {
+    // Client own UEI is present → contract rail is exact_uei; the reviewed
+    // name must not appear even though the mapping has no contractor UUID/UEI.
     const { service, queries } = clientHarness([
       {
         source: 'contracting',
@@ -246,17 +252,46 @@ describe('FederalMarketService client award identity', () => {
     ]);
     await service.listSubawards('tenant-1', { clientId: 'client-1' });
     const countQuery = queries.find((query) => query.text.includes('COUNT(*)'))!;
-    expect(countQuery.text).toContain(
-      "NULLIF(BTRIM(prime_recipient_uei), '') IS NULL AND lower(prime_recipient_name)",
-    );
-    expect(countQuery.text).toContain(
-      "NULLIF(BTRIM(subawardee_uei), '') IS NULL AND lower(subawardee_name)",
-    );
-    expect(countQuery.values).toEqual([
-      ['QM4EZDV15JL8'],
-      ['reviewed subsidiary'],
-      ['QM4EZDV15JL8'],
-      ['reviewed subsidiary'],
-    ]);
+    expect(countQuery.text).toContain('prime_recipient_uei = ANY($1::text[])');
+    expect(countQuery.text).toContain('subawardee_uei = ANY($2::text[])');
+    expect(countQuery.text).not.toContain('NULLIF');
+    expect(countQuery.text).not.toMatch(/lower\(prime_recipient_name\)/);
+    expect(countQuery.text).not.toMatch(/lower\(subawardee_name\)/);
+    expect(countQuery.values).toEqual([['QM4EZDV15JL8'], ['QM4EZDV15JL8']]);
+  });
+
+  it('uses name-fallback rails for subaward participants only when no UEI exists', async () => {
+    const localTx = {
+      client: { findFirst: jest.fn().mockResolvedValue({ id: 'client-1', uei: null }) },
+      clientIntelMapping: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            source: 'contracting',
+            externalId: 'not-a-uuid',
+            externalName: 'Reviewed Subsidiary',
+            matchBasis: 'manual_pin',
+            matchTier: 1,
+          },
+        ]),
+      },
+    };
+    const localQueries: Prisma.Sql[] = [];
+    const prisma = {
+      withTenant: jest.fn(async (_tenantId: string, run: (inner: typeof localTx) => unknown) =>
+        run(localTx),
+      ),
+      $queryRaw: jest.fn(async (query: Prisma.Sql) => {
+        localQueries.push(query);
+        if (query.text.includes('COUNT(*)')) return [{ count: 0n, asOf: null }];
+        return [];
+      }),
+    };
+    const local = new FederalMarketService(prisma as unknown as PrismaService);
+    await local.listSubawards('tenant-1', { clientId: 'client-1' });
+    const countQuery = localQueries.find((query) => query.text.includes('COUNT(*)'))!;
+    expect(countQuery.text).toContain('lower(prime_recipient_name) = ANY($1::text[])');
+    expect(countQuery.text).toContain('lower(subawardee_name) = ANY($2::text[])');
+    expect(countQuery.text).not.toContain('NULLIF');
+    expect(countQuery.values).toEqual([['reviewed subsidiary'], ['reviewed subsidiary']]);
   });
 });

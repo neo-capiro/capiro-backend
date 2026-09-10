@@ -15,6 +15,36 @@ import './district-federal-market.css';
 
 const { Text } = Typography;
 
+/** Provider titles can embed <br /> / entities; never render raw markup. */
+function readableSignalTitle(title: string): string {
+  const entities: Record<string, string> = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+  };
+  return title
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/?[^>]+>/g, ' ')
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, token: string) => {
+      const key = token.toLowerCase();
+      if (key in entities) return entities[key]!;
+      if (key.startsWith('#x')) {
+        const code = Number.parseInt(key.slice(2), 16);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+      }
+      if (key.startsWith('#')) {
+        const code = Number.parseInt(key.slice(1), 10);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+      }
+      return match;
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 type FutureRow = FederalMarketGeographyResponse['futureSignals'][number];
 
 function sumOrNull(values: Array<number | null>): number | null {
@@ -34,7 +64,7 @@ function promptForDistrict(
     .slice(0, 4)
     .map(
       (signal) =>
-        `${signal.source === 'agency_forecast' ? 'forecast' : 'SAM opportunity'}: ${signal.title}`,
+        `${signal.source === 'agency_forecast' ? 'forecast' : 'SAM opportunity'}: ${readableSignalTitle(signal.title)}`,
     )
     .join('; ');
   return `Assess the federal market context for ${districtKey}. Source-backed prime contract obligations shown here: ${formatMarketMoney(contractAmount)}. District-resolved subawards: ${formatMarketMoney(districtSubawardAmount)}. State-only subawards that Capiro has NOT attributed to this district: ${formatMarketMoney(stateOnlySubawardAmount)}. Future signals: ${futureAvailable ? signalSummary || 'none in this view' : 'unavailable; lookup failed, not zero'}. Explain why this district may matter to the selected client, relevant government-affairs implications, and the next actions. Keep state-only subawards separate from district facts and never add future opportunities to awarded totals.`;
@@ -196,7 +226,7 @@ export function DistrictFederalMarketPanel({
           {futureSignals.map((signal) => (
             <div className="dn-market-signal" key={signal.id}>
               <div>
-                <strong>{signal.title}</strong>
+                <strong>{readableSignalTitle(signal.title)}</strong>
                 <span>
                   {signal.agency ?? 'Agency not stated'} · {formatMarketDate(signal.date)} ·{' '}
                   {signalGeography(signal)}
