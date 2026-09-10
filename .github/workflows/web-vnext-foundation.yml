@@ -41,6 +41,9 @@ jobs:
       - name: Web typecheck
         run: pnpm --filter @capiro/web typecheck
       - name: Web build
+        env:
+          # Match the production Docker build's Rollup heap budget.
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/web build
       - name: WebVNext CDK typecheck
         run: pnpm --filter @capiro/infra-cdk typecheck
