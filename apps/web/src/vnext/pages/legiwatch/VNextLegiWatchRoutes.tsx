@@ -9,7 +9,7 @@
  * links out to it rather than forking the dossier.
  */
 import { Suspense, lazy } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { LegiWatchModule } from './LegiWatchModule.js';
 import { LwStateLoading } from './states/SystemStates.js';
 
@@ -73,9 +73,15 @@ function CommitteeRoomRouteWrapped() {
   );
 }
 
+function LegacyRadarRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/legiwatch${search}${hash}`} replace />;
+}
+
 export function VNextLegiWatchRoutes() {
   return (
     <Routes>
+      <Route path="/radar" element={<LegacyRadarRedirect />} />
       <Route path="/legiwatch" element={<LegiWatchModule />} />
       {/* PR B — canonical hearing detail (LW-QA-003/004). */}
       <Route path="/legiwatch/hearings/:hearingId" element={<HearingDetailRouteWrapped />} />
@@ -92,6 +98,7 @@ export function VNextLegiWatchRoutes() {
 /** Path predicate for VNextRouter: the module owns `/legiwatch` and the live
  *  hearing room route. Everything else falls through to canonical. */
 export function isVNextLegiWatchPath(pathname: string): boolean {
+  if (pathname === '/radar') return true;
   if (pathname === '/legiwatch' || pathname.startsWith('/legiwatch/')) return true;
   // The live room only when it carries a session id — the bare
   // `/intelligence/hearing-watch` index already redirects to `?tab=hearings`.

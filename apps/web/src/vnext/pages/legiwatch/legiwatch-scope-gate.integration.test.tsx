@@ -1,3 +1,5 @@
+// Load the actual lazy editor before timed interactions; no component is mocked.
+import './settings/WatchlistSetup.js';
 /**
  * PR C §17 — LegiWatchModule scope-gate + browse-mode contract (LW-QA-006/007).
  *
@@ -29,7 +31,8 @@ vi.mock('../../../lib/use-api.js', () => ({
 vi.mock('../../../lib/me.js', () => ({ useMe: () => ({ isLoading: false, data: undefined }) }));
 
 // tracker_v2 flag ON so the watchlist-peek runs; feature flag plumbing stubbed.
-vi.mock('../../../lib/intel-feature-flags.js', () => ({
+vi.mock('../../../lib/intel-feature-flags.js', async (original) => ({
+  ...await original<typeof import('../../../lib/intel-feature-flags.js')>(),
   useIntelFeature: () => ({ ready: true, enabled: true }),
 }));
 
@@ -96,7 +99,11 @@ function wireGet(url: string): { data: unknown } | null {
   if (url.startsWith('/intel-api/clients/c-wl/recommendations') || url.startsWith('/intel-api/clients/c-nowl/recommendations')) {
     return { data: [] };
   }
-  if (url === '/intel-api/tracker/issue-areas') return { data: [] };
+  if (url === '/intel-api/tracker/issue-areas') return { data: { issueAreas: ['Defense'] } };
+  if (url.endsWith('/alert-prefs')) return { data: { triggers: [], materiality: 'medium' } };
+  if (url.endsWith('/compiled')) return { data: { termSurfaces: {} } };
+  if (url.endsWith('/seed-suggestions')) return { data: { tags: [], issueAreas: [] } };
+  if (url.endsWith('/tracker/summary')) return { data: { boardCount: 0, unread: 0 } };
   return null;
 }
 
@@ -166,9 +173,12 @@ describe('PR C §13 — watchlist gate scopes to dependent tabs only', () => {
   ])('opens real monitoring setup for the scoped client through $action', async ({ browse, action }) => {
     const { location } = renderModule(`/legiwatch?client=c-nowl&tab=feed${browse}`);
     fireEvent.click(await screen.findByRole('button', { name: action }));
-    await waitFor(() => expect(location.current.pathname).toBe('/radar'));
-    expect(new URLSearchParams(location.current.search).get('tab')).toBe('watchlist');
+    await waitFor(() => expect(location.current.pathname).toBe('/legiwatch'));
+    expect(new URLSearchParams(location.current.search).get('tab')).toBe('settings');
+    expect(new URLSearchParams(location.current.search).get('sub')).toBe('watchlist');
     expect(new URLSearchParams(location.current.search).get('client')).toBe('c-nowl');
+    const setup = await screen.findByLabelText('Client watchlist setup', {}, { timeout: 5000 });
+    expect(await within(setup).findByText('Client tags & watchlist')).toBeInTheDocument();
   });
 
   it('no-watchlist client: Digest tab shows the inline gate; Analytics same', async () => {
