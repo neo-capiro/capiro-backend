@@ -181,6 +181,58 @@ export const MERI_SKILL_REGISTRY = [
     semanticDomains: ['mail', 'clients', 'contacts', 'documents', 'tasks', 'action_items'],
     readOnly: true,
   },
+  {
+    id: 'meeting_prep',
+    label: 'Meeting Prep Brief',
+    description:
+      'Everything needed before a client, legislative or internal meeting: recent activity, key emails, prior conversations, decisions, open questions, deadlines and our commitments.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_relationship_brief',
+    permittedScopes: ['general', 'client', 'external_entity'],
+    starterPrompt:
+      'Catch me up on [client, person, or issue] so I can prepare for my upcoming meeting. Cover: what has happened recently across every authorized source; the most important email exchanges; prior meetings and conversations; decisions already made; outstanding questions and unresolved issues; upcoming deadlines, meetings, and legislative developments; and everything we have committed to doing. Separate verified facts from inference, flag any incomplete source coverage, and end with a one-page pre-meeting checklist.',
+    requiredEntitlements: [],
+    semanticDomains: [
+      'clients',
+      'mail',
+      'meetings',
+      'contacts',
+      'documents',
+      'memory',
+      'tasks',
+      'action_items',
+      'outreach',
+      'legislation',
+    ],
+    readOnly: true,
+  },
+  {
+    id: 'commitments_audit',
+    label: 'Commitments & Deliverables',
+    description:
+      'What we promised a client, who owns each item, what is done, what needs follow-up, and commitments in emails or meetings never captured as tasks.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_client_changes',
+    requiresClient: true,
+    permittedScopes: ['general', 'client'],
+    starterPrompt:
+      'What has changed with the commitments and deliverables we owe this client? Audit every commitment we have made. List each commitment with: what was promised, when and where it was made, the internal owner, current status (completed, in progress, or no record of action), and what needs follow-up. Cross-check emails, meeting notes, debriefs, tasks and action items: explicitly flag any commitment found in an email or meeting summary that has no corresponding tracked task or action item. Do not mark anything complete without evidence, and identify sources you could not check.',
+    requiredEntitlements: [],
+    semanticDomains: [
+      'clients',
+      'mail',
+      'meetings',
+      'tasks',
+      'action_items',
+      'documents',
+      'memory',
+    ],
+    readOnly: true,
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

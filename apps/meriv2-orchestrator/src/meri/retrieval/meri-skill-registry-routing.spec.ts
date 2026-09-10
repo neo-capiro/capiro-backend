@@ -85,4 +85,23 @@ describe('Meri Quick Action routing contract', () => {
     expect(plan.recipeTool).toBe(definition.canonicalRecipe);
     expect(prompt).toMatch(/mailbox history/);
   });
+
+  test('Meeting Prep routes to the relationship fan-out recipe', () => {
+    const definition = skill('meeting_prep');
+    const prompt = hydrateMeriStarterPrompt(definition).replace(
+      '[client, person, or issue]',
+      'HCA',
+    );
+
+    expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
+  });
+
+  test('Commitments audit stays pinned to the selected workspace client', () => {
+    const definition = skill('commitments_audit');
+    const prompt = hydrateMeriStarterPrompt(definition, { clientName: 'TitanForge' });
+    const plan = planFor(prompt, '11111111-1111-4111-8111-111111111111');
+
+    expect(plan.subjectScope).toBe('client');
+    expect(plan.recipeTool).toBe(definition.canonicalRecipe);
+  });
 });
