@@ -133,7 +133,7 @@ export function ReviewedPartialPeTotalsPage() {
           value={String(fiscalYear)}
           onChange={(e) => setFiscalYear(Number(e.target.value))}
           options={FISCAL_YEAR_OPTIONS}
-          aria-label="Fiscal year"
+          label="Fiscal year"
         />
       </div>
 
